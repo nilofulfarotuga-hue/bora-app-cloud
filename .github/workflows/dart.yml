@@ -15,7 +15,8 @@ jobs:
       - name: Instalar Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.29.3'
+          flutter-version: '3.41.2'
+          channel: 'stable'
           cache: false
 
       - name: Versão do Flutter
@@ -27,6 +28,9 @@ jobs:
       - name: Instalar dependências
         run: flutter pub get
 
+      - name: Análise estática
+        run: flutter analyze --no-fatal-infos
+
       - name: Build APK (release)
         run: flutter build apk --release --build-number=${{ github.run_number }}
         env:
@@ -36,10 +40,11 @@ jobs:
         run: |
           APK_PATH="build/app/outputs/flutter-apk/app-release.apk"
           echo "=== APK INFO ==="
-          echo "Run number : ${{ github.run_number }}"
+          echo "Run number  : ${{ github.run_number }}"
           echo "Commit SHA  : ${{ github.sha }}"
-          echo "Tamanho    : $(du -sh $APK_PATH | cut -f1)"
-          echo "SHA256     : $(sha256sum $APK_PATH)"
+          echo "Flutter     : $(flutter --version | head -1)"
+          echo "Tamanho     : $(du -sh $APK_PATH | cut -f1)"
+          echo "SHA256      : $(sha256sum $APK_PATH)"
           echo "================"
 
       - name: Upload APK

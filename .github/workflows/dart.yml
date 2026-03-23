@@ -33,6 +33,7 @@ jobs:
           java -version
           echo "JAVA_HOME=$JAVA_HOME"
           echo "Android SDK: $ANDROID_SDK_ROOT"
+          ls "$ANDROID_SDK_ROOT/build-tools/" 2>/dev/null | tail -5 || true
 
       - name: Limpar build anterior
         run: flutter clean
@@ -45,18 +46,26 @@ jobs:
 
       - name: Build APK (release)
         run: |
-          flutter build apk --release --build-number=${{ github.run_number }} --verbose 2>&1 | tee /tmp/flutter_build.log
-          BUILD_EXIT=${PIPESTATUS[0]}
-          if [ $BUILD_EXIT -ne 0 ]; then
-            echo ""
-            echo "=== GRADLE BUILD FAILURE — PRIMEIROS ERROS ==="
-            grep -E "FAILURE:|> Task|error:|Error|Exception|Caused by:|e:" /tmp/flutter_build.log | head -60 || true
-            echo "=== ÚLTIMAS 50 LINHAS DO LOG ==="
-            tail -50 /tmp/flutter_build.log
-          fi
-          exit $BUILD_EXIT
+          set -o pipefail
+          flutter build apk --release --build-number=${{ github.run_number }} 2>&1 | tee /tmp/flutter_build.log
         env:
           GRADLE_OPTS: "-Xmx4g -XX:MaxMetaspaceSize=1g -Dfile.encoding=UTF-8"
+
+      - name: Capturar erros do build (se falhar)
+        if: failure()
+        run: |
+          echo "## Build Failure Details" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          grep -E "FAILURE:|Caused by:|error: |> Could not|e: |Task.*FAILED" /tmp/flutter_build.log | head -40 >> $GITHUB_STEP_SUMMARY || true
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "--- Last 80 lines ---" >> $GITHUB_STEP_SUMMARY
+          tail -80 /tmp/flutter_build.log >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+          # Also output as annotations
+          while IFS= read -r line; do
+            echo "::error::$line"
+          done < <(grep -E "FAILURE:|Caused by:|error: |> Could not|e: |Task.*FAILED" /tmp/flutter_build.log | head -20 || true)
 
       - name: Verificar APK gerado
         run: |

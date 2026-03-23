@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart' as ll;
 import 'package:uuid/uuid.dart';
@@ -49,12 +50,14 @@ class _IoPlaceAutocompleteService implements PlaceAutocompleteService {
     try {
       final response = await http.get(uri);
       if (response.statusCode != 200) {
+        debugPrint('PlaceAutocomplete: HTTP ${response.statusCode} => ${response.body}');
         return const <PlacePrediction>[];
       }
 
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       final status = data['status'] as String?;
       if (status != 'OK') {
+        debugPrint('PlaceAutocomplete: API status => $status | error_message => ${data['error_message']}');
         return const <PlacePrediction>[];
       }
 
@@ -76,7 +79,8 @@ class _IoPlaceAutocompleteService implements PlaceAutocompleteService {
       _lastQuery = query;
       _cachedPredictions = predictions;
       return predictions;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('PlaceAutocomplete.fetchPredictions: ERROR => $e');
       return const <PlacePrediction>[];
     }
   }
@@ -110,6 +114,7 @@ class _IoPlaceAutocompleteService implements PlaceAutocompleteService {
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       final status = data['status'] as String?;
       if (status != 'OK') {
+        debugPrint('PlaceAutocomplete.resolvePlaceLocation: API status => $status | error_message => ${data['error_message']}');
         return null;
       }
 
@@ -124,7 +129,8 @@ class _IoPlaceAutocompleteService implements PlaceAutocompleteService {
         return ll.LatLng(lat.toDouble(), lng.toDouble());
       }
       return null;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('PlaceAutocomplete.resolvePlaceLocation: ERROR => $e');
       return null;
     } finally {
       resetSession();

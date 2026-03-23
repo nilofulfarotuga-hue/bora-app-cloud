@@ -27,7 +27,9 @@ class _CarryGroceriesFormScreenState extends State<CarryGroceriesFormScreen> {
   final destinationCityController = TextEditingController(text: "Lisboa");
   final destinationPostalController = TextEditingController();
 
-    @override
+  bool _isLoading = false;
+
+  @override
   void dispose() {
     storeStreetController.dispose();
     storeCityController.dispose();
@@ -38,14 +40,13 @@ class _CarryGroceriesFormScreenState extends State<CarryGroceriesFormScreen> {
     super.dispose();
   }
 
-  void createOrder() {
+  Future<void> createOrder() async {
     final storeStreet = storeStreetController.text.trim();
     final storeCity = storeCityController.text.trim();
     final storePostal = storePostalController.text.trim();
     final destinationStreet = destinationStreetController.text.trim();
     final destinationCity = destinationCityController.text.trim();
     final destinationPostal = destinationPostalController.text.trim();
-
 
     if (storeStreet.isEmpty || destinationStreet.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -60,31 +61,42 @@ class _CarryGroceriesFormScreenState extends State<CarryGroceriesFormScreen> {
     final orderStore = context.read<OrderStore>();
     final authStore = context.read<AuthStore>();
 
-    orderStore.createOrder(
+    setState(() => _isLoading = true);
 
+    final success = await orderStore.createOrder(
       serviceType: OrderServiceType.carryGroceries,
       itemsSubtotal: 0,
       destination: dropoffLocation,
       paymentMethod: PaymentMethod.cash,
       pickupLocation: pickupLocation,
       isPartnerStore: false,
-
       pickupAddress: "$storeStreet, $storeCity",
       pickupStreet: storeStreet,
       pickupCity: storeCity,
       pickupPostalCode: storePostal,
-            dropoffAddress: "$destinationStreet, $destinationCity",
+      dropoffAddress: "$destinationStreet, $destinationCity",
       dropoffStreet: destinationStreet,
       dropoffCity: destinationCity,
       dropoffPostalCode: destinationPostal,
       clientPhone: authStore.currentClient?.phone,
     );
 
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+
+    if (!success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Não foi possível criar o pedido. Verifique os logs para mais detalhes."),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Pedido criado")),
+      const SnackBar(content: Text("Pedido criado com sucesso!")),
     );
-
     Navigator.pop(context);
   }
 
@@ -149,8 +161,14 @@ class _CarryGroceriesFormScreenState extends State<CarryGroceriesFormScreen> {
             ),
             const SizedBox(height: 24),
             ElevatedButton(
-              onPressed: createOrder,
-              child: const Text("Criar pedido"),
+              onPressed: _isLoading ? null : createOrder,
+              child: _isLoading
+                  ? const SizedBox(
+                      height: 16,
+                      width: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text("Criar pedido"),
             ),
           ],
         ),

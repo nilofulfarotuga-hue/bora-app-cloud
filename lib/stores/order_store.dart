@@ -1216,9 +1216,17 @@ class OrderStore extends ChangeNotifier {
   // ─────────────────────────────────────────────────────────────────────────
 
   Future<void> _saveOrderToDatabase(OrderModel order) async {
-    // Use toSupabase() to send ALL fields, not just 5 hardcoded ones.
-    await supabase.from('orders').insert(order.toSupabase());
-    debugPrint('OrderStore: inserted order ${order.id}');
+    final data = order.toSupabase();
+    debugPrint('OrderStore._saveOrderToDatabase: inserting order ${order.id}');
+    debugPrint('OrderStore._saveOrderToDatabase: payload => $data');
+    try {
+      await supabase.from('orders').insert(data);
+      debugPrint('OrderStore._saveOrderToDatabase: success for ${order.id}');
+    } catch (e, stack) {
+      debugPrint('OrderStore._saveOrderToDatabase: SUPABASE ERROR => $e');
+      debugPrint('OrderStore._saveOrderToDatabase: stacktrace => $stack');
+      rethrow;
+    }
   }
 
   Future<bool> _updateOrderStatusInDatabase(

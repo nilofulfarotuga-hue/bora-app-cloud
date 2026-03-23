@@ -264,7 +264,7 @@ class _PartnerCallDriverScreenState extends State<PartnerCallDriverScreen> {
     final orderStore = context.read<OrderStore>();
 
     try {
-      orderStore.createPartnerDeliveryRequest(
+      await orderStore.createPartnerDeliveryRequest(
         restaurant: widget.restaurant,
         customerName: _customerNameController.text.trim(),
         customerPhone: _phoneController.text.trim(),

@@ -1,12 +1,11 @@
-import 'package:firebase_core/firebase_core.dart';
+// import 'package:firebase_core/firebase_core.dart'; // temporarily disabled
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'services/notification_service.dart';
-
+// import 'services/notification_service.dart'; // temporarily disabled with Firebase
 import 'auth/auth_store.dart';
 import 'dispatch/dispatch_engine.dart';
 import 'screens/client_login_screen.dart';
@@ -39,12 +38,8 @@ Future<void> main() async {
   if (!kIsWeb) {
     Stripe.publishableKey =
         'pk_test_51T8MG0GmiUUEIr722bf8w8H8LWZgAlMMuPgEP4XOxzfYr9VsiIhxQixvj7uqkdtbfXatRHrvOcgX3C3dv257rjs600mn6d5mVv';
-    try {
-      await Firebase.initializeApp();
-      await NotificationService.instance.init();
-    } catch (e) {
-      debugPrint('Firebase/Notification init failed: $e');
-    }
+    // Firebase.initializeApp() temporarily disabled — requires google-services.json
+    // NotificationService HTTP methods (notify-drivers, notify-client) still work
   }
 
   final sessionStore = SessionStore();

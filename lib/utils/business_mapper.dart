@@ -1,0 +1,68 @@
+import '../data/fake_data.dart';
+import '../models/restaurant_model.dart';
+import '../stores/restaurant_store.dart';
+
+class BusinessMapper {
+  const BusinessMapper._();
+
+  /// Builds a [Restaurant] view-model from the DB-backed [RestaurantStore].
+  /// Products come exclusively from Supabase (no fake-data fallback).
+  /// Non-partner restaurants show their seeded menu; the 15% markup is applied
+  /// at cart time via CartStore.addItem() → PricingService.applyMarkup().
+  static Restaurant buildRestaurantMenu({
+    required RestaurantStore restaurantStore,
+    required RestaurantModel business,
+  }) {
+    final partnerProducts = restaurantStore.partnerProductsForRestaurant(
+      business.id,
+      onlyAvailable: true,
+    );
+
+    final menu = partnerProducts
+        .map((product) => MenuItem(name: product.name, price: product.price))
+        .toList();
+
+    return Restaurant(
+      name: business.name,
+      isPartner: business.isPartner,
+      menu: menu,
+    );
+  }
+
+  /// Builds a [RetailStore] view-model from DB products.
+  /// Returns null only for [BusinessCategory.restaurant] entries.
+  /// Stores with no DB products return an empty [RetailStore] — the
+  /// [StoreProductsScreen] shows a "no products" message in that case.
+  static RetailStore? buildRetailStore({
+    required RestaurantStore restaurantStore,
+    required RestaurantModel business,
+  }) {
+    if (business.category == BusinessCategory.restaurant) return null;
+
+    final partnerProducts = restaurantStore.partnerProductsForRestaurant(
+      business.id,
+      onlyAvailable: true,
+    );
+
+    return RetailStore(
+      name: business.name,
+      isPartner: business.isPartner,
+      category: _mapStoreCategory(business.category),
+      products: partnerProducts
+          .map((product) =>
+              MarketProduct(name: product.name, price: product.price))
+          .toList(),
+    );
+  }
+
+  static StoreCategory _mapStoreCategory(BusinessCategory category) {
+    switch (category) {
+      case BusinessCategory.pharmacy:
+        return StoreCategory.pharmacy;
+      case BusinessCategory.restaurant:
+      case BusinessCategory.supermarket:
+      case BusinessCategory.store:
+        return StoreCategory.market;
+    }
+  }
+}

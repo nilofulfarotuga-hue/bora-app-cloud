@@ -445,24 +445,27 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
     return Scaffold(
       body: Stack(
         children: [
-          GoogleMap(
-            key: ValueKey(_gpsCenter),
-            initialCameraPosition: CameraPosition(
-              // _gpsCenter is guaranteed non-null here (guarded above).
-              target: _gpsCenter!.toGMaps(),
-              zoom: 15,
+          // GoogleMap must have explicit size on Web (PlatformView requirement).
+          // Use SizedBox.expand to fill entire Stack with the map.
+          SizedBox.expand(
+            child: GoogleMap(
+              key: ValueKey(_gpsCenter),
+              initialCameraPosition: CameraPosition(
+                // _gpsCenter is guaranteed non-null here (guarded above).
+                target: _gpsCenter!.toGMaps(),
+                zoom: 15,
+              ),
+              markers: markers,
+              polylines: polylines,
+              myLocationEnabled: true,
+              myLocationButtonEnabled: false,
+              zoomControlsEnabled: false,
+              mapToolbarEnabled: false,
+              onMapCreated: (controller) {
+                _mapController = controller;
+                controller.setMapStyle(_mapStyle);
+              },
             ),
-            markers: markers,
-            polylines: polylines,
-            myLocationEnabled: true,
-            myLocationButtonEnabled: false,
-            zoomControlsEnabled: false,
-            mapToolbarEnabled: false,
-            onMapCreated: (controller) {
-              _mapController = controller;
-              controller.setMapStyle(_mapStyle);
-              
-            },
           ),
 
           // Back button

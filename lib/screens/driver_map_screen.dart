@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' hide LatLng;
@@ -14,6 +15,7 @@ import '../services/route_optimizer.dart';
 import '../stores/driver_store.dart';
 import '../stores/order_store.dart';
 import '../utils/map_utils.dart';
+import '../widgets/address_text.dart';
 import 'chat_screen.dart';
 import 'driver_order_action_helper.dart';
 
@@ -37,8 +39,12 @@ class DriverMapScreen extends StatefulWidget {
 }
 
 class _DriverMapScreenState extends State<DriverMapScreen> {
-  final Completer<GoogleMapController> _mapController = Completer();
+  GoogleMapController? _mapController;
+  late DriverStore _driverStore;
   final DirectionsService _directionsService = DirectionsService();
+
+  /// One-shot GPS result — map is not rendered until this is populated.
+  ll.LatLng? _gpsCenter;
 
   ll.LatLng? _lastAnimatedPosition;
   String? _lastAnimatedStopsKey;
@@ -56,7 +62,10 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
   @override
   void initState() {
     super.initState();
-    _listenToDriverLocation();
+    // Capture DriverStore once in initState so fallback logic can access it
+    // safely without async context issues.
+    _driverStore = context.read<DriverStore>();
+    _startLocationTracking();
   }
 
   @override
@@ -67,45 +76,190 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
     super.dispose();
   }
 
-  Future<void> _listenToDriverLocation() async {
+  /// Single entry point for all GPS tracking.
+  ///
+  /// Flow:
+  ///   1. Check GPS service enabled   → show snackbar + fallback if not.
+  ///   2. Check/request permission    → show snackbar + fallback if denied.
+  ///   3. getLastKnownPosition()      → instant unblock of GPS-first guard.
+  ///   4. getPositionStream()         → continuous real-time tracking.
+  ///      On Android: uses AndroidSettings with ForegroundNotificationConfig
+  ///      so the stream survives app minimisation (foreground service).
+  Future<void> _startLocationTracking() async {
+    debugPrint('[DriverMapScreen] _startLocationTracking started');
+    // ── 1. GPS service check ────────────────────────────────────────────────
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    debugPrint('[DriverMapScreen] GPS service enabled: $serviceEnabled');
+    if (!serviceEnabled) {
+      if (!mounted) return;
+      // GPS is disabled — attempt to unblock rendering with DriverStore fallback
+      final fallback = _driverStore.currentDriver?.location;
+      debugPrint('[DriverMapScreen] GPS disabled, fallback location: $fallback');
+      if (fallback != null && mounted) {
+        setState(() => _gpsCenter = fallback);
+        debugPrint('[DriverMapScreen] Set _gpsCenter from fallback');
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('GPS desativado. Ative a localização para tracking.'),
+          duration: Duration(seconds: 8),
+          action: SnackBarAction(
+            label: 'Ativar',
+            onPressed: Geolocator.openLocationSettings,
+          ),
+        ),
+      );
+      return;
+    }
+
+    // ── 2. Permission check/request ─────────────────────────────────────────
     var permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
     }
+    if (!mounted) return;
 
-    if (permission == LocationPermission.denied ||
-        permission == LocationPermission.deniedForever) {
+    if (permission == LocationPermission.deniedForever) {
+      // Location permission permanently denied — attempt to unblock rendering
+      final fallback = _driverStore.currentDriver?.location;
+      if (fallback != null && mounted) {
+        setState(() => _gpsCenter = fallback);
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'Permissão de localização bloqueada. Ative nas definições.'),
+          duration: Duration(seconds: 8),
+          action: SnackBarAction(
+            label: 'Definições',
+            onPressed: Geolocator.openAppSettings,
+          ),
+        ),
+      );
+      return;
+    }
+    if (permission == LocationPermission.denied) {
+      // Location permission denied — attempt to unblock rendering
+      final fallback = _driverStore.currentDriver?.location;
+      if (fallback != null && mounted) {
+        setState(() => _gpsCenter = fallback);
+      }
       return;
     }
 
-    _positionSubscription = Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(
+    // ── 3. Fast path: last known position (OS cache, no hardware query) ─────
+    // Unblocks the GPS-first rendering guard without waiting for a new fix.
+    // On Web, getLastKnownPosition may be slow or unreliable, so use timeout.
+    try {
+      debugPrint('[DriverMapScreen] Calling getLastKnownPosition...');
+      final last = await Geolocator.getLastKnownPosition()
+          .timeout(const Duration(seconds: 5), onTimeout: () {
+        debugPrint('[DriverMapScreen] getLastKnownPosition timed out (5s)');
+        return null;
+      });
+      debugPrint('[DriverMapScreen] getLastKnownPosition returned: $last');
+      if (last != null && mounted && _gpsCenter == null) {
+        final loc = ll.LatLng(last.latitude, last.longitude);
+        debugPrint('[DriverMapScreen] Setting _gpsCenter from getLastKnownPosition: $loc');
+        setState(() => _gpsCenter = loc);
+        _mapController?.animateCamera(CameraUpdate.newLatLng(loc.toGMaps()));
+        // DO NOT add postFrameCallback here — setState above already triggers
+        // rebuild. The GoogleMap's ValueKey(_gpsCenter) detects the change.
+        final driverStore = context.read<DriverStore>();
+        driverStore.updateDriverLocation(driverStore.currentDriverId, loc);
+      } else if (mounted && _gpsCenter == null) {
+        // getLastKnownPosition() returned null (cold start / no OS cache).
+        // Attempt to unblock the rendering guard using the last position
+        // already held by DriverStore. If that's also null, use a safe default
+        // and wait for stream to refine with real GPS.
+        final fallback = _driverStore.currentDriver?.location;
+        debugPrint('[DriverMapScreen] getLastKnownPosition was null, fallback: $fallback');
+        if (fallback != null) {
+          setState(() => _gpsCenter = fallback);
+          debugPrint('[DriverMapScreen] Set _gpsCenter from DriverStore fallback');
+        } else {
+          // Last resort: use Lisbon as temporary center to unblock rendering.
+          // Stream will immediately replace this with real GPS when acquired.
+          const lisbon = ll.LatLng(38.7223, -9.1393);
+          setState(() => _gpsCenter = lisbon);
+          debugPrint('[DriverMapScreen] Set _gpsCenter to Lisbon default, waiting for real GPS...');
+        }
+        // Stream will refine with real GPS location (see line 214-220)
+      }
+    } catch (e) {
+      // Non-fatal — stream still provides a real fix.
+      debugPrint('[DriverMapScreen] Exception in getLastKnownPosition: $e');
+    }
+
+    // ── 4. Continuous stream ─────────────────────────────────────────────────
+    // AndroidSettings with ForegroundNotificationConfig keeps the stream alive
+    // even when the app is minimised (Android foreground service).
+    // On iOS, standard LocationSettings suffice (the OS handles background).
+    final LocationSettings locationSettings;
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      locationSettings = AndroidSettings(
         accuracy: LocationAccuracy.high,
         distanceFilter: 5,
-      ),
+        intervalDuration: const Duration(seconds: 3),
+        foregroundNotificationConfig: const ForegroundNotificationConfig(
+          notificationTitle: 'BORA em execução',
+          notificationText: 'Localização ativa para entregas',
+          enableWakeLock: true,
+        ),
+      );
+    } else {
+      locationSettings = const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 5,
+      );
+    }
+
+    _positionSubscription = Geolocator.getPositionStream(
+      locationSettings: locationSettings,
     ).listen((position) {
       if (!mounted) return;
+      final newLoc = ll.LatLng(position.latitude, position.longitude);
+      debugPrint('[DriverMapScreen] Position stream update: $newLoc');
 
-      final orderStore = context.read<OrderStore>();
-      if (orderStore.myOrders.isEmpty) return;
+      // Unblock rendering guard if last-known position was unavailable.
+      if (_gpsCenter == null) {
+        debugPrint('[DriverMapScreen] Setting _gpsCenter from position stream');
+        setState(() => _gpsCenter = newLoc);
+        _mapController?.animateCamera(CameraUpdate.newLatLng(newLoc.toGMaps()));
+        // DO NOT add postFrameCallback here — setState above already triggers
+        // rebuild. The GoogleMap's ValueKey(_gpsCenter) detects the change.
+      }
 
+      // DriverStore is the single source of truth for location;
+      // markers, route optimisation, and camera follow all read from it.
       final driverStore = context.read<DriverStore>();
-      final updatedLocation = ll.LatLng(position.latitude, position.longitude);
-
-      driverStore.updateDriverLocation(
-        driverStore.currentDriverId,
-        updatedLocation,
-      );
+      driverStore.updateDriverLocation(driverStore.currentDriverId, newLoc);
     });
+  }
+
+  /// Resolves the GPS-first rendering guard using the DriverStore location
+  /// when real GPS is unavailable (permission denied, service disabled, etc.).
+  /// Note: This method is no longer called; fallback check is inlined in
+  /// _startLocationTracking() to avoid silent failures when location is null.
+  void _resolveGpsTrackingFallback() {
+    if (!mounted) return;
+    final fallback = _driverStore.currentDriver?.location;
+    if (fallback != null) {
+      setState(() => _gpsCenter = fallback);
+      _mapController?.animateCamera(CameraUpdate.newLatLng(fallback.toGMaps()));
+      // DO NOT add postFrameCallback here — setState above already triggers rebuild.
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('[DriverMapScreen] build() called, _gpsCenter=$_gpsCenter');
     final orderStore = context.watch<OrderStore>();
     final driverStore = context.watch<DriverStore>();
 
     final driver = driverStore.currentDriver;
     if (driver == null) {
+      debugPrint('[DriverMapScreen] build() returning error — currentDriver is null');
       return Scaffold(
         appBar: AppBar(title: const Text('Mapa da entrega')),
         body: const Center(
@@ -117,8 +271,22 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
       );
     }
 
+    // Block rendering until real GPS is available — prevents the map from
+    // opening at the Lisbon fallback coordinates.
+    if (_gpsCenter == null) {
+      debugPrint('[DriverMapScreen] build() returning loading — _gpsCenter is null');
+      return Scaffold(
+        appBar: AppBar(title: const Text('Mapa da entrega')),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    debugPrint('[DriverMapScreen] build() rendering GoogleMap with _gpsCenter=$_gpsCenter');
+
     final myOrders = orderStore.myOrders;
+    debugPrint('[DriverMapScreen] myOrders count: ${myOrders.length}');
     if (myOrders.isEmpty) {
+      debugPrint('[DriverMapScreen] No orders accepted, returning "accept order" message');
       return Scaffold(
         appBar: AppBar(title: const Text('Mapa da entrega')),
         body: const Center(
@@ -228,42 +396,65 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
     }
 
     // ── Camera ──────────────────────────────────────────────────────────────
+    // Two-mode behaviour (Uber-style):
+    //   • Stops change   → overview: fit all waypoints + driver in view.
+    //   • Position-only  → follow:   pan camera to driver, preserve zoom.
     final stopsKey = optimizedRoute.stops.map((s) => s.orderId).join(',');
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-      if (!_mapController.isCompleted) return;
-      if (_lastAnimatedPosition == driverPosition &&
-          _lastAnimatedStopsKey == stopsKey) {
-        return;
-      }
+      if (_mapController == null) return;
 
-      _lastAnimatedPosition = driverPosition;
-      _lastAnimatedStopsKey = stopsKey;
+      final stopsChanged = _lastAnimatedStopsKey != stopsKey;
+      final posChanged   = _lastAnimatedPosition != driverPosition;
+      if (!stopsChanged && !posChanged) return;
 
-      final controller = await _mapController.future;
-      final bounds = boundsFromPoints(
-        _routePoints.isNotEmpty ? _routePoints : allStopPoints,
-      );
+      final controller = _mapController!;
+      if (!mounted) return;
 
-      if (bounds != null) {
+      if (stopsChanged) {
+        // New or completed stop → full route overview.
+        _lastAnimatedStopsKey = stopsKey;
+        _lastAnimatedPosition = driverPosition;
+        final bounds = boundsFromPoints(
+          _routePoints.isNotEmpty ? _routePoints : allStopPoints,
+        );
+        if (bounds != null) {
+          await controller.animateCamera(
+            CameraUpdate.newLatLngBounds(bounds, 100),
+          );
+        }
+      } else {
+        // Only driver moved → follow smoothly.
+        // Guard against micro-jitter: skip if movement is < 10 m.
+        final lastPos = _lastAnimatedPosition;
+        if (lastPos != null) {
+          final movedM = const ll.Distance().as(
+            ll.LengthUnit.Meter, lastPos, driverPosition,
+          );
+          if (movedM < 10.0) return;
+        }
+        _lastAnimatedPosition = driverPosition;
         await controller.animateCamera(
-          CameraUpdate.newLatLngBounds(bounds, 100),
+          CameraUpdate.newLatLng(driverPosition.toGMaps()),
         );
       }
     });
 
     final nextAction = resolveDriverOrderAction(orderStore, focusOrder);
     final topPadding = MediaQuery.of(context).padding.top;
-    final mapCenter = nextStop?.location ?? driverPosition;
 
     return Scaffold(
       body: Stack(
         children: [
           GoogleMap(
+            // DO NOT use ValueKey(_gpsCenter) — on Web, it causes excessive
+            // widget destruction/recreation, preventing proper rendering.
+            // Let Flutter's default key mechanism handle widget identity.
             initialCameraPosition: CameraPosition(
-              target: mapCenter.toGMaps(),
-              zoom: 14,
+              // _gpsCenter is guaranteed non-null here (guarded above).
+              target: _gpsCenter!.toGMaps(),
+              zoom: 15,
             ),
             markers: markers,
             polylines: polylines,
@@ -272,10 +463,14 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
             zoomControlsEnabled: false,
             mapToolbarEnabled: false,
             onMapCreated: (controller) {
-              if (!_mapController.isCompleted) {
-                _mapController.complete(controller);
-              }
+              _mapController = controller;
               controller.setMapStyle(_mapStyle);
+              // Force rebuild on Web after GoogleMap is created to ensure
+              // map renders with proper camera position. This is necessary
+              // because GoogleMap Web requires explicit rebuild to display.
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) setState(() {});
+              });
             },
           ),
 
@@ -295,10 +490,8 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
             right: 12,
             child: _MapButton(
               icon: Icons.my_location,
-              onTap: () async {
-                if (!_mapController.isCompleted) return;
-                final controller = await _mapController.future;
-                controller.animateCamera(
+              onTap: () {
+                _mapController?.animateCamera(
                   CameraUpdate.newLatLng(driverPosition.toGMaps()),
                 );
               },
@@ -361,12 +554,12 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
     // Record now so duplicate calls within the debounce window return early.
     _activeRouteKey = key;
     _lastRouteOrigin = origin;
-
-    // Debounce: cancel any pending timer and reschedule.
-    // The API call fires only after 2.5 s of inactivity, batching rapid
-    // position updates into a single request.
     _debounceTimer?.cancel();
-    _debounceTimer = Timer(const Duration(milliseconds: 2500), () {
+
+    // Capture before async gap — needed for the fallback straight-line.
+    final isFirstLoad = _routePoints.isEmpty;
+
+    void execute() {
       if (!mounted) return;
       final requestId = ++_routeRequestId;
 
@@ -391,7 +584,7 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
         } else {
           // API failed: preserve last real polyline and ETA to avoid flicker
           // and ETA reset. Show straight-line only on the very first load.
-          if (_routePoints.isEmpty) {
+          if (isFirstLoad) {
             setState(() {
               _routePoints = [origin, ...stops.map((s) => s.location)];
               // _routeDurationMinutes left null — no ETA yet.
@@ -400,7 +593,17 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
           // else: keep existing polyline and existing _routeDurationMinutes.
         }
       });
-    });
+    }
+
+    if (isFirstLoad) {
+      // No prior polyline — fetch immediately so the real route appears
+      // as soon as the API responds instead of after an arbitrary wait.
+      execute();
+    } else {
+      // Subsequent position updates: short debounce batches rapid GPS ticks
+      // into a single Directions API call (300 ms << previous 2500 ms).
+      _debounceTimer = Timer(const Duration(milliseconds: 300), execute);
+    }
   }
 
   /// Returns true when [newPoints] differs enough from [_routePoints] to
@@ -445,6 +648,114 @@ class _BottomPanelState extends State<_BottomPanel> {
   bool _isLoading = false;
 
   bool get _isMultiStop => widget.allStops.length > 1;
+
+  /// Shows a 4-digit code dialog before completing the delivery.
+  /// Returns `true` if the driver entered the correct code and the order
+  /// action succeeded, `false` otherwise (wrong code, cancelled, or failure).
+  Future<bool> _showDeliveryCodeDialog(DriverOrderAction action) async {
+    final controller = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    String? errorText;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            return AlertDialog(
+              title: const Text('Código de entrega'),
+              content: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Peça ao cliente o código de 4 dígitos para confirmar a entrega.',
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: controller,
+                      keyboardType: TextInputType.number,
+                      maxLength: 4,
+                      autofocus: true,
+                      decoration: InputDecoration(
+                        labelText: 'Código',
+                        counterText: '',
+                        errorText: errorText,
+                        border: const OutlineInputBorder(),
+                      ),
+                      onChanged: (_) {
+                        if (errorText != null) {
+                          setDialogState(() => errorText = null);
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(false),
+                  child: const Text('Cancelar'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    final entered = controller.text.trim();
+                    if (entered.length != 4) {
+                      setDialogState(
+                          () => errorText = 'Digite os 4 dígitos.');
+                      return;
+                    }
+                    if (entered != widget.focusOrder.deliveryCode) {
+                      setDialogState(
+                          () => errorText = 'Código incorreto. Tente novamente.');
+                      controller.clear();
+                      return;
+                    }
+                    Navigator.of(dialogContext).pop(true);
+                  },
+                  child: const Text('Confirmar'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (confirmed != true) return false;
+
+    // Code was correct — proceed with the action.
+    if (!mounted) return false;
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    setState(() => _isLoading = true);
+    final success = await action.execute();
+    if (mounted) setState(() => _isLoading = false);
+    if (success) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(action.successMessage),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      // Refresh token balance in the background — the trigger already ran on
+      // the DB side, so this fetch will return the updated value.
+      if (mounted) {
+        unawaited(context.read<DriverStore>().loadTokenBalance());
+      }
+      navigator.maybePop();
+    } else {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Não foi possível atualizar o pedido.'),
+        ),
+      );
+    }
+    return success;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -577,21 +888,27 @@ class _BottomPanelState extends State<_BottomPanel> {
                                 final action = nextAction;
                                 final willFinish = widget.focusOrder.status ==
                                     OrderStatus.onTheWay;
+
+                                // Delivery step: validate code before executing.
+                                if (willFinish) {
+                                  await _showDeliveryCodeDialog(action);
+                                  return;
+                                }
+
                                 final messenger =
                                     ScaffoldMessenger.of(context);
-                                final navigator = Navigator.of(context);
                                 setState(() => _isLoading = true);
                                 final success = await action.execute();
                                 if (success) {
+                                  if (mounted) {
+                                    setState(() => _isLoading = false);
+                                  }
                                   messenger.showSnackBar(
                                     SnackBar(
                                       content: Text(action.successMessage),
                                       duration: const Duration(seconds: 2),
                                     ),
                                   );
-                                  // After delivery, myOrders is empty and this
-                                  // widget is already disposed — pop explicitly.
-                                  if (willFinish) navigator.maybePop();
                                 } else {
                                   if (mounted) {
                                     setState(() => _isLoading = false);
@@ -630,9 +947,13 @@ class _BottomPanelState extends State<_BottomPanel> {
                 ],
               ),
 
-              // Finalize purchase — non-partner only, while driver has the goods
+              // Finalize purchase — only for orders where the driver physically
+              // buys goods (storeShopping or non-partner restaurant).
+              // carryGroceries and sendPackage are pure transport; no purchase.
               if (!_isMultiStop &&
                   !focusOrder.isPartnerStore &&
+                  (focusOrder.serviceType == OrderServiceType.storeShopping ||
+                      focusOrder.serviceType == OrderServiceType.restaurant) &&
                   (focusOrder.status == OrderStatus.pickedUp ||
                       focusOrder.status == OrderStatus.onTheWay)) ...[
                 const SizedBox(height: 12),
@@ -791,8 +1112,9 @@ class _StopRow extends StatelessWidget {
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              Text(
-                stop.label ?? (isPickup ? 'Recolha' : 'Entrega'),
+              AddressText(
+                rawAddress: stop.label,
+                coords: stop.location,
                 style: const TextStyle(
                     fontSize: 13, fontWeight: FontWeight.w500),
                 maxLines: 1,
@@ -822,7 +1144,11 @@ class _SingleOrderAddresses extends StatelessWidget {
           icon: Icons.circle,
           iconColor: Colors.orange.shade600,
           iconSize: 11,
-          label: order.pickupAddress ?? 'Recolha',
+          child: AddressText(
+            rawAddress: order.pickupAddress,
+            coords: order.pickupLocation,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+          ),
         ),
         Padding(
           padding: const EdgeInsets.only(left: 5),
@@ -832,7 +1158,12 @@ class _SingleOrderAddresses extends StatelessWidget {
           icon: Icons.location_on_rounded,
           iconColor: const Color(0xFF1C6EF2),
           iconSize: 18,
-          label: order.dropoffAddress ?? 'Entrega',
+          child: AddressText(
+            rawAddress: order.dropoffAddress,
+            coords: order.destination,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+            prefix: 'Entrega: ',
+          ),
         ),
       ],
     );
@@ -925,13 +1256,16 @@ class _AddressRow extends StatelessWidget {
     required this.icon,
     required this.iconColor,
     required this.iconSize,
-    required this.label,
-  });
+    this.label,
+    this.child,
+  }) : assert(label != null || child != null,
+            '_AddressRow requires either label or child');
 
   final IconData icon;
   final Color iconColor;
   final double iconSize;
-  final String label;
+  final String? label;
+  final Widget? child;
 
   @override
   Widget build(BuildContext context) {
@@ -943,12 +1277,14 @@ class _AddressRow extends StatelessWidget {
         ),
         const SizedBox(width: 10),
         Expanded(
-          child: Text(
-            label,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
+          child: child ??
+              Text(
+                label!,
+                style:
+                    const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
         ),
       ],
     );

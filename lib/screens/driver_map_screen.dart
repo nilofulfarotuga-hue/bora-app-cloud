@@ -46,6 +46,9 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
   /// One-shot GPS result — map is not rendered until this is populated.
   ll.LatLng? _gpsCenter;
 
+  /// GoogleMap created once, never destroyed. Prevents PlatformView crash.
+  bool _mapReady = false;
+
   ll.LatLng? _lastAnimatedPosition;
   String? _lastAnimatedStopsKey;
   List<ll.LatLng> _routePoints = <ll.LatLng>[];
@@ -97,7 +100,7 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
       
       if (fallback != null && mounted) {
         setState(() => _gpsCenter = fallback);
-        
+        _mapController?.animateCamera(CameraUpdate.newLatLng(fallback.toGMaps()));
       }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -124,6 +127,7 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
       final fallback = _driverStore.currentDriver?.location;
       if (fallback != null && mounted) {
         setState(() => _gpsCenter = fallback);
+        _mapController?.animateCamera(CameraUpdate.newLatLng(fallback.toGMaps()));
       }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -143,6 +147,7 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
       final fallback = _driverStore.currentDriver?.location;
       if (fallback != null && mounted) {
         setState(() => _gpsCenter = fallback);
+        _mapController?.animateCamera(CameraUpdate.newLatLng(fallback.toGMaps()));
       }
       return;
     }
@@ -160,7 +165,6 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
       
       if (last != null && mounted && _gpsCenter == null) {
         final loc = ll.LatLng(last.latitude, last.longitude);
-        
         setState(() => _gpsCenter = loc);
         _mapController?.animateCamera(CameraUpdate.newLatLng(loc.toGMaps()));
         // DO NOT add postFrameCallback here — setState above already triggers
@@ -176,13 +180,14 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
         
         if (fallback != null) {
           setState(() => _gpsCenter = fallback);
-          
+          _mapController?.animateCamera(CameraUpdate.newLatLng(fallback.toGMaps()));
         } else {
           // Last resort: use Lisbon as temporary center to unblock rendering.
           // Stream will immediately replace this with real GPS when acquired.
           const lisbon = ll.LatLng(38.7223, -9.1393);
           setState(() => _gpsCenter = lisbon);
-          
+          _mapController?.animateCamera(CameraUpdate.newLatLng(lisbon.toGMaps()));
+
         }
         // Stream will refine with real GPS location (see line 214-220)
       }
@@ -223,7 +228,6 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
 
       // Unblock rendering guard if last-known position was unavailable.
       if (_gpsCenter == null) {
-        
         setState(() => _gpsCenter = newLoc);
         _mapController?.animateCamera(CameraUpdate.newLatLng(newLoc.toGMaps()));
         // DO NOT add postFrameCallback here — setState above already triggers
@@ -247,7 +251,6 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
     if (fallback != null) {
       setState(() => _gpsCenter = fallback);
       _mapController?.animateCamera(CameraUpdate.newLatLng(fallback.toGMaps()));
-      // DO NOT add postFrameCallback here — setState above already triggers rebuild.
     }
   }
 
@@ -270,17 +273,20 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
       );
     }
 
-    // Block rendering until real GPS is available — prevents the map from
-    // opening at the Lisbon fallback coordinates.
-    if (_gpsCenter == null) {
-      
-      return Scaffold(
-        appBar: AppBar(title: const Text('Mapa da entrega')),
-        body: const Center(child: CircularProgressIndicator()),
-      );
+    // GoogleMap must be created once and never destroyed (PlatformView requirement).
+    // Use _mapReady flag to prevent recreation which crashes on Web.
+    if (!_mapReady) {
+      if (_gpsCenter != null) {
+        _mapReady = true;
+      } else {
+        return Scaffold(
+          appBar: AppBar(title: const Text('Mapa da entrega')),
+          body: const Center(child: CircularProgressIndicator()),
+        );
+      }
     }
 
-    
+
 
     final myOrders = orderStore.myOrders;
     
@@ -449,11 +455,13 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
           // Use SizedBox.expand to fill entire Stack with the map.
           SizedBox.expand(
             child: GoogleMap(
-              key: ValueKey(_gpsCenter),
+              // DO NOT use ValueKey — causes PlatformView recreation which crashes.
+              // GoogleMap created once, never destroyed.
               initialCameraPosition: CameraPosition(
-                // _gpsCenter is guaranteed non-null here (guarded above).
-                target: _gpsCenter!.toGMaps(),
-                zoom: 15,
+                // Use _gpsCenter if available, else fallback to Lisbon.
+                // Camera position updated via animateCamera, not rebuild.
+                target: (_gpsCenter ?? const ll.LatLng(38.7223, -9.1393)).toGMaps(),
+                zoom: 14,
               ),
               markers: markers,
               polylines: polylines,

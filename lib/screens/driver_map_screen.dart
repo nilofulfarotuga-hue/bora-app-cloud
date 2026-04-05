@@ -86,18 +86,18 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
   ///      On Android: uses AndroidSettings with ForegroundNotificationConfig
   ///      so the stream survives app minimisation (foreground service).
   Future<void> _startLocationTracking() async {
-    debugPrint('[DriverMapScreen] _startLocationTracking started');
+    
     // ── 1. GPS service check ────────────────────────────────────────────────
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    debugPrint('[DriverMapScreen] GPS service enabled: $serviceEnabled');
+    
     if (!serviceEnabled) {
       if (!mounted) return;
       // GPS is disabled — attempt to unblock rendering with DriverStore fallback
       final fallback = _driverStore.currentDriver?.location;
-      debugPrint('[DriverMapScreen] GPS disabled, fallback location: $fallback');
+      
       if (fallback != null && mounted) {
         setState(() => _gpsCenter = fallback);
-        debugPrint('[DriverMapScreen] Set _gpsCenter from fallback');
+        
       }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -151,16 +151,16 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
     // Unblocks the GPS-first rendering guard without waiting for a new fix.
     // On Web, getLastKnownPosition may be slow or unreliable, so use timeout.
     try {
-      debugPrint('[DriverMapScreen] Calling getLastKnownPosition...');
+      
       final last = await Geolocator.getLastKnownPosition()
           .timeout(const Duration(seconds: 5), onTimeout: () {
-        debugPrint('[DriverMapScreen] getLastKnownPosition timed out (5s)');
+        
         return null;
       });
-      debugPrint('[DriverMapScreen] getLastKnownPosition returned: $last');
+      
       if (last != null && mounted && _gpsCenter == null) {
         final loc = ll.LatLng(last.latitude, last.longitude);
-        debugPrint('[DriverMapScreen] Setting _gpsCenter from getLastKnownPosition: $loc');
+        
         setState(() => _gpsCenter = loc);
         _mapController?.animateCamera(CameraUpdate.newLatLng(loc.toGMaps()));
         // DO NOT add postFrameCallback here — setState above already triggers
@@ -173,22 +173,22 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
         // already held by DriverStore. If that's also null, use a safe default
         // and wait for stream to refine with real GPS.
         final fallback = _driverStore.currentDriver?.location;
-        debugPrint('[DriverMapScreen] getLastKnownPosition was null, fallback: $fallback');
+        
         if (fallback != null) {
           setState(() => _gpsCenter = fallback);
-          debugPrint('[DriverMapScreen] Set _gpsCenter from DriverStore fallback');
+          
         } else {
           // Last resort: use Lisbon as temporary center to unblock rendering.
           // Stream will immediately replace this with real GPS when acquired.
           const lisbon = ll.LatLng(38.7223, -9.1393);
           setState(() => _gpsCenter = lisbon);
-          debugPrint('[DriverMapScreen] Set _gpsCenter to Lisbon default, waiting for real GPS...');
+          
         }
         // Stream will refine with real GPS location (see line 214-220)
       }
     } catch (e) {
       // Non-fatal — stream still provides a real fix.
-      debugPrint('[DriverMapScreen] Exception in getLastKnownPosition: $e');
+      
     }
 
     // ── 4. Continuous stream ─────────────────────────────────────────────────
@@ -219,11 +219,11 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
     ).listen((position) {
       if (!mounted) return;
       final newLoc = ll.LatLng(position.latitude, position.longitude);
-      debugPrint('[DriverMapScreen] Position stream update: $newLoc');
+      
 
       // Unblock rendering guard if last-known position was unavailable.
       if (_gpsCenter == null) {
-        debugPrint('[DriverMapScreen] Setting _gpsCenter from position stream');
+        
         setState(() => _gpsCenter = newLoc);
         _mapController?.animateCamera(CameraUpdate.newLatLng(newLoc.toGMaps()));
         // DO NOT add postFrameCallback here — setState above already triggers
@@ -253,13 +253,12 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
 
   @override
   Widget build(BuildContext context) {
-    debugPrint('[DriverMapScreen] build() called, _gpsCenter=$_gpsCenter');
     final orderStore = context.watch<OrderStore>();
     final driverStore = context.watch<DriverStore>();
 
     final driver = driverStore.currentDriver;
     if (driver == null) {
-      debugPrint('[DriverMapScreen] build() returning error — currentDriver is null');
+      
       return Scaffold(
         appBar: AppBar(title: const Text('Mapa da entrega')),
         body: const Center(
@@ -274,19 +273,19 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
     // Block rendering until real GPS is available — prevents the map from
     // opening at the Lisbon fallback coordinates.
     if (_gpsCenter == null) {
-      debugPrint('[DriverMapScreen] build() returning loading — _gpsCenter is null');
+      
       return Scaffold(
         appBar: AppBar(title: const Text('Mapa da entrega')),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
-    debugPrint('[DriverMapScreen] build() rendering GoogleMap with _gpsCenter=$_gpsCenter');
+    
 
     final myOrders = orderStore.myOrders;
-    debugPrint('[DriverMapScreen] myOrders count: ${myOrders.length}');
+    
     if (myOrders.isEmpty) {
-      debugPrint('[DriverMapScreen] No orders accepted, returning "accept order" message');
+      
       return Scaffold(
         appBar: AppBar(title: const Text('Mapa da entrega')),
         body: const Center(
@@ -313,23 +312,21 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
           )
         : myOrders.first;
 
-    // Trigger multi-stop route fetch.
-    if (nextStop != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
+    // Consolidate route updates into a single postFrameCallback to avoid
+    // excessive rebuilds on Web that can cause LegacyJavaScriptObject errors
+    Future.microtask(() {
+      if (!mounted) return;
+      if (nextStop != null) {
         _updateRouteMulti(driverPosition, optimizedRoute.stops);
-      });
-    } else if (_routePoints.isNotEmpty) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
+      } else if (_routePoints.isNotEmpty) {
         setState(() {
           _routePoints = <ll.LatLng>[];
           _activeRouteKey = null;
           _routeDurationMinutes = null;
           _lastRouteOrigin = null;
         });
-      });
-    }
+      }
+    });
 
     // ── Markers ────────────────────────────────────────────────────────────
     final markers = <Marker>{
@@ -399,9 +396,10 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
     // Two-mode behaviour (Uber-style):
     //   • Stops change   → overview: fit all waypoints + driver in view.
     //   • Position-only  → follow:   pan camera to driver, preserve zoom.
+    // On Web, use microtask instead of postFrameCallback to avoid rendering issues
     final stopsKey = optimizedRoute.stops.map((s) => s.orderId).join(',');
 
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
+    Future.microtask(() async {
       if (!mounted) return;
       if (_mapController == null) return;
 
@@ -448,9 +446,7 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
       body: Stack(
         children: [
           GoogleMap(
-            // DO NOT use ValueKey(_gpsCenter) — on Web, it causes excessive
-            // widget destruction/recreation, preventing proper rendering.
-            // Let Flutter's default key mechanism handle widget identity.
+            key: ValueKey(_gpsCenter),
             initialCameraPosition: CameraPosition(
               // _gpsCenter is guaranteed non-null here (guarded above).
               target: _gpsCenter!.toGMaps(),
@@ -465,12 +461,7 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
             onMapCreated: (controller) {
               _mapController = controller;
               controller.setMapStyle(_mapStyle);
-              // Force rebuild on Web after GoogleMap is created to ensure
-              // map renders with proper camera position. This is necessary
-              // because GoogleMap Web requires explicit rebuild to display.
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) setState(() {});
-              });
+              
             },
           ),
 

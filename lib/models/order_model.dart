@@ -7,7 +7,6 @@ import 'cart_item.dart';
 import 'order_service_type.dart';
 
 const double _platformCommissionRate = 0.20;
-const double _restaurantEarningsRate = 1 - _platformCommissionRate;
 
 enum OrderStatus {
   created,
@@ -66,6 +65,8 @@ class OrderModel {
   final String? customerNotes;
   final bool isPartnerStore;
   final bool apartmentDelivery;
+  final bool isDistanceEstimated;
+  final bool requiresCar;
   final OrderType orderType;
   final PaymentMethod paymentMethod;
   // Mutable: updated by finalizePurchase reconciliation and processRefund/processExtraCharge.
@@ -104,11 +105,17 @@ class OrderModel {
   String? currentDriverOfferId;
   String? driverPhone;
 
-  /// Real-time driver coordinates — written by [DriverLocationService] via
-  /// Supabase UPDATE and received on the client via Realtime.
+  /// DEPRECATED — single source of truth is now
+  /// `DriverStore.currentDriver.location`, synced through the `drivers` table
+  /// Realtime subscription. These fields are kept only for binary
+  /// compatibility with call sites that still reference them; they are no
+  /// longer written to, read from Supabase, or serialised back.
+  @Deprecated('Use DriverStore.currentDriver.location')
   double? driverLat;
+  @Deprecated('Use DriverStore.currentDriver.location')
   double? driverLng;
   final List<String> driverOfferHistory;
+  final List<String> triedDriverIds;
   bool pickupWarningIssued;
 
   /// Tracks client responses to driver substitution proposals.
@@ -141,6 +148,8 @@ class OrderModel {
     this.customerNotes,
     this.isPartnerStore = false,
     this.apartmentDelivery = false,
+    this.isDistanceEstimated = false,
+    this.requiresCar = false,
     this.orderType = OrderType.nonPartnerPurchase,
     this.paymentMethod = PaymentMethod.cash,
     this.paymentStatus = PaymentStatus.pending,
@@ -156,6 +165,7 @@ class OrderModel {
     this.currentDriverOfferId,
     this.driverPhone,
     List<String>? driverOfferHistory,
+    List<String>? triedDriverIds,
     this.pickupWarningIssued = false,
     this.driverOfferExpiresAt,
     this.driverLat,
@@ -174,7 +184,8 @@ class OrderModel {
         items = List<CartItem>.unmodifiable(items ?? const <CartItem>[]),
         id = id ?? const Uuid().v4(),
         createdAt = createdAt ?? DateTime.now(),
-        driverOfferHistory = driverOfferHistory ?? <String>[];
+        driverOfferHistory = driverOfferHistory ?? <String>[],
+        triedDriverIds = triedDriverIds ?? <String>[];
 
   // ─────────────────────────────────────────────────────────────────────────
   // FIX (CRITICAL): Previously fromSupabase hardcoded
@@ -243,6 +254,11 @@ class OrderModel {
         ? List<String>.from(historyRaw)
         : <String>[];
 
+    final triedRaw = data['tried_driver_ids'];
+    final triedDriverIds = triedRaw is List
+        ? List<String>.from(triedRaw)
+        : <String>[];
+
     return OrderModel(
       id: data['id'] as String,
       total: (data['price'] as num? ?? 0).toDouble(),
@@ -259,6 +275,8 @@ class OrderModel {
       paymentMethod: paymentMethod,
       isPartnerStore: data['is_partner_store'] as bool? ?? false,
       apartmentDelivery: data['apartment_delivery'] as bool? ?? false,
+      isDistanceEstimated: data['is_distance_estimated'] as bool? ?? false,
+      requiresCar: data['requires_car'] as bool? ?? false,
       vendorName: data['vendor_name'] as String?,
       pickupAddress: data['pickup_address'] as String?,
       pickupStreet: data['pickup_street'] as String?,
@@ -282,6 +300,7 @@ class OrderModel {
           : DateTime.now(),
       driverOfferExpiresAt: driverOfferExpiresAt,
       driverOfferHistory: offerHistory,
+      triedDriverIds: triedDriverIds,
       paymentStatus: paymentStatus,
       paymentIntentId: data['payment_intent_id'] as String?,
       estimatedTotal: (data['estimated_total'] as num?)?.toDouble(),
@@ -291,8 +310,8 @@ class OrderModel {
       paymentBufferTotal: (data['payment_buffer_total'] as num?)?.toDouble(),
       refundAmount: (data['refund_amount'] as num?)?.toDouble(),
       extraChargeAmount: (data['extra_charge_amount'] as num?)?.toDouble(),
-      driverLat: (data['driver_lat'] as num?)?.toDouble(),
-      driverLng: (data['driver_lng'] as num?)?.toDouble(),
+      // driver_lat / driver_lng intentionally NOT read — single source of
+      // truth is DriverStore.currentDriver.location (drivers table realtime).
       substitutionResponses:
           (data['substitution_responses'] as Map<String, dynamic>?)
               ?.map((k, v) => MapEntry(k, v == true)),
@@ -318,6 +337,8 @@ class OrderModel {
       'delivery_price': deliveryPrice,
       'is_partner_store': isPartnerStore,
       'apartment_delivery': apartmentDelivery,
+      'is_distance_estimated': isDistanceEstimated,
+      'requires_car': requiresCar,
       'vendor_name': vendorName,
       'pickup_address': pickupAddress,
       'pickup_street': pickupStreet,
@@ -351,14 +372,27 @@ class OrderModel {
       if (pickupLocation != null) 'pickup_lng': pickupLocation!.longitude,
       if (destination != null) 'dropoff_lat': destination!.latitude,
       if (destination != null) 'dropoff_lng': destination!.longitude,
-      if (driverLat != null) 'driver_lat': driverLat,
-      if (driverLng != null) 'driver_lng': driverLng,
+      // driver_lat / driver_lng intentionally NOT serialised — single source
+      // of truth is DriverStore.currentDriver.location (drivers table).
     };
   }
 }
 
 extension OrderModelX on OrderModel {
   bool get isPartnerOrder => orderType == OrderType.partnerRestaurant;
+
+  /// Human-readable order reference derived from the order UUID (e.g. `#A1B2C3`).
+  /// Deterministic — no DB column needed.
+  String get orderCode =>
+      '#${id.replaceAll('-', '').substring(0, 6).toUpperCase()}';
+
+  /// 4-digit delivery confirmation code derived from the order UUID (e.g. `4521`).
+  /// Deterministic — no DB column needed.
+  String get deliveryCode {
+    final hex = id.replaceAll('-', '').substring(0, 4);
+    final val = int.parse(hex, radix: 16) % 9000 + 1000;
+    return val.toString();
+  }
 }
 
 extension OrderFinancials on OrderModel {

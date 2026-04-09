@@ -2,16 +2,20 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:vibration/vibration.dart';
 
 import '../auth/auth_store.dart';
+import '../models/chat_message.dart';
 import '../models/order_model.dart';
 import '../models/restaurant_model.dart';
+import 'chat_screen.dart';
 import '../stores/order_store.dart';
 import '../stores/partner_product_store.dart';
 import '../stores/restaurant_store.dart';
 import '../services/sound_service.dart';
 import '../stores/session_store.dart';
+import '../widgets/address_text.dart';
 import 'partner_call_driver_screen.dart';
 import 'partner_products_screen.dart';
 
@@ -62,7 +66,7 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
     final newOrders = createdIds.difference(_knownCreatedOrderIds);
     if (newOrders.isNotEmpty) {
       unawaited(_soundService.playLoop());
-      if (await Vibration.hasVibrator() ?? false) {
+      if (await Vibration.hasVibrator()) {
         Vibration.vibrate(duration: 600);
       }
     } else if (createdIds.isEmpty) {
@@ -452,11 +456,115 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
           ],
         ),
         const SizedBox(height: 12),
-        _InfoRow(label: 'Cliente', value: order.customerName ?? 'Cliente BORA'),
-        if ((order.clientPhone ?? '').isNotEmpty)
-          _InfoRow(label: 'Contacto', value: order.clientPhone!),
-        if ((order.dropoffAddress ?? '').isNotEmpty)
-          _InfoRow(label: 'Entrega', value: order.dropoffAddress!),
+        // ── Cliente ──────────────────────────────────────────────────────
+        Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Cliente',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                  Text(
+                    order.customerName ?? 'Cliente BORA',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            ),
+            if ((order.clientPhone ?? '').isNotEmpty) ...[
+              IconButton(
+                icon: const Icon(Icons.phone, size: 20),
+                tooltip: 'Ligar cliente',
+                onPressed: () async {
+                  final uri = Uri(scheme: 'tel', path: order.clientPhone!);
+                  if (await canLaunchUrl(uri)) {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  }
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.chat_bubble_outline, size: 20),
+                tooltip: 'Chat cliente',
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ChatScreen(
+                      order: order,
+                      senderType: ChatSenderType.client,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+        // ── Estafeta (aparece após aceitação) ────────────────────────────
+        if (order.assignedDriverId != null) ...[
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Estafeta',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    Text(
+                      (order.driverPhone ?? '').isNotEmpty
+                          ? order.driverPhone!
+                          : 'Em trânsito',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+              ),
+              if ((order.driverPhone ?? '').isNotEmpty) ...[
+                IconButton(
+                  icon: const Icon(Icons.phone, size: 20),
+                  tooltip: 'Ligar estafeta',
+                  onPressed: () async {
+                    final uri = Uri(scheme: 'tel', path: order.driverPhone!);
+                    if (await canLaunchUrl(uri)) {
+                      await launchUrl(
+                          uri, mode: LaunchMode.externalApplication);
+                    }
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.chat_bubble_outline, size: 20),
+                  tooltip: 'Chat estafeta',
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ChatScreen(
+                        order: order,
+                        senderType: ChatSenderType.driver,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+        if ((order.dropoffAddress ?? '').isNotEmpty || order.destination != null)
+          _InfoRow(
+            label: 'Entrega',
+            value: '',
+            valueWidget: AddressText(
+              rawAddress: order.dropoffAddress,
+              coords: order.destination,
+            ),
+          ),
         const SizedBox(height: 12),
         Text(
           'Itens',
@@ -522,10 +630,11 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
 }
 
 class _InfoRow extends StatelessWidget {
-  const _InfoRow({required this.label, required this.value});
+  const _InfoRow({required this.label, required this.value, this.valueWidget});
 
   final String label;
   final String value;
+  final Widget? valueWidget;
 
   @override
   Widget build(BuildContext context) {
@@ -539,7 +648,7 @@ class _InfoRow extends StatelessWidget {
             style: const TextStyle(fontWeight: FontWeight.w600),
           ),
           Expanded(
-            child: Text(value.isEmpty ? '-' : value),
+            child: valueWidget ?? Text(value.isEmpty ? '-' : value),
           ),
         ],
       ),

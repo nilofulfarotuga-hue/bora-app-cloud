@@ -3,7 +3,11 @@
     "allow": [
       "Bash(flutter analyze:*)",
       "Bash(flutter build:*)",
-      "Bash(flutter pub:*)"
+      "Bash(flutter pub:*)",
+      "Bash(python3 -c \"import sys,json; data=json.load\\(sys.stdin\\); [print\\(f''''{r[\"\"id\"\"]} {r[\"\"status\"\"]} {r[\"\"conclusion\"\"]} {r[\"\"head_sha\"\"][:7]} {r[\"\"created_at\"\"]}''''\\) for r in data.get\\(''''workflow_runs'''',[]\\)]\")",
+      "Bash(REPO=\"nilofulfarotuga-hue/bora_app\")",
+      "Bash(RUN_ID=\"23445129994\")",
+      "Bash(curl -s \"https://api.github.com/repos/$REPO/actions/runs/$RUN_ID/jobs\")"
     ]
   }
 }

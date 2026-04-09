@@ -3,7 +3,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/order_model.dart';
 import '../models/partner_product.dart';
 import '../models/restaurant_model.dart';
-import '../services/product_scraper_service.dart';
 
 class RestaurantStore extends ChangeNotifier {
   final supabase = Supabase.instance.client;
@@ -16,6 +15,17 @@ class RestaurantStore extends ChangeNotifier {
 
   RestaurantStore() {
     _init();
+    // Reload restaurants whenever a Supabase auth session becomes active.
+    // This handles the case where _init() runs before the anonymous session
+    // is established (RLS requires auth.uid() IS NOT NULL for SELECT).
+    supabase.auth.onAuthStateChange.listen((data) {
+      if (data.event == AuthChangeEvent.signedIn ||
+          data.event == AuthChangeEvent.tokenRefreshed) {
+        if (_restaurants.isEmpty) {
+          loadRestaurantsFromSupabase();
+        }
+      }
+    });
   }
 
   /// Sequences restaurant load first, then product load, to satisfy the FK
@@ -24,10 +34,6 @@ class RestaurantStore extends ChangeNotifier {
   Future<void> _init() async {
     await loadRestaurantsFromSupabase();
     await loadProductsFromSupabase();
-    // Fire-and-forget: scraping is slow and deduplication in
-    // syncProductsFromExternalSource makes concurrent calls safe.
-    loadScrapedProductsForStore('market-continente', 'continente').ignore();
-    loadScrapedProductsForStore('market-pingo-doce', 'pingodoce').ignore();
   }
 
   final Map<String, List<PartnerProduct>> _productsByRestaurant = {};
@@ -45,7 +51,7 @@ class RestaurantStore extends ChangeNotifier {
       'id': 'rest-pizzahut',
       'name': 'Pizza Hut',
       'phone': '210000001',
-      'address': 'Av. de Berna 12, Lisboa',
+      'address': 'Av. de Berna 12',
       'email': 'contato@pizzahut.pt',
       'photo_url': 'https://via.placeholder.com/240x140.png?text=Pizza+Hut',
       'cuisine_type': 'Pizzaria',
@@ -59,7 +65,7 @@ class RestaurantStore extends ChangeNotifier {
       'id': 'rest-kfc',
       'name': 'KFC',
       'phone': '210000002',
-      'address': 'Praça Martim Moniz 2, Lisboa',
+      'address': 'Praça Martim Moniz 2',
       'email': 'contato@kfc.pt',
       'photo_url': 'https://via.placeholder.com/240x140.png?text=KFC',
       'cuisine_type': 'Frango Frito',
@@ -74,7 +80,7 @@ class RestaurantStore extends ChangeNotifier {
       'id': 'rest-mcdonalds',
       'name': "McDonald's",
       'phone': '210000003',
-      'address': 'Av. Fontes Pereira de Melo 5, Lisboa',
+      'address': 'Av. Fontes Pereira de Melo 5',
       'email': 'contato@mcdonalds.pt',
       'photo_url':
           "https://via.placeholder.com/240x140.png?text=McDonald%27s",
@@ -89,7 +95,7 @@ class RestaurantStore extends ChangeNotifier {
       'id': 'rest-burger-king',
       'name': 'Burger King',
       'phone': '210000004',
-      'address': 'R. Joaquim António de Aguiar 16, Lisboa',
+      'address': 'R. Joaquim António de Aguiar 16',
       'email': 'contato@burgerking.pt',
       'photo_url':
           'https://via.placeholder.com/240x140.png?text=Burger+King',
@@ -105,7 +111,7 @@ class RestaurantStore extends ChangeNotifier {
       'id': 'market-pingo-doce',
       'name': 'Pingo Doce',
       'phone': '210000101',
-      'address': 'Av. João XXI 50, Lisboa',
+      'address': 'Av. João XXI 50',
       'email': 'contacto@pingodoce.pt',
       'photo_url':
           'https://via.placeholder.com/240x140.png?text=Pingo+Doce',
@@ -120,7 +126,7 @@ class RestaurantStore extends ChangeNotifier {
       'id': 'market-continente',
       'name': 'Continente',
       'phone': '210000102',
-      'address': 'Centro Colombo, Av. Lusíada, Lisboa',
+      'address': 'Centro Colombo, Av. Lusíada',
       'email': 'contacto@continente.pt',
       'photo_url':
           'https://via.placeholder.com/240x140.png?text=Continente',
@@ -135,7 +141,7 @@ class RestaurantStore extends ChangeNotifier {
       'id': 'market-lidl',
       'name': 'Lidl',
       'phone': '210000103',
-      'address': 'Rua Capitão Renato Baptista 18, Lisboa',
+      'address': 'Rua Capitão Renato Baptista 18',
       'email': 'contacto@lidl.pt',
       'photo_url': 'https://via.placeholder.com/240x140.png?text=Lidl',
       'cuisine_type': 'Supermercado',
@@ -149,7 +155,7 @@ class RestaurantStore extends ChangeNotifier {
       'id': 'market-mercadona',
       'name': 'Mercadona',
       'phone': '210000104',
-      'address': 'Av. Infante D. Henrique 333, Lisboa',
+      'address': 'Av. Infante D. Henrique 333',
       'email': 'contacto@mercadona.pt',
       'photo_url':
           'https://via.placeholder.com/240x140.png?text=Mercadona',
@@ -160,12 +166,26 @@ class RestaurantStore extends ChangeNotifier {
       'lat': 38.7200,
       'lng': -9.1120,
     },
+    {
+      'id': 'market-auchan',
+      'name': 'Auchan',
+      'phone': '210000105',
+      'address': 'Av. do Brasil 101',
+      'email': 'contacto@auchan.pt',
+      'photo_url': 'https://via.placeholder.com/240x140.png?text=Auchan',
+      'cuisine_type': 'Supermercado',
+      'is_partner': false,
+      'category': 'supermarket',
+      'is_online': true,
+      'lat': 38.7480,
+      'lng': -9.1540,
+    },
     // ── Non-partner pharmacy ─────────────────────────────────────────────────
     {
       'id': 'pharmacy-central',
       'name': 'Farmácia Central',
       'phone': '210000301',
-      'address': 'Rossio 28, Lisboa',
+      'address': 'Rossio 28',
       'email': 'atendimento@farmaciacentral.pt',
       'photo_url':
           'https://via.placeholder.com/240x140.png?text=Farmacia',
@@ -181,7 +201,7 @@ class RestaurantStore extends ChangeNotifier {
       'id': 'store-loja-local',
       'name': 'Loja Local Exemplo',
       'phone': '210000201',
-      'address': 'Rua Augusta 150, Lisboa',
+      'address': 'Rua Augusta 150',
       'email': 'contacto@lojalocal.pt',
       'photo_url':
           'https://via.placeholder.com/240x140.png?text=Loja+Local',
@@ -194,69 +214,6 @@ class RestaurantStore extends ChangeNotifier {
     },
   ];
 
-  /// Sample products seeded alongside restaurants on first run.
-  /// Non-partner products have base prices — the 15% markup is applied
-  /// at cart time via CartStore.addItem() → PricingService.applyMarkup().
-  static final List<Map<String, dynamic>> _kDefaultProducts = [
-    // McDonald's menu (non-partner)
-    {'id': 'prod-mcd-1', 'restaurant_id': 'rest-mcdonalds', 'name': 'Big Mac', 'description': 'Dois patties de vaca, alface, queijo, pickles e molho especial', 'price': 7.50, 'photo_url': '', 'is_available': true},
-    {'id': 'prod-mcd-2', 'restaurant_id': 'rest-mcdonalds', 'name': 'McChicken', 'description': 'Hambúrguer de frango panado com maionese e alface', 'price': 6.20, 'photo_url': '', 'is_available': true},
-    {'id': 'prod-mcd-3', 'restaurant_id': 'rest-mcdonalds', 'name': 'McNuggets 9 pcs', 'description': 'Nuggets de frango crocante', 'price': 4.90, 'photo_url': '', 'is_available': true},
-    {'id': 'prod-mcd-4', 'restaurant_id': 'rest-mcdonalds', 'name': 'Batatas Fritas M', 'description': 'Batatas fritas estaladiças tamanho médio', 'price': 2.50, 'photo_url': '', 'is_available': true},
-    {'id': 'prod-mcd-5', 'restaurant_id': 'rest-mcdonalds', 'name': 'Coca Cola M', 'description': 'Refrigerante tamanho médio', 'price': 1.80, 'photo_url': '', 'is_available': true},
-    // Burger King menu (non-partner)
-    {'id': 'prod-bk-1', 'restaurant_id': 'rest-burger-king', 'name': 'Whopper', 'description': 'Hambúrguer grelhado com alface, tomate, cebola, pickles e maionese', 'price': 7.90, 'photo_url': '', 'is_available': true},
-    {'id': 'prod-bk-2', 'restaurant_id': 'rest-burger-king', 'name': 'Chicken Royale', 'description': 'Hambúrguer de frango crocante com maionese e alface', 'price': 6.80, 'photo_url': '', 'is_available': true},
-    {'id': 'prod-bk-3', 'restaurant_id': 'rest-burger-king', 'name': 'Onion Rings M', 'description': 'Anéis de cebola estaladiços', 'price': 2.80, 'photo_url': '', 'is_available': true},
-    {'id': 'prod-bk-4', 'restaurant_id': 'rest-burger-king', 'name': 'Batatas Fritas M', 'description': 'Batatas fritas crocantes tamanho médio', 'price': 2.60, 'photo_url': '', 'is_available': true},
-    {'id': 'prod-bk-5', 'restaurant_id': 'rest-burger-king', 'name': 'Pepsi M', 'description': 'Refrigerante tamanho médio', 'price': 1.90, 'photo_url': '', 'is_available': true},
-    // Pingo Doce (non-partner supermarket)
-    {'id': 'prod-pd-1', 'restaurant_id': 'market-pingo-doce', 'name': 'Banana', 'description': 'Banana tropical, aprox. 1 kg', 'price': 1.29, 'photo_url': '', 'is_available': true},
-    {'id': 'prod-pd-2', 'restaurant_id': 'market-pingo-doce', 'name': 'Leite meio-gordo 1L', 'description': 'Leite UHT meio-gordo', 'price': 0.89, 'photo_url': '', 'is_available': true},
-    {'id': 'prod-pd-3', 'restaurant_id': 'market-pingo-doce', 'name': 'Pão de forma', 'description': 'Pão de forma fatiado 500g', 'price': 1.49, 'photo_url': '', 'is_available': true},
-    {'id': 'prod-pd-4', 'restaurant_id': 'market-pingo-doce', 'name': 'Ovos M (10 un)', 'description': 'Ovos brancos categoria M', 'price': 2.39, 'photo_url': '', 'is_available': true},
-    {'id': 'prod-pd-5', 'restaurant_id': 'market-pingo-doce', 'name': 'Arroz carolino 1kg', 'description': 'Arroz carolino branco', 'price': 1.19, 'photo_url': '', 'is_available': true},
-    {'id': 'prod-pd-6', 'restaurant_id': 'market-pingo-doce', 'name': 'Azeite virgem extra 75cl', 'description': 'Azeite virgem extra português', 'price': 4.99, 'photo_url': '', 'is_available': true},
-    // Continente (non-partner supermarket)
-    {'id': 'prod-cont-1', 'restaurant_id': 'market-continente', 'name': 'Banana', 'description': 'Banana tropical, aprox. 1 kg', 'price': 1.19, 'photo_url': '', 'is_available': true},
-    {'id': 'prod-cont-2', 'restaurant_id': 'market-continente', 'name': 'Leite UHT 1L', 'description': 'Leite UHT meio-gordo Continente', 'price': 0.79, 'photo_url': '', 'is_available': true},
-    {'id': 'prod-cont-3', 'restaurant_id': 'market-continente', 'name': 'Pão de forma integral', 'description': 'Pão de forma integral fatiado 400g', 'price': 1.39, 'photo_url': '', 'is_available': true},
-    {'id': 'prod-cont-4', 'restaurant_id': 'market-continente', 'name': 'Ovos L (6 un)', 'description': 'Ovos brancos categoria L', 'price': 2.29, 'photo_url': '', 'is_available': true},
-    {'id': 'prod-cont-5', 'restaurant_id': 'market-continente', 'name': 'Massa esparguete 500g', 'description': 'Massa esparguete de trigo durum', 'price': 1.09, 'photo_url': '', 'is_available': true},
-    {'id': 'prod-cont-6', 'restaurant_id': 'market-continente', 'name': 'Azeite 75cl', 'description': 'Azeite virgem português', 'price': 4.79, 'photo_url': '', 'is_available': true},
-    // Lidl (non-partner supermarket)
-    {'id': 'prod-lidl-1', 'restaurant_id': 'market-lidl', 'name': 'Banana bio', 'description': 'Banana biológica certificada, aprox. 1 kg', 'price': 1.39, 'photo_url': '', 'is_available': true},
-    {'id': 'prod-lidl-2', 'restaurant_id': 'market-lidl', 'name': 'Leite gordo 1L', 'description': 'Leite UHT gordo Milbona', 'price': 0.85, 'photo_url': '', 'is_available': true},
-    {'id': 'prod-lidl-3', 'restaurant_id': 'market-lidl', 'name': 'Pão de mistura', 'description': 'Pão de mistura trigo e centeio 500g', 'price': 1.59, 'photo_url': '', 'is_available': true},
-    {'id': 'prod-lidl-4', 'restaurant_id': 'market-lidl', 'name': 'Ovos XL (10 un)', 'description': 'Ovos brancos categoria XL', 'price': 2.49, 'photo_url': '', 'is_available': true},
-    {'id': 'prod-lidl-5', 'restaurant_id': 'market-lidl', 'name': 'Arroz longo 1kg', 'description': 'Arroz de grão longo tipo Basmati', 'price': 1.29, 'photo_url': '', 'is_available': true},
-    {'id': 'prod-lidl-6', 'restaurant_id': 'market-lidl', 'name': 'Azeite bio 75cl', 'description': 'Azeite virgem extra biológico', 'price': 5.49, 'photo_url': '', 'is_available': true},
-    // Mercadona (non-partner supermarket)
-    {'id': 'prod-merc-1', 'restaurant_id': 'market-mercadona', 'name': 'Banana', 'description': 'Banana Hacendado, aprox. 1 kg', 'price': 1.25, 'photo_url': '', 'is_available': true},
-    {'id': 'prod-merc-2', 'restaurant_id': 'market-mercadona', 'name': 'Leite semi-desnatado 1L', 'description': 'Leite UHT semi-desnatado Hacendado', 'price': 0.82, 'photo_url': '', 'is_available': true},
-    {'id': 'prod-merc-3', 'restaurant_id': 'market-mercadona', 'name': 'Pão de centeio', 'description': 'Pão de centeio fatiado 500g', 'price': 1.45, 'photo_url': '', 'is_available': true},
-    {'id': 'prod-merc-4', 'restaurant_id': 'market-mercadona', 'name': 'Ovos M (12 un)', 'description': 'Ovos brancos categoria M Hacendado', 'price': 2.35, 'photo_url': '', 'is_available': true},
-    {'id': 'prod-merc-5', 'restaurant_id': 'market-mercadona', 'name': 'Macarrão 500g', 'description': 'Macarrão de trigo durum Hacendado', 'price': 0.99, 'photo_url': '', 'is_available': true},
-    {'id': 'prod-merc-6', 'restaurant_id': 'market-mercadona', 'name': 'Azeite virgem 75cl', 'description': 'Azeite virgem Hacendado', 'price': 4.89, 'photo_url': '', 'is_available': true},
-    // Farmácia Central (non-partner pharmacy)
-    {'id': 'prod-farm-1', 'restaurant_id': 'pharmacy-central', 'name': 'Paracetamol 500mg', 'description': 'Analgésico e antipirético, 20 comprimidos', 'price': 3.50, 'photo_url': '', 'is_available': true},
-    {'id': 'prod-farm-2', 'restaurant_id': 'pharmacy-central', 'name': 'Ibuprofeno 400mg', 'description': 'Anti-inflamatório, 20 comprimidos', 'price': 4.10, 'photo_url': '', 'is_available': true},
-    {'id': 'prod-farm-3', 'restaurant_id': 'pharmacy-central', 'name': 'Vitamina C 1000mg', 'description': 'Suplemento vitamínico, 30 comprimidos efervescentes', 'price': 6.90, 'photo_url': '', 'is_available': true},
-    {'id': 'prod-farm-4', 'restaurant_id': 'pharmacy-central', 'name': 'Gel desinfetante 500ml', 'description': 'Gel antisséptico de mãos', 'price': 3.20, 'photo_url': '', 'is_available': true},
-    {'id': 'prod-farm-5', 'restaurant_id': 'pharmacy-central', 'name': 'Penso rápido', 'description': 'Caixa com 20 pensos de vários tamanhos', 'price': 2.60, 'photo_url': '', 'is_available': true},
-    {'id': 'prod-farm-6', 'restaurant_id': 'pharmacy-central', 'name': 'Termómetro digital', 'description': 'Termómetro digital de ouvido com display LCD', 'price': 8.90, 'photo_url': '', 'is_available': true},
-    // Loja Local Exemplo (non-partner store)
-    {'id': 'prod-loja-1', 'restaurant_id': 'store-loja-local', 'name': 'Caneca de cerâmica', 'description': 'Caneca artesanal portuguesa decorada, 350ml', 'price': 12.90, 'photo_url': '', 'is_available': true},
-    {'id': 'prod-loja-2', 'restaurant_id': 'store-loja-local', 'name': 'Tote bag Lisboa', 'description': 'Saco de pano com motivos de Lisboa', 'price': 8.50, 'photo_url': '', 'is_available': true},
-    {'id': 'prod-loja-3', 'restaurant_id': 'store-loja-local', 'name': 'Porta-chaves artesanal', 'description': 'Porta-chaves em cortiça portuguesa', 'price': 5.90, 'photo_url': '', 'is_available': true},
-    {'id': 'prod-loja-4', 'restaurant_id': 'store-loja-local', 'name': 'Postal ilustrado', 'description': 'Conjunto de 4 postais com ilustrações de Lisboa', 'price': 2.50, 'photo_url': '', 'is_available': true},
-  ];
-
-  /// IDs of products that were seeded on first run — used to tag in-memory
-  /// instances with [ProductSource.localSeed] after loading from Supabase.
-  static final Set<String> _kSeedProductIds = {
-    for (final p in _kDefaultProducts) p['id'] as String,
-  };
 
   // ─── Getters ──────────────────────────────────────────────────────────────
 
@@ -350,16 +307,13 @@ class RestaurantStore extends ChangeNotifier {
     _subscribeRestaurantsRealtime();
   }
 
-  /// Inserts default restaurants AND their sample products into Supabase.
+  /// Inserts default restaurants into Supabase.
   /// Called only when the restaurants table is empty (first run).
   Future<void> _seedDefaultRestaurants() async {
     try {
       await supabase.from('restaurants').insert(_kDefaultRestaurants);
-      // Products are seeded alongside restaurants to satisfy the FK constraint.
-      await supabase.from('products').insert(_kDefaultProducts);
       debugPrint(
-          'RestaurantStore: seeded ${_kDefaultRestaurants.length} restaurants '
-          'and ${_kDefaultProducts.length} products');
+          'RestaurantStore: seeded ${_kDefaultRestaurants.length} restaurants');
     } catch (e) {
       debugPrint('RestaurantStore: _seedDefaultRestaurants error => $e');
     }
@@ -386,9 +340,7 @@ class RestaurantStore extends ChangeNotifier {
           price: (data['price'] as num? ?? 0).toDouble(),
           photoUrl: data['photo_url'] ?? '',
           isAvailable: data['is_available'] ?? true,
-          source: _kSeedProductIds.contains(productId)
-              ? ProductSource.localSeed
-              : ProductSource.api,
+          source: ProductSource.api,
         );
 
         _productsByRestaurant
@@ -719,88 +671,6 @@ class RestaurantStore extends ChangeNotifier {
     });
 
     return true;
-  }
-
-  // ─── External product sync ───────────────────────────────────────────────
-
-  /// Upserts a list of externally-sourced products (API / scraping) for a
-  /// given restaurant into Supabase, deduplicating by [name + restaurantId].
-  /// Products already present (same name, case-insensitive) are skipped.
-  Future<void> syncProductsFromExternalSource({
-    required String restaurantId,
-    required List<PartnerProduct> products,
-  }) async {
-    final existing = _productsByRestaurant[restaurantId] ?? const <PartnerProduct>[];
-    final existingNames = existing.map((p) => p.name.toLowerCase()).toSet();
-
-    final toInsert = <Map<String, dynamic>>[];
-    final toAddLocally = <PartnerProduct>[];
-
-    for (final product in products) {
-      if (existingNames.contains(product.name.toLowerCase())) continue;
-
-      final id = product.id.isEmpty
-          ? 'ext-$restaurantId-${DateTime.now().microsecondsSinceEpoch}'
-          : product.id;
-
-      final newProduct = PartnerProduct(
-        id: id,
-        restaurantId: restaurantId,
-        name: product.name,
-        description: product.description,
-        price: product.price,
-        photoUrl: product.photoUrl,
-        isAvailable: product.isAvailable,
-        source: product.source == ProductSource.localSeed
-            ? ProductSource.scraped
-            : product.source,
-      );
-
-      toInsert.add({
-        'id': id,
-        'restaurant_id': restaurantId,
-        'name': newProduct.name,
-        'description': newProduct.description,
-        'price': newProduct.price,
-        'photo_url': newProduct.photoUrl,
-        'is_available': newProduct.isAvailable,
-      });
-      toAddLocally.add(newProduct);
-      existingNames.add(newProduct.name.toLowerCase()); // guard within batch
-    }
-
-    if (toInsert.isEmpty) return;
-
-    try {
-      await supabase.from('products').upsert(toInsert, onConflict: 'id');
-      _productsByRestaurant
-          .putIfAbsent(restaurantId, () => <PartnerProduct>[])
-          .addAll(toAddLocally);
-      notifyListeners();
-      debugPrint(
-          'RestaurantStore: synced ${toInsert.length} external products for $restaurantId');
-    } catch (e) {
-      debugPrint('RestaurantStore: syncProductsFromExternalSource error => $e');
-    }
-  }
-
-  /// Returns true when [product] did not originate from the local seed data.
-  bool isExternalProduct(PartnerProduct product) =>
-      product.source != ProductSource.localSeed;
-
-  /// Scrapes products for [restaurantId] from [source] (e.g. "continente",
-  /// "pingodoce") and syncs them into Supabase via [syncProductsFromExternalSource].
-  Future<void> loadScrapedProductsForStore(
-    String restaurantId,
-    String source,
-  ) async {
-    final scraper = ProductScraperService();
-    final products = await scraper.scrapeProducts(source);
-    if (products.isEmpty) return;
-    await syncProductsFromExternalSource(
-      restaurantId: restaurantId,
-      products: products,
-    );
   }
 
   // ─── Online / Offline toggle ─────────────────────────────────────────────

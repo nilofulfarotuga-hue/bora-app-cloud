@@ -2,16 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
-import '../auth/auth_store.dart';
+import '../config/maps_config.dart';
 import '../models/order_model.dart';
-import '../data/postal_coordinates.dart';
-import '../stores/order_store.dart';
-
-
-
+import '../services/location_service.dart';
+import '../stores/cart_store.dart';
+import '../widgets/address_autocomplete_field.dart';
+import 'payment_method_screen.dart';
 
 class SendPackageFormScreen extends StatefulWidget {
-
   const SendPackageFormScreen({super.key});
 
   @override
@@ -19,164 +17,174 @@ class SendPackageFormScreen extends StatefulWidget {
 }
 
 class _SendPackageFormScreenState extends State<SendPackageFormScreen> {
-  final pickupStreetController = TextEditingController();
-  final pickupCityController = TextEditingController(text: "Lisboa");
-  final pickupPostalController = TextEditingController();
+  final _pickupController = TextEditingController();
+  final _dropoffController = TextEditingController();
 
-  final destinationStreetController = TextEditingController();
-  final destinationCityController = TextEditingController(text: "Lisboa");
-  final destinationPostalController = TextEditingController();
+  LatLng? _pickupLocation;
+  LatLng? _dropoffLocation;
 
-  bool _isLoading = false;
+  // true = motorcycle can carry it → requiresCar = false
+  // false = needs car              → requiresCar = true
+  bool _motoCanCarry = true;
+
+  // Shows a subtle loading indicator while GPS + reverse geocoding runs.
+  bool _loadingLocation = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _prefillPickupFromGps();
+  }
+
+  static const _fallbackAddress = 'Guarda, Portugal';
+
+  /// Obtém a localização atual via GPS e preenche o campo de recolha.
+  /// Se GPS ou reverse geocoding falharem, usa [_fallbackAddress].
+  /// Corre em background — não bloqueia a UI, nunca mostra erro.
+  Future<void> _prefillPickupFromGps() async {
+    setState(() => _loadingLocation = true);
+
+    try {
+      final coords = await LocationService.getCurrentLocation();
+      if (!mounted) return;
+
+      if (coords != null) {
+        final address = await LocationService.reverseGeocode(
+          coords,
+          googleApiKey,
+        );
+        if (!mounted) return;
+        setState(() {
+          _pickupLocation = coords;
+          _pickupController.text =
+              (address != null && address.isNotEmpty) ? address : _fallbackAddress;
+        });
+      } else {
+        setState(() => _pickupController.text = _fallbackAddress);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _pickupController.text = _fallbackAddress);
+    } finally {
+      if (mounted) setState(() => _loadingLocation = false);
+    }
+  }
+
+  void _goToPayment() {
+    final pickupAddress = _pickupController.text.trim();
+    final dropoffAddress = _dropoffController.text.trim();
+
+    if (pickupAddress.isEmpty || dropoffAddress.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Preencha os endereços de recolha e entrega.')),
+      );
+      return;
+    }
+
+    if (_pickupLocation == null || _dropoffLocation == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text(
+                'Selecione um endereço válido nas sugestões para obter coordenadas.')),
+      );
+      return;
+    }
+
+    context.read<CartStore>().configureSession(
+          serviceType: OrderServiceType.sendPackage,
+          isPartnerStore: false,
+          requiresCar: !_motoCanCarry,
+          pickupLocation: _pickupLocation,
+          deliveryLocation: _dropoffLocation,
+          pickupStreet: pickupAddress,
+          dropoffStreet: dropoffAddress,
+        );
+
+    Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => const PaymentMethodScreen()),
+    ).then((ordered) {
+      if (ordered == true && mounted) Navigator.pop(context);
+    });
+  }
 
   @override
   void dispose() {
-    pickupStreetController.dispose();
-    pickupCityController.dispose();
-    pickupPostalController.dispose();
-    destinationStreetController.dispose();
-    destinationCityController.dispose();
-    destinationPostalController.dispose();
+    _pickupController.dispose();
+    _dropoffController.dispose();
     super.dispose();
-  }
-
-  Future<void> createOrder() async {
-    final pickupStreet = pickupStreetController.text.trim();
-    final pickupCity = pickupCityController.text.trim();
-    final pickupPostal = pickupPostalController.text.trim();
-    final destinationStreet = destinationStreetController.text.trim();
-    final destinationCity = destinationCityController.text.trim();
-    final destinationPostal = destinationPostalController.text.trim();
-
-    if (pickupStreet.isEmpty || destinationStreet.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Preencha todos os campos obrigatórios.")),
-      );
-      return;
-    }
-
-    final pickupLocation = _locationForPostal(pickupPostal);
-    final dropoffLocation = _locationForPostal(destinationPostal);
-
-    final orderStore = context.read<OrderStore>();
-    final authStore = context.read<AuthStore>();
-
-    setState(() => _isLoading = true);
-
-    final success = await orderStore.createOrder(
-      serviceType: OrderServiceType.sendPackage,
-      itemsSubtotal: 0,
-      destination: dropoffLocation,
-      paymentMethod: PaymentMethod.cash,
-      pickupLocation: pickupLocation,
-      isPartnerStore: false,
-      pickupAddress: "$pickupStreet, $pickupCity",
-      pickupStreet: pickupStreet,
-      pickupCity: pickupCity,
-      pickupPostalCode: pickupPostal,
-      dropoffAddress: "$destinationStreet, $destinationCity",
-      dropoffStreet: destinationStreet,
-      dropoffCity: destinationCity,
-      dropoffPostalCode: destinationPostal,
-      clientPhone: authStore.currentClient?.phone,
-    );
-
-    if (!mounted) return;
-    setState(() => _isLoading = false);
-
-    if (!success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Não foi possível criar o pedido. Verifique os logs para mais detalhes."),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Pedido criado com sucesso!")),
-    );
-    Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Enviar pacote")),
-      body: Padding(
+      appBar: AppBar(title: const Text('Enviar pacote')),
+      body: ListView(
         padding: const EdgeInsets.all(16),
-        child: ListView(
-          children: [
-            const Text(
-              "Endereço de recolha",
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: pickupStreetController,
-              decoration: const InputDecoration(
-                labelText: "Rua e número",
+        children: [
+          const Text(
+            'Endereço de recolha',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+          ),
+          const SizedBox(height: 8),
+          // Mostra um indicador subtil enquanto o GPS resolve o endereço.
+          Stack(
+            children: [
+              AddressAutocompleteField(
+                controller: _pickupController,
+                labelText: 'Pesquisar endereço de recolha',
+                prefixIcon: const Icon(Icons.my_location_outlined),
+                onSelected: (address, coords) {
+                  setState(() => _pickupLocation = coords);
+                },
               ),
+              if (_loadingLocation)
+                const Positioned(
+                  right: 12,
+                  top: 14,
+                  child: SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'Endereço de entrega',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+          ),
+          const SizedBox(height: 8),
+          AddressAutocompleteField(
+            controller: _dropoffController,
+            labelText: 'Pesquisar endereço de entrega',
+            prefixIcon: const Icon(Icons.location_on_outlined),
+            onSelected: (address, coords) {
+              setState(() => _dropoffLocation = coords);
+            },
+          ),
+          const SizedBox(height: 24),
+          const Divider(),
+          SwitchListTile(
+            title: const Text(
+                'Um motociclista consegue transportar esta encomenda?'),
+            subtitle: Text(
+              _motoCanCarry
+                  ? 'Sim — motos e carros elegíveis'
+                  : 'Não — apenas carros elegíveis',
             ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: pickupCityController,
-              decoration: const InputDecoration(
-                labelText: "Cidade",
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: pickupPostalController,
-              decoration: const InputDecoration(
-                labelText: "Código postal",
-              ),
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              "Endereço de entrega",
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: destinationStreetController,
-              decoration: const InputDecoration(
-                labelText: "Rua e número",
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: destinationCityController,
-              decoration: const InputDecoration(
-                labelText: "Cidade",
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: destinationPostalController,
-              decoration: const InputDecoration(
-                labelText: "Código postal",
-              ),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _isLoading ? null : createOrder,
-              child: _isLoading
-                  ? const SizedBox(
-                      height: 16,
-                      width: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text("Criar pedido"),
-            ),
-          ],
-        ),
+            value: _motoCanCarry,
+            onChanged: (value) => setState(() => _motoCanCarry = value),
+          ),
+          const Divider(),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: _goToPayment,
+            child: const Text('Continuar para pagamento'),
+          ),
+        ],
       ),
     );
-  }
-
-    LatLng _locationForPostal(String postal) {
-    return PostalCoordinateHelper.coordinateFor(postal);
   }
 }

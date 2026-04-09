@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "Bash(claude plugin:*)",
+      "Read(//c/Users/danil/.claude/plugins/**)",
+      "Read(//c/Users/danil/.claude/plugins/marketplaces/**)",
+      "Read(//c/Users/danil/**)",
+      "Bash(npx --version)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\('plugins', {}\\), indent=2\\)\\)\")"
+    ]
+  }
+}

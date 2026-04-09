@@ -7,6 +7,21 @@ enum VehicleType {
   car,
 }
 
+enum DriverStatus { pending, approved, rejected }
+
+extension DriverStatusLabel on DriverStatus {
+  String get label {
+    switch (this) {
+      case DriverStatus.pending:
+        return 'Pendente';
+      case DriverStatus.approved:
+        return 'Aprovado';
+      case DriverStatus.rejected:
+        return 'Rejeitado';
+    }
+  }
+}
+
 extension VehicleTypeLabel on VehicleType {
   String get label {
     switch (this) {
@@ -26,7 +41,8 @@ class DriverModel {
     required this.vehicleType,
     this.phone,
     this.licensePlate,
-    this.isOnline = true,
+    this.isOnline = false,
+    this.status = DriverStatus.approved,
     List<DriverAssignmentInfo>? activeAssignments,
   }) : activeAssignments = activeAssignments ?? <DriverAssignmentInfo>[];
 
@@ -37,14 +53,18 @@ class DriverModel {
   String? phone;
   String? licensePlate;
   bool isOnline;
+  DriverStatus status;
   final List<DriverAssignmentInfo> activeAssignments;
 
-  bool supportsService(OrderServiceType serviceType) {
-    if (vehicleType == VehicleType.car) {
-      return true;
-    }
+  bool supportsService(OrderServiceType serviceType, {bool requiresCar = false}) {
+    if (vehicleType == VehicleType.car) return true;
 
-    return serviceType == OrderServiceType.restaurant;
+    // Motorcycle cannot carry sendPackage orders that require a car.
+    if (serviceType == OrderServiceType.sendPackage && requiresCar) return false;
+
+    return serviceType == OrderServiceType.restaurant ||
+        serviceType == OrderServiceType.storeShopping ||
+        serviceType == OrderServiceType.sendPackage;
   }
 }
 

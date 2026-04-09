@@ -23,6 +23,36 @@ class RestaurantMenuScreen extends StatelessWidget {
 
       appBar: AppBar(
         title: Text(restaurant.name),
+        actions: [
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.shopping_cart_outlined),
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const CartScreen()),
+                ),
+              ),
+              if (cart.totalItems > 0)
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: IgnorePointer(
+                    child: CircleAvatar(
+                      radius: 8,
+                      backgroundColor: Colors.red,
+                      child: Text(
+                        "${cart.totalItems}",
+                        style: const TextStyle(
+                            fontSize: 10, color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
       ),
 
       body: Column(

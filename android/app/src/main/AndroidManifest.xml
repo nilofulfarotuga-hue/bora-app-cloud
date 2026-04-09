@@ -1,13 +1,21 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
 <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+<!-- Background location: lets GPS stream survive when the app is minimised -->
+<uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/>
+<!-- Foreground service: required by Geolocator's ForegroundNotificationConfig -->
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+<!-- Android 14+ requires a typed foreground-service permission for location -->
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
+<!-- Wake-lock: prevents CPU from sleeping while tracking is active -->
+<uses-permission android:name="android.permission.WAKE_LOCK"/>
         <application
         android:label="bora_app"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <meta-data
-            android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyBYLjK1RtPdi4WM7pMGmupesBgUIWMkfkw" />
+            android:name="comAIzaSyBYLjK1RtPdi4WM7pMGmupesBgUIWMkkw.google.android.geo.API_KEY"
+            android:value="AIzaSyCBDIU1E7iuWeNvP1OeipsW62ZaB_Qq25k"/>
 
         <activity
             android:name=".MainActivity"

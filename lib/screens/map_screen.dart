@@ -21,7 +21,12 @@ import '../utils/map_utils.dart';
 enum _LocationField { pickup, destination }
 
 class MapScreen extends StatefulWidget {
-  const MapScreen({super.key});
+  /// [pickerMode] = true: the screen returns the selected [ll.LatLng] via
+  /// `Navigator.pop(context, latLng)` instead of creating an order.
+  /// Use this when calling map_screen as a location picker from other screens.
+  const MapScreen({super.key, this.pickerMode = false});
+
+  final bool pickerMode;
 
   @override
   State<MapScreen> createState() => _MapScreenState();
@@ -57,6 +62,17 @@ class _MapScreenState extends State<MapScreen> {
   Timer? _autocompleteDebounce;
   List<PlacePrediction> _predictions = const <PlacePrediction>[];
 
+  // ── Pin-centre drag state ───────────────────────────────────────────────────
+  // _cameraCenter tracks the live map centre as the user drags.
+  // _isDragging drives the pin lift animation.
+  // _ignoreNextCameraIdle suppresses the coordinate-select callback after
+  //   programmatic animateCamera calls (loadLocation, fitToRoute, etc.).
+  // _hasUserMovedMap gates the address-pill overlay — don't show on first load.
+  bool _isDragging = false;
+  bool _ignoreNextCameraIdle = false;
+  ll.LatLng? _cameraCenter;
+  bool _hasUserMovedMap = false;
+
 
 
     @override
@@ -85,22 +101,21 @@ class _MapScreenState extends State<MapScreen> {
       _loadingError = null;
     });
 
-    try {
-      final location = await LocationService.getCurrentLocation();
-      final label = await _reverseGeocode(location);
-      if (!mounted) return;
-      setState(() {
-        _pickupLocation = location;
-        _pickupAddress = label;
-      });
-      await _moveCamera(location);
-    } catch (error) {
-      if (!mounted) return;
+    final location = await LocationService.getCurrentLocation();
+    if (!mounted) return;
+    if (location == null) {
       setState(() {
         _loadingError = 'Não foi possível obter a sua localização.';
       });
-      debugPrint('Erro ao obter localização: $error');
+      return;
     }
+    final label = await _reverseGeocode(location);
+    if (!mounted) return;
+    setState(() {
+      _pickupLocation = location;
+      _pickupAddress = label;
+    });
+    await _moveCamera(location);
   }
 
   Future<_AddressLabel?> _reverseGeocode(ll.LatLng coordinate) async {
@@ -125,6 +140,8 @@ class _MapScreenState extends State<MapScreen> {
       return;
     }
     final controller = await _mapController.future;
+    // Mark as programmatic so onCameraIdle does not trigger a coordinate-select.
+    _ignoreNextCameraIdle = true;
     await controller.animateCamera(
       CameraUpdate.newLatLng(target.toGMaps()),
     );
@@ -387,9 +404,45 @@ class _MapScreenState extends State<MapScreen> {
     final bounds = boundsFromPoints(points);
     if (bounds == null) return;
     final controller = await _mapController.future;
+    // Mark as programmatic so onCameraIdle does not re-select the coordinate.
+    _ignoreNextCameraIdle = true;
     await controller.animateCamera(
       CameraUpdate.newLatLngBounds(bounds, 60),
     );
+  }
+
+  // ── Pin-centre camera callbacks ────────────────────────────────────────────
+
+  void _onCameraMoveStarted() {
+    if (!_isDragging) setState(() => _isDragging = true);
+  }
+
+  void _onCameraMove(CameraPosition position) {
+    // Update candidate centre synchronously — no setState needed (no UI change
+    // yet; the address is only updated on idle).
+    _cameraCenter = ll.LatLng(
+      position.target.latitude,
+      position.target.longitude,
+    );
+  }
+
+  void _onCameraIdle() {
+    if (_isDragging) setState(() => _isDragging = false);
+
+    // Skip if the camera was moved programmatically (loadLocation, fitToRoute).
+    if (_ignoreNextCameraIdle) {
+      _ignoreNextCameraIdle = false;
+      return;
+    }
+
+    final centre = _cameraCenter;
+    if (centre == null) return;
+
+    // User-initiated move: treat the map centre as the new selected coordinate.
+    // moveCamera: false — the map is already there; no animation needed.
+    // Geocode runs inside _selectCoordinate (non-blocking).
+    _hasUserMovedMap = true;
+    _selectCoordinate(_selectedField, centre, moveCamera: false);
   }
 
   String _hintForField(_LocationField field) {
@@ -656,25 +709,140 @@ class _MapScreenState extends State<MapScreen> {
             ),
           ),
           Expanded(
-            child: GoogleMap(
-              initialCameraPosition: CameraPosition(
-                target: pickupLocation.toGMaps(),
-                zoom: 14,
-              ),
-              myLocationEnabled: true,
-              myLocationButtonEnabled: true,
-              compassEnabled: true,
-              markers: markers,
-              polylines: polylines,
-              onMapCreated: (controller) {
-                if (!_mapController.isCompleted) {
-                  _mapController.complete(controller);
-                }
-              },
-              onTap: _onTapMap,
+            child: Stack(
+              children: [
+                // ── Map ──────────────────────────────────────────────────────
+                GoogleMap(
+                  initialCameraPosition: CameraPosition(
+                    target: pickupLocation.toGMaps(),
+                    zoom: 14,
+                  ),
+                  myLocationEnabled: true,
+                  myLocationButtonEnabled: true,
+                  compassEnabled: true,
+                  markers: markers,
+                  polylines: polylines,
+                  onMapCreated: (controller) {
+                    if (!_mapController.isCompleted) {
+                      _mapController.complete(controller);
+                    }
+                  },
+                  // Pin-centre is the primary selection method.
+                  // onTap kept as fallback for accessibility / quick tap.
+                  onTap: _onTapMap,
+                  onCameraMoveStarted: _onCameraMoveStarted,
+                  onCameraMove: _onCameraMove,
+                  onCameraIdle: _onCameraIdle,
+                ),
+
+                // ── Fixed centre pin ─────────────────────────────────────────
+                // IgnorePointer so the pin never intercepts map touch events.
+                IgnorePointer(
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Pin lifts 16 px while dragging (Uber-style animation).
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          curve: Curves.easeOut,
+                          transform: Matrix4.translationValues(
+                              0, _isDragging ? -16 : 0, 0),
+                          child: Icon(
+                            Icons.location_pin,
+                            size: 48,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                        // Shadow shrinks when pin is lifted.
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          curve: Curves.easeOut,
+                          width: _isDragging ? 4 : 10,
+                          height: _isDragging ? 2 : 5,
+                          decoration: BoxDecoration(
+                            color: Colors.black26,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // ── Address pill (shown after first user drag) ───────────────
+                if (!_isDragging && _hasUserMovedMap && _cameraCenter != null)
+                  Positioned(
+                    top: 12,
+                    left: 16,
+                    right: 16,
+                    child: Material(
+                      elevation: 4,
+                      borderRadius: BorderRadius.circular(12),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 10),
+                        child: Row(
+                          children: [
+                            Icon(
+                              _selectedField == _LocationField.pickup
+                                  ? Icons.my_location
+                                  : Icons.flag,
+                              size: 18,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                _selectedField == _LocationField.pickup
+                                    ? (_pickupAddress?.full ??
+                                        _formatCoordinate(_cameraCenter!))
+                                    : (_destinationAddress?.full ??
+                                        _formatCoordinate(_cameraCenter!)),
+                                style: const TextStyle(fontSize: 13),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (_isSearchingAddress)
+                              const SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
-          if (price != null)
+          // ── Picker mode: confirm location button ───────────────────────
+          // Returns the selected LatLng to the caller via Navigator.pop.
+          // Geocode is non-blocking — button is always active once GPS loads.
+          if (widget.pickerMode)
+            SafeArea(
+              top: false,
+              minimum: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.check_circle_outline),
+                  label: const Text('Confirmar localização'),
+                  onPressed: () {
+                    final selected =
+                        _cameraCenter ?? _pickupLocation;
+                    if (selected == null) return;
+                    Navigator.pop(context, selected);
+                  },
+                ),
+              ),
+            ),
+
+          // ── Order mode: pricing summary + confirm order button ──────────
+          if (!widget.pickerMode && price != null)
             Container(
               width: double.infinity,
               color: Colors.white,

@@ -5,11 +5,15 @@ import 'package:google_maps_flutter/google_maps_flutter.dart' hide LatLng;
 import 'package:latlong2/latlong.dart' as ll;
 import 'package:provider/provider.dart';
 
+import '../models/chat_message.dart';
 import '../models/order_model.dart';
+import '../widgets/address_text.dart';
 import '../services/directions_service.dart';
 import '../stores/driver_store.dart';
 import '../stores/order_store.dart';
+import '../utils/map_marker_helper.dart';
 import '../utils/map_utils.dart';
+import 'chat_screen.dart';
 
 class OrderTrackingScreen extends StatefulWidget {
   const OrderTrackingScreen({super.key, required this.order});
@@ -31,12 +35,17 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   ll.LatLng? _lastCameraTarget;
 
   @override
+  void initState() {
+    super.initState();
+    MapMarkerHelper.preload();
+  }
+
+  @override
   void dispose() {
     _directionsService.dispose();
     super.dispose();
   }
 
-  /// Returns the current tracked order from the store (keeps status fresh).
   OrderModel _freshOrder(OrderStore orderStore) {
     try {
       return orderStore.orders.firstWhere((o) => o.id == widget.order.id);
@@ -45,7 +54,6 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     }
   }
 
-  /// The point the driver is currently heading to, based on order status.
   ll.LatLng? _resolveTarget(OrderModel order) {
     if (order.status.index <= OrderStatus.driverAccepted.index) {
       return order.pickupLocation ?? order.destination;
@@ -60,12 +68,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     final key =
         '${origin.latitude.toStringAsFixed(4)},${origin.longitude.toStringAsFixed(4)}'
         '|${destination.latitude.toStringAsFixed(4)},${destination.longitude.toStringAsFixed(4)}';
-
     if (_activeRouteKey == key && _routePoints.isNotEmpty) return;
-
     _activeRouteKey = key;
     final requestId = ++_routeRequestId;
-
     _directionsService
         .fetchRoute(origin: origin, destination: destination)
         .then((route) {
@@ -83,7 +88,6 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     if (_lastCameraDriver == driver && _lastCameraTarget == target) return;
     _lastCameraDriver = driver;
     _lastCameraTarget = target;
-
     final controller = await _mapController.future;
     final bounds = boundsFromPoints(
       _routePoints.isNotEmpty
@@ -91,31 +95,33 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
           : <ll.LatLng>[driver, target],
     );
     if (bounds != null) {
-      await controller.animateCamera(
-        CameraUpdate.newLatLngBounds(bounds, 80),
-      );
+      await controller.animateCamera(CameraUpdate.newLatLngBounds(bounds, 100));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final orderStore = context.watch<OrderStore>();
-    final driverStore = context.watch<DriverStore>();
+    // PERFORMANCE: read DriverStore (no full subscription) and use a scoped
+    // selector below to react ONLY to the assigned driver's location. Without
+    // this scoping, the screen rebuilt on every interpolation step (10×/sec)
+    // of EVERY driver received via the `drivers` realtime channel.
+    final driverStore = context.read<DriverStore>();
     final order = _freshOrder(orderStore);
 
-    // Find assigned driver by ID stored on the order.
     final assignedId = order.assignedDriverId;
-    final driver = assignedId != null
-        ? driverStore.getDriverById(assignedId)
-        : null;
-    final driverPosition = driver?.location ??
-        (order.driverLat != null && order.driverLng != null
-            ? ll.LatLng(order.driverLat!, order.driverLng!)
-            : null);
-
+    final driver =
+        assignedId != null ? driverStore.getDriverById(assignedId) : null;
+    // Single source of truth: DriverStore.currentDriver.location, synced in
+    // real time via the `drivers` table subscription. Scoped via select() so
+    // that only changes to THIS driver's location trigger a rebuild.
+    final driverPosition = assignedId == null
+        ? null
+        : context.select<DriverStore, ll.LatLng?>(
+            (s) => s.getDriverById(assignedId)?.location,
+          );
     final target = _resolveTarget(order);
 
-    // Schedule route fetch + camera fit after build.
     if (driverPosition != null && target != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
@@ -124,199 +130,466 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
       });
     }
 
-    // ── Markers ────────────────────────────────────────────────────────────
+    // ── Markers ──────────────────────────────────────────────────────────────
     final markers = <Marker>{};
 
     if (order.destination != null) {
       markers.add(Marker(
         markerId: const MarkerId('client'),
         position: order.destination!.toGMaps(),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+        icon: MapMarkerHelper.clientIcon,
         infoWindow: const InfoWindow(title: 'Destino'),
+        zIndexInt: 1,
       ));
     }
-
     if (order.pickupLocation != null) {
       markers.add(Marker(
         markerId: const MarkerId('pickup'),
         position: order.pickupLocation!.toGMaps(),
-        icon:
-            BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+        icon: MapMarkerHelper.pickupIcon,
         infoWindow: const InfoWindow(title: 'Recolha'),
+        zIndexInt: 1,
       ));
     }
-
     if (driverPosition != null) {
       markers.add(Marker(
         markerId: const MarkerId('driver'),
         position: driverPosition.toGMaps(),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+        icon: MapMarkerHelper.driverIcon,
         infoWindow: InfoWindow(title: driver?.name ?? 'Estafeta'),
+        zIndexInt: 2,
       ));
     }
 
-    // ── Polyline ───────────────────────────────────────────────────────────
+    // ── Polyline ─────────────────────────────────────────────────────────────
     final polylines = <Polyline>{};
     if (_routePoints.isNotEmpty) {
       polylines.add(Polyline(
-        polylineId: const PolylineId('tracking-route'),
-        color: Colors.blueAccent,
+        polylineId: const PolylineId('route'),
+        color: const Color(0xFF1A73E8),
         width: 5,
         points: _routePoints.toGMaps(),
       ));
     } else if (driverPosition != null && target != null) {
       polylines.add(Polyline(
-        polylineId: const PolylineId('tracking-route'),
-        color: Colors.blueAccent,
+        polylineId: const PolylineId('route'),
+        color: const Color(0xFF1A73E8),
         width: 4,
         points: [driverPosition.toGMaps(), target.toGMaps()],
       ));
     }
 
-    // ── Initial camera center ──────────────────────────────────────────────
     final mapCenter = driverPosition ??
         order.destination ??
         order.pickupLocation ??
         const ll.LatLng(38.7223, -9.1393);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Acompanhar pedido'),
-      ),
-      body: Column(
+      body: Stack(
         children: [
-          Expanded(
-            child: GoogleMap(
-              initialCameraPosition: CameraPosition(
-                target: mapCenter.toGMaps(),
-                zoom: 14,
+          // ── Fullscreen map ─────────────────────────────────────────────────
+          GoogleMap(
+            initialCameraPosition: CameraPosition(
+              target: mapCenter.toGMaps(),
+              zoom: 14,
+            ),
+            markers: markers,
+            polylines: polylines,
+            myLocationEnabled: true,
+            myLocationButtonEnabled: false,
+            compassEnabled: false,
+            zoomControlsEnabled: false,
+            onMapCreated: (c) {
+              if (!_mapController.isCompleted) _mapController.complete(c);
+            },
+          ),
+
+          // ── Back button ────────────────────────────────────────────────────
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Material(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(50),
+                elevation: 4,
+                shadowColor: Colors.black26,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(50),
+                  onTap: () => Navigator.maybePop(context),
+                  child: const Padding(
+                    padding: EdgeInsets.all(10),
+                    child: Icon(Icons.arrow_back, size: 22),
+                  ),
+                ),
               ),
-              markers: markers,
-              polylines: polylines,
-              myLocationEnabled: true,
-              myLocationButtonEnabled: false,
-              compassEnabled: true,
-              onMapCreated: (controller) {
-                if (!_mapController.isCompleted) {
-                  _mapController.complete(controller);
-                }
-              },
             ),
           ),
-          _TrackingInfoPanel(order: order, driverName: driver?.name),
+
+          // ── Draggable bottom sheet ─────────────────────────────────────────
+          DraggableScrollableSheet(
+            initialChildSize: 0.38,
+            minChildSize: 0.22,
+            maxChildSize: 0.80,
+            snap: true,
+            snapSizes: const [0.22, 0.38, 0.80],
+            builder: (_, scrollController) => _BottomCard(
+              scrollController: scrollController,
+              order: order,
+              driverName: driver?.name,
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-// ── Info panel ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Bottom draggable card
+// ─────────────────────────────────────────────────────────────────────────────
 
-class _TrackingInfoPanel extends StatelessWidget {
-  const _TrackingInfoPanel({
+class _BottomCard extends StatelessWidget {
+  const _BottomCard({
+    required this.scrollController,
     required this.order,
     required this.driverName,
   });
 
+  final ScrollController scrollController;
   final OrderModel order;
   final String? driverName;
+
+  bool get _driverAssigned =>
+      order.status.index >= OrderStatus.driverAccepted.index &&
+      order.status != OrderStatus.rejected;
+
+  bool get _isActive =>
+      order.status != OrderStatus.delivered &&
+      order.status != OrderStatus.rejected;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDelivered = order.status == OrderStatus.delivered;
-    final isRejected = order.status == OrderStatus.rejected;
 
     return Container(
-      width: double.infinity,
-      color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 20,
+            offset: Offset(0, -4),
+          ),
+        ],
+      ),
+      child: ListView(
+        controller: scrollController,
+        padding: EdgeInsets.zero,
+        physics: const ClampingScrollPhysics(),
         children: [
-          Row(
-            children: [
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: _statusColor(order.status).withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(20),
+          // ── Drag handle ─────────────────────────────────────────────────
+          Center(
+            child: Container(
+              margin: const EdgeInsets.symmetric(vertical: 10),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+          ),
+
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ── Order code + status ──────────────────────────────────
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            order.status.label,
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.3,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Pedido ${order.orderCode}',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: Colors.grey.shade500,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Status dot
+                    Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: _statusColor(order.status),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: _statusColor(order.status)
+                                .withValues(alpha: 0.4),
+                            blurRadius: 8,
+                            spreadRadius: 2,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                child: Text(
-                  order.status.label,
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: _statusColor(order.status),
-                    fontWeight: FontWeight.w700,
+
+                const SizedBox(height: 20),
+
+                // ── Driver card ──────────────────────────────────────────
+                if (_driverAssigned) ...[
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        // Avatar
+                        Stack(
+                          children: [
+                            CircleAvatar(
+                              radius: 26,
+                              backgroundColor: Colors.blueGrey.shade100,
+                              child: Icon(
+                                Icons.delivery_dining,
+                                size: 28,
+                                color: Colors.blueGrey.shade700,
+                              ),
+                            ),
+                            Positioned(
+                              bottom: 0,
+                              right: 0,
+                              child: Container(
+                                width: 14,
+                                height: 14,
+                                decoration: BoxDecoration(
+                                  color: Colors.green.shade500,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                      color: Colors.white, width: 2),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(width: 14),
+                        // Name + details
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                driverName ?? 'Estafeta',
+                                style: theme.textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              Row(
+                                children: [
+                                  Icon(Icons.star_rounded,
+                                      size: 14,
+                                      color: Colors.amber.shade600),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    '4.9',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.grey.shade700,
+                                    ),
+                                  ),
+                                  if (order.distanceKm > 0) ...[
+                                    Text(
+                                      '  ·  ${order.distanceKm.toStringAsFixed(1)} km',
+                                      style: theme.textTheme.bodySmall
+                                          ?.copyWith(
+                                              color: Colors.grey.shade500),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              if ((order.driverPhone ?? '').isNotEmpty) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  order.driverPhone!,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: Colors.grey.shade500,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 14),
+
+                  // ── Chat button ────────────────────────────────────────
+                  if (_isActive)
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: const Color(0xFF1A73E8),
+                          foregroundColor: Colors.white,
+                          padding:
+                              const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          textStyle: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ChatScreen(
+                              order: order,
+                              senderType: ChatSenderType.client,
+                            ),
+                          ),
+                        ),
+                        icon: const Icon(Icons.chat_bubble_outline,
+                            size: 18),
+                        label: const Text('Falar com o estafeta'),
+                      ),
+                    ),
+
+                  // ── Delivery code ──────────────────────────────────────
+                  if (_isActive) ...[
+                    const SizedBox(height: 14),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 14),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.orange.shade50,
+                            Colors.amber.shade50,
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(14),
+                        border:
+                            Border.all(color: Colors.orange.shade200),
+                      ),
+                      child: Column(
+                        children: [
+                          Text(
+                            'Código de entrega',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: Colors.orange.shade700,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              for (final ch
+                                  in order.deliveryCode.split(''))
+                                _CodeDigit(digit: ch),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Mostre ao estafeta na entrega',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: Colors.orange.shade600,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 20),
+                  Divider(color: Colors.grey.shade200, height: 1),
+                  const SizedBox(height: 16),
+                ],
+
+                // ── Addresses ────────────────────────────────────────────
+                if ((order.pickupAddress ?? '').isNotEmpty ||
+                    order.pickupLocation != null)
+                  _AddressRow(
+                    icon: Icons.store_outlined,
+                    iconColor: Colors.blueGrey.shade400,
+                    child: AddressText(
+                      rawAddress: order.pickupAddress,
+                      coords: order.pickupLocation,
+                      prefix: 'Recolha: ',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ),
+                if ((order.dropoffAddress ?? '').isNotEmpty ||
+                    order.destination != null) ...[
+                  const SizedBox(height: 8),
+                  _AddressRow(
+                    icon: Icons.place_outlined,
+                    iconColor: Colors.red.shade400,
+                    child: AddressText(
+                      rawAddress: order.dropoffAddress,
+                      coords: order.destination,
+                      prefix: 'Entrega: ',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ),
+                ],
+
+                // ── Total ────────────────────────────────────────────────
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Total do pedido',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                      Text(
+                        '€${order.total.toStringAsFixed(2)}',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              if (!isDelivered && !isRejected && order.distanceKm > 0) ...[
-                const SizedBox(width: 12),
-                Text(
-                  '${order.distanceKm.toStringAsFixed(1)} km',
-                  style: theme.textTheme.bodyMedium,
-                ),
-              ],
-            ],
-          ),
-          if (driverName != null) ...[
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                const Icon(Icons.person_outline, size: 18),
-                const SizedBox(width: 6),
-                Text(
-                  driverName!,
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(fontWeight: FontWeight.w600),
-                ),
               ],
             ),
-          ],
-          if ((order.driverPhone ?? '').isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                const Icon(Icons.phone_outlined, size: 18),
-                const SizedBox(width: 6),
-                Text(
-                  order.driverPhone!,
-                  style: theme.textTheme.bodyMedium,
-                ),
-              ],
-            ),
-          ],
-          const SizedBox(height: 10),
-          if ((order.pickupAddress ?? '').isNotEmpty)
-            _AddressRow(
-              icon: Icons.store_outlined,
-              label: 'Recolha',
-              value: order.pickupAddress!,
-            ),
-          if ((order.dropoffAddress ?? '').isNotEmpty) ...[
-            const SizedBox(height: 4),
-            _AddressRow(
-              icon: Icons.flag_outlined,
-              label: 'Entrega',
-              value: order.dropoffAddress!,
-            ),
-          ],
-          const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Total',
-                style: theme.textTheme.bodyMedium,
-              ),
-              Text(
-                '€${order.total.toStringAsFixed(2)}',
-                style: theme.textTheme.titleMedium
-                    ?.copyWith(fontWeight: FontWeight.bold),
-              ),
-            ],
           ),
         ],
       ),
@@ -326,52 +599,82 @@ class _TrackingInfoPanel extends StatelessWidget {
   Color _statusColor(OrderStatus status) {
     switch (status) {
       case OrderStatus.delivered:
-        return Colors.green.shade700;
+        return Colors.green.shade500;
       case OrderStatus.rejected:
-        return Colors.red.shade700;
+        return Colors.red.shade500;
       case OrderStatus.driverAccepted:
       case OrderStatus.pickedUp:
       case OrderStatus.onTheWay:
-        return Colors.blue.shade700;
+        return const Color(0xFF1A73E8);
       default:
-        return Colors.orange.shade700;
+        return Colors.orange.shade400;
     }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _CodeDigit extends StatelessWidget {
+  const _CodeDigit({required this.digit});
+
+  final String digit;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 44,
+      height: 52,
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.orange.shade300, width: 1.5),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 4,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        digit,
+        style: TextStyle(
+          fontSize: 26,
+          fontWeight: FontWeight.w900,
+          color: Colors.orange.shade900,
+          height: 1,
+        ),
+      ),
+    );
   }
 }
 
 class _AddressRow extends StatelessWidget {
   const _AddressRow({
     required this.icon,
-    required this.label,
-    required this.value,
+    required this.iconColor,
+    required this.child,
   });
 
   final IconData icon;
-  final String label;
-  final String value;
+  final Color iconColor;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 16, color: Colors.grey.shade600),
-        const SizedBox(width: 6),
-        Expanded(
-          child: RichText(
-            text: TextSpan(
-              style: theme.textTheme.bodySmall,
-              children: [
-                TextSpan(
-                  text: '$label: ',
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-                TextSpan(text: value),
-              ],
-            ),
-          ),
+        Padding(
+          padding: const EdgeInsets.only(top: 1),
+          child: Icon(icon, size: 16, color: iconColor),
         ),
+        const SizedBox(width: 8),
+        Expanded(child: child),
       ],
     );
   }

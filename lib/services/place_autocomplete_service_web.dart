@@ -174,6 +174,61 @@ class _WebPlaceAutocompleteService implements PlaceAutocompleteService {
     }
   }
 
+  // ─── geocodeAddress ────────────────────────────────────────────────────────
+
+  @override
+  Future<ll.LatLng?> geocodeAddress(String address) async {
+    if (address.isEmpty) return null;
+
+    final googleRaw = js.context['google'];
+    if (googleRaw == null || googleRaw is! js.JsObject) return null;
+    final mapsRaw = googleRaw['maps'];
+    if (mapsRaw == null || mapsRaw is! js.JsObject) return null;
+    final geocoderCtor = mapsRaw['Geocoder'];
+    if (geocoderCtor == null || geocoderCtor is! js.JsFunction) return null;
+
+    final geocoder = js.JsObject(geocoderCtor);
+    final completer = Completer<ll.LatLng?>();
+
+    geocoder.callMethod('geocode', [
+      js.JsObject.jsify({'address': address, 'region': 'pt'}),
+      (dynamic results, dynamic status) {
+        if (completer.isCompleted) return;
+        if (status?.toString() != 'OK' || results == null) {
+          completer.complete(null);
+          return;
+        }
+        try {
+          final arr = results as js.JsArray;
+          if (arr.isEmpty) {
+            completer.complete(null);
+            return;
+          }
+          final first = arr[0] as js.JsObject;
+          final geometry = first['geometry'] as js.JsObject?;
+          final location = geometry?['location'] as js.JsObject?;
+          if (location == null) {
+            completer.complete(null);
+            return;
+          }
+          final lat =
+              (location.callMethod('lat', const []) as num).toDouble();
+          final lng =
+              (location.callMethod('lng', const []) as num).toDouble();
+          completer.complete(ll.LatLng(lat, lng));
+        } catch (_) {
+          completer.complete(null);
+        }
+      },
+    ]);
+
+    try {
+      return await completer.future.timeout(const Duration(seconds: 10));
+    } catch (_) {
+      return null;
+    }
+  }
+
   // ─── session / lifecycle ───────────────────────────────────────────────────
 
   @override

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../stores/cart_store.dart';
+import 'orders_screen.dart';
 import 'payment_method_screen.dart';
 
 
@@ -30,18 +31,40 @@ class CartScreen extends StatelessWidget {
       body: Column(
         children: [
           Expanded(
-            child: ListView.builder(
-              itemCount: cartStore.items.length,
-              itemBuilder: (context, index) {
-                final item = cartStore.items[index];
-
-                return ListTile(
-                  title: Text(item.name),
-                  subtitle: Text("€${item.price}"),
-                  trailing: Text("x${item.quantity}"),
-                );
-              },
-            ),
+            child: cartStore.items.isEmpty
+                ? const Center(child: Text("O carrinho está vazio."))
+                : ListView.builder(
+                    itemCount: cartStore.items.length,
+                    itemBuilder: (context, index) {
+                      final item = cartStore.items[index];
+                      return ListTile(
+                        title: Text(item.name),
+                        subtitle: Text("€${item.price.toStringAsFixed(2)}"),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.remove_circle_outline),
+                              onPressed: () =>
+                                  cartStore.decreaseQuantity(item),
+                            ),
+                            Text("${item.quantity}",
+                                style: const TextStyle(fontSize: 16)),
+                            IconButton(
+                              icon: const Icon(Icons.add_circle_outline),
+                              onPressed: () =>
+                                  cartStore.increaseQuantity(item),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline,
+                                  color: Colors.red),
+                              onPressed: () => cartStore.removeItem(item),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
           ),
           Container(
             width: double.infinity,
@@ -119,10 +142,16 @@ class CartScreen extends StatelessWidget {
                             ),
                           );
                           if (confirmed == true && context.mounted) {
-                            Navigator.pop(context);
+                            Navigator.of(context)
+                                .popUntil((route) => route.isFirst);
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const OrdersScreen(),
+                              ),
+                            );
                           }
                         },
-                  child: const Text("Escolher pagamento"),
+                  child: const Text("Finalizar pedido"),
                 ),
 
               ],

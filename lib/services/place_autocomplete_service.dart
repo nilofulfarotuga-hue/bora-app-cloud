@@ -24,6 +24,10 @@ abstract class PlaceAutocompleteService {
 
   Future<ll.LatLng?> resolvePlaceLocation(String placeId);
 
+  /// Geocode a free-form address string. Used as a fallback when
+  /// [resolvePlaceLocation] returns null (e.g. Place Details API not enabled).
+  Future<ll.LatLng?> geocodeAddress(String address);
+
   void resetSession();
 
   void dispose();

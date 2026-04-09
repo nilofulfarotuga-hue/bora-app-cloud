@@ -6,9 +6,9 @@ import 'package:latlong2/latlong.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../auth/auth_store.dart';
+import '../config/business_rules.dart';
 import '../dispatch/dispatch_engine.dart';
 import '../services/driver_location_service.dart';
-import '../services/notification_service.dart';
 import '../models/cart_item.dart';
 import '../models/chat_message.dart';
 import '../models/order_model.dart';
@@ -37,14 +37,34 @@ class PartnerOrderLine {
 class OrderStore extends ChangeNotifier {
   final supabase = Supabase.instance.client;
 
-  // ── FIX: channel name must NOT include the "realtime:" prefix.
-  // Supabase JS SDK docs and Flutter SDK both require the raw channel name,
-  // e.g. 'orders_channel'. Using 'realtime:public:orders' as the name
-  // confuses the SDK and the channel never actually subscribes correctly.
-  static const _ordersChannelName = 'orders_channel';
+  StreamSubscription<List<Map<String, dynamic>>>? _ordersSubscription;
 
-  RealtimeChannel? _channel;
-  Timer? _refreshTimer;
+  // Driver-specific filtered streams (started only after real driverId is known).
+  // Two streams are needed because a driver needs to see:
+  //   - Pending offers   : current_driver_offer_id = driverId
+  //   - Active deliveries: assigned_driver_id       = driverId
+  StreamSubscription<List<Map<String, dynamic>>>? _driverOffersSubscription;
+  StreamSubscription<List<Map<String, dynamic>>>? _driverActiveSubscription;
+
+  // Tracks which order IDs each driver stream last delivered so we can
+  // remove stale rows when the stream re-emits a shorter list.
+  final Set<String> _driverOfferIds  = {};
+  final Set<String> _driverActiveIds = {};
+
+  // OrderStore's own record of the last driverId it acted on.
+  // MUST be independent of _driverStore.currentDriverId because
+  // ChangeNotifierProxyProvider passes the same Dart object reference on
+  // every update call — by the time updateDriverStore() runs, the object's
+  // field is already mutated, so reading _driverStore.currentDriverId for
+  // both "before" and "after" always yields the same value.
+  String _cachedDriverId = '';
+
+  // Cached isOnline value so updateDriverStore() can detect when the driver
+  // goes online/offline and re-notify listeners — causing _onOrderStoreChanged
+  // to fire and availableOrders to be re-evaluated. Without this, toggling
+  // online/offline would NOT trigger the offer dialog because updateDriverStore
+  // returns early (same UID) without calling notifyListeners().
+  bool _cachedIsOnline = false;
 
   static const Map<OrderStatus, Set<OrderStatus>> _statusFlow = {
     OrderStatus.created: {
@@ -66,17 +86,11 @@ class OrderStore extends ChangeNotifier {
     _bootstrap();
   }
 
-  /// Initialisation: open the Realtime channel and start the refresh timer.
-  /// loadOrders() is deferred until updateAuthStore() injects the AuthStore,
-  /// guaranteeing the user filter is applied on the very first fetch.
-  Future<void> _bootstrap() async {
-    _subscribeRealtime();
-    _refreshTimer = Timer.periodic(const Duration(seconds: 3), (_) => refresh());
+  void _bootstrap() {
+    _subscribeToOrders();
   }
 
   Future<void> loadOrders() async {
-    // FIX 3: never attempt a fetch before _authStore is injected — the filter
-    // condition would silently evaluate to false and load ALL orders unfiltered.
     if (_authStore == null) return;
 
     try {
@@ -104,14 +118,11 @@ class OrderStore extends ChangeNotifier {
 
   DriverStore _driverStore;
   RestaurantStore? _restaurantStore;
-  DispatchEngine? _dispatchEngine;
   AuthStore? _authStore;
   final PaymentService _paymentService = PaymentService();
   final DriverLocationService _driverLocationService = DriverLocationService();
 
-  /// Temporarily holds the Stripe client secret after [createOrder] completes
-  /// for a card payment. The calling screen must read and consume this to
-  /// present the payment sheet via [PaymentService.processPayment].
+
   String? _pendingClientSecret;
   String? consumePendingClientSecret() {
     final cs = _pendingClientSecret;
@@ -122,114 +133,9 @@ class OrderStore extends ChangeNotifier {
   final Map<String, List<ChatMessage>> _chatMessages = {};
   final List<RatingModel> _ratings = [];
   final Map<String, Timer> _partnerPreparationTimers = {};
-  final Map<String, Set<String>> _dismissedOrdersByDriver = {};
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // FIX (CRITICAL — ROOT CAUSE OF "NO REALTIME"): The channel subscription
-  // had three compounding problems:
-  //
-  //  1. Wrong channel name: 'realtime:public:orders' — the 'realtime:' prefix
-  //     is internal Supabase routing notation, not a valid channel name for
-  //     the Flutter client. Correct name is any unique string, e.g. 'orders_channel'.
-  //
-  //  2. Missing DELETE handler: orders that get soft-deleted or expired in the
-  //     DB were never removed from the local list.
-  //
-  //  3. No subscribe() error handling / status logging — silent failures.
-  //
-  //  4. The channel was recreated on every Provider rebuild because
-  //     listenForNewOrders() was called from the constructor without guarding
-  //     against re-initialization. Now _subscribeRealtime() is idempotent.
-  // ─────────────────────────────────────────────────────────────────────────
-  void _subscribeRealtime() {
-    // Guard: never create a second channel if already subscribed.
-    if (_channel != null) return;
-
-    _channel = supabase.channel(_ordersChannelName);
-
-    _channel!
-        .onPostgresChanges(
-          event: PostgresChangeEvent.insert,
-          schema: 'public',
-          table: 'orders',
-          callback: (payload) {
-            try {
-              final data = payload.newRecord;
-              if (data.isEmpty) return;
-
-              // FIX 2: filter realtime INSERTs by userId for clients so that
-              // orders belonging to other users are never added to this device's
-              // local list — even though the channel receives all table events.
-              final isClient = _authStore?.currentClient != null;
-              final userId = _authStore?.userId;
-              if (isClient) {
-                if (userId == null || data['user_id'] != userId) return;
-              }
-
-              final order = OrderModel.fromSupabase(data);
-              if (_orders.any((o) => o.id == order.id)) return;
-              _orders.insert(0, order);
-              notifyListeners();
-            } catch (e) {
-              debugPrint('OrderStore Realtime INSERT parse error: $e');
-            }
-          },
-        )
-        .onPostgresChanges(
-          event: PostgresChangeEvent.update,
-          schema: 'public',
-          table: 'orders',
-          callback: (payload) {
-            try {
-              final data = payload.newRecord;
-              if (data.isEmpty) return;
-              final updatedOrder = OrderModel.fromSupabase(data);
-              final index = _orders.indexWhere((o) => o.id == updatedOrder.id);
-              if (index != -1) {
-                _orders[index] = updatedOrder;
-                notifyListeners();
-              }
-            } catch (e) {
-              debugPrint('OrderStore Realtime UPDATE parse error: $e');
-            }
-          },
-        )
-        .onPostgresChanges(
-          event: PostgresChangeEvent.delete,
-          schema: 'public',
-          table: 'orders',
-          callback: (payload) {
-            final oldData = payload.oldRecord;
-            if (oldData.isEmpty) return;
-            final deletedId = oldData['id'] as String?;
-            if (deletedId == null) return;
-            final before = _orders.length;
-            _orders.removeWhere((o) => o.id == deletedId);
-            if (_orders.length != before) notifyListeners();
-          },
-        )
-        .subscribe((status, [error]) {
-          debugPrint('OrderStore Realtime: $status${error != null ? ' | $error' : ''}');
-          // If the subscription error-loops, back off and retry.
-          if (status == RealtimeSubscribeStatus.channelError ||
-              status == RealtimeSubscribeStatus.timedOut) {
-            _resubscribeWithDelay();
-          }
-        });
-  }
-
-  void _resubscribeWithDelay() {
-    _channel?.unsubscribe();
-    _channel = null;
-    Future.delayed(const Duration(seconds: 5), () {
-      if (!_disposed) {
-        _subscribeRealtime();
-        loadOrders();
-      }
-    });
-  }
-
-  bool _disposed = false;
+  /// Order IDs locally dismissed by this driver (reject or cancel).
+  final Set<String> _dismissedOrderIds = {};
 
   List<OrderModel> get orders => List.unmodifiable(_orders);
 
@@ -238,41 +144,15 @@ class OrderStore extends ChangeNotifier {
   bool get isDriverAvailable => _driverStore.currentDriver?.isOnline ?? false;
 
   List<OrderModel> get availableOrders {
-    final driver = _driverStore.getDriverById(_currentDriverId);
-    if (driver == null) {
-      return const <OrderModel>[];
-    }
-
-    final now = DateTime.now();
-    final available = _orders.where((order) {
-      if (order.status != OrderStatus.callingDriver) return false;
-
-      if (order.driverOfferExpiresAt != null &&
-          now.isAfter(order.driverOfferExpiresAt!)) {
-        return false;
-      }
-
-      if (!driver.supportsService(order.serviceType)) return false;
-
-      if (!_driverStore.canAcceptOrder(_currentDriverId, order)) return false;
-
-      if (order.currentDriverOfferId != null &&
-          order.currentDriverOfferId != _currentDriverId) {
-        return false;
-      }
-
-      return true;
+    if (!isDriverAvailable) return const [];
+    final driverId = _currentDriverId;
+    if (driverId.isEmpty) return const [];
+    return _orders.where((order) {
+      return order.status == OrderStatus.callingDriver &&
+             order.assignedDriverId == null &&
+             order.currentDriverOfferId == driverId &&
+             !_dismissedOrderIds.contains(order.id);
     }).toList();
-
-    final dismissed = _dismissedOrdersByDriver[_currentDriverId];
-    if (dismissed != null && dismissed.isNotEmpty) {
-      final existingIds = _orders.map((order) => order.id).toSet();
-      dismissed.removeWhere((orderId) => !existingIds.contains(orderId));
-      available.removeWhere((order) => dismissed.contains(order.id));
-    }
-
-    available.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    return available;
   }
 
   List<OrderModel> get myOrders => _orders
@@ -283,8 +163,11 @@ class OrderStore extends ChangeNotifier {
               o.status == OrderStatus.onTheWay))
       .toList();
 
-  List<OrderModel> get completedOrders =>
-      _orders.where((o) => o.status == OrderStatus.delivered).toList();
+  List<OrderModel> get completedOrders => _orders
+      .where((o) =>
+          o.status == OrderStatus.delivered &&
+          o.assignedDriverId == _currentDriverId)
+      .toList();
 
   List<OrderModel> ordersForClient(String phone) {
     if (phone.isEmpty) return const [];
@@ -306,9 +189,6 @@ class OrderStore extends ChangeNotifier {
     return null;
   }
 
-  // FIX 1: updateAuthStore now triggers loadOrders() after injection so the
-  // very first fetch runs with a valid _authStore (and correct user filter).
-  // Previously _bootstrap() called loadOrders() before _authStore was ever set.
   Future<void> updateAuthStore(AuthStore authStore) async {
     _authStore = authStore;
     if (_authStore != null) {
@@ -318,6 +198,70 @@ class OrderStore extends ChangeNotifier {
 
   void updateDriverStore(DriverStore driverStore) {
     _driverStore = driverStore;
+    final newId = _driverStore.currentDriverId;
+    final newIsOnline = _driverStore.currentDriver?.isOnline ?? false;
+
+    // Compare against _cachedDriverId — NOT against _driverStore.currentDriverId
+    // read a second time. ChangeNotifierProxyProvider passes the same Dart object
+    // on every rebuild, so by the time this method is called the object's field is
+    // already mutated. Reading the field before and after the assignment always
+    // yields the same value, making the guard "previousId == newId" always true
+    // and the driver streams never started.
+    if (newId == _cachedDriverId) {
+      // UID unchanged — only notify when isOnline changed.
+      // This covers the case where the driver toggles online/offline: without
+      // this notification, availableOrders (which checks isDriverAvailable) would
+      // never be re-evaluated by _onOrderStoreChanged, so an order already in
+      // _orders would not trigger the offer dialog until the next OrderStore event.
+      // Location-only updates (isOnline unchanged) are intentionally skipped to
+      // avoid flooding the UI with unnecessary rebuilds.
+      if (newIsOnline != _cachedIsOnline) {
+        _cachedIsOnline = newIsOnline;
+        debugPrint('[OrderStore] isOnline changed → $newIsOnline — notifying listeners');
+        notifyListeners();
+      }
+      return;
+    }
+
+    debugPrint('[OrderStore] driverId changed: $_cachedDriverId → $newId');
+    _cachedDriverId = newId;
+    _cachedIsOnline = newIsOnline;
+
+    final isRealDriver = newId.isNotEmpty && newId != 'driver-main';
+    if (isRealDriver) {
+      // Real identity confirmed — start the two driver-specific filtered
+      // streams. This also cancels the general stream so only this driver's
+      // rows are delivered, preventing RLS gaps and broadcast leakage.
+      _subscribeToDriverStreams(newId);
+    } else {
+      // Logout / guest / client session — the driver-specific streams (if
+      // any) must be cancelled so they stop emitting rows filtered by a
+      // now-dead UID, and the general unfiltered stream must be re-started
+      // for non-driver consumers. Without this the store enters a zombie
+      // state with no active listener after a driver logs out.
+      _revertToGeneralStream();
+    }
+
+    // Always notify so DriverHomeScreen._onOrderStoreChanged fires and
+    // _handleNewOrders re-evaluates availableOrders with the new driverId.
+    notifyListeners();
+  }
+
+  /// Cancels any active driver-specific streams and restarts the general
+  /// unfiltered stream. Called when the driver identity disappears (logout,
+  /// guest, client login). Idempotent — safe to call when already in the
+  /// "general stream" state.
+  void _revertToGeneralStream() {
+    _driverOffersSubscription?.cancel();
+    _driverActiveSubscription?.cancel();
+    _driverOffersSubscription = null;
+    _driverActiveSubscription = null;
+    _driverOfferIds.clear();
+    _driverActiveIds.clear();
+    _dismissedOrderIds.clear();
+    _orders.clear();
+    debugPrint('[OrderStore] reverting to general stream (no driver filter)');
+    _subscribeToOrders();
   }
 
   void updateRestaurantStore(RestaurantStore store) {
@@ -325,9 +269,9 @@ class OrderStore extends ChangeNotifier {
     _restaurantStore?.syncPartnerOrders(_orders);
   }
 
-  void updateDispatchEngine(DispatchEngine dispatchEngine) {
-    _dispatchEngine = dispatchEngine;
-  }
+  // Kept for Provider wiring compatibility — DispatchEngine is now a no-op stub.
+  // ignore: avoid_unused_parameters
+  void updateDispatchEngine(DispatchEngine dispatchEngine) {}
 
   @override
   void notifyListeners() {
@@ -342,11 +286,6 @@ class OrderStore extends ChangeNotifier {
     }
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // FIX: createOrder now awaits _saveOrderToDatabase and uses the DB-returned
-  // id (if the DB generates it) to keep local and remote in sync.
-  // The optimistic local insert is reverted on DB failure.
-  // ─────────────────────────────────────────────────────────────────────────
   Future<bool> createOrder({
     required OrderServiceType serviceType,
     required double itemsSubtotal,
@@ -357,6 +296,7 @@ class OrderStore extends ChangeNotifier {
     double? distanceKm,
     bool isPartnerStore = false,
     bool apartmentDelivery = false,
+    bool requiresCar = false,
     String? vendorName,
     String? pickupAddress,
     String? pickupStreet,
@@ -372,9 +312,15 @@ class OrderStore extends ChangeNotifier {
     PaymentStatus paymentStatus = PaymentStatus.pending,
     String? paymentIntentId,
   }) async {
-    final double? googleDistance = pickupLocation != null
-        ? await MapsService.getDistanceKm(pickupLocation, destination)
-        : null;
+    double? googleDistance;
+    if (pickupLocation != null) {
+      try {
+        googleDistance = await MapsService.getDistanceKm(pickupLocation, destination);
+      } catch (e) {
+        debugPrint('OrderStore.createOrder: MapsService.getDistanceKm error => $e');
+      }
+    }
+    final isDistanceEstimated = googleDistance == null;
 
     final resolvedDistance = _resolveDistance(
       pickup: pickupLocation,
@@ -432,6 +378,8 @@ class OrderStore extends ChangeNotifier {
       customerNotes: customerNotes,
       isPartnerStore: isPartnerStore,
       apartmentDelivery: apartmentDelivery,
+      isDistanceEstimated: isDistanceEstimated,
+      requiresCar: requiresCar,
       orderType: orderType,
       paymentMethod: paymentMethod,
       paymentStatus: paymentStatus,
@@ -446,25 +394,6 @@ class OrderStore extends ChangeNotifier {
           : pricing.customerTotal,
     );
 
-    // For card payments: create a Stripe PaymentIntent now so the intent ID is
-    // persisted on the order row and the client secret is ready for the sheet.
-    if (paymentMethod == PaymentMethod.card && !kIsWeb) {
-      try {
-        final intentData = await _paymentService.createPaymentIntent(
-          orderId: order.id,
-          amount: order.paymentBufferTotal,
-        );
-        order.paymentIntentId = intentData['paymentIntentId'] as String?;
-        order.paymentStatus   = PaymentStatus.pending;
-        _pendingClientSecret  = intentData['clientSecret'] as String?;
-        debugPrint('OrderStore: PaymentIntent created: ${order.paymentIntentId}');
-      } catch (e) {
-        debugPrint('OrderStore.createOrder: createPaymentIntent failed => $e');
-        // Non-fatal: order proceeds; payment sheet can be retried separately.
-      }
-    }
-
-    // Block order if the partner restaurant is offline.
     if (isPartnerStore && serviceType == OrderServiceType.restaurant) {
       final restaurant = _restaurantStore?.restaurantByName(vendorName);
       if (restaurant != null && !restaurant.isOnline) {
@@ -472,83 +401,199 @@ class OrderStore extends ChangeNotifier {
       }
     }
 
-    // Optimistic local insert for responsive UI.
+    // ── Cash limit guard (UX only — backend trigger is the source of truth) ─
+    if (paymentMethod == PaymentMethod.cash &&
+        order.paymentBufferTotal > BRBusiness.CASH_MAX_ORDER_VALUE_EUR) {
+      debugPrint('[FLOW] createOrder BLOCKED — cash limit exceeded '
+          '(total=${order.paymentBufferTotal} max=${BRBusiness.CASH_MAX_ORDER_VALUE_EUR})');
+      return false;
+    }
+
+    debugPrint('[FLOW] createOrder START id=${order.id} type=${order.serviceType.name}');
+
     _orders.insert(0, order);
     notifyListeners();
 
     try {
       await _saveOrderToDatabase(order);
-      // Realtime INSERT event will propagate to other devices automatically.
+      debugPrint('[FLOW] createOrder: DB insert OK');
+
+      if (!_orders.any((o) => o.id == order.id)) {
+        debugPrint('[FLOW] createOrder: re-inserting after concurrent clear');
+        _orders.insert(0, order);
+        notifyListeners();
+      }
+
+      // NOTE: MBWay confirmation is server-only. The client does NOT trigger
+      // confirm-mbway-payment from here — that would make the "server-trusted"
+      // path trivially forgeable. A real MBWay provider webhook (or a manual
+      // operator call) is the only authorised way to flip payment_status.
+      // Until that integration exists, MBWay orders block at the payment gate
+      // by design (safe default).
+
       await _simulateRestaurantFlow(order);
+      debugPrint('[FLOW] createOrder DONE id=${order.id} finalStatus=${order.status.name}');
       return true;
     } catch (e) {
-      // Revert the optimistic insert so UI stays consistent with DB.
       _orders.remove(order);
       notifyListeners();
-      debugPrint('OrderStore: createOrder failed => $e');
+      debugPrint('[FLOW] createOrder FAILED: $e');
       return false;
     }
   }
 
   Future<void> _simulateRestaurantFlow(OrderModel order) async {
-    final isPartnerRestaurantOrder =
-        order.serviceType == OrderServiceType.restaurant &&
-            order.isPartnerStore;
+  debugPrint('[FLOW] _simulateFlow START id=${order.id} type=${order.serviceType.name} partner=${order.isPartnerStore} status=${order.status.name}');
 
-    if (isPartnerRestaurantOrder) {
-      // Awaits action from restaurant dashboard — do nothing here.
-      return;
-    }
+  final isPartnerRestaurantOrder =
+      order.serviceType == OrderServiceType.restaurant &&
+          order.isPartnerStore;
 
-    final requiresPreparation =
-        order.serviceType == OrderServiceType.restaurant ||
-            (order.serviceType == OrderServiceType.storeShopping &&
-                order.isPartnerStore);
-
-    if (!requiresPreparation) {
-      final progressed = await _advanceStatus(order, OrderStatus.preparing);
-      if (!progressed) return;
-      await Future.delayed(const Duration(milliseconds: 500));
-      await _advanceStatus(order, OrderStatus.callingDriver);
-      return;
-    }
-
-    final progressed = await _advanceStatus(order, OrderStatus.preparing);
-    if (!progressed) return;
-    await Future.delayed(const Duration(seconds: 3));
-    await _advanceStatus(order, OrderStatus.callingDriver);
+  if (isPartnerRestaurantOrder) {
+    debugPrint('[FLOW] _simulateFlow: partner restaurant — waiting for dashboard');
+    return;
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // FIX: _advanceStatus is async and writes to the DB BEFORE updating local
-  // state. If the DB write fails, local state is NOT changed, keeping both
-  // devices consistent. The Realtime UPDATE event triggered by the DB write
-  // will propagate the change to all other subscribers automatically.
-  // ─────────────────────────────────────────────────────────────────────────
+  final requiresPreparation =
+      order.serviceType == OrderServiceType.restaurant ||
+          (order.serviceType == OrderServiceType.storeShopping &&
+              order.isPartnerStore);
+
+  debugPrint('[FLOW] _simulateFlow: requiresPreparation=$requiresPreparation');
+
+  final progressed = await _advanceStatus(order, OrderStatus.preparing);
+  debugPrint('[FLOW] _simulateFlow: preparing result=$progressed status=${order.status.name}');
+  if (!progressed) {
+    debugPrint('[FLOW] _simulateFlow: BLOCKED at preparing — aborting');
+    return;
+  }
+
+  final delay = requiresPreparation
+      ? const Duration(seconds: 3)
+      : const Duration(milliseconds: 500);
+
+  debugPrint('[FLOW] _simulateFlow: waiting ${delay.inMilliseconds}ms');
+  await Future.delayed(delay);
+
+  if (!_orders.any((o) => o.id == order.id)) {
+    debugPrint('[FLOW] _simulateFlow: order gone after delay — re-inserting');
+    _orders.insert(0, order);
+    notifyListeners();
+  }
+
+  debugPrint('[FLOW] _simulateFlow: advancing to callingDriver (localStatus=${order.status.name})');
+
+  // ── Payment gate — payment MUST be confirmed server-side before dispatch.
+  // Card  → Stripe webhook flips DB row to paid.
+  // MBWay → confirm-mbway-payment Edge Function flips DB row to paid.
+  // The client NEVER marks it paid itself.
+  final requiresServerConfirmation =
+      (order.paymentMethod == PaymentMethod.card && !kIsWeb) ||
+          order.paymentMethod == PaymentMethod.mbway;
+
+  if (requiresServerConfirmation) {
+    debugPrint('[FLOW] waiting for server payment confirmation id=${order.id} method=${order.paymentMethod.name}');
+    final confirmed = await _waitForPaymentConfirmation(order);
+    if (!confirmed) {
+      debugPrint('⛔ Dispatch bloqueado: pagamento não confirmado (id=${order.id} status=${order.paymentStatus.name})');
+      return;
+    }
+    debugPrint('[FLOW] payment confirmed server-side — proceeding to dispatch');
+  }
+
+  final reached = await _advanceStatus(order, OrderStatus.callingDriver);
+
+  debugPrint('[FLOW] _simulateFlow: callingDriver result=$reached');
+
+  if (!reached) {
+    debugPrint('[FLOW] ERROR: failed to reach callingDriver — dispatch will NOT run');
+  }
+}
+
+  /// Polls `orders.payment_status` until the Stripe webhook flips it to
+  /// `paid` (success) or `failed` (abort). Returns false on timeout so the
+  /// dispatch gate can block the order from ever reaching `callingDriver`.
+  Future<bool> _waitForPaymentConfirmation(
+    OrderModel order, {
+    Duration timeout = const Duration(seconds: 30),
+    Duration interval = const Duration(seconds: 1),
+  }) async {
+    final deadline = DateTime.now().add(timeout);
+    while (DateTime.now().isBefore(deadline)) {
+      try {
+        final row = await Supabase.instance.client
+            .from('orders')
+            .select('payment_status')
+            .eq('id', order.id)
+            .maybeSingle();
+        final status = row?['payment_status'] as String?;
+        debugPrint('[FLOW] _waitForPaymentConfirmation: db status=$status');
+        if (status == 'paid') {
+          order.paymentStatus = PaymentStatus.paid;
+          notifyListeners();
+          return true;
+        }
+        if (status == 'failed') {
+          order.paymentStatus = PaymentStatus.failed;
+          notifyListeners();
+          return false;
+        }
+      } catch (e) {
+        debugPrint('[FLOW] _waitForPaymentConfirmation poll error: $e');
+      }
+      await Future.delayed(interval);
+    }
+    debugPrint('[FLOW] _waitForPaymentConfirmation: TIMEOUT id=${order.id}');
+    return false;
+  }
+
   Future<bool> _advanceStatus(
       OrderModel order, OrderStatus targetStatus) async {
-    if (!_orders.any((o) => o.id == order.id)) return false;
-    if (order.status == targetStatus) return false;
-    if (!_canTransition(order.status, targetStatus)) return false;
+    debugPrint('[FLOW] _advanceStatus: ${order.status.name} → ${targetStatus.name} id=${order.id}');
 
-    DateTime? newExpiry;
-    if (targetStatus == OrderStatus.callingDriver) {
-      newExpiry = DateTime.now().add(const Duration(seconds: 40));
+    final inList = _orders.any((o) => o.id == order.id);
+    if (!inList) {
+      debugPrint('[FLOW] _advanceStatus: BLOCKED — order not in _orders (len=${_orders.length})');
+      return false;
     }
 
-    final success = await _updateOrderStatusInDatabase(
-      order,
-      targetStatus,
-      driverOfferExpiresAt: newExpiry,
-    );
-    if (!success) return false;
+    if (order.status == targetStatus) {
+      debugPrint('[FLOW] _advanceStatus: BLOCKED — already at ${targetStatus.name}');
+      return false;
+    }
 
-    // Update local state only after DB confirmed.
+    if (!_canTransition(order.status, targetStatus)) {
+      final allowed = _statusFlow[order.status];
+      debugPrint('[FLOW] _advanceStatus: BLOCKED — ${order.status.name}→${targetStatus.name} not in $allowed');
+      return false;
+    }
+
+    // NOTE: driver_offer_expires_at is intentionally NOT set here.
+    // Only the dispatch engine (Edge Function) owns that field — it sets it
+    // when a real offer is made. Flutter setting a speculative expiry here
+    // pollutes the state and can cause the dispatch engine to skip the order
+    // if it reads an unexpected non-null value in the wrong context.
+    debugPrint('[FLOW] _advanceStatus: DB update status=${targetStatus.name}');
+    final success = await _updateOrderStatusInDatabase(order, targetStatus);
+
+    if (!success) {
+      debugPrint('[FLOW] _advanceStatus: DB UPDATE FAILED');
+      return false;
+    }
+
     order.status = targetStatus;
-    if (newExpiry != null) order.driverOfferExpiresAt = newExpiry;
     notifyListeners();
     _handlePartnerPreparationFlow(order);
-    _triggerStatusNotification(order, targetStatus);
+
+    if (targetStatus == OrderStatus.callingDriver) {
+      debugPrint('[FLOW] ★★★ callingDriver REACHED ★★★ id=${order.id} — invoking dispatch-engine directly');
+      // Invoke the Edge Function directly from Flutter as the PRIMARY dispatch
+      // mechanism. The DB trigger is a secondary safety net only — it has a
+      // service-role-key placeholder that makes it fail with 401 until the
+      // SQL is re-run with the real key. Direct invocation guarantees dispatch
+      // fires on every callingDriver transition regardless of trigger state.
+      unawaited(_invokeDispatch(order.id));
+    }
     return true;
   }
 
@@ -567,50 +612,72 @@ class OrderStore extends ChangeNotifier {
 
   bool rejectAvailableOrder(OrderModel order) {
     if (order.status != OrderStatus.callingDriver) return false;
+    _dismissedOrderIds.add(order.id);
+    notifyListeners();
+    // Notify backend immediately so the next driver is dispatched without
+    // waiting for the 40-second offer timeout to expire.
+    unawaited(_rejectOrderInBackend(order));
+    return true;
+  }
 
-    if (order.assignedDriverId != null &&
-        order.assignedDriverId != _currentDriverId) {
+  Future<void> _rejectOrderInBackend(OrderModel order) async {
+    final driverId = _currentDriverId;
+    if (driverId.isEmpty) return;
+    if (order.assignedDriverId != null) return;
+    try {
+      // Clear the offer atomically — only acts if this driver still holds it.
+      await supabase
+          .from('orders')
+          .update({
+            'current_driver_offer_id': null,
+            'driver_offer_expires_at': null,
+          })
+          .eq('id', order.id)
+          .eq('current_driver_offer_id', driverId);
+
+      // Immediately wake the dispatch engine to assign the next driver.
+      await _invokeDispatch(order.id);
+      debugPrint('[OrderStore] _rejectOrderInBackend: offer cleared, dispatch invoked for order=${order.id}');
+    } catch (e) {
+      debugPrint('[OrderStore] _rejectOrderInBackend error: $e');
+    }
+  }
+
+  Future<bool> cancelDelivery(OrderModel order) async {
+    final driverId = _currentDriverId;
+    if (order.assignedDriverId != driverId) return false;
+    if (order.status != OrderStatus.driverAccepted) return false;
+
+    try {
+      await supabase.from('orders').update({
+        'assigned_driver_id': null,
+        'current_driver_offer_id': null,
+        'driver_offer_expires_at': null,
+        'status': OrderStatus.callingDriver.name,
+      }).eq('id', order.id);
+
+      await _driverLocationService.stopTracking();
+      _driverStore.stopTracking(order.id);
+      _dismissedOrderIds.add(order.id);
+
+      // Re-trigger dispatch so another driver receives this order immediately.
+      unawaited(_invokeDispatch(order.id));
+
+      debugPrint('OrderStore.cancelDelivery: OK driver=$driverId order=${order.id}');
+      return true;
+    } catch (e) {
+      debugPrint('OrderStore.cancelDelivery: error => $e');
       return false;
     }
-
-    final driverId = _currentDriverId;
-    final dismissed = _dismissedOrdersByDriver.putIfAbsent(
-      driverId,
-      () => <String>{},
-    );
-    dismissed.add(order.id);
-
-    if (!order.driverOfferHistory.contains(driverId)) {
-      order.driverOfferHistory.add(driverId);
-    }
-
-    order.driverOfferExpiresAt = null;
-
-    if (order.currentDriverOfferId == driverId) {
-      if (_dispatchEngine != null) {
-        _dispatchEngine!.notifyOrderReleased(order);
-        return true;
-      }
-      order.currentDriverOfferId = null;
-    }
-
-    notifyListeners();
-    return true;
   }
 
   Future<bool> acceptOrder(OrderModel order) async {
     if (!isDriverAvailable) return false;
-    if (order.currentDriverOfferId != null &&
-        order.currentDriverOfferId != _currentDriverId) {
-      return false;
-    }
     if (order.assignedDriverId != null &&
         order.assignedDriverId != _currentDriverId) {
       return false;
     }
     if (!_driverStore.canAcceptOrder(_currentDriverId, order)) return false;
-    // Block batching if driver already picked up an order from a different vendor
-    // (they are physically en route to a different destination).
     for (final active in myOrders) {
       if (active.id == order.id) continue;
       if (active.status.index >= OrderStatus.pickedUp.index &&
@@ -629,7 +696,6 @@ class OrderStore extends ChangeNotifier {
     );
     if (!success) return false;
 
-    // Update local state only after DB confirmed.
     order.status = OrderStatus.driverAccepted;
     order.assignedDriverId = _currentDriverId;
     order.currentDriverOfferId = null;
@@ -643,17 +709,21 @@ class OrderStore extends ChangeNotifier {
       _driverStore.startTracking(order);
     }
     _driverLocationService.startTracking(order.id);
-    _dispatchEngine?.notifyOrderAccepted(order);
 
-    // Notify the client that a driver is on the way.
-    if ((order.clientPhone ?? '').isNotEmpty) {
-      NotificationService.instance.notifyClient(
-        clientPhone: order.clientPhone!,
-        title: 'Estafeta a caminho!',
-        body: 'O teu estafeta está a caminho para recolher o pedido.',
-      );
-    }
     return true;
+  }
+
+  Future<void> acceptOrderById(String orderId, String driverId) async {
+    try {
+      await supabase.from('orders').update({
+        'assigned_driver_id': driverId,
+        'status': OrderStatus.driverAccepted.name,
+      }).eq('id', orderId);
+      debugPrint('OrderStore.acceptOrderById: OK order=$orderId driver=$driverId');
+      await loadOrders();
+    } catch (e) {
+      debugPrint('OrderStore.acceptOrderById: error => $e');
+    }
   }
 
   Future<bool> pickUpOrder(OrderModel order) async {
@@ -661,7 +731,6 @@ class OrderStore extends ChangeNotifier {
     if (advanced) {
       order.pickupWarningIssued = false;
       _driverStore.updateTrackingTarget(order);
-      _dispatchEngine?.notifyOrderPickedUp(order);
       final driver = _driverStore.getDriverById(_currentDriverId);
       driver?.activeAssignments
           .where((a) => a.orderId == order.id)
@@ -684,16 +753,11 @@ class OrderStore extends ChangeNotifier {
       _driverStore.releaseOrderForDriver(order.assignedDriverId!, order.id);
       _driverStore.stopTracking(order.id);
       _driverLocationService.stopTracking();
-      _dispatchEngine?.notifyOrderReleased(order);
       order.pickupWarningIssued = false;
     }
     return advanced;
   }
 
-  /// Records the driver's real purchase receipt value for non-partner orders.
-  ///
-  /// Eligible: [OrderStatus.pickedUp] or [OrderStatus.onTheWay], non-partner.
-  /// DB-first: writes before mutating local state, consistent with [_advanceStatus].
   Future<bool> finalizePurchase({
     required String orderId,
     required double purchaseValue,
@@ -705,21 +769,17 @@ class OrderStore extends ChangeNotifier {
 
     final order = _orders[index];
 
-    // Only applicable to non-partner purchase orders
     final isEligible = order.serviceType == OrderServiceType.storeShopping ||
         !order.isPartnerStore;
     if (!isEligible) return false;
 
-    // Driver must have possession of the goods
     if (order.status != OrderStatus.pickedUp &&
         order.status != OrderStatus.onTheWay) {
       return false;
     }
 
-    // Idempotency guard
     if (order.isPurchaseFinalized) return false;
 
-    // Recalculate customer-facing total from real purchase value using PricingService
     final breakdown = PricingService.calculateBreakdown(
       serviceType: order.serviceType,
       subtotal: purchaseValue,
@@ -729,28 +789,31 @@ class OrderStore extends ChangeNotifier {
     );
     final computedFinalTotal = breakdown.customerTotal;
 
-    // Compare against the pre-authorised buffer to determine refund or extra charge.
-    // Explicit 0.0 for the equal case so downstream helpers can use > 0 checks safely.
     final diff = double.parse(
         (computedFinalTotal - order.paymentBufferTotal).toStringAsFixed(2));
     final refund = diff < 0 ? -diff : 0.0;
     final extra = diff > 0 ? diff : 0.0;
-    final newPaymentStatus = refund > 0
+    // Client NEVER writes 'paid'. Only refundPending / extraRequired are safe
+    // client-driven transitions (they downgrade, not promote). If neither, the
+    // row stays whatever server-trusted status it already has (webhook-set).
+    final PaymentStatus? newPaymentStatus = refund > 0
         ? PaymentStatus.refundPending
         : extra > 0
             ? PaymentStatus.extraRequired
-            : PaymentStatus.paid;
+            : null;
 
-    // DB-first: only mutate local state after write succeeds
     try {
-      await supabase.from('orders').update({
+      final update = <String, dynamic>{
         'final_purchase_value': purchaseValue,
         'final_total': computedFinalTotal,
         'is_purchase_finalized': true,
         'refund_amount': refund,
         'extra_charge_amount': extra,
-        'payment_status': newPaymentStatus.name,
-      }).eq('id', orderId);
+      };
+      if (newPaymentStatus != null) {
+        update['payment_status'] = newPaymentStatus.name;
+      }
+      await supabase.from('orders').update(update).eq('id', orderId);
     } catch (e) {
       debugPrint('OrderStore: finalizePurchase DB error => $e');
       return false;
@@ -761,12 +824,11 @@ class OrderStore extends ChangeNotifier {
     order.isPurchaseFinalized = true;
     order.refundAmount = refund;
     order.extraChargeAmount = extra;
-    order.paymentStatus = newPaymentStatus;
+    if (newPaymentStatus != null) {
+      order.paymentStatus = newPaymentStatus;
+    }
     notifyListeners();
 
-    // Auto-trigger payment reconciliation for card orders immediately after
-    // finalization. Non-card orders (cash/mbway) skip this — nothing to refund
-    // or charge via Stripe.
     if (order.paymentMethod == PaymentMethod.card) {
       if (refund > 0) {
         await processRefund(order);
@@ -778,14 +840,10 @@ class OrderStore extends ChangeNotifier {
     return true;
   }
 
-  /// Returns true when the finalised purchase required a refund or extra charge.
-  /// Only meaningful after [finalizePurchase] has succeeded.
   bool hasPaymentAdjustment(OrderModel order) {
     return (order.refundAmount ?? 0) > 0 || (order.extraChargeAmount ?? 0) > 0;
   }
 
-  /// Records the client's approval or rejection of a driver substitution
-  /// proposal. Persists to Supabase before mutating local state.
   Future<bool> respondToSubstitution({
     required String orderId,
     required String productName,
@@ -796,8 +854,6 @@ class OrderStore extends ChangeNotifier {
 
     final order = _orders[index];
 
-    // Build an updated copy so the DB write uses the intended value
-    // without touching local state yet.
     final updatedMap = Map<String, bool>.from(order.substitutionResponses);
     updatedMap[productName] = approved;
 
@@ -808,20 +864,14 @@ class OrderStore extends ChangeNotifier {
           .eq('id', orderId);
     } catch (e) {
       debugPrint('OrderStore.respondToSubstitution DB error => $e');
-      // Local state was never mutated — nothing to roll back.
       return false;
     }
 
-    // DB confirmed — now safe to update local state.
     order.substitutionResponses[productName] = approved;
     notifyListeners();
     return true;
   }
 
-  /// Calls the backend `/refund` endpoint to return the surplus buffer amount
-  /// to the client, then marks the order as [PaymentStatus.refunded].
-  ///
-  /// Preconditions: [order.refundAmount] > 0, [order.paymentIntentId] set.
   Future<bool> processRefund(OrderModel order) async {
     final amount = order.refundAmount ?? 0;
     if (amount <= 0) return false;
@@ -852,10 +902,6 @@ class OrderStore extends ChangeNotifier {
     return true;
   }
 
-  /// Calls the backend `/charge-extra` endpoint to collect the shortfall from
-  /// the client, then marks the order as [PaymentStatus.paid].
-  ///
-  /// Preconditions: [order.extraChargeAmount] > 0.
   Future<bool> processExtraCharge(OrderModel order) async {
     final amount = order.extraChargeAmount ?? 0;
     if (amount <= 0) return false;
@@ -882,7 +928,6 @@ class OrderStore extends ChangeNotifier {
     return true;
   }
 
-  /// Lightweight UI refresh — recalculates derived getters without hitting DB.
   void refresh() {
     notifyListeners();
   }
@@ -897,9 +942,6 @@ class OrderStore extends ChangeNotifier {
     return OrderType.nonPartnerPurchase;
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Restaurant partner actions — now return Future<bool> and await DB writes.
-  // ─────────────────────────────────────────────────────────────────────────
   Future<bool> restaurantAcceptOrder(OrderModel order) async {
     if (!order.isPartnerStore ||
         order.serviceType != OrderServiceType.restaurant) {
@@ -939,17 +981,13 @@ class OrderStore extends ChangeNotifier {
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // FIX: createPartnerDeliveryRequest previously only inserted into the local
-  // list — it NEVER persisted to Supabase. Other devices never saw it.
-  // Now it calls _saveOrderToDatabase just like createOrder does.
-  // ─────────────────────────────────────────────────────────────────────────
   Future<OrderModel> createPartnerDeliveryRequest({
     required RestaurantModel restaurant,
     required String customerName,
     required String customerPhone,
     required String deliveryAddress,
     required List<PartnerOrderLine> items,
+    LatLng? dropoffLocation,
     String? notes,
   }) async {
     if (items.isEmpty) {
@@ -964,8 +1002,22 @@ class OrderStore extends ChangeNotifier {
     }
 
     final pickupLatLng = restaurant.location;
-    final double resolvedDistanceKm;
-    if (pickupLatLng != null) {
+    double resolvedDistanceKm;
+    bool isDistanceEstimated = true;
+    if (pickupLatLng != null && dropoffLocation != null) {
+      try {
+        final apiDistance = await MapsService.getDistanceKm(pickupLatLng, dropoffLocation);
+        if (apiDistance != null) {
+          resolvedDistanceKm = apiDistance;
+          isDistanceEstimated = false;
+        } else {
+          resolvedDistanceKm = const Distance().as(LengthUnit.Kilometer, pickupLatLng, dropoffLocation);
+        }
+      } catch (e) {
+        debugPrint('OrderStore.createPartnerDeliveryRequest: MapsService error => $e');
+        resolvedDistanceKm = const Distance().as(LengthUnit.Kilometer, pickupLatLng, dropoffLocation);
+      }
+    } else if (pickupLatLng != null) {
       resolvedDistanceKm = const Distance().as(
         LengthUnit.Kilometer,
         pickupLatLng,
@@ -996,10 +1048,13 @@ class OrderStore extends ChangeNotifier {
       distanceKm: pricing.distanceKm,
       vendorName: restaurant.name,
       pickupAddress: restaurant.address,
+      pickupLocation: pickupLatLng,
       dropoffAddress: deliveryAddress,
+      destination: dropoffLocation,
       customerNotes: orderNotes,
       isPartnerStore: true,
       apartmentDelivery: false,
+      isDistanceEstimated: isDistanceEstimated,
       orderType: OrderType.partnerRestaurant,
       paymentMethod: PaymentMethod.cash,
       status: OrderStatus.callingDriver,
@@ -1027,6 +1082,10 @@ class OrderStore extends ChangeNotifier {
       debugPrint('OrderStore: createPartnerDeliveryRequest failed => $e');
       rethrow;
     }
+
+    // Partner orders start directly as callingDriver — invoke dispatch now.
+    // The DB trigger is unreliable (placeholder key); Flutter is the primary path.
+    unawaited(_invokeDispatch(order.id));
 
     return order;
   }
@@ -1109,44 +1168,169 @@ class OrderStore extends ChangeNotifier {
     _partnerPreparationTimers.remove(orderId)?.cancel();
   }
 
-  void _triggerStatusNotification(OrderModel order, OrderStatus status) {
-    final phone = order.clientPhone ?? '';
-    switch (status) {
-      case OrderStatus.callingDriver:
-        NotificationService.instance.notifyDriversNewOrder(
-          orderId: order.id,
-          vendorName: order.vendorName ?? 'BORA',
-          total: order.total,
-        );
-        break;
-      case OrderStatus.pickedUp:
-        if (phone.isNotEmpty) {
-          NotificationService.instance.notifyClient(
-            clientPhone: phone,
-            title: 'Pedido recolhido!',
-            body: 'O teu estafeta recolheu o pedido e está a caminho!',
-          );
-        }
-        break;
-      case OrderStatus.delivered:
-        if (phone.isNotEmpty) {
-          NotificationService.instance.notifyClient(
-            clientPhone: phone,
-            title: 'Pedido entregue!',
-            body: 'O teu pedido foi entregue. Bom apetite!',
-          );
-        }
-        break;
-      default:
-        break;
+
+  // ── Stream listeners ──────────────────────────────────────────────────────
+
+  /// General unfiltered stream — used for clients and restaurant partners.
+  /// Cancelled and replaced by [_subscribeToDriverStreams] once a valid
+  /// driverId is known, and re-started by [_revertToGeneralStream] on logout.
+  ///
+  /// Idempotent: if a general subscription is already active the call is a
+  /// no-op. Callers that intentionally want to replace it must set
+  /// `_ordersSubscription = null` (after cancelling) before calling.
+  void _subscribeToOrders() {
+    if (_ordersSubscription != null) {
+      debugPrint('[OrderStore] general subscription already active — skipping');
+      return;
     }
+    debugPrint('[OrderStore] general subscription started (no driver filter)');
+    _ordersSubscription = supabase
+        .from('orders')
+        .stream(primaryKey: ['id'])
+        .order('created_at', ascending: false)
+        .listen(
+          (rows) {
+            debugPrint('[OrderStore] orders received=${rows.length} (general stream)');
+            _orders.clear();
+            for (final data in rows) {
+              _orders.add(OrderModel.fromSupabase(data));
+            }
+            _handleSoundForCurrentDriver();
+            notifyListeners();
+          },
+          onError: (Object e) =>
+              debugPrint('[OrderStore] general stream error: $e'),
+        );
   }
+
+  /// Driver-specific filtered streams. Called the moment a real driverId is
+  /// available. Cancels the general stream so only driver-relevant rows arrive.
+  ///
+  /// Two subscriptions are required because [SupabaseStreamBuilder] does not
+  /// support OR filters — one stream covers pending offers, the other covers
+  /// orders already accepted/active.
+  void _subscribeToDriverStreams(String driverId) {
+    // Cancel everything that was running before and null the handles so the
+    // idempotency guard in _subscribeToOrders knows the slot is free on a
+    // future revert.
+    _driverOffersSubscription?.cancel();
+    _driverActiveSubscription?.cancel();
+    _ordersSubscription?.cancel();
+    _driverOffersSubscription = null;
+    _driverActiveSubscription = null;
+    _ordersSubscription = null;
+
+    // Clear stale data so the UI starts fresh from DB state.
+    _orders.clear();
+    _driverOfferIds.clear();
+    _driverActiveIds.clear();
+
+    debugPrint('[OrderStore] driverId=$driverId');
+
+    // ── 1. Pending-offer stream ────────────────────────────────────────────
+    debugPrint('[OrderStore] subscription started → orders.eq(current_driver_offer_id, $driverId)');
+    _driverOffersSubscription = supabase
+        .from('orders')
+        .stream(primaryKey: ['id'])
+        .eq('current_driver_offer_id', driverId)
+        .order('created_at', ascending: false)
+        .listen(
+          (rows) {
+            debugPrint('[OrderStore] orders received=${rows.length} (offers stream, driverId=$driverId)');
+            _mergeDriverRows(rows, _driverOfferIds);
+          },
+          onError: (Object e) =>
+              debugPrint('[OrderStore] offers stream error: $e'),
+        );
+
+    // ── 2. Active-delivery stream ──────────────────────────────────────────
+    debugPrint('[OrderStore] subscription started → orders.eq(assigned_driver_id, $driverId)');
+    _driverActiveSubscription = supabase
+        .from('orders')
+        .stream(primaryKey: ['id'])
+        .eq('assigned_driver_id', driverId)
+        .order('created_at', ascending: false)
+        .listen(
+          (rows) {
+            debugPrint('[OrderStore] orders received=${rows.length} (active stream, driverId=$driverId)');
+            _mergeDriverRows(rows, _driverActiveIds);
+          },
+          onError: (Object e) =>
+              debugPrint('[OrderStore] active stream error: $e'),
+        );
+  }
+
+  /// Merges a stream emission into [_orders] using [trackedIds] to remove
+  /// rows that were in the previous emission but are no longer present
+  /// (e.g. offer expired and was reassigned to another driver).
+  void _mergeDriverRows(
+    List<Map<String, dynamic>> rows,
+    Set<String> trackedIds,
+  ) {
+    // Remove rows that belonged to this stream in the last emission.
+    _orders.removeWhere((o) => trackedIds.contains(o.id));
+    trackedIds.clear();
+
+    for (final data in rows) {
+      final order = OrderModel.fromSupabase(data);
+      trackedIds.add(order.id);
+
+      // If this order was previously dismissed (driver rejected it) but the
+      // backend has now issued a NEW offer (different driver_offer_expires_at),
+      // remove the dismissed flag so the dialog can fire again.
+      // This is what enables the A → B → A rotation: when A re-receives the
+      // order after B rejects, the new expiry timestamp clears A's dismiss flag.
+      if (_dismissedOrderIds.contains(order.id)) {
+        final storedIdx = _orders.indexWhere((o) => o.id == order.id);
+        final oldExpiry = storedIdx >= 0
+            ? _orders[storedIdx].driverOfferExpiresAt
+            : null;
+        final newExpiry = order.driverOfferExpiresAt;
+        if (newExpiry != null && newExpiry != oldExpiry) {
+          _dismissedOrderIds.remove(order.id);
+          debugPrint(
+            '[OrderStore] un-dismissed order=${order.id} — '
+            'new offer expires=$newExpiry (was $oldExpiry)',
+          );
+        }
+      }
+
+      final idx = _orders.indexWhere((o) => o.id == order.id);
+      if (idx >= 0) {
+        _orders[idx] = order;
+      } else {
+        _orders.add(order);
+      }
+    }
+
+    _handleSoundForCurrentDriver();
+    notifyListeners();
+  }
+
+  // ── Sound ──────────────────────────────────────────────────────────────────
+
+  void _handleSoundForCurrentDriver() {
+    if (!isDriverAvailable) return;
+
+    final driverId = _currentDriverId;
+    final hasAvailable = driverId.isNotEmpty &&
+        _orders.any((o) =>
+            o.status == OrderStatus.callingDriver &&
+            o.currentDriverOfferId == driverId);
+
+    debugPrint('[OrderStore] _handleSoundForCurrentDriver: hasAvailable=$hasAvailable driverId=$driverId');
+  }
+
+  // ── Lifecycle ─────────────────────────────────────────────────────────────
 
   @override
   void dispose() {
-    _disposed = true;
-    _refreshTimer?.cancel();
-    _channel?.unsubscribe();
+    _ordersSubscription?.cancel();
+    _driverOffersSubscription?.cancel();
+    _driverActiveSubscription?.cancel();
+    _ordersSubscription = null;
+    _driverOffersSubscription = null;
+    _driverActiveSubscription = null;
     _driverLocationService.dispose();
     for (final timer in _partnerPreparationTimers.values) {
       timer.cancel();
@@ -1209,22 +1393,74 @@ class OrderStore extends ChangeNotifier {
     return double.parse((_deliveryBasePrice + extra).toStringAsFixed(2));
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // DB helpers — both inside the class (previously _updateOrderStatusInDatabase
-  // was accidentally placed OUTSIDE the class closing brace, making it a
-  // top-level function that was never called).
-  // ─────────────────────────────────────────────────────────────────────────
+  /// Calls the dispatch-engine Edge Function for [orderId].
+  ///
+  /// This is the PRIMARY dispatch trigger — more reliable than the DB trigger
+  /// because it does not depend on the service-role-key being configured in
+  /// the SQL trigger body. The Edge Function itself uses env-var credentials
+  /// to access the DB; the caller only needs a valid Supabase session JWT,
+  /// which the Flutter Supabase client attaches automatically.
+  Future<void> _invokeDispatch(String orderId) async {
+    // ── SERVER-TRUSTED DISPATCH GATE ──────────────────────────────────────
+    // Re-fetch the order row from the DB (never trust local state, cache or
+    // client flags). Dispatch is only allowed when ONE of the following is
+    // true, read live from Postgres:
+    //   1. payment_status == 'paid'   (Stripe webhook OR confirm-mbway-payment)
+    //   2. payment_method == 'cash'   (COD partner orders — no server confirmation path)
+    // Any other combination blocks the Edge Function invocation entirely.
+    try {
+      final row = await supabase
+          .from('orders')
+          .select('payment_status, payment_method')
+          .eq('id', orderId)
+          .maybeSingle();
+
+      if (row == null) {
+        debugPrint('⛔ [DISPATCH] BLOCKED order=$orderId — row not found in DB');
+        return;
+      }
+
+      final paymentStatus = row['payment_status'] as String?;
+      final paymentMethod = row['payment_method'] as String?;
+      final isPaid = paymentStatus == 'paid';
+      final isCash = paymentMethod == 'cash';
+
+      if (!isPaid && !isCash) {
+        debugPrint('⛔ [DISPATCH] BLOCKED order=$orderId — unconfirmed payment '
+            '(db.payment_status=$paymentStatus db.payment_method=$paymentMethod)');
+        return;
+      }
+
+      debugPrint('[DISPATCH] gate OK order=$orderId status=$paymentStatus method=$paymentMethod');
+    } catch (e) {
+      debugPrint('⛔ [DISPATCH] BLOCKED order=$orderId — gate re-fetch failed: $e');
+      return;
+    }
+
+    // SYSTEM-LEVEL: dispatch must ALWAYS run, regardless of auth session state.
+    // The Edge Function is deployed with --no-verify-jwt and uses its own
+    // SUPABASE_SERVICE_ROLE_KEY env-var — no client JWT required.
+    try {
+      debugPrint('[DISPATCH] invoking for order=$orderId');
+      await supabase.functions.invoke(
+        'dispatch-engine',
+        body: {'orderId': orderId},
+      );
+      debugPrint('[DISPATCH] invoke OK for order=$orderId');
+    } catch (e) {
+      debugPrint('[DISPATCH] invoke error for order=$orderId: $e');
+    }
+  }
 
   Future<void> _saveOrderToDatabase(OrderModel order) async {
     final data = order.toSupabase();
-    debugPrint('OrderStore._saveOrderToDatabase: inserting order ${order.id}');
-    debugPrint('OrderStore._saveOrderToDatabase: payload => $data');
+    debugPrint('[FLOW] _saveOrderToDatabase: id=${order.id}');
     try {
       await supabase.from('orders').insert(data);
-      debugPrint('OrderStore._saveOrderToDatabase: success for ${order.id}');
+      debugPrint('[FLOW] _saveOrderToDatabase: OK');
     } catch (e, stack) {
-      debugPrint('OrderStore._saveOrderToDatabase: SUPABASE ERROR => $e');
-      debugPrint('OrderStore._saveOrderToDatabase: stacktrace => $stack');
+      debugPrint('[FLOW] _saveOrderToDatabase: ERROR => $e');
+      debugPrint('[FLOW] _saveOrderToDatabase: stack => $stack');
       rethrow;
     }
   }
@@ -1234,48 +1470,61 @@ class OrderStore extends ChangeNotifier {
     OrderStatus newStatus, {
     DateTime? driverOfferExpiresAt,
   }) async {
+    final payload = <String, dynamic>{'status': newStatus.name};
+    if (driverOfferExpiresAt != null) {
+      payload['driver_offer_expires_at'] =
+          driverOfferExpiresAt.toIso8601String();
+    }
+    debugPrint('[FLOW] _updateStatusDB: id=${order.id} payload=$payload');
     try {
-      final payload = <String, dynamic>{'status': newStatus.name};
-      if (driverOfferExpiresAt != null) {
-        payload['driver_offer_expires_at'] =
-            driverOfferExpiresAt.toIso8601String();
-      }
       await supabase.from('orders').update(payload).eq('id', order.id);
+      debugPrint('[FLOW] _updateStatusDB: OK');
       return true;
     } catch (e) {
-      debugPrint('OrderStore: _updateOrderStatusInDatabase error => $e');
+      debugPrint('[FLOW] _updateStatusDB: EXCEPTION => $e');
+      // If failure was caused by driver_offer_expires_at column, retry status-only.
+      if (driverOfferExpiresAt != null) {
+        debugPrint('[FLOW] _updateStatusDB: retrying status-only');
+        try {
+          await supabase
+              .from('orders')
+              .update({'status': newStatus.name})
+              .eq('id', order.id);
+          debugPrint('[FLOW] _updateStatusDB: retry OK');
+          return true;
+        } catch (e2) {
+          debugPrint('[FLOW] _updateStatusDB: retry FAILED => $e2');
+        }
+      }
       return false;
     }
   }
 
-  /// Persists the current driver offer ID to Supabase.
-  /// Called by DispatchEngine whenever [currentDriverOfferId] changes.
-  Future<void> persistDriverOffer(String orderId, String? driverOfferId) async {
-    try {
-      await supabase
-          .from('orders')
-          .update({'current_driver_offer_id': driverOfferId})
-          .eq('id', orderId);
-    } catch (e) {
-      debugPrint('OrderStore: persistDriverOffer error => $e');
-    }
-  }
-
-  /// Single-shot UPDATE for driver acceptance — status + assignment in one call.
-  /// Prevents the realtime race where other devices briefly see
-  /// status=driverAccepted with assigned_driver_id=null.
   Future<bool> _acceptOrderInDatabase(
     OrderModel order, {
     required String driverId,
     String? driverPhone,
   }) async {
     try {
-      await supabase.from('orders').update({
-        'status': OrderStatus.driverAccepted.name,
-        'assigned_driver_id': driverId,
-        'current_driver_offer_id': null,
-        'driver_phone': driverPhone,
-      }).eq('id', order.id);
+      // Optimistic lock: only succeed if this driver currently holds the offer.
+      // Clears current_driver_offer_id to prevent duplicate dispatch.
+      final result = await supabase
+          .from('orders')
+          .update({
+            'status': OrderStatus.driverAccepted.name,
+            'assigned_driver_id': driverId,
+            'current_driver_offer_id': null,
+            'driver_offer_expires_at': null,
+            'driver_phone': driverPhone,
+          })
+          .eq('id', order.id)
+          .eq('current_driver_offer_id', driverId)
+          .select();
+
+      if (result.isEmpty) {
+        debugPrint('OrderStore: _acceptOrderInDatabase — offer no longer valid (lost race) order=${order.id}');
+        return false;
+      }
       return true;
     } catch (e) {
       debugPrint('OrderStore: _acceptOrderInDatabase error => $e');

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
 import '../data/fake_data.dart';
@@ -15,55 +14,16 @@ class StoresScreen extends StatelessWidget {
 
   final BusinessCategory? initialCategory;
 
-  static const Map<String, _StoreInfo> _storeMetadata = {
-    'Mini Mercado Lisboa': _StoreInfo(
-      location: LatLng(38.7132, -9.1355),
-      street: 'Rua da Madalena 220',
-      city: 'Lisboa',
-      postalCode: '1100-320',
-    ),
-    'Super Bairro Market': _StoreInfo(
-      location: LatLng(38.7360, -9.1425),
-      street: 'Rua Marquês Sá da Bandeira 88',
-      city: 'Lisboa',
-      postalCode: '1050-150',
-    ),
-    'Mercado Fresco': _StoreInfo(
-      location: LatLng(38.7115, -9.1452),
-      street: 'Calçada do Carmo 45',
-      city: 'Lisboa',
-      postalCode: '1200-091',
-    ),
-    'Farmácia Central': _StoreInfo(
-      location: LatLng(38.7224, -9.1401),
-      street: 'Rossio 28',
-      city: 'Lisboa',
-      postalCode: '1100-148',
-    ),
-    'Farmácia Lisboa': _StoreInfo(
-      location: LatLng(38.7367, -9.1521),
-      street: 'Av. Álvaro Pais 3',
-      city: 'Lisboa',
-      postalCode: '1600-007',
-    ),
-    'Farmácia Saúde': _StoreInfo(
-      location: LatLng(38.7098, -9.1379),
-      street: 'Rua da Junqueira 189',
-      city: 'Lisboa',
-      postalCode: '1300-326',
-    ),
-  };
-
   String get _title {
     switch (initialCategory) {
       case BusinessCategory.supermarket:
-        return 'Supermarkets';
+        return 'Supermercados';
       case BusinessCategory.store:
-        return 'Stores';
+        return 'Lojas';
       case BusinessCategory.pharmacy:
-        return 'Pharmacies';
+        return 'Farmácias';
       default:
-        return 'Stores & Pharmacies';
+        return 'Lojas e Farmácias';
     }
   }
 
@@ -107,7 +67,7 @@ class StoresScreen extends StatelessWidget {
       sections.addAll(
         _buildSection(
           context: context,
-          title: 'Supermarkets',
+          title: 'Supermercados',
           entries: supermarketEntries,
         ),
       );
@@ -116,7 +76,7 @@ class StoresScreen extends StatelessWidget {
       sections.addAll(
         _buildSection(
           context: context,
-          title: 'Stores',
+          title: 'Lojas',
           entries: storeEntries,
         ),
       );
@@ -125,7 +85,7 @@ class StoresScreen extends StatelessWidget {
       sections.addAll(
         _buildSection(
           context: context,
-          title: 'Pharmacies',
+          title: 'Farmácias',
           entries: pharmacyEntries,
         ),
       );
@@ -223,15 +183,14 @@ class StoresScreen extends StatelessWidget {
   }
 
   void _openStore(BuildContext context, _StoreEntry entry) {
-    final metadata = _storeMetadata[entry.business.name];
     context.read<CartStore>().configureSession(
           serviceType: OrderServiceType.storeShopping,
           isPartnerStore: entry.business.isPartner,
           vendorName: entry.store.name,
-          pickupLocation: metadata?.location ?? entry.business.location,
-          pickupStreet: metadata?.street ?? entry.business.address,
-          pickupCity: metadata?.city,
-          pickupPostalCode: metadata?.postalCode,
+          pickupLocation: entry.business.location,
+          pickupStreet: entry.business.address,
+          pickupCity: null,
+          pickupPostalCode: null,
         );
 
     Navigator.push(
@@ -319,16 +278,3 @@ class _StoreEntry {
   final RetailStore store;
 }
 
-class _StoreInfo {
-  const _StoreInfo({
-    required this.location,
-    required this.street,
-    required this.city,
-    required this.postalCode,
-  });
-
-  final LatLng location;
-  final String street;
-  final String city;
-  final String postalCode;
-}

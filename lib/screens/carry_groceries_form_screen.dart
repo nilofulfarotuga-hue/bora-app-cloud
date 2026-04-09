@@ -2,181 +2,167 @@ import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
-import '../auth/auth_store.dart';
+import '../config/maps_config.dart';
 import '../models/order_model.dart';
-import '../data/postal_coordinates.dart';
-
-import '../stores/order_store.dart';
-
-
-
+import '../services/location_service.dart';
+import '../stores/cart_store.dart';
+import '../widgets/address_autocomplete_field.dart';
+import 'payment_method_screen.dart';
 
 class CarryGroceriesFormScreen extends StatefulWidget {
   const CarryGroceriesFormScreen({super.key});
 
   @override
-  State<CarryGroceriesFormScreen> createState() => _CarryGroceriesFormScreenState();
+  State<CarryGroceriesFormScreen> createState() =>
+      _CarryGroceriesFormScreenState();
 }
 
 class _CarryGroceriesFormScreenState extends State<CarryGroceriesFormScreen> {
-  final storeStreetController = TextEditingController();
-  final storeCityController = TextEditingController(text: "Lisboa");
-  final storePostalController = TextEditingController();
+  final _pickupController = TextEditingController();
+  final _dropoffController = TextEditingController();
 
-  final destinationStreetController = TextEditingController();
-  final destinationCityController = TextEditingController(text: "Lisboa");
-  final destinationPostalController = TextEditingController();
+  LatLng? _pickupLocation;
+  LatLng? _dropoffLocation;
 
-  bool _isLoading = false;
+  bool _loadingLocation = false;
+
+  static const _fallbackAddress = 'Guarda, Portugal';
+
+  @override
+  void initState() {
+    super.initState();
+    _prefillPickupFromGps();
+  }
 
   @override
   void dispose() {
-    storeStreetController.dispose();
-    storeCityController.dispose();
-    storePostalController.dispose();
-    destinationStreetController.dispose();
-    destinationCityController.dispose();
-    destinationPostalController.dispose();
+    _pickupController.dispose();
+    _dropoffController.dispose();
     super.dispose();
   }
 
-  Future<void> createOrder() async {
-    final storeStreet = storeStreetController.text.trim();
-    final storeCity = storeCityController.text.trim();
-    final storePostal = storePostalController.text.trim();
-    final destinationStreet = destinationStreetController.text.trim();
-    final destinationCity = destinationCityController.text.trim();
-    final destinationPostal = destinationPostalController.text.trim();
+  /// Obtém a localização atual via GPS e preenche o campo de recolha.
+  /// Se GPS ou reverse geocoding falharem, usa [_fallbackAddress].
+  /// Corre em background — não bloqueia a UI, nunca mostra erro.
+  Future<void> _prefillPickupFromGps() async {
+    setState(() => _loadingLocation = true);
+    try {
+      final coords = await LocationService.getCurrentLocation();
+      if (!mounted) return;
 
-    if (storeStreet.isEmpty || destinationStreet.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Preencha todos os campos obrigatórios.")),
-      );
-      return;
+      if (coords != null) {
+        final address = await LocationService.reverseGeocode(coords, googleApiKey);
+        if (!mounted) return;
+        setState(() {
+          _pickupLocation = coords;
+          _pickupController.text =
+              (address != null && address.isNotEmpty) ? address : _fallbackAddress;
+        });
+      } else {
+        setState(() => _pickupController.text = _fallbackAddress);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _pickupController.text = _fallbackAddress);
+    } finally {
+      if (mounted) setState(() => _loadingLocation = false);
     }
+  }
 
-    final pickupLocation = _locationForPostal(storePostal);
-    final dropoffLocation = _locationForPostal(destinationPostal);
+  void _goToPayment() {
+    final pickupAddress = _pickupController.text.trim();
+    final dropoffAddress = _dropoffController.text.trim();
 
-    final orderStore = context.read<OrderStore>();
-    final authStore = context.read<AuthStore>();
-
-    setState(() => _isLoading = true);
-
-    final success = await orderStore.createOrder(
-      serviceType: OrderServiceType.carryGroceries,
-      itemsSubtotal: 0,
-      destination: dropoffLocation,
-      paymentMethod: PaymentMethod.cash,
-      pickupLocation: pickupLocation,
-      isPartnerStore: false,
-      pickupAddress: "$storeStreet, $storeCity",
-      pickupStreet: storeStreet,
-      pickupCity: storeCity,
-      pickupPostalCode: storePostal,
-      dropoffAddress: "$destinationStreet, $destinationCity",
-      dropoffStreet: destinationStreet,
-      dropoffCity: destinationCity,
-      dropoffPostalCode: destinationPostal,
-      clientPhone: authStore.currentClient?.phone,
-    );
-
-    if (!mounted) return;
-    setState(() => _isLoading = false);
-
-    if (!success) {
+    if (pickupAddress.isEmpty || dropoffAddress.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Não foi possível criar o pedido. Verifique os logs para mais detalhes."),
-          backgroundColor: Colors.red,
-        ),
+            content: Text('Preencha os endereços da loja e de entrega.')),
       );
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Pedido criado com sucesso!")),
-    );
-    Navigator.pop(context);
+    if (_pickupLocation == null || _dropoffLocation == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text(
+                'Selecione um endereço válido nas sugestões para obter coordenadas.')),
+      );
+      return;
+    }
+
+    // Configure CartStore so PaymentMethodScreen can show the breakdown
+    // and call cartStore.finishOrder() — same flow as sendPackage.
+    context.read<CartStore>().configureSession(
+          serviceType: OrderServiceType.carryGroceries,
+          isPartnerStore: false,
+          pickupLocation: _pickupLocation,
+          deliveryLocation: _dropoffLocation,
+          pickupStreet: pickupAddress,
+          dropoffStreet: dropoffAddress,
+        );
+
+    Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => const PaymentMethodScreen()),
+    ).then((ordered) {
+      if (ordered == true && mounted) Navigator.pop(context);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Entregar compras")),
-      body: Padding(
+      appBar: AppBar(title: const Text('Entregar compras')),
+      body: ListView(
         padding: const EdgeInsets.all(16),
-        child: ListView(
-          children: [
-            const Text(
-              "Local da loja",
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: storeStreetController,
-              decoration: const InputDecoration(
-                labelText: "Rua e número",
+        children: [
+          const Text(
+            'Local da loja',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+          ),
+          const SizedBox(height: 8),
+          Stack(
+            children: [
+              AddressAutocompleteField(
+                controller: _pickupController,
+                labelText: 'Pesquisar loja ou supermercado',
+                prefixIcon: const Icon(Icons.store_outlined),
+                onSelected: (address, coords) {
+                  setState(() => _pickupLocation = coords);
+                },
               ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: storeCityController,
-              decoration: const InputDecoration(
-                labelText: "Cidade",
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: storePostalController,
-              decoration: const InputDecoration(
-                labelText: "Código postal",
-              ),
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              "Endereço de entrega",
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: destinationStreetController,
-              decoration: const InputDecoration(
-                labelText: "Rua e número",
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: destinationCityController,
-              decoration: const InputDecoration(
-                labelText: "Cidade",
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: destinationPostalController,
-              decoration: const InputDecoration(
-                labelText: "Código postal",
-              ),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _isLoading ? null : createOrder,
-              child: _isLoading
-                  ? const SizedBox(
-                      height: 16,
-                      width: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text("Criar pedido"),
-            ),
-          ],
-        ),
+              if (_loadingLocation)
+                const Positioned(
+                  right: 12,
+                  top: 14,
+                  child: SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'Endereço de entrega',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+          ),
+          const SizedBox(height: 8),
+          AddressAutocompleteField(
+            controller: _dropoffController,
+            labelText: 'Pesquisar endereço de entrega',
+            prefixIcon: const Icon(Icons.location_on_outlined),
+            onSelected: (address, coords) {
+              setState(() => _dropoffLocation = coords);
+            },
+          ),
+          const SizedBox(height: 32),
+          ElevatedButton(
+            onPressed: _goToPayment,
+            child: const Text('Continuar para pagamento'),
+          ),
+        ],
       ),
     );
-  }
-
-    LatLng _locationForPostal(String postal) {
-    return PostalCoordinateHelper.coordinateFor(postal);
   }
 }

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
 import '../models/partner_product.dart';
 import '../models/restaurant_model.dart';
 import '../stores/order_store.dart';
 import '../stores/partner_product_store.dart';
+import '../widgets/address_autocomplete_field.dart';
 
 class PartnerCallDriverScreen extends StatefulWidget {
   const PartnerCallDriverScreen({super.key, required this.restaurant});
@@ -23,7 +25,49 @@ class _PartnerCallDriverScreenState extends State<PartnerCallDriverScreen> {
   final _notesController = TextEditingController();
   final Map<String, int> _quantities = {};
 
+  LatLng? _dropoffLocation;
+  bool _addressSuggestionSelected = false;
+
+  // The exact address string that was last confirmed via the suggestions list.
+  // The controller listener compares against this to distinguish programmatic
+  // text updates (controller set by AddressAutocompleteField after a selection)
+  // from genuine user edits (backspace, typing, paste).
+  String _lastConfirmedAddress = '';
+
   bool _isSubmitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _addressController.addListener(_onAddressControllerChanged);
+  }
+
+  /// Fires on EVERY change to _addressController — text AND selection.
+  /// Resets address state only when the new text differs from the last
+  /// confirmed address, which means the user genuinely edited the field.
+  void _onAddressControllerChanged() {
+    final text = _addressController.text;
+
+    debugPrint(
+      '[ADDR_LISTENER] text="$text" confirmed="$_lastConfirmedAddress" '
+      'selected=$_addressSuggestionSelected',
+    );
+
+    if (text == _lastConfirmedAddress) {
+      debugPrint('[ADDR_LISTENER] → matches confirmed, NO reset');
+      return;
+    }
+    if (!_addressSuggestionSelected && _dropoffLocation == null) {
+      debugPrint('[ADDR_LISTENER] → state already clear, skip');
+      return;
+    }
+
+    debugPrint('[ADDR_LISTENER] → RESET triggered from _onAddressControllerChanged');
+    setState(() {
+      _addressSuggestionSelected = false;
+      _dropoffLocation = null;
+    });
+  }
 
   void _updateQuantity(String productId, int delta) {
     setState(() {
@@ -63,7 +107,9 @@ class _PartnerCallDriverScreenState extends State<PartnerCallDriverScreen> {
   void dispose() {
     _customerNameController.dispose();
     _phoneController.dispose();
-    _addressController.dispose();
+    _addressController
+      ..removeListener(_onAddressControllerChanged)
+      ..dispose();
     _notesController.dispose();
     super.dispose();
   }
@@ -135,22 +181,37 @@ class _PartnerCallDriverScreenState extends State<PartnerCallDriverScreen> {
                   },
                 ),
                 const SizedBox(height: 16),
-                TextFormField(
+                AddressAutocompleteField(
                   controller: _addressController,
-                  textCapitalization: TextCapitalization.sentences,
-                  decoration: const InputDecoration(
-                    labelText: 'Delivery address',
-                    prefixIcon: Icon(Icons.location_on_outlined),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Enter the delivery address';
-                    }
-                    return null;
+                  labelText: 'Delivery address',
+                  prefixIcon: const Icon(Icons.location_on_outlined),
+                  onSelected: (address, coords) {
+                    debugPrint('[ON_SELECTED] address="$address" coords=$coords');
+                    // Set _lastConfirmedAddress BEFORE setState so the
+                    // controller listener sees the confirmed value immediately.
+                    _lastConfirmedAddress = address;
+                    setState(() {
+                      _addressSuggestionSelected = true;
+                      _dropoffLocation = coords;
+                    });
+                    debugPrint(
+                      '[ON_SELECTED] state after: selected=$_addressSuggestionSelected '
+                      'confirmed="$_lastConfirmedAddress"',
+                    );
                   },
-                  minLines: 1,
-                  maxLines: 2,
                 ),
+                if (!_addressSuggestionSelected &&
+                    _addressController.text.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4, left: 12),
+                    child: Text(
+                      'Select a suggestion to confirm the address.',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
                 const SizedBox(height: 24),
                 Text(
                   'Selecione os produtos para esta entrega',
@@ -240,7 +301,29 @@ class _PartnerCallDriverScreenState extends State<PartnerCallDriverScreen> {
   }
 
   Future<void> _submit() async {
+    debugPrint(
+      '[SUBMIT] address="${_addressController.text}" '
+      'selected=$_addressSuggestionSelected coords=$_dropoffLocation '
+      'confirmed="$_lastConfirmedAddress"',
+    );
+
     if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    if (_addressController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter the delivery address.')),
+      );
+      return;
+    }
+
+    if (!_addressSuggestionSelected) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Select an address from the suggestions list.'),
+        ),
+      );
       return;
     }
 
@@ -269,6 +352,7 @@ class _PartnerCallDriverScreenState extends State<PartnerCallDriverScreen> {
         customerName: _customerNameController.text.trim(),
         customerPhone: _phoneController.text.trim(),
         deliveryAddress: _addressController.text.trim(),
+        dropoffLocation: _dropoffLocation,
         items: selectedItems,
         notes: _notesController.text.trim().isEmpty
             ? null

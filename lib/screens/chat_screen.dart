@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../models/chat_message.dart';
 import '../models/message_model.dart';
@@ -73,6 +74,22 @@ class _ChatScreenState extends State<ChatScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Chat · ${liveOrder.vendorName ?? 'Pedido'}'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.phone),
+            tooltip: 'Ligar',
+            onPressed: () async {
+              final phone = widget.senderType == ChatSenderType.driver
+                  ? liveOrder.clientPhone
+                  : liveOrder.driverPhone;
+              if (phone == null || phone.isEmpty) return;
+              final uri = Uri(scheme: 'tel', path: phone);
+              if (await canLaunchUrl(uri)) {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              }
+            },
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -159,7 +176,8 @@ class _ChatScreenState extends State<ChatScreen> {
         senderRole: _senderRole,
         content: text,
       );
-    } catch (_) {
+    } catch (e) {
+      debugPrint('ChatScreen._handleSend: $e');
       if (mounted) {
         messenger.showSnackBar(
           const SnackBar(

@@ -1,19 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
-import 'package:geocoding/geocoding.dart';
 
-import '../services/location_service.dart';
-
-import '../models/order_service_type.dart';
 import '../auth/auth_store.dart';
+import '../config/maps_config.dart';
 import '../models/restaurant_model.dart';
+import '../services/location_service.dart';
 import '../stores/cart_store.dart';
 import '../stores/restaurant_store.dart';
 import '../stores/session_store.dart';
-
+import '../widgets/address_autocomplete_field.dart';
 import 'carry_groceries_screen.dart';
-import 'map_screen.dart';
 import 'restaurants_screen.dart';
 import 'send_package_form_screen.dart';
 import 'stores_screen.dart';
@@ -26,124 +22,66 @@ class ClientHomeScreen extends StatefulWidget {
 }
 
 class _ClientHomeScreenState extends State<ClientHomeScreen> {
-
   @override
   void initState() {
     super.initState();
-    _loadCurrentLocation();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context.read<RestaurantStore>().loadRestaurantsFromSupabase();
+      _detectLocation();
     });
   }
 
-  Future<void> _loadCurrentLocation() async {
-    try {
-      final location = await LocationService.getCurrentLocation();
+  /// Requests GPS permission, gets current position, reverse-geocodes it,
+  /// and pre-fills the CartStore delivery address. Fails silently.
+  Future<void> _detectLocation() async {
+    final location = await LocationService.getCurrentLocation();
+    if (location == null || !mounted) return;
 
-      String street = "";
-      String city = "";
+    final address = await LocationService.reverseGeocode(location, googleApiKey);
+    if (!mounted) return;
 
-      try {
-        final placemarks = await placemarkFromCoordinates(
-          location.latitude,
-          location.longitude,
-          localeIdentifier: 'pt_PT',
-        );
+    // Only update if the user hasn't already chosen an address.
+    final cartStore = context.read<CartStore>();
+    if (cartStore.dropoffStreet.isNotEmpty) return;
 
-        if (placemarks.isNotEmpty) {
-          final place = placemarks.first;
-          street = place.street ?? "";
-          city = place.locality ?? "";
-        }
-      } catch (_) {
-        debugPrint("Geocoding falhou");
-      }
-
-      context.read<CartStore>().updateDeliveryAddress(
-        street: street,
-        city: city,
-        postalCode: "",
-        location: location,
-      );
-    } catch (e) {
-      debugPrint("Erro ao obter localização: $e");
-    }
-  }
-
-  static const Map<String, _RestaurantInfo> _restaurantMetadata = {
-    "Pizzaria do Zé": _RestaurantInfo(
-      location: LatLng(38.7124, -9.1403),
-      street: "Rua dos Sapateiros 122",
-      city: "Lisboa",
-      postalCode: "1100-587",
-    ),
-    "Kebab do Mané": _RestaurantInfo(
-      location: LatLng(38.7165, -9.1298),
-      street: "Rua do Ouro 210",
-      city: "Lisboa",
-      postalCode: "1100-062",
-    ),
-    "Hamburgueria Lisboa Grill": _RestaurantInfo(
-      location: LatLng(38.7208, -9.1481),
-      street: "Av. da Liberdade 204",
-      city: "Lisboa",
-      postalCode: "1250-147",
-    ),
-  };
-
-  static const Map<String, _StoreInfo> _storeMetadata = {
-    "Mini Mercado Lisboa": _StoreInfo(
-      location: LatLng(38.7132, -9.1355),
-      street: "Rua da Madalena 220",
-      city: "Lisboa",
-      postalCode: "1100-320",
-    ),
-  };
-
-  OrderServiceType _serviceTypeForCategory(BusinessCategory category) {
-    switch (category) {
-      case BusinessCategory.restaurant:
-        return OrderServiceType.restaurant;
-      case BusinessCategory.supermarket:
-      case BusinessCategory.store:
-      case BusinessCategory.pharmacy:
-        return OrderServiceType.storeShopping;
-    }
+    cartStore.updateDeliveryAddress(
+      street: address ?? '${location.latitude.toStringAsFixed(4)}, ${location.longitude.toStringAsFixed(4)}',
+      city: '',
+      postalCode: '',
+      location: location,
+    );
   }
 
   Future<void> _handleTestMode() async {
     if (!mounted) return;
-
     final authStore = context.read<AuthStore>();
     final sessionStore = context.read<SessionStore>();
-
     authStore.logout();
     await sessionStore.clearRole();
-
     if (!mounted) return;
-
     Navigator.of(context).popUntil((route) => route.isFirst);
+  }
+
+  void _openAddressPicker(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const _AddressPickerScreen()),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-
     final theme = Theme.of(context);
     final restaurantStore = context.watch<RestaurantStore>();
 
     final addressLine = context.select<CartStore, String>((store) {
       final street = store.dropoffStreet.trim();
       final city = store.dropoffCity.trim();
-
-      if (street.isEmpty && city.isEmpty) {
-        return "Selecionar endereço";
-      }
-
+      if (street.isEmpty && city.isEmpty) return 'Selecionar endereço';
       if (street.isEmpty) return city;
       if (city.isEmpty) return street;
-
-      return "$street, $city";
+      return '$street, $city';
     });
 
     return Scaffold(
@@ -155,7 +93,6 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton.icon(
@@ -164,21 +101,13 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                   label: const Text('Teste'),
                 ),
               ),
-
               const SizedBox(height: 16),
-
               _buildAddressBar(context, addressLine),
-
               const SizedBox(height: 16),
-
               _buildSearchBar(context, restaurantStore),
-
               const SizedBox(height: 24),
-
               _buildCategorySection(context),
-
               const SizedBox(height: 16),
-
             ],
           ),
         ),
@@ -187,16 +116,9 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
   }
 
   Widget _buildAddressBar(BuildContext context, String addressLine) {
-
     final theme = Theme.of(context);
-
     return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const MapScreen()),
-        );
-      },
+      onTap: () => _openAddressPicker(context),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
         decoration: BoxDecoration(
@@ -205,7 +127,6 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
         ),
         child: Row(
           children: [
-
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
@@ -217,34 +138,26 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                 color: theme.colorScheme.primary,
               ),
             ),
-
             const SizedBox(width: 16),
-
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-
                   Text(
-                    "Entrega em",
+                    'Entrega em',
                     style: theme.textTheme.labelMedium,
                   ),
-
                   const SizedBox(height: 4),
-
                   Text(
                     addressLine,
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-
                 ],
               ),
             ),
-
             const Icon(Icons.chevron_right_rounded),
-
           ],
         ),
       ),
@@ -265,11 +178,9 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
   }
 
   Widget _buildCategorySection(BuildContext context) {
-
     final categories = [
-
       _CategoryOption(
-        title: 'Restaurants',
+        title: 'Restaurantes',
         icon: Icons.restaurant_menu,
         color: const Color(0xFFFFC857),
         onTap: () {
@@ -279,9 +190,8 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
           );
         },
       ),
-
       _CategoryOption(
-        title: 'Supermarkets',
+        title: 'Supermercados',
         icon: Icons.shopping_cart,
         color: const Color(0xFF57CC99),
         onTap: () {
@@ -294,9 +204,8 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
           );
         },
       ),
-
       _CategoryOption(
-        title: 'Stores',
+        title: 'Lojas',
         icon: Icons.storefront,
         color: const Color(0xFF5C7AEA),
         onTap: () {
@@ -309,9 +218,8 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
           );
         },
       ),
-
       _CategoryOption(
-        title: 'Pharmacy',
+        title: 'Farmácia',
         icon: Icons.local_pharmacy,
         color: const Color(0xFFEE6352),
         onTap: () {
@@ -324,35 +232,28 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
           );
         },
       ),
-
       _CategoryOption(
-        title: 'Send Package',
+        title: 'Enviar Encomenda',
         icon: Icons.local_shipping,
         color: const Color(0xFF48CAE4),
         onTap: () {
           Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (_) => const SendPackageFormScreen(),
-            ),
+            MaterialPageRoute(builder: (_) => const SendPackageFormScreen()),
           );
         },
       ),
-
       _CategoryOption(
-        title: 'Deliver My Groceries',
+        title: 'Fazer Compras',
         icon: Icons.shopping_bag,
         color: const Color(0xFFB5838D),
         onTap: () {
           Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (_) => const CarryGroceriesScreen(),
-            ),
+            MaterialPageRoute(builder: (_) => const CarryGroceriesScreen()),
           );
         },
       ),
-
     ];
 
     return Wrap(
@@ -364,6 +265,59 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     );
   }
 }
+
+// ─── Address picker screen ─────────────────────────────────────────────────
+
+class _AddressPickerScreen extends StatefulWidget {
+  const _AddressPickerScreen();
+
+  @override
+  State<_AddressPickerScreen> createState() => _AddressPickerScreenState();
+}
+
+class _AddressPickerScreenState extends State<_AddressPickerScreen> {
+  final _ctrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Endereço de entrega')),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            AddressAutocompleteField(
+              controller: _ctrl,
+              labelText: 'Pesquisar endereço',
+              onSelected: (address, coords) {
+                context.read<CartStore>().updateDeliveryAddress(
+                      street: address,
+                      city: '',
+                      postalCode: '',
+                      location: coords,
+                    );
+                Navigator.of(context).pop();
+              },
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Comece a escrever o endereço e selecione uma sugestão.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Category helpers ──────────────────────────────────────────────────────
 
 class _CategoryOption {
   const _CategoryOption({
@@ -397,32 +351,4 @@ class _CategoryButton extends StatelessWidget {
       ),
     );
   }
-}
-
-class _RestaurantInfo {
-  const _RestaurantInfo({
-    required this.location,
-    required this.street,
-    required this.city,
-    required this.postalCode,
-  });
-
-  final LatLng location;
-  final String street;
-  final String city;
-  final String postalCode;
-}
-
-class _StoreInfo {
-  const _StoreInfo({
-    required this.location,
-    required this.street,
-    required this.city,
-    required this.postalCode,
-  });
-
-  final LatLng location;
-  final String street;
-  final String city;
-  final String postalCode;
 }

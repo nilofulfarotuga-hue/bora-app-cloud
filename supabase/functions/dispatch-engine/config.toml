@@ -1,0 +1,2 @@
+[functions.dispatch-engine]
+verify_jwt = false

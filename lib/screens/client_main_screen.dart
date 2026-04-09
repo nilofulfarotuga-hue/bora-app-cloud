@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../auth/auth_store.dart';
+import '../models/order_model.dart';
+import '../stores/order_store.dart';
 import '../stores/session_store.dart';
 import 'client_home_screen.dart';
-
+import 'order_tracking_screen.dart';
 import 'orders_screen.dart';
 import 'profile_screen.dart';
 
@@ -18,11 +20,26 @@ class ClientMainScreen extends StatefulWidget {
 class _ClientMainScreenState extends State<ClientMainScreen> {
   int _selectedIndex = 0;
 
+  /// Orders we have already pushed a tracking screen for.
+  /// Prevents re-navigation on every rebuild after the user presses back.
+  final Set<String> _navigatedOrderIds = {};
+
   final List<Widget> _screens = const [
     ClientHomeScreen(),
     OrdersScreen(),
     ProfileScreen(),
   ];
+
+  OrderModel? _findActiveOrder(List<OrderModel> orders) {
+    for (final o in orders) {
+      if (o.status.index >= OrderStatus.driverAccepted.index &&
+          o.status != OrderStatus.delivered &&
+          o.status != OrderStatus.rejected) {
+        return o;
+      }
+    }
+    return null;
+  }
 
     Future<void> _handleSwitchMode() async {
     final authStore = context.read<AuthStore>();
@@ -37,13 +54,30 @@ class _ClientMainScreenState extends State<ClientMainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Watch orders: when a driver accepts, navigate to tracking screen once.
+    final orders = context.watch<OrderStore>().orders;
+    final activeOrder = _findActiveOrder(orders);
+    if (activeOrder != null && !_navigatedOrderIds.contains(activeOrder.id)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (_navigatedOrderIds.contains(activeOrder.id)) return;
+        _navigatedOrderIds.add(activeOrder.id);
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => OrderTrackingScreen(order: activeOrder),
+          ),
+        );
+      });
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("BORA - Cliente"),
                 actions: [
           IconButton(
             icon: const Icon(Icons.swap_horiz),
-            tooltip: 'Switch Mode',
+            tooltip: 'Mudar modo',
             onPressed: _handleSwitchMode,
           ),
         ],
@@ -60,7 +94,7 @@ class _ClientMainScreenState extends State<ClientMainScreen> {
                 items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home),
-            label: "Home",
+            label: "Início",
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.receipt_long),

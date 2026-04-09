@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 // import 'services/notification_service.dart'; // temporarily disabled with Firebase
 import 'auth/auth_store.dart';
 import 'dispatch/dispatch_engine.dart';
+import 'screens/admin/admin_dashboard_screen.dart';
 import 'screens/client_login_screen.dart';
 import 'screens/client_main_screen.dart';
 import 'screens/driver_home_screen.dart';
@@ -38,6 +39,8 @@ Future<void> main() async {
   if (!kIsWeb) {
     Stripe.publishableKey =
         'pk_test_51T8MG0GmiUUEIr722bf8w8H8LWZgAlMMuPgEP4XOxzfYr9VsiIhxQixvj7uqkdtbfXatRHrvOcgX3C3dv257rjs600mn6d5mVv';
+    Stripe.merchantIdentifier = 'merchant.com.boraapp.app';
+    await Stripe.instance.applySettings();
     // Firebase.initializeApp() temporarily disabled — requires google-services.json
     // NotificationService HTTP methods (notify-drivers, notify-client) still work
   }
@@ -130,6 +133,7 @@ class MyApp extends StatelessWidget {
         routes: {
           '/role': (_) => const RoleScreen(),
           '/login': (_) => const LoginScreen(),
+          '/admin': (_) => const AdminDashboardScreen(),
         },
         home: const _RootNavigator(),
       ),

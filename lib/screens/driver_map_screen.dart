@@ -14,6 +14,7 @@ import '../services/navigation_service.dart';
 import '../services/route_optimizer.dart';
 import '../stores/driver_store.dart';
 import '../stores/order_store.dart';
+import '../utils/map_marker_helper.dart';
 import '../utils/map_utils.dart';
 import '../widgets/address_text.dart';
 import 'chat_screen.dart';
@@ -43,13 +44,23 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
   late DriverStore _driverStore;
   final DirectionsService _directionsService = DirectionsService();
 
-  /// One-shot GPS result — map is not rendered until this is populated.
+  /// One-shot GPS result — drives the camera follow logic AFTER the map is
+  /// already rendered. Does NOT gate rendering.
   ll.LatLng? _gpsCenter;
+
+  /// IMMUTABLE initial camera target. Captured ONCE in [initState] and never
+  /// recomputed — GoogleMap.initialCameraPosition only reads this on the very
+  /// first creation, and Flutter Web is sensitive to target values changing
+  /// during the first frame. Keeping it stable guarantees the PlatformView
+  /// mounts deterministically on frame 1.
+  late final ll.LatLng _stableInitialCenter;
+
+  /// Fallback coordinate used when nothing else is known (centro de Portugal).
+  static const ll.LatLng _defaultFallbackCenter = ll.LatLng(38.7223, -9.1393);
 
   /// GoogleMap created once, never destroyed. Prevents PlatformView crash.
   bool _mapReady = false;
 
-  ll.LatLng? _lastAnimatedPosition;
   String? _lastAnimatedStopsKey;
   List<ll.LatLng> _routePoints = <ll.LatLng>[];
   String? _activeRouteKey;
@@ -57,6 +68,24 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
   StreamSubscription<Position>? _positionSubscription;
   double? _routeDurationMinutes;
   ll.LatLng? _lastRouteOrigin;
+
+  // ── Smooth movement interpolation (Uber-style) ────────────────────────────
+  //
+  // Every GPS fix triggers an interpolation from the CURRENT displayed
+  // position (_smoothedPosition) to the new raw GPS position. Both the
+  // marker and the camera animate in sync, frame by frame, at ~60 fps.
+  //
+  // Key invariants:
+  //   • _smoothedPosition is the source of truth for the MARKER/CAMERA.
+  //   • driver.location (DriverStore) remains the raw GPS source of truth
+  //     and drives routes / RouteOptimizer (no jitter in polylines).
+  //   • Restarting mid-animation always resumes from the current interpolated
+  //     position, never from the previous start — no snap-back artefacts.
+  ll.LatLng? _smoothedPosition;
+  Timer? _interpolationTimer;
+  static const Duration _interpolationDuration = Duration(milliseconds: 600);
+  static const Duration _interpolationFrame = Duration(milliseconds: 16); // ~60 fps
+  static const double _jitterThresholdMetres = 1.0; // skip animation below this
 
   // Debounce timer: delays the Directions API call by 2.5 s after the last
   // qualifying movement, preventing bursts during rapid position updates.
@@ -68,12 +97,22 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
     // Capture DriverStore once in initState so fallback logic can access it
     // safely without async context issues.
     _driverStore = context.read<DriverStore>();
+
+    // Freeze the initial camera target for the lifetime of this State.
+    // Priority: current driver location → fallback padrão.
+    // This value is passed to GoogleMap.initialCameraPosition ONCE and then
+    // never changes, regardless of GPS, store, realtime, or any async event.
+    _stableInitialCenter =
+        _driverStore.currentDriver?.location ?? _defaultFallbackCenter;
+
+    MapMarkerHelper.preload();
     _startLocationTracking();
   }
 
   @override
   void dispose() {
     _debounceTimer?.cancel();
+    _interpolationTimer?.cancel();
     _positionSubscription?.cancel();
     _directionsService.dispose();
     super.dispose();
@@ -182,11 +221,11 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
           setState(() => _gpsCenter = fallback);
           _mapController?.animateCamera(CameraUpdate.newLatLng(fallback.toGMaps()));
         } else {
-          // Last resort: use Lisbon as temporary center to unblock rendering.
-          // Stream will immediately replace this with real GPS when acquired.
-          const lisbon = ll.LatLng(38.7223, -9.1393);
-          setState(() => _gpsCenter = lisbon);
-          _mapController?.animateCamera(CameraUpdate.newLatLng(lisbon.toGMaps()));
+          // Último recurso: centro padrão para desbloquear renderização.
+          // O stream substituirá com GPS real assim que disponível.
+          setState(() => _gpsCenter = _defaultFallbackCenter);
+          _mapController?.animateCamera(
+              CameraUpdate.newLatLng(_defaultFallbackCenter.toGMaps()));
 
         }
         // Stream will refine with real GPS location (see line 214-220)
@@ -197,15 +236,20 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
     }
 
     // ── 4. Continuous stream ─────────────────────────────────────────────────
+    // Real-time GPS tracking (Uber-style): continuous position updates
+    // with best accuracy and no distance filtering.
     // AndroidSettings with ForegroundNotificationConfig keeps the stream alive
     // even when the app is minimised (Android foreground service).
     // On iOS, standard LocationSettings suffice (the OS handles background).
     final LocationSettings locationSettings;
     if (defaultTargetPlatform == TargetPlatform.android) {
       locationSettings = AndroidSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 5,
-        intervalDuration: const Duration(seconds: 3),
+        // bestForNavigation: highest accuracy, continuous updates
+        accuracy: LocationAccuracy.bestForNavigation,
+        // distanceFilter: 0 = update on every movement (no throttling)
+        distanceFilter: 0,
+        // Update frequency: 1 second (fast enough for real-time tracking)
+        intervalDuration: const Duration(seconds: 1),
         foregroundNotificationConfig: const ForegroundNotificationConfig(
           notificationTitle: 'BORA em execução',
           notificationText: 'Localização ativa para entregas',
@@ -214,8 +258,10 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
       );
     } else {
       locationSettings = const LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 5,
+        // bestForNavigation: highest accuracy for navigation apps
+        accuracy: LocationAccuracy.bestForNavigation,
+        // distanceFilter: 0 = update on every movement (no throttling)
+        distanceFilter: 0,
       );
     }
 
@@ -224,20 +270,94 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
     ).listen((position) {
       if (!mounted) return;
       final newLoc = ll.LatLng(position.latitude, position.longitude);
-      
 
-      // Unblock rendering guard if last-known position was unavailable.
-      if (_gpsCenter == null) {
-        setState(() => _gpsCenter = newLoc);
-        _mapController?.animateCamera(CameraUpdate.newLatLng(newLoc.toGMaps()));
-        // DO NOT add postFrameCallback here — setState above already triggers
-        // rebuild. The GoogleMap's ValueKey(_gpsCenter) detects the change.
+      // Update _gpsCenter (always)
+      if (_gpsCenter != newLoc) {
+        _gpsCenter = newLoc;
+        // Start a smooth interpolation from the currently-displayed position
+        // to the new raw GPS fix (marker + camera together).
+        _animateToNewPosition(newLoc);
       }
 
-      // DriverStore is the single source of truth for location;
-      // markers, route optimisation, and camera follow all read from it.
+      // DriverStore remains the single source of truth for raw location.
+      // Route computation (RouteOptimizer) still reads driver.location —
+      // the smoothed overlay only affects the marker and camera.
       final driverStore = context.read<DriverStore>();
       driverStore.updateDriverLocation(driverStore.currentDriverId, newLoc);
+    });
+  }
+
+  /// Smooth Uber-style interpolation from the CURRENT displayed position to
+  /// the new GPS fix. Updates both the marker (via [_smoothedPosition] +
+  /// setState) and the camera (via [animateCamera]) in lockstep at ~60 fps.
+  ///
+  /// Re-entrancy safe: if a new GPS fix arrives while an animation is
+  /// running, the current interpolated position becomes the new start — no
+  /// snap-back, no concurrent animations.
+  void _animateToNewPosition(ll.LatLng newPos) {
+    // Cancel any running animation. The next call will start from whatever
+    // _smoothedPosition is RIGHT NOW (the last interpolated frame), not from
+    // the previous animation's starting point.
+    _interpolationTimer?.cancel();
+    _interpolationTimer = null;
+
+    // First fix ever — snap directly, no animation required.
+    if (_smoothedPosition == null) {
+      _smoothedPosition = newPos;
+      if (mounted) setState(() {});
+      _mapController?.animateCamera(
+        CameraUpdate.newLatLng(newPos.toGMaps()),
+      );
+      return;
+    }
+
+    final startPos = _smoothedPosition!;
+
+    // Jitter filter: ignore sub-metre noise to avoid pointless animations
+    // when the driver is stationary.
+    final distanceMetres = const ll.Distance().as(
+      ll.LengthUnit.Meter,
+      startPos,
+      newPos,
+    );
+    if (distanceMetres < _jitterThresholdMetres) {
+      return;
+    }
+
+    final totalFrames =
+        (_interpolationDuration.inMilliseconds / _interpolationFrame.inMilliseconds)
+            .round();
+    var currentFrame = 0;
+
+    _interpolationTimer = Timer.periodic(_interpolationFrame, (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      currentFrame++;
+      final progress = (currentFrame / totalFrames).clamp(0.0, 1.0);
+
+      // Linear interpolation (fast, predictable, matches Uber's behaviour).
+      final lat = startPos.latitude +
+          (newPos.latitude - startPos.latitude) * progress;
+      final lng = startPos.longitude +
+          (newPos.longitude - startPos.longitude) * progress;
+      final intermediate = ll.LatLng(lat, lng);
+
+      // Marker position (drives build()) + camera follow in lockstep.
+      setState(() {
+        _smoothedPosition = intermediate;
+      });
+      _mapController?.animateCamera(
+        CameraUpdate.newLatLng(intermediate.toGMaps()),
+      );
+
+      if (currentFrame >= totalFrames) {
+        // Clamp to exact target and stop.
+        _smoothedPosition = newPos;
+        timer.cancel();
+        _interpolationTimer = null;
+      }
     });
   }
 
@@ -256,72 +376,52 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final orderStore = context.watch<OrderStore>();
-    final driverStore = context.watch<DriverStore>();
+    // Read stores once (not watched to prevent unnecessary rebuilds)
+    final driverStore = context.read<DriverStore>();
+    final orderStore = context.read<OrderStore>();
 
+    // NO early returns. GoogleMap must mount on the FIRST frame regardless of
+    // whether the driver has been hydrated yet. When the driver is null we
+    // still render a fully functional map using the stable fallback center;
+    // markers/routes simply populate on the next rebuild once the driver
+    // becomes available.
     final driver = driverStore.currentDriver;
-    if (driver == null) {
-      
-      return Scaffold(
-        appBar: AppBar(title: const Text('Mapa da entrega')),
-        body: const Center(
-          child: Padding(
-            padding: EdgeInsets.all(24),
-            child: Text('Estafeta não configurado.', textAlign: TextAlign.center),
-          ),
-        ),
-      );
-    }
 
-    // GoogleMap must be created once and never destroyed (PlatformView requirement).
-    // Use _mapReady flag to prevent recreation which crashes on Web.
+    // Mark map as ready on first render (kept for future diagnostics).
     if (!_mapReady) {
-      if (_gpsCenter != null) {
-        _mapReady = true;
-      } else {
-        return Scaffold(
-          appBar: AppBar(title: const Text('Mapa da entrega')),
-          body: const Center(child: CircularProgressIndicator()),
-        );
-      }
+      _mapReady = true;
     }
 
-
-
-    final myOrders = orderStore.myOrders;
-    
-    if (myOrders.isEmpty) {
-      
-      return Scaffold(
-        appBar: AppBar(title: const Text('Mapa da entrega')),
-        body: const Center(
-          child: Padding(
-            padding: EdgeInsets.all(24),
-            child: Text(
-              'Aceite um pedido para visualizar a rota.',
-              textAlign: TextAlign.center,
-            ),
-          ),
-        ),
-      );
-    }
-
-    final driverPosition = driver.location;
+    final myOrders = driver != null ? orderStore.myOrders : const <OrderModel>[];
+    // Raw GPS position — used for routes, RouteOptimizer, polylines.
+    // Never jitters on every animation frame (drives expensive computations).
+    final driverPosition = driver?.location ?? _stableInitialCenter;
+    // Visually-displayed position — interpolated in _animateToNewPosition.
+    // Used ONLY for the driver marker and camera follow. Falls back to the
+    // raw position until the first GPS fix kicks the interpolation loop.
+    final displayPosition = _smoothedPosition ?? driverPosition;
     final optimizedRoute = RouteOptimizer.optimize(myOrders, driverPosition);
     final nextStop = optimizedRoute.stops.isNotEmpty ? optimizedRoute.stops.first : null;
 
     // Focus order: the order whose next stop comes first.
-    final focusOrder = nextStop != null
-        ? myOrders.firstWhere(
-            (o) => o.id == nextStop.orderId,
-            orElse: () => myOrders.first,
-          )
-        : myOrders.first;
+    // If no orders, focusOrder is null (will render empty map).
+    final focusOrder = myOrders.isNotEmpty
+        ? (nextStop != null
+            ? myOrders.firstWhere(
+                (o) => o.id == nextStop.orderId,
+                orElse: () => myOrders.first,
+              )
+            : myOrders.first)
+        : null;
 
-    // Consolidate route updates into a single postFrameCallback to avoid
-    // excessive rebuilds on Web that can cause LegacyJavaScriptObject errors
-    Future.microtask(() {
+    // Route updates are deferred to AFTER the current frame is painted.
+    // Using addPostFrameCallback (instead of microtask) guarantees the
+    // GoogleMap has a chance to mount on frame 1 without competing with
+    // async side-effects. Guarded by _mapController so nothing runs before
+    // the PlatformView is alive.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      if (_mapController == null) return;
       if (nextStop != null) {
         _updateRouteMulti(driverPosition, optimizedRoute.stops);
       } else if (_routePoints.isNotEmpty) {
@@ -335,13 +435,15 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
     });
 
     // ── Markers ────────────────────────────────────────────────────────────
+    // Driver marker uses the smoothed (interpolated) position so it glides
+    // between GPS fixes instead of teleporting.
     final markers = <Marker>{
       Marker(
         markerId: const MarkerId('driver'),
-        position: driverPosition.toGMaps(),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+        position: displayPosition.toGMaps(),
+        icon: MapMarkerHelper.driverIcon,
         infoWindow: const InfoWindow(title: 'Estafeta'),
-        zIndex: 2,
+        zIndexInt: 2,
       ),
     };
 
@@ -353,14 +455,12 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
         Marker(
           markerId: MarkerId('stop_$i'),
           position: stop.location.toGMaps(),
-          icon: BitmapDescriptor.defaultMarkerWithHue(
-            isPickup ? BitmapDescriptor.hueOrange : BitmapDescriptor.hueRed,
-          ),
+          icon: isPickup ? MapMarkerHelper.pickupIcon : MapMarkerHelper.deliveryIcon,
           infoWindow: InfoWindow(
             title: isPickup ? 'Recolha$stepLabel' : 'Entrega$stepLabel',
             snippet: stop.label,
           ),
-          zIndex: 1,
+          zIndexInt: 1,
         ),
       );
     }
@@ -399,53 +499,40 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
     }
 
     // ── Camera ──────────────────────────────────────────────────────────────
-    // Two-mode behaviour (Uber-style):
-    //   • Stops change   → overview: fit all waypoints + driver in view.
-    //   • Position-only  → follow:   pan camera to driver, preserve zoom.
-    // On Web, use microtask instead of postFrameCallback to avoid rendering issues
+    // Only ONE camera-update path is allowed at a time:
+    //   • Stops change   → overview: fit all waypoints + driver in view
+    //     (handled here, in a postFrameCallback).
+    //   • Position-only  → follow: handled ENTIRELY by _animateToNewPosition
+    //     which runs the 60 fps interpolation loop. No camera update for
+    //     position changes is scheduled here to avoid competing with the
+    //     interpolation timer.
     final stopsKey = optimizedRoute.stops.map((s) => s.orderId).join(',');
 
-    Future.microtask(() async {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       if (_mapController == null) return;
 
       final stopsChanged = _lastAnimatedStopsKey != stopsKey;
-      final posChanged   = _lastAnimatedPosition != driverPosition;
-      if (!stopsChanged && !posChanged) return;
+      if (!stopsChanged) return;
 
       final controller = _mapController!;
       if (!mounted) return;
 
-      if (stopsChanged) {
-        // New or completed stop → full route overview.
-        _lastAnimatedStopsKey = stopsKey;
-        _lastAnimatedPosition = driverPosition;
-        final bounds = boundsFromPoints(
-          _routePoints.isNotEmpty ? _routePoints : allStopPoints,
-        );
-        if (bounds != null) {
-          await controller.animateCamera(
-            CameraUpdate.newLatLngBounds(bounds, 100),
-          );
-        }
-      } else {
-        // Only driver moved → follow smoothly.
-        // Guard against micro-jitter: skip if movement is < 10 m.
-        final lastPos = _lastAnimatedPosition;
-        if (lastPos != null) {
-          final movedM = const ll.Distance().as(
-            ll.LengthUnit.Meter, lastPos, driverPosition,
-          );
-          if (movedM < 10.0) return;
-        }
-        _lastAnimatedPosition = driverPosition;
+      // New or completed stop → full route overview.
+      _lastAnimatedStopsKey = stopsKey;
+      final bounds = boundsFromPoints(
+        _routePoints.isNotEmpty ? _routePoints : allStopPoints,
+      );
+      if (bounds != null) {
         await controller.animateCamera(
-          CameraUpdate.newLatLng(driverPosition.toGMaps()),
+          CameraUpdate.newLatLngBounds(bounds, 100),
         );
       }
     });
 
-    final nextAction = resolveDriverOrderAction(orderStore, focusOrder);
+    final nextAction = focusOrder != null
+        ? resolveDriverOrderAction(orderStore, focusOrder)
+        : null;
     final topPadding = MediaQuery.of(context).padding.top;
 
     return Scaffold(
@@ -458,9 +545,10 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
               // DO NOT use ValueKey — causes PlatformView recreation which crashes.
               // GoogleMap created once, never destroyed.
               initialCameraPosition: CameraPosition(
-                // Use _gpsCenter if available, else fallback to Lisbon.
-                // Camera position updated via animateCamera, not rebuild.
-                target: (_gpsCenter ?? const ll.LatLng(38.7223, -9.1393)).toGMaps(),
+                // IMMUTABLE: captured once in initState. Never depends on
+                // GPS, store state, realtime events, or any async value.
+                // Guarantees the map mounts on frame 1 with a valid target.
+                target: _stableInitialCenter.toGMaps(),
                 zoom: 14,
               ),
               markers: markers,
@@ -486,7 +574,9 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
             ),
           ),
 
-          // Center-on-driver button
+          // Center-on-driver button — centres on the currently-displayed
+          // (smoothed) position so the camera lands exactly where the marker
+          // is, even mid-animation.
           Positioned(
             top: topPadding + 8,
             right: 12,
@@ -494,7 +584,7 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
               icon: Icons.my_location,
               onTap: () {
                 _mapController?.animateCamera(
-                  CameraUpdate.newLatLng(driverPosition.toGMaps()),
+                  CameraUpdate.newLatLng(displayPosition.toGMaps()),
                 );
               },
             ),
@@ -636,7 +726,7 @@ class _BottomPanel extends StatefulWidget {
     this.routeDurationMinutes,
   });
 
-  final OrderModel focusOrder;
+  final OrderModel? focusOrder;
   final RouteStop? nextStop;
   final List<RouteStop> allStops;
   final DriverOrderAction? nextAction;
@@ -710,7 +800,7 @@ class _BottomPanelState extends State<_BottomPanel> {
                           () => errorText = 'Digite os 4 dígitos.');
                       return;
                     }
-                    if (entered != widget.focusOrder.deliveryCode) {
+                    if (entered != widget.focusOrder?.deliveryCode) {
                       setDialogState(
                           () => errorText = 'Código incorreto. Tente novamente.');
                       controller.clear();
@@ -804,10 +894,12 @@ class _BottomPanelState extends State<_BottomPanel> {
               ),
               const SizedBox(height: 16),
 
-              // Status + ETA row
-              Row(
-                children: [
-                  _StatusBadge(status: focusOrder.status),
+              // Show order details only if focusOrder is available
+              if (focusOrder != null) ...[
+                // Status + ETA row
+                Row(
+                  children: [
+                    _StatusBadge(status: focusOrder.status),
                   const Spacer(),
                   if (eta != null) ...[
                     Icon(Icons.access_time_rounded,
@@ -888,7 +980,7 @@ class _BottomPanelState extends State<_BottomPanel> {
                                 // disposed when finishOrder removes it from
                                 // myOrders, making mounted == false too early.
                                 final action = nextAction;
-                                final willFinish = widget.focusOrder.status ==
+                                final willFinish = widget.focusOrder?.status ==
                                     OrderStatus.onTheWay;
 
                                 // Delivery step: validate code before executing.
@@ -948,47 +1040,65 @@ class _BottomPanelState extends State<_BottomPanel> {
                   ],
                 ],
               ),
-
-              // Finalize purchase — only for orders where the driver physically
-              // buys goods (storeShopping or non-partner restaurant).
-              // carryGroceries and sendPackage are pure transport; no purchase.
-              if (!_isMultiStop &&
-                  !focusOrder.isPartnerStore &&
-                  (focusOrder.serviceType == OrderServiceType.storeShopping ||
-                      focusOrder.serviceType == OrderServiceType.restaurant) &&
-                  (focusOrder.status == OrderStatus.pickedUp ||
-                      focusOrder.status == OrderStatus.onTheWay)) ...[
-                const SizedBox(height: 12),
-                if (focusOrder.isPurchaseFinalized &&
-                    focusOrder.finalTotal != null)
-                  _FinalizedBanner(finalTotal: focusOrder.finalTotal!)
-                else
-                  _FinalizePurchaseButton(order: focusOrder),
-              ],
-
-              // Chat button — always visible for active single orders
-              if (!_isMultiStop) ...[
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ChatScreen(
-                          order: focusOrder,
-                          senderType: ChatSenderType.driver,
-                        ),
+              ] else ...[
+                // No order accepted — show empty map message
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Text(
+                      'Aceite um pedido para visualizar detalhes.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontSize: 14,
                       ),
                     ),
-                    icon: const Icon(Icons.chat_bubble_outline),
-                    label: const Text('Chat com cliente'),
                   ),
                 ),
               ],
 
+              // If focusOrder is available: show finalize/chat sections
+              if (focusOrder != null) ...[
+                // Finalize purchase — only for orders where driver buys goods
+                if (!_isMultiStop &&
+                    !focusOrder.isPartnerStore &&
+                    (focusOrder.serviceType == OrderServiceType.storeShopping ||
+                        focusOrder.serviceType == OrderServiceType.restaurant) &&
+                    (focusOrder.status == OrderStatus.pickedUp ||
+                        focusOrder.status == OrderStatus.onTheWay)) ...[
+                  const SizedBox(height: 12),
+                  if (focusOrder.isPurchaseFinalized &&
+                      focusOrder.finalTotal != null)
+                    _FinalizedBanner(finalTotal: focusOrder.finalTotal!)
+                  else
+                    _FinalizePurchaseButton(order: focusOrder),
+                ],
+
+                // Chat button — always visible for active single orders
+                if (!_isMultiStop) ...[
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ChatScreen(
+                            order: focusOrder,
+                            senderType: ChatSenderType.driver,
+                          ),
+                        ),
+                      ),
+                      icon: const Icon(Icons.chat_bubble_outline),
+                      label: const Text('Chat com cliente'),
+                    ),
+                  ),
+                ],
+              ],
+
               // Customer notes (single order only — too noisy for multi)
               if (!_isMultiStop &&
+                  focusOrder != null &&
                   focusOrder.customerNotes != null &&
                   focusOrder.customerNotes!.isNotEmpty) ...[
                 const SizedBox(height: 12),
@@ -1007,7 +1117,7 @@ class _BottomPanelState extends State<_BottomPanel> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          focusOrder.customerNotes!,
+                          focusOrder!.customerNotes!,
                           style: TextStyle(
                               fontSize: 13, color: Colors.grey.shade700),
                         ),
@@ -1017,7 +1127,7 @@ class _BottomPanelState extends State<_BottomPanel> {
                 ),
               ],
 
-              if (!_isMultiStop && focusOrder.apartmentDelivery) ...[
+              if (!_isMultiStop && focusOrder != null && focusOrder.apartmentDelivery) ...[
                 const SizedBox(height: 12),
                 const _ApartmentDeliveryBanner(),
               ],
@@ -1513,7 +1623,7 @@ class _ApartmentDeliveryBanner extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              'Apartment delivery requested — +€1 bonus',
+              'Entrega em apartamento — bónus +€1 para o estafeta',
               style: theme.textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.w600,
                 color: Colors.orange.shade800,

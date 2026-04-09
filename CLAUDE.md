@@ -1,3 +1,46 @@
+# ⚠️ PRIORITY CONTEXT (READ FIRST)
+
+## Project: BORA APP
+
+### Core Rules (ALWAYS FOLLOW)
+- Follow: Model → Store → Screen
+- NEVER use String for status
+- ALWAYS use OrderStatus enum:
+  created → preparing → callingDriver → driverAccepted → pickedUp → onTheWay → delivered
+- NEVER break existing working features
+- ALWAYS maintain Supabase compatibility
+
+### Current Focus
+- Fix realtime sync between devices
+- Complete driver flow
+- Fix auth/session persistence
+
+### Important Notes
+- OrderStore uses ID comparison (not reference)
+- Realtime replaces objects → never rely on object identity
+- DispatchEngine is memory-based with DB sync for offers
+## Skill Usage Rule
+
+- ALWAYS prefer using skills instead of long prompts
+- When a task matches a skill, EXECUTE the skill immediately
+- Do not ask for clarification if skill context is sufficient
+- Combine skill + short context instead of large explanations
+## Execution Mode
+
+- Always execute tasks end-to-end without stopping midway
+- Do not ask for confirmation unless absolutely necessary
+- When fixing a problem:
+  1. Identify cause
+  2. Apply fix
+  3. Validate result
+  4. Repeat until fully resolved
+
+- If the task is not completed:
+  - Continue automatically
+  - Do not stop at partial solutions
+
+- Always simulate the result mentally before finishing
+- Only finish when the system is fully working
 # CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.

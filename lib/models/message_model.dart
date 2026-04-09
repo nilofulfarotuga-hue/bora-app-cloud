@@ -122,10 +122,10 @@ class MessageModel {
     return MessageModel(
       id: data['id'] as String,
       orderId: data['order_id'] as String,
-      senderId: data['sender_id'] as String,
-      senderRole: data['sender_role'] as String? ?? 'client',
+      senderId: data['sender_type'] as String? ?? '',
+      senderRole: data['sender_type'] as String? ?? 'client',
       type: type,
-      content: data['content'] as String? ?? '',
+      content: data['message'] as String? ?? '',
       createdAt: data['created_at'] != null
           ? DateTime.tryParse(data['created_at'].toString()) ?? DateTime.now()
           : DateTime.now(),
@@ -135,10 +135,8 @@ class MessageModel {
   Map<String, dynamic> toMap() => {
         'id': id,
         'order_id': orderId,
-        'sender_id': senderId,
-        'sender_role': senderRole,
-        'type': type.name,
-        'content': content,
+        'sender_type': senderRole,
+        'message': content,
         'created_at': createdAt.toIso8601String(),
       };
 }

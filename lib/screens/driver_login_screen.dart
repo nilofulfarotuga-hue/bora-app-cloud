@@ -149,15 +149,39 @@ class _DriverLoginScreenState extends State<DriverLoginScreen> {
       return;
     }
 
+    // Guard: confirm that Supabase session is the real driver, not a guest
+    // fallback. loginDriverAsync always calls signInWithPassword, but this
+    // double-check prevents any race where the session was overwritten.
+    final authUser = Supabase.instance.client.auth.currentUser;
+    final authMeta = authUser?.userMetadata ?? {};
+    final isRealDriver = authUser != null && authMeta['bora_role'] == 'driver';
+
+    if (!isRealDriver) {
+      debugPrint('[DriverLogin] auth.currentUser is not a real driver — aborting. uid=${authUser?.id}');
+      // Sign out to ensure no wrong session is left active.
+      try {
+        await Supabase.instance.client.auth.signOut();
+      } catch (_) {}
+      if (!mounted) return;
+      setState(() => _isProcessing = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Erro de autenticação. Tente novamente.')),
+      );
+      return;
+    }
+
+    debugPrint('[DriverLogin] auth.currentUser.id=${authUser.id}');
+
     final account = authStore.currentDriver;
     if (account != null) {
-      final authUserId = Supabase.instance.client.auth.currentUser?.id;
+      // Use the verified Supabase UID — never use currentUser?.id without
+      // the bora_role check above, as it could be a guest UID.
       driverStore.configurePrimaryDriver(
         name: account.name,
         phone: account.phone,
         vehicleType: account.vehicleType,
         licensePlate: account.licensePlate,
-        driverId: authUserId,
+        driverId: authUser.id,
       );
     }
 

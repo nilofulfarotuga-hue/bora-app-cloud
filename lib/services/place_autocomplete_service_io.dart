@@ -108,13 +108,16 @@ class _IoPlaceAutocompleteService implements PlaceAutocompleteService {
     try {
       final response = await http.get(uri);
       if (response.statusCode != 200) {
+        debugPrint(
+            'PlaceDetails: HTTP ${response.statusCode} for placeId=$placeId body=${response.body}');
         return null;
       }
 
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       final status = data['status'] as String?;
       if (status != 'OK') {
-        debugPrint('PlaceAutocomplete.resolvePlaceLocation: API status => $status | error_message => ${data['error_message']}');
+        debugPrint(
+            'PlaceDetails: status=$status error=${data['error_message']}');
         return null;
       }
 
@@ -134,6 +137,49 @@ class _IoPlaceAutocompleteService implements PlaceAutocompleteService {
       return null;
     } finally {
       resetSession();
+    }
+  }
+
+  @override
+  Future<ll.LatLng?> geocodeAddress(String address) async {
+    if (address.isEmpty || _apiKey.isEmpty) return null;
+    final uri = Uri.https(
+      'maps.googleapis.com',
+      '/maps/api/geocode/json',
+      {
+        'address': address,
+        'key': _apiKey,
+        'language': 'pt-PT',
+        'region': 'pt',
+      },
+    );
+    try {
+      final response = await http.get(uri);
+      if (response.statusCode != 200) {
+        debugPrint(
+            'Geocoding: HTTP ${response.statusCode} for "$address" body=${response.body}');
+        return null;
+      }
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final status = data['status'] as String?;
+      if (status != 'OK') {
+        debugPrint('Geocoding: status=$status error=${data['error_message']}');
+        return null;
+      }
+      final results = data['results'] as List<dynamic>?;
+      if (results == null || results.isEmpty) return null;
+      final geometry =
+          (results.first as Map<String, dynamic>)['geometry'] as Map<String, dynamic>?;
+      final location = geometry?['location'] as Map<String, dynamic>?;
+      final lat = location?['lat'];
+      final lng = location?['lng'];
+      if (lat is num && lng is num) {
+        return ll.LatLng(lat.toDouble(), lng.toDouble());
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Geocoding.geocodeAddress: ERROR => $e');
+      return null;
     }
   }
 

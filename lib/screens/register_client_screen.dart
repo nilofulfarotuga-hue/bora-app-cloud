@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../auth/auth_store.dart';
 import '../stores/session_store.dart';
@@ -173,50 +172,41 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
     final name = _nameController.text.trim();
     final phone = _phoneController.text.trim();
 
-    try {
-      // Sign up directly with Supabase Auth first to catch duplicate email errors.
-      
+    final authStore = context.read<AuthStore>();
+    final sessionStore = context.read<SessionStore>();
 
-      if (!mounted) return;
+    // ── FIX: Call registerClientAsync which does Supabase signUp FIRST,
+    // then creates the local account only after Supabase confirms.
+    // The old code had an empty try block and called the sync
+    // registerClient() which fired signUp as fire-and-forget.
+    final error = await authStore.registerClientAsync(
+      name: name,
+      email: email,
+      phone: phone,
+      password: password,
+    );
 
+    if (!mounted) return;
 
-      // Populate local store so the app can navigate immediately.
-      final authStore = context.read<AuthStore>();
-      final sessionStore = context.read<SessionStore>();
-
-      authStore.registerClient(
-        name: name,
-        email: email,
-        phone: phone,
-        password: password,
-      );
-
-      if (!mounted) return;
-
-      await sessionStore.setRole(UserRole.client);
-
-      if (!mounted) return;
+    if (error != null) {
       setState(() => _isSubmitting = false);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Conta criada com sucesso!')),
-      );
-
-      Navigator.of(context).popUntil((route) => route.isFirst);
-    } on AuthException catch (e) {
-      if (!mounted) return;
-      setState(() => _isSubmitting = false);
-      final msg = e.message.contains('already registered')
+      final msg = error.contains('already registered')
           ? 'Este email já está registado.'
-          : e.message;
+          : error;
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(msg)));
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _isSubmitting = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro: $e')),
-      );
+      return;
     }
+
+    await sessionStore.setRole(UserRole.client);
+
+    if (!mounted) return;
+    setState(() => _isSubmitting = false);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Conta criada com sucesso!')),
+    );
+
+    Navigator.of(context).popUntil((route) => route.isFirst);
   }
 }

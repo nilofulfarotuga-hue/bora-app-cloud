@@ -86,7 +86,7 @@ class AuthStore extends ChangeNotifier {
         _supabase.auth.onAuthStateChange.listen(_onAuthStateChange);
 
     _initFromPrefs();
-    _ensureAnonymousSession();
+    // Guest session is deferred — _initFromPrefs may re-auth as real user first.
   }
 
   final _supabase = Supabase.instance.client;
@@ -116,6 +116,7 @@ class AuthStore extends ChangeNotifier {
   DriverAccount? _currentDriver;
   PartnerAccount? _currentPartner;
   RestaurantModel? _partnerRestaurant;
+  DriverStatus _currentDriverStatus = DriverStatus.approved;
 
   RestaurantModel? get partnerRestaurant => _partnerRestaurant;
 
@@ -129,10 +130,8 @@ class AuthStore extends ChangeNotifier {
       _currentDriver != null ||
       _currentPartner != null;
 
-  /// Alias for [isLogged] — convenience for callers that prefer this name.
   bool get isLoggedIn => isLogged;
 
-  /// Supabase Auth user ID — available for both real and anonymous sessions.
   String? get userId => _supabase.auth.currentUser?.id;
 
   AuthRole? get role {
@@ -150,6 +149,7 @@ class AuthStore extends ChangeNotifier {
   ClientAccount? get currentClient => _currentClient;
   DriverAccount? get currentDriver => _currentDriver;
   PartnerAccount? get currentPartner => _currentPartner;
+  DriverStatus get currentDriverStatus => _currentDriverStatus;
 
   bool get hasClientAccounts => _clientsByEmail.isNotEmpty;
   bool get hasDriverAccounts => _driversByEmail.isNotEmpty;
@@ -159,11 +159,8 @@ class AuthStore extends ChangeNotifier {
     final session = state.session;
 
     if (session == null) {
-      _currentClient = null;
-      _currentDriver = null;
-      _currentPartner = null;
-      _partnerRestaurant = null;
-      notifyListeners();
+      // Only clear local state if this is a real sign-out, not a token hiccup.
+      // _ensureGuestSession will re-establish a session immediately after.
       return;
     }
 
@@ -228,31 +225,44 @@ class AuthStore extends ChangeNotifier {
         break;
 
       default:
-        debugPrint('AuthStore: unknown bora_role "$boraRole"');
+        break;
     }
   }
 
-  Future<void> _ensureAnonymousSession() async {
+  // ── Guest session ─────────────────────────────────────────────────────────
+
+  static const _guestEmail    = 'guest@bora.com';
+  static const _guestPassword = '123456';
+
+  Future<void> _ensureGuestSession() async {
     if (_supabase.auth.currentUser != null) return;
-    try {
-      await _supabase.auth.signInAnonymously();
-      debugPrint('AuthStore: anonymous session created');
-    } catch (e) {
-      debugPrint('AuthStore: anonymous sign-in error => $e');
-    }
-  }
 
-  Future<void> _signUpBackground({
-    required String email,
-    required String password,
-    required Map<String, dynamic> data,
-    required String tag,
-  }) async {
     try {
-      await _supabase.auth.signUp(email: email, password: password, data: data);
-      debugPrint('AuthStore: $tag signed up');
+      await _supabase.auth.signInWithPassword(
+        email: _guestEmail,
+        password: _guestPassword,
+      );
+      debugPrint('AuthStore: guest session OK — uid=${_supabase.auth.currentUser?.id}');
+      return;
     } catch (e) {
-      debugPrint('AuthStore: $tag signUp error => $e');
+      debugPrint('AuthStore: guest sign-in failed, trying signUp => $e');
+    }
+
+    try {
+      await _supabase.auth.signUp(
+        email: _guestEmail,
+        password: _guestPassword,
+      );
+      if (_supabase.auth.currentUser != null) {
+        debugPrint('AuthStore: guest account created — uid=${_supabase.auth.currentUser?.id}');
+        return;
+      }
+      await _supabase.auth.signInWithPassword(
+        email: _guestEmail,
+        password: _guestPassword,
+      );
+    } catch (e) {
+      debugPrint('AuthStore: guest session FAILED => $e');
     }
   }
 
@@ -263,7 +273,7 @@ class AuthStore extends ChangeNotifier {
   }) async {
     try {
       await _supabase.auth.signInWithPassword(email: email, password: password);
-      debugPrint('AuthStore: $tag token refreshed');
+      debugPrint('AuthStore: $tag signed in — uid=${_supabase.auth.currentUser?.id}');
     } catch (e) {
       debugPrint('AuthStore: $tag signIn error => $e');
     }
@@ -275,6 +285,8 @@ class AuthStore extends ChangeNotifier {
     } catch (e) {
       debugPrint('AuthStore: signOut error => $e');
     }
+    // No guest fallback after logout — driver flow must not inherit a guest
+    // UID as driverId. Client anonymous ordering uses auth_service.dart instead.
   }
 
   // ─── Client ───────────────────────────────────────────────────────────────
@@ -304,13 +316,78 @@ class AuthStore extends ChangeNotifier {
     _currentPartner = null;
     notifyListeners();
     _persistClient(account);
-    _signUpBackground(
-      email: normalizedEmail,
-      password: password,
-      data: {_kRole: 'client', _kName: name.trim(), _kPhone: phone.trim()},
-      tag: 'client',
+    unawaited(
+      _supabase.auth
+          .signUp(
+            email: normalizedEmail,
+            password: password,
+            data: {_kRole: 'client', _kName: name.trim(), _kPhone: phone.trim()},
+          )
+          .then<void>((_) {})
+          .catchError((e) {
+            debugPrint('AuthStore: registerClient background signUp error => $e');
+          }),
     );
     return null;
+  }
+
+  Future<String?> registerClientAsync({
+    required String name,
+    required String email,
+    required String phone,
+    required String password,
+  }) async {
+    final normalizedEmail = email.trim().toLowerCase();
+    final normalizedName = name.trim();
+    final normalizedPhone = phone.trim();
+
+    if (normalizedEmail.isEmpty || password.isEmpty || normalizedName.isEmpty) {
+      return 'Preencha todos os campos obrigatórios.';
+    }
+
+    try {
+      final res = await _supabase.auth.signUp(
+        email: normalizedEmail,
+        password: password,
+        data: {
+          _kRole: 'client',
+          _kName: normalizedName,
+          _kPhone: normalizedPhone,
+        },
+      );
+
+      final user = res.user;
+      if (user == null) {
+        return 'Não foi possível criar a conta. Tente novamente.';
+      }
+
+      if (res.session == null) {
+        try {
+          await _supabase.auth.signInWithPassword(
+            email: normalizedEmail,
+            password: password,
+          );
+        } catch (_) {}
+      }
+
+      final account = ClientAccount(
+        name: normalizedName,
+        email: normalizedEmail,
+        phone: normalizedPhone,
+        password: password,
+      );
+      _clientsByEmail[normalizedEmail] = account;
+      _currentClient = account;
+      _currentDriver = null;
+      _currentPartner = null;
+      notifyListeners();
+      _persistClient(account);
+      return null;
+    } on AuthException catch (e) {
+      return e.message;
+    } catch (e) {
+      return 'Erro ao criar conta. Tente novamente.';
+    }
   }
 
   bool loginClient(String email, String password) {
@@ -375,8 +452,6 @@ class AuthStore extends ChangeNotifier {
 
   // ─── Driver ───────────────────────────────────────────────────────────────
 
-  /// Register a new driver account via Supabase Auth.
-  /// Returns null on success or an error message string.
   Future<String?> registerDriverAsync({
     required String name,
     required String email,
@@ -390,9 +465,6 @@ class AuthStore extends ChangeNotifier {
 
     if (name.trim().isEmpty || normalizedEmail.isEmpty || password.isEmpty) {
       return 'Preencha todos os campos obrigatórios.';
-    }
-    if (_driversByEmail.containsKey(normalizedEmail)) {
-      return 'Já existe uma conta com este email.';
     }
 
     try {
@@ -414,7 +486,15 @@ class AuthStore extends ChangeNotifier {
         return 'Não foi possível criar a conta. Tente novamente.';
       }
 
-      // Upsert into drivers table using the real auth user ID.
+      if (res.session == null) {
+        try {
+          await _supabase.auth.signInWithPassword(
+            email: normalizedEmail,
+            password: password,
+          );
+        } catch (_) {}
+      }
+
       try {
         await _supabase.from('drivers').upsert({
           'id': user.id,
@@ -426,11 +506,10 @@ class AuthStore extends ChangeNotifier {
           'is_online': false,
           'lat': 38.7223,
           'lng': -9.1393,
+          'status': 'pending',
         });
       } catch (e) {
-        debugPrint(
-            'AuthStore: registerDriverAsync - drivers upsert error => $e');
-        // Non-fatal: auth created, continue.
+        debugPrint('AuthStore: registerDriverAsync - drivers upsert error => $e');
       }
 
       final account = DriverAccount(
@@ -450,43 +529,68 @@ class AuthStore extends ChangeNotifier {
       _persistDriver(account);
       return null;
     } on AuthException catch (e) {
-      debugPrint('AuthStore: registerDriverAsync AuthException => ${e.message}');
       return e.message;
     } catch (e) {
-      debugPrint('AuthStore: registerDriverAsync error => $e');
       return 'Erro ao criar conta. Tente novamente.';
     }
   }
 
-  /// Login with email + password (aligned with client/partner flow).
   Future<bool> loginDriverAsync(String email, String password) async {
     final normalizedEmail = email.trim().toLowerCase();
 
-    // Check local memory first (includes demo account).
-    final local = _driversByEmail[normalizedEmail];
-    if (local != null && local.password == password) {
-      _currentDriver = local;
-      _currentClient = null;
-      _currentPartner = null;
-      notifyListeners();
-      _signInBackground(
-          email: normalizedEmail,
-          password: password,
-          tag: 'loginDriverAsync-local');
-      return true;
-    }
+    debugPrint('[AuthStore] loginDriverAsync → normalizedEmail=$normalizedEmail');
+
+    // Clear any stale or guest session BEFORE attempting login.
+    // Without this, if signInWithPassword throws (user not found, wrong
+    // password), the old/guest session stays active and auth.currentUser.id
+    // would return the wrong UID for all subsequent driver operations.
+    try {
+      await _supabase.auth.signOut();
+      debugPrint('[AuthStore] loginDriverAsync → signOut OK (cleared previous session)');
+    } catch (_) {}
 
     try {
       final res = await _supabase.auth
           .signInWithPassword(email: normalizedEmail, password: password);
       final user = res.user;
-      if (user == null) return false;
+
+      if (user == null) {
+        debugPrint('[AuthStore] loginDriverAsync → signIn returned null user');
+        return false;
+      }
+
+      debugPrint('[AuthStore] loginDriverAsync → auth.currentUser.id=${user.id}');
 
       final meta = user.userMetadata ?? {};
-      if ((meta[_kRole] as String?) != 'driver') return false;
+      final role = meta[_kRole] as String?;
+      if (role != 'driver') {
+        debugPrint('[AuthStore] loginDriverAsync → wrong role: "$role" (expected "driver") — signing out');
+        // Sign out immediately so the non-driver session is not left active.
+        try {
+          await _supabase.auth.signOut();
+        } catch (_) {}
+        return false;
+      }
+
+      debugPrint('[AuthStore] loginDriverAsync → SUCCESS uid=${user.id} role=$role');
 
       final vtStr = meta[_kVehicleType] as String? ?? 'car';
       final phone = meta[_kPhone] as String? ?? '';
+      // Fetch driver status from DB to enforce approval gate.
+      DriverStatus driverStatus = DriverStatus.approved;
+      try {
+        final row = await _supabase
+            .from('drivers')
+            .select('status')
+            .eq('id', user.id)
+            .maybeSingle();
+        final statusStr = row?['status'] as String? ?? 'approved';
+        driverStatus = DriverStatus.values.firstWhere(
+          (s) => s.name == statusStr,
+          orElse: () => DriverStatus.approved,
+        );
+      } catch (_) {}
+
       final account = DriverAccount(
         name: meta[_kName] as String? ?? '',
         email: normalizedEmail,
@@ -499,6 +603,7 @@ class AuthStore extends ChangeNotifier {
         password: password,
       );
       _currentDriver = account;
+      _currentDriverStatus = driverStatus;
       _currentClient = null;
       _currentPartner = null;
       notifyListeners();
@@ -507,23 +612,19 @@ class AuthStore extends ChangeNotifier {
       _persistDriver(account);
       return true;
     } catch (e) {
-      debugPrint('AuthStore: loginDriverAsync error => $e');
+      debugPrint('[AuthStore] loginDriverAsync → FAILED: $e');
       return false;
     }
   }
 
-  /// Sends a password-reset email for the given driver email.
   Future<void> resetDriverPassword(String email) async {
     try {
-      await _supabase.auth
-          .resetPasswordForEmail(email.trim().toLowerCase());
-      debugPrint('AuthStore: password reset email sent to $email');
+      await _supabase.auth.resetPasswordForEmail(email.trim().toLowerCase());
     } catch (e) {
       debugPrint('AuthStore: resetDriverPassword error => $e');
     }
   }
 
-  // Legacy sync login kept for backward compat (checks by phone).
   bool loginDriver(String phone, String password) {
     final account = _driversByPhone[phone.trim()];
     if (account == null || account.password != password) return false;
@@ -574,19 +675,25 @@ class AuthStore extends ChangeNotifier {
     _currentClient = null;
     _currentDriver = null;
     notifyListeners();
-    _signUpBackground(
-      email: normalizedEmail,
-      password: password,
-      data: {
-        _kRole: 'partner',
-        _kName: restaurantName.trim(),
-        _kRestaurantName: restaurantName.trim(),
-        _kAddress: address.trim(),
-        _kPhone: phone.trim(),
-        _kPhotoUrl: photoUrl.trim(),
-        _kCuisineType: cuisineType.trim(),
-      },
-      tag: 'partner',
+    unawaited(
+      _supabase.auth
+          .signUp(
+            email: normalizedEmail,
+            password: password,
+            data: {
+              _kRole: 'partner',
+              _kName: restaurantName.trim(),
+              _kRestaurantName: restaurantName.trim(),
+              _kAddress: address.trim(),
+              _kPhone: phone.trim(),
+              _kPhotoUrl: photoUrl.trim(),
+              _kCuisineType: cuisineType.trim(),
+            },
+          )
+          .then<void>((_) {})
+          .catchError((e) {
+            debugPrint('AuthStore: registerPartner background signUp error => $e');
+          }),
     );
     return null;
   }
@@ -671,6 +778,7 @@ class AuthStore extends ChangeNotifier {
     _currentDriver = null;
     _currentPartner = null;
     _partnerRestaurant = null;
+    _currentDriverStatus = DriverStatus.approved;
     notifyListeners();
     _clearPersistedAccounts();
     _signOutBackground();
@@ -680,10 +788,26 @@ class AuthStore extends ChangeNotifier {
   // SharedPreferences persistence
   // ─────────────────────────────────────────────────────────────────────────
 
+  // ── FIX: _initFromPrefs now RE-AUTHENTICATES with Supabase after
+  // restoring a session from SharedPreferences. Previously it only
+  // restored the local account objects without touching the Supabase
+  // auth session. If the token had expired, _ensureGuestSession would
+  // create a guest session, making auth.currentUser?.id return the
+  // guest uid instead of the driver's real uid. This broke:
+  //   - DriverStore.syncDriverWithAuth (wrong uid)
+  //   - toggleAvailability (DB update on wrong row, 0 rows affected)
+  //   - DispatchEngine.findEligibleDrivers (driver appears offline)
+  //
+  // Now: restore local state → re-auth with Supabase → guest only if
+  // no real account was restored.
   Future<void> _initFromPrefs() async {
+    // Declared outside try so the catch block can access it for role-aware
+    // decisions about whether to create a guest session.
+    String? roleStr;
     try {
       final prefs = await SharedPreferences.getInstance();
 
+      // ── Restore local account objects ─────────────────────────────────
       final clientJson = prefs.getString(_kClientAccount);
       if (clientJson != null) {
         try {
@@ -735,32 +859,120 @@ class AuthStore extends ChangeNotifier {
         _partnersByEmail[email] = account;
       }
 
-      // Restore active session based on the role persisted by SessionStore.
-      final roleStr = prefs.getString('bora_app.user_role');
-      if (roleStr == 'client' && clientJson != null) {
-        try {
-          final email =
-              (jsonDecode(clientJson) as Map<String, dynamic>)['email']
-                  as String? ??
-                  '';
-          _currentClient = _clientsByEmail[email];
-        } catch (_) {}
-      } else if (roleStr == 'driver' && driverJson != null) {
+      // ── Restore active session ────────────────────────────────────────
+      roleStr = prefs.getString('bora_app.user_role');
+      bool restoredRealSession = false;
+
+      if (roleStr == 'driver' && driverJson != null) {
         final map = jsonDecode(driverJson) as Map<String, dynamic>;
         final email = map['email'] as String? ?? '';
+        final password = map['password'] as String? ?? '';
         final phone = map['phone'] as String? ?? '';
         _currentDriver = _driversByEmail[email] ?? _driversByPhone[phone];
+
+        if (_currentDriver != null && email.isNotEmpty && password.isNotEmpty) {
+          // ── FIX CRITICAL: Re-authenticate with Supabase so that
+          // auth.currentUser?.id returns the DRIVER's real uid, not
+          // the guest uid. Without this, DriverStore gets the wrong id,
+          // toggleAvailability writes to the wrong DB row, and the
+          // DispatchEngine never finds an online driver.
+          final currentUid = _supabase.auth.currentUser?.id;
+          final meta = _supabase.auth.currentUser?.userMetadata ?? {};
+          final isAlreadyDriver = meta[_kRole] == 'driver' &&
+              _supabase.auth.currentUser?.email == email;
+
+          if (!isAlreadyDriver) {
+            debugPrint('AuthStore: restoring driver Supabase session for $email');
+            try {
+              await _supabase.auth.signInWithPassword(
+                email: email,
+                password: password,
+              );
+              debugPrint('AuthStore: driver session restored — uid=${_supabase.auth.currentUser?.id}');
+              restoredRealSession = true;
+            } catch (e) {
+              debugPrint('AuthStore: driver session restore failed => $e');
+              // Cannot verify driver identity — clear local state so
+              // _RootNavigator routes to DriverLoginScreen.
+              _currentDriver = null;
+              // Sign out any partial/wrong session so auth.currentUser is
+              // null, not a guest or other user's UID.
+              try {
+                await _supabase.auth.signOut();
+              } catch (_) {}
+            }
+          } else {
+            debugPrint('AuthStore: Supabase already has driver session — uid=$currentUid');
+            restoredRealSession = true;
+          }
+        }
+      } else if (roleStr == 'client' && clientJson != null) {
+        try {
+          final map = jsonDecode(clientJson) as Map<String, dynamic>;
+          final email = map['email'] as String? ?? '';
+          final password = map['password'] as String? ?? '';
+          _currentClient = _clientsByEmail[email];
+
+          if (_currentClient != null && email.isNotEmpty && password.isNotEmpty) {
+            final isAlreadyClient =
+                _supabase.auth.currentUser?.email == email;
+            if (!isAlreadyClient) {
+              try {
+                await _supabase.auth.signInWithPassword(
+                  email: email,
+                  password: password,
+                );
+                restoredRealSession = true;
+              } catch (_) {}
+            } else {
+              restoredRealSession = true;
+            }
+          }
+        } catch (_) {}
       } else if (roleStr == 'partner' && partnerJson != null) {
-        final email =
-            (jsonDecode(partnerJson) as Map<String, dynamic>)['email'] as String;
+        final map = jsonDecode(partnerJson) as Map<String, dynamic>;
+        final email = map['email'] as String;
+        final password = map['password'] as String? ?? '';
         _currentPartner = _partnersByEmail[email];
+
+        if (_currentPartner != null && email.isNotEmpty && password.isNotEmpty) {
+          final isAlreadyPartner =
+              _supabase.auth.currentUser?.email == email;
+          if (!isAlreadyPartner) {
+            try {
+              await _supabase.auth.signInWithPassword(
+                email: email,
+                password: password,
+              );
+              restoredRealSession = true;
+            } catch (_) {}
+          } else {
+            restoredRealSession = true;
+          }
+        }
       }
 
-      if (clientJson != null || driverJson != null || partnerJson != null) {
+      // Only fall back to guest session for client/anonymous flow.
+      // Driver flow must NEVER use a guest UID — doing so makes
+      // auth.currentUser?.id return a guest UUID instead of the driver's
+      // real Supabase UID, which breaks DB queries, availability toggle,
+      // and dispatch stream subscriptions.
+      if (!restoredRealSession && roleStr != 'driver') {
+        await _ensureGuestSession();
+      }
+
+      if (_currentClient != null ||
+          _currentDriver != null ||
+          _currentPartner != null) {
         notifyListeners();
       }
     } catch (e) {
       debugPrint('AuthStore: _initFromPrefs error => $e');
+      // Never create a guest session for driver role — it would make
+      // auth.currentUser?.id return a guest UID, corrupting driverId.
+      if (roleStr != 'driver') {
+        await _ensureGuestSession();
+      }
     }
   }
 

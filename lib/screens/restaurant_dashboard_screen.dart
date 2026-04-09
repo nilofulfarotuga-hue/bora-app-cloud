@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../auth/auth_store.dart';
 import '../models/order_model.dart';
 import '../models/restaurant_model.dart';
 import 'partner_call_driver_screen.dart';
 import 'partner_products_screen.dart';
+import '../widgets/address_text.dart';
 import 'register_partner_screen.dart';
 import '../stores/order_store.dart';
 import '../stores/restaurant_store.dart';
@@ -129,7 +131,7 @@ class RestaurantDashboardScreen extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 12),
             ),
             icon: Icon(Icons.swap_horiz, color: switchModeColor),
-            label: const Text('Switch Mode'),
+            label: const Text('Mudar modo'),
           ),
         ],
       ),
@@ -324,8 +326,8 @@ class _OrderTileState extends State<_OrderTile> {
             Text('Cliente: ${order.customerName!}'),
           if (order.clientPhone != null && order.clientPhone!.isNotEmpty)
             Text('Telefone: ${order.clientPhone!}'),
-          if (order.dropoffAddress != null && order.dropoffAddress!.isNotEmpty)
-            Text('Entrega: ${order.dropoffAddress!}'),
+          if (order.dropoffAddress != null || order.destination != null)
+            AddressText(rawAddress: order.dropoffAddress, coords: order.destination, prefix: 'Entrega: '),
           if (order.customerNotes != null && order.customerNotes!.isNotEmpty)
             Text('Nota: ${order.customerNotes!}'),
           const SizedBox(height: 8),
@@ -630,6 +632,8 @@ class _PartnerEarningsSection extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
+        _LedgerRestaurantCard(restaurantId: restaurant.id),
+        const SizedBox(height: 8),
         Text(
           'Only non-rejected partner restaurant orders are counted towards earnings.',
           style: theme.textTheme.bodySmall
@@ -666,8 +670,23 @@ class _PartnerEarningsSection extends StatelessWidget {
           _buildSummaryRow(context, 'Customer', order.customerName!),
         if (order.clientPhone != null && order.clientPhone!.isNotEmpty)
           _buildSummaryRow(context, 'Phone', order.clientPhone!),
-        if (order.dropoffAddress != null && order.dropoffAddress!.isNotEmpty)
-          _buildSummaryRow(context, 'Delivery', order.dropoffAddress!),
+        if (order.dropoffAddress != null || order.destination != null)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: Text('Delivery', style: theme.textTheme.bodyMedium)),
+                Flexible(
+                  child: AddressText(
+                    rawAddress: order.dropoffAddress,
+                    coords: order.destination,
+                    style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+                  ),
+                ),
+              ],
+            ),
+          ),
         _buildSummaryRow(context, 'Order total', _formatCurrency(order.total),
             emphasize: true),
         _buildSummaryRow(
@@ -691,6 +710,84 @@ class _PartnerEarningsSection extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+class _LedgerRestaurantCard extends StatefulWidget {
+  const _LedgerRestaurantCard({required this.restaurantId});
+
+  final String restaurantId;
+
+  @override
+  State<_LedgerRestaurantCard> createState() => _LedgerRestaurantCardState();
+}
+
+class _LedgerRestaurantCardState extends State<_LedgerRestaurantCard> {
+  double? _settled;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final rows = await Supabase.instance.client
+          .from('ledger_entries')
+          .select('amount')
+          .eq('user_id', widget.restaurantId)
+          .eq('user_type', 'restaurant')
+          .eq('type', 'earning');
+      final total = (rows as List).fold<double>(
+        0,
+        (sum, r) => sum + ((r['amount'] as num?)?.toDouble() ?? 0),
+      );
+      setState(() {
+        _settled = total;
+        _loading = false;
+      });
+    } catch (_) {
+      setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) return const LinearProgressIndicator(minHeight: 2);
+    if (_settled == null) return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    return Card(
+      elevation: 0,
+      color: Colors.green.shade50,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            const Icon(Icons.verified, color: Colors.green, size: 20),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Saldo liquidado',
+                  style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey),
+                ),
+                Text(
+                  '€${_settled!.toStringAsFixed(2)}',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green.shade700,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

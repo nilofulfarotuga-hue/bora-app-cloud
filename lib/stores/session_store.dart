@@ -42,4 +42,4 @@ class SessionStore extends ChangeNotifier {
     }
     return null;
   }
-}
+} 

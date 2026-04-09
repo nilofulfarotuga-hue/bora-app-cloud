@@ -22,4 +22,9 @@ class _NoopPlaceAutocompleteService implements PlaceAutocompleteService {
   Future<ll.LatLng?> resolvePlaceLocation(String placeId) async {
     return null;
   }
+
+  @override
+  Future<ll.LatLng?> geocodeAddress(String address) async {
+    return null;
+  }
 }

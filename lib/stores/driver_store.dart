@@ -17,16 +17,23 @@ class DriverStore extends ChangeNotifier {
   DriverStore({DriverCapacityService? capacityService})
       : _capacityService = capacityService ?? DriverCapacityService() {
     _initialiseRealtimeDriverTracking();
+    _listenAuthChanges();
   }
 
   final DriverCapacityService _capacityService;
   final List<DriverModel> _drivers = [];
   final SupabaseClient _client = Supabase.instance.client;
 
+  // _trackingTimer / _trackedOrderId are kept for API compatibility with
+  // OrderStore callers (startTracking / stopTracking / updateTrackingTarget),
+  // but _tickTracking no longer simulates movement — real GPS from
+  // DriverHomeScreen._startIdleLocationTracking and
+  // DriverMapScreen._listenToDriverLocation owns the driver position.
   Timer? _trackingTimer;
   String? _trackedOrderId;
   RealtimeChannel? _driverLocationChannel;
   final Map<String, Timer> _locationAnimations = <String, Timer>{};
+  StreamSubscription<AuthState>? _authSubscription;
 
   DriverModel? get currentDriver => getDriverById(_primaryDriverId);
 
@@ -42,6 +49,118 @@ class DriverStore extends ChangeNotifier {
 
   DriverCapacityService get capacityService => _capacityService;
 
+  // ── Token balance ──────────────────────────────────────────────────────────
+  int _tokenBalance = 0;
+  int get tokenBalance => _tokenBalance;
+
+  Future<int> fetchTokenBalance() async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return 0;
+    try {
+      final response = await _client.rpc(
+        'get_user_tokens',
+        params: {'p_user_id': userId},
+      );
+      return (response as int?) ?? 0;
+    } catch (e) {
+      debugPrint('[DriverStore] fetchTokenBalance error: $e');
+      return 0;
+    }
+  }
+
+  Future<void> loadTokenBalance() async {
+    _tokenBalance = await fetchTokenBalance();
+    notifyListeners();
+  }
+
+  void _listenAuthChanges() {
+    _authSubscription = _client.auth.onAuthStateChange.listen((authState) {
+      final user = authState.session?.user;
+
+      if (user == null) {
+        // Logout — clear all driver state so the next login starts clean.
+        // Without this, the previous driver's data leaks into the next session.
+        _drivers.clear();
+        _primaryDriverId = 'driver-main';
+        notifyListeners();
+        debugPrint('DriverStore: session ended — driver state cleared.');
+        return;
+      }
+
+      final meta = user.userMetadata ?? {};
+      final role = meta['bora_role'] as String?;
+      if (role != 'driver') return;
+      syncDriverWithAuth(user.id);
+    });
+  }
+
+  Future<void> syncDriverWithAuth(String uid) async {
+    if (uid.isEmpty) return;
+    if (_primaryDriverId == uid && getDriverById(uid) != null) return;
+
+    final oldId = _primaryDriverId;
+    if (oldId != uid) {
+      // Remove the old placeholder or previous driver slot.
+      _drivers.removeWhere((d) => d.id == oldId);
+      _primaryDriverId = uid;
+    }
+
+    final existing = getDriverById(uid);
+    if (existing != null) {
+      notifyListeners();
+      return;
+    }
+
+    try {
+      final rows = await _client
+          .from('drivers')
+          .select()
+          .eq('id', uid)
+          .limit(1);
+
+      if (rows.isNotEmpty) {
+        final row = rows.first;
+        final lat = row['lat'] as num?;
+        final lng = row['lng'] as num?;
+        final rawVehicle = row['vehicle_type'] as String?;
+
+        final driver = DriverModel(
+          id: uid,
+          name: row['name'] as String? ?? uid,
+          location: (lat != null && lng != null)
+              ? LatLng(lat.toDouble(), lng.toDouble())
+              : const LatLng(40.5321, -7.2671),
+          vehicleType:
+              rawVehicle == 'car' ? VehicleType.car : VehicleType.motorcycle,
+          phone: row['phone'] as String? ?? '',
+          isOnline: row['is_online'] as bool? ?? false,
+        );
+        _drivers.add(driver);
+        debugPrint('[DriverStore] syncDriverWithAuth: loaded "$uid" from DB (is_online=${driver.isOnline})');
+      } else {
+        // No drivers row exists — this happens when the drivers table was reset
+        // but auth.users was not (common in dev), OR registration created the
+        // auth user but failed to insert the drivers row.
+        // UPSERT so the dispatch engine can find this driver immediately.
+        debugPrint('[DriverStore] syncDriverWithAuth: no row for "$uid" — upserting drivers row');
+        _drivers.add(DriverModel(
+          id: uid,
+          name: uid,
+          location: const LatLng(38.7223, -9.1393),
+          vehicleType: VehicleType.motorcycle,
+          isOnline: false,
+        ));
+        unawaited(_upsertDriverRow(uid));
+      }
+    } catch (e) {
+      debugPrint('DriverStore.syncDriverWithAuth: error => $e');
+    }
+
+    notifyListeners();
+    // Load token balance in background after driver row is ready.
+    unawaited(loadTokenBalance());
+  }
+
   void configurePrimaryDriver({
     required String name,
     required String phone,
@@ -49,16 +168,19 @@ class DriverStore extends ChangeNotifier {
     String? licensePlate,
     String? driverId,
   }) {
-    // Prefer the Supabase auth user ID when provided; fall back to a
-    // phone-derived ID so the demo account and existing sessions keep working.
-    final newId = (driverId != null && driverId.isNotEmpty)
+    // Priority: explicit driverId > auth UID > phone-derived (demo/test only).
+    // Never use a phone-derived ID when a real auth session exists — it would
+    // mismatch the 'drivers' table PK and cause all DB operations to fail silently.
+    final authUid = _client.auth.currentUser?.id;
+    final resolvedId = (driverId != null && driverId.isNotEmpty)
         ? driverId
-        : 'driver-${phone.replaceAll(RegExp(r'[^0-9a-zA-Z]'), '')}';
+        : (authUid != null && authUid.isNotEmpty)
+            ? authUid
+            : 'driver-${phone.replaceAll(RegExp(r'[^0-9a-zA-Z]'), '')}';
 
-    // If the ID changed (first login or different driver), drop the old slot.
-    if (_primaryDriverId != newId) {
+    if (_primaryDriverId != resolvedId) {
       _drivers.removeWhere((d) => d.id == _primaryDriverId);
-      _primaryDriverId = newId;
+      _primaryDriverId = resolvedId;
     }
 
     var driver = getDriverById(_primaryDriverId);
@@ -72,6 +194,8 @@ class DriverStore extends ChangeNotifier {
         isOnline: false,
       );
       _drivers.add(driver);
+      debugPrint('[DriverStore] configurePrimaryDriver: new driver id=$_primaryDriverId — upserting DB row');
+      unawaited(_upsertDriverRow(_primaryDriverId));
     } else {
       driver
         ..name = name
@@ -80,6 +204,9 @@ class DriverStore extends ChangeNotifier {
         ..licensePlate = licensePlate;
     }
     notifyListeners();
+
+    // Trigger a full DB sync to pick up persisted fields (location, vehicle, etc.).
+    syncDriverWithAuth(_primaryDriverId);
   }
 
   DriverModel? getDriverById(String id) {
@@ -93,16 +220,41 @@ class DriverStore extends ChangeNotifier {
   bool toggleAvailability(String driverId, bool value) {
     final driver = getDriverById(driverId);
     if (driver == null) return false;
-    if (!value && driver.activeAssignments.isNotEmpty) {
-      return false;
-    }
-    if (driver.isOnline == value) {
-      return true;
-    }
+    if (!value && driver.activeAssignments.isNotEmpty) return false;
+    if (driver.isOnline == value) return true;
     driver.isOnline = value;
     notifyListeners();
     unawaited(updateDriverOnlineStatus(driverId, value));
     return true;
+  }
+
+  /// INSERT a drivers row for [uid] only if one does not already exist.
+  /// Uses INSERT ... ON CONFLICT DO NOTHING so an existing row — including
+  /// its current is_online value — is never overwritten.  Calling this with
+  /// unawaited is safe because a conflict is silently ignored.
+  Future<void> _upsertDriverRow(String uid) async {
+    if (uid.isEmpty || uid == 'driver-main') return;
+    final existing = getDriverById(uid);
+    try {
+      await _client.from('drivers').upsert(
+        {
+          'id': uid,
+          'name': existing?.name ?? '',
+          'phone': existing?.phone ?? '',
+          'email': '',
+          'vehicle_type': existing?.vehicleType.name ?? 'motorcycle',
+          'license_plate': '',
+          'is_online': false,
+          'lat': 38.7223,
+          'lng': -9.1393,
+        },
+        onConflict: 'id',
+        ignoreDuplicates: true,   // ON CONFLICT DO NOTHING — never overwrite is_online
+      );
+      debugPrint('[DriverStore] _upsertDriverRow: OK uid=$uid');
+    } catch (e) {
+      debugPrint('[DriverStore] _upsertDriverRow: error uid=$uid => $e');
+    }
   }
 
   Future<void> updateDriverOnlineStatus(String driverId, bool isOnline) async {
@@ -119,7 +271,8 @@ class DriverStore extends ChangeNotifier {
   bool registerOrderForDriver(String driverId, OrderModel order) {
     final driver = getDriverById(driverId);
     if (driver == null) return false;
-    if (!driver.supportsService(order.serviceType)) {
+    if (!driver.supportsService(order.serviceType,
+        requiresCar: order.requiresCar)) {
       return false;
     }
     if (driver.activeAssignments.any((info) => info.orderId == order.id)) {
@@ -146,9 +299,7 @@ class DriverStore extends ChangeNotifier {
     final before = driver.activeAssignments.length;
     driver.activeAssignments.removeWhere((info) => info.orderId == orderId);
     final removed = before != driver.activeAssignments.length;
-    if (removed) {
-      notifyListeners();
-    }
+    if (removed) notifyListeners();
     return removed;
   }
 
@@ -167,7 +318,8 @@ class DriverStore extends ChangeNotifier {
   bool canAcceptOrder(String driverId, OrderModel order) {
     final driver = getDriverById(driverId);
     if (driver == null) return false;
-    if (!driver.supportsService(order.serviceType)) {
+    if (!driver.supportsService(order.serviceType,
+        requiresCar: order.requiresCar)) {
       return false;
     }
     return _capacityService.canAssignOrder(driver, order);
@@ -187,10 +339,11 @@ class DriverStore extends ChangeNotifier {
     });
   }
 
+  /// Marks this order as the currently tracked one and starts the periodic
+  /// timer. The timer NO LONGER simulates movement — real GPS handles position.
+  /// It only exists to detect when the order reaches `delivered` and stop.
   void startTracking(OrderModel order) {
-    if (order.destination == null && order.pickupLocation == null) {
-      return;
-    }
+    if (order.destination == null && order.pickupLocation == null) return;
     _trackedOrderId = order.id;
     _trackingTimer?.cancel();
     _trackingTimer = Timer.periodic(const Duration(seconds: 2), (_) {
@@ -199,63 +352,30 @@ class DriverStore extends ChangeNotifier {
   }
 
   void updateTrackingTarget(OrderModel order) {
-    if (_trackedOrderId != order.id) {
-      return;
-    }
+    if (_trackedOrderId != order.id) return;
     if (order.status == OrderStatus.delivered) {
       stopTracking(order.id);
     }
   }
 
   void stopTracking(String orderId) {
-    if (_trackedOrderId != orderId) {
-      return;
-    }
+    if (_trackedOrderId != orderId) return;
     _trackedOrderId = null;
     _trackingTimer?.cancel();
     _trackingTimer = null;
   }
 
+  /// FIX: No longer simulates movement. Real GPS position comes from
+  /// DriverHomeScreen._startIdleLocationTracking (idle) and
+  /// DriverMapScreen._listenToDriverLocation (active delivery).
+  /// This method only stops tracking once the order is delivered.
   void _tickTracking(OrderModel order) {
-    if (_trackedOrderId != order.id) {
-      return;
-    }
-
-    final driver = currentDriver;
-    if (driver == null) return;
+    if (_trackedOrderId != order.id) return;
+    // Stop tracking when order is done — no position simulation.
     final target = _resolveTrackingTarget(order);
     if (target == null) {
       stopTracking(order.id);
-      return;
     }
-
-    final distanceKm = const Distance().as(
-      LengthUnit.Kilometer,
-      driver.location,
-      target,
-    );
-
-    if (!distanceKm.isFinite) {
-      return;
-    }
-
-    if (distanceKm <= 0.05) {
-      if (order.status == OrderStatus.delivered) {
-        stopTracking(order.id);
-      }
-      return;
-    }
-
-    const stepKm = 0.2;
-    final ratio = (stepKm / distanceKm).clamp(0.0, 1.0);
-
-    final nextLat = driver.location.latitude +
-        (target.latitude - driver.location.latitude) * ratio;
-    final nextLon = driver.location.longitude +
-        (target.longitude - driver.location.longitude) * ratio;
-
-    driver.location = LatLng(nextLat, nextLon);
-    notifyListeners();
   }
 
   LatLng? _resolveTrackingTarget(OrderModel order) {
@@ -271,8 +391,7 @@ class DriverStore extends ChangeNotifier {
   void _initialiseRealtimeDriverTracking() {
     Future.microtask(_loadInitialDriverLocations);
 
-    _driverLocationChannel = _client
-        .channel('drivers_channel')
+    _driverLocationChannel = _client.channel('drivers_channel')
       ..onPostgresChanges(
         event: PostgresChangeEvent.insert,
         schema: 'public',
@@ -292,7 +411,7 @@ class DriverStore extends ChangeNotifier {
     try {
       final response = await _client
           .from('drivers')
-          .select('id, lat, lng, is_online, name, vehicle_type');
+          .select('id, lat, lng, is_online, name, vehicle_type, phone');
 
       var updated = false;
       for (final item in response) {
@@ -302,9 +421,8 @@ class DriverStore extends ChangeNotifier {
         if (id is! String || lat is! num || lng is! num) continue;
 
         final location = LatLng(lat.toDouble(), lng.toDouble());
-        var driver = _ensureDriver(id, location);
+        var driver = getDriverById(id);
         if (driver == null) {
-          // Create a minimal tracking record so all devices can see this driver.
           final rawName = item['name'];
           final rawVehicle = item['vehicle_type'];
           driver = DriverModel(
@@ -313,6 +431,7 @@ class DriverStore extends ChangeNotifier {
             location: location,
             vehicleType:
                 rawVehicle == 'car' ? VehicleType.car : VehicleType.motorcycle,
+            phone: item['phone'] as String? ?? '',
             isOnline: item['is_online'] as bool? ?? false,
           );
           _drivers.add(driver);
@@ -323,37 +442,49 @@ class DriverStore extends ChangeNotifier {
         updated = true;
       }
 
-      if (updated) {
-        notifyListeners();
+      final authUser = _client.auth.currentUser;
+      if (authUser != null) {
+        final meta = authUser.userMetadata ?? {};
+        if (meta['bora_role'] == 'driver') {
+          final uid = authUser.id;
+          // Only auto-sync when _primaryDriverId is still the initial
+          // placeholder. If it was already updated by _listenAuthChanges or
+          // configurePrimaryDriver, leave it alone — overwriting it here
+          // would re-introduce the multi-login data leak.
+          if (_primaryDriverId == 'driver-main' && getDriverById(uid) != null) {
+            _drivers.removeWhere((d) => d.id == 'driver-main');
+            _primaryDriverId = uid;
+            updated = true;
+            debugPrint(
+                'DriverStore: auto-synced primaryDriverId to auth uid "$uid"');
+          }
+        }
       }
+
+      if (updated) notifyListeners();
     } catch (error) {
-      debugPrint('DriverStore: Failed to bootstrap driver locations => $error');
+      debugPrint(
+          'DriverStore: Failed to bootstrap driver locations => $error');
     }
   }
 
   void _handleRealtimeDriverRecord(Map<String, dynamic>? record) {
     if (record == null) return;
-
     final id = record['id'];
     final lat = record['lat'];
     final lng = record['lng'];
-
-    if (id is! String || lat is! num || lng is! num) {
-      return;
-    }
+    if (id is! String || lat is! num || lng is! num) return;
 
     final target = LatLng(lat.toDouble(), lng.toDouble());
-    var driver = _ensureDriver(id, target, notify: true);
+    var driver = getDriverById(id);
     if (driver == null) {
-      // Create a minimal tracking record for devices that didn't register
-      // this driver locally (e.g. client or partner devices).
       final rawName = record['name'];
       driver = DriverModel(
         id: id,
         name: rawName is String && rawName.isNotEmpty ? rawName : id,
         location: target,
         vehicleType: VehicleType.motorcycle,
-        isOnline: record['is_online'] as bool? ?? true,
+        isOnline: record['is_online'] as bool? ?? false,
       );
       _drivers.add(driver);
       notifyListeners();
@@ -362,21 +493,6 @@ class DriverStore extends ChangeNotifier {
     final isOnlineRaw = record['is_online'] as bool?;
     if (isOnlineRaw != null) driver.isOnline = isOnlineRaw;
     _animateDriverTowards(driver, target);
-  }
-
-  // Only updates existing drivers from Supabase location data.
-  // Never creates fake/placeholder drivers for unknown IDs.
-  DriverModel? _ensureDriver(
-    String id,
-    LatLng fallbackLocation, {
-    bool notify = false,
-  }) {
-    final existing = getDriverById(id);
-    if (existing != null) {
-      return existing;
-    }
-    // Unknown id — not a registered driver on this device; ignore.
-    return null;
   }
 
   void _animateDriverTowards(DriverModel driver, LatLng target) {
@@ -408,9 +524,8 @@ class DriverStore extends ChangeNotifier {
         final progress = step / _locationAnimationSteps;
         final nextLat =
             current.latitude + (target.latitude - current.latitude) * progress;
-        final nextLng =
-            current.longitude +
-                (target.longitude - current.longitude) * progress;
+        final nextLng = current.longitude +
+            (target.longitude - current.longitude) * progress;
         driver.location = LatLng(nextLat, nextLng);
         notifyListeners();
 
@@ -426,6 +541,7 @@ class DriverStore extends ChangeNotifier {
 
   @override
   void dispose() {
+    _authSubscription?.cancel();
     _trackingTimer?.cancel();
     for (final timer in _locationAnimations.values) {
       timer.cancel();

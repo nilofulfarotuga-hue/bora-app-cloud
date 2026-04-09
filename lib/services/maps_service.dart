@@ -2,16 +2,18 @@ import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
 
 import 'directions_service.dart';
-import 'distance_service.dart';
 
 class MapsService {
   /// Returns the real road distance in km between [origin] and [destination]
   /// using the Google Directions API.
   ///
-  /// Falls back to straight-line Haversine distance if:
+  /// Returns null if:
   /// - The API key is not configured.
   /// - The network request fails.
   /// - The API returns no valid route.
+  ///
+  /// Callers are responsible for applying a Haversine fallback when null is
+  /// returned. This makes the estimated-distance flag accurate.
   static Future<double?> getDistanceKm(
     LatLng origin,
     LatLng destination,
@@ -32,12 +34,7 @@ class MapsService {
       service.dispose();
     }
 
-    // Fallback: straight-line distance.
-    return DistanceService.calculateDistanceKm(
-      origin.latitude,
-      origin.longitude,
-      destination.latitude,
-      destination.longitude,
-    );
+    // API unavailable — return null so callers can set isDistanceEstimated.
+    return null;
   }
 }

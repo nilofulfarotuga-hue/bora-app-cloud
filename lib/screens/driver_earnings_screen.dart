@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/order_service_type.dart';
 import '../stores/order_store.dart';
@@ -25,6 +26,8 @@ class DriverEarningsScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _SummaryCard(totalEarnings: totalEarnings, totalOrders: completedOrders.length),
+            const SizedBox(height: 8),
+            const _LedgerBalanceCard(),
             const SizedBox(height: 16),
             const Text(
               "Histórico de entregas",
@@ -162,5 +165,79 @@ class _EarningTile extends StatelessWidget {
 
   String _formatDate(DateTime date) {
     return "${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}";
+  }
+}
+
+class _LedgerBalanceCard extends StatefulWidget {
+  const _LedgerBalanceCard();
+
+  @override
+  State<_LedgerBalanceCard> createState() => _LedgerBalanceCardState();
+}
+
+class _LedgerBalanceCardState extends State<_LedgerBalanceCard> {
+  double? _balance;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final uid = Supabase.instance.client.auth.currentUser?.id;
+    if (uid == null) {
+      setState(() => _loading = false);
+      return;
+    }
+    try {
+      final row = await Supabase.instance.client
+          .from('user_balance_snapshots')
+          .select('balance')
+          .eq('user_id', uid)
+          .eq('user_type', 'driver')
+          .maybeSingle();
+      setState(() {
+        _balance = row == null ? null : (row['balance'] as num?)?.toDouble();
+        _loading = false;
+      });
+    } catch (_) {
+      setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading || _balance == null) return const SizedBox.shrink();
+    return Card(
+      color: Colors.green.shade50,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            const Icon(Icons.verified, color: Colors.green, size: 20),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Saldo confirmado',
+                  style: TextStyle(color: Colors.grey, fontSize: 12),
+                ),
+                Text(
+                  '€${_balance!.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

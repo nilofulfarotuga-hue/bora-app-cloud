@@ -31,19 +31,23 @@ class PricingService {
   static const double defaultDistanceKm = 1;
 
     static const double _partnerDeliveryFee = 2.5;
-  static const double _driverBasePay = 4.0;
+  // ── Driver earnings — delivery (partner + non-partner) ───────────────────
+  static const double _driverBasePay = 3.80;        // was 4.0
   static const double _driverPerKmRate = 0.2;
   static const double _partnerCommissionRate = 0.20;
 
   static const double _nonPartnerMarkupRate = 0.15;
   static const double _nonPartnerPurchaseFee = 2.5;
-  static const double _nonPartnerPurchaseBonus = 1.0;
-  static const double _driverPlatformShareRate = 0.20;
+  // Extra pay for storeShopping drivers: they shop AND deliver.
+  static const double _shoppingDriverBonus = 0.80;  // was 1.0
 
   static const double _packageBaseFee = 6.0;
   static const double _packageBaseDistanceKm = 4.0;
   static const double _packageExtraPerKm = 0.5;
   static const double _packagePlatformShare = 2.0;
+  // ── Driver earnings — logistics (carryGroceries / sendPackage) ───────────
+  static const double _logisticsDriverBasePay = 4.00;
+  static const double _logisticsDriverPerKmRate = 0.50;
 
   static const double _apartmentSurchargeTotal = 1.5;
   static const double _apartmentDriverShare = 1.0;
@@ -108,24 +112,30 @@ class PricingService {
       platformCommission = normalizedSubtotal * _partnerCommissionRate + apartmentPlatformBonus;
       driverEarnings = _driverBasePay + (_driverPerKmRate * normalizedDistance) + apartmentDriverBonus;
     } else if (isNonPartnerOrder) {
-      // The 15% markup is already applied to item prices in CartStore.addItem()
-      // and is baked into normalizedSubtotal. Only the flat purchase fee is
-      // added here — adding markup again would double-count.
-      const purchaseFee = _nonPartnerPurchaseFee;
+      // The 15% markup is already embedded in item prices via CartStore.addItem()
+      // and is baked into normalizedSubtotal. No additional markup is applied here.
+      // customerTotal = subtotal + purchaseFee + deliveryFee
+      const purchaseFee = _nonPartnerPurchaseFee; // 2.5
 
+      final extraDistanceNP = math.max(0.0, normalizedDistance - _packageBaseDistanceKm);
       serviceFee = purchaseFee;
-      deliveryFee = _partnerDeliveryFee + apartmentSurcharge;
+      deliveryFee = _partnerDeliveryFee +
+          (extraDistanceNP * _packageExtraPerKm) +
+          apartmentSurcharge; // 2.5 + (km>4 ? (km-4)*0.5 : 0)
       platformCommission = purchaseFee + apartmentPlatformBonus;
       driverEarnings = _driverBasePay +
+          _shoppingDriverBonus +
           (_driverPerKmRate * normalizedDistance) +
-          _nonPartnerPurchaseBonus +
-          (_driverPlatformShareRate * purchaseFee) +
-          apartmentDriverBonus;
-        } else if (isPackageService) {
+          apartmentDriverBonus; // 3.80 + 0.80 + 0.2/km
+    } else if (isPackageService) {
       final extraDistance = math.max(0.0, normalizedDistance - _packageBaseDistanceKm);
-      deliveryFee = _packageBaseFee + (extraDistance * _packageExtraPerKm) + apartmentSurcharge;
+      final packageFee = _packageBaseFee + (extraDistance * _packageExtraPerKm);
+      deliveryFee = packageFee + apartmentSurcharge;
       platformCommission = _packagePlatformShare + apartmentPlatformBonus;
-      driverEarnings = _driverBasePay + (extraDistance * _packageExtraPerKm) + apartmentDriverBonus;
+      // Logistics: flat base + per-km rate (full distance, not excess only).
+      driverEarnings = _logisticsDriverBasePay +
+          (_logisticsDriverPerKmRate * normalizedDistance) +
+          apartmentDriverBonus;
 
     } else {
       deliveryFee = _partnerDeliveryFee + apartmentSurcharge;

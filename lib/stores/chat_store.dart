@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -5,79 +7,79 @@ import '../models/message_model.dart';
 
 /// Manages realtime chat messages per order, backed by Supabase.
 ///
-/// Call [listen] once per order to load history and subscribe to new INSERTs.
-/// The subscription is idempotent — calling [listen] again for the same order
-/// is a no-op.
+/// Call [listen] once per order to open a realtime stream. History is
+/// delivered on the first emission; subsequent emissions include any new
+/// rows inserted by either party.
 class ChatStore extends ChangeNotifier {
   final _supabase = Supabase.instance.client;
 
   final Map<String, List<MessageModel>> _messages = {};
-  final Map<String, RealtimeChannel> _channels = {};
+
+  // StreamSubscription per order.
+  // .stream() handles initial load + realtime in one subscription.
+  final Map<String, StreamSubscription<List<Map<String, dynamic>>>>
+      _subscriptions = {};
 
   // ── Read ──────────────────────────────────────────────────────────────────
 
   /// Returns an unmodifiable snapshot of messages for [orderId],
-  /// sorted oldest-first.
+  /// sorted oldest-first (guaranteed by .order('created_at') on the stream).
   List<MessageModel> messagesForOrder(String orderId) =>
       List.unmodifiable(_messages[orderId] ?? const <MessageModel>[]);
 
   // ── Subscription ──────────────────────────────────────────────────────────
 
-  /// Loads existing messages for [orderId] and subscribes to new INSERTs.
-  /// Idempotent: subsequent calls for the same [orderId] are ignored.
-  Future<void> listen(String orderId) async {
-    if (_channels.containsKey(orderId)) return;
-
-    // Load history before opening the channel so we don't miss or double-count
-    // rows that arrive during the async load.
-    try {
-      final rows = await _supabase
-          .from('messages')
-          .select()
-          .eq('order_id', orderId)
-          .order('created_at');
-      _messages[orderId] = rows.map(MessageModel.fromMap).toList();
-      notifyListeners();
-    } catch (e) {
-      debugPrint('ChatStore.listen: history load error => $e');
+  /// Opens a Supabase `.stream()` for [orderId].
+  ///
+  /// The stream fires immediately with existing rows and again on every INSERT
+  /// or UPDATE, so both sides (client and driver) receive new messages without
+  /// any polling.
+  void listen(String orderId) {
+    // Always reconnect to ensure a fresh Realtime channel.
+    final old = _subscriptions.remove(orderId);
+    if (old != null) {
+      debugPrint('[ChatStore] ♻️ listen($orderId) — cancelling previous subscription');
+      old.cancel();
     }
 
-    final channel = _supabase
-        .channel('messages_$orderId')
-        .onPostgresChanges(
-          event: PostgresChangeEvent.insert,
-          schema: 'public',
-          table: 'messages',
-          callback: (payload) {
-            try {
-              final data = payload.newRecord;
-              if (data.isEmpty) return;
-              // Filter by order in the callback — avoids SDK filter API
-              // version differences and keeps the same pattern as OrderStore.
-              if (data['order_id'] != orderId) return;
-              final msg = MessageModel.fromMap(data);
-              final list = _messages[orderId] ??= [];
-              if (list.any((m) => m.id == msg.id)) return; // dedup
-              list.add(msg);
-              notifyListeners();
-            } catch (e) {
-              debugPrint('ChatStore realtime INSERT error => $e');
-            }
-          },
-        )
-        .subscribe((status, [error]) {
-      if (error != null) {
-        debugPrint('ChatStore[$orderId] subscribe error: $error');
-      }
-    });
+    debugPrint('[ChatStore] 🔌 listen($orderId) — opening stream with filter: order=$orderId');
 
-    _channels[orderId] = channel;
+    final sub = _supabase
+        .from('messages')
+        .stream(primaryKey: ['id'])
+        .eq('order_id', orderId)
+        .order('created_at', ascending: true)
+        .listen(
+      (rows) {
+        debugPrint(
+            '[ChatStore] 📨 stream($orderId) delivered ${rows.length} rows');
+        // .stream() always delivers the complete current list — replace in
+        // full. The optimistic insert is overwritten by the authoritative DB
+        // row on the next emission; because IDs match, the UI is unchanged.
+        _messages[orderId] = rows.map(MessageModel.fromMap).toList();
+        notifyListeners();
+      },
+      onError: (Object e) {
+        debugPrint('[ChatStore] ❌ stream($orderId) ERROR: $e');
+      },
+      onDone: () {
+        debugPrint('[ChatStore] 🔒 stream($orderId) DONE (channel closed)');
+      },
+    );
+
+    _subscriptions[orderId] = sub;
+    debugPrint('[ChatStore] ✅ listen($orderId) — subscription active');
   }
 
   // ── Write ─────────────────────────────────────────────────────────────────
 
   /// Inserts a plain text message into the `messages` table.
-  /// Throws on network / Supabase error — caller should handle.
+  ///
+  /// Uses an **optimistic insert**: the message is added to the local list
+  /// immediately so the UI updates without waiting for the Supabase round-trip.
+  /// If the insert fails the message is rolled back and the error rethrown.
+  /// The `.stream()` subscription will overwrite the optimistic entry with the
+  /// authoritative DB row on its next emission (same ID, no visible change).
   Future<void> sendMessage({
     required String orderId,
     required String senderId,
@@ -90,8 +92,28 @@ class ChatStore extends ChangeNotifier {
       senderRole: senderRole,
       content: content,
     );
-    await _supabase.from('messages').insert(msg.toMap());
-    // Realtime INSERT event will add the row to _messages automatically.
+
+    // Optimistic insert — shows the message instantly in the UI.
+    final list = _messages[orderId] ??= [];
+    list.add(msg);
+    notifyListeners();
+
+    try {
+      debugPrint(
+          '[ChatStore] 📤 sendMessage → INSERT id=${msg.id} order=$orderId role=$senderRole');
+      await _supabase.from('messages').insert(msg.toMap());
+      debugPrint('[ChatStore] ✅ sendMessage → SUCCESS');
+    } catch (e, st) {
+      debugPrint('[ChatStore] ❌ sendMessage ERROR\n'
+          '  orderId   : $orderId\n'
+          '  senderRole: $senderRole\n'
+          '  auth.uid(): ${_supabase.auth.currentUser?.id}\n'
+          '  error     : $e\n$st');
+      // Roll back the optimistic insert so the UI reflects reality.
+      list.remove(msg);
+      notifyListeners();
+      rethrow;
+    }
   }
 
   /// Inserts a structured substitution proposal message.
@@ -110,23 +132,45 @@ class ChatStore extends ChangeNotifier {
       suggestion: suggestion,
       price: price,
     );
-    await _supabase.from('messages').insert(msg.toMap());
+
+    // Optimistic insert.
+    final list = _messages[orderId] ??= [];
+    list.add(msg);
+    notifyListeners();
+
+    try {
+      debugPrint(
+          '[ChatStore] 📤 sendSubstitution → INSERT id=${msg.id} order=$orderId');
+      await _supabase.from('messages').insert(msg.toMap());
+      debugPrint('[ChatStore] ✅ sendSubstitution → SUCCESS');
+    } catch (e, st) {
+      debugPrint('[ChatStore] ❌ sendSubstitution ERROR\n'
+          '  orderId  : $orderId\n'
+          '  senderId : $senderId\n'
+          '  auth.uid(): ${_supabase.auth.currentUser?.id}\n'
+          '  error    : $e\n$st');
+      list.remove(msg);
+      notifyListeners();
+      rethrow;
+    }
   }
 
   // ── Cleanup ───────────────────────────────────────────────────────────────
 
-  /// Unsubscribes from [orderId] and clears its local messages.
+  /// Cancels the stream subscription for [orderId] and clears its local messages.
   void unlisten(String orderId) {
-    final channel = _channels.remove(orderId);
-    if (channel != null) _supabase.removeChannel(channel);
+    debugPrint('[ChatStore] 🔌 unlisten($orderId)');
+    _subscriptions.remove(orderId)?.cancel();
     _messages.remove(orderId);
   }
 
   @override
   void dispose() {
-    for (final channel in _channels.values) {
-      _supabase.removeChannel(channel);
+    debugPrint('[ChatStore] 🗑️ dispose — cancelling ${_subscriptions.length} subscriptions');
+    for (final sub in _subscriptions.values) {
+      sub.cancel();
     }
+    _subscriptions.clear();
     super.dispose();
   }
 }

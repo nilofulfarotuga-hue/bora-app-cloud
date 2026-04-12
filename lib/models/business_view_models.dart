@@ -30,8 +30,6 @@ class MenuItem {
 }
 
 class Restaurant {
-
-
   final String name;
   final bool isPartner;
   final List<MenuItem> menu;
@@ -59,13 +57,10 @@ class RetailStore {
   final String name;
   final bool isPartner;
   final StoreCategory category;
-  final List<MarketProduct> products;
 
   const RetailStore({
     required this.name,
     required this.isPartner,
     required this.category,
-    required this.products,
   });
 }
-

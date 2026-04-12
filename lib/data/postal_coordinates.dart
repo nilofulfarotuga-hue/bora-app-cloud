@@ -13,8 +13,8 @@ class PostalCoordinateHelper {
     "2800-305": const LatLng(38.7067, -9.1527),
   };
 
-  static LatLng coordinateFor(String postalCode) {
+  static LatLng? coordinateFor(String postalCode) {
     final cleaned = postalCode.trim();
-    return _coordinates[cleaned] ?? const LatLng(38.7223, -9.1393);
+    return _coordinates[cleaned];
   }
 }

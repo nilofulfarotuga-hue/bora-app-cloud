@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/order_model.dart';
 import '../models/partner_product.dart';
+import '../models/product_variant.dart';
 import '../models/restaurant_model.dart';
 
 class RestaurantStore extends ChangeNotifier {
@@ -34,186 +35,14 @@ class RestaurantStore extends ChangeNotifier {
   Future<void> _init() async {
     await loadRestaurantsFromSupabase();
     await loadProductsFromSupabase();
+    await loadVariantsFromSupabase();
   }
 
   final Map<String, List<PartnerProduct>> _productsByRestaurant = {};
+  final Map<String, List<ProductVariant>> _variantsByProduct = {};
 
   final Map<String, Map<String, OrderModel>> _ordersByRestaurant = {};
   final Map<String, int> _orderStatusCache = {};
-
-  // ─── Default seed data ────────────────────────────────────────────────────
-  // Inserted into Supabase on first run only (when DB table is empty).
-  // Upsert is NOT used here intentionally — manual DB edits are preserved.
-
-  static final List<Map<String, dynamic>> _kDefaultRestaurants = [
-    // ── Partner restaurants (real menus come from products table) ────────────
-    {
-      'id': 'rest-pizzahut',
-      'name': 'Pizza Hut',
-      'phone': '210000001',
-      'address': 'Av. de Berna 12',
-      'email': 'contato@pizzahut.pt',
-      'photo_url': 'https://via.placeholder.com/240x140.png?text=Pizza+Hut',
-      'cuisine_type': 'Pizzaria',
-      'is_partner': true,
-      'category': 'restaurant',
-      'is_online': true,
-      'lat': 38.7441,
-      'lng': -9.1602,
-    },
-    {
-      'id': 'rest-kfc',
-      'name': 'KFC',
-      'phone': '210000002',
-      'address': 'Praça Martim Moniz 2',
-      'email': 'contato@kfc.pt',
-      'photo_url': 'https://via.placeholder.com/240x140.png?text=KFC',
-      'cuisine_type': 'Frango Frito',
-      'is_partner': true,
-      'category': 'restaurant',
-      'is_online': true,
-      'lat': 38.7362,
-      'lng': -9.1283,
-    },
-    // ── Non-partner restaurants (driver buys on behalf of client) ────────────
-    {
-      'id': 'rest-mcdonalds',
-      'name': "McDonald's",
-      'phone': '210000003',
-      'address': 'Av. Fontes Pereira de Melo 5',
-      'email': 'contato@mcdonalds.pt',
-      'photo_url':
-          "https://via.placeholder.com/240x140.png?text=McDonald%27s",
-      'cuisine_type': 'Fast Food',
-      'is_partner': false,
-      'category': 'restaurant',
-      'is_online': true,
-      'lat': 38.7265,
-      'lng': -9.1409,
-    },
-    {
-      'id': 'rest-burger-king',
-      'name': 'Burger King',
-      'phone': '210000004',
-      'address': 'R. Joaquim António de Aguiar 16',
-      'email': 'contato@burgerking.pt',
-      'photo_url':
-          'https://via.placeholder.com/240x140.png?text=Burger+King',
-      'cuisine_type': 'Hambúrgueres',
-      'is_partner': false,
-      'category': 'restaurant',
-      'is_online': true,
-      'lat': 38.7301,
-      'lng': -9.1467,
-    },
-    // ── Non-partner supermarkets ──────────────────────────────────────────────
-    {
-      'id': 'market-pingo-doce',
-      'name': 'Pingo Doce',
-      'phone': '210000101',
-      'address': 'Av. João XXI 50',
-      'email': 'contacto@pingodoce.pt',
-      'photo_url':
-          'https://via.placeholder.com/240x140.png?text=Pingo+Doce',
-      'cuisine_type': 'Supermercado',
-      'is_partner': false,
-      'category': 'supermarket',
-      'is_online': true,
-      'lat': 38.7377,
-      'lng': -9.1382,
-    },
-    {
-      'id': 'market-continente',
-      'name': 'Continente',
-      'phone': '210000102',
-      'address': 'Centro Colombo, Av. Lusíada',
-      'email': 'contacto@continente.pt',
-      'photo_url':
-          'https://via.placeholder.com/240x140.png?text=Continente',
-      'cuisine_type': 'Supermercado',
-      'is_partner': false,
-      'category': 'supermarket',
-      'is_online': true,
-      'lat': 38.7532,
-      'lng': -9.1836,
-    },
-    {
-      'id': 'market-lidl',
-      'name': 'Lidl',
-      'phone': '210000103',
-      'address': 'Rua Capitão Renato Baptista 18',
-      'email': 'contacto@lidl.pt',
-      'photo_url': 'https://via.placeholder.com/240x140.png?text=Lidl',
-      'cuisine_type': 'Supermercado',
-      'is_partner': false,
-      'category': 'supermarket',
-      'is_online': true,
-      'lat': 38.7460,
-      'lng': -9.1460,
-    },
-    {
-      'id': 'market-mercadona',
-      'name': 'Mercadona',
-      'phone': '210000104',
-      'address': 'Av. Infante D. Henrique 333',
-      'email': 'contacto@mercadona.pt',
-      'photo_url':
-          'https://via.placeholder.com/240x140.png?text=Mercadona',
-      'cuisine_type': 'Supermercado',
-      'is_partner': false,
-      'category': 'supermarket',
-      'is_online': true,
-      'lat': 38.7200,
-      'lng': -9.1120,
-    },
-    {
-      'id': 'market-auchan',
-      'name': 'Auchan',
-      'phone': '210000105',
-      'address': 'Av. do Brasil 101',
-      'email': 'contacto@auchan.pt',
-      'photo_url': 'https://via.placeholder.com/240x140.png?text=Auchan',
-      'cuisine_type': 'Supermercado',
-      'is_partner': false,
-      'category': 'supermarket',
-      'is_online': true,
-      'lat': 38.7480,
-      'lng': -9.1540,
-    },
-    // ── Non-partner pharmacy ─────────────────────────────────────────────────
-    {
-      'id': 'pharmacy-central',
-      'name': 'Farmácia Central',
-      'phone': '210000301',
-      'address': 'Rossio 28',
-      'email': 'atendimento@farmaciacentral.pt',
-      'photo_url':
-          'https://via.placeholder.com/240x140.png?text=Farmacia',
-      'cuisine_type': 'Saúde e bem-estar',
-      'is_partner': false,
-      'category': 'pharmacy',
-      'is_online': true,
-      'lat': 38.7140,
-      'lng': -9.1401,
-    },
-    // ── Non-partner local store ───────────────────────────────────────────────
-    {
-      'id': 'store-loja-local',
-      'name': 'Loja Local Exemplo',
-      'phone': '210000201',
-      'address': 'Rua Augusta 150',
-      'email': 'contacto@lojalocal.pt',
-      'photo_url':
-          'https://via.placeholder.com/240x140.png?text=Loja+Local',
-      'cuisine_type': 'Artigos locais',
-      'is_partner': false,
-      'category': 'store',
-      'is_online': true,
-      'lat': 38.7091,
-      'lng': -9.1376,
-    },
-  ];
-
 
   // ─── Getters ──────────────────────────────────────────────────────────────
 
@@ -233,6 +62,9 @@ class RestaurantStore extends ChangeNotifier {
       products.where((product) => product.isAvailable),
     );
   }
+
+  List<ProductVariant> variantsForProduct(String productId) =>
+      List.unmodifiable(_variantsByProduct[productId] ?? const <ProductVariant>[]);
 
   List<OrderModel> ordersForRestaurant(String restaurantId) {
     final orders = _ordersByRestaurant[restaurantId]?.values ??
@@ -309,14 +141,9 @@ class RestaurantStore extends ChangeNotifier {
 
   /// Inserts default restaurants into Supabase.
   /// Called only when the restaurants table is empty (first run).
+  /// No-op until seed data is provided — insert directly via Supabase dashboard.
   Future<void> _seedDefaultRestaurants() async {
-    try {
-      await supabase.from('restaurants').insert(_kDefaultRestaurants);
-      debugPrint(
-          'RestaurantStore: seeded ${_kDefaultRestaurants.length} restaurants');
-    } catch (e) {
-      debugPrint('RestaurantStore: _seedDefaultRestaurants error => $e');
-    }
+    debugPrint('RestaurantStore: no seed data configured, skipping seed');
   }
 
   Future<void> loadProductsFromSupabase() async {
@@ -332,14 +159,32 @@ class RestaurantStore extends ChangeNotifier {
         if (restaurantId.isEmpty) continue;
 
         final productId = (data['id'] ?? '').toString();
+        // DB schema uses price_low/price_mid/price_premium; no single 'price'
+        // or 'is_available' column. Use price_low as the displayed price.
+        final price = double.tryParse(
+                  data['price_low']?.toString() ?? '',
+                ) ??
+                double.tryParse(data['price']?.toString() ?? '') ??
+                0.0;
+        final description = (data['description'] ?? '').toString();
+        final category = (data['category'] ?? '').toString();
+        final isPopular = (data['is_popular'] as bool?) ?? false;
+        final isOnSale = (data['is_on_sale'] as bool?) ?? false;
+        final discountPrice = data['discount_price'] != null
+            ? double.tryParse(data['discount_price'].toString())
+            : null;
         final product = PartnerProduct(
           id: productId,
           restaurantId: restaurantId,
           name: data['name'] ?? '',
-          description: data['description'] ?? '',
-          price: (data['price'] as num? ?? 0).toDouble(),
+          description: description,
+          price: price,
           photoUrl: data['photo_url'] ?? '',
-          isAvailable: data['is_available'] ?? true,
+          isAvailable: (data['is_available'] as bool?) ?? true,
+          category: category,
+          isPopular: isPopular,
+          isOnSale: isOnSale,
+          discountPrice: discountPrice,
           source: ProductSource.api,
         );
 
@@ -356,6 +201,27 @@ class RestaurantStore extends ChangeNotifier {
     }
 
     _subscribeProductsRealtime();
+  }
+
+  Future<void> loadVariantsFromSupabase() async {
+    try {
+      final List<dynamic> response =
+          await supabase.from('product_variants').select();
+      _variantsByProduct.clear();
+      for (final record in response) {
+        final data = record as Map<String, dynamic>;
+        final variant = ProductVariant.fromSupabase(data);
+        if (variant.productId.isEmpty) continue;
+        _variantsByProduct
+            .putIfAbsent(variant.productId, () => <ProductVariant>[])
+            .add(variant);
+      }
+      notifyListeners();
+      debugPrint(
+          'RestaurantStore: loaded variants for ${_variantsByProduct.length} products');
+    } catch (e) {
+      debugPrint('RestaurantStore: loadVariantsFromSupabase error => $e');
+    }
   }
 
   // ─── Realtime subscriptions ───────────────────────────────────────────────
@@ -418,10 +284,16 @@ class RestaurantStore extends ChangeNotifier {
             id: productId,
             restaurantId: restaurantId,
             name: data['name'] ?? '',
-            description: data['description'] ?? '',
+            description: (data['description'] ?? '').toString(),
             price: (data['price'] as num? ?? 0).toDouble(),
             photoUrl: data['photo_url'] ?? '',
             isAvailable: data['is_available'] ?? true,
+            category: (data['category'] ?? '').toString(),
+            isPopular: (data['is_popular'] as bool?) ?? false,
+            isOnSale: (data['is_on_sale'] as bool?) ?? false,
+            discountPrice: data['discount_price'] != null
+                ? double.tryParse(data['discount_price'].toString())
+                : null,
             source: ProductSource.api,
           );
           final list = _productsByRestaurant.putIfAbsent(

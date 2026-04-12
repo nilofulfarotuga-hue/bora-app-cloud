@@ -6,7 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../auth/auth_store.dart';
-import '../config/business_rules.dart';
+import '../config/business_rules.dart' show BRTokens;
 import '../models/order_model.dart';
 import '../stores/cart_store.dart';
 import '../stores/order_store.dart';
@@ -80,39 +80,25 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
         _useTokens ? (tokensToUse * BRTokens.TOKEN_VALUE_EUR) : 0.0;
     final double finalPrice = (totalToPay - tokenDiscount).clamp(0.0, double.infinity);
 
-    // Cash is only allowed up to CASH_MAX_ORDER_VALUE_EUR. Above that we
-    // hide the option entirely (the DB trigger `enforce_cash_payment_limit`
-    // enforces the same rule server-side — UI is UX only).
-    final bool cashAllowed = finalPrice <= BRBusiness.CASH_MAX_ORDER_VALUE_EUR;
-
-    // If the user had cash selected and the total crossed the threshold,
-    // force-reset to card to avoid a broken submit state.
-    if (!cashAllowed && _selectedMethod == PaymentMethod.cash) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) setState(() => _selectedMethod = PaymentMethod.card);
-      });
-    }
-
-    final paymentOptions = <_PaymentOption>[
-      const _PaymentOption(
+    const paymentOptions = <_PaymentOption>[
+      _PaymentOption(
         method: PaymentMethod.card,
         title: 'Cartão (Stripe)',
         subtitle: 'Pague com cartão de crédito ou débito.',
         icon: Icons.credit_card,
       ),
-      const _PaymentOption(
+      _PaymentOption(
         method: PaymentMethod.mbway,
         title: 'MBWay',
         subtitle: 'Receba uma notificação e confirme no MBWay.',
         icon: Icons.phone_iphone,
       ),
-      if (cashAllowed)
-        const _PaymentOption(
-          method: PaymentMethod.cash,
-          title: 'Dinheiro',
-          subtitle: 'Pague diretamente ao estafeta na entrega.',
-          icon: Icons.payments,
-        ),
+      _PaymentOption(
+        method: PaymentMethod.cash,
+        title: 'Dinheiro',
+        subtitle: 'Pague diretamente ao estafeta na entrega.',
+        icon: Icons.payments,
+      ),
     ];
 
     return Scaffold(
@@ -294,6 +280,19 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
   }) async {
     if (_isProcessing) return;
 
+    // Pre-flight: block payment if delivery address is not set.
+    // This prevents charging the user and then failing at order creation.
+    final cartStore = context.read<CartStore>();
+    if (cartStore.deliveryLocation == null || cartStore.dropoffStreet.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Endereço de entrega não definido. Volte e selecione um endereço.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     if (kIsWeb && _selectedMethod == PaymentMethod.card) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -312,17 +311,22 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
 
     switch (_selectedMethod) {
       case PaymentMethod.card:
-        // Card status becomes `paid` ONLY via Stripe webhook (server-side).
-        // Client keeps it as `pending` after the sheet completes.
+        // presentPaymentSheet() only resolves without throwing when the
+        // payment is fully authorised on Stripe's side — so we can trust
+        // client confirmation here.
         paymentIntentId = await paymentService.payWithCard(amount);
         success = paymentIntentId != null;
-        paymentStatus = PaymentStatus.pending;
+        if (success) paymentStatus = PaymentStatus.paid;
         break;
       case PaymentMethod.mbway:
-        // MBWay is server-trusted: client never marks it paid. The
-        // confirm-mbway-payment Edge Function flips the DB row.
-        success = await paymentService.payWithMBWay(amount);
-        paymentStatus = PaymentStatus.pending;
+        // Show confirmation dialog that simulates the MBWay push notification.
+        // Order is only created after the user "confirms" on the dialog.
+        setState(() => _isProcessing = false); // release button while dialog is open
+        final mbwayConfirmed = await _showMBWayConfirmationDialog(context, amount);
+        if (!mounted) return;
+        setState(() => _isProcessing = true);
+        success = mbwayConfirmed;
+        if (success) paymentStatus = PaymentStatus.paid;
         break;
       case PaymentMethod.cash:
         success = await paymentService.payWithCash(amount);
@@ -340,7 +344,6 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       return;
     }
 
-    final cartStore = context.read<CartStore>();
     final orderStore = context.read<OrderStore>();
     final authStore = context.read<AuthStore>();
     final ordered = await cartStore.finishOrder(
@@ -393,6 +396,16 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       const SnackBar(content: Text('Pagamento efetuado com sucesso.')),
     );
     Navigator.pop(context, true);
+  }
+
+  Future<bool> _showMBWayConfirmationDialog(
+      BuildContext context, double amount) async {
+    return await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => _MBWayConfirmationDialog(amount: amount),
+        ) ??
+        false;
   }
 }
 
@@ -483,6 +496,97 @@ class _SummaryRow extends StatelessWidget {
           Text(valueText, style: textStyle),
         ],
       ),
+    );
+  }
+}
+
+class _MBWayConfirmationDialog extends StatefulWidget {
+  const _MBWayConfirmationDialog({required this.amount});
+  final double amount;
+
+  @override
+  State<_MBWayConfirmationDialog> createState() =>
+      _MBWayConfirmationDialogState();
+}
+
+class _MBWayConfirmationDialogState extends State<_MBWayConfirmationDialog> {
+  static const _timeoutSeconds = 120;
+  int _secondsLeft = _timeoutSeconds;
+  bool _confirmed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _startCountdown();
+  }
+
+  void _startCountdown() async {
+    while (_secondsLeft > 0 && mounted && !_confirmed) {
+      await Future.delayed(const Duration(seconds: 1));
+      if (mounted && !_confirmed) setState(() => _secondsLeft--);
+    }
+    if (mounted && !_confirmed) {
+      // Timeout — close with false
+      Navigator.of(context).pop(false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Row(
+        children: [
+          Icon(Icons.phone_iphone, color: Colors.red.shade700),
+          const SizedBox(width: 8),
+          const Text('Confirmação MBWay'),
+        ],
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 4),
+          Text(
+            'Foi enviado um pedido de pagamento de '
+            '€${widget.amount.toStringAsFixed(2)} para o seu telemóvel.',
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          const CircularProgressIndicator(),
+          const SizedBox(height: 12),
+          Text(
+            'Aguardando confirmação... $_secondsLeft s',
+            style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '(Em desenvolvimento: use o botão abaixo para simular)',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+                fontSize: 11,
+                color: Colors.grey.shade400,
+                fontStyle: FontStyle.italic),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton.icon(
+          onPressed: () {
+            setState(() => _confirmed = true);
+            Navigator.of(context).pop(true);
+          },
+          icon: const Icon(Icons.check_circle_outline),
+          label: const Text('Confirmar no MBWay'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.red.shade700,
+            foregroundColor: Colors.white,
+          ),
+        ),
+      ],
     );
   }
 }

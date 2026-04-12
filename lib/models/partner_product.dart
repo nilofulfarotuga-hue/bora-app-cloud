@@ -1,4 +1,4 @@
-enum ProductSource { localSeed, api, scraped }
+enum ProductSource { api }
 
 class PartnerProduct {
   const PartnerProduct({
@@ -9,7 +9,11 @@ class PartnerProduct {
     required this.price,
     required this.photoUrl,
     required this.isAvailable,
-    this.source = ProductSource.localSeed,
+    this.category = '',
+    this.isPopular = false,
+    this.isOnSale = false,
+    this.discountPrice,
+    this.source = ProductSource.api,
   });
 
   final String id;
@@ -19,6 +23,10 @@ class PartnerProduct {
   final double price;
   final String photoUrl;
   final bool isAvailable;
+  final String category;
+  final bool isPopular;
+  final bool isOnSale;
+  final double? discountPrice;
   final ProductSource source;
 
   PartnerProduct copyWith({
@@ -27,6 +35,10 @@ class PartnerProduct {
     double? price,
     String? photoUrl,
     bool? isAvailable,
+    String? category,
+    bool? isPopular,
+    bool? isOnSale,
+    double? discountPrice,
     ProductSource? source,
   }) {
     return PartnerProduct(
@@ -37,6 +49,10 @@ class PartnerProduct {
       price: price ?? this.price,
       photoUrl: photoUrl ?? this.photoUrl,
       isAvailable: isAvailable ?? this.isAvailable,
+      category: category ?? this.category,
+      isPopular: isPopular ?? this.isPopular,
+      isOnSale: isOnSale ?? this.isOnSale,
+      discountPrice: discountPrice ?? this.discountPrice,
       source: source ?? this.source,
     );
   }

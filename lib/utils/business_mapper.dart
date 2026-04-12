@@ -1,4 +1,4 @@
-import '../data/fake_data.dart';
+import '../models/business_view_models.dart';
 import '../models/restaurant_model.dart';
 import '../stores/restaurant_store.dart';
 
@@ -29,29 +29,19 @@ class BusinessMapper {
     );
   }
 
-  /// Builds a [RetailStore] view-model from DB products.
+  /// Builds a [RetailStore] view-model (metadata only — no products).
   /// Returns null only for [BusinessCategory.restaurant] entries.
-  /// Stores with no DB products return an empty [RetailStore] — the
-  /// [StoreProductsScreen] shows a "no products" message in that case.
+  /// Products are loaded on-demand by [StoreProductsScreen] via [RestaurantStore].
   static RetailStore? buildRetailStore({
     required RestaurantStore restaurantStore,
     required RestaurantModel business,
   }) {
     if (business.category == BusinessCategory.restaurant) return null;
 
-    final partnerProducts = restaurantStore.partnerProductsForRestaurant(
-      business.id,
-      onlyAvailable: true,
-    );
-
     return RetailStore(
       name: business.name,
       isPartner: business.isPartner,
       category: _mapStoreCategory(business.category),
-      products: partnerProducts
-          .map((product) =>
-              MarketProduct(name: product.name, price: product.price))
-          .toList(),
     );
   }
 

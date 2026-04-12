@@ -10,7 +10,6 @@ import '../services/pricing_service.dart';
 import 'order_store.dart';
 
 class CartStore extends ChangeNotifier {
-  static const LatLng _defaultCustomerLocation = LatLng(38.7223, -9.1393);
   static const _kPrefsKey = 'bora_cart_v1';
 
   final List<CartItem> _items = [];
@@ -26,7 +25,7 @@ class CartStore extends ChangeNotifier {
   String _dropoffPostalCode = "";
   double _distanceKm = PricingService.defaultDistanceKm;
   LatLng? _pickupLocation;
-  LatLng _deliveryLocation = _defaultCustomerLocation;
+  LatLng? _deliveryLocation;
   bool _apartmentDelivery = false;
   bool _requiresCar = false;
 
@@ -52,8 +51,8 @@ class CartStore extends ChangeNotifier {
         'dropoffPostalCode': _dropoffPostalCode,
         'pickupLat': _pickupLocation?.latitude,
         'pickupLng': _pickupLocation?.longitude,
-        'deliveryLat': _deliveryLocation.latitude,
-        'deliveryLng': _deliveryLocation.longitude,
+        'deliveryLat': _deliveryLocation?.latitude,
+        'deliveryLng': _deliveryLocation?.longitude,
         'distanceKm': _distanceKm,
         'apartmentDelivery': _apartmentDelivery,
       });
@@ -125,7 +124,7 @@ class CartStore extends ChangeNotifier {
 
   LatLng? get pickupLocation => _pickupLocation;
 
-  LatLng get deliveryLocation => _deliveryLocation;
+  LatLng? get deliveryLocation => _deliveryLocation;
 
   String? get vendorName => _vendorName;
 
@@ -231,11 +230,11 @@ class CartStore extends ChangeNotifier {
   }
 
   void _recalculateDistance() {
-    if (_pickupLocation != null) {
+    if (_pickupLocation != null && _deliveryLocation != null) {
       final distance = const Distance().as(
         LengthUnit.Kilometer,
         _pickupLocation!,
-        _deliveryLocation,
+        _deliveryLocation!,
       );
       if (distance.isFinite && distance > 0) {
         _distanceKm = distance;
@@ -339,12 +338,25 @@ class CartStore extends ChangeNotifier {
       return false;
     }
 
+    if (_deliveryLocation == null) {
+      debugPrint(
+        'CartStore.finishOrder: BLOCKED — deliveryLocation is null. '
+        'User must define a delivery address before placing an order.',
+      );
+      return false;
+    }
+
+    if (_dropoffStreet.isEmpty) {
+      debugPrint('CartStore.finishOrder: BLOCKED — dropoffStreet is empty.');
+      return false;
+    }
+
     final breakdown = pricingBreakdown;
 
     final success = await orderStore.createOrder(
       serviceType: _serviceType,
       itemsSubtotal: breakdown.subtotal,
-      destination: _deliveryLocation,
+      destination: _deliveryLocation!,
       paymentMethod: paymentMethod,
       paymentStatus: paymentStatus,
       paymentIntentId: paymentIntentId,

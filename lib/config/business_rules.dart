@@ -62,6 +62,9 @@ abstract final class BRDriver {
 
   /// Fixed token bonus for driver accepting an additional order
   static const int DRIVER_ADDITIONAL_ORDER_TOKENS = 50;
+
+  /// Tokens earned per euro of driver earnings on a delivery
+  static const int DRIVER_TOKENS_PER_EUR = 10;
 }
 
 abstract final class BRFees {

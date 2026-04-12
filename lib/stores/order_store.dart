@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -483,23 +482,15 @@ class OrderStore extends ChangeNotifier {
 
   debugPrint('[FLOW] _simulateFlow: advancing to callingDriver (localStatus=${order.status.name})');
 
-  // ── Payment gate — payment MUST be confirmed server-side before dispatch.
-  // Card  → Stripe webhook flips DB row to paid.
-  // MBWay → confirm-mbway-payment Edge Function flips DB row to paid.
-  // The client NEVER marks it paid itself.
-  final requiresServerConfirmation =
-      (order.paymentMethod == PaymentMethod.card && !kIsWeb) ||
-          order.paymentMethod == PaymentMethod.mbway;
-
-  if (requiresServerConfirmation) {
-    debugPrint('[FLOW] waiting for server payment confirmation id=${order.id} method=${order.paymentMethod.name}');
-    final confirmed = await _waitForPaymentConfirmation(order);
-    if (!confirmed) {
-      debugPrint('⛔ Dispatch bloqueado: pagamento não confirmado (id=${order.id} status=${order.paymentStatus.name})');
-      return;
-    }
-    debugPrint('[FLOW] payment confirmed server-side — proceeding to dispatch');
+  // ── Payment gate — order must be paid before dispatch.
+  // Payment is now confirmed in the UI before createOrder() is called, so
+  // orders should always arrive here with paymentStatus == paid.
+  // This guard is a safety net against any future regression.
+  if (order.paymentStatus != PaymentStatus.paid) {
+    debugPrint('⛔ Dispatch bloqueado: pagamento não confirmado (id=${order.id} method=${order.paymentMethod.name} status=${order.paymentStatus.name})');
+    return;
   }
+  debugPrint('[FLOW] payment confirmed — proceeding to dispatch');
 
   final reached = await _advanceStatus(order, OrderStatus.callingDriver);
 
@@ -510,42 +501,6 @@ class OrderStore extends ChangeNotifier {
   }
 }
 
-  /// Polls `orders.payment_status` until the Stripe webhook flips it to
-  /// `paid` (success) or `failed` (abort). Returns false on timeout so the
-  /// dispatch gate can block the order from ever reaching `callingDriver`.
-  Future<bool> _waitForPaymentConfirmation(
-    OrderModel order, {
-    Duration timeout = const Duration(seconds: 30),
-    Duration interval = const Duration(seconds: 1),
-  }) async {
-    final deadline = DateTime.now().add(timeout);
-    while (DateTime.now().isBefore(deadline)) {
-      try {
-        final row = await Supabase.instance.client
-            .from('orders')
-            .select('payment_status')
-            .eq('id', order.id)
-            .maybeSingle();
-        final status = row?['payment_status'] as String?;
-        debugPrint('[FLOW] _waitForPaymentConfirmation: db status=$status');
-        if (status == 'paid') {
-          order.paymentStatus = PaymentStatus.paid;
-          notifyListeners();
-          return true;
-        }
-        if (status == 'failed') {
-          order.paymentStatus = PaymentStatus.failed;
-          notifyListeners();
-          return false;
-        }
-      } catch (e) {
-        debugPrint('[FLOW] _waitForPaymentConfirmation poll error: $e');
-      }
-      await Future.delayed(interval);
-    }
-    debugPrint('[FLOW] _waitForPaymentConfirmation: TIMEOUT id=${order.id}');
-    return false;
-  }
 
   Future<bool> _advanceStatus(
       OrderModel order, OrderStatus targetStatus) async {
@@ -1017,12 +972,6 @@ class OrderStore extends ChangeNotifier {
         debugPrint('OrderStore.createPartnerDeliveryRequest: MapsService error => $e');
         resolvedDistanceKm = const Distance().as(LengthUnit.Kilometer, pickupLatLng, dropoffLocation);
       }
-    } else if (pickupLatLng != null) {
-      resolvedDistanceKm = const Distance().as(
-        LengthUnit.Kilometer,
-        pickupLatLng,
-        const LatLng(38.7223, -9.1393),
-      );
     } else {
       resolvedDistanceKm = PricingService.defaultDistanceKm;
     }

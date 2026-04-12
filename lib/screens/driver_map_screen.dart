@@ -7,6 +7,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart' hide LatLng;
 import 'package:latlong2/latlong.dart' as ll;
 import 'package:provider/provider.dart';
 
+import '../config/business_rules.dart' show BRDriver;
 import '../models/chat_message.dart';
 import '../models/order_model.dart';
 import '../services/directions_service.dart';
@@ -376,9 +377,10 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Read stores once (not watched to prevent unnecessary rebuilds)
+    // Watch OrderStore so the widget rebuilds when an order is accepted/updated.
+    // DriverStore uses read (location updates handled via setState in GPS stream).
     final driverStore = context.read<DriverStore>();
-    final orderStore = context.read<OrderStore>();
+    final orderStore = context.watch<OrderStore>();
 
     // NO early returns. GoogleMap must mount on the FIRST frame regardless of
     // whether the driver has been hydrated yet. When the driver is null we
@@ -943,6 +945,12 @@ class _BottomPanelState extends State<_BottomPanel> {
                     icon: Icons.route_outlined,
                     label: 'Distância',
                     value: '${focusOrder.distanceKm.toStringAsFixed(1)} km',
+                  ),
+                  _InfoItem(
+                    icon: Icons.monetization_on_outlined,
+                    label: 'Tokens',
+                    value: '+${(focusOrder.driverEarnings * BRDriver.DRIVER_TOKENS_PER_EUR).round()}',
+                    valueColor: Colors.amber.shade700,
                   ),
                 ],
               ),

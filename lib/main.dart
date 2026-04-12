@@ -22,6 +22,7 @@ import 'stores/driver_store.dart';
 import 'stores/order_store.dart';
 import 'stores/partner_product_store.dart';
 import 'stores/restaurant_store.dart';
+import 'stores/favorite_store.dart';
 import 'stores/session_store.dart';
 
 const String _supabaseUrl = 'https://ojykpzwqrtusfeakzrna.supabase.co';
@@ -70,6 +71,10 @@ class MyApp extends StatelessWidget {
 
         ChangeNotifierProvider<CartStore>(
           create: (_) => CartStore(),
+        ),
+
+        ChangeNotifierProvider<FavoriteStore>(
+          create: (_) => FavoriteStore(),
         ),
 
         ChangeNotifierProvider<ChatStore>(

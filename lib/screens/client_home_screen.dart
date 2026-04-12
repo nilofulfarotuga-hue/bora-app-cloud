@@ -32,18 +32,34 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     });
   }
 
-  /// Requests GPS permission, gets current position, reverse-geocodes it,
-  /// and pre-fills the CartStore delivery address. Fails silently.
+  /// Pre-fills the CartStore delivery address on startup.
+  /// Priority: 1) existing address from prefs  2) Casa  3) GPS
   Future<void> _detectLocation() async {
+    if (!mounted) return;
+    final cartStore = context.read<CartStore>();
+
+    // Priority 1: already have a saved address from a previous session
+    if (cartStore.dropoffStreet.isNotEmpty) return;
+
+    // Priority 2: home address stored in SessionStore
+    final sessionStore = context.read<SessionStore>();
+    if (sessionStore.hasHomeAddress) {
+      cartStore.updateDeliveryAddress(
+        street: sessionStore.homeStreet!,
+        city: sessionStore.homeCity ?? '',
+        postalCode: '',
+        location: sessionStore.homeLocation,
+      );
+      return;
+    }
+
+    // Priority 3: GPS current position
     final location = await LocationService.getCurrentLocation();
     if (location == null || !mounted) return;
 
     final address = await LocationService.reverseGeocode(location, googleApiKey);
     if (!mounted) return;
-
-    // Only update if the user hasn't already chosen an address.
-    final cartStore = context.read<CartStore>();
-    if (cartStore.dropoffStreet.isNotEmpty) return;
+    if (cartStore.dropoffStreet.isNotEmpty) return; // re-check after async gap
 
     cartStore.updateDeliveryAddress(
       street: address ?? '${location.latitude.toStringAsFixed(4)}, ${location.longitude.toStringAsFixed(4)}',
@@ -68,6 +84,24 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
       context,
       MaterialPageRoute(builder: (_) => const _AddressPickerScreen()),
     );
+  }
+
+  /// Guards navigation: requires a delivery address to be set.
+  /// If missing, shows a clear error and opens the address picker.
+  void _navigateWithAddressGuard(BuildContext context, VoidCallback nav) {
+    final street = context.read<CartStore>().dropoffStreet;
+    if (street.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Defina seu endereço de entrega para continuar.'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      _openAddressPicker(context);
+      return;
+    }
+    nav();
   }
 
   @override
@@ -183,18 +217,18 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
         title: 'Restaurantes',
         icon: Icons.restaurant_menu,
         color: const Color(0xFFFFC857),
-        onTap: () {
+        onTap: () => _navigateWithAddressGuard(context, () {
           Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const RestaurantsScreen()),
           );
-        },
+        }),
       ),
       _CategoryOption(
         title: 'Supermercados',
         icon: Icons.shopping_cart,
         color: const Color(0xFF57CC99),
-        onTap: () {
+        onTap: () => _navigateWithAddressGuard(context, () {
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -202,13 +236,13 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                   const StoresScreen(initialCategory: BusinessCategory.supermarket),
             ),
           );
-        },
+        }),
       ),
       _CategoryOption(
         title: 'Lojas',
         icon: Icons.storefront,
         color: const Color(0xFF5C7AEA),
-        onTap: () {
+        onTap: () => _navigateWithAddressGuard(context, () {
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -216,13 +250,13 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                   const StoresScreen(initialCategory: BusinessCategory.store),
             ),
           );
-        },
+        }),
       ),
       _CategoryOption(
         title: 'Farmácia',
         icon: Icons.local_pharmacy,
         color: const Color(0xFFEE6352),
-        onTap: () {
+        onTap: () => _navigateWithAddressGuard(context, () {
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -230,29 +264,29 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                   const StoresScreen(initialCategory: BusinessCategory.pharmacy),
             ),
           );
-        },
+        }),
       ),
       _CategoryOption(
         title: 'Enviar Encomenda',
         icon: Icons.local_shipping,
         color: const Color(0xFF48CAE4),
-        onTap: () {
+        onTap: () => _navigateWithAddressGuard(context, () {
           Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const SendPackageFormScreen()),
           );
-        },
+        }),
       ),
       _CategoryOption(
         title: 'Fazer Compras',
         icon: Icons.shopping_bag,
         color: const Color(0xFFB5838D),
-        onTap: () {
+        onTap: () => _navigateWithAddressGuard(context, () {
           Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const CarryGroceriesScreen()),
           );
-        },
+        }),
       ),
     ];
 
@@ -277,6 +311,7 @@ class _AddressPickerScreen extends StatefulWidget {
 
 class _AddressPickerScreenState extends State<_AddressPickerScreen> {
   final _ctrl = TextEditingController();
+  bool _loadingGps = false;
 
   @override
   void dispose() {
@@ -284,34 +319,137 @@ class _AddressPickerScreenState extends State<_AddressPickerScreen> {
     super.dispose();
   }
 
+  Future<void> _useGps() async {
+    setState(() => _loadingGps = true);
+    final location = await LocationService.getCurrentLocation();
+    if (!mounted) return;
+    setState(() => _loadingGps = false);
+
+    if (location == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Não foi possível obter a localização GPS.')),
+      );
+      return;
+    }
+
+    final address = await LocationService.reverseGeocode(location, googleApiKey);
+    if (!mounted) return;
+
+    context.read<CartStore>().updateDeliveryAddress(
+      street: address ?? '${location.latitude.toStringAsFixed(4)}, ${location.longitude.toStringAsFixed(4)}',
+      city: '',
+      postalCode: '',
+      location: location,
+    );
+    Navigator.of(context).pop();
+  }
+
+  void _useHome() {
+    final session = context.read<SessionStore>();
+    if (!session.hasHomeAddress) return;
+    context.read<CartStore>().updateDeliveryAddress(
+      street: session.homeStreet!,
+      city: session.homeCity ?? '',
+      postalCode: '',
+      location: session.homeLocation,
+    );
+    Navigator.of(context).pop();
+  }
+
+  void _onAddressSelected(String address, dynamic coords) {
+    context.read<CartStore>().updateDeliveryAddress(
+      street: address,
+      city: '',
+      postalCode: '',
+      location: coords,
+    );
+    _showSaveAsHomeDialog(address, coords);
+  }
+
+  void _showSaveAsHomeDialog(String address, dynamic coords) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Guardar como Casa?'),
+        content: Text(address),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              Navigator.of(context).pop();
+            },
+            child: const Text('Não'),
+          ),
+          TextButton(
+            onPressed: () {
+              context.read<SessionStore>().setHomeAddress(
+                street: address,
+                city: '',
+                location: coords,
+              );
+              Navigator.of(ctx).pop();
+              Navigator.of(context).pop();
+            },
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final session = context.watch<SessionStore>();
+
     return Scaffold(
       appBar: AppBar(title: const Text('Endereço de entrega')),
-      body: Padding(
+      body: ListView(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            AddressAutocompleteField(
-              controller: _ctrl,
-              labelText: 'Pesquisar endereço',
-              onSelected: (address, coords) {
-                context.read<CartStore>().updateDeliveryAddress(
-                      street: address,
-                      city: '',
-                      postalCode: '',
-                      location: coords,
-                    );
-                Navigator.of(context).pop();
-              },
+        children: [
+          // ── GPS ──────────────────────────────────────────────────────────
+          ListTile(
+            leading: const Icon(Icons.my_location_rounded),
+            title: const Text('Localização atual'),
+            subtitle: const Text('Usar GPS do dispositivo'),
+            trailing: _loadingGps
+                ? const SizedBox(
+                    width: 20, height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.chevron_right),
+            onTap: _loadingGps ? null : _useGps,
+          ),
+          // ── Casa ─────────────────────────────────────────────────────────
+          ListTile(
+            leading: Icon(
+              Icons.home_rounded,
+              color: session.hasHomeAddress ? theme.colorScheme.primary : null,
             ),
-            const SizedBox(height: 16),
-            Text(
-              'Comece a escrever o endereço e selecione uma sugestão.',
-              style: Theme.of(context).textTheme.bodySmall,
+            title: Text(
+              session.hasHomeAddress ? session.homeStreet! : 'Casa',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-          ],
-        ),
+            subtitle: Text(
+              session.hasHomeAddress ? 'Endereço guardado' : 'Nenhum endereço guardado',
+            ),
+            trailing: session.hasHomeAddress ? const Icon(Icons.chevron_right) : null,
+            onTap: session.hasHomeAddress ? _useHome : null,
+          ),
+          const Divider(height: 32),
+          // ── Autocomplete ─────────────────────────────────────────────────
+          AddressAutocompleteField(
+            controller: _ctrl,
+            labelText: 'Pesquisar endereço',
+            onSelected: _onAddressSelected,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Comece a escrever e selecione uma sugestão.',
+            style: theme.textTheme.bodySmall,
+          ),
+        ],
       ),
     );
   }

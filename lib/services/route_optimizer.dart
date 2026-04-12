@@ -67,12 +67,14 @@ class RouteOptimizer {
         )
         .toList();
 
+    // Delivery stops are only added after the driver has physically collected
+    // the order. While the driver is still heading to pickup (driverAccepted),
+    // only the pickup stop is shown so the route is clear and unambiguous.
     final pendingDeliveries = orders
         .where(
           (o) =>
               o.destination != null &&
-              (o.status == OrderStatus.driverAccepted ||
-                  o.status == OrderStatus.pickedUp ||
+              (o.status == OrderStatus.pickedUp ||
                   o.status == OrderStatus.onTheWay),
         )
         .toList();

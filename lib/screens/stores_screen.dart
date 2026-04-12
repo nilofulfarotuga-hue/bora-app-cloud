@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../data/fake_data.dart';
+import '../models/business_view_models.dart';
 import '../models/order_service_type.dart';
 import '../models/restaurant_model.dart';
 import '../stores/cart_store.dart';
 import '../stores/restaurant_store.dart';
 import '../utils/business_mapper.dart';
+import 'store_categories_screen.dart';
 import 'store_products_screen.dart';
 
 class StoresScreen extends StatelessWidget {
@@ -103,11 +104,18 @@ class StoresScreen extends StatelessWidget {
     }
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        title: Text(_title),
+        title: Text(
+          _title,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black87,
+        elevation: 0,
       ),
       body: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
         children: sections,
       ),
     );
@@ -142,23 +150,26 @@ class StoresScreen extends StatelessWidget {
 
     return [
       Padding(
-        padding: const EdgeInsets.only(top: 8, bottom: 4),
+        padding: const EdgeInsets.only(top: 8, bottom: 12),
         child: Text(
           title,
           style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
           ),
         ),
       ),
-      const SizedBox(height: 8),
       ...entries.map(
-        (entry) => _StoreTile(
-          entry: entry,
-          onTap: () => _openStore(context, entry),
+        (entry) => Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: _StoreTile(
+            entry: entry,
+            onTap: () => _openStore(context, entry),
+          ),
         ),
       ),
-      const SizedBox(height: 24),
+      const SizedBox(height: 12),
     ];
   }
 
@@ -183,20 +194,38 @@ class StoresScreen extends StatelessWidget {
   }
 
   void _openStore(BuildContext context, _StoreEntry entry) {
+    // Non-partner: driver shops near the client — use the delivery location
+    // as pickup so distance is always realistic regardless of DB data.
+    final pickupLocation = entry.business.isPartner
+        ? entry.business.location
+        : context.read<CartStore>().deliveryLocation;
+
     context.read<CartStore>().configureSession(
           serviceType: OrderServiceType.storeShopping,
           isPartnerStore: entry.business.isPartner,
           vendorName: entry.store.name,
-          pickupLocation: entry.business.location,
+          pickupLocation: pickupLocation,
           pickupStreet: entry.business.address,
           pickupCity: null,
           pickupPostalCode: null,
         );
 
+    final isLargeStore =
+        entry.business.category == BusinessCategory.supermarket ||
+        entry.business.category == BusinessCategory.store;
+
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => StoreProductsScreen(store: entry.store),
+        builder: (_) => isLargeStore
+            ? StoreCategoriesScreen(
+                restaurantId: entry.business.id,
+                storeName: entry.store.name,
+              )
+            : StoreProductsScreen(
+                restaurantId: entry.business.id,
+                storeName: entry.store.name,
+              ),
       ),
     );
   }
@@ -208,32 +237,156 @@ class _StoreTile extends StatelessWidget {
   final _StoreEntry entry;
   final VoidCallback onTap;
 
+  Color _bannerColor(BusinessCategory cat) {
+    switch (cat) {
+      case BusinessCategory.supermarket:
+        return const Color(0xFF1A73E8);
+      case BusinessCategory.pharmacy:
+        return const Color(0xFF2E7D32);
+      case BusinessCategory.store:
+        return const Color(0xFF6A1B9A);
+      default:
+        return const Color(0xFF455A64);
+    }
+  }
+
+  IconData _categoryIcon(BusinessCategory cat) {
+    switch (cat) {
+      case BusinessCategory.supermarket:
+        return Icons.local_grocery_store_rounded;
+      case BusinessCategory.pharmacy:
+        return Icons.local_pharmacy_rounded;
+      case BusinessCategory.store:
+        return Icons.storefront_rounded;
+      default:
+        return Icons.store_rounded;
+    }
+  }
+
+  String _categoryLabel(BusinessCategory cat) {
+    switch (cat) {
+      case BusinessCategory.supermarket:
+        return 'Supermercado';
+      case BusinessCategory.pharmacy:
+        return 'Farmácia';
+      case BusinessCategory.store:
+        return 'Loja';
+      default:
+        return 'Loja';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isPartner = entry.business.isPartner;
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      child: ListTile(
-        title: Row(
-          children: [
-            Expanded(
-              child: Text(
-                entry.store.name,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+    final cat = entry.business.category;
+    final bannerColor = _bannerColor(cat);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.07),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
             ),
-            const SizedBox(width: 8),
-            _PartnerBadge(isPartner: isPartner),
           ],
         ),
-        subtitle: Text(
-          isPartner ? 'Parceiro BORA' : 'Um estafeta irá comprar por você',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Banner ───────────────────────────────────────────────────
+            Container(
+              height: 80,
+              decoration: BoxDecoration(
+                color: bannerColor.withValues(alpha: 0.12),
+                borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(16)),
+              ),
+              child: Row(
+                children: [
+                  const SizedBox(width: 16),
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: bannerColor,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(
+                      _categoryIcon(cat),
+                      color: Colors.white,
+                      size: 30,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          entry.store.name,
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _categoryLabel(cat),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.arrow_forward_ios,
+                      size: 16, color: Colors.grey),
+                  const SizedBox(width: 16),
+                ],
+              ),
+            ),
+
+            // ── Footer ───────────────────────────────────────────────────
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: Row(
+                children: [
+                  Icon(
+                    isPartner
+                        ? Icons.verified_rounded
+                        : Icons.shopping_cart_rounded,
+                    size: 15,
+                    color: isPartner ? Colors.green : Colors.orange,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    isPartner
+                        ? 'Parceiro BORA · entrega rápida'
+                        : 'Estafeta compra por você',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
+                  const Spacer(),
+                  _PartnerBadge(isPartner: isPartner),
+                ],
+              ),
+            ),
+          ],
         ),
-        trailing: const Icon(Icons.arrow_forward_ios),
-        onTap: onTap,
       ),
     );
   }

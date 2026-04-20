@@ -1,0 +1,20 @@
+{
+  "name": "bora-scraper",
+  "version": "1.0.0",
+  "description": "Product scraper for Bora App supermarkets",
+  "main": "scrape.js",
+  "type": "module",
+  "scripts": {
+    "start": "node scrape.js",
+    "continente": "node scrape.js --only=continente",
+    "pingodoce": "node scrape.js --only=pingodoce",
+    "intermarche": "node scrape.js --only=intermarche",
+    "mercadona": "node scrape.js --only=mercadona",
+    "install-browsers": "npx playwright install chromium"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "dotenv": "^16.4.5",
+    "playwright": "^1.44.0"
+  }
+}

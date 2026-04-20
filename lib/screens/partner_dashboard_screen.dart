@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:vibration/vibration.dart';
 
 import '../auth/auth_store.dart';
+import '../config/app_colors.dart';
 import '../models/chat_message.dart';
 import '../models/order_model.dart';
 import '../models/restaurant_model.dart';
@@ -125,10 +126,12 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
     final now = DateTime.now();
     final startOfToday = DateTime(now.year, now.month, now.day);
     final startOfWeek = startOfToday.subtract(const Duration(days: 6));
-    final todayCount =
-        partnerOrders.where((order) => !order.createdAt.isBefore(startOfToday)).length;
-    final weekCount =
-        partnerOrders.where((order) => !order.createdAt.isBefore(startOfWeek)).length;
+    final todayCount = partnerOrders
+        .where((order) => !order.createdAt.isBefore(startOfToday))
+        .length;
+    final weekCount = partnerOrders
+        .where((order) => !order.createdAt.isBefore(startOfWeek))
+        .length;
     final totalCount = partnerOrders.length;
 
     final todayEarnings = _sumEarningsSince(partnerOrders, startOfToday);
@@ -143,7 +146,14 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
     final subtitleColor = appBarForeground.withValues(alpha: 0.7);
 
     return Scaffold(
+      backgroundColor: AppColors.surface,
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        flexibleSpace: const DecoratedBox(
+          decoration: BoxDecoration(gradient: AppColors.headerGradient),
+        ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -173,8 +183,7 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
             icon: Icon(currentRestaurant.isOnline
                 ? Icons.circle
                 : Icons.circle_outlined),
-            label:
-                Text(currentRestaurant.isOnline ? 'ONLINE' : 'OFFLINE'),
+            label: Text(currentRestaurant.isOnline ? 'ONLINE' : 'OFFLINE'),
           ),
           TextButton.icon(
             onPressed: _handleTestMode,
@@ -204,11 +213,18 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                   totalProducts: products.length,
                   availableProducts: availableProducts,
                 ),
+                const SizedBox(height: 16),
+                _ReservationsToggleCard(
+                  enabled: currentRestaurant.reservationsEnabled,
+                  onChanged: (value) => restaurantStore
+                      .toggleReservationsEnabled(currentRestaurant.id, value),
+                ),
                 const SizedBox(height: 24),
                 _OrdersSection(
                   orders: partnerOrders,
                   onAccept: (order) async {
-                    final accepted = await orderStore.restaurantAcceptOrder(order);
+                    final accepted =
+                        await orderStore.restaurantAcceptOrder(order);
                     if (!context.mounted) return;
                     final message = accepted
                         ? 'Pedido aceite. Prepare os itens.'
@@ -218,7 +234,8 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                     );
                   },
                   onReject: (order) async {
-                    final rejected = await orderStore.restaurantRejectOrder(order);
+                    final rejected =
+                        await orderStore.restaurantRejectOrder(order);
                     if (!context.mounted) return;
                     final message = rejected
                         ? 'Pedido rejeitado.'
@@ -306,7 +323,8 @@ class _OrdersSection extends StatelessWidget {
           padding: const EdgeInsets.all(20),
           child: Row(
             children: [
-              Icon(Icons.event_available, color: Theme.of(context).colorScheme.primary),
+              Icon(Icons.event_available,
+                  color: Theme.of(context).colorScheme.primary),
               const SizedBox(width: 12),
               const Expanded(
                 child: Text(
@@ -405,14 +423,14 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
         child: _buildContent(theme),
       ),
       builder: (context, child) {
-        final highlight = theme.colorScheme.secondary.withOpacity(0.22);
+        final highlight = theme.colorScheme.secondary.withValues(alpha: 0.22);
         final background = _isNew
             ? Color.lerp(Colors.white, highlight, _flashController.value)!
             : Colors.white;
         final elevation = _isNew ? 2.0 + (_flashController.value * 4) : 1.0;
         final borderSide = _isNew
             ? BorderSide(
-                color: theme.colorScheme.secondary.withOpacity(0.7),
+                color: theme.colorScheme.secondary.withValues(alpha: 0.7),
                 width: 1.2,
               )
             : BorderSide.none;
@@ -534,8 +552,8 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
                   onPressed: () async {
                     final uri = Uri(scheme: 'tel', path: order.driverPhone!);
                     if (await canLaunchUrl(uri)) {
-                      await launchUrl(
-                          uri, mode: LaunchMode.externalApplication);
+                      await launchUrl(uri,
+                          mode: LaunchMode.externalApplication);
                     }
                   },
                 ),
@@ -556,7 +574,8 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
             ],
           ),
         ],
-        if ((order.dropoffAddress ?? '').isNotEmpty || order.destination != null)
+        if ((order.dropoffAddress ?? '').isNotEmpty ||
+            order.destination != null)
           _InfoRow(
             label: 'Entrega',
             value: '',
@@ -568,7 +587,8 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
         const SizedBox(height: 12),
         Text(
           'Itens',
-          style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+          style:
+              theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 8),
         if (order.items.isEmpty)
@@ -592,7 +612,9 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
             if (order.status == OrderStatus.created) ...[
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: () { widget.onAccept(order); },
+                  onPressed: () {
+                    widget.onAccept(order);
+                  },
                   icon: const Icon(Icons.check),
                   label: const Text('Aceitar pedido'),
                 ),
@@ -600,7 +622,9 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
               const SizedBox(width: 12),
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () { widget.onReject(order); },
+                  onPressed: () {
+                    widget.onReject(order);
+                  },
                   icon: const Icon(Icons.close),
                   label: const Text('Rejeitar'),
                 ),
@@ -608,7 +632,9 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
             ] else if (canCallDriver) ...[
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: () { widget.onCallDriver(order); },
+                  onPressed: () {
+                    widget.onCallDriver(order);
+                  },
                   icon: const Icon(Icons.local_shipping_outlined),
                   label: const Text('Chamar estafeta'),
                 ),
@@ -888,6 +914,44 @@ class _OverviewStat extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// BR §14.10 — opt-in do parceiro para mostrar o botão "Reservar mesa" ao cliente.
+class _ReservationsToggleCard extends StatelessWidget {
+  const _ReservationsToggleCard({
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  final bool enabled;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.grey.shade300),
+      ),
+      child: SwitchListTile.adaptive(
+        value: enabled,
+        onChanged: onChanged,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        title: const Text(
+          'Aceitar reservas de mesa',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
+        subtitle: Text(
+          enabled
+              ? 'O botão "Reservar mesa" aparece aos clientes.'
+              : 'Desligado — reservas ocultas aos clientes. (BR §14.10)',
+          style: const TextStyle(fontSize: 12),
+        ),
+        activeThumbColor: const Color(0xFF1B5E20),
       ),
     );
   }

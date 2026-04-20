@@ -67,7 +67,7 @@ C receives offer → accepts ✔
 - [ ] Driver earns tokens after delivery
 - [ ] Token balance updates in real time
 - [ ] `consume_tokens` deducts correctly (FIFO)
-- [ ] 30% discount limit respected at checkout
+- [ ] 50% discount limit respected at checkout
 
 ### PRICING
 - [ ] Partner restaurant: correct commission + delivery fee

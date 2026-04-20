@@ -138,7 +138,7 @@ BEGIN
   v_driver     := NEW.assigned_driver_id;
   v_is_partner := COALESCE(NEW.is_partner_store, false);
   v_is_cash    := (NEW.payment_method = 'cash');
-  v_total      := ROUND(COALESCE(NEW.final_total, NEW.total, 0)::NUMERIC, 2);
+  v_total      := ROUND(COALESCE(NEW.final_total, NEW.price, 0)::NUMERIC, 2);
   v_purchase   := ROUND(COALESCE(NEW.final_purchase_value, 0)::NUMERIC, 2);
   v_base       := ROUND(COALESCE(NEW.final_purchase_value, NEW.subtotal, 0)::NUMERIC, 2);
 

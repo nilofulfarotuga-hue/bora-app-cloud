@@ -2,8 +2,7 @@ import 'package:latlong2/latlong.dart' as ll;
 
 import 'place_autocomplete_service_stub.dart'
     if (dart.library.html) 'place_autocomplete_service_web.dart'
-    if (dart.library.io) 'place_autocomplete_service_io.dart'
-    as impl;
+    if (dart.library.io) 'place_autocomplete_service_io.dart' as impl;
 
 class PlacePrediction {
   const PlacePrediction({

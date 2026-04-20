@@ -28,7 +28,8 @@ class LocationService {
 
     if (permission == LocationPermission.denied ||
         permission == LocationPermission.deniedForever) {
-      debugPrint('LocationService: permission $permission — cannot get location');
+      debugPrint(
+          'LocationService: permission $permission — cannot get location');
       return null;
     }
 
@@ -62,7 +63,8 @@ class LocationService {
     try {
       final response = await http.get(uri);
       if (response.statusCode != 200) {
-        debugPrint('LocationService.reverseGeocode: HTTP ${response.statusCode}');
+        debugPrint(
+            'LocationService.reverseGeocode: HTTP ${response.statusCode}');
         return null;
       }
       final data = jsonDecode(response.body) as Map<String, dynamic>;

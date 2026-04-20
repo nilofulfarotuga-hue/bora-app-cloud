@@ -9,8 +9,7 @@ class GooglePlacesService {
   Future<List<dynamic>> autocomplete(String input) async {
     if (input.isEmpty) return [];
 
-    final url =
-        "https://maps.googleapis.com/maps/api/place/autocomplete/json"
+    final url = "https://maps.googleapis.com/maps/api/place/autocomplete/json"
         "?input=$input"
         "&components=country:pt"
         "&language=pt"
@@ -27,8 +26,7 @@ class GooglePlacesService {
   }
 
   Future<Map<String, dynamic>?> placeDetails(String placeId) async {
-    final url =
-        "https://maps.googleapis.com/maps/api/place/details/json"
+    final url = "https://maps.googleapis.com/maps/api/place/details/json"
         "?place_id=$placeId"
         "&key=$apiKey";
 

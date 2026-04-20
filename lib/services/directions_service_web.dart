@@ -80,8 +80,8 @@ class _WebDirectionsService implements DirectionsService {
     // Build origin / destination as google.maps.LatLng JS objects.
     final originJs =
         js.JsObject(_latLngCtor!, [origin.latitude, origin.longitude]);
-    final destJs =
-        js.JsObject(_latLngCtor!, [destination.latitude, destination.longitude]);
+    final destJs = js.JsObject(
+        _latLngCtor!, [destination.latitude, destination.longitude]);
 
     // Build the request object. We set simple Dart values via jsify and
     // attach JsObject values (LatLng instances) directly to avoid
@@ -156,8 +156,10 @@ class _WebDirectionsService implements DirectionsService {
     final points = <ll.LatLng>[];
     for (var i = 0; i < pathArr.length; i++) {
       final point = pathArr[i] as js.JsObject;
-      final lat = (point.callMethod('lat', const <dynamic>[]) as num).toDouble();
-      final lng = (point.callMethod('lng', const <dynamic>[]) as num).toDouble();
+      final lat =
+          (point.callMethod('lat', const <dynamic>[]) as num).toDouble();
+      final lng =
+          (point.callMethod('lng', const <dynamic>[]) as num).toDouble();
       points.add(ll.LatLng(lat, lng));
     }
 

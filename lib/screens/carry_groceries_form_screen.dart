@@ -7,6 +7,8 @@ import '../models/order_model.dart';
 import '../services/location_service.dart';
 import '../stores/cart_store.dart';
 import '../widgets/address_autocomplete_field.dart';
+import '../widgets/bora/bora_screen_app_bar.dart';
+import '../widgets/mandatory_photo_picker.dart';
 import 'payment_method_screen.dart';
 
 class CarryGroceriesFormScreen extends StatefulWidget {
@@ -25,6 +27,9 @@ class _CarryGroceriesFormScreenState extends State<CarryGroceriesFormScreen> {
   LatLng? _dropoffLocation;
 
   bool _loadingLocation = false;
+
+  // Mandatory groceries photo (BR §7.6).
+  String? _groceriesPhotoUrl;
 
   static const _fallbackAddress = 'Guarda, Portugal';
 
@@ -51,12 +56,14 @@ class _CarryGroceriesFormScreenState extends State<CarryGroceriesFormScreen> {
       if (!mounted) return;
 
       if (coords != null) {
-        final address = await LocationService.reverseGeocode(coords, googleApiKey);
+        final address =
+            await LocationService.reverseGeocode(coords, googleApiKey);
         if (!mounted) return;
         setState(() {
           _pickupLocation = coords;
-          _pickupController.text =
-              (address != null && address.isNotEmpty) ? address : _fallbackAddress;
+          _pickupController.text = (address != null && address.isNotEmpty)
+              ? address
+              : _fallbackAddress;
         });
       } else {
         setState(() => _pickupController.text = _fallbackAddress);
@@ -89,16 +96,27 @@ class _CarryGroceriesFormScreenState extends State<CarryGroceriesFormScreen> {
       return;
     }
 
+    if (_groceriesPhotoUrl == null || _groceriesPhotoUrl!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content:
+                Text('Adiciona uma foto das compras — obrigatório.')),
+      );
+      return;
+    }
+
     // Configure CartStore so PaymentMethodScreen can show the breakdown
     // and call cartStore.finishOrder() — same flow as sendPackage.
-    context.read<CartStore>().configureSession(
-          serviceType: OrderServiceType.carryGroceries,
-          isPartnerStore: false,
-          pickupLocation: _pickupLocation,
-          deliveryLocation: _dropoffLocation,
-          pickupStreet: pickupAddress,
-          dropoffStreet: dropoffAddress,
-        );
+    final cart = context.read<CartStore>();
+    cart.configureSession(
+      serviceType: OrderServiceType.carryGroceries,
+      isPartnerStore: false,
+      pickupLocation: _pickupLocation,
+      deliveryLocation: _dropoffLocation,
+      pickupStreet: pickupAddress,
+      dropoffStreet: dropoffAddress,
+    );
+    cart.setGroceriesPhotoUrl(_groceriesPhotoUrl);
 
     Navigator.push<bool>(
       context,
@@ -111,7 +129,7 @@ class _CarryGroceriesFormScreenState extends State<CarryGroceriesFormScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Entregar compras')),
+      appBar: const BoraScreenAppBar(title: 'Levar Compras'),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -156,7 +174,15 @@ class _CarryGroceriesFormScreenState extends State<CarryGroceriesFormScreen> {
               setState(() => _dropoffLocation = coords);
             },
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 24),
+          MandatoryPhotoPicker(
+            label: 'Foto das compras (obrigatória)',
+            hint:
+                'O estafeta vê a foto antes de aceitar. Requer carro. (BR §7.6)',
+            pathPrefix: 'groceries',
+            onUploaded: (url) => setState(() => _groceriesPhotoUrl = url),
+          ),
+          const SizedBox(height: 24),
           ElevatedButton(
             onPressed: _goToPayment,
             child: const Text('Continuar para pagamento'),

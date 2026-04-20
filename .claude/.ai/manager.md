@@ -65,7 +65,7 @@ Before any executor run:
 After each successful correction:
 
 1. Identify: bug + root cause + solution
-2. Write to `.claude/.ai/memory/memory.md`:
+2. Write to `.claude/.ai/memory/memory_store.md`:
 
 ```
 ---

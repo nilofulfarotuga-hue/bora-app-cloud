@@ -36,6 +36,7 @@ class RestaurantModel {
     this.isOnline = true,
     this.lat,
     this.lng,
+    this.reservationsEnabled = false,
   });
 
   final String id;
@@ -51,6 +52,10 @@ class RestaurantModel {
   final double? lat;
   final double? lng;
 
+  /// BR §14.10 — whether this restaurant accepts table reservations.
+  /// Default false. Partner toggles it from the dashboard.
+  final bool reservationsEnabled;
+
   /// Returns a [LatLng] when both coordinates are stored; null otherwise.
   LatLng? get location =>
       (lat != null && lng != null) ? LatLng(lat!, lng!) : null;
@@ -59,6 +64,7 @@ class RestaurantModel {
     bool? isOnline,
     double? lat,
     double? lng,
+    bool? reservationsEnabled,
   }) {
     return RestaurantModel(
       id: id,
@@ -73,6 +79,7 @@ class RestaurantModel {
       isOnline: isOnline ?? this.isOnline,
       lat: lat ?? this.lat,
       lng: lng ?? this.lng,
+      reservationsEnabled: reservationsEnabled ?? this.reservationsEnabled,
     );
   }
 }

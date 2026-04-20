@@ -17,6 +17,7 @@ enum OrderStatus {
   onTheWay,
   delivered,
   rejected,
+  cancelled,
 }
 
 enum OrderType {
@@ -31,11 +32,11 @@ enum PaymentMethod {
 }
 
 enum PaymentStatus {
-  pending,       // awaiting payment confirmation
-  paid,          // fully settled
-  failed,        // payment failed
+  pending, // awaiting payment confirmation
+  paid, // fully settled
+  failed, // payment failed
   refundPending, // reconciliation: surplus to return to client
-  refunded,      // backend processed the refund
+  refunded, // backend processed the refund
   extraRequired, // reconciliation: shortfall to collect from client
 }
 
@@ -99,11 +100,24 @@ class OrderModel {
 
   final String? customerName;
   final String? userId;
-  final List<CartItem> items;
+  List<CartItem> items;
+
+  /// Client gratuity in EUR cents (BR §4.5). Split 80/20 is handled downstream.
+  int tipCents;
+
+  /// Whether the client chose takeaway (BR §14.9). Partner restaurants only.
+  /// When true, dispatch is bypassed — the client picks up directly.
+  bool isTakeaway;
 
   String? assignedDriverId;
   String? currentDriverOfferId;
   String? driverPhone;
+
+  /// Number of carrier bags used by the driver.
+  int bagCount;
+
+  /// Total bag fee charged (restaurant: fixed €0.30; market: bagCount × €0.10).
+  double bagFee;
 
   /// DEPRECATED — single source of truth is now
   /// `DriverStore.currentDriver.location`, synced through the `drivers` table
@@ -164,6 +178,8 @@ class OrderModel {
     this.assignedDriverId,
     this.currentDriverOfferId,
     this.driverPhone,
+    this.bagCount = 0,
+    this.bagFee = 0,
     List<String>? driverOfferHistory,
     List<String>? triedDriverIds,
     this.pickupWarningIssued = false,
@@ -177,6 +193,8 @@ class OrderModel {
     double? paymentBufferTotal,
     this.refundAmount,
     this.extraChargeAmount,
+    this.tipCents = 0,
+    this.isTakeaway = false,
     Map<String, bool>? substitutionResponses,
   })  : estimatedTotal = estimatedTotal ?? total,
         paymentBufferTotal = paymentBufferTotal ?? total,
@@ -250,14 +268,17 @@ class OrderModel {
     }
 
     final historyRaw = data['driver_offer_history'];
-    final offerHistory = historyRaw is List
-        ? List<String>.from(historyRaw)
-        : <String>[];
+    final offerHistory =
+        historyRaw is List ? List<String>.from(historyRaw) : <String>[];
 
     final triedRaw = data['tried_driver_ids'];
-    final triedDriverIds = triedRaw is List
-        ? List<String>.from(triedRaw)
-        : <String>[];
+    final triedDriverIds =
+        triedRaw is List ? List<String>.from(triedRaw) : <String>[];
+
+    final rawItems = data['items'] as List?;
+    final parsedItems = rawItems
+        ?.map((e) => CartItem.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList();
 
     return OrderModel(
       id: data['id'] as String,
@@ -293,6 +314,8 @@ class OrderModel {
       assignedDriverId: data['assigned_driver_id'] as String?,
       currentDriverOfferId: data['current_driver_offer_id'] as String?,
       driverPhone: data['driver_phone'] as String?,
+      bagCount: data['bag_count'] as int? ?? 0,
+      bagFee: (data['bag_fee'] as num? ?? 0).toDouble(),
       pickupLocation: pickupLocation,
       destination: destination,
       createdAt: data['created_at'] != null
@@ -310,8 +333,11 @@ class OrderModel {
       paymentBufferTotal: (data['payment_buffer_total'] as num?)?.toDouble(),
       refundAmount: (data['refund_amount'] as num?)?.toDouble(),
       extraChargeAmount: (data['extra_charge_amount'] as num?)?.toDouble(),
+      tipCents: (data['tip_amount_cents'] as num?)?.toInt() ?? 0,
+      isTakeaway: data['is_takeaway'] as bool? ?? false,
       // driver_lat / driver_lng intentionally NOT read — single source of
       // truth is DriverStore.currentDriver.location (drivers table realtime).
+      items: parsedItems,
       substitutionResponses:
           (data['substitution_responses'] as Map<String, dynamic>?)
               ?.map((k, v) => MapEntry(k, v == true)),
@@ -363,11 +389,20 @@ class OrderModel {
       'is_purchase_finalized': isPurchaseFinalized,
       if (refundAmount != null) 'refund_amount': refundAmount,
       if (extraChargeAmount != null) 'extra_charge_amount': extraChargeAmount,
+      // BR §4.5 — canonical tip column is `tip_amount_cents` (not `tip_cents`).
+      // rating_screen.dart also writes to this column + sets tip_added_at.
+      'tip_amount_cents': tipCents,
+      if (tipCents > 0) 'tip_added_at': DateTime.now().toUtc().toIso8601String(),
+      if (isTakeaway) 'is_takeaway': true,
       if (paymentIntentId != null) 'payment_intent_id': paymentIntentId,
-      if (finalPurchaseValue != null) 'final_purchase_value': finalPurchaseValue,
+      if (finalPurchaseValue != null)
+        'final_purchase_value': finalPurchaseValue,
       if (finalTotal != null) 'final_total': finalTotal,
       if (substitutionResponses.isNotEmpty)
         'substitution_responses': substitutionResponses,
+      'items': items.map((i) => i.toJson()).toList(),
+      if (bagCount > 0) 'bag_count': bagCount,
+      if (bagFee > 0) 'bag_fee': bagFee,
       if (pickupLocation != null) 'pickup_lat': pickupLocation!.latitude,
       if (pickupLocation != null) 'pickup_lng': pickupLocation!.longitude,
       if (destination != null) 'dropoff_lat': destination!.latitude,
@@ -425,6 +460,8 @@ extension OrderStatusLabel on OrderStatus {
         return 'Entregue';
       case OrderStatus.rejected:
         return 'Pedido rejeitado';
+      case OrderStatus.cancelled:
+        return 'Pedido cancelado';
     }
   }
 }

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../auth/auth_store.dart';
+import '../config/app_colors.dart';
 import '../models/order_model.dart';
 import '../models/restaurant_model.dart';
 import 'partner_call_driver_screen.dart';
@@ -55,15 +56,26 @@ class RestaurantDashboardScreen extends StatelessWidget {
 
     if (restaurants.isEmpty) {
       return Scaffold(
+        backgroundColor: AppColors.surface,
         appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          flexibleSpace: const DecoratedBox(
+            decoration: BoxDecoration(gradient: AppColors.headerGradient),
+          ),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_ios_new_rounded),
             onPressed: () {
-              Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+              Navigator.of(context)
+                  .pushNamedAndRemoveUntil('/', (route) => false);
             },
             tooltip: 'Voltar',
           ),
-          title: const Text('Painel do Parceiro'),
+          title: const Text(
+            'Painel do Parceiro',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
         ),
         body: Center(
           child: Padding(
@@ -105,7 +117,14 @@ class RestaurantDashboardScreen extends StatelessWidget {
     }
 
     return Scaffold(
+      backgroundColor: AppColors.surface,
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        flexibleSpace: const DecoratedBox(
+          decoration: BoxDecoration(gradient: AppColors.headerGradient),
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
           onPressed: () {
@@ -114,7 +133,10 @@ class RestaurantDashboardScreen extends StatelessWidget {
           },
           tooltip: 'Voltar',
         ),
-        title: const Text('Painel do Parceiro'),
+        title: const Text(
+          'Painel do Parceiro',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         actions: [
           TextButton.icon(
             onPressed: () async {
@@ -159,7 +181,8 @@ class RestaurantDashboardScreen extends StatelessWidget {
                         errorBuilder: (_, __, ___) => const SizedBox.shrink(),
                       ),
                     ),
-                  if (restaurant.photoUrl.isNotEmpty) const SizedBox(height: 12),
+                  if (restaurant.photoUrl.isNotEmpty)
+                    const SizedBox(height: 12),
                   Text(
                     restaurant.name,
                     style: theme.textTheme.titleLarge,
@@ -204,8 +227,8 @@ class RestaurantDashboardScreen extends StatelessWidget {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) =>
-                                    PartnerProductsScreen(restaurant: restaurant),
+                                builder: (_) => PartnerProductsScreen(
+                                    restaurant: restaurant),
                               ),
                             );
                           },
@@ -271,8 +294,8 @@ class _OrderTileState extends State<_OrderTile> {
       builder: (dialogContext) {
         return AlertDialog(
           title: const Text('Reject order?'),
-          content: Text(
-              'Are you sure you want to reject order ${widget.order.id}?'),
+          content:
+              Text('Are you sure you want to reject order ${widget.order.id}?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -327,7 +350,10 @@ class _OrderTileState extends State<_OrderTile> {
           if (order.clientPhone != null && order.clientPhone!.isNotEmpty)
             Text('Telefone: ${order.clientPhone!}'),
           if (order.dropoffAddress != null || order.destination != null)
-            AddressText(rawAddress: order.dropoffAddress, coords: order.destination, prefix: 'Entrega: '),
+            AddressText(
+                rawAddress: order.dropoffAddress,
+                coords: order.destination,
+                prefix: 'Entrega: '),
           if (order.customerNotes != null && order.customerNotes!.isNotEmpty)
             Text('Nota: ${order.customerNotes!}'),
           const SizedBox(height: 8),
@@ -397,9 +423,9 @@ class _OrderStatusNote extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
@@ -463,8 +489,7 @@ class _PartnerEarningsSection extends StatelessWidget {
           Text(
             value,
             style: theme.textTheme.bodyMedium?.copyWith(
-              fontWeight:
-                  emphasize ? FontWeight.w600 : FontWeight.w500,
+              fontWeight: emphasize ? FontWeight.w600 : FontWeight.w500,
             ),
           ),
         ],
@@ -490,9 +515,8 @@ class _PartnerEarningsSection extends StatelessWidget {
       );
     }
 
-    final nonRejectedOrders = orders
-        .where((order) => order.status != OrderStatus.rejected)
-        .toList();
+    final nonRejectedOrders =
+        orders.where((order) => order.status != OrderStatus.rejected).toList();
 
     final today = DateTime.now();
     final todayStart = _startOfDay(today);
@@ -546,8 +570,7 @@ class _PartnerEarningsSection extends StatelessWidget {
                 const SizedBox(height: 12),
                 for (var i = 0; i < latestOrders.length; i++) ...[
                   _buildOrderEntry(context, latestOrders[i]),
-                  if (i < latestOrders.length - 1)
-                    const Divider(height: 24),
+                  if (i < latestOrders.length - 1) const Divider(height: 24),
                 ],
                 if (orders.length > latestOrders.length)
                   Padding(
@@ -636,8 +659,8 @@ class _PartnerEarningsSection extends StatelessWidget {
         const SizedBox(height: 8),
         Text(
           'Only non-rejected partner restaurant orders are counted towards earnings.',
-          style: theme.textTheme.bodySmall
-              ?.copyWith(color: Colors.grey.shade600),
+          style:
+              theme.textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
         ),
       ],
     );
@@ -647,8 +670,7 @@ class _PartnerEarningsSection extends StatelessWidget {
     final theme = Theme.of(context);
     final isRejected = order.status == OrderStatus.rejected;
     final commission = isRejected ? 0.0 : order.platformCommissionAmount;
-    final restaurantShare =
-        isRejected ? 0.0 : order.restaurantEarningsAmount;
+    final restaurantShare = isRejected ? 0.0 : order.restaurantEarningsAmount;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -661,8 +683,8 @@ class _PartnerEarningsSection extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           _formatDateTime(order.createdAt),
-          style: theme.textTheme.bodySmall
-              ?.copyWith(color: Colors.grey.shade600),
+          style:
+              theme.textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
         ),
         const SizedBox(height: 8),
         _buildSummaryRow(context, 'Status', order.status.label),
@@ -676,12 +698,14 @@ class _PartnerEarningsSection extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(child: Text('Delivery', style: theme.textTheme.bodyMedium)),
+                Expanded(
+                    child: Text('Delivery', style: theme.textTheme.bodyMedium)),
                 Flexible(
                   child: AddressText(
                     rawAddress: order.dropoffAddress,
                     coords: order.destination,
-                    style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+                    style: theme.textTheme.bodyMedium
+                        ?.copyWith(fontWeight: FontWeight.w500),
                   ),
                 ),
               ],
@@ -705,8 +729,8 @@ class _PartnerEarningsSection extends StatelessWidget {
             padding: const EdgeInsets.only(top: 4),
             child: Text(
               'Rejected orders do not generate payouts.',
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: Colors.redAccent),
+              style:
+                  theme.textTheme.bodySmall?.copyWith(color: Colors.redAccent),
             ),
           ),
       ],
@@ -774,7 +798,8 @@ class _LedgerRestaurantCardState extends State<_LedgerRestaurantCard> {
               children: [
                 Text(
                   'Saldo liquidado',
-                  style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey),
+                  style:
+                      theme.textTheme.bodySmall?.copyWith(color: Colors.grey),
                 ),
                 Text(
                   '€${_settled!.toStringAsFixed(2)}',

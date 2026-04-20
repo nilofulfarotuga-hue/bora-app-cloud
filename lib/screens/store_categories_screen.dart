@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../config/app_colors.dart';
 import '../models/partner_product.dart';
 import '../stores/cart_store.dart';
 import '../stores/restaurant_store.dart';
@@ -86,12 +87,16 @@ class StoreCategoriesScreen extends StatelessWidget {
   }
 
   String _categoryOf(PartnerProduct p) {
-    if (p.category.isNotEmpty) {
-      final c = p.category.trim();
-      return c[0].toUpperCase() + c.substring(1).toLowerCase();
-    }
-    final first = p.name.split(' ').first;
-    return first[0].toUpperCase() + first.substring(1).toLowerCase();
+    // Prefer category_root (grouped mother category, e.g. "Mercearia")
+    // over the fragmented leaf category ("mercearia/bolacha/...").
+    final raw = p.categoryRoot.isNotEmpty
+        ? p.categoryRoot
+        : p.category.isNotEmpty
+            ? p.category
+            : p.name.split(' ').first;
+    final c = raw.trim();
+    if (c.isEmpty) return '';
+    return c[0].toUpperCase() + c.substring(1).toLowerCase();
   }
 
   @override
@@ -119,7 +124,8 @@ class StoreCategoriesScreen extends StatelessWidget {
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
+        foregroundColor: AppColors.primary,
+        iconTheme: const IconThemeData(color: AppColors.primary, size: 26),
         elevation: 0,
         actions: [_CartBadge(cartStore: cartStore)],
       ),
@@ -144,7 +150,7 @@ class StoreCategoriesScreen extends StatelessWidget {
                       crossAxisCount: 2,
                       mainAxisSpacing: 12,
                       crossAxisSpacing: 12,
-                      childAspectRatio: 1.4,
+                      childAspectRatio: 1.0,
                     ),
                     itemCount: categories.length,
                     itemBuilder: (context, i) {
@@ -276,46 +282,80 @@ class _CategoryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                color.withValues(alpha: 0.18),
+                color.withValues(alpha: 0.30),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
-          ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.08),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Stack(
+            fit: StackFit.expand,
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
+              Center(
+                child: FractionallySizedBox(
+                  widthFactor: 0.62,
+                  heightFactor: 0.62,
+                  child: FittedBox(
+                    fit: BoxFit.contain,
+                    child: Icon(icon, color: color),
+                  ),
                 ),
-                child: Icon(icon, color: color, size: 24),
               ),
-              const Spacer(),
-              Text(
-                name,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 14,
-                  color: Colors.black87,
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(12, 18, 12, 10),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withValues(alpha: 0.0),
+                        Colors.black.withValues(alpha: 0.55),
+                      ],
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        name,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
+                          color: Colors.white,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '$count ${count == 1 ? 'produto' : 'produtos'}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.white.withValues(alpha: 0.9),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 2),
-              Text(
-                '$count ${count == 1 ? 'produto' : 'produtos'}',
-                style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
               ),
             ],
           ),

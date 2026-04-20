@@ -10,6 +10,7 @@ class PartnerProduct {
     required this.photoUrl,
     required this.isAvailable,
     this.category = '',
+    this.categoryRoot = '',
     this.isPopular = false,
     this.isOnSale = false,
     this.discountPrice,
@@ -24,6 +25,7 @@ class PartnerProduct {
   final String photoUrl;
   final bool isAvailable;
   final String category;
+  final String categoryRoot;
   final bool isPopular;
   final bool isOnSale;
   final double? discountPrice;
@@ -36,6 +38,7 @@ class PartnerProduct {
     String? photoUrl,
     bool? isAvailable,
     String? category,
+    String? categoryRoot,
     bool? isPopular,
     bool? isOnSale,
     double? discountPrice,
@@ -50,6 +53,7 @@ class PartnerProduct {
       photoUrl: photoUrl ?? this.photoUrl,
       isAvailable: isAvailable ?? this.isAvailable,
       category: category ?? this.category,
+      categoryRoot: categoryRoot ?? this.categoryRoot,
       isPopular: isPopular ?? this.isPopular,
       isOnSale: isOnSale ?? this.isOnSale,
       discountPrice: discountPrice ?? this.discountPrice,

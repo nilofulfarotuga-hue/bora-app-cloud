@@ -21,13 +21,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   ProductVariant? _selectedVariant;
   int _quantity = 1;
 
-  String _imageUrl(ProductVariant v) {
-    final name = Uri.encodeComponent(v.brandName.toLowerCase());
-    return 'https://source.unsplash.com/800x800/?product,$name';
-  }
-
-  String _variantKey(ProductVariant v) =>
-      '${widget.product.name}__${v.id}';
+  String _variantKey(ProductVariant v) => '${widget.product.name}__${v.id}';
 
   void _addToCart(BuildContext context, ProductVariant v) {
     context.read<CartStore>().addItem(CartItem(
@@ -41,8 +35,33 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       ..showSnackBar(
         SnackBar(
           content: Text('${v.brandName} × $_quantity adicionado ao carrinho'),
-          duration: const Duration(seconds: 2),
+          duration: const Duration(milliseconds: 1200),
           behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16),
+          dismissDirection: DismissDirection.horizontal,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+  }
+
+  void _addNoVariantToCart(BuildContext context) {
+    context.read<CartStore>().addItem(CartItem(
+          productId: widget.product.id,
+          name: widget.product.name,
+          price: widget.product.price,
+          quantity: _quantity,
+        ));
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+              '${widget.product.name} × $_quantity adicionado ao carrinho'),
+          duration: const Duration(milliseconds: 1200),
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16),
+          dismissDirection: DismissDirection.horizontal,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
@@ -54,7 +73,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     final cartStore = context.watch<CartStore>();
     final rawVariants =
         context.watch<RestaurantStore>().variantsForProduct(widget.product.id);
-    final variants = [...rawVariants]..sort((a, b) => a.price.compareTo(b.price));
+    final variants = [...rawVariants]
+      ..sort((a, b) => a.price.compareTo(b.price));
 
     // Auto-select first variant if none selected yet
     if (_selectedVariant == null && variants.isNotEmpty) {
@@ -78,6 +98,17 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   pinned: true,
                   backgroundColor: Colors.white,
                   foregroundColor: Colors.black87,
+                  leading: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: CircleAvatar(
+                      backgroundColor: Colors.black54,
+                      child: IconButton(
+                        icon: const Icon(Icons.arrow_back, color: Colors.white),
+                        onPressed: () => Navigator.of(context).pop(),
+                        padding: EdgeInsets.zero,
+                      ),
+                    ),
+                  ),
                   actions: [
                     _CartBadge(cartStore: cartStore),
                   ],
@@ -85,15 +116,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     background: AnimatedSwitcher(
                       duration: const Duration(milliseconds: 300),
                       child: _selectedVariant != null
-                          ? Image.network(
-                              _imageUrl(_selectedVariant!),
+                          ? _ProductHeroImage(
                               key: ValueKey(_selectedVariant!.id),
-                              fit: BoxFit.cover,
-                              width: double.infinity,
-                              errorBuilder: (_, __, ___) =>
-                                  _PlaceholderImage(),
+                              photoUrl: widget.product.photoUrl,
                             )
-                          : _PlaceholderImage(),
+                          : _ProductHeroImage(
+                              key: const ValueKey('base'),
+                              photoUrl: widget.product.photoUrl,
+                            ),
                     ),
                   ),
                 ),
@@ -136,8 +166,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 if (variants.isNotEmpty)
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding:
-                          const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
                       child: Text(
                         total == 1
                             ? '1 marca disponível'
@@ -171,6 +200,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             isCheapest: isCheapest,
                             isPremium: isPremium,
                             primaryColor: primaryColor,
+                            productPhotoUrl: widget.product.photoUrl,
                             onSelect: () =>
                                 setState(() => _selectedVariant = v),
                           ),
@@ -219,21 +249,31 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           ),
 
           // ── Fixed bottom button ──────────────────────────────────────────
-          if (_selectedVariant != null)
+          if (_selectedVariant != null || variants.isEmpty)
             SafeArea(
               top: false,
               minimum: const EdgeInsets.fromLTRB(16, 8, 16, 16),
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: () => _addToCart(context, _selectedVariant!),
+                  onPressed: _selectedVariant != null
+                      ? () => _addToCart(context, _selectedVariant!)
+                      : widget.product.price > 0
+                          ? () => _addNoVariantToCart(context)
+                          : null,
                   icon: const Icon(Icons.add_shopping_cart),
                   label: Text(
-                    'Adicionar ao carrinho · €${_selectedVariant!.price.toStringAsFixed(2)}',
+                    _selectedVariant != null
+                        ? 'Adicionar ao carrinho · €${_selectedVariant!.price.toStringAsFixed(2)}'
+                        : widget.product.price > 0
+                            ? 'Adicionar ao carrinho · €${widget.product.price.toStringAsFixed(2)}'
+                            : 'Preço indisponível',
                     style: const TextStyle(
                         fontWeight: FontWeight.w700, fontSize: 16),
                   ),
                   style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFE65100),
+                    foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14)),
@@ -242,6 +282,39 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+// ─── Hero image widget ─────────────────────────────────────────────────────────
+
+class _ProductHeroImage extends StatelessWidget {
+  const _ProductHeroImage({super.key, required this.photoUrl});
+
+  final String photoUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    if (photoUrl.isNotEmpty) {
+      return Image.network(
+        photoUrl,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        errorBuilder: (_, __, ___) => _HeroPlaceholder(),
+      );
+    }
+    return _HeroPlaceholder();
+  }
+}
+
+class _HeroPlaceholder extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: const Color(0xFFEEEEEE),
+      child: const Center(
+        child: Icon(Icons.fastfood_rounded, size: 80, color: Colors.grey),
       ),
     );
   }
@@ -256,6 +329,7 @@ class _VariantCard extends StatelessWidget {
     required this.isCheapest,
     required this.isPremium,
     required this.primaryColor,
+    required this.productPhotoUrl,
     required this.onSelect,
   });
 
@@ -264,6 +338,7 @@ class _VariantCard extends StatelessWidget {
   final bool isCheapest;
   final bool isPremium;
   final Color primaryColor;
+  final String productPhotoUrl;
   final VoidCallback onSelect;
 
   @override
@@ -277,9 +352,7 @@ class _VariantCard extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected
-                ? primaryColor
-                : Colors.transparent,
+            color: isSelected ? primaryColor : Colors.transparent,
             width: 2,
           ),
           boxShadow: [
@@ -301,11 +374,13 @@ class _VariantCard extends StatelessWidget {
               child: SizedBox(
                 width: 72,
                 height: 72,
-                child: Image.network(
-                  _imageUrl,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => _SmallPlaceholder(),
-                ),
+                child: productPhotoUrl.isNotEmpty
+                    ? Image.network(
+                        productPhotoUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _SmallPlaceholder(),
+                      )
+                    : _SmallPlaceholder(),
               ),
             ),
             const SizedBox(width: 14),
@@ -327,8 +402,7 @@ class _VariantCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   if (isCheapest)
-                    _Badge(
-                        label: 'Mais barato', color: Colors.green.shade600)
+                    _Badge(label: 'Mais barato', color: Colors.green.shade600)
                   else if (isPremium)
                     _Badge(label: 'Premium', color: Colors.blue.shade600),
                   const SizedBox(height: 6),
@@ -366,11 +440,6 @@ class _VariantCard extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  String get _imageUrl {
-    final name = Uri.encodeComponent(variant.brandName.toLowerCase());
-    return 'https://source.unsplash.com/400x400/?product,$name';
   }
 }
 
@@ -427,18 +496,6 @@ class _StepButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(10),
         ),
         child: Icon(icon, size: 20, color: disabled ? Colors.grey : color),
-      ),
-    );
-  }
-}
-
-class _PlaceholderImage extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: const Color(0xFFEEEEEE),
-      child: const Center(
-        child: Icon(Icons.shopping_bag_outlined, size: 64, color: Colors.grey),
       ),
     );
   }

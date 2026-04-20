@@ -2,6 +2,15 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../config/app_colors.dart';
+import 'admin_driver_approval_screen.dart';
+import 'admin_driver_payments_screen.dart';
+import 'admin_drivers_screen.dart';
+import 'admin_orders_screen.dart';
+import 'admin_ratings_screen.dart';
+import 'admin_reservations_screen.dart';
+import 'admin_partners_screen.dart';
+
 /// Temporary in-app admin dashboard.
 ///
 /// Reads aggregated metrics from `admin_dashboard_metrics()` (server-side
@@ -34,7 +43,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Future<Map<String, dynamic>> _loadMetrics() async {
-    final response = await Supabase.instance.client.rpc('admin_dashboard_metrics');
+    final response =
+        await Supabase.instance.client.rpc('admin_dashboard_metrics');
     if (response is Map<String, dynamic>) return response;
     if (response is Map) return Map<String, dynamic>.from(response);
     throw StateError('Unexpected RPC response type: ${response.runtimeType}');
@@ -48,7 +58,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   bool get _isAuthorized {
-    final allow = AdminDashboardScreen.adminEmails;
+    const allow = AdminDashboardScreen.adminEmails;
     if (allow.isEmpty) return true; // dev mode — open
     final email = Supabase.instance.client.auth.currentUser?.email;
     return email != null && allow.contains(email);
@@ -127,19 +137,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 _buildChart(dailyOrders),
                 _MetricCard(
                   icon: Icons.account_balance_wallet,
-                  iconColor: Colors.green,
+                  iconColor: AppColors.primary,
                   title: 'Faturamento total (plataforma)',
                   value: '€${platformRevenue.toStringAsFixed(2)}',
                 ),
                 _MetricCard(
                   icon: Icons.receipt_long,
-                  iconColor: Colors.blue,
+                  iconColor: AppColors.accent,
                   title: 'Pedidos hoje',
                   value: ordersToday.toString(),
                 ),
                 _MetricCard(
                   icon: Icons.local_shipping,
-                  iconColor: Colors.orange,
+                  iconColor: Colors.blue,
                   title: 'A pagar — drivers',
                   value: '€${driversPayable.toStringAsFixed(2)}',
                 ),
@@ -149,7 +159,90 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   title: 'A pagar — restaurantes',
                   value: '€${restaurantsPayable.toStringAsFixed(2)}',
                 ),
+                const SizedBox(height: 20),
+                Text(
+                  'Gestão',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
                 const SizedBox(height: 12),
+                _NavCard(
+                  icon: Icons.receipt_long,
+                  title: 'Pedidos',
+                  subtitle: 'Ver, filtrar e cancelar pedidos',
+                  color: AppColors.accent,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminOrdersScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.delivery_dining,
+                  title: 'Estafetas',
+                  subtitle: 'Lista e estado de todos os estafetas',
+                  color: Colors.blue,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminDriversScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.how_to_reg,
+                  title: 'Aprovações',
+                  subtitle: 'Candidaturas pendentes, aprovadas e rejeitadas',
+                  color: Colors.teal,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminDriverApprovalScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.payments,
+                  title: 'Pagamentos',
+                  subtitle: 'Saques e ganhos semanais dos estafetas',
+                  color: AppColors.primary,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminDriverPaymentsScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.storefront,
+                  title: 'Parceiros',
+                  subtitle: 'Activar e desactivar restaurantes/lojas',
+                  color: Colors.purple,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminPartnersScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.event_seat,
+                  title: 'Reservas',
+                  subtitle: 'Reservas de mesa em todos os restaurantes',
+                  color: Colors.teal,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminReservationsScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.star_outline,
+                  title: 'Avaliações',
+                  subtitle: 'Casos problemáticos e denúncias',
+                  color: Colors.amber,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminRatingsScreen())),
+                ),
+                const SizedBox(height: 16),
                 Center(
                   child: Text(
                     'Atualizado: $generatedAt',
@@ -182,7 +275,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   Widget _buildChart(List<_DayCount> data) {
     if (data.isEmpty) return const SizedBox();
-    final maxY = data.map((d) => d.count).reduce((a, b) => a > b ? a : b).toDouble();
+    final maxY =
+        data.map((d) => d.count).reduce((a, b) => a > b ? a : b).toDouble();
     final spots = List.generate(
       data.length,
       (i) => FlSpot(i.toDouble(), data[i].count.toDouble()),
@@ -216,31 +310,40 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       getTooltipItems: (spots) => spots
                           .map((s) => LineTooltipItem(
                                 '${s.y.toInt()} pedidos',
-                                const TextStyle(color: Colors.white, fontSize: 11),
+                                const TextStyle(
+                                    color: Colors.white, fontSize: 11),
                               ))
                           .toList(),
                     ),
                   ),
                   titlesData: FlTitlesData(
-                    leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    leftTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
+                    rightTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
+                    topTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
                     bottomTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
                         reservedSize: 22,
                         getTitlesWidget: (value, meta) {
                           final i = value.toInt();
-                          if (i < 0 || i >= data.length) return const SizedBox();
+                          if (i < 0 || i >= data.length) {
+                            return const SizedBox();
+                          }
                           final d = data[i].date;
                           // Format: dd/MM from yyyy-MM-dd
                           String label;
                           if (d.length >= 10) {
-                            label = '${d.substring(8, 10)}/${d.substring(5, 7)}';
+                            label =
+                                '${d.substring(8, 10)}/${d.substring(5, 7)}';
                           } else {
                             label = d;
                           }
-                          return Text(label, style: const TextStyle(fontSize: 9, color: Colors.grey));
+                          return Text(label,
+                              style: const TextStyle(
+                                  fontSize: 9, color: Colors.grey));
                         },
                       ),
                     ),
@@ -251,12 +354,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       isCurved: true,
                       curveSmoothness: 0.4,
                       preventCurveOverShooting: true,
-                      color: const Color(0xFF2196F3),
+                      color: AppColors.primary,
                       barWidth: 2.5,
                       dotData: const FlDotData(show: true),
                       belowBarData: BarAreaData(
                         show: true,
-                        color: const Color(0xFF2196F3).withValues(alpha: 0.12),
+                        color: AppColors.primary.withValues(alpha: 0.12),
                       ),
                     ),
                   ],
@@ -343,4 +446,41 @@ class _DayCount {
   const _DayCount(this.date, this.count);
   final String date;
   final int count;
+}
+
+class _NavCard extends StatelessWidget {
+  const _NavCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.color,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      child: ListTile(
+        onTap: onTap,
+        leading: CircleAvatar(
+          backgroundColor: color.withValues(alpha: 0.12),
+          child: Icon(icon, color: color),
+        ),
+        title: Text(title,
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+        subtitle: Text(subtitle,
+            style:
+                const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+        trailing: Icon(Icons.chevron_right, color: color),
+      ),
+    );
+  }
 }

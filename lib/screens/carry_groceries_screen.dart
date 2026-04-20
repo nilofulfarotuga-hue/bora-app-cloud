@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../widgets/bora/bora_screen_app_bar.dart';
 import 'carry_groceries_form_screen.dart';
 
 class CarryGroceriesScreen extends StatelessWidget {
@@ -6,24 +8,18 @@ class CarryGroceriesScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Entregamos sua compra"),
-      ),
+      appBar: const BoraScreenAppBar(title: 'Levar Compras'),
       body: Center(
         child: ElevatedButton(
-          child: const Text("Solicitar entrega"),
+          child: const Text('Solicitar entrega'),
           onPressed: () {
-
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) =>
-                    const CarryGroceriesFormScreen(),
+                builder: (context) => const CarryGroceriesFormScreen(),
               ),
             );
-
           },
         ),
       ),

@@ -5,6 +5,7 @@ import 'order_service_type.dart';
 enum VehicleType {
   motorcycle,
   car,
+  bicycle,
 }
 
 enum DriverStatus { pending, approved, rejected }
@@ -29,6 +30,8 @@ extension VehicleTypeLabel on VehicleType {
         return 'Motociclo';
       case VehicleType.car:
         return 'Carro';
+      case VehicleType.bicycle:
+        return 'Bicicleta';
     }
   }
 }
@@ -56,11 +59,19 @@ class DriverModel {
   DriverStatus status;
   final List<DriverAssignmentInfo> activeAssignments;
 
-  bool supportsService(OrderServiceType serviceType, {bool requiresCar = false}) {
+  bool supportsService(OrderServiceType serviceType,
+      {bool requiresCar = false}) {
     if (vehicleType == VehicleType.car) return true;
 
+    if (vehicleType == VehicleType.bicycle) {
+      return serviceType == OrderServiceType.restaurant ||
+          serviceType == OrderServiceType.storeShopping;
+    }
+
     // Motorcycle cannot carry sendPackage orders that require a car.
-    if (serviceType == OrderServiceType.sendPackage && requiresCar) return false;
+    if (serviceType == OrderServiceType.sendPackage && requiresCar) {
+      return false;
+    }
 
     return serviceType == OrderServiceType.restaurant ||
         serviceType == OrderServiceType.storeShopping ||

@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/cart_item.dart';
 import '../models/order_model.dart';
+import '../config/business_rules.dart' show BRTokens;
 import '../services/pricing_service.dart';
 import 'order_store.dart';
 
@@ -95,7 +96,8 @@ class CartStore extends ChangeNotifier {
       if (deliveryLat != null && deliveryLng != null) {
         _deliveryLocation = LatLng(deliveryLat, deliveryLng);
       }
-      _distanceKm = (map['distanceKm'] as num?)?.toDouble() ?? PricingService.defaultDistanceKm;
+      _distanceKm = (map['distanceKm'] as num?)?.toDouble() ??
+          PricingService.defaultDistanceKm;
       _apartmentDelivery = map['apartmentDelivery'] as bool? ?? false;
       notifyListeners();
     } catch (e) {
@@ -147,6 +149,38 @@ class CartStore extends ChangeNotifier {
         isPartnerStore: _isPartnerStore,
         apartmentDelivery: _apartmentDelivery,
       );
+
+  // Takeaway flag for partner restaurants (BR §14.9).
+  bool _isTakeaway = false;
+  bool get isTakeaway => _isTakeaway;
+  void setTakeaway(bool v) {
+    _isTakeaway = v;
+    notifyListeners();
+  }
+
+  // Client gratuity at checkout (BR §4.5). Split 80/20 handled post-delivery.
+  int _tipCents = 0;
+  int get tipCents => _tipCents;
+  double get tipEur => _tipCents / 100.0;
+  void setTipCents(int v) {
+    _tipCents = v < 0 ? 0 : v;
+    notifyListeners();
+  }
+
+  // Optional photos for sendPackage / carryGroceries (BR §7.5/7.6).
+  String? _packagePhotoUrl;
+  String? _groceriesPhotoUrl;
+  String? get packagePhotoUrl => _packagePhotoUrl;
+  String? get groceriesPhotoUrl => _groceriesPhotoUrl;
+  void setPackagePhotoUrl(String? url) {
+    _packagePhotoUrl = url;
+    notifyListeners();
+  }
+
+  void setGroceriesPhotoUrl(String? url) {
+    _groceriesPhotoUrl = url;
+    notifyListeners();
+  }
 
   void configureSession({
     required OrderServiceType serviceType,
@@ -253,9 +287,7 @@ class CartStore extends ChangeNotifier {
         PricingService.applyMarkup(item.price, _isPartnerStore);
     final cartItem = effectivePrice != item.price
         ? CartItem(
-            name: item.name,
-            price: effectivePrice,
-            quantity: item.quantity)
+            name: item.name, price: effectivePrice, quantity: item.quantity)
         : item;
 
     final index = _items.indexWhere((i) => i.name == cartItem.name);
@@ -378,9 +410,8 @@ class CartStore extends ChangeNotifier {
       pickupStreet: _pickupStreet,
       pickupCity: _pickupCity,
       pickupPostalCode: _pickupPostalCode,
-      dropoffAddress: [_dropoffStreet, _dropoffCity]
-          .where((s) => s.isNotEmpty)
-          .join(', '),
+      dropoffAddress:
+          [_dropoffStreet, _dropoffCity].where((s) => s.isNotEmpty).join(', '),
       dropoffStreet: _dropoffStreet,
       dropoffCity: _dropoffCity,
       dropoffPostalCode: _dropoffPostalCode,
@@ -388,9 +419,18 @@ class CartStore extends ChangeNotifier {
       clientPhone: clientPhone,
       customerName: customerName,
       apartmentDelivery: _apartmentDelivery,
+      tokenDiscountEur: tokensUsed * BRTokens.TOKEN_VALUE_EUR,
+      packagePhotoUrl: _packagePhotoUrl,
+      groceriesPhotoUrl: _groceriesPhotoUrl,
+      isTakeaway: _isTakeaway,
+      tipCents: _tipCents,
     );
 
     if (!success) return false;
+    _packagePhotoUrl = null;
+    _groceriesPhotoUrl = null;
+    _isTakeaway = false;
+    _tipCents = 0;
     clearCart();
     return true;
   }

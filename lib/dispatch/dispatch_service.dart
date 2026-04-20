@@ -170,7 +170,8 @@ class DispatchService {
     final pickupLng = order.pickupLocation?.longitude;
 
     if (pickupLat == null || pickupLng == null) {
-      debugPrint('[Dispatch] order=${order.id} has no pickup coordinates — cannot rank by distance');
+      debugPrint(
+          '[Dispatch] order=${order.id} has no pickup coordinates — cannot rank by distance');
       return const [];
     }
 
@@ -202,14 +203,16 @@ class DispatchService {
 
       // Skip drivers at (0,0) or obviously invalid positions.
       if (driverLat == 0.0 && driverLng == 0.0) {
-        debugPrint('[Dispatch] Driver ${driver.id} has (0,0) coordinates — excluded');
+        debugPrint(
+            '[Dispatch] Driver ${driver.id} has (0,0) coordinates — excluded');
         continue;
       }
 
       // ── Score ────────────────────────────────────────────────────────────
-      final distanceKm = haversineKm(driverLat, driverLng, pickupLat, pickupLng);
-      final cost       = distanceKm * _costPerKm;
-      final score      = computeScore(distanceKm, cost);
+      final distanceKm =
+          haversineKm(driverLat, driverLng, pickupLat, pickupLng);
+      final cost = distanceKm * _costPerKm;
+      final score = computeScore(distanceKm, cost);
 
       debugPrint(
         '[Dispatch] Driver ${driver.id} '
@@ -219,15 +222,16 @@ class DispatchService {
       );
 
       candidates.add(_ScoredCandidate(
-        driver:     driver,
+        driver: driver,
         distanceKm: distanceKm,
-        cost:       cost,
-        score:      score,
+        cost: cost,
+        score: score,
       ));
     }
 
     if (candidates.isEmpty) {
-      debugPrint('[Dispatch] Nenhum driver válido após filtros (order=${order.id})');
+      debugPrint(
+          '[Dispatch] Nenhum driver válido após filtros (order=${order.id})');
       return const [];
     }
 
@@ -237,10 +241,10 @@ class DispatchService {
     final results = candidates.map((c) {
       final eta = estimateEtaMinutes(c.distanceKm);
       return DispatchResult(
-        driver:     c.driver,
+        driver: c.driver,
         distanceKm: c.distanceKm,
-        cost:       c.cost,
-        score:      c.score,
+        cost: c.cost,
+        score: c.score,
         etaMinutes: eta,
       );
     }).toList(growable: false);

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../config/app_theme.dart';
 import '../models/chat_message.dart';
 import '../models/order_model.dart';
 import '../stores/driver_store.dart';
@@ -15,8 +16,8 @@ class OrderDetailsScreen extends StatelessWidget {
   final OrderModel order;
 
   /// Short code shown to the client: first 6 chars of UUID, uppercase.
-  String get _orderCode => '#${order.id.replaceAll('-', '').substring(0, 6).toUpperCase()}';
-
+  String get _orderCode =>
+      '#${order.id.replaceAll('-', '').substring(0, 6).toUpperCase()}';
 
   @override
   Widget build(BuildContext context) {
@@ -62,6 +63,12 @@ class OrderDetailsScreen extends StatelessWidget {
 
           // ── Order info card ───────────────────────────────────────────
           _OrderInfoCard(order: liveOrder),
+
+          // ── Items card (only when order has items) ──────────────────
+          if (liveOrder.items.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            _ItemsCard(order: liveOrder),
+          ],
 
           const SizedBox(height: 16),
 
@@ -115,10 +122,11 @@ class _StatusCard extends StatelessWidget {
       case OrderStatus.driverAccepted:
       case OrderStatus.pickedUp:
       case OrderStatus.onTheWay:
-        return Colors.green;
+        return AppTheme.primary;
       case OrderStatus.delivered:
-        return Colors.green.shade700;
+        return AppTheme.primary;
       case OrderStatus.rejected:
+      case OrderStatus.cancelled:
         return Colors.red;
     }
   }
@@ -140,6 +148,7 @@ class _StatusCard extends StatelessWidget {
       case OrderStatus.delivered:
         return Icons.check_circle_outline;
       case OrderStatus.rejected:
+      case OrderStatus.cancelled:
         return Icons.cancel_outlined;
     }
   }
@@ -149,16 +158,16 @@ class _StatusCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: _statusColor.withOpacity(0.08),
+        color: _statusColor.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _statusColor.withOpacity(0.3)),
+        border: Border.all(color: _statusColor.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: _statusColor.withOpacity(0.15),
+              color: _statusColor.withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
             child: Icon(_statusIcon, color: _statusColor, size: 28),
@@ -340,7 +349,8 @@ class _OrderInfoCard extends StatelessWidget {
               label: 'Total',
               value: '€${order.total.toStringAsFixed(2)}',
               bold: true),
-          _Row(label: 'Taxa de entrega',
+          _Row(
+              label: 'Taxa de entrega',
               value: '€${order.deliveryFee.toStringAsFixed(2)}'),
           _Row(
               label: 'Pagamento',
@@ -405,7 +415,7 @@ class _CodeRow extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(icon,
@@ -417,8 +427,7 @@ class _CodeRow extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(label,
-                  style: TextStyle(
-                      fontSize: 12, color: Colors.grey.shade500)),
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
               Text(code,
                   style: const TextStyle(
                       fontSize: 22,
@@ -426,8 +435,8 @@ class _CodeRow extends StatelessWidget {
                       letterSpacing: 4)),
               if (subtitle != null)
                 Text(subtitle!,
-                    style: TextStyle(
-                        fontSize: 11, color: Colors.grey.shade500)),
+                    style:
+                        TextStyle(fontSize: 11, color: Colors.grey.shade500)),
             ],
           ),
         ),
@@ -472,8 +481,8 @@ class _AddressCard extends StatelessWidget {
               order.dropoffAddress!.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(left: 9),
-              child: Container(
-                  height: 20, width: 2, color: Colors.grey.shade300),
+              child:
+                  Container(height: 20, width: 2, color: Colors.grey.shade300),
             ),
           if (order.dropoffAddress != null && order.dropoffAddress!.isNotEmpty)
             _AddressRow(
@@ -516,8 +525,7 @@ class _AddressRow extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(label,
-                  style: TextStyle(
-                      fontSize: 11, color: Colors.grey.shade500)),
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
               Text(address,
                   style: const TextStyle(
                       fontSize: 14, fontWeight: FontWeight.w500)),
@@ -546,9 +554,93 @@ class _NotesCard extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(notes,
-                style: TextStyle(
-                    fontSize: 14, color: Colors.grey.shade700)),
+                style: TextStyle(fontSize: 14, color: Colors.grey.shade700)),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Items card ───────────────────────────────────────────────────────────────
+
+class _ItemsCard extends StatelessWidget {
+  const _ItemsCard({required this.order});
+
+  final OrderModel order;
+
+  @override
+  Widget build(BuildContext context) {
+    return _Card(
+      title: 'O que compraste',
+      child: Column(
+        children: [
+          ...order.items.map((item) {
+            final isUnavailable = item.purchaseStatus == 'unavailable';
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${item.quantity}× ${item.name}',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        decoration:
+                            isUnavailable ? TextDecoration.lineThrough : null,
+                        color: isUnavailable
+                            ? Colors.grey.shade400
+                            : Colors.black87,
+                      ),
+                    ),
+                  ),
+                  if (isUnavailable)
+                    Text(
+                      'indisponível',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.red.shade400,
+                      ),
+                    )
+                  else
+                    Text(
+                      '€${(item.price * item.quantity).toStringAsFixed(2)}',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                ],
+              ),
+            );
+          }),
+          if (order.bagFee > 0) ...[
+            const Divider(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Saco de transporte (${order.bagCount})',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '€${order.bagFee.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -613,8 +705,7 @@ class _Row extends StatelessWidget {
         children: [
           Expanded(
             child: Text(label,
-                style: TextStyle(
-                    fontSize: 14, color: Colors.grey.shade600)),
+                style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
           ),
           Text(
             value,

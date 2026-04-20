@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../widgets/bora/bora_screen_app_bar.dart';
 import 'send_package_form_screen.dart';
 
 class SendPackageScreen extends StatelessWidget {
@@ -6,24 +8,18 @@ class SendPackageScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Enviar caixa"),
-      ),
+      appBar: const BoraScreenAppBar(title: 'Enviar Encomenda'),
       body: Center(
         child: ElevatedButton(
-          child: const Text("Criar envio"),
+          child: const Text('Criar envio'),
           onPressed: () {
-
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) =>
-                    const SendPackageFormScreen(),
+                builder: (context) => const SendPackageFormScreen(),
               ),
             );
-
           },
         ),
       ),

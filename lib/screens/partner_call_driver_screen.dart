@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
+import '../config/app_colors.dart';
 import '../models/partner_product.dart';
 import '../models/restaurant_model.dart';
 import '../stores/order_store.dart';
@@ -14,7 +15,8 @@ class PartnerCallDriverScreen extends StatefulWidget {
   final RestaurantModel restaurant;
 
   @override
-  State<PartnerCallDriverScreen> createState() => _PartnerCallDriverScreenState();
+  State<PartnerCallDriverScreen> createState() =>
+      _PartnerCallDriverScreenState();
 }
 
 class _PartnerCallDriverScreenState extends State<PartnerCallDriverScreen> {
@@ -62,7 +64,8 @@ class _PartnerCallDriverScreenState extends State<PartnerCallDriverScreen> {
       return;
     }
 
-    debugPrint('[ADDR_LISTENER] → RESET triggered from _onAddressControllerChanged');
+    debugPrint(
+        '[ADDR_LISTENER] → RESET triggered from _onAddressControllerChanged');
     setState(() {
       _addressSuggestionSelected = false;
       _dropoffLocation = null;
@@ -130,8 +133,18 @@ class _PartnerCallDriverScreenState extends State<PartnerCallDriverScreen> {
     final canSubmit = !_isSubmitting && subtotal > 0 && products.isNotEmpty;
 
     return Scaffold(
+      backgroundColor: AppColors.surface,
       appBar: AppBar(
-        title: const Text('Call Driver'),
+        title: const Text(
+          'Call Driver',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        flexibleSpace: const DecoratedBox(
+          decoration: BoxDecoration(gradient: AppColors.headerGradient),
+        ),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -148,7 +161,8 @@ class _PartnerCallDriverScreenState extends State<PartnerCallDriverScreen> {
                 const SizedBox(height: 8),
                 Text(
                   'Submit a delivery request to call a driver. Delivery fee (€2.50) and platform commission (20%) will be charged to your restaurant.',
-                  style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey.shade700),
+                  style: theme.textTheme.bodyMedium
+                      ?.copyWith(color: Colors.grey.shade700),
                 ),
                 const SizedBox(height: 24),
                 TextFormField(
@@ -186,7 +200,8 @@ class _PartnerCallDriverScreenState extends State<PartnerCallDriverScreen> {
                   labelText: 'Delivery address',
                   prefixIcon: const Icon(Icons.location_on_outlined),
                   onSelected: (address, coords) {
-                    debugPrint('[ON_SELECTED] address="$address" coords=$coords');
+                    debugPrint(
+                        '[ON_SELECTED] address="$address" coords=$coords');
                     // Set _lastConfirmedAddress BEFORE setState so the
                     // controller listener sees the confirmed value immediately.
                     _lastConfirmedAddress = address;
@@ -243,7 +258,8 @@ class _PartnerCallDriverScreenState extends State<PartnerCallDriverScreen> {
                               product: product,
                               quantity: _quantityFor(product.id),
                               onIncrement: () => _updateQuantity(product.id, 1),
-                              onDecrement: () => _updateQuantity(product.id, -1),
+                              onDecrement: () =>
+                                  _updateQuantity(product.id, -1),
                             ),
                           ),
                         )
@@ -288,7 +304,9 @@ class _PartnerCallDriverScreenState extends State<PartnerCallDriverScreen> {
                           )
                         : const Icon(Icons.local_shipping_outlined),
                     label: Text(
-                      _isSubmitting ? 'Chamando estafeta...' : 'Submeter pedido de entrega',
+                      _isSubmitting
+                          ? 'Chamando estafeta...'
+                          : 'Submeter pedido de entrega',
                     ),
                   ),
                 ),
@@ -482,7 +500,8 @@ class _OrderSummaryCard extends StatelessWidget {
               style: theme.textTheme.titleMedium,
             ),
             const SizedBox(height: 12),
-            _SummaryRow(label: 'Subtotal dos produtos', value: _format(subtotal)),
+            _SummaryRow(
+                label: 'Subtotal dos produtos', value: _format(subtotal)),
             _SummaryRow(
               label: 'Comissão da plataforma (20%)',
               value: _format(commission),

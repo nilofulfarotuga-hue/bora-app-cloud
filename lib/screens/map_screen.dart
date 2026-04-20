@@ -16,8 +16,6 @@ import '../services/pricing_service.dart';
 import '../stores/order_store.dart';
 import '../utils/map_utils.dart';
 
-
-
 enum _LocationField { pickup, destination }
 
 class MapScreen extends StatefulWidget {
@@ -34,11 +32,10 @@ class MapScreen extends StatefulWidget {
 
 class _MapScreenState extends State<MapScreen> {
   final Completer<GoogleMapController> _mapController = Completer();
-    final DirectionsService _directionsService = DirectionsService();
+  final DirectionsService _directionsService = DirectionsService();
   late final PlaceAutocompleteService _autocompleteService;
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
-
 
   _LocationField _selectedField = _LocationField.destination;
 
@@ -52,7 +49,7 @@ class _MapScreenState extends State<MapScreen> {
   String? _activeRouteKey;
   int _routeRequestId = 0;
 
-    double? price;
+  double? price;
   double? distanceKm;
   OrderPricingBreakdown? pricingBreakdown;
   String? _loadingError;
@@ -73,17 +70,14 @@ class _MapScreenState extends State<MapScreen> {
   ll.LatLng? _cameraCenter;
   bool _hasUserMovedMap = false;
 
-
-
-    @override
+  @override
   void initState() {
     super.initState();
     _autocompleteService = createPlaceAutocompleteService(googleApiKey);
     loadLocation();
   }
 
-
-      @override
+  @override
   void dispose() {
     _autocompleteDebounce?.cancel();
     _searchController.dispose();
@@ -92,8 +86,6 @@ class _MapScreenState extends State<MapScreen> {
     _directionsService.dispose();
     super.dispose();
   }
-
-
 
   Future<void> loadLocation() async {
     if (!mounted) return;
@@ -155,7 +147,7 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-        void _onSearchTextChanged(String value) {
+  void _onSearchTextChanged(String value) {
     _autocompleteDebounce?.cancel();
 
     final trimmed = value.trim();
@@ -268,9 +260,7 @@ class _MapScreenState extends State<MapScreen> {
     await _onPredictionSelected(predictions.first);
   }
 
-
   Future<void> _selectCoordinate(
-
     _LocationField field,
     ll.LatLng coordinate, {
     bool moveCamera = false,
@@ -377,8 +367,8 @@ class _MapScreenState extends State<MapScreen> {
         return;
       }
 
-      final computedKm = const ll.Distance()
-          .as(ll.LengthUnit.Kilometer, origin, destination);
+      final computedKm =
+          const ll.Distance().as(ll.LengthUnit.Kilometer, origin, destination);
       final breakdown = PricingService.calculateBreakdown(
         serviceType: OrderServiceType.sendPackage,
         subtotal: 0,
@@ -600,7 +590,7 @@ class _MapScreenState extends State<MapScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                                Row(
+                Row(
                   children: [
                     Expanded(
                       child: TextField(
@@ -608,9 +598,9 @@ class _MapScreenState extends State<MapScreen> {
                         focusNode: _searchFocusNode,
                         textInputAction: TextInputAction.search,
                         onChanged: (value) {
-  setState(() {}); // força rebuild do campo
-  _onSearchTextChanged(value);
-},
+                          setState(() {}); // força rebuild do campo
+                          _onSearchTextChanged(value);
+                        },
                         onSubmitted: _onSearchSubmitted,
                         decoration: InputDecoration(
                           labelText: _hintForField(_selectedField),
@@ -627,7 +617,7 @@ class _MapScreenState extends State<MapScreen> {
                     const SizedBox(width: 12),
                     DropdownButton<_LocationField>(
                       value: _selectedField,
-                                            onChanged: (value) {
+                      onChanged: (value) {
                         if (value != null) {
                           setState(() {
                             _selectedField = value;
@@ -636,7 +626,6 @@ class _MapScreenState extends State<MapScreen> {
                           _autocompleteService.resetSession();
                         }
                       },
-
                       items: const [
                         DropdownMenuItem(
                           value: _LocationField.pickup,
@@ -653,26 +642,24 @@ class _MapScreenState extends State<MapScreen> {
                 if (_predictions.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
-                                        child: Material(
+                    child: Material(
                       elevation: 4,
                       borderRadius: BorderRadius.circular(12),
                       clipBehavior: Clip.antiAlias,
                       child: ConstrainedBox(
-
                         constraints: const BoxConstraints(maxHeight: 240),
-                                                child: ListView.separated(
+                        child: ListView.separated(
                           padding: EdgeInsets.zero,
                           shrinkWrap: true,
                           physics: const ClampingScrollPhysics(),
                           itemCount: _predictions.length,
                           itemBuilder: (context, index) {
-
                             final prediction = _predictions[index];
                             return ListTile(
-                              leading:
-                                  const Icon(Icons.location_on_outlined),
+                              leading: const Icon(Icons.location_on_outlined),
                               title: Text(
-                                prediction.primaryText ?? prediction.description,
+                                prediction.primaryText ??
+                                    prediction.description,
                               ),
                               subtitle: prediction.secondaryText == null
                                   ? null
@@ -687,10 +674,10 @@ class _MapScreenState extends State<MapScreen> {
                   ),
                 const SizedBox(height: 12),
                 _AddressDisplay(
-
                   icon: Icons.my_location,
                   title: 'Recolha',
-                  value: _pickupAddress?.full ?? _formatCoordinate(pickupLocation),
+                  value:
+                      _pickupAddress?.full ?? _formatCoordinate(pickupLocation),
                 ),
                 const SizedBox(height: 8),
                 _AddressDisplay(
@@ -808,8 +795,8 @@ class _MapScreenState extends State<MapScreen> {
                               const SizedBox(
                                 width: 14,
                                 height: 14,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2),
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
                               ),
                           ],
                         ),
@@ -832,8 +819,7 @@ class _MapScreenState extends State<MapScreen> {
                   icon: const Icon(Icons.check_circle_outline),
                   label: const Text('Confirmar localização'),
                   onPressed: () {
-                    final selected =
-                        _cameraCenter ?? _pickupLocation;
+                    final selected = _cameraCenter ?? _pickupLocation;
                     if (selected == null) return;
                     Navigator.pop(context, selected);
                   },
@@ -906,9 +892,7 @@ class _MapScreenState extends State<MapScreen> {
 }
 
 class _AddressLabel {
-
   const _AddressLabel({required this.street, this.city});
-
 
   final String street;
   final String? city;

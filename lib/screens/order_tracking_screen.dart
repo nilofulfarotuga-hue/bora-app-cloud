@@ -5,8 +5,11 @@ import 'package:google_maps_flutter/google_maps_flutter.dart' hide LatLng;
 import 'package:latlong2/latlong.dart' as ll;
 import 'package:provider/provider.dart';
 
+import '../config/app_colors.dart';
+import '../config/app_spacing.dart';
 import '../models/chat_message.dart';
 import '../models/order_model.dart';
+import '../models/rating_model.dart';
 import '../widgets/address_text.dart';
 import '../services/directions_service.dart';
 import '../stores/driver_store.dart';
@@ -14,6 +17,7 @@ import '../stores/order_store.dart';
 import '../utils/map_marker_helper.dart';
 import '../utils/map_utils.dart';
 import 'chat_screen.dart';
+import 'rating_screen.dart';
 
 class OrderTrackingScreen extends StatefulWidget {
   const OrderTrackingScreen({super.key, required this.order});
@@ -33,6 +37,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   int _routeRequestId = 0;
   ll.LatLng? _lastCameraDriver;
   ll.LatLng? _lastCameraTarget;
+  bool _ratingNavigated = false;
 
   @override
   void initState() {
@@ -52,6 +57,28 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     } catch (_) {
       return widget.order;
     }
+  }
+
+  // BR §26.2 — Auto-abrir ecrã de avaliação após entrega.
+  // Guard idempotente: só navega uma vez por sessão do ecrã.
+  void _maybeOpenRating(OrderModel order) {
+    if (_ratingNavigated) return;
+    if (order.status != OrderStatus.delivered) return;
+    final driverId = order.assignedDriverId;
+    if (driverId == null || driverId.isEmpty) return;
+    _ratingNavigated = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => RatingScreen(
+            order: order,
+            subjectType: RatingSubjectType.driver,
+            subjectId: driverId,
+          ),
+        ),
+      );
+    });
   }
 
   ll.LatLng? _resolveTarget(OrderModel order) {
@@ -90,9 +117,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     _lastCameraTarget = target;
     final controller = await _mapController.future;
     final bounds = boundsFromPoints(
-      _routePoints.isNotEmpty
-          ? _routePoints
-          : <ll.LatLng>[driver, target],
+      _routePoints.isNotEmpty ? _routePoints : <ll.LatLng>[driver, target],
     );
     if (bounds != null) {
       await controller.animateCamera(CameraUpdate.newLatLngBounds(bounds, 100));
@@ -108,6 +133,8 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     // of EVERY driver received via the `drivers` realtime channel.
     final driverStore = context.read<DriverStore>();
     final order = _freshOrder(orderStore);
+
+    _maybeOpenRating(order);
 
     final assignedId = order.assignedDriverId;
     final driver =
@@ -265,7 +292,15 @@ class _BottomCard extends StatelessWidget {
 
   bool get _isActive =>
       order.status != OrderStatus.delivered &&
-      order.status != OrderStatus.rejected;
+      order.status != OrderStatus.rejected &&
+      order.status != OrderStatus.cancelled;
+
+  /// Client can cancel from any non-terminal state (BR §8.3).
+  /// Fee tier is decided server-side based on current status.
+  bool get _canCancel =>
+      order.status != OrderStatus.delivered &&
+      order.status != OrderStatus.rejected &&
+      order.status != OrderStatus.cancelled;
 
   @override
   Widget build(BuildContext context) {
@@ -288,15 +323,14 @@ class _BottomCard extends StatelessWidget {
         padding: EdgeInsets.zero,
         physics: const ClampingScrollPhysics(),
         children: [
-          // ── Drag handle ─────────────────────────────────────────────────
           Center(
             child: Container(
-              margin: const EdgeInsets.symmetric(vertical: 10),
+              margin: const EdgeInsets.symmetric(vertical: Spacing.md),
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(4),
+                color: AppColors.divider,
+                borderRadius: BorderRadius.circular(Radii.sm / 2),
               ),
             ),
           ),
@@ -324,7 +358,7 @@ class _BottomCard extends StatelessWidget {
                           Text(
                             'Pedido ${order.orderCode}',
                             style: theme.textTheme.bodySmall?.copyWith(
-                              color: Colors.grey.shade500,
+                              color: AppColors.textSecondary,
                               letterSpacing: 0.5,
                             ),
                           ),
@@ -356,24 +390,24 @@ class _BottomCard extends StatelessWidget {
                 // ── Driver card ──────────────────────────────────────────
                 if (_driverAssigned) ...[
                   Container(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(Spacing.lg),
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.grey.shade200),
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(Radii.lg),
+                      border: Border.all(color: AppColors.divider),
                     ),
                     child: Row(
                       children: [
-                        // Avatar
                         Stack(
                           children: [
                             CircleAvatar(
                               radius: 26,
-                              backgroundColor: Colors.blueGrey.shade100,
-                              child: Icon(
+                              backgroundColor:
+                                  AppColors.primary.withValues(alpha: 0.12),
+                              child: const Icon(
                                 Icons.delivery_dining,
                                 size: 28,
-                                color: Colors.blueGrey.shade700,
+                                color: AppColors.primary,
                               ),
                             ),
                             Positioned(
@@ -383,16 +417,16 @@ class _BottomCard extends StatelessWidget {
                                 width: 14,
                                 height: 14,
                                 decoration: BoxDecoration(
-                                  color: Colors.green.shade500,
+                                  color: AppColors.success,
                                   shape: BoxShape.circle,
-                                  border: Border.all(
-                                      color: Colors.white, width: 2),
+                                  border:
+                                      Border.all(color: Colors.white, width: 2),
                                 ),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(width: 14),
+                        const SizedBox(width: Spacing.md),
                         // Name + details
                         Expanded(
                           child: Column(
@@ -408,14 +442,13 @@ class _BottomCard extends StatelessWidget {
                               Row(
                                 children: [
                                   Icon(Icons.star_rounded,
-                                      size: 14,
-                                      color: Colors.amber.shade600),
+                                      size: 14, color: Colors.amber.shade600),
                                   const SizedBox(width: 3),
                                   Text(
                                     '4.9',
                                     style: theme.textTheme.bodySmall?.copyWith(
                                       fontWeight: FontWeight.w600,
-                                      color: Colors.grey.shade700,
+                                      color: AppColors.textPrimary,
                                     ),
                                   ),
                                   if (order.distanceKm > 0) ...[
@@ -423,7 +456,7 @@ class _BottomCard extends StatelessWidget {
                                       '  ·  ${order.distanceKm.toStringAsFixed(1)} km',
                                       style: theme.textTheme.bodySmall
                                           ?.copyWith(
-                                              color: Colors.grey.shade500),
+                                              color: AppColors.textSecondary),
                                     ),
                                   ],
                                 ],
@@ -433,7 +466,7 @@ class _BottomCard extends StatelessWidget {
                                 Text(
                                   order.driverPhone!,
                                   style: theme.textTheme.bodySmall?.copyWith(
-                                    color: Colors.grey.shade500,
+                                    color: AppColors.textSecondary,
                                   ),
                                 ),
                               ],
@@ -446,22 +479,21 @@ class _BottomCard extends StatelessWidget {
 
                   const SizedBox(height: 14),
 
-                  // ── Chat button ────────────────────────────────────────
                   if (_isActive)
                     SizedBox(
                       width: double.infinity,
                       child: FilledButton.icon(
                         style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFF1A73E8),
+                          backgroundColor: AppColors.info,
                           foregroundColor: Colors.white,
-                          padding:
-                              const EdgeInsets.symmetric(vertical: 14),
+                          padding: const EdgeInsets.symmetric(
+                              vertical: Spacing.md),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: BorderRadius.circular(Radii.md + 2),
                           ),
                           textStyle: const TextStyle(
                             fontSize: 15,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                         onPressed: () => Navigator.push(
@@ -473,11 +505,32 @@ class _BottomCard extends StatelessWidget {
                             ),
                           ),
                         ),
-                        icon: const Icon(Icons.chat_bubble_outline,
-                            size: 18),
+                        icon: const Icon(Icons.chat_bubble_outline, size: 18),
                         label: const Text('Falar com o estafeta'),
                       ),
                     ),
+
+                  // ── Cancel order (BR §8.3) ─────────────────────────────
+                  if (_canCancel) ...[
+                    const SizedBox(height: Spacing.sm),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.error,
+                          side: const BorderSide(color: AppColors.error),
+                          padding: const EdgeInsets.symmetric(
+                              vertical: Spacing.md),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(Radii.md + 2),
+                          ),
+                        ),
+                        onPressed: () => _confirmClientCancel(context),
+                        icon: const Icon(Icons.cancel_outlined, size: 18),
+                        label: const Text('Cancelar pedido'),
+                      ),
+                    ),
+                  ],
 
                   // ── Delivery code ──────────────────────────────────────
                   if (_isActive) ...[
@@ -494,8 +547,7 @@ class _BottomCard extends StatelessWidget {
                           ],
                         ),
                         borderRadius: BorderRadius.circular(14),
-                        border:
-                            Border.all(color: Colors.orange.shade200),
+                        border: Border.all(color: Colors.orange.shade200),
                       ),
                       child: Column(
                         children: [
@@ -510,8 +562,7 @@ class _BottomCard extends StatelessWidget {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              for (final ch
-                                  in order.deliveryCode.split(''))
+                              for (final ch in order.deliveryCode.split(''))
                                 _CodeDigit(digit: ch),
                             ],
                           ),
@@ -564,8 +615,8 @@ class _BottomCard extends StatelessWidget {
                 // ── Total ────────────────────────────────────────────────
                 const SizedBox(height: 16),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
                     color: Colors.grey.shade50,
                     borderRadius: BorderRadius.circular(12),
@@ -599,15 +650,109 @@ class _BottomCard extends StatelessWidget {
   Color _statusColor(OrderStatus status) {
     switch (status) {
       case OrderStatus.delivered:
-        return Colors.green.shade500;
+        return AppColors.success;
       case OrderStatus.rejected:
-        return Colors.red.shade500;
+      case OrderStatus.cancelled:
+        return AppColors.error;
       case OrderStatus.driverAccepted:
       case OrderStatus.pickedUp:
       case OrderStatus.onTheWay:
-        return const Color(0xFF1A73E8);
+        return AppColors.info;
       default:
-        return Colors.orange.shade400;
+        return AppColors.warning;
+    }
+  }
+
+  // ── Client cancel (BR §8.3) ──────────────────────────────────────────────
+  String _feeLabelForStatus(OrderStatus status, double total) {
+    switch (status) {
+      case OrderStatus.created:
+      case OrderStatus.preparing:
+      case OrderStatus.callingDriver:
+        return '€1,00';
+      case OrderStatus.driverAccepted:
+        return '€2,50';
+      case OrderStatus.pickedUp:
+      case OrderStatus.onTheWay:
+        return '100% (€${total.toStringAsFixed(2)})';
+      case OrderStatus.delivered:
+      case OrderStatus.rejected:
+      case OrderStatus.cancelled:
+        return '—';
+    }
+  }
+
+  Future<void> _confirmClientCancel(BuildContext context) async {
+    final reasonController = TextEditingController();
+    final feeLabel = _feeLabelForStatus(order.status, order.total);
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cancelar pedido'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Taxa de cancelamento: $feeLabel',
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Tens a certeza que queres cancelar este pedido?',
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: reasonController,
+              maxLines: 2,
+              decoration: const InputDecoration(
+                labelText: 'Razão (opcional)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Não'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Confirmar cancelamento'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !context.mounted) return;
+
+    final orderStore = context.read<OrderStore>();
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+
+    final result = await orderStore.clientCancelOrder(
+      order,
+      reason: reasonController.text,
+    );
+
+    if (!context.mounted) return;
+
+    if (result.success) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(result.feeEur != null
+              ? 'Pedido cancelado. Taxa: €${result.feeEur!.toStringAsFixed(2)}.'
+              : 'Pedido cancelado.'),
+        ),
+      );
+      navigator.pop();
+    } else {
+      messenger.showSnackBar(
+        SnackBar(content: Text(result.error ?? 'Falha ao cancelar.')),
+      );
     }
   }
 }

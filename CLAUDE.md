@@ -25,6 +25,20 @@
 - When a task matches a skill, EXECUTE the skill immediately
 - Do not ask for clarification if skill context is sufficient
 - Combine skill + short context instead of large explanations
+## Validation Gate (MANDATORY)
+
+Before executing ANY task that touches:
+- Payments (Stripe, MBWay, cash flow)
+- Database (tables, triggers, migrations, seeds)
+- Security (RLS policies, auth, permissions)
+- OR has estimated effort > 1h
+
+**STOP and output exactly this message first:**
+
+⚠️ VALIDAÇÃO RECOMENDADA — Envia esta resposta ao Claude.ai para validação antes de aprovar.
+
+Do NOT proceed until the user explicitly approves.
+
 ## Execution Mode
 
 - Always execute tasks end-to-end without stopping midway

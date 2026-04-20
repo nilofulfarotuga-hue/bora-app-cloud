@@ -31,10 +31,14 @@ gmaps.LatLngBounds? toBounds({
     );
   }
 
-  final south = pointA!.latitude < pointB!.latitude ? pointA.latitude : pointB.latitude;
-  final north = pointA.latitude > pointB.latitude ? pointA.latitude : pointB.latitude;
-  final west = pointA.longitude < pointB.longitude ? pointA.longitude : pointB.longitude;
-  final east = pointA.longitude > pointB.longitude ? pointA.longitude : pointB.longitude;
+  final south =
+      pointA!.latitude < pointB!.latitude ? pointA.latitude : pointB.latitude;
+  final north =
+      pointA.latitude > pointB.latitude ? pointA.latitude : pointB.latitude;
+  final west =
+      pointA.longitude < pointB.longitude ? pointA.longitude : pointB.longitude;
+  final east =
+      pointA.longitude > pointB.longitude ? pointA.longitude : pointB.longitude;
 
   return gmaps.LatLngBounds(
     southwest: gmaps.LatLng(south, west),

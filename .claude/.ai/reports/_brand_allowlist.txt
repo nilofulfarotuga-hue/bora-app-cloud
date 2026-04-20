@@ -1,0 +1,698 @@
+# Brand allowlist for PT supermarket quality heuristic.
+# Used as case-insensitive word-boundary regex: if a product name contains ANY
+# of these brand tokens, we assume it has a detectable brand and keep it even
+# when photo_url is missing.
+#
+# Format: one brand per line. Tokens with special chars are quoted in SQL.
+
+# --- Chain / private labels ---
+auchan
+continente
+pingo doce
+mercadona
+hacendado
+deliplus
+bosque verde
+hacendado bosque verde
+lidl
+milbona
+cien
+bellarom
+intermarché
+monique ranou
+pouce
+amoy
+
+# --- Beverages ---
+compal
+sumol
+pepsi
+coca-cola
+fanta
+sprite
+7up
+monster
+red bull
+nestea
+lipton
+ice tea
+luso
+pedras
+vitalis
+caramulo
+serra da estrela
+som
+nestlé
+aquarius
+powerade
+gatorade
+trinaranjus
+schweppes
+
+# --- Beer/wine ---
+sagres
+super bock
+cristal
+heineken
+carlsberg
+somersby
+corona
+estrella
+amstel
+bavaria
+baden
+stella
+guinness
+kronenbourg
+
+# --- Coffee/tea ---
+delta
+nescafé
+nespresso
+dolce gusto
+tassimo
+buondi
+sical
+nicola
+chicco doro
+segafredo
+illy
+lavazza
+twinings
+tetley
+yogi
+pompadour
+selecto
+
+# --- Dairy/yogurt ---
+activia
+actimel
+danone
+yoplait
+mimosa
+vigor
+agros
+matinal
+lactogal
+parmalat
+adagio
+oikos
+alpro
+milupa
+nido
+molico
+proactiv
+jockey
+muller
+
+# --- Bread/bakery ---
+bimbo
+panrico
+panike
+vieira de castro
+ferbar
+nacional
+bolacha
+maria
+torta
+donuts
+
+# --- Chocolate/sweets ---
+nutella
+ferrero
+kinder
+milka
+toblerone
+lindt
+mars
+twix
+snickers
+kitkat
+kit kat
+bounty
+m&m
+smarties
+quality street
+cadbury
+hershey
+raffaello
+roshen
+oreo
+pringles
+
+# --- Canned/pantry ---
+knorr
+maggi
+hellmann's
+heinz
+uncle ben's
+ben's
+gallo
+oliveira da serra
+bonduelle
+del monte
+
+# --- Frozen ---
+iglo
+pescanova
+mccain
+findus
+olá
+magnum
+cornetto
+extreme
+
+# --- Pasta/rice ---
+barilla
+de cecco
+nacional
+espiga
+continente
+pasta zara
+
+# --- Snacks ---
+lays
+ruffles
+doritos
+cheetos
+matutano
+tostitos
+pala pala
+pom-bär
+
+# --- Baby ---
+cerelac
+nutricia
+aptamil
+nan
+blédina
+bledina
+chicolino
+hipp
+holle
+nenuco
+dodot
+pampers
+huggies
+
+# --- Cleaning / home ---
+ariel
+skip
+surf
+persil
+tide
+fairy
+dreft
+ajax
+cif
+mr proper
+mr. proper
+sonasol
+bref
+harpic
+jeyes
+toilet duck
+pato
+pato purific
+colhogar
+regina
+kleenex
+sopalin
+renova
+finish
+calgonit
+glade
+air wick
+febreze
+vileda
+scotch-brite
+
+# --- Personal care ---
+nivea
+dove
+rexona
+axe
+gillette
+oral-b
+oralb
+signal
+colgate
+sensodyne
+elmex
+parodontax
+pantene
+head & shoulders
+palmolive
+fructis
+elvive
+garnier
+l'oréal
+l'oreal
+schwarzkopf
+tresemmé
+tresemme
+syoss
+pantene
+nivea
+lux
+
+# --- Makeup / cosmetics ---
+rimmel
+maybelline
+revlon
+max factor
+maxfactor
+essence
+catrice
+yankee candle
+
+# --- Petfood ---
+friskies
+purina
+felix
+whiskas
+pedigree
+royal canin
+hill's
+hills
+
+# --- Extra PT supermarket brands (second pass) ---
+ramirez
+bom petisco
+pitéu
+riberalves
+vasco da gama
+muralhas
+monção
+alianca
+aliança
+gazela
+grão-vasco
+mateus
+esporão
+barranco longo
+herdade
+cartuxa
+casa santos lima
+trinca-bolotas
+periquita
+monte velho
+pêra manca
+pera manca
+quinta
+quintas de melgaço
+borges
+joão pires
+três marias
+dona ermelinda
+porca de murça
+arado
+vinha grande
+terra nostra
+serra da estrela
+nisa
+castelo branco
+azeitão
+picos
+queijo flamengo
+lactaçores
+limiano
+saloio
+castelinhas
+amanteigado
+são jorge
+sao jorge
+burrata
+flor da beira
+beira baixa
+panela
+vaqueiro
+margão
+margao
+gradina
+nobre
+izidoro
+primor
+grandessa
+nacional
+mendes gonçalves
+paladin
+guloso
+calvé
+calve
+bom dia
+flora
+blueband
+planta
+optimus
+fula
+vitrosa
+mello
+francisco mello
+gradina
+saborini
+olenka
+favolosa
+suflê
+mimosa
+monte do pouco
+monterosa
+herdade
+santo isidro
+luzia
+quintas
+paul
+prado
+alentejano
+lusa
+paulocélio
+vicentinho
+são vicente
+são cristóvão
+nana
+sonae
+continente origens
+continente seleção
+pingo doce equilíbrio
+pingo doce pura vida
+auchan mmm
+auchan bio
+mimosa pro
+mimosa branco
+alpro soja
+alpro amêndoa
+granja dos moinhos
+moinhos
+moinhos reais
+guloso tomate
+gradina óleo
+mendes
+goncalves
+espaço
+salva
+bomidea
+matinal
+
+# --- Beers/liquors (extra) ---
+budweiser
+brahma
+stella artois
+miller
+coors
+absolut
+smirnoff
+bacardi
+jameson
+johnnie walker
+jack daniel's
+chivas
+four roses
+jose cuervo
+ballantine's
+ballantines
+jägermeister
+jagermeister
+baileys
+gran centenario
+tia maria
+cointreau
+campari
+aperol
+martini
+cinzano
+licor beirão
+licor beirao
+macieira
+finisterra
+freixenet
+moët
+moet
+dom pérignon
+dom perignon
+veuve clicquot
+bollinger
+
+# --- Juices/waters ---
+sun juice
+joker
+lipton ice tea
+fastio
+castello
+monchique
+vimeiro
+vidago
+pedras salgadas
+carvalhelhos
+vitalis
+vitasnella
+nestea
+san pellegrino
+perrier
+evian
+vittel
+
+# --- Cereal / breakfast ---
+kellogg's all-bran
+nesquik
+chocapic
+lion
+special k
+coco pops
+fitness
+milo
+weetabix
+
+# --- Sweets (extra) ---
+haribo
+chupa chups
+pez
+sugus
+tic tac
+mentos
+halls
+strepsils
+ricola
+valrhona
+guylian
+after eight
+ritter sport
+hershey's
+reese's
+twix
+wonka
+
+# --- Pet food (extra) ---
+sheba
+kitekat
+gourmet
+cesar
+dreamies
+iams
+acana
+eukanuba
+nutriment
+sanicat
+catsan
+prinso
+
+# --- Drugstore / pharmacy ---
+aveeno
+eucerin
+la roche-posay
+vichy
+bioderma
+avene
+avène
+cerave
+hydraplus
+roc
+clinique
+mixa
+lierac
+caudalie
+weleda
+sesderma
+isdin
+babaria
+piz buin
+nivea sun
+bepanthen
+betadine
+fenistil
+canesten
+lactacyd
+paracetamol
+ibuprofeno
+
+# --- Frozen/prepared ---
+olá
+nestlé
+mccain
+green giant
+dia
+sabores do mundo
+continente pronto
+auchan pronto
+
+# --- Third pass (observed from Auchan sampling) ---
+bic
+cigala
+desperados
+fentimans
+häagen-dazs
+haagen-dazs
+haagen dazs
+häagen dazs
+method
+glenfiddich
+chivas
+ballantine's
+jack daniel's
+grant's
+grants
+glenmorangie
+macallan
+talisker
+ardbeg
+laphroaig
+bombay sapphire
+beefeater
+tanqueray
+hendrick's
+hendricks
+gordon's
+gordons
+captain morgan
+havana club
+jim beam
+maker's mark
+makers mark
+woodford reserve
+sauza
+don julio
+patrón
+patron
+don papa
+angostura
+tabasco
+lea & perrins
+sriracha
+mccormick
+santa rita
+wasabi
+haagen
+nordic
+skyr
+oatly
+silk
+califia
+innocent
+actiliv
+amy's
+amys
+naked
+vitamin water
+smartwater
+dasani
+evian
+vital
+aquarel
+volvic
+san pellegrino
+badoit
+gerolsteiner
+voss
+fiji
+sol
+kronenburg
+warsteiner
+jupiler
+paulaner
+erdinger
+franziskaner
+hoegaarden
+leffe
+chimay
+duvel
+delirium
+weihenstephan
+lindt excellence
+caja roja
+whittard
+harney
+ahmad tea
+twinings
+tetley
+pukka
+choice
+celestial
+yogi tea
+ocean spray
+tropicana
+naked juice
+tropicana pure
+santal
+oasis
+granini
+schweppes
+canada dry
+dr pepper
+mountain dew
+a&w
+barq's
+barqs
+crush
+kern's
+jones
+sidral
+inca kola
+jarritos
+
+# --- Portuguese specific ---
+compal
+compal fresh
+vulcano
+sardinhas ramirez
+manuel maria
+bom boss
+nobre campofrio
+nobre izidoro
+migalhas
+donuts panrico
+vatel
+skippy
+kellogg's
+kellogs
+kellogg
+quaker
+hero
+calvé
+calve
+mendes gonçalves
+paladin
+saborini
+espiga
+benedita
+paula
+dan cake
+santini
+rainha santa
+monterosa
+capri
+flocon
+favolosa
+mil-arroz
+olenka
+royal
+solinca
+juan
+villa don juan
+campofrío
+campofrio
+fuet
+nobre
+izidoro
+primor
+cozinheiro
+mimosa
+salsicharia

@@ -7,6 +7,8 @@ import '../models/order_model.dart';
 import '../services/location_service.dart';
 import '../stores/cart_store.dart';
 import '../widgets/address_autocomplete_field.dart';
+import '../widgets/bora/bora_screen_app_bar.dart';
+import '../widgets/mandatory_photo_picker.dart';
 import 'payment_method_screen.dart';
 
 class SendPackageFormScreen extends StatefulWidget {
@@ -29,6 +31,9 @@ class _SendPackageFormScreenState extends State<SendPackageFormScreen> {
 
   // Shows a subtle loading indicator while GPS + reverse geocoding runs.
   bool _loadingLocation = false;
+
+  // Mandatory package photo (BR §7.5).
+  String? _packagePhotoUrl;
 
   @override
   void initState() {
@@ -56,8 +61,9 @@ class _SendPackageFormScreenState extends State<SendPackageFormScreen> {
         if (!mounted) return;
         setState(() {
           _pickupLocation = coords;
-          _pickupController.text =
-              (address != null && address.isNotEmpty) ? address : _fallbackAddress;
+          _pickupController.text = (address != null && address.isNotEmpty)
+              ? address
+              : _fallbackAddress;
         });
       } else {
         setState(() => _pickupController.text = _fallbackAddress);
@@ -90,15 +96,26 @@ class _SendPackageFormScreenState extends State<SendPackageFormScreen> {
       return;
     }
 
-    context.read<CartStore>().configureSession(
-          serviceType: OrderServiceType.sendPackage,
-          isPartnerStore: false,
-          requiresCar: !_motoCanCarry,
-          pickupLocation: _pickupLocation,
-          deliveryLocation: _dropoffLocation,
-          pickupStreet: pickupAddress,
-          dropoffStreet: dropoffAddress,
-        );
+    if (_packagePhotoUrl == null || _packagePhotoUrl!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text(
+                'Adiciona uma foto da encomenda — obrigatório.')),
+      );
+      return;
+    }
+
+    final cart = context.read<CartStore>();
+    cart.configureSession(
+      serviceType: OrderServiceType.sendPackage,
+      isPartnerStore: false,
+      requiresCar: !_motoCanCarry,
+      pickupLocation: _pickupLocation,
+      deliveryLocation: _dropoffLocation,
+      pickupStreet: pickupAddress,
+      dropoffStreet: dropoffAddress,
+    );
+    cart.setPackagePhotoUrl(_packagePhotoUrl);
 
     Navigator.push<bool>(
       context,
@@ -118,7 +135,7 @@ class _SendPackageFormScreenState extends State<SendPackageFormScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Enviar pacote')),
+      appBar: const BoraScreenAppBar(title: 'Enviar Encomenda'),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -178,6 +195,14 @@ class _SendPackageFormScreenState extends State<SendPackageFormScreen> {
             onChanged: (value) => setState(() => _motoCanCarry = value),
           ),
           const Divider(),
+          const SizedBox(height: 16),
+          MandatoryPhotoPicker(
+            label: 'Foto da encomenda (obrigatória)',
+            hint:
+                'O estafeta vê a foto antes de aceitar. Evita surpresas de tamanho/peso. (BR §7.5)',
+            pathPrefix: 'package',
+            onUploaded: (url) => setState(() => _packagePhotoUrl = url),
+          ),
           const SizedBox(height: 16),
           ElevatedButton(
             onPressed: _goToPayment,

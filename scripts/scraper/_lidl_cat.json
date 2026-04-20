@@ -1,0 +1,42 @@
+{
+  "info": {
+    "url": "https://www.lidl.pt/h/frutas-e-legumes/h10071012",
+    "title": "Frutas e Legumes",
+    "tileCount": 0,
+    "firstTileHtml": null,
+    "sampleImgs": [
+      "https://www.lidl.pt/static/assets/loja-lidl-em-portugal-537742.svg",
+      "https://www.lidl.pt/static/assets/loja-lidl-em-portugal-537742.svg",
+      "https://imgproxy-retcat.assets.schwarz/E8NabU5Y6tSHm6yM080ovqzUrfbBpwEA8RkWDZPfyUA/sm:1/exar:1:ce/w:427/h:320/cz/M6Ly9wcm9kLWNhd/GFsb2ctbWVkaWEvaW50LzdEMEZFREI3Qjk0RTIxMjcxN0Q2MzdBNU/U0MDJCRDhCOUU4QTNGOTk3OTJENkZCNzQ2RDI4QUNDMkQ4RjQ0QjcucG5n.png",
+      "https://imgproxy-retcat.assets.schwarz/ZNvU2Z6jzEUIsMtx9I6XVqgknvEVdN7df9UELafDieU/sm:1/exar:1:ce/w:427/h:320/cz/M6Ly9wcm9kLWNhd/GFsb2ctbWVkaWEvaW50LzczMTJDOEVFMUZFNDI2RTEzOUUxMjE1ME/Y5QTZDQjBERjM3NDJBNjg4OTkzN0ExQkY5NkYzNEZFMzI3QUY2RkIucG5n.png",
+      "https://imgproxy-retcat.assets.schwarz/xplReopZuAJ0svKkSujrD3JuwlX0f3ZTnMhNmfbL37I/sm:1/exar:1:ce/w:427/h:320/cz/M6Ly9wcm9kLWNhd/GFsb2ctbWVkaWEvaW50Lzc3OEIxODgwRUU4OEFCQTIzNjRDQjNGMz/lGNDhEMjhBM0Q3NDU2OUI2QjhCMTgwN0VDN0ZCNUNDQTRFODUyQzcucG5n.png",
+      "https://imgproxy-retcat.assets.schwarz/1WPzTSb5_mkQZWR4XHdy0J9gQp7-zI3hWJva8XiDyrY/sm:1/exar:1:ce/w:427/h:320/cz/M6Ly9wcm9kLWNhd/GFsb2ctbWVkaWEvaW50Lzk1QjkwOENFRjE4M0UxMDY2RjNCRjRBMz/c1RDU5RjQ0N0I5Mzk0QTBEMTkzQUZENjgyMzYxODg4NTU3RTE2REIucG5n.png",
+      "https://imgproxy-retcat.assets.schwarz/ZNvU2Z6jzEUIsMtx9I6XVqgknvEVdN7df9UELafDieU/sm:1/exar:1:ce/w:427/h:320/cz/M6Ly9wcm9kLWNhd/GFsb2ctbWVkaWEvaW50LzczMTJDOEVFMUZFNDI2RTEzOUUxMjE1ME/Y5QTZDQjBERjM3NDJBNjg4OTkzN0ExQkY5NkYzNEZFMzI3QUY2RkIucG5n.png",
+      "https://imgproxy-retcat.assets.schwarz/xplReopZuAJ0svKkSujrD3JuwlX0f3ZTnMhNmfbL37I/sm:1/exar:1:ce/w:427/h:320/cz/M6Ly9wcm9kLWNhd/GFsb2ctbWVkaWEvaW50Lzc3OEIxODgwRUU4OEFCQTIzNjRDQjNGMz/lGNDhEMjhBM0Q3NDU2OUI2QjhCMTgwN0VDN0ZCNUNDQTRFODUyQzcucG5n.png",
+      "https://imgproxy-retcat.assets.schwarz/1WPzTSb5_mkQZWR4XHdy0J9gQp7-zI3hWJva8XiDyrY/sm:1/exar:1:ce/w:427/h:320/cz/M6Ly9wcm9kLWNhd/GFsb2ctbWVkaWEvaW50Lzk1QjkwOENFRjE4M0UxMDY2RjNCRjRBMz/c1RDU5RjQ0N0I5Mzk0QTBEMTkzQUZENjgyMzYxODg4NTU3RTE2REIucG5n.png",
+      "https://imgproxy-retcat.assets.schwarz/ZNvU2Z6jzEUIsMtx9I6XVqgknvEVdN7df9UELafDieU/sm:1/exar:1:ce/w:427/h:320/cz/M6Ly9wcm9kLWNhd/GFsb2ctbWVkaWEvaW50LzczMTJDOEVFMUZFNDI2RTEzOUUxMjE1ME/Y5QTZDQjBERjM3NDJBNjg4OTkzN0ExQkY5NkYzNEZFMzI3QUY2RkIucG5n.png"
+    ],
+    "prices": [
+      "1.99com a App Lidl Plus-30%1.39Emb. 500 g1 kg = 2.",
+      "1.99com a App Lidl Plus-30%1.39Emb. 500 g1 kg = 2.",
+      "1.99com a App Lidl Plus-30%1.39Emb. 500 g1 kg = 2.",
+      "1.99",
+      "com a App Lidl Plus-30%1.39"
+    ]
+  },
+  "relevantCalls": [
+    {
+      "url": "https://www.lidl.pt/q/storefront-dist/builds/meta/627a1e0b-5161-4fc4-a575-08a25e60fa76.json",
+      "status": 200,
+      "size": 88,
+      "sample": "{\"id\":\"627a1e0b-5161-4fc4-a575-08a25e60fa76\",\"timestamp\":1774872579000,\"prerendered\":[]}"
+    },
+    {
+      "url": "https://cdn.cookielaw.org/scripttemplates/202602.1.0/assets/v2/otPcCenter.json",
+      "status": 200,
+      "size": 68021,
+      "sample": "\n        {\n            \"name\": \"otPcCenter\",\n            \"html\": \"PGRpdiBpZD0ib25ldHJ1c3QtcGMtc2RrIiBjbGFzcz0ib3RQY0NlbnRlciBvdC1oaWRlIG90LWZhZGUtaW4iPjxkaXYgcm9sZT0iZGlhbG9nIiBhcmlhLW1vZGFsPSJ0cnVlIj48IS0tIENsb3NlIEJ1dHRvbiAtLT48ZGl2IGNsYXNzPSJvdC1wYy1oZWFkZXIiPjwhLS0gTG9nbyBUYWcgLS0+PGRpdiBjbGFzcz0ib3QtcGMtbG9nbyI+PC9kaXY+PGJ1dHRvbiBpZD0iY2xvc2UtcGMtYnRuLWhhbmRsZXIiIGNsYXNzPSJvdC1jbG9zZS1pY29uIiBhcmlhLWxhYmVsPSJDbG9zZSI+PC9idXR0b24+PC9kaXY+PCEtLSBDbG9zZSBCdXR0b24gLS0+PGRpdiBpZD0ib3QtcGMtY29udGVudCIgY2xhc3M9Im90LXBjLXNjcm9sbGJhciI+PGgyIGlkPSJvdC1wYy10aXRsZSI+WW91ciBQcml2YWN5PC9oMj48ZGl2IGlkPS"
+    }
+  ],
+  "allCallsCount": 8
+}

@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../auth/auth_store.dart';
+import '../config/app_colors.dart';
+import '../config/app_spacing.dart';
 import '../stores/restaurant_store.dart';
 import '../stores/session_store.dart';
+import '../widgets/bora/bora_primary_button.dart';
 
 class PartnerLoginScreen extends StatefulWidget {
   const PartnerLoginScreen({super.key});
@@ -31,13 +34,23 @@ class _PartnerLoginScreenState extends State<PartnerLoginScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
+      backgroundColor: AppColors.surface,
       appBar: AppBar(
-        title: const Text('Aceder como parceiro'),
+        title: const Text(
+          'Aceder como parceiro',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        flexibleSpace: const DecoratedBox(
+          decoration: BoxDecoration(gradient: AppColors.headerGradient),
+        ),
       ),
       body: Form(
         key: _formKey,
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(Spacing.xxl),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -45,7 +58,7 @@ class _PartnerLoginScreenState extends State<PartnerLoginScreen> {
                 'Utilize o email registado para gerir o seu negócio.',
                 style: theme.textTheme.titleMedium,
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: Spacing.xxl),
               TextFormField(
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
@@ -63,7 +76,7 @@ class _PartnerLoginScreenState extends State<PartnerLoginScreen> {
                   return null;
                 },
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: Spacing.lg),
               TextFormField(
                 controller: _passwordController,
                 obscureText: _obscurePassword,
@@ -88,19 +101,11 @@ class _PartnerLoginScreenState extends State<PartnerLoginScreen> {
                   return null;
                 },
               ),
-              const SizedBox(height: 32),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isProcessing ? null : _submit,
-                  child: _isProcessing
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Entrar'),
-                ),
+              const SizedBox(height: Spacing.xxxl),
+              BoraPrimaryButton(
+                label: 'Entrar',
+                loading: _isProcessing,
+                onPressed: _isProcessing ? null : _submit,
               ),
             ],
           ),
@@ -142,7 +147,8 @@ class _PartnerLoginScreenState extends State<PartnerLoginScreen> {
       setState(() => _isProcessing = false);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Não encontramos o restaurante associado a este email.'),
+          content:
+              Text('Não encontramos o restaurante associado a este email.'),
         ),
       );
       return;

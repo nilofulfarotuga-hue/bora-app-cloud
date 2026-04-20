@@ -1,8 +1,16 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../auth/auth_store.dart';
+import '../config/app_colors.dart';
+import '../config/app_spacing.dart';
 import '../stores/session_store.dart';
+import '../widgets/bora/bora_primary_button.dart';
+import '../widgets/terms_link_text.dart';
 import 'client_login_screen.dart';
 
 class RegisterClientScreen extends StatefulWidget {
@@ -23,6 +31,22 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
   bool _isSubmitting = false;
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
+  bool _acceptedTerms = false;
+  String _avatarLetter = '';
+
+  final _imagePicker = ImagePicker();
+  XFile? _avatarFile;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController.addListener(() {
+      final letter = _nameController.text.trim().isEmpty
+          ? ''
+          : _nameController.text.trim()[0].toUpperCase();
+      if (letter != _avatarLetter) setState(() => _avatarLetter = letter);
+    });
+  }
 
   @override
   void dispose() {
@@ -38,17 +62,93 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Criar conta de cliente')),
-      body: Form(
+      backgroundColor: AppColors.surface,
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
+        flexibleSpace: const DecoratedBox(
+          decoration: BoxDecoration(gradient: AppColors.headerGradient),
+        ),
+        title: const Text('Criar conta'),
+      ),
+      body: SafeArea(
+        child: Form(
         key: _formKey,
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.fromLTRB(
+            Spacing.xxl,
+            Spacing.sm,
+            Spacing.xxl,
+            Spacing.xxxl,
+          ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              // ── Logo ────────────────────────────────────────────────────
               Text(
-                'Preencha os seus dados para continuar',
-                style: theme.textTheme.titleMedium,
+                'BORA',
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.w900,
+                  color: AppColors.accent,
+                  letterSpacing: 2,
+                ),
+              ),
+              const SizedBox(height: Spacing.xs),
+              Text(
+                'A tua app de entregas',
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: Colors.grey.shade500),
+              ),
+              const SizedBox(height: 24),
+              // ── Avatar ──────────────────────────────────────────────────
+              GestureDetector(
+                onTap: _isSubmitting ? null : _showPhotoOptions,
+                child: Stack(
+                  children: [
+                    CircleAvatar(
+                      radius: 44,
+                      backgroundColor:
+                          AppColors.accent.withValues(alpha: 0.12),
+                      backgroundImage: _avatarFile != null
+                          ? FileImage(File(_avatarFile!.path))
+                          : null,
+                      child: _avatarFile != null
+                          ? null
+                          : (_avatarLetter.isEmpty
+                              ? Icon(Icons.person_outline,
+                                  size: 44, color: Colors.grey.shade400)
+                              : Text(
+                                  _avatarLetter,
+                                  style: const TextStyle(
+                                    fontSize: 40,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFFE65100),
+                                  ),
+                                )),
+                    ),
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFE65100),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.camera_alt,
+                            size: 16, color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Foto de perfil (opcional)',
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: Colors.grey.shade400),
               ),
               const SizedBox(height: 24),
               TextFormField(
@@ -58,8 +158,9 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
                   labelText: 'Nome completo',
                   prefixIcon: Icon(Icons.person_outline),
                 ),
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Informe o seu nome.' : null,
+                validator: (v) => (v == null || v.trim().isEmpty)
+                    ? 'Informe o seu nome.'
+                    : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
@@ -70,7 +171,9 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
                   prefixIcon: Icon(Icons.email_outlined),
                 ),
                 validator: (v) {
-                  if (v == null || v.trim().isEmpty) return 'Informe o seu email.';
+                  if (v == null || v.trim().isEmpty) {
+                    return 'Informe o seu email.';
+                  }
                   if (!v.contains('@')) return 'Email inválido.';
                   return null;
                 },
@@ -83,8 +186,9 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
                   labelText: 'Telemóvel',
                   prefixIcon: Icon(Icons.phone_rounded),
                 ),
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Informe o seu telemóvel.' : null,
+                validator: (v) => (v == null || v.trim().isEmpty)
+                    ? 'Informe o seu telemóvel.'
+                    : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
@@ -126,36 +230,95 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
                   return null;
                 },
               ),
-              const SizedBox(height: 32),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isSubmitting ? null : _submit,
-                  child: _isSubmitting
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Criar conta'),
-                ),
+              const SizedBox(height: 16),
+              CheckboxListTile(
+                value: _acceptedTerms,
+                onChanged: _isSubmitting
+                    ? null
+                    : (v) => setState(() => _acceptedTerms = v ?? false),
+                controlAffinity: ListTileControlAffinity.leading,
+                contentPadding: EdgeInsets.zero,
+                activeColor: AppColors.accent,
+                title: const TermsLinkText(),
               ),
               const SizedBox(height: 16),
+              BoraPrimaryButton(
+                label: 'Criar conta',
+                loading: _isSubmitting,
+                color: AppColors.primary,
+                onPressed: _acceptedTerms ? _submit : null,
+              ),
+              const SizedBox(height: 20),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text('Já tem conta?'),
+                  Text('Já tenho conta?',
+                      style: TextStyle(color: Colors.grey.shade600)),
                   TextButton(
                     onPressed: () => Navigator.of(context).pushReplacement(
                       MaterialPageRoute(
                           builder: (_) => const ClientLoginScreen()),
                     ),
-                    child: const Text('Iniciar sessão'),
+                    child: const Text(
+                      'Iniciar sessão',
+                      style: TextStyle(
+                          color: Color(0xFFE65100),
+                          fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ],
               ),
             ],
           ),
+        ),
+      ),
+      ),
+    );
+  }
+
+  Future<void> _pickPhoto(ImageSource source) async {
+    try {
+      final picked = await _imagePicker.pickImage(
+        source: source,
+        maxWidth: 1200,
+        imageQuality: 85,
+      );
+      if (picked != null && mounted) {
+        setState(() => _avatarFile = picked);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao seleccionar imagem: $e')),
+        );
+      }
+    }
+  }
+
+  void _showPhotoOptions() {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_camera),
+              title: const Text('Tirar foto'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickPhoto(ImageSource.camera);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Escolher da galeria'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickPhoto(ImageSource.gallery);
+              },
+            ),
+          ],
         ),
       ),
     );
@@ -184,6 +347,7 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
       email: email,
       phone: phone,
       password: password,
+      consentAcceptedAt: DateTime.now().toUtc(),
     );
 
     if (!mounted) return;
@@ -193,9 +357,34 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
       final msg = error.contains('already registered')
           ? 'Este email já está registado.'
           : error;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(msg)));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
       return;
+    }
+
+    // ── Upload avatar foto (se escolhida) — não bloqueia em caso de falha ──
+    if (_avatarFile != null) {
+      try {
+        final supabase = Supabase.instance.client;
+        final uid = supabase.auth.currentUser?.id;
+        if (uid != null) {
+          final bytes = await _avatarFile!.readAsBytes();
+          final path = '$uid/avatar.jpg';
+          await supabase.storage.from('avatars').uploadBinary(
+                path,
+                bytes,
+                fileOptions: const FileOptions(
+                  upsert: true,
+                  contentType: 'image/jpeg',
+                ),
+              );
+          final publicUrl = supabase.storage.from('avatars').getPublicUrl(path);
+          await supabase.auth.updateUser(
+            UserAttributes(data: {'bora_photo_url': publicUrl}),
+          );
+        }
+      } catch (e) {
+        debugPrint('RegisterClientScreen: avatar upload failed => $e');
+      }
     }
 
     await sessionStore.setRole(UserRole.client);

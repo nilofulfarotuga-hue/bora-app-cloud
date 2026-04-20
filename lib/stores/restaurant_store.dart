@@ -64,7 +64,8 @@ class RestaurantStore extends ChangeNotifier {
   }
 
   List<ProductVariant> variantsForProduct(String productId) =>
-      List.unmodifiable(_variantsByProduct[productId] ?? const <ProductVariant>[]);
+      List.unmodifiable(
+          _variantsByProduct[productId] ?? const <ProductVariant>[]);
 
   List<OrderModel> ordersForRestaurant(String restaurantId) {
     final orders = _ordersByRestaurant[restaurantId]?.values ??
@@ -86,9 +87,17 @@ class RestaurantStore extends ChangeNotifier {
     try {
       return restaurants.firstWhere(
         (restaurant) =>
-            restaurant.isPartner &&
-            restaurant.name.toLowerCase() == normalized,
+            restaurant.isPartner && restaurant.name.toLowerCase() == normalized,
       );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  RestaurantModel? restaurantById(String? id) {
+    if (id == null || id.isEmpty) return null;
+    try {
+      return restaurants.firstWhere((restaurant) => restaurant.id == id);
     } catch (_) {
       return null;
     }
@@ -148,11 +157,25 @@ class RestaurantStore extends ChangeNotifier {
 
   Future<void> loadProductsFromSupabase() async {
     try {
-      final List<dynamic> response = await supabase.from('products').select();
+      // Supabase returns max 1000 rows per query.
+      // Paginate until all products are fetched.
+      const int pageSize = 1000;
+      int offset = 0;
+      final List<dynamic> allRecords = [];
+
+      while (true) {
+        final List<dynamic> page = await supabase
+            .from('products')
+            .select()
+            .range(offset, offset + pageSize - 1);
+        allRecords.addAll(page);
+        if (page.length < pageSize) break;
+        offset += pageSize;
+      }
 
       _productsByRestaurant.clear();
 
-      for (final record in response) {
+      for (final record in allRecords) {
         final data = record as Map<String, dynamic>;
 
         final restaurantId = (data['restaurant_id'] ?? '').toString();
@@ -162,12 +185,13 @@ class RestaurantStore extends ChangeNotifier {
         // DB schema uses price_low/price_mid/price_premium; no single 'price'
         // or 'is_available' column. Use price_low as the displayed price.
         final price = double.tryParse(
-                  data['price_low']?.toString() ?? '',
-                ) ??
-                double.tryParse(data['price']?.toString() ?? '') ??
-                0.0;
+              data['price_low']?.toString() ?? '',
+            ) ??
+            double.tryParse(data['price']?.toString() ?? '') ??
+            0.0;
         final description = (data['description'] ?? '').toString();
         final category = (data['category'] ?? '').toString();
+        final categoryRoot = (data['category_root'] ?? '').toString();
         final isPopular = (data['is_popular'] as bool?) ?? false;
         final isOnSale = (data['is_on_sale'] as bool?) ?? false;
         final discountPrice = data['discount_price'] != null
@@ -182,6 +206,7 @@ class RestaurantStore extends ChangeNotifier {
           photoUrl: data['photo_url'] ?? '',
           isAvailable: (data['is_available'] as bool?) ?? true,
           category: category,
+          categoryRoot: categoryRoot,
           isPopular: isPopular,
           isOnSale: isOnSale,
           discountPrice: discountPrice,
@@ -289,6 +314,7 @@ class RestaurantStore extends ChangeNotifier {
             photoUrl: data['photo_url'] ?? '',
             isAvailable: data['is_available'] ?? true,
             category: (data['category'] ?? '').toString(),
+            categoryRoot: (data['category_root'] ?? '').toString(),
             isPopular: (data['is_popular'] as bool?) ?? false,
             isOnSale: (data['is_on_sale'] as bool?) ?? false,
             discountPrice: data['discount_price'] != null
@@ -327,6 +353,9 @@ class RestaurantStore extends ChangeNotifier {
             price: (data['price'] as num? ?? 0).toDouble(),
             photoUrl: data['photo_url'] ?? '',
             isAvailable: data['is_available'] ?? true,
+            category: (data['category'] ?? list[index].category).toString(),
+            categoryRoot:
+                (data['category_root'] ?? list[index].categoryRoot).toString(),
             source: list[index].source, // preserve original source on update
           );
           notifyListeners();
@@ -507,17 +536,22 @@ class RestaurantStore extends ChangeNotifier {
     notifyListeners();
 
     // Persist update to Supabase asynchronously.
-    supabase.from('products').update({
-      'name': updated.name,
-      'description': updated.description,
-      'price': updated.price,
-      'photo_url': updated.photoUrl,
-      'is_available': updated.isAvailable,
-    }).eq('id', productId).then((_) {
-      debugPrint('RestaurantStore: product updated in Supabase');
-    }).catchError((e) {
-      debugPrint('RestaurantStore: product update error => $e');
-    });
+    supabase
+        .from('products')
+        .update({
+          'name': updated.name,
+          'description': updated.description,
+          'price': updated.price,
+          'photo_url': updated.photoUrl,
+          'is_available': updated.isAvailable,
+        })
+        .eq('id', productId)
+        .then((_) {
+          debugPrint('RestaurantStore: product updated in Supabase');
+        })
+        .catchError((e) {
+          debugPrint('RestaurantStore: product update error => $e');
+        });
 
     return true;
   }
@@ -560,6 +594,24 @@ class RestaurantStore extends ChangeNotifier {
           .update({'is_online': isOnline}).eq('id', restaurantId);
     } catch (e) {
       debugPrint('RestaurantStore: toggleRestaurantOnline error => $e');
+    }
+  }
+
+  // ─── Reservations opt-in toggle (BR §14.10) ─────────────────────────────
+  Future<void> toggleReservationsEnabled(
+      String restaurantId, bool enabled) async {
+    final index = _restaurants.indexWhere((r) => r.id == restaurantId);
+    if (index != -1) {
+      _restaurants[index] =
+          _restaurants[index].copyWith(reservationsEnabled: enabled);
+      notifyListeners();
+    }
+    try {
+      await supabase
+          .from('restaurants')
+          .update({'reservations_enabled': enabled}).eq('id', restaurantId);
+    } catch (e) {
+      debugPrint('RestaurantStore: toggleReservationsEnabled error => $e');
     }
   }
 
@@ -635,6 +687,7 @@ class RestaurantStore extends ChangeNotifier {
       isOnline: data['is_online'] ?? true,
       lat: (data['lat'] as num?)?.toDouble(),
       lng: (data['lng'] as num?)?.toDouble(),
+      reservationsEnabled: data['reservations_enabled'] as bool? ?? false,
     );
   }
 

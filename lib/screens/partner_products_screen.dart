@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../config/app_colors.dart';
 import '../models/partner_product.dart';
 import '../models/restaurant_model.dart';
 import '../stores/partner_product_store.dart';
@@ -48,7 +49,8 @@ class _PartnerProductsScreenState extends State<PartnerProductsScreen> {
     );
     if (!success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Não foi possível atualizar a disponibilidade.')),
+        const SnackBar(
+            content: Text('Não foi possível atualizar a disponibilidade.')),
       );
     }
   }
@@ -59,8 +61,18 @@ class _PartnerProductsScreenState extends State<PartnerProductsScreen> {
     final products = productStore.productsForRestaurant(widget.restaurant.id);
 
     return Scaffold(
+      backgroundColor: AppColors.surface,
       appBar: AppBar(
-        title: Text('Produtos de ${widget.restaurant.name}'),
+        title: Text(
+          'Produtos de ${widget.restaurant.name}',
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        flexibleSpace: const DecoratedBox(
+          decoration: BoxDecoration(gradient: AppColors.headerGradient),
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openAddProduct(),
@@ -78,7 +90,8 @@ class _PartnerProductsScreenState extends State<PartnerProductsScreen> {
                   final product = products[index];
                   return _ProductTile(
                     product: product,
-                    onToggleAvailability: (value) => _toggleAvailability(product, value),
+                    onToggleAvailability: (value) =>
+                        _toggleAvailability(product, value),
                   );
                 },
               ),

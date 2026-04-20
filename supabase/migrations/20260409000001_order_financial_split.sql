@@ -111,7 +111,7 @@ BEGIN
   -- Precedence, all partner-safe (none of these include gateway fees):
   --   1. final_purchase_value — actual store cost once reconciled
   --   2. subtotal             — original product subtotal before fees/delivery
-  -- NEVER uses final_total / total / paymentBufferTotal (those include fees).
+  -- NEVER uses final_total / price / paymentBufferTotal (those include fees).
   v_base := ROUND(COALESCE(NEW.final_purchase_value, NEW.subtotal, 0)::NUMERIC, 2);
 
   IF v_base <= 0 THEN
@@ -119,7 +119,7 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  v_total_paid := ROUND(COALESCE(NEW.final_total, NEW.total, 0)::NUMERIC, 2);
+  v_total_paid := ROUND(COALESCE(NEW.final_total, NEW.price, 0)::NUMERIC, 2);
 
   -- ── 90 / 10 split ────────────────────────────────────────────────────────
   v_restaurant := ROUND(v_base * 0.90, 2);

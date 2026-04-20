@@ -1,16 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../config/app_colors.dart';
+import '../config/app_spacing.dart';
 import '../models/order_service_type.dart';
 import '../models/restaurant_model.dart';
 import '../stores/cart_store.dart';
 import '../stores/favorite_store.dart';
 import '../stores/restaurant_store.dart';
 import '../utils/business_mapper.dart';
+import '../widgets/bora/bora_screen_app_bar.dart';
 import 'restaurant_menu_screen.dart';
 
 class RestaurantsScreen extends StatelessWidget {
-  const RestaurantsScreen({super.key});
+  const RestaurantsScreen({super.key, this.reservationsOnly = false});
+
+  final bool reservationsOnly;
 
   @override
   Widget build(BuildContext context) {
@@ -18,52 +23,22 @@ class RestaurantsScreen extends StatelessWidget {
     final restaurants = restaurantStore.restaurants
         .where((business) =>
             business.category == BusinessCategory.restaurant &&
-            business.isOnline)
+            business.isOnline &&
+            (!reservationsOnly ||
+                (business.isPartner && business.reservationsEnabled)))
         .toList()
       ..sort((a, b) => a.name.compareTo(b.name));
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
-      appBar: AppBar(
-        title: const Text(
-          'Restaurantes',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
-        elevation: 0,
+      backgroundColor: AppColors.surface,
+      appBar: BoraScreenAppBar(
+        title: reservationsOnly ? 'Reservar Mesa' : 'Restaurantes',
       ),
       body: restaurants.isEmpty
-          ? Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.restaurant_outlined,
-                        size: 72, color: Colors.grey.shade300),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Nenhum restaurante disponível',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Volte mais tarde para ver os restaurantes da sua área.',
-                      textAlign: TextAlign.center,
-                      style:
-                          TextStyle(fontSize: 13, color: Colors.grey.shade400),
-                    ),
-                  ],
-                ),
-              ),
-            )
+          ? const _EmptyState()
           : ListView.builder(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+              padding: const EdgeInsets.fromLTRB(
+                Spacing.lg, Spacing.md, Spacing.lg, Spacing.xxl),
               itemCount: restaurants.length,
               itemBuilder: (context, index) {
                 final business = restaurants[index];
@@ -98,11 +73,11 @@ class RestaurantsScreen extends StatelessWidget {
       return;
     }
 
-    // Non-partner: driver shops near the client — use the delivery location
-    // as pickup so distance is always realistic regardless of DB data.
-    final pickupLocation = business.isPartner
-        ? business.location
-        : context.read<CartStore>().deliveryLocation;
+    // Prefer the restaurant's real coordinates (now present in DB for
+    // non-partners too) so distance_km reflects the actual pickup→dropoff
+    // route. Fallback to the client's delivery location if missing.
+    final pickupLocation =
+        business.location ?? context.read<CartStore>().deliveryLocation;
 
     context.read<CartStore>().configureSession(
           serviceType: OrderServiceType.restaurant,
@@ -122,7 +97,51 @@ class RestaurantsScreen extends StatelessWidget {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => RestaurantMenuScreen(restaurant: restaurant),
+        builder: (_) => RestaurantMenuScreen(
+          restaurant: restaurant,
+          restaurantId: business.id,
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: Spacing.xxxl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.restaurant_outlined,
+              size: 72,
+              color: AppColors.textSecondary.withValues(alpha: 0.4),
+            ),
+            const SizedBox(height: Spacing.lg),
+            const Text(
+              'Nenhum restaurante disponível',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: Spacing.sm),
+            const Text(
+              'Volta mais tarde para ver os restaurantes da tua área.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -142,16 +161,16 @@ class _RestaurantTile extends StatelessWidget {
     final isFav = favorites.isFavorite(favKey);
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: Spacing.sm),
       child: Material(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(Radii.lg),
         child: InkWell(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(Radii.lg),
           onTap: onTap,
           child: Container(
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(Radii.lg),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.05),
@@ -160,29 +179,16 @@ class _RestaurantTile extends StatelessWidget {
                 ),
               ],
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding: const EdgeInsets.symmetric(
+                horizontal: Spacing.lg, vertical: Spacing.md),
             child: Row(
               children: [
-                // ── Icon ──────────────────────────────────────────────────
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: isPartner
-                        ? Colors.green.shade50
-                        : Colors.orange.shade50,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    Icons.restaurant,
-                    color: isPartner
-                        ? Colors.green.shade600
-                        : Colors.orange.shade600,
-                  ),
+                _RestaurantLogo(
+                  photoUrl: business.photoUrl,
+                  name: business.name,
+                  isPartner: isPartner,
                 ),
-                const SizedBox(width: 14),
-
-                // ── Info ─────────────────────────────────────────────────
+                const SizedBox(width: Spacing.md),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -192,20 +198,14 @@ class _RestaurantTile extends StatelessWidget {
                         style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
-                          color: Colors.black87,
+                          color: AppColors.textPrimary,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          _PartnerBadge(isPartner: isPartner),
-                        ],
-                      ),
+                      const SizedBox(height: Spacing.xs),
+                      _PartnerBadge(isPartner: isPartner),
                     ],
                   ),
                 ),
-
-                // ── Favorite ─────────────────────────────────────────────
                 GestureDetector(
                   onTap: () => favorites.toggle(favKey),
                   child: AnimatedSwitcher(
@@ -216,16 +216,100 @@ class _RestaurantTile extends StatelessWidget {
                       isFav ? Icons.favorite : Icons.favorite_border,
                       key: ValueKey(isFav),
                       size: 22,
-                      color: isFav ? Colors.red : Colors.grey.shade400,
+                      color: isFav
+                          ? Colors.redAccent
+                          : AppColors.textSecondary.withValues(alpha: 0.5),
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                Icon(Icons.arrow_forward_ios,
-                    size: 14, color: Colors.grey.shade400),
+                const SizedBox(width: Spacing.sm),
+                Icon(
+                  Icons.arrow_forward_ios,
+                  size: 14,
+                  color: AppColors.textSecondary.withValues(alpha: 0.5),
+                ),
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RestaurantLogo extends StatelessWidget {
+  const _RestaurantLogo({
+    required this.photoUrl,
+    required this.name,
+    required this.isPartner,
+  });
+
+  final String photoUrl;
+  final String name;
+  final bool isPartner;
+
+  @override
+  Widget build(BuildContext context) {
+    final bgColor = isPartner
+        ? AppColors.primary.withValues(alpha: 0.10)
+        : AppColors.accent.withValues(alpha: 0.10);
+    final textColor = isPartner ? AppColors.primary : AppColors.accent;
+    final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
+
+    if (photoUrl.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(Radii.md),
+        child: SizedBox(
+          width: 48,
+          height: 48,
+          child: Image.network(
+            photoUrl,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => _InitialBox(
+              initial: initial,
+              bgColor: bgColor,
+              textColor: textColor,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return _InitialBox(
+      initial: initial,
+      bgColor: bgColor,
+      textColor: textColor,
+    );
+  }
+}
+
+class _InitialBox extends StatelessWidget {
+  const _InitialBox({
+    required this.initial,
+    required this.bgColor,
+    required this.textColor,
+  });
+
+  final String initial;
+  final Color bgColor;
+  final Color textColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 48,
+      height: 48,
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(Radii.md),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        initial,
+        style: TextStyle(
+          fontSize: 22,
+          fontWeight: FontWeight.w800,
+          color: textColor,
         ),
       ),
     );
@@ -239,25 +323,23 @@ class _PartnerBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final color = isPartner ? AppColors.primary : AppColors.accent;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(
+          horizontal: Spacing.sm, vertical: 3),
       decoration: BoxDecoration(
-        color: isPartner ? Colors.green.shade100 : Colors.orange.shade100,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isPartner ? Colors.green : Colors.orange,
-          width: 1,
-        ),
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(Radii.md),
+        border: Border.all(color: color.withValues(alpha: 0.4), width: 1),
       ),
       child: Text(
         isPartner ? 'Parceiro' : 'Não parceiro',
         style: TextStyle(
           fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: isPartner ? Colors.green.shade800 : Colors.orange.shade800,
+          fontWeight: FontWeight.w700,
+          color: color,
         ),
       ),
     );
   }
 }
-

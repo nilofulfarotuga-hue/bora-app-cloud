@@ -105,7 +105,8 @@ class _AddressAutocompleteFieldState extends State<AddressAutocompleteField> {
   void _onChanged(String value) {
     // Guard 1: synchronous programmatic change still in progress.
     if (_isProgrammaticChange) {
-      debugPrint('[ACF._onChanged] BLOCKED guard1 (programmatic) value="$value"');
+      debugPrint(
+          '[ACF._onChanged] BLOCKED guard1 (programmatic) value="$value"');
       return;
     }
 

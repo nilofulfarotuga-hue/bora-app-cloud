@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show Supabase;
 
 import '../auth/auth_store.dart';
+import '../config/app_colors.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../utils/map_utils.dart';
 
@@ -37,6 +38,12 @@ class DriverHomeScreen extends StatefulWidget {
 class _DriverHomeScreenState extends State<DriverHomeScreen> {
   Set<String> _knownOrderIds = {};
   bool _isShowingDialog = false;
+  // ID of the offer currently visible in _showNewOrderDialog (null when none).
+  // Used to discard duplicate stream re-emissions for the same offer and to
+  // provide log context when a second offer event is dropped while the first
+  // is still on screen. Cleared when the dialog closes.
+  String? _lastOfferedOrderId;
+  String? _currentShowingOrderId;
   String? _highlightedOrderId;
   final SoundService _soundService = SoundService();
   final Set<String> _processingOrderIds = {};
@@ -206,8 +213,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
       _resolveGpsFallback();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-              'Permissão de localização bloqueada. Ative nas definições.'),
+          content:
+              Text('Permissão de localização bloqueada. Ative nas definições.'),
           duration: Duration(seconds: 8),
           action: SnackBarAction(
             label: 'Definições',
@@ -267,7 +274,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     }
 
     final theme = Theme.of(context);
-    final switchModeColor = theme.appBarTheme.foregroundColor ?? theme.colorScheme.onPrimary;
+    final switchModeColor =
+        theme.appBarTheme.foregroundColor ?? theme.colorScheme.onPrimary;
     final orderStore = context.watch<OrderStore>();
     // PERFORMANCE: read DriverStore (no full subscription) and use scoped
     // selectors below. The unscoped watch was rebuilding the entire screen
@@ -285,7 +293,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     final availableOrders = orderStore.availableOrders;
     final myOrders = orderStore.myOrders;
     final isAvailable = orderStore.isDriverAvailable;
-    final highlightedOrder = _findOrderById(availableOrders, _highlightedOrderId);
+    final highlightedOrder =
+        _findOrderById(availableOrders, _highlightedOrderId);
     final canInteractWithOrders = isAvailable;
     final List<OrderModel> otherOrders = highlightedOrder == null
         ? availableOrders
@@ -307,8 +316,43 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     }
 
     return Scaffold(
+      backgroundColor: AppColors.surface,
       appBar: AppBar(
-        title: const Text("Painel do Estafeta"),
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        flexibleSpace: const DecoratedBox(
+          decoration: BoxDecoration(gradient: AppColors.headerGradient),
+        ),
+        title: RichText(
+          text: const TextSpan(
+            children: [
+              TextSpan(
+                text: 'BO',
+                style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                    letterSpacing: 1),
+              ),
+              TextSpan(
+                text: 'RA ',
+                style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.accent,
+                    letterSpacing: 1),
+              ),
+              TextSpan(
+                text: '· Estafeta',
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w400,
+                    color: Colors.white70),
+              ),
+            ],
+          ),
+        ),
         actions: [
           TextButton.icon(
             onPressed: _handleTestMode,
@@ -371,12 +415,14 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
               ),
             ),
             if (myOrders.isNotEmpty) ...[
-              for (final order in myOrders) ...[
-                Expanded(
-                  child: _buildActiveOrderCard(context, orderStore, order),
+              Expanded(
+                child: ListView.builder(
+                  padding: EdgeInsets.zero,
+                  itemCount: myOrders.length,
+                  itemBuilder: (ctx, i) =>
+                      _buildActiveOrderCard(context, orderStore, myOrders[i]),
                 ),
-                const SizedBox(height: 16),
-              ],
+              ),
             ] else ...[
               const Text(
                 "Pedidos disponíveis",
@@ -423,8 +469,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                               isAvailable,
                             );
                           },
-                          onReject: () =>
-                              _handleRejectOrder(order, orderStore),
+                          onReject: () => _handleRejectOrder(order, orderStore),
                         ),
                       ),
                     if (orderStore.completedOrders.isNotEmpty) ...[
@@ -532,7 +577,6 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     }
 
     final driverPos = _initialGpsCenter!;
-    final driverName = driverStore.currentDriver?.name ?? 'Estafeta';
 
     return Scaffold(
       body: Stack(
@@ -550,20 +594,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                   zoom: 15,
                 ),
                 myLocationEnabled: true,
-                myLocationButtonEnabled: false,
+                myLocationButtonEnabled: true,
                 zoomControlsEnabled: false,
                 compassEnabled: false,
-                markers: driverLocation != null
-                    ? {
-                        Marker(
-                          markerId: const MarkerId('driver'),
-                          position: driverLocation.toGMaps(),
-                          icon: BitmapDescriptor.defaultMarkerWithHue(
-                              BitmapDescriptor.hueGreen),
-                          infoWindow: InfoWindow(title: driverName),
-                        ),
-                      }
-                    : {},
+                markers: const {},
                 onMapCreated: (_) {},
               );
             },
@@ -577,8 +611,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                 children: [
                   // Status chip
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                     decoration: BoxDecoration(
                       color: isAvailable
                           ? Colors.green.shade600
@@ -713,17 +747,179 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.divider),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Center(
         child: Text(
           message,
           textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 16),
+          style: TextStyle(fontSize: 16, color: Colors.grey.shade700),
         ),
       ),
     );
+  }
+
+  /// Shows a dialog for the driver to input how many bags were used.
+  /// Returns the count if confirmed, or null if cancelled.
+  /// Only shown for market/store orders before delivery confirmation.
+  Future<int?> _showBagCountDialog(OrderModel order) async {
+    int count = 0;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            final bagFee = count * 0.10;
+            return AlertDialog(
+              title: const Text('Sacolas utilizadas'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Quantas sacolas usou para embalar os produtos?',
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.remove_circle_outline, size: 32),
+                        onPressed: count > 0
+                            ? () => setDialogState(() => count--)
+                            : null,
+                      ),
+                      const SizedBox(width: 16),
+                      Text(
+                        '$count',
+                        style: const TextStyle(
+                            fontSize: 28, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(width: 16),
+                      IconButton(
+                        icon: const Icon(Icons.add_circle_outline, size: 32),
+                        onPressed: count < 10
+                            ? () => setDialogState(() => count++)
+                            : null,
+                      ),
+                    ],
+                  ),
+                  if (count > 0) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      '$count sacola${count > 1 ? 's' : ''} × €0.10 = €${bagFee.toStringAsFixed(2)}',
+                      style:
+                          TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                    ),
+                  ] else
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        'Sem sacolas utilizadas',
+                        style: TextStyle(
+                            color: Colors.grey.shade500, fontSize: 13),
+                      ),
+                    ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(false),
+                  child: const Text('Cancelar'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(true),
+                  child: const Text('Confirmar'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    return confirmed == true ? count : null;
+  }
+
+  Future<bool> _showDeliveryCodeDialog(OrderModel order) async {
+    final controller = TextEditingController();
+    String? errorText;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            return AlertDialog(
+              title: const Text('Código de entrega'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Peça ao cliente o código de 4 dígitos para confirmar a entrega.',
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: controller,
+                    keyboardType: TextInputType.number,
+                    maxLength: 4,
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      labelText: 'Código',
+                      counterText: '',
+                      errorText: errorText,
+                      border: const OutlineInputBorder(),
+                    ),
+                    onChanged: (_) {
+                      if (errorText != null) {
+                        setDialogState(() => errorText = null);
+                      }
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(false),
+                  child: const Text('Cancelar'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    final entered = controller.text.trim();
+                    if (entered.length != 4) {
+                      setDialogState(() => errorText = 'Digite os 4 dígitos.');
+                      return;
+                    }
+                    if (entered != order.deliveryCode) {
+                      setDialogState(() =>
+                          errorText = 'Código incorreto. Tente novamente.');
+                      controller.clear();
+                      return;
+                    }
+                    Navigator.of(dialogContext).pop(true);
+                  },
+                  child: const Text('Confirmar'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    return confirmed == true;
   }
 
   Widget _buildActiveOrderCard(
@@ -735,130 +931,173 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     final pickupTarget = order.pickupLocation ?? order.destination;
     final deliveryTarget = order.destination;
     final hasPickedUp = order.status.index >= OrderStatus.pickedUp.index;
-    final LatLng? navigationTarget = hasPickedUp ? deliveryTarget : pickupTarget;
-    final String navigationLabel = hasPickedUp
-        ? "Navegar para cliente"
-        : "Navegar para recolha";
+    final LatLng? navigationTarget =
+        hasPickedUp ? deliveryTarget : pickupTarget;
+    final String navigationLabel =
+        hasPickedUp ? "Navegar para cliente" : "Navegar para recolha";
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── scrollable content ──────────────────────────────────────
-            Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Entrega em andamento",
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 8,
                   children: [
-                    const Text(
-                      "Entrega em andamento",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    _InfoChip(
+                      icon: Icons.restaurant,
+                      label: "Serviço",
+                      value: order.serviceType.label,
                     ),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 12,
-                      runSpacing: 8,
+                    _InfoChip(
+                      icon: Icons.euro,
+                      label: "Pedido",
+                      value: "€${order.total.toStringAsFixed(2)}",
+                    ),
+                    _InfoChip(
+                      icon: Icons.payments,
+                      label: "Ganhos",
+                      value: "+€${order.driverEarnings.toStringAsFixed(2)}",
+                    ),
+                    _InfoChip(
+                      icon: Icons.social_distance,
+                      label: "Distância",
+                      value: "${order.distanceKm.toStringAsFixed(1)} km",
+                    ),
+                    _InfoChip(
+                      icon: Icons.account_balance_wallet,
+                      label: "Pagamento",
+                      value: order.paymentMethod.label,
+                    ),
+                  ],
+                ),
+                if (order.paymentMethod == PaymentMethod.cash) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    width: double.infinity,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.orange.shade400),
+                    ),
+                    child: Row(
                       children: [
-                        _InfoChip(
-                          icon: Icons.restaurant,
-                          label: "Serviço",
-                          value: order.serviceType.label,
-                        ),
-                        _InfoChip(
-                          icon: Icons.euro,
-                          label: "Pedido",
-                          value: "€${order.total.toStringAsFixed(2)}",
-                        ),
-                        _InfoChip(
-                          icon: Icons.payments,
-                          label: "Ganhos",
-                          value: "+€${order.driverEarnings.toStringAsFixed(2)}",
-                        ),
-                        _InfoChip(
-                          icon: Icons.social_distance,
-                          label: "Distância",
-                          value: "${order.distanceKm.toStringAsFixed(1)} km",
+                        Icon(Icons.warning_amber_rounded,
+                            color: Colors.orange.shade800, size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          'COBRAR EM DINHEIRO',
+                          style: TextStyle(
+                            color: Colors.orange.shade900,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
                         ),
                       ],
                     ),
-                    if (order.vendorName != null) ...[
-                      const SizedBox(height: 12),
-                      Text(
-                        order.vendorName!,
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                    ],
-                    if (order.pickupAddress != null && order.pickupAddress!.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      const Text(
-                        "Recolha:",
-                        style: TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                      Text(order.pickupAddress!),
-                    ],
-                    if (order.dropoffAddress != null && order.dropoffAddress!.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      const Text(
-                        "Entrega:",
-                        style: TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                      Text(order.dropoffAddress!),
-                    ],
-                    if (order.customerNotes != null && order.customerNotes!.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      const Text(
-                        "Nota do cliente:",
-                        style: TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                      Text(order.customerNotes!),
-                    ],
-                    if (order.apartmentDelivery) ...[
-                      const SizedBox(height: 12),
-                      const _ApartmentDeliveryBanner(),
-                    ],
-                    const SizedBox(height: 16),
-                    Text("Status atual: ${order.status.label}"),
-                    if (order.isPurchaseFinalized) ...[
-                      const SizedBox(height: 8),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.green.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.green.shade200),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.check_circle_outline,
-                                color: Colors.green.shade700, size: 16),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                order.finalTotal != null
-                                    ? 'Compra realizada · Valor: €${order.finalTotal!.toStringAsFixed(2)}'
-                                    : 'Compra realizada',
-                                style: TextStyle(
-                                  color: Colors.green.shade700,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13,
-                                ),
-                              ),
+                  ),
+                ],
+                if (order.vendorName != null) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    order.vendorName!,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+                if (order.pickupAddress != null &&
+                    order.pickupAddress!.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  const Text(
+                    "Recolha:",
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  Text(
+                    order.pickupAddress!,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+                if (order.dropoffAddress != null &&
+                    order.dropoffAddress!.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  const Text(
+                    "Entrega:",
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  Text(
+                    order.dropoffAddress!,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+                if (order.customerNotes != null &&
+                    order.customerNotes!.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  const Text(
+                    "Nota do cliente:",
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  Text(order.customerNotes!),
+                ],
+                if (order.apartmentDelivery) ...[
+                  const SizedBox(height: 12),
+                  const _ApartmentDeliveryBanner(),
+                ],
+                const SizedBox(height: 16),
+                Text("Status atual: ${order.status.label}"),
+                if (order.isPurchaseFinalized) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.green.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.check_circle_outline,
+                            color: Colors.green.shade700, size: 16),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            order.finalTotal != null
+                                ? 'Compra realizada · Valor: €${order.finalTotal!.toStringAsFixed(2)}'
+                                : 'Compra realizada',
+                            style: TextStyle(
+                              color: Colors.green.shade700,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
                             ),
-                          ],
+                          ),
                         ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
             ),
             // ── fixed buttons ────────────────────────────────────────────
             const SizedBox(height: 16),
@@ -912,20 +1151,45 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                         ? null
                         : () async {
                             final messenger = ScaffoldMessenger.of(context);
-                            setState(
-                                () => _processingOrderIds.add(order.id));
+                            // Gate "Concluir entrega" behind delivery confirmation.
+                            if (order.status == OrderStatus.onTheWay) {
+                              // Market orders: collect bag count before code.
+                              if (order.serviceType ==
+                                  OrderServiceType.storeShopping) {
+                                final orderStoreLocal =
+                                    context.read<OrderStore>();
+                                final bagCount =
+                                    await _showBagCountDialog(order);
+                                if (bagCount == null) return;
+                                if (bagCount > 0) {
+                                  await orderStoreLocal.updateBagCount(
+                                      order.id, bagCount);
+                                }
+                              }
+                              // PIN bypass activo para testes.
+                              // Para reactivar, meter `kRequireDeliveryCode = true`.
+                              const bool kRequireDeliveryCode = false;
+                              // ignore: dead_code
+                              if (kRequireDeliveryCode) {
+                                final codeOk =
+                                    await _showDeliveryCodeDialog(order);
+                                if (!codeOk) return;
+                              }
+                            }
+                            setState(() => _processingOrderIds.add(order.id));
                             final success = await nextAction.execute();
                             if (mounted) {
-                              setState(() =>
-                                  _processingOrderIds.remove(order.id));
+                              setState(
+                                  () => _processingOrderIds.remove(order.id));
                             }
                             messenger.showSnackBar(
                               SnackBar(
                                 content: Text(
                                   success
                                       ? nextAction.successMessage
-                                      : "Não foi possível atualizar o pedido.",
+                                      : 'Erro: ${orderStore.lastUpdateError ?? "desconhecido"}',
                                 ),
+                                duration: Duration(seconds: success ? 4 : 6),
                               ),
                             );
                           },
@@ -933,8 +1197,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                         ? const SizedBox(
                             height: 16,
                             width: 16,
-                            child:
-                                CircularProgressIndicator(strokeWidth: 2),
+                            child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : Text(nextAction.label),
                   ),
@@ -949,12 +1212,11 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                             final confirmed =
                                 await _confirmCancelDelivery(context);
                             if (!confirmed) return;
-                            setState(
-                                () => _processingOrderIds.add(order.id));
+                            setState(() => _processingOrderIds.add(order.id));
                             await _handleCancelDelivery(order, orderStore);
                             if (mounted) {
-                              setState(() =>
-                                  _processingOrderIds.remove(order.id));
+                              setState(
+                                  () => _processingOrderIds.remove(order.id));
                             }
                           },
                     icon: const Icon(Icons.cancel_outlined),
@@ -963,6 +1225,29 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                       foregroundColor: Colors.red,
                       side: const BorderSide(color: Colors.red),
                     ),
+                  ),
+                ],
+                // Row 4: Driver Help — BR §5.2 (mercados/não-parceiros only)
+                if (!order.isPartnerStore &&
+                    (order.serviceType == OrderServiceType.storeShopping ||
+                        order.serviceType ==
+                            OrderServiceType.carryGroceries) &&
+                    order.status == OrderStatus.driverAccepted) ...[
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      final ok = await orderStore.requestDriverHelp(order);
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(ok
+                              ? 'Pedido de ajuda enviado. Ajudante ganha €4. (BR §5.2)'
+                              : 'Não foi possível pedir ajuda.'),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.group_add_outlined),
+                    label: const Text('Preciso de ajuda'),
                   ),
                 ],
               ],
@@ -1014,7 +1299,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     final uri = Uri(scheme: 'tel', path: phone);
     // On web, url_launcher routes tel: via window.open internally.
     // On mobile, it hands off to the system dialler.
-    final mode = LaunchMode.externalApplication;
+    const mode = LaunchMode.externalApplication;
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: mode);
     } else if (mounted) {
@@ -1050,7 +1335,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
 
   Future<void> _handleCancelDelivery(
       OrderModel order, OrderStore orderStore) async {
-    final success = await orderStore.cancelDelivery(order);
+    final success = await orderStore.driverCancelAcceptedOrder(order);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -1089,7 +1374,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
       );
       return;
     }
-    if (!driver.supportsService(order.serviceType, requiresCar: order.requiresCar)) {
+    if (!driver.supportsService(order.serviceType,
+        requiresCar: order.requiresCar)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -1136,8 +1422,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     unawaited(_soundService.stop());
     setState(() => _highlightedOrderId = null);
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text("Pedido rejeitado."),
+      const SnackBar(
+        content: Text("Pedido rejeitado."),
       ),
     );
   }
@@ -1157,26 +1443,35 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     final newIds = currentIds.difference(_knownOrderIds);
 
     String? highlightCandidate = _highlightedOrderId;
-    if (highlightCandidate != null && !currentIds.contains(highlightCandidate)) {
+    if (highlightCandidate != null &&
+        !currentIds.contains(highlightCandidate)) {
       highlightCandidate = null;
     }
 
-    if (newIds.isNotEmpty) {
-      final newestOrders = orders
-          .where((order) => newIds.contains(order.id))
-          .toList()
-        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      final newOrder = newestOrders.first;
-      highlightCandidate = newOrder.id;
+    // FIFO candidate selection — oldest eligible offer is shown first.
+    // Excludes in-flight and duplicate dialogs so only ONE offer is surfaced
+    // at any time.
+    final candidates = orders
+        .where((o) =>
+            o.status == OrderStatus.callingDriver &&
+            !_processingOrderIds.contains(o.id) &&
+            o.id != _lastOfferedOrderId &&
+            o.id != _currentShowingOrderId)
+        .toList()
+      ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
 
-      if (newOrder.status == OrderStatus.callingDriver) {
-        unawaited(_triggerNewOrderFeedback(newOrder));
+    if (candidates.isNotEmpty) {
+      final next = candidates.first;
+      highlightCandidate = next.id;
+
+      if (newIds.contains(next.id)) {
+        unawaited(_triggerNewOrderFeedback(next));
         unawaited(_soundService.playLoop());
       }
 
-      if (!_isShowingDialog) {
+      if (!_isShowingDialog && _currentShowingOrderId == null) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          _showNewOrderDialog(newOrder, store);
+          _showNewOrderDialog(next, store);
         });
       }
     } else if (highlightCandidate == null && orders.isNotEmpty) {
@@ -1195,6 +1490,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     // (covers: order accepted, order expired, driver rejected last order).
     if (orders.isEmpty) {
       unawaited(_soundService.stop());
+    } else if (!_soundService.isPlaying) {
+      // Orders present but sound not playing — audio was interrupted externally
+      // (phone call, background, audio focus lost). Restart the alert.
+      unawaited(_soundService.playLoop());
     }
   }
 
@@ -1221,32 +1520,192 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
       return;
     }
 
+    // 1º pedido único = sem popup. O card laranja inline (Aceitar/Recusar)
+    // já está visível no body — não tapar com overlay branco.
+    // Popup só aparece quando há ≥1 pedido activo (stacking 2+).
+    final hasActiveOrders = store.myOrders.isNotEmpty;
+    if (!hasActiveOrders) {
+      return;
+    }
+
+    // Double guard: multiple post-frame callbacks can queue before the first
+    // flips _isShowingDialog. Re-check on entry so only ONE offer dialog is
+    // ever visible. Second offer is DISCARDED (not queued) — the offers
+    // stream will re-emit the pending order after the current dialog closes.
+    if (_isShowingDialog) {
+      unawaited(_soundService.stop());
+      return;
+    }
+    if (_currentShowingOrderId != null) {
+      unawaited(_soundService.stop());
+      return;
+    }
+
+    // Dedupe stream re-emissions of the same order while the dialog is open.
+    if (_lastOfferedOrderId == order.id) return;
+
     _isShowingDialog = true;
+    _currentShowingOrderId = order.id;
+    _lastOfferedOrderId = order.id;
 
     if (!mounted) {
       _isShowingDialog = false;
+      _currentShowingOrderId = null;
+      _lastOfferedOrderId = null;
+      unawaited(_soundService.stop());
       return;
     }
 
     final description = order.vendorName ?? order.serviceType.label;
+    final dropoffText = order.dropoffAddress ?? order.dropoffStreet ?? '';
+    final paymentLabel = order.paymentMethod.label;
+    final isCash = order.paymentMethod == PaymentMethod.cash;
 
-    await showDialog<void>(
+    // 40s auto-dismiss so the offer doesn't block the UI indefinitely.
+    // Uses the root navigator so the dialog overlays any screen on top
+    // (notably DriverMapScreen when the driver is already on delivery).
+    Timer? autoDismiss;
+    final String? decision = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Novo pedido disponível'),
-        content: Text(
-          'Um novo pedido de $description está disponível. Deseja verificar? ',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Ok'),
+      barrierDismissible: false,
+      useRootNavigator: true,
+      builder: (dialogCtx) {
+        autoDismiss = Timer(const Duration(seconds: 40), () {
+          if (Navigator.of(dialogCtx, rootNavigator: true).canPop()) {
+            Navigator.of(dialogCtx, rootNavigator: true).pop('timeout');
+          }
+        });
+        return PopScope(
+          canPop: false,
+          child: AlertDialog(
+            title: Text(
+                hasActiveOrders ? 'Novo pedido adicional!' : 'Novo pedido!'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  description,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (dropoffText.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    dropoffText,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Icon(Icons.account_balance_wallet, size: 16),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Pagamento: $paymentLabel',
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  ],
+                ),
+                if (isCash) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.orange.shade400),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.warning_amber_rounded,
+                            color: Colors.orange.shade800, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'COBRAR EM DINHEIRO',
+                            style: TextStyle(
+                              color: Colors.orange.shade900,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                if (hasActiveOrders) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.green.shade200),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.add_circle_outline,
+                            color: Colors.green, size: 20),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            '+€3.00  +50 tokens',
+                            style: TextStyle(
+                              color: Colors.green,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () =>
+                    Navigator.of(dialogCtx, rootNavigator: true).pop('reject'),
+                child: const Text('Recusar'),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () =>
+                    Navigator.of(dialogCtx, rootNavigator: true).pop('accept'),
+                child: Text(
+                    hasActiveOrders ? 'Aceitar +€3 +50 tokens' : 'Aceitar'),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
+    autoDismiss?.cancel();
 
     _isShowingDialog = false;
+    _currentShowingOrderId = null;
+    _lastOfferedOrderId = order.id;
+
+    if (!mounted) return;
+
+    if (decision == 'accept') {
+      // Dispatch only offers to online drivers, so isAvailable is implicit.
+      await _handleAcceptOrder(
+        order,
+        store,
+        context.read<DriverStore>(),
+        true,
+      );
+    } else if (decision == 'reject') {
+      _handleRejectOrder(order, store);
+    }
+    // 'timeout' or null → no-op; the offer will time out via DispatchEngine.
   }
 }
 
@@ -1398,7 +1857,7 @@ class _DriverOrderAlertCardState extends State<_DriverOrderAlertCard>
     final theme = Theme.of(context);
     final order = widget.order;
     final baseColor = Colors.orange.shade50;
-    final highlightColor = Colors.orange.shade200.withOpacity(0.9);
+    final highlightColor = Colors.orange.shade200.withValues(alpha: 0.9);
 
     return AnimatedBuilder(
       animation: _controller,
@@ -1408,7 +1867,7 @@ class _DriverOrderAlertCardState extends State<_DriverOrderAlertCard>
         final borderColor =
             Color.lerp(Colors.orange.shade400, Colors.orange.shade700, t) ??
                 Colors.orange.shade500;
-        final shadowColor = Colors.orange.withOpacity(0.25 + (0.25 * t));
+        final shadowColor = Colors.orange.withValues(alpha: 0.25 + (0.25 * t));
 
         return Container(
           padding: const EdgeInsets.all(20),
@@ -1479,6 +1938,8 @@ class _DriverOrderAlertCardState extends State<_DriverOrderAlertCard>
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w600,
                         ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                     if (order.pickupAddress != null &&
@@ -1487,6 +1948,8 @@ class _DriverOrderAlertCardState extends State<_DriverOrderAlertCard>
                       Text(
                         "Recolha: ${order.pickupAddress!}",
                         style: theme.textTheme.bodyMedium,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                     if (order.dropoffAddress != null &&
@@ -1495,6 +1958,8 @@ class _DriverOrderAlertCardState extends State<_DriverOrderAlertCard>
                       Text(
                         "Entrega: ${order.dropoffAddress!}",
                         style: theme.textTheme.bodyMedium,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                     if (order.customerNotes != null &&
@@ -1507,6 +1972,47 @@ class _DriverOrderAlertCardState extends State<_DriverOrderAlertCard>
                         ),
                       ),
                       Text(order.customerNotes!),
+                    ],
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(Icons.account_balance_wallet,
+                            size: 16, color: Colors.orange.shade800),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Pagamento: ${order.paymentMethod.label}',
+                          style: theme.textTheme.bodyMedium
+                              ?.copyWith(fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                    if (order.paymentMethod == PaymentMethod.cash) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.red.shade400),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.warning_amber_rounded,
+                                color: Colors.red.shade700, size: 18),
+                            const SizedBox(width: 6),
+                            Text(
+                              'COBRAR EM DINHEIRO',
+                              style: TextStyle(
+                                color: Colors.red.shade800,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ],
                     if (order.apartmentDelivery) ...[
                       const SizedBox(height: 12),
@@ -1538,7 +2044,7 @@ class _DriverOrderAlertCardState extends State<_DriverOrderAlertCard>
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.9),
+                      color: Colors.white.withValues(alpha: 0.9),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
@@ -1655,7 +2161,11 @@ class _AvailableOrderCardState extends State<_AvailableOrderCard> {
             ),
             if (order.vendorName != null) ...[
               const SizedBox(height: 4),
-              Text(order.vendorName!),
+              Text(
+                order.vendorName!,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
             ],
             const SizedBox(height: 8),
             Wrap(
@@ -1677,17 +2187,61 @@ class _AvailableOrderCardState extends State<_AvailableOrderCard> {
                   label: "Distância",
                   value: "${order.distanceKm.toStringAsFixed(1)} km",
                 ),
+                _InfoChip(
+                  icon: Icons.account_balance_wallet,
+                  label: "Pagamento",
+                  value: order.paymentMethod.label,
+                ),
               ],
             ),
-            if (order.pickupAddress != null && order.pickupAddress!.isNotEmpty) ...[
+            if (order.paymentMethod == PaymentMethod.cash) ...[
               const SizedBox(height: 8),
-              Text("Recolha: ${order.pickupAddress!}"),
+              Container(
+                width: double.infinity,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.shade400),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.warning_amber_rounded,
+                        color: Colors.orange.shade800, size: 18),
+                    const SizedBox(width: 6),
+                    Text(
+                      'COBRAR EM DINHEIRO',
+                      style: TextStyle(
+                        color: Colors.orange.shade900,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
-            if (order.dropoffAddress != null && order.dropoffAddress!.isNotEmpty) ...[
+            if (order.pickupAddress != null &&
+                order.pickupAddress!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                "Recolha: ${order.pickupAddress!}",
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+            if (order.dropoffAddress != null &&
+                order.dropoffAddress!.isNotEmpty) ...[
               const SizedBox(height: 4),
-              Text("Entrega: ${order.dropoffAddress!}"),
+              Text(
+                "Entrega: ${order.dropoffAddress!}",
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
             ],
-            if (order.customerNotes != null && order.customerNotes!.isNotEmpty) ...[
+            if (order.customerNotes != null &&
+                order.customerNotes!.isNotEmpty) ...[
               const SizedBox(height: 8),
               Text(
                 "Nota do cliente:",
@@ -1722,8 +2276,7 @@ class _AvailableOrderCardState extends State<_AvailableOrderCard> {
                         ? const SizedBox(
                             height: 16,
                             width: 16,
-                            child:
-                                CircularProgressIndicator(strokeWidth: 2),
+                            child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Text("Aceitar pedido"),
                   ),

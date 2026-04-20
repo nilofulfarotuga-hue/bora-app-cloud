@@ -66,5 +66,9 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>A Bora usa a câmara para tirares foto de perfil, de encomendas (Enviar Encomenda) e de compras (Levar Compras).</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>A Bora usa a galeria para escolheres foto de perfil, de encomendas ou de compras.</string>
 </dict>
 </plist>

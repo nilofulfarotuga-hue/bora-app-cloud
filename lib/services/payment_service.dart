@@ -1,17 +1,9 @@
-import 'dart:convert';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' show ThemeMode;
 import 'package:flutter_stripe/flutter_stripe.dart';
-import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class PaymentService {
-  static const String _baseUrl = String.fromEnvironment(
-    'BACKEND_BASE_URL',
-    defaultValue: 'http://localhost:3000',
-  );
-
   // ─── Primary API (called by OrderStore) ──────────────────────────────────
 
   /// Creates a Stripe PaymentIntent via the Supabase Edge Function.
@@ -30,7 +22,7 @@ class PaymentService {
 
     final response = await Supabase.instance.client.functions.invoke(
       'create-payment-intent',
-      body: {'orderId': orderId, 'amount': amount},
+      body: {'order_id': orderId, 'amount': amount},
     );
 
     final body = response.data as Map<String, dynamic>?;
@@ -80,18 +72,12 @@ class PaymentService {
     required String paymentIntentId,
     required double amount,
   }) async {
-    _checkBackend();
-
-    final response = await http.post(
-      Uri.parse('$_baseUrl/refund'),
-      headers: const {'Content-Type': 'application/json'},
-      body: jsonEncode({'paymentIntentId': paymentIntentId, 'amount': amount}),
+    final response = await Supabase.instance.client.functions.invoke(
+      'refund',
+      body: {'paymentIntentId': paymentIntentId, 'amount': amount},
     );
-
-    _assertOk(response, 'refund');
-
-    final refundId =
-        (jsonDecode(response.body) as Map<String, dynamic>)['refundId'];
+    final body = response.data as Map<String, dynamic>?;
+    final refundId = body?['refundId'];
     debugPrint(
         '[PaymentService] refund issued: $refundId (€${amount.toStringAsFixed(2)})');
   }
@@ -105,22 +91,17 @@ class PaymentService {
     required double amount,
     String? customerId,
   }) async {
-    _checkBackend();
-
     final payload = <String, dynamic>{'amount': amount};
     if (customerId != null) payload['customerId'] = customerId;
 
-    final response = await http.post(
-      Uri.parse('$_baseUrl/charge-extra'),
-      headers: const {'Content-Type': 'application/json'},
-      body: jsonEncode(payload),
+    final response = await Supabase.instance.client.functions.invoke(
+      'charge-extra',
+      body: payload,
     );
-
-    _assertOk(response, 'charge-extra');
-
-    final result = jsonDecode(response.body) as Map<String, dynamic>;
+    final result = response.data as Map<String, dynamic>;
     final id = result['paymentIntentId'] as String;
-    debugPrint('[PaymentService] extra-charge intent: $id (€${amount.toStringAsFixed(2)})');
+    debugPrint(
+        '[PaymentService] extra-charge intent: $id (€${amount.toStringAsFixed(2)})');
     return id;
   }
 
@@ -176,23 +157,5 @@ class PaymentService {
   Future<bool> payWithCash(double amount) async {
     await Future.delayed(const Duration(milliseconds: 150));
     return true;
-  }
-
-  // ─── Private ─────────────────────────────────────────────────────────────
-
-  void _checkBackend() {
-    if (_baseUrl.trim().isEmpty) {
-      throw StateError(
-        'BACKEND_BASE_URL is not set. '
-        'Run Flutter with --dart-define=BACKEND_BASE_URL=http://localhost:3000',
-      );
-    }
-  }
-
-  void _assertOk(http.Response response, String endpoint) {
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception(
-          '[PaymentService] $endpoint HTTP ${response.statusCode}: ${response.body}');
-    }
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../config/app_colors.dart';
 import '../models/restaurant_model.dart';
 import '../stores/partner_product_store.dart';
 
@@ -88,8 +89,18 @@ class _AddProductScreenState extends State<AddProductScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
+      backgroundColor: AppColors.surface,
       appBar: AppBar(
-        title: const Text('Adicionar produto'),
+        title: const Text(
+          'Adicionar produto',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        flexibleSpace: const DecoratedBox(
+          decoration: BoxDecoration(gradient: AppColors.headerGradient),
+        ),
       ),
       body: SafeArea(
         child: GestureDetector(
@@ -140,7 +151,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _priceController,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
                     decoration: const InputDecoration(
                       labelText: 'Preço',
                       prefixIcon: Icon(Icons.euro),
@@ -181,7 +193,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Icon(Icons.save_outlined),
-                      label: Text(_isSaving ? 'A guardar...' : 'Guardar produto'),
+                      label:
+                          Text(_isSaving ? 'A guardar...' : 'Guardar produto'),
                     ),
                   ),
                 ],

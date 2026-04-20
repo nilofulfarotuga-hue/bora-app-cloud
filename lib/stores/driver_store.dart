@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -34,6 +35,7 @@ class DriverStore extends ChangeNotifier {
   RealtimeChannel? _driverLocationChannel;
   final Map<String, Timer> _locationAnimations = <String, Timer>{};
   StreamSubscription<AuthState>? _authSubscription;
+  StreamSubscription<String>? _fcmTokenRefreshSubscription;
 
   DriverModel? get currentDriver => getDriverById(_primaryDriverId);
 
@@ -73,6 +75,36 @@ class DriverStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> _saveFcmToken() async {
+    final driverId = _primaryDriverId;
+    if (driverId.isEmpty || driverId == 'driver-main') return;
+    try {
+      final messaging = FirebaseMessaging.instance;
+      final settings = await messaging.requestPermission();
+      if (settings.authorizationStatus == AuthorizationStatus.denied) return;
+
+      final token = await messaging.getToken();
+      if (token != null) {
+        await _client
+            .from('drivers')
+            .update({'fcm_token': token}).eq('id', driverId);
+        debugPrint('[DriverStore] FCM token saved for driver=$driverId');
+      }
+
+      _fcmTokenRefreshSubscription?.cancel();
+      _fcmTokenRefreshSubscription =
+          messaging.onTokenRefresh.listen((newToken) async {
+        await _client
+            .from('drivers')
+            .update({'fcm_token': newToken}).eq('id', _primaryDriverId);
+        debugPrint(
+            '[DriverStore] FCM token refreshed for driver=$_primaryDriverId');
+      });
+    } catch (e) {
+      debugPrint('[DriverStore] _saveFcmToken error: $e');
+    }
+  }
+
   void _listenAuthChanges() {
     _authSubscription = _client.auth.onAuthStateChange.listen((authState) {
       final user = authState.session?.user;
@@ -84,6 +116,7 @@ class DriverStore extends ChangeNotifier {
         _primaryDriverId = 'driver-main';
         notifyListeners();
         debugPrint('DriverStore: session ended — driver state cleared.');
+        _restartLocationChannel();
         return;
       }
 
@@ -112,11 +145,8 @@ class DriverStore extends ChangeNotifier {
     }
 
     try {
-      final rows = await _client
-          .from('drivers')
-          .select()
-          .eq('id', uid)
-          .limit(1);
+      final rows =
+          await _client.from('drivers').select().eq('id', uid).limit(1);
 
       if (rows.isNotEmpty) {
         final row = rows.first;
@@ -130,19 +160,22 @@ class DriverStore extends ChangeNotifier {
           location: (lat != null && lng != null)
               ? LatLng(lat.toDouble(), lng.toDouble())
               : const LatLng(40.5321, -7.2671),
-          vehicleType:
-              rawVehicle == 'car' ? VehicleType.car : VehicleType.motorcycle,
+          vehicleType: VehicleType.values.firstWhere(
+              (v) => v.name == (rawVehicle ?? ''),
+              orElse: () => VehicleType.motorcycle),
           phone: row['phone'] as String? ?? '',
           isOnline: row['is_online'] as bool? ?? false,
         );
         _drivers.add(driver);
-        debugPrint('[DriverStore] syncDriverWithAuth: loaded "$uid" from DB (is_online=${driver.isOnline})');
+        debugPrint(
+            '[DriverStore] syncDriverWithAuth: loaded "$uid" from DB (is_online=${driver.isOnline})');
       } else {
         // No drivers row exists — this happens when the drivers table was reset
         // but auth.users was not (common in dev), OR registration created the
         // auth user but failed to insert the drivers row.
         // UPSERT so the dispatch engine can find this driver immediately.
-        debugPrint('[DriverStore] syncDriverWithAuth: no row for "$uid" — upserting drivers row');
+        debugPrint(
+            '[DriverStore] syncDriverWithAuth: no row for "$uid" — upserting drivers row');
         _drivers.add(DriverModel(
           id: uid,
           name: uid,
@@ -159,6 +192,8 @@ class DriverStore extends ChangeNotifier {
     notifyListeners();
     // Load token balance in background after driver row is ready.
     unawaited(loadTokenBalance());
+    // Save FCM token now that _primaryDriverId is a valid auth UID.
+    unawaited(_saveFcmToken());
   }
 
   void configurePrimaryDriver({
@@ -194,7 +229,8 @@ class DriverStore extends ChangeNotifier {
         isOnline: false,
       );
       _drivers.add(driver);
-      debugPrint('[DriverStore] configurePrimaryDriver: new driver id=$_primaryDriverId — upserting DB row');
+      debugPrint(
+          '[DriverStore] configurePrimaryDriver: new driver id=$_primaryDriverId — upserting DB row');
       unawaited(_upsertDriverRow(_primaryDriverId));
     } else {
       driver
@@ -247,9 +283,11 @@ class DriverStore extends ChangeNotifier {
           'is_online': false,
           'lat': 38.7223,
           'lng': -9.1393,
+          'user_id': uid,
         },
         onConflict: 'id',
-        ignoreDuplicates: true,   // ON CONFLICT DO NOTHING — never overwrite is_online
+        ignoreDuplicates:
+            true, // ON CONFLICT DO NOTHING — never overwrite is_online
       );
       debugPrint('[DriverStore] _upsertDriverRow: OK uid=$uid');
     } catch (e) {
@@ -261,8 +299,27 @@ class DriverStore extends ChangeNotifier {
     try {
       await _client
           .from('drivers')
-          .update({'is_online': isOnline})
-          .eq('id', driverId);
+          .update({'is_online': isOnline}).eq('id', driverId);
+
+      // Trigger dispatch imediato para pedidos pendentes sem driver
+      if (isOnline) {
+        try {
+          final pendingOrders = await _client
+              .from('orders')
+              .select('id')
+              .eq('status', 'callingDriver')
+              .isFilter('assigned_driver_id', null)
+              .isFilter('current_driver_offer_id', null);
+          for (final order in List<Map<String, dynamic>>.from(pendingOrders)) {
+            await _client.functions.invoke(
+              'dispatch-engine',
+              body: {'orderId': order['id'] as String},
+            );
+          }
+        } catch (e) {
+          debugPrint('[DriverStore] dispatch trigger on online error: $e');
+        }
+      }
     } catch (e) {
       debugPrint('DriverStore: updateDriverOnlineStatus error => $e');
     }
@@ -388,6 +445,13 @@ class DriverStore extends ChangeNotifier {
     return null;
   }
 
+  void _restartLocationChannel() {
+    _driverLocationChannel?.unsubscribe();
+    _driverLocationChannel = null;
+    _initialiseRealtimeDriverTracking();
+    debugPrint('[DriverStore] location channel restarted');
+  }
+
   void _initialiseRealtimeDriverTracking() {
     Future.microtask(_loadInitialDriverLocations);
 
@@ -429,8 +493,9 @@ class DriverStore extends ChangeNotifier {
             id: id,
             name: rawName is String && rawName.isNotEmpty ? rawName : id,
             location: location,
-            vehicleType:
-                rawVehicle == 'car' ? VehicleType.car : VehicleType.motorcycle,
+            vehicleType: VehicleType.values.firstWhere(
+                (v) => v.name == (rawVehicle ?? ''),
+                orElse: () => VehicleType.motorcycle),
             phone: item['phone'] as String? ?? '',
             isOnline: item['is_online'] as bool? ?? false,
           );
@@ -463,8 +528,7 @@ class DriverStore extends ChangeNotifier {
 
       if (updated) notifyListeners();
     } catch (error) {
-      debugPrint(
-          'DriverStore: Failed to bootstrap driver locations => $error');
+      debugPrint('DriverStore: Failed to bootstrap driver locations => $error');
     }
   }
 
@@ -542,6 +606,7 @@ class DriverStore extends ChangeNotifier {
   @override
   void dispose() {
     _authSubscription?.cancel();
+    _fcmTokenRefreshSubscription?.cancel();
     _trackingTimer?.cancel();
     for (final timer in _locationAnimations.values) {
       timer.cancel();

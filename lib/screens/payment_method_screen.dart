@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -10,6 +11,8 @@ import '../config/business_rules.dart' show BRTokens;
 import '../models/order_model.dart';
 import '../stores/cart_store.dart';
 import '../stores/order_store.dart';
+import 'package:flutter_stripe/flutter_stripe.dart' show StripeException;
+
 import '../services/payment_service.dart';
 
 class PaymentMethodScreen extends StatefulWidget {
@@ -78,7 +81,8 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     final int tokensToUse = min(_availableTokens, maxTokensUsable);
     final double tokenDiscount =
         _useTokens ? (tokensToUse * BRTokens.TOKEN_VALUE_EUR) : 0.0;
-    final double finalPrice = (totalToPay - tokenDiscount).clamp(0.0, double.infinity);
+    final double finalPrice =
+        (totalToPay - tokenDiscount).clamp(0.0, double.infinity);
 
     const paymentOptions = <_PaymentOption>[
       _PaymentOption(
@@ -123,14 +127,16 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                       children: [
                         Text(
                           'Resumo do pedido',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
                         ),
                         const SizedBox(height: 12),
                         _SummaryRow(label: 'Subtotal', value: pricing.subtotal),
                         if (pricing.serviceFee > 0)
-                          _SummaryRow(label: 'Taxas', value: pricing.serviceFee),
+                          _SummaryRow(
+                              label: 'Taxas', value: pricing.serviceFee),
                         _SummaryRow(label: 'Entrega', value: baseDeliveryFee),
                         if (pricing.apartmentSurcharge > 0)
                           _SummaryRow(
@@ -143,12 +149,16 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Icon(Icons.apartment, color: Colors.orange.shade600, size: 20),
+                                Icon(Icons.apartment,
+                                    color: Colors.orange.shade600, size: 20),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
                                     'Entrega em apartamento solicitada — bónus +€1 para o estafeta.',
-                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall
+                                        ?.copyWith(
                                           fontWeight: FontWeight.w600,
                                           color: Colors.orange.shade800,
                                         ),
@@ -159,7 +169,9 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                           ),
 
                         // ── Token discount toggle ──────────────────────────
-                        if (_tokensLoaded && _availableTokens > 0 && tokensToUse > 0) ...[
+                        if (_tokensLoaded &&
+                            _availableTokens > 0 &&
+                            tokensToUse > 0) ...[
                           const SizedBox(height: 8),
                           Container(
                             decoration: BoxDecoration(
@@ -172,9 +184,9 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                                   horizontal: 12, vertical: 4),
                               secondary: const Icon(Icons.monetization_on,
                                   color: Colors.amber),
-                              title: Text(
+                              title: const Text(
                                 'Usar Bora Tokens',
-                                style: const TextStyle(
+                                style: TextStyle(
                                     fontWeight: FontWeight.w600, fontSize: 14),
                               ),
                               subtitle: Text(
@@ -198,7 +210,8 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                                 Text(
                                   'Sem tokens disponíveis',
                                   style: TextStyle(
-                                      fontSize: 12, color: Colors.grey.shade500),
+                                      fontSize: 12,
+                                      color: Colors.grey.shade500),
                                 ),
                               ],
                             ),
@@ -231,15 +244,20 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                       ),
                 ),
                 const SizedBox(height: 12),
-                ...paymentOptions.map(
-                  (option) => _PaymentOptionTile(
-                    option: option,
-                    groupValue: _selectedMethod,
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() => _selectedMethod = value);
-                      }
-                    },
+                RadioGroup<PaymentMethod>(
+                  groupValue: _selectedMethod,
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() => _selectedMethod = value);
+                    }
+                  },
+                  child: Column(
+                    children: paymentOptions
+                        .map((option) => _PaymentOptionTile(
+                              option: option,
+                              groupValue: _selectedMethod,
+                            ))
+                        .toList(),
                   ),
                 ),
               ],
@@ -280,13 +298,16 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
   }) async {
     if (_isProcessing) return;
 
+    final messenger = ScaffoldMessenger.of(context);
+
     // Pre-flight: block payment if delivery address is not set.
     // This prevents charging the user and then failing at order creation.
     final cartStore = context.read<CartStore>();
     if (cartStore.deliveryLocation == null || cartStore.dropoffStreet.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         const SnackBar(
-          content: Text('Endereço de entrega não definido. Volte e selecione um endereço.'),
+          content: Text(
+              'Endereço de entrega não definido. Volte e selecione um endereço.'),
           backgroundColor: Colors.red,
         ),
       );
@@ -294,9 +315,10 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     }
 
     if (kIsWeb && _selectedMethod == PaymentMethod.card) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         const SnackBar(
-          content: Text('Pagamentos por cartão disponíveis apenas em dispositivos móveis.'),
+          content: Text(
+              'Pagamentos por cartão disponíveis apenas em dispositivos móveis.'),
         ),
       );
       return;
@@ -305,32 +327,99 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     setState(() => _isProcessing = true);
 
     final paymentService = PaymentService();
+    final orderStore = context.read<OrderStore>();
+    final authStore = context.read<AuthStore>();
+    // Ensure valid Supabase session before inserting order (re-signs as guest if expired).
+    await authStore.ensureSessionForOrder();
+
+    // ── Card: order must exist in DB before Stripe charges it ────────────────
+    // The edge function validates payment_buffer_total from the DB,
+    // so we create the order first (payment_status = pending), then charge.
+    if (_selectedMethod == PaymentMethod.card) {
+      // Step 1: create order in DB first
+      final ordered = await cartStore.finishOrder(
+        orderStore,
+        paymentMethod: PaymentMethod.card,
+        paymentStatus: PaymentStatus.pending,
+        clientPhone: authStore.currentClient?.phone,
+        customerName: authStore.currentClient?.name,
+        tokensUsed: tokensUsed,
+      );
+      if (!mounted) return;
+      if (!ordered) {
+        setState(() => _isProcessing = false);
+        messenger.showSnackBar(
+          const SnackBar(
+              content:
+                  Text('Não foi possível criar o pedido. Tente novamente.')),
+        );
+        return;
+      }
+
+      // Step 2: charge against the real order ID.
+      // Use paymentBufferTotal from the created order — it already includes the
+      // 15% pre-auth buffer (non-partner) and token discount, matching exactly
+      // what the edge function reads from the DB.
+      final createdOrder = orderStore.orders.first;
+      final orderId = createdOrder.id;
+      final stripeAmount = createdOrder.paymentBufferTotal;
+      try {
+        final data = await paymentService.createPaymentIntent(
+          orderId: orderId,
+          amount: stripeAmount,
+        );
+        await paymentService.processPayment(data['clientSecret'] as String);
+      } on StripeException catch (e) {
+        if (!mounted) return;
+        setState(() => _isProcessing = false);
+        debugPrint(
+            '[Checkout] card cancelled/declined: ${e.error.localizedMessage}');
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Pagamento não pôde ser concluído.')),
+        );
+        return;
+      } catch (e) {
+        if (!mounted) return;
+        setState(() => _isProcessing = false);
+        debugPrint('[Checkout] card payment error: $e');
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text(
+                'Pagamento por cartão indisponível. Tente MBWay ou dinheiro.'),
+            duration: Duration(seconds: 5),
+          ),
+        );
+        return;
+      }
+
+      // Step 3: consume tokens + navigate.
+      // Dispatch is triggered server-side by the stripe-webhook Edge Function
+      // (payment_intent.succeeded → payment_status=paid → status=callingDriver
+      //  → dispatch-engine invoked). Flutter never writes payment_status.
+      await _consumeTokensAndNavigate(tokensUsed);
+      return;
+    }
+
+    // ── MBWay / Cash: payment first, then order ───────────────────────────────
     bool success = true;
     String? paymentIntentId;
     PaymentStatus paymentStatus = PaymentStatus.pending;
 
     switch (_selectedMethod) {
       case PaymentMethod.card:
-        // presentPaymentSheet() only resolves without throwing when the
-        // payment is fully authorised on Stripe's side — so we can trust
-        // client confirmation here.
-        paymentIntentId = await paymentService.payWithCard(amount);
-        success = paymentIntentId != null;
-        if (success) paymentStatus = PaymentStatus.paid;
-        break;
+        break; // handled above
       case PaymentMethod.mbway:
         // Show confirmation dialog that simulates the MBWay push notification.
         // Order is only created after the user "confirms" on the dialog.
-        setState(() => _isProcessing = false); // release button while dialog is open
-        final mbwayConfirmed = await _showMBWayConfirmationDialog(context, amount);
+        setState(
+            () => _isProcessing = false); // release button while dialog is open
+        final mbwayConfirmed = await _showMBWayConfirmationDialog(amount);
         if (!mounted) return;
         setState(() => _isProcessing = true);
         success = mbwayConfirmed;
-        if (success) paymentStatus = PaymentStatus.paid;
         break;
       case PaymentMethod.cash:
         success = await paymentService.payWithCash(amount);
-        if (success) paymentStatus = PaymentStatus.paid;
         break;
     }
 
@@ -338,14 +427,15 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
 
     if (!success) {
       setState(() => _isProcessing = false);
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         const SnackBar(content: Text('Pagamento não pôde ser concluído.')),
       );
       return;
     }
 
-    final orderStore = context.read<OrderStore>();
-    final authStore = context.read<AuthStore>();
+    // Pagamento local confirmado (MBWay/Cash) — marcar como paid antes de criar order.
+    paymentStatus = PaymentStatus.paid;
+
     final ordered = await cartStore.finishOrder(
       orderStore,
       paymentMethod: _selectedMethod,
@@ -361,45 +451,48 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     setState(() => _isProcessing = false);
 
     if (!ordered) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Não foi possível criar o pedido. Tente novamente.')),
+      messenger.showSnackBar(
+        const SnackBar(
+            content: Text('Não foi possível criar o pedido. Tente novamente.')),
       );
       return;
     }
 
-    // ── Consume tokens (FIFO) after order is successfully created ────────────
-    // Only runs when the user activated the token toggle and tokensUsed > 0.
-    // Runs independently of the snackbar/navigation so a token failure does
-    // not block the user from seeing the success message.
+    await _consumeTokensAndNavigate(tokensUsed);
+  }
+
+  /// Consumes loyalty tokens (non-fatal) and navigates back on success.
+  Future<void> _consumeTokensAndNavigate(int tokensUsed) async {
     if (tokensUsed > 0) {
       final userId = Supabase.instance.client.auth.currentUser?.id;
       if (userId != null) {
         try {
           final consumed = await Supabase.instance.client.rpc(
-            'consume_tokens',
-            params: {
-              'p_user_id': userId,
-              'p_amount':  tokensUsed,
-            },
-          ) as bool? ?? false;
+                'consume_tokens',
+                params: {
+                  'p_user_id': userId,
+                  'p_amount': tokensUsed,
+                },
+              ) as bool? ??
+              false;
           debugPrint('[Checkout] consume_tokens($tokensUsed) → $consumed');
         } catch (e) {
           // Consumption failure is non-fatal — order already created.
-          // Log and continue; tokens remain available for manual reconciliation.
           debugPrint('[Checkout] consume_tokens error (non-fatal): $e');
         }
       }
     }
 
     if (!mounted) return;
+    setState(() => _isProcessing = false);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Pagamento efetuado com sucesso.')),
+      const SnackBar(
+          content: Text('Pedido criado. Aguardando confirmação de pagamento.')),
     );
     Navigator.pop(context, true);
   }
 
-  Future<bool> _showMBWayConfirmationDialog(
-      BuildContext context, double amount) async {
+  Future<bool> _showMBWayConfirmationDialog(double amount) async {
     return await showDialog<bool>(
           context: context,
           barrierDismissible: false,
@@ -427,12 +520,10 @@ class _PaymentOptionTile extends StatelessWidget {
   const _PaymentOptionTile({
     required this.option,
     required this.groupValue,
-    required this.onChanged,
   });
 
   final _PaymentOption option;
   final PaymentMethod groupValue;
-  final ValueChanged<PaymentMethod?> onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -451,8 +542,6 @@ class _PaymentOptionTile extends StatelessWidget {
       ),
       child: RadioListTile<PaymentMethod>(
         value: option.method,
-        groupValue: groupValue,
-        onChanged: onChanged,
         title: Text(option.title),
         subtitle: Text(option.subtitle),
         secondary: Icon(option.icon),

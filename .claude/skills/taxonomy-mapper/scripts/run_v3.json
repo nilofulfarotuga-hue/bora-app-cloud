@@ -1,0 +1,452 @@
+[
+  {
+    "product_id": "42969fc9-336b-4a76-b918-edca41104fef",
+    "name": "Lasanha Vegetariana Congelada 400g",
+    "category_root": "Congelados",
+    "predicted_section": "Congelados",
+    "method": "keyword_weak",
+    "confidence": 0.9,
+    "needs_review": false
+  },
+  {
+    "product_id": "auc-2733213",
+    "name": "Carcaça Cereais 75g",
+    "category_root": "Padaria",
+    "predicted_section": "Padaria & Pastelaria",
+    "method": "keyword_weak",
+    "confidence": 0.8,
+    "needs_review": true
+  },
+  {
+    "product_id": "02e10062-838a-40f0-a8c8-eada5e5113b2",
+    "name": "Espumante Cava 750ml",
+    "category_root": "Bebidas",
+    "predicted_section": "Bebidas",
+    "method": "keyword_strong",
+    "confidence": 0.95,
+    "needs_review": false
+  },
+  {
+    "product_id": "auc-1047488",
+    "name": "Mistura Frutos Do Bosque 170 G",
+    "category_root": "Fruta",
+    "predicted_section": "Frutas & Legumes",
+    "method": "root_map",
+    "confidence": 0.85,
+    "needs_review": false
+  },
+  {
+    "product_id": "fa131b94-d742-43d2-92ee-7d257f41ad8b",
+    "name": "Pilos Champô Pack Económico 500ml",
+    "category_root": "Higiene e Beleza",
+    "predicted_section": "Higiene Pessoal",
+    "method": "keyword_distinctive",
+    "confidence": 0.88,
+    "needs_review": false
+  },
+  {
+    "product_id": "prod_0413",
+    "name": "Álcool 70% 250ml",
+    "category_root": "Farmácia Básica",
+    "predicted_section": "Saúde & Bem-Estar",
+    "method": "root_map",
+    "confidence": 0.8,
+    "needs_review": true
+  },
+  {
+    "product_id": "pd-885657",
+    "name": "Chupetas Em Silicone Laranja",
+    "category_root": "Chupetas e Acessórios",
+    "predicted_section": "Bebé",
+    "method": "keyword_distinctive",
+    "confidence": 0.88,
+    "needs_review": false
+  },
+  {
+    "product_id": "a5167951-0a21-4793-9dc8-c0b946221b1f",
+    "name": "Champô a Seco Batiste 200ml",
+    "category_root": "Higiene",
+    "predicted_section": "Higiene Pessoal",
+    "method": "keyword_distinctive",
+    "confidence": 0.88,
+    "needs_review": false
+  },
+  {
+    "product_id": "cnt-6579810",
+    "name": "Alface Lisa Continente",
+    "category_root": "Frescos",
+    "predicted_section": "Frutas & Legumes",
+    "method": "keyword_distinctive",
+    "confidence": 0.88,
+    "needs_review": false
+  },
+  {
+    "product_id": "lidl-off-4056489410591",
+    "name": "Turrón De Jijona",
+    "category_root": "Bebidas",
+    "predicted_section": "Bebidas",
+    "method": "root_map",
+    "confidence": 0.85,
+    "needs_review": false
+  },
+  {
+    "product_id": "72315c0e-b223-4473-a013-81d09af52cd4",
+    "name": "Rabanadas 4 unid.",
+    "category_root": "Padaria",
+    "predicted_section": "Padaria & Pastelaria",
+    "method": "root_map",
+    "confidence": 0.85,
+    "needs_review": false
+  },
+  {
+    "product_id": "3eadd347-6c25-4bd0-83e7-ce86f231be48",
+    "name": "Gato",
+    "category_root": "Bebé",
+    "predicted_section": "Bebé",
+    "method": "root_map",
+    "confidence": 0.9,
+    "needs_review": false
+  },
+  {
+    "product_id": "pd-905492",
+    "name": "Esponja De Banho Bebé",
+    "category_root": "Chupetas e Acessórios",
+    "predicted_section": "Bebé",
+    "method": "root_map",
+    "confidence": 0.9,
+    "needs_review": false
+  },
+  {
+    "product_id": "auc-996949",
+    "name": "Cebolinho Vitacress 30g",
+    "category_root": "Legumes",
+    "predicted_section": "Frutas & Legumes",
+    "method": "root_map",
+    "confidence": 0.85,
+    "needs_review": false
+  },
+  {
+    "product_id": "1438425a-fee6-45e1-9c60-735328b60143",
+    "name": "Lombinho de Vitela 300g",
+    "category_root": "Frescos",
+    "predicted_section": "Talho",
+    "method": "keyword_strong",
+    "confidence": 0.95,
+    "needs_review": false
+  },
+  {
+    "product_id": "2049f21b-608f-4d3d-b71e-7d1a58c83068",
+    "name": "Douradinhos de Peixe Ómega-3 Capitão Iglo",
+    "category_root": "Congelados",
+    "predicted_section": "Congelados",
+    "method": "root_map_over_weak",
+    "confidence": 0.9,
+    "needs_review": true
+  },
+  {
+    "product_id": "inter-off-3250392590116",
+    "name": "Friand À La Viande 240 g",
+    "category_root": "Carne",
+    "predicted_section": "Talho",
+    "method": "keyword_weak",
+    "confidence": 0.8,
+    "needs_review": true
+  },
+  {
+    "product_id": "inter-off-3250391010486",
+    "name": "L'essentiel - Purée De Carottes 750 g",
+    "category_root": "Bebidas",
+    "predicted_section": "Bebidas",
+    "method": "root_map_over_weak",
+    "confidence": 0.85,
+    "needs_review": true
+  },
+  {
+    "product_id": "prod_0973",
+    "name": "Polvo Congelado 500g",
+    "category_root": "Congelados",
+    "predicted_section": "Congelados",
+    "method": "keyword_strong",
+    "confidence": 0.95,
+    "needs_review": false
+  },
+  {
+    "product_id": "inter-off-3250392486198",
+    "name": "Le Club : Pâté De Campagne Cornichon",
+    "category_root": "Carne",
+    "predicted_section": "Talho",
+    "method": "keyword_weak",
+    "confidence": 0.8,
+    "needs_review": true
+  },
+  {
+    "product_id": "lidl-off-4056489670933",
+    "name": "Svensk Flatrökt Skinka 280 g",
+    "category_root": "Carne",
+    "predicted_section": "Talho",
+    "method": "root_map",
+    "confidence": 0.85,
+    "needs_review": false
+  },
+  {
+    "product_id": "ec4b8a93-17f8-4bb7-b120-3a04a277e247",
+    "name": "Saco do Lixo 80L 10un",
+    "category_root": "Limpeza",
+    "predicted_section": "Higiene do Lar",
+    "method": "root_map",
+    "confidence": 0.9,
+    "needs_review": false
+  },
+  {
+    "product_id": "inter-off-2237410039421",
+    "name": "Gouda Holland Au Cumin Igp 373g",
+    "category_root": "Laticínios",
+    "predicted_section": "Laticínios & Ovos",
+    "method": "keyword_weak",
+    "confidence": 0.8,
+    "needs_review": true
+  },
+  {
+    "product_id": "pd-885656",
+    "name": "Anel De Dentição Com Pega",
+    "category_root": "Chupetas e Acessórios",
+    "predicted_section": "Bebé",
+    "method": "root_map",
+    "confidence": 0.9,
+    "needs_review": false
+  },
+  {
+    "product_id": "3af6160c-03f5-431e-b259-54d381c94555",
+    "name": "Queque Pepitas Chocolate x6",
+    "category_root": "Padaria",
+    "predicted_section": "Padaria & Pastelaria",
+    "method": "keyword_weak",
+    "confidence": 0.8,
+    "needs_review": true
+  },
+  {
+    "product_id": "lidl-off-20094775",
+    "name": "Petit Pain Bruin 700g",
+    "category_root": "Bebidas",
+    "predicted_section": "Bebidas",
+    "method": "root_map_over_weak",
+    "confidence": 0.85,
+    "needs_review": true
+  },
+  {
+    "product_id": "c4233198-a24e-4bc3-9220-ea936d465eeb",
+    "name": "Lupilu Leite Corporal Bebé 200ml unidade",
+    "category_root": "Bebé",
+    "predicted_section": "Bebé",
+    "method": "keyword_distinctive",
+    "confidence": 0.88,
+    "needs_review": false
+  },
+  {
+    "product_id": "prod_0412",
+    "name": "Algodão 100g",
+    "category_root": "Farmácia Básica",
+    "predicted_section": "Saúde & Bem-Estar",
+    "method": "root_map",
+    "confidence": 0.8,
+    "needs_review": true
+  },
+  {
+    "product_id": "lidl-off-4056489657262",
+    "name": "Glace Minions - Vanilla Et Cookies",
+    "category_root": "Mercearia",
+    "predicted_section": "Mercearia",
+    "method": "keyword_weak",
+    "confidence": 0.8,
+    "needs_review": true
+  },
+  {
+    "product_id": "auc-3449694",
+    "name": "Lombinho De Porco Auchan Kg",
+    "category_root": "Talho",
+    "predicted_section": "Talho",
+    "method": "keyword_strong",
+    "confidence": 0.95,
+    "needs_review": false
+  },
+  {
+    "product_id": "bae538e5-9d30-4780-9e31-1f693fe25de2",
+    "name": "W5 Pastilhas Máquina Louça 50un",
+    "category_root": "Limpeza",
+    "predicted_section": "Higiene do Lar",
+    "method": "root_map_over_weak",
+    "confidence": 0.9,
+    "needs_review": true
+  },
+  {
+    "product_id": "3d93f2b6-0517-4a46-80f6-8ad48f95cc5e",
+    "name": "Pizza Fresca Fiambre e Queijo Campofrio",
+    "category_root": "Frescos",
+    "predicted_section": "Talho",
+    "method": "keyword_distinctive",
+    "confidence": 0.88,
+    "needs_review": false
+  },
+  {
+    "product_id": "9814af8c-e536-4e3a-b47e-35a0c0d4b4de",
+    "name": "Gelado Baunilha e Amêndoa Magnum",
+    "category_root": "Congelados",
+    "predicted_section": "Congelados",
+    "method": "keyword_weak",
+    "confidence": 0.9,
+    "needs_review": false
+  },
+  {
+    "product_id": "auc-2939220",
+    "name": "Salada Mediterrânea Auchan 150 G",
+    "category_root": "Legumes",
+    "predicted_section": "Frutas & Legumes",
+    "method": "root_map",
+    "confidence": 0.85,
+    "needs_review": false
+  },
+  {
+    "product_id": "lidl-off-4056489682400",
+    "name": "Fruchtliebe Joghurt Mild Mango-vanille",
+    "category_root": "Laticínios",
+    "predicted_section": "Laticínios & Ovos",
+    "method": "root_map",
+    "confidence": 0.85,
+    "needs_review": false
+  },
+  {
+    "product_id": "lidl-off-20347017",
+    "name": "Kap-seehecht Zitrone & Pfeffer 250g",
+    "category_root": "Peixe",
+    "predicted_section": "Peixaria",
+    "method": "root_map",
+    "confidence": 0.85,
+    "needs_review": false
+  },
+  {
+    "product_id": "06ed7562-d09a-4312-8c78-1289335f6b20",
+    "name": "Tomate Pelado Bio 400g",
+    "category_root": "Bio",
+    "predicted_section": "Frutas & Legumes",
+    "method": "keyword_strong",
+    "confidence": 0.95,
+    "needs_review": false
+  },
+  {
+    "product_id": "pd-885662",
+    "name": "Esponja De Banho",
+    "category_root": "Chupetas e Acessórios",
+    "predicted_section": "Bebé",
+    "method": "root_map",
+    "confidence": 0.9,
+    "needs_review": false
+  },
+  {
+    "product_id": "5ee858b7-185b-487b-8a66-493f870ba44d",
+    "name": "Chili com Carne e Arroz Branco Cozinha Continente",
+    "category_root": "Frescos",
+    "predicted_section": "Talho",
+    "method": "keyword_strong",
+    "confidence": 0.95,
+    "needs_review": false
+  },
+  {
+    "product_id": "3b5e47de-670f-41cb-8d25-62f854c2cecc",
+    "name": "Zoko Happy Bear - Super Mesa de Atividades",
+    "category_root": "Bebé",
+    "predicted_section": "Bebé",
+    "method": "root_map",
+    "confidence": 0.9,
+    "needs_review": false
+  },
+  {
+    "product_id": "98c1eb66-a26e-48e3-91e6-46c85159737e",
+    "name": "Azeite Virgem Extra Vidigueira",
+    "category_root": "Mercearia",
+    "predicted_section": "Mercearia",
+    "method": "keyword_distinctive",
+    "confidence": 0.88,
+    "needs_review": false
+  },
+  {
+    "product_id": "inter-off-3250390864455",
+    "name": "Tortis Au Surimi Sauce Cocktail 300 g",
+    "category_root": "Mercearia",
+    "predicted_section": "Mercearia",
+    "method": "keyword_weak",
+    "confidence": 0.8,
+    "needs_review": true
+  },
+  {
+    "product_id": "inter-off-3250392303969",
+    "name": "Crème Dessert Saveur Creamy Choc 4*125 g - 500 g",
+    "category_root": "Laticínios",
+    "predicted_section": "Laticínios & Ovos",
+    "method": "keyword_weak",
+    "confidence": 0.8,
+    "needs_review": true
+  },
+  {
+    "product_id": "edfa90ac-e533-4320-be6a-f11d0029f979",
+    "name": "Pasta de Dentes Dentagard Protetora Colgate",
+    "category_root": "Higiene",
+    "predicted_section": "Higiene Pessoal",
+    "method": "root_map_over_weak",
+    "confidence": 0.85,
+    "needs_review": true
+  },
+  {
+    "product_id": "f6fa65ba-d32e-4c28-b09a-a517a9f89395",
+    "name": "Lenços de Papel de Bolso Mentol 3 Folhas Continente",
+    "category_root": "Higiene",
+    "predicted_section": "Higiene Pessoal",
+    "method": "root_map",
+    "confidence": 0.85,
+    "needs_review": false
+  },
+  {
+    "product_id": "2b0853e5-af0d-4c16-bdf7-499e7efb3821",
+    "name": "Deluxe Flor de Sal 100g",
+    "category_root": "Mercearia",
+    "predicted_section": "Mercearia",
+    "method": "keyword_weak",
+    "confidence": 0.8,
+    "needs_review": true
+  },
+  {
+    "product_id": "auc-3385307",
+    "name": "Bacalhau Pescanova Desfiado 850g",
+    "category_root": "Peixe",
+    "predicted_section": "Peixaria",
+    "method": "keyword_distinctive",
+    "confidence": 0.88,
+    "needs_review": false
+  },
+  {
+    "product_id": "945c8f66-b07e-4a89-b4c5-c21070a28271",
+    "name": "Mango",
+    "category_root": "Fruta tropical",
+    "predicted_section": "Outros",
+    "method": "fallback_no_llm",
+    "confidence": 0.2,
+    "needs_review": true
+  },
+  {
+    "product_id": "cnt-8763685",
+    "name": "Bicicleta de Aprendizagem Roda 10 2-4 Anos Antonella",
+    "category_root": "Desporto e Viagem",
+    "predicted_section": "Outros",
+    "method": "fallback_no_llm",
+    "confidence": 0.2,
+    "needs_review": true
+  },
+  {
+    "product_id": "cnt-7134810",
+    "name": "Escova Limpa-vidros Flexível 510mm Boost",
+    "category_root": "Desporto e Viagem",
+    "predicted_section": "Outros",
+    "method": "fallback_no_llm",
+    "confidence": 0.2,
+    "needs_review": true
+  }
+]

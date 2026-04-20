@@ -7,6 +7,7 @@ import '../models/restaurant_model.dart';
 import '../stores/cart_store.dart';
 import '../stores/restaurant_store.dart';
 import '../utils/business_mapper.dart';
+import '../widgets/bora/bora_screen_app_bar.dart';
 import 'store_categories_screen.dart';
 import 'store_products_screen.dart';
 
@@ -56,8 +57,8 @@ class StoresScreen extends StatelessWidget {
       category: BusinessCategory.pharmacy,
     );
 
-    final showSupermarkets =
-        initialCategory == null || initialCategory == BusinessCategory.supermarket;
+    final showSupermarkets = initialCategory == null ||
+        initialCategory == BusinessCategory.supermarket;
     final showStores =
         initialCategory == null || initialCategory == BusinessCategory.store;
     final showPharmacies =
@@ -105,15 +106,7 @@ class StoresScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
-      appBar: AppBar(
-        title: Text(
-          _title,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
-        elevation: 0,
-      ),
+      appBar: BoraScreenAppBar(title: _title),
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
         children: sections,
@@ -194,11 +187,11 @@ class StoresScreen extends StatelessWidget {
   }
 
   void _openStore(BuildContext context, _StoreEntry entry) {
-    // Non-partner: driver shops near the client — use the delivery location
-    // as pickup so distance is always realistic regardless of DB data.
-    final pickupLocation = entry.business.isPartner
-        ? entry.business.location
-        : context.read<CartStore>().deliveryLocation;
+    // Prefer the store's real coordinates (now present in DB for non-partners
+    // too) so distance_km reflects the actual pickup→dropoff route. Fallback
+    // to the client's delivery location if missing.
+    final pickupLocation =
+        entry.business.location ?? context.read<CartStore>().deliveryLocation;
 
     context.read<CartStore>().configureSession(
           serviceType: OrderServiceType.storeShopping,
@@ -212,7 +205,7 @@ class StoresScreen extends StatelessWidget {
 
     final isLargeStore =
         entry.business.category == BusinessCategory.supermarket ||
-        entry.business.category == BusinessCategory.store;
+            entry.business.category == BusinessCategory.store;
 
     Navigator.push(
       context,
@@ -304,24 +297,17 @@ class _StoreTile extends StatelessWidget {
               height: 80,
               decoration: BoxDecoration(
                 color: bannerColor.withValues(alpha: 0.12),
-                borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(16)),
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(16)),
               ),
               child: Row(
                 children: [
                   const SizedBox(width: 16),
-                  Container(
-                    width: 56,
-                    height: 56,
-                    decoration: BoxDecoration(
-                      color: bannerColor,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Icon(
-                      _categoryIcon(cat),
-                      color: Colors.white,
-                      size: 30,
-                    ),
+                  _StoreLogo(
+                    photoUrl: entry.business.photoUrl,
+                    name: entry.store.name,
+                    bannerColor: bannerColor,
+                    fallbackIcon: _categoryIcon(cat),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -359,8 +345,7 @@ class _StoreTile extends StatelessWidget {
 
             // ── Footer ───────────────────────────────────────────────────
             Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               child: Row(
                 children: [
                   Icon(
@@ -421,6 +406,73 @@ class _PartnerBadge extends StatelessWidget {
   }
 }
 
+class _StoreLogo extends StatelessWidget {
+  const _StoreLogo({
+    required this.photoUrl,
+    required this.name,
+    required this.bannerColor,
+    required this.fallbackIcon,
+  });
+
+  final String photoUrl;
+  final String name;
+  final Color bannerColor;
+  final IconData fallbackIcon;
+
+  @override
+  Widget build(BuildContext context) {
+    final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
+
+    if (photoUrl.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: SizedBox(
+          width: 56,
+          height: 56,
+          child: Image.network(
+            photoUrl,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => _FallbackLogo(
+              initial: initial,
+              color: bannerColor,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return _FallbackLogo(initial: initial, color: bannerColor);
+  }
+}
+
+class _FallbackLogo extends StatelessWidget {
+  const _FallbackLogo({required this.initial, required this.color});
+
+  final String initial;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 56,
+      height: 56,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        initial,
+        style: const TextStyle(
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+      ),
+    );
+  }
+}
+
 class _StoreEntry {
   const _StoreEntry({
     required this.business,
@@ -430,4 +482,3 @@ class _StoreEntry {
   final RestaurantModel business;
   final RetailStore store;
 }
-

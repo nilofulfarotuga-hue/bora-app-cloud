@@ -1,0 +1,36 @@
+{
+  "total": 43121,
+  "sections": {
+    "Mercearia": 8013,
+    "Outros": 4941,
+    "Bebidas": 4823,
+    "Talho": 4360,
+    "Laticínios & Ovos": 3943,
+    "Frutas & Legumes": 3399,
+    "Peixaria": 2535,
+    "Congelados": 2476,
+    "Higiene Pessoal": 2291,
+    "Padaria & Pastelaria": 1768,
+    "Animais": 1474,
+    "Higiene do Lar": 1310,
+    "Bebé": 689,
+    "Bio & Saudável": 401,
+    "Pronto a Comer": 269,
+    "Saúde & Bem-Estar": 226,
+    "Fitness & Proteínas": 190,
+    "Festa & Ocasiões": 13
+  },
+  "methods": {
+    "keyword_weak": 12426,
+    "root_map": 10424,
+    "keyword_distinctive": 6156,
+    "keyword_strong": 5640,
+    "fallback_no_llm": 4385,
+    "root_map_over_weak": 2927,
+    "pet_context": 1114,
+    "pet_context_inferred": 49
+  },
+  "needs_review": 23609,
+  "needs_review_pct": 54.75,
+  "outros_pct": 11.46
+}

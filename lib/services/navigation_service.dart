@@ -46,9 +46,10 @@ class NavigationService {
   }
 
   static Future<void> _launchUri(BuildContext context, Uri uri) async {
+    final messenger = ScaffoldMessenger.of(context);
     final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!launched) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         const SnackBar(content: Text("Não foi possível abrir a navegação.")),
       );
     }

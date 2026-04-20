@@ -1,0 +1,4484 @@
+[
+  {
+    "id": "auc-1002774",
+    "old": "Miolo Pescanova De CamarÃO 80/100 350g",
+    "new": "Miolo Pescanova De Camarão 80/100 350g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1006602",
+    "old": "SalsichÃO Montanh&Ecirc;S Elpozo Kg",
+    "new": "Salsichão Montanhês Elpozo Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-100718",
+    "old": "Queijo SÃO Jorge Dop 4 Meses Kg",
+    "new": "Queijo São Jorge Dop 4 Meses Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-100735",
+    "old": "Queijo &Agrave; Cabreira Do FundÃO Mistura Damar Kg",
+    "new": "Queijo À Cabreira Do Fundão Mistura Damar Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1008249",
+    "old": "CamarÃO Pescanova MoÇAmbique MÉDio 48-64 800g",
+    "new": "Camarão Pescanova Moçambique Médio 48-64 800g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1012608",
+    "old": "Queijo AzeitÃO Dop Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom Un",
+    "new": "Queijo Azeitão Dop Auchan À Mesa Em Portugal Cultivamos O Bom Un",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1022136",
+    "old": "Sopa De AgriÃO 500g",
+    "new": "Sopa De Agrião 500g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1022328",
+    "old": "Folar JoÃO Mendes & Rita De Olhao 670g Produto Local",
+    "new": "Folar João Mendes & Rita De Olhao 670g Produto Local",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1025116",
+    "old": "PÃO Bimbo Roll'S Bases Redondas 6un 250g",
+    "new": "Pão Bimbo Roll'S Bases Redondas 6un 250g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-10283",
+    "old": "VitelÃO Estufar Kg",
+    "new": "Vitelão Estufar Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-10319",
+    "old": "VitelÃO Costeleta Kg",
+    "new": "Vitelão Costeleta Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1036027",
+    "old": "PÃO R&Uacute;Stico ProduÇãO PrÓPria Kg",
+    "new": "Pão Rústico Produção Própria Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1036036",
+    "old": "PÃO De Cereais -25% Sal ProduÇãO PrÓPria Kg",
+    "new": "Pão De Cereais -25% Sal Produção Própria Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1036042",
+    "old": "PÃO Da Casa Com Massa MÃE ProduÇãO PrÓPria Kg",
+    "new": "Pão Da Casa Com Massa Mãe Produção Própria Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1043349",
+    "old": "Tranches Iglo SalmÃO Selvagem 250g",
+    "new": "Tranches Iglo Salmão Selvagem 250g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1045664",
+    "old": "Biscoitos De AzeitÃO 180g",
+    "new": "Biscoitos De Azeitão 180g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1045668",
+    "old": "Esses De AzeitÃO 240g",
+    "new": "Esses De Azeitão 240g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1053035",
+    "old": "áGua Fastio Mineral GarrafÃO 6l",
+    "new": "áGua Fastio Mineral Garrafão 6l",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1053691",
+    "old": "Bolo Chantilly DecoracÃO Especial Chocolate Kg",
+    "new": "Bolo Chantilly Decoracão Especial Chocolate Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1057758",
+    "old": "PÃO Centeio Escuro ProduÇãO PrÓPria Kg",
+    "new": "Pão Centeio Escuro Produção Própria Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1058127",
+    "old": "Bebida Luso Fruta LimÃO 4x1l",
+    "new": "Bebida Luso Fruta Limão 4x1l",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1058133",
+    "old": "Bebida Luso Fruta LimÃO 1l",
+    "new": "Bebida Luso Fruta Limão 1l",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1065459",
+    "old": "MamÃO Cortado Em PedaÇOs Kg",
+    "new": "Mamão Cortado Em Pedaços Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1067942",
+    "old": "Presunto Rtm Sem Osso NegrÃO 9 Meses Oitavos 440g",
+    "new": "Presunto Rtm Sem Osso Negrão 9 Meses Oitavos 440g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1074927",
+    "old": "Mini Folhado Vicenzi Recheio De AvelÃS 125g",
+    "new": "Mini Folhado Vicenzi Recheio De Avelãs 125g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1082485",
+    "old": "Queijo AlavÃO PimentÃO Kg",
+    "new": "Queijo Alavão Pimentão Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1100145",
+    "old": "SalsichÃO IbÉRico Auchan Fatias 100g",
+    "new": "Salsichão Ibérico Auchan Fatias 100g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1112541",
+    "old": "PÃO De Milho E Girassol -25% Sal ProduÇãO PrÓPria Kg",
+    "new": "Pão De Milho E Girassol -25% Sal Produção Própria Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1114794",
+    "old": "SalsichÃO E ChouriÇO Extra Auchan Fatias180g",
+    "new": "Salsichão E Chouriço Extra Auchan Fatias180g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1115058",
+    "old": "RequeijÃO De Vaca Auchan Light 170g",
+    "new": "Requeijão De Vaca Auchan Light 170g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1124142",
+    "old": "CamarÃO Pescanova Vannamei 40-48 800g",
+    "new": "Camarão Pescanova Vannamei 40-48 800g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1128191",
+    "old": "PÃO De Milho E Girassol -25% Sal ProduÇãO PrÓPria 70g",
+    "new": "Pão De Milho E Girassol -25% Sal Produção Própria 70g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1128597",
+    "old": "LeitÃO Assado De Negrais 500g",
+    "new": "Leitão Assado De Negrais 500g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1130722",
+    "old": "VitelÃO Mertolengo Dop Bife Do Redondo Kg",
+    "new": "Vitelão Mertolengo Dop Bife Do Redondo Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1134093",
+    "old": "PÃEzinhos PrÉ Cozidos Auchan 6x50g",
+    "new": "Pãezinhos Pré Cozidos Auchan 6x50g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1146935",
+    "old": "áGua Mineral Luso GarrafÃO 7l",
+    "new": "áGua Mineral Luso Garrafão 7l",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1150368",
+    "old": "Bolo Chocolate E AvelÃ ProduÇãO PrÓPria Kg",
+    "new": "Bolo Chocolate E Avelã Produção Própria Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1150817",
+    "old": "Queijo De AzeitÃO Dop Victor Fernandes Un",
+    "new": "Queijo De Azeitão Dop Victor Fernandes Un",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1151690",
+    "old": "Queijo Emmental FrancÃS Paysan Breton Kg",
+    "new": "Queijo Emmental Francês Paysan Breton Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1154660",
+    "old": "CamarÃO Auchan Collection Cultivamos O Bom Selv Madag 40/60 Cong Kg",
+    "new": "Camarão Auchan Collection Cultivamos O Bom Selv Madag 40/60 Cong Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1160005",
+    "old": "PÃO De LÓ Casa ProduÇãO PrÓPria Kg",
+    "new": "Pão De LÓ Casa Produção Própria Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1164313",
+    "old": "Sumo Sonatural Pepino Aipo MaÇã E LimÃO 250ml",
+    "new": "Sumo Sonatural Pepino Aipo Maçã E Limão 250ml",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1164719",
+    "old": "Queijo Santiago Ovelha AzeitÃO Dop Amanteigado Un",
+    "new": "Queijo Santiago Ovelha Azeitão Dop Amanteigado Un",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1172762",
+    "old": "Tostas Biscottinas R&Uacute;Stica Com Tomate E OregÃOs C18 100g",
+    "new": "Tostas Biscottinas Rústica Com Tomate E Oregãos C18 100g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1175268",
+    "old": "Queijo SÃO Jorge Dop Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom Cura 4 Meses 350g",
+    "new": "Queijo São Jorge Dop Auchan À Mesa Em Portugal Cultivamos O Bom Cura 4 Meses 350g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1179335",
+    "old": "Esses De LimÃO Pastelinhos De Safara 400g",
+    "new": "Esses De Limão Pastelinhos De Safara 400g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-153762",
+    "old": "PÃO De Deus Grande ProduÇãO PrÓPria 300g",
+    "new": "Pão De Deus Grande Produção Própria 300g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-198864",
+    "old": "PÃO Moinhos Vivos 400g Produto Local",
+    "new": "Pão Moinhos Vivos 400g Produto Local",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-20578",
+    "old": "LimÃO Kg",
+    "new": "Limão Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2101449",
+    "old": "CamarÃO Auchan Cru MadagÁScar 60/80 800g",
+    "new": "Camarão Auchan Cru Madagáscar 60/80 800g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2102650",
+    "old": "MÃO De Coelho Auchan Kg",
+    "new": "Mão De Coelho Auchan Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2114199",
+    "old": "áGua Mineral Monchique GarrafÃO 5l",
+    "new": "áGua Mineral Monchique Garrafão 5l",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2120843",
+    "old": "PÃO De Rio Maior 900g",
+    "new": "Pão De Rio Maior 900g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2120847",
+    "old": "PÃO De Rio Maior 450g",
+    "new": "Pão De Rio Maior 450g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2130207",
+    "old": "PÃO Schar Forma Cereais Sem Gl&Uacute;Ten 300g",
+    "new": "Pão Schar Forma Cereais Sem Glúten 300g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2130210",
+    "old": "PÃO Schar Forma ClÁSsico Sem Gl&Uacute;Ten 300g",
+    "new": "Pão Schar Forma Clássico Sem Glúten 300g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2143626",
+    "old": "BiqueirÃO Lorea Em Azeite Extra EcolÓGico 90g",
+    "new": "Biqueirão Lorea Em Azeite Extra Ecológico 90g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2158008",
+    "old": "Queijo Da Ilha SÃO Miguel 9 Meses Cunha 300g",
+    "new": "Queijo Da Ilha São Miguel 9 Meses Cunha 300g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2159897",
+    "old": "SalsichÃO Argal Regio Ouro Kg",
+    "new": "Salsichão Argal Regio Ouro Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2160336",
+    "old": "PÃO Chocolate DÉLifrance 60 G",
+    "new": "Pão Chocolate Délifrance 60 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2162058",
+    "old": "PÃO Da Casa Com Sultanas E Nozes ProduÇãO PrÓPria 100g",
+    "new": "Pão Da Casa Com Sultanas E Nozes Produção Própria 100g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2165425",
+    "old": "PÃO Panrico De Forma Sem C&Ocirc;Dea 9 Cereais 480g",
+    "new": "Pão Panrico De Forma Sem Côdea 9 Cereais 480g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2165733",
+    "old": "SalsichÃO Campofrio Fatias Tapas 80g",
+    "new": "Salsichão Campofrio Fatias Tapas 80g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2168767",
+    "old": "PÃO Bimbo Forma Sem C&Ocirc;Dea 650g",
+    "new": "Pão Bimbo Forma Sem Côdea 650g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2168798",
+    "old": "Sumo Sonatural LimÃO E HortelÃ 250ml",
+    "new": "Sumo Sonatural Limão E Hortelã 250ml",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2170227",
+    "old": "áGua Serra Da Estrela Nascente GarrafÃO 6l",
+    "new": "áGua Serra Da Estrela Nascente Garrafão 6l",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2183517",
+    "old": "PÃO Bezgluten Forma Escuro Sem Gl&Uacute;Ten 260g",
+    "new": "Pão Bezgluten Forma Escuro Sem Glúten 260g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2189887",
+    "old": "SalpicÃO Do Lombo Fuminho 280 G",
+    "new": "Salpicão Do Lombo Fuminho 280 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2189902",
+    "old": "SalpicÃO Do CachaÇO Fuminho 280 G",
+    "new": "Salpicão Do Cachaço Fuminho 280 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2191731",
+    "old": "PÃO De Alfarroba Com Sementes Quinoa ProduÇãO PrÓPria 70g",
+    "new": "Pão De Alfarroba Com Sementes Quinoa Produção Própria 70g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2191753",
+    "old": "PÃO Espelta Com Massa MÃE ProduÇãO PrÓPria Kg",
+    "new": "Pão Espelta Com Massa Mãe Produção Própria Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2194662",
+    "old": "Sumo Sonatural LimÃO E HortelÃ 750ml",
+    "new": "Sumo Sonatural Limão E Hortelã 750ml",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2198431",
+    "old": "PÃO De Alfarroba Com Sementes Quinoa 400g ProduÇãO PrÓPria",
+    "new": "Pão De Alfarroba Com Sementes Quinoa 400g Produção Própria",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2200247",
+    "old": "Sushi Gourmet Maki De SalmÃO 8un",
+    "new": "Sushi Gourmet Maki De Salmão 8un",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2200295",
+    "old": "Sushi Sashimi Gourmet De SalmÃO 10un",
+    "new": "Sushi Sashimi Gourmet De Salmão 10un",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2200376",
+    "old": "Sushi Gourmet Maki De SalmÃO 14un",
+    "new": "Sushi Gourmet Maki De Salmão 14un",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2200393",
+    "old": "Sushi Gourmet Temaki De SalmÃO",
+    "new": "Sushi Gourmet Temaki De Salmão",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2206898",
+    "old": "SalsichÃO Extra Elpozo Curado 70 G",
+    "new": "Salsichão Extra Elpozo Curado 70 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2208000",
+    "old": "Miolo De CamarÃO Pescanova Grande 40-60 200g",
+    "new": "Miolo De Camarão Pescanova Grande 40-60 200g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2209487",
+    "old": "PÃO R&Uacute;Stico The Rustik Bakery Massa MÃE 400g",
+    "new": "Pão Rústico The Rustik Bakery Massa Mãe 400g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2209489",
+    "old": "PÃO The Rustik Bakery Cereais 400 G",
+    "new": "Pão The Rustik Bakery Cereais 400 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2215099",
+    "old": "Miolo CamarÃO Selvagem Frumar 20/40 Ultracongelado 400 Gr",
+    "new": "Miolo Camarão Selvagem Frumar 20/40 Ultracongelado 400 Gr",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2218725",
+    "old": "RissÓL De CamarÃO Un",
+    "new": "Rissól De Camarão Un",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2221493",
+    "old": "PÃO De Centeio Escuro ProduÇãO PrÓPria 70g",
+    "new": "Pão De Centeio Escuro Produção Própria 70g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2224532",
+    "old": "ChouriÃO Sicasal Carne Extra Argolas 200 G",
+    "new": "Chouriço Sicasal Carne Extra Argolas 200 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2226658",
+    "old": "SalsichÃO Porco IbÉRico Bolota Casa Do Porco Preto Fatias 80g",
+    "new": "Salsichão Porco Ibérico Bolota Casa Do Porco Preto Fatias 80g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2228917",
+    "old": "Lombo De SalmÃO PorÇ&Otilde;Es 150g",
+    "new": "Lombo De Salmão Porções 150g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2229668",
+    "old": "Miolo CamarÃO 10/25 Ultracongelado 250g",
+    "new": "Miolo Camarão 10/25 Ultracongelado 250g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2230238",
+    "old": "Miolo GambÃO Ultracongelado 225 Gr",
+    "new": "Miolo Gambão Ultracongelado 225 Gr",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2230450",
+    "old": "SalmÃO Selvagem Posta Ultracongelado 600g",
+    "new": "Salmão Selvagem Posta Ultracongelado 600g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2236664",
+    "old": "RequeijÃO Santiago Ovelha AzeitÃO Un",
+    "new": "Requeijão Santiago Ovelha Azeitão Un",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-223824",
+    "old": "PÃO De Forma ProduÇãO PrÓPria Kg",
+    "new": "Pão De Forma Produção Própria Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2240068",
+    "old": "PÃO BiolÓGico Miolo De Espeltacenteio Integral Com Sementes 420g",
+    "new": "Pão Biológico Miolo De Espeltacenteio Integral Com Sementes 420g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2242060",
+    "old": "ChouriÇO Do FundÃO Salsicharia Gardunha 220g",
+    "new": "Chouriço Do Fundão Salsicharia Gardunha 220g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2271783",
+    "old": "PÃO Schar Hamburguer Sem Gl&Uacute;Ten 300g",
+    "new": "Pão Schar Hamburguer Sem Glúten 300g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2283654",
+    "old": "Bolo Nougat Chantilly E LimÃO ProduÇãO PrÓPria Kg",
+    "new": "Bolo Nougat Chantilly E Limão Produção Própria Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2283737",
+    "old": "LingueirÃO Grande Ultracongelado 400 Gr",
+    "new": "Lingueirão Grande Ultracongelado 400 Gr",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2286405",
+    "old": "SalpicÃO Fuminho 300 G",
+    "new": "Salpicão Fuminho 300 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2295894",
+    "old": "SalpicÃO Terras Do Demo CachaÇO Vinha D?Alhos 300g",
+    "new": "Salpicão Terras Do Demo Cachaço Vinha D?Alhos 300g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2300356",
+    "old": "RequeijÃO De Cabra Auchan 170g",
+    "new": "Requeijão De Cabra Auchan 170g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-233255",
+    "old": "RomÃ Kg",
+    "new": "Romã Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-234017",
+    "old": "FeijÃO Verde Kg",
+    "new": "Feijão Verde Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2340292",
+    "old": "CamarÃO MadagÁScar Cr&Uacute; Auchan Collection Cultivamos O Bom Asc 10/20 400g",
+    "new": "Camarão Madagáscar Crú Auchan Collection Cultivamos O Bom Asc 10/20 400g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-234673",
+    "old": "HortelÃ Fresca 100g",
+    "new": "Hortelã Fresca 100g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2348137",
+    "old": "SalmÃO Fumado Skandia 200 Gr",
+    "new": "Salmão Fumado Skandia 200 Gr",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2352478",
+    "old": "SalmÃO Fumado Especial Para CanapÉS Skandia 90g",
+    "new": "Salmão Fumado Especial Para Canapés Skandia 90g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2359640",
+    "old": "CamarÃO Costa Cozido Descongelado Kg",
+    "new": "Camarão Costa Cozido Descongelado Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2376744",
+    "old": "LeitÃO Assado &Agrave; Bairrada Cortado 500 G",
+    "new": "Leitão Assado À Bairrada Cortado 500 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2376750",
+    "old": "LeitÃO Assado Desfiado 500 G",
+    "new": "Leitão Assado Desfiado 500 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2383589",
+    "old": "Filetes Iglo Primavera LimÃO 225g",
+    "new": "Filetes Iglo Primavera Limão 225g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-24068",
+    "old": "HortelÃ Fresca Kg Produto Local",
+    "new": "Hortelã Fresca Kg Produto Local",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2437380",
+    "old": "SalpicÃO Cem Porcento Vegetal Soja E Seitan 200g",
+    "new": "Salpicão Cem Porcento Vegetal Soja E Seitan 200g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2439610",
+    "old": "SalpicÃO Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom Serra Da Estrela 280 G",
+    "new": "Salpicão Auchan À Mesa Em Portugal Cultivamos O Bom Serra Da Estrela 280 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2447150",
+    "old": "PÉTalas PÁTeo De PÃO Natural 250g",
+    "new": "Pétalas Páteo De Pão Natural 250g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2447157",
+    "old": "PÉTalas PÁTeo De PÃO Rosmaninho 250g",
+    "new": "Pétalas Páteo De Pão Rosmaninho 250g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2447164",
+    "old": "PÉTalas PÁTeo De PÃO SÉSamo 250g",
+    "new": "Pétalas Páteo De Pão Sésamo 250g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2447361",
+    "old": "PÃO Mestemacher Preto 250g",
+    "new": "Pão Mestemacher Preto 250g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2447367",
+    "old": "PÃO Mestemacher AlemÃO Mais Prote&Iacute;Nas 250g",
+    "new": "Pão Mestemacher Alemão Mais Proteínas 250g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-245413",
+    "old": "MelÃO Pele Sapo Kg",
+    "new": "Melão Pele Sapo Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2456102",
+    "old": "Tranches Iglo SalmÃO Selvagem Msc 440g",
+    "new": "Tranches Iglo Salmão Selvagem Msc 440g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2460979",
+    "old": "áGua Com GÁS Pedras LimÃO 1l",
+    "new": "áGua Com Gás Pedras Limão 1l",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2461270",
+    "old": "CamarÃO Pescanova Vannamei Extra 24-40 800g",
+    "new": "Camarão Pescanova Vannamei Extra 24-40 800g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2464159",
+    "old": "áGua Vitalis Mineral GarrafÃO 6l",
+    "new": "áGua Vitalis Mineral Garrafão 6l",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2483070",
+    "old": "Sushi Gourmet SalmÃO DragÃO Crunch Roll 8un",
+    "new": "Sushi Gourmet Salmão Dragão Crunch Roll 8un",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2485597",
+    "old": "PÃO Auchan De Leite Pepitas Chocolate 10un",
+    "new": "Pão Auchan De Leite Pepitas Chocolate 10un",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2499906",
+    "old": "Barrinhas Pescanova SalmÃO Sem Gl&Uacute;Ten 300 G",
+    "new": "Barrinhas Pescanova Salmão Sem Glúten 300 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2517241",
+    "old": "CamarÃO Pescanova MoÇAmbique Grande 32-48 800g",
+    "new": "Camarão Pescanova Moçambique Grande 32-48 800g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-25190",
+    "old": "PÃO De Mistura ProduÇãO PrÓPria 400g",
+    "new": "Pão De Mistura Produção Própria 400g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-25390",
+    "old": "PÃO Saloio -25% Sal ProduÇãO PrÓPria 400g",
+    "new": "Pão Saloio -25% Sal Produção Própria 400g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-255397",
+    "old": "áGua Auchan Da Nascente GarrafÃO 6l",
+    "new": "áGua Auchan Da Nascente Garrafão 6l",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2618479",
+    "old": "Lagartos Confeitaria Carlos GonÇAlves Com Sabor A LimÃO 750g",
+    "new": "Lagartos Confeitaria Carlos Gonçalves Com Sabor A Limão 750g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2631902",
+    "old": "PÃO Com ChouriÇO ProduÇãO PrÓPria 100g",
+    "new": "Pão Com Chouriço Produção Própria 100g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2644174",
+    "old": "PÃO De Centeio Escuro 400g",
+    "new": "Pão De Centeio Escuro 400g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2647159",
+    "old": "CamarÃO Costa Cozido 300g",
+    "new": "Camarão Costa Cozido 300g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2663888",
+    "old": "PÃO De Forma Shape 400g",
+    "new": "Pão De Forma Shape 400g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2679828",
+    "old": "PÃO Mestemacher De Sementes LinhaÇA BiolÓGico 500g",
+    "new": "Pão Mestemacher De Sementes Linhaça Biológico 500g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2686814",
+    "old": "OrÉGÃO Auchan Bio Cultivamos O Bom 30 G",
+    "new": "Orégão Auchan Bio Cultivamos O Bom 30 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2701709",
+    "old": "Abacaxi MamÃO Manga PedaÇOs Kg",
+    "new": "Abacaxi Mamão Manga Pedaços Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2701808",
+    "old": "Miolo CamarÃO Selvagem Frumar 60/80 Ultracongelado 400g",
+    "new": "Miolo Camarão Selvagem Frumar 60/80 Ultracongelado 400g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2701870",
+    "old": "MelÃO Melancia E Meloa Galia PedaÇOs Kg",
+    "new": "Melão Melancia E Meloa Galia Pedaços Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2702234",
+    "old": "Bebida Luso Fruta LimÃO 0.50l",
+    "new": "Bebida Luso Fruta Limão 0.50l",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2704883",
+    "old": "áGua Castello Com GÁS LimÃO 4x0.25l",
+    "new": "áGua Castello Com Gás Limão 4x0.25l",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2708824",
+    "old": "Miolo GambÃO Pescanova 20-40 200g",
+    "new": "Miolo Gambão Pescanova 20-40 200g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2725208",
+    "old": "ChouriÇO De Carne Damatta BeirÃO 225g",
+    "new": "Chouriço De Carne Damatta Beirão 225g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2733061",
+    "old": "PÃO Panrico De Forma Receita EconÓMica 475g",
+    "new": "Pão Panrico De Forma Receita Económica 475g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2733904",
+    "old": "PÃO Panrico Forma Torradas Com C&Ocirc;Dea 750g",
+    "new": "Pão Panrico Forma Torradas Com Côdea 750g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2733910",
+    "old": "PÃO Panrico Forma Branco Com C&Ocirc;Dea 750g",
+    "new": "Pão Panrico Forma Branco Com Côdea 750g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2733915",
+    "old": "PÃO Panrico Forma Integral Receita EconÓMica 520g",
+    "new": "Pão Panrico Forma Integral Receita Económica 520g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2736227",
+    "old": "SalpicÃO Fumeiros Da Guarda Tradicional 250g",
+    "new": "Salpicão Fumeiros Da Guarda Tradicional 250g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2743997",
+    "old": "PÃO Beterraba ProduÇãO PrÓPria Kg",
+    "new": "Pão Beterraba Produção Própria Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2749196",
+    "old": "PÃO Panrico De Forma Cerealia 5 Sementes 435g",
+    "new": "Pão Panrico De Forma Cerealia 5 Sementes 435g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2749203",
+    "old": "PÃO Panrico De Forma Cerealia 14 Cereais 435g",
+    "new": "Pão Panrico De Forma Cerealia 14 Cereais 435g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2759667",
+    "old": "PÃO De Fibras -25% Sal ProduÇãO PrÓPria 70g",
+    "new": "Pão De Fibras -25% Sal Produção Própria 70g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2759673",
+    "old": "PÃO De Fibras -25% Sal ProduÇãO PrÓPria Kg",
+    "new": "Pão De Fibras -25% Sal Produção Própria Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2759683",
+    "old": "PÃO De Fibras -25% Sal ProduÇãO PrÓPria 400g",
+    "new": "Pão De Fibras -25% Sal Produção Própria 400g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2797917",
+    "old": "SalpicÃO De Peru Quinta Dos Fumeiros De 240 G",
+    "new": "Salpicão De Peru Quinta Dos Fumeiros De 240 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2799816",
+    "old": "CamarÃO Cozido 40/60 Pescanova 500 Gr",
+    "new": "Camarão Cozido 40/60 Pescanova 500 Gr",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2800681",
+    "old": "Queijo AlavÃO Cremoso Vaca 125g",
+    "new": "Queijo Alavão Cremoso Vaca 125g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-29119",
+    "old": "PÃO De Deus ProduÇãO PrÓPria Un",
+    "new": "Pão De Deus Produção Própria Un",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2932989",
+    "old": "SalmÃO Fumado Da Noruega Auchan Cultivamos O Bom 130 G",
+    "new": "Salmão Fumado Da Noruega Auchan Cultivamos O Bom 130 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2933305",
+    "old": "Presunto Casa Do Porco Preto Alentejo Fatiado &Agrave; MÃO 100g",
+    "new": "Presunto Casa Do Porco Preto Alentejo Fatiado À Mão 100g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2933307",
+    "old": "Paleta Casa Do Porco Preto Fatiada &Agrave; MÃO 100 G",
+    "new": "Paleta Casa Do Porco Preto Fatiada À Mão 100 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2934392",
+    "old": "SalmÃO Fumado EscÓCia Auchan Collection 160g",
+    "new": "Salmão Fumado Escócia Auchan Collection 160g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2968497",
+    "old": "Queijo Penela Alho E OregÃOs Aperitivo Un",
+    "new": "Queijo Penela Alho E Oregãos Aperitivo Un",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2970362",
+    "old": "PÃO Bimbo Integral 480g",
+    "new": "Pão Bimbo Integral 480g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2972177",
+    "old": "Sopa De AgriÃO Auchan 800g",
+    "new": "Sopa De Agrião Auchan 800g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2972181",
+    "old": "Sopa De AgriÃO Auchan 400g",
+    "new": "Sopa De Agrião Auchan 400g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2976766",
+    "old": "SalmÃO Polegar Fumado 200 Gr",
+    "new": "Salmão Polegar Fumado 200 Gr",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2979499",
+    "old": "Miolo Auchan AvelÃ Bio Torrada 125g",
+    "new": "Miolo Auchan Avelã Bio Torrada 125g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2993425",
+    "old": "PÃO Beterraba ProduÇãO PrÓPria 70g",
+    "new": "Pão Beterraba Produção Própria 70g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3005982",
+    "old": "Pastel De FeijÃO Doces Penha 250 G",
+    "new": "Pastel De Feijão Doces Penha 250 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3010611",
+    "old": "PÃO Pachamama Ancestral 450g",
+    "new": "Pão Pachamama Ancestral 450g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3010663",
+    "old": "PÃO Pachamama Espelta Integral 450g",
+    "new": "Pão Pachamama Espelta Integral 450g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3010671",
+    "old": "PÃO Pachamama Espelta Integral Curcuma E Pimenta 450g",
+    "new": "Pão Pachamama Espelta Integral Curcuma E Pimenta 450g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3010679",
+    "old": "PÃO Pachamama Sem Gl&Uacute;Ten Aveia E Sementes Bio 300g",
+    "new": "Pão Pachamama Sem Glúten Aveia E Sementes Bio 300g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3010691",
+    "old": "PÃO Pachamama Sem Gl&Uacute;Ten Paleo Low Carb 300g",
+    "new": "Pão Pachamama Sem Glúten Paleo Low Carb 300g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3011743",
+    "old": "Gratinado Iglo De Peixe LimÃO E Ervas Sem Gl&Uacute;Ten 380g",
+    "new": "Gratinado Iglo De Peixe Limão E Ervas Sem Glúten 380g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3021286",
+    "old": "SalmÃO Fumado Auchan 2x50g",
+    "new": "Salmão Fumado Auchan 2x50g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3022829",
+    "old": "ManjericÃO Vaso Auchan Cultivamos O Bom",
+    "new": "Manjericão Vaso Auchan Cultivamos O Bom",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3028684",
+    "old": "Bife Extra Fino VitelÃO Carnalentejana Dop Auchan Cultivamos O Bom Kg",
+    "new": "Bife Extra Fino Vitelão Carnalentejana Dop Auchan Cultivamos O Bom Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3028834",
+    "old": "VitelÃO Carnalentejana Dop Jardineira Auchan Cultivamos O Bom Kg",
+    "new": "Vitelão Carnalentejana Dop Jardineira Auchan Cultivamos O Bom Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3028843",
+    "old": "Bife Do Beijinho VitelÃO Carnalentejana Dop Auchan Cultivamos O Bom Kg",
+    "new": "Bife Do Beijinho Vitelão Carnalentejana Dop Auchan Cultivamos O Bom Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3028846",
+    "old": "VitelÃO Carnalentejana Dop Vazia Auchan Cultivamos O Bom Kg",
+    "new": "Vitelão Carnalentejana Dop Vazia Auchan Cultivamos O Bom Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3035307",
+    "old": "Miolo De AvelÃ Torrada Auchan 175 G",
+    "new": "Miolo De Avelã Torrada Auchan 175 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3035464",
+    "old": "Miolo De PinhÃO Auchan 50 G",
+    "new": "Miolo De Pinhão Auchan 50 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3046849",
+    "old": "SalmÃO Auchan Fumado Bio Atl&Acirc;Ntico Fatias Grossas 100g",
+    "new": "Salmão Auchan Fumado Bio Atlântico Fatias Grossas 100g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3053822",
+    "old": "PÃO Le Pain Des Fleurs Flores Cacau Sem Gl&Uacute;Ten Bio 160g",
+    "new": "Pão Le Pain Des Fleurs Flores Cacau Sem Glúten Bio 160g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3053828",
+    "old": "PÃO Le Pain Des Fleurs Flores C&Ocirc;Co Sem Gl&Uacute;Ten 150g",
+    "new": "Pão Le Pain Des Fleurs Flores Côco Sem Glúten 150g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3053843",
+    "old": "PÃO Le Pain Des Fleurs Flores Serra Sem Gl&Uacute;Ten Bio 150g",
+    "new": "Pão Le Pain Des Fleurs Flores Serra Sem Glúten Bio 150g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3071702",
+    "old": "PÃO Pachamama Sem Gl&Uacute;Ten Banana E Canela 300g",
+    "new": "Pão Pachamama Sem Glúten Banana E Canela 300g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3072631",
+    "old": "PÃO De Trigo Auchan Cultivamos O Bom Cereais Do Alentejo 400g",
+    "new": "Pão De Trigo Auchan Cultivamos O Bom Cereais Do Alentejo 400g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3072634",
+    "old": "PÃO De Trigo Auchan Cultivamos O Bom Cereais Do Alentejo 800g",
+    "new": "Pão De Trigo Auchan Cultivamos O Bom Cereais Do Alentejo 800g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3074118",
+    "old": "RequeijÃO De Ovelha Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom Seia 200 G",
+    "new": "Requeijão De Ovelha Auchan À Mesa Em Portugal Cultivamos O Bom Seia 200 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3077727",
+    "old": "MexilhÃO Grande 900g",
+    "new": "Mexilhão Grande 900g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3088360",
+    "old": "Miolo De PinhÃO Portugu&Ecirc;S Auchan Collection Cultivamos O Bom 50 G",
+    "new": "Miolo De Pinhão Português Auchan Collection Cultivamos O Bom 50 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3088613",
+    "old": "Miolo De PinhÃO Portugu&Ecirc;S Auchan Collection Cultivamos O Bom 100g",
+    "new": "Miolo De Pinhão Português Auchan Collection Cultivamos O Bom 100g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3111505",
+    "old": "Quiche RequeijÃO E Espinafres Un",
+    "new": "Quiche Requeijão E Espinafres Un",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3114824",
+    "old": "Bolachas AvÓ Elvira Com Recheio Sabor LimÃO 160g",
+    "new": "Bolachas Avó Elvira Com Recheio Sabor Limão 160g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3117718",
+    "old": "AgriÃO Kg Produto Local",
+    "new": "Agrião Kg Produto Local",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3119917",
+    "old": "PÃO AvÓ Bolas ProduÇãO PrÓPria Kg",
+    "new": "Pão Avó Bolas Produção Própria Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3156313",
+    "old": "Queijo SÃO RomÃO De Ovelha Amanteigado Kg",
+    "new": "Queijo São Romão De Ovelha Amanteigado Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3159347",
+    "old": "Lombos Pescanova De SalmÃO 250g",
+    "new": "Lombos Pescanova De Salmão 250g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3209665",
+    "old": "Queijo Quinta Das RomÃS Ovelha Fresco 2x70g Produto Local",
+    "new": "Queijo Quinta Das Romãs Ovelha Fresco 2x70g Produto Local",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3210634",
+    "old": "Queijo SÃO Cosme Serra Estrela Dop Un",
+    "new": "Queijo São Cosme Serra Estrela Dop Un",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3223568",
+    "old": "Miolo De AvelÃ Crua Auchan 175 G",
+    "new": "Miolo De Avelã Crua Auchan 175 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3231519",
+    "old": "HortelÃ Vaso Auchan Cultivamos O Bom",
+    "new": "Hortelã Vaso Auchan Cultivamos O Bom",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3234441",
+    "old": "PÃO De Queijo Un",
+    "new": "Pão De Queijo Un",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3240111",
+    "old": "SalsichÃO Alentejano Dourique Fatiado 70 Gr",
+    "new": "Salsichão Alentejano Dourique Fatiado 70 Gr",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3241702",
+    "old": "PÃO Auchan R&Uacute;Stico Sem Gl&Uacute;Ten 300g",
+    "new": "Pão Auchan Rústico Sem Glúten 300g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3241708",
+    "old": "PÃO Auchan Forma Sem Gl&Uacute;Ten 300g",
+    "new": "Pão Auchan Forma Sem Glúten 300g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3241718",
+    "old": "PÃO Auchan Forma Multicereais Sem Gl&Uacute;Ten 300g",
+    "new": "Pão Auchan Forma Multicereais Sem Glúten 300g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3256876",
+    "old": "Miolo De PinhÃO Auchan Bio 50g",
+    "new": "Miolo De Pinhão Auchan Bio 50g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3264849",
+    "old": "Queijo Castel&Otilde;Es Cura Especial PimentÃO Un",
+    "new": "Queijo Castelões Cura Especial Pimentão Un",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3267039",
+    "old": "BerbigÃO 1kg",
+    "new": "Berbigão 1kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3268970",
+    "old": "6 PÃEzinhos PrÉ -Cozidos Auchan Com Farinha De Trigo Integral 6x50g",
+    "new": "6 Pãezinhos Pré -Cozidos Auchan Com Farinha De Trigo Integral 6x50g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3277915",
+    "old": "Maranho Dom Iguarias Da SertÃ Kg",
+    "new": "Maranho Dom Iguarias Da Sertã Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3280077",
+    "old": "Macarons Dulcesol Sabor LimÃO 4un 80g",
+    "new": "Macarons Dulcesol Sabor Limão 4un 80g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3285795",
+    "old": "Bucho Dom Iguarias Da SertÃ Kg",
+    "new": "Bucho Dom Iguarias Da Sertã Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3289851",
+    "old": "Posta SalmÃO Auchan Cultivamos O Bom 4/5 Kg",
+    "new": "Posta Salmão Auchan Cultivamos O Bom 4/5 Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3289853",
+    "old": "SalmÃO Filete Auchan Cultivamos O Bom 4/5 Kg",
+    "new": "Salmão Filete Auchan Cultivamos O Bom 4/5 Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3291143",
+    "old": "SalmÃO CabeÇA Auchan Cultivamos O Bom 4/5 Kg",
+    "new": "Salmão Cabeça Auchan Cultivamos O Bom 4/5 Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3291153",
+    "old": "Filete SalmÃO Auchan Cultivamos O Bom Kg",
+    "new": "Filete Salmão Auchan Cultivamos O Bom Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3291161",
+    "old": "Posta SalmÃO Auchan Cultivamos O Bom Kg",
+    "new": "Posta Salmão Auchan Cultivamos O Bom Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3294266",
+    "old": "Salada De Fruta Com HortelÃ Kg",
+    "new": "Salada De Fruta Com Hortelã Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3294392",
+    "old": "SalmÃO Inteiro Auchan Cultivamos O Bom 4/5 Kg",
+    "new": "Salmão Inteiro Auchan Cultivamos O Bom 4/5 Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3304508",
+    "old": "SalsichÃO Porco Preto Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom Alentejo 70 G",
+    "new": "Salsichão Porco Preto Auchan À Mesa Em Portugal Cultivamos O Bom Alentejo 70 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3321266",
+    "old": "Azeite Norte Alentejano Dop Virgem Extra EsporÃO 500ml",
+    "new": "Azeite Norte Alentejano Dop Virgem Extra Esporão 500ml",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-332275",
+    "old": "MamÃO Metade Kg",
+    "new": "Mamão Metade Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3328181",
+    "old": "PÃO De AbÓBora E Noz 70g",
+    "new": "Pão De Abóbora E Noz 70g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-333074",
+    "old": "CamarÃO Vannamei 20/30 Cru Congelado Kg",
+    "new": "Camarão Vannamei 20/30 Cru Congelado Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3334446",
+    "old": "Bolo AniversÃRio P.P Vegan De Chocolate Kg",
+    "new": "Bolo Aniversãrio P.P Vegan De Chocolate Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3335665",
+    "old": "Lombos Iglo SalmÃO 375g 3un",
+    "new": "Lombos Iglo Salmão 375g 3un",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-333590",
+    "old": "áGua Caldas De Penacova GarrafÃO 5l",
+    "new": "áGua Caldas De Penacova Garrafão 5l",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3344293",
+    "old": "Hummus ManjericÃO Sonatural 200g",
+    "new": "Hummus Manjericão Sonatural 200g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3347247",
+    "old": "PÃO Forma Panrico Com C&Ocirc;Dea Torradas Integral 520g",
+    "new": "Pão Forma Panrico Com Côdea Torradas Integral 520g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-33541",
+    "old": "SalmÃO Fresco Inteiro 2kg A 3kg",
+    "new": "Salmão Fresco Inteiro 2kg A 3kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3356067",
+    "old": "PÃO Mestemacher Pure Natural Sem Farinha 300g",
+    "new": "Pão Mestemacher Pure Natural Sem Farinha 300g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3356068",
+    "old": "PÃO Mestemacher 260g",
+    "new": "Pão Mestemacher 260g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3360174",
+    "old": "PÃEzinhos Auchan Torrados Tomate E OregÃOs 160g",
+    "new": "Pãezinhos Auchan Torrados Tomate E Oregãos 160g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3361313",
+    "old": "SalpicÃO Do Lombo Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom Alto Minho Un",
+    "new": "Salpicão Do Lombo Auchan À Mesa Em Portugal Cultivamos O Bom Alto Minho Un",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3361439",
+    "old": "SalpicÃO Do CachaÇO Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom Alto Minho Un",
+    "new": "Salpicão Do Cachaço Auchan À Mesa Em Portugal Cultivamos O Bom Alto Minho Un",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3372566",
+    "old": "ManjericÃO Auchan 25 G",
+    "new": "Manjericão Auchan 25 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3372584",
+    "old": "Pimento PadrÃO Auchan 250 G",
+    "new": "Pimento Padrão Auchan 250 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3374988",
+    "old": "FeijÃO Verde Auchan 450 G",
+    "new": "Feijão Verde Auchan 450 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3385787",
+    "old": "LimÃO Algarve Igp Auchan Cultivamos O Bom 500 G",
+    "new": "Limão Algarve Igp Auchan Cultivamos O Bom 500 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3391846",
+    "old": "CamarÃO Selvagem 10/20 Congelado Kg",
+    "new": "Camarão Selvagem 10/20 Congelado Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3402510",
+    "old": "Sopa De FeijÃO Auchan 400 G",
+    "new": "Sopa De Feijão Auchan 400 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3403675",
+    "old": "CamarÃO Pescanova Vannamei Gigante 8-16 800g",
+    "new": "Camarão Pescanova Vannamei Gigante 8-16 800g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3407140",
+    "old": "RequeijÃO Herdade Da Maia Mistura Com Doce AbÓBora 250g",
+    "new": "Requeijão Herdade Da Maia Mistura Com Doce Abóbora 250g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3410346",
+    "old": "CamarÃO Tigre Selvagem 2/4 Congelado Kg",
+    "new": "Camarão Tigre Selvagem 2/4 Congelado Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3420205",
+    "old": "Miolo De AvelÃ Auchan Bio 125 G",
+    "new": "Miolo De Avelã Auchan Bio 125 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3425090",
+    "old": "Tofu Taifun ManjericÃO Bio 200g",
+    "new": "Tofu Taifun Manjericão Bio 200g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3425784",
+    "old": "Sopa De FeijÃO Auchan 800 G",
+    "new": "Sopa De Feijão Auchan 800 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3432302",
+    "old": "Sumo De RomÃ 250ml",
+    "new": "Sumo De Romã 250ml",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3432305",
+    "old": "Sumo De RomÃ 500ml",
+    "new": "Sumo De Romã 500ml",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3438605",
+    "old": "MelÃO Amarelo Auchan Kg",
+    "new": "Melão Amarelo Auchan Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3439509",
+    "old": "MelÃO Amarelo Auchan Metade Kg",
+    "new": "Melão Amarelo Auchan Metade Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3439816",
+    "old": "MelÃO Pele De Sapo Auchan Cortado Em PedaÇOs Kg",
+    "new": "Melão Pele De Sapo Auchan Cortado Em Pedaços Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3447198",
+    "old": "Cauda SalmÃO 2/3 Fresco Kg",
+    "new": "Cauda Salmão 2/3 Fresco Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3447428",
+    "old": "Tranches SalmÃO Auchan Kg",
+    "new": "Tranches Salmão Auchan Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3450560",
+    "old": "LeitÃO Assado &Agrave; Bairrada Pequeno PedaÇOs P PrÓPria Kg",
+    "new": "Leitão Assado À Bairrada Pequeno Pedaços P Própria Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3458116",
+    "old": "PÃO Sem GlutÉN Pachamama Alfarroba Passas E Nozes 300g",
+    "new": "Pão Sem Glutén Pachamama Alfarroba Passas E Nozes 300g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3471373",
+    "old": "OrÉGÃO Vaso Auchan Cultivamos O Bom",
+    "new": "Orégão Vaso Auchan Cultivamos O Bom",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3473046",
+    "old": "MacarrÃO &Agrave; Bolonhesa Auchan 280g",
+    "new": "Macarrão À Bolonhesa Auchan 280g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3482254",
+    "old": "FeijÃO Verde Cortado Kg",
+    "new": "Feijão Verde Cortado Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3488536",
+    "old": "Queijo Flamengo Milhafre SÃO Luiz Barra Kg",
+    "new": "Queijo Flamengo Milhafre São Luiz Barra Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3509556",
+    "old": "PÃO De Forma Auchan Sem Gluten 400g",
+    "new": "Pão De Forma Auchan Sem Gluten 400g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3514610",
+    "old": "PÃO 100% Integral 80g 2045",
+    "new": "Pão 100% Integral 80g 2045",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3514623",
+    "old": "PÃO 100% Integral Mf 350 Gr",
+    "new": "Pão 100% Integral Mf 350 Gr",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3521728",
+    "old": "Pesto ManjericÃO Bio Verde Vegan 125g",
+    "new": "Pesto Manjericão Bio Verde Vegan 125g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3552366",
+    "old": "CamarÃO Tigre 10/20 Cozido Descongelado Kg",
+    "new": "Camarão Tigre 10/20 Cozido Descongelado Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3552570",
+    "old": "SalpicÃO Do Lombo Auchan &Agrave; Mesa Em Portugal Lamego 300",
+    "new": "Salpicão Do Lombo Auchan À Mesa Em Portugal Lamego 300",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3580546",
+    "old": "Hamb&Uacute;Rguer De SalmÃO Auchan Ultracongelado 2un 220g",
+    "new": "Hambúrguer De Salmão Auchan Ultracongelado 2un 220g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3587466",
+    "old": "PÃO Bimbo Sem Gl&Uacute;Ten Sementes 280 G",
+    "new": "Pão Bimbo Sem Glúten Sementes 280 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3587471",
+    "old": "PÃO R&Uacute;Stico The Rustik Bakery Integral 400 G",
+    "new": "Pão Rústico The Rustik Bakery Integral 400 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3599618",
+    "old": "MelÃO Pele De Sapo Auchan Cultivamos O Bom Kg",
+    "new": "Melão Pele De Sapo Auchan Cultivamos O Bom Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3601802",
+    "old": "Gyozas Ta-Tung De CamarÃO 144g",
+    "new": "Gyozas Ta-Tung De Camarão 144g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3613521",
+    "old": "Tartelete De LimÃO Merengada Un",
+    "new": "Tartelete De Limão Merengada Un",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3613574",
+    "old": "PÃO Polen Mel E MaÇã 50g",
+    "new": "Pão Polen Mel E Maçã 50g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3613777",
+    "old": "Posta De SalmÃO Ibertejo Congelado Higienizado Kg",
+    "new": "Posta De Salmão Ibertejo Congelado Higienizado Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3631510",
+    "old": "PÃO De Forma S/ Codea Panrico Especial Torradas 450g",
+    "new": "Pão De Forma S/ Codea Panrico Especial Torradas 450g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3654633",
+    "old": "PÃO De Hamb&Uacute;Rguer Dulcesol Miniaturas 190 G",
+    "new": "Pão De Hambúrguer Dulcesol Miniaturas 190 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3665513",
+    "old": "PÃO Forma Rio Maior 9 Cereais 500g",
+    "new": "Pão Forma Rio Maior 9 Cereais 500g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3668973",
+    "old": "Queijo Mistura ManjericÃO E Tomilho Santiago 90g",
+    "new": "Queijo Mistura Manjericão E Tomilho Santiago 90g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3679724",
+    "old": "Tarte LimÃO Merengada 630g",
+    "new": "Tarte Limão Merengada 630g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3691010",
+    "old": "CosteletÃO De Borrego Congelado Kg",
+    "new": "Costeletão De Borrego Congelado Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3694997",
+    "old": "PÃEs Recheados Bokatta Sabores Do Mundo Un",
+    "new": "Pães Recheados Bokatta Sabores Do Mundo Un",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3695001",
+    "old": "PÃEs Recheados Bokatta Pan Relleno Un",
+    "new": "Pães Recheados Bokatta Pan Relleno Un",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3707292",
+    "old": "PÃO \"Bread Less\" Schnitzer Sem Farinha E Gl&Uacute;Ten Bio 350g",
+    "new": "Pão \"Bread Less\" Schnitzer Sem Farinha E Glúten Bio 350g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3707295",
+    "old": "PÃO Hamburguer Schnitzer Sem Gl&Uacute;Ten Bio 250g",
+    "new": "Pão Hamburguer Schnitzer Sem Glúten Bio 250g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3727621",
+    "old": "AgriÃO Florette 125 G",
+    "new": "Agrião Florette 125 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3741065",
+    "old": "PÃO MultigrÃOs 85g",
+    "new": "Pão Multigrãos 85g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3741809",
+    "old": "Bebida Com GÁS Pedras LimÃO Lata 0.33l",
+    "new": "Bebida Com Gás Pedras Limão Lata 0.33l",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3744434",
+    "old": "PÃO Milho Fatia Schnitzer Bio Sem Gl&Uacute;Ten 430g",
+    "new": "Pão Milho Fatia Schnitzer Bio Sem Glúten 430g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3744574",
+    "old": "PÃO De Forma Bimbo Com C&Ocirc;Dea 430 G",
+    "new": "Pão De Forma Bimbo Com Côdea 430 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3752834",
+    "old": "Carpaccio SalmÃO Martiko Fumado 80 Gr",
+    "new": "Carpaccio Salmão Martiko Fumado 80 Gr",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3756888",
+    "old": "Sopa De Peixe Com HortelÃ E Gengibre 400 G",
+    "new": "Sopa De Peixe Com Hortelã E Gengibre 400 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3770260",
+    "old": "PÃO Oroweat Bimbo 12 Cereais Sementes 550g",
+    "new": "Pão Oroweat Bimbo 12 Cereais Sementes 550g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3771742",
+    "old": "Bebida Com GÁS Frize LimÃO 8x0.25l",
+    "new": "Bebida Com Gás Frize Limão 8x0.25l",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3774045",
+    "old": "ChouriÇO De Carne Da SertÃ Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom 180g",
+    "new": "Chouriço De Carne Da Sertã Auchan À Mesa Em Portugal Cultivamos O Bom 180g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3775095",
+    "old": "ChouriÇO Mouro Da SertÃ Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom 180g",
+    "new": "Chouriço Mouro Da Sertã Auchan À Mesa Em Portugal Cultivamos O Bom 180g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3775099",
+    "old": "Farinheira Da SertÃ Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom 180g",
+    "new": "Farinheira Da Sertã Auchan À Mesa Em Portugal Cultivamos O Bom 180g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3775100",
+    "old": "Morcela Da SertÃ Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom 180g",
+    "new": "Morcela Da Sertã Auchan À Mesa Em Portugal Cultivamos O Bom 180g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3775152",
+    "old": "Morcela De Arroz Da SertÃ Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom 180g",
+    "new": "Morcela De Arroz Da Sertã Auchan À Mesa Em Portugal Cultivamos O Bom 180g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3775160",
+    "old": "Paio Auchan Da SertÃ 300g",
+    "new": "Paio Auchan Da Sertã 300g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3775401",
+    "old": "CamarÃO Cozido Vannamei Auchan 50/70 1kg",
+    "new": "Camarão Cozido Vannamei Auchan 50/70 1kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3775439",
+    "old": "CamarÃO Cozido Vannamei 20/30 Auchan 500gr",
+    "new": "Camarão Cozido Vannamei 20/30 Auchan 500gr",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3775493",
+    "old": "CamarÃO Cozido Vannamei 30/50 Auchan 500gr",
+    "new": "Camarão Cozido Vannamei 30/50 Auchan 500gr",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3775494",
+    "old": "CamarÃO Cozido Vannamei Auchan 30/50 1kg",
+    "new": "Camarão Cozido Vannamei Auchan 30/50 1kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3775499",
+    "old": "CamarÃO Cozido Vannamei Auchan 20/30 1kg",
+    "new": "Camarão Cozido Vannamei Auchan 20/30 1kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3777048",
+    "old": "CamarÃO MadagÁScar Auchan Collection Cultivamos O Bom Cozido 40/60 400gr",
+    "new": "Camarão Madagáscar Auchan Collection Cultivamos O Bom Cozido 40/60 400gr",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3782179",
+    "old": "PÃO Pachamama Sementes Massa MÃE 450 G",
+    "new": "Pão Pachamama Sementes Massa Mãe 450 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3799164",
+    "old": "PÃO R&Uacute;Stico Massa MÃE 400g",
+    "new": "Pão Rústico Massa Mãe 400g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3799213",
+    "old": "Cogumelo Juba De LeÃO (Economia Circular) Kg",
+    "new": "Cogumelo Juba De Leão (Economia Circular) Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3802726",
+    "old": "Tabua Queijo Santiago Cunhas AlavÃO Un",
+    "new": "Tabua Queijo Santiago Cunhas Alavão Un",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3804139",
+    "old": "Bebida Com GÁS Frize LimÃO 0.75l",
+    "new": "Bebida Com Gás Frize Limão 0.75l",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3804713",
+    "old": "Semifrio De LimÃO Nutriva",
+    "new": "Semifrio De Limão Nutriva",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3804896",
+    "old": "Fiambre De Peito Frango Auchan Fatiado No BalcÃO Kg",
+    "new": "Fiambre De Peito Frango Auchan Fatiado No Balcão Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3804902",
+    "old": "PÃO Le Pain Des Fleurs AvelÃ Bio 150 G",
+    "new": "Pão Le Pain Des Fleurs Avelã Bio 150 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3806866",
+    "old": "Fiambre De Peito Per&Uacute; Auchan Fatiado No BalcÃO Kg",
+    "new": "Fiambre De Peito Perú Auchan Fatiado No Balcão Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-381400",
+    "old": "Medalh&Otilde;Es Pescanova SalmÃO 400g",
+    "new": "Medalhões Pescanova Salmão 400g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3823416",
+    "old": "Hummus De TremoÃO Tarwi ManjericÃO 160g",
+    "new": "Hummus De Tremoço Tarwi Manjericão 160g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3824024",
+    "old": "CamarÃO Cozido Vannamei Auchan 20/30 Kg",
+    "new": "Camarão Cozido Vannamei Auchan 20/30 Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3824166",
+    "old": "CamarÃO Cozido Auchan Vannamei 30/50 Kg",
+    "new": "Camarão Cozido Auchan Vannamei 30/50 Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3824172",
+    "old": "CamarÃO Cozido Auchan Vannamei 50/70 Kg",
+    "new": "Camarão Cozido Auchan Vannamei 50/70 Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3824810",
+    "old": "Bebida Tropical Aloe Vera RomÃ 0.5l",
+    "new": "Bebida Tropical Aloe Vera Romã 0.5l",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3831005",
+    "old": "áGua Alcalina Auchan Ionizada Ph9+ GarrafÃO 6l",
+    "new": "áGua Alcalina Auchan Ionizada Ph9+ Garrafão 6l",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-384482",
+    "old": "CamarÃO Tigre 6/8 Congelado Kg",
+    "new": "Camarão Tigre 6/8 Congelado Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-384907",
+    "old": "CamarÃO Auchan Collection Cultivamos O Bom Selv Madag 60/80 Cong Kg",
+    "new": "Camarão Auchan Collection Cultivamos O Bom Selv Madag 60/80 Cong Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-384916",
+    "old": "CamarÃO Auchan Collection Cultivamos O Bom Selv Madag 30/40 Cong Kg",
+    "new": "Camarão Auchan Collection Cultivamos O Bom Selv Madag 30/40 Cong Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-384918",
+    "old": "CamarÃO Auchan Collection Cultivamos O Bom Selv Madag 20/30 Cong Kg",
+    "new": "Camarão Auchan Collection Cultivamos O Bom Selv Madag 20/30 Cong Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-384922",
+    "old": "CamarÃO Selvagem MadagÁScar Auchan Cultivamos O Bom U/10 Congelado Kg",
+    "new": "Camarão Selvagem Madagáscar Auchan Cultivamos O Bom U/10 Congelado Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-38932",
+    "old": "LimÃO Bio 500g",
+    "new": "Limão Bio 500g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-391057",
+    "old": "PÃO De Leite ProduÇãO PrÓPria Un",
+    "new": "Pão De Leite Produção Própria Un",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-392677",
+    "old": "CamarÃO Auchan Cozido MadagÁScar 50/60 400g",
+    "new": "Camarão Auchan Cozido Madagáscar 50/60 400g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-393763",
+    "old": "Filete Pescanova Pescada Panada LimÃO 400g",
+    "new": "Filete Pescanova Pescada Panada Limão 400g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-395099",
+    "old": "MelÃO Pele Sapo Metade Kg",
+    "new": "Melão Pele Sapo Metade Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-397302",
+    "old": "GambÃO 10/20 Selvagem Da Argentina Congelado Kg",
+    "new": "Gambão 10/20 Selvagem Da Argentina Congelado Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-397641",
+    "old": "Miolo De CamarÃO Auchan Collection Cultivamos O Bom MadagÁScar 70/90 Asc 400g",
+    "new": "Miolo De Camarão Auchan Collection Cultivamos O Bom Madagáscar 70/90 Asc 400g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-400926",
+    "old": "PÃO De Leite Com Pepitas:Chocolate ProduÇãO PrÓPria Un",
+    "new": "Pão De Leite Com Pepitas:Chocolate Produção Própria Un",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-4022",
+    "old": "Queijo AlavÃO Kg",
+    "new": "Queijo Alavão Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-40728",
+    "old": "PÃO Bimbo Hot-Dog 6un 330g",
+    "new": "Pão Bimbo Hot-Dog 6un 330g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-40733",
+    "old": "PÃO Hamb&Uacute;Rguer Bimbo Com SÉSamo 4un 220g",
+    "new": "Pão Hambúrguer Bimbo Com Sésamo 4un 220g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-4648",
+    "old": "Mini Tosta Diatosta Grill PacotÃO 350g",
+    "new": "Mini Tosta Diatosta Grill Pacotão 350g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-4669",
+    "old": "Tosta Diatosta Grill BolsÃO 750g",
+    "new": "Tosta Diatosta Grill Bolsão 750g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-4672",
+    "old": "Tosta Grill Diatosta Integral BolsÃO 750g",
+    "new": "Tosta Grill Diatosta Integral Bolsão 750g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-468846",
+    "old": "PÃO Moinhos Vivos Forma Tradicional Fatiado 800g",
+    "new": "Pão Moinhos Vivos Forma Tradicional Fatiado 800g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-504138",
+    "old": "PÃEs Krisprolls Dourados Naturais 225g",
+    "new": "Pães Krisprolls Dourados Naturais 225g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-504145",
+    "old": "PÃEs Krisprolls Integrais 225g",
+    "new": "Pães Krisprolls Integrais 225g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-545115",
+    "old": "Bebida Com GÁS Frize LimÃO 4x0.25l",
+    "new": "Bebida Com Gás Frize Limão 4x0.25l",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-550755",
+    "old": "PÃO Mestemacher Com Sementes Girassol 500g",
+    "new": "Pão Mestemacher Com Sementes Girassol 500g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-550757",
+    "old": "PÃO Mestemacher De Dieta Fitness 500g",
+    "new": "Pão Mestemacher De Dieta Fitness 500g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-550762",
+    "old": "PÃO Mestemacher Centeio BiolÓGico 500g",
+    "new": "Pão Mestemacher Centeio Biológico 500g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-550826",
+    "old": "PÃO Da AvÓ ProduÇãO PrÓPria Kg",
+    "new": "Pão Da Avó Produção Própria Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-571976",
+    "old": "SalmÃO Martiko Fumado Eco Bio 80g",
+    "new": "Salmão Martiko Fumado Eco Bio 80g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-584663",
+    "old": "Azeitona Mista Auchan Com OrÉGÃOs TaÇA 520(300)G",
+    "new": "Azeitona Mista Auchan Com Orégãos Taça 520(300)G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-584673",
+    "old": "Azeitona Mista Auchan Retalhada Com OrÉGÃOs 1400(800)G",
+    "new": "Azeitona Mista Auchan Retalhada Com Orégãos 1400(800)G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-600961",
+    "old": "PÃO Wasa Crocante Original Com Farinha Centeio 275g",
+    "new": "Pão Wasa Crocante Original Com Farinha Centeio 275g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-601214",
+    "old": "PÃO Alentejano De Cabrela Forma Fatiado 800g Produto Local",
+    "new": "Pão Alentejano De Cabrela Forma Fatiado 800g Produto Local",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-613532",
+    "old": "PÃO Panrico De Forma Sem C&Ocirc;Dea Familiar 650g",
+    "new": "Pão Panrico De Forma Sem Côdea Familiar 650g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-635124",
+    "old": "RequeijÃO De Penela 250g",
+    "new": "Requeijão De Penela 250g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-63850",
+    "old": "PÃO De LÓ Ti Piedade 500g",
+    "new": "Pão De LÓ Ti Piedade 500g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-640631",
+    "old": "CamarÃO Black Tiger 20/30 Cru Congelado Kg",
+    "new": "Camarão Black Tiger 20/30 Cru Congelado Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-666387",
+    "old": "Queijo Palhais Azeitonas E OregÃOs 130g",
+    "new": "Queijo Palhais Azeitonas E Oregãos 130g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-672067",
+    "old": "BodiÃO Kg",
+    "new": "Bodião Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-673248",
+    "old": "Miolo De MexilhÃO Grande Congelado 450g",
+    "new": "Miolo De Mexilhão Grande Congelado 450g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-673695",
+    "old": "HortelÃ Fresca 50g",
+    "new": "Hortelã Fresca 50g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-674268",
+    "old": "PÃO Panrico De Forma EconÓMico 500g",
+    "new": "Pão Panrico De Forma Económico 500g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-677831",
+    "old": "CamarÃO Vannamei 40/60 Cru Congelado Kg",
+    "new": "Camarão Vannamei 40/60 Cru Congelado Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-677852",
+    "old": "CamarÃO Vannamei 60/80 Cru Congelado Kg",
+    "new": "Camarão Vannamei 60/80 Cru Congelado Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-684256",
+    "old": "AgriÃO Auchan Folha Baby 125g",
+    "new": "Agrião Auchan Folha Baby 125g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-692542",
+    "old": "SalsichÃO Casa Do Porco Preto Fino 180g",
+    "new": "Salsichão Casa Do Porco Preto Fino 180g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-693454",
+    "old": "Lombo De SalmÃO Kg",
+    "new": "Lombo De Salmão Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-695114",
+    "old": "ChouriÇO Soares & DamiÃO Tradicional Arganil Mouro 200g",
+    "new": "Chouriço Soares & Damião Tradicional Arganil Mouro 200g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-699405",
+    "old": "Bebida Pedras Com GÁS LimÃO 4x0.25l",
+    "new": "Bebida Pedras Com Gás Limão 4x0.25l",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-710485",
+    "old": "PÃO Alentejano De Cabrela Fatiado 800g Produto Local",
+    "new": "Pão Alentejano De Cabrela Fatiado 800g Produto Local",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-739996",
+    "old": "PÃEs CaruÇO & Filhos De Mafra Fatiados 400g",
+    "new": "Pães Caruço & Filhos De Mafra Fatiados 400g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-764213",
+    "old": "PÃO De Cereais -25% Sal ProduÇãO PrÓPria 70g",
+    "new": "Pão De Cereais -25% Sal Produção Própria 70g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-764664",
+    "old": "Queijo De SÃO Jorge Dop 7 Meses Cura Kg",
+    "new": "Queijo De São Jorge Dop 7 Meses Cura Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-768626",
+    "old": "PÃO Alentejano De Cabrela Forma Fatiado 400g Produto Local",
+    "new": "Pão Alentejano De Cabrela Forma Fatiado 400g Produto Local",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-768631",
+    "old": "PÃO Alentejano De Cabrela Fatiado 400g Produto Local",
+    "new": "Pão Alentejano De Cabrela Fatiado 400g Produto Local",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-774715",
+    "old": "Sumo Andros LimÃO 1l",
+    "new": "Sumo Andros Limão 1l",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-786524",
+    "old": "Broa De Milho Museu Do PÃO 500g",
+    "new": "Broa De Milho Museu Do Pão 500g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-807995",
+    "old": "Roti Lombo Com Salsa LimÃO E Bacon Kg",
+    "new": "Roti Lombo Com Salsa Limão E Bacon Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-812081",
+    "old": "ChouriÃO De Carne Corrente Sicasal 200g",
+    "new": "Chouriço De Carne Corrente Sicasal 200g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-813222",
+    "old": "Miolo De CamarÃO MadagÁScar Auchan Collection Cultivamos O Bom Cr&Uacute; 110/175 Asc 250g",
+    "new": "Miolo De Camarão Madagáscar Auchan Collection Cultivamos O Bom Crú 110/175 Asc 250g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-838818",
+    "old": "SalmÃO Royal Greenland PorÇ&Otilde;Es 500g",
+    "new": "Salmão Royal Greenland Porções 500g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-841329",
+    "old": "Queijo Da Ilha De SÃO Miguel 9 Meses Curado Kg",
+    "new": "Queijo Da Ilha De São Miguel 9 Meses Curado Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-849086",
+    "old": "SalpicÃO Cevadas 320g",
+    "new": "Salpicão Cevadas 320g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-852319",
+    "old": "MexilhÃO Da Nova Zel&Acirc;Ndia Auchan Collection Em Meia Concha 500g",
+    "new": "Mexilhão Da Nova Zelândia Auchan Collection Em Meia Concha 500g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-879122",
+    "old": "OrÉGÃO 20g",
+    "new": "Orégão 20g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-885597",
+    "old": "Tortas De AzeitÃO Auchan 4 Un 300g",
+    "new": "Tortas De Azeitão Auchan 4 Un 300g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-900376",
+    "old": "Croutons Picagrill Tostados Com Tomate E OregÃOs 75g",
+    "new": "Croutons Picagrill Tostados Com Tomate E Oregãos 75g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-920561",
+    "old": "Biscoitos LimÃO 300g",
+    "new": "Biscoitos Limão 300g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-922900",
+    "old": "PÃO Panrico Forma Sem C&Ocirc;Dea EconÓMico 450g",
+    "new": "Pão Panrico Forma Sem Côdea Económico 450g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-9295",
+    "old": "PÃO De Cereais -25% Sal 400g ProduÇãO PrÓPria",
+    "new": "Pão De Cereais -25% Sal 400g Produção Própria",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-9304",
+    "old": "PÃO De Milho Com Girassol -25% Sal ProduÇãO PrÓPria 400g",
+    "new": "Pão De Milho Com Girassol -25% Sal Produção Própria 400g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-938264",
+    "old": "PÃO De Forma Brioche 500g",
+    "new": "Pão De Forma Brioche 500g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-939237",
+    "old": "Douradinhos Iglo SalmÃO 280g",
+    "new": "Douradinhos Iglo Salmão 280g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-943268",
+    "old": "Miolo De CamarÃO Pescanova Grande Cozido 40-60 200g",
+    "new": "Miolo De Camarão Pescanova Grande Cozido 40-60 200g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-966633",
+    "old": "PÃO De Mistura Especial Museu Do PÃO 50g",
+    "new": "Pão De Mistura Especial Museu Do Pão 50g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-974528",
+    "old": "Farinheira Soares & DamiÃO 230g",
+    "new": "Farinheira Soares & Damião 230g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-98127",
+    "old": "MamÃO Kg",
+    "new": "Mamão Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-987496",
+    "old": "Rebentos De FeijÃO Mungo 250g",
+    "new": "Rebentos De Feijão Mungo 250g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-98810",
+    "old": "PÃO Alentejano De Cabrela 800g",
+    "new": "Pão Alentejano De Cabrela 800g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-995950",
+    "old": "Miolo De CamarÃO Pescanova Gigante 15-30 250g",
+    "new": "Miolo De Camarão Pescanova Gigante 15-30 250g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-997628",
+    "old": "Posta De SalmÃO",
+    "new": "Posta De Salmão",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-998036",
+    "old": "Queijo Palhais R&Uacute;Stico PimentÃO Kg",
+    "new": "Queijo Palhais Rústico Pimentão Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1002344",
+    "old": "Queijo Castel&Otilde;Es Original Fatias 200 G",
+    "new": "Queijo Castelões Original Fatias 200 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1002941",
+    "old": "Salm&Acirc;O Da Noruega Fumado Martiko 80g",
+    "new": "Salmâo Da Noruega Fumado Martiko 80g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1007521",
+    "old": "Flor Comest&Iacute;Vel 10g",
+    "new": "Flor Comestível 10g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-100949",
+    "old": "Bacalhau Gra&Uacute;Do Noruega Kg",
+    "new": "Bacalhau Graúdo Noruega Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-101215",
+    "old": "Croissant Franc&Ecirc;S 60 G",
+    "new": "Croissant Francês 60 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1012597",
+    "old": "Requeijao De Ovelha Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom De Azeitao 220g",
+    "new": "Requeijao De Ovelha Auchan À Mesa Em Portugal Cultivamos O Bom De Azeitao 220g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1022226",
+    "old": "Alho Franc&Ecirc;S Em Rodelas 350g",
+    "new": "Alho Francês Em Rodelas 350g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1024551",
+    "old": "Paloco Desfiado Do Pac&Iacute;Fico Polegar 400g",
+    "new": "Paloco Desfiado Do Pacífico Polegar 400g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1049934",
+    "old": "Arrufadinha Sem AdiÇãO AÇ&Uacute;Cares ProduÇãO PrÓPria 50g",
+    "new": "Arrufadinha Sem Adição AÇúcares Produção Própria 50g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1059717",
+    "old": "Queijo Palhais R&Uacute;Stico Metades Un",
+    "new": "Queijo Palhais Rústico Metades Un",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1097345",
+    "old": "áGua Fever Tree TÓNica Mediterr&Acirc;Nica Premium 4x0.20l",
+    "new": "áGua Fever Tree Tónica Mediterrânica Premium 4x0.20l",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1099642",
+    "old": "Queijo Gruyere Su&Iacute;çO Emmi Kg",
+    "new": "Queijo Gruyere SuíçO Emmi Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1101926",
+    "old": "Queijinhos De Am&Ecirc;Ndoa Com Ovos Moles 120g",
+    "new": "Queijinhos De Amêndoa Com Ovos Moles 120g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1112533",
+    "old": "Hamb&Uacute;Rguer De Frango Grelhado Snock 100g",
+    "new": "Hambúrguer De Frango Grelhado Snock 100g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1124510",
+    "old": "Hamb&Uacute;Rguer De Frango Lusiaves 460g",
+    "new": "Hambúrguer De Frango Lusiaves 460g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1125",
+    "old": "Caprichos Pescanova Do Mar Sem Gl&Uacute;Ten 400g",
+    "new": "Caprichos Pescanova Do Mar Sem Glúten 400g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1133133",
+    "old": "C&Ocirc;Co Cimarrom Ralado 100g",
+    "new": "Côco Cimarrom Ralado 100g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1136882",
+    "old": "Peito De Per&Uacute; Forno Lenha Campofrio Fatias Finas 120g",
+    "new": "Peito De Perú Forno Lenha Campofrio Fatias Finas 120g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1136889",
+    "old": "Peito De Per&Uacute; Forno Lenha Campofrio Fatias 120g",
+    "new": "Peito De Perú Forno Lenha Campofrio Fatias 120g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1140174",
+    "old": "Amendoim Lekha Cr&Uacute; Sem Pele 300g",
+    "new": "Amendoim Lekha Crú Sem Pele 300g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1140177",
+    "old": "Amendoim Lekha Cr&Uacute; Com Pele 300g",
+    "new": "Amendoim Lekha Crú Com Pele 300g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1149590",
+    "old": "Queijo De Cabra C&Ocirc;Vo Reserva Grande Kg",
+    "new": "Queijo De Cabra Côvo Reserva Grande Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1149593",
+    "old": "Queijo De Cabra Curado C&Ocirc;Vo Com Colorau Reserva Grande Kg",
+    "new": "Queijo De Cabra Curado Côvo Com Colorau Reserva Grande Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1149929",
+    "old": "Massa De Pizza Fina Pasta Do Dia &Agrave; Italiana 230g",
+    "new": "Massa De Pizza Fina Pasta Do Dia À Italiana 230g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1156711",
+    "old": "Chapata R&Uacute;Stica 100g",
+    "new": "Chapata Rústica 100g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1159999",
+    "old": "Del&Iacute;Cia De Am&Ecirc;Ndoa Un",
+    "new": "Delícia De Amêndoa Un",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1168215",
+    "old": "Presunto Damatta Fatiado Sabor Portugu&Ecirc;S 70g",
+    "new": "Presunto Damatta Fatiado Sabor Português 70g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1172756",
+    "old": "Tostas Biscottinas R&Uacute;Stica Azeite E Sal C18 100 G",
+    "new": "Tostas Biscottinas Rústica Azeite E Sal C18 100 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1172760",
+    "old": "Tostas Biscottinas R&Uacute;Stica Com Alho E Salsa C18 100g",
+    "new": "Tostas Biscottinas Rústica Com Alho E Salsa C18 100g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1180",
+    "old": "Posta Pescanova Pescada N&Ordm;5 Para Cozer 800g",
+    "new": "Posta Pescanova Pescada Nº5 Para Cozer 800g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1183304",
+    "old": "L&Iacute;Nguas Veado 240g",
+    "new": "Línguas Veado 240g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1184674",
+    "old": "Clara L&Iacute;Quida Dovo Past 320ml",
+    "new": "Clara Líquida Dovo Past 320ml",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-1186",
+    "old": "Medalh&Otilde;Es Pescanova Pescada Do Cabo 400g",
+    "new": "Medalhões Pescanova Pescada Do Cabo 400g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-153441",
+    "old": "Garoupa Leg&Iacute;Tima MÉDia Kg",
+    "new": "Garoupa Legítima Média Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-153771",
+    "old": "Jesu&Iacute;Ta ProduÇãO PrÓPria Un",
+    "new": "Jesuíta Produção Própria Un",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-153998",
+    "old": "Del&Iacute;Cia Folhada ProduÇãO PrÓPria Un",
+    "new": "Delícia Folhada Produção Própria Un",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-181307",
+    "old": "Bacalhau Especial Isl&Acirc;Ndia Kg",
+    "new": "Bacalhau Especial Islândia Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2109311",
+    "old": "L&Iacute;Nguas Du Bois De La Roche De Gato 180g",
+    "new": "Línguas Du Bois De La Roche De Gato 180g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2118361",
+    "old": "ChouriÇO Damatta Sabor Portugu&Ecirc;S 160g",
+    "new": "Chouriço Damatta Sabor Português 160g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2125631",
+    "old": "Queijo Serpa Dop Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom Un",
+    "new": "Queijo Serpa Dop Auchan À Mesa Em Portugal Cultivamos O Bom Un",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2131741",
+    "old": "Pat&Ecirc; De Pimenta Verde Mortier 150g",
+    "new": "Patê De Pimenta Verde Mortier 150g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2131744",
+    "old": "Pat&Ecirc; De Pato Com Vinho Do Porto Mortier 150g",
+    "new": "Patê De Pato Com Vinho Do Porto Mortier 150g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2131751",
+    "old": "Pat&Ecirc; De Cogumelos Mortier 150g",
+    "new": "Patê De Cogumelos Mortier 150g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2131753",
+    "old": "Pat&Ecirc; De Bruxelas Mortier 150g",
+    "new": "Patê De Bruxelas Mortier 150g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2132649",
+    "old": "Ovos Auchan Galinhas Solo Classe Xl Meia D&Uacute;Zia",
+    "new": "Ovos Auchan Galinhas Solo Classe Xl Meia Dúzia",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2133570",
+    "old": "Douradinhos Iglo Pescada Forn&Iacute;Ssimo 12un 300g",
+    "new": "Douradinhos Iglo Pescada Forníssimo 12un 300g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2141361",
+    "old": "Queijo Castel&Otilde;Es Pequeno Un",
+    "new": "Queijo Castelões Pequeno Un",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2142807",
+    "old": "Pat&Ecirc; Capdevila Finas Ervas TradiÇãO 100g",
+    "new": "Patê Capdevila Finas Ervas Tradição 100g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2162275",
+    "old": "Molho Pesto Com Manjericao E Pinh&Otilde;Es Giovanni Rana 140g",
+    "new": "Molho Pesto Com Manjericao E Pinhões Giovanni Rana 140g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2172443",
+    "old": "Sementes C&Acirc;Nhamo Cem Porcento Inteiras 200g",
+    "new": "Sementes Cânhamo Cem Porcento Inteiras 200g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2174166",
+    "old": "Torta Dancake Recheio Chocolate E Avel&Acirc; 300g",
+    "new": "Torta Dancake Recheio Chocolate E Avelâ 300g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2176279",
+    "old": "Hamb&Uacute;Rguer De Bovino Com Enchidos 460g",
+    "new": "Hambúrguer De Bovino Com Enchidos 460g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2179386",
+    "old": "Queijo Mozzarella Bufala Dop Auchan &Agrave; Mesa Em ItÁLia125g",
+    "new": "Queijo Mozzarella Bufala Dop Auchan À Mesa Em Itália125g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2185943",
+    "old": "Pescada Congelada Chile:Posta Cozer N&Ordm;4 700 G",
+    "new": "Pescada Congelada Chile:Posta Cozer Nº4 700 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2186589",
+    "old": "Queijo Castel&Otilde;Es Meio Gordo Un",
+    "new": "Queijo Castelões Meio Gordo Un",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-219060",
+    "old": "Bacalhau Gra&Uacute;Do Isl&Acirc;Ndia Kg",
+    "new": "Bacalhau Graúdo Islândia Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2200341",
+    "old": "Sushi Gourmet Novidade Do M&Ecirc;S",
+    "new": "Sushi Gourmet Novidade Do Mês",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2202022",
+    "old": "L&Iacute;Nguas Veado 600 G",
+    "new": "Línguas Veado 600 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2206842",
+    "old": "Massa Folhada Sem Gl&Uacute;Ten E Lactose Pasta Do Dia280g",
+    "new": "Massa Folhada Sem Glúten E Lactose Pasta Do Dia280g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2206858",
+    "old": "Massa De Pizza Sem Gl&Uacute;Ten E Lactose Croustipate 260g",
+    "new": "Massa De Pizza Sem Glúten E Lactose Croustipate 260g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2206868",
+    "old": "Massa Quebrada Sem Gl&Uacute;Ten E Lactose Pasta Do Dia230g",
+    "new": "Massa Quebrada Sem Glúten E Lactose Pasta Do Dia230g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2209135",
+    "old": "Azeite TrÁS-Os-Montes Dop Virgem Extra Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom 750ml",
+    "new": "Azeite Trás-Os-Montes Dop Virgem Extra Auchan À Mesa Em Portugal Cultivamos O Bom 750ml",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2209857",
+    "old": "Wraps Schar Tortilhas Sem Gl&Uacute;Ten 160g",
+    "new": "Wraps Schar Tortilhas Sem Glúten 160g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2211414",
+    "old": "Salada Massa E R&Uacute;Cula Florette 325 G",
+    "new": "Salada Massa E Rúcula Florette 325 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2230223",
+    "old": "Crostini Panealba Mediterr&Acirc;Neo 100g",
+    "new": "Crostini Panealba Mediterrâneo 100g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2242941",
+    "old": "Bolo Cake Design ProduÇãO PrÓPria N&Ordm;20 Kg",
+    "new": "Bolo Cake Design Produção Própria Nº20 Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2242948",
+    "old": "Bolo Cake Design ProduÇãO PrÓPria N&Ordm;19 Kg",
+    "new": "Bolo Cake Design Produção Própria Nº19 Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2242952",
+    "old": "Bolo Cake Design ProduÇãO PrÓPria N&Ordm;18 Kg",
+    "new": "Bolo Cake Design Produção Própria Nº18 Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2242958",
+    "old": "Bolo Cake Design ProduÇãO PrÓPria N&Ordm;17 Kg",
+    "new": "Bolo Cake Design Produção Própria Nº17 Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2242981",
+    "old": "Bolo Cake Design ProduÇãO PrÓPria N&Ordm;14 Kg",
+    "new": "Bolo Cake Design Produção Própria Nº14 Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2243175",
+    "old": "Bolo Cake Design ProduÇãO PrÓPria N&Ordm;13 Kg",
+    "new": "Bolo Cake Design Produção Própria Nº13 Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2243181",
+    "old": "Bolo Cake Design ProduÇãO PrÓPria N&Ordm;12 Kg",
+    "new": "Bolo Cake Design Produção Própria Nº12 Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2243191",
+    "old": "Bolo Cake Design ProduÇãO PrÓPria N&Ordm;11 Kg",
+    "new": "Bolo Cake Design Produção Própria Nº11 Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2243196",
+    "old": "Bolo Cake Design ProduÇãO PrÓPria N&Ordm;10 Kg",
+    "new": "Bolo Cake Design Produção Própria Nº10 Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2243199",
+    "old": "Bolo Cake Design ProduÇãO PrÓPria N&Ordm;9 Kg",
+    "new": "Bolo Cake Design Produção Própria Nº9 Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2243206",
+    "old": "Bolo Cake Design ProduÇãO PrÓPria N&Ordm;8 Kg",
+    "new": "Bolo Cake Design Produção Própria Nº8 Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2243212",
+    "old": "Bolo Cake Design ProduÇãO PrÓPria N&Ordm;7 Kg",
+    "new": "Bolo Cake Design Produção Própria Nº7 Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2243216",
+    "old": "Bolo Cake Design ProduÇãO PrÓPria N&Ordm;6 Kg",
+    "new": "Bolo Cake Design Produção Própria Nº6 Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2243223",
+    "old": "Bolo Cake Design ProduÇãO PrÓPria N&Ordm;5 Kg",
+    "new": "Bolo Cake Design Produção Própria Nº5 Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2243227",
+    "old": "Bolo Cake Design N&Ordm;4 Kg",
+    "new": "Bolo Cake Design Nº4 Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2243234",
+    "old": "Bolo Cake Design ProduÇãO PrÓPria N&Ordm;3 Kg",
+    "new": "Bolo Cake Design Produção Própria Nº3 Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2243238",
+    "old": "Bolo Cake Design ProduÇãO PrÓPria N&Ordm;2 Kg",
+    "new": "Bolo Cake Design Produção Própria Nº2 Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2243241",
+    "old": "Bolo Cake Design ProduÇãO PrÓPria N&Ordm;1 Kg",
+    "new": "Bolo Cake Design Produção Própria Nº1 Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2279",
+    "old": "Suced&Acirc;Neo De Caviar Negro Skandia 50g",
+    "new": "Sucedâneo De Caviar Negro Skandia 50g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2280",
+    "old": "Suced&Acirc;Neo De Caviar Vermelho Skandia 50g",
+    "new": "Sucedâneo De Caviar Vermelho Skandia 50g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-233983",
+    "old": "Alho Franc&Ecirc;S Kg",
+    "new": "Alho Francês Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2340798",
+    "old": "Hamb&Uacute;Rguer Wagyu 200 G",
+    "new": "Hambúrguer Wagyu 200 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2349646",
+    "old": "Peito Peru Recheado Com Cogumelos Ameixar&Uacute;Cula E Noz",
+    "new": "Peito Peru Recheado Com Cogumelos Ameixarúcula E Noz",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2377443",
+    "old": "Polpa Native Fruta AÇA&Iacute; E GuaranÁ 160ml",
+    "new": "Polpa Native Fruta Açaí E Guaraná 160ml",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2403202",
+    "old": "Filete Pescanova Pescada Panada Sem Gl&Uacute;Ten 320g",
+    "new": "Filete Pescanova Pescada Panada Sem Glúten 320g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2439621",
+    "old": "ChouriÇO De Carne Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom Serra Da Estrela 190g",
+    "new": "Chouriço De Carne Auchan À Mesa Em Portugal Cultivamos O Bom Serra Da Estrela 190g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2439647",
+    "old": "ChouriÇO De Cebola Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom Serra Da Estrela 190g",
+    "new": "Chouriço De Cebola Auchan À Mesa Em Portugal Cultivamos O Bom Serra Da Estrela 190g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2439654",
+    "old": "Paio Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom Serra Da Estrela Fatias 100g",
+    "new": "Paio Auchan À Mesa Em Portugal Cultivamos O Bom Serra Da Estrela Fatias 100g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2439657",
+    "old": "ChouriÇO Mouro Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom Serra Da Estrela 190g",
+    "new": "Chouriço Mouro Auchan À Mesa Em Portugal Cultivamos O Bom Serra Da Estrela 190g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2439662",
+    "old": "Farinheira Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom Serra Da Estrela 190g",
+    "new": "Farinheira Auchan À Mesa Em Portugal Cultivamos O Bom Serra Da Estrela 190g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2439667",
+    "old": "Morcela De Cozer Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom Serra Da Estrela 240g",
+    "new": "Morcela De Cozer Auchan À Mesa Em Portugal Cultivamos O Bom Serra Da Estrela 240g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2443757",
+    "old": "Tri&Acirc;Ngulo De Frango Snock Good4me 130g",
+    "new": "Triângulo De Frango Snock Good4me 130g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2447317",
+    "old": "Ravioli De Legumes Mediterr&Acirc;Nicos Rana 250g",
+    "new": "Ravioli De Legumes Mediterrânicos Rana 250g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2491955",
+    "old": "Bases Pizza Schar Sem Gl&Uacute;Ten E Sem Lactose 2un 300g",
+    "new": "Bases Pizza Schar Sem Glúten E Sem Lactose 2un 300g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-249328",
+    "old": "Ovos Matinados Do Campo Classe M E L Meia D&Uacute;Zia",
+    "new": "Ovos Matinados Do Campo Classe M E L Meia Dúzia",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2533966",
+    "old": "Napolitanas Hiper Del&Iacute;Cia Bolo Chocolate 240g",
+    "new": "Napolitanas Hiper Delícia Bolo Chocolate 240g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2606504",
+    "old": "Queijo Castel&Otilde;Es Meio Gordo Sem Lactose Fatiado 150g",
+    "new": "Queijo Castelões Meio Gordo Sem Lactose Fatiado 150g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2617666",
+    "old": "Alheira De Mirandela Igp Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom 200g",
+    "new": "Alheira De Mirandela Igp Auchan À Mesa Em Portugal Cultivamos O Bom 200g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2641819",
+    "old": "Bolo De C&Ocirc;Co 500 Gr",
+    "new": "Bolo De Côco 500 Gr",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2641874",
+    "old": "Bolo Ingl&Ecirc;S 500 Gr",
+    "new": "Bolo Inglês 500 Gr",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2642971",
+    "old": "Polpa Nativede Fruta AÇA&Iacute; Zero AÇ&Uacute;Car 160ml",
+    "new": "Polpa Nativede Fruta Açaí Zero AÇúcar 160ml",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2696374",
+    "old": "Frango Inteiro Com Mi&Uacute;Dos Em Saco Auchan Kg",
+    "new": "Frango Inteiro Com Miúdos Em Saco Auchan Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2696438",
+    "old": "Frango Metade Sem Mi&Uacute;Dos Auchan Kg",
+    "new": "Frango Metade Sem Miúdos Auchan Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2699998",
+    "old": "Baguete Schnitzer Sem Gl&Uacute;Ten Bio 200g",
+    "new": "Baguete Schnitzer Sem Glúten Bio 200g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2745392",
+    "old": "Bolacha Auchan Collection Am&Ecirc;Ndoa E Sementes SÉSamo 200g",
+    "new": "Bolacha Auchan Collection Amêndoa E Sementes Sésamo 200g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2749112",
+    "old": "Bolo Folhado Ingl&Ecirc;S ProduÇãO PrÓPria Kg",
+    "new": "Bolo Folhado Inglês Produção Própria Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2761542",
+    "old": "Filetes Iglo Primavera Original Sem Gl&Uacute;Ten 250g",
+    "new": "Filetes Iglo Primavera Original Sem Glúten 250g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2766876",
+    "old": "Am&Ecirc;Ndoas Biscoitos De Sintra 330gr",
+    "new": "Amêndoas Biscoitos De Sintra 330gr",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2767178",
+    "old": "Bolacha H&Uacute;Ngara Carlydoce 250g",
+    "new": "Bolacha Húngara Carlydoce 250g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-279184",
+    "old": "Am&Ecirc;Ndoa Com Casca Alentejo Descasque FÁCil 500 G",
+    "new": "Amêndoa Com Casca Alentejo Descasque Fácil 500 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2797649",
+    "old": "Queijo Flamengo Auchan &Agrave; Mesa Em Portugal AÇOres Barra Kg",
+    "new": "Queijo Flamengo Auchan À Mesa Em Portugal Açores Barra Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2797650",
+    "old": "Queijo Flamengo Auchan &Agrave; Mesa Em Portugal 1/4 AÇOres Un",
+    "new": "Queijo Flamengo Auchan À Mesa Em Portugal 1/4 Açores Un",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2797654",
+    "old": "Queijo Flamengo Auchan &Agrave; Mesa Em Portugal Fatias AÇOres 275g",
+    "new": "Queijo Flamengo Auchan À Mesa Em Portugal Fatias Açores 275g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2797717",
+    "old": "Polpa Marchi De Fruta De AÇA&Iacute; Sport Morango 205g",
+    "new": "Polpa Marchi De Fruta De Açaí Sport Morango 205g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2884565",
+    "old": "Ovos Matinados Do Campo Ar Livre Classe M E L Uma D&Uacute;Zia",
+    "new": "Ovos Matinados Do Campo Ar Livre Classe M E L Uma Dúzia",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2895987",
+    "old": "Lasanha &Agrave; Bolonhesa Auchan 400 G",
+    "new": "Lasanha À Bolonhesa Auchan 400 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2895988",
+    "old": "Lasanha &Agrave; Bolonhesa Auchan 1 Kg",
+    "new": "Lasanha À Bolonhesa Auchan 1 Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2897639",
+    "old": "Pescada Congelada Chile:Posta Cozer N&Ordm;4 Kg",
+    "new": "Pescada Congelada Chile:Posta Cozer Nº4 Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2897644",
+    "old": "Maruca Congelada N&Ordm; 4 Posta Cozer Chile Kg",
+    "new": "Maruca Congelada Nº 4 Posta Cozer Chile Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2898119",
+    "old": "T&Acirc;Maras Auchan Sem CaroÇO Deglet Nour 200g",
+    "new": "Tâmaras Auchan Sem Caroço Deglet Nour 200g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2939220",
+    "old": "Salada Mediterr&Acirc;Nea Auchan Cultivamos O Bom 150 G",
+    "new": "Salada Mediterrânea Auchan Cultivamos O Bom 150 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2958407",
+    "old": "Polpa Native De Fruta AÇA&Iacute; Com Banana 160ml",
+    "new": "Polpa Native De Fruta Açaí Com Banana 160ml",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2968576",
+    "old": "Tarte De C&Ocirc;Co 400 G",
+    "new": "Tarte De Côco 400 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2972246",
+    "old": "Miolo De Am&Ecirc;Ndoa Sem Pele Auchan Granulado 125g",
+    "new": "Miolo De Amêndoa Sem Pele Auchan Granulado 125g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2972247",
+    "old": "Miolo De Am&Ecirc;Ndoa Sem Pele Auchan Laminado 125g",
+    "new": "Miolo De Amêndoa Sem Pele Auchan Laminado 125g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2972248",
+    "old": "Miolo De Am&Ecirc;Ndoa Sem Pele Auchan Palitado 125g",
+    "new": "Miolo De Amêndoa Sem Pele Auchan Palitado 125g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2979477",
+    "old": "ChouriÇA De Assar Picante Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom Alto Minho 200g",
+    "new": "Chouriça De Assar Picante Auchan À Mesa Em Portugal Cultivamos O Bom Alto Minho 200g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2979483",
+    "old": "Farinheira Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom Alto Minho 180 G",
+    "new": "Farinheira Auchan À Mesa Em Portugal Cultivamos O Bom Alto Minho 180 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2979486",
+    "old": "ChouriÇA De Carne Com Cebola Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom Alto Minho 180g",
+    "new": "Chouriça De Carne Com Cebola Auchan À Mesa Em Portugal Cultivamos O Bom Alto Minho 180g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2979487",
+    "old": "Am&Ecirc;Ndoas Auchan Bio Sem Pele 125g",
+    "new": "Amêndoas Auchan Bio Sem Pele 125g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2979497",
+    "old": "ChouriÇO De Carne Cozer Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom Alto Minho 200g",
+    "new": "Chouriço De Carne Cozer Auchan À Mesa Em Portugal Cultivamos O Bom Alto Minho 200g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2979504",
+    "old": "ChouriÇA De Carne Para Assar Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom Alto Minho 200g",
+    "new": "Chouriça De Carne Para Assar Auchan À Mesa Em Portugal Cultivamos O Bom Alto Minho 200g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2979529",
+    "old": "Moira Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom Alto Minho 200g",
+    "new": "Moira Auchan À Mesa Em Portugal Cultivamos O Bom Alto Minho 200g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2981501",
+    "old": "Alheira Com Carne Cachena Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom Alto Minho 200 G",
+    "new": "Alheira Com Carne Cachena Auchan À Mesa Em Portugal Cultivamos O Bom Alto Minho 200 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2995838",
+    "old": "Tarte De Am&Ecirc;Ndoa Crocante 500g",
+    "new": "Tarte De Amêndoa Crocante 500g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-2997376",
+    "old": "Arroz &Agrave; Valenciana Auchan 300 G",
+    "new": "Arroz À Valenciana Auchan 300 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3006002",
+    "old": "C&Ocirc;Cos Doces Da Penha 250g",
+    "new": "Côcos Doces Da Penha 250g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3009009",
+    "old": "Miolo De Am&Ecirc;Ndoa Com Pele Auchan Bio 125g",
+    "new": "Miolo De Amêndoa Com Pele Auchan Bio 125g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3009015",
+    "old": "Miolo De Am&Ecirc;Ndoa Sem Pele Auchan Bio 100g",
+    "new": "Miolo De Amêndoa Sem Pele Auchan Bio 100g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3009129",
+    "old": "Bebida Aveia Auchan Sem AÇ&Uacute;Cares Adicionados 1l",
+    "new": "Bebida Aveia Auchan Sem AÇúcares Adicionados 1l",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3009406",
+    "old": "Ovos Auchan Codorniz 1 D&Uacute;Zia",
+    "new": "Ovos Auchan Codorniz 1 Dúzia",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3011328",
+    "old": "Bacalhau &Agrave; BrÁS Auchan 300 G",
+    "new": "Bacalhau À Brás Auchan 300 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3027598",
+    "old": "Alm&Ocirc;Ndegas Bovino Carnalentejana Dop Isento Gluten Auchan Cultivamos O Bom 4uni 465gr",
+    "new": "Almôndegas Bovino Carnalentejana Dop Isento Gluten Auchan Cultivamos O Bom 4uni 465gr",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3035180",
+    "old": "T&Acirc;Maras Auchan Sem CaroÇO 250 G",
+    "new": "Tâmaras Auchan Sem Caroço 250 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3035273",
+    "old": "Miolo De Am&Ecirc;Ndoa Auchan Gourmet Com Pele 150 G",
+    "new": "Miolo De Amêndoa Auchan Gourmet Com Pele 150 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3035287",
+    "old": "Caj&Uacute; Com Sal Auchan 125g",
+    "new": "Cajú Com Sal Auchan 125g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3035290",
+    "old": "Caj&Uacute; Com Sal Auchan 250g",
+    "new": "Cajú Com Sal Auchan 250g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3035299",
+    "old": "Caj&Uacute; Cru Auchan 200 G",
+    "new": "Cajú Cru Auchan 200 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3036070",
+    "old": "Bolos L&Ecirc;Vedos Das Furnas 3x150g",
+    "new": "Bolos Lêvedos Das Furnas 3x150g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3041137",
+    "old": "Queijo Serra Da Estrela Dop Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom Un",
+    "new": "Queijo Serra Da Estrela Dop Auchan À Mesa Em Portugal Cultivamos O Bom Un",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3057280",
+    "old": "RefeiÇãO Garden Gourmet Alm&Ocirc;Ndegas Vegetarianas 200g",
+    "new": "Refeição Garden Gourmet Almôndegas Vegetarianas 200g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3074100",
+    "old": "Queijo Ovelha Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom Amanteigado Seia Un",
+    "new": "Queijo Ovelha Auchan À Mesa Em Portugal Cultivamos O Bom Amanteigado Seia Un",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3074106",
+    "old": "Queijo Ovelha Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom Curado Seia Un",
+    "new": "Queijo Ovelha Auchan À Mesa Em Portugal Cultivamos O Bom Curado Seia Un",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3074528",
+    "old": "Miolo De Am&Ecirc;Ndoa Torrada Frusel Sem Pele 150 G",
+    "new": "Miolo De Amêndoa Torrada Frusel Sem Pele 150 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3094750",
+    "old": "Tosta Pasquier R&Uacute;Stica Brioche Integrais 240g",
+    "new": "Tosta Pasquier Rústica Brioche Integrais 240g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3094759",
+    "old": "Tosta Pasquier R&Uacute;Stica Brioche Cereais 240g",
+    "new": "Tosta Pasquier Rústica Brioche Cereais 240g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3170404",
+    "old": "L&Iacute;Nguas Bacalhau Isl&Acirc;Ndia 500g",
+    "new": "Línguas Bacalhau Islândia 500g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3198229",
+    "old": "Hamb&Uacute;Rguer Geo Do Prado Bovino Bio 320g",
+    "new": "Hambúrguer Geo Do Prado Bovino Bio 320g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3223571",
+    "old": "Miolo De Am&Ecirc;Ndoa Auchan Sem Pele Mo&Iacute;Da 125 G",
+    "new": "Miolo De Amêndoa Auchan Sem Pele Moída 125 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3238526",
+    "old": "T&Acirc;Maras Origens Bio Medjool 200g",
+    "new": "Tâmaras Origens Bio Medjool 200g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3242282",
+    "old": "Ovos Bioveg Classe M/L Bio 1/2 D&Uacute;Zia Produto Local",
+    "new": "Ovos Bioveg Classe M/L Bio 1/2 Dúzia Produto Local",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3285097",
+    "old": "Ovos Bioveg Premium L Bio 1/2 D&Uacute;Zia",
+    "new": "Ovos Bioveg Premium L Bio 1/2 Dúzia",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3288678",
+    "old": "Queijo Castel&Otilde;Es Fatias 2x200g",
+    "new": "Queijo Castelões Fatias 2x200g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3288912",
+    "old": "Snack Fruut MaÇã Mix Sem AÇ&Uacute;Car 100g",
+    "new": "Snack Fruut Maçã Mix Sem AÇúcar 100g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3290188",
+    "old": "Queijo Castel&Otilde;Es Sem Lactose Fatias 2x150g",
+    "new": "Queijo Castelões Sem Lactose Fatias 2x150g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3290698",
+    "old": "Farinheira De Porco Preto Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom Alentejo160g",
+    "new": "Farinheira De Porco Preto Auchan À Mesa Em Portugal Cultivamos O Bom Alentejo160g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3290807",
+    "old": "ChouriÇO Preto De Porco Preto Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom Alentejo 150g",
+    "new": "Chouriço Preto De Porco Preto Auchan À Mesa Em Portugal Cultivamos O Bom Alentejo 150g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3290810",
+    "old": "ChouriÇO De Porco Preto Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom Alentejo 150g",
+    "new": "Chouriço De Porco Preto Auchan À Mesa Em Portugal Cultivamos O Bom Alentejo 150g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3304504",
+    "old": "Cupita Porco Preto Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom Alentejo 70 G",
+    "new": "Cupita Porco Preto Auchan À Mesa Em Portugal Cultivamos O Bom Alentejo 70 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3304517",
+    "old": "Paleta De Porco Preto Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom Alentejo 18 Meses Cura 70 G",
+    "new": "Paleta De Porco Preto Auchan À Mesa Em Portugal Cultivamos O Bom Alentejo 18 Meses Cura 70 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3304519",
+    "old": "Presunto De Porco Preto Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom Alentejo 24 Meses Cura 70 G",
+    "new": "Presunto De Porco Preto Auchan À Mesa Em Portugal Cultivamos O Bom Alentejo 24 Meses Cura 70 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3341119",
+    "old": "Polpa Fruta Native AÇA&Iacute; Zero AÇ&Uacute;Car 480ml",
+    "new": "Polpa Fruta Native Açaí Zero AÇúcar 480ml",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3341146",
+    "old": "Polpa De Fruta Native AÇA&Iacute; 480ml",
+    "new": "Polpa De Fruta Native Açaí 480ml",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3351553",
+    "old": "F&Iacute;Gado De Porco Auchan Kg",
+    "new": "Fígado De Porco Auchan Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3352009",
+    "old": "Queijo Flamengo Auchan &Agrave; Mesa Em Portugal AÇOres Fatias 500g",
+    "new": "Queijo Flamengo Auchan À Mesa Em Portugal Açores Fatias 500g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3352920",
+    "old": "Massa De Pizza Auchan Sem Gl&Uacute;Ten 260 G",
+    "new": "Massa De Pizza Auchan Sem Glúten 260 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3352986",
+    "old": "Massa Folhada Sem Gl&Uacute;Ten Auchan 280g",
+    "new": "Massa Folhada Sem Glúten Auchan 280g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3353195",
+    "old": "Massa Quebrada Sem Gl&Uacute;Ten Auchan 230g",
+    "new": "Massa Quebrada Sem Glúten Auchan 230g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3356271",
+    "old": "Ovos Matinados Bio Classe M/L Meia D&Uacute;Zia",
+    "new": "Ovos Matinados Bio Classe M/L Meia Dúzia",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3356396",
+    "old": "P&Ecirc;Ra Conferencia Auchan Kg",
+    "new": "Pêra Conferencia Auchan Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3356405",
+    "old": "P&Ecirc;Ra Rocha Auchan Kg",
+    "new": "Pêra Rocha Auchan Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3356673",
+    "old": "PastÉIs Chaves Igp Auchan &Agrave; Mesa Em Portugal 4un 340g",
+    "new": "Pastéis Chaves Igp Auchan À Mesa Em Portugal 4un 340g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3356727",
+    "old": "RefeiÇãO Garden Gourmet PedaÇOs Mediterr&Acirc;Nicos 160g",
+    "new": "Refeição Garden Gourmet Pedaços Mediterrânicos 160g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3367166",
+    "old": "Queijo Tr&Ecirc;S Igrejas Pimenta Terra Kg",
+    "new": "Queijo Três Igrejas Pimenta Terra Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3373107",
+    "old": "Ravioli Curgete E Camar&Otilde;Es Auchan 250g",
+    "new": "Ravioli Curgete E Camarões Auchan 250g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3400267",
+    "old": "Alheira De CaÇA Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom 180g",
+    "new": "Alheira De Caça Auchan À Mesa Em Portugal Cultivamos O Bom 180g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3401847",
+    "old": "ChouriÇA De Carne De Vinhais Igp Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom 160g",
+    "new": "Chouriça De Carne De Vinhais Igp Auchan À Mesa Em Portugal Cultivamos O Bom 160g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3401948",
+    "old": "Alheira De Vinhais Igp Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom 200g",
+    "new": "Alheira De Vinhais Igp Auchan À Mesa Em Portugal Cultivamos O Bom 200g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3401964",
+    "old": "Sortido Porco Bisaro Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom Fatias 70g",
+    "new": "Sortido Porco Bisaro Auchan À Mesa Em Portugal Cultivamos O Bom Fatias 70g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3402796",
+    "old": "Lombo Do CachaÇO Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom Alto Minho Kg",
+    "new": "Lombo Do Cachaço Auchan À Mesa Em Portugal Cultivamos O Bom Alto Minho Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3406594",
+    "old": "Queijo T&Ecirc;Te De Moine Dop Kg",
+    "new": "Queijo Tête De Moine Dop Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3420334",
+    "old": "Caj&Uacute; Auchan Bio Cru 125 G",
+    "new": "Cajú Auchan Bio Cru 125 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3425085",
+    "old": "Hamb&Uacute;Rguer Wheaty Super Hero Vegan Bio 200 G",
+    "new": "Hambúrguer Wheaty Super Hero Vegan Bio 200 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3443983",
+    "old": "Microgreen R&Uacute;Cula 30 G",
+    "new": "Microgreen Rúcula 30 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3449655",
+    "old": "Roj&Otilde;Es De Porco Land Bisaro Auchan Cultivamos O Bom Kg",
+    "new": "Rojões De Porco Land Bisaro Auchan Cultivamos O Bom Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3460355",
+    "old": "Sumo MaÇã AlcobaÇA:E P&Ecirc;Ra Rocha Do Oeste 1.5 L",
+    "new": "Sumo Maçã Alcobaça:E Pêra Rocha Do Oeste 1.5 L",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3466360",
+    "old": "ChouriÇO De Touro Fumeiros Da Lez&Iacute;Ria180g",
+    "new": "Chouriço De Touro Fumeiros Da Lezíria180g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3482356",
+    "old": "Caj&Uacute; De MoÇAmbique Mozanuts Com Sal 200 G",
+    "new": "Cajú De Moçambique Mozanuts Com Sal 200 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3482378",
+    "old": "Caj&Uacute; De MoÇAmbique Mozanuts Cr&Uacute; 200 G",
+    "new": "Cajú De Moçambique Mozanuts Crú 200 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3483976",
+    "old": "Presunto De Chaves Auchan &Agrave; Mesa Em Portugal 12 Meses De Cura Fatias 90 G",
+    "new": "Presunto De Chaves Auchan À Mesa Em Portugal 12 Meses De Cura Fatias 90 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3484993",
+    "old": "Miolo De Am&Ecirc;Ndoa Do Alentejo Auchan Collection Cultivamos O Bom 250g",
+    "new": "Miolo De Amêndoa Do Alentejo Auchan Collection Cultivamos O Bom 250g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3486521",
+    "old": "Sumo Innocent MaÇã P&Ecirc;Ra E Pepino 330ml",
+    "new": "Sumo Innocent Maçã Pêra E Pepino 330ml",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3487416",
+    "old": "Sumo Compal Fresco P&Ecirc;Ssego E Clementina 0.25l",
+    "new": "Sumo Compal Fresco Pêssego E Clementina 0.25l",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3494010",
+    "old": "Posta Pescada N&Ordm;3 Polegar Para Cozer 600g",
+    "new": "Posta Pescada Nº3 Polegar Para Cozer 600g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3499556",
+    "old": "Medalh&Otilde;Es Frango Biologic Bio 2uni 300g",
+    "new": "Medalhões Frango Biologic Bio 2uni 300g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3506506",
+    "old": "Salada Martinet Quinoa S/Gl&Uacute;Ten 200 Gr",
+    "new": "Salada Martinet Quinoa S/Glúten 200 Gr",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3515477",
+    "old": "Amendoim Santa Helena Japon&Ecirc;S 200g",
+    "new": "Amendoim Santa Helena Japonês 200g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3516016",
+    "old": "Medalh&Otilde;Es Iglo Pescada Msc 500gr (8 Un)",
+    "new": "Medalhões Iglo Pescada Msc 500gr (8 Un)",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3537528",
+    "old": "Impressora Epson Expression Xp-3200 MultifunÇ&Otilde;Es",
+    "new": "Impressora Epson Expression Xp-3200 Multifunções",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3543188",
+    "old": "Queijo S.Jorge Dop Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom Cura 7 Meses 400g",
+    "new": "Queijo S.Jorge Dop Auchan À Mesa Em Portugal Cultivamos O Bom Cura 7 Meses 400g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3548487",
+    "old": "Barriga Fumada Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom Alto Minho Kg",
+    "new": "Barriga Fumada Auchan À Mesa Em Portugal Cultivamos O Bom Alto Minho Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3551045",
+    "old": "Moira Auchan &Agrave; Mesa Em Portugal Lamego 200g",
+    "new": "Moira Auchan À Mesa Em Portugal Lamego 200g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3552367",
+    "old": "B&Uacute;Zio Grande Cozido Descongelado Kg",
+    "new": "Búzio Grande Cozido Descongelado Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3552526",
+    "old": "Morcela Assar Auchan &Agrave; Mesa Em Portugal Lamego 230g",
+    "new": "Morcela Assar Auchan À Mesa Em Portugal Lamego 230g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3552557",
+    "old": "Farinheira Auchan &Agrave; Mesa Em Portugal Lamego 200",
+    "new": "Farinheira Auchan À Mesa Em Portugal Lamego 200",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3552585",
+    "old": "Morcela De Arroz Auchan &Agrave; Mesa Em Portugal Lamego 230g",
+    "new": "Morcela De Arroz Auchan À Mesa Em Portugal Lamego 230g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3552606",
+    "old": "ChouriÇO De Carne Auchan &Agrave; Mesa Em Portugal Lamego 200g",
+    "new": "Chouriço De Carne Auchan À Mesa Em Portugal Lamego 200g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3555408",
+    "old": "Presunto Porco Bisaro Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom 24m Cura 70g",
+    "new": "Presunto Porco Bisaro Auchan À Mesa Em Portugal Cultivamos O Bom 24m Cura 70g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3555659",
+    "old": "Tabua De Charcutaria Beretta Mediterr&Acirc;Nica 200g",
+    "new": "Tabua De Charcutaria Beretta Mediterrânica 200g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3572940",
+    "old": "Queijo Emmental Auchan PorÇ&Otilde;Es 250g",
+    "new": "Queijo Emmental Auchan Porções 250g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3574026",
+    "old": "Queijo A Vaca Que Ri Light PorÇ&Otilde;Es 125g",
+    "new": "Queijo A Vaca Que Ri Light Porções 125g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3574035",
+    "old": "Queijo A Vaca Que Ri PorÇ&Otilde;Es 125g",
+    "new": "Queijo A Vaca Que Ri Porções 125g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3574060",
+    "old": "Queijo A Vaca Que Ri PorÇ&Otilde;Es 250g",
+    "new": "Queijo A Vaca Que Ri Porções 250g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3574063",
+    "old": "Queijo A Vaca Que Ri Light PorÇ&Otilde;Es 250g",
+    "new": "Queijo A Vaca Que Ri Light Porções 250g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3574101",
+    "old": "Queijo A Vaca Que Ri Light PorÇ&Otilde;Es 375g",
+    "new": "Queijo A Vaca Que Ri Light Porções 375g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3576480",
+    "old": "Queijo A Vaca Que Ri PorÇ&Otilde;Es 375g",
+    "new": "Queijo A Vaca Que Ri Porções 375g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3578542",
+    "old": "Bife Da Perna Per&Uacute; Biologic Bio 300 G",
+    "new": "Bife Da Perna Perú Biologic Bio 300 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3581631",
+    "old": "Tarte De Am&Ecirc;Ndoa A Tarte 350g",
+    "new": "Tarte De Amêndoa A Tarte 350g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3581747",
+    "old": "Queijo Curado Amanteigado Auchan &Agrave; Mesa Em Portugal AÇOres 520g",
+    "new": "Queijo Curado Amanteigado Auchan À Mesa Em Portugal Açores 520g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3581968",
+    "old": "Brigadeiros Doce Sabor C&Ocirc;Co Uni",
+    "new": "Brigadeiros Doce Sabor Côco Uni",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3582729",
+    "old": "Queijada De Nata E C&Ocirc;Co Un",
+    "new": "Queijada De Nata E Côco Un",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3587387",
+    "old": "Bocados Mediterr&Acirc;Neos Heura 160 Gr",
+    "new": "Bocados Mediterrâneos Heura 160 Gr",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3599517",
+    "old": "Bochechas Bacalhau Isl&Acirc;Ndia 500g",
+    "new": "Bochechas Bacalhau Islândia 500g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3601675",
+    "old": "Miolo De Am&Ecirc;Ndoa Com Sal Auchan 200 G",
+    "new": "Miolo De Amêndoa Com Sal Auchan 200 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3608848",
+    "old": "Queijo Castelo Branco Dop Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom Un",
+    "new": "Queijo Castelo Branco Dop Auchan À Mesa Em Portugal Cultivamos O Bom Un",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3613029",
+    "old": "Queijo Mistura Auchan &Agrave; Mesa Em Portugal Vaca E Ovelha Curado Un",
+    "new": "Queijo Mistura Auchan À Mesa Em Portugal Vaca E Ovelha Curado Un",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3613038",
+    "old": "Queijo Mistura Auchan &Agrave; Mesa Em Portugal Ovelha E Cabra Curado Un",
+    "new": "Queijo Mistura Auchan À Mesa Em Portugal Ovelha E Cabra Curado Un",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3613048",
+    "old": "Queijo Cabra Curado Auchan &Agrave; Mesa Em Portugal Beira Interior Metades Un",
+    "new": "Queijo Cabra Curado Auchan À Mesa Em Portugal Beira Interior Metades Un",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3613056",
+    "old": "Queijo Da Beira Baixa Picante Dop Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom Un",
+    "new": "Queijo Da Beira Baixa Picante Dop Auchan À Mesa Em Portugal Cultivamos O Bom Un",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3613060",
+    "old": "Queijo Amarelo Beira Baixa Dop Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom Un",
+    "new": "Queijo Amarelo Beira Baixa Dop Auchan À Mesa Em Portugal Cultivamos O Bom Un",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3613066",
+    "old": "Queijo Da Beira Baixa Dop Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom Castelo Branco Velho Un",
+    "new": "Queijo Da Beira Baixa Dop Auchan À Mesa Em Portugal Cultivamos O Bom Castelo Branco Velho Un",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3616969",
+    "old": "Salame Hein Dinamarqu&Ecirc;S Kg",
+    "new": "Salame Hein Dinamarquês Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3631640",
+    "old": "Pat&Ecirc; De Carne Hein 125 Gr",
+    "new": "Patê De Carne Hein 125 Gr",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3632116",
+    "old": "Pato Inteiro Confitado Qt&Ordf; Marinha 2.2 Kg",
+    "new": "Pato Inteiro Confitado Qtª Marinha 2.2 Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3634883",
+    "old": "Queijo Greco Loumini Bas&Iacute;Lico 200g",
+    "new": "Queijo Greco Loumini Basílico 200g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3643974",
+    "old": "Filete Paloco-Pac&Iacute;Fico Polegar 400g",
+    "new": "Filete Paloco-Pacífico Polegar 400g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3645352",
+    "old": "Hamb&Uacute;Rguer De Bovino Com Chourico E Bacon 300gr",
+    "new": "Hambúrguer De Bovino Com Chourico E Bacon 300gr",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3650513",
+    "old": "Miolo De Am&Ecirc;Ndoa Auchan Sem Pele 125 G",
+    "new": "Miolo De Amêndoa Auchan Sem Pele 125 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3650564",
+    "old": "Caj&Uacute; Auchan Cru 125 G",
+    "new": "Cajú Auchan Cru 125 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3650570",
+    "old": "Caj&Uacute; Auchan Com Sal 125 G",
+    "new": "Cajú Auchan Com Sal 125 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3650710",
+    "old": "Hamb&Uacute;Rguer De Bovino Com Cebola 300gr",
+    "new": "Hambúrguer De Bovino Com Cebola 300gr",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3654397",
+    "old": "Impressora Hp Laserjet Mfp M140w MultifunÇ&Otilde;Es",
+    "new": "Impressora Hp Laserjet Mfp M140w Multifunções",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-365455",
+    "old": "Pat&Ecirc; Grand M&Egrave;Re Ardenas E Campagne Terrina Kg",
+    "new": "Patê Grand Mère Ardenas E Campagne Terrina Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-365463",
+    "old": "Pat&Ecirc; De Pato Com Porto Grand M&Egrave;Re Terrina Kg",
+    "new": "Patê De Pato Com Porto Grand Mère Terrina Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3669236",
+    "old": "Miolo Am&Ecirc;Ndoa Better With Com Mel E Sal 140 G",
+    "new": "Miolo Amêndoa Better With Com Mel E Sal 140 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3669237",
+    "old": "Miolo Am&Ecirc;Ndoa Better With Torrada 140 G",
+    "new": "Miolo Amêndoa Better With Torrada 140 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3669243",
+    "old": "Miolo Am&Ecirc;Ndoa Better With Com Canela E Coco 140 G",
+    "new": "Miolo Amêndoa Better With Com Canela E Coco 140 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-370767",
+    "old": "L&Iacute;Nguas Auchan De Veado 300g",
+    "new": "Línguas Auchan De Veado 300g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3711640",
+    "old": "Brownie Chocolate Schnitzer Sem Gl&Uacute;Ten Bio 140 G",
+    "new": "Brownie Chocolate Schnitzer Sem Glúten Bio 140 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3720818",
+    "old": "Queijo MestiÇO De Tolosa Igp Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom Un",
+    "new": "Queijo Mestiço De Tolosa Igp Auchan À Mesa Em Portugal Cultivamos O Bom Un",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3720821",
+    "old": "Queijo Nisa Dop Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom Un",
+    "new": "Queijo Nisa Dop Auchan À Mesa Em Portugal Cultivamos O Bom Un",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3722378",
+    "old": "Barriga Fumada De Chaves Auchan &Agrave; Mesa Em Portugal Kg",
+    "new": "Barriga Fumada De Chaves Auchan À Mesa Em Portugal Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3771744",
+    "old": "Impressora MultifunÇ&Otilde;Es Canon Pixma Ts7750i",
+    "new": "Impressora Multifunções Canon Pixma Ts7750i",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3773677",
+    "old": "Queijo éVora Dop Auchan &Agrave; Mesa Em Portugal Cultivamos O Bom Merendeira Un",
+    "new": "Queijo éVora Dop Auchan À Mesa Em Portugal Cultivamos O Bom Merendeira Un",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3775545",
+    "old": "Altervizo Fatias Com Prote&Iacute;Na 80g",
+    "new": "Altervizo Fatias Com Proteína 80g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3775629",
+    "old": "Enchido Vegan Altervego C/Prote&Iacute;Na 90g",
+    "new": "Enchido Vegan Altervego C/Proteína 90g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3791361",
+    "old": "Hamburgueres De Bovino / Suino Isento De Gl&Uacute;Ten Auchan 4*100gr",
+    "new": "Hamburgueres De Bovino / Suino Isento De Glúten Auchan 4*100gr",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3791362",
+    "old": "Hamburgueres De Bovino Isento De Gl&Uacute;Ten Auchan 4*100gr",
+    "new": "Hamburgueres De Bovino Isento De Glúten Auchan 4*100gr",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3791363",
+    "old": "Alm&Ocirc;Ndegas De Bovino/Suino Isento De Gluten Auchan 350gr",
+    "new": "Almôndegas De Bovino/Suino Isento De Gluten Auchan 350gr",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3791365",
+    "old": "Preparado De Carne Picada De Bovino / Suino Isento De Gl&Uacute;Ten Auchan 400gr",
+    "new": "Preparado De Carne Picada De Bovino / Suino Isento De Glúten Auchan 400gr",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3791368",
+    "old": "Alm&Ocirc;Ndegas De Bovino / Suino Isento De Gluten Auchan 800gr",
+    "new": "Almôndegas De Bovino / Suino Isento De Gluten Auchan 800gr",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3791372",
+    "old": "Hamburgueres De Suino Isento De Gl&Uacute;Ten Auchan 4*100gr",
+    "new": "Hamburgueres De Suino Isento De Glúten Auchan 4*100gr",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3791376",
+    "old": "Preparado De Carne Picada De Bovino Isento De Gl&Uacute;Ten Auchan 400gr",
+    "new": "Preparado De Carne Picada De Bovino Isento De Glúten Auchan 400gr",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3799767",
+    "old": "Queijo Mozzarella Fresca Mini Auchan &Agrave; Mesa Em Italia 125g",
+    "new": "Queijo Mozzarella Fresca Mini Auchan À Mesa Em Italia 125g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3801019",
+    "old": "Fiambre Fatiado De Per&Uacute; Nobre Com Cenoura Cuida Te 110g",
+    "new": "Fiambre Fatiado De Perú Nobre Com Cenoura Cuida Te 110g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3803971",
+    "old": "Fiambre De Peito Per&Uacute; Auchan Fatias Finas 150g",
+    "new": "Fiambre De Peito Perú Auchan Fatias Finas 150g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3818351",
+    "old": "Bola R&Uacute;Stica Carne Assada Com Mostarda E Mel Un",
+    "new": "Bola Rústica Carne Assada Com Mostarda E Mel Un",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3831289",
+    "old": "Queijo Fundido Auchan 16 PorÇ&Otilde;Es 250g",
+    "new": "Queijo Fundido Auchan 16 Porções 250g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3831881",
+    "old": "Queijo Fundido Light Auchan 16 PorÇ&Otilde;Es 250g",
+    "new": "Queijo Fundido Light Auchan 16 Porções 250g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3833324",
+    "old": "Queijo Amanteigado Pequeno Castel&Otilde;Es Un",
+    "new": "Queijo Amanteigado Pequeno Castelões Un",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3833442",
+    "old": "Bloc Fois Gras Pato Capdevila C/Bals&Acirc;Mico E Lira 135g",
+    "new": "Bloc Fois Gras Pato Capdevila C/Balsâmico E Lira 135g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3845127",
+    "old": "Am&Ecirc;Ijoa Macha Fresca 500g",
+    "new": "Amêijoa Macha Fresca 500g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3854613",
+    "old": "ChouriÇO Picante Auchan &Agrave; Mesa Em Espanha 225g",
+    "new": "Chouriço Picante Auchan À Mesa Em Espanha 225g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3854643",
+    "old": "ChouriÇO Suave Auchan &Agrave; Mesa Em Espanha 225g",
+    "new": "Chouriço Suave Auchan À Mesa Em Espanha 225g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3857680",
+    "old": "Smartphone Samsung Galaxy S25 Ultra 256gb Preto Tit&Acirc;Nio",
+    "new": "Smartphone Samsung Galaxy S25 Ultra 256gb Preto Titânio",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3857681",
+    "old": "Smartphone Samsung Galaxy S25 Ultra 256gb Cinzento Tit&Acirc;Nio",
+    "new": "Smartphone Samsung Galaxy S25 Ultra 256gb Cinzento Titânio",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3857700",
+    "old": "Smartphone Samsung Galaxy S25 Ultra 256gb Azul Prateado Tit&Acirc;Nio",
+    "new": "Smartphone Samsung Galaxy S25 Ultra 256gb Azul Prateado Titânio",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-3857704",
+    "old": "Smartphone Samsung Galaxy S25 Ultra 1tb Preto Tit&Acirc;Nio",
+    "new": "Smartphone Samsung Galaxy S25 Ultra 1tb Preto Titânio",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-38695",
+    "old": "Alho Franc&Ecirc;S Bio Kg",
+    "new": "Alho Francês Bio Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-39382",
+    "old": "Pat&Ecirc; De Coelho Arnaud 180g",
+    "new": "Patê De Coelho Arnaud 180g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-39399",
+    "old": "Pat&Ecirc; De Javali Arnaud 180g",
+    "new": "Patê De Javali Arnaud 180g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-39408",
+    "old": "Pat&Ecirc; De Pato Arnaud 180g",
+    "new": "Patê De Pato Arnaud 180g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-39756",
+    "old": "Ovos Saborosos Classe M Uma D&Uacute;Zia",
+    "new": "Ovos Saborosos Classe M Uma Dúzia",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-39763",
+    "old": "Ovos Saborosos Classe L Uma D&Uacute;Zia",
+    "new": "Ovos Saborosos Classe L Uma Dúzia",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-39819",
+    "old": "Ovos Saborosos Classe Xl Uma D&Uacute;Zia",
+    "new": "Ovos Saborosos Classe Xl Uma Dúzia",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-400927",
+    "old": "Arrufadinha Com AÇ&Uacute;Car ProduÇãO PrÓPria 50g",
+    "new": "Arrufadinha Com AÇúcar Produção Própria 50g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-4218",
+    "old": "Linguado Leg&Iacute;Timo Kg",
+    "new": "Linguado Legítimo Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-434082",
+    "old": "Pat&Ecirc; Arnaud Campestre Frasco 180g",
+    "new": "Patê Arnaud Campestre Frasco 180g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-446439",
+    "old": "Sapateira F&Ecirc;Mea Cozida Auchan Collection +800g Kg",
+    "new": "Sapateira Fêmea Cozida Auchan Collection +800g Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-446852",
+    "old": "Ovos Auchan Galinhas Solo Classe L Uma D&Uacute;Zia",
+    "new": "Ovos Auchan Galinhas Solo Classe L Uma Dúzia",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-446856",
+    "old": "Ovos Auchan Galinhas Solo Classe M Duas D&Uacute;Zias",
+    "new": "Ovos Auchan Galinhas Solo Classe M Duas Dúzias",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-51153",
+    "old": "Postas De Pescada Auchan Msc N&Ordm;3 Para Cozer áFrica Do Sul 600g",
+    "new": "Postas De Pescada Auchan Msc Nº3 Para Cozer áFrica Do Sul 600g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-51163",
+    "old": "Posta De Pescada Auchan Msc N&Ordm;3 Para Fritar áFrica Do Sul 600g",
+    "new": "Posta De Pescada Auchan Msc Nº3 Para Fritar áFrica Do Sul 600g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-51168",
+    "old": "Posta De Pescada Auchan Msc N&Ordm;5 Para Cozer áFrica Do Sul 600g",
+    "new": "Posta De Pescada Auchan Msc Nº5 Para Cozer áFrica Do Sul 600g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-51440",
+    "old": "Medalh&Otilde;Es De Pescada Auchan 400g",
+    "new": "Medalhões De Pescada Auchan 400g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-515357",
+    "old": "áGua Luso Mineral J&Uacute;Nior Pet 0.33l",
+    "new": "áGua Luso Mineral Júnior Pet 0.33l",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-515358",
+    "old": "áGua Mineral Luso J&Uacute;Nior 6x0.33l",
+    "new": "áGua Mineral Luso Júnior 6x0.33l",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-555293",
+    "old": "R&Uacute;Cula Selvagem Vitacress 75 G",
+    "new": "Rúcula Selvagem Vitacress 75 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-609477",
+    "old": "Pate Fatiado Grand M&Egrave;Re Pato E Vinho 125 G",
+    "new": "Pate Fatiado Grand Mère Pato E Vinho 125 G",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-609483",
+    "old": "Pat&Ecirc; De Cogumelos Grand M&Egrave;Re Fatiado 125g",
+    "new": "Patê De Cogumelos Grand Mère Fatiado 125g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-621131",
+    "old": "Queijo Palhais Cabra R&Uacute;Stico Kg",
+    "new": "Queijo Palhais Cabra Rústico Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-622937",
+    "old": "Alho Franc&Ecirc;S Bio 500g",
+    "new": "Alho Francês Bio 500g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-656446",
+    "old": "Bacalhau Desfiado Do Pac&Iacute;Fico Auchan 400g",
+    "new": "Bacalhau Desfiado Do Pacífico Auchan 400g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-671339",
+    "old": "Mortadela De Per&Uacute; Campofrio Kg",
+    "new": "Mortadela De Perú Campofrio Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-673818",
+    "old": "C&Ocirc;Co Ferbar Ralado Saqueta 100g",
+    "new": "Côco Ferbar Ralado Saqueta 100g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-675887",
+    "old": "Telhas De Am&Ecirc;Ndoa 100g",
+    "new": "Telhas De Amêndoa 100g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-707966",
+    "old": "Frango Halal Lusiaves Sem Mi&Uacute;Dos Embalagem Kg",
+    "new": "Frango Halal Lusiaves Sem Miúdos Embalagem Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-713188",
+    "old": "Presunto Damatta Aperitivo Sabor Portugu&Ecirc;S 300g",
+    "new": "Presunto Damatta Aperitivo Sabor Português 300g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-7251",
+    "old": "Queijo Castel&Otilde;Es Grande Kg",
+    "new": "Queijo Castelões Grande Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-750422",
+    "old": "Queijo &Agrave; Cabreira Sabores Da Soalheira Regional Kg",
+    "new": "Queijo À Cabreira Sabores Da Soalheira Regional Kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-780035",
+    "old": "Am&Ecirc;Ijoa Auchan Vietnamita Com Casca 500g",
+    "new": "Amêijoa Auchan Vietnamita Com Casca 500g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-788115",
+    "old": "Miolo De B&Uacute;Zio Auchan Ultracongelado 225g",
+    "new": "Miolo De Búzio Auchan Ultracongelado 225g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-789093",
+    "old": "Pescada Do Chile Auchan Collection Postas N&Ordm; 5 Para Cozer 600g",
+    "new": "Pescada Do Chile Auchan Collection Postas Nº 5 Para Cozer 600g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-796640",
+    "old": "CaracÓIs Auchan Com Manteiga &Agrave; La Bourguignonne 24un 178g",
+    "new": "Caracóis Auchan Com Manteiga À La Bourguignonne 24un 178g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-838981",
+    "old": "Del&Iacute;Cia De Ovo ProduÇãO PrÓPria 120g",
+    "new": "Delícia De Ovo Produção Própria 120g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-838997",
+    "old": "Del&Iacute;Cia Chantilly E Fruta ProduÇãO PrÓPria 120g",
+    "new": "Delícia Chantilly E Fruta Produção Própria 120g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-840739",
+    "old": "Del&Iacute;Cia De Chocolate Brigadeiro ProduÇãO PrÓPria 120g",
+    "new": "Delícia De Chocolate Brigadeiro Produção Própria 120g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-858445",
+    "old": "R&Uacute;Cula Selvagem Auchan 100g",
+    "new": "Rúcula Selvagem Auchan 100g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-902422",
+    "old": "Medalh&Otilde;Es Pescanova Pescada Do Cabo 1kg",
+    "new": "Medalhões Pescanova Pescada Do Cabo 1kg",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-928824",
+    "old": "Miolo Am&Ecirc;Ijoa Zebra Auchan 250g",
+    "new": "Miolo Amêijoa Zebra Auchan 250g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-951464",
+    "old": "Posta Pescanova Pescada Cabo N.&Ordm; 3 Para Cozer 600g",
+    "new": "Posta Pescanova Pescada Cabo N.º 3 Para Cozer 600g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-956612",
+    "old": "Biscoitos Folhados Com Cobertura Glac&Ecirc; Auchan 200g",
+    "new": "Biscoitos Folhados Com Cobertura Glacê Auchan 200g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-967753",
+    "old": "Salada Duo CanÓNigo R&Uacute;Cula Florette 100g",
+    "new": "Salada Duo Canónigo Rúcula Florette 100g",
+    "already_fixed": false
+  },
+  {
+    "id": "auc-988836",
+    "old": "L&Iacute;Nguas Gato Saco 210g",
+    "new": "Línguas Gato Saco 210g",
+    "already_fixed": false
+  }
+]

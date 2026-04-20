@@ -2,7 +2,6 @@ import 'dart:math' as math;
 
 import '../models/order_service_type.dart';
 
-
 class OrderPricingBreakdown {
   final double distanceKm;
   final double subtotal;
@@ -13,7 +12,10 @@ class OrderPricingBreakdown {
   final double apartmentSurcharge;
   final bool apartmentDelivery;
 
-  double get customerTotal => subtotal + serviceFee + deliveryFee;
+  /// Bag fee charged to the customer. €0.30 for restaurant orders (automatic).
+  final double bagFee;
+
+  double get customerTotal => subtotal + serviceFee + deliveryFee + bagFee;
 
   const OrderPricingBreakdown({
     required this.distanceKm,
@@ -24,22 +26,26 @@ class OrderPricingBreakdown {
     required this.driverEarnings,
     this.apartmentSurcharge = 0,
     this.apartmentDelivery = false,
+    this.bagFee = 0,
   });
 }
 
 class PricingService {
   static const double defaultDistanceKm = 1;
 
-    static const double _partnerDeliveryFee = 2.5;
+  static const double _partnerDeliveryFee = 2.5;
+
+  /// Charged automatically for all restaurant orders (takeaway bag).
+  static const double _restaurantBagFee = 0.30;
   // ── Driver earnings — delivery (partner + non-partner) ───────────────────
-  static const double _driverBasePay = 3.80;        // was 4.0
+  static const double _driverBasePay = 3.80; // was 4.0
   static const double _driverPerKmRate = 0.2;
   static const double _partnerCommissionRate = 0.20;
 
   static const double _nonPartnerMarkupRate = 0.15;
   static const double _nonPartnerPurchaseFee = 2.5;
   // Extra pay for storeShopping drivers: they shop AND deliver.
-  static const double _shoppingDriverBonus = 0.80;  // was 1.0
+  static const double _shoppingDriverBonus = 0.80; // was 1.0
 
   static const double _packageBaseFee = 6.0;
   static const double _packageBaseDistanceKm = 4.0;
@@ -53,13 +59,13 @@ class PricingService {
   static const double _apartmentDriverShare = 1.0;
   static const double _apartmentPlatformShare = 0.5;
 
-
   /// Returns the customer-facing final total from the driver's real purchase value.
   /// Uses the flat non-partner fee structure (default 1 km distance).
   /// For order-accurate totals that include actual distance, use [calculateBreakdown].
   static double calculateFinalTotalFromPurchase(double purchaseValue) {
-    return _roundCurrency(
-        _sanitizeAmount(purchaseValue) + _nonPartnerPurchaseFee + _partnerDeliveryFee);
+    return _roundCurrency(_sanitizeAmount(purchaseValue) +
+        _nonPartnerPurchaseFee +
+        _partnerDeliveryFee);
   }
 
   /// Returns the pre-authorisation amount for non-partner orders:
@@ -84,11 +90,14 @@ class PricingService {
     bool isPartnerStore = false,
     bool apartmentDelivery = false,
   }) {
-        final normalizedDistance = _sanitizeDistance(distanceKm);
+    final normalizedDistance = _sanitizeDistance(distanceKm);
     final normalizedSubtotal = _sanitizeAmount(subtotal);
-    final apartmentSurcharge = apartmentDelivery ? _apartmentSurchargeTotal : 0.0;
-    final apartmentDriverBonus = apartmentDelivery ? _apartmentDriverShare : 0.0;
-    final apartmentPlatformBonus = apartmentDelivery ? _apartmentPlatformShare : 0.0;
+    final apartmentSurcharge =
+        apartmentDelivery ? _apartmentSurchargeTotal : 0.0;
+    final apartmentDriverBonus =
+        apartmentDelivery ? _apartmentDriverShare : 0.0;
+    final apartmentPlatformBonus =
+        apartmentDelivery ? _apartmentPlatformShare : 0.0;
 
     double deliveryFee = 0;
     double serviceFee = 0;
@@ -101,23 +110,29 @@ class PricingService {
         serviceType == OrderServiceType.storeShopping && isPartnerStore;
     final bool isNonPartnerOrder =
         (serviceType == OrderServiceType.storeShopping && !isPartnerStore) ||
-        (serviceType == OrderServiceType.restaurant && !isPartnerStore);
-    final bool isPackageService =
-        serviceType == OrderServiceType.sendPackage ||
+            (serviceType == OrderServiceType.restaurant && !isPartnerStore);
+    final bool isPackageService = serviceType == OrderServiceType.sendPackage ||
         serviceType == OrderServiceType.carryGroceries;
 
     if (isPartnerRestaurant || isPartnerRetail) {
-      final extraDistancePartner = math.max(0.0, normalizedDistance - _packageBaseDistanceKm);
-      deliveryFee = _partnerDeliveryFee + (extraDistancePartner * _packageExtraPerKm) + apartmentSurcharge;
-      platformCommission = normalizedSubtotal * _partnerCommissionRate + apartmentPlatformBonus;
-      driverEarnings = _driverBasePay + (_driverPerKmRate * normalizedDistance) + apartmentDriverBonus;
+      final extraDistancePartner =
+          math.max(0.0, normalizedDistance - _packageBaseDistanceKm);
+      deliveryFee = _partnerDeliveryFee +
+          (extraDistancePartner * _packageExtraPerKm) +
+          apartmentSurcharge;
+      platformCommission =
+          normalizedSubtotal * _partnerCommissionRate + apartmentPlatformBonus;
+      driverEarnings = _driverBasePay +
+          (_driverPerKmRate * normalizedDistance) +
+          apartmentDriverBonus;
     } else if (isNonPartnerOrder) {
       // The 15% markup is already embedded in item prices via CartStore.addItem()
       // and is baked into normalizedSubtotal. No additional markup is applied here.
       // customerTotal = subtotal + purchaseFee + deliveryFee
       const purchaseFee = _nonPartnerPurchaseFee; // 2.5
 
-      final extraDistanceNP = math.max(0.0, normalizedDistance - _packageBaseDistanceKm);
+      final extraDistanceNP =
+          math.max(0.0, normalizedDistance - _packageBaseDistanceKm);
       serviceFee = purchaseFee;
       deliveryFee = _partnerDeliveryFee +
           (extraDistanceNP * _packageExtraPerKm) +
@@ -128,7 +143,8 @@ class PricingService {
           (_driverPerKmRate * normalizedDistance) +
           apartmentDriverBonus; // 3.80 + 0.80 + 0.2/km
     } else if (isPackageService) {
-      final extraDistance = math.max(0.0, normalizedDistance - _packageBaseDistanceKm);
+      final extraDistance =
+          math.max(0.0, normalizedDistance - _packageBaseDistanceKm);
       final packageFee = _packageBaseFee + (extraDistance * _packageExtraPerKm);
       deliveryFee = packageFee + apartmentSurcharge;
       platformCommission = _packagePlatformShare + apartmentPlatformBonus;
@@ -136,12 +152,17 @@ class PricingService {
       driverEarnings = _logisticsDriverBasePay +
           (_logisticsDriverPerKmRate * normalizedDistance) +
           apartmentDriverBonus;
-
     } else {
       deliveryFee = _partnerDeliveryFee + apartmentSurcharge;
-      platformCommission = normalizedSubtotal * _partnerCommissionRate + apartmentPlatformBonus;
-      driverEarnings = _driverBasePay + (_driverPerKmRate * normalizedDistance) + apartmentDriverBonus;
+      platformCommission =
+          normalizedSubtotal * _partnerCommissionRate + apartmentPlatformBonus;
+      driverEarnings = _driverBasePay +
+          (_driverPerKmRate * normalizedDistance) +
+          apartmentDriverBonus;
     }
+
+    final double bagFee =
+        serviceType == OrderServiceType.restaurant ? _restaurantBagFee : 0.0;
 
     return OrderPricingBreakdown(
       distanceKm: normalizedDistance,
@@ -152,6 +173,7 @@ class PricingService {
       driverEarnings: _roundCurrency(driverEarnings),
       apartmentSurcharge: _roundCurrency(apartmentSurcharge),
       apartmentDelivery: apartmentDelivery,
+      bagFee: bagFee,
     );
   }
 

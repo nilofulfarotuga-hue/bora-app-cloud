@@ -15,12 +15,23 @@ class DriverOrderAction {
   final Future<bool> Function() execute;
 }
 
-DriverOrderAction? resolveDriverOrderAction(OrderStore store, OrderModel order) {
+DriverOrderAction? resolveDriverOrderAction(
+    OrderStore store, OrderModel order) {
   switch (order.status) {
     case OrderStatus.driverAccepted:
+      // For non-partner store/restaurant pickups the driver must first
+      // finalize the purchase (enter the real amount paid) before confirming
+      // pickup. Hide the button until isPurchaseFinalized == true — the
+      // _FinalizePurchaseButton is shown in its place during driverAccepted.
+      final needsPurchaseFinalize = !order.isPartnerStore &&
+          (order.serviceType == OrderServiceType.storeShopping ||
+              order.serviceType == OrderServiceType.restaurant);
+      if (needsPurchaseFinalize && !order.isPurchaseFinalized) {
+        return null;
+      }
       return DriverOrderAction(
-        label: "Confirmar recolha",
-        successMessage: "Encomenda recolhida",
+        label: "Recolher pedido",
+        successMessage: "Pedido recolhido",
         execute: () => store.pickUpOrder(order),
       );
     case OrderStatus.pickedUp:

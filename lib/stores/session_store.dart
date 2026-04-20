@@ -25,8 +25,9 @@ class SessionStore extends ChangeNotifier {
   String? get homeStreet => _homeStreet;
   String? get homeCity => _homeCity;
   bool get hasHomeAddress => _homeStreet != null && _homeStreet!.isNotEmpty;
-  LatLng? get homeLocation =>
-      (_homeLat != null && _homeLng != null) ? LatLng(_homeLat!, _homeLng!) : null;
+  LatLng? get homeLocation => (_homeLat != null && _homeLng != null)
+      ? LatLng(_homeLat!, _homeLng!)
+      : null;
 
   Future<void> load() async {
     final prefs = await SharedPreferences.getInstance();
@@ -97,4 +98,4 @@ class SessionStore extends ChangeNotifier {
     }
     return null;
   }
-} 
+}

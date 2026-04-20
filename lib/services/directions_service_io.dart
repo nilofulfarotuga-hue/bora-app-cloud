@@ -1,7 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter_polyline_points/flutter_polyline_points.dart' hide TravelMode;
+import 'package:flutter_polyline_points/flutter_polyline_points.dart'
+    hide TravelMode;
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart' as ll;
 
@@ -71,9 +72,8 @@ class _IoDirectionsService implements DirectionsService {
       if (routes == null || routes.isEmpty) return null;
 
       final route = routes.first as Map<String, dynamic>;
-      final polyline =
-          (route['overview_polyline'] as Map<String, dynamic>?)?['points']
-              as String?;
+      final polyline = (route['overview_polyline']
+          as Map<String, dynamic>?)?['points'] as String?;
       if (polyline == null || polyline.isEmpty) return null;
 
       final decoded = PolylinePoints.decodePolyline(polyline);

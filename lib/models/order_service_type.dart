@@ -13,7 +13,7 @@ extension OrderServiceTypeLabel on OrderServiceType {
       case OrderServiceType.storeShopping:
         return "Compras em loja";
       case OrderServiceType.carryGroceries:
-        return "Entregar compras";
+        return "Levar Compras";
       case OrderServiceType.sendPackage:
         return "Enviar pacote";
     }
@@ -26,7 +26,7 @@ extension OrderServiceTypeLabel on OrderServiceType {
       case OrderServiceType.storeShopping:
         return "Compra em loja não parceira";
       case OrderServiceType.carryGroceries:
-        return "Entrega das compras do cliente";
+        return "Já fez as compras? Um estafeta com carro vai buscar e leva até si.";
       case OrderServiceType.sendPackage:
         return "Envio de encomenda";
     }

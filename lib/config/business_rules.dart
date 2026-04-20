@@ -1,6 +1,6 @@
-/// BORA — Business Rules Constants
-/// Source of truth: .claude/.ai/business_rules.md
-/// DO NOT modify values without updating business_rules.md first.
+// BORA — Business Rules Constants
+// Source of truth: .claude/.ai/business_rules.md
+// DO NOT modify values without updating business_rules.md first.
 
 // ignore_for_file: constant_identifier_names
 
@@ -81,6 +81,14 @@ abstract final class BRFees {
   static const double CANCEL_FEE_AFTER_PURCHASE_RATIO = 1.00;
 }
 
+abstract final class BRBags {
+  /// Fixed bag fee for restaurant orders (1 bag, always included)
+  static const double RESTAURANT_BAG_FEE = 0.30;
+
+  /// Per-bag fee for market/supermarket orders
+  static const double MARKET_BAG_FEE = 0.10;
+}
+
 abstract final class BRBusiness {
   /// Direct commission charged to partner per order
   static const double PARTNER_COMMISSION_RATIO = 0.10;
@@ -100,5 +108,5 @@ abstract final class BRBusiness {
   /// Above this threshold the cash option MUST be hidden/disabled. The
   /// database trigger `enforce_cash_payment_limit` enforces the same rule
   /// server-side — client validation is UX only.
-  static const double CASH_MAX_ORDER_VALUE_EUR = 30.00;
+  static const double CASH_MAX_ORDER_VALUE_EUR = 40.00;
 }

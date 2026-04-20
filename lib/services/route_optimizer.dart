@@ -86,7 +86,8 @@ class RouteOptimizer {
     // Phase 1: sequence pickups (greedy nearest-neighbour).
     final remainingPickups = List<OrderModel>.of(pendingPickups);
     while (remainingPickups.isNotEmpty) {
-      final nearest = _nearest(remainingPickups, current, (o) => o.pickupLocation!);
+      final nearest =
+          _nearest(remainingPickups, current, (o) => o.pickupLocation!);
       final loc = nearest.pickupLocation!;
       totalKm += _dist.as(LengthUnit.Kilometer, current, loc);
       stops.add(RouteStop(
@@ -102,7 +103,8 @@ class RouteOptimizer {
     // Phase 2: sequence deliveries (greedy nearest-neighbour).
     final remainingDeliveries = List<OrderModel>.of(pendingDeliveries);
     while (remainingDeliveries.isNotEmpty) {
-      final nearest = _nearest(remainingDeliveries, current, (o) => o.destination!);
+      final nearest =
+          _nearest(remainingDeliveries, current, (o) => o.destination!);
       final loc = nearest.destination!;
       totalKm += _dist.as(LengthUnit.Kilometer, current, loc);
       stops.add(RouteStop(

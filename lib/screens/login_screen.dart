@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../auth/auth_store.dart';
+import '../config/app_colors.dart';
+import '../config/app_spacing.dart';
 import '../stores/driver_store.dart';
 import '../stores/session_store.dart';
+import '../widgets/bora/bora_primary_button.dart';
+import 'driver_signup_screen.dart';
 import 'register_client_screen.dart';
-import 'register_driver_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -15,7 +18,8 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _clientEmailController = TextEditingController(text: 'cliente@bora.app');
+  final _clientEmailController =
+      TextEditingController(text: 'cliente@bora.app');
   final _clientPasswordController = TextEditingController(text: '123456');
   final _driverPhoneController = TextEditingController(text: '910000000');
   final _driverPasswordController = TextEditingController(text: '123456');
@@ -36,9 +40,27 @@ class _LoginScreenState extends State<LoginScreen> {
     return DefaultTabController(
       length: 2,
       child: Scaffold(
+        backgroundColor: AppColors.surface,
         appBar: AppBar(
-          title: const Text('BORA APP'),
+          elevation: 0,
+          backgroundColor: Colors.transparent,
+          foregroundColor: Colors.white,
+          flexibleSpace: const DecoratedBox(
+            decoration: BoxDecoration(gradient: AppColors.headerGradient),
+          ),
+          title: const Text(
+            'BORA APP',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.3,
+            ),
+          ),
           bottom: const TabBar(
+            indicatorColor: Colors.white,
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white70,
+            labelStyle: TextStyle(fontWeight: FontWeight.w700),
             tabs: [
               Tab(text: 'Cliente'),
               Tab(text: 'Estafeta'),
@@ -57,12 +79,15 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Widget _buildClientLogin(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(Spacing.xxl),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Entre como cliente', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 24),
+          Text(
+            'Entre como cliente',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: Spacing.xxl),
           TextField(
             controller: _clientEmailController,
             keyboardType: TextInputType.emailAddress,
@@ -71,7 +96,7 @@ class _LoginScreenState extends State<LoginScreen> {
               prefixIcon: Icon(Icons.email_outlined),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: Spacing.lg),
           TextField(
             controller: _clientPasswordController,
             obscureText: true,
@@ -80,30 +105,35 @@ class _LoginScreenState extends State<LoginScreen> {
               prefixIcon: Icon(Icons.lock_outline),
             ),
           ),
-          const SizedBox(height: 24),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _isProcessing ? null : () => _handleClientLogin(context),
-              child: _isProcessing
-                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Text('Entrar'),
-            ),
+          const SizedBox(height: Spacing.xxl),
+          BoraPrimaryButton(
+            label: 'Entrar',
+            loading: _isProcessing,
+            onPressed: () => _handleClientLogin(context),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: Spacing.lg),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text('Ainda não tem conta?'),
+              const Text(
+                'Ainda não tem conta?',
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
               TextButton(
                 onPressed: () async {
+                  final messenger = ScaffoldMessenger.of(context);
                   final created = await Navigator.push<bool>(
                     context,
-                    MaterialPageRoute(builder: (_) => const RegisterClientScreen()),
+                    MaterialPageRoute(
+                      builder: (_) => const RegisterClientScreen(),
+                    ),
                   );
                   if (created == true && mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Conta criada com sucesso. Faça login.')),
+                    messenger.showSnackBar(
+                      const SnackBar(
+                        content:
+                            Text('Conta criada com sucesso. Faça login.'),
+                      ),
                     );
                   }
                 },
@@ -118,12 +148,15 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Widget _buildDriverLogin(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(Spacing.xxl),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Painel do estafeta', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 24),
+          Text(
+            'Painel do estafeta',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: Spacing.xxl),
           TextField(
             controller: _driverPhoneController,
             keyboardType: TextInputType.phone,
@@ -132,7 +165,7 @@ class _LoginScreenState extends State<LoginScreen> {
               prefixIcon: Icon(Icons.phone_rounded),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: Spacing.lg),
           TextField(
             controller: _driverPasswordController,
             obscureText: true,
@@ -141,34 +174,30 @@ class _LoginScreenState extends State<LoginScreen> {
               prefixIcon: Icon(Icons.lock_outline),
             ),
           ),
-          const SizedBox(height: 24),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _isProcessing ? null : () => _handleDriverLogin(context),
-              child: _isProcessing
-                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Text('Entrar'),
-            ),
+          const SizedBox(height: Spacing.xxl),
+          BoraPrimaryButton(
+            label: 'Entrar',
+            loading: _isProcessing,
+            onPressed: () => _handleDriverLogin(context),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: Spacing.lg),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text('Primeira vez como estafeta?'),
+              const Text(
+                'Primeira vez como estafeta?',
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
               TextButton(
-                onPressed: () async {
-                  final registered = await Navigator.push<bool>(
+                onPressed: () {
+                  Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const RegisterDriverScreen()),
+                    MaterialPageRoute(
+                      builder: (_) => const DriverSignupScreen(),
+                    ),
                   );
-                  if (registered == true && mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Registo concluído. Faça login.')),
-                    );
-                  }
                 },
-                child: const Text('Registar'),
+                child: const Text('Candidata-te'),
               ),
             ],
           ),
@@ -182,6 +211,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     final authStore = context.read<AuthStore>();
     final sessionStore = context.read<SessionStore>();
+    final messenger = ScaffoldMessenger.of(context);
     final email = _clientEmailController.text.trim();
     final password = _clientPasswordController.text;
 
@@ -191,7 +221,7 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isProcessing = false);
 
     if (!success) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         const SnackBar(content: Text('Credenciais inválidas.')),
       );
       return;
@@ -207,6 +237,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final authStore = context.read<AuthStore>();
     final driverStore = context.read<DriverStore>();
     final sessionStore = context.read<SessionStore>();
+    final messenger = ScaffoldMessenger.of(context);
     final phone = _driverPhoneController.text.trim();
     final password = _driverPasswordController.text;
 
@@ -216,7 +247,7 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isProcessing = false);
 
     if (!success) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         const SnackBar(content: Text('Credenciais inválidas.')),
       );
       return;

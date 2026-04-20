@@ -1,0 +1,193 @@
+{
+  "firstTile": "<div class=\"minicart-content\">\n        <img class=\"minicart-empty-img\" alt=\"\" src=\"/on/demandware.static/Sites-pingo-doce-Site/-/default/dwe95b3906/images/brand-illustration.svg\">\n        <p class=\"minicart-empty-label\">O seu carrinho de compras está vazio.</p>\n        <p class=\"minicart-empty-description\">Comece a explorar os nossos produtos e descubra uma variedade de produtos incríveis!</p> \n        <a href=\"/home/produtos\" class=\"btn btn-primary minicart-redirect-btn\" id=\"close-menu\">\n            Começar a comprar\n        </a>\n    </div>",
+  "categories": [
+    {
+      "href": "/home/produtos",
+      "text": "Começar a comprar"
+    },
+    {
+      "href": "https://www.pingodoce.pt/home/produtos/promocoes",
+      "text": "Loja Online"
+    },
+    {
+      "href": "https://www.pingodoce.pt/produtos/comida-fresca-takeaway/encomendas/",
+      "text": "Encomendar Comida"
+    },
+    {
+      "href": "/home/produtos",
+      "text": "Começar a comprar"
+    },
+    {
+      "href": "https://www.pingodoce.pt/home/produtos/promocoes",
+      "text": "Loja Online"
+    },
+    {
+      "href": "https://www.pingodoce.pt/produtos/comida-fresca-takeaway/encomendas/",
+      "text": "Encomendar Comida"
+    },
+    {
+      "href": "/home/produtos/promocoes",
+      "text": "Promoções"
+    },
+    {
+      "href": "/home/produtos/promocoes/poupe-esta-semana",
+      "text": "Poupe Esta Semana"
+    },
+    {
+      "href": "/home/produtos/promocoes/poupe-este-fim-de-semana",
+      "text": "Poupe Este Fim De Semana"
+    },
+    {
+      "href": "/home/produtos/as-nossas-marcas",
+      "text": "As Nossas Marcas"
+    },
+    {
+      "href": "/home/produtos/as-nossas-marcas/pingo-doce",
+      "text": "Pingo Doce"
+    },
+    {
+      "href": "/home/produtos/as-nossas-marcas/ultra",
+      "text": "Ultra"
+    },
+    {
+      "href": "/home/produtos/as-nossas-marcas/be-beauty",
+      "text": "Be Beauty"
+    },
+    {
+      "href": "/home/produtos/as-nossas-marcas/cuida-bebe",
+      "text": "Cuida Bebé"
+    },
+    {
+      "href": "/home/produtos/as-nossas-marcas/go-active",
+      "text": "Go Active"
+    },
+    {
+      "href": "/home/produtos/as-nossas-marcas/biologico",
+      "text": "Biológico"
+    },
+    {
+      "href": "/home/produtos/as-nossas-marcas/kitty",
+      "text": "Kitty"
+    },
+    {
+      "href": "/home/produtos/as-nossas-marcas/activpet",
+      "text": "ActivPet"
+    },
+    {
+      "href": "/home/produtos/as-nossas-marcas/skino",
+      "text": "Skino"
+    },
+    {
+      "href": "/home/produtos/as-nossas-marcas/pura-vida",
+      "text": "Pura Vida"
+    },
+    {
+      "href": "/home/produtos/as-nossas-marcas/as-nossas-iguarias",
+      "text": "As Nossas Iguarias"
+    },
+    {
+      "href": "/home/produtos/frutas-e-vegetais",
+      "text": "Frutas e Vegetais"
+    },
+    {
+      "href": "/home/produtos/frutas-e-vegetais/frutas",
+      "text": "Frutas"
+    },
+    {
+      "href": "/home/produtos/frutas-e-vegetais/vegetais",
+      "text": "Vegetais"
+    },
+    {
+      "href": "/home/produtos/frutas-e-vegetais/ervas-aromaticas-frescas",
+      "text": "Ervas Aromáticas Frescas"
+    },
+    {
+      "href": "/home/produtos/talho",
+      "text": "Talho"
+    },
+    {
+      "href": "/home/produtos/peixaria",
+      "text": "Peixaria"
+    },
+    {
+      "href": "/home/produtos/peixaria/peixe",
+      "text": "Peixe"
+    },
+    {
+      "href": "/home/produtos/peixaria/marisco",
+      "text": "Marisco"
+    },
+    {
+      "href": "/home/produtos/peixaria/bacalhau",
+      "text": "Bacalhau"
+    },
+    {
+      "href": "/home/produtos/peixaria/polvo-lula-pota-e-choco",
+      "text": "Polvo, Lula, Pota e Choco"
+    },
+    {
+      "href": "/home/produtos/padaria-e-pastelaria",
+      "text": "Padaria e Pastelaria"
+    },
+    {
+      "href": "/home/produtos/padaria-e-pastelaria/pao-embalado",
+      "text": "Pão Embalado"
+    },
+    {
+      "href": "/home/produtos/parafarmacia",
+      "text": "Parafarmácia"
+    },
+    {
+      "href": "/home/produtos/parafarmacia/saude",
+      "text": "Saúde"
+    },
+    {
+      "href": "/home/produtos/parafarmacia/saude/primeiros-socorros",
+      "text": "Primeiros Socorros"
+    },
+    {
+      "href": "/home/produtos/parafarmacia/saude/repelentes",
+      "text": "Repelentes"
+    },
+    {
+      "href": "/home/produtos/parafarmacia/saude/cuidados-oculares",
+      "text": "Cuidados Oculares"
+    },
+    {
+      "href": "/home/produtos/parafarmacia/saude/nariz-e-garganta",
+      "text": "Nariz e Garganta"
+    },
+    {
+      "href": "/home/produtos/parafarmacia/saude/equipamentos",
+      "text": "Equipamentos"
+    }
+  ],
+  "stats": {
+    "productLinks": 199,
+    "images": 616,
+    "title": "Loja online | Pingo Doce",
+    "htmlLen": 1258518
+  },
+  "apiCalls": [
+    {
+      "url": "https://c.go-mpulse.net/api/config.json?key=MDMTF-N6MR6-TVJUN-XA5R9-P2Z3S&d=www.pingodoce.pt&t=5921849&v=1.720.0&sl=0&si=1ea033cf-462d-4314-a606-97a0cd467587-tdpqbd&plugins=AK,ConfigOverride,Continuity,PageParams,IFrameDelay,AutoXHR,SPA,History,Angular,Backbone,Ember,RT,CrossDomain,BW,PaintTiming,NavigationTiming,ResourceTiming,Memory,CACHE_RELOAD,Errors,TPAnalytics,UserTiming,Akamai,Early,EventTiming,LOGN&acao=&ak.ai=893186",
+      "status": 200,
+      "ct": "application/json"
+    },
+    {
+      "url": "https://apps.bazaarvoice.com/bfd/v1/clients/pingodoce_poc/api-products/cv2/resources/data/products.json?locale=pt_PT&allowMissing=true&apiVersion=5.4&filter=id%3A937267",
+      "status": 200,
+      "ct": "application/json; charset=utf-8"
+    },
+    {
+      "url": "https://apps.bazaarvoice.com/bfd/v1/clients/pingodoce_poc/api-products/cv2/resources/data/display/0.2alpha/product/summary?productid=937267&contentType=reviews%2Cquestions&reviewDistribution=primaryRating%2Crecommended&rev=0&contentlocale=pt_PT",
+      "status": 200,
+      "ct": "application/json; charset=utf-8"
+    },
+    {
+      "url": "https://maps.googleapis.com/maps/api/mapsjs/gen_204?csp_test=true",
+      "status": 200,
+      "ct": "application/json; charset=UTF-8"
+    }
+  ]
+}

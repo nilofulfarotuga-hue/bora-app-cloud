@@ -83,7 +83,9 @@ class DriverAssignmentService {
   }) {
     if (!driver.isOnline) return false;
     if (!driver.supportsService(order.serviceType,
-        requiresCar: order.requiresCar)) return false;
+        requiresCar: order.requiresCar)) {
+      return false;
+    }
     if (!ignoreHistory && order.driverOfferHistory.contains(driver.id)) {
       return false;
     }

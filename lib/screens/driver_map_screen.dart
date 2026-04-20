@@ -1,13 +1,18 @@
 import 'dart:async';
+import 'dart:math' as math;
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 
-import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' hide LatLng;
 import 'package:latlong2/latlong.dart' as ll;
 import 'package:provider/provider.dart';
 
-import '../config/business_rules.dart' show BRDriver;
+import '../config/business_rules.dart' show BRBags, BRDriver;
+import '../models/cart_item.dart';
 import '../models/chat_message.dart';
 import '../models/order_model.dart';
 import '../services/directions_service.dart';
@@ -15,6 +20,7 @@ import '../services/navigation_service.dart';
 import '../services/route_optimizer.dart';
 import '../stores/driver_store.dart';
 import '../stores/order_store.dart';
+import '../stores/restaurant_store.dart';
 import '../utils/map_marker_helper.dart';
 import '../utils/map_utils.dart';
 import '../widgets/address_text.dart';
@@ -84,13 +90,23 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
   //     position, never from the previous start — no snap-back artefacts.
   ll.LatLng? _smoothedPosition;
   Timer? _interpolationTimer;
+
+  // ── Driver-arrow marker (Uber-style bearing rotation) ─────────────────────
+  double _bearing = 0.0;
+  BitmapDescriptor? _driverArrowIcon;
   static const Duration _interpolationDuration = Duration(milliseconds: 600);
-  static const Duration _interpolationFrame = Duration(milliseconds: 16); // ~60 fps
+  static const Duration _interpolationFrame =
+      Duration(milliseconds: 16); // ~60 fps
   static const double _jitterThresholdMetres = 1.0; // skip animation below this
 
   // Debounce timer: delays the Directions API call by 2.5 s after the last
   // qualifying movement, preventing bursts during rapid position updates.
   Timer? _debounceTimer;
+
+  // Off-route rerouting throttle — prevents hammering the Directions API.
+  DateTime? _lastRerouteTime;
+  static const double _offRouteThresholdMetres = 50.0;
+  static const int _rerouteThrottleSeconds = 15;
 
   @override
   void initState() {
@@ -108,6 +124,44 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
 
     MapMarkerHelper.preload();
     _startLocationTracking();
+    _loadDriverArrowIcon();
+  }
+
+  /// Builds the green arrow marker used for the driver. Runs off Web
+  /// (BitmapDescriptor.fromBytes is not supported on the web platform);
+  /// on Web the driver simply falls back to the native blue dot.
+  Future<void> _loadDriverArrowIcon() async {
+    if (kIsWeb) return;
+    try {
+      final bytes = await _createArrowIcon();
+      if (!mounted) return;
+      setState(() => _driverArrowIcon = BitmapDescriptor.bytes(bytes));
+    } catch (_) {
+      // Silent fallback — marker simply remains null and the Marker is skipped.
+    }
+  }
+
+  Future<Uint8List> _createArrowIcon() async {
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    const size = 56.0;
+    final paint = Paint()..color = const Color(0xFF1B5E20); // Bora deep green
+    final path = Path()
+      ..moveTo(size / 2, 0) // top point
+      ..lineTo(size, size) // bottom-right
+      ..lineTo(size / 2, size * 0.7) // notch
+      ..lineTo(0, size) // bottom-left
+      ..close();
+    canvas.drawPath(path, paint);
+    final stroke = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3;
+    canvas.drawPath(path, stroke);
+    final picture = recorder.endRecording();
+    final img = await picture.toImage(size.toInt(), size.toInt());
+    final bytes = await img.toByteData(format: ui.ImageByteFormat.png);
+    return bytes!.buffer.asUint8List();
   }
 
   @override
@@ -129,18 +183,18 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
   ///      On Android: uses AndroidSettings with ForegroundNotificationConfig
   ///      so the stream survives app minimisation (foreground service).
   Future<void> _startLocationTracking() async {
-    
     // ── 1. GPS service check ────────────────────────────────────────────────
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    
+
     if (!serviceEnabled) {
       if (!mounted) return;
       // GPS is disabled — attempt to unblock rendering with DriverStore fallback
       final fallback = _driverStore.currentDriver?.location;
-      
+
       if (fallback != null && mounted) {
         setState(() => _gpsCenter = fallback);
-        _mapController?.animateCamera(CameraUpdate.newLatLng(fallback.toGMaps()));
+        _mapController
+            ?.animateCamera(CameraUpdate.newLatLng(fallback.toGMaps()));
       }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -167,12 +221,13 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
       final fallback = _driverStore.currentDriver?.location;
       if (fallback != null && mounted) {
         setState(() => _gpsCenter = fallback);
-        _mapController?.animateCamera(CameraUpdate.newLatLng(fallback.toGMaps()));
+        _mapController
+            ?.animateCamera(CameraUpdate.newLatLng(fallback.toGMaps()));
       }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-              'Permissão de localização bloqueada. Ative nas definições.'),
+          content:
+              Text('Permissão de localização bloqueada. Ative nas definições.'),
           duration: Duration(seconds: 8),
           action: SnackBarAction(
             label: 'Definições',
@@ -187,7 +242,8 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
       final fallback = _driverStore.currentDriver?.location;
       if (fallback != null && mounted) {
         setState(() => _gpsCenter = fallback);
-        _mapController?.animateCamera(CameraUpdate.newLatLng(fallback.toGMaps()));
+        _mapController
+            ?.animateCamera(CameraUpdate.newLatLng(fallback.toGMaps()));
       }
       return;
     }
@@ -196,13 +252,11 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
     // Unblocks the GPS-first rendering guard without waiting for a new fix.
     // On Web, getLastKnownPosition may be slow or unreliable, so use timeout.
     try {
-      
       final last = await Geolocator.getLastKnownPosition()
           .timeout(const Duration(seconds: 5), onTimeout: () {
-        
         return null;
       });
-      
+
       if (last != null && mounted && _gpsCenter == null) {
         final loc = ll.LatLng(last.latitude, last.longitude);
         setState(() => _gpsCenter = loc);
@@ -217,23 +271,22 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
         // already held by DriverStore. If that's also null, use a safe default
         // and wait for stream to refine with real GPS.
         final fallback = _driverStore.currentDriver?.location;
-        
+
         if (fallback != null) {
           setState(() => _gpsCenter = fallback);
-          _mapController?.animateCamera(CameraUpdate.newLatLng(fallback.toGMaps()));
+          _mapController
+              ?.animateCamera(CameraUpdate.newLatLng(fallback.toGMaps()));
         } else {
           // Último recurso: centro padrão para desbloquear renderização.
           // O stream substituirá com GPS real assim que disponível.
           setState(() => _gpsCenter = _defaultFallbackCenter);
           _mapController?.animateCamera(
               CameraUpdate.newLatLng(_defaultFallbackCenter.toGMaps()));
-
         }
         // Stream will refine with real GPS location (see line 214-220)
       }
     } catch (e) {
       // Non-fatal — stream still provides a real fix.
-      
     }
 
     // ── 4. Continuous stream ─────────────────────────────────────────────────
@@ -285,7 +338,69 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
       // the smoothed overlay only affects the marker and camera.
       final driverStore = context.read<DriverStore>();
       driverStore.updateDriverLocation(driverStore.currentDriverId, newLoc);
+
+      // 2B: trim polyline segments already passed by the driver.
+      _trimPassedRoutePoints(newLoc);
+      // 2C/2D: reroute if driver strays > 50 m from the current polyline.
+      _checkOffRouteAndReroute(newLoc);
     });
+  }
+
+  /// Removes polyline points the driver has already passed.
+  /// Finds the closest point in [_routePoints] to [currentPos] and discards
+  /// everything before it (keeping one point behind for a smooth visual start).
+  void _trimPassedRoutePoints(ll.LatLng currentPos) {
+    if (_routePoints.length < 3) return;
+    int closestIdx = 0;
+    double closestDist = double.infinity;
+    for (int i = 0; i < _routePoints.length; i++) {
+      final d = const ll.Distance()
+          .as(ll.LengthUnit.Meter, currentPos, _routePoints[i]);
+      if (d < closestDist) {
+        closestDist = d;
+        closestIdx = i;
+      }
+    }
+    final trimFrom = closestIdx > 0 ? closestIdx - 1 : 0;
+    if (trimFrom > 0) {
+      setState(() {
+        _routePoints = _routePoints.sublist(trimFrom);
+      });
+    }
+  }
+
+  /// Returns the distance in metres from [pos] to the nearest point in
+  /// [_routePoints]. Used to detect when the driver left the route.
+  double _nearestPolylineDistanceMetres(ll.LatLng pos) {
+    if (_routePoints.isEmpty) return 0.0;
+    double min = double.infinity;
+    for (final pt in _routePoints) {
+      final d = const ll.Distance().as(ll.LengthUnit.Meter, pos, pt);
+      if (d < min) min = d;
+    }
+    return min;
+  }
+
+  /// Detects off-route situations and forces a route recalculation.
+  /// Bypasses the 50 m movement throttle in [_updateRouteMulti] by resetting
+  /// the cached route key/origin. Throttled to once every 15 s.
+  void _checkOffRouteAndReroute(ll.LatLng currentPos) {
+    if (_routePoints.length < 2) return;
+    final now = DateTime.now();
+    if (_lastRerouteTime != null &&
+        now.difference(_lastRerouteTime!).inSeconds < _rerouteThrottleSeconds) {
+      return;
+    }
+    final dist = _nearestPolylineDistanceMetres(currentPos);
+    if (dist <= _offRouteThresholdMetres) return;
+    _lastRerouteTime = now;
+    // Reset cached keys so _updateRouteMulti fetches immediately (no 50 m gate).
+    _activeRouteKey = null;
+    _lastRouteOrigin = null;
+    debugPrint(
+        '[DriverMap] Off-route (${dist.toStringAsFixed(0)} m) — forcing reroute');
+    // A setState here triggers build() → postFrameCallback → _updateRouteMulti.
+    if (mounted) setState(() {});
   }
 
   /// Smooth Uber-style interpolation from the CURRENT displayed position to
@@ -325,9 +440,20 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
       return;
     }
 
-    final totalFrames =
-        (_interpolationDuration.inMilliseconds / _interpolationFrame.inMilliseconds)
-            .round();
+    // Compute bearing once per animation (direction of travel). Updating it
+    // per frame would amplify sub-metre noise into marker rotation jitter.
+    final dLng = (newPos.longitude - startPos.longitude) * math.pi / 180;
+    final lat1 = startPos.latitude * math.pi / 180;
+    final lat2 = newPos.latitude * math.pi / 180;
+    final y = math.sin(dLng) * math.cos(lat2);
+    final x = math.cos(lat1) * math.sin(lat2) -
+        math.sin(lat1) * math.cos(lat2) * math.cos(dLng);
+    final newBearing = math.atan2(y, x) * 180 / math.pi;
+    _bearing = (newBearing + 360) % 360;
+
+    final totalFrames = (_interpolationDuration.inMilliseconds /
+            _interpolationFrame.inMilliseconds)
+        .round();
     var currentFrame = 0;
 
     _interpolationTimer = Timer.periodic(_interpolationFrame, (timer) {
@@ -339,8 +465,8 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
       final progress = (currentFrame / totalFrames).clamp(0.0, 1.0);
 
       // Linear interpolation (fast, predictable, matches Uber's behaviour).
-      final lat = startPos.latitude +
-          (newPos.latitude - startPos.latitude) * progress;
+      final lat =
+          startPos.latitude + (newPos.latitude - startPos.latitude) * progress;
       final lng = startPos.longitude +
           (newPos.longitude - startPos.longitude) * progress;
       final intermediate = ll.LatLng(lat, lng);
@@ -362,25 +488,13 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
     });
   }
 
-  /// Resolves the GPS-first rendering guard using the DriverStore location
-  /// when real GPS is unavailable (permission denied, service disabled, etc.).
-  /// Note: This method is no longer called; fallback check is inlined in
-  /// _startLocationTracking() to avoid silent failures when location is null.
-  void _resolveGpsTrackingFallback() {
-    if (!mounted) return;
-    final fallback = _driverStore.currentDriver?.location;
-    if (fallback != null) {
-      setState(() => _gpsCenter = fallback);
-      _mapController?.animateCamera(CameraUpdate.newLatLng(fallback.toGMaps()));
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     // Watch OrderStore so the widget rebuilds when an order is accepted/updated.
     // DriverStore uses read (location updates handled via setState in GPS stream).
     final driverStore = context.read<DriverStore>();
     final orderStore = context.watch<OrderStore>();
+    final restaurantStore = context.watch<RestaurantStore>();
 
     // NO early returns. GoogleMap must mount on the FIRST frame regardless of
     // whether the driver has been hydrated yet. When the driver is null we
@@ -394,7 +508,8 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
       _mapReady = true;
     }
 
-    final myOrders = driver != null ? orderStore.myOrders : const <OrderModel>[];
+    final myOrders =
+        driver != null ? orderStore.myOrders : const <OrderModel>[];
     // Raw GPS position — used for routes, RouteOptimizer, polylines.
     // Never jitters on every animation frame (drives expensive computations).
     final driverPosition = driver?.location ?? _stableInitialCenter;
@@ -402,8 +517,13 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
     // Used ONLY for the driver marker and camera follow. Falls back to the
     // raw position until the first GPS fix kicks the interpolation loop.
     final displayPosition = _smoothedPosition ?? driverPosition;
-    final optimizedRoute = RouteOptimizer.optimize(myOrders, driverPosition);
-    final nextStop = optimizedRoute.stops.isNotEmpty ? optimizedRoute.stops.first : null;
+    final optimizedRoute = _withRealPickupCoords(
+      RouteOptimizer.optimize(myOrders, driverPosition),
+      myOrders,
+      restaurantStore,
+    );
+    final nextStop =
+        optimizedRoute.stops.isNotEmpty ? optimizedRoute.stops.first : null;
 
     // Focus order: the order whose next stop comes first.
     // If no orders, focusOrder is null (will render empty map).
@@ -437,17 +557,25 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
     });
 
     // ── Markers ────────────────────────────────────────────────────────────
-    // Driver marker uses the smoothed (interpolated) position so it glides
-    // between GPS fixes instead of teleporting.
-    final markers = <Marker>{
-      Marker(
-        markerId: const MarkerId('driver'),
-        position: displayPosition.toGMaps(),
-        icon: MapMarkerHelper.driverIcon,
-        infoWindow: const InfoWindow(title: 'Estafeta'),
-        zIndexInt: 2,
-      ),
-    };
+    // Driver rendered as a green arrow that rotates with the direction of
+    // travel (bearing). Falls back to the native blue dot on Web (where the
+    // custom BitmapDescriptor is not supported) by leaving the marker off and
+    // re-enabling myLocationEnabled only when the icon hasn't loaded yet.
+    final markers = <Marker>{};
+
+    if (_driverArrowIcon != null) {
+      markers.add(
+        Marker(
+          markerId: const MarkerId('driver_self'),
+          position: displayPosition.toGMaps(),
+          rotation: _bearing,
+          icon: _driverArrowIcon!,
+          anchor: const Offset(0.5, 0.5),
+          flat: true,
+          zIndexInt: 2,
+        ),
+      );
+    }
 
     for (var i = 0; i < optimizedRoute.stops.length; i++) {
       final stop = optimizedRoute.stops[i];
@@ -457,7 +585,9 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
         Marker(
           markerId: MarkerId('stop_$i'),
           position: stop.location.toGMaps(),
-          icon: isPickup ? MapMarkerHelper.pickupIcon : MapMarkerHelper.deliveryIcon,
+          icon: isPickup
+              ? MapMarkerHelper.pickupIcon
+              : MapMarkerHelper.deliveryIcon,
           infoWindow: InfoWindow(
             title: isPickup ? 'Recolha$stepLabel' : 'Entrega$stepLabel',
             snippet: stop.label,
@@ -555,13 +685,15 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
               ),
               markers: markers,
               polylines: polylines,
-              myLocationEnabled: true,
+              style: _mapStyle,
+              // Use the native blue dot only when the custom arrow icon hasn't
+              // loaded yet (e.g. on Web, where fromBytes isn't supported).
+              myLocationEnabled: _driverArrowIcon == null,
               myLocationButtonEnabled: false,
               zoomControlsEnabled: false,
               mapToolbarEnabled: false,
               onMapCreated: (controller) {
                 _mapController = controller;
-                controller.setMapStyle(_mapStyle);
               },
             ),
           ),
@@ -592,21 +724,76 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
             ),
           ),
 
-          // Bottom info panel
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: _BottomPanel(
-              focusOrder: focusOrder,
-              nextStop: nextStop,
-              allStops: optimizedRoute.stops,
-              nextAction: nextAction,
-              routeDurationMinutes: _routeDurationMinutes,
+          // Bottom info panel — draggable sheet: map fills most of the screen,
+          // panel minimised by default, expands on drag.
+          Positioned.fill(
+            child: DraggableScrollableSheet(
+              initialChildSize: 0.15,
+              minChildSize: 0.15,
+              maxChildSize: 0.50,
+              snap: true,
+              snapSizes: const [0.15, 0.50],
+              builder: (context, scrollController) {
+                return SingleChildScrollView(
+                  controller: scrollController,
+                  physics: const ClampingScrollPhysics(),
+                  child: _BottomPanel(
+                    focusOrder: focusOrder,
+                    nextStop: nextStop,
+                    allStops: optimizedRoute.stops,
+                    orders: myOrders,
+                    driverPosition: displayPosition,
+                    nextAction: nextAction,
+                    routeDurationMinutes: _routeDurationMinutes,
+                  ),
+                );
+              },
             ),
           ),
         ],
       ),
+    );
+  }
+
+  /// Visual-only override: for each pickup stop, if the order has a
+  /// vendorName that matches a known restaurant, replace the stop location
+  /// with the real restaurant coordinates. Does NOT mutate the order or
+  /// affect pricing — only the marker/polyline rendering.
+  OptimizedRoute _withRealPickupCoords(
+    OptimizedRoute route,
+    List<OrderModel> orders,
+    RestaurantStore restaurantStore,
+  ) {
+    if (route.stops.isEmpty) return route;
+    final corrected = route.stops.map((stop) {
+      if (!stop.isPickup) return stop;
+      OrderModel? order;
+      for (final o in orders) {
+        if (o.id == stop.orderId) {
+          order = o;
+          break;
+        }
+      }
+      final vendorName = order?.vendorName;
+      if (vendorName == null || vendorName.isEmpty) return stop;
+      ll.LatLng? realLoc;
+      for (final r in restaurantStore.restaurants) {
+        if (r.name == vendorName) {
+          realLoc = r.location;
+          break;
+        }
+      }
+      if (realLoc == null) return stop;
+      return RouteStop(
+        type: stop.type,
+        orderId: stop.orderId,
+        location: realLoc,
+        label: stop.label,
+      );
+    }).toList();
+    return OptimizedRoute(
+      stops: corrected,
+      totalDistanceKm: route.totalDistanceKm,
     );
   }
 
@@ -659,10 +846,10 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
 
       _directionsService
           .fetchRoute(
-            origin: origin,
-            destination: destination,
-            waypoints: waypointLocations,
-          )
+        origin: origin,
+        destination: destination,
+        waypoints: waypointLocations,
+      )
           .then((route) {
         if (!mounted || _routeRequestId != requestId) return;
 
@@ -724,6 +911,8 @@ class _BottomPanel extends StatefulWidget {
     required this.focusOrder,
     required this.nextStop,
     required this.allStops,
+    required this.orders,
+    required this.driverPosition,
     required this.nextAction,
     this.routeDurationMinutes,
   });
@@ -731,6 +920,8 @@ class _BottomPanel extends StatefulWidget {
   final OrderModel? focusOrder;
   final RouteStop? nextStop;
   final List<RouteStop> allStops;
+  final List<OrderModel> orders;
+  final ll.LatLng? driverPosition;
   final DriverOrderAction? nextAction;
   final double? routeDurationMinutes;
 
@@ -798,13 +989,12 @@ class _BottomPanelState extends State<_BottomPanel> {
                   onPressed: () {
                     final entered = controller.text.trim();
                     if (entered.length != 4) {
-                      setDialogState(
-                          () => errorText = 'Digite os 4 dígitos.');
+                      setDialogState(() => errorText = 'Digite os 4 dígitos.');
                       return;
                     }
                     if (entered != widget.focusOrder?.deliveryCode) {
-                      setDialogState(
-                          () => errorText = 'Código incorreto. Tente novamente.');
+                      setDialogState(() =>
+                          errorText = 'Código incorreto. Tente novamente.');
                       controller.clear();
                       return;
                     }
@@ -849,6 +1039,34 @@ class _BottomPanelState extends State<_BottomPanel> {
       );
     }
     return success;
+  }
+
+  void _showShoppingListSheet(BuildContext context, OrderModel order) {
+    final items = order.items;
+    if (items.isEmpty) return;
+
+    final editableItems = items
+        .map((i) => CartItem(
+              productId: i.productId,
+              name: i.name,
+              price: i.price,
+              quantity: i.quantity,
+              purchaseStatus: i.purchaseStatus,
+              actualPrice: i.actualPrice,
+            ))
+        .toList();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _ShoppingListSheetContent(
+        order: order,
+        initialItems: editableItems,
+      ),
+    );
   }
 
   @override
@@ -902,152 +1120,189 @@ class _BottomPanelState extends State<_BottomPanel> {
                 Row(
                   children: [
                     _StatusBadge(status: focusOrder.status),
-                  const Spacer(),
-                  if (eta != null) ...[
-                    Icon(Icons.access_time_rounded,
-                        size: 16, color: Colors.grey.shade600),
-                    const SizedBox(width: 4),
-                    Text(
-                      eta,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w700, fontSize: 15),
+                    const Spacer(),
+                    if (eta != null) ...[
+                      Icon(Icons.access_time_rounded,
+                          size: 16, color: Colors.grey.shade600),
+                      const SizedBox(width: 4),
+                      Text(
+                        eta,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w700, fontSize: 15),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                if (_isMultiStop)
+                  _StopList(
+                    stops: widget.allStops,
+                    orders: widget.orders,
+                    driverPosition: widget.driverPosition,
+                  )
+                else
+                  _SingleOrderAddresses(order: focusOrder),
+
+                const SizedBox(height: 16),
+                const Divider(height: 1),
+                const SizedBox(height: 14),
+
+                // Stats row
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _InfoItem(
+                      icon: Icons.receipt_long_outlined,
+                      label: 'Pedido',
+                      value: '€${focusOrder.total.toStringAsFixed(2)}',
+                    ),
+                    _InfoItem(
+                      icon: Icons.payments_outlined,
+                      label: 'Ganhos',
+                      value:
+                          '+€${focusOrder.driverEarnings.toStringAsFixed(2)}',
+                      valueColor: Colors.green.shade700,
+                    ),
+                    _InfoItem(
+                      icon: Icons.route_outlined,
+                      label: 'Distância',
+                      value: '${focusOrder.distanceKm.toStringAsFixed(1)} km',
+                    ),
+                    _InfoItem(
+                      icon: Icons.monetization_on_outlined,
+                      label: 'Tokens',
+                      value:
+                          '+${(focusOrder.driverEarnings * BRDriver.DRIVER_TOKENS_PER_EUR).round()}',
+                      valueColor: Colors.amber.shade700,
                     ),
                   ],
-                ],
-              ),
-              const SizedBox(height: 16),
+                ),
 
-              if (_isMultiStop)
-                _StopList(stops: widget.allStops)
-              else
-                _SingleOrderAddresses(order: focusOrder),
+                const SizedBox(height: 16),
 
-              const SizedBox(height: 16),
-              const Divider(height: 1),
-              const SizedBox(height: 14),
-
-              // Stats row
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _InfoItem(
-                    icon: Icons.receipt_long_outlined,
-                    label: 'Pedido',
-                    value: '€${focusOrder.total.toStringAsFixed(2)}',
-                  ),
-                  _InfoItem(
-                    icon: Icons.payments_outlined,
-                    label: 'Ganhos',
-                    value: '+€${focusOrder.driverEarnings.toStringAsFixed(2)}',
-                    valueColor: Colors.green.shade700,
-                  ),
-                  _InfoItem(
-                    icon: Icons.route_outlined,
-                    label: 'Distância',
-                    value: '${focusOrder.distanceKm.toStringAsFixed(1)} km',
-                  ),
-                  _InfoItem(
-                    icon: Icons.monetization_on_outlined,
-                    label: 'Tokens',
-                    value: '+${(focusOrder.driverEarnings * BRDriver.DRIVER_TOKENS_PER_EUR).round()}',
-                    valueColor: Colors.amber.shade700,
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 16),
-
-              // Action buttons row
-              Row(
-                children: [
-                  OutlinedButton.icon(
-                    onPressed: nextStop == null
-                        ? null
-                        : () => NavigationService.openNavigationOptions(
-                              context,
-                              nextStop.location,
-                            ),
-                    icon: const Icon(Icons.navigation_outlined, size: 18),
-                    label: const Text('Navegar'),
-                    style: OutlinedButton.styleFrom(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                // "Ver compras" button — pickup phase only, if order has items
+                if (focusOrder.items.isNotEmpty &&
+                    (focusOrder.status == OrderStatus.driverAccepted ||
+                        focusOrder.status == OrderStatus.pickedUp)) ...[
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () =>
+                          _showShoppingListSheet(context, focusOrder),
+                      icon: Icon(Icons.receipt_long,
+                          size: 18, color: Colors.green.shade700),
+                      label: Text(
+                        'Ver compras (${focusOrder.items.length} ${focusOrder.items.length == 1 ? 'item' : 'itens'})',
+                        style: TextStyle(color: Colors.green.shade700),
                       ),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
-                    ),
-                  ),
-                  if (nextAction != null) ...[
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: _isLoading
-                            ? null
-                            : () async {
-                                // Capture before async gap: the widget may be
-                                // disposed when finishOrder removes it from
-                                // myOrders, making mounted == false too early.
-                                final action = nextAction;
-                                final willFinish = widget.focusOrder?.status ==
-                                    OrderStatus.onTheWay;
-
-                                // Delivery step: validate code before executing.
-                                if (willFinish) {
-                                  await _showDeliveryCodeDialog(action);
-                                  return;
-                                }
-
-                                final messenger =
-                                    ScaffoldMessenger.of(context);
-                                setState(() => _isLoading = true);
-                                final success = await action.execute();
-                                if (success) {
-                                  if (mounted) {
-                                    setState(() => _isLoading = false);
-                                  }
-                                  messenger.showSnackBar(
-                                    SnackBar(
-                                      content: Text(action.successMessage),
-                                      duration: const Duration(seconds: 2),
-                                    ),
-                                  );
-                                } else {
-                                  if (mounted) {
-                                    setState(() => _isLoading = false);
-                                  }
-                                  messenger.showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                          'Não foi possível atualizar o pedido.'),
-                                    ),
-                                  );
-                                }
-                              },
-                        style: ElevatedButton.styleFrom(
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: Colors.green.shade400),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        child: _isLoading
-                            ? const SizedBox(
-                                height: 18,
-                                width: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : Text(
-                                nextAction.label,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w600),
-                              ),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
                     ),
-                  ],
+                  ),
+                  const SizedBox(height: 12),
                 ],
-              ),
+
+                // Action buttons row
+                Row(
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: nextStop == null
+                          ? null
+                          : () => NavigationService.openNavigationOptions(
+                                context,
+                                nextStop.location,
+                              ),
+                      icon: const Icon(Icons.navigation_outlined, size: 18),
+                      label: const Text('Navegar'),
+                      style: OutlinedButton.styleFrom(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
+                      ),
+                    ),
+                    if (nextAction != null) ...[
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: _isLoading
+                              ? null
+                              : () async {
+                                  // Capture before async gap: the widget may be
+                                  // disposed when finishOrder removes it from
+                                  // myOrders, making mounted == false too early.
+                                  final action = nextAction;
+                                  final willFinish =
+                                      widget.focusOrder?.status ==
+                                          OrderStatus.onTheWay;
+
+                                  // Delivery step: PIN bypass activo para testes.
+                                  // Para reactivar, meter `kRequireDeliveryCode = true`.
+                                  const bool kRequireDeliveryCode = false;
+                                  // ignore: dead_code
+                                  if (willFinish && kRequireDeliveryCode) {
+                                    await _showDeliveryCodeDialog(action);
+                                    return;
+                                  }
+
+                                  final messenger =
+                                      ScaffoldMessenger.of(context);
+                                  setState(() => _isLoading = true);
+                                  final success = await action.execute();
+                                  if (success) {
+                                    if (mounted) {
+                                      setState(() => _isLoading = false);
+                                    }
+                                    messenger.showSnackBar(
+                                      SnackBar(
+                                        content: Text(action.successMessage),
+                                        duration: const Duration(seconds: 2),
+                                      ),
+                                    );
+                                  } else {
+                                    if (mounted) {
+                                      setState(() => _isLoading = false);
+                                    }
+                                    messenger.showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                            'Não foi possível atualizar o pedido.'),
+                                      ),
+                                    );
+                                  }
+                                },
+                          style: ElevatedButton.styleFrom(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          child: _isLoading
+                              ? const SizedBox(
+                                  height: 18,
+                                  width: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : Text(
+                                  nextAction.label,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w600),
+                                ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ] else ...[
                 // No order accepted — show empty map message
                 Center(
@@ -1067,18 +1322,25 @@ class _BottomPanelState extends State<_BottomPanel> {
 
               // If focusOrder is available: show finalize/chat sections
               if (focusOrder != null) ...[
-                // Finalize purchase — only for orders where driver buys goods
+                // Finalize purchase — only for orders where driver buys goods.
+                // Available from driverAccepted onwards so the driver can
+                // finalize BEFORE confirming pickup (Confirmar recolha is
+                // hidden while !isPurchaseFinalized in driverAccepted).
                 if (!_isMultiStop &&
                     !focusOrder.isPartnerStore &&
                     (focusOrder.serviceType == OrderServiceType.storeShopping ||
-                        focusOrder.serviceType == OrderServiceType.restaurant) &&
-                    (focusOrder.status == OrderStatus.pickedUp ||
+                        focusOrder.serviceType ==
+                            OrderServiceType.restaurant) &&
+                    (focusOrder.status == OrderStatus.driverAccepted ||
+                        focusOrder.status == OrderStatus.pickedUp ||
                         focusOrder.status == OrderStatus.onTheWay)) ...[
                   const SizedBox(height: 12),
                   if (focusOrder.isPurchaseFinalized &&
                       focusOrder.finalTotal != null)
                     _FinalizedBanner(finalTotal: focusOrder.finalTotal!)
-                  else
+                  else if (focusOrder.items.isEmpty ||
+                      focusOrder.items
+                          .every((i) => i.purchaseStatus != 'pending'))
                     _FinalizePurchaseButton(order: focusOrder),
                 ],
 
@@ -1125,7 +1387,7 @@ class _BottomPanelState extends State<_BottomPanel> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          focusOrder!.customerNotes!,
+                          focusOrder.customerNotes!,
                           style: TextStyle(
                               fontSize: 13, color: Colors.grey.shade700),
                         ),
@@ -1135,7 +1397,9 @@ class _BottomPanelState extends State<_BottomPanel> {
                 ),
               ],
 
-              if (!_isMultiStop && focusOrder != null && focusOrder.apartmentDelivery) ...[
+              if (!_isMultiStop &&
+                  focusOrder != null &&
+                  focusOrder.apartmentDelivery) ...[
                 const SizedBox(height: 12),
                 const _ApartmentDeliveryBanner(),
               ],
@@ -1150,9 +1414,22 @@ class _BottomPanelState extends State<_BottomPanel> {
 // ─── Stop list (multi-order) ──────────────────────────────────────────────────
 
 class _StopList extends StatelessWidget {
-  const _StopList({required this.stops});
+  const _StopList({
+    required this.stops,
+    required this.orders,
+    required this.driverPosition,
+  });
 
   final List<RouteStop> stops;
+  final List<OrderModel> orders;
+  final ll.LatLng? driverPosition;
+
+  OrderModel? _orderFor(RouteStop stop) {
+    for (final o in orders) {
+      if (o.id == stop.orderId) return o;
+    }
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1160,7 +1437,12 @@ class _StopList extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         for (var i = 0; i < stops.length; i++) ...[
-          _StopRow(stop: stops[i], index: i),
+          _StopRow(
+            stop: stops[i],
+            index: i,
+            order: _orderFor(stops[i]),
+            driverPosition: driverPosition,
+          ),
           if (i < stops.length - 1)
             Padding(
               padding: const EdgeInsets.only(left: 15),
@@ -1177,10 +1459,33 @@ class _StopList extends StatelessWidget {
 }
 
 class _StopRow extends StatelessWidget {
-  const _StopRow({required this.stop, required this.index});
+  const _StopRow({
+    required this.stop,
+    required this.index,
+    this.order,
+    this.driverPosition,
+  });
 
   final RouteStop stop;
   final int index;
+  final OrderModel? order;
+  final ll.LatLng? driverPosition;
+
+  String? _buildVendorLine() {
+    if (!stop.isPickup) return null;
+    final vendorName = order?.vendorName;
+    if (vendorName == null || vendorName.isEmpty) return null;
+    final pickupLoc = order?.pickupLocation;
+    if (driverPosition != null && pickupLoc != null) {
+      final km = const ll.Distance().as(
+        ll.LengthUnit.Kilometer,
+        driverPosition!,
+        pickupLoc,
+      );
+      return '$vendorName · ${km.toStringAsFixed(1)} km';
+    }
+    return vendorName;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1189,6 +1494,7 @@ class _StopRow extends StatelessWidget {
     final icon = isPickup ? Icons.circle : Icons.location_on_rounded;
     final iconSize = isPickup ? 11.0 : 18.0;
     final typeLabel = isPickup ? 'Recolha' : 'Entrega';
+    final vendorLine = _buildVendorLine();
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -1198,7 +1504,7 @@ class _StopRow extends StatelessWidget {
           width: 20,
           height: 20,
           decoration: BoxDecoration(
-            color: color.withOpacity(0.12),
+            color: color.withValues(alpha: 0.12),
             shape: BoxShape.circle,
           ),
           alignment: Alignment.center,
@@ -1232,11 +1538,21 @@ class _StopRow extends StatelessWidget {
                   fontWeight: FontWeight.w500,
                 ),
               ),
+              if (vendorLine != null)
+                Text(
+                  vendorLine,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               AddressText(
                 rawAddress: stop.label,
                 coords: stop.location,
-                style: const TextStyle(
-                    fontSize: 13, fontWeight: FontWeight.w500),
+                style:
+                    const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -1336,6 +1652,7 @@ class _StatusBadge extends StatelessWidget {
       case OrderStatus.delivered:
         return Colors.green;
       case OrderStatus.rejected:
+      case OrderStatus.cancelled:
         return Colors.red;
     }
   }
@@ -1345,7 +1662,7 @@ class _StatusBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: _color.withOpacity(0.12),
+        color: _color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -1639,6 +1956,683 @@ class _ApartmentDeliveryBanner extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Shopping-list bottom-sheet — proper StatefulWidget so that state (bought /
+// unavailable marks, added products) survives across rebuilds triggered by
+// keyboard show/hide or dialog open/close.
+// ────────────────────────────────────────────────────────────────────────────
+class _ShoppingListSheetContent extends StatefulWidget {
+  final OrderModel order;
+  final List<CartItem> initialItems;
+
+  const _ShoppingListSheetContent({
+    required this.order,
+    required this.initialItems,
+  });
+
+  @override
+  State<_ShoppingListSheetContent> createState() =>
+      _ShoppingListSheetContentState();
+}
+
+class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
+  late final List<CartItem> _items;
+  late int _bagCount;
+
+  bool get _isRestaurant =>
+      widget.order.serviceType == OrderServiceType.restaurant;
+
+  double get _bagFee => _isRestaurant
+      ? BRBags.RESTAURANT_BAG_FEE
+      : _bagCount * BRBags.MARKET_BAG_FEE;
+
+  @override
+  void initState() {
+    super.initState();
+    _items = List.of(widget.initialItems);
+    _bagCount = widget.order.bagCount > 0
+        ? widget.order.bagCount
+        : (_isRestaurant ? 1 : 1);
+  }
+
+  // ── Add-product dialog ──────────────────────────────────────────────────
+  Future<CartItem?> _showAddProductDialog() {
+    return showDialog<CartItem>(
+      context: context,
+      builder: (dialogCtx) {
+        final nameCtrl = TextEditingController();
+        final priceCtrl = TextEditingController();
+        int qty = 1;
+        String? nameError;
+        String? priceError;
+
+        return StatefulBuilder(
+          builder: (_, setDialogState) {
+            return AlertDialog(
+              title: const Text('Novo produto'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: nameCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'Nome do produto',
+                      errorText: nameError,
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    textCapitalization: TextCapitalization.sentences,
+                    autofocus: true,
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: priceCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'Preço (€)',
+                      errorText: priceError,
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      const Text('Quantidade:', style: TextStyle(fontSize: 13)),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        onPressed:
+                            qty > 1 ? () => setDialogState(() => qty--) : null,
+                        icon: const Icon(Icons.remove_circle_outline, size: 22),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        color: Colors.green.shade700,
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: Text(
+                          '$qty',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => setDialogState(() => qty++),
+                        icon: const Icon(Icons.add_circle_outline, size: 22),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        color: Colors.green.shade700,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogCtx),
+                  child: const Text('Cancelar'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    final name = nameCtrl.text.trim();
+                    final priceText =
+                        priceCtrl.text.trim().replaceAll(',', '.');
+                    final price = double.tryParse(priceText) ?? 0;
+                    String? nErr;
+                    String? pErr;
+                    if (name.isEmpty) nErr = 'Nome obrigatório';
+                    if (price <= 0) pErr = 'Preço inválido';
+                    if (nErr != null || pErr != null) {
+                      setDialogState(() {
+                        nameError = nErr;
+                        priceError = pErr;
+                      });
+                      return;
+                    }
+                    Navigator.pop(
+                      dialogCtx,
+                      CartItem(
+                        productId:
+                            'extra_${DateTime.now().millisecondsSinceEpoch}',
+                        name: name,
+                        price: price,
+                        quantity: qty,
+                        purchaseStatus: 'bought',
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green.shade600,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text('Adicionar'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // ── Build ───────────────────────────────────────────────────────────────
+  @override
+  Widget build(BuildContext context) {
+    final order = widget.order;
+    final boughtCount =
+        _items.where((i) => i.purchaseStatus == 'bought').length;
+    final unavailableCount =
+        _items.where((i) => i.purchaseStatus == 'unavailable').length;
+    final totalCount = _items.length;
+    final pendingCount = totalCount - boughtCount - unavailableCount;
+    final allDecided = pendingCount == 0;
+
+    final boughtTotal = _items
+        .where((i) => i.purchaseStatus == 'bought')
+        .fold<double>(0, (s, i) => s + i.price * i.quantity);
+
+    final progress = totalCount > 0 ? boughtCount / totalCount : 0.0;
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        20,
+        16,
+        20,
+        24 + MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.85,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Handle ──
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              // ── Title ──
+              Text(
+                'Lista de compras — ${order.vendorName ?? "Loja"}',
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 4),
+              // ── Progress text ──
+              Text(
+                '$boughtCount de $totalCount comprados',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              // ── Progress bar ──
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: progress,
+                  backgroundColor: Colors.grey.shade200,
+                  valueColor:
+                      AlwaysStoppedAnimation<Color>(Colors.green.shade600),
+                  minHeight: 6,
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Divider(height: 1),
+              const SizedBox(height: 4),
+              // ── Item list ──
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.45,
+                ),
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: _items.length,
+                  itemBuilder: (_, index) {
+                    final item = _items[index];
+                    final isBought = item.purchaseStatus == 'bought';
+                    final isUnavailable = item.purchaseStatus == 'unavailable';
+                    final isPending = item.purchaseStatus == 'pending';
+
+                    Color bgColor;
+                    if (isBought) {
+                      bgColor = Colors.green.shade50;
+                    } else if (isUnavailable) {
+                      bgColor = Colors.grey.shade100;
+                    } else {
+                      bgColor = Colors.white;
+                    }
+
+                    return GestureDetector(
+                      onTap: (isBought || isUnavailable)
+                          ? () {
+                              setState(() {
+                                item.purchaseStatus = 'pending';
+                              });
+                            }
+                          : null,
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(vertical: 4),
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: bgColor,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: Colors.grey.shade200,
+                            width: 0.5,
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                if (isBought)
+                                  Icon(Icons.check_circle,
+                                      color: Colors.green.shade600, size: 20)
+                                else if (isUnavailable)
+                                  Icon(Icons.cancel,
+                                      color: Colors.red.shade400, size: 20)
+                                else
+                                  Icon(Icons.radio_button_unchecked,
+                                      color: Colors.grey.shade400, size: 20),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    '${item.name} × ${item.quantity}',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                      decoration: isUnavailable
+                                          ? TextDecoration.lineThrough
+                                          : null,
+                                      color: isUnavailable
+                                          ? Colors.grey
+                                          : Colors.black87,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                Text(
+                                  '€${(item.price * item.quantity).toStringAsFixed(2)}',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                    decoration: isUnavailable
+                                        ? TextDecoration.lineThrough
+                                        : null,
+                                    color: isUnavailable
+                                        ? Colors.grey
+                                        : Colors.black87,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (isPending) ...[
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: SizedBox(
+                                      height: 32,
+                                      child: ElevatedButton.icon(
+                                        onPressed: () {
+                                          setState(() {
+                                            item.purchaseStatus = 'bought';
+                                          });
+                                        },
+                                        icon: const Icon(Icons.check, size: 16),
+                                        label: const Text('Comprado',
+                                            style: TextStyle(fontSize: 12)),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor:
+                                              Colors.green.shade600,
+                                          foregroundColor: Colors.white,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                          ),
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: SizedBox(
+                                      height: 32,
+                                      child: ElevatedButton.icon(
+                                        onPressed: () {
+                                          setState(() {
+                                            item.purchaseStatus = 'unavailable';
+                                          });
+                                        },
+                                        icon: const Icon(Icons.close, size: 16),
+                                        label: const Text('Não há',
+                                            style: TextStyle(fontSize: 12)),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.red.shade600,
+                                          foregroundColor: Colors.white,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                          ),
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Divider(height: 1),
+              const SizedBox(height: 12),
+              // ── Add product button ──
+              Center(
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    final newItem = await _showAddProductDialog();
+                    if (newItem != null && mounted) {
+                      setState(() {
+                        _items.add(newItem);
+                      });
+                    }
+                  },
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Adicionar produto'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.green.shade700,
+                    side: BorderSide(color: Colors.green.shade700),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              // ── Bags section ──
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.orange.shade200, width: 0.5),
+                ),
+                child: _isRestaurant
+                    ? Row(
+                        children: [
+                          const Text('🛍️', style: TextStyle(fontSize: 18)),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Saco de transporte',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                Text(
+                                  '(incluído automaticamente)',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Text(
+                            '€${BRBags.RESTAURANT_BAG_FEE.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      )
+                    : Row(
+                        children: [
+                          const Text('🛍️', style: TextStyle(fontSize: 18)),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Sacos',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                Text(
+                                  '(€${BRBags.MARKET_BAG_FEE.toStringAsFixed(2)} por saco)',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: _bagCount > 0
+                                ? () => setState(() => _bagCount--)
+                                : null,
+                            icon: const Icon(Icons.remove_circle_outline,
+                                size: 22),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            color: Colors.orange.shade700,
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            child: Text(
+                              '$_bagCount',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: _bagCount < 20
+                                ? () => setState(() => _bagCount++)
+                                : null,
+                            icon:
+                                const Icon(Icons.add_circle_outline, size: 22),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            color: Colors.orange.shade700,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '€${_bagFee.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+              ),
+              const SizedBox(height: 12),
+              // ── Totals breakdown ──
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Subtotal:',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
+                  Text(
+                    '€${boughtTotal.toStringAsFixed(2)}',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Sacos:',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
+                  Text(
+                    '€${_bagFee.toStringAsFixed(2)}',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Total:',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                    ),
+                  ),
+                  Text(
+                    '€${(boughtTotal + _bagFee).toStringAsFixed(2)}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                      color: Colors.green.shade700,
+                    ),
+                  ),
+                ],
+              ),
+              if (unavailableCount > 0)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    '($unavailableCount produto${unavailableCount > 1 ? 's' : ''} indisponível${unavailableCount > 1 ? 'eis' : ''})',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 16),
+              // ── Confirm button ──
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: allDecided
+                      ? () async {
+                          final orderStore = context.read<OrderStore>();
+                          final messenger = ScaffoldMessenger.of(context);
+                          final nav = Navigator.of(context);
+                          final ok = await orderStore.updateOrderItems(
+                            order.id,
+                            _items,
+                            bagCount: _isRestaurant ? 1 : _bagCount,
+                            bagFee: _bagFee,
+                          );
+                          if (!mounted) return;
+                          if (ok) {
+                            nav.pop();
+                            messenger.showSnackBar(
+                              const SnackBar(
+                                content: Text('Compra confirmada ✅'),
+                              ),
+                            );
+                          } else {
+                            messenger.showSnackBar(
+                              const SnackBar(
+                                content: Text('Erro ao confirmar compra.'),
+                              ),
+                            );
+                          }
+                        }
+                      : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green.shade600,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: Colors.grey.shade300,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  child: Text(
+                    allDecided
+                        ? 'Confirmar compra'
+                        : 'Marque todos os items ($pendingCount restante${pendingCount > 1 ? 's' : ''})',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -102,6 +102,12 @@ class AuthStore extends ChangeNotifier {
   static const _kAddress = 'bora_address';
   static const _kPhotoUrl = 'bora_photo_url';
   static const _kCuisineType = 'bora_cuisine_type';
+  static const _kConsentAcceptedAt = 'bora_consent_accepted_at';
+  static const _kConsentVersion = 'bora_consent_version';
+
+  /// Version of the Terms + Privacy text currently shown at signup (BR §20.1).
+  /// Bump when the legal text changes to trigger re-consent in future flows.
+  static const String currentConsentVersion = '1.0';
 
   static const _kClientAccount = 'bora_auth.client_account';
   static const _kDriverAccount = 'bora_auth.driver_account';
@@ -231,7 +237,7 @@ class AuthStore extends ChangeNotifier {
 
   // ── Guest session ─────────────────────────────────────────────────────────
 
-  static const _guestEmail    = 'guest@bora.com';
+  static const _guestEmail = 'guest@bora.com';
   static const _guestPassword = '123456';
 
   Future<void> _ensureGuestSession() async {
@@ -242,7 +248,8 @@ class AuthStore extends ChangeNotifier {
         email: _guestEmail,
         password: _guestPassword,
       );
-      debugPrint('AuthStore: guest session OK — uid=${_supabase.auth.currentUser?.id}');
+      debugPrint(
+          'AuthStore: guest session OK — uid=${_supabase.auth.currentUser?.id}');
       return;
     } catch (e) {
       debugPrint('AuthStore: guest sign-in failed, trying signUp => $e');
@@ -254,7 +261,8 @@ class AuthStore extends ChangeNotifier {
         password: _guestPassword,
       );
       if (_supabase.auth.currentUser != null) {
-        debugPrint('AuthStore: guest account created — uid=${_supabase.auth.currentUser?.id}');
+        debugPrint(
+            'AuthStore: guest account created — uid=${_supabase.auth.currentUser?.id}');
         return;
       }
       await _supabase.auth.signInWithPassword(
@@ -266,6 +274,10 @@ class AuthStore extends ChangeNotifier {
     }
   }
 
+  /// Public wrapper — ensures a valid Supabase session exists before order
+  /// insertion. No-op if already authenticated. Re-signs-in as guest if not.
+  Future<void> ensureSessionForOrder() => _ensureGuestSession();
+
   Future<void> _signInBackground({
     required String email,
     required String password,
@@ -273,7 +285,8 @@ class AuthStore extends ChangeNotifier {
   }) async {
     try {
       await _supabase.auth.signInWithPassword(email: email, password: password);
-      debugPrint('AuthStore: $tag signed in — uid=${_supabase.auth.currentUser?.id}');
+      debugPrint(
+          'AuthStore: $tag signed in — uid=${_supabase.auth.currentUser?.id}');
     } catch (e) {
       debugPrint('AuthStore: $tag signIn error => $e');
     }
@@ -321,11 +334,16 @@ class AuthStore extends ChangeNotifier {
           .signUp(
             email: normalizedEmail,
             password: password,
-            data: {_kRole: 'client', _kName: name.trim(), _kPhone: phone.trim()},
+            data: {
+              _kRole: 'client',
+              _kName: name.trim(),
+              _kPhone: phone.trim()
+            },
           )
           .then<void>((_) {})
           .catchError((e) {
-            debugPrint('AuthStore: registerClient background signUp error => $e');
+            debugPrint(
+                'AuthStore: registerClient background signUp error => $e');
           }),
     );
     return null;
@@ -336,6 +354,7 @@ class AuthStore extends ChangeNotifier {
     required String email,
     required String phone,
     required String password,
+    DateTime? consentAcceptedAt,
   }) async {
     final normalizedEmail = email.trim().toLowerCase();
     final normalizedName = name.trim();
@@ -353,6 +372,9 @@ class AuthStore extends ChangeNotifier {
           _kRole: 'client',
           _kName: normalizedName,
           _kPhone: normalizedPhone,
+          if (consentAcceptedAt != null)
+            _kConsentAcceptedAt: consentAcceptedAt.toUtc().toIso8601String(),
+          if (consentAcceptedAt != null) _kConsentVersion: currentConsentVersion,
         },
       );
 
@@ -452,6 +474,11 @@ class AuthStore extends ChangeNotifier {
 
   // ─── Driver ───────────────────────────────────────────────────────────────
 
+  /// Legacy shortcut: creates driver + auto-logs in without approval.
+  /// Bypasses BR §7 (admin approval with documents + IBAN).
+  /// Production flow: use DriverSignupScreen → DriverPendingScreen.
+  /// Kept for admin tooling / tests.
+  @Deprecated('Use DriverSignupScreen flow (BR §7). This bypasses approval.')
   Future<String?> registerDriverAsync({
     required String name,
     required String email,
@@ -459,6 +486,7 @@ class AuthStore extends ChangeNotifier {
     required VehicleType vehicleType,
     required String licensePlate,
     required String password,
+    DateTime? consentAcceptedAt,
   }) async {
     final normalizedEmail = email.trim().toLowerCase();
     final normalizedPhone = phone.trim();
@@ -478,6 +506,9 @@ class AuthStore extends ChangeNotifier {
           _kPhone: normalizedPhone,
           _kVehicleType: vehicleType.name,
           _kLicensePlate: licensePlate.trim(),
+          if (consentAcceptedAt != null)
+            _kConsentAcceptedAt: consentAcceptedAt.toUtc().toIso8601String(),
+          if (consentAcceptedAt != null) _kConsentVersion: currentConsentVersion,
         },
       );
 
@@ -498,6 +529,7 @@ class AuthStore extends ChangeNotifier {
       try {
         await _supabase.from('drivers').upsert({
           'id': user.id,
+          'user_id': user.id,
           'name': name.trim(),
           'phone': normalizedPhone,
           'email': normalizedEmail,
@@ -507,9 +539,14 @@ class AuthStore extends ChangeNotifier {
           'lat': 38.7223,
           'lng': -9.1393,
           'status': 'pending',
+          if (consentAcceptedAt != null)
+            'consent_accepted_at': consentAcceptedAt.toUtc().toIso8601String(),
+          if (consentAcceptedAt != null)
+            'consent_version': currentConsentVersion,
         });
       } catch (e) {
-        debugPrint('AuthStore: registerDriverAsync - drivers upsert error => $e');
+        debugPrint(
+            'AuthStore: registerDriverAsync - drivers upsert error => $e');
       }
 
       final account = DriverAccount(
@@ -521,7 +558,9 @@ class AuthStore extends ChangeNotifier {
         password: password,
       );
       _driversByEmail[normalizedEmail] = account;
-      if (normalizedPhone.isNotEmpty) _driversByPhone[normalizedPhone] = account;
+      if (normalizedPhone.isNotEmpty) {
+        _driversByPhone[normalizedPhone] = account;
+      }
       _currentDriver = account;
       _currentClient = null;
       _currentPartner = null;
@@ -538,7 +577,8 @@ class AuthStore extends ChangeNotifier {
   Future<bool> loginDriverAsync(String email, String password) async {
     final normalizedEmail = email.trim().toLowerCase();
 
-    debugPrint('[AuthStore] loginDriverAsync → normalizedEmail=$normalizedEmail');
+    debugPrint(
+        '[AuthStore] loginDriverAsync → normalizedEmail=$normalizedEmail');
 
     // Clear any stale or guest session BEFORE attempting login.
     // Without this, if signInWithPassword throws (user not found, wrong
@@ -546,7 +586,8 @@ class AuthStore extends ChangeNotifier {
     // would return the wrong UID for all subsequent driver operations.
     try {
       await _supabase.auth.signOut();
-      debugPrint('[AuthStore] loginDriverAsync → signOut OK (cleared previous session)');
+      debugPrint(
+          '[AuthStore] loginDriverAsync → signOut OK (cleared previous session)');
     } catch (_) {}
 
     try {
@@ -559,12 +600,14 @@ class AuthStore extends ChangeNotifier {
         return false;
       }
 
-      debugPrint('[AuthStore] loginDriverAsync → auth.currentUser.id=${user.id}');
+      debugPrint(
+          '[AuthStore] loginDriverAsync → auth.currentUser.id=${user.id}');
 
       final meta = user.userMetadata ?? {};
       final role = meta[_kRole] as String?;
       if (role != 'driver') {
-        debugPrint('[AuthStore] loginDriverAsync → wrong role: "$role" (expected "driver") — signing out');
+        debugPrint(
+            '[AuthStore] loginDriverAsync → wrong role: "$role" (expected "driver") — signing out');
         // Sign out immediately so the non-driver session is not left active.
         try {
           await _supabase.auth.signOut();
@@ -572,7 +615,8 @@ class AuthStore extends ChangeNotifier {
         return false;
       }
 
-      debugPrint('[AuthStore] loginDriverAsync → SUCCESS uid=${user.id} role=$role');
+      debugPrint(
+          '[AuthStore] loginDriverAsync → SUCCESS uid=${user.id} role=$role');
 
       final vtStr = meta[_kVehicleType] as String? ?? 'car';
       final phone = meta[_kPhone] as String? ?? '';
@@ -581,10 +625,10 @@ class AuthStore extends ChangeNotifier {
       try {
         final row = await _supabase
             .from('drivers')
-            .select('status')
+            .select('approval_status')
             .eq('id', user.id)
             .maybeSingle();
-        final statusStr = row?['status'] as String? ?? 'approved';
+        final statusStr = row?['approval_status'] as String? ?? 'approved';
         driverStatus = DriverStatus.values.firstWhere(
           (s) => s.name == statusStr,
           orElse: () => DriverStatus.approved,
@@ -634,9 +678,7 @@ class AuthStore extends ChangeNotifier {
     notifyListeners();
     _persistDriver(account);
     _signInBackground(
-        email: account.email,
-        password: password,
-        tag: 'loginDriver');
+        email: account.email, password: password, tag: 'loginDriver');
     return true;
   }
 
@@ -650,6 +692,7 @@ class AuthStore extends ChangeNotifier {
     required String password,
     required String photoUrl,
     required String cuisineType,
+    DateTime? consentAcceptedAt,
   }) {
     final normalizedEmail = email.trim().toLowerCase();
     if (restaurantName.trim().isEmpty ||
@@ -688,11 +731,17 @@ class AuthStore extends ChangeNotifier {
               _kPhone: phone.trim(),
               _kPhotoUrl: photoUrl.trim(),
               _kCuisineType: cuisineType.trim(),
+              if (consentAcceptedAt != null)
+                _kConsentAcceptedAt:
+                    consentAcceptedAt.toUtc().toIso8601String(),
+              if (consentAcceptedAt != null)
+                _kConsentVersion: currentConsentVersion,
             },
           )
           .then<void>((_) {})
           .catchError((e) {
-            debugPrint('AuthStore: registerPartner background signUp error => $e');
+            debugPrint(
+                'AuthStore: registerPartner background signUp error => $e');
           }),
     );
     return null;
@@ -882,13 +931,15 @@ class AuthStore extends ChangeNotifier {
               _supabase.auth.currentUser?.email == email;
 
           if (!isAlreadyDriver) {
-            debugPrint('AuthStore: restoring driver Supabase session for $email');
+            debugPrint(
+                'AuthStore: restoring driver Supabase session for $email');
             try {
               await _supabase.auth.signInWithPassword(
                 email: email,
                 password: password,
               );
-              debugPrint('AuthStore: driver session restored — uid=${_supabase.auth.currentUser?.id}');
+              debugPrint(
+                  'AuthStore: driver session restored — uid=${_supabase.auth.currentUser?.id}');
               restoredRealSession = true;
             } catch (e) {
               debugPrint('AuthStore: driver session restore failed => $e');
@@ -902,7 +953,8 @@ class AuthStore extends ChangeNotifier {
               } catch (_) {}
             }
           } else {
-            debugPrint('AuthStore: Supabase already has driver session — uid=$currentUid');
+            debugPrint(
+                'AuthStore: Supabase already has driver session — uid=$currentUid');
             restoredRealSession = true;
           }
         }
@@ -913,9 +965,10 @@ class AuthStore extends ChangeNotifier {
           final password = map['password'] as String? ?? '';
           _currentClient = _clientsByEmail[email];
 
-          if (_currentClient != null && email.isNotEmpty && password.isNotEmpty) {
-            final isAlreadyClient =
-                _supabase.auth.currentUser?.email == email;
+          if (_currentClient != null &&
+              email.isNotEmpty &&
+              password.isNotEmpty) {
+            final isAlreadyClient = _supabase.auth.currentUser?.email == email;
             if (!isAlreadyClient) {
               try {
                 await _supabase.auth.signInWithPassword(
@@ -935,9 +988,10 @@ class AuthStore extends ChangeNotifier {
         final password = map['password'] as String? ?? '';
         _currentPartner = _partnersByEmail[email];
 
-        if (_currentPartner != null && email.isNotEmpty && password.isNotEmpty) {
-          final isAlreadyPartner =
-              _supabase.auth.currentUser?.email == email;
+        if (_currentPartner != null &&
+            email.isNotEmpty &&
+            password.isNotEmpty) {
+          final isAlreadyPartner = _supabase.auth.currentUser?.email == email;
           if (!isAlreadyPartner) {
             try {
               await _supabase.auth.signInWithPassword(

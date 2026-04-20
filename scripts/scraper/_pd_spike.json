@@ -1,0 +1,22 @@
+{
+  "https://www.pingodoce.pt/produtos/": {
+    "status": 200,
+    "finalUrl": "https://www.pingodoce.pt/home/produtos?",
+    "title": "Loja online | Pingo Doce",
+    "tiles": 307,
+    "productLinks": 199
+  },
+  "https://www.pingodoce.pt/": {
+    "status": 200,
+    "finalUrl": "https://www.pingodoce.pt/",
+    "title": "Pingo Doce | O supermercado online dos produtos frescos",
+    "tiles": 500,
+    "productLinks": 161
+  },
+  "https://mercador.pingodoce.pt/": {
+    "error": "Error: page.goto: net::ERR_NAME_NOT_RESOLVED at https://mercador.pingodoce.pt/\nCall log:\n\u001b[2m  - navigating to \"https://mercador.pingodoce.pt/\", waiting until \"domcontentloaded\"\u001b[22m\n"
+  },
+  "https://www.pingodoce.pt/compras-online/": {
+    "error": "Error: page.goto: Navigation to \"https://www.pingodoce.pt/compras-online/\" is interrupted by another navigation to \"chrome-error://chromewebdata/\"\nCall log:\n\u001b[2m  - navigating to \"https://www.pingodoc"
+  }
+}

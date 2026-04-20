@@ -147,17 +147,14 @@ class _WebPlaceAutocompleteService implements PlaceAutocompleteService {
         }
 
         try {
-          final geometry =
-              (result as js.JsObject)['geometry'] as js.JsObject?;
+          final geometry = (result as js.JsObject)['geometry'] as js.JsObject?;
           final location = geometry?['location'] as js.JsObject?;
           if (location == null) {
             completer.complete(null);
             return;
           }
-          final lat =
-              (location.callMethod('lat', const []) as num).toDouble();
-          final lng =
-              (location.callMethod('lng', const []) as num).toDouble();
+          final lat = (location.callMethod('lat', const []) as num).toDouble();
+          final lng = (location.callMethod('lng', const []) as num).toDouble();
           completer.complete(ll.LatLng(lat, lng));
         } catch (_) {
           completer.complete(null);
@@ -211,10 +208,8 @@ class _WebPlaceAutocompleteService implements PlaceAutocompleteService {
             completer.complete(null);
             return;
           }
-          final lat =
-              (location.callMethod('lat', const []) as num).toDouble();
-          final lng =
-              (location.callMethod('lng', const []) as num).toDouble();
+          final lat = (location.callMethod('lat', const []) as num).toDouble();
+          final lng = (location.callMethod('lng', const []) as num).toDouble();
           completer.complete(ll.LatLng(lat, lng));
         } catch (_) {
           completer.complete(null);

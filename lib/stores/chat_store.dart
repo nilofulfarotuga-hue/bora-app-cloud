@@ -38,11 +38,13 @@ class ChatStore extends ChangeNotifier {
     // Always reconnect to ensure a fresh Realtime channel.
     final old = _subscriptions.remove(orderId);
     if (old != null) {
-      debugPrint('[ChatStore] ♻️ listen($orderId) — cancelling previous subscription');
+      debugPrint(
+          '[ChatStore] ♻️ listen($orderId) — cancelling previous subscription');
       old.cancel();
     }
 
-    debugPrint('[ChatStore] 🔌 listen($orderId) — opening stream with filter: order=$orderId');
+    debugPrint(
+        '[ChatStore] 🔌 listen($orderId) — opening stream with filter: order=$orderId');
 
     final sub = _supabase
         .from('messages')
@@ -50,22 +52,22 @@ class ChatStore extends ChangeNotifier {
         .eq('order_id', orderId)
         .order('created_at', ascending: true)
         .listen(
-      (rows) {
-        debugPrint(
-            '[ChatStore] 📨 stream($orderId) delivered ${rows.length} rows');
-        // .stream() always delivers the complete current list — replace in
-        // full. The optimistic insert is overwritten by the authoritative DB
-        // row on the next emission; because IDs match, the UI is unchanged.
-        _messages[orderId] = rows.map(MessageModel.fromMap).toList();
-        notifyListeners();
-      },
-      onError: (Object e) {
-        debugPrint('[ChatStore] ❌ stream($orderId) ERROR: $e');
-      },
-      onDone: () {
-        debugPrint('[ChatStore] 🔒 stream($orderId) DONE (channel closed)');
-      },
-    );
+          (rows) {
+            debugPrint(
+                '[ChatStore] 📨 stream($orderId) delivered ${rows.length} rows');
+            // .stream() always delivers the complete current list — replace in
+            // full. The optimistic insert is overwritten by the authoritative DB
+            // row on the next emission; because IDs match, the UI is unchanged.
+            _messages[orderId] = rows.map(MessageModel.fromMap).toList();
+            notifyListeners();
+          },
+          onError: (Object e) {
+            debugPrint('[ChatStore] ❌ stream($orderId) ERROR: $e');
+          },
+          onDone: () {
+            debugPrint('[ChatStore] 🔒 stream($orderId) DONE (channel closed)');
+          },
+        );
 
     _subscriptions[orderId] = sub;
     debugPrint('[ChatStore] ✅ listen($orderId) — subscription active');
@@ -166,7 +168,8 @@ class ChatStore extends ChangeNotifier {
 
   @override
   void dispose() {
-    debugPrint('[ChatStore] 🗑️ dispose — cancelling ${_subscriptions.length} subscriptions');
+    debugPrint(
+        '[ChatStore] 🗑️ dispose — cancelling ${_subscriptions.length} subscriptions');
     for (final sub in _subscriptions.values) {
       sub.cancel();
     }

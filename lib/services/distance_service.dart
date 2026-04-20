@@ -3,24 +3,20 @@ import 'dart:math';
 import '../config/maps_config.dart';
 
 class DistanceService {
-
   static String get mapsApiKey => googleApiKey;
 
   static double calculateDistanceKm(
-
     double lat1,
     double lon1,
     double lat2,
     double lon2,
   ) {
-
     const double earthRadius = 6371;
 
     double dLat = _deg2rad(lat2 - lat1);
     double dLon = _deg2rad(lon2 - lon1);
 
-    double a =
-        sin(dLat / 2) * sin(dLat / 2) +
+    double a = sin(dLat / 2) * sin(dLat / 2) +
         cos(_deg2rad(lat1)) *
             cos(_deg2rad(lat2)) *
             sin(dLon / 2) *

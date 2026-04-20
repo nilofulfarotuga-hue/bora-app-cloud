@@ -32,8 +32,9 @@ dependencies:
   fl_chart: ^0.69.0
   # google_maps: ^8.2.0  # removed — web-only (depends on package:web), breaks Android kernel snapshot
   # js: ^0.6.7            # removed — discontinued, web-only, breaks Android kernel snapshot
-  # firebase_core: ^3.0.0       # temporarily disabled — requires google-services.json
-  # firebase_messaging: ^15.0.0  # temporarily disabled — requires google-services.json
+  firebase_core: ^3.0.0
+  firebase_messaging: ^15.0.0
+  image_picker: ^1.1.2
 
 
 

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "765097014497",
+    "project_id": "boraapp-d2bea",
+    "storage_bucket": "boraapp-d2bea.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:765097014497:android:e8d6670257e0e7b84ef3a0",
+        "android_client_info": {
+          "package_name": "com.example.bora_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC5_4ziRxbaZTjuDLxA26P6Enu1DZJTJG4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

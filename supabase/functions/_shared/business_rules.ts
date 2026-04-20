@@ -34,8 +34,9 @@ export const DRIVER_ADDITIONAL_ORDER_TOKENS = 50 as const;
 
 // FEES
 export const WRONG_ADDRESS_FEE_EUR = 2.00 as const;
-export const CANCEL_FEE_BEFORE_DISPATCH_EUR = 1.50 as const;
-export const CANCEL_FEE_AFTER_ACCEPT_RATIO = 0.50 as const;
+// Client cancel fees (BR §8.3) — aligned with business_rules.md v2 source of truth
+export const CANCEL_FEE_BEFORE_DISPATCH_EUR = 1.00 as const;
+export const CANCEL_FEE_AFTER_ACCEPT_EUR = 2.50 as const;
 export const CANCEL_FEE_AFTER_PURCHASE_RATIO = 1.00 as const;
 
 // BUSINESS

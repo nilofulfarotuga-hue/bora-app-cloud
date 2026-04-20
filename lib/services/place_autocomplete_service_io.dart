@@ -50,28 +50,30 @@ class _IoPlaceAutocompleteService implements PlaceAutocompleteService {
     try {
       final response = await http.get(uri);
       if (response.statusCode != 200) {
-        debugPrint('PlaceAutocomplete: HTTP ${response.statusCode} => ${response.body}');
+        debugPrint(
+            'PlaceAutocomplete: HTTP ${response.statusCode} => ${response.body}');
         return const <PlacePrediction>[];
       }
 
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       final status = data['status'] as String?;
       if (status != 'OK') {
-        debugPrint('PlaceAutocomplete: API status => $status | error_message => ${data['error_message']}');
+        debugPrint(
+            'PlaceAutocomplete: API status => $status | error_message => ${data['error_message']}');
         return const <PlacePrediction>[];
       }
 
       final predictionsJson = data['predictions'] as List<dynamic>? ?? const [];
       final predictions = predictionsJson
           .map((entry) => PlacePrediction(
-                placeId: (entry as Map<String, dynamic>)['place_id'] as String? ?? '',
+                placeId:
+                    (entry as Map<String, dynamic>)['place_id'] as String? ??
+                        '',
                 description: entry['description'] as String? ?? '',
                 primaryText: (entry['structured_formatting']
-                        as Map<String, dynamic>?)?['main_text']
-                    as String?,
+                    as Map<String, dynamic>?)?['main_text'] as String?,
                 secondaryText: (entry['structured_formatting']
-                        as Map<String, dynamic>?)?['secondary_text']
-                    as String?,
+                    as Map<String, dynamic>?)?['secondary_text'] as String?,
               ))
           .where((prediction) => prediction.placeId.isNotEmpty)
           .toList(growable: false);
@@ -168,8 +170,8 @@ class _IoPlaceAutocompleteService implements PlaceAutocompleteService {
       }
       final results = data['results'] as List<dynamic>?;
       if (results == null || results.isEmpty) return null;
-      final geometry =
-          (results.first as Map<String, dynamic>)['geometry'] as Map<String, dynamic>?;
+      final geometry = (results.first as Map<String, dynamic>)['geometry']
+          as Map<String, dynamic>?;
       final location = geometry?['location'] as Map<String, dynamic>?;
       final lat = location?['lat'];
       final lng = location?['lng'];

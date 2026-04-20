@@ -2,14 +2,14 @@ import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import {
   CANCEL_FEE_BEFORE_DISPATCH_EUR,
-  CANCEL_FEE_AFTER_ACCEPT_RATIO,
+  CANCEL_FEE_AFTER_ACCEPT_EUR,
   CANCEL_FEE_AFTER_PURCHASE_RATIO,
 } from '../_shared/business_rules.ts';
 
 // Suppress unused-import warnings — these constants are referenced in comments
 // and will be used by the refund logic when cancel flow is implemented.
 void CANCEL_FEE_BEFORE_DISPATCH_EUR;
-void CANCEL_FEE_AFTER_ACCEPT_RATIO;
+void CANCEL_FEE_AFTER_ACCEPT_EUR;
 void CANCEL_FEE_AFTER_PURCHASE_RATIO;
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
@@ -47,15 +47,75 @@ Deno.serve(async (req: Request) => {
     // ── Payment succeeded ────────────────────────────────────────────────────
     case 'payment_intent.succeeded': {
       const intent = event.data.object as Stripe.PaymentIntent;
+      const order_id = intent.metadata?.order_id;
+      if (!order_id) {
+        console.error('[stripe-webhook] payment_intent.succeeded missing metadata.order_id:', intent.id);
+        break;
+      }
+
+      // Step 1: Mark order as paid (server-trusted — only the webhook may do this).
       const { error } = await supabase
         .from('orders')
         .update({ payment_status: 'paid' })
-        .eq('payment_intent_id', intent.id);
+        .eq('id', order_id)
+        .eq('payment_status', 'pending');
 
       if (error) {
         console.error('[stripe-webhook] payment_intent.succeeded DB update error:', error.message);
+        break;
+      }
+      console.log('[stripe-webhook] order marked paid:', order_id, 'intent:', intent.id);
+
+      // Step 2: Fetch order to determine whether to advance dispatch.
+      const { data: orderRow, error: fetchErr } = await supabase
+        .from('orders')
+        .select('status, is_partner_store, service_type')
+        .eq('id', order_id)
+        .single();
+
+      if (fetchErr || !orderRow) {
+        console.error('[stripe-webhook] failed to fetch order after payment:', fetchErr?.message);
+        break;
+      }
+
+      const currentStatus = orderRow.status as string;
+      const isPartnerRestaurant =
+        orderRow.is_partner_store === true && orderRow.service_type === 'restaurant';
+
+      // Partner-restaurant orders wait for the partner to accept before dispatch.
+      // All other orders (non-partner, logistics, storeShopping) advance immediately.
+      if (!isPartnerRestaurant &&
+          (currentStatus === 'created' || currentStatus === 'preparing')) {
+
+        // Step 3: Advance status to callingDriver (server-side — never from Flutter).
+        const { error: statusErr } = await supabase
+          .from('orders')
+          .update({ status: 'callingDriver' })
+          .eq('id', order_id)
+          .in('status', ['created', 'preparing']); // idempotent guard
+
+        if (statusErr) {
+          console.error('[stripe-webhook] failed to advance to callingDriver:', statusErr.message);
+          break;
+        }
+        console.log('[stripe-webhook] order advanced to callingDriver:', order_id);
+
+        // Step 4: Invoke dispatch-engine directly so a driver is assigned
+        // without any Flutter involvement.
+        const dispatchUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/dispatch-engine`;
+        const dispatchRes = await fetch(dispatchUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+          },
+          body: JSON.stringify({ orderId: order_id }),
+        });
+        console.log('[stripe-webhook] dispatch-engine invoked for order:', order_id,
+          'status:', dispatchRes.status);
       } else {
-        console.log('[stripe-webhook] order marked paid for intent:', intent.id);
+        console.log('[stripe-webhook] dispatch not triggered — status:', currentStatus,
+          'isPartnerRestaurant:', isPartnerRestaurant);
       }
       break;
     }
@@ -63,17 +123,22 @@ Deno.serve(async (req: Request) => {
     // ── Payment failed ───────────────────────────────────────────────────────
     case 'payment_intent.payment_failed': {
       const intent = event.data.object as Stripe.PaymentIntent;
+      const order_id = intent.metadata?.order_id;
       const failureMsg = intent.last_payment_error?.message ?? 'unknown';
 
+      if (!order_id) {
+        console.error('[stripe-webhook] payment_intent.payment_failed missing metadata.order_id:', intent.id);
+        break;
+      }
       const { error } = await supabase
         .from('orders')
         .update({ payment_status: 'failed' })
-        .eq('payment_intent_id', intent.id);
+        .eq('id', order_id);
 
       if (error) {
         console.error('[stripe-webhook] payment_failed DB update error:', error.message);
       } else {
-        console.warn('[stripe-webhook] order payment failed:', intent.id, failureMsg);
+        console.warn('[stripe-webhook] order payment failed:', order_id, failureMsg);
       }
       break;
     }

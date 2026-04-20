@@ -3,11 +3,15 @@ import 'package:latlong2/latlong.dart' as ll;
 import 'package:provider/provider.dart';
 
 import '../auth/auth_store.dart';
+import '../config/app_colors.dart';
+import '../config/app_spacing.dart';
 import '../models/restaurant_model.dart';
 import '../stores/partner_product_store.dart';
 import '../stores/restaurant_store.dart';
 import '../stores/session_store.dart';
 import '../widgets/address_autocomplete_field.dart';
+import '../widgets/bora/bora_primary_button.dart';
+import '../widgets/terms_link_text.dart';
 import 'partner_login_screen.dart';
 
 class RegisterPartnerScreen extends StatefulWidget {
@@ -33,6 +37,7 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
 
   bool _isSubmitting = false;
   bool _obscurePassword = true;
+  bool _acceptedTerms = false;
 
   @override
   void dispose() {
@@ -67,6 +72,7 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
       password: _passwordController.text,
       photoUrl: _photoUrlController.text,
       cuisineType: _cuisineController.text,
+      consentAcceptedAt: DateTime.now().toUtc(),
     );
     debugPrint('ERRO AUTH: $error');
     if (error != null) {
@@ -104,8 +110,8 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
 
       /// Seleciona restaurante no store de produtos
       partnerProductStore.selectRestaurant(restaurant);
-
     } catch (error) {
+      if (!mounted) return;
       setState(() => _isSubmitting = false);
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -126,14 +132,24 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
+      backgroundColor: AppColors.surface,
       appBar: AppBar(
-        title: const Text('Criar conta de parceiro'),
+        title: const Text(
+          'Criar conta de parceiro',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        flexibleSpace: const DecoratedBox(
+          decoration: BoxDecoration(gradient: AppColors.headerGradient),
+        ),
       ),
       body: SafeArea(
         child: GestureDetector(
           onTap: () => FocusScope.of(context).unfocus(),
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(Spacing.lg),
             child: Form(
               key: _formKey,
               child: Column(
@@ -143,16 +159,12 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
                     'Registe o seu estabelecimento para começar a vender com a BORA.',
                     style: theme.textTheme.bodyLarge,
                   ),
-
                   const SizedBox(height: 24),
-
                   Text(
                     'Dados do estabelecimento',
                     style: theme.textTheme.titleMedium,
                   ),
-
                   const SizedBox(height: 12),
-
                   TextFormField(
                     controller: _nameController,
                     decoration: const InputDecoration(
@@ -166,9 +178,7 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
                       return null;
                     },
                   ),
-
                   const SizedBox(height: 16),
-
                   AddressAutocompleteField(
                     controller: _addressController,
                     labelText: 'Endereço completo',
@@ -182,9 +192,7 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
                       return null;
                     },
                   ),
-
                   const SizedBox(height: 16),
-
                   TextFormField(
                     controller: _phoneController,
                     decoration: const InputDecoration(
@@ -198,9 +206,7 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
                       return null;
                     },
                   ),
-
                   const SizedBox(height: 16),
-
                   TextFormField(
                     controller: _photoUrlController,
                     decoration: const InputDecoration(
@@ -208,9 +214,7 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
                       prefixIcon: Icon(Icons.image_outlined),
                     ),
                   ),
-
                   const SizedBox(height: 16),
-
                   TextFormField(
                     controller: _cuisineController,
                     decoration: const InputDecoration(
@@ -218,9 +222,7 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
                       prefixIcon: Icon(Icons.restaurant_menu),
                     ),
                   ),
-
                   const SizedBox(height: 16),
-
                   DropdownButtonFormField<BusinessCategory>(
                     initialValue: _selectedCategory,
                     decoration: const InputDecoration(
@@ -240,16 +242,12 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
                       setState(() => _selectedCategory = value);
                     },
                   ),
-
                   const SizedBox(height: 32),
-
                   Text(
                     'Dados de acesso',
                     style: theme.textTheme.titleMedium,
                   ),
-
                   const SizedBox(height: 12),
-
                   TextFormField(
                     controller: _emailController,
                     decoration: const InputDecoration(
@@ -263,9 +261,7 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
                       return null;
                     },
                   ),
-
                   const SizedBox(height: 16),
-
                   TextFormField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
@@ -292,17 +288,22 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
                       return null;
                     },
                   ),
-
-                  const SizedBox(height: 32),
-
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _isSubmitting ? null : _submit,
-                      child: _isSubmitting
-                          ? const CircularProgressIndicator()
-                          : const Text('Criar conta'),
-                    ),
+                  const SizedBox(height: Spacing.xxl),
+                  CheckboxListTile(
+                    value: _acceptedTerms,
+                    onChanged: _isSubmitting
+                        ? null
+                        : (v) => setState(() => _acceptedTerms = v ?? false),
+                    controlAffinity: ListTileControlAffinity.leading,
+                    contentPadding: EdgeInsets.zero,
+                    title: const TermsLinkText(),
+                  ),
+                  const SizedBox(height: Spacing.md),
+                  BoraPrimaryButton(
+                    label: 'Criar conta',
+                    loading: _isSubmitting,
+                    onPressed:
+                        (_isSubmitting || !_acceptedTerms) ? null : _submit,
                   ),
                   const SizedBox(height: 16),
                   Row(
@@ -321,6 +322,7 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 32),
                 ],
               ),
             ),

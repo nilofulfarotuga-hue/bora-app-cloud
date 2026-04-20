@@ -67,6 +67,11 @@ app.*.map.json
 pubspec.lock
 backend/package-lock.json
 
+# ── Scraper secrets & output ──────────────────────────────────────────────────
+scripts/scraper/.env
+scripts/scraper/output/
+scripts/scraper/node_modules/
+
 # ── Secrets / credentials (NEVER commit these) ────────────────────────────────
 backend/firebase-service-account.json
 backend/firebase-service-account.json.json

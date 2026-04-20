@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../auth/auth_store.dart';
 import '../models/order_model.dart';
 import '../stores/order_store.dart';
-import '../stores/session_store.dart';
+import '../widgets/bora/bora.dart';
 import 'client_home_screen.dart';
 import 'order_tracking_screen.dart';
 import 'orders_screen.dart';
 import 'profile_screen.dart';
 
+/// Host dos 3 tabs do cliente: Início · Pedidos · Perfil.
+///
+/// Cada tab tem a sua própria `BoraAppBar` — este widget só gere o
+/// `IndexedStack` e a `BoraBottomNav`. Eventos globais (e.g. pedido aceite
+/// por estafeta → push tracking) são observados aqui porque sobrevivem às
+/// trocas de tab.
 class ClientMainScreen extends StatefulWidget {
   const ClientMainScreen({super.key});
 
@@ -41,20 +46,8 @@ class _ClientMainScreenState extends State<ClientMainScreen> {
     return null;
   }
 
-    Future<void> _handleSwitchMode() async {
-    final authStore = context.read<AuthStore>();
-    final sessionStore = context.read<SessionStore>();
-    authStore.logout();
-    await sessionStore.clearRole();
-    if (!mounted) return;
-    Navigator.of(context).popUntil((route) => route.isFirst);
-  }
-
-
-
   @override
   Widget build(BuildContext context) {
-    // Watch orders: when a driver accepts, navigate to tracking screen once.
     final orders = context.watch<OrderStore>().orders;
     final activeOrder = _findActiveOrder(orders);
     if (activeOrder != null && !_navigatedOrderIds.contains(activeOrder.id)) {
@@ -72,40 +65,10 @@ class _ClientMainScreenState extends State<ClientMainScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("BORA - Cliente"),
-                actions: [
-          IconButton(
-            icon: const Icon(Icons.swap_horiz),
-            tooltip: 'Mudar modo',
-            onPressed: _handleSwitchMode,
-          ),
-        ],
-      ),
-      body: _screens[_selectedIndex],
-      bottomNavigationBar: BottomNavigationBar(
+      body: IndexedStack(index: _selectedIndex, children: _screens),
+      bottomNavigationBar: BoraBottomNav(
         currentIndex: _selectedIndex,
-        selectedItemColor: Colors.green,
-        onTap: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
-        },
-                items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: "Início",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.receipt_long),
-            label: "Pedidos",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: "Perfil",
-          ),
-        ],
-
+        onTap: (index) => setState(() => _selectedIndex = index),
       ),
     );
   }

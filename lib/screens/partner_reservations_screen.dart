@@ -1,0 +1,228 @@
+import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../config/app_colors.dart';
+import '../models/reservation_model.dart';
+
+/// Partner dashboard — reservations section (BR §14.7).
+class PartnerReservationsScreen extends StatefulWidget {
+  const PartnerReservationsScreen({super.key, required this.restaurantId});
+
+  final String restaurantId;
+
+  @override
+  State<PartnerReservationsScreen> createState() =>
+      _PartnerReservationsScreenState();
+}
+
+class _PartnerReservationsScreenState
+    extends State<PartnerReservationsScreen> {
+  late Future<List<ReservationModel>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _load();
+  }
+
+  Future<List<ReservationModel>> _load() async {
+    final client = Supabase.instance.client;
+    final rows = await client
+        .from('reservations')
+        .select()
+        .eq('restaurant_id', widget.restaurantId)
+        .order('reserved_for', ascending: true);
+    return (rows as List)
+        .cast<Map<String, dynamic>>()
+        .map(ReservationModel.fromSupabase)
+        .toList();
+  }
+
+  Future<void> _setStatus(ReservationModel r, ReservationStatus status,
+      {DateTime? arrivedAt}) async {
+    final client = Supabase.instance.client;
+    await client.from('reservations').update({
+      'status': status.dbName,
+      'decided_at': DateTime.now().toUtc().toIso8601String(),
+      if (arrivedAt != null)
+        'arrived_at': arrivedAt.toUtc().toIso8601String(),
+    }).eq('id', r.id);
+    setState(() => _future = _load());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.surface,
+      appBar: AppBar(
+        title: const Text(
+          'Reservas',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        flexibleSpace: const DecoratedBox(
+          decoration: BoxDecoration(gradient: AppColors.headerGradient),
+        ),
+      ),
+      body: FutureBuilder<List<ReservationModel>>(
+        future: _future,
+        builder: (context, snap) {
+          if (snap.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snap.hasError) {
+            return Center(child: Text('Erro: ${snap.error}'));
+          }
+          final list = snap.data ?? const <ReservationModel>[];
+          if (list.isEmpty) {
+            return const Center(child: Text('Sem reservas pendentes.'));
+          }
+          return RefreshIndicator(
+            onRefresh: () async => setState(() => _future = _load()),
+            child: ListView.separated(
+              padding: const EdgeInsets.all(16),
+              itemCount: list.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              itemBuilder: (context, i) => _ReservationCard(
+                reservation: list[i],
+                onAccept: () => _setStatus(list[i], ReservationStatus.accepted),
+                onReject: () => _setStatus(list[i], ReservationStatus.rejected),
+                onArrived: () => _setStatus(
+                    list[i], ReservationStatus.customerArrived,
+                    arrivedAt: DateTime.now()),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _ReservationCard extends StatelessWidget {
+  const _ReservationCard({
+    required this.reservation,
+    required this.onAccept,
+    required this.onReject,
+    required this.onArrived,
+  });
+
+  final ReservationModel reservation;
+  final VoidCallback onAccept;
+  final VoidCallback onReject;
+  final VoidCallback onArrived;
+
+  String get _statusLabel {
+    switch (reservation.status) {
+      case ReservationStatus.pending:
+        return 'Pendente';
+      case ReservationStatus.accepted:
+        return 'Aceite';
+      case ReservationStatus.suggestedOtherTime:
+        return 'Sugerida outra hora';
+      case ReservationStatus.rejected:
+        return 'Recusada';
+      case ReservationStatus.customerArrived:
+        return 'Cliente chegou';
+      case ReservationStatus.cancelled:
+        return 'Cancelada';
+    }
+  }
+
+  Color get _statusColor {
+    switch (reservation.status) {
+      case ReservationStatus.pending:
+        return Colors.orange;
+      case ReservationStatus.accepted:
+      case ReservationStatus.customerArrived:
+        return Colors.green;
+      case ReservationStatus.suggestedOtherTime:
+        return Colors.blue;
+      case ReservationStatus.rejected:
+      case ReservationStatus.cancelled:
+        return Colors.red;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final d = reservation.reservedFor.toLocal();
+    final dateStr =
+        '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year} '
+        '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '${reservation.clientName} · ${reservation.people} pessoas',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 15),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _statusColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    _statusLabel,
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: _statusColor),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text('Quando: $dateStr'),
+            Text('Telefone: ${reservation.clientPhone}'),
+            if (reservation.notes != null && reservation.notes!.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text('Notas: ${reservation.notes}'),
+              ),
+            const SizedBox(height: 10),
+            if (reservation.status == ReservationStatus.pending)
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: onReject,
+                      child: const Text('Recusar'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: onAccept,
+                      child: const Text('Aceitar'),
+                    ),
+                  ),
+                ],
+              )
+            else if (reservation.status == ReservationStatus.accepted)
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: onArrived,
+                  icon: const Icon(Icons.chair_alt_outlined),
+                  label: const Text('Marcar sentado'),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}

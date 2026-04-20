@@ -1,0 +1,2 @@
+[functions.notify-driver]
+verify_jwt = false

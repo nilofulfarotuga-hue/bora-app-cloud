@@ -1,0 +1,70 @@
+{
+  "anchors": [
+    "https://www.lidl.pt/c/folhetos/s10020672",
+    "/c/mercearia-e-frescos/s10068374",
+    "/c/cozinha-e-cuidado-do-lar/s10068166",
+    "/c/ferramentas-e-jardim/s10068222",
+    "/c/desporto-e-tempos-livres/s10068226",
+    "/c/casa-e-decoracao/s10068371",
+    "/c/moda-e-acessorios/s10068373",
+    "/c/bebe-crianca-e-brinquedos/s10068225",
+    "/c/folhetos/s10020672",
+    "/c/pascoa/s10027475",
+    "/c/lidl-plus/s10025128",
+    "/c/produtos/s10025301",
+    "/c/passatempos-e-campanhas/s10025274",
+    "/c/eventos/s10025269?pageId=10025269",
+    "/c/premios-lidl/s10089926",
+    "/c/lidlab/s10064150",
+    "/c/cartao-presente-lidl/s10026799?pageId=10026799",
+    "/c/informacoes/s10026539",
+    "/h/frutas-e-legumes/h10071012",
+    "/h/padaria-pastelaria/h10071015",
+    "/h/ovos-e-alimentos-de-base/h10071045",
+    "/h/queijos-laticinios-ovos/h10071017",
+    "/h/carne/h10071016",
+    "/h/peixe-marisco/h10071050",
+    "/h/cafe-cha-bebidas-soluveis/h10071683",
+    "/h/compotas-cremes-e-mel/h10071684",
+    "/h/azeites-oleos-conservas/h10071681",
+    "/h/molhos-temperos/h10071682",
+    "/h/refeicoes-prontas/h10071020",
+    "/h/congelados/h10071049"
+  ],
+  "productPageInfo": {
+    "title": "Resultados para www.lidl.pt",
+    "hasProducts": 1,
+    "nuxtData": false,
+    "url": "https://www.lidl.pt/h/nossa-gama"
+  },
+  "jsonCalls": [
+    {
+      "url": "https://www.lidl.pt/s/storesearch-frontend/26_7_2/storeselector-translations.json",
+      "status": 200,
+      "ct": "application/json",
+      "size": 71846,
+      "sample": "{\"lt-LT.storeSearch.storeRatingButton.a11yHint\":\"Opens in a new tab\",\"lt-LT.storeSearch.storeRatingButton.label\":\"Įvertink parduotuvę\",\"lt-LT.storeSearch.storeSearchButton.label\":\"Parduotuvės paieška\",\"lt-LT.storeSearch.storeSearchPopUp.regionalization.closeButtonA11yLabel\":\"Close pop-up\",\"lt-LT.sto"
+    },
+    {
+      "url": "https://www.lidl.pt/s/storesearch-frontend/26_7_2/storeselector-translations.json",
+      "status": 200,
+      "ct": "application/json",
+      "size": 71846,
+      "sample": "{\"lt-LT.storeSearch.storeRatingButton.a11yHint\":\"Opens in a new tab\",\"lt-LT.storeSearch.storeRatingButton.label\":\"Įvertink parduotuvę\",\"lt-LT.storeSearch.storeSearchButton.label\":\"Parduotuvės paieška\",\"lt-LT.storeSearch.storeSearchPopUp.regionalization.closeButtonA11yLabel\":\"Close pop-up\",\"lt-LT.sto"
+    },
+    {
+      "url": "https://www.lidl.pt/s/storesearch-frontend/26_7_2/storeselector-translations.json",
+      "status": 200,
+      "ct": "application/json",
+      "size": 71846,
+      "sample": "{\"lt-LT.storeSearch.storeRatingButton.a11yHint\":\"Opens in a new tab\",\"lt-LT.storeSearch.storeRatingButton.label\":\"Įvertink parduotuvę\",\"lt-LT.storeSearch.storeSearchButton.label\":\"Parduotuvės paieška\",\"lt-LT.storeSearch.storeSearchPopUp.regionalization.closeButtonA11yLabel\":\"Close pop-up\",\"lt-LT.sto"
+    },
+    {
+      "url": "https://www.lidl.pt/s/storesearch-frontend/26_7_2/storeselector-translations.json",
+      "status": 200,
+      "ct": "application/json",
+      "size": 71846,
+      "sample": "{\"lt-LT.storeSearch.storeRatingButton.a11yHint\":\"Opens in a new tab\",\"lt-LT.storeSearch.storeRatingButton.label\":\"Įvertink parduotuvę\",\"lt-LT.storeSearch.storeSearchButton.label\":\"Parduotuvės paieška\",\"lt-LT.storeSearch.storeSearchPopUp.regionalization.closeButtonA11yLabel\":\"Close pop-up\",\"lt-LT.sto"
+    }
+  ]
+}

@@ -112,13 +112,12 @@ class _ChatScreenState extends State<ChatScreen> {
                       if (msg.type == MessageType.substitution) {
                         return _SubstitutionCard(
                           message: msg,
-                          isClient:
-                              widget.senderType == ChatSenderType.client,
+                          isClient: widget.senderType == ChatSenderType.client,
                           order: liveOrder,
-                          onApprove: () => _respond(orderStore, liveOrder,
-                              msg, true),
-                          onReject: () => _respond(orderStore, liveOrder,
-                              msg, false),
+                          onApprove: () =>
+                              _respond(orderStore, liveOrder, msg, true),
+                          onReject: () =>
+                              _respond(orderStore, liveOrder, msg, false),
                         );
                       }
 
@@ -180,8 +179,7 @@ class _ChatScreenState extends State<ChatScreen> {
       debugPrint('ChatScreen._handleSend: $e');
       if (mounted) {
         messenger.showSnackBar(
-          const SnackBar(
-              content: Text('Não foi possível enviar a mensagem.')),
+          const SnackBar(content: Text('Não foi possível enviar a mensagem.')),
         );
       }
     }
@@ -248,10 +246,9 @@ class _TextBubble extends StatelessWidget {
       alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 4),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        constraints: BoxConstraints(
-            maxWidth: MediaQuery.of(context).size.width * 0.75),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        constraints:
+            BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
         decoration: BoxDecoration(
           color: isMine
               ? Theme.of(context).colorScheme.primary
@@ -271,8 +268,7 @@ class _TextBubble extends StatelessWidget {
             Text(
               message.content,
               style: TextStyle(
-                  color: isMine ? Colors.white : Colors.black87,
-                  fontSize: 14),
+                  color: isMine ? Colors.white : Colors.black87, fontSize: 14),
             ),
             const SizedBox(height: 4),
             Text(
@@ -287,8 +283,7 @@ class _TextBubble extends StatelessWidget {
     );
   }
 
-  String _fmt(DateTime dt) =>
-      '${dt.hour.toString().padLeft(2, '0')}:'
+  String _fmt(DateTime dt) => '${dt.hour.toString().padLeft(2, '0')}:'
       '${dt.minute.toString().padLeft(2, '0')}';
 }
 
@@ -320,17 +315,15 @@ class _SubstitutionCard extends StatelessWidget {
       alignment: Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 6),
-        constraints: BoxConstraints(
-            maxWidth: MediaQuery.of(context).size.width * 0.88),
+        constraints:
+            BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.88),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Colors.orange.shade200),
           boxShadow: const [
             BoxShadow(
-                color: Colors.black12,
-                blurRadius: 4,
-                offset: Offset(0, 2)),
+                color: Colors.black12, blurRadius: 4, offset: Offset(0, 2)),
           ],
         ),
         child: Column(
@@ -339,12 +332,11 @@ class _SubstitutionCard extends StatelessWidget {
             // Header
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 14, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
                 color: Colors.orange.shade50,
-                borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(12)),
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(12)),
               ),
               child: Row(
                 children: [
@@ -406,8 +398,8 @@ class _SubstitutionCard extends StatelessWidget {
                   else
                     Text(
                       'Aguardando resposta do cliente...',
-                      style: TextStyle(
-                          fontSize: 12, color: Colors.grey.shade600),
+                      style:
+                          TextStyle(fontSize: 12, color: Colors.grey.shade600),
                     ),
                 ],
               ),
@@ -418,8 +410,7 @@ class _SubstitutionCard extends StatelessWidget {
               child: Text(
                 '${message.createdAt.hour.toString().padLeft(2, '0')}:'
                 '${message.createdAt.minute.toString().padLeft(2, '0')}',
-                style: const TextStyle(
-                    fontSize: 11, color: Colors.black45),
+                style: const TextStyle(fontSize: 11, color: Colors.black45),
               ),
             ),
           ],
@@ -439,8 +430,7 @@ class _SubRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return RichText(
       text: TextSpan(
-        style:
-            const TextStyle(color: Colors.black87, fontSize: 13),
+        style: const TextStyle(color: Colors.black87, fontSize: 13),
         children: [
           TextSpan(
               text: '$label: ',
@@ -460,15 +450,12 @@ class _ResponseBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding:
-          const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: approved ? Colors.green.shade50 : Colors.red.shade50,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-            color: approved
-                ? Colors.green.shade300
-                : Colors.red.shade300),
+            color: approved ? Colors.green.shade300 : Colors.red.shade300),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -476,18 +463,14 @@ class _ResponseBadge extends StatelessWidget {
           Icon(
             approved ? Icons.check_circle : Icons.cancel,
             size: 16,
-            color: approved
-                ? Colors.green.shade700
-                : Colors.red.shade700,
+            color: approved ? Colors.green.shade700 : Colors.red.shade700,
           ),
           const SizedBox(width: 6),
           Text(
             approved ? 'Aprovado' : 'Rejeitado',
             style: TextStyle(
               fontWeight: FontWeight.w600,
-              color: approved
-                  ? Colors.green.shade700
-                  : Colors.red.shade700,
+              color: approved ? Colors.green.shade700 : Colors.red.shade700,
               fontSize: 13,
             ),
           ),
@@ -543,31 +526,26 @@ class _SubstitutionDialogState extends State<_SubstitutionDialog> {
           children: [
             TextFormField(
               controller: _originalCtrl,
-              decoration:
-                  const InputDecoration(labelText: 'Produto original'),
+              decoration: const InputDecoration(labelText: 'Produto original'),
               validator: (v) =>
                   (v?.trim().isEmpty ?? true) ? 'Obrigatório' : null,
             ),
             const SizedBox(height: 8),
             TextFormField(
               controller: _suggestionCtrl,
-              decoration:
-                  const InputDecoration(labelText: 'Sugestão'),
+              decoration: const InputDecoration(labelText: 'Sugestão'),
               validator: (v) =>
                   (v?.trim().isEmpty ?? true) ? 'Obrigatório' : null,
             ),
             const SizedBox(height: 8),
             TextFormField(
               controller: _priceCtrl,
-              decoration:
-                  const InputDecoration(labelText: 'Preço (€)'),
-              keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true),
+              decoration: const InputDecoration(labelText: 'Preço (€)'),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
               validator: (v) {
                 if (v == null || v.trim().isEmpty) return 'Obrigatório';
-                if (double.tryParse(
-                        v.trim().replaceAll(',', '.')) ==
-                    null) {
+                if (double.tryParse(v.trim().replaceAll(',', '.')) == null) {
                   return 'Valor inválido';
                 }
                 return null;
@@ -589,8 +567,8 @@ class _SubstitutionDialogState extends State<_SubstitutionDialog> {
               _SubstitutionInput(
                 original: _originalCtrl.text.trim(),
                 suggestion: _suggestionCtrl.text.trim(),
-                price: double.parse(
-                    _priceCtrl.text.trim().replaceAll(',', '.')),
+                price:
+                    double.parse(_priceCtrl.text.trim().replaceAll(',', '.')),
               ),
             );
           },

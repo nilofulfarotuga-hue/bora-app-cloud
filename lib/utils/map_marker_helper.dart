@@ -52,7 +52,7 @@ class MapMarkerHelper {
       _pickup = await _circleMarker(
         color: const Color(0xFFF59E0B), // Amber
         icon: Icons.storefront_outlined,
-        size: 46,
+        size: 72,
       );
       _delivery = await _circleMarker(
         color: const Color(0xFFEF4444), // Red
@@ -123,6 +123,6 @@ class MapMarkerHelper {
     final picture = recorder.endRecording();
     final img = await picture.toImage(size.toInt(), size.toInt());
     final bytes = await img.toByteData(format: ui.ImageByteFormat.png);
-    return BitmapDescriptor.fromBytes(bytes!.buffer.asUint8List());
+    return BitmapDescriptor.bytes(bytes!.buffer.asUint8List());
   }
 }

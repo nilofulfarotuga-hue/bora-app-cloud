@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../auth/auth_store.dart';
+import '../config/app_colors.dart';
 import '../stores/restaurant_store.dart';
 import 'partner_dashboard_screen.dart';
 import 'partner_login_screen.dart';
@@ -31,7 +32,10 @@ class PartnerEntryScreen extends StatelessWidget {
           authStore.setPartnerRestaurant(existingRestaurant);
         });
         return const Scaffold(
-          body: Center(child: CircularProgressIndicator()),
+          backgroundColor: AppColors.surface,
+          body: Center(
+            child: CircularProgressIndicator(color: AppColors.primary),
+          ),
         );
       }
       return const RegisterPartnerScreen();

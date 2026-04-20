@@ -76,8 +76,8 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  -- Use final_total if already set, else the original total.
-  v_total := COALESCE(NEW.final_total, NEW.total, 0);
+  -- Use final_total if already set, else the original price.
+  v_total := COALESCE(NEW.final_total, NEW.price, 0);
 
   IF v_total > 30 THEN
     RAISE EXCEPTION 'CASH_LIMIT_EXCEEDED: pagamento em dinheiro disponivel apenas ate 30 EUR (pedido = % EUR)', v_total
@@ -90,7 +90,7 @@ $$;
 
 DROP TRIGGER IF EXISTS orders_enforce_cash_limit ON public.orders;
 CREATE TRIGGER orders_enforce_cash_limit
-  BEFORE INSERT OR UPDATE OF payment_method, total, final_total ON public.orders
+  BEFORE INSERT OR UPDATE OF payment_method, price, final_total ON public.orders
   FOR EACH ROW
   EXECUTE FUNCTION public.enforce_cash_payment_limit();
 
@@ -141,8 +141,8 @@ BEGIN
 
   -- ── Cash collected ───────────────────────────────────────────────────────
   -- The driver receives the real amount the customer paid in cash:
-  -- final_total (after store-shopping reconciliation) or the original total.
-  v_total := COALESCE(NEW.final_total, NEW.total, 0);
+  -- final_total (after store-shopping reconciliation) or the original price.
+  v_total := COALESCE(NEW.final_total, NEW.price, 0);
 
   -- ── Driver out-of-pocket ─────────────────────────────────────────────────
   -- Money the driver already spent at the store on behalf of the platform.

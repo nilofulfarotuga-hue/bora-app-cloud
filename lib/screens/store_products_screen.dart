@@ -1,12 +1,17 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../config/app_colors.dart';
 import '../models/cart_item.dart';
 import '../models/partner_product.dart';
 import '../models/product_variant.dart';
 import '../stores/cart_store.dart';
 import '../stores/favorite_store.dart';
 import '../stores/restaurant_store.dart';
+import '../widgets/bora/bora_product_card.dart';
 import 'cart_screen.dart';
 import 'product_detail_screen.dart';
 
@@ -30,6 +35,23 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
   late String _selectedCategory;
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
+  bool _showSuggestions = false;
+
+  // RPC-backed search (robust to accents/case via server-side normalization).
+  Timer? _rpcDebounce;
+  List<Map<String, dynamic>> _rpcRows = const [];
+  bool _rpcLoading = false;
+
+  // ── Normalise: remove accents + lowercase ──────────────────────────────────
+  String _normalize(String text) {
+    const accents = 'àáâãäåèéêëìíîïòóôõöùúûüýñçÀÁÂÃÄÅÈÉÊËÌÍÎÏÒÓÔÕÖÙÚÛÜÝÑÇ';
+    const normal = 'aaaaaaeeeeiiiioooooouuuuyncaaaaaaeeeeiiiioooooouuuuync';
+    String result = text.toLowerCase();
+    for (int i = 0; i < accents.length; i++) {
+      result = result.replaceAll(accents[i], normal[i]);
+    }
+    return result;
+  }
 
   @override
   void initState() {
@@ -39,11 +61,62 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
 
   @override
   void dispose() {
+    _rpcDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
 
+  void _scheduleRpcSearch(String query) {
+    _rpcDebounce?.cancel();
+    final q = query.trim();
+    if (q.length < 2) {
+      if (_rpcRows.isNotEmpty || _rpcLoading) {
+        setState(() {
+          _rpcRows = const [];
+          _rpcLoading = false;
+        });
+      }
+      return;
+    }
+    _rpcDebounce = Timer(const Duration(milliseconds: 350), () {
+      _runRpcSearch(q);
+    });
+  }
+
+  Future<void> _runRpcSearch(String query) async {
+    if (!mounted) return;
+    setState(() => _rpcLoading = true);
+    try {
+      final rows = await Supabase.instance.client.rpc(
+        'search_products',
+        params: {
+          'query_text': query,
+          'p_restaurant_id': widget.restaurantId,
+          'max_results': 50,
+        },
+      );
+      if (!mounted) return;
+      setState(() {
+        _rpcRows = rows is List
+            ? List<Map<String, dynamic>>.from(
+                rows.whereType<Map<String, dynamic>>(),
+              )
+            : const [];
+        _rpcLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _rpcRows = const [];
+        _rpcLoading = false;
+      });
+    }
+  }
+
   String _categoryOf(PartnerProduct p) {
+    // Prefer category_root (grouped mother category, e.g. "Mercearia")
+    // over the fragmented leaf category ("mercearia/bolacha/...").
+    if (p.categoryRoot.isNotEmpty) return _capitalize(p.categoryRoot);
     if (p.category.isNotEmpty) return _capitalize(p.category);
     // Fallback: derive from product name
     return _capitalize(p.name.split(' ').first);
@@ -61,11 +134,11 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
   List<PartnerProduct> _applyFilters(List<PartnerProduct> products) {
     var result = products;
     if (_searchQuery.isNotEmpty) {
-      final q = _searchQuery.toLowerCase();
+      final q = _normalize(_searchQuery);
       result = result
           .where((p) =>
-              p.name.toLowerCase().contains(q) ||
-              p.description.toLowerCase().contains(q))
+              _normalize(p.name).contains(q) ||
+              _normalize(p.description).contains(q))
           .toList();
     }
     if (_selectedCategory != 'Todos') {
@@ -73,6 +146,15 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
           result.where((p) => _categoryOf(p) == _selectedCategory).toList();
     }
     return result;
+  }
+
+  List<PartnerProduct> _getSuggestions(List<PartnerProduct> products) {
+    if (_searchQuery.isEmpty) return [];
+    final q = _normalize(_searchQuery);
+    return products
+        .where((p) => _normalize(p.name).contains(q))
+        .take(10)
+        .toList();
   }
 
   bool _isFruitCategory(String category) =>
@@ -105,6 +187,8 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
 
     final categories = _buildCategories(products);
     final filtered = _applyFilters(products);
+    final suggestions =
+        _showSuggestions ? _getSuggestions(products) : <PartnerProduct>[];
     final isFruit = _isFruitCategory(_selectedCategory);
     final grouped = _showSections ? _groupByCategory(filtered) : null;
 
@@ -116,7 +200,8 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
+        foregroundColor: AppColors.primary,
+        iconTheme: const IconThemeData(color: AppColors.primary, size: 26),
         elevation: 0,
         actions: [
           _CartBadge(cartStore: cartStore),
@@ -130,7 +215,14 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
             child: TextField(
               controller: _searchController,
-              onChanged: (v) => setState(() => _searchQuery = v),
+              onChanged: (v) {
+                setState(() {
+                  _searchQuery = v;
+                  _showSuggestions = v.isNotEmpty;
+                });
+                _scheduleRpcSearch(v);
+              },
+              onSubmitted: (_) => setState(() => _showSuggestions = false),
               decoration: InputDecoration(
                 hintText: 'Buscar produtos...',
                 hintStyle: TextStyle(color: Colors.grey.shade400),
@@ -155,14 +247,43 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
             ),
           ),
 
+          // ── Search suggestions ─────────────────────────────────────────────
+          if (_showSuggestions && _searchQuery.trim().length >= 2)
+            _SuggestionsPanel(
+              rpcRows: _rpcRows,
+              rpcLoading: _rpcLoading,
+              localFallback: suggestions,
+              loadedProducts: products,
+              onPickSection: (categoryRoot) {
+                _searchController.clear();
+                setState(() {
+                  _searchQuery = '';
+                  _showSuggestions = false;
+                  _rpcRows = const [];
+                  _selectedCategory = _capitalize(categoryRoot);
+                });
+              },
+              onPickProduct: (p) {
+                _searchController.text = p.name;
+                setState(() {
+                  _searchQuery = p.name;
+                  _showSuggestions = false;
+                });
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => ProductDetailScreen(product: p)),
+                );
+              },
+            ),
+
           // ── Horizontal category chips ───────────────────────────────────────
           Container(
             color: Colors.white,
             height: 50,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
               itemCount: categories.length,
               separatorBuilder: (_, __) => const SizedBox(width: 8),
               itemBuilder: (_, i) {
@@ -171,8 +292,7 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
                 return ChoiceChip(
                   label: Text(cat),
                   selected: isSelected,
-                  onSelected: (_) =>
-                      setState(() => _selectedCategory = cat),
+                  onSelected: (_) => setState(() => _selectedCategory = cat),
                   selectedColor: Theme.of(context).colorScheme.primary,
                   backgroundColor: const Color(0xFFF0F0F0),
                   labelStyle: TextStyle(
@@ -202,16 +322,9 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
                         grouped: grouped!,
                         isFruitCategory: _isFruitCategory,
                       )
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: filtered.length,
-                        itemBuilder: (context, index) => Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: _ProductCard(
-                            product: filtered[index],
-                            showPerKg: isFruit,
-                          ),
-                        ),
+                    : _FlatGridView(
+                        products: filtered,
+                        showPerKg: isFruit,
                       ),
           ),
 
@@ -366,7 +479,90 @@ class _SkeletonLoaderState extends State<_SkeletonLoader>
   }
 }
 
-// ─── Sectioned view (supermarket style) ───────────────────────────────────────
+// ─── Category style lookup ─────────────────────────────────────────────────────
+
+({Color color, String emoji}) _categoryStyle(String category) {
+  final cat = category.toLowerCase();
+  if (cat.contains('animal') || cat.contains('pet') || cat.contains('mascot')) {
+    return (color: const Color(0xFFFF8C42), emoji: '🐾');
+  }
+  if (cat.contains('bebida') || cat.contains('drink') || cat.contains('sumo')) {
+    return (color: const Color(0xFF4FC3F7), emoji: '🥤');
+  }
+  if (cat.contains('bebé') || cat.contains('bebe') || cat.contains('baby')) {
+    return (color: const Color(0xFFF48FB1), emoji: '👶');
+  }
+  if (cat.contains('bio') || cat.contains('orgân') || cat.contains('natural')) {
+    return (color: const Color(0xFF66BB6A), emoji: '🌿');
+  }
+  if (cat.contains('casa') || cat.contains('lar') || cat.contains('home')) {
+    return (color: const Color(0xFFFFD54F), emoji: '🏠');
+  }
+  if (cat.contains('chocol') || cat.contains('doce') || cat.contains('sweet')) {
+    return (color: const Color(0xFFA1887F), emoji: '🍫');
+  }
+  if (cat.contains('congelad') ||
+      cat.contains('frozen') ||
+      cat.contains('gelad')) {
+    return (color: const Color(0xFF80DEEA), emoji: '❄️');
+  }
+  if (cat.contains('fitness') ||
+      cat.contains('proteína') ||
+      cat.contains('protein')) {
+    return (color: const Color(0xFF9CCC65), emoji: '💪');
+  }
+  if (cat.contains('carne') || cat.contains('meat') || cat.contains('talh')) {
+    return (color: const Color(0xFFEF9A9A), emoji: '🥩');
+  }
+  if (cat.contains('peixe') ||
+      cat.contains('fish') ||
+      cat.contains('marisco')) {
+    return (color: const Color(0xFF4DB6AC), emoji: '🐟');
+  }
+  if (cat.contains('frut') || cat.contains('fruit')) {
+    return (color: const Color(0xFFFFB74D), emoji: '🍎');
+  }
+  if (cat.contains('legum') ||
+      cat.contains('vegeta') ||
+      cat.contains('hortal')) {
+    return (color: const Color(0xFF81C784), emoji: '🥬');
+  }
+  if (cat.contains('latic') ||
+      cat.contains('leite') ||
+      cat.contains('queijo') ||
+      cat.contains('dairy')) {
+    return (color: const Color(0xFFFFF9C4), emoji: '🥛');
+  }
+  if (cat.contains('mercearia') || cat.contains('grocer')) {
+    return (color: const Color(0xFFBCAAA4), emoji: '🛒');
+  }
+  if (cat.contains('padaria') ||
+      cat.contains('pão') ||
+      cat.contains('bakery')) {
+    return (color: const Color(0xFFFFCC80), emoji: '🍞');
+  }
+  if (cat.contains('higiene') ||
+      cat.contains('beleza') ||
+      cat.contains('beauty')) {
+    return (color: const Color(0xFF90CAF9), emoji: '🧴');
+  }
+  if (cat.contains('limpeza') || cat.contains('clean')) {
+    return (color: const Color(0xFF80CBC4), emoji: '🧹');
+  }
+  if (cat.contains('charcut') ||
+      cat.contains('enchid') ||
+      cat.contains('frios')) {
+    return (color: const Color(0xFFF8BBD0), emoji: '🧀');
+  }
+  if (cat.contains('snack') ||
+      cat.contains('salgado') ||
+      cat.contains('bolach')) {
+    return (color: const Color(0xFFFFF176), emoji: '🍿');
+  }
+  return (color: const Color(0xFFCFD8DC), emoji: '🛍️');
+}
+
+// ─── Sectioned view (supermarket style — grid 2 colunas por secção) ───────────
 
 class _SectionedView extends StatelessWidget {
   const _SectionedView({
@@ -379,77 +575,292 @@ class _SectionedView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final restaurantStore = context.watch<RestaurantStore>();
     final sections = grouped.entries.toList();
+    final slivers = <Widget>[];
 
-    return ListView.builder(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.only(top: 8, bottom: 16),
-      itemCount: sections.length,
-      itemBuilder: (context, index) {
-        final category = sections[index].key;
-        final items = sections[index].value;
-        final showPerKg = isFruitCategory(category);
+    for (var index = 0; index < sections.length; index++) {
+      final category = sections[index].key;
+      final items = sections[index].value;
+      final showPerKg = isFruitCategory(category);
+      final style = _categoryStyle(category);
+      final heroPhoto = items
+          .firstWhere(
+            (p) => p.photoUrl.isNotEmpty,
+            orElse: () => items.first,
+          )
+          .photoUrl;
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      category,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    '${items.length} ${items.length == 1 ? 'produto' : 'produtos'}',
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-                  ),
-                ],
+      final noVariants = <PartnerProduct>[];
+      final withVariants = <PartnerProduct>[];
+      for (final p in items) {
+        if (restaurantStore.variantsForProduct(p.id).isNotEmpty) {
+          withVariants.add(p);
+        } else {
+          noVariants.add(p);
+        }
+      }
+
+      slivers.add(
+        SliverToBoxAdapter(
+          child: _SectionHeader(
+            category: category,
+            count: items.length,
+            style: style,
+            heroPhoto: heroPhoto,
+          ),
+        ),
+      );
+
+      if (noVariants.isNotEmpty) {
+        slivers.add(
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            sliver: SliverGrid(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                childAspectRatio: 3 / 4,
+              ),
+              delegate: SliverChildBuilderDelegate(
+                (context, i) => _BoraProductCardTile(product: noVariants[i]),
+                childCount: noVariants.length,
               ),
             ),
-            SizedBox(
-              height: _cardHeightFor(items),
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: items.length,
-                itemBuilder: (context, i) => Padding(
-                  padding:
-                      EdgeInsets.only(right: i < items.length - 1 ? 12 : 0),
-                  child: SizedBox(
-                    width: 272,
-                    child: _ProductCard(
-                      product: items[i],
-                      showPerKg: showPerKg,
-                    ),
+          ),
+        );
+      }
+
+      if (withVariants.isNotEmpty) {
+        slivers.add(
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, i) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _ProductCard(
+                    product: withVariants[i],
+                    showPerKg: showPerKg,
                   ),
+                ),
+                childCount: withVariants.length,
+              ),
+            ),
+          ),
+        );
+      }
+
+      if (index < sections.length - 1) {
+        slivers.add(
+          const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Divider(height: 1, thickness: 1, indent: 16, endIndent: 16),
+            ),
+          ),
+        );
+      }
+    }
+
+    slivers.add(const SliverToBoxAdapter(child: SizedBox(height: 16)));
+
+    return CustomScrollView(
+      physics: const BouncingScrollPhysics(),
+      slivers: slivers,
+    );
+  }
+}
+
+// ─── Flat grid view (uma categoria seleccionada) ──────────────────────────────
+
+class _FlatGridView extends StatelessWidget {
+  const _FlatGridView({required this.products, required this.showPerKg});
+
+  final List<PartnerProduct> products;
+  final bool showPerKg;
+
+  @override
+  Widget build(BuildContext context) {
+    final restaurantStore = context.watch<RestaurantStore>();
+    final noVariants = <PartnerProduct>[];
+    final withVariants = <PartnerProduct>[];
+    for (final p in products) {
+      if (restaurantStore.variantsForProduct(p.id).isNotEmpty) {
+        withVariants.add(p);
+      } else {
+        noVariants.add(p);
+      }
+    }
+
+    return CustomScrollView(
+      physics: const BouncingScrollPhysics(),
+      slivers: [
+        if (noVariants.isNotEmpty)
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            sliver: SliverGrid(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                childAspectRatio: 3 / 4,
+              ),
+              delegate: SliverChildBuilderDelegate(
+                (context, i) => _BoraProductCardTile(product: noVariants[i]),
+                childCount: noVariants.length,
+              ),
+            ),
+          ),
+        if (withVariants.isNotEmpty)
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, i) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _ProductCard(
+                    product: withVariants[i],
+                    showPerKg: showPerKg,
+                  ),
+                ),
+                childCount: withVariants.length,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+// ─── Section header (used by _SectionedView) ──────────────────────────────────
+
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({
+    required this.category,
+    required this.count,
+    required this.style,
+    required this.heroPhoto,
+  });
+
+  final String category;
+  final int count;
+  final ({Color color, String emoji}) style;
+  final String heroPhoto;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Stack(
+          children: [
+            Container(
+              width: double.infinity,
+              height: 56,
+              color: style.color.withValues(alpha: 0.35),
+            ),
+            if (heroPhoto.isNotEmpty)
+              Positioned.fill(
+                child: Image.network(
+                  heroPhoto,
+                  fit: BoxFit.cover,
+                  opacity: const AlwaysStoppedAnimation(0.12),
+                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                ),
+              ),
+            SizedBox(
+              height: 56,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                child: Row(
+                  children: [
+                    Text(style.emoji,
+                        style: const TextStyle(fontSize: 22)),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        category,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        '$count ${count == 1 ? 'produto' : 'produtos'}',
+                        style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black54),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
-            if (index < sections.length - 1)
-              const Padding(
-                padding: EdgeInsets.only(top: 8),
-                child: Divider(
-                    height: 1, thickness: 1, indent: 16, endIndent: 16),
-              ),
           ],
-        );
-      },
+        ),
+      ),
     );
   }
+}
 
-  double _cardHeightFor(List<PartnerProduct> items) {
-    const base = 80.0;
-    const variantHeight = 72.0;
-    return base + variantHeight * 3;
+// ─── Tile wrapper que liga BoraProductCard a CartStore + FavoriteStore ────────
+
+class _BoraProductCardTile extends StatelessWidget {
+  const _BoraProductCardTile({required this.product});
+
+  final PartnerProduct product;
+
+  @override
+  Widget build(BuildContext context) {
+    final favoriteStore = context.watch<FavoriteStore>();
+    final isFav = favoriteStore.isFavorite(product.id);
+
+    return BoraProductCard(
+      product: product,
+      isFavorite: isFav,
+      onFavoriteToggle: () => favoriteStore.toggle(product.id),
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ProductDetailScreen(product: product),
+        ),
+      ),
+      onAdd: () {
+        if (product.price <= 0) return;
+        context.read<CartStore>().addItem(CartItem(
+              productId: product.id,
+              name: product.name,
+              price: product.price,
+            ));
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(
+              content: Text('${product.name} adicionado ao carrinho'),
+              duration: const Duration(milliseconds: 1200),
+              behavior: SnackBarBehavior.floating,
+              margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16),
+              dismissDirection: DismissDirection.horizontal,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          );
+      },
+    );
   }
 }
 
@@ -534,10 +945,15 @@ class _ProductCardState extends State<_ProductCard>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ── Product name + favorite ────────────────────────────────
+                // ── Product image + name + favorite ───────────────────────
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    _ProductThumbnail(
+                      photoUrl: widget.product.photoUrl,
+                      category: widget.product.category,
+                    ),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         widget.product.name,
@@ -574,8 +990,7 @@ class _ProductCardState extends State<_ProductCard>
                         const Padding(
                           padding: EdgeInsets.only(right: 6),
                           child: _Badge(
-                              label: 'Mais vendido',
-                              color: Colors.orange),
+                              label: 'Mais vendido', color: Colors.orange),
                         ),
                       if (widget.product.isOnSale)
                         const _Badge(label: 'Promoção', color: Colors.red),
@@ -586,10 +1001,57 @@ class _ProductCardState extends State<_ProductCard>
                   const SizedBox(height: 2),
                   Text(
                     widget.product.description,
-                    style:
-                        TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+                // ── Base price (no variants) ───────────────────────────────
+                if (variants.isEmpty) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        widget.product.price > 0
+                            ? '€${widget.product.price.toStringAsFixed(2)}'
+                            : 'Preço indisponível',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          color: widget.product.price > 0
+                              ? primaryColor
+                              : Colors.grey.shade500,
+                        ),
+                      ),
+                      _QtyButton(
+                        icon: Icons.add,
+                        color: primaryColor,
+                        onTap: () {
+                          if (widget.product.price <= 0) return;
+                          context.read<CartStore>().addItem(CartItem(
+                                productId: widget.product.id,
+                                name: widget.product.name,
+                                price: widget.product.price,
+                              ));
+                          ScaffoldMessenger.of(context)
+                            ..hideCurrentSnackBar()
+                            ..showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                    '${widget.product.name} adicionado ao carrinho'),
+                                duration: const Duration(milliseconds: 1200),
+                                behavior: SnackBarBehavior.floating,
+                                margin: const EdgeInsets.only(
+                                    bottom: 80, left: 16, right: 16),
+                                dismissDirection: DismissDirection.horizontal,
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10)),
+                              ),
+                            );
+                        },
+                      ),
+                    ],
                   ),
                 ],
                 if (variants.isNotEmpty) ...[
@@ -602,6 +1064,7 @@ class _ProductCardState extends State<_ProductCard>
                       child: _VariantMiniCard(
                         variant: variants[i],
                         productName: widget.product.name,
+                        productPhotoUrl: widget.product.photoUrl,
                         showPerKg: widget.showPerKg,
                         cartStore: cartStore,
                         primaryColor: primaryColor,
@@ -626,6 +1089,7 @@ class _VariantMiniCard extends StatelessWidget {
   const _VariantMiniCard({
     required this.variant,
     required this.productName,
+    required this.productPhotoUrl,
     required this.showPerKg,
     required this.cartStore,
     required this.primaryColor,
@@ -635,6 +1099,7 @@ class _VariantMiniCard extends StatelessWidget {
 
   final ProductVariant variant;
   final String productName;
+  final String productPhotoUrl;
   final bool showPerKg;
   final CartStore cartStore;
   final Color primaryColor;
@@ -642,11 +1107,6 @@ class _VariantMiniCard extends StatelessWidget {
   final bool showPremiumBadge;
 
   String get _variantKey => '${productName}__${variant.id}';
-
-  String get _imageUrl {
-    final name = Uri.encodeComponent(variant.brandName.toLowerCase());
-    return 'https://source.unsplash.com/400x400/?product,$name';
-  }
 
   void _addToCart(BuildContext context) {
     context.read<CartStore>().addItem(CartItem(
@@ -659,14 +1119,16 @@ class _VariantMiniCard extends StatelessWidget {
       ..showSnackBar(
         SnackBar(
           content: Text('${variant.brandName} adicionado ao carrinho'),
-          duration: const Duration(seconds: 2),
+          duration: const Duration(milliseconds: 1200),
           behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16),
+          dismissDirection: DismissDirection.horizontal,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           action: SnackBarAction(
             label: 'Ver',
-            onPressed: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const CartScreen())),
+            onPressed: () => Navigator.push(
+                context, MaterialPageRoute(builder: (_) => const CartScreen())),
           ),
         ),
       );
@@ -697,11 +1159,13 @@ class _VariantMiniCard extends StatelessWidget {
                 child: SizedBox(
                   width: 52,
                   height: 52,
-                  child: Image.network(
-                    _imageUrl,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _PlaceholderImage(),
-                  ),
+                  child: productPhotoUrl.isNotEmpty
+                      ? Image.network(
+                          productPhotoUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => _PlaceholderImage(),
+                        )
+                      : _PlaceholderImage(),
                 ),
               ),
               const SizedBox(width: 10),
@@ -782,6 +1246,75 @@ class _VariantMiniCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+// ─── Product thumbnail ─────────────────────────────────────────────────────────
+
+class _ProductThumbnail extends StatelessWidget {
+  const _ProductThumbnail({required this.photoUrl, required this.category});
+
+  final String photoUrl;
+  final String category;
+
+  IconData get _fallbackIcon {
+    final cat = category.toLowerCase();
+    if (cat.contains('bebé') || cat.contains('bebe') || cat.contains('baby')) {
+      return Icons.child_care;
+    }
+    if (cat.contains('frut') ||
+        cat.contains('legum') ||
+        cat.contains('vegeta')) {
+      return Icons.eco;
+    }
+    if (cat.contains('carne') ||
+        cat.contains('peixe') ||
+        cat.contains('meat')) {
+      return Icons.set_meal;
+    }
+    if (cat.contains('bebida') || cat.contains('drink')) {
+      return Icons.local_drink;
+    }
+    if (cat.contains('limpeza') || cat.contains('higiene')) {
+      return Icons.clean_hands;
+    }
+    if (cat.contains('farmácia') ||
+        cat.contains('saúde') ||
+        cat.contains('health')) {
+      return Icons.medical_services_outlined;
+    }
+    return Icons.shopping_bag_outlined;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (photoUrl.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child: SizedBox(
+          width: 60,
+          height: 60,
+          child: Image.network(
+            photoUrl,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => _iconBox(),
+          ),
+        ),
+      );
+    }
+    return _iconBox();
+  }
+
+  Widget _iconBox() {
+    return Container(
+      width: 60,
+      height: 60,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0F0F0),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Icon(_fallbackIcon, size: 30, color: Colors.grey.shade400),
     );
   }
 }
@@ -892,6 +1425,159 @@ class _CartBadge extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+// ─── RPC-powered suggestions (sections + products) ─────────────────────────────
+
+class _SuggestionsPanel extends StatelessWidget {
+  const _SuggestionsPanel({
+    required this.rpcRows,
+    required this.rpcLoading,
+    required this.localFallback,
+    required this.loadedProducts,
+    required this.onPickSection,
+    required this.onPickProduct,
+  });
+
+  final List<Map<String, dynamic>> rpcRows;
+  final bool rpcLoading;
+  final List<PartnerProduct> localFallback;
+  final List<PartnerProduct> loadedProducts;
+  final ValueChanged<String> onPickSection;
+  final ValueChanged<PartnerProduct> onPickProduct;
+
+  PartnerProduct? _resolveProduct(Map<String, dynamic> row) {
+    final id = (row['id'] ?? '').toString();
+    if (id.isEmpty) return null;
+    for (final p in loadedProducts) {
+      if (p.id == id) return p;
+    }
+    // Synthesize a lightweight product if the RPC returned an id not in memory.
+    return PartnerProduct(
+      id: id,
+      restaurantId: (row['restaurant_id'] ?? '').toString(),
+      name: (row['name'] ?? '').toString(),
+      description: (row['description'] ?? '').toString(),
+      price: (row['price'] as num?)?.toDouble() ?? 0.0,
+      photoUrl: (row['photo_url'] ?? '').toString(),
+      isAvailable: true,
+      category: (row['category'] ?? '').toString(),
+      categoryRoot: (row['category_root'] ?? '').toString(),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final sections = rpcRows
+        .where((r) => (r['result_type'] ?? '') == 'section')
+        .toList();
+    final products = rpcRows
+        .where((r) => (r['result_type'] ?? '') == 'product')
+        .toList();
+
+    final hasRpc = sections.isNotEmpty || products.isNotEmpty;
+
+    if (rpcLoading && !hasRpc) {
+      return Container(
+        color: Colors.white,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: const Center(
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    }
+
+    if (!hasRpc && localFallback.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      color: Colors.white,
+      constraints: const BoxConstraints(maxHeight: 360),
+      child: ListView(
+        shrinkWrap: true,
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        children: [
+          for (final s in sections)
+            ListTile(
+              dense: true,
+              leading: const Icon(Icons.folder_outlined, size: 22),
+              title: Text(
+                (s['name'] ?? s['category_root'] ?? '').toString(),
+                style:
+                    const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+              ),
+              subtitle: const Text('Categoria',
+                  style: TextStyle(fontSize: 11, color: Colors.grey)),
+              onTap: () => onPickSection(
+                  (s['category_root'] ?? s['name'] ?? '').toString()),
+            ),
+          if (sections.isNotEmpty && products.isNotEmpty)
+            const Divider(height: 1),
+          for (final r in products)
+            Builder(builder: (_) {
+              final p = _resolveProduct(r);
+              if (p == null) return const SizedBox.shrink();
+              return ListTile(
+                dense: true,
+                leading: ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: p.photoUrl.isNotEmpty
+                      ? Image.network(p.photoUrl,
+                          width: 36, height: 36, fit: BoxFit.cover)
+                      : Container(
+                          width: 36,
+                          height: 36,
+                          color: Colors.grey.shade200,
+                          child: const Icon(
+                              Icons.image_not_supported_outlined,
+                              size: 18,
+                              color: Colors.grey),
+                        ),
+                ),
+                title: Text(p.name,
+                    style: const TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w600)),
+                subtitle: Text('€${p.price.toStringAsFixed(2)}',
+                    style: const TextStyle(fontSize: 12)),
+                onTap: () => onPickProduct(p),
+              );
+            }),
+          // Local fallback when RPC has no rows yet (e.g. first keystrokes).
+          if (!hasRpc)
+            for (final p in localFallback)
+              ListTile(
+                dense: true,
+                leading: ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: p.photoUrl.isNotEmpty
+                      ? Image.network(p.photoUrl,
+                          width: 36, height: 36, fit: BoxFit.cover)
+                      : Container(
+                          width: 36,
+                          height: 36,
+                          color: Colors.grey.shade200,
+                          child: const Icon(
+                              Icons.image_not_supported_outlined,
+                              size: 18,
+                              color: Colors.grey),
+                        ),
+                ),
+                title: Text(p.name,
+                    style: const TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w600)),
+                subtitle: Text('€${p.price.toStringAsFixed(2)}',
+                    style: const TextStyle(fontSize: 12)),
+                onTap: () => onPickProduct(p),
+              ),
+        ],
+      ),
     );
   }
 }

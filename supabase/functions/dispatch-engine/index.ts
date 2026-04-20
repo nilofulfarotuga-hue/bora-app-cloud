@@ -219,7 +219,7 @@ async function decideRedispatch(
   // Need to know WHY we didn't assign — peek at current order state.
   const { data: peek, error: peekErr } = await supabase
     .from('orders')
-    .select('status, assigned_driver_id, current_driver_offer_id')
+    .select('status, assigned_driver_id, current_driver_offer_id, driver_offer_expires_at')
     .eq('id', orderId)
     .maybeSingle()
 
@@ -240,19 +240,28 @@ async function decideRedispatch(
     return false
   }
 
-  // Order is still callingDriver + unassigned → always keep the chain alive.
-  //
-  // Case (c) previously returned false when an active offer existed, relying on
-  // the assigning worker's waitUntil isolate to survive. If that isolate was
-  // recycled (reject fast-path, Supabase runtime GC) the order became an orphan
-  // with no recovery path — chain dead, no driver ever called.
-  //
-  // Fix: always schedule when pending. assignDriver's optimistic lock
-  // (.is null / .lt expiry) guarantees only one worker ever wins — duplicate
-  // invocations lose the race and simply re-schedule, bounded by reject count.
+  // Case (c): check if another worker already owns an active, non-expired offer.
+  // If yes, return false — that worker will schedule its own redispatch.
+  // Returning true here was causing exponential worker growth (error 546).
+  const offerExpiry = peek?.driver_offer_expires_at
+  const hasActiveOffer =
+    peek?.current_driver_offer_id != null &&
+    offerExpiry != null &&
+    new Date(offerExpiry) > new Date()
+
+  if (hasActiveOffer) {
+    console.log(
+      `[dispatch-engine] order=${orderId} has active offer ` +
+      `(driver=${peek.current_driver_offer_id}, expires=${offerExpiry}) ` +
+      `— another worker owns the chain, NOT scheduling duplicate`
+    )
+    return false
+  }
+
+  // Case (b): no active offer — order is orphaned or offer just expired.
+  // Schedule retry so order is not permanently stuck.
   console.log(
-    `[dispatch-engine] order=${orderId} still pending ` +
-    `(offer=${peek?.current_driver_offer_id ?? 'none'}) ` +
+    `[dispatch-engine] order=${orderId} pending, no active offer ` +
     `— redispatch in ${REDISPATCH_DELAY_MS / 1000}s`
   )
   return true
@@ -285,7 +294,7 @@ async function processDispatch(
     )
     .eq('status', 'callingDriver')
     .is('assigned_driver_id', null)
-    .or(`current_driver_offer_id.is.null,driver_offer_expires_at.lt."${now}"`)
+    .or(`current_driver_offer_id.is.null,driver_offer_expires_at.lt."${now}",driver_offer_expires_at.is.null`)
 
   if (orderId) query = query.eq('id', orderId)
 
@@ -475,6 +484,32 @@ async function findNextDriver(
     return null
   }
 
+  // ── Stacking cap: exclude drivers already at 3 active orders ─────────────
+  const MAX_ORDERS_PER_DRIVER = 3
+  const { data: activeRows } = await supabase
+    .from('orders')
+    .select('assigned_driver_id')
+    .in('status', ['driverAccepted', 'pickedUp', 'onTheWay'])
+    .not('assigned_driver_id', 'is', null)
+
+  const activeCount: Record<string, number> = {}
+  for (const row of activeRows ?? []) {
+    const id = row.assigned_driver_id as string
+    activeCount[id] = (activeCount[id] ?? 0) + 1
+  }
+
+  const beforeCap = eligible.length
+  eligible = eligible.filter((d: any) => (activeCount[d.id] ?? 0) < MAX_ORDERS_PER_DRIVER)
+  console.log(
+    `[dispatch] Stacking cap: ${eligible.length}/${beforeCap} eligible ` +
+    `(cap=${MAX_ORDERS_PER_DRIVER} active orders)`
+  )
+
+  if (eligible.length === 0) {
+    console.log('[dispatch] ✗ All eligible drivers at stacking capacity')
+    return null
+  }
+
   // ── No pickup coordinates → first eligible driver ─────────────────────────
   if (order.pickup_lat == null || order.pickup_lng == null) {
     console.log(`[dispatch] No pickup coords — assigning first eligible: ${eligible[0].id}`)
@@ -567,7 +602,8 @@ async function assignDriver(
     .is('assigned_driver_id', null)
     .or(
       `current_driver_offer_id.is.null,` +
-      `driver_offer_expires_at.lt."${now.toISOString()}"`
+      `driver_offer_expires_at.lt."${now.toISOString()}",` +
+      `driver_offer_expires_at.is.null`
     )
     .select()
 
@@ -584,7 +620,47 @@ async function assignDriver(
   }
 
   console.log(`[dispatch] ✓ SUCCESS — order=${orderId} → driver=${driverId}`)
+
+  // Fire-and-forget: notify driver via FCM (no await — don't block dispatch).
+  notifyDriver(driverId, orderId).catch((e) =>
+    console.warn(`[dispatch] notify-driver failed silently: ${e}`)
+  )
+
   return true
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Calls the notify-driver Edge Function to send a FCM push to the assigned driver.
+ * Fire-and-forget — failures are logged but never propagate to the dispatch chain.
+ * No-op when FIREBASE_PROJECT_ID / FIREBASE_SERVICE_ACCOUNT are not set.
+ */
+async function notifyDriver(driverId: string, orderId: string): Promise<void> {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')
+  const serviceKey  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+  if (!supabaseUrl || !serviceKey) return
+
+  // Fetch order summary for the notification body.
+  const supabase = createClient(supabaseUrl, serviceKey)
+  const { data: order } = await supabase
+    .from('orders')
+    .select('vendor_name, estimated_total, price')
+    .eq('id', orderId)
+    .maybeSingle()
+
+  const vendorName = order?.vendor_name ?? 'Pedido'
+  const total      = order?.estimated_total ?? order?.price ?? 0
+
+  const res = await fetch(`${supabaseUrl}/functions/v1/notify-driver`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${serviceKey}`,
+    },
+    body: JSON.stringify({ driverId, orderId, vendorName, total }),
+  })
+  console.log(`[dispatch] notify-driver → status=${res.status}`)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -658,14 +734,10 @@ async function scheduleRedispatch(
   )
 
   // ── Last-resort fallback ─────────────────────────────────────────────────
-  // Fires exactly ONCE after all retries are exhausted.
-  // Waits a full REDISPATCH_DELAY_MS so any in-flight duplicate that was
-  // silently accepted by the server has time to complete and own the chain
-  // before this fallback fires.
+  // Fires immediately after all retries are exhausted — no extra sleep.
   // assignDriver's optimistic lock (.is null / .lt expiry) guarantees only
   // one worker can write the offer — concurrent invocations cannot
   // double-assign a driver.
-  await sleep(REDISPATCH_DELAY_MS)
   try {
     console.log(`[dispatch] ⚠ last-resort fallback invoke for order=${orderId}`)
     const fbRes = await fetch(functionUrl, {

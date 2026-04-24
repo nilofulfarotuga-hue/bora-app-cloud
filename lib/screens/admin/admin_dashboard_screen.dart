@@ -11,23 +11,17 @@ import 'admin_ratings_screen.dart';
 import 'admin_reservations_screen.dart';
 import 'admin_partners_screen.dart';
 
-/// Temporary in-app admin dashboard.
+/// In-app admin dashboard.
 ///
 /// Reads aggregated metrics from `admin_dashboard_metrics()` (server-side
 /// SECURITY DEFINER RPC). The function only ever returns aggregates — never
 /// row-level data — so even if this screen is reached by a non-admin the
 /// blast radius is limited to four totals.
 ///
-/// Access gating is intentionally temporary: an email allowlist below.
-/// Replace with a real admin role + JWT claim before production.
+/// Access gating: checks `bora_role == 'admin'` in Supabase user_metadata
+/// (same pattern used for driver/partner roles — set via migration).
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
-
-  /// Temporary admin allowlist. Add the operator email(s) here.
-  /// When empty, the gate is permissive (dev mode).
-  static const Set<String> adminEmails = <String>{
-    // 'you@boraapp.com',
-  };
 
   @override
   State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
@@ -58,10 +52,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   bool get _isAuthorized {
-    const allow = AdminDashboardScreen.adminEmails;
-    if (allow.isEmpty) return true; // dev mode — open
-    final email = Supabase.instance.client.auth.currentUser?.email;
-    return email != null && allow.contains(email);
+    final meta = Supabase.instance.client.auth.currentUser?.userMetadata;
+    return meta?['bora_role'] == 'admin';
   }
 
   @override

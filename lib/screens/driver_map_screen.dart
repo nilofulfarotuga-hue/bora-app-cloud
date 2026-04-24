@@ -577,13 +577,16 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
       );
     }
 
-    for (var i = 0; i < optimizedRoute.stops.length; i++) {
-      final stop = optimizedRoute.stops[i];
+    // Uber/Glovo style: só o PRÓXIMO stop tem marker no mapa.
+    // Os restantes stops ficam visíveis no painel inferior (_StopList).
+    if (optimizedRoute.stops.isNotEmpty) {
+      final stop = optimizedRoute.stops.first;
       final isPickup = stop.isPickup;
-      final stepLabel = optimizedRoute.stops.length > 1 ? ' ${i + 1}' : '';
+      final totalStops = optimizedRoute.stops.length;
+      final stepLabel = totalStops > 1 ? ' 1/$totalStops' : '';
       markers.add(
         Marker(
-          markerId: MarkerId('stop_$i'),
+          markerId: const MarkerId('stop_next'),
           position: stop.location.toGMaps(),
           icon: isPickup
               ? MapMarkerHelper.pickupIcon
@@ -598,9 +601,10 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
     }
 
     // ── Polyline ────────────────────────────────────────────────────────────
+    // Uber/Glovo style: câmara e polyline fallback focam só no próximo stop.
     final allStopPoints = [
       driverPosition,
-      ...optimizedRoute.stops.map((s) => s.location),
+      if (nextStop != null) nextStop.location,
     ];
 
     final polylines = <Polyline>{};
@@ -800,10 +804,10 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
   void _updateRouteMulti(ll.LatLng origin, List<RouteStop> stops) {
     if (stops.isEmpty) return;
 
-    final destination = stops.last.location;
-    final waypointLocations = stops.length > 1
-        ? stops.take(stops.length - 1).map((s) => s.location).toList()
-        : const <ll.LatLng>[];
+    // Uber/Glovo style: mapa mostra SÓ a rota para o PRÓXIMO ponto.
+    // A lista completa de stops é mostrada no painel inferior (_StopList).
+    final destination = stops.first.location;
+    const waypointLocations = <ll.LatLng>[];
 
     // Build a key encoding origin + every stop location.
     final stopPart = stops

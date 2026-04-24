@@ -1,0 +1,2 @@
+[functions.charge-extra]
+verify_jwt = true

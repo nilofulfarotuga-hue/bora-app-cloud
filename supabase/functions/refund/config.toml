@@ -1,0 +1,2 @@
+[functions.refund]
+verify_jwt = true

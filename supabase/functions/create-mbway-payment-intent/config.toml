@@ -1,0 +1,2 @@
+[functions.create-mbway-payment-intent]
+verify_jwt = false

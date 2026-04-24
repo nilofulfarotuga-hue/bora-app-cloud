@@ -179,8 +179,15 @@ The project uses **two** map packages simultaneously:
 
 `PaymentService` (`lib/services/payment_service.dart`) handles three payment methods matching the `PaymentMethod` enum (`card`, `mbway`, `cash`):
 
-- **Card**: Stripe (`flutter_stripe`), mobile-only (`kIsWeb` guard). Requires a running backend that issues Stripe PaymentIntents. Set the backend URL via the `BACKEND_BASE_URL` compile-time env var (`--dart-define=BACKEND_BASE_URL=...`). Without it, card payments silently fail.
-- **MBWay / Cash**: simulated locally, no backend required.
+- **Card**: Stripe (`flutter_stripe`), mobile-only (`kIsWeb` guard). Backend runs as **Supabase Edge Functions** — no `BACKEND_BASE_URL` needed. `PaymentService` calls `Supabase.instance.client.functions.invoke(...)` for:
+  - `create-payment-intent` — public (verify_jwt=false), server-validates amount against `orders.payment_buffer_total` (±5% tolerance)
+  - `refund` — admin-only (verify_jwt=true + JWT `role=service_role` check)
+  - `charge-extra` — authenticated users (verify_jwt=true)
+  - All three enforce Stripe's 0.50 EUR minimum.
+  - The standalone Node backend at `backend/server.js` (deployed to Render) mirrors the same endpoints as a redundancy/backup — **not** currently called by the app.
+  - `notify-partner` — authenticated users (verify_jwt=true, default), fire-and-forget after createOrder; no-ops gracefully if Firebase not configured.
+- **MBWay**: real Supabase Edge Function `create-mbway-payment-intent` (verify_jwt=false) — creates Stripe PaymentIntent for `mb_way` + confirms server-side with phone in E.164 format → triggers push notification to MB WAY app. Webhook `stripe-webhook` handles `payment_intent.succeeded` → marks order paid + triggers dispatch. LIVE since 2026-04-24.
+- **Cash**: handled locally, no backend required.
 
 Stripe publishable key is initialised in `main()` (non-web only).
 

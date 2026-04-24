@@ -120,6 +120,13 @@ Deno.serve(async (req: Request) => {
       break;
     }
 
+    // ── MBWay: push sent, awaiting user confirmation (no DB action needed) ──
+    case 'payment_intent.processing': {
+      const intent = event.data.object as Stripe.PaymentIntent;
+      console.log('[stripe-webhook] payment processing (MBWay awaiting confirm):', intent.id);
+      break;
+    }
+
     // ── Payment failed ───────────────────────────────────────────────────────
     case 'payment_intent.payment_failed': {
       const intent = event.data.object as Stripe.PaymentIntent;

@@ -256,6 +256,22 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     });
   }
 
+  /// Opens DriverMapScreen, pausing the idle GPS stream while the map is
+  /// active (DriverMapScreen has its own high-precision stream). Resumes
+  /// the idle stream when the map is popped.
+  Future<void> _navigateToMap() async {
+    await _positionSubscription?.cancel();
+    _positionSubscription = null;
+    if (!mounted) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const DriverMapScreen()),
+    );
+    if (!mounted) return;
+    context.read<DriverStore>().loadTokenBalance();
+    _startIdleLocationTracking();
+  }
+
   Future<void> _handleTestMode() async {
     final authStore = context.read<AuthStore>();
     final sessionStore = context.read<SessionStore>();
@@ -1110,18 +1126,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                   children: [
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: () {
-                          final driverStore = context.read<DriverStore>();
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const DriverMapScreen(),
-                            ),
-                          ).then((_) {
-                            if (!mounted) return;
-                            driverStore.loadTokenBalance();
-                          });
-                        },
+                        onPressed: _navigateToMap,
                         icon: const Icon(Icons.map),
                         label: const Text("Ver mapa"),
                       ),
@@ -1406,15 +1411,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     // Open map IMMEDIATELY without waiting for state updates.
     // DriverMapScreen renders instantly with driver.location fallback.
     // GPS and order data update in background via animateCamera.
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const DriverMapScreen(),
-      ),
-    ).then((_) {
-      if (!mounted) return;
-      driverStore.loadTokenBalance();
-    });
+    unawaited(_navigateToMap());
   }
 
   void _handleRejectOrder(OrderModel order, OrderStore orderStore) {

@@ -16,6 +16,7 @@ import '../models/rating_model.dart';
 import '../models/restaurant_model.dart';
 import '../services/distance_service.dart';
 import '../services/maps_service.dart';
+import '../services/notification_service.dart';
 import '../services/payment_service.dart';
 import '../services/pricing_service.dart';
 import 'driver_store.dart';
@@ -49,6 +50,9 @@ class OrderStore extends ChangeNotifier {
   RealtimeChannel? _driverOfferNotifyChannel;
   // Same pattern for active deliveries — catches assigned_driver_id NULL→driverId.
   RealtimeChannel? _driverActiveNotifyChannel;
+  // Fallback UPDATE channel for the client — catches status changes that the
+  // .stream().eq('user_id') subscription may miss during reconnects.
+  RealtimeChannel? _clientOrdersChannel;
 
   // Tracks which order IDs each driver stream last delivered so we can
   // remove stale rows when the stream re-emits a shorter list.
@@ -249,6 +253,17 @@ class OrderStore extends ChangeNotifier {
     _authStore = authStore;
     if (_authStore != null) {
       await loadOrders();
+      // Restart the general stream now that _authStore is set so the
+      // user_id filter and client notify channel are applied correctly.
+      // Skip if driver-specific streams are already active.
+      if (_driverOffersSubscription == null &&
+          _driverActiveSubscription == null) {
+        _ordersSubscription?.cancel();
+        _clientOrdersChannel?.unsubscribe();
+        _ordersSubscription = null;
+        _clientOrdersChannel = null;
+        _subscribeToOrders();
+      }
     }
   }
 
@@ -314,11 +329,13 @@ class OrderStore extends ChangeNotifier {
     _ordersSubscription?.cancel();
     _driverOfferNotifyChannel?.unsubscribe();
     _driverActiveNotifyChannel?.unsubscribe();
+    _clientOrdersChannel?.unsubscribe();
     _driverOffersSubscription = null;
     _driverActiveSubscription = null;
     _ordersSubscription = null;
     _driverOfferNotifyChannel = null;
     _driverActiveNotifyChannel = null;
+    _clientOrdersChannel = null;
     _driverOfferIds.clear();
     _driverActiveIds.clear();
     _dismissedOrderIds.clear();
@@ -380,6 +397,26 @@ class OrderStore extends ChangeNotifier {
     bool isTakeaway = false,
     int tipCents = 0,
   }) async {
+    // ── Authenticated-user guard ────────────────────────────────────────────
+    // Read the user id directly from the live Supabase session (not from any
+    // cached in-memory value) and refuse to create the order if:
+    //   - there is no Supabase session at all, OR
+    //   - the session is the anonymous guest (guest@bora.com), OR
+    //   - AuthStore has no _currentClient set (UI login incomplete).
+    // This prevents the regression where client login fell back to the guest
+    // session and every order was persisted with user_id='f9ad894e-…' and
+    // customer_name='Cliente Demo'.
+    final liveUserId = supabase.auth.currentUser?.id;
+    if (liveUserId == null ||
+        (_authStore?.isGuestSession ?? true) ||
+        _authStore?.currentClient == null) {
+      debugPrint(
+          '[FLOW] createOrder BLOCKED — no authenticated client session '
+          '(liveUserId=$liveUserId isGuest=${_authStore?.isGuestSession} '
+          'hasClient=${_authStore?.currentClient != null})');
+      return false;
+    }
+
     double? googleDistance;
     if (pickupLocation != null) {
       try {
@@ -456,7 +493,7 @@ class OrderStore extends ChangeNotifier {
       paymentIntentId: paymentIntentId,
       clientPhone: clientPhone,
       customerName: customerName,
-      userId: _authStore?.userId,
+      userId: liveUserId,
       paymentBufferTotal: (!isPartnerStore
               ? PricingService.calculateBufferedTotal(pricing.subtotal) +
                   pricing.deliveryFee +
@@ -515,6 +552,29 @@ class OrderStore extends ChangeNotifier {
         debugPrint('[FLOW] createOrder: re-inserting after concurrent clear');
         _orders.insert(0, order);
         notifyListeners();
+      }
+
+      // Notify partner restaurant of new order via FCM push (fire-and-forget).
+      // Only for partner restaurant orders — supermarket/logistics flows are handled differently.
+      if (order.isPartnerStore &&
+          order.serviceType == OrderServiceType.restaurant) {
+        final restaurant = _restaurantStore?.restaurantByName(order.vendorName);
+        if (restaurant != null) {
+          final itemsSummary = order.items
+              .take(3)
+              .map((i) => '${i.quantity}x ${i.name}')
+              .join(', ');
+          NotificationService.instance
+              .notifyPartnerNewOrder(
+                orderId: order.id,
+                restaurantId: restaurant.id,
+                items: itemsSummary,
+                total: order.total,
+              )
+              .ignore();
+          debugPrint(
+              '[FLOW] createOrder: partner push queued for ${restaurant.name}');
+        }
       }
 
       // NOTE: MBWay confirmation is server-only. The client does NOT trigger
@@ -1388,6 +1448,34 @@ class OrderStore extends ChangeNotifier {
         Future.delayed(const Duration(seconds: 5), _subscribeToOrders);
       },
     );
+
+    // Client notify channel — catches UPDATE events missed by .stream().eq()
+    // during NULL→value transitions or brief reconnect gaps.
+    if (isClient && uid != null) {
+      _clientOrdersChannel?.unsubscribe();
+      _clientOrdersChannel =
+          supabase.channel('client_orders_$uid').onPostgresChanges(
+                event: PostgresChangeEvent.update,
+                schema: 'public',
+                table: 'orders',
+                callback: (payload) {
+                  final rec = payload.newRecord;
+                  if (rec.isEmpty || rec['user_id'] != uid) return;
+                  final orderId = rec['id'] as String?;
+                  if (orderId == null) return;
+                  final updated = OrderModel.fromSupabase(rec);
+                  final idx = _orders.indexWhere((o) => o.id == orderId);
+                  if (idx >= 0) {
+                    _orders[idx] = updated;
+                  } else {
+                    _orders.insert(0, updated);
+                  }
+                  debugPrint(
+                      '[OrderStore] client notify: order=$orderId status=${updated.status}');
+                  notifyListeners();
+                },
+              )..subscribe();
+    }
   }
 
   /// Driver-specific filtered streams. Called the moment a real driverId is
@@ -1405,11 +1493,13 @@ class OrderStore extends ChangeNotifier {
     _ordersSubscription?.cancel();
     _driverOfferNotifyChannel?.unsubscribe();
     _driverActiveNotifyChannel?.unsubscribe();
+    _clientOrdersChannel?.unsubscribe();
     _driverOffersSubscription = null;
     _driverActiveSubscription = null;
     _ordersSubscription = null;
     _driverOfferNotifyChannel = null;
     _driverActiveNotifyChannel = null;
+    _clientOrdersChannel = null;
 
     // Clear stale data so the UI starts fresh from DB state.
     _orders.clear();

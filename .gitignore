@@ -72,6 +72,7 @@ scripts/scraper/output/
 scripts/scraper/node_modules/
 
 # ── Secrets / credentials (NEVER commit these) ────────────────────────────────
+.dart_defines
 backend/firebase-service-account.json
 backend/firebase-service-account.json.json
 backend/*.json.json

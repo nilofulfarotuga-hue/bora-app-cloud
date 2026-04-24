@@ -1,0 +1,15 @@
+# Bora App — Build-time environment variables
+# Copy this file to .dart_defines (never commit .dart_defines)
+# Usage: flutter run --dart-define-from-file=.dart_defines
+#        flutter build apk --dart-define-from-file=.dart_defines
+
+# ── Supabase ──────────────────────────────────────────────────────────────────
+SUPABASE_URL=https://YOUR_PROJECT_ID.supabase.co
+SUPABASE_ANON_KEY=eyJhbGci...your_anon_key_here
+
+# ── Google Maps ───────────────────────────────────────────────────────────────
+GOOGLE_MAPS_API_KEY=AIzaSy...your_google_maps_key_here
+
+# ── Stripe ────────────────────────────────────────────────────────────────────
+# Use pk_test_... for debug builds, pk_live_... for release builds
+STRIPE_PUBLISHABLE_KEY=pk_test_...your_stripe_key_here

@@ -28,9 +28,11 @@ import 'stores/consent_store.dart';
 import 'stores/session_store.dart';
 import 'widgets/consent_banner.dart';
 
-const String _supabaseUrl = 'https://ojykpzwqrtusfeakzrna.supabase.co';
-const String _supabaseAnonKey =
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qeWtwendxcnR1c2ZlYWt6cm5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwMDA3MjgsImV4cCI6MjA4ODU3NjcyOH0.-yrhHFZV4bfjBagI5W-c1AvmP8Xkzs1kf2xuxPwdBh4';
+// Injected at build time via --dart-define=SUPABASE_URL=... --dart-define=SUPABASE_ANON_KEY=...
+// or --dart-define-from-file=.dart_defines
+// Never hardcode these values here.
+const String _supabaseUrl = String.fromEnvironment('SUPABASE_URL');
+const String _supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -41,8 +43,17 @@ Future<void> main() async {
   );
 
   if (!kIsWeb) {
-    Stripe.publishableKey =
-        'pk_test_51T8MG0GmiUUEIr722bf8w8H8LWZgAlMMuPgEP4XOxzfYr9VsiIhxQixvj7uqkdtbfXatRHrvOcgX3C3dv257rjs600mn6d5mVv';
+    // Injected via --dart-define=STRIPE_PUBLISHABLE_KEY=pk_live_...
+    // or --dart-define-from-file=.dart_defines
+    // Never hardcode the key here — not even the test key.
+    const stripePublishableKey = String.fromEnvironment('STRIPE_PUBLISHABLE_KEY');
+    if (stripePublishableKey.isEmpty) {
+      throw StateError(
+        'STRIPE_PUBLISHABLE_KEY is missing. '
+        'Run with: flutter run --dart-define-from-file=.dart_defines',
+      );
+    }
+    Stripe.publishableKey = stripePublishableKey;
     Stripe.merchantIdentifier = 'merchant.com.boraapp.app';
     await Stripe.instance.applySettings();
     // NOTE: Requires google-services.json (Android) and GoogleService-Info.plist (iOS).

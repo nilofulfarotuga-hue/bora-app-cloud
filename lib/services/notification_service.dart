@@ -20,8 +20,9 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 /// Responsibilities:
 ///   • Request notification permission (iOS / Android 13+)
 ///   • Obtain and persist FCM token to `drivers.fcm_token` in Supabase
+///   • Obtain and persist FCM token to `restaurants.fcm_token` in Supabase
 ///   • Handle foreground, background, and terminated notification events
-///   • Provide HTTP helpers for legacy notify-drivers / notify-client endpoints
+///   • Provide HTTP helpers for notify-driver / notify-partner / notify-client endpoints
 ///
 /// To activate after adding google-services.json / GoogleService-Info.plist:
 ///   1. Place google-services.json → android/app/
@@ -113,7 +114,43 @@ class NotificationService {
     }
   }
 
+  /// Saves the FCM token to `restaurants.fcm_token` for the given [restaurantId].
+  /// Call this after a partner successfully logs in.
+  Future<void> saveTokenForPartner(String restaurantId) async {
+    final token = _fcmToken;
+    if (token == null) {
+      debugPrint(
+          '[NotificationService] saveTokenForPartner: no FCM token yet');
+      return;
+    }
+    try {
+      await Supabase.instance.client
+          .from('restaurants')
+          .update({'fcm_token': token}).eq('id', restaurantId);
+      debugPrint(
+          '[NotificationService] FCM token saved for partner $restaurantId');
+    } catch (e) {
+      debugPrint('[NotificationService] saveTokenForPartner error: $e');
+    }
+  }
+
   // ── Send helpers (HTTP → Supabase Edge Functions) ─────────────────────────
+
+  /// Notifies the partner restaurant of a new incoming order via FCM push.
+  /// [items] is a short human-readable summary, e.g. "2x Sushi, 1x Ramen".
+  Future<void> notifyPartnerNewOrder({
+    required String orderId,
+    required String restaurantId,
+    required String items,
+    required double total,
+  }) async {
+    await _post('notify-partner', {
+      'orderId': orderId,
+      'restaurantId': restaurantId,
+      'items': items,
+      'total': total,
+    });
+  }
 
   Future<void> notifyDriversNewOrder({
     required String orderId,
@@ -139,10 +176,14 @@ class NotificationService {
     });
   }
 
+  // Injected at build time via --dart-define-from-file=.dart_defines.
+  // Must match the values passed to Supabase.initialize(...) in main.dart.
+  static const String _supabaseUrl = String.fromEnvironment('SUPABASE_URL');
+  static const String _anonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
+
   Future<void> _post(String functionName, Map<String, dynamic> payload) async {
-    const supabaseUrl = 'https://ojykpzwqrtusfeakzrna.supabase.co';
-    const anonKey =
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qeWtwendxcnR1c2ZlYWt6cm5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwMDA3MjgsImV4cCI6MjA4ODU3NjcyOH0.-yrhHFZV4bfjBagI5W-c1AvmP8Xkzs1kf2xuxPwdBh4';
+    const supabaseUrl = _supabaseUrl;
+    const anonKey = _anonKey;
     try {
       await http.post(
         Uri.parse('$supabaseUrl/functions/v1/$functionName'),

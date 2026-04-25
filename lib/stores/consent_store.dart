@@ -1,6 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../services/location_service.dart';
+import '../services/notification_service.dart';
+
 /// Persistent store for GDPR/ePrivacy consent choices (BR §20.3).
 ///
 /// The banner shown on first app open lets the user choose between:
@@ -13,9 +16,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 ///   • analytics      — usage analytics
 ///   • notifications  — push notifications
 ///
-/// This store ONLY records the choice. Technical enforcement of the opt-out
-/// (actually disabling FCM / Geolocator / analytics when rejected) is a
-/// separate task (1.3b — post-launch backlog).
+/// Technical enforcement: opt-out disables FCM token persistence and blocks OS
+/// location permission requests via service-level flags ([NotificationService]
+/// and [LocationService]).
 class ConsentStore extends ChangeNotifier {
   /// Current consent schema version. Bump to re-prompt all users after a
   /// material change in the banner text or scope.
@@ -61,6 +64,13 @@ class ConsentStore extends ChangeNotifier {
       // Fail open — never block the UI because of a platform hiccup.
       _answered = true;
     }
+
+    // Apply saved consent to services so enforcement survives app restarts.
+    if (_answered) {
+      NotificationService.instance.applyNotificationConsent(_notificationsConsent);
+      LocationService.applyLocationConsent(_locationConsent);
+    }
+
     notifyListeners();
   }
 
@@ -107,6 +117,11 @@ class ConsentStore extends ChangeNotifier {
     } catch (_) {
       // Notify listeners anyway — the in-memory choice holds until next launch.
     }
+
+    // Enforce consent choices technically so the user's choice takes effect
+    // immediately without requiring an app restart.
+    NotificationService.instance.applyNotificationConsent(notifications);
+    LocationService.applyLocationConsent(location);
 
     notifyListeners();
   }

@@ -97,7 +97,9 @@ class _MapScreenState extends State<MapScreen> {
     if (!mounted) return;
     if (location == null) {
       setState(() {
-        _loadingError = 'Não foi possível obter a sua localização.';
+        _loadingError = LocationService.isConsentBlocked
+            ? 'Activa a localização nas definições para fazer pedidos'
+            : 'Não foi possível obter a sua localização.';
       });
       return;
     }

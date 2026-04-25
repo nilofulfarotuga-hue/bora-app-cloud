@@ -36,15 +36,41 @@ class NotificationService {
 
   final _sound = SoundService();
   bool _initialized = false;
+  bool _consentGranted = true;
   String? _fcmToken;
 
+  /// Tracks last saved binding so we can clear on logout.
+  /// _boundRole ∈ {'client','driver','partner'}.
+  String? _boundRole;
+  String? _boundId;
+
   String? get fcmToken => _fcmToken;
+
+  // ── Consent enforcement ───────────────────────────────────────────────────
+
+  /// Called by [ConsentStore] whenever the user saves their GDPR preferences.
+  /// If [allowed] is false: clears the FCM token from DB, resets the token
+  /// in memory, and marks the service as uninitialised so that a future
+  /// consent grant can re-initialise FCM cleanly.
+  void applyNotificationConsent(bool allowed) {
+    _consentGranted = allowed;
+    if (!allowed) {
+      clearTokenForCurrentUser().ignore();
+      _fcmToken = null;
+      _initialized = false;
+      debugPrint('[NotificationService] consent revoked — FCM disabled');
+    }
+  }
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
 
   Future<void> init() async {
     if (_initialized) return;
     if (kIsWeb) return;
+    if (!_consentGranted) {
+      debugPrint('[NotificationService] init skipped — notifications consent not granted');
+      return;
+    }
 
     // Register background handler BEFORE any other FCM call.
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
@@ -68,6 +94,22 @@ class NotificationService {
     messaging.onTokenRefresh.listen((token) {
       _fcmToken = token;
       debugPrint('[NotificationService] token refreshed: $token');
+      // Re-persist for the currently bound user so DB stays in sync.
+      final role = _boundRole;
+      final id = _boundId;
+      if (role != null && id != null) {
+        switch (role) {
+          case 'client':
+            saveTokenForClient(id);
+            break;
+          case 'driver':
+            saveTokenForDriver(id);
+            break;
+          case 'partner':
+            saveTokenForPartner(id);
+            break;
+        }
+      }
     });
 
     // Foreground messages: show in-app sound; UI already shows via Realtime.
@@ -99,6 +141,7 @@ class NotificationService {
   /// Saves the FCM token to `drivers.fcm_token` for the given [driverId].
   /// Call this after a driver successfully logs in.
   Future<void> saveTokenForDriver(String driverId) async {
+    if (!_consentGranted) return;
     final token = _fcmToken;
     if (token == null) {
       debugPrint('[NotificationService] saveTokenForDriver: no FCM token yet');
@@ -108,15 +151,40 @@ class NotificationService {
       await Supabase.instance.client
           .from('drivers')
           .update({'fcm_token': token}).eq('id', driverId);
+      _boundRole = 'driver';
+      _boundId = driverId;
       debugPrint('[NotificationService] FCM token saved for driver $driverId');
     } catch (e) {
       debugPrint('[NotificationService] saveTokenForDriver error: $e');
     }
   }
 
+  /// Saves the FCM token to `users.fcm_token` for the given [clientId].
+  /// Call this after a client successfully logs in.
+  Future<void> saveTokenForClient(String clientId) async {
+    if (!_consentGranted) return;
+    final token = _fcmToken;
+    if (token == null) {
+      debugPrint('[NotificationService] saveTokenForClient: no FCM token yet');
+      return;
+    }
+    try {
+      await Supabase.instance.client.from('users').upsert({
+        'id': clientId,
+        'fcm_token': token,
+      });
+      _boundRole = 'client';
+      _boundId = clientId;
+      debugPrint('[NotificationService] FCM token saved for client $clientId');
+    } catch (e) {
+      debugPrint('[NotificationService] saveTokenForClient error: $e');
+    }
+  }
+
   /// Saves the FCM token to `restaurants.fcm_token` for the given [restaurantId].
   /// Call this after a partner successfully logs in.
   Future<void> saveTokenForPartner(String restaurantId) async {
+    if (!_consentGranted) return;
     final token = _fcmToken;
     if (token == null) {
       debugPrint(
@@ -127,10 +195,47 @@ class NotificationService {
       await Supabase.instance.client
           .from('restaurants')
           .update({'fcm_token': token}).eq('id', restaurantId);
+      _boundRole = 'partner';
+      _boundId = restaurantId;
       debugPrint(
           '[NotificationService] FCM token saved for partner $restaurantId');
     } catch (e) {
       debugPrint('[NotificationService] saveTokenForPartner error: $e');
+    }
+  }
+
+  /// Clears the FCM token from DB for the currently bound user.
+  /// Call this BEFORE logout so the device stops receiving push notifications
+  /// targeted at the previous session. Safe no-op if nothing is bound.
+  Future<void> clearTokenForCurrentUser() async {
+    final role = _boundRole;
+    final id = _boundId;
+    if (role == null || id == null) {
+      debugPrint('[NotificationService] clearTokenForCurrentUser: no bound user');
+      return;
+    }
+    try {
+      final client = Supabase.instance.client;
+      switch (role) {
+        case 'client':
+          await client.from('users').update({'fcm_token': null}).eq('id', id);
+          break;
+        case 'driver':
+          await client.from('drivers').update({'fcm_token': null}).eq('id', id);
+          break;
+        case 'partner':
+          await client
+              .from('restaurants')
+              .update({'fcm_token': null})
+              .eq('id', id);
+          break;
+      }
+      debugPrint('[NotificationService] FCM token cleared for $role $id');
+    } catch (e) {
+      debugPrint('[NotificationService] clearTokenForCurrentUser error: $e');
+    } finally {
+      _boundRole = null;
+      _boundId = null;
     }
   }
 
@@ -174,6 +279,87 @@ class NotificationService {
       'title': title,
       'body': body,
     });
+  }
+
+  /// Sends a status-specific push to the client for a given order.
+  /// Messages mirror Uber Eats tone: specific, short, action-oriented.
+  ///
+  /// [status] must be one of: preparing, callingDriver, driverAccepted,
+  /// pickedUp, onTheWay, delivered. Unknown statuses are no-ops.
+  Future<void> notifyClientOrderStatus({
+    required String clientId,
+    required String orderId,
+    required String status,
+    String? vendorName,
+    String? driverName,
+    int? etaMinutes,
+  }) async {
+    final msg = _statusMessageForClient(
+      status: status,
+      vendorName: vendorName,
+      driverName: driverName,
+      etaMinutes: etaMinutes,
+    );
+    if (msg == null) return;
+    await _post('notify-client', {
+      'clientId': clientId,
+      'orderId': orderId,
+      'status': status,
+      'title': msg.$1,
+      'body': msg.$2,
+    });
+  }
+
+  /// Returns (title, body) for the given order status, or null if the status
+  /// does not warrant a client push.
+  (String, String)? _statusMessageForClient({
+    required String status,
+    String? vendorName,
+    String? driverName,
+    int? etaMinutes,
+  }) {
+    final vendor = (vendorName ?? '').trim();
+    final driver = (driverName ?? '').trim();
+    switch (status) {
+      case 'preparing':
+        return (
+          'Pedido aceite',
+          vendor.isEmpty
+              ? '👨‍🍳 O restaurante está a preparar o seu pedido'
+              : '👨‍🍳 $vendor está a preparar o seu pedido',
+        );
+      case 'callingDriver':
+        return (
+          'À procura de estafeta',
+          '🛵 A procurar o melhor estafeta para o seu pedido…',
+        );
+      case 'driverAccepted':
+        return (
+          'Estafeta a caminho do restaurante',
+          driver.isEmpty
+              ? '✅ Um estafeta aceitou o seu pedido'
+              : '✅ $driver aceitou o seu pedido',
+        );
+      case 'pickedUp':
+        return (
+          'Pedido recolhido',
+          '📦 O seu pedido foi recolhido e está a caminho',
+        );
+      case 'onTheWay':
+        return (
+          'A caminho!',
+          etaMinutes == null || etaMinutes <= 0
+              ? '🛵 O seu pedido está a caminho'
+              : '🛵 A caminho! Chega em ~$etaMinutes min',
+        );
+      case 'delivered':
+        return (
+          'Entregue 🎉',
+          'Como foi a sua experiência? Avalie o pedido e ajude outros clientes.',
+        );
+      default:
+        return null;
+    }
   }
 
   // Injected at build time via --dart-define-from-file=.dart_defines.

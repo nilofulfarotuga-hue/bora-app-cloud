@@ -12,10 +12,12 @@ import '../models/order_model.dart';
 import '../models/rating_model.dart';
 import '../widgets/address_text.dart';
 import '../services/directions_service.dart';
+import '../services/order_eta_service.dart';
 import '../stores/driver_store.dart';
 import '../stores/order_store.dart';
 import '../utils/map_marker_helper.dart';
 import '../utils/map_utils.dart';
+import '../services/notification_service.dart';
 import 'chat_screen.dart';
 import 'rating_screen.dart';
 
@@ -275,7 +277,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
 // Bottom draggable card
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _BottomCard extends StatelessWidget {
+class _BottomCard extends StatefulWidget {
   const _BottomCard({
     required this.scrollController,
     required this.order,
@@ -286,24 +288,52 @@ class _BottomCard extends StatelessWidget {
   final OrderModel order;
   final String? driverName;
 
+  @override
+  State<_BottomCard> createState() => _BottomCardState();
+}
+
+class _BottomCardState extends State<_BottomCard> {
+  bool _sendingCode = false;
+
   bool get _driverAssigned =>
-      order.status.index >= OrderStatus.driverAccepted.index &&
-      order.status != OrderStatus.rejected;
+      widget.order.status.index >= OrderStatus.driverAccepted.index &&
+      widget.order.status != OrderStatus.rejected;
 
   bool get _isActive =>
-      order.status != OrderStatus.delivered &&
-      order.status != OrderStatus.rejected &&
-      order.status != OrderStatus.cancelled;
+      widget.order.status != OrderStatus.delivered &&
+      widget.order.status != OrderStatus.rejected &&
+      widget.order.status != OrderStatus.cancelled;
 
   /// Client can cancel from any non-terminal state (BR §8.3).
   /// Fee tier is decided server-side based on current status.
   bool get _canCancel =>
-      order.status != OrderStatus.delivered &&
-      order.status != OrderStatus.rejected &&
-      order.status != OrderStatus.cancelled;
+      widget.order.status != OrderStatus.delivered &&
+      widget.order.status != OrderStatus.rejected &&
+      widget.order.status != OrderStatus.cancelled;
+
+  Future<void> _resendDeliveryCode() async {
+    final order = widget.order;
+    final phone = order.clientPhone;
+    if (phone == null || phone.trim().isEmpty) return;
+    if (_sendingCode) return;
+    setState(() => _sendingCode = true);
+    await NotificationService.instance.notifyClient(
+      clientPhone: phone,
+      title: 'O seu código de entrega',
+      body: 'Código: ${order.deliveryCode} — Mostre ao estafeta na entrega.',
+    );
+    if (!mounted) return;
+    setState(() => _sendingCode = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Código reenviado por notificação.')),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    final order = widget.order;
+    final driverName = widget.driverName;
+    final scrollController = widget.scrollController;
     final theme = Theme.of(context);
 
     return Container(
@@ -384,6 +414,15 @@ class _BottomCard extends StatelessWidget {
                     ),
                   ],
                 ),
+
+                // ── ETA badge ────────────────────────────────────────────
+                if (OrderEtaService.label(order) != null) ...[
+                  const SizedBox(height: 14),
+                  _EtaBadge(
+                    label: OrderEtaService.label(order)!,
+                    status: order.status,
+                  ),
+                ],
 
                 const SizedBox(height: 20),
 
@@ -574,6 +613,38 @@ class _BottomCard extends StatelessWidget {
                               fontSize: 11,
                             ),
                           ),
+                          const SizedBox(height: 6),
+                          TextButton.icon(
+                            onPressed: _sendingCode
+                                ? null
+                                : _resendDeliveryCode,
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 4),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            icon: _sendingCode
+                                ? SizedBox(
+                                    width: 13,
+                                    height: 13,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.orange.shade700,
+                                    ),
+                                  )
+                                : Icon(Icons.notifications_outlined,
+                                    size: 15,
+                                    color: Colors.orange.shade700),
+                            label: Text(
+                              _sendingCode
+                                  ? 'A reenviar…'
+                                  : 'Reenviar código',
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.orange.shade700),
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -684,7 +755,7 @@ class _BottomCard extends StatelessWidget {
 
   Future<void> _confirmClientCancel(BuildContext context) async {
     final reasonController = TextEditingController();
-    final feeLabel = _feeLabelForStatus(order.status, order.total);
+    final feeLabel = _feeLabelForStatus(widget.order.status, widget.order.total);
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -734,7 +805,7 @@ class _BottomCard extends StatelessWidget {
     final navigator = Navigator.of(context);
 
     final result = await orderStore.clientCancelOrder(
-      order,
+      widget.order,
       reason: reasonController.text,
     );
 
@@ -822,5 +893,82 @@ class _AddressRow extends StatelessWidget {
         Expanded(child: child),
       ],
     );
+  }
+}
+
+class _EtaBadge extends StatelessWidget {
+  const _EtaBadge({required this.label, required this.status});
+
+  final String label;
+  final OrderStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    final isClose = status == OrderStatus.pickedUp ||
+        status == OrderStatus.onTheWay;
+    final accent = isClose ? Colors.green.shade600 : Colors.orange.shade700;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(Radii.lg),
+        border: Border.all(color: accent.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(Icons.delivery_dining, color: accent, size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: accent,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _subLabel(status),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _subLabel(OrderStatus s) {
+    switch (s) {
+      case OrderStatus.created:
+      case OrderStatus.preparing:
+        return 'Restaurante a preparar o pedido';
+      case OrderStatus.callingDriver:
+        return 'À procura de estafeta';
+      case OrderStatus.driverAccepted:
+        return 'Estafeta a caminho do restaurante';
+      case OrderStatus.pickedUp:
+      case OrderStatus.onTheWay:
+        return 'Estafeta a caminho da sua morada';
+      default:
+        return '';
+    }
   }
 }

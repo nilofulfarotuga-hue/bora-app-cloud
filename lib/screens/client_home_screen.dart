@@ -355,9 +355,11 @@ class _AddressPickerScreenState extends State<_AddressPickerScreen> {
     setState(() => _loadingGps = false);
 
     if (location == null) {
+      final msg = LocationService.isConsentBlocked
+          ? 'Activa a localização nas definições para fazer pedidos'
+          : 'Não foi possível obter a localização GPS.';
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Não foi possível obter a localização GPS.')),
+        SnackBar(content: Text(msg)),
       );
       return;
     }

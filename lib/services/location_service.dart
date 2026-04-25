@@ -6,11 +6,31 @@ import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 
 class LocationService {
+  static bool _consentGranted = true;
+
+  /// Whether [getCurrentLocation] returned null specifically because the user
+  /// has not granted location consent in the GDPR banner.
+  /// Use this at call sites to show a targeted SnackBar instead of a generic
+  /// error message.
+  static bool get isConsentBlocked => !_consentGranted;
+
+  /// Called by [ConsentStore] whenever the user saves their GDPR preferences.
+  static void applyLocationConsent(bool allowed) {
+    _consentGranted = allowed;
+    debugPrint('LocationService: consent = $allowed');
+  }
+
   /// Returns the device's current GPS location, or null when unavailable.
   ///
   /// Handles all permission states including [LocationPermission.deniedForever].
   /// Never throws — returns null on any failure.
+  /// Returns null immediately (without requesting OS permission) when the user
+  /// has rejected location consent in the GDPR banner.
   static Future<LatLng?> getCurrentLocation() async {
+    if (!_consentGranted) {
+      debugPrint('LocationService: location consent not granted — returning null');
+      return null;
+    }
     // On web, isLocationServiceEnabled() always returns true; skip the check.
     if (!kIsWeb) {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();

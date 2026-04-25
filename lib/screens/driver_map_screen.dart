@@ -1247,10 +1247,7 @@ class _BottomPanelState extends State<_BottomPanel> {
                                       widget.focusOrder?.status ==
                                           OrderStatus.onTheWay;
 
-                                  // Delivery step: PIN bypass activo para testes.
-                                  // Para reactivar, meter `kRequireDeliveryCode = true`.
-                                  const bool kRequireDeliveryCode = false;
-                                  // ignore: dead_code
+                                  const bool kRequireDeliveryCode = true;
                                   if (willFinish && kRequireDeliveryCode) {
                                     await _showDeliveryCodeDialog(action);
                                     return;

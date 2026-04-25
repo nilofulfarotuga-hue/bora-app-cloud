@@ -456,6 +456,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                         key: ValueKey(highlightedOrder.id),
                         order: highlightedOrder,
                         isEnabled: canInteractWithOrders,
+                        driverLocation: driverStore.currentDriver?.location,
                         onAccept: () async {
                           await _handleAcceptOrder(
                             highlightedOrder,
@@ -477,6 +478,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                           key: ValueKey(order.id),
                           order: order,
                           isEnabled: canInteractWithOrders,
+                          driverLocation: driverStore.currentDriver?.location,
                           onAccept: () async {
                             await _handleAcceptOrder(
                               order,
@@ -1171,10 +1173,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                                       order.id, bagCount);
                                 }
                               }
-                              // PIN bypass activo para testes.
-                              // Para reactivar, meter `kRequireDeliveryCode = true`.
-                              const bool kRequireDeliveryCode = false;
-                              // ignore: dead_code
+                              const bool kRequireDeliveryCode = true;
                               if (kRequireDeliveryCode) {
                                 final codeOk =
                                     await _showDeliveryCodeDialog(order);
@@ -1557,6 +1556,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     final dropoffText = order.dropoffAddress ?? order.dropoffStreet ?? '';
     final paymentLabel = order.paymentMethod.label;
     final isCash = order.paymentMethod == PaymentMethod.cash;
+    final driverLoc = context.read<DriverStore>().currentDriver?.location;
 
     // 40s auto-dismiss so the offer doesn't block the UI indefinitely.
     // Uses the root navigator so the dialog overlays any screen on top
@@ -1595,6 +1595,33 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ],
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.orange.shade300),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.payments,
+                          color: Colors.orange.shade900, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        '+€${order.driverEarnings.toStringAsFixed(2)}',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.orange.shade900,
+                        ),
+                      ),
+                      const Spacer(),
+                      _offerLegsRow(order, driverLoc),
+                    ],
+                  ),
+                ),
                 const SizedBox(height: 8),
                 Row(
                   children: [
@@ -1676,7 +1703,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                 onPressed: () =>
                     Navigator.of(dialogCtx, rootNavigator: true).pop('accept'),
                 child: Text(
-                    hasActiveOrders ? 'Aceitar +€3 +50 tokens' : 'Aceitar'),
+                    'Aceitar · +€${order.driverEarnings.toStringAsFixed(2)}'),
               ),
             ],
           ),
@@ -1707,6 +1734,70 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
 }
 
 // ── Floating icon button used in idle map overlay ─────────────────────────────
+
+// ─── Offer distance helpers ──────────────────────────────────────────────────
+/// Returns (driver→restaurante, restaurante→cliente) in km. Each leg is null
+/// when the required coords are missing.
+({double? toPickupKm, double? toDropoffKm}) _offerLegDistances(
+  OrderModel order,
+  LatLng? driverLoc,
+) {
+  const d = Distance();
+  double? a;
+  double? b;
+  if (driverLoc != null && order.pickupLocation != null) {
+    a = d.as(LengthUnit.Kilometer, driverLoc, order.pickupLocation!);
+  }
+  if (order.pickupLocation != null && order.destination != null) {
+    b = d.as(LengthUnit.Kilometer, order.pickupLocation!, order.destination!);
+  }
+  return (toPickupKm: a, toDropoffKm: b);
+}
+
+/// Builds the two-leg distance row used in the driver offer UIs.
+/// Falls back to the legacy single total chip when legs are unavailable.
+Widget _offerLegsRow(OrderModel order, LatLng? driverLoc, {Color? color}) {
+  final legs = _offerLegDistances(order, driverLoc);
+  final c = color ?? Colors.orange.shade900;
+  final style = TextStyle(
+    fontSize: 13,
+    fontWeight: FontWeight.w700,
+    color: c,
+  );
+  final hasBoth = legs.toPickupKm != null && legs.toDropoffKm != null;
+  if (!hasBoth) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.social_distance, size: 16, color: c),
+        const SizedBox(width: 4),
+        Text('${order.distanceKm.toStringAsFixed(1)} km', style: style),
+      ],
+    );
+  }
+  return Wrap(
+    spacing: 10,
+    runSpacing: 4,
+    children: [
+      Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.storefront, size: 16, color: c),
+          const SizedBox(width: 4),
+          Text('${legs.toPickupKm!.toStringAsFixed(1)} km', style: style),
+        ],
+      ),
+      Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.place, size: 16, color: c),
+          const SizedBox(width: 4),
+          Text('${legs.toDropoffKm!.toStringAsFixed(1)} km', style: style),
+        ],
+      ),
+    ],
+  );
+}
 
 // ─── Token balance chip ───────────────────────────────────────────────────────
 // Compact pill showing the driver's current token balance.
@@ -1795,12 +1886,14 @@ class _DriverOrderAlertCard extends StatefulWidget {
     required this.isEnabled,
     required this.onAccept,
     required this.onReject,
+    this.driverLocation,
   });
 
   final OrderModel order;
   final bool isEnabled;
   final Future<void> Function() onAccept;
   final VoidCallback onReject;
+  final LatLng? driverLocation;
 
   @override
   State<_DriverOrderAlertCard> createState() => _DriverOrderAlertCardState();
@@ -2044,26 +2137,7 @@ class _DriverOrderAlertCardState extends State<_DriverOrderAlertCard>
                       color: Colors.white.withValues(alpha: 0.9),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.social_distance,
-                          color: Colors.orange.shade900,
-                          size: 18,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          "${order.distanceKm.toStringAsFixed(1)} km",
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ) ??
-                              const TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                        ),
-                      ],
-                    ),
+                    child: _offerLegsRow(order, widget.driverLocation),
                   ),
                 ],
               ),
@@ -2107,7 +2181,8 @@ class _DriverOrderAlertCardState extends State<_DriverOrderAlertCard>
                             color: Colors.white,
                           ),
                         )
-                      : const Text("Aceitar pedido"),
+                      : Text(
+                          'Aceitar · +€${order.driverEarnings.toStringAsFixed(2)}'),
                 ),
               ),
             ],
@@ -2123,6 +2198,7 @@ class _AvailableOrderCard extends StatefulWidget {
   final bool isEnabled;
   final Future<void> Function() onAccept;
   final VoidCallback onReject;
+  final LatLng? driverLocation;
 
   const _AvailableOrderCard({
     super.key,
@@ -2130,7 +2206,10 @@ class _AvailableOrderCard extends StatefulWidget {
     required this.isEnabled,
     required this.onAccept,
     required this.onReject,
+    this.driverLocation,
   });
+
+
 
   @override
   State<_AvailableOrderCard> createState() => _AvailableOrderCardState();
@@ -2180,9 +2259,26 @@ class _AvailableOrderCardState extends State<_AvailableOrderCard> {
                   value: "+€${order.driverEarnings.toStringAsFixed(2)}",
                 ),
                 _InfoChip(
-                  icon: Icons.social_distance,
-                  label: "Distância",
-                  value: "${order.distanceKm.toStringAsFixed(1)} km",
+                  icon: Icons.storefront,
+                  label: "Restaurante",
+                  value: () {
+                    final legs =
+                        _offerLegDistances(order, widget.driverLocation);
+                    return legs.toPickupKm != null
+                        ? "${legs.toPickupKm!.toStringAsFixed(1)} km"
+                        : "${order.distanceKm.toStringAsFixed(1)} km";
+                  }(),
+                ),
+                _InfoChip(
+                  icon: Icons.place,
+                  label: "Entrega",
+                  value: () {
+                    final legs =
+                        _offerLegDistances(order, widget.driverLocation);
+                    return legs.toDropoffKm != null
+                        ? "${legs.toDropoffKm!.toStringAsFixed(1)} km"
+                        : "—";
+                  }(),
                 ),
                 _InfoChip(
                   icon: Icons.account_balance_wallet,
@@ -2275,7 +2371,8 @@ class _AvailableOrderCardState extends State<_AvailableOrderCard> {
                             width: 16,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Text("Aceitar pedido"),
+                        : Text(
+                            'Aceitar · +€${order.driverEarnings.toStringAsFixed(2)}'),
                   ),
                 ),
               ],

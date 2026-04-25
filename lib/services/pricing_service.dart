@@ -15,6 +15,10 @@ class OrderPricingBreakdown {
   /// Bag fee charged to the customer. €0.30 for restaurant orders (automatic).
   final double bagFee;
 
+  /// Hidden 5% markup embedded in partner product prices (not shown to client).
+  /// Only populated for partner orders. For reporting/settlement purposes.
+  final double partnerMarkupHidden;
+
   double get customerTotal => subtotal + serviceFee + deliveryFee + bagFee;
 
   const OrderPricingBreakdown({
@@ -27,6 +31,7 @@ class OrderPricingBreakdown {
     this.apartmentSurcharge = 0,
     this.apartmentDelivery = false,
     this.bagFee = 0,
+    this.partnerMarkupHidden = 0,
   });
 }
 
@@ -38,14 +43,26 @@ class PricingService {
   /// Charged automatically for all restaurant orders (takeaway bag).
   static const double _restaurantBagFee = 0.30;
   // ── Driver earnings — delivery (partner + non-partner) ───────────────────
-  static const double _driverBasePay = 3.80; // was 4.0
+  static const double _driverBasePay = 3.80;
   static const double _driverPerKmRate = 0.2;
-  static const double _partnerCommissionRate = 0.20;
+
+  // Partner commission split: 10% visible (partner pays) + 5% hidden markup
+  // (in product prices) + 5% service fee (client pays at checkout) = 20% total.
+  static const double _partnerCommissionRate = 0.10;     // visible to partner
+  static const double _partnerServiceFeeRate = 0.05;     // charged to client
+  static const double _partnerMarkupHiddenRate = 0.05;   // embedded in prices
+
+  /// Bonus paid to driver for a 2nd stacked partner order.
+  static const double _partnerStackingBonus = 3.00;
 
   static const double _nonPartnerMarkupRate = 0.15;
   static const double _nonPartnerPurchaseFee = 2.5;
-  // Extra pay for storeShopping drivers: they shop AND deliver.
-  static const double _shoppingDriverBonus = 0.80; // was 1.0
+
+  // Extra pay for storeShopping, carryGroceries, sendPackage drivers (they shop/carry AND deliver).
+  static const double _shoppingDriverBonus = 0.80;
+
+  // 30% of Bora net profit shared with driver (non-partner orders).
+  static const double _driverProfitShareRate = 0.30;
 
   static const double _packageBaseFee = 6.0;
   static const double _packageBaseDistanceKm = 4.0;
@@ -89,6 +106,8 @@ class PricingService {
     required double distanceKm,
     bool isPartnerStore = false,
     bool apartmentDelivery = false,
+    /// Set to true when this is the 2nd stacked partner order — adds €3 driver bonus.
+    bool isStackedPartnerBonus = false,
   }) {
     final normalizedDistance = _sanitizeDistance(distanceKm);
     final normalizedSubtotal = _sanitizeAmount(subtotal);
@@ -115,55 +134,82 @@ class PricingService {
         serviceType == OrderServiceType.carryGroceries;
 
     if (isPartnerRestaurant || isPartnerRetail) {
+      // ── PARTNER ORDER ──────────────────────────────────────────────────────
+      // Commission split: 10% visible (partner pays) + 5% client service fee
+      // + 5% hidden markup (already embedded in product prices via CartStore).
       final extraDistancePartner =
           math.max(0.0, normalizedDistance - _packageBaseDistanceKm);
       deliveryFee = _partnerDeliveryFee +
           (extraDistancePartner * _packageExtraPerKm) +
           apartmentSurcharge;
+      serviceFee = _roundCurrency(normalizedSubtotal * _partnerServiceFeeRate);
       platformCommission =
-          normalizedSubtotal * _partnerCommissionRate + apartmentPlatformBonus;
-      driverEarnings = _driverBasePay +
+          _roundCurrency(normalizedSubtotal * _partnerCommissionRate) +
+          apartmentPlatformBonus;
+      // Driver: base + km + apartment + optional stacking bonus (2nd order).
+      driverEarnings = _roundCurrency(_driverBasePay +
           (_driverPerKmRate * normalizedDistance) +
-          apartmentDriverBonus;
+          apartmentDriverBonus +
+          (isStackedPartnerBonus ? _partnerStackingBonus : 0.0));
     } else if (isNonPartnerOrder) {
+      // ── NON-PARTNER ORDER ──────────────────────────────────────────────────
       // The 15% markup is already embedded in item prices via CartStore.addItem()
       // and is baked into normalizedSubtotal. No additional markup is applied here.
       // customerTotal = subtotal + purchaseFee + deliveryFee
-      const purchaseFee = _nonPartnerPurchaseFee; // 2.5
+      const purchaseFee = _nonPartnerPurchaseFee; // €2.50
 
       final extraDistanceNP =
           math.max(0.0, normalizedDistance - _packageBaseDistanceKm);
       serviceFee = purchaseFee;
       deliveryFee = _partnerDeliveryFee +
           (extraDistanceNP * _packageExtraPerKm) +
-          apartmentSurcharge; // 2.5 + (km>4 ? (km-4)*0.5 : 0)
+          apartmentSurcharge;
       platformCommission = purchaseFee + apartmentPlatformBonus;
-      driverEarnings = _driverBasePay +
-          _shoppingDriverBonus +
+
+      // €0.80 bonus only for storeShopping (those drivers shop + deliver).
+      // Restaurant non-partner drivers do NOT get the shopping bonus.
+      final shoppingBonus =
+          serviceType == OrderServiceType.storeShopping ? _shoppingDriverBonus : 0.0;
+      final driverFixed = _roundCurrency(_driverBasePay +
+          shoppingBonus +
           (_driverPerKmRate * normalizedDistance) +
-          apartmentDriverBonus; // 3.80 + 0.80 + 0.2/km
+          apartmentDriverBonus);
+
+      // Driver shares 30% of Bora net profit.
+      // Bora gross = markup (already in prices) + delivery fee + service fee.
+      // Bora net  = gross − driver fixed pay (before profit share).
+      final boraMarkup = _roundCurrency(normalizedSubtotal * _nonPartnerMarkupRate);
+      final boraGross = boraMarkup + deliveryFee + serviceFee;
+      final boraNat = math.max(0.0, boraGross - driverFixed);
+      driverEarnings =
+          _roundCurrency(driverFixed + _roundCurrency(boraNat * _driverProfitShareRate));
     } else if (isPackageService) {
+      // ── LOGISTICS (carryGroceries / sendPackage) ───────────────────────────
       final extraDistance =
           math.max(0.0, normalizedDistance - _packageBaseDistanceKm);
       final packageFee = _packageBaseFee + (extraDistance * _packageExtraPerKm);
       deliveryFee = packageFee + apartmentSurcharge;
       platformCommission = _packagePlatformShare + apartmentPlatformBonus;
-      // Logistics: flat base + per-km rate (full distance, not excess only).
-      driverEarnings = _logisticsDriverBasePay +
+      // Logistics drivers carry/collect AND deliver → €0.80 bonus applies.
+      driverEarnings = _roundCurrency(_logisticsDriverBasePay +
           (_logisticsDriverPerKmRate * normalizedDistance) +
-          apartmentDriverBonus;
+          _shoppingDriverBonus +
+          apartmentDriverBonus);
     } else {
+      // ── FALLBACK (should not normally be reached) ──────────────────────────
       deliveryFee = _partnerDeliveryFee + apartmentSurcharge;
       platformCommission =
-          normalizedSubtotal * _partnerCommissionRate + apartmentPlatformBonus;
-      driverEarnings = _driverBasePay +
+          _roundCurrency(normalizedSubtotal * _partnerCommissionRate) +
+          apartmentPlatformBonus;
+      driverEarnings = _roundCurrency(_driverBasePay +
           (_driverPerKmRate * normalizedDistance) +
-          apartmentDriverBonus;
+          apartmentDriverBonus);
     }
 
     final double bagFee =
         serviceType == OrderServiceType.restaurant ? _restaurantBagFee : 0.0;
 
+    final bool isPartner = isPartnerRestaurant || isPartnerRetail;
     return OrderPricingBreakdown(
       distanceKm: normalizedDistance,
       subtotal: normalizedSubtotal,
@@ -174,7 +220,21 @@ class PricingService {
       apartmentSurcharge: _roundCurrency(apartmentSurcharge),
       apartmentDelivery: apartmentDelivery,
       bagFee: bagFee,
+      partnerMarkupHidden: isPartner
+          ? _roundCurrency(normalizedSubtotal * _partnerMarkupHiddenRate)
+          : 0.0,
     );
+  }
+
+  /// Quick estimate of the delivery fee for a restaurant card preview.
+  /// Matches the breakdown formula: base partner fee + €0.50/km beyond 4 km.
+  static double estimatedDeliveryFee({
+    required double distanceKm,
+    required bool isPartner,
+  }) {
+    final d = _sanitizeDistance(distanceKm);
+    final overage = d > 4 ? (d - 4) * 0.5 : 0.0;
+    return _roundCurrency(_partnerDeliveryFee + overage);
   }
 
   static double _sanitizeDistance(double distanceKm) {

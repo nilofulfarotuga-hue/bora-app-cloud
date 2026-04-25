@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/order_model.dart';
@@ -146,6 +148,44 @@ class RestaurantStore extends ChangeNotifier {
     }
 
     _subscribeRestaurantsRealtime();
+    // Fire-and-forget: card badges can appear later without blocking.
+    unawaited(_loadAverageRatings());
+  }
+
+  // ─── Average ratings cache (for restaurant cards) ───────────────────────
+  final Map<String, double> _avgRatings = {};
+
+  /// Returns the average rating (1.0–5.0) for a restaurant, or null if none.
+  double? avgRatingFor(String restaurantId) => _avgRatings[restaurantId];
+
+  Future<void> _loadAverageRatings() async {
+    try {
+      final rows = await supabase
+          .from('ratings')
+          .select('subject_id, rating')
+          .eq('subject_type', 'restaurant');
+
+      final buckets = <String, List<int>>{};
+      for (final row in (rows as List)) {
+        final id = (row['subject_id'] as String?)?.trim();
+        final r = (row['rating'] as num?)?.toInt();
+        if (id == null || id.isEmpty || r == null) continue;
+        buckets.putIfAbsent(id, () => <int>[]).add(r);
+      }
+
+      _avgRatings.clear();
+      buckets.forEach((id, list) {
+        if (list.isEmpty) return;
+        final avg = list.reduce((a, b) => a + b) / list.length;
+        _avgRatings[id] = avg;
+      });
+
+      if (_avgRatings.isNotEmpty) notifyListeners();
+      debugPrint(
+          'RestaurantStore: loaded ratings for ${_avgRatings.length} restaurants');
+    } catch (e) {
+      debugPrint('RestaurantStore: _loadAverageRatings error => $e');
+    }
   }
 
   /// Inserts default restaurants into Supabase.
@@ -434,6 +474,7 @@ class RestaurantStore extends ChangeNotifier {
         'is_partner': restaurant.isPartner,
         'category': restaurant.category.name,
         'is_online': true,
+        'business_hours': restaurant.businessHours.toJson(),
         if (restaurant.lat != null) 'lat': restaurant.lat,
         if (restaurant.lng != null) 'lng': restaurant.lng,
       });
@@ -452,21 +493,22 @@ class RestaurantStore extends ChangeNotifier {
     return restaurant;
   }
 
-  // addPartnerProduct inserts into local list immediately (sync contract required
-  // by PartnerProductStore) then persists to Supabase in the background.
-  PartnerProduct addPartnerProduct({
+  // addPartnerProduct inserts optimistically into local list then awaits
+  // Supabase. On DB failure the local insert is rolled back and the error
+  // is re-thrown so the calling screen can show feedback.
+  Future<PartnerProduct> addPartnerProduct({
     required String restaurantId,
     required String name,
     required String description,
     required double price,
     required String photoUrl,
     required bool isAvailable,
-  }) {
+  }) async {
     final trimmedName = name.trim();
     final trimmedDescription = description.trim();
-    final normalizedPhoto = photoUrl.trim().isEmpty
-        ? 'https://via.placeholder.com/240x140.png?text=${Uri.encodeComponent(trimmedName)}'
-        : photoUrl.trim();
+    // Empty photoUrl → use empty string so UI fallback (initials) kicks in.
+    // Never depend on via.placeholder.com (external CDN, unreliable in prod).
+    final normalizedPhoto = photoUrl.trim();
 
     final product = PartnerProduct(
       id: 'prod-${DateTime.now().microsecondsSinceEpoch}',
@@ -479,31 +521,36 @@ class RestaurantStore extends ChangeNotifier {
       source: ProductSource.api,
     );
 
+    // Optimistic insert — UI reflects immediately.
     _productsByRestaurant
         .putIfAbsent(restaurantId, () => <PartnerProduct>[])
         .add(product);
     notifyListeners();
 
-    // Persist to Supabase asynchronously — fire and forget.
-    supabase.from('products').insert({
-      'id': product.id,
-      'restaurant_id': restaurantId,
-      'name': product.name,
-      'description': product.description,
-      'price': product.price,
-      'photo_url': product.photoUrl,
-      'is_available': product.isAvailable,
-    }).then((_) {
+    try {
+      await supabase.from('products').insert({
+        'id': product.id,
+        'restaurant_id': restaurantId,
+        'name': product.name,
+        'description': product.description,
+        'price': product.price,
+        'photo_url': product.photoUrl,
+        'is_available': product.isAvailable,
+      });
       debugPrint('RestaurantStore: product saved to Supabase');
-      loadProductsFromSupabase();
-    }).catchError((Object e) {
-      debugPrint('RestaurantStore: product insert error => $e');
-    });
+    } catch (e) {
+      // Rollback: remove the optimistically-inserted product.
+      debugPrint('RestaurantStore: product insert error => $e — rolling back');
+      _productsByRestaurant[restaurantId]
+          ?.removeWhere((p) => p.id == product.id);
+      notifyListeners();
+      rethrow;
+    }
 
     return product;
   }
 
-  bool updatePartnerProduct({
+  Future<bool> updatePartnerProduct({
     required String restaurantId,
     required String productId,
     String? name,
@@ -511,7 +558,7 @@ class RestaurantStore extends ChangeNotifier {
     double? price,
     String? photoUrl,
     bool? isAvailable,
-  }) {
+  }) async {
     final list = _productsByRestaurant[restaurantId];
     if (list == null) return false;
 
@@ -519,6 +566,7 @@ class RestaurantStore extends ChangeNotifier {
     if (index == -1) return false;
 
     final current = list[index];
+    final previous = current; // snapshot for rollback
 
     final updated = current.copyWith(
       name: name?.trim().isEmpty == true ? current.name : name?.trim(),
@@ -532,49 +580,58 @@ class RestaurantStore extends ChangeNotifier {
       isAvailable: isAvailable,
     );
 
+    // Optimistic update.
     list[index] = updated;
     notifyListeners();
 
-    // Persist update to Supabase asynchronously.
-    supabase
-        .from('products')
-        .update({
-          'name': updated.name,
-          'description': updated.description,
-          'price': updated.price,
-          'photo_url': updated.photoUrl,
-          'is_available': updated.isAvailable,
-        })
-        .eq('id', productId)
-        .then((_) {
-          debugPrint('RestaurantStore: product updated in Supabase');
-        })
-        .catchError((e) {
-          debugPrint('RestaurantStore: product update error => $e');
-        });
+    try {
+      await supabase
+          .from('products')
+          .update({
+            'name': updated.name,
+            'description': updated.description,
+            'price': updated.price,
+            'photo_url': updated.photoUrl,
+            'is_available': updated.isAvailable,
+          })
+          .eq('id', productId);
+      debugPrint('RestaurantStore: product updated in Supabase');
+    } catch (e) {
+      // Rollback to previous state.
+      debugPrint('RestaurantStore: product update error => $e — rolling back');
+      list[index] = previous;
+      notifyListeners();
+      return false;
+    }
 
     return true;
   }
 
-  bool deletePartnerProduct({
+  Future<bool> deletePartnerProduct({
     required String restaurantId,
     required String productId,
-  }) {
+  }) async {
     final list = _productsByRestaurant[restaurantId];
     if (list == null) return false;
 
-    final initialLength = list.length;
+    // Snapshot for rollback before mutation.
+    final backup = List<PartnerProduct>.from(list);
     list.removeWhere((item) => item.id == productId);
-    if (list.length == initialLength) return false;
+    if (list.length == backup.length) return false; // not found
 
+    // Optimistic removal.
     notifyListeners();
 
-    // Persist deletion to Supabase asynchronously.
-    supabase.from('products').delete().eq('id', productId).then((_) {
+    try {
+      await supabase.from('products').delete().eq('id', productId);
       debugPrint('RestaurantStore: product deleted from Supabase');
-    }).catchError((e) {
-      debugPrint('RestaurantStore: product delete error => $e');
-    });
+    } catch (e) {
+      // Rollback: restore the full list.
+      debugPrint('RestaurantStore: product delete error => $e — rolling back');
+      _productsByRestaurant[restaurantId] = backup;
+      notifyListeners();
+      return false;
+    }
 
     return true;
   }
@@ -612,6 +669,24 @@ class RestaurantStore extends ChangeNotifier {
           .update({'reservations_enabled': enabled}).eq('id', restaurantId);
     } catch (e) {
       debugPrint('RestaurantStore: toggleReservationsEnabled error => $e');
+    }
+  }
+
+  // ─── Business hours ──────────────────────────────────────────────────────
+  Future<void> updateBusinessHours(
+      String restaurantId, BusinessHours hours) async {
+    final index = _restaurants.indexWhere((r) => r.id == restaurantId);
+    if (index != -1) {
+      _restaurants[index] =
+          _restaurants[index].copyWith(businessHours: hours);
+      notifyListeners();
+    }
+    try {
+      await supabase
+          .from('restaurants')
+          .update({'business_hours': hours.toJson()}).eq('id', restaurantId);
+    } catch (e) {
+      debugPrint('RestaurantStore: updateBusinessHours error => $e');
     }
   }
 
@@ -688,6 +763,7 @@ class RestaurantStore extends ChangeNotifier {
       lat: (data['lat'] as num?)?.toDouble(),
       lng: (data['lng'] as num?)?.toDouble(),
       reservationsEnabled: data['reservations_enabled'] as bool? ?? false,
+      businessHours: BusinessHours.fromJson(data['business_hours']),
     );
   }
 

@@ -49,19 +49,22 @@ class PartnerProductStore extends ChangeNotifier {
     return store.partnerProductsForRestaurant(restaurantId);
   }
 
-  PartnerProduct addProduct({
+  /// Adds a product and awaits DB confirmation.
+  /// Throws on DB failure (caller should catch and show feedback).
+  Future<PartnerProduct> addProduct({
     required String restaurantId,
     required String name,
     required String description,
     required double price,
     required String photoUrl,
     required bool isAvailable,
-  }) {
+  }) async {
     final store = _restaurantStore;
     if (store == null) {
       throw StateError('Restaurant store is not attached to partner store.');
     }
-    final product = store.addPartnerProduct(
+    // RestaurantStore handles optimistic insert + rollback on failure.
+    final product = await store.addPartnerProduct(
       restaurantId: restaurantId,
       name: name,
       description: description,
@@ -73,7 +76,9 @@ class PartnerProductStore extends ChangeNotifier {
     return product;
   }
 
-  bool updateProduct({
+  /// Updates a product and awaits DB confirmation.
+  /// Returns false and rolls back local state on DB failure.
+  Future<bool> updateProduct({
     required String restaurantId,
     required String productId,
     String? name,
@@ -81,12 +86,10 @@ class PartnerProductStore extends ChangeNotifier {
     double? price,
     String? photoUrl,
     bool? isAvailable,
-  }) {
+  }) async {
     final store = _restaurantStore;
-    if (store == null) {
-      return false;
-    }
-    final updated = store.updatePartnerProduct(
+    if (store == null) return false;
+    final updated = await store.updatePartnerProduct(
       restaurantId: restaurantId,
       productId: productId,
       name: name,
@@ -95,13 +98,12 @@ class PartnerProductStore extends ChangeNotifier {
       photoUrl: photoUrl,
       isAvailable: isAvailable,
     );
-    if (updated) {
-      notifyListeners();
-    }
+    if (updated) notifyListeners();
     return updated;
   }
 
-  bool toggleAvailability({
+  /// Toggles availability and awaits DB confirmation.
+  Future<bool> toggleAvailability({
     required String restaurantId,
     required String productId,
     required bool isAvailable,
@@ -113,21 +115,19 @@ class PartnerProductStore extends ChangeNotifier {
     );
   }
 
-  bool deleteProduct({
+  /// Deletes a product and awaits DB confirmation.
+  /// Returns false and rolls back on DB failure.
+  Future<bool> deleteProduct({
     required String restaurantId,
     required String productId,
-  }) {
+  }) async {
     final store = _restaurantStore;
-    if (store == null) {
-      return false;
-    }
-    final deleted = store.deletePartnerProduct(
+    if (store == null) return false;
+    final deleted = await store.deletePartnerProduct(
       restaurantId: restaurantId,
       productId: productId,
     );
-    if (deleted) {
-      notifyListeners();
-    }
+    if (deleted) notifyListeners();
     return deleted;
   }
 }

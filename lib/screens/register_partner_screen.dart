@@ -39,6 +39,9 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
   bool _obscurePassword = true;
   bool _acceptedTerms = false;
 
+  /// Shown inline under the email field when Supabase rejects a duplicate.
+  String? _emailInlineError;
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -57,14 +60,19 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
     final form = _formKey.currentState;
     if (form == null || !form.validate()) return;
 
-    setState(() => _isSubmitting = true);
+    // Clear previous inline email error on each submit attempt.
+    setState(() {
+      _isSubmitting = true;
+      _emailInlineError = null;
+    });
 
     final authStore = context.read<AuthStore>();
     final restaurantStore = context.read<RestaurantStore>();
     final partnerProductStore = context.read<PartnerProductStore>();
     final sessionStore = context.read<SessionStore>();
 
-    final error = authStore.registerPartner(
+    // Async: waits for Supabase signUp confirmation before proceeding.
+    final error = await authStore.registerPartnerAsync(
       restaurantName: _nameController.text,
       address: _addressController.text,
       phone: _phoneController.text,
@@ -74,14 +82,33 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
       cuisineType: _cuisineController.text,
       consentAcceptedAt: DateTime.now().toUtc(),
     );
-    debugPrint('ERRO AUTH: $error');
+
     if (error != null) {
-      setState(() => _isSubmitting = false);
+      // Email-duplicate errors are shown inline under the email field AND
+      // as a SnackBar so the user sees exactly which field to fix.
+      final isEmailError = error.toLowerCase().contains('email') ||
+          error.toLowerCase().contains('already registered') ||
+          error.toLowerCase().contains('parceiro registado');
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error)),
-      );
-
+      if (isEmailError && mounted) {
+        setState(() {
+          _isSubmitting = false;
+          _emailInlineError = error;
+        });
+        // Scroll is handled by the Form — just force revalidation to display the
+        // inline error. Also show a SnackBar for visibility.
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(error),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      } else if (mounted) {
+        setState(() => _isSubmitting = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error)),
+        );
+      }
       return;
     }
 
@@ -210,9 +237,16 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
                   TextFormField(
                     controller: _photoUrlController,
                     decoration: const InputDecoration(
-                      labelText: 'URL da foto (opcional)',
+                      labelText: 'URL da foto do restaurante',
                       prefixIcon: Icon(Icons.image_outlined),
+                      helperText: 'Obrigatório — imagem visível aos clientes',
                     ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Adicione uma foto do restaurante';
+                      }
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -250,9 +284,21 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _emailController,
-                    decoration: const InputDecoration(
+                    keyboardType: TextInputType.emailAddress,
+                    onChanged: (_) {
+                      // Clear inline duplicate error as soon as the user edits.
+                      if (_emailInlineError != null) {
+                        setState(() => _emailInlineError = null);
+                      }
+                    },
+                    decoration: InputDecoration(
                       labelText: 'Email',
-                      prefixIcon: Icon(Icons.email_outlined),
+                      prefixIcon: const Icon(Icons.email_outlined),
+                      errorText: _emailInlineError,
+                      errorStyle: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     validator: (value) {
                       if (value == null || !value.contains('@')) {

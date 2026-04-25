@@ -59,7 +59,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
     setState(() => _isSaving = true);
 
     try {
-      context.read<PartnerProductStore>().addProduct(
+      await context.read<PartnerProductStore>().addProduct(
             restaurantId: widget.restaurant.id,
             name: _nameController.text,
             description: _descriptionController.text,

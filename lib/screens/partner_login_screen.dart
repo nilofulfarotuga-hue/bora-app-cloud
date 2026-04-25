@@ -5,6 +5,7 @@ import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
 import '../stores/restaurant_store.dart';
+import '../services/notification_service.dart';
 import '../stores/session_store.dart';
 import '../widgets/bora/bora_primary_button.dart';
 
@@ -107,9 +108,40 @@ class _PartnerLoginScreenState extends State<PartnerLoginScreen> {
                 loading: _isProcessing,
                 onPressed: _isProcessing ? null : _submit,
               ),
+              const SizedBox(height: Spacing.xs),
+              Center(
+                child: TextButton(
+                  onPressed: _isProcessing ? null : _forgotPassword,
+                  child: const Text('Esqueceu a palavra-passe?'),
+                ),
+              ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Future<void> _forgotPassword() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty || !email.contains('@')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Introduza o seu email no campo acima antes de continuar.'),
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isProcessing = true);
+    await context.read<AuthStore>().resetPassword(email);
+    if (!mounted) return;
+    setState(() => _isProcessing = false);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+            'Se existir uma conta com $email, receberá um email para redefinir a palavra-passe.'),
       ),
     );
   }
@@ -155,6 +187,10 @@ class _PartnerLoginScreenState extends State<PartnerLoginScreen> {
     }
 
     authStore.setPartnerRestaurant(restaurant);
+
+    // Persist FCM token for this partner device so push notifications work.
+    NotificationService.instance.saveTokenForPartner(restaurant.id).ignore();
+
     await sessionStore.setRole(UserRole.partner);
 
     if (!mounted) return;

@@ -40,9 +40,12 @@ class _PartnerProductsScreenState extends State<PartnerProductsScreen> {
     }
   }
 
-  void _toggleAvailability(PartnerProduct product, bool isAvailable) {
+  Future<void> _toggleAvailability(
+      PartnerProduct product, bool isAvailable) async {
     final store = context.read<PartnerProductStore>();
-    final success = store.toggleAvailability(
+    // Store handles optimistic UI update + rollback on failure — no local
+    // loading state needed here. Just await and show error if DB rejects.
+    final success = await store.toggleAvailability(
       restaurantId: widget.restaurant.id,
       productId: product.id,
       isAvailable: isAvailable,
@@ -50,7 +53,8 @@ class _PartnerProductsScreenState extends State<PartnerProductsScreen> {
     if (!success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('Não foi possível atualizar a disponibilidade.')),
+          content: Text('Não foi possível atualizar a disponibilidade.'),
+        ),
       );
     }
   }

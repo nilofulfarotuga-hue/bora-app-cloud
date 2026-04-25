@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/driver_model.dart';
 import '../models/restaurant_model.dart';
+import '../services/notification_service.dart';
 
 enum AuthRole { client, driver, partner }
 
@@ -16,12 +17,22 @@ class ClientAccount {
     required this.email,
     required this.phone,
     required this.password,
+    this.photoUrl = '',
   });
 
   final String name;
   final String email;
   final String phone;
   final String password;
+  final String photoUrl;
+
+  ClientAccount copyWith({String? photoUrl}) => ClientAccount(
+        name: name,
+        email: email,
+        phone: phone,
+        password: password,
+        photoUrl: photoUrl ?? this.photoUrl,
+      );
 }
 
 class DriverAccount {
@@ -32,6 +43,7 @@ class DriverAccount {
     required this.vehicleType,
     required this.licensePlate,
     required this.password,
+    this.photoUrl = '',
   });
 
   final String name;
@@ -40,6 +52,17 @@ class DriverAccount {
   final VehicleType vehicleType;
   final String licensePlate;
   final String password;
+  final String photoUrl;
+
+  DriverAccount copyWith({String? photoUrl}) => DriverAccount(
+        name: name,
+        email: email,
+        phone: phone,
+        vehicleType: vehicleType,
+        licensePlate: licensePlate,
+        password: password,
+        photoUrl: photoUrl ?? this.photoUrl,
+      );
 }
 
 class PartnerAccount {
@@ -60,6 +83,16 @@ class PartnerAccount {
   final String password;
   final String photoUrl;
   final String cuisineType;
+
+  PartnerAccount copyWith({String? photoUrl}) => PartnerAccount(
+        restaurantName: restaurantName,
+        address: address,
+        phone: phone,
+        email: email,
+        password: password,
+        photoUrl: photoUrl ?? this.photoUrl,
+        cuisineType: cuisineType,
+      );
 }
 
 class AuthStore extends ChangeNotifier {
@@ -140,6 +173,13 @@ class AuthStore extends ChangeNotifier {
 
   String? get userId => _supabase.auth.currentUser?.id;
 
+  /// True when the current Supabase session is the anonymous guest account
+  /// (`_guestEmail`). Used by OrderStore to refuse writing orders with the
+  /// guest UID, which would otherwise collapse all demo orders into a single
+  /// "Cliente Demo" row and break user-scoped RLS / history queries.
+  bool get isGuestSession =>
+      _supabase.auth.currentUser?.email == _guestEmail;
+
   AuthRole? get role {
     if (_currentClient != null) return AuthRole.client;
     if (_currentDriver != null) return AuthRole.driver;
@@ -160,6 +200,53 @@ class AuthStore extends ChangeNotifier {
   bool get hasClientAccounts => _clientsByEmail.isNotEmpty;
   bool get hasDriverAccounts => _driversByEmail.isNotEmpty;
   bool get hasPartnerAccounts => _partnersByEmail.isNotEmpty;
+
+  /// Current user's avatar URL (empty string when not set). Reads from the
+  /// local account object so it survives Supabase session cache staleness.
+  String get currentPhotoUrl =>
+      _currentClient?.photoUrl ??
+      _currentDriver?.photoUrl ??
+      _currentPartner?.photoUrl ??
+      '';
+
+  /// Persists a new avatar URL for the currently logged-in user.
+  /// Writes to: (1) in-memory account, (2) SharedPreferences, (3) Supabase
+  /// user_metadata. notifyListeners() is called so UI widgets rebuild.
+  ///
+  /// [url] may be empty to clear the photo.
+  Future<void> updateCurrentUserPhoto(String url) async {
+    if (_currentClient != null) {
+      final updated = _currentClient!.copyWith(photoUrl: url);
+      _currentClient = updated;
+      if (updated.email.isNotEmpty) _clientsByEmail[updated.email] = updated;
+      _persistClient(updated);
+    } else if (_currentDriver != null) {
+      final updated = _currentDriver!.copyWith(photoUrl: url);
+      _currentDriver = updated;
+      if (updated.email.isNotEmpty) _driversByEmail[updated.email] = updated;
+      if (updated.phone.isNotEmpty) _driversByPhone[updated.phone] = updated;
+      _persistDriver(updated);
+    } else if (_currentPartner != null) {
+      final updated = _currentPartner!.copyWith(photoUrl: url);
+      _currentPartner = updated;
+      if (updated.email.isNotEmpty) _partnersByEmail[updated.email] = updated;
+      _persistPartner(updated);
+    } else {
+      return;
+    }
+
+    // Push to Supabase user_metadata (best-effort — local state is already
+    // saved so a server failure doesn't lose the change on restart).
+    try {
+      await _supabase.auth.updateUser(
+        UserAttributes(data: {_kPhotoUrl: url}),
+      );
+    } catch (e) {
+      debugPrint('AuthStore: updateUser photoUrl failed => $e');
+    }
+
+    notifyListeners();
+  }
 
   void _onAuthStateChange(AuthState state) {
     final session = state.session;
@@ -430,41 +517,56 @@ class AuthStore extends ChangeNotifier {
   Future<bool> loginClientAsync(String email, String password) async {
     final normalizedEmail = email.trim().toLowerCase();
 
-    final local = _clientsByEmail[normalizedEmail];
-    if (local != null && local.password == password) {
-      _currentClient = local;
-      _currentDriver = null;
-      _currentPartner = null;
-      notifyListeners();
-      _persistClient(local);
-      _signInBackground(
-          email: normalizedEmail,
-          password: password,
-          tag: 'loginClientAsync-local');
-      return true;
-    }
+    debugPrint(
+        '[AuthStore] loginClientAsync → normalizedEmail=$normalizedEmail');
+
+    // Clear any stale or guest session BEFORE attempting login. Without this,
+    // auth.currentUser.id keeps returning the guest UID while Supabase
+    // signInWithPassword is awaited — any order created in between would be
+    // persisted with the guest UID (root cause of 39/42 orders tagged as
+    // 'f9ad894e-42a2-44ca-a4b0-2546bdb11cb9' / 'Cliente Demo' in the DB).
+    try {
+      await _supabase.auth.signOut();
+    } catch (_) {}
 
     try {
       final res = await _supabase.auth
           .signInWithPassword(email: normalizedEmail, password: password);
       final user = res.user;
-      if (user == null) return false;
+      if (user == null) {
+        debugPrint('[AuthStore] loginClientAsync → signIn returned null user');
+        return false;
+      }
 
       final meta = user.userMetadata ?? {};
-      if ((meta[_kRole] as String?) != 'client') return false;
+      final metaRole = meta[_kRole] as String?;
+      // Accept accounts with role 'client' OR legacy/demo accounts with no
+      // role metadata. Reject anything explicitly tagged as driver/partner.
+      if (metaRole != null && metaRole != 'client') {
+        debugPrint(
+            '[AuthStore] loginClientAsync → wrong role: "$metaRole" — signing out');
+        try {
+          await _supabase.auth.signOut();
+        } catch (_) {}
+        return false;
+      }
 
-      final account = ClientAccount(
-        name: meta[_kName] as String? ?? '',
-        email: normalizedEmail,
-        phone: meta[_kPhone] as String? ?? '',
-        password: password,
-      );
+      final local = _clientsByEmail[normalizedEmail];
+      final account = local ??
+          ClientAccount(
+            name: meta[_kName] as String? ?? '',
+            email: normalizedEmail,
+            phone: meta[_kPhone] as String? ?? '',
+            password: password,
+          );
       _currentClient = account;
       _currentDriver = null;
       _currentPartner = null;
       notifyListeners();
       _clientsByEmail[normalizedEmail] = account;
       _persistClient(account);
+      debugPrint(
+          '[AuthStore] loginClientAsync → SUCCESS uid=${user.id} email=$normalizedEmail');
       return true;
     } catch (e) {
       debugPrint('AuthStore: loginClientAsync error => $e');
@@ -669,6 +771,15 @@ class AuthStore extends ChangeNotifier {
     }
   }
 
+  /// Generic password-reset email — works for any role (partner + driver).
+  Future<void> resetPassword(String email) async {
+    try {
+      await _supabase.auth.resetPasswordForEmail(email.trim().toLowerCase());
+    } catch (e) {
+      debugPrint('AuthStore: resetPassword error => $e');
+    }
+  }
+
   bool loginDriver(String phone, String password) {
     final account = _driversByPhone[phone.trim()];
     if (account == null || account.password != password) return false;
@@ -747,6 +858,94 @@ class AuthStore extends ChangeNotifier {
     return null;
   }
 
+  /// Async version of registerPartner — awaits Supabase signUp before
+  /// committing local state. Required for production onboarding: the sync
+  /// version (registerPartner) races Supabase and can leave a partner logged-in
+  /// locally with no real account in the DB.
+  ///
+  /// [photoUrl] is required — pass a non-empty URL or return an error.
+  /// Returns null on success, human-readable error message on failure.
+  Future<String?> registerPartnerAsync({
+    required String restaurantName,
+    required String address,
+    required String phone,
+    required String email,
+    required String password,
+    required String photoUrl,
+    required String cuisineType,
+    DateTime? consentAcceptedAt,
+  }) async {
+    final normalizedEmail = email.trim().toLowerCase();
+    if (restaurantName.trim().isEmpty ||
+        normalizedEmail.isEmpty ||
+        password.isEmpty) {
+      return 'Preencha todos os campos obrigatórios.';
+    }
+    if (photoUrl.trim().isEmpty) {
+      return 'Adicione uma foto do restaurante.';
+    }
+    if (_partnersByEmail.containsKey(normalizedEmail)) {
+      return 'Já existe um parceiro registado com este email.';
+    }
+    try {
+      final res = await _supabase.auth.signUp(
+        email: normalizedEmail,
+        password: password,
+        data: {
+          _kRole: 'partner',
+          _kName: restaurantName.trim(),
+          _kRestaurantName: restaurantName.trim(),
+          _kAddress: address.trim(),
+          _kPhone: phone.trim(),
+          _kPhotoUrl: photoUrl.trim(),
+          _kCuisineType: cuisineType.trim(),
+          if (consentAcceptedAt != null)
+            _kConsentAcceptedAt:
+                consentAcceptedAt.toUtc().toIso8601String(),
+          if (consentAcceptedAt != null)
+            _kConsentVersion: currentConsentVersion,
+        },
+      );
+
+      final user = res.user;
+      if (user == null) {
+        return 'Não foi possível criar a conta. Tente novamente.';
+      }
+
+      // Ensure session is active (some Supabase configs require email confirm).
+      if (res.session == null) {
+        try {
+          await _supabase.auth.signInWithPassword(
+            email: normalizedEmail,
+            password: password,
+          );
+        } catch (_) {}
+      }
+
+      final partner = PartnerAccount(
+        restaurantName: restaurantName.trim(),
+        address: address.trim(),
+        phone: phone.trim(),
+        email: normalizedEmail,
+        password: password,
+        photoUrl: photoUrl.trim(),
+        cuisineType: cuisineType.trim(),
+      );
+      _partnersByEmail[normalizedEmail] = partner;
+      _currentPartner = partner;
+      _currentClient = null;
+      _currentDriver = null;
+      notifyListeners();
+      _persistPartner(partner);
+      return null;
+    } on AuthException catch (e) {
+      // Surface Supabase errors (e.g. "User already registered") as-is.
+      return e.message;
+    } catch (e) {
+      return 'Erro ao criar conta. Tente novamente.';
+    }
+  }
+
   bool loginPartner(String email, String password) {
     final account = _partnersByEmail[email.trim().toLowerCase()];
     if (account == null || account.password != password) return false;
@@ -823,6 +1022,10 @@ class AuthStore extends ChangeNotifier {
   // ─── Logout ───────────────────────────────────────────────────────────────
 
   void logout() {
+    // Clear FCM binding BEFORE wiping state so the previous user stops
+    // receiving pushes on this device. Fire-and-forget — logout must not
+    // block on network failure.
+    NotificationService.instance.clearTokenForCurrentUser().ignore();
     _currentClient = null;
     _currentDriver = null;
     _currentPartner = null;
@@ -867,6 +1070,7 @@ class AuthStore extends ChangeNotifier {
             email: email,
             phone: map['phone'] as String? ?? '',
             password: map['password'] as String? ?? '',
+            photoUrl: map['photoUrl'] as String? ?? '',
           );
           if (email.isNotEmpty) _clientsByEmail[email] = account;
         } catch (_) {}
@@ -887,6 +1091,7 @@ class AuthStore extends ChangeNotifier {
           ),
           licensePlate: map['licensePlate'] as String? ?? '',
           password: map['password'] as String? ?? '',
+          photoUrl: map['photoUrl'] as String? ?? '',
         );
         if (email.isNotEmpty) _driversByEmail[email] = account;
         if (phone.isNotEmpty) _driversByPhone[phone] = account;
@@ -1039,6 +1244,7 @@ class AuthStore extends ChangeNotifier {
           'phone': account.phone,
           'name': account.name,
           'password': account.password,
+          'photoUrl': account.photoUrl,
         }),
       );
     });
@@ -1055,6 +1261,7 @@ class AuthStore extends ChangeNotifier {
           'vehicleType': account.vehicleType.name,
           'licensePlate': account.licensePlate,
           'password': account.password,
+          'photoUrl': account.photoUrl,
         }),
       );
     });

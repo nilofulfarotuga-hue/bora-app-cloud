@@ -281,6 +281,25 @@ class NotificationService {
     });
   }
 
+  /// Notifies the client that the driver added carrier bags to a market order.
+  /// [bagCount] is the number of bags; [bagFee] is the total fee (count × €0.10).
+  /// Fire-and-forget — call with `.ignore()`.
+  Future<void> notifyClientBagCount({
+    required String clientId,
+    required String orderId,
+    required int bagCount,
+    required double bagFee,
+  }) async {
+    final unit = bagCount == 1 ? 'saco' : 'sacos';
+    final feeFormatted = bagFee.toStringAsFixed(2);
+    await _post('notify-client', {
+      'clientId': clientId,
+      'orderId': orderId,
+      'title': 'Sacos adicionados',
+      'body': '🛍️ $bagCount $unit × €0.10 = €$feeFormatted',
+    });
+  }
+
   /// Sends a status-specific push to the client for a given order.
   /// Messages mirror Uber Eats tone: specific, short, action-oriented.
   ///

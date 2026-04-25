@@ -437,7 +437,10 @@ class OrderStore extends ChangeNotifier {
 
     final deliveryPrice = _computeDeliveryPrice(resolvedDistance);
 
-    final pricing = PricingService.calculateBreakdown(
+    // ── Local pricing — PREVIEW ONLY, not written to DB ─────────────────────
+    // Used solely for the cash limit pre-check UX guard.
+    // All server-trusted financial values come from the create_order RPC below.
+    final localPricing = PricingService.calculateBreakdown(
       serviceType: serviceType,
       subtotal: itemsSubtotal,
       distanceKm: resolvedDistance,
@@ -460,53 +463,9 @@ class OrderStore extends ChangeNotifier {
         )
         .toList();
 
-    final order = OrderModel(
-      total: pricing.customerTotal,
-      serviceType: serviceType,
-      subtotal: pricing.subtotal,
-      deliveryFee: pricing.deliveryFee,
-      serviceFee: pricing.serviceFee,
-      platformCommission: pricing.platformCommission,
-      driverEarnings: pricing.driverEarnings,
-      distanceKm: pricing.distanceKm,
-      deliveryPrice: deliveryPrice,
-      items: clonedItems,
-      pickupLocation: pickupLocation,
-      destination: destination,
-      vendorName: vendorName,
-      pickupAddress: pickupAddress,
-      pickupStreet: pickupStreet,
-      pickupCity: pickupCity,
-      pickupPostalCode: pickupPostalCode,
-      dropoffAddress: dropoffAddress,
-      dropoffStreet: dropoffStreet,
-      dropoffCity: dropoffCity,
-      dropoffPostalCode: dropoffPostalCode,
-      customerNotes: customerNotes,
-      isPartnerStore: isPartnerStore,
-      apartmentDelivery: apartmentDelivery,
-      isDistanceEstimated: isDistanceEstimated,
-      requiresCar: requiresCar,
-      orderType: orderType,
-      paymentMethod: paymentMethod,
-      paymentStatus: paymentStatus,
-      paymentIntentId: paymentIntentId,
-      clientPhone: clientPhone,
-      customerName: customerName,
-      userId: liveUserId,
-      paymentBufferTotal: (!isPartnerStore
-              ? PricingService.calculateBufferedTotal(pricing.subtotal) +
-                  pricing.deliveryFee +
-                  pricing.serviceFee
-              : pricing.customerTotal) -
-          tokenDiscountEur,
-      tipCents: tipCents,
-      isTakeaway: isTakeaway,
-    );
-
     if (isPartnerStore && serviceType == OrderServiceType.restaurant) {
       final restaurant = _restaurantStore?.restaurantByName(vendorName);
-      if (restaurant != null && !restaurant.isOnline) {
+      if (restaurant != null && !restaurant.isOpenNow()) {
         return false;
       }
     }
@@ -515,7 +474,7 @@ class OrderStore extends ChangeNotifier {
     // Cash has no Stripe pre-auth, so the +15% buffer (non-partner) does not
     // apply — compare against the real customer total minus token discount.
     if (paymentMethod == PaymentMethod.cash) {
-      final cashCustomerTotal = pricing.customerTotal - tokenDiscountEur;
+      final cashCustomerTotal = localPricing.customerTotal - tokenDiscountEur;
       if (cashCustomerTotal > BRBusiness.CASH_MAX_ORDER_VALUE_EUR) {
         debugPrint('[FLOW] createOrder BLOCKED — cash limit exceeded '
             '(total=$cashCustomerTotal max=${BRBusiness.CASH_MAX_ORDER_VALUE_EUR})');
@@ -523,15 +482,120 @@ class OrderStore extends ChangeNotifier {
       }
     }
 
-    debugPrint(
-        '[FLOW] createOrder START id=${order.id} type=${order.serviceType.name}');
+    // ── Build RPC input ───────────────────────────────────────────────────────
+    // All financial values (delivery_fee, driver_earnings, etc.) are calculated
+    // server-side by pricing_calculate() inside create_order. Client sends only
+    // inputs — never pre-computed totals.
+    final rpcInput = <String, dynamic>{
+      'service_type': serviceType.name,
+      if (vendorName != null) 'vendor_name': vendorName,
+      'is_partner_store': isPartnerStore,
+      'distance_km': resolvedDistance,
+      'payment_method': paymentMethod.name,
+      'subtotal': itemsSubtotal,
+      'apartment_delivery': apartmentDelivery,
+      'bag_count': 0,
+      'requires_car': requiresCar,
+      if (pickupLocation != null) 'pickup_lat': pickupLocation.latitude,
+      if (pickupLocation != null) 'pickup_lng': pickupLocation.longitude,
+      'dropoff_lat': destination.latitude,
+      'dropoff_lng': destination.longitude,
+      if (pickupAddress != null) 'pickup_address': pickupAddress,
+      if (pickupStreet != null) 'pickup_street': pickupStreet,
+      if (pickupCity != null) 'pickup_city': pickupCity,
+      if (pickupPostalCode != null) 'pickup_postal_code': pickupPostalCode,
+      if (dropoffAddress != null) 'dropoff_address': dropoffAddress,
+      if (dropoffStreet != null) 'dropoff_street': dropoffStreet,
+      if (dropoffCity != null) 'dropoff_city': dropoffCity,
+      if (dropoffPostalCode != null) 'dropoff_postal_code': dropoffPostalCode,
+      if (customerNotes != null) 'customer_notes': customerNotes,
+      if (customerName != null) 'customer_name': customerName,
+      if (clientPhone != null) 'customer_phone': clientPhone,
+      if (paymentIntentId != null) 'payment_intent_id': paymentIntentId,
+      'items': clonedItems?.map((i) => i.toJson()).toList() ?? [],
+      // restaurant / storeShopping: pass product_lines so RPC recalculates
+      // subtotal from DB prices (server-trusted subtotal — Opção B).
+      // carryGroceries / sendPackage: no product_lines → RPC trusts client subtotal.
+      if ((serviceType == OrderServiceType.restaurant ||
+              serviceType == OrderServiceType.storeShopping) &&
+          clonedItems != null)
+        'product_lines': clonedItems
+            .map((i) => {
+                  'quantity': i.quantity,
+                  'unit_price': i.price,
+                  'name': i.name,
+                })
+            .toList(),
+    };
 
-    _orders.insert(0, order);
-    notifyListeners();
+    debugPrint(
+        '[FLOW] createOrder START → RPC create_order type=${serviceType.name}');
+
+    // serverOrder declared outside try so the catch block can roll back if
+    // anything after the RPC (photos, push, simulate) throws.
+    OrderModel? serverOrder;
 
     try {
-      await _saveOrderToDatabase(order);
-      debugPrint('[FLOW] createOrder: DB insert OK');
+      // ── Server-trusted order creation ────────────────────────────────────
+      final dynamic rpcResult =
+          await supabase.rpc('create_order', params: {'p_input': rpcInput});
+      final rpcData = Map<String, dynamic>.from(rpcResult as Map);
+
+      debugPrint(
+          '[FLOW] createOrder RPC OK → id=${rpcData['order_id']} total=${rpcData['price']}');
+
+      serverOrder = OrderModel(
+        id: rpcData['order_id'] as String,
+        total: (rpcData['price'] as num).toDouble(),
+        serviceType: serviceType,
+        subtotal: (rpcData['subtotal'] as num).toDouble(),
+        deliveryFee: (rpcData['delivery_fee'] as num).toDouble(),
+        serviceFee: (rpcData['service_fee'] as num).toDouble(),
+        platformCommission: (rpcData['platform_commission'] as num).toDouble(),
+        driverEarnings: (rpcData['driver_earnings'] as num).toDouble(),
+        bagFee: (rpcData['bag_fee'] as num? ?? 0).toDouble(),
+        distanceKm: resolvedDistance,
+        deliveryPrice: deliveryPrice,
+        items: clonedItems,
+        pickupLocation: pickupLocation,
+        destination: destination,
+        vendorName: vendorName,
+        pickupAddress: pickupAddress,
+        pickupStreet: pickupStreet,
+        pickupCity: pickupCity,
+        pickupPostalCode: pickupPostalCode,
+        dropoffAddress: dropoffAddress,
+        dropoffStreet: dropoffStreet,
+        dropoffCity: dropoffCity,
+        dropoffPostalCode: dropoffPostalCode,
+        customerNotes: customerNotes,
+        isPartnerStore: isPartnerStore,
+        apartmentDelivery: apartmentDelivery,
+        isDistanceEstimated: isDistanceEstimated,
+        requiresCar: requiresCar,
+        orderType: orderType,
+        paymentMethod: paymentMethod,
+        paymentStatus: paymentStatus,
+        paymentIntentId: paymentIntentId,
+        clientPhone: clientPhone,
+        customerName: customerName,
+        userId: liveUserId,
+        // paymentBufferTotal from server already includes the ×1.15 buffer for
+        // non-partner orders. Token discount is subtracted here so the Stripe
+        // pre-auth amount (validated ±5% against this field) matches what the
+        // client actually charges.
+        paymentBufferTotal:
+            (rpcData['payment_buffer_total'] as num).toDouble() -
+                tokenDiscountEur,
+        tipCents: tipCents,
+        isTakeaway: isTakeaway,
+      );
+
+      final order = serverOrder;
+      _orders.insert(0, order);
+      notifyListeners();
+
+      debugPrint('[FLOW] createOrder: RPC + local state OK');
 
       // Persist mandatory photos for sendPackage / carryGroceries (BR §7.5/7.6).
       // Side-effect update after insert — keeps createOrder additive to _saveOrderToDatabase.
@@ -589,8 +653,11 @@ class OrderStore extends ChangeNotifier {
           '[FLOW] createOrder DONE id=${order.id} finalStatus=${order.status.name}');
       return true;
     } catch (e) {
-      _orders.remove(order);
-      notifyListeners();
+      // Roll back optimistic insert if order was added before error occurred.
+      if (serverOrder != null) {
+        _orders.removeWhere((o) => o.id == serverOrder!.id);
+        notifyListeners();
+      }
       debugPrint('[FLOW] createOrder FAILED: $e');
       return false;
     }
@@ -719,6 +786,10 @@ class OrderStore extends ChangeNotifier {
     notifyListeners();
     _handlePartnerPreparationFlow(order);
 
+    // Fire-and-forget client push for lifecycle transitions. Edge Function
+    // no-ops if the client has no FCM token or Firebase is not configured.
+    _notifyClientForStatus(order, targetStatus);
+
     if (targetStatus == OrderStatus.callingDriver) {
       debugPrint(
           '[FLOW] ★★★ callingDriver REACHED ★★★ id=${order.id} — invoking dispatch-engine directly');
@@ -730,6 +801,40 @@ class OrderStore extends ChangeNotifier {
       unawaited(_invokeDispatch(order.id));
     }
     return true;
+  }
+
+  /// Fire-and-forget: sends a status-specific push to the client.
+  /// Skips statuses that don't warrant a client notification (created, rejected).
+  void _notifyClientForStatus(OrderModel order, OrderStatus status) {
+    // Only statuses covered by the notify-client Edge Function map.
+    const notifiable = {
+      OrderStatus.preparing,
+      OrderStatus.callingDriver,
+      OrderStatus.driverAccepted,
+      OrderStatus.pickedUp,
+      OrderStatus.onTheWay,
+      OrderStatus.delivered,
+    };
+    if (!notifiable.contains(status)) return;
+    final clientId = order.userId;
+    if (clientId == null || clientId.isEmpty) return;
+
+    // Look up vendor + driver names for richer copy (best-effort).
+    final vendor = _restaurantStore?.restaurantByName(order.vendorName)?.name
+        ?? order.vendorName;
+    final driver = order.assignedDriverId == null
+        ? null
+        : _driverStore.getDriverById(order.assignedDriverId!)?.name;
+
+    NotificationService.instance
+        .notifyClientOrderStatus(
+          clientId: clientId,
+          orderId: order.id,
+          status: status.name,
+          vendorName: vendor,
+          driverName: driver,
+        )
+        .ignore();
   }
 
   bool _canTransition(OrderStatus current, OrderStatus target) {
@@ -1015,7 +1120,10 @@ class OrderStore extends ChangeNotifier {
       isPartnerStore: false,
       apartmentDelivery: order.apartmentDelivery,
     );
-    final computedFinalTotal = breakdown.customerTotal;
+    // For storeShopping: add bag_fee (count × €0.10, set by updateBagCount).
+    // For restaurant non-partner: bag_fee €0.30 already included in breakdown.customerTotal.
+    final computedFinalTotal = breakdown.customerTotal +
+        (order.serviceType == OrderServiceType.storeShopping ? order.bagFee : 0.0);
 
     final diff = double.parse(
         (computedFinalTotal - order.paymentBufferTotal).toStringAsFixed(2));
@@ -1849,16 +1957,32 @@ class OrderStore extends ChangeNotifier {
   }
 
   /// Records how many carrier bags the driver used for a market order.
-  /// Persists to DB and updates the local order immediately.
+  /// Persists bag_count + bag_fee (count × €0.10) to DB and updates local state.
+  /// Sends a push to the client when count > 0 (fire-and-forget).
   Future<void> updateBagCount(String orderId, int count) async {
     try {
-      await supabase
-          .from('orders')
-          .update({'bag_count': count}).eq('id', orderId);
+      final bagFee = _roundCurrency(count * 0.10);
+      await supabase.from('orders').update({
+        'bag_count': count,
+        'bag_fee': bagFee,
+      }).eq('id', orderId);
       final idx = _orders.indexWhere((o) => o.id == orderId);
       if (idx != -1) {
         _orders[idx].bagCount = count;
+        _orders[idx].bagFee = bagFee;
         notifyListeners();
+      }
+      // Notify client: "Sacos adicionados: X saco(s) × €0.10 = €X.XX"
+      if (count > 0) {
+        final clientId = idx != -1 ? _orders[idx].userId : null;
+        if (clientId != null && clientId.isNotEmpty) {
+          NotificationService.instance.notifyClientBagCount(
+            clientId: clientId,
+            orderId: orderId,
+            bagCount: count,
+            bagFee: bagFee,
+          ).ignore();
+        }
       }
     } catch (e) {
       debugPrint('OrderStore.updateBagCount error: $e');

@@ -1,0 +1,88 @@
+workflows:
+  android-release:
+    name: Bora App - Android Release APK
+    instance_type: linux_x2
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      java: 17
+      groups:
+        - bora_dart_defines
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+    scripts:
+      - name: Set up local properties
+        script: |
+          echo "flutter.sdk=$HOME/programs/flutter" > "$CM_BUILD_DIR/android/local.properties"
+      - name: Materialise secret files from env vars
+        script: |
+          if [ -n "$DART_DEFINES_FILE_B64" ]; then
+            echo "$DART_DEFINES_FILE_B64" | base64 -d > "$CM_BUILD_DIR/.dart_defines"
+            echo ".dart_defines created ($(wc -l < .dart_defines) lines)"
+          else
+            echo "ERROR: DART_DEFINES_FILE_B64 not set"; exit 1
+          fi
+          if [ -n "$GOOGLE_SERVICES_JSON_B64" ]; then
+            echo "$GOOGLE_SERVICES_JSON_B64" | base64 -d > "$CM_BUILD_DIR/android/app/google-services.json"
+            echo "google-services.json created"
+          else
+            echo "ERROR: GOOGLE_SERVICES_JSON_B64 not set"; exit 1
+          fi
+      - name: Get Flutter packages
+        script: flutter pub get
+      - name: Flutter analyze
+        script: flutter analyze --no-fatal-infos --no-fatal-warnings || true
+      - name: Build APK release
+        script: |
+          flutter build apk --release \
+            --dart-define-from-file=.dart_defines \
+            --no-tree-shake-icons
+    artifacts:
+      - build/**/outputs/**/*.apk
+      - build/**/outputs/**/mapping.txt
+      - flutter_drive.log
+    publishing:
+      email:
+        recipients:
+          - nilofulfarotuga@gmail.com
+        notify:
+          success: true
+          failure: true
+
+  android-debug:
+    name: Bora App - Android Debug APK (faster, side-loadable)
+    instance_type: linux_x2
+    max_build_duration: 45
+    environment:
+      flutter: stable
+      java: 17
+      groups:
+        - bora_dart_defines
+    scripts:
+      - name: Set up local properties
+        script: |
+          echo "flutter.sdk=$HOME/programs/flutter" > "$CM_BUILD_DIR/android/local.properties"
+      - name: Materialise .dart_defines from secret
+        script: |
+          if [ -n "$DART_DEFINES_FILE_B64" ]; then
+            echo "$DART_DEFINES_FILE_B64" | base64 -d > "$CM_BUILD_DIR/.dart_defines"
+          fi
+      - name: Get Flutter packages
+        script: flutter pub get
+      - name: Build APK debug
+        script: |
+          flutter build apk --debug \
+            --dart-define-from-file=.dart_defines
+    artifacts:
+      - build/**/outputs/**/*.apk
+    publishing:
+      email:
+        recipients:
+          - nilofulfarotuga@gmail.com
+        notify:
+          success: true
+          failure: true

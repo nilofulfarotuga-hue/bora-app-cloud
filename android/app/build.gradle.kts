@@ -1,8 +1,8 @@
 configurations.all {
     resolutionStrategy {
-        force("org.jetbrains.kotlin:kotlin-stdlib:2.1.0")
-        force("org.jetbrains.kotlin:kotlin-stdlib-jdk7:2.1.0")
-        force("org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.1.0")
+        force("org.jetbrains.kotlin:kotlin-stdlib:2.1.20")
+        force("org.jetbrains.kotlin:kotlin-stdlib-jdk7:2.1.20")
+        force("org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.1.20")
     }
 }
 
@@ -68,7 +68,7 @@ flutter {
 
 dependencies {
     implementation("androidx.appcompat:appcompat:1.7.0")
-    implementation("org.jetbrains.kotlin:kotlin-stdlib:2.1.0")
+    implementation("org.jetbrains.kotlin:kotlin-stdlib:2.1.20")
 }
 
 

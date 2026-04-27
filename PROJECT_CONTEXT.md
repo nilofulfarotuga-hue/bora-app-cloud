@@ -286,7 +286,7 @@ Toda a navegação é gerida pelo `_RootNavigator` em `main.dart` — **widget-r
 
 | Integração | Status | Notas |
 |---|---|---|
-| **Stripe** | Parcial | Mobile-only (kIsWeb guard). BACKEND_BASE_URL via --dart-define. Sem URL = falha silenciosa. Webhook ativo. |
+| **Stripe** | Funcional | Mobile-only (kIsWeb guard). Backend via **Supabase Edge Functions** (`create-payment-intent`, `refund`, `charge-extra`) — não usa BACKEND_BASE_URL. Webhook ativo. Min 0.50 EUR enforced. |
 | **MBWay** | Simulado | Edge Function `confirm-mbway-payment` — sem integração real com banco |
 | **Cash** | Funcional | Server-side cap €30. Settlement automático via trigger. |
 | **Google Maps** | Funcional | `google_maps_flutter` para widget + `latlong2` para cálculos. API key em `maps_config.dart` |
@@ -302,7 +302,7 @@ Toda a navegação é gerida pelo `_RootNavigator` em `main.dart` — **widget-r
 | Localização | Tipo | Descrição |
 |---|---|---|
 | `lib/screens/admin/admin_dashboard_screen.dart:12` | Temporary | Email allowlist para acesso admin — "intentionally temporary" |
-| `lib/services/payment_service.dart` | Parcial | `BACKEND_BASE_URL` defaultValue `http://localhost:3000` — sem URL de produção configurada, card payments falham silenciosamente |
+| `lib/services/payment_service.dart` | Funcional | Usa `Supabase.instance.client.functions.invoke(...)` directamente — sem dependência de `BACKEND_BASE_URL`. Edge Functions `create-payment-intent`, `refund` e `charge-extra` todas deployed. |
 | `supabase/functions/create-payment-intent/config.toml` | Untracked | Ficheiro novo não commitado |
 | `supabase/functions/stripe-webhook/config.toml` | Untracked | Ficheiro novo não commitado |
 | `lib/main.dart` | Disabled | Firebase.initializeApp() comentado — push notifications mobile não funcionam |
@@ -330,7 +330,7 @@ Toda a navegação é gerida pelo `_RootNavigator` em `main.dart` — **widget-r
 - **Admin dashboard** — métricas financeiras (acesso por allowlist)
 
 #### ⚠️ PARCIAL (funciona mas precisa de trabalho)
-- **Stripe** — integrado mas `BACKEND_BASE_URL` não tem URL de produção; card payments requerem configuração de env var para deploy
+- **Stripe** — integrado via Supabase Edge Functions (`create-payment-intent`, `refund`, `charge-extra`, `stripe-webhook`). Mobile-only. Sem necessidade de `BACKEND_BASE_URL`. **LIVE activo desde 2026-04-24**: `pk_live_` via `--dart-define=STRIPE_PUBLISHABLE_KEY` no build, `sk_live_` + `whsec_` nos secrets Supabase. Node backend em `backend/server.js` existe como referência no repo mas o serviço Render (bora-backend-2dp0) está **suspenso** — a app nunca o chamou.
 - **Realtime sync** — subscriptions ativas mas CLAUDE.md indica bugs de sincronização entre dispositivos
 - **Driver flow UI** — store e lógica presentes mas CLAUDE.md marca como incompleto
 - **Auth/session persistence** — funcional mas com edge cases não resolvidos
@@ -345,7 +345,7 @@ Toda a navegação é gerida pelo `_RootNavigator` em `main.dart` — **widget-r
 
 #### 🔴 3 Maiores Riscos para Lançamento
 
-1. **Stripe sem URL de produção** — `BACKEND_BASE_URL` defaultValue é `localhost:3000`. Qualquer utilizador que tente pagar com cartão em produção sem o env var configurado terá falha silenciosa. **Ação:** configurar `BACKEND_BASE_URL` no build de produção + adicionar erro visível ao utilizador.
+1. **Stripe em modo LIVE sem testes end-to-end** — backend via Supabase Edge Functions (`create-payment-intent`, `refund`, `charge-extra`) está deployed e a responder. Key Stripe em uso é `rk_live_` (restricted, não test). **Ação:** testar fluxo completo de pagamento real com pequeno valor antes do lançamento público + confirmar que o restricted key tem permissões `payment_intents:write` e `refunds:write`.
 
 2. **Realtime sync entre dispositivos** — identificado como "Current Focus" no CLAUDE.md. Se o driver e o cliente não verem o mesmo estado de um pedido em tempo real, o fluxo de entrega quebra. **Ação:** resolver antes do lançamento.
 

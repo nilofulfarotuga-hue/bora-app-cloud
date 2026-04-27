@@ -64,12 +64,30 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const refund = await stripe.refunds.create({
-      payment_intent: paymentIntentId.trim(),
-      amount: amountCents,
-    });
+    // Cap: refund cannot exceed amount actually received on the PaymentIntent.
+    const pi = await stripe.paymentIntents.retrieve(paymentIntentId.trim());
+    const receivedCents = pi.amount_received ?? 0;
+    if (amountCents > receivedCents) {
+      return new Response(
+        JSON.stringify({
+          error: `Refund amount (€${amount.toFixed(2)}) exceeds captured amount (€${(receivedCents / 100).toFixed(2)})`,
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
 
-    console.log('[refund] issued:', refund.id, `pi=${paymentIntentId}`, `€${amount.toFixed(2)}`);
+    // Idempotency key: same pi + same amount → same refund, never duplicated.
+    const idempotencyKey = `refund-${paymentIntentId.trim()}-${amountCents}`;
+
+    const refund = await stripe.refunds.create(
+      {
+        payment_intent: paymentIntentId.trim(),
+        amount: amountCents,
+      },
+      { idempotencyKey },
+    );
+
+    console.log('[refund] issued:', refund.id, `pi=${paymentIntentId}`, `€${amount.toFixed(2)}`, `idempotencyKey=${idempotencyKey}`);
 
     return new Response(
       JSON.stringify({ refundId: refund.id }),

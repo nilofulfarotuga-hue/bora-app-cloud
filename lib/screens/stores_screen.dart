@@ -271,7 +271,6 @@ class _StoreTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isPartner = entry.business.isPartner;
     final cat = entry.business.category;
     final bannerColor = _bannerColor(cat);
 
@@ -349,24 +348,19 @@ class _StoreTile extends StatelessWidget {
               child: Row(
                 children: [
                   Icon(
-                    isPartner
-                        ? Icons.verified_rounded
-                        : Icons.shopping_cart_rounded,
+                    Icons.delivery_dining_rounded,
                     size: 15,
-                    color: isPartner ? Colors.green : Colors.orange,
+                    color: Colors.grey.shade600,
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    isPartner
-                        ? 'Parceiro BORA · entrega rápida'
-                        : 'Estafeta compra por você',
+                    'Estafeta entrega rápida',
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.grey.shade700,
                     ),
                   ),
                   const Spacer(),
-                  _PartnerBadge(isPartner: isPartner),
                 ],
               ),
             ),
@@ -377,34 +371,6 @@ class _StoreTile extends StatelessWidget {
   }
 }
 
-class _PartnerBadge extends StatelessWidget {
-  const _PartnerBadge({required this.isPartner});
-
-  final bool isPartner;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: isPartner ? Colors.green.shade100 : Colors.orange.shade100,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isPartner ? Colors.green : Colors.orange,
-          width: 1,
-        ),
-      ),
-      child: Text(
-        isPartner ? 'Parceiro' : 'Não parceiro',
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: isPartner ? Colors.green.shade800 : Colors.orange.shade800,
-        ),
-      ),
-    );
-  }
-}
 
 class _StoreLogo extends StatelessWidget {
   const _StoreLogo({

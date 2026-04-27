@@ -1,0 +1,332 @@
+{
+  "processed": [
+    {
+      "section": "/frescos/talho/",
+      "scraped": 260,
+      "inserted": 0,
+      "skipped": 260,
+      "secs": 27.7
+    },
+    {
+      "section": "/frescos/peixaria/",
+      "scraped": 433,
+      "inserted": 419,
+      "skipped": 14,
+      "secs": 44.3
+    },
+    {
+      "section": "/frescos/charcutaria/",
+      "scraped": 418,
+      "inserted": 368,
+      "skipped": 50,
+      "secs": 71.6
+    },
+    {
+      "section": "/frescos/laticinios/",
+      "scraped": 0,
+      "inserted": 0,
+      "skipped": 0,
+      "secs": 0.8
+    },
+    {
+      "section": "/frescos/frutas-e-legumes/",
+      "scraped": 0,
+      "inserted": 0,
+      "skipped": 0,
+      "secs": 0.1
+    },
+    {
+      "section": "/frescos/padaria-e-pastelaria/",
+      "scraped": 577,
+      "inserted": 527,
+      "skipped": 50,
+      "secs": 58.4
+    },
+    {
+      "section": "/frescos/pronto-a-comer/",
+      "scraped": 0,
+      "inserted": 0,
+      "skipped": 0,
+      "secs": 1
+    },
+    {
+      "section": "/frescos/sushi-e-sashimi/",
+      "scraped": 0,
+      "inserted": 0,
+      "skipped": 0,
+      "secs": 0.8
+    },
+    {
+      "section": "/frescos/queijos/",
+      "scraped": 595,
+      "inserted": 516,
+      "skipped": 79,
+      "secs": 74.3
+    },
+    {
+      "section": "/mercearia/",
+      "scraped": 2100,
+      "inserted": 1951,
+      "skipped": 149,
+      "secs": 246.4
+    },
+    {
+      "section": "/mercearia/arroz-massa-e-leguminosas/",
+      "scraped": 0,
+      "inserted": 0,
+      "skipped": 0,
+      "secs": 1.1
+    },
+    {
+      "section": "/mercearia/azeite-oleo-e-vinagre/",
+      "scraped": 184,
+      "inserted": 107,
+      "skipped": 77,
+      "secs": 22.2
+    },
+    {
+      "section": "/mercearia/especiarias-e-condimentos/",
+      "scraped": 0,
+      "inserted": 0,
+      "skipped": 0,
+      "secs": 0.8
+    },
+    {
+      "section": "/mercearia/molhos-e-ervas/",
+      "scraped": 0,
+      "inserted": 0,
+      "skipped": 0,
+      "secs": 0.7
+    },
+    {
+      "section": "/mercearia/conservas/",
+      "scraped": 514,
+      "inserted": 162,
+      "skipped": 352,
+      "secs": 54.3
+    },
+    {
+      "section": "/mercearia/sopas-e-caldos/",
+      "scraped": 0,
+      "inserted": 0,
+      "skipped": 0,
+      "secs": 0.8
+    },
+    {
+      "section": "/mercearia/enlatados/",
+      "scraped": 0,
+      "inserted": 0,
+      "skipped": 0,
+      "secs": 0.8
+    },
+    {
+      "section": "/laticinios-e-ovos/",
+      "scraped": 1140,
+      "inserted": 1040,
+      "skipped": 100,
+      "secs": 148.3
+    },
+    {
+      "section": "/laticinios-e-ovos/ovos/",
+      "scraped": 29,
+      "inserted": 0,
+      "skipped": 29,
+      "secs": 4.3
+    },
+    {
+      "section": "/laticinios-e-ovos/iogurtes/",
+      "scraped": 566,
+      "inserted": 20,
+      "skipped": 546,
+      "secs": 58.8
+    },
+    {
+      "section": "/laticinios-e-ovos/leite/",
+      "scraped": 188,
+      "inserted": 4,
+      "skipped": 184,
+      "secs": 21.3
+    },
+    {
+      "section": "/laticinios-e-ovos/queijos/",
+      "scraped": 0,
+      "inserted": 0,
+      "skipped": 0,
+      "secs": 0.1
+    },
+    {
+      "section": "/laticinios-e-ovos/manteigas-margarinas-e-cremes/",
+      "scraped": 0,
+      "inserted": 0,
+      "skipped": 0,
+      "secs": 0.8
+    },
+    {
+      "section": "/laticinios-e-ovos/bebidas-vegetais/",
+      "scraped": 122,
+      "inserted": 2,
+      "skipped": 120,
+      "secs": 14.3
+    },
+    {
+      "section": "/congelados/",
+      "scraped": 1034,
+      "inserted": 690,
+      "skipped": 344,
+      "secs": 107.7
+    },
+    {
+      "section": "/congelados/carne-congelada/",
+      "scraped": 0,
+      "inserted": 0,
+      "skipped": 0,
+      "secs": 0.8
+    },
+    {
+      "section": "/congelados/peixe-congelado/",
+      "scraped": 0,
+      "inserted": 0,
+      "skipped": 0,
+      "secs": 0.8
+    },
+    {
+      "section": "/congelados/legumes-congelados/",
+      "scraped": 0,
+      "inserted": 0,
+      "skipped": 0,
+      "secs": 0.8
+    },
+    {
+      "section": "/congelados/pizza-e-massas-congeladas/",
+      "scraped": 0,
+      "inserted": 0,
+      "skipped": 0,
+      "secs": 0.7
+    },
+    {
+      "section": "/congelados/gelados-e-sobremesas-congeladas/",
+      "scraped": 263,
+      "inserted": 2,
+      "skipped": 261,
+      "secs": 28
+    },
+    {
+      "section": "/congelados/pratos-preparados-congelados/",
+      "scraped": 0,
+      "inserted": 0,
+      "skipped": 0,
+      "secs": 1
+    },
+    {
+      "section": "/bebidas-e-garrafeira/",
+      "scraped": 2100,
+      "inserted": 2039,
+      "skipped": 61,
+      "secs": 256.1
+    },
+    {
+      "section": "/bebidas-e-garrafeira/aguas/",
+      "scraped": 0,
+      "inserted": 0,
+      "skipped": 0,
+      "secs": 0.9
+    },
+    {
+      "section": "/bebidas-e-garrafeira/sumos-e-refrigerantes/",
+      "scraped": 500,
+      "inserted": 34,
+      "skipped": 466,
+      "secs": 55.3
+    },
+    {
+      "section": "/bebidas-e-garrafeira/cervejas/",
+      "scraped": 0,
+      "inserted": 0,
+      "skipped": 0,
+      "secs": 1.1
+    },
+    {
+      "section": "/bebidas-e-garrafeira/vinhos/",
+      "scraped": 2100,
+      "inserted": 1092,
+      "skipped": 1008,
+      "secs": 241
+    },
+    {
+      "section": "/bebidas-e-garrafeira/bebidas-espirituosas/",
+      "scraped": 624,
+      "inserted": 376,
+      "skipped": 248,
+      "secs": 74.5
+    },
+    {
+      "section": "/bebidas-e-garrafeira/cafes-e-chas/",
+      "scraped": 0,
+      "inserted": 0,
+      "skipped": 0,
+      "secs": 1.8
+    },
+    {
+      "section": "/bebidas-e-garrafeira/bebidas-vegetais/",
+      "scraped": 0,
+      "inserted": 0,
+      "skipped": 0,
+      "secs": 1.9
+    },
+    {
+      "section": "/bebe/",
+      "scraped": 61,
+      "inserted": 58,
+      "skipped": 3,
+      "secs": 8.7
+    },
+    {
+      "section": "/bebe/alimentacao-bebe/",
+      "scraped": 0,
+      "inserted": 0,
+      "skipped": 0,
+      "secs": 1.5
+    },
+    {
+      "section": "/bebe/higiene-bebe/",
+      "scraped": 0,
+      "inserted": 0,
+      "skipped": 0,
+      "secs": 1.4
+    },
+    {
+      "section": "/bebe/fraldas-e-toalhitas/",
+      "scraped": 186,
+      "inserted": 178,
+      "skipped": 8,
+      "secs": 22.6
+    },
+    {
+      "section": "/animais/",
+      "scraped": 1220,
+      "inserted": 1189,
+      "skipped": 31,
+      "secs": 158.3
+    },
+    {
+      "section": "/animais/cao/",
+      "scraped": 588,
+      "inserted": 13,
+      "skipped": 575,
+      "secs": 62.4
+    },
+    {
+      "section": "/animais/gato/",
+      "scraped": 656,
+      "inserted": 15,
+      "skipped": 641,
+      "secs": 69.7
+    }
+  ],
+  "totals": {
+    "scraped": 16458,
+    "inserted": 10802,
+    "skipped": 5656
+  },
+  "startedAt": "2026-04-21T16:52:08.469Z"
+}

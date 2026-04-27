@@ -1,0 +1,28 @@
+{
+  "total": 3009,
+  "changed": 1556,
+  "pct_changed": 51.71,
+  "needs_review": 697,
+  "new_dist": {
+    "Outros": 697,
+    "Bebidas": 221,
+    "Vinhos & Espirituosas": 148,
+    "Congelados": 131,
+    "Frutas & Legumes": 289,
+    "Higiene Pessoal": 186,
+    "Charcutaria & Queijos": 238,
+    "Laticínios & Ovos": 76,
+    "Talho": 211,
+    "Snacks": 143,
+    "Mercearia": 170,
+    "Peixaria": 140,
+    "Pequenos-Almoços": 65,
+    "Bebé": 81,
+    "Higiene do Lar": 100,
+    "Conservas": 81,
+    "Fitness & Proteínas": 4,
+    "Padaria & Pastelaria": 12,
+    "Saúde & Bem-Estar": 15,
+    "Pronto a Comer": 1
+  }
+}

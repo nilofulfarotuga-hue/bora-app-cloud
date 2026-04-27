@@ -1,0 +1,230 @@
+{
+  "per_uuid": {
+    "promocoes-a-partir-de-20-04": {
+      "https://endpoints.leaflets.schwarz/019d30fe-9e8f-712f-ba36-dcedd910f503/view/flyer/page/1": {
+        "status": 404,
+        "len": 242,
+        "ctype": "text/html",
+        "body0": "<!DOCTYPE html> <html lang=\"en\"> <head><title>404 Not Found</title></head> <body> <h1 style='color:red'>Error 404: Not found :-(</h1> <p>I have no idea where that file is, sorry. Are you sure you type"
+      },
+      "https://endpoints.leaflets.schwarz/019d30fe-9e8f-712f-ba36-dcedd910f503/view/flyer/page/1?country=PT": {
+        "status": 404,
+        "len": 242,
+        "ctype": "text/html",
+        "body0": "<!DOCTYPE html> <html lang=\"en\"> <head><title>404 Not Found</title></head> <body> <h1 style='color:red'>Error 404: Not found :-(</h1> <p>I have no idea where that file is, sorry. Are you sure you type"
+      },
+      "https://endpoints.leaflets.schwarz/019d30fe-9e8f-712f-ba36-dcedd910f503/view/flyer/page/1?country=PT&region=HHZ": {
+        "status": 404,
+        "len": 242,
+        "ctype": "text/html",
+        "body0": "<!DOCTYPE html> <html lang=\"en\"> <head><title>404 Not Found</title></head> <body> <h1 style='color:red'>Error 404: Not found :-(</h1> <p>I have no idea where that file is, sorry. Are you sure you type"
+      },
+      "https://endpoints.leaflets.schwarz/019d30fe-9e8f-712f-ba36-dcedd910f503/view/flyer/page/1?region=HHZ": {
+        "status": 404,
+        "len": 242,
+        "ctype": "text/html",
+        "body0": "<!DOCTYPE html> <html lang=\"en\"> <head><title>404 Not Found</title></head> <body> <h1 style='color:red'>Error 404: Not found :-(</h1> <p>I have no idea where that file is, sorry. Are you sure you type"
+      },
+      "https://endpoints.leaflets.schwarz/019d30fe-9e8f-712f-ba36-dcedd910f503/view/flyer": {
+        "status": 404,
+        "len": 242,
+        "ctype": "text/html",
+        "body0": "<!DOCTYPE html> <html lang=\"en\"> <head><title>404 Not Found</title></head> <body> <h1 style='color:red'>Error 404: Not found :-(</h1> <p>I have no idea where that file is, sorry. Are you sure you type"
+      },
+      "https://endpoints.leaflets.schwarz/019d30fe-9e8f-712f-ba36-dcedd910f503": {
+        "status": 404,
+        "len": 242,
+        "ctype": "text/html",
+        "body0": "<!DOCTYPE html> <html lang=\"en\"> <head><title>404 Not Found</title></head> <body> <h1 style='color:red'>Error 404: Not found :-(</h1> <p>I have no idea where that file is, sorry. Are you sure you type"
+      },
+      "https://endpoints.leaflets.schwarz/flyer/019d30fe-9e8f-712f-ba36-dcedd910f503": {
+        "status": 404,
+        "len": 242,
+        "ctype": "text/html",
+        "body0": "<!DOCTYPE html> <html lang=\"en\"> <head><title>404 Not Found</title></head> <body> <h1 style='color:red'>Error 404: Not found :-(</h1> <p>I have no idea where that file is, sorry. Are you sure you type"
+      },
+      "https://endpoints.leaflets.schwarz/019d30fe-9e8f-712f-ba36-dcedd910f503/pages": {
+        "status": 404,
+        "len": 242,
+        "ctype": "text/html",
+        "body0": "<!DOCTYPE html> <html lang=\"en\"> <head><title>404 Not Found</title></head> <body> <h1 style='color:red'>Error 404: Not found :-(</h1> <p>I have no idea where that file is, sorry. Are you sure you type"
+      },
+      "https://endpoints.leaflets.schwarz/019d30fe-9e8f-712f-ba36-dcedd910f503/pages/1": {
+        "status": 404,
+        "len": 242,
+        "ctype": "text/html",
+        "body0": "<!DOCTYPE html> <html lang=\"en\"> <head><title>404 Not Found</title></head> <body> <h1 style='color:red'>Error 404: Not found :-(</h1> <p>I have no idea where that file is, sorry. Are you sure you type"
+      },
+      "https://endpoints.leaflets.schwarz/019d30fe-9e8f-712f-ba36-dcedd910f503/offers": {
+        "status": 404,
+        "len": 242,
+        "ctype": "text/html",
+        "body0": "<!DOCTYPE html> <html lang=\"en\"> <head><title>404 Not Found</title></head> <body> <h1 style='color:red'>Error 404: Not found :-(</h1> <p>I have no idea where that file is, sorry. Are you sure you type"
+      },
+      "https://endpoints.leaflets.schwarz/019d30fe-9e8f-712f-ba36-dcedd910f503/products": {
+        "status": 404,
+        "len": 242,
+        "ctype": "text/html",
+        "body0": "<!DOCTYPE html> <html lang=\"en\"> <head><title>404 Not Found</title></head> <body> <h1 style='color:red'>Error 404: Not found :-(</h1> <p>I have no idea where that file is, sorry. Are you sure you type"
+      }
+    },
+    "novidades-a-partir-de-20-04": {
+      "https://endpoints.leaflets.schwarz/019d9077-7863-73dd-a263-be2166671ede/view/flyer/page/1": {
+        "status": 404,
+        "len": 242,
+        "ctype": "text/html",
+        "body0": "<!DOCTYPE html> <html lang=\"en\"> <head><title>404 Not Found</title></head> <body> <h1 style='color:red'>Error 404: Not found :-(</h1> <p>I have no idea where that file is, sorry. Are you sure you type"
+      },
+      "https://endpoints.leaflets.schwarz/019d9077-7863-73dd-a263-be2166671ede/view/flyer/page/1?country=PT": {
+        "status": 404,
+        "len": 242,
+        "ctype": "text/html",
+        "body0": "<!DOCTYPE html> <html lang=\"en\"> <head><title>404 Not Found</title></head> <body> <h1 style='color:red'>Error 404: Not found :-(</h1> <p>I have no idea where that file is, sorry. Are you sure you type"
+      },
+      "https://endpoints.leaflets.schwarz/019d9077-7863-73dd-a263-be2166671ede/view/flyer/page/1?country=PT&region=HHZ": {
+        "status": 404,
+        "len": 242,
+        "ctype": "text/html",
+        "body0": "<!DOCTYPE html> <html lang=\"en\"> <head><title>404 Not Found</title></head> <body> <h1 style='color:red'>Error 404: Not found :-(</h1> <p>I have no idea where that file is, sorry. Are you sure you type"
+      },
+      "https://endpoints.leaflets.schwarz/019d9077-7863-73dd-a263-be2166671ede/view/flyer/page/1?region=HHZ": {
+        "status": 404,
+        "len": 242,
+        "ctype": "text/html",
+        "body0": "<!DOCTYPE html> <html lang=\"en\"> <head><title>404 Not Found</title></head> <body> <h1 style='color:red'>Error 404: Not found :-(</h1> <p>I have no idea where that file is, sorry. Are you sure you type"
+      },
+      "https://endpoints.leaflets.schwarz/019d9077-7863-73dd-a263-be2166671ede/view/flyer": {
+        "status": 404,
+        "len": 242,
+        "ctype": "text/html",
+        "body0": "<!DOCTYPE html> <html lang=\"en\"> <head><title>404 Not Found</title></head> <body> <h1 style='color:red'>Error 404: Not found :-(</h1> <p>I have no idea where that file is, sorry. Are you sure you type"
+      },
+      "https://endpoints.leaflets.schwarz/019d9077-7863-73dd-a263-be2166671ede": {
+        "status": 404,
+        "len": 242,
+        "ctype": "text/html",
+        "body0": "<!DOCTYPE html> <html lang=\"en\"> <head><title>404 Not Found</title></head> <body> <h1 style='color:red'>Error 404: Not found :-(</h1> <p>I have no idea where that file is, sorry. Are you sure you type"
+      },
+      "https://endpoints.leaflets.schwarz/flyer/019d9077-7863-73dd-a263-be2166671ede": {
+        "status": 404,
+        "len": 242,
+        "ctype": "text/html",
+        "body0": "<!DOCTYPE html> <html lang=\"en\"> <head><title>404 Not Found</title></head> <body> <h1 style='color:red'>Error 404: Not found :-(</h1> <p>I have no idea where that file is, sorry. Are you sure you type"
+      },
+      "https://endpoints.leaflets.schwarz/019d9077-7863-73dd-a263-be2166671ede/pages": {
+        "status": 404,
+        "len": 242,
+        "ctype": "text/html",
+        "body0": "<!DOCTYPE html> <html lang=\"en\"> <head><title>404 Not Found</title></head> <body> <h1 style='color:red'>Error 404: Not found :-(</h1> <p>I have no idea where that file is, sorry. Are you sure you type"
+      },
+      "https://endpoints.leaflets.schwarz/019d9077-7863-73dd-a263-be2166671ede/pages/1": {
+        "status": 404,
+        "len": 242,
+        "ctype": "text/html",
+        "body0": "<!DOCTYPE html> <html lang=\"en\"> <head><title>404 Not Found</title></head> <body> <h1 style='color:red'>Error 404: Not found :-(</h1> <p>I have no idea where that file is, sorry. Are you sure you type"
+      },
+      "https://endpoints.leaflets.schwarz/019d9077-7863-73dd-a263-be2166671ede/offers": {
+        "status": 404,
+        "len": 242,
+        "ctype": "text/html",
+        "body0": "<!DOCTYPE html> <html lang=\"en\"> <head><title>404 Not Found</title></head> <body> <h1 style='color:red'>Error 404: Not found :-(</h1> <p>I have no idea where that file is, sorry. Are you sure you type"
+      },
+      "https://endpoints.leaflets.schwarz/019d9077-7863-73dd-a263-be2166671ede/products": {
+        "status": 404,
+        "len": 242,
+        "ctype": "text/html",
+        "body0": "<!DOCTYPE html> <html lang=\"en\"> <head><title>404 Not Found</title></head> <body> <h1 style='color:red'>Error 404: Not found :-(</h1> <p>I have no idea where that file is, sorry. Are you sure you type"
+      }
+    },
+    "folheto-especial-cien": {
+      "https://endpoints.leaflets.schwarz/019d96ba-7d3a-7572-a513-c784f18f60be/view/flyer/page/1": {
+        "status": 404,
+        "len": 242,
+        "ctype": "text/html",
+        "body0": "<!DOCTYPE html> <html lang=\"en\"> <head><title>404 Not Found</title></head> <body> <h1 style='color:red'>Error 404: Not found :-(</h1> <p>I have no idea where that file is, sorry. Are you sure you type"
+      },
+      "https://endpoints.leaflets.schwarz/019d96ba-7d3a-7572-a513-c784f18f60be/view/flyer/page/1?country=PT": {
+        "status": 404,
+        "len": 242,
+        "ctype": "text/html",
+        "body0": "<!DOCTYPE html> <html lang=\"en\"> <head><title>404 Not Found</title></head> <body> <h1 style='color:red'>Error 404: Not found :-(</h1> <p>I have no idea where that file is, sorry. Are you sure you type"
+      },
+      "https://endpoints.leaflets.schwarz/019d96ba-7d3a-7572-a513-c784f18f60be/view/flyer/page/1?country=PT&region=HHZ": {
+        "status": 404,
+        "len": 242,
+        "ctype": "text/html",
+        "body0": "<!DOCTYPE html> <html lang=\"en\"> <head><title>404 Not Found</title></head> <body> <h1 style='color:red'>Error 404: Not found :-(</h1> <p>I have no idea where that file is, sorry. Are you sure you type"
+      },
+      "https://endpoints.leaflets.schwarz/019d96ba-7d3a-7572-a513-c784f18f60be/view/flyer/page/1?region=HHZ": {
+        "status": 404,
+        "len": 242,
+        "ctype": "text/html",
+        "body0": "<!DOCTYPE html> <html lang=\"en\"> <head><title>404 Not Found</title></head> <body> <h1 style='color:red'>Error 404: Not found :-(</h1> <p>I have no idea where that file is, sorry. Are you sure you type"
+      },
+      "https://endpoints.leaflets.schwarz/019d96ba-7d3a-7572-a513-c784f18f60be/view/flyer": {
+        "status": 404,
+        "len": 242,
+        "ctype": "text/html",
+        "body0": "<!DOCTYPE html> <html lang=\"en\"> <head><title>404 Not Found</title></head> <body> <h1 style='color:red'>Error 404: Not found :-(</h1> <p>I have no idea where that file is, sorry. Are you sure you type"
+      },
+      "https://endpoints.leaflets.schwarz/019d96ba-7d3a-7572-a513-c784f18f60be": {
+        "status": 404,
+        "len": 242,
+        "ctype": "text/html",
+        "body0": "<!DOCTYPE html> <html lang=\"en\"> <head><title>404 Not Found</title></head> <body> <h1 style='color:red'>Error 404: Not found :-(</h1> <p>I have no idea where that file is, sorry. Are you sure you type"
+      },
+      "https://endpoints.leaflets.schwarz/flyer/019d96ba-7d3a-7572-a513-c784f18f60be": {
+        "status": 404,
+        "len": 242,
+        "ctype": "text/html",
+        "body0": "<!DOCTYPE html> <html lang=\"en\"> <head><title>404 Not Found</title></head> <body> <h1 style='color:red'>Error 404: Not found :-(</h1> <p>I have no idea where that file is, sorry. Are you sure you type"
+      },
+      "https://endpoints.leaflets.schwarz/019d96ba-7d3a-7572-a513-c784f18f60be/pages": {
+        "status": 404,
+        "len": 242,
+        "ctype": "text/html",
+        "body0": "<!DOCTYPE html> <html lang=\"en\"> <head><title>404 Not Found</title></head> <body> <h1 style='color:red'>Error 404: Not found :-(</h1> <p>I have no idea where that file is, sorry. Are you sure you type"
+      },
+      "https://endpoints.leaflets.schwarz/019d96ba-7d3a-7572-a513-c784f18f60be/pages/1": {
+        "status": 404,
+        "len": 242,
+        "ctype": "text/html",
+        "body0": "<!DOCTYPE html> <html lang=\"en\"> <head><title>404 Not Found</title></head> <body> <h1 style='color:red'>Error 404: Not found :-(</h1> <p>I have no idea where that file is, sorry. Are you sure you type"
+      },
+      "https://endpoints.leaflets.schwarz/019d96ba-7d3a-7572-a513-c784f18f60be/offers": {
+        "status": 404,
+        "len": 242,
+        "ctype": "text/html",
+        "body0": "<!DOCTYPE html> <html lang=\"en\"> <head><title>404 Not Found</title></head> <body> <h1 style='color:red'>Error 404: Not found :-(</h1> <p>I have no idea where that file is, sorry. Are you sure you type"
+      },
+      "https://endpoints.leaflets.schwarz/019d96ba-7d3a-7572-a513-c784f18f60be/products": {
+        "status": 404,
+        "len": 242,
+        "ctype": "text/html",
+        "body0": "<!DOCTYPE html> <html lang=\"en\"> <head><title>404 Not Found</title></head> <body> <h1 style='color:red'>Error 404: Not found :-(</h1> <p>I have no idea where that file is, sorry. Are you sure you type"
+      }
+    }
+  },
+  "productService": {
+    "https://endpoints.leaflets.schwarz/productService/019d30fe-9e8f-712f-ba36-dcedd910f503/productsForOverviewDisplay/EN/": {
+      "status": 404,
+      "len": 242,
+      "body0": "<!DOCTYPE html> <html lang=\"en\"> <head><title>404 Not Found</title></head> <body> <h1 style='color:red'>Error 404: Not found :-(</h1> <p>I have no idea where that file is, sorry. Are you sure you type"
+    },
+    "https://endpoints.leaflets.schwarz/productService/019d30fe-9e8f-712f-ba36-dcedd910f503/productsForOverviewDisplay/PT/": {
+      "status": 404,
+      "len": 242,
+      "body0": "<!DOCTYPE html> <html lang=\"en\"> <head><title>404 Not Found</title></head> <body> <h1 style='color:red'>Error 404: Not found :-(</h1> <p>I have no idea where that file is, sorry. Are you sure you type"
+    },
+    "https://endpoints.leaflets.schwarz/productService/019d30fe-9e8f-712f-ba36-dcedd910f503/productsForOverviewDisplay/pt_PT/": {
+      "status": 404,
+      "len": 242,
+      "body0": "<!DOCTYPE html> <html lang=\"en\"> <head><title>404 Not Found</title></head> <body> <h1 style='color:red'>Error 404: Not found :-(</h1> <p>I have no idea where that file is, sorry. Are you sure you type"
+    },
+    "https://endpoints.leaflets.schwarz/productService/019d30fe-9e8f-712f-ba36-dcedd910f503/productsForOverviewDisplay/pt/": {
+      "status": 404,
+      "len": 242,
+      "body0": "<!DOCTYPE html> <html lang=\"en\"> <head><title>404 Not Found</title></head> <body> <h1 style='color:red'>Error 404: Not found :-(</h1> <p>I have no idea where that file is, sorry. Are you sure you type"
+    }
+  }
+}

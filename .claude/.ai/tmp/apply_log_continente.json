@@ -1,0 +1,55 @@
+{
+  "when": "2026-04-20T22:12:57.272Z",
+  "total_rows": 3511,
+  "expected": 3511,
+  "batches": [
+    {
+      "idx": 0,
+      "ok": true,
+      "rows": 500,
+      "ms": 1404
+    },
+    {
+      "idx": 1,
+      "ok": true,
+      "rows": 500,
+      "ms": 790
+    },
+    {
+      "idx": 2,
+      "ok": true,
+      "rows": 500,
+      "ms": 533
+    },
+    {
+      "idx": 3,
+      "ok": true,
+      "rows": 500,
+      "ms": 303
+    },
+    {
+      "idx": 4,
+      "ok": true,
+      "rows": 500,
+      "ms": 282
+    },
+    {
+      "idx": 5,
+      "ok": true,
+      "rows": 500,
+      "ms": 405
+    },
+    {
+      "idx": 6,
+      "ok": true,
+      "rows": 500,
+      "ms": 287
+    },
+    {
+      "idx": 7,
+      "ok": true,
+      "rows": 11,
+      "ms": 118
+    }
+  ]
+}

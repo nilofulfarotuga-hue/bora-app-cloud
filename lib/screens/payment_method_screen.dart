@@ -26,6 +26,9 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
   PaymentMethod _selectedMethod = PaymentMethod.card;
   bool _isProcessing = false;
 
+  // MBWay phone input (Portuguese mobile, 9 digits — E.164 prefix added before send).
+  final TextEditingController _mbwayPhoneController = TextEditingController();
+
   // ── Token discount state ───────────────────────────────────────────────────
   int _availableTokens = 0;
   bool _useTokens = false;
@@ -35,6 +38,19 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
   void initState() {
     super.initState();
     _loadTokens();
+    // Pre-fill with profile phone (digits-only) if available — user can override.
+    final profilePhone = context.read<AuthStore>().currentClient?.phone;
+    if (profilePhone != null && profilePhone.isNotEmpty) {
+      final digits = profilePhone.replaceAll(RegExp(r'\D'), '');
+      _mbwayPhoneController.text =
+          digits.startsWith('351') ? digits.substring(3) : digits;
+    }
+  }
+
+  @override
+  void dispose() {
+    _mbwayPhoneController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadTokens() async {
@@ -260,6 +276,51 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                         .toList(),
                   ),
                 ),
+                if (_selectedMethod == PaymentMethod.mbway) ...[
+                  const SizedBox(height: 12),
+                  Card(
+                    elevation: 1,
+                    margin: EdgeInsets.zero,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Número MBWay',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleSmall
+                                ?.copyWith(fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: _mbwayPhoneController,
+                            keyboardType: TextInputType.phone,
+                            maxLength: 9,
+                            decoration: const InputDecoration(
+                              prefixText: '+351 ',
+                              hintText: '912345678',
+                              border: OutlineInputBorder(),
+                              counterText: '',
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Telemóvel português associado à tua conta MBWay (9 dígitos).',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -291,6 +352,25 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     );
   }
 
+  /// Forces exit from payment screen to home root after a post-createOrder
+  /// failure. If [orderId] is provided, also calls `client-cancel-order` Edge
+  /// Function to mark the orphan order as cancelled in DB (avoids stuck
+  /// status='preparing' / payment_status='pending' rows).
+  Future<void> _bailOutAndCancel(String? orderId) async {
+    if (orderId != null) {
+      try {
+        await Supabase.instance.client.functions.invoke(
+          'client-cancel-order',
+          body: {'order_id': orderId, 'reason': 'payment_failed'},
+        );
+      } catch (e) {
+        debugPrint('[Checkout] _bailOutAndCancel error (non-fatal): $e');
+      }
+    }
+    if (!mounted) return;
+    Navigator.of(context).popUntil((route) => route.isFirst);
+  }
+
   Future<void> _confirmPayment(
     BuildContext context,
     double amount, {
@@ -312,6 +392,23 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
         ),
       );
       return;
+    }
+
+    // Pre-flight: MBWay requires a 9-digit Portuguese mobile number.
+    if (_selectedMethod == PaymentMethod.mbway) {
+      final digits =
+          _mbwayPhoneController.text.replaceAll(RegExp(r'\D'), '');
+      if (digits.length != 9 ||
+          !(digits.startsWith('9') || digits.startsWith('2'))) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text(
+                'Introduz um número de telemóvel português válido (9 dígitos).'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
     }
 
     if (kIsWeb && _selectedMethod == PaymentMethod.card) {
@@ -357,12 +454,13 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       }
 
       // Step 2: charge against the real order ID.
-      // Use paymentBufferTotal from the created order — it already includes the
-      // 15% pre-auth buffer (non-partner) and token discount, matching exactly
-      // what the edge function reads from the DB.
+      // Send `total` (DB column `price`) — the customer-facing price.
+      // The Edge Function does ZERO-TOLERANCE validation on this field
+      // and applies the 15% pre-auth buffer server-side before charging Stripe.
+      // Sending paymentBufferTotal here would fail the equality check.
       final createdOrder = orderStore.orders.first;
       final orderId = createdOrder.id;
-      final stripeAmount = createdOrder.paymentBufferTotal;
+      final stripeAmount = createdOrder.total;
       try {
         final data = await paymentService.createPaymentIntent(
           orderId: orderId,
@@ -377,6 +475,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
         messenger.showSnackBar(
           const SnackBar(content: Text('Pagamento não pôde ser concluído.')),
         );
+        await _bailOutAndCancel(orderId);
         return;
       } catch (e) {
         if (!mounted) return;
@@ -389,6 +488,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
             duration: Duration(seconds: 5),
           ),
         );
+        await _bailOutAndCancel(orderId);
         return;
       }
 
@@ -409,15 +509,54 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       case PaymentMethod.card:
         break; // handled above
       case PaymentMethod.mbway:
-        // Show confirmation dialog that simulates the MBWay push notification.
-        // Order is only created after the user "confirms" on the dialog.
-        setState(
-            () => _isProcessing = false); // release button while dialog is open
-        final mbwayConfirmed = await _showMBWayConfirmationDialog(amount);
+        // Real MBWay flow mirrors card: order created first (pending),
+        // then Stripe sends push to user's MBWay app, then stripe-webhook
+        // resolves payment_status=paid server-side.
+        final mbwayOrdered = await cartStore.finishOrder(
+          orderStore,
+          paymentMethod: PaymentMethod.mbway,
+          paymentStatus: PaymentStatus.pending,
+          clientPhone: authStore.currentClient?.phone,
+          customerName: authStore.currentClient?.name,
+          tokensUsed: tokensUsed,
+        );
         if (!mounted) return;
-        setState(() => _isProcessing = true);
-        success = mbwayConfirmed;
-        break;
+        if (!mbwayOrdered) {
+          setState(() => _isProcessing = false);
+          messenger.showSnackBar(const SnackBar(
+            content: Text('Não foi possível criar o pedido. Tente novamente.'),
+          ));
+          return;
+        }
+        final mbwayOrder = orderStore.orders.first;
+        // Use the user-entered MBWay number (validated as 9 digits in pre-flight).
+        // Edge Function handles E.164 conversion (prepends +351).
+        final clientPhone =
+            _mbwayPhoneController.text.replaceAll(RegExp(r'\D'), '');
+        setState(() => _isProcessing = false);
+        final piId = await paymentService.initiateMbwayPayment(
+          orderId: mbwayOrder.id,
+          phone: clientPhone,
+        );
+        if (!mounted) return;
+        if (piId == null) {
+          messenger.showSnackBar(const SnackBar(
+            content: Text('Não foi possível iniciar o pagamento MBWay.'),
+          ));
+          await _bailOutAndCancel(mbwayOrder.id);
+          return;
+        }
+        final mbwayPaid = await _showMBWayWaitingDialog(mbwayOrder.id, amount);
+        if (!mounted) return;
+        if (!mbwayPaid) {
+          messenger.showSnackBar(const SnackBar(
+            content: Text('Pagamento MBWay não confirmado ou expirou.'),
+          ));
+          await _bailOutAndCancel(mbwayOrder.id);
+          return;
+        }
+        await _consumeTokensAndNavigate(tokensUsed);
+        return;
       case PaymentMethod.cash:
         success = await paymentService.payWithCash(amount);
         break;
@@ -492,11 +631,12 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     Navigator.pop(context, true);
   }
 
-  Future<bool> _showMBWayConfirmationDialog(double amount) async {
+  Future<bool> _showMBWayWaitingDialog(String orderId, double amount) async {
     return await showDialog<bool>(
           context: context,
           barrierDismissible: false,
-          builder: (_) => _MBWayConfirmationDialog(amount: amount),
+          builder: (_) =>
+              _MBWayWaitingDialog(orderId: orderId, amount: amount),
         ) ??
         false;
   }
@@ -589,34 +729,50 @@ class _SummaryRow extends StatelessWidget {
   }
 }
 
-class _MBWayConfirmationDialog extends StatefulWidget {
-  const _MBWayConfirmationDialog({required this.amount});
+class _MBWayWaitingDialog extends StatefulWidget {
+  const _MBWayWaitingDialog({required this.orderId, required this.amount});
+  final String orderId;
   final double amount;
 
   @override
-  State<_MBWayConfirmationDialog> createState() =>
-      _MBWayConfirmationDialogState();
+  State<_MBWayWaitingDialog> createState() => _MBWayWaitingDialogState();
 }
 
-class _MBWayConfirmationDialogState extends State<_MBWayConfirmationDialog> {
+class _MBWayWaitingDialogState extends State<_MBWayWaitingDialog> {
   static const _timeoutSeconds = 120;
   int _secondsLeft = _timeoutSeconds;
-  bool _confirmed = false;
+  bool _done = false;
 
   @override
   void initState() {
     super.initState();
-    _startCountdown();
+    _countdown();
+    _poll();
   }
 
-  void _startCountdown() async {
-    while (_secondsLeft > 0 && mounted && !_confirmed) {
+  void _countdown() async {
+    while (_secondsLeft > 0 && mounted && !_done) {
       await Future.delayed(const Duration(seconds: 1));
-      if (mounted && !_confirmed) setState(() => _secondsLeft--);
+      if (mounted && !_done) setState(() => _secondsLeft--);
     }
-    if (mounted && !_confirmed) {
-      // Timeout — close with false
-      Navigator.of(context).pop(false);
+    if (mounted && !_done) Navigator.of(context).pop(false);
+  }
+
+  void _poll() async {
+    while (mounted && !_done) {
+      await Future.delayed(const Duration(seconds: 3));
+      if (!mounted || _done) break;
+      try {
+        final row = await Supabase.instance.client
+            .from('orders')
+            .select('payment_status')
+            .eq('id', widget.orderId)
+            .maybeSingle();
+        if (row?['payment_status'] == 'paid' && mounted && !_done) {
+          _done = true;
+          Navigator.of(context).pop(true);
+        }
+      } catch (_) {}
     }
   }
 
@@ -628,7 +784,7 @@ class _MBWayConfirmationDialogState extends State<_MBWayConfirmationDialog> {
         children: [
           Icon(Icons.phone_iphone, color: Colors.red.shade700),
           const SizedBox(width: 8),
-          const Text('Confirmação MBWay'),
+          const Text('Aguarda confirmação MBWay'),
         ],
       ),
       content: Column(
@@ -636,44 +792,26 @@ class _MBWayConfirmationDialogState extends State<_MBWayConfirmationDialog> {
         children: [
           const SizedBox(height: 4),
           Text(
-            'Foi enviado um pedido de pagamento de '
-            '€${widget.amount.toStringAsFixed(2)} para o seu telemóvel.',
+            'Enviámos um pedido de €${widget.amount.toStringAsFixed(2)} '
+            'para o teu telemóvel.\nAbre o MBWay e confirma.',
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
           const CircularProgressIndicator(),
           const SizedBox(height: 12),
           Text(
-            'Aguardando confirmação... $_secondsLeft s',
+            'A aguardar confirmação... $_secondsLeft s',
             style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '(Em desenvolvimento: use o botão abaixo para simular)',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-                fontSize: 11,
-                color: Colors.grey.shade400,
-                fontStyle: FontStyle.italic),
           ),
         ],
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.of(context).pop(false),
-          child: const Text('Cancelar'),
-        ),
-        ElevatedButton.icon(
           onPressed: () {
-            setState(() => _confirmed = true);
-            Navigator.of(context).pop(true);
+            _done = true;
+            Navigator.of(context).pop(false);
           },
-          icon: const Icon(Icons.check_circle_outline),
-          label: const Text('Confirmar no MBWay'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.red.shade700,
-            foregroundColor: Colors.white,
-          ),
+          child: const Text('Cancelar'),
         ),
       ],
     );

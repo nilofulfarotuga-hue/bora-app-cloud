@@ -1,0 +1,28 @@
+{
+  "sample": 524,
+  "changed": 284,
+  "in_outros": 92,
+  "newDist": {
+    "Frutas & Legumes": 32,
+    "Mercearia": 31,
+    "Pequenos-Almoços": 12,
+    "Higiene do Lar": 18,
+    "Vinhos & Espirituosas": 26,
+    "Outros": 92,
+    "Padaria & Pastelaria": 21,
+    "Snacks": 26,
+    "Saúde & Bem-Estar": 20,
+    "Animais": 23,
+    "Talho": 16,
+    "Laticínios & Ovos": 16,
+    "Peixaria": 21,
+    "Bebé": 38,
+    "Congelados": 50,
+    "Bebidas": 16,
+    "Festa & Ocasiões": 1,
+    "Fitness & Proteínas": 14,
+    "Conservas": 3,
+    "Higiene Pessoal": 10,
+    "Charcutaria & Queijos": 38
+  }
+}

@@ -1,0 +1,141 @@
+bundle 200 len 677540
+{
+  "api_paths_in_bundle": [
+    "/p/api/"
+  ],
+  "abs_urls_leaflet_or_schwarz": [
+    "https://asset.schwarz/track/",
+    "https://cms.leaflets.schwarz",
+    "https://endpoints.leaflets.schwarz",
+    "https://lidl.leaflets.schwarz/",
+    "https://lidl.leaflets.schwarz/assets/brand_lidl-f71bd0e6.svg",
+    "https://lidl.leaflets.schwarz/assets/error-412e6827.svg",
+    "https://lidl.leaflets.schwarz/assets/fallbackImg-23f5067c.svg",
+    "https://lidl.leaflets.schwarz/assets/newsletter-1c9c9db8.svg"
+  ],
+  "env_configs": [
+    [
+      "VITE_BASE",
+      "https://lidl.leaflets.schwarz/"
+    ],
+    [
+      "VITE_MOBILE_API_URL",
+      "https://mobile.lidl.de/Mobile-Server/service/94"
+    ],
+    [
+      "VITE_QUIT_URL",
+      "https://info.lidl/en"
+    ],
+    [
+      "VITE_ESI_KAMELEOON",
+      "<esi:include src='/kam/esi' />"
+    ],
+    [
+      "VITE_API_URL",
+      "https://endpoints.leaflets.schwarz"
+    ],
+    [
+      "VITE_API_BASE_URL_LIDL_US",
+      "https://www.lidl.com/flyer/endpoints"
+    ],
+    [
+      "VITE_CMS_URL",
+      "https://cms.leaflets.schwarz"
+    ],
+    [
+      "VITE_DATA_LAYER_SERVICE_BASE_URL",
+      "https://asset.schwarz/track/"
+    ],
+    [
+      "BASE_URL",
+      "https://lidl.leaflets.schwarz/"
+    ],
+    [
+      "VITE_BASE",
+      "https://lidl.leaflets.schwarz/"
+    ],
+    [
+      "VITE_MOBILE_API_URL",
+      "https://mobile.lidl.de/Mobile-Server/service/94"
+    ],
+    [
+      "VITE_QUIT_URL",
+      "https://info.lidl/en"
+    ],
+    [
+      "VITE_ESI_KAMELEOON",
+      "<esi:include src='/kam/esi' />"
+    ],
+    [
+      "VITE_API_URL",
+      "https://endpoints.leaflets.schwarz"
+    ],
+    [
+      "VITE_API_BASE_URL_LIDL_US",
+      "https://www.lidl.com/flyer/endpoints"
+    ],
+    [
+      "VITE_CMS_URL",
+      "https://cms.leaflets.schwarz"
+    ],
+    [
+      "VITE_DATA_LAYER_SERVICE_BASE_URL",
+      "https://asset.schwarz/track/"
+    ],
+    [
+      "BASE_URL",
+      "https://lidl.leaflets.schwarz/"
+    ],
+    [
+      "VITE_BASE",
+      "https://lidl.leaflets.schwarz/"
+    ],
+    [
+      "VITE_MOBILE_API_URL",
+      "https://mobile.lidl.de/Mobile-Server/service/94"
+    ],
+    [
+      "VITE_QUIT_URL",
+      "https://info.lidl/en"
+    ],
+    [
+      "VITE_ESI_KAMELEOON",
+      "<esi:include src='/kam/esi' />"
+    ],
+    [
+      "VITE_API_URL",
+      "https://endpoints.leaflets.schwarz"
+    ],
+    [
+      "VITE_API_BASE_URL_LIDL_US",
+      "https://www.lidl.com/flyer/endpoints"
+    ],
+    [
+      "VITE_CMS_URL",
+      "https://cms.leaflets.schwarz"
+    ],
+    [
+      "VITE_DATA_LAYER_SERVICE_BASE_URL",
+      "https://asset.schwarz/track/"
+    ],
+    [
+      "BASE_URL",
+      "https://lidl.leaflets.schwarz/"
+    ]
+  ],
+  "fetch_calls": [],
+  "template_urls_sample": [
+    "${C} / ${e}",
+    "${FC}/${Su}",
+    "${Fp}/${Su}",
+    "${decodeURIComponent(n)}/${r}",
+    "(min-aspect-ratio: ${n*2}/${r})",
+    "/${t.uuid}/view/flyer/page/${u}?${decodeURIComponent(o.toString())}",
+    "/detail/${e}/${t.toUpperCase()}/${n.substring(0,2)}",
+    "/p/product/p${e}",
+    "https://${s}.kameleoon.eu/kameleoon.js",
+    "productService/${e}/product/EN/${t}",
+    "productService/${e}/productsForOverviewDisplay/EN/",
+    "scale(${1/t.x}, ${1/t.y}) "
+  ]
+}

@@ -1,0 +1,103 @@
+{
+  "flyer_uuids": [
+    "019c2400-8c10-7249-b1a7-d62a2834841b",
+    "019ce724-074a-7c32-90f1-a17a9255192b",
+    "019d30fe-9e8f-712f-ba36-dcedd910f503",
+    "019d9077-7863-73dd-a263-be2166671ede",
+    "019d96ba-7d3a-7572-a513-c784f18f60be",
+    "019d96ba-f920-76a6-bd89-dfa45929e51d",
+    "69f075ad-932b-11ec-8570-005056aefbf3"
+  ],
+  "href_near_leaflet_tiles": [
+    {
+      "last_href": "https://www.lidl.pt/l/pt/folhetos/promocoes-a-partir-de-20-04/ar/0?lf=HHZ",
+      "data_attrs": []
+    },
+    {
+      "last_href": "https://www.lidl.pt/l/pt/folhetos/novidades-a-partir-de-20-04/ar/0?lf=HHZ",
+      "data_attrs": []
+    },
+    {
+      "last_href": "https://www.lidl.pt/l/pt/folhetos/folheto-especial-esmara-primavera-2026/ar/0?lf=HHZ",
+      "data_attrs": []
+    },
+    {
+      "last_href": "https://www.lidl.pt/l/pt/folhetos/folheto-especial-silvercrest/ar/0?lf=HHZ",
+      "data_attrs": []
+    },
+    {
+      "last_href": "https://www.lidl.pt/l/pt/folhetos/folheto-especial-cien/ar/0?lf=HHZ",
+      "data_attrs": []
+    },
+    {
+      "last_href": "https://www.lidl.pt/l/pt/folhetos/baterias-e-ferramentas-para-todas-as-tarefas/ar/0?lf=HHZ",
+      "data_attrs": []
+    },
+    {
+      "last_href": "https://www.lidl.pt/l/pt/folhetos/folheto-especial-jardim/ar/0?lf=HHZ",
+      "data_attrs": []
+    }
+  ],
+  "leaflets_hosts_in_html": [
+    "https://esi.leaflets.schwarz",
+    "https://imgproxy.leaflets.schwarz"
+  ],
+  "anchor_hrefs_around_leaflet_tiles": [
+    "https://www.lidl.pt/l/pt/folhetos/promocoes-a-partir-de-20-04/ar/0?lf=HHZ",
+    "https://www.lidl.pt/l/pt/folhetos/novidades-a-partir-de-20-04/ar/0?lf=HHZ",
+    "https://www.lidl.pt/l/pt/folhetos/folheto-especial-esmara-primavera-2026/ar/0?lf=HHZ",
+    "https://www.lidl.pt/l/pt/folhetos/folheto-especial-silvercrest/ar/0?lf=HHZ",
+    "https://www.lidl.pt/l/pt/folhetos/folheto-especial-cien/ar/0?lf=HHZ",
+    "https://www.lidl.pt/l/pt/folhetos/baterias-e-ferramentas-para-todas-as-tarefas/ar/0?lf=HHZ",
+    "https://www.lidl.pt/l/pt/folhetos/folheto-especial-jardim/ar/0?lf=HHZ"
+  ],
+  "api_endpoints": {
+    "https://endpoints.leaflets.schwarz/v1/": {
+      "status": 404,
+      "len": 232,
+      "ctype": "application/json",
+      "body0": "{\"self\":\"v4/error_response?error_id=exception_871c83ecbabb0ed3fdd34b32f069bdf4f5413e93\",\"version\":4,\"success\":false,\"message\":\"The resource does not exist. (69e670a7be250)\",\"dateTime\":\"2026-04-20T18:29:59+00:00\",\"numberOfEntries\":1}"
+    },
+    "https://api.leaflets.schwarz/": {
+      "err": "ConnectionError:HTTPSConnectionPool(host='api.leaflets.schwarz', port=443): Max retries exceeded"
+    },
+    "https://leaflets.schwarz/": {
+      "err": "ConnectionError:HTTPSConnectionPool(host='leaflets.schwarz', port=443): Max retries exceeded wit"
+    },
+    "https://endpoints.leaflets.schwarz/v1/stores/PT/leaflets": {
+      "status": 404,
+      "len": 232,
+      "ctype": "application/json",
+      "body0": "{\"self\":\"v4/error_response?error_id=exception_9b1960e6d1652e56524f72f6874a28385c42162f\",\"version\":4,\"success\":false,\"message\":\"The resource does not exist. (69e670ac954e7)\",\"dateTime\":\"2026-04-20T18:30:04+00:00\",\"numberOfEntries\":1}"
+    },
+    "https://endpoints.leaflets.schwarz/api/v1/leaflets?country=PT": {
+      "status": 404,
+      "len": 242,
+      "ctype": "text/html",
+      "body0": "<!DOCTYPE html> <html lang=\"en\"> <head><title>404 Not Found</title></head> <body> <h1 style='color:red'>Error 404: Not found :-(</h1> <p>I have no idea where that file is, sorry. Are you sure you typed in the correct URL?</p> </body> </html> "
+    },
+    "https://endpoints.leaflets.schwarz/api/v1/pages": {
+      "status": 404,
+      "len": 242,
+      "ctype": "text/html",
+      "body0": "<!DOCTYPE html> <html lang=\"en\"> <head><title>404 Not Found</title></head> <body> <h1 style='color:red'>Error 404: Not found :-(</h1> <p>I have no idea where that file is, sorry. Are you sure you typed in the correct URL?</p> </body> </html> "
+    },
+    "https://leaflets.schwarz/api/leaflets/PT": {
+      "err": "ConnectionError:HTTPSConnectionPool(host='leaflets.schwarz', port=443): Max retries exceeded wit"
+    },
+    "https://prospekt.leaflets.schwarz/": {
+      "err": "ConnectionError:HTTPSConnectionPool(host='prospekt.leaflets.schwarz', port=443): Max retries exc"
+    },
+    "https://prospekt.leaflets.schwarz/api/leaflets/PT": {
+      "err": "ConnectionError:HTTPSConnectionPool(host='prospekt.leaflets.schwarz', port=443): Max retries exc"
+    },
+    "https://www.lidl.pt/leaflets/": {
+      "status": 404,
+      "len": 125850,
+      "ctype": "text/html",
+      "body0": "<!DOCTYPE html> <html lang=\"pt-PT\"> <head>     <title>Lidl.pt</title>     <meta charset=\"utf-8\" />     <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">      <style>         body {             background: #FAFAFA;             font-"
+    },
+    "https://www.lidl.pt/static/leaflets.json": {
+      "status": 404,
+      "len": 125850,
+      "c

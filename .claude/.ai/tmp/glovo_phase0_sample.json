@@ -1,0 +1,110 @@
+{
+  "store": {
+    "slug": "continente-grd1",
+    "storeId": 295687,
+    "storeAddressId": 470732,
+    "city": "Guarda",
+    "cityCode": "GRD"
+  },
+  "api": {
+    "base": "https://api.glovoapp.com",
+    "endpoint": "/v4/stores/{storeId}/addresses/{storeAddressId}/content/main?nodeType=DEEP_LINK&link={sectionSlug}",
+    "requiredHeaders": [
+      "glovo-api-version: 14",
+      "glovo-app-platform: web",
+      "glovo-app-type: customer",
+      "glovo-location-country-code: PT",
+      "glovo-location-city-code: GRD",
+      "glovo-location-latitude: 40.5373",
+      "glovo-location-longitude: -7.2674",
+      "glovo-language-code: pt"
+    ],
+    "status": "200 OK confirmed on mercearia/batatas-fritas-e-snacks"
+  },
+  "fields_extracted": [
+    "name",
+    "image_url",
+    "category (via subsection/grid title)"
+  ],
+  "fields_ignored": [
+    "price (vem do Continente.pt)",
+    "priceInfo",
+    "discount"
+  ],
+  "rate_limit": "4.5s entre requests (do Glovo)",
+  "db_writes": 0,
+  "sample_category": "Batatas Fritas e Snacks",
+  "sample_total_in_category": 24,
+  "examples_10": [
+    {
+      "external_id": "8376345",
+      "name": "Batata Frita Lisa com Sal Lay's (emb. 248 gr)",
+      "image_url": "https://glovo.dhmedia.io/image/pim-glovo/69e665cc1037b695a69bb457.jpg",
+      "category": "Batatas Fritas e Snacks",
+      "subsection": "Batatas Lisas e Onduladas"
+    },
+    {
+      "external_id": "7078329",
+      "name": "Batata Frita Lisa Clássica Continente (emb. 170 gr)",
+      "image_url": "https://glovo.dhmedia.io/image/global-catalog-glovo/nv-global-catalog/sw/050e71c3-ac7a-493a-993f-c5d0f23732c2.jpg",
+      "category": "Batatas Fritas e Snacks",
+      "subsection": "Batatas Lisas e Onduladas"
+    },
+    {
+      "external_id": "2293581",
+      "name": "BAT.FRITA LISA LAY'S MATUTANO 45GR",
+      "image_url": "https://glovo.dhmedia.io/image/pim-glovo/64d0f6e469bece3bf4cf5a14.jpeg",
+      "category": "Batatas Fritas e Snacks",
+      "subsection": "Batatas Lisas e Onduladas"
+    },
+    {
+      "external_id": "2005831",
+      "name": "Batata Frita Lisa Continente (emb. 200 gr)",
+      "image_url": "https://glovo.dhmedia.io/image/global-catalog-glovo/nv-global-catalog/sw/6b44a575-2bd4-46cf-bac2-532d0cff358f.jpg",
+      "category": "Batatas Fritas e Snacks",
+      "subsection": "Batatas Lisas e Onduladas"
+    },
+    {
+      "external_id": "7519437",
+      "name": "Batata Frita Gourmet Original Lay's Gourmet (emb. 170 gr)",
+      "image_url": "https://glovo.dhmedia.io/image/global-catalog-glovo/nv-global-catalog/sw/c6b07a3c-94fb-439e-bfea-3e30dc684a84.png",
+      "category": "Batatas Fritas e Snacks",
+      "subsection": "Batatas Lisas e Onduladas"
+    },
+    {
+      "external_id": "8195081",
+      "name": "Batata Frita Ondulada Pack Poupança Continente (emb. 250 gr)",
+      "image_url": "https://glovo.dhmedia.io/image/global-catalog-glovo/nv-global-catalog/sw/13100785-740f-4bb9-8c43-54f20bc3c806.jpg",
+      "category": "Batatas Fritas e Snacks",
+      "subsection": "Batatas Lisas e Onduladas"
+    },
+    {
+      "external_id": "7379477",
+      "name": "Batata Frita Ondulada Sal Ruffles (emb. 160 gr)",
+      "image_url": "https://glovo.dhmedia.io/image/global-catalog-glovo/nv-global-catalog/sw/a39160f2-8f1e-49c4-8c90-fe6f644c9560.png",
+      "category": "Batatas Fritas e Snacks",
+      "subsection": "Batatas Lisas e Onduladas"
+    },
+    {
+      "external_id": "8284848",
+      "name": "Batata Frita Churrasqueira Continente (emb. 300 gr (2 un))",
+      "image_url": "https://glovo.dhmedia.io/image/pim-glovo/69e665ab1037b695a69ba0b8.jpg",
+      "category": "Batatas Fritas e Snacks",
+      "subsection": "Batatas Lisas e Onduladas"
+    },
+    {
+      "external_id": "7376254",
+      "name": "Batata Doce Frita Continente (emb. 150 gr)",
+      "image_url": "https://glovo.dhmedia.io/image/global-catalog-glovo/nv-global-catalog/sw/31a2c2b4-6cd1-4646-a816-f599b88185ee.jpg",
+      "category": "Batatas Fritas e Snacks",
+      "subsection": "Batatas Lisas e Onduladas"
+    },
+    {
+      "external_id": "8293609",
+      "name": "Snacks Batata Mystery Flavour Pringles Pringles (emb. 165 gr)",
+      "image_url": "https://glovo.dhmedia.io/image/pim-glovo/69bc436444aeffefa9c59b12.jpg",
+      "category": "Batatas Fritas e Snacks",
+      "subsection": "Batatas Lisas e Onduladas"
+    }
+  ]
+}

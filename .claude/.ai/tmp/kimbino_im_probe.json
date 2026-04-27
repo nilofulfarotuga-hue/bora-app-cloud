@@ -1,0 +1,57 @@
+{
+  "kimbino_robots": {
+    "status": 200,
+    "content": "Sitemap: https://www.kimbino.pt/sitemap_index.xml\nUser-agent: *\nDisallow: /pesquisar/\nDisallow: /*/?section=\nDisallow: /site/\nDisallow: /exit/\nDisallow: /ajax/\nDisallow: /api/"
+  },
+  "kimbino_main": {
+    "status": 301,
+    "len": 189956,
+    "final_url": "https://www.kimbino.pt/folhetos/intermarche",
+    "server": "cloudflare"
+  },
+  "pdf_links": [
+    "https://d34seexzbffcio.cloudfront.net/d1b5145766b899b9019ccdf005d1391167bc930a7ec03.pdf",
+    "https://d34seexzbffcio.cloudfront.net/f1d88e59303cbb22a74aa7244684b69b68529c6f8e470.pdf"
+  ],
+  "titles_sample": [
+    "Esta página não existe..",
+    "Continuar para a página principal..",
+    "Alguns links úteis"
+  ],
+  "detail_links": [],
+  "dates_sample": [
+    "03/05/2026",
+    "05/05/2026",
+    "07/06/2026",
+    "09-04-2026",
+    "09/04/2026",
+    "1/39",
+    "11-07-2025",
+    "11/07/2025",
+    "11/39",
+    "14-04-2026",
+    "14/04/2026",
+    "16-04-2026",
+    "16/04/2026",
+    "19/0",
+    "20-04-2026",
+    "20/04/2026",
+    "21-04-2026",
+    "21/04/2026",
+    "22-01-2026",
+    "22/0"
+  ],
+  "nuxt_len": 176231,
+  "nuxt_intermarche_refs": 82,
+  "nuxt_pdfs": [
+    "https://d34seexzbffcio.cloudfront.net/d1b5145766b899b9019ccdf005d1391167bc930a7ec03.pdf",
+    "https://d34seexzbffcio.cloudfront.net/f1d88e59303cbb22a74aa7244684b69b68529c6f8e470.pdf"
+  ],
+  "hosts_sample": [
+    "d34seexzbffcio.cloudfront.net",
+    "kimbinogreen.app.link",
+    "ss.kimbino.hr",
+    "www.intermarche.pt",
+    "www.kimbino.pt"
+  ]
+}

@@ -1,0 +1,1024 @@
+{
+  "type": "CategorySearchResult",
+  "version": "v2.0.0",
+  "engine": "ldt-searcher",
+  "xPayload": {
+    "keywordResults": {
+      "num_items_found": 3
+    }
+  },
+  "id": "41953416-319b-4bf2-82b8-653448b960e2",
+  "locale": "pt_PT",
+  "assortment": "PT",
+  "numFound": 3,
+  "offset": 0,
+  "fetchsize": 36,
+  "maxfetchsize": 1000,
+  "sort": {
+    "code": "relevancy",
+    "label": "Mais populares",
+    "url": "/q/api/category/h/padaria-pastelaria/h10071015?assortment=PT&locale=pt_PT&version=v2.0.0&sort=relevancy&pageId=10068374%2F10071015",
+    "link": {
+      "type": "category",
+      "filter": {},
+      "sort": "relevancy",
+      "categoryPath": "/h/padaria-pastelaria/h10071015",
+      "pageId": "10068374/10071015"
+    }
+  },
+  "sorts": [
+    {
+      "code": "relevancy",
+      "label": "Mais populares",
+      "url": "/q/api/category/h/padaria-pastelaria/h10071015?assortment=PT&locale=pt_PT&version=v2.0.0&sort=relevancy&pageId=10068374%2F10071015",
+      "link": {
+        "type": "category",
+        "filter": {},
+        "sort": "relevancy",
+        "categoryPath": "/h/padaria-pastelaria/h10071015",
+        "pageId": "10068374/10071015"
+      }
+    },
+    {
+      "code": "price",
+      "label": "Preço ascendente",
+      "url": "/q/api/category/h/padaria-pastelaria/h10071015?assortment=PT&locale=pt_PT&version=v2.0.0&sort=price&pageId=10068374%2F10071015",
+      "link": {
+        "type": "category",
+        "filter": {},
+        "sort": "price",
+        "categoryPath": "/h/padaria-pastelaria/h10071015",
+        "pageId": "10068374/10071015"
+      }
+    },
+    {
+      "code": "price-desc",
+      "label": "Preço descendente",
+      "url": "/q/api/category/h/padaria-pastelaria/h10071015?assortment=PT&locale=pt_PT&version=v2.0.0&sort=price-desc&pageId=10068374%2F10071015",
+      "link": {
+        "type": "category",
+        "filter": {},
+        "sort": "price-desc",
+        "categoryPath": "/h/padaria-pastelaria/h10071015",
+        "pageId": "10068374/10071015"
+      }
+    },
+    {
+      "code": "firstOnlineDate-desc",
+      "label": "Artigos mais recentes primeiro",
+      "url": "/q/api/category/h/padaria-pastelaria/h10071015?assortment=PT&locale=pt_PT&version=v2.0.0&sort=firstOnlineDate-desc&pageId=10068374%2F10071015",
+      "link": {
+        "type": "category",
+        "filter": {},
+        "sort": "firstOnlineDate-desc",
+        "categoryPath": "/h/padaria-pastelaria/h10071015",
+        "pageId": "10068374/10071015"
+      }
+    },
+    {
+      "code": "percentageDiscount-desc",
+      "label": "Desconto maior primeiro",
+      "url": "/q/api/category/h/padaria-pastelaria/h10071015?assortment=PT&locale=pt_PT&version=v2.0.0&sort=percentageDiscount-desc&pageId=10068374%2F10071015",
+      "link": {
+        "type": "category",
+        "filter": {},
+        "sort": "percentageDiscount-desc",
+        "categoryPath": "/h/padaria-pastelaria/h10071015",
+        "pageId": "10068374/10071015"
+      }
+    }
+  ],
+  "facets": [
+    {
+      "type": "TEXT",
+      "code": "category",
+      "label": "Categoria",
+      "selector": "REFINE",
+      "rendering": {
+        "style": "TEXT",
+        "searchable": true,
+        "selectedPosition": "BELOW",
+        "renderLabel": true,
+        "collapsible": true
+      },
+      "topvalues": [
+        {
+          "type": "TEXT",
+          "label": "Mercearia e Frescos",
+          "selected": true,
+          "count": 3,
+          "url": "/q/api/category/c/mercearia-e-frescos/s10068374?assortment=PT&locale=pt_PT&version=v2.0.0&pageId=10068374",
+          "link": {
+            "type": "category",
+            "filter": {},
+            "categoryPath": "/c/mercearia-e-frescos/s10068374",
+            "pageId": "10068374"
+          },
+          "children": [
+            {
+              "type": "TEXT",
+              "label": "Padaria & Pastelaria",
+              "selected": true,
+              "count": 3,
+              "children": [],
+              "value": "10071015"
+            }
+          ],
+          "value": "10068374"
+        }
+      ],
+      "values": [
+        {
+          "type": "TEXT",
+          "label": "Mercearia e Frescos",
+          "selected": true,
+          "count": 3,
+          "url": "/q/api/category/c/mercearia-e-frescos/s10068374?assortment=PT&locale=pt_PT&version=v2.0.0&pageId=10068374",
+          "link": {
+            "type": "category",
+            "filter": {},
+            "categoryPath": "/c/mercearia-e-frescos/s10068374",
+            "pageId": "10068374"
+          },
+          "children": [
+            {
+              "type": "TEXT",
+              "label": "Padaria & Pastelaria",
+              "selected": true,
+              "count": 3,
+              "children": [],
+              "value": "10071015"
+            }
+          ],
+          "value": "10068374"
+        }
+      ]
+    },
+    {
+      "type": "RANGE",
+      "code": "price",
+      "label": "Preço",
+      "selector": "REFINE",
+      "rendering": {
+        "style": "TEXT",
+        "searchable": false,
+        "selectedPosition": "BELOW",
+        "renderLabel": true,
+        "collapsible": true
+      },
+      "unit": "€",
+      "baseURL": "/q/api/category/h/padaria-pastelaria/h10071015?assortment=PT&locale=pt_PT&version=v2.0.0&pageId=10068374%2F10071015",
+      "baseLink": {
+        "type": "category",
+        "filter": {},
+        "categoryPath": "/h/padaria-pastelaria/h10071015",
+        "pageId": "10068374/10071015"
+      },
+      "globalMin": {
+        "type": "NumericValue",
+        "unit": "€",
+        "value": 0.0
+      },
+      "globalMax": {
+        "type": "NumericValue",
+        "unit": "€",
+        "value": 1.0
+      },
+      "min": {
+        "type": "NumericValue",
+        "unit": "€",
+        "value": 0.0
+      },
+      "max": {
+        "type": "NumericValue",
+        "unit": "€",
+        "value": 1.0
+      },
+      "selectedMin": {
+        "type": "SelectedNumericValue",
+        "value": 0.0
+      },
+      "selectedMax": {
+        "type": "SelectedNumericValue",
+        "value": 1.0
+      }
+    }
+  ],
+  "items": [
+    {
+      "resultClass": "product",
+      "type": "product",
+      "code": "10044959",
+      "label": "",
+      "url": "",
+      "xPayload": {
+        "metaData": {
+          "relevancyScore": 0.5,
+          "keywordScore": 0,
+          "semanticScore": 0,
+          "keywordScoreRaw": 0,
+          "ratingScore": 0,
+          "freshnessScore": 4,
+          "searchHubImpressions": 0,
+          "searchHubClicks": 0,
+          "searchHubCarts": 0,
+          "businessRuleFactor": 0.0
+        }
+      },
+      "gridbox": {
+        "country": "PT",
+        "sequence": 1776636386109065,
+        "data": {
+          "ageRestriction": false,
+          "awards": [],
+          "brand": {
+            "showBrand": false
+          },
+          "canonicalPath": "/p/broa-de-milho-doce/p10044959",
+          "canonicalUrl": "/p/broa-de-milho-doce/p10044959",
+          "category": "Food",
+          "cutoutimageV2": [],
+          "dealOfDay": {
+            "active": false
+          },
+          "designTheme": "default",
+          "disclaimers": [
+            {
+              "id": "code_10044959_053e307a",
+              "type": "CODE",
+              "value": "Basic"
+            }
+          ],
+          "displayFreeDelivery": false,
+          "energyLabels": [],
+          "erpNumber": "10044959",
+          "flashSales": false,
+          "fullTitle": "Broa de Milho Doce",
+          "gs1Attributes": [],
+          "havingPrice": true,
+          "havingThreesixty": false,
+          "havingVideos": false,
+          "highlightedSeals": 0,
+          "ians": [
+            "1372"
+          ],
+          "image": "https://imgproxy-retcat.assets.schwarz/ad5_UiGp1RHYRLtpsKZEHpDT80a4AFVXxdyMMkzyMR0/sm:1/exar:1:ce/w:427/h:320/cz/M6Ly9wcm9kLWNhd/GFsb2ctbWVkaWEvaW50LzdERUYwRjdCODlCMjYxMDdBMUI3OTlBNj/c0Q0ZCNDhENUM1M0ZCREMzRkQ0NUE2MkQ3MDZFNDQxOENERjY4NzAucG5n.png",
+          "image_V1": {
+            "image": "https://imgproxy-retcat.assets.schwarz/ad5_UiGp1RHYRLtpsKZEHpDT80a4AFVXxdyMMkzyMR0/sm:1/exar:1:ce/w:427/h:320/cz/M6Ly9wcm9kLWNhd/GFsb2ctbWVkaWEvaW50LzdERUYwRjdCODlCMjYxMDdBMUI3OTlBNj/c0Q0ZCNDhENUM1M0ZCREMzRkQ0NUE2MkQ3MDZFNDQxOENERjY4NzAucG5n.png",
+            "accessibility": "Pão, presunto e rúcula em tábua de madeira."
+          },
+          "isLidlGiftCard": false,
+          "isUsedProduct": false,
+          "itemId": 10044959,
+          "imageList": [
+            "https://imgproxy-retcat.assets.schwarz/ad5_UiGp1RHYRLtpsKZEHpDT80a4AFVXxdyMMkzyMR0/sm:1/exar:1:ce/w:427/h:320/cz/M6Ly9wcm9kLWNhd/GFsb2ctbWVkaWEvaW50LzdERUYwRjdCODlCMjYxMDdBMUI3OTlBNj/c0Q0ZCNDhENUM1M0ZCREMzRkQ0NUE2MkQ3MDZFNDQxOENERjY4NzAucG5n.png",
+            "https://imgproxy-retcat.assets.schwarz/62d873ii7-IEeX8EjBQr3w6Bu1JtZMyfMXO5RrDMb8A/sm:1/exar:1:ce/w:427/h:320/cz/M6Ly9wcm9kLWNhd/GFsb2ctbWVkaWEvaW50LzU2MjE1RjQxREQ5QTM0QzI0NjVFMjJGOD/RDRjI4MjIwQzNEODhEQzRBRkQ4OTc3RTJGODFDOEMxNkRDRkIxNDMucG5n.png",
+            "https://imgproxy-retcat.assets.schwarz/yblkhRL1pEFplajj6PmUyfor7piG8pBTkdLNK0EAdqQ/sm:1/exar:1:ce/w:427/h:320/cz/M6Ly9wcm9kLWNhd/GFsb2ctbWVkaWEvaW50L0VCMjVFMzcxMTFGQTUwMTRDQ0ExRkRDNz/NENjcxRUUwMkM2NzRFNThFMkZBODIyQkE5OThBRUVGMzY4NkExMDEucG5n.png"
+          ],
+          "imageList_V1": [
+            {
+              "image": "https://imgproxy-retcat.assets.schwarz/ad5_UiGp1RHYRLtpsKZEHpDT80a4AFVXxdyMMkzyMR0/sm:1/exar:1:ce/w:427/h:320/cz/M6Ly9wcm9kLWNhd/GFsb2ctbWVkaWEvaW50LzdERUYwRjdCODlCMjYxMDdBMUI3OTlBNj/c0Q0ZCNDhENUM1M0ZCREMzRkQ0NUE2MkQ3MDZFNDQxOENERjY4NzAucG5n.png",
+              "accessibility": "Pão, presunto e rúcula em tábua de madeira."
+            },
+            {
+              "image": "https://imgproxy-retcat.assets.schwarz/62d873ii7-IEeX8EjBQr3w6Bu1JtZMyfMXO5RrDMb8A/sm:1/exar:1:ce/w:427/h:320/cz/M6Ly9wcm9kLWNhd/GFsb2ctbWVkaWEvaW50LzU2MjE1RjQxREQ5QTM0QzI0NjVFMjJGOD/RDRjI4MjIwQzNEODhEQzRBRkQ4OTc3RTJGODFDOEMxNkRDRkIxNDMucG5n.png",
+              "accessibility": "Pão, produto de padaria."
+            },
+            {
+              "image": "https://imgproxy-retcat.assets.schwarz/yblkhRL1pEFplajj6PmUyfor7piG8pBTkdLNK0EAdqQ/sm:1/exar:1:ce/w:427/h:320/cz/M6Ly9wcm9kLWNhd/GFsb2ctbWVkaWEvaW50L0VCMjVFMzcxMTFGQTUwMTRDQ0ExRkRDNz/NENjcxRUUwMkM2NzRFNThFMkZBODIyQkE5OThBRUVGMzY4NkExMDEucG5n.png",
+              "accessibility": "Pão e um sanduíche de pão com presunto."
+            }
+          ],
+          "keyfacts": {
+            "analyticsCategory": "Food",
+            "fullTitle": "Broa de Milho Doce",
+            "moreDetails": "Características",
+            "title": "Broa de Milho Doce",
+            "wonCategoryPrimary": "Mundos de necessidade/Alimentos e quase alimentos/Pão e produtos de pastelaria",
+            "wonCategoryPrimaryPath": "0/17/1713"
+          },
+          "lidlPlus": [
+            {
+              "price": {
+                "basePrice": {
+                  "prefix": false,
+                  "text": "1 kg = 1.73"
+                },
+                "discount": {
+                  "deletedPrice": 1.09,
+                  "discountHasStar": false,
+                  "discountText": "-12%",
+                  "fromNormalPriceForLidlPlus": false,
+                  "fromRecommendedPrice": false,
+                  "hideBargainHint": false,
+                  "showDiscount": true,
+                  "showFrom": false,
+                  "showPercentage": true,
+                  "showUpTo": false
+                },
+                "hasStar": false,
+                "hasVat": false,
+                "oldPrice": 1.09,
+                "packaging": {
+                  "text": "Cada unid. 550 g"
+                },
+                "price": 0.95,
+                "priceTheme": "white_yellow",
+                "specialTaxes": []
+              },
+              "lidlPlusText": "com a App Lidl Plus",
+              "highlightText": "-12%"
+            }
+          ],
+          "multipack": false,
+          "online": false,
+          "preventSelling": false,
+          "price": {
+            "currencyCode": "EUR",
+            "currencyCodeSecond": "",
+            "currencySymbol": "€",
+            "currencySymbolSecond": "",
+            "hasStar": false,
+            "hasVat": false,
+            "specialTaxes": [],
+            "variantsHaveDifferentPrices": false
+          },
+          "productId": 10044959,
+          "productType": "RETAIL",
+          "productOrigin": "progress_event",
+          "quickAddToCart": false,
+          "regionsPrices": {},
+          "ribbons": [],
+          "renderedTs": 1776636386,
+          "seals": [],
+          "stockAvailability": {
+            "availabilityIndicator": 0,
+            "badgeInfo": {
+              "badges": [
+                {
+                  "text": "Disponível na loja 20.04. - 26.04.",
+                  "type": "IN_STORE_TODAY_DATE_RANGE"
+                }
+              ]
+            },
+            "badgeInfoV2": [
+              {
+                "badges": [
+                  {
+                    "text": "Disponível na loja 20.04. - 26.04.",
+                    "type": "IN_STORE_TODAY_DATE_RANGE"
+                  }
+                ],
+                "validFrom": 1776643200,
+                "validUntil": 1777247999
+              }
+            ],
+            "onlineAvailable": false,
+            "orderableQuantities": [],
+            "minOrderableQuantity": 1
+          },
+          "store": true,
+          "storeStartDate": 1776636000,
+          "storeEndDate": 1777240800,
+          "title": "Broa de Milho Doce",
+          "zones": {}
+        },
+        "productId": 10044959,
+        "meta": {
+          "categoryPaths": [],
+          "campaignPaths": [
+            [
+              {
+                "id": "10093172",
+                "name": "Ofertas Lidl Plus w17",
+                "url": "/c/ofertas-lidl-plus-w17/a10093172",
+                "hiddenCategory": false
+              }
+            ]
+          ],
+          "fullTitle": "Broa de Milho Doce",
+          "retailLists": [
+            [
+              {
+                "id": 2524,
+                "productSortIndex": 50005
+              }
+            ]
+          ],
+          "lists": [
+            2524
+          ],
+          "wonCategoryBreadcrumbs": [
+            [
+              {
+                "id": "10068374",
+                "name": "Mercearia e Frescos",
+                "url": "/c/mercearia-e-frescos/s10068374",
+                "hiddenCategory": false
+              },
+              {
+                "id": "10071015",
+                "name": "Padaria & Pastelaria",
+                "url": "/h/padaria-pastelaria/h10071015",
+                "hiddenCategory": false
+              }
+            ]
+          ],
+          "worldOfNeeds": [
+            {
+              "code": "1713",
+              "isMain": true,
+              "name": "Pão e produtos de pastelaria",
+              "parent": "17",
+              "superCategories": [
+                {
+                  "code": "17",
+                  "name": "Alimentos e quase alimentos",
+                  "parent": "0"
+                },
+                {
+                  "code": "0",
+                  "name": "Mundos de necessidade",
+                  "parent": ""
+                }
+              ]
+            }
+          ],
+          "preview": false
+        },
+        "action": "UPDATE",
+        "language": "pt",
+        "eventType": "GRIDBOX",
+        "id": "10044959"
+      },
+      "tracking": {
+        "position": 1,
+        "xPayload": {
+          "searchTrackingMasterId": "Product.10044959",
+          "searchTrackingTitle": "Broa+de+Milho+Doce",
+          "searchTrackingPageSize": 36,
+          "searchTrackingPage": 1,
+          "searchTrackingEvent": "click",
+          "list": "/h/padaria-pastelaria/h10071015",
+          "searchTrackingId": "Product.10044959",
+          "searchTrackingOrigPos": 1,
+          "searchTrackingPos": 1,
+          "searchTrackingOrigPageSize": 36,
+          "searchTrackingChannel": "PT",
+          "category": "Food"
+        }
+      }
+    },
+    {
+      "resultClass": "product",
+      "type": "product",
+      "code": "10045185",
+      "label": "",
+      "url": "",
+      "xPayload": {
+        "metaData": {
+          "relevancyScore": 0.5,
+          "keywordScore": 0,
+          "semanticScore": 0,
+          "keywordScoreRaw": 0,
+          "ratingScore": 0,
+          "freshnessScore": 2,
+          "searchHubImpressions": 0,
+          "searchHubClicks": 0,
+          "searchHubCarts": 0,
+          "businessRuleFactor": 0.0
+        }
+      },
+      "gridbox": {
+        "country": "PT",
+        "sequence": 1776404547008430,
+        "data": {
+          "ageRestriction": false,
+          "awards": [],
+          "brand": {
+            "showBrand": false
+          },
+          "canonicalPath": "/p/pao-de-mistura-da-baviera/p10045185",
+          "canonicalUrl": "/p/pao-de-mistura-da-baviera/p10045185",
+          "category": "Food",
+          "cutoutimageV2": [],
+          "dealOfDay": {
+            "active": false
+          },
+          "designTheme": "default",
+          "disclaimers": [
+            {
+              "id": "code_10045185_b631963b",
+              "type": "CODE",
+              "value": "Basic"
+            }
+          ],
+          "displayFreeDelivery": false,
+          "energyLabels": [],
+          "erpNumber": "10045185",
+          "flashSales": false,
+          "fullTitle": "Pão de Mistura da Baviera",
+          "gs1Attributes": [],
+          "havingPrice": true,
+          "havingThreesixty": false,
+          "havingVideos": false,
+          "highlightedSeals": 0,
+          "ians": [
+            "5905117"
+          ],
+          "image": "https://imgproxy-retcat.assets.schwarz/4mGKojOK31GzEPyPLM1eTOFfRVHFrcBoUdGgA_hUtvI/sm:1/exar:1:ce/w:427/h:320/cz/M6Ly9wcm9kLWNhd/GFsb2ctbWVkaWEvaW50L0ZFRjY2RTNEMUI3NTMxQ0ZEMkI3MEU0OE/VFNzU5QzVGN0UwRjBGNUJGNDM0NjNFRUU4OTYzQUE4Qzg1RTNFOUMucG5n.png",
+          "image_V1": {
+            "image": "https://imgproxy-retcat.assets.schwarz/4mGKojOK31GzEPyPLM1eTOFfRVHFrcBoUdGgA_hUtvI/sm:1/exar:1:ce/w:427/h:320/cz/M6Ly9wcm9kLWNhd/GFsb2ctbWVkaWEvaW50L0ZFRjY2RTNEMUI3NTMxQ0ZEMkI3MEU0OE/VFNzU5QzVGN0UwRjBGNUJGNDM0NjNFRUU4OTYzQUE4Qzg1RTNFOUMucG5n.png",
+            "accessibility": "Pão, pão integral."
+          },
+          "isLidlGiftCard": false,
+          "isUsedProduct": false,
+          "itemId": 10045185,
+          "imageList": [
+            "https://imgproxy-retcat.assets.schwarz/4mGKojOK31GzEPyPLM1eTOFfRVHFrcBoUdGgA_hUtvI/sm:1/exar:1:ce/w:427/h:320/cz/M6Ly9wcm9kLWNhd/GFsb2ctbWVkaWEvaW50L0ZFRjY2RTNEMUI3NTMxQ0ZEMkI3MEU0OE/VFNzU5QzVGN0UwRjBGNUJGNDM0NjNFRUU4OTYzQUE4Qzg1RTNFOUMucG5n.png",
+            "https://imgproxy-retcat.assets.schwarz/9HPlr3k_D6kwJrNtQlmTL0M0CqaqSCpNFl2PlJx1K6M/sm:1/exar:1:ce/w:427/h:320/cz/M6Ly9wcm9kLWNhd/GFsb2ctbWVkaWEvaW50LzY1ODE4OTQ4REExMENDQkVGNUUyQ0RDMz/YzNTMxMDJEQjYyQzhFQzNGOUYzNzQwOEY5ODdGQjQxMjg2N0E4NTcucG5n.png",
+            "https://imgproxy-retcat.assets.schwarz/tbM-FiAEaXbDeKSJPBSf5S5bYvBofvZt48jp1djeX34/sm:1/exar:1:ce/w:427/h:320/cz/M6Ly9wcm9kLWNhd/GFsb2ctbWVkaWEvaW50L0E1NEE4ODRDNUFEQjI3RkQ3NjAzQ0M3OT/MwNjhERkEzNzA4MjczOEY5RjVDREE0NkY1RTdEODJGREM3MTMxRDIucG5n.png"
+          ],
+          "imageList_V1": [
+            {
+              "image": "https://imgproxy-retcat.assets.schwarz/4mGKojOK31GzEPyPLM1eTOFfRVHFrcBoUdGgA_hUtvI/sm:1/exar:1:ce/w:427/h:320/cz/M6Ly9wcm9kLWNhd/GFsb2ctbWVkaWEvaW50L0ZFRjY2RTNEMUI3NTMxQ0ZEMkI3MEU0OE/VFNzU5QzVGN0UwRjBGNUJGNDM0NjNFRUU4OTYzQUE4Qzg1RTNFOUMucG5n.png",
+              "accessibility": "Pão, pão integral."
+            },
+            {
+              "image": "https://imgproxy-retcat.assets.schwarz/9HPlr3k_D6kwJrNtQlmTL0M0CqaqSCpNFl2PlJx1K6M/sm:1/exar:1:ce/w:427/h:320/cz/M6Ly9wcm9kLWNhd/GFsb2ctbWVkaWEvaW50LzY1ODE4OTQ4REExMENDQkVGNUUyQ0RDMz/YzNTMxMDJEQjYyQzhFQzNGOUYzNzQwOEY5ODdGQjQxMjg2N0E4NTcucG5n.png",
+              "accessibility": "Pão, pão integral."
+            },
+            {
+              "image": "https://imgproxy-retcat.assets.schwarz/tbM-FiAEaXbDeKSJPBSf5S5bYvBofvZt48jp1djeX34/sm:1/exar:1:ce/w:427/h:320/cz/M6Ly9wcm9kLWNhd/GFsb2ctbWVkaWEvaW50L0E1NEE4ODRDNUFEQjI3RkQ3NjAzQ0M3OT/MwNjhERkEzNzA4MjczOEY5RjVDREE0NkY1RTdEODJGREM3MTMxRDIucG5n.png",
+              "accessibility": "Pão, produtos de padaria."
+            }
+          ],
+          "keyfacts": {
+            "analyticsCategory": "Food",
+            "fullTitle": "Pão de Mistura da Baviera",
+            "moreDetails": "Características",
+            "title": "Pão de Mistura da Baviera",
+            "wonCategoryPrimary": "Mundos de necessidade/Alimentos e quase alimentos/Pão e produtos de pastelaria",
+            "wonCategoryPrimaryPath": "0/17/1713"
+          },
+          "lidlPlus": [
+            {
+              "price": {
+                "basePrice": {
+                  "prefix": false,
+                  "text": "1 kg = 1.63"
+                },
+                "discount": {
+                  "deletedPrice": 0.75,
+                  "discountHasStar": false,
+                  "discountText": "-13%",
+                  "fromNormalPriceForLidlPlus": false,
+                  "fromRecommendedPrice": false,
+                  "hideBargainHint": false,
+                  "showDiscount": true,
+                  "showFrom": false,
+                  "showPercentage": true,
+                  "showUpTo": false
+                },
+                "hasStar": false,
+                "hasVat": false,
+                "oldPrice": 0.75,
+                "packaging": {
+                  "text": "Unid. 400 g"
+                },
+                "price": 0.65,
+                "priceTheme": "white_yellow",
+                "specialTaxes": []
+              },
+              "lidlPlusText": "com a App Lidl Plus",
+              "highlightText": "-13%"
+            }
+          ],
+          "multipack": false,
+          "online": false,
+          "preventSelling": false,
+          "price": {
+            "currencyCode": "EUR",
+            "currencyCodeSecond": "",
+            "currencySymbol": "€",
+            "currencySymbolSecond": "",
+            "hasStar": false,
+            "hasVat": false,
+            "specialTaxes": [],
+            "variantsHaveDifferentPrices": false
+          },
+          "productId": 10045185,
+          "productType": "RETAIL",
+          "productOrigin": "progress_event",
+          "quickAddToCart": false,
+          "regionsPrices": {},
+          "ribbons": [],
+          "renderedTs": 1776404546,
+          "seals": [],
+          "stockAvailability": {
+            "availabilityIndicator": 0,
+            "badgeInfo": {
+              "badges": [
+                {
+                  "text": "Disponível na loja de 24.04. a 26.04.",
+                  "type": "IN_STORE_FROM_FUTURE_DATE_RANGE"
+                }
+              ]
+            },
+            "badgeInfoV2": [
+              {
+                "badges": [
+                  {
+                    "text": "Disponível na loja de 24.04. a 26.04.",
+                    "type": "IN_STORE_FROM_FUTURE_DATE_RANGE"
+                  }
+                ],
+                "validFrom": 1776988800,
+                "validUntil": 1777247999
+              }
+            ],
+            "onlineAvailable": false,
+            "orderableQuantities": [],
+            "minOrderableQuantity": 1
+          },
+          "store": false,
+          "storeStartDate": 1776981600,
+          "storeEndDate": 1777240800,
+          "title": "Pão de Mistura da Baviera",
+          "zones": {}
+        },
+        "productId": 10045185,
+        "meta": {
+          "categoryPaths": [],
+          "campaignPaths": [
+            [
+              {
+                "id": "10093172",
+                "name": "Ofertas Lidl Plus w17",
+                "url": "/c/ofertas-lidl-plus-w17/a10093172",
+                "hiddenCategory": false
+              }
+            ]
+          ],
+          "fullTitle": "Pão de Mistura da Baviera",
+          "retailLists": [
+            [
+              {
+                "id": 2524,
+                "productSortIndex": 50040
+              }
+            ]
+          ],
+          "lists": [
+            2524
+          ],
+          "wonCategoryBreadcrumbs": [
+            [
+              {
+                "id": "10068374",
+                "name": "Mercearia e Frescos",
+                "url": "/c/mercearia-e-frescos/s10068374",
+                "hiddenCategory": false
+              },
+              {
+                "id": "10071015",
+                "name": "Padaria & Pastelaria",
+                "url": "/h/padaria-pastelaria/h10071015",
+                "hiddenCategory": false
+              }
+            ]
+          ],
+          "worldOfNeeds": [
+            {
+              "code": "1713",
+              "isMain": true,
+              "name": "Pão e produtos de pastelaria",
+              "parent": "17",
+              "superCategories": [
+                {
+                  "code": "17",
+                  "name": "Alimentos e quase alimentos",
+                  "parent": "0"
+                },
+                {
+                  "code": "0",
+                  "name": "Mundos de necessidade",
+                  "parent": ""
+                }
+              ]
+            }
+          ],
+          "preview": false
+        },
+        "action": "UPDATE",
+        "language": "pt",
+        "eventType": "GRIDBOX",
+        "id": "10045185"
+      },
+      "tracking": {
+        "position": 2,
+        "xPayload": {
+          "searchTrackingMasterId": "Product.10045185",
+          "searchTrackingTitle": "P%C3%A3o+de+Mistura+da+Baviera",
+          "searchTrackingPageSize": 36,
+          "searchTrackingPage": 1,
+          "searchTrackingEvent": "click",
+          "list": "/h/padaria-pastelaria/h10071015",
+          "searchTrackingId": "Product.10045185",
+          "searchTrackingOrigPos": 1,
+          "searchTrackingPos": 2,
+          "searchTrackingOrigPageSize": 36,
+          "searchTrackingChannel": "PT",
+          "category": "Food"
+        }
+      }
+    },
+    {
+      "resultClass": "product",
+      "type": "product",
+      "code": "10045187",
+      "label": "",
+      "url": "",
+      "xPayload": {
+        "metaData": {
+          "relevancyScore": 0.5,
+          "keywordScore": 0,
+          "semanticScore": 0,
+          "keywordScoreRaw": 0,
+          "ratingScore": 0,
+          "freshnessScore": 2,
+          "searchHubImpressions": 0,
+          "searchHubClicks": 0,
+          "searchHubCarts": 0,
+          "businessRuleFactor": 0.0
+        }
+      },
+      "gridbox": {
+        "country": "PT",
+        "sequence": 1776404546856985,
+        "data": {
+          "ageRestriction": false,
+          "awards": [],
+          "brand": {
+            "showBrand": false
+          },
+          "canonicalPath": "/p/meia-baguete/p10045187",
+          "canonicalUrl": "/p/meia-baguete/p10045187",
+          "category": "Food",
+          "cutoutimageV2": [],
+          "dealOfDay": {
+            "active": false
+          },
+          "designTheme": "default",
+          "disclaimers": [
+            {
+              "id": "code_10045187_a07833ee",
+              "type": "CODE",
+              "value": "Basic"
+            }
+          ],
+          "displayFreeDelivery": false,
+          "energyLabels": [],
+          "erpNumber": "10045187",
+          "flashSales": false,
+          "fullTitle": "Meia Baguete",
+          "gs1Attributes": [],
+          "havingPrice": true,
+          "havingThreesixty": false,
+          "havingVideos": false,
+          "highlightedSeals": 0,
+          "ians": [
+            "5912969"
+          ],
+          "image": "https://imgproxy-retcat.assets.schwarz/qnMCNgSS69UgRnr4GzWyiSzslbgssBwxMj1p_C5zfQ8/sm:1/exar:1:ce/w:427/h:320/cz/M6Ly9wcm9kLWNhd/GFsb2ctbWVkaWEvaW50LzY1ODU5QzVDNDM1M0I0M0RDODFFQTRDOE/MxMDQ3MUVDNjczQUQ2M0VEOUJFQ0E2MDhEOUI3ODBCRUU3RjA4QUMucG5n.png",
+          "image_V1": {
+            "image": "https://imgproxy-retcat.assets.schwarz/qnMCNgSS69UgRnr4GzWyiSzslbgssBwxMj1p_C5zfQ8/sm:1/exar:1:ce/w:427/h:320/cz/M6Ly9wcm9kLWNhd/GFsb2ctbWVkaWEvaW50LzY1ODU5QzVDNDM1M0I0M0RDODFFQTRDOE/MxMDQ3MUVDNjczQUQ2M0VEOUJFQ0E2MDhEOUI3ODBCRUU3RjA4QUMucG5n.png",
+            "accessibility": "Três baguetes em uma tábua de madeira."
+          },
+          "isLidlGiftCard": false,
+          "isUsedProduct": false,
+          "itemId": 10045187,
+          "imageList": [
+            "https://imgproxy-retcat.assets.schwarz/qnMCNgSS69UgRnr4GzWyiSzslbgssBwxMj1p_C5zfQ8/sm:1/exar:1:ce/w:427/h:320/cz/M6Ly9wcm9kLWNhd/GFsb2ctbWVkaWEvaW50LzY1ODU5QzVDNDM1M0I0M0RDODFFQTRDOE/MxMDQ3MUVDNjczQUQ2M0VEOUJFQ0E2MDhEOUI3ODBCRUU3RjA4QUMucG5n.png",
+            "https://imgproxy-retcat.assets.schwarz/RF2eYO8OFZctud4u53MGLpKaLKF9p3-oJKiWMfGEzaA/sm:1/exar:1:ce/w:427/h:320/cz/M6Ly9wcm9kLWNhd/GFsb2ctbWVkaWEvaW50LzE5OUFCRTFEMjE5OTRFNDlCRjhEQTJCQz/M2RDFENTUyNjUyMDIyQTE1ODJBODY1NUQ5NEY1OURBRTM2OUVGQjYucG5n.png",
+            "https://imgproxy-retcat.assets.schwarz/6A3Lw8SVUI7heTgpu-q7KQR_WVHOnP7BcoyAGuKq0oc/sm:1/exar:1:ce/w:427/h:320/cz/M6Ly9wcm9kLWNhd/GFsb2ctbWVkaWEvaW50Lzg0QzM2NUE3QzhFMTU1ODQ5RDI1RDRCNj/M2QjkzN0FFRkU4OTA4MDFBOEJBMTREQjJBODM1NUJFQ0IzMTVGNUQucG5n.png"
+          ],
+          "imageList_V1": [
+            {
+              "image": "https://imgproxy-retcat.assets.schwarz/qnMCNgSS69UgRnr4GzWyiSzslbgssBwxMj1p_C5zfQ8/sm:1/exar:1:ce/w:427/h:320/cz/M6Ly9wcm9kLWNhd/GFsb2ctbWVkaWEvaW50LzY1ODU5QzVDNDM1M0I0M0RDODFFQTRDOE/MxMDQ3MUVDNjczQUQ2M0VEOUJFQ0E2MDhEOUI3ODBCRUU3RjA4QUMucG5n.png",
+              "accessibility": "Três baguetes em uma tábua de madeira."
+            },
+            {
+              "image": "https://imgproxy-retcat.assets.schwarz/RF2eYO8OFZctud4u53MGLpKaLKF9p3-oJKiWMfGEzaA/sm:1/exar:1:ce/w:427/h:320/cz/M6Ly9wcm9kLWNhd/GFsb2ctbWVkaWEvaW50LzE5OUFCRTFEMjE5OTRFNDlCRjhEQTJCQz/M2RDFENTUyNjUyMDIyQTE1ODJBODY1NUQ5NEY1OURBRTM2OUVGQjYucG5n.png",
+              "accessibility": "Duas baguetes crocantes."
+            },
+            {
+              "image": "https://imgproxy-retcat.assets.schwarz/6A3Lw8SVUI7heTgpu-q7KQR_WVHOnP7BcoyAGuKq0oc/sm:1/exar:1:ce/w:427/h:320/cz/M6Ly9wcm9kLWNhd/GFsb2ctbWVkaWEvaW50Lzg0QzM2NUE3QzhFMTU1ODQ5RDI1RDRCNj/M2QjkzN0FFRkU4OTA4MDFBOEJBMTREQjJBODM1NUJFQ0IzMTVGNUQucG5n.png",
+              "accessibility": "Dois pães crocantes."
+            }
+          ],
+          "keyfacts": {
+            "analyticsCategory": "Food",
+            "fullTitle": "Meia Baguete",
+            "moreDetails": "Características",
+            "title": "Meia Baguete",
+            "wonCategoryPrimary": "Mundos de necessidade/Alimentos e quase alimentos/Pão e produtos de pastelaria",
+            "wonCategoryPrimaryPath": "0/17/1713"
+          },
+          "lidlPlus": [
+            {
+              "price": {
+                "basePrice": {
+                  "prefix": false,
+                  "text": "1 kg = 1.64"
+                },
+                "discount": {
+                  "discountHasStar": false,
+                  "fromNormalPriceForLidlPlus": false,
+                  "fromRecommendedPrice": false,
+                  "showDiscount": false,
+                  "showFrom": false,
+                  "showPercentage": false,
+                  "showUpTo": false
+                },
+                "hasStar": false,
+                "hasVat": false,
+                "packaging": {
+                  "text": "Cada unid. 110 g"
+                },
+                "price": 0.92,
+                "priceTheme": "white_yellow",
+                "specialTaxes": []
+              },
+              "lidlPlusText": "com a App Lidl Plus",
+              "highlightText": "4 + 1 Grátis"
+            }
+          ],
+          "multipack": false,
+          "online": false,
+          "preventSelling": false,
+          "price": {
+            "currencyCode": "EUR",
+            "currencyCodeSecond": "",
+            "currencySymbol": "€",
+            "currencySymbolSecond": "",
+            "hasStar": false,
+            "hasVat": false,
+            "specialTaxes": [],
+            "variantsHaveDifferentPrices": false
+          },
+          "productId": 10045187,
+          "productType": "RETAIL",
+          "productOrigin": "progress_event",
+          "quickAddToCart": false,
+          "regionsPrices": {},
+          "ribbons": [],
+          "renderedTs": 1776404546,
+          "seals": [],
+          "stockAvailability": {
+            "availabilityIndicator": 0,
+            "badgeInfo": {
+              "badges": [
+                {
+                  "text": "Disponível na loja de 24.04. a 26.04.",
+                  "type": "IN_STORE_FROM_FUTURE_DATE_RANGE"
+                }
+              ]
+            },
+            "badgeInfoV2": [
+              {
+                "badges": [
+                  {
+                    "text": "Disponível na loja de 24.04. a 26.04.",
+                    "type": "IN_STORE_FROM_FUTURE_DATE_RANGE"
+                  }
+                ],
+                "validFrom": 1776988800,
+                "validUntil": 1777247999
+              }
+            ],
+            "onlineAvailable": false,
+            "orderableQuantities": [],
+            "minOrderableQuantity": 1
+          },
+          "store": false,
+          "storeStartDate": 1776981600,
+          "storeEndDate": 1777240800,
+          "title": "Meia Baguete",
+          "zones": {}
+        },
+        "productId": 10045187,
+        "meta": {
+          "categoryPaths": [],
+          "campaignPaths": [
+            [
+              {
+                "id": "10093172",
+                "name": "Ofertas Lidl Plus w17",
+                "url": "/c/ofertas-lidl-plus-w17/a10093172",
+                "hiddenCategory": false
+              }
+            ]
+          ],
+          "fullTitle": "Meia Baguete",
+          "retailLists": [
+            [
+              {
+                "id": 2524,
+                "productSortIndex": 50041
+              }
+            ]
+          ],
+          "lists": [
+            2524
+          ],
+          "wonCategoryBreadcrumbs": [
+            [
+              {
+                "id": "10068374",
+                "name": "Mercearia e Frescos",
+                "url": "/c/mercearia-e-frescos/s10068374",
+                "hiddenCategory": false
+              },
+              {
+                "id": "10071015",
+                "name": "Padaria & Pastelaria",
+                "url": "/h/padaria-pastelaria/h10071015",
+                "hiddenCategory": false
+              }
+            ]
+          ],
+          "worldOfNeeds": [
+            {
+              "code": "1713",
+              "isMain": true,
+              "name": "Pão e produtos de pastelaria",
+              "parent": "17",
+              "superCategories": [
+                {
+                  "code": "17",
+                  "name": "Alimentos e quase alimentos",
+                  "parent": "0"
+                },
+                {
+                  "code": "0",
+                  "name": "Mundos de necessidade",
+                  "parent": ""
+                }
+              ]
+            }
+          ],
+          "preview": false
+        },
+        "action": "UPDATE",
+        "language": "pt",
+        "eventType": "GRIDBOX",
+        "id": "10045187"
+      },
+      "tracking": {
+        "position": 3,
+        "xPayload": {
+          "searchTrackingMasterId": "Product.10045187",
+          "searchTrackingTitle": "Meia+Baguete",
+          "searchTrackingPageSize": 36,
+          "searchTrackingPage": 1,
+          "searchTrackingEvent": "click",
+          "list": "/h/padaria-pastelaria/h10071015",
+          "searchTrackingId": "Product.10045187",
+          "searchTrackingOrigPos": 1,
+          "searchTrackingPos": 3,
+          "searchTrackingOrigPageSize": 36,
+          "searchTrackingChannel": "PT",
+          "category": "Food"
+        }
+      }
+    }
+  ],
+  "breadcrumbs": [
+    {
+      "code": "query",
+      "url": "/q/api/category/h/padaria-pastelaria/h10071015?assortment=PT&locale=pt_PT&version=v2.0.0&pageId=10068374%2F10071015",
+      "link": {
+        "type": "category",
+        "filter": {},
+        "categoryPath": "/h/padaria-pastelaria/h10071015",
+        "pageId": "10068374/10071015"
+      }
+    }
+  ],
+  "details": {
+    "categoryData": {
+      "hasGoogleIndex": "true",
+      "wonColor": {
+        "backgroundColor": "ffffff",
+        "textColor": "000000"
+      },
+      "pageTitle": "Padaria & Pastelaria",
+      "name": "Padaria & Pastelaria",
+      "url": "/h/padaria-pastelaria/h10071015"
+    }
+  },
+  "teasers": {},
+  "advisors": [],
+  "categoryId": "10071015"
+}

@@ -1,0 +1,90 @@
+GET home
+  200 cookies: []
+GET /c/folhetos/s10020672
+  200 len 784179
+
+=== REPORT ===
+{
+  "folhetos_main": {
+    "status": 200,
+    "len": 784179,
+    "final_url": "https://www.lidl.pt/c/folhetos/s10020672"
+  },
+  "markers": {
+    "iframe": 3,
+    "leaflet": 24,
+    "folheto": 23,
+    "flyer": 89
+  },
+  "inner_links_count": 102,
+  "pdf_links": [],
+  "jpg_links_count": 7,
+  "iframes": [],
+  "api_probes": {
+    "/q/api/brochure?assortment=PT&locale=pt_PT": {
+      "status": 404,
+      "len": 73,
+      "ctype": "application/json",
+      "body0": "{\"code\":404,\"message\":\"The current request is not defined by this API.\"}\n"
+    },
+    "/q/api/leaflet?assortment=PT&locale=pt_PT": {
+      "status": 404,
+      "len": 73,
+      "ctype": "application/json",
+      "body0": "{\"message\":\"The current request is not defined by this API.\",\"code\":404}\n"
+    },
+    "/q/api/flyer?assortment=PT&locale=pt_PT": {
+      "status": 404,
+      "len": 73,
+      "ctype": "application/json",
+      "body0": "{\"code\":404,\"message\":\"The current request is not defined by this API.\"}\n"
+    },
+    "/q/api/publication?assortment=PT&locale=pt_PT": {
+      "status": 404,
+      "len": 73,
+      "ctype": "application/json",
+      "body0": "{\"code\":404,\"message\":\"The current request is not defined by this API.\"}\n"
+    },
+    "/q/api/advertisement?assortment=PT&locale=pt_PT": {
+      "status": 404,
+      "len": 73,
+      "ctype": "application/json",
+      "body0": "{\"code\":404,\"message\":\"The current request is not defined by this API.\"}\n"
+    },
+    "/q/api/campaign?assortment=PT&locale=pt_PT": {
+      "status": 404,
+      "len": 73,
+      "ctype": "application/json",
+      "body0": "{\"message\":\"The current request is not defined by this API.\",\"code\":404}\n"
+    },
+    "/q/api/kiosk?assortment=PT&locale=pt_PT": {
+      "status": 404,
+      "len": 73,
+      "ctype": "application/json",
+      "body0": "{\"code\":404,\"message\":\"The current request is not defined by this API.\"}\n"
+    },
+    "/q/api/offers?assortment=PT&locale=pt_PT": {
+      "status": 404,
+      "len": 73,
+      "ctype": "application/json",
+      "body0": "{\"code\":404,\"message\":\"The current request is not defined by this API.\"}\n"
+    },
+    "/q/api/category/c/folhetos/s10020672?assortment=PT&locale=pt_PT&version=v2.0.0": {
+      "status": 200,
+      "len": 221,
+      "ctype": "application/mindshift.search+json;version=2",
+      "body0": "{\"type\":\"CategorySearchResult\",\"version\":\"v2.0.0\",\"engine\":\"ldt-searcher\",\"locale\":\"pt_PT\",\"assortment\":\"PT\",\"resultType\":\"empty\",\"sorts\":[],\"facets\":[],\"items\":[],\"breadcrumbs\":[]"
+    }
+  },
+  "schwarz_probes": {
+    "https://endpoints.leaflets.lidl/api/v1/offers?country=PT": {
+      "err": "HTTPSConnectionPool(host='endpoints.leaflets.lidl', port=443): Max retries excee"
+    },
+    "https://endpoints.leaflets.lidl/v1/stores/PT/leaflets": {
+      "err": "HTTPSConnectionPool(host='endpoints.leaflets.lidl', port=443): Max retries excee"
+    },
+    "https://leaflets.lidl.com/pt/PT/leaflets": {
+ 
+
+Saved: c:/Users/danil/Desktop/projetosflutter/bora_app/.claude/.ai/tmp/lidl_folheto_probe.json
+Saved HTML: c:/Users/danil/Desktop/projetosflutter/bora_app/.claude/.ai/tmp/lidl_folheto_main.html

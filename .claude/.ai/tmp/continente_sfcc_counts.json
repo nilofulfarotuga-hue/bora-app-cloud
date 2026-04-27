@@ -1,0 +1,87 @@
+{
+  "robots": {
+    "status": 200,
+    "content": "#############################################\r\n# CONTINENTE.PT - ROBOTS.TXT\r\n#############################################\r\n \r\nUser-agent: *\r\n \r\n \r\n#############################################\r\n# 1) ÁREAS TÉCNICAS / PRIVADAS\r\n#############################################\r\n \r\nDisallow: /checkout\r\nDisallow: /carrinho\r\nDisallow: /conta\r\nDisallow: /onboarding\r\nDisallow: /cart\r\nDisallow: /login\r\nDisallow: /account\r\nDisallow: /cliente\r\n \r\n \r\n#############################################\r\n# 2) PESQUISA INTERNA / RESULTADOS DINÂMICOS\r\n#############################################\r\n \r\nDisallow: /pesquisa\r\nDisallow: /resultado-de-pesquisa\r\nDisallow: *searchResults*\r\nDisallow: *q=*\r\nDisallow: /*?q\r\nDisallow: /*&q\r\nDisallow: /search\r\nDisallow: /Search-Show\r\nDisallow: /pesquisa/?cgid=\r\n \r\n \r\n#############################################\r\n# 3) QUICKVIEW / COMPONENTES TÉCNICOS\r\n#############################################\r\n \r\nDisallow: /quickview\r\nDisallow: /recomendacoes\r\n \r\n \r\n#############################################\r\n# 4) PARÂMETROS (FILTRAGEM / TRACKING)\r\n#############################################\r\n \r\nDisallow: /*?show\r\nDisallow: /*?orderID\r\nDisallow: /*?token\r\nDisallow: /*?utm_\r\nDisallow: /*&utm_\r\nDisallow: /*?gclid\r\nDisallow: /*&gclid\r\nDisallow: /*?fbclid\r\nDisallow: /*&fbclid\r\nDisallow: /*?gad\r\nDisallow: /*&gad\r\nDisallow: /*?sz\r\nDisallow: /*&sz\r\nDisallow: /*?cid\r\nDisallow: /*&cid\r\nDisallow: /*?dwvar_\r\nDisallow: /*?pid\r\nDisallow: /*&pid\r\nDisallow: /*?cgid\r\nDisallow: /*?msclkid\r\nDisallow: /*&msclkid\r\nDisallow: /*?start=\r\nDisallow: /*&start=\r\nDisallow: /*?srule=\r\nDisallow: /*&srule=\r\nDisallow: /*?prefn\r\nDisallow: /*&prefn\r\nDisallow: /*?prefv\r\nDisallow: /*&prefv\r\n \r\n \r\n#############################################\r\n# 5) OUTRAS ÁREAS SEM VALOR SEO\r\n#############################################\r\n \r\nDisallow: /test\r\nDisallow: /teste\r\nDisallow: /folhetos-pesquisa\r\nDisallow: /marca-da-semana\r\nDisallow: /loja-online/ajuda\r\nDisallow: /destaques/novidades\r\nDisallow: /*ver-todo"
+  },
+  "search_all_q_star": {
+    "status": 200,
+    "len": 1654385,
+    "ctype": "text/html;charset=UTF-8",
+    "count_hits": {
+      "class=\"[^\"]*search-result[^\"]*\"[^>]*>([^<]+)<": [
+        "\n        \n\n        ",
+        "\n                \n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\r\n\r\n\r\n\r\n",
+        "\n            "
+      ],
+      "de\\s+(\\d+)\\s+(?:produtos|resultados)": [
+        "57624"
+      ]
+    },
+    "product_tile_count": 65,
+    "data_pid_unique": 35
+  },
+  "search_all_q_empty": {
+    "status": 500,
+    "len": 6297,
+    "ctype": "text/html;charset=UTF-8"
+  },
+  "search_all_newarrivals": {
+    "status": 500,
+    "len": 6297,
+    "ctype": "text/html;charset=UTF-8"
+  },
+  "categories": {
+    "mercearia": {
+      "status": 500,
+      "len": 6297
+    },
+    "frescos": {
+      "status": 500,
+      "len": 6297
+    },
+    "bebidas": {
+      "status": 500,
+      "len": 6297
+    },
+    "laticinios": {
+      "status": 500,
+      "len": 6297
+    },
+    "congelados": {
+      "status": 500,
+      "len": 6297
+    },
+    "talho": {
+      "status": 500,
+      "len": 6297
+    },
+    "peixaria": {
+      "status": 500,
+      "len": 6297
+    },
+    "padaria": {
+      "status": 500,
+      "len": 6297
+    },
+    "frutas": {
+      "status": 500,
+      "len": 6297
+    },
+    "higiene": {
+      "status": 500,
+      "len": 6297
+    },
+    "animais": {
+      "status": 500,
+      "len": 6297
+    },
+    "bebe": {
+      "status": 500,
+      "len": 6297
+    },
+    "bio": {
+      "status": 500,
+      "len": 6297
+    }
+  }
+}

@@ -1,0 +1,126 @@
+{
+  "folhetos_main": {
+    "status": 200,
+    "len": 784179,
+    "final_url": "https://www.lidl.pt/c/folhetos/s10020672"
+  },
+  "markers": {
+    "iframe": 3,
+    "leaflet": 24,
+    "folheto": 23,
+    "flyer": 89
+  },
+  "inner_links_sample": [
+    "/c/a-minha-conta-lidl/s10027353",
+    "/c/animais/s10025302",
+    "/c/app-lidl-plus/s10058201",
+    "/c/assets/ACouponSection.Q5OAKBXb.css",
+    "/c/assets/AMasonryGrid.C9ocJuLn.css",
+    "/c/assets/AShopTheLook.BDvc00pP.css",
+    "/c/assets/AStartPageProductRecall.Uzv4bisb.css",
+    "/c/assets/ATeaserSlider.BuutQdSa.css",
+    "/c/assets/AVideoSection.4PxjBkOK.css",
+    "/c/assets/PageService.Ftcw1Mwp.css",
+    "/c/assets/hook-bold.DWH9bTJJ.css",
+    "/c/assets/useBrandTheme.DG9K624i.css",
+    "/c/assets/useResponseCache.DkAoEEpL.css",
+    "/c/bebe-crianca-e-brinquedos/s10068225",
+    "/c/bebidas-e-garrafeira/s10025304",
+    "/c/bio-e-escolhas-alimentares/s10025305",
+    "/c/campanhas-fraudulentas/s10026974",
+    "/c/carne/s10026861",
+    "/c/casa-e-decoracao/s10068371",
+    "/c/charcutaria-e-queijos/s10025308",
+    "/c/cien-old/s10025553",
+    "/c/compliance/s10027019",
+    "/c/congelados/s10025309",
+    "/c/cozinha-e-cuidado-do-lar/s10068166",
+    "/c/desporto-e-tempos-livres/s10068226",
+    "/c/desporto/s10025311",
+    "/c/empresas-do-grupo/s10027374",
+    "/c/eventos-e-passatempos/s10025267",
+    "/c/ferramentas-e-jardim/s10068222",
+    "/c/ficha-tecnica-site-lidl/s10027346",
+    "/c/folhetos/s10020672",
+    "/c/frutas-e-legumes/s10025314",
+    "/c/higiene-e-beleza/s10025315",
+    "/c/informacoes-legais-lidl-plus/s10025571",
+    "/c/informacoes-sobre-os-nossos-produtos/s10027334",
+    "/c/informacoes/s10026539",
+    "/c/laticinios-e-ovos/s10025317",
+    "/c/lidl-plus/s10025128",
+    "/c/lidlab/s10064150",
+    "/c/limpeza/s10038666"
+  ],
+  "inner_links_count": 102,
+  "pdf_links": [],
+  "jpg_links_count": 7,
+  "iframes": [],
+  "api_probes": {
+    "/q/api/brochure?assortment=PT&locale=pt_PT": {
+      "status": 404,
+      "len": 73,
+      "ctype": "application/json",
+      "body0": "{\"code\":404,\"message\":\"The current request is not defined by this API.\"}\n"
+    },
+    "/q/api/leaflet?assortment=PT&locale=pt_PT": {
+      "status": 404,
+      "len": 73,
+      "ctype": "application/json",
+      "body0": "{\"message\":\"The current request is not defined by this API.\",\"code\":404}\n"
+    },
+    "/q/api/flyer?assortment=PT&locale=pt_PT": {
+      "status": 404,
+      "len": 73,
+      "ctype": "application/json",
+      "body0": "{\"code\":404,\"message\":\"The current request is not defined by this API.\"}\n"
+    },
+    "/q/api/publication?assortment=PT&locale=pt_PT": {
+      "status": 404,
+      "len": 73,
+      "ctype": "application/json",
+      "body0": "{\"code\":404,\"message\":\"The current request is not defined by this API.\"}\n"
+    },
+    "/q/api/advertisement?assortment=PT&locale=pt_PT": {
+      "status": 404,
+      "len": 73,
+      "ctype": "application/json",
+      "body0": "{\"code\":404,\"message\":\"The current request is not defined by this API.\"}\n"
+    },
+    "/q/api/campaign?assortment=PT&locale=pt_PT": {
+      "status": 404,
+      "len": 73,
+      "ctype": "application/json",
+      "body0": "{\"message\":\"The current request is not defined by this API.\",\"code\":404}\n"
+    },
+    "/q/api/kiosk?assortment=PT&locale=pt_PT": {
+      "status": 404,
+      "len": 73,
+      "ctype": "application/json",
+      "body0": "{\"code\":404,\"message\":\"The current request is not defined by this API.\"}\n"
+    },
+    "/q/api/offers?assortment=PT&locale=pt_PT": {
+      "status": 404,
+      "len": 73,
+      "ctype": "application/json",
+      "body0": "{\"code\":404,\"message\":\"The current request is not defined by this API.\"}\n"
+    },
+    "/q/api/category/c/folhetos/s10020672?assortment=PT&locale=pt_PT&version=v2.0.0": {
+      "status": 200,
+      "len": 221,
+      "ctype": "application/mindshift.search+json;version=2",
+      "body0": "{\"type\":\"CategorySearchResult\",\"version\":\"v2.0.0\",\"engine\":\"ldt-searcher\",\"locale\":\"pt_PT\",\"assortment\":\"PT\",\"resultType\":\"empty\",\"sorts\":[],\"facets\":[],\"items\":[],\"breadcrumbs\":[]"
+    }
+  },
+  "schwarz_probes": {
+    "https://endpoints.leaflets.lidl/api/v1/offers?country=PT": {
+      "err": "HTTPSConnectionPool(host='endpoints.leaflets.lidl', port=443): Max retries excee"
+    },
+    "https://endpoints.leaflets.lidl/v1/stores/PT/leaflets": {
+      "err": "HTTPSConnectionPool(host='endpoints.leaflets.lidl', port=443): Max retries excee"
+    },
+    "https://leaflets.lidl.com/pt/PT/leaflets": {
+      "err": "HTTPSConnectionPool(host='leaflets.lidl.com', port=443): Max retries exceeded wi"
+    }
+  }
+}

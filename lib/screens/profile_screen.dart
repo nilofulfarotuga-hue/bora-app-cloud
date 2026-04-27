@@ -1,6 +1,9 @@
+import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -38,22 +41,60 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _loadPhotoUrl() async {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) {
-      if (mounted) setState(() => _photoLoaded = true);
-      return;
-    }
-    try {
-      final url = user.userMetadata?['bora_photo_url'] as String?;
+    // Priority: local account (survives session cache staleness) → Supabase
+    // metadata → server refresh via getUser().
+    final authStore = context.read<AuthStore>();
+    final localUrl = authStore.currentPhotoUrl;
+    if (localUrl.isNotEmpty) {
       if (!mounted) return;
       setState(() {
-        _photoUrl = (url != null && url.isNotEmpty) ? url : null;
+        _photoUrl = localUrl;
         _photoLoaded = true;
       });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _photoLoaded = true);
+      return;
     }
+
+    final client = Supabase.instance.client;
+    var user = client.auth.currentUser;
+    var metaUrl = user?.userMetadata?['bora_photo_url'] as String?;
+
+    // Local restored session can have stale metadata — ask the server.
+    if ((metaUrl == null || metaUrl.isEmpty) && user != null) {
+      try {
+        final fresh = await client.auth.getUser();
+        metaUrl = fresh.user?.userMetadata?['bora_photo_url'] as String?;
+      } catch (_) {}
+    }
+
+    if (!mounted) return;
+    if (metaUrl != null && metaUrl.isNotEmpty) {
+      // Mirror back into AuthStore so subsequent reads are instant.
+      unawaited(authStore.updateCurrentUserPhoto(metaUrl));
+    }
+    setState(() {
+      _photoUrl = (metaUrl != null && metaUrl.isNotEmpty) ? metaUrl : null;
+      _photoLoaded = true;
+    });
+  }
+
+  /// Decodes the picked image, center-crops it to a square and resizes to
+  /// 500x500 px. Returns null if decoding fails.
+  Future<Uint8List?> _squareResize(Uint8List bytes) async {
+    final decoded = img.decodeImage(bytes);
+    if (decoded == null) return null;
+    final side =
+        decoded.width < decoded.height ? decoded.width : decoded.height;
+    final x = (decoded.width - side) ~/ 2;
+    final y = (decoded.height - side) ~/ 2;
+    final cropped =
+        img.copyCrop(decoded, x: x, y: y, width: side, height: side);
+    final resized = img.copyResize(
+      cropped,
+      width: 500,
+      height: 500,
+      interpolation: img.Interpolation.average,
+    );
+    return Uint8List.fromList(img.encodeJpg(resized, quality: 85));
   }
 
   Future<ImageSource?> _chooseImageSource() {
@@ -151,13 +192,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
 
     try {
-      final bytes = await picked.readAsBytes();
+      final rawBytes = await picked.readAsBytes();
+      // Centre-crop square + resize to 500px (smaller upload, consistent UI).
+      final processed = await _squareResize(rawBytes) ?? rawBytes;
+
       final path = '$userId/avatar.jpg';
       final storage = Supabase.instance.client.storage;
 
       await storage.from('avatars').uploadBinary(
             path,
-            bytes,
+            processed,
             fileOptions: const FileOptions(
               upsert: true,
               contentType: 'image/jpeg',
@@ -165,15 +209,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
           );
 
       final publicUrl = storage.from('avatars').getPublicUrl(path);
+      // Cache-bust version suffix — stored in metadata so every device
+      // sees the new image without waiting for Flutter's network cache.
+      final bust = DateTime.now().millisecondsSinceEpoch;
+      final versionedUrl = '$publicUrl?v=$bust';
 
-      await Supabase.instance.client.auth.updateUser(
-        UserAttributes(data: {'bora_photo_url': publicUrl}),
-      );
+      // Single source of truth — AuthStore persists locally + to Supabase.
+      // `authStore` is captured above (before async gaps).
+      await authStore.updateCurrentUserPhoto(versionedUrl);
 
       if (!mounted) return;
-      final bust = DateTime.now().millisecondsSinceEpoch;
       setState(() {
-        _photoUrl = '$publicUrl?t=$bust';
+        _photoUrl = versionedUrl;
         _localPreview = null;
         _isUploading = false;
       });
@@ -205,7 +252,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final user = Supabase.instance.client.auth.currentUser;
     final displayName = authStore.displayName ?? 'Utilizador';
     final initial = displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U';
-    final isClient = role == AuthRole.client;
 
     return Scaffold(
       backgroundColor: AppColors.surface,
@@ -233,7 +279,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Spacing.xxl, 0, Spacing.xxl, Spacing.xxxl),
               child: Column(
                 children: [
-                  _buildAvatar(initial: initial, isClient: isClient),
+                  _buildAvatar(initial: initial),
                   const SizedBox(height: 12),
                   Text(
                     displayName,
@@ -460,15 +506,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildAvatar({required String initial, required bool isClient}) {
+  Widget _buildAvatar({required String initial}) {
     ImageProvider? bgImage;
     if (_localPreview != null) {
       bgImage = FileImage(File(_localPreview!.path));
     } else if (_photoUrl != null && _photoUrl!.isNotEmpty) {
+      // ValueKey on the CircleAvatar forces rebuild when URL changes (bust).
       bgImage = NetworkImage(_photoUrl!);
     }
 
     final avatar = CircleAvatar(
+      key: ValueKey(_photoUrl ?? _localPreview?.path ?? 'none'),
       radius: 44,
       backgroundColor: Colors.white.withValues(alpha: 0.2),
       backgroundImage: bgImage,
@@ -484,23 +532,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
           : null,
     );
 
-    if (!isClient) return avatar;
-
+    // All 3 roles can upload a profile photo.
     return Stack(
       alignment: Alignment.center,
       clipBehavior: Clip.none,
       children: [
         GestureDetector(
           onTap: _isUploading ? null : _pickAndUploadAvatar,
+          onLongPress: (_isUploading || _photoUrl == null || _photoUrl!.isEmpty)
+              ? null
+              : _confirmRemovePhoto,
           child: avatar,
         ),
         if (_isUploading)
-          const SizedBox(
+          // Dim overlay + centred spinner, Uber-style.
+          SizedBox(
             width: 96,
             height: 96,
-            child: CircularProgressIndicator(
-              color: Colors.white,
-              strokeWidth: 3,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.black.withValues(alpha: 0.35),
+                  ),
+                ),
+                const SizedBox(
+                  width: 32,
+                  height: 32,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 3,
+                  ),
+                ),
+              ],
             ),
           ),
         if (!_isUploading && _photoLoaded)
@@ -528,6 +594,54 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
       ],
     );
+  }
+
+  Future<void> _confirmRemovePhoto() async {
+    final authStore = context.read<AuthStore>();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Remover foto de perfil?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: const Text('Remover'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isUploading = true);
+    try {
+      final supabase = Supabase.instance.client;
+      final uid = supabase.auth.currentUser?.id;
+      if (uid != null) {
+        try {
+          await supabase.storage.from('avatars').remove(['$uid/avatar.jpg']);
+        } catch (_) {}
+      }
+      await authStore.updateCurrentUserPhoto('');
+      if (!mounted) return;
+      setState(() {
+        _photoUrl = null;
+        _isUploading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Foto removida.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isUploading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao remover foto: $e')),
+      );
+    }
   }
 
   static List<String> _vehicleCapabilities(VehicleType type) {

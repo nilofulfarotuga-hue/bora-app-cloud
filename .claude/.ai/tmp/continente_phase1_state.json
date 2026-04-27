@@ -1,0 +1,15 @@
+{
+  "last_index": 4252,
+  "counters": {
+    "updated": 589,
+    "igual": 3491,
+    "name_mismatch": 14,
+    "not_found": 58,
+    "needs_review": 2,
+    "http_error": 44,
+    "skipped_small_delta": 0,
+    "seed_excluded": 57
+  },
+  "started_at": "2026-04-21T08:20:42.977Z",
+  "finished_at": "2026-04-21T15:42:32.115Z"
+}

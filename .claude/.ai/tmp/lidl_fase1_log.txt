@@ -1,0 +1,69 @@
+seeding home...
+ home 200
+GET offset=0 fs=108
+  numFound=238 items=108
+GET offset=108 fs=108
+  numFound=238 items=108
+GET offset=216 fs=108
+  numFound=238 items=22
+TOTAL raw items: 238
+after dedupe: 238 (was 238)
+
+=== SUMMARY ===
+{
+  "total_raw": 238,
+  "total_dedup": 238,
+  "with_price": 62,
+  "with_image": 238,
+  "without_price": 176,
+  "without_image": 0,
+  "brand_lidl_assigned": 35,
+  "has_any_brand": 238,
+  "sitemap_declared_635": 635,
+  "missing_price_samples": [
+    {
+      "id": 10041723,
+      "title": "Molho de Tulipas"
+    },
+    {
+      "id": 10042263,
+      "title": "Lula Limpa XXL"
+    },
+    {
+      "id": 10042565,
+      "title": "Hortênsia Nacional"
+    },
+    {
+      "id": 10044444,
+      "title": "Maionese Formato XXL"
+    },
+    {
+      "id": 10044600,
+      "title": "Elvive Champô Hidra Hialurónico"
+    },
+    {
+      "id": 10044602,
+      "title": "Elvive Amaciador Hidra Hialurónico"
+    },
+    {
+      "id": 10044780,
+      "title": "T-shirt em Malha Ajour"
+    },
+    {
+      "id": 10044782,
+      "title": "Saia-calção em Ganga"
+    },
+    {
+      "id": 10044784,
+      "title": "Insuflável para Crianças"
+    },
+    {
+      "id": 10044786,
+      "title": "Suporte de Montagem para Bicicletas"
+    }
+  ],
+  "missing_image_samples": [],
+  "foreign_language_samples": []
+}
+Saved: c:/Users/danil/Desktop/projetosflutter/bora_app/.claude/.ai/tmp/lidl_all_products.json
+Saved: c:/Users/danil/Desktop/projetosflutter/bora_app/.claude/.ai/tmp/lidl_fase1_summary.json

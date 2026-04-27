@@ -9,5 +9,19 @@
       "Bash(RUN_ID=\"23445129994\")",
       "Bash(curl -s \"https://api.github.com/repos/$REPO/actions/runs/$RUN_ID/jobs\")"
     ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/auto-rules-sync-notify.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
   }
 }

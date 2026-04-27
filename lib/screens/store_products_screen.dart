@@ -843,7 +843,7 @@ class _BoraProductCardTile extends StatelessWidget {
         context.read<CartStore>().addItem(CartItem(
               productId: product.id,
               name: product.name,
-              price: product.price,
+              price: double.parse((product.price * 1.15).toStringAsFixed(2)),
             ));
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
@@ -1014,7 +1014,7 @@ class _ProductCardState extends State<_ProductCard>
                     children: [
                       Text(
                         widget.product.price > 0
-                            ? '€${widget.product.price.toStringAsFixed(2)}'
+                            ? '€${(widget.product.price * 1.15).toStringAsFixed(2)}'
                             : 'Preço indisponível',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
@@ -1032,7 +1032,7 @@ class _ProductCardState extends State<_ProductCard>
                           context.read<CartStore>().addItem(CartItem(
                                 productId: widget.product.id,
                                 name: widget.product.name,
-                                price: widget.product.price,
+                                price: double.parse((widget.product.price * 1.15).toStringAsFixed(2)),
                               ));
                           ScaffoldMessenger.of(context)
                             ..hideCurrentSnackBar()
@@ -1112,7 +1112,7 @@ class _VariantMiniCard extends StatelessWidget {
     context.read<CartStore>().addItem(CartItem(
           productId: _variantKey,
           name: '$productName (${variant.brandName})',
-          price: variant.price,
+          price: double.parse((variant.price * 1.15).toStringAsFixed(2)),
         ));
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -1140,8 +1140,8 @@ class _VariantMiniCard extends StatelessWidget {
         .where((i) => i.productId == _variantKey)
         .fold<int>(0, (sum, i) => sum + i.quantity);
     final priceLabel = showPerKg
-        ? '€${variant.price.toStringAsFixed(2)}/kg'
-        : '€${variant.price.toStringAsFixed(2)}';
+        ? '€${(variant.price * 1.15).toStringAsFixed(2)}/kg'
+        : '€${(variant.price * 1.15).toStringAsFixed(2)}';
 
     return Material(
       color: const Color(0xFFF7F7F7),
@@ -1544,7 +1544,7 @@ class _SuggestionsPanel extends StatelessWidget {
                 title: Text(p.name,
                     style: const TextStyle(
                         fontSize: 13, fontWeight: FontWeight.w600)),
-                subtitle: Text('€${p.price.toStringAsFixed(2)}',
+                subtitle: Text('€${(p.price * 1.15).toStringAsFixed(2)}',
                     style: const TextStyle(fontSize: 12)),
                 onTap: () => onPickProduct(p),
               );
@@ -1572,7 +1572,7 @@ class _SuggestionsPanel extends StatelessWidget {
                 title: Text(p.name,
                     style: const TextStyle(
                         fontSize: 13, fontWeight: FontWeight.w600)),
-                subtitle: Text('€${p.price.toStringAsFixed(2)}',
+                subtitle: Text('€${(p.price * 1.15).toStringAsFixed(2)}',
                     style: const TextStyle(fontSize: 12)),
                 onTap: () => onPickProduct(p),
               ),

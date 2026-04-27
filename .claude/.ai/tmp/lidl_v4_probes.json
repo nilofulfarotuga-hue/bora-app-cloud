@@ -1,0 +1,83 @@
+{
+  "https://endpoints.leaflets.schwarz/v4/flyer?flyer_identifier=019d30fe-9e8f-712f-ba36-dcedd910f503": {
+    "status": 200,
+    "len": 40500,
+    "ctype": "application/json",
+    "body0": "{\"self\":\"v4/flyer?flyer_identifier=019d30fe-9e8f-712f-ba36-dcedd910f503\",\"version\":4,\"success\":true,\"message\":\"Requested Flyer found.\",\"dateTime\":\"2026-04-20T18:36:07+00:00\",\"numberOfEntries\":1,\"flyer\":{\"id\":\"019d30fe-9e8f-712f-ba36-dcedd910f503\",\"name\":\"Folheto Especial\",\"title\":\"Silvercrest\",\"loca",
+    "keys": [
+      "self",
+      "version",
+      "success",
+      "message",
+      "dateTime",
+      "numberOfEntries",
+      "flyer"
+    ]
+  },
+  "https://endpoints.leaflets.schwarz/v4/flyer?flyer_identifier=019d30fe-9e8f-712f-ba36-dcedd910f503&region_id=0": {
+    "status": 200,
+    "len": 40512,
+    "ctype": "application/json",
+    "body0": "{\"self\":\"v4/flyer?flyer_identifier=019d30fe-9e8f-712f-ba36-dcedd910f503&region_id=0\",\"version\":4,\"success\":true,\"message\":\"Requested Flyer found.\",\"dateTime\":\"2026-04-20T18:36:09+00:00\",\"numberOfEntries\":1,\"flyer\":{\"id\":\"019d30fe-9e8f-712f-ba36-dcedd910f503\",\"name\":\"Folheto Especial\",\"title\":\"Silver",
+    "keys": [
+      "self",
+      "version",
+      "success",
+      "message",
+      "dateTime",
+      "numberOfEntries",
+      "flyer"
+    ]
+  },
+  "https://endpoints.leaflets.schwarz/v4/flyer?flyer_identifier=019d30fe-9e8f-712f-ba36-dcedd910f503&region_id=1": {
+    "status": 200,
+    "len": 40512,
+    "ctype": "application/json",
+    "body0": "{\"self\":\"v4/flyer?flyer_identifier=019d30fe-9e8f-712f-ba36-dcedd910f503&region_id=1\",\"version\":4,\"success\":true,\"message\":\"Requested Flyer found.\",\"dateTime\":\"2026-04-20T18:36:11+00:00\",\"numberOfEntries\":1,\"flyer\":{\"id\":\"019d30fe-9e8f-712f-ba36-dcedd910f503\",\"name\":\"Folheto Especial\",\"title\":\"Silver",
+    "keys": [
+      "self",
+      "version",
+      "success",
+      "message",
+      "dateTime",
+      "numberOfEntries",
+      "flyer"
+    ]
+  },
+  "https://endpoints.leaflets.schwarz/v4/flyer?flyer_identifier=019d30fe-9e8f-712f-ba36-dcedd910f503&region_id=HHZ": {
+    "status": 400,
+    "len": 278,
+    "ctype": "application/json",
+    "body0": "{\"self\":\"v4/error_response?error_id=exception_320c28a89f8cefce952706e7958febcad950cc54\",\"version\":4,\"success\":false,\"message\":\"The request contains some filter attributes with wrongly formatted values: region_id->HHZ.\",\"dateTime\":\"2026-04-20T18:36:13+00:00\",\"numberOfEntries\":1}"
+  },
+  "https://endpoints.leaflets.schwarz/v4/flyer/019d30fe-9e8f-712f-ba36-dcedd910f503": {
+    "status": 404,
+    "len": 232,
+    "ctype": "application/json",
+    "body0": "{\"self\":\"v4/error_response?error_id=exception_9a829aad808ee925b9b6ef14ad334f5b0e9826d0\",\"version\":4,\"success\":false,\"message\":\"The resource does not exist. (69e6721f05d90)\",\"dateTime\":\"2026-04-20T18:36:15+00:00\",\"numberOfEntries\":1}"
+  },
+  "https://endpoints.leaflets.schwarz/v4/flyer/019d30fe-9e8f-712f-ba36-dcedd910f503?region_id=0": {
+    "status": 404,
+    "len": 232,
+    "ctype": "application/json",
+    "body0": "{\"self\":\"v4/error_response?error_id=exception_568434c0398502b4a8cc278ba33e315e7f267bb6\",\"version\":4,\"success\":false,\"message\":\"The resource does not exist. (69e67220a4a4d)\",\"dateTime\":\"2026-04-20T18:36:16+00:00\",\"numberOfEntries\":1}"
+  },
+  "https://endpoints.leaflets.schwarz/v4/flyer-fallback?domain=www.lidl.pt": {
+    "status": 400,
+    "len": 287,
+    "ctype": "application/json",
+    "body0": "{\"self\":\"v4/error_response?error_id=exception_5974550ab1be362fa56f6bf06e641889a383a04b\",\"version\":4,\"success\":false,\"message\":\"The request contains some filter attributes with wrongly formatted values: domain_url->www.lidl.pt.\",\"dateTime\":\"2026-04-20T18:36:18+00:00\",\"numberOfEntries\":1}"
+  },
+  "https://endpoints.leaflets.schwarz/v4/flyer-fallback?domain=lidl.leaflets.schwarz": {
+    "status": 400,
+    "len": 297,
+    "ctype": "application/json",
+    "body0": "{\"self\":\"v4/error_response?error_id=exception_9b1c69bcc0e2699b7dfe575e8e765ec815f2daa1\",\"version\":4,\"success\":false,\"message\":\"The request contains some filter attributes with wrongly formatted values: domain_url->lidl.leaflets.schwarz.\",\"dateTime\":\"2026-04-20T18:36:20+00:00\",\"numberOfEntries\":1}"
+  },
+  "https://endpoints.leaflets.schwarz/v4/flyer-fallback?domain=lidl.pt": {
+    "status": 400,
+    "len": 283,
+    "ctype": "application/json",
+    "body0": "{\"self\":\"v4/error_response?error_id=exception_be6006d857aacd67dab6dd0a1b634bb612106741\",\"version\":4,\"success\":false,\"message\":\"The request contains some filter attributes with wrongly formatted values: domain_url->lidl.pt.\",\"dateTime\":\"2026-04-20T18:36:21+00:00\",\"numberOfEntries\":1}"
+  }
+}

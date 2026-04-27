@@ -5,6 +5,8 @@ import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
 import '../models/order_service_type.dart';
 import '../models/restaurant_model.dart';
+import '../services/order_eta_service.dart';
+import '../services/pricing_service.dart';
 import '../stores/cart_store.dart';
 import '../stores/favorite_store.dart';
 import '../stores/restaurant_store.dart';
@@ -23,11 +25,16 @@ class RestaurantsScreen extends StatelessWidget {
     final restaurants = restaurantStore.restaurants
         .where((business) =>
             business.category == BusinessCategory.restaurant &&
-            business.isOnline &&
             (!reservationsOnly ||
                 (business.isPartner && business.reservationsEnabled)))
         .toList()
-      ..sort((a, b) => a.name.compareTo(b.name));
+      ..sort((a, b) {
+        // Open ones first, then alphabetical.
+        final aOpen = a.isOpenNow();
+        final bOpen = b.isOpenNow();
+        if (aOpen != bOpen) return aOpen ? -1 : 1;
+        return a.name.compareTo(b.name);
+      });
 
     return Scaffold(
       backgroundColor: AppColors.surface,
@@ -57,6 +64,17 @@ class RestaurantsScreen extends StatelessWidget {
     RestaurantStore restaurantStore,
     RestaurantModel business,
   ) {
+    // Closed restaurants cannot receive orders.
+    if (!business.isOpenNow() && !reservationsOnly) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(business.statusLabel()),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
     // Partner restaurants must have a registered location in the DB.
     if (business.isPartner && business.location == null) {
       debugPrint(
@@ -202,7 +220,13 @@ class _RestaurantTile extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: Spacing.xs),
-                      _PartnerBadge(isPartner: isPartner),
+                      Row(
+                        children: [
+                          _OpenStatusBadge(business: business),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      _MetaRow(business: business),
                     ],
                   ),
                 ),
@@ -316,30 +340,115 @@ class _InitialBox extends StatelessWidget {
   }
 }
 
-class _PartnerBadge extends StatelessWidget {
-  const _PartnerBadge({required this.isPartner});
 
-  final bool isPartner;
+class _OpenStatusBadge extends StatelessWidget {
+  const _OpenStatusBadge({required this.business});
+
+  final RestaurantModel business;
 
   @override
   Widget build(BuildContext context) {
-    final color = isPartner ? AppColors.primary : AppColors.accent;
+    final open = business.isOpenNow();
+    final color = open ? Colors.green.shade700 : Colors.red.shade600;
     return Container(
-      padding: const EdgeInsets.symmetric(
-          horizontal: Spacing.sm, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(Radii.md),
         border: Border.all(color: color.withValues(alpha: 0.4), width: 1),
       ),
       child: Text(
-        isPartner ? 'Parceiro' : 'Não parceiro',
+        business.statusLabel(),
         style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w700,
           color: color,
         ),
       ),
+    );
+  }
+}
+
+class _MetaRow extends StatelessWidget {
+  const _MetaRow({required this.business});
+
+  final RestaurantModel business;
+
+  @override
+  Widget build(BuildContext context) {
+    final cart = context.watch<CartStore>();
+    final store = context.watch<RestaurantStore>();
+    final client = cart.deliveryLocation;
+    final pickup = business.location;
+    final distanceKm =
+        OrderEtaService.distanceKmBetween(client, pickup);
+    final window = OrderEtaService.deliveryWindowMinutes(
+      clientLocation: client,
+      restaurantLocation: pickup,
+    );
+    final fee = distanceKm == null
+        ? null
+        : PricingService.estimatedDeliveryFee(
+            distanceKm: distanceKm,
+            isPartner: business.isPartner,
+          );
+    final rating = store.avgRatingFor(business.id);
+
+    final chips = <Widget>[];
+    if (window != null) {
+      chips.add(_metaChip(
+        icon: Icons.schedule,
+        label: '${window.$1}-${window.$2} min',
+      ));
+    }
+    if (distanceKm != null) {
+      chips.add(_metaChip(
+        icon: Icons.place_outlined,
+        label: '${distanceKm.toStringAsFixed(1)} km',
+      ));
+    }
+    if (fee != null) {
+      chips.add(_metaChip(
+        icon: Icons.delivery_dining,
+        label: '€${fee.toStringAsFixed(2)}',
+      ));
+    }
+    if (rating != null) {
+      chips.add(_metaChip(
+        icon: Icons.star_rounded,
+        label: rating.toStringAsFixed(1),
+        iconColor: Colors.amber.shade700,
+      ));
+    }
+
+    if (chips.isEmpty) return const SizedBox.shrink();
+
+    return Wrap(
+      spacing: 10,
+      runSpacing: 4,
+      children: chips,
+    );
+  }
+
+  Widget _metaChip({
+    required IconData icon,
+    required String label,
+    Color? iconColor,
+  }) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 13, color: iconColor ?? AppColors.textSecondary),
+        const SizedBox(width: 3),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
+        ),
+      ],
     );
   }
 }

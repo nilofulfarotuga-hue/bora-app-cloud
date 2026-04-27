@@ -1,0 +1,53 @@
+=== SUMMARY ===
+{
+  "flyer_total": 32,
+  "bd_total": 62,
+  "threshold": 0.85,
+  "match_count_dedup": 14,
+  "unmatched_flyer": 18,
+  "collisions_count": 0,
+  "suspicious_count": 0
+}
+
+=== MATCHES (14) ===
+score  bd_name                                    | flyer_name:<42 | €bd -> €promo (-%)
+1.0    Grão de Bico Cozido                        | Grão de Bico Cozido                        | 0.85 -> 0.75 (-11%)
+1.0    Red Fish                                   | Red Fish                                   | 5.29 -> 4.75 (-10%)
+1.0    Chouriço Receita do Fundão                 | Chouriço Receita do Fundão                 | 2.49 -> 2.22 (-10%)
+1.0    Salame Extra Fatiado                       | Salame Extra Fatiado                       | 1.49 -> 1.34 (-10%)
+1.0    Fiambre da Pá Finíssimo                    | Fiambre da Pá Finíssimo                    | 1.25 -> 1.09 (-12%)
+1.0    Salsichas de Aves                          | Salsichas de Aves                          | 1.09 -> 0.96 (-11%)
+1.0    Condicionador Hairvital                    | Condicionador Hairvital                    | 2.39 -> 2.15 (-10%)
+1.0    Champô Hairvital                           | Champô Hairvital                           | 1.99 -> 1.79 (-10%)
+1.0    Peito de Frango Forno a Lenha              | Peito de Frango Forno a Lenha              | 1.89 -> 1.69 (-10%)
+1.0    Queijo Manchego DOP                        | Queijo Manchego DOP                        | 5.29 -> 4.75 (-10%)
+1.0    Sangria                                    | Sangria                                    | 1.69 -> 1.52 (-10%)
+1.0    Fio Dentário                               | Fio Dentário                               | 1.65 -> 1.48 (-10%)
+0.871  Hambúrguer de Frango com Bacon e Queijo    | Hambúrguer de Frango com Bacon e Queijo    | 2.49 -> 2.19 (-12%)
+0.85   Puré de Batata                             | BASKET Puré de Batata                      | 1.85 -> 1.65 (-10%)
+
+=== COLLISIONS (0 bd_ids with multiple flyer matches) ===
+
+=== UNMATCHED flyer rows (18) ===
+ best=0.78  flyer='Atum em Óleo Vegetal Preparado de Carne de Bovino XXL'  ~ bd='Preparado de Carne de Bovino XXL'
+ best=0.51  flyer='Batata de Conervação Vermelha Cebola Doce'  ~ bd='Broa de Milho Doce'
+ best=0.79  flyer='Mariscada XXL OCEAN SEA Miolo de Camarão 80/ 100'  ~ bd='Miolo de Camarão 80/100'
+ best=0.46  flyer='Promoção'  ~ bd='Arroz Carolino'
+ best=0.43  flyer='PVP recomendado 5.09'  ~ bd='Chocolate Recheado King Size'
+ best=0.64  flyer='Ervilhas CHEF SELECT/ MONISSA Cordon Bleu de Frango'  ~ bd='Cordon Bleu de Frango'
+ best=0.49  flyer='Arroz Carolino NACIONAL Espirais/ Macarrão Riscado'  ~ bd='Arroz Carolino'
+ best=0.27  flyer='*Face ao produto sempre disponível, quando comparado com o preço normal por 300 g: 1.55€ e 1 kg = 5.16€ Ovos de Galinhas Criadas no Solo Stock limitado'  ~ bd='Bife Frango Marinado Alho e Salsa'
+ best=0.49  flyer='de Chocolate CUÉTARA Tosta Rica Chocoguay'  ~ bd='Chocolate Branco'
+ best=0.43  flyer='PVP recomendado 1.99'  ~ bd='Chocolate Recheado King Size'
+ best=0.49  flyer='PVP recomendado 2.29 SOLEVITA Sumo de Maçã'  ~ bd='Sumo de Maçã'
+ best=0.45  flyer='Selection LIPTON Ice Tea Zero Açúcar Manga'  ~ bd='Iogurte Natural Açucarado'
+ best=0.61  flyer='7.98; 100 ml c/LP = 11.63/ 6.98 CIEN Gel de Banho de Argão'  ~ bd='Gel de Banho de Argão'
+ best=0.44  flyer='Molhos KANIA Cebola Frita'  ~ bd='Champô Hairvital'
+ best=0.36  flyer='Novo Stock limitado MARIBEL Manteiga 100% Amendoim'  ~ bd='Miolo de Camarão 80/100'
+ best=0.69  flyer='Promoção Red Fish'  ~ bd='Red Fish'
+ best=0.58  flyer='PVP recomendado 10.99 CAMPO LARGO Grão de Bico Cozido'  ~ bd='Grão de Bico Cozido'
+ best=0.84  flyer='Promoção FORMIL Detergente em Pó Frescura Azul'  ~ bd='Detergente em Pó Frescura Azul'
+
+=== SUSPICIOUS (0) ===
+
+Saved: c:/Users/danil/Desktop/projetosflutter/bora_app/.claude/.ai/tmp/lidl_folheto_matches.json

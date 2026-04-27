@@ -1,0 +1,52 @@
+{
+  "results": [
+    {
+      "pid": "4018004",
+      "status": 200,
+      "label": "ok",
+      "price_eur": "0.64",
+      "final_url": "https://www.continente.pt/produto/pastilhas-elasticas-banana-gorila-gorila-4018004.html",
+      "elapsed_s": 1.84
+    },
+    {
+      "pid": "8387513",
+      "status": 200,
+      "label": "ok",
+      "price_eur": "3.99",
+      "final_url": "https://www.continente.pt/produto/tablete-de-chocolate-de-leite-com-avelas-inteiras-milka-milka-8387513.html",
+      "elapsed_s": 2.05
+    },
+    {
+      "pid": "8391011",
+      "status": 200,
+      "label": "ok",
+      "price_eur": "1.99",
+      "final_url": "https://www.continente.pt/produto/iogurte-liquido-proteina-mirtilo-lindahls-lindahls-8391011.html",
+      "elapsed_s": 1.28
+    },
+    {
+      "pid": "8391019",
+      "status": 200,
+      "label": "ok",
+      "price_eur": "1.69",
+      "final_url": "https://www.continente.pt/produto/iogurte-natural-a-leiteira-a-leiteira-8391019.html",
+      "elapsed_s": 1.35
+    },
+    {
+      "pid": "8391026",
+      "status": 200,
+      "label": "ok",
+      "price_eur": "0.99",
+      "final_url": "https://www.continente.pt/produto/iogurte-proteina-ananas-e-coco-lindahls-lindahls-8391026.html",
+      "elapsed_s": 1.43
+    },
+    {
+      "pid": "8398347",
+      "status": 200,
+      "label": "ok",
+      "price_eur": "13.99",
+      "final_url": "https://www.continente.pt/produto/exfoliante-liquido-luminous-630-instant-glow-nivea-nivea-8398347.html",
+      "elapsed_s": 1.35
+    }
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "kimbino_main": {
+    "status": 301,
+    "len": 189161,
+    "final_url": "https://www.kimbino.pt/folhetos/lidl"
+  },
+  "kimbino_markers": {
+    "__NUXT_DATA__": 1,
+    "application/ld+json": 1,
+    ".pdf": 2,
+    "preco": 5,
+    "preço": 8,
+    "leaflet": 122,
+    "folheto": 112,
+    "discount": 10,
+    "offer": 30,
+    "product": 53
+  },
+  "kimbino_apis": [],
+  "kimbino_pdf_links": [
+    "https://d34seexzbffcio.cloudfront.net/d1b5145766b899b9019ccdf005d1391167bc930a7ec03.pdf",
+    "https://d34seexzbffcio.cloudfront.net/f1d88e59303cbb22a74aa7244684b69b68529c6f8e470.pdf"
+  ],
+  "kimbino_hosts": [
+    "appgallery.huawei.com",
+    "apps.apple.com",
+    "d34seexzbffcio.cloudfront.net",
+    "eu.kimbicdns.com",
+    "fonts.googleapis.com",
+    "fonts.gstatic.com",
+    "kimbinogreen.app.link",
+    "pagead2.googlesyndication.com",
+    "schema.org",
+    "ss.kimbino.hr",
+    "www.facebook.com",
+    "www.kimbino.pt",
+    "www.lidl.pt",
+    "www.linkedin.com"
+  ],
+  "promopreco_lidl": {
+    "status": 404,
+    "len": 8288,
+    "final_url": "https://www.promopreco.pt/supermercado/lidl"
+  },
+  "promopreco_folheto": {
+    "status": 404,
+    "len": 8258,
+    "final_url": "https://www.promopreco.pt/lidl/folheto"
+  },
+  "ofertasportugal": {
+    "err": "ConnectionError"
+  }
+}

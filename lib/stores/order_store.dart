@@ -648,22 +648,31 @@ class OrderStore extends ChangeNotifier {
       // Until that integration exists, MBWay orders block at the payment gate
       // by design (safe default).
 
-      await _simulateRestaurantFlow(order);
-      debugPrint(
-          '[FLOW] createOrder DONE id=${order.id} finalStatus=${order.status.name}');
+      // Fire-and-forget: status simulation is a best-effort side-effect.
+      // createOrder returns true as soon as the order is committed to the server.
+      _simulateRestaurantFlow(order).ignore();
+      debugPrint('[FLOW] createOrder DONE id=${order.id} — RPC committed, simulate async');
       return true;
     } catch (e) {
-      // Roll back optimistic insert if order was added before error occurred.
-      if (serverOrder != null) {
-        _orders.removeWhere((o) => o.id == serverOrder!.id);
-        notifyListeners();
-      }
       debugPrint('[FLOW] createOrder FAILED: $e');
+      if (serverOrder != null) {
+        // RPC committed the order to the server — do NOT roll back local state.
+        // Ensure the order is visible in the UI and return success.
+        final committed = serverOrder; // non-nullable capture for closure safety
+        if (!_orders.any((o) => o.id == committed.id)) {
+          _orders.insert(0, committed);
+        }
+        notifyListeners();
+        return true;
+      }
+      // RPC itself failed — order was never persisted on the server.
+      notifyListeners();
       return false;
     }
   }
 
   Future<void> _simulateRestaurantFlow(OrderModel order) async {
+    try {
     debugPrint(
         '[FLOW] _simulateFlow START id=${order.id} type=${order.serviceType.name} partner=${order.isPartnerStore} status=${order.status.name}');
 
@@ -727,6 +736,9 @@ class OrderStore extends ChangeNotifier {
     if (!reached) {
       debugPrint(
           '[FLOW] ERROR: failed to reach callingDriver — dispatch will NOT run');
+    }
+    } catch (e, st) {
+      debugPrint('[FLOW] _simulateFlow ERROR (background, order safe on server): $e\n$st');
     }
   }
 

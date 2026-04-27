@@ -1,0 +1,327 @@
+{
+  "phase": 1,
+  "completed_at": "2026-04-21T15:42:32.115Z",
+  "total_processed": 4253,
+  "counters": {
+    "updated": 589,
+    "igual": 3491,
+    "name_mismatch": 14,
+    "not_found": 58,
+    "needs_review": 2,
+    "http_error": 44,
+    "seed_excluded": 57
+  },
+  "unique_updated": 589,
+  "total_abs_delta_eur": 1094.84,
+  "signed_delta_eur": -892.12,
+  "magnitudes": {
+    "(0.01,0.10]": 24,
+    "(0.10,0.50]": 154,
+    "(0.50,1.00]": 121,
+    "(1.00,5.00]": 255,
+    "(5.00,20]": 30,
+    ">20": 5
+  },
+  "top_20_diffs": [
+    {
+      "id": "07d0bbe7-a55a-47a9-b0a1-d54c0b68aa89",
+      "pid": "8194662",
+      "name": "Lombos de Bacalhau Gourmet 12 Meses de Cura Congelado Caxamar",
+      "bd": 19.4932,
+      "site": 46.33,
+      "delta": 26.84,
+      "review": false
+    },
+    {
+      "id": "cnt-7993047",
+      "pid": "7993047",
+      "name": "Ra&ccedil;&atilde;o para C&atilde;o Adulto High Prairie Bisonte Taste of the Wild",
+      "bd": 83.49,
+      "site": 107,
+      "delta": 23.51,
+      "review": false
+    },
+    {
+      "id": "2d1f91e5-187f-4158-9973-4f76c4ac3c57",
+      "pid": "4421214",
+      "name": "Ração para Cão Adulto Borrego Purina One",
+      "bd": 66.904,
+      "site": 43.48,
+      "delta": -23.42,
+      "review": false
+    },
+    {
+      "id": "a17a7dd1-f9c8-4817-a699-613c194cf6c7",
+      "pid": "4421215",
+      "name": "Ração para Cão Adulto Frango Purina One",
+      "bd": 66.904,
+      "site": 43.48,
+      "delta": -23.42,
+      "review": false
+    },
+    {
+      "id": "e1df1a62-3d68-4347-9f8b-d4719edd07d4",
+      "pid": "8750314",
+      "name": "Lombos de Bacalhau 12 Meses de Cura MSC Riberalves",
+      "bd": 92.4951,
+      "site": 71,
+      "delta": -21.5,
+      "review": false
+    },
+    {
+      "id": "cnt-5246012",
+      "pid": "5246012",
+      "name": "Óleo Motor 5W30 Galp",
+      "bd": 54.99,
+      "site": 34.99,
+      "delta": -20,
+      "review": false
+    },
+    {
+      "id": "8f215a8e-4d9b-4e3c-9a23-1ba412c67413",
+      "pid": "4871358",
+      "name": "Ração para Cão Adulto Médio e Maxi Frango e Arroz Affinity Ultima",
+      "bd": 43.295,
+      "site": 23.8,
+      "delta": -19.5,
+      "review": false
+    },
+    {
+      "id": "22aa8aec-5ca9-480c-a01a-c0f375bdc667",
+      "pid": "5128365",
+      "name": "Ração para Cão Sénior Médio e Maxi Frango e Arroz Affinity Ultima",
+      "bd": 43.295,
+      "site": 23.8,
+      "delta": -19.5,
+      "review": false
+    },
+    {
+      "id": "a6c93e79-83df-4dca-aff2-becb86309921",
+      "pid": "6988201",
+      "name": "Snack para Cão Maxi Dentastix Pedigree",
+      "bd": 33.4915,
+      "site": 16.74,
+      "delta": -16.75,
+      "review": false
+    },
+    {
+      "id": "5da67516-a2a7-478d-8e53-8c4a837ae292",
+      "pid": "5239894",
+      "name": "Snack para Cão Adulto Dentastix Pedigree",
+      "bd": 26.993,
+      "site": 13.49,
+      "delta": -13.5,
+      "review": false
+    },
+    {
+      "id": "cnt-5363646",
+      "pid": "5363646",
+      "name": "Engenho Novo da Madeira Aguardente 40&ordm; Rum Agr&iacute;cola da Madeira",
+      "bd": 17.99,
+      "site": 29.99,
+      "delta": 12,
+      "review": false
+    },
+    {
+      "id": "1dd70e8d-1e11-4304-9b8b-3fc02e8c1d46",
+      "pid": "6420543",
+      "name": "Snack para Cão Adulto Mini Dentastix Pedigree",
+      "bd": 20.3923,
+      "site": 10.19,
+      "delta": -10.2,
+      "review": false
+    },
+    {
+      "id": "35919daa-1ead-4d57-b8d6-8082f640e793",
+      "pid": "7834867",
+      "name": "Recarga Escova de Dentes Elétrica Pro 3D White Branca Oral-B",
+      "bd": 24.996,
+      "site": 14.99,
+      "delta": -10.01,
+      "review": false
+    },
+    {
+      "id": "4ad93ed7-84a9-4c6a-bbb9-6daa3b70ac5b",
+      "pid": "6252406",
+      "name": "Papel Higiénico 4 Folhas Grand Royal Renova",
+      "bd": 17.49,
+      "site": 8.75,
+      "delta": -8.74,
+      "review": false
+    },
+    {
+      "id": "cnt-8513053",
+      "pid": "8513053",
+      "name": "LEGO Sonic The Hedgehog - Knuckles Vs Robô Egg Crusher - 77005",
+      "bd": 39.99,
+      "site": 31.99,
+      "delta": -8,
+      "review": false
+    },
+    {
+      "id": "087a82c9-d060-498d-bff3-0f29938fefdf",
+      "pid": "2113457",
+      "name": "Areia Não Aglomerante Natural Hygiene Plus Catsan",
+      "bd": 15.991,
+      "site": 7.99,
+      "delta": -8,
+      "review": false
+    },
+    {
+      "id": "1f848b73-6054-4ac2-b3c7-9d0d1d06ba48",
+      "pid": "6948410",
+      "name": "Papel Higiénico Mega Rolo Scottex",
+      "bd": 19.99,
+      "site": 11.99,
+      "delta": -8,
+      "review": false
+    },
+    {
+      "id": "0ddce840-0804-476b-81fd-748b6cda9751",
+      "pid": "7417760",
+      "name": "Ração para Cão Adulto Balance Frango e Legumes Purina Friskies",
+      "bd": 24.992,
+      "site": 17.49,
+      "delta": -7.5,
+      "review": false
+    },
+    {
+      "id": "ca0a8696-55d9-4b0e-a0d6-af944c0265a8",
+      "pid": "8385322",
+      "name": "Ração para Gato Adulto Salmão Affinity Ultima",
+      "bd": 20.998,
+      "site": 13.64,
+      "delta": -7.36,
+      "review": false
+    },
+    {
+      "id": "ed9932bc-1cfa-4d03-9181-a0ef996f8235",
+      "pid": "8421359",
+      "name": "Ração para Gato Adulto Esterilizado Salmão Affinity Ultima",
+      "bd": 20.998,
+      "site": 13.64,
+      "delta": -7.36,
+      "review": false
+    }
+  ],
+  "needs_review": [
+    {
+      "id": "cm-tl-004",
+      "pid": "2163679",
+      "name": "Bife de Vaca",
+      "bd": 8.99,
+      "site": 2.69,
+      "delta": -6.3,
+      "site_name": "Queijo Fundido Fatiado A Vaca que ri"
+    },
+    {
+      "id": "26dcad9f-1e68-4c20-9680-3c52e860dbd8",
+      "pid": "7925457",
+      "name": "Sacos Higiénicos Continente",
+      "bd": 5.16,
+      "site": 1.29,
+      "delta": -3.87,
+      "site_name": "Sacos Higiénicos Continente"
+    }
+  ],
+  "name_mismatch_sample": [
+    {
+      "id": "cm-bi-001",
+      "pid": "2003596",
+      "match": 0,
+      "bd_name": "Leite Bio 1L",
+      "site_name": "Grão de Bico Cozido sem Glúten Compal da Horta"
+    },
+    {
+      "id": "cm-bi-002",
+      "pid": "2003596",
+      "match": 0,
+      "bd_name": "Ovos Bio (6un)",
+      "site_name": "Grão de Bico Cozido sem Glúten Compal da Horta"
+    },
+    {
+      "id": "cm-bv-005",
+      "pid": "2003596",
+      "match": 0,
+      "bd_name": "Cerveja Lager (6un)",
+      "site_name": "Grão de Bico Cozido sem Glúten Compal da Horta"
+    },
+    {
+      "id": "cm-ov-003",
+      "pid": "2003596",
+      "match": 0,
+      "bd_name": "Ovos XL (6un)",
+      "site_name": "Grão de Bico Cozido sem Glúten Compal da Horta"
+    },
+    {
+      "id": "cm-ov-004",
+      "pid": "2003596",
+      "match": 0,
+      "bd_name": "Ovos Bio (6un)",
+      "site_name": "Grão de Bico Cozido sem Glúten Compal da Horta"
+    },
+    {
+      "id": "cm-ov-007",
+      "pid": "2003596",
+      "match": 0,
+      "bd_name": "Ovos Caipiras (6un)",
+      "site_name": "Grão de Bico Cozido sem Glúten Compal da Horta"
+    },
+    {
+      "id": "cm-px-003",
+      "pid": "2144985",
+      "match": 0,
+      "bd_name": "Pescada",
+      "site_name": "Salsichas Frankfurt Lata 10 un Continente"
+    },
+    {
+      "id": "cm-px-004",
+      "pid": "2144985",
+      "match": 0,
+      "bd_name": "Dourada",
+      "site_name": "Salsichas Frankfurt Lata 10 un Continente"
+    },
+    {
+      "id": "cm-px-005",
+      "pid": "2144985",
+      "match": 0,
+      "bd_name": "Robalo",
+      "site_name": "Salsichas Frankfurt Lata 10 un Continente"
+    },
+    {
+      "id": "cm-px-006",
+      "pid": "2144985",
+      "match": 0,
+      "bd_name": "Camarão",
+      "site_name": "Salsichas Frankfurt Lata 10 un Continente"
+    },
+    {
+      "id": "cm-px-007",
+      "pid": "2144985",
+      "match": 0,
+      "bd_name": "Lulas",
+      "site_name": "Salsichas Frankfurt Lata 10 un Continente"
+    },
+    {
+      "id": "cm-cg-008",
+      "pid": "2163679",
+      "match": 0.25,
+      "bd_name": "Hamburger de Vaca (4un)",
+      "site_name": "Queijo Fundido Fatiado A Vaca que ri"
+    },
+    {
+      "id": "cm-pt-006",
+      "pid": "2384858",
+      "match": 0,
+      "bd_name": "Coleira Antiparasitas",
+      "site_name": "Bolachas com Recheio de Leite e Cacau Tosta Rica Choco Guay Cuétara"
+    },
+    {
+      "id": "13bb1eb0-7c51-4a15-8415-524028d17c0b",
+      "pid": "8037028",
+      "match": 0.17,
+      "bd_name": "Morango Sem Resíduos de Pesticidas Candela",
+      "site_name": "Morango Continente"
+    }
+  ]
+}

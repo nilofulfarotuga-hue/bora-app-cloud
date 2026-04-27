@@ -1,9 +1,13 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
+import '../services/notification_service.dart';
 import '../stores/session_store.dart';
 import '../widgets/bora/bora_primary_button.dart';
 import 'register_client_screen.dart';
@@ -17,8 +21,12 @@ class ClientLoginScreen extends StatefulWidget {
 
 class _ClientLoginScreenState extends State<ClientLoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController(text: 'cliente@bora.app');
-  final _passwordController = TextEditingController(text: '123456');
+  final _emailController = TextEditingController(
+    text: kDebugMode ? 'cliente@bora.app' : '',
+  );
+  final _passwordController = TextEditingController(
+    text: kDebugMode ? '123456' : '',
+  );
   bool _isProcessing = false;
   bool _obscurePassword = true;
 
@@ -155,7 +163,16 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
                   loading: _isProcessing,
                   onPressed: _submit,
                 ),
-                const SizedBox(height: Spacing.md),
+                const SizedBox(height: Spacing.xs),
+
+                // ── Forgot password ───────────────────────────────────
+                Center(
+                  child: TextButton(
+                    onPressed: _isProcessing ? null : _forgotPassword,
+                    child: const Text('Esqueceu a palavra-passe?'),
+                  ),
+                ),
+                const SizedBox(height: Spacing.xs),
 
                 // ── Create account ────────────────────────────────────
                 SizedBox(
@@ -193,6 +210,30 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
     sessionStore.clearRole();
   }
 
+  Future<void> _forgotPassword() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty || !email.contains('@')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Introduza o seu email no campo acima antes de continuar.'),
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isProcessing = true);
+    await context.read<AuthStore>().resetDriverPassword(email);
+    if (!mounted) return;
+    setState(() => _isProcessing = false);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+            'Se existir uma conta com $email, receberá um email para redefinir a palavra-passe.'),
+      ),
+    );
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
@@ -214,6 +255,12 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
         const SnackBar(content: Text('Credenciais inválidas.')),
       );
       return;
+    }
+
+    // Persist FCM token for this client device so push notifications work.
+    final authUser = Supabase.instance.client.auth.currentUser;
+    if (authUser != null) {
+      NotificationService.instance.saveTokenForClient(authUser.id).ignore();
     }
 
     await sessionStore.setRole(UserRole.client);

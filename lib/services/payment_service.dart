@@ -129,28 +129,29 @@ class PaymentService {
     }
   }
 
-  Future<bool> payWithMBWay(double amount) async {
-    await Future.delayed(const Duration(milliseconds: 300));
-    return true;
-  }
-
-  /// Server-trusted MBWay confirmation. Invokes the `confirm-mbway-payment`
-  /// Edge Function which flips `orders.payment_status` to `paid` using the
-  /// service-role key. The client is NEVER allowed to write this field.
-  /// Temporary stub for the real MBWay webhook.
-  Future<bool> confirmMbwayPayment(String orderId) async {
+  /// Initiates a real MBWay charge via Stripe.
+  /// Creates + confirms a PaymentIntent server-side; Stripe sends push to user's MBWay app.
+  /// Resolution comes via stripe-webhook (payment_intent.succeeded → payment_status=paid).
+  Future<String?> initiateMbwayPayment({
+    required String orderId,
+    required String phone,
+  }) async {
     try {
       final response = await Supabase.instance.client.functions.invoke(
-        'confirm-mbway-payment',
-        body: {'orderId': orderId},
+        'create-mbway-payment-intent',
+        body: {'order_id': orderId, 'phone': phone},
       );
       final body = response.data as Map<String, dynamic>?;
-      final ok = body?['ok'] == true;
-      debugPrint('[PaymentService] confirmMbwayPayment($orderId) → $ok');
-      return ok;
+      if (body?['ok'] != true) {
+        debugPrint('[PaymentService] initiateMbwayPayment failed: $body');
+        return null;
+      }
+      final piId = body!['paymentIntentId'] as String?;
+      debugPrint('[PaymentService] MBWay intent initiated: $piId');
+      return piId;
     } catch (e) {
-      debugPrint('[PaymentService] confirmMbwayPayment error: $e');
-      return false;
+      debugPrint('[PaymentService] initiateMbwayPayment error: $e');
+      return null;
     }
   }
 

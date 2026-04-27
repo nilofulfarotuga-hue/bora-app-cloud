@@ -18,6 +18,8 @@ import '../services/sound_service.dart';
 import '../stores/session_store.dart';
 import '../widgets/address_text.dart';
 import 'partner_call_driver_screen.dart';
+import 'partner_earnings_screen.dart';
+import 'partner_hours_screen.dart';
 import 'partner_products_screen.dart';
 
 class PartnerDashboardScreen extends StatefulWidget {
@@ -32,6 +34,7 @@ class PartnerDashboardScreen extends StatefulWidget {
 class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
   final Set<String> _knownCreatedOrderIds = <String>{};
   final SoundService _soundService = SoundService();
+  Timer? _vibrationTimer;
 
   @override
   void initState() {
@@ -45,8 +48,24 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
 
   @override
   void dispose() {
+    _vibrationTimer?.cancel();
     _soundService.dispose();
     super.dispose();
+  }
+
+  Future<void> _startVibrationLoop() async {
+    if (_vibrationTimer != null) return;
+    if (!(await Vibration.hasVibrator())) return;
+    Vibration.vibrate(duration: 400);
+    _vibrationTimer =
+        Timer.periodic(const Duration(milliseconds: 2500), (_) {
+      Vibration.vibrate(duration: 400);
+    });
+  }
+
+  void _stopVibrationLoop() {
+    _vibrationTimer?.cancel();
+    _vibrationTimer = null;
   }
 
   Future<void> _handleTestMode() async {
@@ -64,14 +83,12 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
         .map((order) => order.id)
         .toSet();
 
-    final newOrders = createdIds.difference(_knownCreatedOrderIds);
-    if (newOrders.isNotEmpty) {
+    if (createdIds.isNotEmpty) {
       unawaited(_soundService.playLoop());
-      if (await Vibration.hasVibrator()) {
-        Vibration.vibrate(duration: 600);
-      }
-    } else if (createdIds.isEmpty) {
+      unawaited(_startVibrationLoop());
+    } else {
       unawaited(_soundService.stop());
+      _stopVibrationLoop();
     }
 
     _knownCreatedOrderIds
@@ -207,6 +224,36 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                   todayLabel: _ordersLabel(todayCount),
                   weekLabel: _ordersLabel(weekCount),
                   totalLabel: _ordersLabel(totalCount),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => PartnerEarningsScreen(
+                          restaurant: widget.restaurant,
+                        ),
+                      ),
+                    ),
+                    icon: const Icon(Icons.bar_chart),
+                    label: const Text('Ver detalhe de ganhos'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => PartnerHoursScreen(
+                          restaurant: currentRestaurant,
+                        ),
+                      ),
+                    ),
+                    icon: const Icon(Icons.schedule),
+                    label: const Text('Horários de funcionamento'),
+                  ),
                 ),
                 const SizedBox(height: 24),
                 _OverviewCard(

@@ -1,0 +1,13 @@
+{
+  "finished_at": "2026-04-21T19:49:21.628Z",
+  "total_catalog": 3506,
+  "processed": 3504,
+  "updated": 658,
+  "inserted": 2842,
+  "skipped": 3,
+  "no_pid_price_skipped": 266,
+  "name_guard_failed": 0,
+  "rate_limited_429": 0,
+  "errors": 3,
+  "dry_run": false
+}

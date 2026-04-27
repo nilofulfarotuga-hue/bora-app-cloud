@@ -1,0 +1,249 @@
+{
+  "total_raw": 238,
+  "total_dedup": 238,
+  "with_price": 62,
+  "with_image": 238,
+  "without_price": 176,
+  "without_image": 0,
+  "brand_lidl_assigned": 35,
+  "has_any_brand": 238,
+  "by_category_root": {
+    "Mundos de necessidade/Loja de bricolage e jardim/Flores, plantas e acessórios para plantas": {
+      "total": 2,
+      "with_price": 0,
+      "with_image": 2
+    },
+    "Mundos de necessidade/Alimentos e quase alimentos/Peixe e marisco": {
+      "total": 10,
+      "with_price": 7,
+      "with_image": 10
+    },
+    "Mundos de necessidade/Alimentos e quase alimentos/Flores e plantas (plantas vivas e ramos de flores)": {
+      "total": 4,
+      "with_price": 0,
+      "with_image": 4
+    },
+    "Mundos de necessidade/Alimentos e quase alimentos/Salsicha e carne": {
+      "total": 17,
+      "with_price": 14,
+      "with_image": 17
+    },
+    "Mundos de necessidade/Alimentos e quase alimentos/Gorduras, óleos, vinagre e conservas": {
+      "total": 10,
+      "with_price": 3,
+      "with_image": 10
+    },
+    "Mundos de necessidade/Alimentos e quase alimentos/Farmácia - higiene, alimentos para bebés, cosméticos, produtos de limpeza": {
+      "total": 14,
+      "with_price": 7,
+      "with_image": 14
+    },
+    "Mundos de necessidade/Moda e acessórios/Moda feminina": {
+      "total": 12,
+      "with_price": 0,
+      "with_image": 12
+    },
+    "Mundos de necessidade/Bebé, criança e brinquedos/Brinquedos": {
+      "total": 7,
+      "with_price": 0,
+      "with_image": 7
+    },
+    "Mundos de necessidade/Desporto e lazer/Bicicleta": {
+      "total": 15,
+      "with_price": 0,
+      "with_image": 15
+    },
+    "Mundos de necessidade/Loja de bricolage e jardim/Equipamento de jardim e ferramentas de jardim": {
+      "total": 2,
+      "with_price": 0,
+      "with_image": 2
+    },
+    "Mundos de necessidade/Cozinha e casa/Armazenamento e organização": {
+      "total": 1,
+      "with_price": 0,
+      "with_image": 1
+    },
+    "Mundos de necessidade/Habitação e mobiliário/Beleza e cuidados corporais": {
+      "total": 10,
+      "with_price": 0,
+      "with_image": 10
+    },
+    "Mundos de necessidade/Habitação e mobiliário/Aquecimento e refrigeração": {
+      "total": 1,
+      "with_price": 0,
+      "with_image": 1
+    },
+    "Mundos de necessidade/Habitação e mobiliário/Casa de banho": {
+      "total": 8,
+      "with_price": 0,
+      "with_image": 8
+    },
+    "Mundos de necessidade/Habitação e mobiliário/Jardim e varanda": {
+      "total": 3,
+      "with_price": 0,
+      "with_image": 3
+    },
+    "Mundos de necessidade/Loja de bricolage e jardim/Oficina e ferragens": {
+      "total": 1,
+      "with_price": 0,
+      "with_image": 1
+    },
+    "Mundos de necessidade/Habitação e mobiliário/Decoração": {
+      "total": 1,
+      "with_price": 0,
+      "with_image": 1
+    },
+    "Mundos de necessidade/Bebé, criança e brinquedos/Roupa de criança 2-8 anos": {
+      "total": 4,
+      "with_price": 0,
+      "with_image": 4
+    },
+    "Mundos de necessidade/Bebé, criança e brinquedos/Roupa de bebé": {
+      "total": 5,
+      "with_price": 0,
+      "with_image": 5
+    },
+    "Mundos de necessidade/Moda e acessórios/Roupa de homem": {
+      "total": 8,
+      "with_price": 0,
+      "with_image": 8
+    },
+    "Mundos de necessidade/Desporto e lazer/Fitness": {
+      "total": 3,
+      "with_price": 0,
+      "with_image": 3
+    },
+    "Mundos de necessidade/Alimentos e quase alimentos/Alimentos congelados (Alimentos congelados)": {
+      "total": 18,
+      "with_price": 5,
+      "with_image": 18
+    },
+    "Mundos de necessidade/Alimentos e quase alimentos/Frutas e legumes": {
+      "total": 7,
+      "with_price": 2,
+      "with_image": 7
+    },
+    "Mundos de necessidade/Alimentos e quase alimentos/Pão e produtos de pastelaria": {
+      "total": 3,
+      "with_price": 3,
+      "with_image": 3
+    },
+    "Mundos de necessidade/Alimentos e quase alimentos/Refeições prontas (exceto pizza congelada, etc. e produtos de pastelaria)": {
+      "total": 7,
+      "with_price": 2,
+      "with_image": 7
+    },
+    "Mundos de necessidade/Alimentos e quase alimentos/Queijo e produtos lácteos (incluindo manteiga e queijo)": {
+      "total": 9,
+      "with_price": 4,
+      "with_image": 9
+    },
+    "Mundos de necessidade/Alimentos e quase alimentos/Ovos e alimentos básicos (massas, farinha, leguminosas, etc.)": {
+      "total": 9,
+      "with_price": 4,
+      "with_image": 9
+    },
+    "Mundos de necessidade/Alimentos e quase alimentos/Snacks e produtos de confeitaria": {
+      "total": 19,
+      "with_price": 4,
+      "with_image": 19
+    },
+    "Mundos de necessidade/Alimentos e quase alimentos/Café, chá e cacau": {
+      "total": 4,
+      "with_price": 2,
+      "with_image": 4
+    },
+    "Mundos de necessidade/Alimentos e quase alimentos/Bebidas": {
+      "total": 18,
+      "with_price": 4,
+      "with_image": 18
+    },
+    "Mundos de necessidade/Vinho e bebidas espirituosas/Vinho/Vinho rosé": {
+      "total": 1,
+      "with_price": 0,
+      "with_image": 1
+    },
+    "Mundos de necessidade/Vinho e bebidas espirituosas/Vinho/Vinho branco": {
+      "total": 2,
+      "with_price": 1,
+      "with_image": 2
+    },
+    "Mundos de necessidade/Vinho e bebidas espirituosas/Vinho/Vinho tinto": {
+      "total": 1,
+      "with_price": 0,
+      "with_image": 1
+    },
+    "Mundos de necessidade/Alimentos e quase alimentos/Especiarias, mostarda e molhos": {
+      "total": 1,
+      "with_price": 0,
+      "with_image": 1
+    },
+    "Mundos de necessidade/Alimentos e quase alimentos/Compota, marmelada e mel": {
+      "total": 1,
+      "with_price": 0,
+      "with_image": 1
+    }
+  },
+  "offsets_log": [
+    {
+      "offset": 0,
+      "numFound": 238,
+      "items": 108
+    },
+    {
+      "offset": 108,
+      "numFound": 238,
+      "items": 108
+    },
+    {
+      "offset": 216,
+      "numFound": 238,
+      "items": 22
+    }
+  ],
+  "sitemap_declared_635": 635,
+  "missing_price_samples": [
+    {
+      "id": 10041723,
+      "title": "Molho de Tulipas"
+    },
+    {
+      "id": 10042263,
+      "title": "Lula Limpa XXL"
+    },
+    {
+      "id": 10042565,
+      "title": "Hortênsia Nacional"
+    },
+    {
+      "id": 10044444,
+      "title": "Maionese Formato XXL"
+    },
+    {
+      "id": 10044600,
+      "title": "Elvive Champô Hidra Hialurónico"
+    },
+    {
+      "id": 10044602,
+      "title": "Elvive Amaciador Hidra Hialurónico"
+    },
+    {
+      "id": 10044780,
+      "title": "T-shirt em Malha Ajour"
+    },
+    {
+      "id": 10044782,
+      "title": "Saia-calção em Ganga"
+    },
+    {
+      "id": 10044784,
+      "title": "Insuflável para Crianças"
+    },
+    {
+      "id": 10044786,
+      "title": "Suporte de Montagem para Bicicletas"
+    }
+  ],
+  "missing_image_samples": [],
+  "foreign_language_samples": []
+}

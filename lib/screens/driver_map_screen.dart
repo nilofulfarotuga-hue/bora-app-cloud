@@ -1339,9 +1339,7 @@ class _BottomPanelState extends State<_BottomPanel> {
                   if (focusOrder.isPurchaseFinalized &&
                       focusOrder.finalTotal != null)
                     _FinalizedBanner(finalTotal: focusOrder.finalTotal!)
-                  else if (focusOrder.items.isEmpty ||
-                      focusOrder.items
-                          .every((i) => i.purchaseStatus != 'pending'))
+                  else if (!focusOrder.isPurchaseFinalized)
                     _FinalizePurchaseButton(order: focusOrder),
                 ],
 

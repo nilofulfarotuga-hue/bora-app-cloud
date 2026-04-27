@@ -1,0 +1,21 @@
+{
+  "status": 200,
+  "len": 1158,
+  "final_url": "https://www.lidl.pt/l/pt/folhetos/promocoes-a-partir-de-20-04/ar/0?lf=HHZ",
+  "markers": {
+    "leaflets.schwarz": 3
+  },
+  "hosts_in_html": [
+    "lidl.leaflets.schwarz"
+  ],
+  "api_like_paths": [],
+  "uuids_in_html": [],
+  "pdf_links": [],
+  "script_srcs": [
+    "https://lidl.leaflets.schwarz/assets/index-5bff3028.js"
+  ],
+  "canonical": null,
+  "leaflet_blob": null,
+  "inline_script_json_snippets": [],
+  "api_hints_deep": []
+}

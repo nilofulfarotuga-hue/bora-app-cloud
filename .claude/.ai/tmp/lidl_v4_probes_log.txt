@@ -1,0 +1,11 @@
+200 40500 https://endpoints.leaflets.schwarz/v4/flyer?flyer_identifier=019d30fe-9e8f-712f-ba36-dcedd910f503
+200 40512 https://endpoints.leaflets.schwarz/v4/flyer?flyer_identifier=019d30fe-9e8f-712f-ba36-dcedd910f503&region_id=0
+200 40512 https://endpoints.leaflets.schwarz/v4/flyer?flyer_identifier=019d30fe-9e8f-712f-ba36-dcedd910f503&region_id=1
+400 278 https://endpoints.leaflets.schwarz/v4/flyer?flyer_identifier=019d30fe-9e8f-712f-ba36-dcedd910f503&region_id=HHZ
+404 232 https://endpoints.leaflets.schwarz/v4/flyer/019d30fe-9e8f-712f-ba36-dcedd910f503
+404 232 https://endpoints.leaflets.schwarz/v4/flyer/019d30fe-9e8f-712f-ba36-dcedd910f503?region_id=0
+400 287 https://endpoints.leaflets.schwarz/v4/flyer-fallback?domain=www.lidl.pt
+400 297 https://endpoints.leaflets.schwarz/v4/flyer-fallback?domain=lidl.leaflets.schwarz
+400 283 https://endpoints.leaflets.schwarz/v4/flyer-fallback?domain=lidl.pt
+
+Saved sample: https://endpoints.leaflets.schwarz/v4/flyer?flyer_identifier=019d30fe-9e8f-712f-ba36-dcedd910f503 -> c:/Users/danil/Desktop/projetosflutter/bora_app/.claude/.ai/tmp/lidl_v4_flyer_sample.json

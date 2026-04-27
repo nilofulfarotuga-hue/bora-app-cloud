@@ -1,0 +1,44 @@
+=== VITE_API_VERSION ===
+--- !==void 0).reduce((t,[n,r])=>({...t,[n]:r}),{}),TE=()=>{const{VITE_THEME:e}={VITE_BASE:"https://lidl.leaflets.schwarz/",VITE_API_VERSION:"v4",VITE_MOBILE_API_URL:"https://mobile.lidl.de/Mobile-Server/service/94",VITE_QUIT_URL:"https://info.lidl/en",VITE_TH
+--- LForm(e)?new FormData(e):e);je.getAdapter=o4.getAdapter;je.HttpStatusCode=zC;je.default=je;const _c=je,{VITE_API_URL:Fp,VITE_API_VERSION:Su,VITE_ENV:VC,VITE_MOBILE_API_URL:BC,VITE_CMS_URL:UO,VITE_API_BASE_URL_LIDL_US:FC}={VITE_BASE:"https://lidl.leaflets.s
+--- ENV:VC,VITE_MOBILE_API_URL:BC,VITE_CMS_URL:UO,VITE_API_BASE_URL_LIDL_US:FC}={VITE_BASE:"https://lidl.leaflets.schwarz/",VITE_API_VERSION:"v4",VITE_MOBILE_API_URL:"https://mobile.lidl.de/Mobile-Server/service/94",VITE_QUIT_URL:"https://info.lidl/en",VITE_TH
+
+=== VITE_API_VERSION: ===
+--- !==void 0).reduce((t,[n,r])=>({...t,[n]:r}),{}),TE=()=>{const{VITE_THEME:e}={VITE_BASE:"https://lidl.leaflets.schwarz/",VITE_API_VERSION:"v4",VITE_MOBILE_API_URL:"https://mobile.lidl.de/Mobile-Server/service/94",VITE_QUIT_URL:"https://info.lidl/en",VITE_THE
+--- LForm(e)?new FormData(e):e);je.getAdapter=o4.getAdapter;je.HttpStatusCode=zC;je.default=je;const _c=je,{VITE_API_URL:Fp,VITE_API_VERSION:Su,VITE_ENV:VC,VITE_MOBILE_API_URL:BC,VITE_CMS_URL:UO,VITE_API_BASE_URL_LIDL_US:FC}={VITE_BASE:"https://lidl.leaflets.sc
+--- ENV:VC,VITE_MOBILE_API_URL:BC,VITE_CMS_URL:UO,VITE_API_BASE_URL_LIDL_US:FC}={VITE_BASE:"https://lidl.leaflets.schwarz/",VITE_API_VERSION:"v4",VITE_MOBILE_API_URL:"https://mobile.lidl.de/Mobile-Server/service/94",VITE_QUIT_URL:"https://info.lidl/en",VITE_THE
+
+=== API_VERSION": ===
+
+=== Fp:" ===
+
+=== Su:" ===
+
+=== v"+ ===
+--- {return typeof r===e||"a"+(t<1?"n ":" ")+e}});const Bp={};Ec.transitional=function(t,n,r){function o(i,s){return"[Axios v"+i4+"] Transitional option '"+i+"'"+s+(r?". "+r:"")}return(i,s,a)=>{if(t===!1)throw new ie(o(s," has been removed"+(n?" i
+--- n removed"+(n?" in "+n:"")),ie.ERR_DEPRECATED);return n&&!Bp[s]&&(Bp[s]=!0,console.warn(o(s," has been deprecated since v"+n+" and will be removed in the near future"))),t?t(i,s,a):!0}};Ec.spelling=function(t){return(n,r)=>(console.warn(`${r} 
+
+=== baseURL: ===
+--- eturn r(void 0,f)}function a(u,f,d){if(d in t)return r(u,f);if(d in e)return r(void 0,u)}const l={url:i,method:i,data:i,baseURL:s,transformRequest:s,transformResponse:s,paramsSerializer:s,timeout:s,timeoutMessage:s,withCredentials:s,withXSRFToken:s
+--- Version:r=Su}=Qr();e=`${decodeURIComponent(n)}/${r}`,console.info(`API URL has been set to ${e} :-)`)}return _c.create({baseURL:e})},a4=()=>_c.create({baseURL:`${BC}/`}),UC=()=>_c.create({baseURL:"/p/api/"});function Ff(e,t){if(e!=null&&e.data.succ
+--- RIComponent(n)}/${r}`,console.info(`API URL has been set to ${e} :-)`)}return _c.create({baseURL:e})},a4=()=>_c.create({baseURL:`${BC}/`}),UC=()=>_c.create({baseURL:"/p/api/"});function Ff(e,t){if(e!=null&&e.data.success&&(!t||e.data[t]))return!0;t
+
+=== "v1" ===
+
+=== "v2" ===
+
+=== "v3" ===
+
+=== ${Fp}/${Su} templates ===
+--- /asset.schwarz/track/",BASE_URL:"https://lidl.leaflets.schwarz/",MODE:"lidl.prod",DEV:!1,PROD:!0,SSR:!1},Bf=()=>{let e=`${Fp}/${Su}`;const t=kE();if(t&&(e=`${FC}/${Su}`),VC!=="production"&&!t){const{apiUrl:n=Fp,apiVersion:r=Su}=Qr();e=`${decodeURIComponent(n)}/${r}`,console.info(`API URL has been set to ${e} :-)`)}return _c.creat
+
+=== URL paths with 'flyer' or 'pages' ===
+  ${p.data.canonicalUrl}?msAbTestVariationKey=cx&layout=flyer&hidebanner=true&flyx=${n}
+  )}}async function QD(e,t,n){const r="flyer",o=new URLSearchParams({flyer_identifier:e});return typeof t<"u"&&t>=0&&(o.append("region_id",
+  /${t.uuid}/view/flyer/page/${u}?${decodeURIComponent(o.toString())}
+  flyer-fallback?domain=${xg()}
+
+=== literal v1/ v2/ v3/ v4/ ===
+
+=== VITE env defaults (near BASE_URL) ===
+VITE_BASE:"https://lidl.leaflets.schwarz/",VITE_API_VERSION:"v4",VITE_MOBILE_API_URL:"https://mobile.lidl.de/Mobile-Server/service/94",VITE_QUIT_URL:"https://info.lidl/en",VITE_THEME:"lidl",VITE_VERSION:"5.42.0",VITE_NAME:"Flyer System",VITE_ESI_KAMELEOON:"<esi:include src='/kam/esi' />",VITE_ENV:"production",VITE_API_URL:"https://endpoints.leaflets.schwarz",VITE_API_BASE_URL_LIDL_US:"https://www.lidl.com/flyer/endpoints",VITE_CMS_URL:"https://cms.leaflets.schwarz",VITE_DATA_LAYER_SERVICE_BASE_URL:"https://asset.schwarz/track/",BASE_URL:"https://lidl.leaflets.schwarz/",MODE:"lidl.prod",DEV:!1,PROD:!0,SSR:!1

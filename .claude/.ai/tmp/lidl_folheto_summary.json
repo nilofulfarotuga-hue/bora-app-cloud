@@ -1,0 +1,140 @@
+{
+  "total_raw": 33,
+  "total_dedup": 32,
+  "by_flyer": {
+    "promocoes": {
+      "total": 32,
+      "with_brand": 14,
+      "with_unit": 29,
+      "promo_avg": 3.06,
+      "promo_min": 0.75,
+      "promo_max": 12.99
+    }
+  },
+  "per_flyer_runs": {
+    "promocoes": {
+      "products": 33,
+      "uuid": "019d96ba-f920-76a6-bd89-dfa45929e51d"
+    },
+    "novidades": {
+      "products": 0,
+      "uuid": "019d96ba-7d3a-7572-a513-c784f18f60be"
+    },
+    "cien": {
+      "products": 0,
+      "uuid": "019ce724-074a-7c32-90f1-a17a9255192b"
+    }
+  },
+  "samples": [
+    {
+      "flyer": "promocoes",
+      "page": 1,
+      "brand": "CAMPO LARGO",
+      "name": "Grão de Bico Cozido",
+      "unit": "Emb. 400 g",
+      "base": "1 kg c/ LP = 1.63",
+      "price_normal": 0.85,
+      "price_promo": 0.75,
+      "discount_pct": 11
+    },
+    {
+      "flyer": "promocoes",
+      "page": 1,
+      "brand": null,
+      "name": "Red Fish",
+      "unit": "Vendido ao kg",
+      "base": null,
+      "price_normal": 5.29,
+      "price_promo": 4.75,
+      "discount_pct": 10
+    },
+    {
+      "flyer": "promocoes",
+      "page": 1,
+      "brand": "RAMIREZ",
+      "name": "Atum em Óleo Vegetal Preparado de Carne de Bovino XXL",
+      "unit": "Emb. 1 kg",
+      "base": "1 kg = 9.67; 1 kg c/LP = 8.25",
+      "price_normal": 11.69,
+      "price_promo": 10.85,
+      "discount_pct": 7
+    },
+    {
+      "flyer": "promocoes",
+      "page": 3,
+      "brand": null,
+      "name": "Batata de Conervação Vermelha Cebola Doce",
+      "unit": "Emb. 1 kg",
+      "base": "1 kg = 0.83",
+      "price_normal": 1.29,
+      "price_promo": 0.99,
+      "discount_pct": 23
+    },
+    {
+      "flyer": "promocoes",
+      "page": 5,
+      "brand": null,
+      "name": "Hambúrguer de Frango com Bacon e Queijo Espetada de Peru",
+      "unit": "Vendido ao kg",
+      "base": "1 kg = 9.13; 1 kg c/ LP = 8.29",
+      "price_normal": 2.49,
+      "price_promo": 2.19,
+      "discount_pct": 12
+    },
+    {
+      "flyer": "promocoes",
+      "page": 6,
+      "brand": "OCEAN SEA",
+      "name": "Mariscada XXL OCEAN SEA Miolo de Camarão 80/ 100",
+      "unit": "Emb. 250 g",
+      "base": "1 kg = 13.00; 1 kg c/ LP = 11.56",
+      "price_normal": 3.65,
+      "price_promo": 3.25,
+      "discount_pct": 10
+    },
+    {
+      "flyer": "promocoes",
+      "page": 6,
+      "brand": null,
+      "name": "Promoção",
+      "unit": null,
+      "base": null,
+      "price_normal": 12.29,
+      "price_promo": 11.42,
+      "discount_pct": 7
+    },
+    {
+      "flyer": "promocoes",
+      "page": 7,
+      "brand": null,
+      "name": "Chouriço Receita do Fundão",
+      "unit": "Emb. 200 g",
+      "base": "1 kg c/ LP = 9.95",
+      "price_normal": 2.49,
+      "price_promo": 2.22,
+      "discount_pct": 10
+    },
+    {
+      "flyer": "promocoes",
+      "page": 7,
+      "brand": "DULANO",
+      "name": "Salame Extra Fatiado",
+      "unit": "Emb. 150 g",
+      "base": "1 kg c/ LP = 7.93",
+      "price_normal": 1.49,
+      "price_promo": 1.34,
+      "discount_pct": 10
+    },
+    {
+      "flyer": "promocoes",
+      "page": 7,
+      "brand": "FUMADINHO",
+      "name": "Fiambre da Pá Finíssimo",
+      "unit": "Emb. 150 g",
+      "base": "1 kg = 7.27; 1 kg c/ LP = 6.33",
+      "price_normal": 1.25,
+      "price_promo": 1.09,
+      "discount_pct": 12
+    }
+  ]
+}

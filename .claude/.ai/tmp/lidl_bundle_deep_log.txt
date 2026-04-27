@@ -1,0 +1,25 @@
+=== 'view/flyer/page' contexts ===
+---
+US"&&window.self!==window.top){const u=`${n.pathname}${n.search}`;window.parent.postMessage({type:"FLYER_DEEPLINK_UPDATE",deepLink:u},"*")}},[t,n.pathname,n.search,i]);const s=()=>{const u=o.get("page")??t.page??1;return o.delete("page"),`/${t.uuid}/view/flyer/page/${u}?${decodeURIComponent(o.toString())}`},a=()=>{r(Ta({params:{...t,page:parseInt(o.get("page"),10)},searchQuery:Qr(n.search)}))};let l=!Object.values(G).includes(`${t.view}`);return o.has("page")&&(a(),l=!0),l?v.jsx(fg,{to:s(),replace:!0}):v.jsx(v
+
+=== 'productService' contexts ===
+---
+,{targetRef:f})]})},d0=({targetRef:e})=>(c.useEffect(()=>{const t=setTimeout(()=>{e.current&&e.current.focus()},0);return()=>clearTimeout(t)},[]),null),Fb=c.memo(Bb);async function $O(e,t,n){const r=`productService/${e}/product/EN/${t}`;try{return(await a4().get(r,{...n&&{params:{warehouseKey:n}},validateStatus:i=>i>=200&&i<300&&i!==204})).data}catch{throw new Error(`Product not found ${t}`)}}async function Ub(
+---
+/${t}`;try{return(await a4().get(r,{...n&&{params:{warehouseKey:n}},validateStatus:i=>i>=200&&i<300&&i!==204})).data}catch{throw new Error(`Product not found ${t}`)}}async function Ub(e,t,n){const r=`productService/${e}/productsForOverviewDisplay/EN/`;try{return(await a4().post(r,{ProductIds:t},{...n&&{params:{warehouseKey:n}}})).data}catch{throw new Error(`Products not found ${t.join(",")}`)}}async function jb
+
+=== 'productsForOverviewDisplay' contexts ===
+---
+ait a4().get(r,{...n&&{params:{warehouseKey:n}},validateStatus:i=>i>=200&&i<300&&i!==204})).data}catch{throw new Error(`Product not found ${t}`)}}async function Ub(e,t,n){const r=`productService/${e}/productsForOverviewDisplay/EN/`;try{return(await a4().post(r,{ProductIds:t},{...n&&{params:{warehouseKey:n}}})).data}catch{throw new Error(`Products not found ${t.join(",")}`)}}async function jb(e,t,n){const r=`/detail/${e}/${
+
+=== 'VITE_API_URL' usage ===
+---
+o.lidl/en",VITE_THEME:"lidl",VITE_VERSION:"5.42.0",VITE_NAME:"Flyer System",VITE_ESI_KAMELEOON:"<esi:include src='/kam/esi' />",VITE_ENV:"production",VITE_API_URL:"https://endpoints.leaflets.schwarz",VITE_API_BASE_URL_LIDL_US:"https://www.lidl.com/flyer/endpoints",VITE_CMS_URL:"https://cms.leaflets.schwarz",VIT
+---
+je.AxiosHeaders=fn;je.formToJSON=e=>Qg(O.isHTMLForm(e)?new FormData(e):e);je.getAdapter=o4.getAdapter;je.HttpStatusCode=zC;je.default=je;const _c=je,{VITE_API_URL:Fp,VITE_API_VERSION:Su,VITE_ENV:VC,VITE_MOBILE_API_URL:BC,VITE_CMS_URL:UO,VITE_API_BASE_URL_LIDL_US:FC}={VITE_BASE:"https://lidl.leaflets.schwarz/",V
+
+=== 'HHZ' contexts ===
+
+=== 'detail/' URL template contexts ===
+---
+OverviewDisplay/EN/`;try{return(await a4().post(r,{ProductIds:t},{...n&&{params:{warehouseKey:n}}})).data}catch{throw new Error(`Products not found ${t.join(",")}`)}}async function jb(e,t,n){const r=`/detail/${e}/${t.toUpperCase()}/${n.substring(0,2)}`;try{return await UC().get(r)}catch(o){if(_c.isAxiosError(o)&&o.response)return o.response;throw new Error(`Product not found ${e}`)}}const $b="_wrapper_1cr

@@ -29,7 +29,14 @@
       "Bash(node scrape.js)",
       "mcp__plugin_context-mode_context-mode__ctx_doctor",
       "mcp__plugin_context-mode_context-mode__ctx_upgrade",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(python .claude/.ai/scripts/phase0_test_one.py)",
+      "Bash(python *)",
+      "Bash(claude mcp *)",
+      "Bash(rm -rf /c/Users/danil/AppData/Local/Temp/*)",
+      "Bash(rm -rf /c/Windows/Temp/*)",
+      "Bash(git checkout *)",
+      "Bash(git push *)"
     ]
   },
   "enableAllProjectMcpServers": true,

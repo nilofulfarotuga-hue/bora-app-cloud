@@ -1,0 +1,33 @@
+$ dict keys=['self', 'version', 'success', 'message', 'dateTime', 'numberOfEntries', 'flyer']
+$.self str: 'v4/flyer?flyer_identifier=019d30fe-9e8f-712f-ba36-dcedd910f503'
+$.version int: 4
+$.success bool: True
+$.message str: 'Requested Flyer found.'
+$.dateTime str: '2026-04-20T18:36:07+00:00'
+$.numberOfEntries int: 1
+$.flyer dict keys=['id', 'name', 'title', 'locale', 'clientLocale', 'apiCountryCode', 'countryCode', 'category', 'subcategory', 'quitUrl', 'homeUrl', 'privacyUrl', 'imprintUrl', 'newsletterUrl', 'isActive']
+$.flyer.id str: '019d30fe-9e8f-712f-ba36-dcedd910f503'
+$.flyer.name str: 'Folheto Especial'
+$.flyer.title str: 'Silvercrest'
+$.flyer.locale str: 'pt-PT'
+$.flyer.clientLocale str: 'lidl/pt-PT'
+$.flyer.apiCountryCode str: 'PT'
+$.flyer.countryCode str: 'PT'
+$.flyer.category str: 'HHZ PT'
+$.flyer.subcategory str: 'Especiais'
+$.flyer.quitUrl str: 'https://www.lidl.pt/c/folhetos/s10020672'
+$.flyer.homeUrl str: 'https://www.lidl.pt'
+$.flyer.privacyUrl str: 'https://www.lidl.pt/c/protecao-de-dados-lidl-pt/s10026939'
+
+=== Top-level preview ===
+  self: 'v4/flyer?flyer_identifier=019d30fe-9e8f-712f-ba36-dcedd910f503'
+  version: 4
+  success: True
+  message: 'Requested Flyer found.'
+  dateTime: '2026-04-20T18:36:07+00:00'
+  numberOfEntries: 1
+  flyer: dict keys=['id', 'name', 'title', 'locale', 'clientLocale', 'apiCountryCode', 'countryCode', 'category', 'subcategory', 'quitUrl']
+
+=== flyer ===
+ keys=['id', 'name', 'title', 'locale', 'clientLocale', 'apiCountryCode', 'countryCode', 'category', 'subcategory', 'quitUrl', 'homeUrl', 'privacyUrl', 'imprintUrl', 'newsletterUrl', 'isActive']
+ preview: {"id": "019d30fe-9e8f-712f-ba36-dcedd910f503", "name": "Folheto Especial", "title": "Silvercrest", "locale": "pt-PT", "clientLocale": "lidl/pt-PT", "apiCountryCode": "PT", "countryCode": "PT", "category": "HHZ PT", "subcategory": "Especiais", "quitUrl": "https://www.lidl.pt/c/folhetos/s10020672", "homeUrl": "https://www.lidl.pt", "privacyUrl": "https://www.lidl.pt/c/protecao-de-dados-lidl-pt/s10026939", "imprintUrl": "https://www.lidl.pt/c/ficha-tecnica-lidl-pt/s10027346", "newsletterUrl": "https://www.lidl.pt/subscricao-da-newsletter?utm_source=pageflip&utm_medium=intern&utm_campaign=newslett

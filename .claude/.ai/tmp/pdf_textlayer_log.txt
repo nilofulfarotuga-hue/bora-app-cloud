@@ -1,0 +1,91 @@
+Downloading https://object.storage.eu01.onstackit.cloud/leaflets/pdfs/019d96ba-f920-76a6-bd89-dfa45929e51d/Promocoes-A-partir-de-20-04-01.pdf
+ status 200 size None
+ saved c:/Users/danil/Desktop/projetosflutter/bora_app/.claude/.ai/tmp/lidl_promocoes_20260420.pdf 33610095 bytes
+ pypdf not installed — trying pip install...
+ pages=33
+ total_text_chars=48174
+ first pages text preview:
+
+--- page 1 ---
+A partir de 6.ª feira 24/4 a 26/4
+Nº1
+PREÇO
+SEGUNDO OS CONSUMIDORES*
+EM
+OCEAN SEA
+Miolo de 
+Camarão  
+80/ 100
+Emb. 250 g
+1 kg = 13.00 
+1 kg c/ LP = 11.56
+3.25
+3.65-10%
+2.89
+Com Lidl Plus
+-20%
+CAMPO LARGO
+Grão de Bico Cozido
+Emb. 400 g
+1 kg = 1.88 
+1 kg c/ LP = 1.63
+0.75
+0.85-11%
+0.65
+Com Lidl Plus
+-23%
+Red Fish
+Vendido ao kg
+4.75
+5.29-10%
+4.19
+Com Lidl Plus
+-20% Poupa ainda mais
+com Lidl Plus
+de p
+--- page 2 ---
+Preços em Euros válidos a partir de 20/4 e promoções válidas de 20/4 a 26/4 nos artigos assinalados, salvo erro tipográfico. Limitado ao stock existente.  
+Adereços não incluídos. Fotos de sugestão de apresentação. Promoções não acumuláveis entre si. O Lidl reserva-se ao direito de limitar a quantidade  
+de produtos em promoção a adquirir por cada cliente. Alguns dos artigos / preços e promoções p
+--- page 3 ---
+Encontra  
+mais de  
+160  
+produtos 
+em loja
+Até
+-30%
+Amora Nacional
+Emb. 125 g  
+1 kg = 15.12 
+nº80790
+Batata de Conervação Vermelha
+Emb. 3 kg  
+1 kg = 0.83 
+nº83296
+Cebola Doce 
+Emb. 1 kg  
+nº83375
+0.99
+1.29-23%
+1 .49
+1.99-25%
+2 .49
+3.59-30%
+1.79
+2.29-21%
+1.89
+2.39-20%
+Limão Nacional
+Emb. 750 g  
+1 kg = 1.32 
+nº80171
+Melão Verde
+Vendido ao kg
+nº75
+Curgete Nacional
+Vendido ao kg
+nº22
+1.69
+2.15
+Co

@@ -1,0 +1,13 @@
+Total OK scraped:           2569
+Overlaps com continente_guarda: 6
+PRICE UPDATE rows:          2563 (em 6 chunks)
+DISABLE rows:               281
+
+Chunks gerados:
+  phase2_chunk_001.sql           500 rows    9912 bytes
+  phase2_chunk_002.sql           500 rows    9909 bytes
+  phase2_chunk_003.sql           500 rows    9907 bytes
+  phase2_chunk_004.sql           500 rows    9914 bytes
+  phase2_chunk_005.sql           500 rows    9907 bytes
+  phase2_chunk_006.sql            63 rows    1563 bytes
+  phase2_disable.sql             281 rows    4166 bytes

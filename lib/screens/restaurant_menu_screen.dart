@@ -456,7 +456,9 @@ class _SectionProductsScreen extends StatelessWidget {
       context.read<CartStore>().addItem(CartItem(
             productId: product.id,
             name: product.name,
-            price: product.price,
+            price: restaurant.isPartner
+                ? product.price
+                : double.parse((product.price * 1.15).toStringAsFixed(2)),
           ));
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
@@ -510,6 +512,7 @@ class _SectionProductsScreen extends StatelessWidget {
                   child: _SectionProductCard(
                     product: product,
                     primaryColor: primaryColor,
+                    isPartnerStore: restaurant.isPartner,
                     onAdd: () => addToCart(product),
                     onTap: () => Navigator.push(
                       context,
@@ -548,12 +551,14 @@ class _SectionProductCard extends StatelessWidget {
   const _SectionProductCard({
     required this.product,
     required this.primaryColor,
+    required this.isPartnerStore,
     required this.onAdd,
     required this.onTap,
   });
 
   final PartnerProduct product;
   final Color primaryColor;
+  final bool isPartnerStore;
   final VoidCallback onAdd;
   final VoidCallback onTap;
 
@@ -609,7 +614,7 @@ class _SectionProductCard extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text(
                         product.price > 0
-                            ? '€${product.price.toStringAsFixed(2)}'
+                            ? '€${(isPartnerStore ? product.price : product.price * 1.15).toStringAsFixed(2)}'
                             : 'Preço indisponível',
                         style: TextStyle(
                           fontWeight: FontWeight.w600,

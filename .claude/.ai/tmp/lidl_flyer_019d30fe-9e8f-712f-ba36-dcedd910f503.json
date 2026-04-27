@@ -1,0 +1,597 @@
+{
+  "self": "v4/flyer?flyer_identifier=019d30fe-9e8f-712f-ba36-dcedd910f503",
+  "version": 4,
+  "success": true,
+  "message": "Requested Flyer found.",
+  "dateTime": "2026-04-20T18:36:07+00:00",
+  "numberOfEntries": 1,
+  "flyer": {
+    "id": "019d30fe-9e8f-712f-ba36-dcedd910f503",
+    "name": "Folheto Especial",
+    "title": "Silvercrest",
+    "locale": "pt-PT",
+    "clientLocale": "lidl/pt-PT",
+    "apiCountryCode": "PT",
+    "countryCode": "PT",
+    "category": "HHZ PT",
+    "subcategory": "Especiais",
+    "quitUrl": "https://www.lidl.pt/c/folhetos/s10020672",
+    "homeUrl": "https://www.lidl.pt",
+    "privacyUrl": "https://www.lidl.pt/c/protecao-de-dados-lidl-pt/s10026939",
+    "imprintUrl": "https://www.lidl.pt/c/ficha-tecnica-lidl-pt/s10027346",
+    "newsletterUrl": "https://www.lidl.pt/subscricao-da-newsletter?utm_source=pageflip&utm_medium=intern&utm_campaign=newsletter_banner",
+    "isActive": true,
+    "showProductDetails": true,
+    "showProductLinks": true,
+    "showRecommendedProducts": false,
+    "showNewsletter": false,
+    "showNotificationCenter": false,
+    "enableSharing": true,
+    "enableDownload": true,
+    "myAccount": false,
+    "shoppingCart": false,
+    "pdfUrl": "https://object.storage.eu01.onstackit.cloud/leaflets/pdfs/019d30fe-9e8f-712f-ba36-dcedd910f503/Folheto-Especial-Silvercrest-03.pdf",
+    "hiResPdfUrl": "https://object.storage.eu01.onstackit.cloud/leaflets/pdfs/019d30fe-9e8f-712f-ba36-dcedd910f503/Folheto-Especial-Silvercrest-03.pdf",
+    "hiResFileSize": 23774682,
+    "fileSize": 23774682,
+    "teasers": {
+      "teaser_666x475": "https://imgproxy.leaflets.schwarz/TrFRE9Khqt2qs3kA0wjBowRtbaG8kzB00-hBDc-XeMM/rs:fill:666:475:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMDFfNmZhMWNlNjY3ZDBiMThiM2RmYzMwMDFjMDYyYjNlZGIucG5n.jpg",
+      "teaser_2020x1440": "https://imgproxy.leaflets.schwarz/Odc93yL9RcHKdmYLaS3mYyxUKs3TPmom1fW1JEmH-Vc/rs:fill:2020:1440:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMDFfNmZhMWNlNjY3ZDBiMThiM2RmYzMwMDFjMDYyYjNlZGIucG5n.jpg",
+      "teaser_w1010": "https://imgproxy.leaflets.schwarz/cpPpGCSv3ECgGs5Pqyc4ziLB8oChjxK7W3xFjNVFNSo/rs:fit:1010:0:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMDFfNmZhMWNlNjY3ZDBiMThiM2RmYzMwMDFjMDYyYjNlZGIucG5n.jpg"
+    },
+    "regions": [
+      {
+        "code": 0
+      }
+    ],
+    "thumbnailUrl": "https://imgproxy.leaflets.schwarz/LDS3IdScKehFBzgeiWMYX8yAuhqpD-BiHHm7MTnYWvo/rs:fit:400:400:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMDFfNmZhMWNlNjY3ZDBiMThiM2RmYzMwMDFjMDYyYjNlZGIucG5n.jpg",
+    "publicThumbnail": "https://imgproxy.leaflets.schwarz/LDS3IdScKehFBzgeiWMYX8yAuhqpD-BiHHm7MTnYWvo/rs:fit:400:400:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMDFfNmZhMWNlNjY3ZDBiMThiM2RmYzMwMDFjMDYyYjNlZGIucG5n.jpg",
+    "flyerUrlAbsolute": "https://www.lidl.pt/l/pt/folhetos/folheto-especial-silvercrest/ar/0?lf=HHZ",
+    "startDate": "2026-03-31",
+    "endDate": "2026-04-20",
+    "offerStartDate": "2026-03-31",
+    "offerEndDate": "2026-04-20",
+    "showLinks": true,
+    "showTopics": true,
+    "showSearch": false,
+    "showRelatedFlyers": true,
+    "isRecommended": true,
+    "status": "current",
+    "cookieConsent": {
+      "type": "oneTrust",
+      "domainId": "42ce6fbb-67cf-48a5-891d-5df8767d14ba"
+    },
+    "pages": [
+      {
+        "id": "019d4397-3151-7a0c-97c1-163f2c594046",
+        "number": 1,
+        "width": 1415,
+        "height": 2400,
+        "type": "STANDARD",
+        "links": [],
+        "keyWords": "Ás Cozinha Utensílios Aparelhos Inteligentes Sabor Bonito Serviço Destaques Novidades Casa Tornam Andre Agassi Simplifica",
+        "altText": "Cozinha Silvercrest: Utensílios, aparelhos inteligentes e Andre Agassi simplificam a vida na cozinha.",
+        "image": "https://imgproxy.leaflets.schwarz/LGNuK2gIuE-BBH936NMWdQPxxR7KIMF87CY9AiCdJYk/rs:fit:1200:1200:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMDFfNmZhMWNlNjY3ZDBiMThiM2RmYzMwMDFjMDYyYjNlZGIucG5n.jpg",
+        "zoom": "https://imgproxy.leaflets.schwarz/6NTBofJf5tn3fEPs8fkKHV0wvCbkMS4qh7nIVV4ViGM/rs:fit:2400:2400:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMDFfNmZhMWNlNjY3ZDBiMThiM2RmYzMwMDFjMDYyYjNlZGIucG5n.jpg",
+        "thumbnail": "https://imgproxy.leaflets.schwarz/LDS3IdScKehFBzgeiWMYX8yAuhqpD-BiHHm7MTnYWvo/rs:fit:400:400:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMDFfNmZhMWNlNjY3ZDBiMThiM2RmYzMwMDFjMDYyYjNlZGIucG5n.jpg",
+        "pageType": "page"
+      },
+      {
+        "id": "019d4397-3151-7a0c-97c1-163f2c8c50c2",
+        "number": 2,
+        "width": 1415,
+        "height": 2400,
+        "type": "STANDARD",
+        "links": [
+          {
+            "id": "019d4397-4a8d-7345-8770-0d038553d3a6",
+            "displayType": "animation_image",
+            "url": "https://lidl.media.schwarz/is/content/schwarz/assinatura",
+            "title": "Link",
+            "icon": "link",
+            "width": 54.832713754647,
+            "height": 19.956140350877,
+            "top": 80.043859649123,
+            "left": 35.501858736059,
+            "details": {
+              "mime": "image/gif",
+              "width": 1000,
+              "height": 616
+            },
+            "animationDetails": {
+              "mime": "image/gif",
+              "width": 1000,
+              "height": 616
+            }
+          }
+        ],
+        "keyWords": "Toque Celebridade Cozinha?Então Olá Andre Agassi — Companheiros Silver Juntos Mostram- Tecnologia Moderna Tornar Simples Maiores Lendas Ténis Tempos – Mulher Steffi Graf Formam Casais Conhecidos -Sucedidos Desporto Unidos Excelência Disciplina Valores Partilhados Representam Foco Precisão Parceiro Marca Silvercrest Acompanha- Fiéis Amigos Longo Revista Mostra- Define Inteligente Poupa Tempo Integra Facilmente “ Oferece Exatamente Preciso Utilização Resultados Deixa- Inspirar Magazin",
+        "altText": "Andre Agassi e Silvercrest: Tecnologia moderna para simplificar a cozinha e o dia a dia.",
+        "image": "https://imgproxy.leaflets.schwarz/T4wQm9RhSsD4Y12D-2j8DiJEA2VmQozVoNzvRlLF92Q/rs:fit:1200:1200:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMDJfMzMxOTY5ZTMxMjdlODEzNjkzMWFkNjNiYTc4ZjJjNmEucG5n.jpg",
+        "zoom": "https://imgproxy.leaflets.schwarz/-OPrx-4RUXoS-d44KwBswv1pFvifpJN900Z4r731fKg/rs:fit:2400:2400:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMDJfMzMxOTY5ZTMxMjdlODEzNjkzMWFkNjNiYTc4ZjJjNmEucG5n.jpg",
+        "thumbnail": "https://imgproxy.leaflets.schwarz/8N7DwaEbqmQRxt3KXm18ueemTzpHpSpTJVyrhwDZcxs/rs:fit:400:400:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMDJfMzMxOTY5ZTMxMjdlODEzNjkzMWFkNjNiYTc4ZjJjNmEucG5n.jpg",
+        "pageType": "page"
+      },
+      {
+        "id": "019d4397-3151-7a0c-97c1-163f2d590aa3",
+        "number": 3,
+        "width": 1415,
+        "height": 2400,
+        "type": "STANDARD",
+        "links": [],
+        "keyWords": "Tecnologia Silvercrest Volta Colocar- Centro Cria Feita Pessoas Combinamos Inovação Inteligente Proximidade Resultado? Momentos Sabem Melhor Humanidade Equipamentos Inteligentes Simples Começamos Perceber Realmente Juntamos Trazer Leveza Cozinha Qualidade Vida Casas Incluída! Fritadeira Quente Digital Grelhar Assar Cozinhar Fritar Óleo Gordura Adicional Programas Predefinidos Seleção Rápida Reaquecer Desidratar Cozer Levedar Air Fry Ultra Crisp Nº518656 Mesmo – °C Magazin",
+        "altText": "Silvercrest: Tecnologia inteligente para momentos saborosos e equipamentos para uma cozinha simples e de qualidade.",
+        "image": "https://imgproxy.leaflets.schwarz/566jZEmOVu9ueKl4JBzDfHmC-UOkWo5uyXXRuCWVk9c/rs:fit:1200:1200:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMDNfM2ZlYmY1ZGMwOTYxYmEwZGEwMTQ0MGJkYWM1NWM0NDQucG5n.jpg",
+        "zoom": "https://imgproxy.leaflets.schwarz/uoykywIDvLWviaC9h51PVI0rxHLXWl5vpyK5ofMywKE/rs:fit:2400:2400:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMDNfM2ZlYmY1ZGMwOTYxYmEwZGEwMTQ0MGJkYWM1NWM0NDQucG5n.jpg",
+        "thumbnail": "https://imgproxy.leaflets.schwarz/YPsi2leWJnyaMiW6WWxWeVkj2DDcKWn0CBoVnyf63bA/rs:fit:400:400:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMDNfM2ZlYmY1ZGMwOTYxYmEwZGEwMTQ0MGJkYWM1NWM0NDQucG5n.jpg",
+        "pageType": "page"
+      },
+      {
+        "id": "019d4397-3151-7a0c-97c1-163f2dfd2c4c",
+        "number": 4,
+        "width": 1415,
+        "height": 2400,
+        "type": "STANDARD",
+        "links": [
+          {
+            "id": "019d4397-4a8d-7345-8770-0d03863c8a81",
+            "displayType": "animation_image",
+            "url": "https://lidl.media.schwarz/is/content/schwarz/equipamentos",
+            "title": "Equipamentos",
+            "icon": "link",
+            "width": 42.565055762082,
+            "height": 19.956140350877,
+            "top": 40.679824561404,
+            "left": 57.434944237918,
+            "details": {
+              "mime": "image/gif",
+              "width": 1229,
+              "height": 976
+            },
+            "animationDetails": {
+              "mime": "image/gif",
+              "width": 1229,
+              "height": 976
+            }
+          }
+        ],
+        "keyWords": "Mundo Silvercrest Conhece Equipa  Oferecer Índice Ás Cozinha Vamos Cozinha? Escolhas Agassi Essenciais Tendências Segredos Ajuda Depressa Receitas Rápidas Refrescantes Arte Servir Copos Bonito Serviço Pequenas Ajudas Deixa Casa Brilhar Vidros Limpos Torna Fácil Magazin",
+        "altText": "Índice da revista Silvercrest: Descubra as escolhas de Agassi, tendências e segredos para uma cozinha brilhante.",
+        "image": "https://imgproxy.leaflets.schwarz/6YiBry7mYZ67cbGcqgYUhFjGpZ2tdH9B-E5aIW9zsr8/rs:fit:1200:1200:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMDRfY2Y5OThlODhkZWQyMjlmZjliNThkMWY3YTM4MjhkODEucG5n.jpg",
+        "zoom": "https://imgproxy.leaflets.schwarz/jKQLKQZPQkwaO3BjNiPVkpjx3_M7gs2waPzT2H8qgmU/rs:fit:2400:2400:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMDRfY2Y5OThlODhkZWQyMjlmZjliNThkMWY3YTM4MjhkODEucG5n.jpg",
+        "thumbnail": "https://imgproxy.leaflets.schwarz/32n1CAtuQ_bP6JVNPIPyGo_Nihn4BNZ8Po_-HXn0EXU/rs:fit:400:400:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMDRfY2Y5OThlODhkZWQyMjlmZjliNThkMWY3YTM4MjhkODEucG5n.jpg",
+        "pageType": "page"
+      },
+      {
+        "id": "019d4397-3151-7a0c-97c1-163f2eec75cd",
+        "number": 5,
+        "width": 1415,
+        "height": 2400,
+        "type": "STANDARD",
+        "links": [
+          {
+            "id": "019d4397-4a8d-7345-8770-0d0386f7e085",
+            "displayType": "animation_image",
+            "url": "https://lidl.media.schwarz/is/content/schwarz/produtos",
+            "title": "Cozinha",
+            "icon": "link",
+            "width": 71.375464684015,
+            "height": 19.956140350877,
+            "top": 64.69298245614,
+            "left": 0.0,
+            "details": {
+              "mime": "image/gif",
+              "width": 2000,
+              "height": 949
+            },
+            "animationDetails": {
+              "mime": "image/gif",
+              "width": 2000,
+              "height": 949
+            }
+          }
+        ],
+        "keyWords": "Cozinha  Espaço Encontro Laboratório Ideias Equipamentos Inteligentes Acessórios Práticos Gesto Torna- Rápido Sobra Tempo Boa Comida Estarmos Juntos Realmente Vamos Cozinha? Silvercrest Wok Revestimento Antiaderente Teflon® Alta Qualidade Nº506522 Fritadeira Cestos Fritar Diferentes Alimentos Regulação Contínua Temperatura +190 °C Volume Útil 31 Litros 14 Nº486716 Magazin",
+        "altText": "Cozinha Silvercrest: Espaço de encontro, ideias e equipamentos inteligentes para uma culinária rápida e saborosa.",
+        "image": "https://imgproxy.leaflets.schwarz/9L5buJ7Aw-fz9rp9vQZNuYDm3HRDUcqyJvvzcGGJlmg/rs:fit:1200:1200:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMDVfM2E5ZWEwYjdhNWI4M2FiZTE0MzExZDEyMDhlZDViZmMucG5n.jpg",
+        "zoom": "https://imgproxy.leaflets.schwarz/A60tGumnpEFLibEQFthU--5nJgFYB3nJqjxI0XUZzwo/rs:fit:2400:2400:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMDVfM2E5ZWEwYjdhNWI4M2FiZTE0MzExZDEyMDhlZDViZmMucG5n.jpg",
+        "thumbnail": "https://imgproxy.leaflets.schwarz/sOfGGPmgjpST5qN_bB3pssNSJQUlAOiHUdtr8OaIurc/rs:fit:400:400:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMDVfM2E5ZWEwYjdhNWI4M2FiZTE0MzExZDEyMDhlZDViZmMucG5n.jpg",
+        "pageType": "page"
+      },
+      {
+        "id": "019d4397-3151-7a0c-97c1-163f2f10f3c6",
+        "number": 6,
+        "width": 1415,
+        "height": 2400,
+        "type": "STANDARD",
+        "links": [],
+        "keyWords": "“ Escolhas Acerto Agassi Andre Confia Silvercrest Tecnologia Cozinha Campeão Só Entram Equipamentos Fiáveis Simplificam Indispensáveis Destacamos Frigideira Robusta Panela Pressão Eficiente Placa Claras Desempenho Sólido Máxima Flexibilidade Garantem Resultados Indução Função Boost Desliga- Automaticamente Medidas 27X63X31 Nº518745 Cozinhar Facilmente Peixe Carne Legumes Guisados Adequado Cozer Vapor Nº486744 Magazin Cesto Utilizado Escorredor Aço Inox Nº525157",
+        "altText": "Escolhas de Andre Agassi: Equipamentos Silvercrest fiáveis e indispensáveis para simplificar a cozinha.",
+        "image": "https://imgproxy.leaflets.schwarz/-KrPHKEOszuSfeiW6beL0hmryhhmZchxZGrDd7cRDQg/rs:fit:1200:1200:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMDZfZDJjMzhhYmRhZmQwN2FiYjM5OTIyMTdhODQ3MWQ2MDEucG5n.jpg",
+        "zoom": "https://imgproxy.leaflets.schwarz/K971Vw2pDkmtWTO9oSXCI0Jv1ig0g2zmeVR_KIwFDuo/rs:fit:2400:2400:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMDZfZDJjMzhhYmRhZmQwN2FiYjM5OTIyMTdhODQ3MWQ2MDEucG5n.jpg",
+        "thumbnail": "https://imgproxy.leaflets.schwarz/DXw4N26pPAeCYNM5WLuvKeeibxwUE1AZN4cC-I3nELI/rs:fit:400:400:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMDZfZDJjMzhhYmRhZmQwN2FiYjM5OTIyMTdhODQ3MWQ2MDEucG5n.jpg",
+        "pageType": "page"
+      },
+      {
+        "id": "019d4397-3151-7a0c-97c1-163f2fdbd07f",
+        "number": 7,
+        "width": 1415,
+        "height": 2400,
+        "type": "STANDARD",
+        "links": [],
+        "keyWords": "Essenciais Agassi – Perfeitos Dica Espuma Aquece Ligeiramente Fica Especialmente Fina Estável — Perfeita Café Chocolate Quente Silvercrest Batedor Leite Elétrico Programas Selecionáveis Botão Função Frio Base Rotativa 360° Capacidade Nº526862 Tempo Varinha Misturadora Aço Inox Nº508364 Saca-Rolhas Rolha Vertedor Cortador Folha Alumínio Integrado Luz Led Branca Nº526622 Máquina Expresso Unidades Filtro Chávenas Pressão Bombagem Potente Bar Obter Creme Perfeito Depósito Água Amovível 15 Nº472492 Moinho Mecanismo Moer Nº484393 8-9 Magazin",
+        "altText": "Essenciais Agassi: Dicas e equipamentos Silvercrest perfeitos para o dia a dia na cozinha.",
+        "image": "https://imgproxy.leaflets.schwarz/7DKJZ2cHOKD65QIeXVYqBANBIxRdW-BSTFAIKElz-qE/rs:fit:1200:1200:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMDdfNWE3NTIwZjE2MGZkMDNiOTU0ODdmYWViZTM3OGU4ZGIucG5n.jpg",
+        "zoom": "https://imgproxy.leaflets.schwarz/O9utj6YwvDibWwvpOAL5eDEkeaJAvZ2yTJ9xmLZ4-9w/rs:fit:2400:2400:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMDdfNWE3NTIwZjE2MGZkMDNiOTU0ODdmYWViZTM3OGU4ZGIucG5n.jpg",
+        "thumbnail": "https://imgproxy.leaflets.schwarz/Q9e6KPc9rDI3YagT0zSzySto8dp7dlmVT4zCSq9xgsU/rs:fit:400:400:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMDdfNWE3NTIwZjE2MGZkMDNiOTU0ODdmYWViZTM3OGU4ZGIucG5n.jpg",
+        "pageType": "page"
+      },
+      {
+        "id": "019d4397-3151-7a0c-97c1-163f30b99bff",
+        "number": 8,
+        "width": 1415,
+        "height": 2400,
+        "type": "STANDARD",
+        "links": [],
+        "keyWords": "Tendências Cozinha Querer Complemento Perfeito Silvercrest Película Embalar Vácuo Comprimento Nº487870 Máquina Cozinhar Conservação Alimentos Rolos Comuns Largura Nº487863 Tendência Meal Prep Simplificado Prepara Ingredientes Refeições Antecedência Divide Porções Conserva Frio Poupas Tempo Refeição Saudável Pronta Quick Gourmet Rápido Inteligente Delicioso Basicamente Sweet Spot Sabor Tecnologia Frescos Equipamentos Potentes Tempos Cozedura Reduzidos Preparas Deliciosas Green Eating Sentires Melhor Integrar Alimentação Consciente ? Aposta Legumes Ervas Aromáticas Origem Cria Pratos Coloridos Leves Variados — Saladas Frescas Bowls Reconfortantes ! Conjunto Caixas Nº496113 Magazin",
+        "altText": "Tendências na cozinha: Silvercrest e a preparação de refeições saudáveis e rápidas com tecnologia.",
+        "image": "https://imgproxy.leaflets.schwarz/TeHbhsCCeq53lOwlBzFerf3y_oE4sNcOCbFEVn-FwZY/rs:fit:1200:1200:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMDhfNWE2Mjk4OWQwZjc2NTI5NzM4YjAxNzA0ZmQwOTBiYzYucG5n.jpg",
+        "zoom": "https://imgproxy.leaflets.schwarz/Codb--jjSDhSh2oRWEN00zezcoFymTW6oUmvEDP7vA0/rs:fit:2400:2400:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMDhfNWE2Mjk4OWQwZjc2NTI5NzM4YjAxNzA0ZmQwOTBiYzYucG5n.jpg",
+        "thumbnail": "https://imgproxy.leaflets.schwarz/fnevfpWZKG7Hk9jn8UK-aF1ezzmw0b-VhRwV5aLUOmU/rs:fit:400:400:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMDhfNWE2Mjk4OWQwZjc2NTI5NzM4YjAxNzA0ZmQwOTBiYzYucG5n.jpg",
+        "pageType": "page"
+      },
+      {
+        "id": "019d4397-3151-7a0c-97c1-163f318c772a",
+        "number": 9,
+        "width": 1415,
+        "height": 2400,
+        "type": "STANDARD",
+        "links": [
+          {
+            "id": "019d43a7-490d-73dd-8f5f-35a98107ad19",
+            "displayType": "animation_image",
+            "url": "https://lidl.media.schwarz/is/content/schwarz/caixasplastico",
+            "title": "Caixas de Conservação",
+            "icon": "link",
+            "width": 29.739776951673,
+            "height": 17.65350877193,
+            "top": 2.0833333333330017,
+            "left": 2.6022304832714,
+            "details": {
+              "mime": "image/gif",
+              "width": 1000,
+              "height": 1007
+            },
+            "animationDetails": {
+              "mime": "image/gif",
+              "width": 1000,
+              "height": 1007
+            }
+          },
+          {
+            "id": "019d43a6-242d-707b-b8d7-548292bc9aa0",
+            "displayType": "standard",
+            "url": "https://content.odj.cloud/assets/p09_1_CaixasPlastico-2120020.gif",
+            "title": "Caixas de conservação",
+            "icon": "link",
+            "width": 20.074349442379,
+            "height": 19.956140350877,
+            "top": 0.9868421052629941,
+            "left": 6.5055762081784
+          },
+          {
+            "id": "019d43a6-d312-72de-8150-aa1649038105",
+            "displayType": "animation_image",
+            "url": "https://lidl.media.schwarz/is/content/schwarz/caixaredondas",
+            "title": "Caixas de alimentos",
+            "icon": "link",
+            "width": 27.509293680297,
+            "height": 19.956140350877,
+            "top": 6.578947368420998,
+            "left": 37.360594795539,
+            "details": {
+              "mime": "image/gif",
+              "width": 1000,
+              "height": 1228
+            },
+            "animationDetails": {
+              "mime": "image/gif",
+              "width": 1000,
+              "height": 1228
+            }
+          }
+        ],
+        "keyWords": "Tendências Cozinha Querer Segredos Agassi Silvercrest Conjunto Tampas Silicone Reutilizável Substituição Película Aderente Nº510485 Molas Nº506472 °C – -20 Lancheira Térmica Recipientes Unidades 100% Poliéster Medidas 24X19X169 Capacidade Litros Nº500467 6-11Cm 7-13Cm 21-26Cm 17-20Cm Tigelas Inox 055 085 13 Consoante Modelo Nº484655 Caixas Conservação Alimentos Tampa Hermética Prova Fugas Fechos Clique Nº531328 Nº519927 550Ml Magazin",
+        "altText": "Segredos de Agassi: Conjuntos Silvercrest para conservação de alimentos e organização na cozinha.",
+        "image": "https://imgproxy.leaflets.schwarz/T2laeGJoJ4VV6eLbTA9TfAGK_n_hGT4WCdVb1VtoR-s/rs:fit:1200:1200:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMDlfOTRhODIxYmM3MzJjNmQyYTIyY2EwNTU0ZDBlN2QwMjUucG5n.jpg",
+        "zoom": "https://imgproxy.leaflets.schwarz/sszcDrF1Pj-b40qUAWbqK36WiCoBj-fsjK7Hh-NP64k/rs:fit:2400:2400:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMDlfOTRhODIxYmM3MzJjNmQyYTIyY2EwNTU0ZDBlN2QwMjUucG5n.jpg",
+        "thumbnail": "https://imgproxy.leaflets.schwarz/0ewqpGIhCFG2t8HNVA8N6sjY4mB8vADLCWX3n2IbTGo/rs:fit:400:400:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMDlfOTRhODIxYmM3MzJjNmQyYTIyY2EwNTU0ZDBlN2QwMjUucG5n.jpg",
+        "pageType": "page"
+      },
+      {
+        "id": "019d4397-3151-7a0c-97c1-163f32422046",
+        "number": 10,
+        "width": 1415,
+        "height": 2400,
+        "type": "STANDARD",
+        "links": [
+          {
+            "id": "019d439f-9d57-72cd-8031-c741f9027c4c",
+            "displayType": "standard",
+            "url": "https://lidl.media.schwarz/is/content/schwarz/canecatermica",
+            "title": "Copo Térmico",
+            "icon": "link",
+            "width": 20.074349442379,
+            "height": 19.956140350877,
+            "top": 51.864035087719,
+            "left": 70.817843866171
+          }
+        ],
+        "keyWords": "Cozinha Ajuda Silvercrest Copo Térmico Aço Isolamento Parede Dupla Mantém Bebidas Quentes Frias Durante Tempo Nº532563 Fiambreira Elétrica Ajuste Largura Corte Individual Medidas 33X27X20 Nº508368 Tostadeira Grelhador Panini Contacto Placas Alumínio Fundido Revestimento Antiaderente Alta Qualidade Ilag® Nº490576 Recipes Magazin",
+        "altText": "Ajuda na cozinha: Equipamentos Silvercrest para facilitar o dia a dia, como fiambreira e tostadeira.",
+        "image": "https://imgproxy.leaflets.schwarz/g1_ieGKH5GAIkoN-in7Wn4Nr5Wo-hCRUzyAL3z-iaNc/rs:fit:1200:1200:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMTBfNzQ2MTk4NjNlZmEwNGMwZTRjNmZmYjQ5MzU4NzZjYjEucG5n.jpg",
+        "zoom": "https://imgproxy.leaflets.schwarz/KuUVunLJNlGdGU_Uh_IUhZmnqeIw3HybRlp1aaAzgzA/rs:fit:2400:2400:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMTBfNzQ2MTk4NjNlZmEwNGMwZTRjNmZmYjQ5MzU4NzZjYjEucG5n.jpg",
+        "thumbnail": "https://imgproxy.leaflets.schwarz/PO3L53D1QU1WPrI9lBWY6z0Qw3zw_Y0gbOIsGq9Yhh8/rs:fit:400:400:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMTBfNzQ2MTk4NjNlZmEwNGMwZTRjNmZmYjQ5MzU4NzZjYjEucG5n.jpg",
+        "pageType": "page"
+      },
+      {
+        "id": "019d4397-3151-7a0c-97c1-163f33326962",
+        "number": 11,
+        "width": 1415,
+        "height": 2400,
+        "type": "STANDARD",
+        "links": [],
+        "keyWords": "Panelas Arroz Surgiram Japão Tornaram- Comuns Lares Asiáticos Chaleiras Torradeiras Cozem Automaticamente Garantindo Textura Perfeita Necessidade Práticas Evitam Queimar Mantêm Quente Tempo Necessário — Verdadeiro Essencial Qualquer Depressa Afinal Seja Silvercrest Máquina Cozer Preparação Ideal Tipos Transbordar Recipiente Alumínio Amovível Revestimento Antiaderente Elevada Qualidade Ilag Botão Abertura Tampa Válvula Escape Vapor Água Condensação Nº500435 Magazin",
+        "altText": "Panelas de arroz Silvercrest: Essenciais para uma preparação perfeita e sem complicações.",
+        "image": "https://imgproxy.leaflets.schwarz/__3lahUQWc5Pk7CF6eYLu-BusY1dOgx_wl_UJW4zKX0/rs:fit:1200:1200:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMTFfOGQ2YzY5MWQ1NjgzOTk0OTI3OTNiMzU3ZjU4Yjk2MjUucG5n.jpg",
+        "zoom": "https://imgproxy.leaflets.schwarz/VwSPgd-2hJcg1ncnr76mdmM3SU4N1RCWan-ceDOovTM/rs:fit:2400:2400:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMTFfOGQ2YzY5MWQ1NjgzOTk0OTI3OTNiMzU3ZjU4Yjk2MjUucG5n.jpg",
+        "thumbnail": "https://imgproxy.leaflets.schwarz/X6_IaEnw4li6K2tcmdhvychEeIdmDE4mxCBhSneRT5s/rs:fit:400:400:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMTFfOGQ2YzY5MWQ1NjgzOTk0OTI3OTNiMzU3ZjU4Yjk2MjUucG5n.jpg",
+        "pageType": "page"
+      },
+      {
+        "id": "019d4397-3151-7a0c-97c1-163f33d04785",
+        "number": 12,
+        "width": 1415,
+        "height": 2400,
+        "type": "STANDARD",
+        "links": [],
+        "keyWords": "Receitas Rápidas Bebidas Smoothie Fruta Escolhe Fresca Gosto Tritura Adiciona Água Sumo Mistura Obter Textura Dicaserve Café Gelado Prepara Forte Deixa Verte Cubos Gelo Acrescenta Leite Bebida Vegetal Aveia Arroz Soja Silvercrest Máquina Batidos Preparação Diretamente Copo Copos Tampas Práticas – Ideal Levar Consigo Lâminas Cruzadas Aço Inox Inclui Livro Volume Útil Nº506525 Crushed Magazin",
+        "altText": "Receitas rápidas: Smoothies e café gelado com a ajuda dos equipamentos Silvercrest.",
+        "image": "https://imgproxy.leaflets.schwarz/1wnT_-j0u8K_Kbvuq824ArME8c-_9yiVN-_JVrFnrgE/rs:fit:1200:1200:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMTJfZjg1OTA1Y2FmNDNhOGUxMjI5OTkzNWQzYjQ2ZjJiYTcucG5n.jpg",
+        "zoom": "https://imgproxy.leaflets.schwarz/owui1VHtY7kwMv4VeI_rZ64RTxv6lI1-IDUFD3N_9Fs/rs:fit:2400:2400:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMTJfZjg1OTA1Y2FmNDNhOGUxMjI5OTkzNWQzYjQ2ZjJiYTcucG5n.jpg",
+        "thumbnail": "https://imgproxy.leaflets.schwarz/c8uJpRcaIAMJpPWjgaDWbcGl2zdBeY7qqk62EfIMp9k/rs:fit:400:400:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMTJfZjg1OTA1Y2FmNDNhOGUxMjI5OTkzNWQzYjQ2ZjJiYTcucG5n.jpg",
+        "pageType": "page"
+      },
+      {
+        "id": "019d4397-3151-7a0c-97c1-163f3447be8c",
+        "number": 13,
+        "width": 1415,
+        "height": 2400,
+        "type": "STANDARD",
+        "links": [],
+        "keyWords": "Arte  Silvercrest Tábua Cortar Madeira Maciça Acácia Certificação Fsc® Medidas 35X35 40X30 52X22 Cm Consoante Modelo Nº508370 Refeição Vencedora - Set Faca Cozinha Aço Inoxidável Nº536667 Talheres Inox Peças Nº537176 Magazin",
+        "altText": "Arte na cozinha: Tábua de cortar em madeira e conjunto de facas Silvercrest para uma refeição vencedora.",
+        "image": "https://imgproxy.leaflets.schwarz/E7yzXIJCQjSU3DWKiYsz2CgAiVp4UhTVVNjC6L9xRsg/rs:fit:1200:1200:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMTNfMGIzZGFlYThiMzA2YjJkN2JmZmI4N2Y2NDlmYmRhZTEucG5n.jpg",
+        "zoom": "https://imgproxy.leaflets.schwarz/rsMr5136guoEasvdSJpvKskf-enz3pKdDao6ZB065zA/rs:fit:2400:2400:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMTNfMGIzZGFlYThiMzA2YjJkN2JmZmI4N2Y2NDlmYmRhZTEucG5n.jpg",
+        "thumbnail": "https://imgproxy.leaflets.schwarz/3nAKlavkW6WcKgv6_e_BtlwXtp-2fda51fJYmgm6esU/rs:fit:400:400:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMTNfMGIzZGFlYThiMzA2YjJkN2JmZmI4N2Y2NDlmYmRhZTEucG5n.jpg",
+        "pageType": "page"
+      },
+      {
+        "id": "019d4397-3151-7a0c-97c1-163f34e1d5dd",
+        "number": 14,
+        "width": 1415,
+        "height": 2400,
+        "type": "STANDARD",
+        "links": [],
+        "keyWords": "Copos Feitios Gostos Verdade Panela Tampa Copo – Ocasião Personalidade Coleções Silvercrest Trazem Chávenas Canecas Agradam Seja Sofá Manta Chávena Chá Jantar Amigos Acompanhado Vinho Resistentes Riscos Especialmente Robustos Nº532528 Conjunto Térmicos Vidro Borossilicato Suporta Variações Temperatura Extremas Estalar Nº483408 °C Sabias Mudar Saboreias Vinho? Tinto Libertar Aromas Branco Estreito Manter Magazin",
+        "altText": "Copos Silvercrest: Para todos os gostos e ocasiões, desde chávenas aconchegantes a copos de vinho robustos.",
+        "image": "https://imgproxy.leaflets.schwarz/Vb9_qd0xsLoHnEqlS8LKc_2lI-I5U5R_p8NC4KXRXNk/rs:fit:1200:1200:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMTRfOGUxN2ZhYjVhNzYwMmI0NTI0ZmJiYzlhODI1NzFkODQucG5n.jpg",
+        "zoom": "https://imgproxy.leaflets.schwarz/kfOB2VUW-MGRcW_E9H8lAY07k0LPdEDiQmqMiFzKNKw/rs:fit:2400:2400:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMTRfOGUxN2ZhYjVhNzYwMmI0NTI0ZmJiYzlhODI1NzFkODQucG5n.jpg",
+        "thumbnail": "https://imgproxy.leaflets.schwarz/54Ey_N5Ypj8RnDISdLh_Fg_zeJaWZAlAV1fYIe8Ulag/rs:fit:400:400:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMTRfOGUxN2ZhYjVhNzYwMmI0NTI0ZmJiYzlhODI1NzFkODQucG5n.jpg",
+        "pageType": "page"
+      },
+      {
+        "id": "019d4397-3151-7a0c-97c1-163f351b3615",
+        "number": 15,
+        "width": 1415,
+        "height": 2400,
+        "type": "STANDARD",
+        "links": [],
+        "keyWords": "Cozinha Utensílios Juntos Papel Principal Magia Singelo Escorredor Espalhafatosa Vara Arames Aço Inoxidável Silvercrest Braço Direito Qualquer Pequena Ajuda Equipa Vencedora Alta Qualidade Nº525428 Lava-Loiça Estrutura Extensível Medidas 35-56X24X11 Nº525420 Magazin",
+        "altText": "Utensílios Silvercrest: Pequenas ajudas para uma equipa vencedora na cozinha, como escorredor e lava-loiça extensível.",
+        "image": "https://imgproxy.leaflets.schwarz/MBwjRxAotzbuAAs8G3cBLeeI_vBhyo3rm0VMdllanbA/rs:fit:1200:1200:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMTVfNzRlYzAwMTlhN2MxMTk3YTg5NGFlN2VjZDc1NjVhY2MucG5n.jpg",
+        "zoom": "https://imgproxy.leaflets.schwarz/Y2fgCfSV-ANeCe8S-3C9xMHsqqE-J1tw2D6JHB7ggdE/rs:fit:2400:2400:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMTVfNzRlYzAwMTlhN2MxMTk3YTg5NGFlN2VjZDc1NjVhY2MucG5n.jpg",
+        "thumbnail": "https://imgproxy.leaflets.schwarz/j55V880GlJNDP1ZRuvPIq8EFD5H-LRAwiu0S_qOlO40/rs:fit:400:400:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMTVfNzRlYzAwMTlhN2MxMTk3YTg5NGFlN2VjZDc1NjVhY2MucG5n.jpg",
+        "pageType": "page"
+      },
+      {
+        "id": "019d4397-3151-7a0c-97c1-163f3600f536",
+        "number": 16,
+        "width": 1415,
+        "height": 2400,
+        "type": "STANDARD",
+        "links": [],
+        "keyWords": "Hora Deixar Casa Ajuda Certa Cuidar Torna- Aspirar Rapidamente Refrescar Têxteis Alisar Roupa Silvercrest Oferece Soluções Práticas Tornares Tarefa Leve Tecnologia Torna Aspirador Ciclone Saco Moderna Aspiração Comprimento Cabo Nº487796 Magazin",
+        "altText": "Hora de deixar a casa a brilhar: Soluções Silvercrest para aspirar, refrescar e alisar roupa rapidamente.",
+        "image": "https://imgproxy.leaflets.schwarz/a8Z2mDjXFMVvKLZkLMYk-apulWucXjSNdAzZJ32vHTU/rs:fit:1200:1200:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMTZfZmU2NjMyOGI1Nzc4NGIzOGZhYmQyYWQzM2ViZjRhNTAucG5n.jpg",
+        "zoom": "https://imgproxy.leaflets.schwarz/sKAr4v7pYwFMMB-CGQlCFOkBjRZwuE42fMeOQBSdFpY/rs:fit:2400:2400:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMTZfZmU2NjMyOGI1Nzc4NGIzOGZhYmQyYWQzM2ViZjRhNTAucG5n.jpg",
+        "thumbnail": "https://imgproxy.leaflets.schwarz/3m8ZNcoeN89A85LX6VjJ-oPxhODY5Wu9UwGc3bJ9ygs/rs:fit:400:400:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMTZfZmU2NjMyOGI1Nzc4NGIzOGZhYmQyYWQzM2ViZjRhNTAucG5n.jpg",
+        "pageType": "page"
+      },
+      {
+        "id": "019d4397-3151-7a0c-97c1-163f36c7e550",
+        "number": 17,
+        "width": 1415,
+        "height": 2400,
+        "type": "STANDARD",
+        "links": [
+          {
+            "id": "019d43a8-d439-7284-90df-ee18d228f4c6",
+            "displayType": "animation_image",
+            "url": "https://lidl.media.schwarz/is/content/schwarz/limpavidros",
+            "title": "Limpa Vidros",
+            "icon": "link",
+            "width": 30.297397769517,
+            "height": 21.491228070175,
+            "top": 0.9868421052629941,
+            "left": 65.613382899628,
+            "details": {
+              "mime": "image/gif",
+              "width": 500,
+              "height": 600
+            },
+            "animationDetails": {
+              "mime": "image/gif",
+              "width": 500,
+              "height": 600
+            }
+          },
+          {
+            "id": "019d43a0-8f58-731a-aeb8-5f7e131dcd49",
+            "displayType": "standard",
+            "url": "https://lidl.media.schwarz/is/content/schwarz/limpavidros",
+            "title": "Limpa Vidros",
+            "icon": "link",
+            "width": 20.074349442379,
+            "height": 19.956140350877,
+            "top": 0.9868421052629941,
+            "left": 72.676579925651
+          }
+        ],
+        "keyWords": "Pequenos Gestos Diferença Sentires Melhor Areja Espaços Diariamente Acrescenta Plantas Refresca Estofos Tapetes Periodicamente Aspirador Visão Impecável Podes Contar Janelas Vamos Pôr Vidros Silvercrest Limpeza Fácil Riscos Superfícies Vidro Espelhos Depósito Água Suja Medidas 34X28X13 Nº506093 Antiácaros Eficaz Ácaros Germes Bactérias Funções Leds Desinfecção Uvc Modo Sucção Função Batimento Inclui Filtros Hepa Laváveis Recipiente Pó Nº506349 Liberta Casa Alergias Magazin",
+        "altText": "Pequenos gestos, grande diferença: Equipamentos Silvercrest para limpeza de vidros e combate a alergias.",
+        "image": "https://imgproxy.leaflets.schwarz/G7QBO8MANyvgRpvAmT6S3PE8KGHGxOmW96C3TnqcqrI/rs:fit:1200:1200:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMTdfNmY1Yjc2YzE2NjkzOWEzMDAyMjliZTU1ZTI1NDYyM2YucG5n.jpg",
+        "zoom": "https://imgproxy.leaflets.schwarz/iToPMP_7IxrTBSKUczwrWkxQM94WchqdHw2TU9byOcE/rs:fit:2400:2400:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMTdfNmY1Yjc2YzE2NjkzOWEzMDAyMjliZTU1ZTI1NDYyM2YucG5n.jpg",
+        "thumbnail": "https://imgproxy.leaflets.schwarz/dcwGrAVFVAbIISvIPQGz--id07aVKyUjO7i1FcCbnS8/rs:fit:400:400:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMTdfNmY1Yjc2YzE2NjkzOWEzMDAyMjliZTU1ZTI1NDYyM2YucG5n.jpg",
+        "pageType": "page"
+      },
+      {
+        "id": "019d4397-3151-7a0c-97c1-163f37b57bc2",
+        "number": 18,
+        "width": 1415,
+        "height": 2400,
+        "type": "STANDARD",
+        "links": [],
+        "keyWords": "“ Mim Passar Ferro Rápido Vincos Ajuda Aliados Certos Torna- Essenciais Diferença • Roupa Impecável Mesmo Férias Mopa Vapor Higieniza Remove Sujidade Esforço Sobrando Tempo Deixes Escapar! Silvercrest Engomar 900-1100 Utilização Internacional Devido Interruptor Tensão Fácil Guardar Compacta Base Cerâmica Deslizar Ideal Capacidade Nº506341 Pronto Segundos Unidade Removível Uso Flexível Dispositivo Mão Dados Técnicos Depósito Água Funcionamento Enchimento Minutos Nº467360 Funda Pulisce Sin Uímico Senza Sos Elimina 9999% Las Bacterias Del Hogar Dei Batteri Domestici! Magazin",
+        "altText": "Passar a ferro rápido: Equipamentos Silvercrest para roupa impecável e limpeza a vapor eficaz.",
+        "image": "https://imgproxy.leaflets.schwarz/FCMaownmn7pmApvUFAPsmsqJZuo1cCjwISr11FD5ICE/rs:fit:1200:1200:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMThfMDNhZjdiNDk2MDgyZDQ3MTk2ZDZkMjhlNmM2N2U4YzAucG5n.jpg",
+        "zoom": "https://imgproxy.leaflets.schwarz/6x1nybYJOrjOLdj7-4YHSiduYzSagcNocnPpIKVEC48/rs:fit:2400:2400:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMThfMDNhZjdiNDk2MDgyZDQ3MTk2ZDZkMjhlNmM2N2U4YzAucG5n.jpg",
+        "thumbnail": "https://imgproxy.leaflets.schwarz/0OwiAIaWMirQ3Lw4BP1R-si_NQjPBFYu9O5zA4YI4K8/rs:fit:400:400:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMThfMDNhZjdiNDk2MDgyZDQ3MTk2ZDZkMjhlNmM2N2U4YzAucG5n.jpg",
+        "pageType": "page"
+      },
+      {
+        "id": "019d4397-3151-7a0c-97c1-163f38584f01",
+        "number": 19,
+        "width": 1415,
+        "height": 2400,
+        "type": "STANDARD",
+        "links": [],
+        "keyWords": "App? Descobre Fica Consulta Ofertas Online — Rapidamente Navegador Smartphone Simples App Lidl Basta Digitalizar Começar Passa Canal Youtube Momentos Silvercrest Dicas Truques Destaques Produtos Pensados Código Resumindo Concluindo Torna Queres Saber ? Digitaliza Deixa- Inspirar Receitas Rápidas Equipamentos Cozinha Conseguem Recebe Práticas Diretamente Redes Mostramos- Inteligentes Práticos Casa Muita Inspiração Par Sociais Entra Fantástico Mundo Silvercrest! Magazin",
+        "altText": "Descubra a App Silvercrest: Ofertas online, dicas e receitas para uma cozinha inteligente e inspiradora.",
+        "image": "https://imgproxy.leaflets.schwarz/Bn04dfIW0KfrpX9OUy3F9dnLPPzB4m9SGmLDHwNK9ls/rs:fit:1200:1200:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMTlfM2M0MDQxNDEwYTE3NTgyMjQ4ZDk1MmUzZTllMTkwNmQucG5n.jpg",
+        "zoom": "https://imgproxy.leaflets.schwarz/Ex2Z6x5WNdUWaioAZ5UqhTQ2ZNUbVILvp797IFrdek4/rs:fit:2400:2400:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMTlfM2M0MDQxNDEwYTE3NTgyMjQ4ZDk1MmUzZTllMTkwNmQucG5n.jpg",
+        "thumbnail": "https://imgproxy.leaflets.schwarz/kocWKvXkx4QgCLz1khaJQKW7r6AosaQXiEk1dijAcGY/rs:fit:400:400:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMTlfM2M0MDQxNDEwYTE3NTgyMjQ4ZDk1MmUzZTllMTkwNmQucG5n.jpg",
+        "pageType": "page"
+      },
+      {
+        "id": "019d4397-3151-7a0c-97c1-163f38b67208",
+        "number": 20,
+        "width": 1415,
+        "height": 2400,
+        "type": "STANDARD",
+        "links": [],
+        "keyWords": "Prática Folheto Digital Lista Compras Semanas Poupança Vale Mesmo Pena! Download App Scan",
+        "altText": "Folheto digital Silvercrest: Lista de compras e poupança semanal na App Lidl.",
+        "image": "https://imgproxy.leaflets.schwarz/CMS-ewQwf8oo-7D_XsKvHjsQeTaa97YPH_Un8P02T5I/rs:fit:1200:1200:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMjBfODQ4YTBhYzJhYWZiNTQ3NzllODM5OGU0NmMzMTVmNTEucG5n.jpg",
+        "zoom": "https://imgproxy.leaflets.schwarz/ohNcwdVMqDqbGhzBXtzAYK4s5im5Y9wMkwfYK3_2g6w/rs:fit:2400:2400:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMjBfODQ4YTBhYzJhYWZiNTQ3NzllODM5OGU0NmMzMTVmNTEucG5n.jpg",
+        "thumbnail": "https://imgproxy.leaflets.schwarz/gAv8z4RAC6A28ZZhsMecz7bIUS0OiAqVbkKlbDu3OCQ/rs:fit:400:400:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDMwZmUtOWU4Zi03MTJmLWJhMzYtZGNlZGQ5MTBmNTAzL3BhZ2UtMjBfODQ4YTBhYzJhYWZiNTQ3NzllODM5OGU0NmMzMTVmNTEucG5n.jpg",
+        "pageType": "page"
+      }
+    ],
+    "topics": [],
+    "videos": [],
+    "texts": [],
+    "products": [],
+    "notifications": [],
+    "relatedFlyers": [
+      {
+        "id": "019d96ba-7d3a-7572-a513-c784f18f60be",
+        "slug": "novidades-a-partir-de-20-04",
+        "name": "Novidades",
+        "title": "A partir de 20/04",
+        "url": "https://www.lidl.pt/l/pt/folhetos/novidades-a-partir-de-20-04/ar/0?lf=HHZ",
+        "startDate": "2026-04-17T00:00:00+00:00",
+        "endDate": "2026-04-26T23:59:59+00:00",
+        "thumbnailUrl": "https://imgproxy.leaflets.schwarz/cZh7caj7Iycfx6UrQg36lbNgmfTIP21mm2BLPfXDEV0/rs:fit:400:400:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDk2YmEtN2QzYS03NTcyLWE1MTMtYzc4NGYxOGY2MGJlL3BhZ2UtMDFfMDUyNzM5MTcwYzY0MzBkODcyYWViNzA5ZjViY2UxZGYucG5n.jpg",
+        "pdfUrl": "https://object.storage.eu01.onstackit.cloud/leaflets/pdfs/019d96ba-7d3a-7572-a513-c784f18f60be/Novidades-A-partir-de-20-04-01.pdf",
+        "regionCodes": [],
+        "stores": []
+      },
+      {
+        "id": "019d96ba-f920-76a6-bd89-dfa45929e51d",
+        "slug": "promocoes-a-partir-de-20-04",
+        "name": "Promoções",
+        "title": "A partir de 20/04",
+        "url": "https://www.lidl.pt/l/pt/folhetos/promocoes-a-partir-de-20-04/ar/0?lf=HHZ",
+        "startDate": "2026-04-17T00:00:00+00:00",
+        "endDate": "2026-04-26T23:59:59+00:00",
+        "thumbnailUrl": "https://imgproxy.leaflets.schwarz/MoARO9LXB0il3TAx6YUVYlUYcLyrk30uqgjQM0oIiY8/rs:fit:400:400:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDk2YmEtZjkyMC03NmE2LWJkODktZGZhNDU5MjllNTFkL3BhZ2UtMDFfNmY3MjMzNzYxODgyMjQ0YTY0ZWEyMTU2NDc5MTNmNTkucG5n.jpg",
+        "pdfUrl": "https://object.storage.eu01.onstackit.cloud/leaflets/pdfs/019d96ba-f920-76a6-bd89-dfa45929e51d/Promocoes-A-partir-de-20-04-01.pdf",
+        "regionCodes": [],
+        "stores": []
+      },
+      {
+        "id": "019d9077-7863-73dd-a263-be2166671ede",
+        "slug": "folheto-especial-esmara-primavera-2026",
+        "name": "Folheto Especial",
+        "title": "Esmara Primavera 2026",
+        "url": "https://www.lidl.pt/l/pt/folhetos/folheto-especial-esmara-primavera-2026/ar/0?lf=HHZ",
+        "startDate": "2026-04-15T00:00:00+00:00",
+        "endDate": "2026-06-07T23:59:59+00:00",
+        "thumbnailUrl": "https://imgproxy.leaflets.schwarz/saKqKtf6ekKd2f3p4TegeUQ7L9nxtl1CoY4Z5kGZoGo/rs:fit:400:400:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5ZDkwNzctNzg2My03M2RkLWEyNjMtYmUyMTY2NjcxZWRlL3BhZ2UtMDFfNzMxOGEzYzc3MmUyMWE5ZjI1ZTA5MzQ5NTYwNDViMWMucG5n.jpg",
+        "pdfUrl": "https://object.storage.eu01.onstackit.cloud/leaflets/pdfs/019d9077-7863-73dd-a263-be2166671ede/Folheto-Especial-Esmara-Primavera-2026-01.pdf",
+        "regionCodes": [],
+        "stores": []
+      },
+      {
+        "id": "019ce724-074a-7c32-90f1-a17a9255192b",
+        "slug": "folheto-especial-cien",
+        "name": "Folheto Especial",
+        "title": "Cien",
+        "url": "https://www.lidl.pt/l/pt/folhetos/folheto-especial-cien/ar/0?lf=HHZ",
+        "startDate": "2026-03-13T00:00:00-01:00",
+        "endDate": "2027-04-03T00:59:59+00:00",
+        "thumbnailUrl": "https://imgproxy.leaflets.schwarz/v4K-6J0uKrqAJz-w3qGqyfPrFZoeOsZRT--84Z7fXHY/rs:fit:400:400:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5Y2U3MjQtMDc0YS03YzMyLTkwZjEtYTE3YTkyNTUxOTJiL3BhZ2UtMDFfNDJiYWE0NjVkOWZkYTI1NTYyODhhMTdmNDdiZjNmOGQucG5n.jpg",
+        "pdfUrl": "https://object.storage.eu01.onstackit.cloud/leaflets/pdfs/019ce724-074a-7c32-90f1-a17a9255192b/Folheto-Especial-Cien-02.pdf",
+        "regionCodes": [],
+        "stores": []
+      },
+      {
+        "id": "019c2400-8c10-7249-b1a7-d62a2834841b",
+        "slug": "folheto-especial-jardim",
+        "name": "Folheto Especial",
+        "title": "Jardim",
+        "url": "https://www.lidl.pt/l/pt/folhetos/folheto-especial-jardim/ar/0?lf=HHZ",
+        "startDate": "2026-02-07T00:00:00-01:00",
+        "endDate": "2026-04-20T23:59:59+00:00",
+        "thumbnailUrl": "https://imgproxy.leaflets.schwarz/4Rcf9sYlP-Acy2W2jKif8-DZz-mQR842F7B_S-2Vxeo/rs:fit:400:400:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvMDE5YzI0MDAtOGMxMC03MjQ5LWIxYTctZDYyYTI4MzQ4NDFiL3BhZ2UtMDFfODZiMjIxM2VjMjIzMDQzZWJkMjM3NjJkZTRmMmY1ODQucG5n.jpg",
+        "pdfUrl": "https://object.storage.eu01.onstackit.cloud/leaflets/pdfs/019c2400-8c10-7249-b1a7-d62a2834841b/Folheto-Especial-Jardim-06.pdf",
+        "regionCodes": [],
+        "stores": []
+      },
+      {
+        "id": "69f075ad-932b-11ec-8570-005056aefbf3",
+        "slug": "baterias-e-ferramentas-para-todas-as-tarefas",
+        "name": "Especial Parkside",
+        "title": "Ferramentas e Bricolage",
+        "url": "https://www.lidl.pt/l/pt/folhetos/baterias-e-ferramentas-para-todas-as-tarefas/ar/0?lf=HHZ",
+        "startDate": "2022-02-24T00:00:00-01:00",
+        "endDate": "2026-12-31T00:59:59-01:00",
+        "thumbnailUrl": "https://imgproxy.leaflets.schwarz/gz4S__db0nKnb5zyKi3djuC9S4B6Jnl4uGp97SfEZhE/rs:fit:400:400:1/g:no/czM6Ly9sZWFmbGV0cy9pbWFnZXMvNjlmMDc1YWQtOTMyYi0xMWVjLTg1NzAtMDA1MDU2YWVmYmYzL3BhZ2UtMDFfZGFhNTg2NDU5NTRjYzAzYzMyOWM4OWRmMDBkOTc0YjIucG5n.jpg",
+        "pdfUrl": "https://object.storage.eu01.onstackit.cloud/leaflets/pdfs/69f075ad-932b-11ec-8570-005056aefbf3/Especial-Parkside-Ferramentas-e-Bricolage-09.pdf",
+        "regionCodes": [],
+        "stores": []
+      }
+    ]
+  }
+}

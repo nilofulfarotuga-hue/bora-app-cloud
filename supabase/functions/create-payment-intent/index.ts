@@ -7,8 +7,6 @@ const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
   httpClient: Stripe.createFetchHttpClient(),
 });
 
-const AMOUNT_TOLERANCE = 0.05; // ±5%
-
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -43,7 +41,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: order, error: dbError } = await supabase
       .from('orders')
-      .select('payment_buffer_total')
+      .select('price, payment_buffer_total')
       .eq('id', order_id)
       .maybeSingle();
 
@@ -62,20 +60,34 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const serverAmount = order.payment_buffer_total as number;
+    // serverPrice  = customer-facing total, server-trusted after create_order RPC.
+    // bufferAmount = Stripe pre-auth amount (buffer already applied, token discount
+    //               already deducted server-side by the RPC).
+    const serverPrice  = order.price as number;
+    const bufferAmount = order.payment_buffer_total as number;
 
-    if (!serverAmount || serverAmount <= 0) {
+    if (!serverPrice || serverPrice <= 0) {
       return new Response(
         JSON.stringify({ error: 'Invalid order amount' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
-    // Validate client amount against server amount (±5% tolerance)
-    const deviation = Math.abs(amount - serverAmount) / serverAmount;
-    if (deviation > AMOUNT_TOLERANCE) {
+    if (!bufferAmount || bufferAmount <= 0) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid order buffer amount' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
+    // Zero-tolerance validation: client must send the exact server price.
+    // Compare in integer cents to avoid IEEE-754 float rounding false-positives.
+    // orders.price is immutable after RPC (enforced by orders_financial_lock trigger).
+    const clientCents = Math.round(amount * 100);
+    const serverCents = Math.round(serverPrice * 100);
+    if (clientCents !== serverCents) {
       console.warn(
-        `[create-payment-intent] amount mismatch — client: €${amount.toFixed(2)}, server: €${serverAmount.toFixed(2)}, deviation: ${(deviation * 100).toFixed(1)}%`,
+        `[create-payment-intent] amount mismatch — client: €${amount.toFixed(2)}, server: €${serverPrice.toFixed(2)} (${clientCents} vs ${serverCents} cents)`,
       );
       return new Response(
         JSON.stringify({ error: 'Amount does not match order total' }),
@@ -83,8 +95,10 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Use server amount — never trust the client value
-    const amountCents = Math.round(serverAmount * 100);
+    // Charge payment_buffer_total — includes safety buffer for final price
+    // adjustments (e.g. storeShopping weight variance). Token discount was
+    // already deducted from this field server-side by the create_order RPC.
+    const amountCents = Math.round(bufferAmount * 100);
 
     if (amountCents < 50) {
       return new Response(
@@ -100,7 +114,7 @@ Deno.serve(async (req: Request) => {
       metadata: { order_id: order_id },
     });
 
-    console.log('[create-payment-intent] created:', paymentIntent.id, `order_id=${order_id}`, `€${serverAmount.toFixed(2)}`);
+    console.log('[create-payment-intent] created:', paymentIntent.id, `order_id=${order_id}`, `price=€${serverPrice.toFixed(2)}`, `charged=€${bufferAmount.toFixed(2)}`);
 
     return new Response(
       JSON.stringify({

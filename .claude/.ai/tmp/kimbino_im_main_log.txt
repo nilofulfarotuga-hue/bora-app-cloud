@@ -1,0 +1,49 @@
+{
+  "hub": {
+    "status": 200,
+    "final_url": "https://www.kimbino.pt/intermarche/",
+    "len": 326335,
+    "pdf_links": [
+      "https://d34seexzbffcio.cloudfront.net/d1b5145766b899b9019ccdf005d1391167bc930a7ec03.pdf",
+      "https://d34seexzbffcio.cloudfront.net/f1d88e59303cbb22a74aa7244684b69b68529c6f8e470.pdf"
+    ],
+    "image_sample": [
+      "https://eu.kimbicdns.com/pt/img/og/ogimg_pt.png",
+      "https://eu.kimbicdns.com/thumbor-l/-wDM-DLs_5wAq3aauC0oKaQdNEY=/full-fit-in/250x0/filters:format(webp):quality(65)/pt/da",
+      "https://eu.kimbicdns.com/thumbor-l/1ulODFKaWjyyMGGft-bOlsPdmQE=/full-fit-in/250x0/filters:format(webp):quality(65)/pt/da"
+    ],
+    "detail_links_count": 8,
+    "detail_sample": [
+      "/intermarche/intermarche-especialprodutos-labell-de-sexta-feira-11-07-2025-3936233/",
+      "/intermarche/intermarche-especialvinhos-selecao-de-enofilos-de-sexta-feira-11-07-2025-3936236/",
+      "/intermarche/intermarche-folheto-contact-de-quinta-feira-09-04-2026-5023043/",
+      "/intermarche/intermarche-folheto-contact-de-quinta-feira-16-04-2026-5045081/",
+      "/intermarche/intermarche-folheto-de-quinta-feira-16-04-2026-5045114/",
+      "/intermarche/intermarche-folheto-de-quinta-feira-22-01-2026-4714267/",
+      "/intermarche/intermarche-folheto-mini-de-quinta-feira-16-04-2026-5045063/",
+      "/intermarche/intermarche-folheto-super-de-quinta-feira-09-04-2026-5023049/"
+    ],
+    "nuxt_len": 178244
+  },
+  "main_folheto": {
+    "status": 200,
+    "final_url": "https://www.kimbino.pt/intermarche/intermarche-folheto-de-quinta-feira-16-04-2026-5045114/",
+    "len": 338082,
+    "pdf_links": [
+      "https://d34seexzbffcio.cloudfront.net/d1b5145766b899b9019ccdf005d1391167bc930a7ec03.pdf",
+      "https://d34seexzbffcio.cloudfront.net/f1d88e59303cbb22a74aa7244684b69b68529c6f8e470.pdf"
+    ],
+    "image_sample": [
+      "https://eu.kimbicdns.com/pt/img/app/events/BF_vseobecne-new.png",
+      "https://eu.kimbicdns.com/pt/img/app/events/BF_vseobecne.png",
+      "https://eu.kimbicdns.com/pt/img/og/ogimg_pt.png"
+    ],
+    "detail_links_count": 0,
+    "detail_sample": [],
+    "nuxt_len": 207268
+  },
+  "main_pdf_url": "https://d34seexzbffcio.cloudfront.net/d1b5145766b899b9019ccdf005d1391167bc930a7ec03.pdf",
+  "main_pdf_size": 229544,
+  "main_pdf_pages": 5,
+  "main_pdf_total_text_chars": 17752,
+  "main_pdf_first_pages_sample": "\n--- page 1 ---\n \nGeneral  terms  and  conditions  for  use  and  terms  and  conditions  for  the  provision  of  services     I.    Introductory  provisions       1.  These  general  terms  and  conditions  for  using  the  website  and  the  application  and  terms  and  \nconditions\n \nfor\n \nthe\n \nprovision\n \nof\n \nservices\n \non\n \ncontroller's\n \nwebsites\n \n(hereinafter\n \nreferred\n \nto\n \nonly\n \nas\n \nthe\n \n“\nwebsite\n”)\n \nand\n \nin\n \nthe\n \napplication\n \nKimbino\n \n(hereinafter\n \nreferred\n \nto\n \nonly\n \nas\n \nthe\n \n“\napplication\n”\n \nand\n \njointly\n \nwith\n \nthe\n \nwebsite\n \nalso\n \nas\n \nthe\n \n“\nplatform\n”)\n \nstipulate\n \n--- page 2 ---\n \n7.  The  relevant  supervisory  authority  to  which  the  controller’s  activity  in  the  course  of  services  \nprovision\n \nis\n \nsubject\n \nto\n \nis\n \nthe\n \nSlovak\n \nTrade\n \nInspection,\n \nPredmestská\n \n71,\n \nP.\n \nO.\n \nBOX\n \nB-89,\n \n011\n \n79 Žilina\n,\n \ntel.\n \nNo.\n \n41/763\n \n21\n \n30,\n \n041/724\n \n58\n \n68.\n  II.   Basic  terms  and  conditions  for  u

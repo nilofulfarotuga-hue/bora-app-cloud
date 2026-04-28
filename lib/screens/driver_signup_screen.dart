@@ -419,7 +419,7 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
                 child: Column(
                   children: [
                     DropdownButtonFormField<String>(
-                      initialValue: _documentType,
+                      value: _documentType,
                       decoration: const InputDecoration(
                         labelText: 'Tipo de documento',
                         prefixIcon: Icon(Icons.badge_outlined),

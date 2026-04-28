@@ -258,7 +258,7 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<BusinessCategory>(
-                    initialValue: _selectedCategory,
+                    value: _selectedCategory,
                     decoration: const InputDecoration(
                       labelText: 'Categoria',
                       prefixIcon: Icon(Icons.category_outlined),

@@ -260,21 +260,18 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                       ),
                 ),
                 const SizedBox(height: 12),
-                RadioGroup<PaymentMethod>(
-                  groupValue: _selectedMethod,
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() => _selectedMethod = value);
-                    }
-                  },
-                  child: Column(
-                    children: paymentOptions
-                        .map((option) => _PaymentOptionTile(
-                              option: option,
-                              groupValue: _selectedMethod,
-                            ))
-                        .toList(),
-                  ),
+                Column(
+                  children: paymentOptions
+                      .map((option) => _PaymentOptionTile(
+                            option: option,
+                            groupValue: _selectedMethod,
+                            onChanged: (value) {
+                              if (value != null) {
+                                setState(() => _selectedMethod = value);
+                              }
+                            },
+                          ))
+                      .toList(),
                 ),
                 if (_selectedMethod == PaymentMethod.mbway) ...[
                   const SizedBox(height: 12),
@@ -660,10 +657,12 @@ class _PaymentOptionTile extends StatelessWidget {
   const _PaymentOptionTile({
     required this.option,
     required this.groupValue,
+    required this.onChanged,
   });
 
   final _PaymentOption option;
   final PaymentMethod groupValue;
+  final ValueChanged<PaymentMethod?> onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -682,6 +681,8 @@ class _PaymentOptionTile extends StatelessWidget {
       ),
       child: RadioListTile<PaymentMethod>(
         value: option.method,
+        groupValue: groupValue,
+        onChanged: onChanged,
         title: Text(option.title),
         subtitle: Text(option.subtitle),
         secondary: Icon(option.icon),

@@ -13,10 +13,12 @@ class StoreCategoriesScreen extends StatelessWidget {
     super.key,
     required this.restaurantId,
     required this.storeName,
+    required this.isPartnerStore,
   });
 
   final String restaurantId;
   final String storeName;
+  final bool isPartnerStore;
 
   static const _categoryIcons = <String, IconData>{
     'frutas': Icons.eco_rounded,
@@ -204,6 +206,7 @@ class StoreCategoriesScreen extends StatelessWidget {
           restaurantId: restaurantId,
           storeName: storeName,
           initialCategory: category,
+          isPartnerStore: isPartnerStore,
         ),
       ),
     );

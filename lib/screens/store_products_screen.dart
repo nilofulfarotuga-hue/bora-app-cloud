@@ -20,11 +20,13 @@ class StoreProductsScreen extends StatefulWidget {
   final String restaurantId;
   final String storeName;
   final String? initialCategory;
+  final bool isPartnerStore;
 
   const StoreProductsScreen({
     super.key,
     required this.restaurantId,
     required this.storeName,
+    required this.isPartnerStore,
     this.initialCategory,
   });
 
@@ -255,6 +257,7 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
               rpcLoading: _rpcLoading,
               localFallback: suggestions,
               loadedProducts: products,
+              isPartnerStore: widget.isPartnerStore,
               onPickSection: (categoryRoot) {
                 _searchController.clear();
                 setState(() {
@@ -322,10 +325,12 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
                     ? _SectionedView(
                         grouped: grouped!,
                         isFruitCategory: _isFruitCategory,
+                        isPartnerStore: widget.isPartnerStore,
                       )
                     : _FlatGridView(
                         products: filtered,
                         showPerKg: isFruit,
+                        isPartnerStore: widget.isPartnerStore,
                       ),
           ),
 
@@ -569,10 +574,12 @@ class _SectionedView extends StatelessWidget {
   const _SectionedView({
     required this.grouped,
     required this.isFruitCategory,
+    required this.isPartnerStore,
   });
 
   final Map<String, List<PartnerProduct>> grouped;
   final bool Function(String) isFruitCategory;
+  final bool isPartnerStore;
 
   @override
   Widget build(BuildContext context) {
@@ -625,7 +632,10 @@ class _SectionedView extends StatelessWidget {
                 childAspectRatio: 3 / 4,
               ),
               delegate: SliverChildBuilderDelegate(
-                (context, i) => _BoraProductCardTile(product: noVariants[i]),
+                (context, i) => _BoraProductCardTile(
+                  product: noVariants[i],
+                  isPartnerStore: isPartnerStore,
+                ),
                 childCount: noVariants.length,
               ),
             ),
@@ -644,6 +654,7 @@ class _SectionedView extends StatelessWidget {
                   child: _ProductCard(
                     product: withVariants[i],
                     showPerKg: showPerKg,
+                    isPartnerStore: isPartnerStore,
                   ),
                 ),
                 childCount: withVariants.length,
@@ -677,10 +688,15 @@ class _SectionedView extends StatelessWidget {
 // ─── Flat grid view (uma categoria seleccionada) ──────────────────────────────
 
 class _FlatGridView extends StatelessWidget {
-  const _FlatGridView({required this.products, required this.showPerKg});
+  const _FlatGridView({
+    required this.products,
+    required this.showPerKg,
+    required this.isPartnerStore,
+  });
 
   final List<PartnerProduct> products;
   final bool showPerKg;
+  final bool isPartnerStore;
 
   @override
   Widget build(BuildContext context) {
@@ -709,7 +725,10 @@ class _FlatGridView extends StatelessWidget {
                 childAspectRatio: 3 / 4,
               ),
               delegate: SliverChildBuilderDelegate(
-                (context, i) => _BoraProductCardTile(product: noVariants[i]),
+                (context, i) => _BoraProductCardTile(
+                  product: noVariants[i],
+                  isPartnerStore: isPartnerStore,
+                ),
                 childCount: noVariants.length,
               ),
             ),
@@ -724,6 +743,7 @@ class _FlatGridView extends StatelessWidget {
                   child: _ProductCard(
                     product: withVariants[i],
                     showPerKg: showPerKg,
+                    isPartnerStore: isPartnerStore,
                   ),
                 ),
                 childCount: withVariants.length,
@@ -820,9 +840,13 @@ class _SectionHeader extends StatelessWidget {
 // ─── Tile wrapper que liga BoraProductCard a CartStore + FavoriteStore ────────
 
 class _BoraProductCardTile extends StatelessWidget {
-  const _BoraProductCardTile({required this.product});
+  const _BoraProductCardTile({
+    required this.product,
+    required this.isPartnerStore,
+  });
 
   final PartnerProduct product;
+  final bool isPartnerStore;
 
   @override
   Widget build(BuildContext context) {
@@ -831,6 +855,8 @@ class _BoraProductCardTile extends StatelessWidget {
 
     return BoraProductCard(
       product: product,
+      displayPrice:
+          PricingService.applyMarkup(product.price, isPartnerStore),
       isFavorite: isFav,
       onFavoriteToggle: () => favoriteStore.toggle(product.id),
       onTap: () => Navigator.push(
@@ -868,10 +894,15 @@ class _BoraProductCardTile extends StatelessWidget {
 // ─── Product card ──────────────────────────────────────────────────────────────
 
 class _ProductCard extends StatefulWidget {
-  const _ProductCard({required this.product, required this.showPerKg});
+  const _ProductCard({
+    required this.product,
+    required this.showPerKg,
+    required this.isPartnerStore,
+  });
 
   final PartnerProduct product;
   final bool showPerKg;
+  final bool isPartnerStore;
 
   @override
   State<_ProductCard> createState() => _ProductCardState();
@@ -1015,7 +1046,7 @@ class _ProductCardState extends State<_ProductCard>
                     children: [
                       Text(
                         widget.product.price > 0
-                            ? '€${PricingService.applyMarkup(widget.product.price, cartStore.isPartnerStore).toStringAsFixed(2)}'
+                            ? '€${PricingService.applyMarkup(widget.product.price, widget.isPartnerStore).toStringAsFixed(2)}'
                             : 'Preço indisponível',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
@@ -1071,6 +1102,7 @@ class _ProductCardState extends State<_ProductCard>
                         primaryColor: primaryColor,
                         showCheapestBadge: showCheapest,
                         showPremiumBadge: showPremium,
+                        isPartnerStore: widget.isPartnerStore,
                       ),
                     );
                   }),
@@ -1096,6 +1128,7 @@ class _VariantMiniCard extends StatelessWidget {
     required this.primaryColor,
     required this.showCheapestBadge,
     required this.showPremiumBadge,
+    required this.isPartnerStore,
   });
 
   final ProductVariant variant;
@@ -1106,6 +1139,7 @@ class _VariantMiniCard extends StatelessWidget {
   final Color primaryColor;
   final bool showCheapestBadge;
   final bool showPremiumBadge;
+  final bool isPartnerStore;
 
   String get _variantKey => '${productName}__${variant.id}';
 
@@ -1141,7 +1175,7 @@ class _VariantMiniCard extends StatelessWidget {
         .where((i) => i.productId == _variantKey)
         .fold<int>(0, (sum, i) => sum + i.quantity);
     final markedPrice =
-        PricingService.applyMarkup(variant.price, cartStore.isPartnerStore);
+        PricingService.applyMarkup(variant.price, isPartnerStore);
     final priceLabel = showPerKg
         ? '€${markedPrice.toStringAsFixed(2)}/kg'
         : '€${markedPrice.toStringAsFixed(2)}';
@@ -1442,6 +1476,7 @@ class _SuggestionsPanel extends StatelessWidget {
     required this.loadedProducts,
     required this.onPickSection,
     required this.onPickProduct,
+    required this.isPartnerStore,
   });
 
   final List<Map<String, dynamic>> rpcRows;
@@ -1450,6 +1485,7 @@ class _SuggestionsPanel extends StatelessWidget {
   final List<PartnerProduct> loadedProducts;
   final ValueChanged<String> onPickSection;
   final ValueChanged<PartnerProduct> onPickProduct;
+  final bool isPartnerStore;
 
   PartnerProduct? _resolveProduct(Map<String, dynamic> row) {
     final id = (row['id'] ?? '').toString();
@@ -1473,7 +1509,6 @@ class _SuggestionsPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isPartnerStore = context.read<CartStore>().isPartnerStore;
     final sections = rpcRows
         .where((r) => (r['result_type'] ?? '') == 'section')
         .toList();

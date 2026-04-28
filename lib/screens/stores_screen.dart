@@ -214,10 +214,12 @@ class StoresScreen extends StatelessWidget {
             ? StoreCategoriesScreen(
                 restaurantId: entry.business.id,
                 storeName: entry.store.name,
+                isPartnerStore: entry.business.isPartner,
               )
             : StoreProductsScreen(
                 restaurantId: entry.business.id,
                 storeName: entry.store.name,
+                isPartnerStore: entry.business.isPartner,
               ),
       ),
     );

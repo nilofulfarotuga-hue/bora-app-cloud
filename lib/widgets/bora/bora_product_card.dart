@@ -26,9 +26,14 @@ class BoraProductCard extends StatelessWidget {
     required this.onTap,
     this.onFavoriteToggle,
     this.isFavorite = false,
+    this.displayPrice,
   });
 
   final PartnerProduct product;
+
+  /// Price shown to the user. When null, falls back to [product.price].
+  /// Use this to render a marked-up price while keeping [product.price] raw.
+  final double? displayPrice;
 
   /// Callback do botão "+" — deve chamar `CartStore.addItem(...)`.
   final VoidCallback onAdd;
@@ -139,7 +144,7 @@ class BoraProductCard extends StatelessWidget {
                         Flexible(
                           child: Text(
                             hasPrice
-                                ? '€${product.price.toStringAsFixed(2)}'
+                                ? '€${(displayPrice ?? product.price).toStringAsFixed(2)}'
                                 : 'Indisponível',
                             style: TextStyle(
                               fontSize: 15,

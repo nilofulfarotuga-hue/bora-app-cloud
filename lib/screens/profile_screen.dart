@@ -418,7 +418,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
 
             // ── Admin panel ────────────────────────────────────────────────
-            if (user?.email == 'nilofulfarotuga@gmail.com')
+            if (user?.email == 'nilofulfarotuga@gmail.com' ||
+                user?.email == 'nilofulfaro@gmail.com')
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: Spacing.lg),
                 child: SizedBox(

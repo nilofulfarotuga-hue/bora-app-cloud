@@ -18,8 +18,11 @@ import 'admin_partners_screen.dart';
 /// row-level data — so even if this screen is reached by a non-admin the
 /// blast radius is limited to four totals.
 ///
-/// Access gating: checks `bora_role == 'admin'` in Supabase user_metadata
-/// (same pattern used for driver/partner roles — set via migration).
+/// Access gating: email-based allow-list (Danilo's two emails). The
+/// `bora_role` metadata is reserved for the app's role system
+/// (client/driver/partner) and cannot be reused for admin without
+/// breaking client login. Server-side RLS on the RPC remains the
+/// last line of defense.
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
 
@@ -52,8 +55,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   bool get _isAuthorized {
-    final meta = Supabase.instance.client.auth.currentUser?.userMetadata;
-    return meta?['bora_role'] == 'admin';
+    final email = Supabase.instance.client.auth.currentUser?.email;
+    return email == 'nilofulfarotuga@gmail.com' ||
+        email == 'nilofulfaro@gmail.com';
   }
 
   @override

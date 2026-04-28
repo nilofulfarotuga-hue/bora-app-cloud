@@ -745,7 +745,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                   Switch(
                     value: isAvailable,
                     onChanged: (v) => orderStore.toggleDriverAvailability(v),
-                    activeThumbColor: Colors.green.shade600,
+                    activeColor: Colors.green.shade600,
                     activeTrackColor: Colors.green.shade200,
                   ),
                 ],

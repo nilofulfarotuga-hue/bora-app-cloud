@@ -241,7 +241,7 @@ class _CheckoutPanel extends StatelessWidget {
                     ? null
                     : (value) => cartStore.setTakeaway(value),
                 contentPadding: EdgeInsets.zero,
-                activeThumbColor: AppColors.primary,
+                activeColor: AppColors.primary,
                 title: const Text(
                   'Ir buscar (takeaway, sem entrega)',
                   style: TextStyle(fontWeight: FontWeight.w600),
@@ -257,7 +257,7 @@ class _CheckoutPanel extends StatelessWidget {
                   ? null
                   : (value) => cartStore.setApartmentDelivery(value),
               contentPadding: EdgeInsets.zero,
-              activeThumbColor: AppColors.primary,
+              activeColor: AppColors.primary,
               title: const Text(
                 'Entregar no apartamento (+€1.50)',
                 style: TextStyle(fontWeight: FontWeight.w600),

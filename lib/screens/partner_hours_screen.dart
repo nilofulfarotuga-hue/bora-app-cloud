@@ -229,7 +229,7 @@ class _DayRow extends StatelessWidget {
           Switch(
             value: !hours.closed,
             onChanged: (open) => onToggleClosed(!open),
-            activeThumbColor: AppColors.primary,
+            activeColor: AppColors.primary,
           ),
         ],
       ),

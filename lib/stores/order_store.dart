@@ -142,7 +142,8 @@ class OrderStore extends ChangeNotifier {
       final response = await (isClient
               ? supabase.from('orders').select().eq('user_id', userId)
               : supabase.from('orders').select())
-          .order('created_at', ascending: false);
+          .order('created_at', ascending: false)
+          .timeout(const Duration(seconds: 8));
 
       _orders.clear();
       for (final data in response) {
@@ -1530,8 +1531,9 @@ class OrderStore extends ChangeNotifier {
   /// `_ordersSubscription = null` (after cancelling) before calling.
   void _subscribeToOrders() {
     if (_ordersSubscription != null) {
-      debugPrint('[OrderStore] general subscription already active — skipping');
-      return;
+      debugPrint('[OrderStore] cancelling previous general subscription before re-subscribe');
+      _ordersSubscription?.cancel();
+      _ordersSubscription = null;
     }
     debugPrint('[OrderStore] general subscription started (no driver filter)');
     final uid = _authStore?.userId;

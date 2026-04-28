@@ -8,6 +8,7 @@ import '../config/app_colors.dart';
 import '../models/cart_item.dart';
 import '../models/partner_product.dart';
 import '../models/product_variant.dart';
+import '../services/pricing_service.dart';
 import '../stores/cart_store.dart';
 import '../stores/favorite_store.dart';
 import '../stores/restaurant_store.dart';
@@ -843,7 +844,7 @@ class _BoraProductCardTile extends StatelessWidget {
         context.read<CartStore>().addItem(CartItem(
               productId: product.id,
               name: product.name,
-              price: double.parse((product.price * 1.15).toStringAsFixed(2)),
+              price: product.price,
             ));
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
@@ -1014,7 +1015,7 @@ class _ProductCardState extends State<_ProductCard>
                     children: [
                       Text(
                         widget.product.price > 0
-                            ? '€${(widget.product.price * 1.15).toStringAsFixed(2)}'
+                            ? '€${PricingService.applyMarkup(widget.product.price, cartStore.isPartnerStore).toStringAsFixed(2)}'
                             : 'Preço indisponível',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
@@ -1032,7 +1033,7 @@ class _ProductCardState extends State<_ProductCard>
                           context.read<CartStore>().addItem(CartItem(
                                 productId: widget.product.id,
                                 name: widget.product.name,
-                                price: double.parse((widget.product.price * 1.15).toStringAsFixed(2)),
+                                price: widget.product.price,
                               ));
                           ScaffoldMessenger.of(context)
                             ..hideCurrentSnackBar()
@@ -1112,7 +1113,7 @@ class _VariantMiniCard extends StatelessWidget {
     context.read<CartStore>().addItem(CartItem(
           productId: _variantKey,
           name: '$productName (${variant.brandName})',
-          price: double.parse((variant.price * 1.15).toStringAsFixed(2)),
+          price: variant.price,
         ));
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -1139,9 +1140,11 @@ class _VariantMiniCard extends StatelessWidget {
     final qty = cartStore.items
         .where((i) => i.productId == _variantKey)
         .fold<int>(0, (sum, i) => sum + i.quantity);
+    final markedPrice =
+        PricingService.applyMarkup(variant.price, cartStore.isPartnerStore);
     final priceLabel = showPerKg
-        ? '€${(variant.price * 1.15).toStringAsFixed(2)}/kg'
-        : '€${(variant.price * 1.15).toStringAsFixed(2)}';
+        ? '€${markedPrice.toStringAsFixed(2)}/kg'
+        : '€${markedPrice.toStringAsFixed(2)}';
 
     return Material(
       color: const Color(0xFFF7F7F7),
@@ -1470,6 +1473,7 @@ class _SuggestionsPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isPartnerStore = context.read<CartStore>().isPartnerStore;
     final sections = rpcRows
         .where((r) => (r['result_type'] ?? '') == 'section')
         .toList();
@@ -1544,7 +1548,8 @@ class _SuggestionsPanel extends StatelessWidget {
                 title: Text(p.name,
                     style: const TextStyle(
                         fontSize: 13, fontWeight: FontWeight.w600)),
-                subtitle: Text('€${(p.price * 1.15).toStringAsFixed(2)}',
+                subtitle: Text(
+                    '€${PricingService.applyMarkup(p.price, isPartnerStore).toStringAsFixed(2)}',
                     style: const TextStyle(fontSize: 12)),
                 onTap: () => onPickProduct(p),
               );
@@ -1572,7 +1577,8 @@ class _SuggestionsPanel extends StatelessWidget {
                 title: Text(p.name,
                     style: const TextStyle(
                         fontSize: 13, fontWeight: FontWeight.w600)),
-                subtitle: Text('€${(p.price * 1.15).toStringAsFixed(2)}',
+                subtitle: Text(
+                    '€${PricingService.applyMarkup(p.price, isPartnerStore).toStringAsFixed(2)}',
                     style: const TextStyle(fontSize: 12)),
                 onTap: () => onPickProduct(p),
               ),

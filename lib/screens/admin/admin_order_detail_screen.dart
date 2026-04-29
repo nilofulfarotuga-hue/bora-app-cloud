@@ -1,0 +1,533 @@
+import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../config/app_colors.dart';
+import '_admin_cancel_order_dialog.dart';
+
+/// Full-screen admin detail for an order. Pushed from `admin_orders_screen`
+/// (FASE 4 BUG 3 F1.D). 4 tabs:
+///   1. Resumo  — info + status badge + acção Cancelar (se estado activo)
+///   2. Items   — lista de produtos (read-only)
+///   3. Pagamento — método, status, refund info
+///   4. Timeline — admin_audit_log filtrado por entity_id desta ordem
+class AdminOrderDetailScreen extends StatefulWidget {
+  const AdminOrderDetailScreen({super.key, required this.orderId});
+
+  final String orderId;
+
+  @override
+  State<AdminOrderDetailScreen> createState() => _AdminOrderDetailScreenState();
+}
+
+class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tab;
+
+  Map<String, dynamic>? _order;
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _tab = TabController(length: 4, vsync: this);
+    _refresh();
+  }
+
+  @override
+  void dispose() {
+    _tab.dispose();
+    super.dispose();
+  }
+
+  Future<void> _refresh() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final data = await Supabase.instance.client
+          .from('orders')
+          .select(
+              'id, status, payment_method, payment_status, payment_intent_id, '
+              'price, total, final_total, vendor_name, restaurant_id, user_id, '
+              'assigned_driver_id, items, address, cancel_reason, cancelled_at, '
+              'cancelled_by, cancellation_initiator, cancellation_reason_code, '
+              'refund_id, refund_status, refund_amount, refunded_at, created_at')
+          .eq('id', widget.orderId)
+          .maybeSingle();
+
+      if (data == null) {
+        if (mounted) {
+          setState(() {
+            _loading = false;
+            _error = 'Pedido não encontrado.';
+          });
+        }
+        return;
+      }
+      if (!mounted) return;
+      setState(() {
+        _order = Map<String, dynamic>.from(data);
+        _loading = false;
+      });
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = 'Erro a carregar: $e';
+        });
+      }
+    }
+  }
+
+  Future<void> _openCancelDialog() async {
+    if (_order == null) return;
+    final result = await showDialog(
+      context: context,
+      builder: (_) => AdminCancelOrderDialog(order: _order!),
+    );
+    if (result != null && mounted) {
+      _refresh();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(_order != null
+            ? 'Pedido #${(_order!['id'] as String).substring(0, 8)}'
+            : 'Pedido'),
+        actions: [
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _refresh),
+        ],
+        bottom: TabBar(
+          controller: _tab,
+          isScrollable: true,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white60,
+          indicatorColor: Colors.white,
+          tabs: const [
+            Tab(text: 'Resumo'),
+            Tab(text: 'Items'),
+            Tab(text: 'Pagamento'),
+            Tab(text: 'Timeline'),
+          ],
+        ),
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+              ? Center(child: Text(_error!, style: const TextStyle(color: AppColors.error)))
+              : TabBarView(
+                  controller: _tab,
+                  children: [
+                    _SummaryTab(order: _order!, onCancel: _openCancelDialog),
+                    _ItemsTab(order: _order!),
+                    _PaymentTab(order: _order!),
+                    _TimelineTab(orderId: widget.orderId),
+                  ],
+                ),
+    );
+  }
+}
+
+// ── TAB 1 — Resumo ──────────────────────────────────────────────────────────
+
+class _SummaryTab extends StatelessWidget {
+  const _SummaryTab({required this.order, required this.onCancel});
+  final Map<String, dynamic> order;
+  final VoidCallback onCancel;
+
+  bool get _canCancel {
+    final status = order['status'] as String? ?? '';
+    return !['delivered', 'cancelled', 'rejected'].contains(status);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final status = order['status'] as String? ?? '';
+    final created = DateTime.tryParse(order['created_at'] as String? ?? '');
+    final cancelled = DateTime.tryParse(order['cancelled_at'] as String? ?? '');
+    final initiator = order['cancellation_initiator'] as String?;
+    final reasonCode = order['cancellation_reason_code'] as String?;
+    final cancelReason = order['cancel_reason'] as String?;
+
+    return RefreshIndicator(
+      onRefresh: () async {},
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  Expanded(
+                    child: Text(order['vendor_name'] as String? ?? '—',
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                  ),
+                  _StatusBadge(status: status),
+                ]),
+                const SizedBox(height: 8),
+                Text(
+                  'ID: ${order['id']}',
+                  style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                ),
+                if (created != null)
+                  Text('Criado: ${_fmtDate(created)}',
+                      style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                if (cancelled != null) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    'Cancelado em ${_fmtDate(cancelled)}'
+                    '${initiator != null ? " (por $initiator)" : ""}',
+                    style: const TextStyle(fontSize: 12, color: AppColors.error),
+                  ),
+                  if (reasonCode != null)
+                    Text('Categoria: $reasonCode',
+                        style: const TextStyle(fontSize: 12)),
+                  if (cancelReason != null && cancelReason.isNotEmpty)
+                    Text('Motivo: $cancelReason',
+                        style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic)),
+                ],
+              ]),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(children: [
+                _row(Icons.person_outline, 'Cliente', order['user_id']),
+                _row(Icons.two_wheeler, 'Estafeta', order['assigned_driver_id'] ?? '—'),
+                _row(Icons.store, 'Restaurante (FK)', order['restaurant_id'] ?? '—'),
+                _row(Icons.location_on, 'Morada', order['address'] ?? '—'),
+                _row(Icons.euro, 'Total', '€${_amount(order)}'),
+              ]),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text('Acções', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          _ActionButton(
+            icon: Icons.cancel,
+            label: 'Cancelar pedido',
+            color: AppColors.error,
+            enabled: _canCancel,
+            onTap: onCancel,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _row(IconData icon, String label, dynamic value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(children: [
+        Icon(icon, size: 18, color: AppColors.primary),
+        const SizedBox(width: 12),
+        SizedBox(width: 110, child: Text(label, style: const TextStyle(color: AppColors.textSecondary))),
+        Expanded(child: Text(value?.toString() ?? '—', style: const TextStyle(fontSize: 13))),
+      ]),
+    );
+  }
+}
+
+// ── TAB 2 — Items ───────────────────────────────────────────────────────────
+
+class _ItemsTab extends StatelessWidget {
+  const _ItemsTab({required this.order});
+  final Map<String, dynamic> order;
+
+  @override
+  Widget build(BuildContext context) {
+    final items = order['items'];
+    if (items == null) {
+      return const Center(child: Text('Sem items registados.'));
+    }
+    final list = items is List ? items : <dynamic>[];
+    if (list.isEmpty) {
+      return const Center(child: Text('Sem items registados.'));
+    }
+    return ListView.separated(
+      padding: const EdgeInsets.all(12),
+      itemCount: list.length,
+      separatorBuilder: (_, __) => const Divider(height: 1),
+      itemBuilder: (_, i) {
+        final item = list[i];
+        if (item is! Map) return const SizedBox.shrink();
+        final m = Map<String, dynamic>.from(item);
+        final qty = m['qty'] ?? m['quantity'] ?? 1;
+        final name = m['name'] ?? m['title'] ?? '—';
+        final price = m['price'] ?? m['line_total'];
+        return ListTile(
+          dense: true,
+          leading: CircleAvatar(
+            backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+            child: Text('${qty}x', style: const TextStyle(fontSize: 11)),
+          ),
+          title: Text(name.toString()),
+          trailing: price != null
+              ? Text('€${(price as num).toStringAsFixed(2)}')
+              : null,
+        );
+      },
+    );
+  }
+}
+
+// ── TAB 3 — Pagamento ───────────────────────────────────────────────────────
+
+class _PaymentTab extends StatelessWidget {
+  const _PaymentTab({required this.order});
+  final Map<String, dynamic> order;
+
+  @override
+  Widget build(BuildContext context) {
+    final method = order['payment_method'] as String?;
+    final paymentStatus = order['payment_status'] as String?;
+    final pi = order['payment_intent_id'] as String?;
+    final refundStatus = order['refund_status'] as String?;
+    final refundId = order['refund_id'] as String?;
+    final refundAmount = (order['refund_amount'] as num?)?.toDouble();
+    final refundedAt = DateTime.tryParse(order['refunded_at'] as String? ?? '');
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Pagamento', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 8),
+              _row('Método', method ?? '—'),
+              _row('Estado', paymentStatus ?? '—'),
+              _row('Total', '€${_amount(order)}'),
+              if (pi != null) _row('Stripe PI', pi),
+            ]),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Card(
+          color: refundStatus == 'failed'
+              ? AppColors.error.withValues(alpha: 0.05)
+              : refundStatus == 'succeeded'
+                  ? AppColors.success.withValues(alpha: 0.05)
+                  : null,
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Reembolso', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 8),
+              _row('Estado', refundStatus ?? '—'),
+              if (refundAmount != null) _row('Valor', '€${refundAmount.toStringAsFixed(2)}'),
+              if (refundId != null) _row('Stripe Refund', refundId),
+              if (refundedAt != null) _row('Data', _fmtDate(refundedAt)),
+              if (refundStatus == 'failed') ...[
+                const SizedBox(height: 8),
+                const Text(
+                  '⚠️ Refund falhou — verifica Stripe Dashboard manualmente.',
+                  style: TextStyle(color: AppColors.error, fontSize: 12),
+                ),
+              ],
+            ]),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _row(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(children: [
+        SizedBox(width: 110, child: Text(label, style: const TextStyle(color: AppColors.textSecondary))),
+        Expanded(child: Text(value, style: const TextStyle(fontSize: 13))),
+      ]),
+    );
+  }
+}
+
+// ── TAB 4 — Timeline ────────────────────────────────────────────────────────
+
+class _TimelineTab extends StatefulWidget {
+  const _TimelineTab({required this.orderId});
+  final String orderId;
+  @override
+  State<_TimelineTab> createState() => _TimelineTabState();
+}
+
+class _TimelineTabState extends State<_TimelineTab> {
+  late Future<List<Map<String, dynamic>>> _f;
+
+  @override
+  void initState() {
+    super.initState();
+    _f = _load();
+  }
+
+  Future<List<Map<String, dynamic>>> _load() async {
+    final res = await Supabase.instance.client
+        .from('admin_audit_log')
+        .select('id, action, admin_email, details, created_at')
+        .eq('entity_type', 'order')
+        .eq('entity_id', widget.orderId)
+        .order('created_at', ascending: false)
+        .limit(100);
+    return List<Map<String, dynamic>>.from(res);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _f,
+      builder: (ctx, snap) {
+        if (snap.connectionState != ConnectionState.done) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snap.hasError) return Center(child: Text('Erro: ${snap.error}'));
+        final entries = snap.data ?? const [];
+        if (entries.isEmpty) {
+          return const Center(child: Text('Sem entradas de audit.'));
+        }
+        return RefreshIndicator(
+          onRefresh: () async => setState(() => _f = _load()),
+          child: ListView.separated(
+            padding: const EdgeInsets.all(12),
+            itemCount: entries.length,
+            separatorBuilder: (_, __) => const Divider(height: 1),
+            itemBuilder: (_, i) {
+              final e = entries[i];
+              final at = DateTime.tryParse(e['created_at'] as String? ?? '');
+              final details = e['details'] as Map<String, dynamic>?;
+              final summary = details == null ? '' : _summariseDetails(details);
+              return ListTile(
+                leading: Icon(_iconFor(e['action'] as String?), color: AppColors.primary, size: 20),
+                title: Text(e['action'] as String? ?? '—',
+                    style: const TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: Text(
+                  '${e['admin_email'] ?? '—'}${summary.isEmpty ? '' : '\n$summary'}',
+                  style: const TextStyle(fontSize: 12),
+                ),
+                trailing: Text(at == null ? '—' : _fmtDate(at),
+                    style: const TextStyle(fontSize: 11)),
+                isThreeLine: summary.isNotEmpty,
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  IconData _iconFor(String? action) {
+    if (action == null) return Icons.history;
+    if (action == 'order_cancel' || action == 'order_cancel_complete') return Icons.cancel;
+    if (action == 'order_cancel_idempotent') return Icons.repeat;
+    if (action.startsWith('order_refund')) return Icons.attach_money;
+    return Icons.history;
+  }
+
+  String _summariseDetails(Map<String, dynamic> d) {
+    final parts = <String>[];
+    if (d['previous_status'] != null) parts.add('prev=${d['previous_status']}');
+    if (d['reason_code'] != null) parts.add('cat=${d['reason_code']}');
+    if (d['reason'] != null) parts.add('"${d['reason']}"');
+    if (d['refund_result'] != null) {
+      final amt = d['refund_amount'];
+      parts.add('refund=${d['refund_result']}${amt != null ? " €$amt" : ""}');
+    }
+    if (d['notifications'] != null) {
+      final n = d['notifications'] as Map?;
+      if (n != null) {
+        final ok = n.entries.where((e) => (e.value as Map?)?['ok'] == true).length;
+        parts.add('notify=$ok/${n.length}');
+      }
+    }
+    if (d['attempted_reason_code'] != null) parts.add('attempted=${d['attempted_reason_code']}');
+    return parts.join(' · ');
+  }
+}
+
+// ── Helpers / shared widgets ───────────────────────────────────────────────
+
+class _StatusBadge extends StatelessWidget {
+  const _StatusBadge({required this.status});
+  final String status;
+
+  @override
+  Widget build(BuildContext context) {
+    final (label, color) = switch (status) {
+      'created'        => ('Criado', Colors.grey),
+      'preparing'      => ('A preparar', Colors.amber),
+      'callingDriver'  => ('A chamar estafeta', Colors.orange),
+      'driverAccepted' => ('Aceite', Colors.blue),
+      'pickedUp'       => ('Recolhido', Colors.purple),
+      'onTheWay'       => ('A caminho', Colors.purple),
+      'delivered'      => ('Entregue', AppColors.success),
+      'cancelled'      => ('Cancelado', AppColors.error),
+      'rejected'       => ('Rejeitado', Colors.red.shade900),
+      _                => (status, AppColors.textSecondary),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 12)),
+    );
+  }
+}
+
+class _ActionButton extends StatelessWidget {
+  const _ActionButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.color,
+    this.enabled = true,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final Color? color;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: ListTile(
+        leading: Icon(icon, color: enabled ? (color ?? AppColors.primary) : Colors.black26),
+        title: Text(label,
+            style: TextStyle(
+                color: enabled ? AppColors.textPrimary : Colors.black38,
+                fontWeight: FontWeight.w600)),
+        onTap: enabled ? onTap : null,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: BorderSide(color: AppColors.divider),
+        ),
+      ),
+    );
+  }
+}
+
+String _fmtDate(DateTime d) {
+  final l = d.toLocal();
+  return '${l.year}-${l.month.toString().padLeft(2, '0')}-${l.day.toString().padLeft(2, '0')} '
+         '${l.hour.toString().padLeft(2, '0')}:${l.minute.toString().padLeft(2, '0')}';
+}
+
+String _amount(Map<String, dynamic> order) {
+  final v = order['total'] ?? order['final_total'] ?? order['price'];
+  if (v is num) return v.toStringAsFixed(2);
+  return '0.00';
+}

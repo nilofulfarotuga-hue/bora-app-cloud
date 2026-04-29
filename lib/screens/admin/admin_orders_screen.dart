@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '_admin_cancel_order_dialog.dart';
+import 'admin_order_detail_screen.dart';
 
 class AdminOrdersScreen extends StatefulWidget {
   const AdminOrdersScreen({super.key});
@@ -64,38 +66,24 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
     }
   }
 
-  Future<void> _cancel(String orderId) async {
-    final confirmed = await showDialog<bool>(
+  /// Open cancel dialog (FASE 4 BUG 3 F1.B). Refresh list on success.
+  Future<void> _cancel(Map<String, dynamic> order) async {
+    final result = await showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        title: const Text('Cancelar pedido'),
-        content: const Text('Tem a certeza que quer cancelar este pedido?'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Não')),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Cancelar pedido'),
-          ),
-        ],
-      ),
+      builder: (_) => AdminCancelOrderDialog(order: order),
     );
-    if (confirmed != true) return;
-    try {
-      await Supabase.instance.client
-          .from('orders')
-          .update({'status': 'rejected'}).eq('id', orderId);
+    if (result != null && mounted) {
       _load();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro: $e')),
-        );
-      }
     }
+  }
+
+  /// Push the new full-screen detail (FASE 4 BUG 3 F1.D).
+  void _openDetail(Map<String, dynamic> order) {
+    final id = order['id'] as String?;
+    if (id == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => AdminOrderDetailScreen(orderId: id)),
+    );
   }
 
   Color _statusColor(String status) {
@@ -185,7 +173,10 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                                 final canCancel =
                                     !['delivered', 'rejected'].contains(status);
                                 return Card(
-                                  child: Padding(
+                                  child: InkWell(
+                                    onTap: () => _openDetail(o),
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Padding(
                                     padding: const EdgeInsets.all(14),
                                     child: Column(
                                       crossAxisAlignment:
@@ -242,8 +233,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                                           Align(
                                             alignment: Alignment.centerRight,
                                             child: TextButton.icon(
-                                              onPressed: () =>
-                                                  _cancel(o['id'] as String),
+                                              onPressed: () => _cancel(o),
                                               icon: const Icon(
                                                   Icons.cancel_outlined,
                                                   size: 16,
@@ -256,6 +246,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                                         ],
                                       ],
                                     ),
+                                  ),
                                   ),
                                 );
                               },

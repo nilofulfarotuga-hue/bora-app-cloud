@@ -155,7 +155,10 @@ class AuthStore extends ChangeNotifier {
   DriverAccount? _currentDriver;
   PartnerAccount? _currentPartner;
   RestaurantModel? _partnerRestaurant;
-  DriverStatus _currentDriverStatus = DriverStatus.approved;
+  // Anomalia #5 (fail-safe): default `pending` em vez de `approved`.
+  // Se algum caller lê o status antes de loginDriverAsync popular, vê
+  // 'pending' (UI bloqueia ir online) em vez de 'approved' (UI aberta).
+  DriverStatus _currentDriverStatus = DriverStatus.pending;
 
   RestaurantModel? get partnerRestaurant => _partnerRestaurant;
 
@@ -196,6 +199,39 @@ class AuthStore extends ChangeNotifier {
   DriverAccount? get currentDriver => _currentDriver;
   PartnerAccount? get currentPartner => _currentPartner;
   DriverStatus get currentDriverStatus => _currentDriverStatus;
+
+  /// Re-fetches `drivers.approval_status` for the currently logged-in driver
+  /// and updates [_currentDriverStatus] / notifies listeners. Safe to call
+  /// repeatedly. Returns true if the local state changed (callers can use
+  /// this to refresh dependent UI).
+  ///
+  /// Used by driver_home_screen on initState and AppLifecycleState.resumed
+  /// to reflect admin approve/reject/ban without forcing logout-login (BUG 3).
+  /// Fail-open: on any error, keeps cached value and logs.
+  Future<bool> refreshApprovalStatus() async {
+    final uid = _supabase.auth.currentUser?.id;
+    if (uid == null) return false;
+    if (_currentDriver == null) return false;
+    try {
+      final row = await _supabase
+          .from('drivers')
+          .select('approval_status')
+          .eq('id', uid)
+          .maybeSingle();
+      final statusStr = row?['approval_status'] as String? ?? 'pending';
+      final fresh = DriverStatus.values.firstWhere(
+        (s) => s.name == statusStr,
+        orElse: () => DriverStatus.pending,
+      );
+      if (fresh == _currentDriverStatus) return false;
+      _currentDriverStatus = fresh;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('[AuthStore] refreshApprovalStatus failed: $e');
+      return false;
+    }
+  }
 
   bool get hasClientAccounts => _clientsByEmail.isNotEmpty;
   bool get hasDriverAccounts => _driversByEmail.isNotEmpty;
@@ -1030,7 +1066,7 @@ class AuthStore extends ChangeNotifier {
     _currentDriver = null;
     _currentPartner = null;
     _partnerRestaurant = null;
-    _currentDriverStatus = DriverStatus.approved;
+    _currentDriverStatus = DriverStatus.pending; // fail-safe default (anomalia #5)
     notifyListeners();
     _clearPersistedAccounts();
     _signOutBackground();

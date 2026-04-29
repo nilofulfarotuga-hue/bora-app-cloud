@@ -35,7 +35,8 @@ class DriverHomeScreen extends StatefulWidget {
   State<DriverHomeScreen> createState() => _DriverHomeScreenState();
 }
 
-class _DriverHomeScreenState extends State<DriverHomeScreen> {
+class _DriverHomeScreenState extends State<DriverHomeScreen>
+    with WidgetsBindingObserver {
   Set<String> _knownOrderIds = {};
   bool _isShowingDialog = false;
   // ID of the offer currently visible in _showNewOrderDialog (null when none).
@@ -58,6 +59,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
   @override
   void initState() {
     super.initState();
+    // BUG 3: observe app lifecycle to re-run safety net on resume
+    // (apanha admin approve/ban/delete enquanto app esteve em background).
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
 
@@ -92,6 +96,17 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     _fetchInitialGpsCenter();
   }
 
+  /// BUG 3: re-run safety net + approval refresh when app comes to
+  /// foreground. Apanha admin approve/ban/delete que aconteceu enquanto
+  /// app esteve em background, sem precisar de logout-login completo.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed && mounted) {
+      _enforceEffectiveStatus();
+    }
+  }
+
   /// Calls `driver_effective_status(auth.uid())` and, if the driver is no
   /// longer operational (banned / suspended / deleted), shows an explanatory
   /// dialog and logs out locally.
@@ -104,6 +119,15 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     final auth = Supabase.instance.client.auth;
     final uid = auth.currentUser?.id;
     if (uid == null) return; // not logged in — nothing to enforce
+
+    // BUG 3 fix: refresh approval_status cache no AuthStore antes de
+    // verificar o effective_status. Garante que admin approve/reject
+    // pós-login fica reflectido na UI sem precisar de logout-login.
+    if (mounted) {
+      try {
+        await context.read<AuthStore>().refreshApprovalStatus();
+      } catch (_) { /* fail-open */ }
+    }
 
     String? status;
     DateTime? bannedUntil;
@@ -248,6 +272,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this); // BUG 3 lifecycle observer
     _orderStore?.removeListener(_onOrderStoreChanged);
     _positionSubscription?.cancel();
     _soundService.dispose();

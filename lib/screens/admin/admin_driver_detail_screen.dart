@@ -659,20 +659,37 @@ class _EditDriverSheetState extends State<_EditDriverSheet> {
     super.dispose();
   }
 
+  /// Returns the new value if changed; null if unchanged.
+  /// Anomalia #3: campo cleared (vazio após trim) → null em vez de '' →
+  /// RPC interpreta NULL como "não alterar". Empty string semântica é
+  /// preservada apenas se o valor original já era vazio (resulta em null
+  /// = "no change") — clear explícito de IBAN/NIF não suportado por
+  /// design (admin tem que usar acção dedicada se precisar).
   String? _diff(TextEditingController c, String? original) {
     final v = c.text.trim();
-    final o = original?.trim() ?? '';
+    final o = (original ?? '').trim();
     if (v == o) return null;
-    return v;
+    return v.isEmpty ? null : v;
   }
 
   @override
   Widget build(BuildContext context) {
-    final origIban = (widget.driver['iban'] as String?) ?? '';
-    final origNif  = (widget.driver['nif']  as String?) ?? '';
+    // Comparação simétrica trimada (anomalia #3: trailing spaces no DB
+    // não devem desencadear sensitiveChanged falso-positivo).
+    final origIban = ((widget.driver['iban'] as String?) ?? '').trim();
+    final origNif  = ((widget.driver['nif']  as String?) ?? '').trim();
     final ibanChanged = _iban.text.trim() != origIban;
     final nifChanged  = _nif.text.trim()  != origNif;
     final sensitiveChanged = ibanChanged || nifChanged;
+
+    // Anomalia #2: auto-desticka checkbox quando admin reverte a edição
+    // (sensitiveChanged passa de true→false). Schedule para próxima frame
+    // para evitar setState-during-build.
+    if (!sensitiveChanged && _confirmIbanNif) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _confirmIbanNif = false);
+      });
+    }
 
     return Padding(
       padding: EdgeInsets.only(
@@ -701,13 +718,26 @@ class _EditDriverSheetState extends State<_EditDriverSheet> {
             TextField(controller: _plate, decoration: const InputDecoration(labelText: 'Matrícula')),
             const SizedBox(height: 12),
             const Text('Dados sensíveis (audit redact)', style: TextStyle(color: AppColors.warning, fontSize: 12)),
-            TextField(controller: _iban, decoration: const InputDecoration(labelText: 'IBAN')),
-            TextField(controller: _nif,  decoration: const InputDecoration(labelText: 'NIF')),
+            // BUG 1 fix: onChanged trigger setState para que sensitiveChanged
+            // se actualize dinamicamente quando admin tipa nestes campos.
+            // Sem isto o build só re-corre quando _reason muda, deixando o
+            // banner/checkbox em estado stale.
+            TextField(
+              controller: _iban,
+              decoration: const InputDecoration(labelText: 'IBAN'),
+              onChanged: (_) => setState(() {}),
+            ),
+            TextField(
+              controller: _nif,
+              decoration: const InputDecoration(labelText: 'NIF'),
+              onChanged: (_) => setState(() {}),
+            ),
             const SizedBox(height: 12),
             TextField(
               controller: _reason,
               decoration: const InputDecoration(labelText: 'Motivo (obrigatório, ≥3 chars)'),
               minLines: 1, maxLines: 3,
+              onChanged: (_) => setState(() {}),
             ),
             if (sensitiveChanged) ...[
               const SizedBox(height: 12),

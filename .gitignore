@@ -12,8 +12,20 @@
 .swiftpm/
 migrate_working_dir/
 
+# ── Flutter run artifacts (debug screenshots / capture) ──────────────────────
+flutter_*.png
+flutter_*.jpg
+
+# ── Ad-hoc dumps / scratch files ─────────────────────────────────────────────
+temp_*.sql
+temp_*.json
+*.dump
+schema_dump_*.sql
+
 # ── JVM heap dumps (gigabyte-sized crash files) ───────────────────────────────
 *.hprof
+hs_err_pid*.log
+replay_pid*.log
 
 # ── IntelliJ / Android Studio ────────────────────────────────────────────────
 *.iml

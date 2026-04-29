@@ -72,6 +72,13 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
       // driver is already configured, configurePrimaryDriver just updates.
       _ensureDriverConfigured();
 
+      // Safety net: if admin has banned/suspended/removed this driver while
+      // the session was alive, force a clean exit on next app foreground.
+      // Edge Function admin-force-driver-logout already handles the active
+      // session, but we may also have a banned/deleted driver who never
+      // received a force_logout (e.g. ban without logout step).
+      _enforceEffectiveStatus();
+
       // Attach a store listener so _handleNewOrders runs exactly once per
       // store change — not on every build frame. This prevents stale closure
       // accumulation from addPostFrameCallback inside build().
@@ -83,6 +90,75 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     });
     _startIdleLocationTracking();
     _fetchInitialGpsCenter();
+  }
+
+  /// Calls `driver_effective_status(auth.uid())` and, if the driver is no
+  /// longer operational (banned / suspended / deleted), shows an explanatory
+  /// dialog and logs out locally.
+  ///
+  /// Safety net for: (a) an admin ban/delete that did NOT trigger force-logout
+  /// (RPC succeeded, force-logout step skipped or failed), and (b) the
+  /// "session refreshed after force-logout" race where the user briefly sees
+  /// the home screen before the next API call fails.
+  Future<void> _enforceEffectiveStatus() async {
+    final auth = Supabase.instance.client.auth;
+    final uid = auth.currentUser?.id;
+    if (uid == null) return; // not logged in — nothing to enforce
+
+    String? status;
+    DateTime? bannedUntil;
+    try {
+      final res = await Supabase.instance.client
+          .rpc('driver_effective_status', params: {'p_driver_id': uid});
+      status = res as String?;
+
+      // For 'suspended' we also fetch the until-date for the message.
+      if (status == 'suspended') {
+        final row = await Supabase.instance.client
+            .from('drivers')
+            .select('banned_until')
+            .eq('id', uid)
+            .maybeSingle();
+        final raw = row?['banned_until'] as String?;
+        if (raw != null) bannedUntil = DateTime.tryParse(raw);
+      }
+    } catch (e) {
+      debugPrint('[DriverHomeScreen] effective_status check failed: $e');
+      return; // fail-open — don't lock the driver out on a network blip
+    }
+
+    if (status == null || status == 'active' || status == 'pending') return;
+
+    final message = switch (status) {
+      'banned'    => 'A tua conta foi suspensa. Contacta o suporte.',
+      'deleted'   => 'A tua conta foi removida. Contacta o suporte se precisares.',
+      'suspended' => bannedUntil != null
+          ? 'Conta suspensa até ${bannedUntil.toLocal().toString().split(".").first}. Contacta o suporte.'
+          : 'A tua conta foi suspensa. Contacta o suporte.',
+      'rejected'  => 'A tua candidatura foi rejeitada. Contacta o suporte.',
+      _           => 'A tua conta não está activa. Contacta o suporte.',
+    };
+
+    if (!mounted) return;
+    final authStore = context.read<AuthStore>();
+
+    // Show dialog and log out regardless of user dismissing it.
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Sessão terminada'),
+        content: Text(message),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    authStore.logout();
   }
 
   void _onOrderStoreChanged() {

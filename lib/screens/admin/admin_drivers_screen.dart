@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '_admin_rpc_errors.dart';
+import 'admin_driver_detail_screen.dart';
 
 class AdminDriversScreen extends StatefulWidget {
   const AdminDriversScreen({super.key});
@@ -136,80 +137,40 @@ class _AdminDriversScreenState extends State<AdminDriversScreen> {
     }
   }
 
-  Future<Map<String, dynamic>?> _loadBalance(String driverId) async {
-    try {
-      final data = await Supabase.instance.client
-          .from('driver_balances')
-          .select('balance')
-          .eq('driver_id', driverId)
-          .maybeSingle();
-      return data;
-    } catch (_) {
-      return null;
+  /// Pendentes só aparecem nesta lista durante a transição da Fase 2B; a
+  /// gestão de candidaturas vive em `admin_driver_approval_screen`. Aprovar
+  /// directamente daqui é um fallback para casos legacy.
+  void _approvePendingFromList(String driverId) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Aprovar candidatura?'),
+        content: const Text('Confirma a aprovação directa (sem documentos forçados).'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Aprovar')),
+        ],
+      ),
+    );
+    if (ok == true) {
+      await _approveDriver(driverId);
     }
   }
 
-  void _showDriverDetails(Map<String, dynamic> driver) async {
-    final balance = await _loadBalance(driver['id'] as String);
-    if (!mounted) return;
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(driver['name'] as String? ?? '—',
-                style:
-                    const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 8),
-            _DetailRow(
-                icon: Icons.phone, label: driver['phone'] as String? ?? '—'),
-            _DetailRow(
-                icon: Icons.two_wheeler,
-                label: driver['vehicle_type'] as String? ?? '—'),
-            _DetailRow(
-              icon: Icons.account_balance_wallet,
-              label:
-                  'Saldo: €${(balance?['balance'] as num? ?? 0).toStringAsFixed(2)}',
-            ),
-            const SizedBox(height: 16),
-            if (driver['approval_status'] == 'pending') ...[
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      icon: const Icon(Icons.check),
-                      label: const Text('Aprovar'),
-                      onPressed: () {
-                        Navigator.pop(context);
-                        _approveDriver(driver['id'] as String);
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      icon: const Icon(Icons.close, color: Colors.red),
-                      label: const Text('Rejeitar',
-                          style: TextStyle(color: Colors.red)),
-                      style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: Colors.red)),
-                      onPressed: () {
-                        Navigator.pop(context);
-                        _rejectDriver(driver['id'] as String);
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ],
-        ),
+  void _openDetail(Map<String, dynamic> driver) {
+    final id = driver['id'] as String?;
+    if (id == null) return;
+    final status = (driver['approval_status'] as String?) ?? 'pending';
+    if (status == 'pending') {
+      // Drivers pendentes não passam pelo AdminDriverDetailScreen (tem como
+      // pré-condição driver aprovado). Para esta lista global, oferece o
+      // fluxo rápido de aprovar/rejeitar via diálogo.
+      _approvePendingFromList(id);
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => AdminDriverDetailScreen(driverId: id),
       ),
     );
   }
@@ -262,7 +223,7 @@ class _AdminDriversScreenState extends State<AdminDriversScreen> {
                       final isOnline = d['is_online'] as bool? ?? false;
                       return Card(
                         child: ListTile(
-                          onTap: () => _showDriverDetails(d),
+                          onTap: () => _openDetail(d),
                           leading: CircleAvatar(
                             backgroundColor:
                                 _statusColor(status).withValues(alpha: 0.15),
@@ -319,22 +280,3 @@ class _AdminDriversScreenState extends State<AdminDriversScreen> {
   }
 }
 
-class _DetailRow extends StatelessWidget {
-  const _DetailRow({required this.icon, required this.label});
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: AppColors.primary),
-          const SizedBox(width: 10),
-          Text(label, style: const TextStyle(fontSize: 14)),
-        ],
-      ),
-    );
-  }
-}

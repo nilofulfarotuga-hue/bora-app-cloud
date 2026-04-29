@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '_admin_rpc_errors.dart';
+import 'admin_driver_detail_screen.dart';
 
 class AdminDriverApprovalScreen extends StatefulWidget {
   const AdminDriverApprovalScreen({super.key});
@@ -388,7 +389,17 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
                 _DriverList(
                   drivers: _approved,
                   emptyMessage: 'Nenhum estafeta aprovado.',
-                  onTap: _showDetail,
+                  // Drivers aprovados saem do fluxo de candidatura e entram
+                  // no ecrã de gestão completo (FASE 3 BUG 2).
+                  onTap: (d) {
+                    final id = d['id'] as String?;
+                    if (id == null) return;
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => AdminDriverDetailScreen(driverId: id),
+                      ),
+                    );
+                  },
                 ),
                 _DriverList(
                   drivers: _rejected,

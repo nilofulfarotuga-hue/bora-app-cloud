@@ -699,6 +699,82 @@ class RestaurantStore extends ChangeNotifier {
     }
   }
 
+  // ─── BR §6.7 — Partner open/closed status (rich) ──────────────────────────
+  /// Calls public.is_partner_open(restaurant_id, NOW()). Returns the JSONB
+  /// payload `{is_open, override_active, closes_in_minutes, opens_at}`.
+  /// Returns null on error so callers can fall back to client-side
+  /// `RestaurantModel.isOpenNow()`.
+  Future<Map<String, dynamic>?> fetchPartnerOpenStatus(String restaurantId) async {
+    try {
+      final res = await supabase.rpc('is_partner_open', params: {
+        'p_restaurant_id': restaurantId,
+        'p_at': DateTime.now().toUtc().toIso8601String(),
+      });
+      if (res is Map) return Map<String, dynamic>.from(res);
+      if (res is bool) return {'is_open': res};
+      return null;
+    } catch (e) {
+      debugPrint('RestaurantStore: fetchPartnerOpenStatus error => $e');
+      return null;
+    }
+  }
+
+  /// Admin RPC: force-close or force-open a partner.
+  Future<Map<String, dynamic>> adminSetPartnerOverride({
+    required String restaurantId,
+    required String state, // 'open' | 'closed'
+    required String reason,
+    DateTime? endsAt,
+  }) async {
+    final res = await supabase.rpc('admin_set_partner_override', params: {
+      'p_restaurant_id': restaurantId,
+      'p_state': state,
+      'p_reason': reason,
+      'p_ends_at': endsAt?.toUtc().toIso8601String(),
+    });
+    return Map<String, dynamic>.from(res as Map);
+  }
+
+  Future<Map<String, dynamic>> adminClearPartnerOverride(
+      String restaurantId) async {
+    final res = await supabase.rpc('admin_clear_partner_override',
+        params: {'p_restaurant_id': restaurantId});
+    return Map<String, dynamic>.from(res as Map);
+  }
+
+  Future<Map<String, dynamic>> adminUpdatePartnerHours({
+    required String restaurantId,
+    required BusinessHours hours,
+  }) async {
+    final res = await supabase.rpc('admin_update_partner_hours', params: {
+      'p_restaurant_id': restaurantId,
+      'p_hours': hours.toJson(),
+    });
+    // Update local cache.
+    final index = _restaurants.indexWhere((r) => r.id == restaurantId);
+    if (index != -1) {
+      _restaurants[index] = _restaurants[index].copyWith(businessHours: hours);
+      notifyListeners();
+    }
+    return Map<String, dynamic>.from(res as Map);
+  }
+
+  Future<Map<String, dynamic>> adminSetPartnerSpecialDate({
+    required String restaurantId,
+    required DateTime date,
+    required Map<String, dynamic> dayHours,
+  }) async {
+    final dateStr = '${date.year.toString().padLeft(4, '0')}-'
+        '${date.month.toString().padLeft(2, '0')}-'
+        '${date.day.toString().padLeft(2, '0')}';
+    final res = await supabase.rpc('admin_set_partner_special_date', params: {
+      'p_restaurant_id': restaurantId,
+      'p_date': dateStr,
+      'p_day_hours': dayHours,
+    });
+    return Map<String, dynamic>.from(res as Map);
+  }
+
   // ─── Order sync ───────────────────────────────────────────────────────────
 
   void syncPartnerOrders(List<OrderModel> orders) {

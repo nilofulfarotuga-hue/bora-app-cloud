@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '../../services/admin_audit_service.dart';
 
 class AdminPartnersScreen extends StatefulWidget {
   const AdminPartnersScreen({super.key});
@@ -29,7 +32,7 @@ class _AdminPartnersScreenState extends State<AdminPartnersScreen> {
     try {
       final data = await Supabase.instance.client
           .from('restaurants')
-          .select('id, name, category, address, is_active')
+          .select('id, name, category, address, is_active_admin')
           .order('name');
       if (mounted) {
         setState(() {
@@ -48,16 +51,41 @@ class _AdminPartnersScreenState extends State<AdminPartnersScreen> {
   }
 
   Future<void> _toggleActive(String id, bool currentActive) async {
+    final newActive = !currentActive;
     try {
       await Supabase.instance.client
           .from('restaurants')
-          .update({'is_active': !currentActive}).eq('id', id);
-      _load();
+          .update({'is_active_admin': newActive}).eq('id', id);
+
+      // Best-effort audit (never blocks UX). entity_id stays null because
+      // restaurants.id is TEXT, not UUID — the textual id travels in details.
+      unawaited(AdminAuditService.logAction(
+        action: 'partner_toggle',
+        entityType: 'restaurant',
+        details: {
+          'restaurant_id': id,
+          'old': currentActive,
+          'new': newActive,
+        },
+      ));
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(newActive
+            ? 'Parceiro reactivado.'
+            : 'Parceiro desactivado pelo admin.'),
+        backgroundColor:
+            newActive ? AppColors.primary : Colors.orange.shade700,
+        duration: const Duration(seconds: 2),
+      ));
+      await _load();
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Erro: $e')));
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Falhou actualizar parceiro: $e'),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 4),
+      ));
     }
   }
 
@@ -108,7 +136,8 @@ class _AdminPartnersScreenState extends State<AdminPartnersScreen> {
                               const SizedBox(height: 8),
                           itemBuilder: (_, i) {
                             final r = _restaurants[i];
-                            final isActive = r['is_active'] as bool? ?? true;
+                            final isActive =
+                                r['is_active_admin'] as bool? ?? true;
                             final category = r['category'] as String?;
                             return Card(
                               child: ListTile(

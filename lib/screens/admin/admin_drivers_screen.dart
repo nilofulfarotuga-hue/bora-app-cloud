@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '_admin_rpc_errors.dart';
 
 class AdminDriversScreen extends StatefulWidget {
   const AdminDriversScreen({super.key});
@@ -47,17 +48,91 @@ class _AdminDriversScreenState extends State<AdminDriversScreen> {
     }
   }
 
-  Future<void> _updateStatus(String driverId, String newStatus) async {
+  /// Approve via the SECURITY DEFINER RPC. From this screen we keep it
+  /// simple: no force path here (use the dedicated Approval screen for
+  /// drivers with missing docs). Server still enforces docs validation;
+  /// if missing, surface the message verbatim.
+  Future<void> _approveDriver(String driverId) async {
     try {
-      await Supabase.instance.client
-          .from('drivers')
-          .update({'approval_status': newStatus}).eq('id', driverId);
-      _load();
+      await Supabase.instance.client.rpc(
+        'admin_approve_driver',
+        params: {
+          'p_driver_id': driverId,
+          'p_force': false,
+          'p_justification': null,
+        },
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Estafeta aprovado.'),
+        backgroundColor: AppColors.primary,
+      ));
+      await _load();
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Erro: $e')));
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(humanizeAdminRpcError(e)),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 5),
+      ));
+    }
+  }
+
+  /// Reject via the SECURITY DEFINER RPC. Always asks for a reason
+  /// (server requires >= 3 chars).
+  Future<void> _rejectDriver(String driverId) async {
+    final controller = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setLocal) {
+        final ok = controller.text.trim().length >= 3;
+        return AlertDialog(
+          title: const Text('Rejeitar candidatura'),
+          content: TextField(
+            controller: controller,
+            onChanged: (_) => setLocal(() {}),
+            maxLines: 3,
+            decoration: const InputDecoration(
+              labelText: 'Motivo (mín. 3 caracteres)',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, null),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: ok
+                  ? () => Navigator.pop(ctx, controller.text.trim())
+                  : null,
+              child: const Text('Rejeitar'),
+            ),
+          ],
+        );
+      }),
+    );
+    if (reason == null) return;
+
+    try {
+      await Supabase.instance.client.rpc(
+        'admin_reject_driver',
+        params: {'p_driver_id': driverId, 'p_reason': reason},
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Candidatura rejeitada.'),
+        backgroundColor: Colors.red,
+      ));
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(humanizeAdminRpcError(e)),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 5),
+      ));
     }
   }
 
@@ -112,7 +187,7 @@ class _AdminDriversScreenState extends State<AdminDriversScreen> {
                       label: const Text('Aprovar'),
                       onPressed: () {
                         Navigator.pop(context);
-                        _updateStatus(driver['id'] as String, 'approved');
+                        _approveDriver(driver['id'] as String);
                       },
                     ),
                   ),
@@ -126,7 +201,7 @@ class _AdminDriversScreenState extends State<AdminDriversScreen> {
                           side: const BorderSide(color: Colors.red)),
                       onPressed: () {
                         Navigator.pop(context);
-                        _updateStatus(driver['id'] as String, 'rejected');
+                        _rejectDriver(driver['id'] as String);
                       },
                     ),
                   ),

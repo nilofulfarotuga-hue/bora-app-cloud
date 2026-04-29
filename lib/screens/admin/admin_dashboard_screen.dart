@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '../../services/auth_admin_service.dart';
 import 'admin_driver_approval_screen.dart';
 import 'admin_driver_payments_screen.dart';
 import 'admin_drivers_screen.dart';
@@ -18,11 +19,13 @@ import 'admin_partners_screen.dart';
 /// row-level data — so even if this screen is reached by a non-admin the
 /// blast radius is limited to four totals.
 ///
-/// Access gating: email-based allow-list (Danilo's two emails). The
-/// `bora_role` metadata is reserved for the app's role system
-/// (client/driver/partner) and cannot be reused for admin without
-/// breaking client login. Server-side RLS on the RPC remains the
-/// last line of defense.
+/// Access gating (Phase-2-B): `app_metadata.role == 'admin'` (canonical)
+/// with fallback to `user_metadata.bora_role == 'admin'` and finally a
+/// deprecated email allow-list. See [AuthAdminService.isAdmin].
+/// Server-side `_admin_op_guard()` enforces strictly on
+/// `app_metadata.role` — the Dart fallback chain exists only to keep
+/// the UI usable across legacy sessions; any *action* still has to
+/// pass the strict server gate.
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
 
@@ -54,11 +57,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     await _metricsFuture;
   }
 
-  bool get _isAuthorized {
-    final email = Supabase.instance.client.auth.currentUser?.email;
-    return email == 'nilofulfarotuga@gmail.com' ||
-        email == 'nilofulfaro@gmail.com';
-  }
+  bool get _isAuthorized => AuthAdminService.isAdmin();
 
   @override
   Widget build(BuildContext context) {

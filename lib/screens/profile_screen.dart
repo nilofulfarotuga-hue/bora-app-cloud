@@ -13,6 +13,7 @@ import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
 import '../config/app_theme.dart';
 import '../models/driver_model.dart';
+import '../services/auth_admin_service.dart';
 import '../stores/driver_store.dart';
 import '../stores/session_store.dart';
 import 'orders_screen.dart';
@@ -418,8 +419,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
 
             // ── Admin panel ────────────────────────────────────────────────
-            if (user?.email == 'nilofulfarotuga@gmail.com' ||
-                user?.email == 'nilofulfaro@gmail.com')
+            // Phase-2-B: gate now reads `app_metadata.role='admin'` via
+            // AuthAdminService.isAdmin() (3-tier fallback for UI; server
+            // is strict on app_metadata.role).
+            if (AuthAdminService.isAdmin())
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: Spacing.lg),
                 child: SizedBox(

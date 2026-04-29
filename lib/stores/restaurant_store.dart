@@ -127,12 +127,21 @@ class RestaurantStore extends ChangeNotifier {
 
   Future<void> loadRestaurantsFromSupabase() async {
     try {
-      List<dynamic> response = await supabase.from('restaurants').select();
+      // BUG 4 follow-up: hide admin-suspended partners from public reads.
+      // Admin can still see suspended ones via admin_partners_screen which
+      // queries `restaurants` directly without this filter.
+      List<dynamic> response = await supabase
+          .from('restaurants')
+          .select()
+          .eq('is_active_admin', true);
 
       // Seed defaults only when the DB table is empty (first run).
       if (response.isEmpty) {
         await _seedDefaultRestaurants();
-        response = await supabase.from('restaurants').select();
+        response = await supabase
+            .from('restaurants')
+            .select()
+            .eq('is_active_admin', true);
       }
 
       _restaurants.clear();

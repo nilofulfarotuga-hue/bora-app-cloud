@@ -71,6 +71,9 @@ scripts/scraper/.env
 scripts/scraper/output/
 scripts/scraper/node_modules/
 
+# ── Claude Code local settings (per-machine, never commit) ───────────────────
+.claude/settings.local.json
+
 # ── Secrets / credentials (NEVER commit these) ────────────────────────────────
 .dart_defines
 backend/firebase-service-account.json

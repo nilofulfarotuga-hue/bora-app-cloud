@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '_admin_rpc_errors.dart';
 
 class AdminDriverApprovalScreen extends StatefulWidget {
   const AdminDriverApprovalScreen({super.key});
@@ -67,97 +68,253 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
     }
   }
 
+  /// Approve a driver. Calls `admin_approve_driver` RPC (SECURITY DEFINER,
+  /// bypasses the drivers_update_own RLS that silently blocked this for
+  /// the entire history of the project — see Fase 2 BUG 1 reports).
+  ///
+  /// Two paths:
+  /// - All required docs present → simple confirm dialog → RPC with force=false.
+  /// - Some docs missing → "Aprovar mesmo assim" dialog with mandatory
+  ///   justification + checkbox → RPC with force=true.
   Future<void> _approve(String driverId) async {
-    // Validate required fields before approval
     final driver = _pending.firstWhere(
       (d) => d['id'] == driverId,
       orElse: () => <String, dynamic>{},
     );
-    final missing = <String>[];
-    if (driver['photo_url'] == null ||
-        (driver['photo_url'] as String).isEmpty) {
-      missing.add('Foto pessoal');
-    }
-    if (driver['document_photo_url'] == null ||
-        (driver['document_photo_url'] as String).isEmpty) {
-      missing.add('Foto do documento');
-    }
-    if (driver['document_number'] == null ||
-        (driver['document_number'] as String).isEmpty) {
-      missing.add('Número do documento');
-    }
-    final vehicleType = driver['vehicle_type'] as String? ?? '';
-    if (vehicleType != 'bicycle' &&
-        (driver['vehicle_photo_url'] == null ||
-            (driver['vehicle_photo_url'] as String).isEmpty)) {
-      missing.add('Foto do veículo');
-    }
-    if (missing.isNotEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Falta: ${missing.join(', ')}'),
-          backgroundColor: Colors.red,
-        ));
-      }
-      return;
+    final missing = _missingDocs(driver);
+
+    bool force = false;
+    String? justification;
+
+    if (missing.isEmpty) {
+      final ok = await _confirmSimple(
+        title: 'Aprovar estafeta?',
+        body: 'Vais aprovar ${driver['name'] ?? 'este estafeta'}.',
+        confirmLabel: 'Aprovar',
+        confirmColor: AppColors.primary,
+      );
+      if (ok != true) return;
+    } else {
+      final result = await _confirmForceApprove(
+        driver: driver,
+        missing: missing,
+      );
+      if (result == null) return;
+      force = true;
+      justification = result;
     }
 
     try {
-      await Supabase.instance.client.from('drivers').update({
-        'approval_status': 'approved',
-        'approved_at': DateTime.now().toUtc().toIso8601String(),
-        'approved_by': Supabase.instance.client.auth.currentUser?.id,
-      }).eq('id', driverId);
-      _load();
+      final res = await Supabase.instance.client.rpc(
+        'admin_approve_driver',
+        params: {
+          'p_driver_id': driverId,
+          'p_force': force,
+          'p_justification': justification,
+        },
+      );
+      if (!mounted) return;
+      final wasForced =
+          res is Map && res['was_forced'] == true; // ignore: avoid_dynamic_calls
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(wasForced
+            ? 'Estafeta aprovado (override admin).'
+            : 'Estafeta aprovado.'),
+        backgroundColor:
+            wasForced ? Colors.orange.shade700 : AppColors.primary,
+      ));
+      await _load();
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Erro ao aprovar: $e')));
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(humanizeAdminRpcError(e)),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 5),
+      ));
     }
   }
 
-  Future<void> _reject(String driverId) async {
-    final reasonController = TextEditingController();
-    final confirmed = await showDialog<bool>(
+  List<String> _missingDocs(Map<String, dynamic> driver) {
+    final missing = <String>[];
+    final photo = driver['photo_url'] as String?;
+    if (photo == null || photo.isEmpty) missing.add('Foto pessoal');
+    final docPhoto = driver['document_photo_url'] as String?;
+    if (docPhoto == null || docPhoto.isEmpty) {
+      missing.add('Foto do documento');
+    }
+    final docNum = driver['document_number'] as String?;
+    if (docNum == null || docNum.isEmpty) missing.add('Número do documento');
+    final vt = driver['vehicle_type'] as String? ?? '';
+    final vPhoto = driver['vehicle_photo_url'] as String?;
+    if (vt != 'bicycle' && (vPhoto == null || vPhoto.isEmpty)) {
+      missing.add('Foto do veículo');
+    }
+    return missing;
+  }
+
+  Future<bool?> _confirmSimple({
+    required String title,
+    required String body,
+    required String confirmLabel,
+    required Color confirmColor,
+  }) {
+    return showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Rejeitar candidatura'),
-        content: TextField(
-          controller: reasonController,
-          decoration: const InputDecoration(
-            labelText: 'Motivo de rejeição',
-            hintText: 'Ex: Documento ilegível',
-          ),
-          maxLines: 3,
-        ),
+        title: Text(title),
+        content: Text(body),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(backgroundColor: confirmColor),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Rejeitar'),
+            child: Text(confirmLabel),
           ),
         ],
       ),
     );
+  }
 
-    if (confirmed != true) return;
+  /// Returns the entered justification on confirm, or null on cancel.
+  Future<String?> _confirmForceApprove({
+    required Map<String, dynamic> driver,
+    required List<String> missing,
+  }) async {
+    final controller = TextEditingController();
+    bool acknowledged = false;
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) {
+          final justOk = controller.text.trim().length >= 3;
+          return AlertDialog(
+            title: const Text('Faltam documentos'),
+            content: SizedBox(
+              width: 360,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Vais aprovar ${driver['name'] ?? 'este estafeta'} '
+                    'mesmo sem:',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 8),
+                  ...missing.map((m) => Padding(
+                        padding: const EdgeInsets.only(
+                            left: 8, top: 2, bottom: 2),
+                        child: Text(
+                          '• $m',
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                      )),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: controller,
+                    onChanged: (_) => setLocal(() {}),
+                    maxLines: 2,
+                    decoration: const InputDecoration(
+                      labelText:
+                          'Justificação (obrigatória, mín. 3 caracteres)',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: acknowledged,
+                    onChanged: (v) =>
+                        setLocal(() => acknowledged = v ?? false),
+                    title: const Text(
+                      'Compreendo o risco e quero aprovar mesmo assim.',
+                    ),
+                    controlAffinity: ListTileControlAffinity.leading,
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, null),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange.shade800),
+                onPressed: (acknowledged && justOk)
+                    ? () => Navigator.pop(ctx, controller.text.trim())
+                    : null,
+                child: const Text('Aprovar mesmo assim'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  /// Reject a driver. Calls `admin_reject_driver` RPC (SECURITY DEFINER,
+  /// bypasses RLS). Reason >= 3 chars required server-side AND client-side.
+  Future<void> _reject(String driverId) async {
+    final controller = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) {
+          final ok = controller.text.trim().length >= 3;
+          return AlertDialog(
+            title: const Text('Rejeitar candidatura'),
+            content: TextField(
+              controller: controller,
+              onChanged: (_) => setLocal(() {}),
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'Motivo (mín. 3 caracteres)',
+                hintText: 'Ex: Documento ilegível',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, null),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                onPressed: ok
+                    ? () => Navigator.pop(ctx, controller.text.trim())
+                    : null,
+                child: const Text('Rejeitar'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    if (reason == null) return;
 
     try {
-      await Supabase.instance.client.from('drivers').update({
-        'approval_status': 'rejected',
-        'rejection_reason': reasonController.text.trim(),
-      }).eq('id', driverId);
-      _load();
+      await Supabase.instance.client.rpc(
+        'admin_reject_driver',
+        params: {'p_driver_id': driverId, 'p_reason': reason},
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Candidatura rejeitada.'),
+        backgroundColor: Colors.red,
+      ));
+      await _load();
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Erro ao rejeitar: $e')));
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(humanizeAdminRpcError(e)),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 5),
+      ));
     }
   }
 

@@ -457,6 +457,7 @@ class OrderStore extends ChangeNotifier {
     final clonedItems = items
         ?.map(
           (item) => CartItem(
+            productId: item.productId, // T16: preserve UUID/id for server lookup
             name: item.name,
             price: item.price,
             quantity: item.quantity,
@@ -517,11 +518,14 @@ class OrderStore extends ChangeNotifier {
       // restaurant / storeShopping: pass product_lines so RPC recalculates
       // subtotal from DB prices (server-trusted subtotal — Opção B).
       // carryGroceries / sendPackage: no product_lines → RPC trusts client subtotal.
+      // T16: include product_id (UUID when available) so create_order can do
+      //      DB lookup first; falls back to unit_price if not found.
       if ((serviceType == OrderServiceType.restaurant ||
               serviceType == OrderServiceType.storeShopping) &&
           clonedItems != null)
         'product_lines': clonedItems
             .map((i) => {
+                  'product_id': i.productId,
                   'quantity': i.quantity,
                   'unit_price': i.price,
                   'name': i.name,

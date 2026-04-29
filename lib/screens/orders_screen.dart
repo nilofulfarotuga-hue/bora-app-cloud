@@ -7,13 +7,7 @@ import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
 import '../models/order_model.dart';
-import '../services/reorder_service.dart';
-import '../stores/cart_store.dart';
 import '../stores/order_store.dart';
-import '../stores/partner_product_store.dart';
-import '../stores/restaurant_store.dart';
-import '../utils/relative_time.dart';
-import 'cart_screen.dart';
 import 'order_details_screen.dart';
 import 'restaurants_screen.dart';
 
@@ -26,12 +20,14 @@ class OrdersScreen extends StatefulWidget {
 
 class _OrdersScreenState extends State<OrdersScreen> {
   StreamSubscription<AuthState>? _authSub;
-  String _lastLoadedPhone = '';
-  String _lastLoadedUserId = '';
 
   @override
   void initState() {
     super.initState();
+    // Único trigger inicial (post-frame) + listener de signedIn.
+    // didChangeDependencies foi removido: disparava loadOrders extra
+    // a cada rebuild do Provider, contribuindo para o loading infinito
+    // ao alternar tabs no IndexedStack.
     _authSub = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
       if (data.event == AuthChangeEvent.signedIn && mounted) {
         context.read<OrderStore>().loadOrders();
@@ -40,21 +36,6 @@ class _OrdersScreenState extends State<OrdersScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) context.read<OrderStore>().loadOrders();
     });
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final authStore = context.read<AuthStore>();
-    final phone = authStore.currentClient?.phone ?? '';
-    final userId = authStore.userId ?? '';
-    final phoneChanged = phone.isNotEmpty && phone != _lastLoadedPhone;
-    final userIdChanged = userId.isNotEmpty && userId != _lastLoadedUserId;
-    if (phoneChanged || userIdChanged) {
-      if (phoneChanged) _lastLoadedPhone = phone;
-      if (userIdChanged) _lastLoadedUserId = userId;
-      context.read<OrderStore>().loadOrders();
-    }
   }
 
   @override
@@ -71,6 +52,9 @@ class _OrdersScreenState extends State<OrdersScreen> {
     final userId = authStore.userId;
 
     final orders = store.ordersForCurrentClient(phone: phone, userId: userId);
+    // Loader só quando há fetch activo E ainda nada a mostrar — combinado
+    // com o anti-wipe guard em OrderStore evita o "loading infinito".
+    final showInitialLoader = store.isLoading && orders.isEmpty;
 
     return Scaffold(
       backgroundColor: AppColors.surface,
@@ -86,7 +70,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
           decoration: BoxDecoration(gradient: AppColors.headerGradient),
         ),
       ),
-      body: (store.isLoading && orders.isEmpty)
+      body: showInitialLoader
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: () => store.loadOrders(),

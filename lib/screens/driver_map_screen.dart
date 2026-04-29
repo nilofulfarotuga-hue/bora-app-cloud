@@ -21,6 +21,7 @@ import '../services/route_optimizer.dart';
 import '../stores/driver_store.dart';
 import '../stores/order_store.dart';
 import '../stores/restaurant_store.dart';
+import '../utils/constants.dart';
 import '../utils/map_marker_helper.dart';
 import '../utils/map_utils.dart';
 import '../widgets/address_text.dart';
@@ -63,7 +64,8 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
   late final ll.LatLng _stableInitialCenter;
 
   /// Fallback coordinate used when nothing else is known (centro de Portugal).
-  static const ll.LatLng _defaultFallbackCenter = ll.LatLng(38.7223, -9.1393);
+  static const ll.LatLng _defaultFallbackCenter =
+      ll.LatLng(kGuardaLat, kGuardaLng);
 
   /// GoogleMap created once, never destroyed. Prevents PlatformView crash.
   bool _mapReady = false;

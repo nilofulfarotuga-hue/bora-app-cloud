@@ -51,7 +51,8 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen>
           .select(
               'id, status, payment_method, payment_status, payment_intent_id, '
               'price, total, final_total, vendor_name, restaurant_id, user_id, '
-              'assigned_driver_id, items, address, cancel_reason, cancelled_at, '
+              'assigned_driver_id, items, dropoff_address, pickup_address, '
+              'cancel_reason, cancelled_at, '
               'cancelled_by, cancellation_initiator, cancellation_reason_code, '
               'refund_id, refund_status, refund_amount, refunded_at, created_at')
           .eq('id', widget.orderId)
@@ -203,7 +204,10 @@ class _SummaryTab extends StatelessWidget {
                 _row(Icons.person_outline, 'Cliente', order['user_id']),
                 _row(Icons.two_wheeler, 'Estafeta', order['assigned_driver_id'] ?? '—'),
                 _row(Icons.store, 'Restaurante (FK)', order['restaurant_id'] ?? '—'),
-                _row(Icons.location_on, 'Morada', order['address'] ?? '—'),
+                _row(Icons.location_on, 'Entrega',
+                    order['dropoff_address'] ?? '—'),
+                _row(Icons.store_mall_directory, 'Recolha',
+                    order['pickup_address'] ?? '—'),
                 _row(Icons.euro, 'Total', '€${_amount(order)}'),
               ]),
             ),

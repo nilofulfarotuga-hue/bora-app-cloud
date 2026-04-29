@@ -13,6 +13,7 @@ import 'package:supabase_flutter/supabase_flutter.dart' show Supabase;
 import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../utils/constants.dart';
 import '../utils/map_utils.dart';
 
 import '../models/chat_message.dart';
@@ -238,7 +239,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       setState(() => _initialGpsCenter = fallback);
     } else {
       // Último recurso — centro padrão.
-      setState(() => _initialGpsCenter = const LatLng(38.7223, -9.1393));
+      setState(() => _initialGpsCenter = kGuardaCenter);
     }
   }
 

@@ -9,6 +9,7 @@ import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
 import '../models/driver_model.dart';
+import '../utils/constants.dart';
 import '../widgets/bora/bora_primary_button.dart';
 import '../widgets/terms_link_text.dart';
 import 'driver_pending_screen.dart';
@@ -222,8 +223,8 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
         'vehicle_type': _vehicleType.name,
         'license_plate': licensePlate,
         'is_online': false,
-        'lat': 38.7223,
-        'lng': -9.1393,
+        'lat': kGuardaLat,
+        'lng': kGuardaLng,
         'consent_accepted_at': consentAcceptedAt.toIso8601String(),
         'consent_version': AuthStore.currentConsentVersion,
         'photo_url': selfieUrl,

@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../dispatch/driver_capacity_service.dart';
 import '../models/driver_model.dart';
 import '../models/order_model.dart';
+import '../utils/constants.dart';
 
 class DriverStore extends ChangeNotifier {
   String _primaryDriverId = 'driver-main';
@@ -179,7 +180,7 @@ class DriverStore extends ChangeNotifier {
         _drivers.add(DriverModel(
           id: uid,
           name: uid,
-          location: const LatLng(38.7223, -9.1393),
+          location: kGuardaCenter,
           vehicleType: VehicleType.motorcycle,
           isOnline: false,
         ));
@@ -223,7 +224,7 @@ class DriverStore extends ChangeNotifier {
       driver = DriverModel(
         id: _primaryDriverId,
         name: name,
-        location: const LatLng(38.7223, -9.1393),
+        location: kGuardaCenter,
         vehicleType: vehicleType,
         phone: phone,
         isOnline: false,
@@ -281,8 +282,8 @@ class DriverStore extends ChangeNotifier {
           'vehicle_type': existing?.vehicleType.name ?? 'motorcycle',
           'license_plate': '',
           'is_online': false,
-          'lat': 38.7223,
-          'lng': -9.1393,
+          'lat': kGuardaLat,
+          'lng': kGuardaLng,
           'user_id': uid,
         },
         onConflict: 'id',

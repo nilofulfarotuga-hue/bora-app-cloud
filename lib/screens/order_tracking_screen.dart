@@ -15,6 +15,7 @@ import '../services/directions_service.dart';
 import '../services/order_eta_service.dart';
 import '../stores/driver_store.dart';
 import '../stores/order_store.dart';
+import '../utils/constants.dart';
 import '../utils/map_marker_helper.dart';
 import '../utils/map_utils.dart';
 import '../services/notification_service.dart';
@@ -211,7 +212,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     final mapCenter = driverPosition ??
         order.destination ??
         order.pickupLocation ??
-        const ll.LatLng(38.7223, -9.1393);
+        const ll.LatLng(kGuardaLat, kGuardaLng);
 
     return Scaffold(
       body: Stack(

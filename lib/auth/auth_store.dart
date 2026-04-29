@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/driver_model.dart';
 import '../models/restaurant_model.dart';
 import '../services/notification_service.dart';
+import '../utils/constants.dart';
 
 enum AuthRole { client, driver, partner }
 
@@ -674,8 +675,8 @@ class AuthStore extends ChangeNotifier {
           'vehicle_type': vehicleType.name,
           'license_plate': licensePlate.trim(),
           'is_online': false,
-          'lat': 38.7223,
-          'lng': -9.1393,
+          'lat': kGuardaLat,
+          'lng': kGuardaLng,
           'status': 'pending',
           if (consentAcceptedAt != null)
             'consent_accepted_at': consentAcceptedAt.toUtc().toIso8601String(),

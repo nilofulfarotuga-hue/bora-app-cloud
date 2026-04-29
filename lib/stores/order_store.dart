@@ -1535,22 +1535,42 @@ class OrderStore extends ChangeNotifier {
       _ordersSubscription?.cancel();
       _ordersSubscription = null;
     }
-    debugPrint('[OrderStore] general subscription started (no driver filter)');
     final uid = _authStore?.userId;
     final isClient = _authStore?.currentClient != null;
-    _ordersSubscription = (isClient && uid != null
+
+    // Cliente sem uid → NÃO subscrever. Sem filtro `user_id`, qualquer tick
+    // vazio do RLS varre `_orders` e provoca loading infinito ao reentrar
+    // no tab Pedidos. `updateAuthStore` chama `_subscribeToOrders` outra vez
+    // assim que a sessão carrega — não há risco de ficarmos por subscrever.
+    if (isClient && uid == null) {
+      debugPrint('[OrderStore] skipping subscribe: client has no uid yet');
+      return;
+    }
+    debugPrint(
+        '[OrderStore] general subscription started (isClient=$isClient uid=${uid ?? "n/a"})');
+    _ordersSubscription = (isClient
             ? supabase
                 .from('orders')
-                .stream(primaryKey: ['id']).eq('user_id', uid)
+                .stream(primaryKey: ['id']).eq('user_id', uid!)
             : supabase.from('orders').stream(primaryKey: ['id']))
         .order('created_at', ascending: false)
         .listen(
       (rows) {
         debugPrint(
             '[OrderStore] orders received=${rows.length} (general stream)');
-        // Ignore empty fires that arrive before the JWT is established —
-        // they would clear a list that is still valid from a prior session.
-        if (rows.isEmpty && supabase.auth.currentUser == null) return;
+        // Empty-fire guards (anti-wipe):
+        //  1. JWT ainda não estabelecido → ignorar.
+        //  2. Já temos pedidos cacheados → ignorar tick vazio (provável
+        //     reconnect transitório). Próximo tick confirma se de facto
+        //     a lista deve esvaziar.
+        if (rows.isEmpty) {
+          if (supabase.auth.currentUser == null) return;
+          if (_orders.isNotEmpty) {
+            debugPrint(
+                '[OrderStore] empty tick ignored — keeping ${_orders.length} cached orders');
+            return;
+          }
+        }
         _orders.clear();
         for (final data in rows) {
           _orders.add(OrderModel.fromSupabase(data));

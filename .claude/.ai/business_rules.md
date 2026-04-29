@@ -433,6 +433,9 @@ Ver secção 7.7.
 - Motivo obrigatório no cancelamento (aparece ao cliente)
 - Bora decide se há reembolso e quanto
 
+> **Implementado em commit 11c7497 (Fase 4 BUG 3).**
+> Gaps documentados: GAP-1 (full refund em pickedUp/onTheWay como decisão Q4 — Bora absorve), GAP-2 (cliente vê mensagem mapeada do reason_code, não o motivo literal), GAP-3 (refund parcial/tokens não suportados). Ver ADR `.claude/.ai/decisions/2026-04-29-fase4-bug3-refund-policy.md`.
+
 ---
 
 ## 13. AVALIAÇÕES (RATINGS)
@@ -648,6 +651,9 @@ O restaurante/loja pode candidatar-se por 3 vias:
 - Admin pode cancelar qualquer pedido ativo
 - Motivo obrigatório (aparece ao cliente)
 - Decide reembolso manualmente
+
+> **Implementado em commit 11c7497 (Fase 4 BUG 3).**
+> Gaps documentados: GAP-1 (full refund em pickedUp/onTheWay como decisão Q4 — Bora absorve), GAP-2 (cliente vê mensagem mapeada do reason_code, não o motivo literal), GAP-3 (refund parcial/tokens não suportados). Ver ADR `.claude/.ai/decisions/2026-04-29-fase4-bug3-refund-policy.md`.
 
 **12. Descontos Manuais**
 - Admin pode aplicar desconto em qualquer pedido

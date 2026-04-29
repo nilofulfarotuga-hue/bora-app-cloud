@@ -759,6 +759,51 @@ class RestaurantStore extends ChangeNotifier {
     return Map<String, dynamic>.from(res as Map);
   }
 
+  /// T15 — Admin updates partner identity fields. Pass null for fields you
+  /// don't want to change. Returns audit diff in the response.
+  Future<Map<String, dynamic>> adminUpdatePartnerData({
+    required String restaurantId,
+    String? name,
+    String? address,
+    String? category, // 'restaurant' | 'supermarket' | 'store' | 'pharmacy'
+    String? phone,
+  }) async {
+    final res = await supabase.rpc('admin_update_partner_data', params: {
+      'p_restaurant_id': restaurantId,
+      'p_name': name,
+      'p_address': address,
+      'p_category': category,
+      'p_phone': phone,
+    });
+    final result = Map<String, dynamic>.from(res as Map);
+    // Update local cache if any field changed.
+    final index = _restaurants.indexWhere((r) => r.id == restaurantId);
+    if (index != -1 && result['no_changes'] != true) {
+      final old = _restaurants[index];
+      _restaurants[index] = RestaurantModel(
+        id: old.id,
+        name: name ?? old.name,
+        phone: phone ?? old.phone,
+        address: address ?? old.address,
+        email: old.email,
+        photoUrl: old.photoUrl,
+        cuisineType: old.cuisineType,
+        isPartner: old.isPartner,
+        category: category != null
+            ? BusinessCategory.values.firstWhere((e) => e.name == category,
+                orElse: () => old.category)
+            : old.category,
+        isOnline: old.isOnline,
+        lat: old.lat,
+        lng: old.lng,
+        reservationsEnabled: old.reservationsEnabled,
+        businessHours: old.businessHours,
+      );
+      notifyListeners();
+    }
+    return result;
+  }
+
   Future<Map<String, dynamic>> adminSetPartnerSpecialDate({
     required String restaurantId,
     required DateTime date,

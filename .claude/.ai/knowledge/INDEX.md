@@ -24,6 +24,7 @@
 
 ## Sub-documentos relevantes (a serem criados conforme a app cresce)
 
+- `business-rules/wallet.md` — §17 Wallet 80/20 + Cashback + Referral + Promos (2026-04-30)
 - `from-obsidian/` — sync unidirecional do vault Obsidian (NÃO editar à mão).
 - `sessions/` — notas por sessão de trabalho.
 

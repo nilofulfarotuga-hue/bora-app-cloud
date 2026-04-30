@@ -332,13 +332,34 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       return;
     }
 
-    // Platform-specific settings (no foreground notification on idle screen).
+    // T3.1: Background-capable location settings.
+    // Android: ForegroundNotificationConfig keeps the GPS stream alive when
+    //   the app is minimised. The notification is required by Android 14+
+    //   (FOREGROUND_SERVICE_LOCATION).
+    // iOS: showBackgroundLocationIndicator + pauseLocationUpdatesAutomatically
+    //   ensure the OS doesn't suspend updates during deliveries.
     final LocationSettings locationSettings;
     if (defaultTargetPlatform == TargetPlatform.android) {
       locationSettings = AndroidSettings(
         accuracy: LocationAccuracy.high,
         distanceFilter: 10,
         intervalDuration: const Duration(seconds: 5),
+        foregroundNotificationConfig: const ForegroundNotificationConfig(
+          notificationTitle: 'Bora — entrega em curso',
+          notificationText:
+              'A actualizar a tua posição em segundo plano para os clientes verem o progresso.',
+          enableWakeLock: true,
+          notificationIcon: AndroidResource(name: 'ic_launcher', defType: 'mipmap'),
+        ),
+      );
+    } else if (defaultTargetPlatform == TargetPlatform.iOS) {
+      locationSettings = AppleSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 10,
+        pauseLocationUpdatesAutomatically: false,
+        showBackgroundLocationIndicator: true,
+        activityType: ActivityType.automotiveNavigation,
+        allowBackgroundLocationUpdates: true,
       );
     } else {
       locationSettings = const LocationSettings(

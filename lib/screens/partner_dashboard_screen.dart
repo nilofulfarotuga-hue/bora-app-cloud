@@ -998,7 +998,7 @@ class _ReservationsToggleCard extends StatelessWidget {
               : 'Desligado — reservas ocultas aos clientes. (BR §14.10)',
           style: const TextStyle(fontSize: 12),
         ),
-        activeColor: const Color(0xFF1B5E20),
+        activeThumbColor: const Color(0xFF1B5E20),
       ),
     );
   }

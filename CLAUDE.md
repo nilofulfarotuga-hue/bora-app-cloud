@@ -73,6 +73,20 @@ There are no custom scripts or Makefile. No test suite exists in this project.
 
 ---
 
+## Schema source of truth
+
+`supabase/schema.sql` é a **fonte da verdade declarativa do schema actual**
+(snapshot CREATE TABLE consolidado). É documento, **não migration aplicável**.
+Migrations efectivas estão em `supabase/migrations/` (ordem cronológica).
+
+Notas:
+- `restaurants.id`, `products.id`, `orders.id` são **TEXT** em prod (legado).
+  Migration plan em `decisions/2026-04-29-restaurants-id-uuid-refactor.md`.
+- `migration_trigger_dispatch.sql` (raiz `supabase/`) é boot scaffold legado
+  — substituído pelas migrations `dispatch_trigger_pgcron` e
+  `dispatch_ttl_auto_reject`. Não re-aplicar.
+- `debug_dispatch.sql` é diagnóstico ad-hoc; não é parte do schema.
+
 ## Architecture Overview
 
 ### Three User Roles

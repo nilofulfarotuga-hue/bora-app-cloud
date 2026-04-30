@@ -123,6 +123,10 @@ Pré-autorização de **+15% a mais** do valor estimado.
 ### 4.4 Tabelas e Triggers
 - Tabela: `bora_tokens`
 - Trigger: `trg_award_tokens_on_delivery`
+- **Constraint:** `amount INTEGER CHECK (amount > 0)` — saldo negativo virtual **não** suportado.
+  Para reduzir saldo de um utilizador, usar `admin_revoke_token_grant(token_id, reason)` em
+  grants específicos (audit trail mais limpo). Grants individualmente revogados ficam
+  marcados `is_used=true` e deixam de contar para o balance.
 
 ### 4.5 Gorjetas (Tips)
 - Cliente pode dar gorjeta na altura de pagar **ou** depois da entrega (ao avaliar)

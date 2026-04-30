@@ -344,13 +344,26 @@ async function updateCrossMatch(market: string): Promise<{ message: string }> {
   if (error) throw error;
   if (!products?.length) return { message: `No products without photos for ${market}` };
 
+  // T11: pre-fetch mercadona restaurant ids by NAME (not by id-prefix), so the
+  // refactor restaurants.id TEXT->UUID (decisions/2026-04-29-restaurants-id-uuid-refactor.md)
+  // does not break this code. Lookup is constant per call (~5 rows).
+  const { data: mercRestaurants } = await supabase
+    .from('restaurants')
+    .select('id')
+    .ilike('name', 'Mercadona%');
+  const mercIds: string[] = (mercRestaurants ?? []).map((r: { id: string }) => r.id);
+
+  if (mercIds.length === 0) {
+    return { message: `No Mercadona restaurants found — cannot enrich photos for ${market}` };
+  }
+
   let matched = 0;
 
   for (const product of products) {
     const { data: mercProducts } = await supabase
       .from('products')
       .select('id, name, photo_url, price')
-      .ilike('restaurant_id', 'mercadona-%')
+      .in('restaurant_id', mercIds)
       .ilike('name', `%${product.name.split(' ')[0]}%`)
       .limit(1);
 

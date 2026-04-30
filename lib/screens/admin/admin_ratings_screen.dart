@@ -19,6 +19,9 @@ class AdminRatingsScreen extends StatefulWidget {
 class _AdminRatingsScreenState extends State<AdminRatingsScreen> {
   late Future<List<Map<String, dynamic>>> _future;
   bool _onlyReports = false;
+  // T2.1: filters via admin_list_ratings + admin_low_rated_subjects.
+  String _subjectFilter = 'all'; // all | driver | partner
+  int? _maxStars; // null = no cap
 
   @override
   void initState() {
@@ -27,20 +30,79 @@ class _AdminRatingsScreenState extends State<AdminRatingsScreen> {
   }
 
   Future<List<Map<String, dynamic>>> _load() async {
-    final base = Supabase.instance.client
-        .from('ratings')
-        .select()
-        .order('created_at', ascending: false)
-        .limit(200);
-    final rows = await base;
-    final list = (rows as List).cast<Map<String, dynamic>>();
-    if (_onlyReports) {
-      return list.where((r) {
-        final tags = (r['tags'] as List?)?.cast<String>() ?? const [];
-        return tags.any((t) => t.toLowerCase().contains('denún'));
-      }).toList();
+    // T2.1: prefer admin_list_ratings RPC (SECURITY DEFINER + _admin_op_guard).
+    try {
+      final res = await Supabase.instance.client.rpc(
+        'admin_list_ratings',
+        params: {
+          'p_subject_type': _subjectFilter == 'all' ? null : _subjectFilter,
+          'p_max_stars': _maxStars,
+          'p_limit': 200,
+          'p_offset': 0,
+        },
+      );
+      final list = (res as List).cast<Map<String, dynamic>>();
+      if (_onlyReports) {
+        return list.where((r) {
+          final tags = (r['tags'] as List?)?.cast<String>() ?? const [];
+          return tags.any((t) => t.toLowerCase().contains('denún'));
+        }).toList();
+      }
+      return list;
+    } catch (_) {
+      // Fallback to direct table read if RPC unavailable.
+      final rows = await Supabase.instance.client
+          .from('ratings')
+          .select()
+          .order('created_at', ascending: false)
+          .limit(200);
+      return (rows as List).cast<Map<String, dynamic>>();
     }
-    return list;
+  }
+
+  Future<void> _showLowRated() async {
+    try {
+      final res = await Supabase.instance.client.rpc(
+        'admin_low_rated_subjects',
+        params: {'p_threshold': 2.0, 'p_min_count': 3},
+      );
+      final list = (res as List).cast<Map<String, dynamic>>();
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Subjects com média < 2.0 (≥3 ratings)'),
+          content: SizedBox(
+            width: 400,
+            child: list.isEmpty
+                ? const Text('Nenhum subject candidato a banimento.')
+                : ListView(
+                    shrinkWrap: true,
+                    children: list
+                        .map((r) => ListTile(
+                              dense: true,
+                              title: Text(
+                                  '${r['subject_type']} · ${r['subject_id']}'),
+                              subtitle: Text(
+                                  'média ${r['avg_stars']} · ${r['rating_count']} ratings'),
+                              trailing: const Icon(Icons.warning,
+                                  color: Colors.red),
+                            ))
+                        .toList(),
+                  ),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Fechar')),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Erro: $e')));
+    }
   }
 
   @override
@@ -59,6 +121,35 @@ class _AdminRatingsScreenState extends State<AdminRatingsScreen> {
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.warning_amber, color: Colors.white),
+            tooltip: 'Subjects com média < 2.0',
+            onPressed: _showLowRated,
+          ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.filter_list, color: Colors.white),
+            tooltip: 'Filtros',
+            onSelected: (v) {
+              setState(() {
+                if (v == 'all' || v == 'driver' || v == 'partner') {
+                  _subjectFilter = v;
+                } else if (v == 'lowest') {
+                  _maxStars = 2;
+                } else if (v == 'all_stars') {
+                  _maxStars = null;
+                }
+                _future = _load();
+              });
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'all', child: Text('Todos')),
+              PopupMenuItem(value: 'driver', child: Text('Só estafetas')),
+              PopupMenuItem(value: 'partner', child: Text('Só parceiros')),
+              PopupMenuDivider(),
+              PopupMenuItem(value: 'lowest', child: Text('≤ 2 estrelas')),
+              PopupMenuItem(value: 'all_stars', child: Text('Todas estrelas')),
+            ],
+          ),
           Row(
             children: [
               const Text('Só denúncias',

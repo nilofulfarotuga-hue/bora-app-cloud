@@ -63,24 +63,42 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   }
 
   // BR §26.2 — Auto-abrir ecrã de avaliação após entrega.
-  // Guard idempotente: só navega uma vez por sessão do ecrã.
+  // T2.1: avalia driver E parceiro (sequencial, ambos opcionais skip).
   void _maybeOpenRating(OrderModel order) {
     if (_ratingNavigated) return;
     if (order.status != OrderStatus.delivered) return;
     final driverId = order.assignedDriverId;
-    if (driverId == null || driverId.isEmpty) return;
+    final hasPartner = order.isPartnerStore &&
+        (order.vendorName != null && order.vendorName!.isNotEmpty);
+    if ((driverId == null || driverId.isEmpty) && !hasPartner) return;
     _ratingNavigated = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => RatingScreen(
-            order: order,
-            subjectType: RatingSubjectType.driver,
-            subjectId: driverId,
+      // 1) Avaliar estafeta
+      if (driverId != null && driverId.isNotEmpty) {
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => RatingScreen(
+              order: order,
+              subjectType: RatingSubjectType.driver,
+              subjectId: driverId,
+            ),
           ),
-        ),
-      );
+        );
+      }
+      if (!mounted) return;
+      // 2) Avaliar parceiro (se aplicável)
+      if (hasPartner) {
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => RatingScreen(
+              order: order,
+              subjectType: RatingSubjectType.partner,
+              subjectId: order.vendorName!,
+            ),
+          ),
+        );
+      }
     });
   }
 

@@ -3,7 +3,12 @@ import '../services/wallet_service.dart';
 
 /// Wallet History — lista de transactions do utilizador (saldo livre + tokens).
 class WalletHistoryScreen extends StatefulWidget {
-  const WalletHistoryScreen({super.key});
+  const WalletHistoryScreen({super.key, this.highlightOrderId});
+
+  /// T2.4: when provided, the wallet transactions list highlights txs related
+  /// to this order (top-pinned + filter button).
+  final String? highlightOrderId;
+
   @override
   State<WalletHistoryScreen> createState() => _WalletHistoryScreenState();
 }

@@ -11,6 +11,7 @@ import '../stores/driver_store.dart';
 import '../stores/order_store.dart';
 import '../widgets/refund_choice_dialog.dart';
 import 'chat_screen.dart';
+import 'wallet_history_screen.dart';
 
 class OrderDetailsScreen extends StatelessWidget {
   const OrderDetailsScreen({super.key, required this.order});
@@ -206,15 +207,39 @@ class _CashbackBadge extends StatelessWidget {
             border: Border.all(color: Colors.green.shade300),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.celebration, color: Colors.green),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Recebeste €${(cents / 100).toStringAsFixed(2)} de cashback no teu Saldo Bora!',
-                  style: const TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w600),
+              Row(
+                children: [
+                  const Icon(Icons.celebration, color: Colors.green),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Recebeste €${(cents / 100).toStringAsFixed(2)} de cashback no teu Saldo Bora!',
+                      style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+              // T2.4: link directo para o histórico do Saldo Bora.
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  icon: const Icon(Icons.account_balance_wallet,
+                      size: 16, color: Colors.green),
+                  label: const Text('Ver no saldo',
+                      style: TextStyle(color: Colors.green)),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            WalletHistoryScreen(highlightOrderId: orderId),
+                      ),
+                    );
+                  },
                 ),
               ),
             ],

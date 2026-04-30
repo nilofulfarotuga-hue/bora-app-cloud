@@ -72,22 +72,19 @@ class _RatingScreenState extends State<RatingScreen> {
 
       final isDriverSubject =
           widget.subjectType == RatingSubjectType.driver;
-      final rating = RatingModel(
-        orderId: widget.order.id,
-        driverId: widget.subjectId,
-        rating: _stars,
-        comment: _commentController.text.trim().isEmpty
+      // T2.1: server-side RPC enforces order ownership + status='delivered'
+      // + idempotency (one rating per order/subject/rater).
+      await client.rpc('submit_rating', params: {
+        'p_order_id': widget.order.id,
+        'p_subject_type':
+            widget.subjectType == RatingSubjectType.driver ? 'driver' : 'partner',
+        'p_subject_id': widget.subjectId,
+        'p_stars': _stars,
+        'p_comment': _commentController.text.trim().isEmpty
             ? null
             : _commentController.text.trim(),
-        tags: _selectedTags.toList(),
-        isPrivate: !isDriverSubject &&
-            widget.subjectType == RatingSubjectType.client,
-        subjectType: widget.subjectType,
-        subjectId: widget.subjectId,
-        raterUserId: user.id,
-      );
-
-      await client.from('ratings').insert(rating.toSupabase());
+        'p_tags': _selectedTags.toList(),
+      });
 
       // Persist tip (BR §4.5) — best-effort, failure does not invalidate rating.
       if (_tipCents > 0 && isDriverSubject) {

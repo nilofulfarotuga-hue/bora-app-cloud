@@ -35,57 +35,26 @@ class _AdminRealtimeMetricsCardState extends State<AdminRealtimeMetricsCard> {
 
   Future<void> _refresh() async {
     try {
+      // Single round-trip via admin_realtime_metrics RPC (SECURITY DEFINER,
+      // _admin_op_guard). Replaces 5 separate count/select queries — much
+      // cheaper for a 10s polling card.
       final supa = Supabase.instance.client;
-      final results = await Future.wait([
-        supa.from('orders').count(CountOption.exact)
-            .inFilter('status', ['created', 'preparing', 'callingDriver']),
-        supa.from('orders').count(CountOption.exact)
-            .inFilter('status', ['driverAccepted', 'pickedUp', 'onTheWay']),
-        supa.from('drivers').count(CountOption.exact).eq('is_online', true),
-        supa.from('orders')
-            .select('created_at, delivered_at')
-            .eq('status', 'delivered')
-            .gte('delivered_at', DateTime.now().subtract(const Duration(hours: 24)).toIso8601String())
-            .limit(500),
-        supa.from('orders')
-            .select('id')
-            .eq('status', 'callingDriver')
-            .lt('created_at', DateTime.now().subtract(const Duration(minutes: 30)).toIso8601String())
-            .limit(1),
-      ]);
-      final pending = results[0] as int;
-      final active = results[1] as int;
-      final drivers = results[2] as int;
-      final delivered = (results[3] as List).cast<Map<String, dynamic>>();
-      final stale = (results[4] as List).isNotEmpty;
-
-      double? avg;
-      if (delivered.isNotEmpty) {
-        var sum = 0.0;
-        var count = 0;
-        for (final o in delivered) {
-          final c = DateTime.tryParse((o['created_at'] ?? '') as String);
-          final d = DateTime.tryParse((o['delivered_at'] ?? '') as String);
-          if (c != null && d != null) {
-            sum += d.difference(c).inSeconds / 60.0;
-            count++;
-          }
-        }
-        if (count > 0) avg = sum / count;
-      }
+      final res = await supa.rpc('admin_realtime_metrics');
+      final m = (res as Map).cast<String, dynamic>();
 
       if (mounted) {
         setState(() {
-          _pending = pending;
-          _active = active;
-          _driversOnline = drivers;
-          _avgDeliveryMin = avg;
-          _hasStaleOrder = stale;
+          _pending = (m['pending_orders'] as num?)?.toInt() ?? 0;
+          _active = (m['active_orders'] as num?)?.toInt() ?? 0;
+          _driversOnline = (m['drivers_online'] as num?)?.toInt() ?? 0;
+          _avgDeliveryMin = (m['avg_delivery_min_24h'] as num?)?.toDouble();
+          _hasStaleOrder = m['has_stale_order'] == true;
           _loading = false;
         });
       }
-    } catch (_) {
-      // silencioso — auto-retry no próximo tick
+    } catch (e) {
+      // Auto-retry no próximo tick — log para debug mas sem spamar UI.
+      debugPrint('[AdminRealtimeMetricsCard] RPC error: $e');
     }
   }
 

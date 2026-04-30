@@ -140,7 +140,8 @@ class _AdminAuditLogScreenState extends State<AdminAuditLogScreen> {
                                       '${r.adminEmail ?? "system"} · ${_fmt(r.createdAt)}'
                                       '${r.entityType != null ? "\n${r.entityType}: ${r.entityId ?? "-"}" : ""}',
                                     ),
-                                    isThreeLine: true,
+                                    // ExpansionTile doesn't support isThreeLine —
+                                    // the subtitle wraps naturally via the \n.
                                     children: [
                                       Padding(
                                         padding: const EdgeInsets.all(12),

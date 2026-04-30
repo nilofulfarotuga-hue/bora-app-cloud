@@ -458,7 +458,9 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       final createdOrder = orderStore.orders.first;
       final orderId = createdOrder.id;
       final walletEur = createdOrder.walletAppliedCents / 100.0;
-      final stripeAmount = createdOrder.total - walletEur;
+      // §18 v2: menu credit (€2 from prior reservation) also reduces Stripe charge
+      final menuCreditEur = createdOrder.menuCreditAppliedCents / 100.0;
+      final stripeAmount = createdOrder.total - walletEur - menuCreditEur;
 
       if (stripeAmount <= 0) {
         // Wallet covered everything — payment_status already 'paid' server-side.

@@ -600,6 +600,8 @@ class OrderStore extends ChangeNotifier {
         isTakeaway: isTakeaway,
         walletAppliedCents:
             (rpcData['wallet_applied_cents'] as num?)?.toInt() ?? 0,
+        menuCreditAppliedCents:
+            (rpcData['menu_credit_applied_cents'] as num?)?.toInt() ?? 0,
       );
 
       final order = serverOrder;

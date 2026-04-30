@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../models/reservation_model.dart';
 import '../models/restaurant_model.dart';
 
 /// Client-facing screen to reserve a table at a partner restaurant (BR §14).
@@ -85,30 +85,45 @@ class _ReservationFlowScreenState extends State<ReservationFlowScreen> {
         return;
       }
 
-      final row = ReservationModel(
-        id: '', // DB generates
-        restaurantId: widget.restaurant.id,
-        clientUserId: user.id,
-        clientName: _nameController.text.trim(),
-        clientPhone: _phoneController.text.trim(),
-        people: _people,
-        reservedFor: _combined,
-        status: ReservationStatus.pending,
-        notes: _notesController.text.trim().isEmpty
-            ? null
-            : _notesController.text.trim(),
-        // T6.1: campo registado mas Stripe charge não está wired.
-        // Implementação requer Edge Function dedicada para reservation
-        // prepayments + refund-on-reject — fora do scope do launch.
-        // Decisão: decisions/2026-04-30-reservations-prepayment.md
-        prepaymentCents: 300, // €3 (BR §14.5)
+      // T2.E (BR §18): chama Edge Fn que cria reservation pending_payment +
+      // Stripe PaymentIntent €3.
+      final res = await client.functions.invoke(
+        'create-reservation-payment-intent',
+        body: {
+          'restaurant_id': widget.restaurant.id,
+          'people': _people,
+          'reserved_for': _combined.toUtc().toIso8601String(),
+          'client_name': _nameController.text.trim(),
+          'client_phone': _phoneController.text.trim(),
+          if (_notesController.text.trim().isNotEmpty)
+            'notes': _notesController.text.trim(),
+        },
       );
+      if (res.status >= 400) {
+        throw Exception('reservation_intent_failed: ${res.data}');
+      }
+      final data = (res.data as Map).cast<String, dynamic>();
+      final clientSecret = data['clientSecret'] as String;
+      final reservationId = data['reservation_id'] as String;
 
-      await client.from('reservations').insert(row.toInsert());
+      // Confirm Stripe PaymentSheet
+      await Stripe.instance.initPaymentSheet(
+        paymentSheetParameters: SetupPaymentSheetParameters(
+          paymentIntentClientSecret: clientSecret,
+          merchantDisplayName: 'Bora App',
+        ),
+      );
+      await Stripe.instance.presentPaymentSheet();
+
+      // Mark reservation as paid → notify partner
+      await client.rpc('client_confirm_reservation_payment',
+          params: {'p_reservation_id': reservationId});
 
       if (!mounted) return;
       messenger.showSnackBar(
-        const SnackBar(content: Text('Reserva criada. Aguarda confirmação do restaurante.')),
+        const SnackBar(
+            content: Text(
+                'Reserva criada (€3 ringfenced). Aguarda confirmação do restaurante.')),
       );
       navigator.pop(true);
     } catch (e) {
@@ -224,8 +239,9 @@ class _ReservationFlowScreenState extends State<ReservationFlowScreen> {
                     ),
                     const SizedBox(height: 6),
                     const Text(
-                      'Se o restaurante aceitar a reserva, são cobrados €3 (BR §14.5). '
-                      'O valor é descontado na conta final.',
+                      '€3 cobrados agora ao confirmares. Quando chegares ao '
+                      'restaurante, o valor vira crédito no menu (descontado '
+                      'do próximo pedido).',
                       style: TextStyle(fontSize: 13),
                     ),
                     const SizedBox(height: 8),
@@ -233,12 +249,12 @@ class _ReservationFlowScreenState extends State<ReservationFlowScreen> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.amber.shade100,
+                        color: Colors.green.shade100,
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: const Text(
-                        'Pagamento via Stripe — em desenvolvimento. '
-                        'Nesta versão não haverá cobrança automática.',
+                        'Cancelamento gratuito até 2h antes da reserva. '
+                        'Dentro de 2h ou no-show: €3 não devolvidos.',
                         style: TextStyle(
                             fontSize: 12, fontStyle: FontStyle.italic),
                       ),

@@ -38,16 +38,42 @@ class _PartnerReservationsScreenState
         .toList();
   }
 
-  Future<void> _setStatus(ReservationModel r, ReservationStatus status,
-      {DateTime? arrivedAt}) async {
+  /// T2.F (BR §18): use server RPCs that enforce ownership + payment status
+  /// + create menu credit + auto-refund on rejection.
+  Future<void> _decide(ReservationModel r, bool accept,
+      {String? reason}) async {
     final client = Supabase.instance.client;
-    await client.from('reservations').update({
-      'status': status.dbName,
-      'decided_at': DateTime.now().toUtc().toIso8601String(),
-      if (arrivedAt != null)
-        'arrived_at': arrivedAt.toUtc().toIso8601String(),
-    }).eq('id', r.id);
-    setState(() => _future = _load());
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await client.rpc('partner_decide_reservation', params: {
+        'p_reservation_id': r.id,
+        'p_accept': accept,
+        'p_reason': reason,
+      });
+      messenger.showSnackBar(SnackBar(
+        content: Text(accept
+            ? 'Reserva aprovada.'
+            : 'Reserva rejeitada — reembolso automático.'),
+      ));
+      setState(() => _future = _load());
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Erro: $e')));
+    }
+  }
+
+  Future<void> _markArrived(ReservationModel r) async {
+    final client = Supabase.instance.client;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await client.rpc('partner_mark_arrival',
+          params: {'p_reservation_id': r.id});
+      messenger.showSnackBar(const SnackBar(
+        content: Text('Cliente marcado como chegou. Crédito €3 atribuído.'),
+      ));
+      setState(() => _future = _load());
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Erro: $e')));
+    }
   }
 
   @override
@@ -87,11 +113,9 @@ class _PartnerReservationsScreenState
               separatorBuilder: (_, __) => const SizedBox(height: 10),
               itemBuilder: (context, i) => _ReservationCard(
                 reservation: list[i],
-                onAccept: () => _setStatus(list[i], ReservationStatus.accepted),
-                onReject: () => _setStatus(list[i], ReservationStatus.rejected),
-                onArrived: () => _setStatus(
-                    list[i], ReservationStatus.customerArrived,
-                    arrivedAt: DateTime.now()),
+                onAccept: () => _decide(list[i], true),
+                onReject: () => _decide(list[i], false),
+                onArrived: () => _markArrived(list[i]),
               ),
             ),
           );

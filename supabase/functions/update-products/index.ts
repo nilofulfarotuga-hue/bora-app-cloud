@@ -123,8 +123,44 @@ const SFCC_HEADERS = {
 };
 
 const decodeEntities = (s: string) =>
-  s.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
-   .replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+  s
+    // XML/HTML core
+    .replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    // Portuguese / Latin-1 named entities
+    .replace(/&aacute;/g, 'á').replace(/&Aacute;/g, 'Á')
+    .replace(/&agrave;/g, 'à').replace(/&Agrave;/g, 'À')
+    .replace(/&atilde;/g, 'ã').replace(/&Atilde;/g, 'Ã')
+    .replace(/&acirc;/g, 'â').replace(/&Acirc;/g, 'Â')
+    .replace(/&auml;/g, 'ä').replace(/&Auml;/g, 'Ä')
+    .replace(/&aring;/g, 'å').replace(/&Aring;/g, 'Å')
+    .replace(/&eacute;/g, 'é').replace(/&Eacute;/g, 'É')
+    .replace(/&egrave;/g, 'è').replace(/&Egrave;/g, 'È')
+    .replace(/&ecirc;/g, 'ê').replace(/&Ecirc;/g, 'Ê')
+    .replace(/&euml;/g, 'ë').replace(/&Euml;/g, 'Ë')
+    .replace(/&iacute;/g, 'í').replace(/&Iacute;/g, 'Í')
+    .replace(/&igrave;/g, 'ì').replace(/&Igrave;/g, 'Ì')
+    .replace(/&icirc;/g, 'î').replace(/&Icirc;/g, 'Î')
+    .replace(/&iuml;/g, 'ï').replace(/&Iuml;/g, 'Ï')
+    .replace(/&oacute;/g, 'ó').replace(/&Oacute;/g, 'Ó')
+    .replace(/&ograve;/g, 'ò').replace(/&Ograve;/g, 'Ò')
+    .replace(/&otilde;/g, 'õ').replace(/&Otilde;/g, 'Õ')
+    .replace(/&ocirc;/g, 'ô').replace(/&Ocirc;/g, 'Ô')
+    .replace(/&ouml;/g, 'ö').replace(/&Ouml;/g, 'Ö')
+    .replace(/&uacute;/g, 'ú').replace(/&Uacute;/g, 'Ú')
+    .replace(/&ugrave;/g, 'ù').replace(/&Ugrave;/g, 'Ù')
+    .replace(/&ucirc;/g, 'û').replace(/&Ucirc;/g, 'Û')
+    .replace(/&uuml;/g, 'ü').replace(/&Uuml;/g, 'Ü')
+    .replace(/&ccedil;/g, 'ç').replace(/&Ccedil;/g, 'Ç')
+    .replace(/&ntilde;/g, 'ñ').replace(/&Ntilde;/g, 'Ñ')
+    .replace(/&szlig;/g, 'ß')
+    .replace(/&euro;/g, '€').replace(/&pound;/g, '£')
+    .replace(/&nbsp;/g, ' ').replace(/&shy;/g, '')
+    .replace(/&reg;/g, '®').replace(/&copy;/g, '©').replace(/&trade;/g, '™')
+    // Numeric decimal entities &#NNN;
+    .replace(/&#(\d+);/g, (_: string, n: string) => String.fromCharCode(parseInt(n, 10)))
+    // Numeric hex entities &#xHHH;
+    .replace(/&#x([0-9a-fA-F]+);/g, (_: string, h: string) => String.fromCharCode(parseInt(h, 16)));
 
 function titleCase(s: string): string {
   return s.toLowerCase().split(/\s+/)

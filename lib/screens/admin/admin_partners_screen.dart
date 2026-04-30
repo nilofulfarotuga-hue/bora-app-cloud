@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../services/admin_audit_service.dart';
+import 'admin_partner_detail_screen.dart';
 
 class AdminPartnersScreen extends StatefulWidget {
   const AdminPartnersScreen({super.key});
@@ -157,11 +158,26 @@ class _AdminPartnersScreenState extends State<AdminPartnersScreen> {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
-                                trailing: Switch(
-                                  value: isActive,
-                                  onChanged: (_) => _toggleActive(
-                                      r['id'] as String, isActive),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Switch(
+                                      value: isActive,
+                                      onChanged: (_) => _toggleActive(
+                                          r['id'] as String, isActive),
+                                    ),
+                                    const Icon(Icons.chevron_right, color: Colors.grey),
+                                  ],
                                 ),
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => AdminPartnerDetailScreen(
+                                      restaurantId: r['id'] as String,
+                                      initialName: r['name'] as String? ?? '—',
+                                    ),
+                                  ),
+                                ).then((_) => _load()),
                               ),
                             );
                           },

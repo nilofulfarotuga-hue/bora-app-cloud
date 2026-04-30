@@ -1,4 +1,5 @@
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
@@ -36,9 +37,11 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { paymentIntentId, amount } = await req.json() as {
+    const { paymentIntentId, amount, userId, orderId } = await req.json() as {
       paymentIntentId?: string;
       amount?: number;
+      userId?: string;
+      orderId?: string;
     };
 
     if (!paymentIntentId || typeof paymentIntentId !== 'string' || paymentIntentId.trim() === '') {
@@ -88,6 +91,26 @@ Deno.serve(async (req: Request) => {
     );
 
     console.log('[refund] issued:', refund.id, `pi=${paymentIntentId}`, `€${amount.toFixed(2)}`, `idempotencyKey=${idempotencyKey}`);
+
+    // F2 (2026-04-30) — push client com clareza do prazo Stripe (best-effort)
+    if (userId) {
+      try {
+        const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+        const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+        if (supabaseUrl && serviceKey) {
+          const sb = createClient(supabaseUrl, serviceKey);
+          const message = `Reembolso de €${amount.toFixed(2)} processado. Pode demorar 5-10 dias úteis a aparecer no cartão. Para crédito instantâneo, escolhe wallet da próxima vez.`;
+          await sb.functions.invoke('notify-client', {
+            body: {
+              user_id: userId,
+              title: 'Reembolso processado',
+              body: message,
+              data: { order_id: orderId ?? null, refund_method: 'stripe', refund_id: refund.id },
+            },
+          });
+        }
+      } catch (e) { console.warn('[refund] notify failed (non-fatal):', e); }
+    }
 
     return new Response(
       JSON.stringify({ refundId: refund.id }),

@@ -18,8 +18,14 @@ class BusinessMapper {
       onlyAvailable: true,
     );
 
+    // Bug-B fix 2026-04-30: propagate product.id so cart writes a real UUID
+    // (not the product name) into create_order's product_lines.
     final menu = partnerProducts
-        .map((product) => MenuItem(name: product.name, price: product.price))
+        .map((product) => MenuItem(
+              productId: product.id,
+              name: product.name,
+              price: product.price,
+            ))
         .toList();
 
     return Restaurant(

@@ -287,7 +287,11 @@ class CartStore extends ChangeNotifier {
         PricingService.applyMarkup(item.price, _isPartnerStore);
     final cartItem = effectivePrice != item.price
         ? CartItem(
-            name: item.name, price: effectivePrice, quantity: item.quantity)
+            productId: item.productId, // Bug-B fix 2026-04-30 (preserve UUID)
+            name: item.name,
+            price: effectivePrice,
+            quantity: item.quantity,
+          )
         : item;
 
     final index = _items.indexWhere((i) => i.name == cartItem.name);

@@ -71,11 +71,23 @@ class _S extends State<AdminCancellationRequestsScreen> {
     );
     if (ok != true) return;
     try {
+      // 1) Marca aprovação na DB (RPC + audit)
       await Supabase.instance.client.rpc('admin_approve_cancellation', params: {
         'p_request_id': r['id'], 'p_refund_method': method,
       });
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Aprovado — refund deve ser executado por Edge Fn')));
+      // 2) Executa o refund via Edge Function (Stripe ou wallet split)
+      final exec = await Supabase.instance.client.functions.invoke(
+        'execute-cancellation',
+        body: {'request_id': r['id']},
+      );
+      if (exec.status >= 400) {
+        throw Exception('execute-cancellation falhou: ${exec.data}');
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Aprovado e executado: ${exec.data}')),
+        );
+      }
       await _load();
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(

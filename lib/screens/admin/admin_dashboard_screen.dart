@@ -4,7 +4,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../services/auth_admin_service.dart';
+import '../../widgets/admin_realtime_metrics_card.dart';
 import 'admin_advanced_kpis_screen.dart';
+import 'admin_audit_log_screen.dart';
+import 'admin_cancellation_requests_screen.dart';
 import 'admin_catalog_screen.dart';
 import 'admin_clients_screen.dart';
 import 'admin_complaints_screen.dart';
@@ -13,9 +16,12 @@ import 'admin_driver_payments_screen.dart';
 import 'admin_drivers_screen.dart';
 import 'admin_orders_screen.dart';
 import 'admin_partners_screen.dart';
+import 'admin_platform_settings_screen.dart';
+import 'admin_promo_codes_screen.dart';
 import 'admin_ratings_screen.dart';
 import 'admin_reservations_screen.dart';
 import 'admin_tokens_screen.dart';
+import 'admin_wallets_screen.dart';
 
 /// In-app admin dashboard.
 ///
@@ -134,6 +140,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             return ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                const AdminRealtimeMetricsCard(),
+                const SizedBox(height: 8),
                 _buildChart(dailyOrders),
                 _MetricCard(
                   icon: Icons.account_balance_wallet,
@@ -296,6 +304,61 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       context,
                       MaterialPageRoute(
                           builder: (_) => const AdminAdvancedKpisScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.wallet,
+                  title: 'Wallets',
+                  subtitle: 'Saldos livres + tokens dos clientes',
+                  color: Colors.green,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminWalletsScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.cancel_schedule_send,
+                  title: 'Pedidos de Cancelamento',
+                  subtitle: 'Aprovar / rejeitar pedidos driver/parceiro',
+                  color: Colors.deepOrange,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminCancellationRequestsScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.local_offer,
+                  title: 'Promo Codes',
+                  subtitle: 'Criar e desactivar códigos promocionais',
+                  color: Colors.pinkAccent,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminPromoCodesScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.history,
+                  title: 'Histórico de Acções',
+                  subtitle: 'Audit log de todas as acções admin',
+                  color: Colors.blueGrey,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminAuditLogScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.settings,
+                  title: 'Configurações',
+                  subtitle: 'Pricing, fees, wallet split, cashback %',
+                  color: Colors.grey,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminPlatformSettingsScreen())),
                 ),
                 const SizedBox(height: 16),
                 Center(

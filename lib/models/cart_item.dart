@@ -6,6 +6,12 @@ class CartItem {
   String purchaseStatus; // 'pending', 'bought', 'unavailable'
   double? actualPrice; // real price if different from estimated (future use)
 
+  // Bug-B fix 2026-04-30: callers MUST now pass real productId for product
+  // flows (restaurant menu, store products). Fallback to name only kept for
+  // logistics services (carryGroceries / sendPackage) and legacy paths where
+  // create_order ignores product_lines anyway. Real-product call sites have
+  // been updated in business_mapper.dart, restaurant_menu_screen.dart,
+  // cart_store.dart.
   CartItem({
     String? productId,
     required this.name,

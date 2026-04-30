@@ -97,7 +97,11 @@ class _ReservationFlowScreenState extends State<ReservationFlowScreen> {
         notes: _notesController.text.trim().isEmpty
             ? null
             : _notesController.text.trim(),
-        prepaymentCents: 300, // €3 (BR §14.5) — charge wiring TODO
+        // T6.1: campo registado mas Stripe charge não está wired.
+        // Implementação requer Edge Function dedicada para reservation
+        // prepayments + refund-on-reject — fora do scope do launch.
+        // Decisão: decisions/2026-04-30-reservations-prepayment.md
+        prepaymentCents: 300, // €3 (BR §14.5)
       );
 
       await client.from('reservations').insert(row.toInsert());

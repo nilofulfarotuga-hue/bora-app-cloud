@@ -37,6 +37,13 @@ dependencies:
   image_picker: ^1.1.2
   image: ^4.5.4
 
+  # SHARE + EXPORTS (CSV/PDF) — admin reports + cliente referral share sheet
+  share_plus: ^10.0.0
+  csv: ^6.0.0
+  pdf: ^3.10.0
+  printing: ^5.11.0
+  path_provider: ^2.1.4
+
 
 
 

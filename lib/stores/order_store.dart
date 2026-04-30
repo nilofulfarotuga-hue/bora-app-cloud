@@ -397,6 +397,7 @@ class OrderStore extends ChangeNotifier {
     String? groceriesPhotoUrl,
     bool isTakeaway = false,
     int tipCents = 0,
+    int walletAppliedCents = 0,
   }) async {
     // ── Authenticated-user guard ────────────────────────────────────────────
     // Read the user id directly from the live Supabase session (not from any
@@ -621,6 +622,34 @@ class OrderStore extends ChangeNotifier {
         debugPrint('[FLOW] createOrder: re-inserting after concurrent clear');
         _orders.insert(0, order);
         notifyListeners();
+      }
+
+      // Wallet debit (80/20 model). Wired only for the CASH flow for now —
+      // Stripe (card) and MBWay charge the FULL DB price via the Edge Function
+      // (zero-tolerance validation against payment_buffer_total). Until
+      // create-payment-intent / create-mbway-payment-intent learn to subtract
+      // walletAppliedCents from the charge amount, debiting the wallet in
+      // those flows would cause double-charging. Cash has no Stripe pre-auth,
+      // so the wallet debit IS part of the settlement. RPC is idempotent on
+      // (user_id, order_id).
+      if (walletAppliedCents > 0 && paymentMethod == PaymentMethod.cash) {
+        try {
+          await supabase.rpc('wallet_debit_for_order', params: {
+            'p_user_id': liveUserId,
+            'p_order_id': order.id,
+            'p_amount_cents': walletAppliedCents,
+          });
+          debugPrint(
+              '[FLOW] createOrder: wallet debit OK ($walletAppliedCents cents)');
+        } catch (e) {
+          debugPrint(
+              '[FLOW] createOrder: WALLET DEBIT FAILED order=${order.id} '
+              'amount_cents=$walletAppliedCents — RECONCILE MANUALLY: $e');
+        }
+      } else if (walletAppliedCents > 0) {
+        debugPrint(
+            '[FLOW] createOrder: wallet skipped — paymentMethod=${paymentMethod.name} '
+            'requires Edge Function update before debiting (would double-charge).');
       }
 
       // Notify partner restaurant of new order via FCM push (fire-and-forget).

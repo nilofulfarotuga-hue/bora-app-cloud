@@ -30,6 +30,19 @@ class CartStore extends ChangeNotifier {
   bool _apartmentDelivery = false;
   bool _requiresCar = false;
 
+  /// Wallet (saldo livre Bora) cents the user toggled to apply at checkout.
+  /// Transient — never persisted. Cleared after [finishOrder] succeeds. Read by
+  /// PaymentMethodScreen so Stripe is pre-auth at remaining (= total - wallet),
+  /// and by [finishOrder] so OrderStore.createOrder triggers wallet_debit_for_order.
+  int _walletAppliedCents = 0;
+  int get walletAppliedCents => _walletAppliedCents;
+  void setWalletApplied(int cents) {
+    final clamped = cents < 0 ? 0 : cents;
+    if (clamped == _walletAppliedCents) return;
+    _walletAppliedCents = clamped;
+    notifyListeners();
+  }
+
   CartStore() {
     _loadCart();
   }
@@ -428,6 +441,7 @@ class CartStore extends ChangeNotifier {
       groceriesPhotoUrl: _groceriesPhotoUrl,
       isTakeaway: _isTakeaway,
       tipCents: _tipCents,
+      walletAppliedCents: _walletAppliedCents,
     );
 
     if (!success) return false;
@@ -435,6 +449,7 @@ class CartStore extends ChangeNotifier {
     _groceriesPhotoUrl = null;
     _isTakeaway = false;
     _tipCents = 0;
+    _walletAppliedCents = 0;
     clearCart();
     return true;
   }

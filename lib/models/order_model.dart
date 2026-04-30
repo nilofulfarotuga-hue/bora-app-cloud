@@ -95,6 +95,12 @@ class OrderModel {
   /// Positive amount to refund when [finalTotal] < [paymentBufferTotal].
   double? refundAmount;
 
+  /// Refund destination chosen by the cliente at cancellation:
+  ///   - 'wallet' → instant credit into client_wallets (free balance + tokens)
+  ///   - 'stripe' → async refund via Stripe (5–10 business days)
+  /// NULL when no cancellation has happened yet.
+  String? refundMethod;
+
   /// Positive extra charge when [finalTotal] > [paymentBufferTotal].
   double? extraChargeAmount;
 
@@ -192,6 +198,7 @@ class OrderModel {
     this.isPurchaseFinalized = false,
     double? paymentBufferTotal,
     this.refundAmount,
+    this.refundMethod,
     this.extraChargeAmount,
     this.tipCents = 0,
     this.isTakeaway = false,
@@ -332,6 +339,7 @@ class OrderModel {
       isPurchaseFinalized: data['is_purchase_finalized'] as bool? ?? false,
       paymentBufferTotal: (data['payment_buffer_total'] as num?)?.toDouble(),
       refundAmount: (data['refund_amount'] as num?)?.toDouble(),
+      refundMethod: data['refund_method'] as String?,
       extraChargeAmount: (data['extra_charge_amount'] as num?)?.toDouble(),
       tipCents: (data['tip_amount_cents'] as num?)?.toInt() ?? 0,
       isTakeaway: data['is_takeaway'] as bool? ?? false,
@@ -388,6 +396,7 @@ class OrderModel {
       'payment_buffer_total': paymentBufferTotal,
       'is_purchase_finalized': isPurchaseFinalized,
       if (refundAmount != null) 'refund_amount': refundAmount,
+      if (refundMethod != null) 'refund_method': refundMethod,
       if (extraChargeAmount != null) 'extra_charge_amount': extraChargeAmount,
       // BR §4.5 — canonical tip column is `tip_amount_cents` (not `tip_cents`).
       // rating_screen.dart also writes to this column + sets tip_added_at.

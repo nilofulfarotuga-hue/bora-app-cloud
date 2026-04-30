@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Referral / Convite — Feature 10.
@@ -50,20 +51,26 @@ class _ReferralScreenState extends State<ReferralScreen> {
     }
   }
 
-  /// Copia mensagem completa para clipboard. Quando `share_plus` for adicionado
-  /// ao pubspec, podemos trocar para Share.share() para abrir o sheet nativo.
-  void _share() {
+  /// Abre o share sheet nativo (WhatsApp, SMS, Mensagens, etc.) com a
+  /// mensagem de convite. Em plataformas onde share_plus não está suportado
+  /// (web em alguns browsers), o package faz fallback para Clipboard.
+  Future<void> _share() async {
     final code = _code?['code'] as String?;
     if (code == null) return;
     final message =
         'Junta-te ao Bora App e ganhamos os dois €5!\n\n'
         'Usa o meu código: $code\n\n'
         'Faz o teu primeiro pedido na app Bora — entrega em Guarda.';
-    Clipboard.setData(ClipboardData(text: message));
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Mensagem copiada — cola no WhatsApp/SMS!')),
-    );
+    try {
+      await Share.share(message, subject: 'Convite Bora App');
+    } catch (_) {
+      // Fallback: copiar para clipboard se o share sheet falhar.
+      await Clipboard.setData(ClipboardData(text: message));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Mensagem copiada — cola no WhatsApp/SMS!')),
+      );
+    }
   }
 
   void _copy() {

@@ -150,42 +150,29 @@ class _RefundBanner extends StatelessWidget {
     final refundEur = order.refundAmount ?? 0;
     if (refundEur <= 0) return const SizedBox.shrink();
 
-    // refund_method é coluna nova (migration 20260430130000) e ainda não está
-    // mapeada no OrderModel — fetch directo via Supabase.
-    return FutureBuilder<Map<String, dynamic>?>(
-      future: Supabase.instance.client
-          .from('orders')
-          .select('refund_method, refund_status')
-          .eq('id', order.id)
-          .maybeSingle()
-          .then((r) => r == null ? null : (r as Map).cast<String, dynamic>()),
-      builder: (ctx, snap) {
-        final method = (snap.data?['refund_method'] as String?) ?? 'stripe';
-        final isWallet = method == 'wallet';
-        final color = isWallet ? Colors.green.shade100 : Colors.amber.shade100;
-        final border = isWallet ? Colors.green : Colors.amber.shade700;
-        final icon = isWallet ? Icons.flash_on : Icons.access_time;
-        final text = isWallet
-            ? '€${refundEur.toStringAsFixed(2)} disponíveis no Saldo Bora — imediato.'
-            : 'Reembolso em curso. Pode demorar 5-10 dias úteis a aparecer no cartão.';
-        return Container(
-          margin: const EdgeInsets.only(bottom: 16),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: color,
-            border: Border.all(color: border),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Row(
-            children: [
-              Icon(icon, color: border),
-              const SizedBox(width: 10),
-              Expanded(
-                  child: Text(text, style: const TextStyle(fontSize: 13))),
-            ],
-          ),
-        );
-      },
+    final method = order.refundMethod ?? 'stripe';
+    final isWallet = method == 'wallet';
+    final color = isWallet ? Colors.green.shade100 : Colors.amber.shade100;
+    final border = isWallet ? Colors.green : Colors.amber.shade700;
+    final icon = isWallet ? Icons.flash_on : Icons.access_time;
+    final text = isWallet
+        ? '€${refundEur.toStringAsFixed(2)} disponíveis no Saldo Bora — imediato.'
+        : 'Reembolso em curso. Pode demorar 5-10 dias úteis a aparecer no cartão.';
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color,
+        border: Border.all(color: border),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: border),
+          const SizedBox(width: 10),
+          Expanded(child: Text(text, style: const TextStyle(fontSize: 13))),
+        ],
+      ),
     );
   }
 }

@@ -334,7 +334,11 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                 value: _useWalletBalance,
                 onChanged: cartStore.items.isEmpty
                     ? null
-                    : (v) => setState(() => _useWalletBalance = v),
+                    : (v) {
+                        setState(() => _useWalletBalance = v);
+                        cartStore.setWalletApplied(
+                            v ? _walletAppliedCents() : 0);
+                      },
                 contentPadding: EdgeInsets.zero,
                 activeColor: Colors.green,
                 secondary: const Icon(Icons.account_balance_wallet,
@@ -372,11 +376,11 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
               onPressed: cartStore.items.isEmpty
                   ? null
                   : () async {
-                      // TODO (próxima sessão): plumb wallet usage to OrderStore.
-                      // Após criar a order, chamar wallet_debit_for_order(
-                      //   p_user_id: auth.uid(), p_order_id: order.id,
-                      //   p_amount_cents: walletAppliedCents).
-                      // Se remainingToPay <= 0, skip Stripe completamente.
+                      // Mirror current wallet selection to CartStore so
+                      // PaymentMethodScreen can pre-auth Stripe at the right
+                      // amount and CartStore.finishOrder triggers the debit.
+                      cartStore.setWalletApplied(
+                          _useWalletBalance ? walletAppliedCents : 0);
                       final confirmed = await Navigator.push<bool>(
                         context,
                         MaterialPageRoute(

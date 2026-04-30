@@ -4,13 +4,18 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../services/auth_admin_service.dart';
+import 'admin_advanced_kpis_screen.dart';
+import 'admin_catalog_screen.dart';
+import 'admin_clients_screen.dart';
+import 'admin_complaints_screen.dart';
 import 'admin_driver_approval_screen.dart';
 import 'admin_driver_payments_screen.dart';
 import 'admin_drivers_screen.dart';
 import 'admin_orders_screen.dart';
+import 'admin_partners_screen.dart';
 import 'admin_ratings_screen.dart';
 import 'admin_reservations_screen.dart';
-import 'admin_partners_screen.dart';
+import 'admin_tokens_screen.dart';
 
 /// In-app admin dashboard.
 ///
@@ -236,6 +241,61 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       context,
                       MaterialPageRoute(
                           builder: (_) => const AdminRatingsScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.people_outline,
+                  title: 'Clientes',
+                  subtitle: 'Listar, banir, suspender, ver histórico',
+                  color: Colors.indigo,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminClientsScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.account_balance_wallet,
+                  title: 'Tokens',
+                  subtitle: 'Saldo, atribuir, revogar (clientes + estafetas)',
+                  color: Colors.deepPurple,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminTokensScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.inventory_2_outlined,
+                  title: 'Catálogo',
+                  subtitle: 'Produtos por parceiro: activar/desactivar, preço',
+                  color: Colors.brown,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminCatalogScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.report_problem_outlined,
+                  title: 'Reclamações',
+                  subtitle: 'Inbox de reclamações e suporte',
+                  color: Colors.redAccent,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminComplaintsScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.insights,
+                  title: 'KPIs Avançado',
+                  subtitle: 'Zonas quentes, ticket médio, conversão',
+                  color: Colors.cyan,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminAdvancedKpisScreen())),
                 ),
                 const SizedBox(height: 16),
                 Center(

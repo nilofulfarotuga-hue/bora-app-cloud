@@ -37,12 +37,13 @@ CREATE TABLE IF NOT EXISTS public.partner_status_override (
 COMMENT ON TABLE public.partner_status_override IS
   'Admin overrides of partner open/closed state. Active when starts_at <= NOW() < ends_at (or ends_at NULL = indefinite). Latest active override wins. Read by is_partner_open().';
 
--- Only one ACTIVE override per restaurant at a time.
--- "Active" = starts_at <= NOW() AND (ends_at IS NULL OR ends_at > NOW()).
--- Enforced via partial unique index on rows whose ends_at is in the future or NULL.
-CREATE INDEX IF NOT EXISTS idx_partner_status_override_active
-  ON public.partner_status_override (restaurant_id, starts_at DESC)
-  WHERE ends_at IS NULL OR ends_at > NOW();
+-- Plain indexes (Postgres requires IMMUTABLE in index predicates; NOW()
+-- breaks that). "Active = ends_at IS NULL OR ends_at > now()" is enforced
+-- at query time by is_partner_open() instead.
+CREATE INDEX IF NOT EXISTS idx_partner_status_override_restaurant
+  ON public.partner_status_override (restaurant_id, starts_at DESC);
+CREATE INDEX IF NOT EXISTS idx_partner_status_override_ends_at
+  ON public.partner_status_override (ends_at) WHERE ends_at IS NOT NULL;
 
 -- RLS: read by partner (own restaurant) + admin; write only via RPCs.
 ALTER TABLE public.partner_status_override ENABLE ROW LEVEL SECURITY;

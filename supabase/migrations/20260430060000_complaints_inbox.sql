@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS public.complaints (
                                 'partner_behavior', 'app_bug', 'other')),
   subject         TEXT         NOT NULL CHECK (length(subject) BETWEEN 3 AND 200),
   body            TEXT         NOT NULL CHECK (length(body) BETWEEN 5 AND 5000),
-  related_order_id UUID        REFERENCES public.orders(id) ON DELETE SET NULL,
+  related_order_id TEXT        REFERENCES public.orders(id) ON DELETE SET NULL,
   status          TEXT         NOT NULL DEFAULT 'open'
                                CHECK (status IN ('open', 'in_progress', 'resolved', 'dismissed')),
   admin_notes     TEXT         NOT NULL DEFAULT '',
@@ -82,7 +82,7 @@ RETURNS TABLE (
   category        TEXT,
   subject         TEXT,
   body            TEXT,
-  related_order_id UUID,
+  related_order_id TEXT,
   status          TEXT,
   created_at      TIMESTAMPTZ,
   resolved_at     TIMESTAMPTZ
@@ -178,7 +178,7 @@ CREATE OR REPLACE FUNCTION public.file_complaint(
   p_category         TEXT,
   p_subject          TEXT,
   p_body             TEXT,
-  p_related_order_id UUID DEFAULT NULL
+  p_related_order_id TEXT DEFAULT NULL
 )
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -203,8 +203,8 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.file_complaint(TEXT, TEXT, TEXT, TEXT, UUID) FROM public, anon;
-GRANT EXECUTE ON FUNCTION public.file_complaint(TEXT, TEXT, TEXT, TEXT, UUID) TO authenticated;
+REVOKE ALL ON FUNCTION public.file_complaint(TEXT, TEXT, TEXT, TEXT, TEXT) FROM public, anon;
+GRANT EXECUTE ON FUNCTION public.file_complaint(TEXT, TEXT, TEXT, TEXT, TEXT) TO authenticated;
 
 
 COMMIT;

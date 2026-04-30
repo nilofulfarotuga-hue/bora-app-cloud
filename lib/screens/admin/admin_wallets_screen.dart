@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../services/admin_export_service.dart';
 import '../../services/wallet_service.dart';
 
 class AdminWalletsScreen extends StatefulWidget {
@@ -181,6 +184,15 @@ class _AdminWalletsScreenState extends State<AdminWalletsScreen> {
                                                 _grantOrRevoke(r, grant: false);
                                               },
                                             ),
+                                            // T5.3: ver todas transactions do utilizador
+                                            ListTile(
+                                              leading: const Icon(Icons.list_alt, color: Colors.blue),
+                                              title: const Text('Ver transactions'),
+                                              onTap: () {
+                                                Navigator.pop(context);
+                                                _showUserTransactions(r);
+                                              },
+                                            ),
                                           ],
                                         ),
                                       ),
@@ -191,6 +203,133 @@ class _AdminWalletsScreenState extends State<AdminWalletsScreen> {
                       ),
           ),
         ],
+      ),
+    );
+  }
+
+  // T5.3: modal com todas wallet_transactions de 1 user + CSV.
+  Future<void> _showUserTransactions(AdminWalletRow row) async {
+    String kind = 'all';
+    Future<List<Map<String, dynamic>>> fetch() async {
+      final res = await Supabase.instance.client
+          .rpc('admin_user_wallet_transactions', params: {
+        'p_user_id': row.userId,
+        'p_kind': kind == 'all' ? null : kind,
+        'p_limit': 200,
+      });
+      return (res as List).cast<Map<String, dynamic>>();
+    }
+
+    var txs = await fetch();
+    if (!mounted) return;
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setM) => DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.85,
+          builder: (_, scroll) => Column(
+            children: [
+              const SizedBox(height: 8),
+              Container(
+                width: 40, height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(children: [
+                  Expanded(
+                    child: Text(row.email,
+                        style:
+                            const TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.download),
+                    tooltip: 'Export CSV',
+                    onPressed: () async {
+                      final headers = ['id', 'created_at', 'amount_cents',
+                                       'kind', 'reason', 'related_order_id'];
+                      final rows = txs
+                          .map((t) => [
+                                t['id'] ?? '', t['created_at'] ?? '',
+                                t['amount_cents'] ?? '', t['kind'] ?? '',
+                                t['reason'] ?? '', t['related_order_id'] ?? '',
+                              ])
+                          .toList();
+                      final stamp = DateTime.now().toIso8601String().substring(0, 10);
+                      await AdminExportService.instance.exportCsv(
+                        filename: 'bora_wallet_${row.email}_$stamp.csv',
+                        headers: headers,
+                        rows: rows,
+                        subject: 'Bora — Wallet ${row.email}',
+                      );
+                    },
+                  ),
+                ]),
+              ),
+              SizedBox(
+                height: 50,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  children: ['all', 'cashback', 'order_payment', 'admin_grant',
+                             'admin_revoke', 'refund_credit_free', 'referral']
+                      .map((k) => Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: FilterChip(
+                              label: Text(k, style: const TextStyle(fontSize: 11)),
+                              selected: kind == k,
+                              onSelected: (_) async {
+                                kind = k;
+                                txs = await fetch();
+                                setM(() {});
+                              },
+                            ),
+                          ))
+                      .toList(),
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: txs.isEmpty
+                    ? const Center(child: Text('Sem transactions.'))
+                    : ListView.builder(
+                        controller: scroll,
+                        itemCount: txs.length,
+                        itemBuilder: (_, i) {
+                          final t = txs[i];
+                          final cents = (t['amount_cents'] as num?)?.toInt() ?? 0;
+                          final isCredit = cents > 0;
+                          return ListTile(
+                            dense: true,
+                            leading: Icon(
+                              isCredit ? Icons.add_circle : Icons.remove_circle,
+                              color: isCredit ? Colors.green : Colors.red,
+                              size: 20,
+                            ),
+                            title: Text(t['kind'] as String? ?? ''),
+                            subtitle: Text(
+                                '${t['reason'] ?? ''}\n${(t['created_at'] as String?)?.substring(0, 16) ?? ''}'),
+                            isThreeLine: true,
+                            trailing: Text(
+                              '${isCredit ? '+' : ''}€${(cents / 100).toStringAsFixed(2)}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: isCredit ? Colors.green : Colors.red,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

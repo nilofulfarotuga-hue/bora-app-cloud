@@ -13,9 +13,15 @@ import 'admin_clients_screen.dart';
 import 'admin_complaints_screen.dart';
 import 'admin_driver_approval_screen.dart';
 import 'admin_driver_payments_screen.dart';
+import 'admin_cashbacks_screen.dart';
 import 'admin_drivers_screen.dart';
+import 'admin_edge_functions_screen.dart';
 import 'admin_live_orders_map_screen.dart';
 import 'admin_orders_screen.dart';
+import 'admin_referrals_screen.dart';
+import 'admin_search_kpi_screen.dart';
+import 'admin_send_notification_screen.dart';
+import '../../widgets/admin_closed_partners_card.dart';
 import 'admin_partners_screen.dart';
 import 'admin_platform_settings_screen.dart';
 import 'admin_promo_codes_screen.dart';
@@ -142,6 +148,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               padding: const EdgeInsets.all(16),
               children: [
                 const AdminRealtimeMetricsCard(),
+                const AdminClosedPartnersCard(),
                 const SizedBox(height: 8),
                 _buildChart(dailyOrders),
                 _MetricCard(
@@ -371,6 +378,68 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       context,
                       MaterialPageRoute(
                           builder: (_) => const AdminPlatformSettingsScreen())),
+                ),
+                const SizedBox(height: 10),
+                // T5.1
+                _NavCard(
+                  icon: Icons.card_giftcard,
+                  title: 'Referrals',
+                  subtitle: 'Convites, conversão, top referrers',
+                  color: Colors.purple,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminReferralsScreen())),
+                ),
+                const SizedBox(height: 10),
+                // T5.2
+                _NavCard(
+                  icon: Icons.celebration,
+                  title: 'Cashbacks',
+                  subtitle: 'Histórico cashback + total mês',
+                  color: Colors.green,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminCashbacksScreen())),
+                ),
+                const SizedBox(height: 10),
+                // T2.2
+                _NavCard(
+                  icon: Icons.search,
+                  title: 'Personalização',
+                  subtitle: 'Top buscas + parceiros mais favoritados',
+                  color: Colors.indigo,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminSearchKpiScreen())),
+                ),
+                const SizedBox(height: 10),
+                // T2.3
+                _NavCard(
+                  icon: Icons.campaign,
+                  title: 'Enviar notificação',
+                  subtitle: 'Manual a 1 cliente ou broadcast',
+                  color: Colors.amber,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminSendNotificationScreen())),
+                ),
+                const SizedBox(height: 10),
+                // T5.5
+                _NavCard(
+                  icon: Icons.cloud_outlined,
+                  title: 'Edge Functions',
+                  subtitle: 'Lista + erros recentes (mbway, geral)',
+                  color: Colors.cyan,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminEdgeFunctionsScreen())),
                 ),
                 const SizedBox(height: 16),
                 Center(

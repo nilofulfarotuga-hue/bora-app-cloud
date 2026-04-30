@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
+import '../services/wallet_service.dart';
 import '../stores/cart_store.dart';
 import '../widgets/bora/bora.dart';
 import '../widgets/tip_selector.dart';
@@ -191,7 +192,7 @@ class _CartItemTile extends StatelessWidget {
   }
 }
 
-class _CheckoutPanel extends StatelessWidget {
+class _CheckoutPanel extends StatefulWidget {
   const _CheckoutPanel({
     required this.cartStore,
     required this.pricing,
@@ -207,7 +208,44 @@ class _CheckoutPanel extends StatelessWidget {
   final double totalToPay;
 
   @override
+  State<_CheckoutPanel> createState() => _CheckoutPanelState();
+}
+
+class _CheckoutPanelState extends State<_CheckoutPanel> {
+  WalletBalance? _wallet;
+  bool _useWalletBalance = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadWallet();
+  }
+
+  Future<void> _loadWallet() async {
+    try {
+      final b = await WalletService.instance.getBalance();
+      if (mounted) setState(() => _wallet = b);
+    } catch (_) {/* offline / no balance */}
+  }
+
+  /// Cents do saldo livre que cobrem o pedido (até ao máximo do total).
+  int _walletAppliedCents() {
+    if (!_useWalletBalance || _wallet == null) return 0;
+    final totalCents = (widget.totalToPay * 100).round();
+    return _wallet!.freeCents < totalCents ? _wallet!.freeCents : totalCents;
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final cartStore = widget.cartStore;
+    final pricing = widget.pricing;
+    final apartmentEnabled = widget.apartmentEnabled;
+    final baseDeliveryFee = widget.baseDeliveryFee;
+    final totalToPay = widget.totalToPay;
+    final walletAppliedCents = _walletAppliedCents();
+    final walletAppliedEur = walletAppliedCents / 100;
+    final remainingToPay = (totalToPay - walletAppliedEur).clamp(0.0, double.infinity);
+
     return SafeArea(
       top: false,
       minimum: const EdgeInsets.only(bottom: Spacing.lg),
@@ -289,19 +327,56 @@ class _CheckoutPanel extends StatelessWidget {
             if (cartStore.tipCents > 0)
               _SummaryRow(
                   label: 'Gorjeta', value: cartStore.tipEur, accent: true),
+            // ── Wallet — saldo livre (Feature 1) ─────────────────────────────
+            if (_wallet != null && _wallet!.freeCents > 0) ...[
+              const Divider(height: Spacing.lg),
+              SwitchListTile.adaptive(
+                value: _useWalletBalance,
+                onChanged: cartStore.items.isEmpty
+                    ? null
+                    : (v) => setState(() => _useWalletBalance = v),
+                contentPadding: EdgeInsets.zero,
+                activeColor: Colors.green,
+                secondary: const Icon(Icons.account_balance_wallet,
+                    color: Colors.green),
+                title: const Text(
+                  'Usar saldo Bora',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: Text(
+                  'Disponível: €${(_wallet!.freeCents / 100).toStringAsFixed(2)}',
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ),
+              if (_useWalletBalance && walletAppliedCents > 0)
+                _SummaryRow(
+                  label: 'Saldo Bora aplicado',
+                  value: -walletAppliedEur,
+                  accent: true,
+                ),
+            ],
             const Divider(height: Spacing.xxl),
             _SummaryRow(
-              label: 'Total a pagar',
-              value: totalToPay,
+              label: _useWalletBalance && walletAppliedCents > 0
+                  ? 'Total a pagar (após saldo)'
+                  : 'Total a pagar',
+              value: remainingToPay,
               isStrong: true,
             ),
             const SizedBox(height: Spacing.lg),
             BoraPrimaryButton(
-              label: 'Finalizar pedido',
+              label: remainingToPay <= 0
+                  ? 'Pagar com saldo Bora'
+                  : 'Finalizar pedido',
               icon: Icons.shopping_bag_outlined,
               onPressed: cartStore.items.isEmpty
                   ? null
                   : () async {
+                      // TODO (próxima sessão): plumb wallet usage to OrderStore.
+                      // Após criar a order, chamar wallet_debit_for_order(
+                      //   p_user_id: auth.uid(), p_order_id: order.id,
+                      //   p_amount_cents: walletAppliedCents).
+                      // Se remainingToPay <= 0, skip Stripe completamente.
                       final confirmed = await Navigator.push<bool>(
                         context,
                         MaterialPageRoute(

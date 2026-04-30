@@ -15,10 +15,13 @@ import '../config/app_spacing.dart';
 import '../config/app_theme.dart';
 import '../models/driver_model.dart';
 import '../services/auth_admin_service.dart';
+import '../services/wallet_service.dart';
 import '../stores/driver_store.dart';
 import '../stores/session_store.dart';
 import 'orders_screen.dart';
+import 'referral_screen.dart';
 import 'support_screen.dart';
+import 'wallet_history_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -453,8 +456,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ],
             ),
 
-            // ── Token balance ──────────────────────────────────────────────
-            if (role == AuthRole.client || role == AuthRole.driver) ...[
+            // ── Wallet (cliente: 2 cards saldo livre + tokens) ─────────────
+            if (role == AuthRole.client) ...[
+              const _WalletCardsBlock(),
+              const SizedBox(height: 12),
+            ] else if (role == AuthRole.driver) ...[
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: _TokenBalanceRow(),
@@ -493,6 +499,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(builder: (_) => const OrdersScreen()),
+                    ),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.account_balance_wallet_outlined,
+                        color: AppTheme.primary),
+                    title: const Text('Saldo Bora'),
+                    subtitle: const Text('Saldo livre + tokens + histórico'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const WalletHistoryScreen()),
+                    ),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.card_giftcard_outlined,
+                        color: AppTheme.primary),
+                    title: const Text('Convidar amigos'),
+                    subtitle: const Text('€5 para ti + €5 para o teu amigo'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const ReferralScreen()),
                     ),
                   ),
                   ListTile(
@@ -898,6 +927,124 @@ class _InfoTile extends StatelessWidget {
         ),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+    );
+  }
+}
+
+// ─── Wallet cards block (cliente — saldo livre + tokens) ─────────────────────
+// Shows TWO cards (saldo livre verde + tokens amarelo) tappable → wallet history.
+// Wallet free balance comes from `client_wallets` (since 2026-04-30).
+// Texto rodapé "Saldo não reembolsável em dinheiro" para compliance PT.
+
+class _WalletCardsBlock extends StatelessWidget {
+  const _WalletCardsBlock();
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<WalletBalance>(
+      future: WalletService.instance.getBalance(),
+      builder: (ctx, snap) {
+        final loading = snap.connectionState == ConnectionState.waiting;
+        final b = snap.data;
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Column(
+            children: [
+              _walletTile(
+                context,
+                color: Colors.green.shade50,
+                borderColor: Colors.green.shade200,
+                icon: Icons.account_balance_wallet,
+                iconColor: Colors.green,
+                title: 'Saldo Bora',
+                subtitle: 'Livre — nunca expira',
+                value: loading ? null : '€${((b?.freeCents ?? 0) / 100).toStringAsFixed(2)}',
+              ),
+              const SizedBox(height: 8),
+              _walletTile(
+                context,
+                color: Colors.amber.shade50,
+                borderColor: Colors.amber.shade200,
+                icon: Icons.toll,
+                iconColor: Colors.amber.shade700,
+                title: 'Tokens',
+                subtitle: loading
+                    ? 'Até 50% desconto no checkout'
+                    : 'Até 50% desconto · ≈€${((b?.tokensValueCents ?? 0) / 100).toStringAsFixed(2)}',
+                value: loading ? null : '${b?.tokensBalance ?? 0}',
+              ),
+              const SizedBox(height: 6),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 8),
+                child: Text(
+                  'Saldo não reembolsável em dinheiro.',
+                  style: TextStyle(fontSize: 11, color: Colors.black45),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _walletTile(
+    BuildContext context, {
+    required Color color,
+    required Color borderColor,
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    required String? value,
+  }) {
+    return InkWell(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const WalletHistoryScreen()),
+      ),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: borderColor),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: iconColor, size: 22),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.black87)),
+                  Text(subtitle,
+                      style: const TextStyle(
+                          fontSize: 11, color: Colors.black54)),
+                ],
+              ),
+            ),
+            value == null
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : Text(
+                    value,
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.w800),
+                  ),
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right, color: Colors.black38, size: 20),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -38,6 +38,8 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
       _error = null;
     });
     try {
+      debugPrint('[admin_clients] RPC admin_list_clients '
+          'search=${_search.text} banned_only=$_bannedOnly');
       final res = await Supabase.instance.client.rpc(
         'admin_list_clients',
         params: {
@@ -47,18 +49,39 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
           'p_offset': 0,
         },
       );
+      debugPrint('[admin_clients] RPC response type=${res.runtimeType} '
+          'len=${res is List ? res.length : "?"}');
+      if (res is List && res.isNotEmpty) {
+        debugPrint('[admin_clients] sample row keys=${(res.first as Map).keys.toList()}');
+      }
       if (mounted) {
         setState(() {
-          _clients = List<Map<String, dynamic>>.from(res as List);
+          _clients = (res as List)
+              .map((e) => Map<String, dynamic>.from(e as Map))
+              .toList();
           _loading = false;
         });
       }
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('[admin_clients] _load error: $e\n$st');
       if (mounted) setState(() {
         _error = e.toString();
         _loading = false;
       });
     }
+  }
+
+  String _initialFor(Map<String, dynamic> c) {
+    final name = (c['bora_name'] as String?) ?? '';
+    final email = (c['email'] as String?) ?? '';
+    final source = name.isNotEmpty ? name : email;
+    return source.isNotEmpty ? source[0].toUpperCase() : '?';
+  }
+
+  String _displayNameFor(Map<String, dynamic> c) {
+    final name = (c['bora_name'] as String?) ?? '';
+    final email = (c['email'] as String?) ?? '—';
+    return name.isNotEmpty ? name : email;
   }
 
   Future<void> _ban(Map<String, dynamic> client) async {
@@ -250,9 +273,18 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
             ),
           ),
           if (_error != null)
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(_error!, style: const TextStyle(color: Colors.red)),
+            Container(
+              width: double.infinity,
+              color: Colors.red.shade50,
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.red),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text('Erro: $_error',
+                      style: const TextStyle(color: Colors.red))),
+                ],
+              ),
             ),
           Expanded(
             child: _loading
@@ -272,15 +304,12 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
                             child: ListTile(
                               leading: CircleAvatar(
                                 backgroundColor: banned ? Colors.red : AppColors.primary,
-                                child: Text(((c['bora_name'] ?? c['email']) as String)
-                                    .substring(0, 1)
-                                    .toUpperCase()),
+                                child: Text(_initialFor(c),
+                                    style: const TextStyle(color: Colors.white)),
                               ),
-                              title: Text((c['bora_name'] as String?)?.isNotEmpty == true
-                                  ? c['bora_name']
-                                  : c['email']),
+                              title: Text(_displayNameFor(c)),
                               subtitle: Text(
-                                  '${c['email']} · ${c['total_orders']} pedidos · €${(c['total_spent'] ?? 0).toString()}\n'
+                                  '${c['email'] ?? "—"} · ${c['total_orders'] ?? 0} pedidos · €${c['total_spent'] ?? 0}\n'
                                   '${c['token_balance'] ?? 0} tokens · ${banned ? "BANIDO até ${c['banned_until']}" : "Activo"}'),
                               isThreeLine: true,
                               trailing: PopupMenuButton<String>(

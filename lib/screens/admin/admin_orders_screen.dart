@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '../../services/admin_export_service.dart';
 import '_admin_cancel_order_dialog.dart';
 import 'admin_order_detail_screen.dart';
 
@@ -86,6 +87,50 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
     );
   }
 
+  /// CSV export (B3). Shares via native sheet — admin can email/Drive/AirDrop.
+  Future<void> _exportCsv() async {
+    final headers = [
+      'order_id',
+      'created_at',
+      'status',
+      'service_type',
+      'vendor_name',
+      'customer_name',
+      'price',
+      'payment_method',
+      'payment_status',
+      'driver_id',
+    ];
+    final rows = _orders
+        .map((o) => [
+              o['id'] ?? '',
+              o['created_at'] ?? '',
+              o['status'] ?? '',
+              o['service_type'] ?? '',
+              o['vendor_name'] ?? '',
+              o['customer_name'] ?? '',
+              o['price'] ?? '',
+              o['payment_method'] ?? '',
+              o['payment_status'] ?? '',
+              o['assigned_driver_id'] ?? '',
+            ])
+        .toList();
+    final stamp = DateTime.now().toIso8601String().substring(0, 10);
+    try {
+      await AdminExportService.instance.exportCsv(
+        filename: 'bora_pedidos_$stamp.csv',
+        headers: headers,
+        rows: rows,
+        subject: 'Bora — Pedidos $stamp',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao exportar: $e')),
+      );
+    }
+  }
+
   Color _statusColor(String status) {
     switch (status) {
       case 'delivered':
@@ -123,6 +168,11 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
       appBar: AppBar(
         title: const Text('Gestão de Pedidos'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.download),
+            tooltip: 'Exportar CSV',
+            onPressed: _orders.isEmpty ? null : _exportCsv,
+          ),
           IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
         ],
       ),

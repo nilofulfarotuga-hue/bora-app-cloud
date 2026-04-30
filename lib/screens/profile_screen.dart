@@ -167,6 +167,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return;
     }
 
+    // T1 FIX: Always refresh the JWT before upload to avoid stale-token 403.
+    // The Supabase storage SDK does NOT auto-refresh before requests; it relies
+    // on the existing session. An expired token (>1h session, background use)
+    // causes StorageException(statusCode: 400/403) even though currentUser≠null.
+    try {
+      await supabase.auth.refreshSession();
+      userId = supabase.auth.currentUser?.id;
+    } catch (_) {
+      // Refresh failed (offline / network) — proceed with existing token.
+      // If the token is still valid, the upload succeeds; otherwise the catch
+      // at the upload site will surface the error to the user.
+    }
+
+    if (userId == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sessão inválida após refresh. Faz logout e login novamente.')),
+      );
+      return;
+    }
+
     final chosen = await _chooseImageSource();
     if (chosen == null || !mounted) return;
 
@@ -234,8 +255,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _localPreview = null;
         _isUploading = false;
       });
+      // Log full error for debugging (StorageException has statusCode field).
+      debugPrint('[profile_screen] avatar upload error: $e · userId=$userId');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao enviar foto: $e')),
+        SnackBar(
+          content: Text('Erro ao enviar foto: $e'),
+          duration: const Duration(seconds: 6),
+        ),
       );
     }
   }

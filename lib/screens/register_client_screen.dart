@@ -365,6 +365,8 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
     if (_avatarFile != null) {
       try {
         final supabase = Supabase.instance.client;
+        // T1 FIX: refresh session before upload (stale JWT → 403).
+        try { await supabase.auth.refreshSession(); } catch (_) {}
         final uid = supabase.auth.currentUser?.id;
         if (uid != null) {
           final bytes = await _avatarFile!.readAsBytes();

@@ -19,6 +19,7 @@ import '../utils/map_utils.dart';
 import '../models/chat_message.dart';
 import '../models/driver_model.dart';
 import '../models/order_model.dart';
+import '../services/driver_location_ping_service.dart';
 import '../services/navigation_service.dart';
 import '../services/sound_service.dart';
 import '../stores/driver_store.dart';
@@ -354,6 +355,14 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       driverStore.updateDriverLocation(
         driverStore.currentDriverId,
         LatLng(position.latitude, position.longitude),
+      );
+      // Feed the admin live ops map (B1). Throttled to 10s internally.
+      DriverLocationPingService.instance.ping(
+        latitude: position.latitude,
+        longitude: position.longitude,
+        heading: position.heading.isFinite ? position.heading : null,
+        speedKmh: position.speed.isFinite ? position.speed * 3.6 : null,
+        isOnline: driverStore.currentDriver?.isOnline ?? true,
       );
     });
   }

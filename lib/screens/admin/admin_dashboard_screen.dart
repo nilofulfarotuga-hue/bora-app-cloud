@@ -14,6 +14,7 @@ import 'admin_complaints_screen.dart';
 import 'admin_driver_approval_screen.dart';
 import 'admin_driver_payments_screen.dart';
 import 'admin_drivers_screen.dart';
+import 'admin_live_orders_map_screen.dart';
 import 'admin_orders_screen.dart';
 import 'admin_partners_screen.dart';
 import 'admin_platform_settings_screen.dart';
@@ -315,6 +316,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       context,
                       MaterialPageRoute(
                           builder: (_) => const AdminWalletsScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.map,
+                  title: 'Pedidos ao Vivo',
+                  subtitle: 'Mapa em tempo real · pickups, dropoffs, drivers',
+                  color: Colors.teal,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminLiveOrdersMapScreen())),
                 ),
                 const SizedBox(height: 10),
                 _NavCard(

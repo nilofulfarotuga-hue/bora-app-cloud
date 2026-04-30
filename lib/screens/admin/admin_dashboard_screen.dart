@@ -14,6 +14,7 @@ import 'admin_complaints_screen.dart';
 import 'admin_driver_approval_screen.dart';
 import 'admin_driver_payments_screen.dart';
 import 'admin_cashbacks_screen.dart';
+import 'admin_category_mapping_screen.dart';
 import 'admin_drivers_screen.dart';
 import 'admin_edge_functions_screen.dart';
 import 'admin_live_orders_map_screen.dart';
@@ -22,6 +23,7 @@ import 'admin_referrals_screen.dart';
 import 'admin_search_kpi_screen.dart';
 import 'admin_send_notification_screen.dart';
 import '../../widgets/admin_closed_partners_card.dart';
+import '../../widgets/admin_reservations_today_card.dart';
 import 'admin_partners_screen.dart';
 import 'admin_platform_settings_screen.dart';
 import 'admin_promo_codes_screen.dart';
@@ -149,6 +151,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               children: [
                 const AdminRealtimeMetricsCard(),
                 const AdminClosedPartnersCard(),
+                const AdminReservationsTodayCard(),
                 const SizedBox(height: 8),
                 _buildChart(dailyOrders),
                 _MetricCard(
@@ -440,6 +443,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       MaterialPageRoute(
                           builder: (_) =>
                               const AdminEdgeFunctionsScreen())),
+                ),
+                const SizedBox(height: 10),
+                // T1: Category mapping
+                _NavCard(
+                  icon: Icons.account_tree,
+                  title: 'Mapeamento de categorias',
+                  subtitle: '281 roots → 23 secções · revisão admin',
+                  color: Colors.brown,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminCategoryMappingScreen())),
                 ),
                 const SizedBox(height: 16),
                 Center(

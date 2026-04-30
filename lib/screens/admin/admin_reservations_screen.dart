@@ -127,22 +127,50 @@ class _MetricsHeaderState extends State<_MetricsHeader> {
   Widget build(BuildContext context) {
     final d = _data;
     if (d == null) return const SizedBox(height: 4);
+    final noShow = (d['no_show'] as num?)?.toInt() ?? 0;
+    final cancelNoRefund = (d['cancelled_no_refund'] as num?)?.toInt() ?? 0;
+    // Cada no-show e cada cancel<2h vale 300c. Cada arrived vale 100c (Bora retém €1).
+    final arrived = (d['arrived'] as num?)?.toInt() ?? 0;
+    final boraServiceCents = arrived * 100;
+    final boraNoShowCents = noShow * 300;
+    final boraLateCancelCents = cancelNoRefund * 300;
+    final partnerPendingCents =
+        ((d['credits_given_cents'] as num?) ?? 0).toInt();
+
     return Container(
       width: double.infinity,
       color: Colors.deepPurple.shade50,
       padding: const EdgeInsets.all(12),
-      child: Wrap(
-        spacing: 16,
-        runSpacing: 8,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _stat('Total 30d', '${d['total']}'),
-          _stat('No-show', '${d['no_show_rate_pct']}%', highlight: true),
-          _stat('Cancel', '${d['cancellation_rate_pct']}%'),
-          _stat('Receita',
-              '€${(((d['bora_revenue_cents'] as num?) ?? 0) / 100).toStringAsFixed(2)}',
-              highlight: true),
-          _stat('Créditos',
-              '€${(((d['credits_given_cents'] as num?) ?? 0) / 100).toStringAsFixed(2)}'),
+          Wrap(
+            spacing: 16,
+            runSpacing: 8,
+            children: [
+              _stat('Total 30d', '${d['total']}'),
+              _stat('Chegou', '$arrived'),
+              _stat('No-show', '${d['no_show_rate_pct']}%', highlight: true),
+              _stat('Cancel', '${d['cancellation_rate_pct']}%'),
+            ],
+          ),
+          const Divider(),
+          Wrap(
+            spacing: 16,
+            runSpacing: 8,
+            children: [
+              _stat('Pendente payout parceiros',
+                  '€${(partnerPendingCents / 100).toStringAsFixed(2)}',
+                  highlight: true),
+              _stat('Receita Bora taxa €1×chegou',
+                  '€${(boraServiceCents / 100).toStringAsFixed(2)}',
+                  highlight: true),
+              _stat('Receita Bora no-show',
+                  '€${(boraNoShowCents / 100).toStringAsFixed(2)}'),
+              _stat('Receita Bora late-cancel',
+                  '€${(boraLateCancelCents / 100).toStringAsFixed(2)}'),
+            ],
+          ),
         ],
       ),
     );

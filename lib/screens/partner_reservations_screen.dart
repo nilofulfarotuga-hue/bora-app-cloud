@@ -235,15 +235,31 @@ class _ReservationCard extends StatelessWidget {
                   ),
                 ],
               )
-            else if (reservation.status == ReservationStatus.accepted)
+            else if (reservation.status == ReservationStatus.accepted) ...[
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade50,
+                  border: Border.all(color: Colors.amber.shade200),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Text(
+                  'Quando o cliente chegar:\n'
+                  '· Desconta €2 da conta dele\n'
+                  '· Bora paga-te €2 no próximo settlement semanal',
+                  style: TextStyle(fontSize: 12),
+                ),
+              ),
+              const SizedBox(height: 8),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: onArrived,
                   icon: const Icon(Icons.chair_alt_outlined),
-                  label: const Text('Marcar sentado'),
+                  label: const Text('Marcar sentado (€2 crédito)'),
                 ),
               ),
+            ],
           ],
         ),
       ),

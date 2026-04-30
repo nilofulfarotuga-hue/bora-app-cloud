@@ -239,10 +239,15 @@ class _ReservationFlowScreenState extends State<ReservationFlowScreen> {
                     ),
                     const SizedBox(height: 6),
                     const Text(
-                      '€3 cobrados agora ao confirmares. Quando chegares ao '
-                      'restaurante, o valor vira crédito no menu (descontado '
-                      'do próximo pedido).',
-                      style: TextStyle(fontSize: 13),
+                      '€3 cobrados agora. Quando chegares ao restaurante:',
+                      style:
+                          TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      '· €2 descontados da tua conta (próximo pedido neste restaurante)\n'
+                      '· €1 taxa de serviço Bora',
+                      style: TextStyle(fontSize: 12),
                     ),
                     const SizedBox(height: 8),
                     Container(
@@ -253,8 +258,8 @@ class _ReservationFlowScreenState extends State<ReservationFlowScreen> {
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: const Text(
-                        'Cancelamento gratuito até 2h antes da reserva. '
-                        'Dentro de 2h ou no-show: €3 não devolvidos.',
+                        'Cancelamento gratuito até 2h antes. Dentro de 2h ou '
+                        'no-show: €3 não devolvidos.',
                         style: TextStyle(
                             fontSize: 12, fontStyle: FontStyle.italic),
                       ),

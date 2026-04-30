@@ -1009,42 +1009,76 @@ Fotos cleared na Fase 3: **14.064** (3.888 badges + 10.176 cross-leaks sem match
 
 ---
 
-## 18. RESERVAS — PRÉ-PAGAMENTO €3
+## 18. RESERVAS — PRÉ-PAGAMENTO €3 (SPLIT €2/€1)
 
-> Adicionado 2026-04-30. Implementação activa.
-> Decisão completa: `decisions/2026-04-30-reservas-prepagamento-design.md`
+> v2 corrigida 2026-04-30. v1 (€3 inteiros como crédito) DEPRECATED.
+> Decisão: `decisions/2026-04-30-reservas-prepagamento-design.md`
 
-### 18.1 Pré-pagamento
-- **€3 fixo** por reserva (configurável: `platform_settings.reservation_prepayment_cents=300`)
-- Cobrado no momento de pedir reserva via Stripe (cartão ou MBWay)
-- **Restaurante NÃO paga** — feature gratuita ao parceiro (incentivo)
+### 18.1 Pré-pagamento e split
 
-### 18.2 Janela de cancelamento
-- `platform_settings.reservation_cancel_window_hours=2`
-- Cliente cancela ≥2h antes → **Stripe refund total** (5–10 dias)
-- Cliente cancela <2h antes → **Bora fica com €3**
+Cliente paga **€3** à Bora via Stripe (cartão/MBWay) no acto da reserva.
+Settings (`platform_settings`):
+- `reservation_prepayment_cents = 300` (€3)
+- `reservation_partner_payout_cents = 200` (€2 — vai ao parceiro)
+- `reservation_bora_service_cents = 100` (€1 — Bora retém)
 
-### 18.3 Estados e fluxo de dinheiro
+**Restaurante NÃO paga nada** — feature gratuita ao parceiro. Bora repassa €2 no settlement semanal sempre que cliente chega.
 
-| Evento | Status | Dinheiro |
-|---|---|---|
-| Cliente paga €3 | `pending_payment` → `pending` | Ringfenced no Stripe |
-| Parceiro aprova | `approved` | Continua ringfenced |
-| Parceiro **rejeita** | `rejected_refunded` | **Refund total automático** |
-| Cliente cancela ≥2h | `cancelled_refunded` | **Refund total** |
-| Cliente cancela <2h | `cancelled_no_refund` | Bora 100% |
-| Cliente **chega** (parceiro confirma) | `arrived` | **€3 vira menu credit** (próximo pedido nesse restaurante) |
-| Cliente **falta** (≥60min após reserved_for) | `no_show` | Bora 100% |
+### 18.2 Estados e fluxo de dinheiro (v2)
+
+| Evento | Status | Cliente paga | Cliente recebe | Bora retém | Parceiro recebe (settlement) |
+|---|---|---|---|---|---|
+| Reserva criada (Stripe pre-auth) | `pending_payment` → `pending` | €3 | — | €3 ringfenced | — |
+| Parceiro aprova | `approved` | €3 | — | €3 ringfenced | — |
+| Parceiro **rejeita** | `rejected_refunded` | €3→refund | €3 (Stripe 5-10d) | €0 | €0 |
+| Cliente cancela **≥2h antes** | `cancelled_refunded` | €3→refund | €3 (Stripe 5-10d) | €0 | €0 |
+| Cliente cancela **<2h antes** | `cancelled_no_refund` | €3 | €0 | **€3** | €0 |
+| Cliente **chega** (parceiro confirma) | `arrived` | €3 | **€2 menu credit** no próximo pedido | **€1** taxa serviço | **€2** payout pendente |
+| Cliente **falta** (≥60min após `reserved_for`) | `no_show` | €3 | €0 | **€3** | €0 |
+
+**Receita Bora possível:** €1 (chegada) · €3 (no-show ou cancel <2h) · €0 (refund).
+
+### 18.3 Janela de cancelamento
+- `reservation_cancel_window_hours = 2`
+- ≥2h antes de `reserved_for` → Stripe refund total
+- <2h antes → Bora 100%, parceiro €0
 
 ### 18.4 Crédito de menu (`restaurant_menu_credits`)
-- Atribuído quando parceiro chama `partner_mark_arrival(reservation_id)`
-- Aplica auto no próximo `create_order(p_restaurant_id)` do cliente
+- Criado pelo `partner_mark_arrival(reservation_id)` com **€2** (não €3)
+- Aplicado automaticamente em `create_order(p_partner_restaurant)` via `consume_menu_credit_for_order`
+- Coluna `orders.menu_credit_applied_cents` regista uso (default 0)
+- Stripe charge = `price - wallet - menu_credit` (validado em Edge Fn `create-payment-intent` v19)
 - Expira **30 dias** após `arrived_at`
-- Não cumulável (1 crédito por uso)
+- Não cumulável (1 crédito por uso, FOR UPDATE SKIP LOCKED)
 
-### 18.5 Cron no-show
-- Função `auto_close_no_show_reservations()` corre 1×/h (pg_cron)
-- Marca `no_show` se `status='approved' AND arrived_at IS NULL AND reserved_for < NOW() - 60min`
+### 18.5 Payout obligation (`partner_reservation_payouts`)
+- Criada simultaneamente com `restaurant_menu_credits` em `partner_mark_arrival`
+- Status: `pending → paid → cancelled`
+- Settlement semanal via `admin_mark_partner_payouts_paid(partner_id, payout_external_id)`
+- Admin vê total pendente em `admin_partner_payout_summary(partner_id, period_start, period_end)`
+
+### 18.6 Cron no-show
+- `auto_close_no_show_reservations()` corre `0 * * * *` (cron)
+- Marca `no_show` quando `status='approved' AND arrived_at IS NULL AND reserved_for < NOW() - 60min`
+- Bora retém €3, **NÃO** cria payout entry, **NÃO** cria menu credit
+- Notifica cliente via in-app
+
+### 18.7 Exemplos numéricos (sanity check)
+
+**Caso A — cliente chega, faz pedido €20 nesse restaurante:**
+- Cliente: paga €3 reserva + €18 pedido (€20 - €2 credit) = €21 total
+- Parceiro: recebe €18 do pedido (após comissão Bora) + €2 settlement reserva = €20 efectivo do cliente
+- Bora: €1 (taxa serviço reserva) + comissão pedido
+
+**Caso B — cliente falta:**
+- Cliente: pagou €3, perdeu
+- Parceiro: €0 (lugar reservado vazio = sem custo, sem ganho)
+- Bora: €3
+
+**Caso C — cancela 5h antes:**
+- Cliente: paga €0 efectivo (Stripe refund)
+- Parceiro: €0
+- Bora: €0 (Stripe fee minimal aceitável)
 
 ---
 

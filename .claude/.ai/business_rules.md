@@ -1009,6 +1009,45 @@ Fotos cleared na Fase 3: **14.064** (3.888 badges + 10.176 cross-leaks sem match
 
 ---
 
+## 18. RESERVAS — PRÉ-PAGAMENTO €3
+
+> Adicionado 2026-04-30. Implementação activa.
+> Decisão completa: `decisions/2026-04-30-reservas-prepagamento-design.md`
+
+### 18.1 Pré-pagamento
+- **€3 fixo** por reserva (configurável: `platform_settings.reservation_prepayment_cents=300`)
+- Cobrado no momento de pedir reserva via Stripe (cartão ou MBWay)
+- **Restaurante NÃO paga** — feature gratuita ao parceiro (incentivo)
+
+### 18.2 Janela de cancelamento
+- `platform_settings.reservation_cancel_window_hours=2`
+- Cliente cancela ≥2h antes → **Stripe refund total** (5–10 dias)
+- Cliente cancela <2h antes → **Bora fica com €3**
+
+### 18.3 Estados e fluxo de dinheiro
+
+| Evento | Status | Dinheiro |
+|---|---|---|
+| Cliente paga €3 | `pending_payment` → `pending` | Ringfenced no Stripe |
+| Parceiro aprova | `approved` | Continua ringfenced |
+| Parceiro **rejeita** | `rejected_refunded` | **Refund total automático** |
+| Cliente cancela ≥2h | `cancelled_refunded` | **Refund total** |
+| Cliente cancela <2h | `cancelled_no_refund` | Bora 100% |
+| Cliente **chega** (parceiro confirma) | `arrived` | **€3 vira menu credit** (próximo pedido nesse restaurante) |
+| Cliente **falta** (≥60min após reserved_for) | `no_show` | Bora 100% |
+
+### 18.4 Crédito de menu (`restaurant_menu_credits`)
+- Atribuído quando parceiro chama `partner_mark_arrival(reservation_id)`
+- Aplica auto no próximo `create_order(p_restaurant_id)` do cliente
+- Expira **30 dias** após `arrived_at`
+- Não cumulável (1 crédito por uso)
+
+### 18.5 Cron no-show
+- Função `auto_close_no_show_reservations()` corre 1×/h (pg_cron)
+- Marca `no_show` se `status='approved' AND arrived_at IS NULL AND reserved_for < NOW() - 60min`
+
+---
+
 *Documento de regras de negócio — Bora App*
 *Última atualização: 2026-04-18 (§27.6 actualizado — Fase 4 Continente +1.500 / Auchan +1.500 via SFCC L1; Pingo Doce/Lidl/Intermarché deferidos; cascata L1→L4 + orçamento L4 €50/mês; âmbito `-guarda`)*
 *Atualizar sempre que houver mudanças nas regras de negócio*

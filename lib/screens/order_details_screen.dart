@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../config/app_theme.dart';
@@ -8,6 +9,7 @@ import '../models/chat_message.dart';
 import '../models/order_model.dart';
 import '../stores/driver_store.dart';
 import '../stores/order_store.dart';
+import '../widgets/refund_choice_dialog.dart';
 import 'chat_screen.dart';
 
 class OrderDetailsScreen extends StatelessWidget {
@@ -42,6 +44,14 @@ class OrderDetailsScreen extends StatelessWidget {
           _StatusCard(order: liveOrder),
 
           const SizedBox(height: 16),
+
+          // ── Refund banner (F2 — clareza método de reembolso) ─────────
+          if (liveOrder.status == OrderStatus.cancelled)
+            _RefundBanner(order: liveOrder),
+
+          // ── Cashback badge (F11 — só se delivered) ────────────────────
+          if (liveOrder.status == OrderStatus.delivered)
+            _CashbackBadge(orderId: liveOrder.id),
 
           // ── Driver card (only when assigned) ─────────────────────────
           if (hasDriver) ...[
@@ -86,22 +96,211 @@ class OrderDetailsScreen extends StatelessWidget {
             _NotesCard(notes: liveOrder.customerNotes!),
           ],
 
+          // ── Cancel order (F1 — refund choice) ──────────────────────────
+          if (_isCancelable(liveOrder)) ...[
+            const SizedBox(height: 16),
+            _CancelOrderButton(order: liveOrder),
+          ],
+
           const SizedBox(height: 32),
         ],
       ),
     );
   }
 
-  Future<void> _callPhone(BuildContext context, String phone) async {
+  /// True para tiers `before_dispatch` / `after_accept` / `after_pickup`.
+  /// Status terminais (delivered/rejected/cancelled) não são canceláveis.
+  bool _isCancelable(OrderModel o) {
+    switch (o.status) {
+      case OrderStatus.created:
+      case OrderStatus.preparing:
+      case OrderStatus.callingDriver:
+      case OrderStatus.driverAccepted:
+      case OrderStatus.pickedUp:
+      case OrderStatus.onTheWay:
+        return true;
+      case OrderStatus.delivered:
+      case OrderStatus.rejected:
+      case OrderStatus.cancelled:
+        return false;
+    }
+  }
+
+  Future<void> _callPhone(BuildContext _ctx, String phone) async {
     if (phone.isEmpty) return;
     final uri = Uri(scheme: 'tel', path: phone);
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
+    } else if (_ctx.mounted) {
+      ScaffoldMessenger.of(_ctx).showSnackBar(
         const SnackBar(content: Text('Não foi possível iniciar a chamada.')),
       );
     }
+  }
+}
+
+// ── Refund banner (F2 — clareza prazo) ────────────────────────────────────────
+
+class _RefundBanner extends StatelessWidget {
+  const _RefundBanner({required this.order});
+  final OrderModel order;
+
+  @override
+  Widget build(BuildContext context) {
+    final refundEur = order.refundAmount ?? 0;
+    if (refundEur <= 0) return const SizedBox.shrink();
+
+    // refund_method é coluna nova (migration 20260430130000) e ainda não está
+    // mapeada no OrderModel — fetch directo via Supabase.
+    return FutureBuilder<Map<String, dynamic>?>(
+      future: Supabase.instance.client
+          .from('orders')
+          .select('refund_method, refund_status')
+          .eq('id', order.id)
+          .maybeSingle()
+          .then((r) => r == null ? null : (r as Map).cast<String, dynamic>()),
+      builder: (ctx, snap) {
+        final method = (snap.data?['refund_method'] as String?) ?? 'stripe';
+        final isWallet = method == 'wallet';
+        final color = isWallet ? Colors.green.shade100 : Colors.amber.shade100;
+        final border = isWallet ? Colors.green : Colors.amber.shade700;
+        final icon = isWallet ? Icons.flash_on : Icons.access_time;
+        final text = isWallet
+            ? '€${refundEur.toStringAsFixed(2)} disponíveis no Saldo Bora — imediato.'
+            : 'Reembolso em curso. Pode demorar 5-10 dias úteis a aparecer no cartão.';
+        return Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: color,
+            border: Border.all(color: border),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, color: border),
+              const SizedBox(width: 10),
+              Expanded(
+                  child: Text(text, style: const TextStyle(fontSize: 13))),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ── Cashback badge (F11) ──────────────────────────────────────────────────────
+
+class _CashbackBadge extends StatelessWidget {
+  const _CashbackBadge({required this.orderId});
+  final String orderId;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: Supabase.instance.client
+          .from('wallet_transactions')
+          .select('amount_cents')
+          .eq('related_order_id', orderId)
+          .eq('kind', 'cashback')
+          .limit(1)
+          .then((r) => (r as List).map((e) => (e as Map).cast<String, dynamic>()).toList()),
+      builder: (ctx, snap) {
+        final rows = snap.data;
+        if (rows == null || rows.isEmpty) return const SizedBox.shrink();
+        final cents = (rows.first['amount_cents'] as num?)?.toInt() ?? 0;
+        if (cents <= 0) return const SizedBox.shrink();
+        return Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.green.shade50,
+            border: Border.all(color: Colors.green.shade300),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.celebration, color: Colors.green),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Recebeste €${(cents / 100).toStringAsFixed(2)} de cashback no teu Saldo Bora!',
+                  style: const TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ── Cancel order button + dialog (F1 + F3) ────────────────────────────────────
+
+class _CancelOrderButton extends StatelessWidget {
+  const _CancelOrderButton({required this.order});
+  final OrderModel order;
+
+  /// Cents do reembolso esperado por tier.
+  /// before_dispatch=€1 fee, after_accept=€2.50 fee, after_pickup=100% fee.
+  double _refundableEur() {
+    final total = order.total;
+    switch (order.status) {
+      case OrderStatus.created:
+      case OrderStatus.preparing:
+      case OrderStatus.callingDriver:
+        return (total - 1.00).clamp(0, double.infinity);
+      case OrderStatus.driverAccepted:
+        return (total - 2.50).clamp(0, double.infinity);
+      case OrderStatus.pickedUp:
+      case OrderStatus.onTheWay:
+        return 0; // 100% retido
+      default:
+        return 0;
+    }
+  }
+
+  String _paymentMethodStr() {
+    final pm = order.paymentMethod.name;
+    return pm; // 'card' | 'mbway' | 'cash'
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final refundable = _refundableEur();
+    return OutlinedButton.icon(
+      onPressed: () async {
+        final res = await showRefundChoiceDialog(
+          context,
+          orderId: order.id,
+          refundableEur: refundable,
+          originalPaymentMethod: _paymentMethodStr(),
+        );
+        if (res != null && context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(res.refundMethod == 'wallet'
+                  ? 'Cancelado. Saldo disponível imediatamente.'
+                  : 'Cancelado. Reembolso ao cartão em 5-10 dias úteis.'),
+            ),
+          );
+          // Trigger refresh do OrderStore (realtime channel também actualizará)
+          await context.read<OrderStore>().loadOrders();
+        }
+      },
+      icon: const Icon(Icons.cancel_outlined, color: Colors.red),
+      label: const Text(
+        'Cancelar pedido',
+        style: TextStyle(color: Colors.red),
+      ),
+      style: OutlinedButton.styleFrom(
+        side: const BorderSide(color: Colors.red),
+        padding: const EdgeInsets.symmetric(vertical: 14),
+      ),
+    );
   }
 }
 

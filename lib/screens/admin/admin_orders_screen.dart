@@ -18,6 +18,15 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
   bool _loading = true;
   String? _error;
   String _statusFilter = 'all';
+  // T1.1: filter by payment method including 'mixed' (wallet/tokens applied).
+  String _paymentFilter = 'all';
+  static const _paymentOptions = <(String, String)>[
+    ('all', 'Todos'),
+    ('card', 'Cartão'),
+    ('mbway', 'MBWay'),
+    ('cash', 'Dinheiro'),
+    ('mixed', 'Misto (wallet/tokens)'),
+  ];
 
   static const _statusOptions = [
     ('all', 'Todos'),
@@ -43,14 +52,23 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
       _error = null;
     });
     try {
+      // T1.1: extra cols for payment breakdown column.
       var base = Supabase.instance.client.from('orders').select(
-          'id, status, payment_method, price, created_at, vendor_name, assigned_driver_id');
-      final data = _statusFilter == 'all'
-          ? await base.order('created_at', ascending: false).limit(100)
-          : await base
-              .eq('status', _statusFilter)
-              .order('created_at', ascending: false)
-              .limit(100);
+          'id, status, payment_method, payment_status, price, created_at, '
+          'vendor_name, assigned_driver_id, customer_name, '
+          'wallet_applied_cents, tokens_applied_count, tokens_applied_value_cents, '
+          'stripe_charge_cents');
+      var query = _statusFilter == 'all' ? base : base.eq('status', _statusFilter);
+      if (_paymentFilter != 'all') {
+        // 'mixed' covers any order with wallet OR tokens applied.
+        if (_paymentFilter == 'mixed') {
+          query = query.or('wallet_applied_cents.gt.0,tokens_applied_count.gt.0');
+        } else {
+          query = query.eq('payment_method', _paymentFilter);
+        }
+      }
+      final data =
+          await query.order('created_at', ascending: false).limit(100);
       if (mounted) {
         setState(() {
           _orders = List<Map<String, dynamic>>.from(data);
@@ -178,7 +196,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
       ),
       body: Column(
         children: [
-          // Filter chips
+          // Filter chips: status
           SizedBox(
             height: 52,
             child: ListView(
@@ -195,6 +213,31 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                     checkmarkColor: AppColors.primary,
                     onSelected: (_) {
                       setState(() => _statusFilter = opt.$1);
+                      _load();
+                    },
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          // T1.1 Filter chips: payment method
+          SizedBox(
+            height: 44,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              children: _paymentOptions.map((opt) {
+                final isSelected = _paymentFilter == opt.$1;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: FilterChip(
+                    label: Text(opt.$2,
+                        style: const TextStyle(fontSize: 12)),
+                    selected: isSelected,
+                    selectedColor: Colors.purple.withValues(alpha: 0.15),
+                    checkmarkColor: Colors.purple,
+                    onSelected: (_) {
+                      setState(() => _paymentFilter = opt.$1);
                       _load();
                     },
                   ),
@@ -272,6 +315,8 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                                               color: AppColors.textSecondary,
                                               fontSize: 13),
                                         ),
+                                        // T1.1: payment breakdown badges
+                                        _PaymentBreakdownBadges(order: o),
                                         Text(
                                           'ID: ${(o['id'] as String).substring(0, 8).toUpperCase()}',
                                           style: const TextStyle(
@@ -304,6 +349,57 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                           ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// T1.1: Payment breakdown badges shown inline in admin order list.
+class _PaymentBreakdownBadges extends StatelessWidget {
+  const _PaymentBreakdownBadges({required this.order});
+  final Map<String, dynamic> order;
+
+  @override
+  Widget build(BuildContext context) {
+    final wallet = (order['wallet_applied_cents'] as num?)?.toInt() ?? 0;
+    final tokensCount = (order['tokens_applied_count'] as num?)?.toInt() ?? 0;
+    final tokensValue =
+        (order['tokens_applied_value_cents'] as num?)?.toInt() ?? 0;
+    final stripe = (order['stripe_charge_cents'] as num?)?.toInt() ?? 0;
+
+    if (wallet == 0 && tokensCount == 0 && stripe == 0) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Wrap(
+        spacing: 6,
+        runSpacing: 4,
+        children: [
+          if (wallet > 0)
+            _badge('wallet €${(wallet / 100).toStringAsFixed(2)}',
+                Colors.green),
+          if (tokensCount > 0)
+            _badge('$tokensCount tokens (€${(tokensValue / 100).toStringAsFixed(2)})',
+                Colors.deepPurple),
+          if (stripe > 0)
+            _badge('Stripe €${(stripe / 100).toStringAsFixed(2)}', Colors.blue),
+        ],
+      ),
+    );
+  }
+
+  Widget _badge(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600),
       ),
     );
   }

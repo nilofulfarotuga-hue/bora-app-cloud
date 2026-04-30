@@ -307,6 +307,23 @@ Quando o serviço falha (estafeta não chegou, comida errada, compras estragadas
 - Bora analisa e decide caso a caso
 - Pode ser reembolso parcial, total, ou em tokens
 
+#### 8.4.1 Cap server-side (T1.2 / BUG-MN-004 — 2026-04-30)
+- `refund_amount` **NUNCA** pode exceder `stripe_charge_cents + wallet_applied_cents + tokens_applied_value_cents`
+- Trigger `trg_enforce_refund_cap` em `orders` rejeita com `check_violation` (ERRCODE 23514)
+- Erro: `refund_exceeds_paid: refund=X cents > paid=Y cents (stripe=A wallet=B tokens=C)`
+
+#### 8.4.2 Split proporcional para pagamentos mistos
+Quando cliente pagou com componentes mistos (wallet + Stripe + tokens):
+- RPC `compute_refund_split(order_id, refund_eur)` retorna `wallet_cents`, `stripe_cents`, `tokens_cents`
+- Distribuição **proporcional** ao valor pago em cada componente
+- Erros de arredondamento vão para Stripe (mais simples)
+- Exemplo: pago €6 Stripe + €3 wallet + €1 tokens (€10 total). Refund €5 → wallet €1.50 + tokens €0.50 + Stripe €3.00
+
+#### 8.4.3 Idempotência (TODO follow-up)
+- Adicionar `refund_idempotency_key` em `orders` para garantir que retries não duplicam
+- Stripe Refund API já é idempotente via `idempotency_key` header — passar order_id+'-'+timestamp
+- Pendente: Edge Function `refund` v13 com header `Idempotency-Key`
+
 ### 8.5 Histórico de Pedidos
 - Tab "Pedidos" carrega imediatamente ao abrir (com spinner)
 - Lista todos os pedidos por data

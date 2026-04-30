@@ -54,7 +54,11 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen>
               'assigned_driver_id, items, dropoff_address, pickup_address, '
               'cancel_reason, cancelled_at, '
               'cancelled_by, cancellation_initiator, cancellation_reason_code, '
-              'refund_id, refund_status, refund_amount, refunded_at, created_at')
+              'refund_id, refund_status, refund_amount, refund_method, '
+              'refunded_at, created_at, '
+              // T1.1: payment breakdown columns
+              'wallet_applied_cents, tokens_applied_count, '
+              'tokens_applied_value_cents, stripe_charge_cents')
           .eq('id', widget.orderId)
           .maybeSingle();
 
@@ -299,6 +303,15 @@ class _PaymentTab extends StatelessWidget {
     final refundAmount = (order['refund_amount'] as num?)?.toDouble();
     final refundedAt = DateTime.tryParse(order['refunded_at'] as String? ?? '');
 
+    // T1.1: payment breakdown
+    final wallet = (order['wallet_applied_cents'] as num?)?.toInt() ?? 0;
+    final tokensCount = (order['tokens_applied_count'] as num?)?.toInt() ?? 0;
+    final tokensValue =
+        (order['tokens_applied_value_cents'] as num?)?.toInt() ?? 0;
+    final stripeCents = (order['stripe_charge_cents'] as num?)?.toInt() ?? 0;
+    final priceCents = (((order['price'] as num?) ?? 0) * 100).round();
+    final hasMixedPayment = wallet > 0 || tokensCount > 0;
+
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -315,6 +328,41 @@ class _PaymentTab extends StatelessWidget {
             ]),
           ),
         ),
+        // T1.1: Detalhe pagamento (decomposed components)
+        if (hasMixedPayment) ...[
+          const SizedBox(height: 12),
+          Card(
+            color: Colors.purple.withValues(alpha: 0.04),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Detalhe pagamento',
+                      style: TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 8),
+                  _row('Total bruto',
+                      '€${(priceCents / 100).toStringAsFixed(2)}'),
+                  if (wallet > 0)
+                    _row('Saldo Bora aplicado',
+                        '€${(wallet / 100).toStringAsFixed(2)}'),
+                  if (tokensCount > 0)
+                    _row('Tokens aplicados',
+                        '$tokensCount tokens (€${(tokensValue / 100).toStringAsFixed(2)})'),
+                  if (stripeCents > 0)
+                    _row('Cartão / MBWay',
+                        '€${(stripeCents / 100).toStringAsFixed(2)}'),
+                  const Divider(),
+                  _row(
+                    'Soma componentes',
+                    '€${((wallet + tokensValue + stripeCents) / 100).toStringAsFixed(2)}',
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
         const SizedBox(height: 12),
         Card(
           color: refundStatus == 'failed'

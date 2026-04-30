@@ -80,8 +80,11 @@ class _AdminCatalogScreenState extends State<AdminCatalogScreen> {
         Expanded(
           child: _loading
               ? const Center(child: CircularProgressIndicator())
-              : ListView.builder(
-                  itemCount: _partners.length,
+              : RefreshIndicator(
+                  onRefresh: _load,
+                  child: ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      itemCount: _partners.length,
                   itemBuilder: (ctx, i) {
                     final p = _partners[i];
                     return Card(
@@ -106,6 +109,7 @@ class _AdminCatalogScreenState extends State<AdminCatalogScreen> {
                       ),
                     );
                   },
+                ),
                 ),
         ),
       ]),

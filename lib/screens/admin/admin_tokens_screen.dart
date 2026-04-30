@@ -230,8 +230,11 @@ class _AdminTokensScreenState extends State<AdminTokensScreen>
         ),
       ),
       Expanded(
-        child: ListView.builder(
-          itemCount: grants.length,
+        child: RefreshIndicator(
+          onRefresh: () => _selectUser(_selectedUserId!, _selectedUserLabel!),
+          child: ListView.builder(
+            physics: const AlwaysScrollableScrollPhysics(),
+            itemCount: grants.length,
           itemBuilder: (ctx, i) {
             final g = grants[i];
             final active = g['is_active'] == true;
@@ -255,6 +258,7 @@ class _AdminTokensScreenState extends State<AdminTokensScreen>
               ),
             );
           },
+          ),
         ),
       ),
     ]);

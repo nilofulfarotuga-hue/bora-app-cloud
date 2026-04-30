@@ -257,10 +257,13 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
-                : _clients.isEmpty
-                    ? const Center(child: Text('Sem clientes.'))
-                    : ListView.builder(
-                        itemCount: _clients.length,
+                : RefreshIndicator(
+                    onRefresh: _load,
+                    child: _clients.isEmpty
+                        ? const Center(child: Text('Sem clientes.'))
+                        : ListView.builder(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            itemCount: _clients.length,
                         itemBuilder: (ctx, i) {
                           final c = _clients[i];
                           final banned = c['is_banned'] == true;
@@ -298,6 +301,7 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
                           );
                         },
                       ),
+                  ),
           ),
         ],
       ),

@@ -128,10 +128,13 @@ class _AdminComplaintsScreenState extends State<AdminComplaintsScreen> {
         Expanded(
           child: _loading
               ? const Center(child: CircularProgressIndicator())
-              : _items.isEmpty
-                  ? const Center(child: Text('Sem reclamações.'))
-                  : ListView.builder(
-                      itemCount: _items.length,
+              : RefreshIndicator(
+                  onRefresh: _load,
+                  child: _items.isEmpty
+                      ? const Center(child: Text('Sem reclamações.'))
+                      : ListView.builder(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          itemCount: _items.length,
                       itemBuilder: (ctx, i) {
                         final c = _items[i];
                         final status = c['status'] as String;
@@ -157,6 +160,7 @@ class _AdminComplaintsScreenState extends State<AdminComplaintsScreen> {
                         );
                       },
                     ),
+                ),
         ),
       ]),
     );

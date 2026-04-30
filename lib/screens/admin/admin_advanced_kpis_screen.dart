@@ -59,8 +59,11 @@ class _AdminAdvancedKpisScreenState extends State<AdminAdvancedKpisScreen> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.all(16),
+          : RefreshIndicator(
+              onRefresh: _load,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16),
               children: [
                 Row(children: [
                   const Text('Período: '),
@@ -84,6 +87,7 @@ class _AdminAdvancedKpisScreenState extends State<AdminAdvancedKpisScreen> {
                 _buildHotZones(),
               ],
             ),
+          ),
     );
   }
 

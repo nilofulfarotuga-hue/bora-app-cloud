@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -39,6 +40,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void initState() {
     super.initState();
     _loadPhotoUrl();
+    _validateSession();
+  }
+
+  /// Strategy D — Pre-emptively refresh the JWT when the profile screen opens,
+  /// so by the time the user taps the avatar button, the session is fresh.
+  /// If session is missing or refresh fails silently, the upload path itself
+  /// has its own guards (refreshSession + Edge Function fallback).
+  Future<void> _validateSession() async {
+    final client = Supabase.instance.client;
+    final session = client.auth.currentSession;
+    if (session == null) {
+      // No Supabase session — could be local-only auth (demo/cached client).
+      // Don't disrupt; the upload path handles re-auth.
+      return;
+    }
+    final nowS = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    final expiresAt = session.expiresAt; // seconds since epoch
+    final aboutToExpire = expiresAt != null && expiresAt - nowS < 60;
+    if (aboutToExpire) {
+      try {
+        await client.auth.refreshSession();
+        debugPrint('[profile_screen] session refreshed on initState');
+      } catch (e) {
+        debugPrint('[profile_screen] initState refresh failed: $e — '
+            'will retry inside _pickAndUploadAvatar');
+      }
+    }
   }
 
   Future<void> _loadPhotoUrl() async {
@@ -218,23 +246,59 @@ class _ProfileScreenState extends State<ProfileScreen> {
       // Centre-crop square + resize to 500px (smaller upload, consistent UI).
       final processed = await _squareResize(rawBytes) ?? rawBytes;
 
-      final path = '$userId/avatar.jpg';
-      final storage = Supabase.instance.client.storage;
+      String? versionedUrl;
 
-      await storage.from('avatars').uploadBinary(
-            path,
-            processed,
-            fileOptions: const FileOptions(
-              upsert: true,
-              contentType: 'image/jpeg',
-            ),
-          );
+      // ── Strategy A: direct upload (fast path) ────────────────────────────
+      try {
+        final path = '$userId/avatar.jpg';
+        final storage = Supabase.instance.client.storage;
+        await storage
+            .from('avatars')
+            .uploadBinary(
+              path,
+              processed,
+              fileOptions: const FileOptions(
+                upsert: true,
+                contentType: 'image/jpeg',
+              ),
+            )
+            .timeout(const Duration(seconds: 8));
 
-      final publicUrl = storage.from('avatars').getPublicUrl(path);
-      // Cache-bust version suffix — stored in metadata so every device
-      // sees the new image without waiting for Flutter's network cache.
-      final bust = DateTime.now().millisecondsSinceEpoch;
-      final versionedUrl = '$publicUrl?v=$bust';
+        final publicUrl = storage.from('avatars').getPublicUrl(path);
+        final bust = DateTime.now().millisecondsSinceEpoch;
+        versionedUrl = '$publicUrl?v=$bust';
+        debugPrint('[profile_screen] direct upload OK: $versionedUrl');
+      } catch (directErr) {
+        // ── Strategy C: fallback to Edge Function `upload-avatar` ──────────
+        // service_role bypasses RLS — handles stale-JWT corner cases.
+        debugPrint('[profile_screen] direct upload failed ($directErr) — '
+            'falling back to upload-avatar Edge Function');
+        try {
+          final base64 = base64Encode(processed);
+          final res = await Supabase.instance.client.functions
+              .invoke('upload-avatar', body: {
+                'fileBase64': base64,
+                'contentType': 'image/jpeg',
+              })
+              .timeout(const Duration(seconds: 30));
+          if (res.status != 200) {
+            throw Exception('upload-avatar HTTP ${res.status}: ${res.data}');
+          }
+          final data = res.data is Map
+              ? Map<String, dynamic>.from(res.data as Map)
+              : <String, dynamic>{};
+          versionedUrl = data['versioned_url'] as String?;
+          if (versionedUrl == null) {
+            throw Exception('upload-avatar response missing versioned_url');
+          }
+          debugPrint('[profile_screen] edge fn upload OK: $versionedUrl');
+        } catch (edgeErr) {
+          // Both strategies failed — surface the original direct error
+          // (more actionable for debugging).
+          throw Exception(
+              'Direct upload: $directErr · Edge function: $edgeErr');
+        }
+      }
 
       // Single source of truth — AuthStore persists locally + to Supabase.
       // `authStore` is captured above (before async gaps).

@@ -47,7 +47,7 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
   @override
   void initState() {
     super.initState();
-    _tab = TabController(length: 4, vsync: this);
+    _tab = TabController(length: 6, vsync: this);
     _loadAll();
   }
 
@@ -581,6 +581,8 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
             Tab(icon: Icon(Icons.schedule), text: 'Horários'),
             Tab(icon: Icon(Icons.toggle_on), text: 'Estado'),
             Tab(icon: Icon(Icons.date_range), text: 'Datas'),
+            Tab(icon: Icon(Icons.bar_chart), text: 'Vendas'),
+            Tab(icon: Icon(Icons.inventory_2), text: 'Catálogo'),
           ],
         ),
       ),
@@ -593,8 +595,360 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
                 _buildHorariosTab(),
                 _buildEstadoTab(),
                 _buildDatasEspeciaisTab(),
+                _PartnerSalesTab(partnerId: widget.restaurantId),
+                _PartnerCatalogTab(partnerId: widget.restaurantId),
               ],
             ),
+    );
+  }
+}
+
+// ─── TAB 5 — VENDAS (B2) ────────────────────────────────────────────────────
+
+class _PartnerSalesTab extends StatefulWidget {
+  const _PartnerSalesTab({required this.partnerId});
+  final String partnerId;
+  @override
+  State<_PartnerSalesTab> createState() => _PartnerSalesTabState();
+}
+
+class _PartnerSalesTabState extends State<_PartnerSalesTab> {
+  int _periodDays = 30;
+  bool _loading = true;
+  Map<String, dynamic>? _data;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final from = DateTime.now()
+          .subtract(Duration(days: _periodDays))
+          .toUtc()
+          .toIso8601String();
+      final to = DateTime.now().toUtc().toIso8601String();
+      final res = await Supabase.instance.client.rpc(
+        'admin_partner_sales_summary',
+        params: {
+          'p_partner_id': widget.partnerId,
+          'p_from': from,
+          'p_to': to,
+        },
+      );
+      if (!mounted) return;
+      setState(() {
+        _data = (res as Map).cast<String, dynamic>();
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        children: [
+          SegmentedButton<int>(
+            segments: const [
+              ButtonSegment(value: 7, label: Text('7 dias')),
+              ButtonSegment(value: 30, label: Text('30 dias')),
+              ButtonSegment(value: 90, label: Text('90 dias')),
+            ],
+            selected: {_periodDays},
+            onSelectionChanged: (s) {
+              setState(() => _periodDays = s.first);
+              _load();
+            },
+          ),
+          const SizedBox(height: 16),
+          if (_loading)
+            const Center(child: Padding(
+              padding: EdgeInsets.all(32),
+              child: CircularProgressIndicator(),
+            ))
+          else if (_error != null)
+            Card(
+              color: Colors.red.shade50,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(_error!, style: TextStyle(color: Colors.red.shade900)),
+              ),
+            )
+          else if (_data != null) ..._buildSummary(_data!),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildSummary(Map<String, dynamic> d) {
+    final totalOrders = (d['total_orders'] as num?)?.toInt() ?? 0;
+    final gross = (d['gross_revenue'] as num?)?.toDouble() ?? 0;
+    final visible = (d['commission_visible_10'] as num?)?.toDouble() ?? 0;
+    final hidden = (d['commission_markup_hidden_5'] as num?)?.toDouble() ?? 0;
+    final service = (d['commission_service_fee_5'] as num?)?.toDouble() ?? 0;
+    final commTotal = (d['commission_total_20'] as num?)?.toDouble() ?? 0;
+    final partnerNet = (d['partner_net'] as num?)?.toDouble() ?? 0;
+    final orders = (d['orders'] as List?) ?? const [];
+
+    return [
+      Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Resumo',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              _row('Pedidos entregues', '$totalOrders'),
+              _row('Total faturado', '€${gross.toStringAsFixed(2)}'),
+              const Divider(),
+              _row('Comissão Bora 10%', '€${visible.toStringAsFixed(2)}'),
+              _row('Markup oculto 5%', '€${hidden.toStringAsFixed(2)}'),
+              _row('Taxa serviço cliente 5%',
+                  '€${service.toStringAsFixed(2)}'),
+              const Divider(),
+              _row('Total comissão (20%)',
+                  '€${commTotal.toStringAsFixed(2)}', bold: true),
+              _row('Líquido parceiro',
+                  '€${partnerNet.toStringAsFixed(2)}',
+                  bold: true, color: Colors.green),
+            ],
+          ),
+        ),
+      ),
+      const SizedBox(height: 16),
+      const Text('Pedidos recentes',
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+      const SizedBox(height: 8),
+      if (orders.isEmpty)
+        const Padding(
+          padding: EdgeInsets.all(16),
+          child: Text('Sem pedidos no período.',
+              style: TextStyle(color: Colors.black54)),
+        ),
+      ...orders.map((e) {
+        final o = (e as Map).cast<String, dynamic>();
+        final created = DateTime.tryParse((o['created_at'] ?? '') as String);
+        final dateStr = created != null
+            ? '${created.year}-${created.month.toString().padLeft(2, '0')}-'
+                '${created.day.toString().padLeft(2, '0')}'
+            : '—';
+        return Card(
+          child: ListTile(
+            dense: true,
+            title: Text('#${(o['id'] as String).substring(0, 6)} · '
+                '${o['customer_name'] ?? '—'}'),
+            subtitle: Text('$dateStr · ${o['service_type']}'),
+            trailing: Text(
+                '€${((o['price'] as num?) ?? 0).toStringAsFixed(2)}',
+                style: const TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        );
+      }),
+    ];
+  }
+
+  Widget _row(String label, String value,
+      {bool bold = false, Color? color}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label,
+              style: TextStyle(
+                  fontWeight: bold ? FontWeight.bold : FontWeight.normal)),
+          Text(value,
+              style: TextStyle(
+                  fontWeight: bold ? FontWeight.bold : FontWeight.w600,
+                  color: color)),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── TAB 6 — CATÁLOGO (B2) ──────────────────────────────────────────────────
+
+class _PartnerCatalogTab extends StatefulWidget {
+  const _PartnerCatalogTab({required this.partnerId});
+  final String partnerId;
+  @override
+  State<_PartnerCatalogTab> createState() => _PartnerCatalogTabState();
+}
+
+class _PartnerCatalogTabState extends State<_PartnerCatalogTab> {
+  bool _loading = true;
+  String? _error;
+  List<Map<String, dynamic>> _products = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final res = await Supabase.instance.client.rpc(
+        'admin_list_products_by_partner',
+        params: {
+          'p_restaurant_id': widget.partnerId,
+          'p_limit': 200,
+          'p_offset': 0,
+        },
+      );
+      if (!mounted) return;
+      setState(() {
+        _products = (res as List)
+            .map((e) => (e as Map).cast<String, dynamic>())
+            .toList();
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _toggleAvailability(
+      String productId, bool currentlyAvailable) async {
+    try {
+      await Supabase.instance.client.rpc('admin_set_product_availability',
+          params: {
+            'p_product_id': productId,
+            'p_available': !currentlyAvailable,
+          });
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao alternar disponibilidade: $e')));
+    }
+  }
+
+  Future<void> _editPrice(String productId, double current) async {
+    final controller =
+        TextEditingController(text: current.toStringAsFixed(2));
+    final newPrice = await showDialog<double>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Editar preço'),
+        content: TextField(
+          controller: controller,
+          keyboardType:
+              const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(prefixText: '€ '),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancelar')),
+          FilledButton(
+            onPressed: () {
+              final v = double.tryParse(
+                  controller.text.replaceAll(',', '.'));
+              if (v != null && v >= 0) Navigator.pop(ctx, v);
+            },
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+    if (newPrice == null) return;
+    try {
+      await Supabase.instance.client.rpc('admin_update_product_price',
+          params: {
+            'p_product_id': productId,
+            'p_new_price': newPrice,
+          });
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Erro ao guardar preço: $e')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+              ? ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Text('Erro: $_error',
+                          style:
+                              const TextStyle(color: Colors.red)),
+                    ),
+                  ])
+              : ListView.builder(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(8),
+                  itemCount: _products.length,
+                  itemBuilder: (_, i) {
+                    final p = _products[i];
+                    final id = p['id'] as String;
+                    final available =
+                        (p['is_available'] as bool?) ?? true;
+                    final price =
+                        ((p['price'] as num?) ?? 0).toDouble();
+                    return Card(
+                      child: ListTile(
+                        title: Text(p['name'] as String? ?? '—'),
+                        subtitle: Text(
+                            'Categoria: ${p['category'] ?? '—'}'),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            TextButton(
+                              onPressed: () =>
+                                  _editPrice(id, price),
+                              child: Text(
+                                  '€${price.toStringAsFixed(2)}'),
+                            ),
+                            Switch(
+                              value: available,
+                              onChanged: (_) =>
+                                  _toggleAvailability(id, available),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
     );
   }
 }

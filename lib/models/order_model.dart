@@ -101,6 +101,10 @@ class OrderModel {
   /// NULL when no cancellation has happened yet.
   String? refundMethod;
 
+  /// Cents paid from the cliente's saldo Bora (free_balance_cents) at
+  /// create_order. Stripe/MBWay charge = price*100 - walletAppliedCents.
+  int walletAppliedCents;
+
   /// Positive extra charge when [finalTotal] > [paymentBufferTotal].
   double? extraChargeAmount;
 
@@ -199,6 +203,7 @@ class OrderModel {
     double? paymentBufferTotal,
     this.refundAmount,
     this.refundMethod,
+    this.walletAppliedCents = 0,
     this.extraChargeAmount,
     this.tipCents = 0,
     this.isTakeaway = false,
@@ -340,6 +345,7 @@ class OrderModel {
       paymentBufferTotal: (data['payment_buffer_total'] as num?)?.toDouble(),
       refundAmount: (data['refund_amount'] as num?)?.toDouble(),
       refundMethod: data['refund_method'] as String?,
+      walletAppliedCents: (data['wallet_applied_cents'] as num?)?.toInt() ?? 0,
       extraChargeAmount: (data['extra_charge_amount'] as num?)?.toDouble(),
       tipCents: (data['tip_amount_cents'] as num?)?.toInt() ?? 0,
       isTakeaway: data['is_takeaway'] as bool? ?? false,
@@ -397,6 +403,7 @@ class OrderModel {
       'is_purchase_finalized': isPurchaseFinalized,
       if (refundAmount != null) 'refund_amount': refundAmount,
       if (refundMethod != null) 'refund_method': refundMethod,
+      if (walletAppliedCents > 0) 'wallet_applied_cents': walletAppliedCents,
       if (extraChargeAmount != null) 'extra_charge_amount': extraChargeAmount,
       // BR §4.5 — canonical tip column is `tip_amount_cents` (not `tip_cents`).
       // rating_screen.dart also writes to this column + sets tip_added_at.

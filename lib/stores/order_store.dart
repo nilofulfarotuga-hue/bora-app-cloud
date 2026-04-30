@@ -499,6 +499,9 @@ class OrderStore extends ChangeNotifier {
       'apartment_delivery': apartmentDelivery,
       'bag_count': 0,
       'requires_car': requiresCar,
+      // S1.4: Wallet debit happens atomically inside create_order RPC.
+      // Pre-validates balance with FOR UPDATE lock; throws on insufficient.
+      'wallet_applied_cents': walletAppliedCents,
       if (pickupLocation != null) 'pickup_lat': pickupLocation.latitude,
       if (pickupLocation != null) 'pickup_lng': pickupLocation.longitude,
       'dropoff_lat': destination.latitude,
@@ -595,6 +598,8 @@ class OrderStore extends ChangeNotifier {
                 tokenDiscountEur,
         tipCents: tipCents,
         isTakeaway: isTakeaway,
+        walletAppliedCents:
+            (rpcData['wallet_applied_cents'] as num?)?.toInt() ?? 0,
       );
 
       final order = serverOrder;
@@ -624,32 +629,13 @@ class OrderStore extends ChangeNotifier {
         notifyListeners();
       }
 
-      // Wallet debit (80/20 model). Wired only for the CASH flow for now —
-      // Stripe (card) and MBWay charge the FULL DB price via the Edge Function
-      // (zero-tolerance validation against payment_buffer_total). Until
-      // create-payment-intent / create-mbway-payment-intent learn to subtract
-      // walletAppliedCents from the charge amount, debiting the wallet in
-      // those flows would cause double-charging. Cash has no Stripe pre-auth,
-      // so the wallet debit IS part of the settlement. RPC is idempotent on
-      // (user_id, order_id).
-      if (walletAppliedCents > 0 && paymentMethod == PaymentMethod.cash) {
-        try {
-          await supabase.rpc('wallet_debit_for_order', params: {
-            'p_user_id': liveUserId,
-            'p_order_id': order.id,
-            'p_amount_cents': walletAppliedCents,
-          });
-          debugPrint(
-              '[FLOW] createOrder: wallet debit OK ($walletAppliedCents cents)');
-        } catch (e) {
-          debugPrint(
-              '[FLOW] createOrder: WALLET DEBIT FAILED order=${order.id} '
-              'amount_cents=$walletAppliedCents — RECONCILE MANUALLY: $e');
-        }
-      } else if (walletAppliedCents > 0) {
+      // S1.4: Wallet debit no longer post-RPC — done atomically inside
+      // create_order. The RPC return now exposes wallet_applied_cents and
+      // fully_paid_by_wallet so callers can branch on payment flow.
+      if (walletAppliedCents > 0) {
         debugPrint(
-            '[FLOW] createOrder: wallet skipped — paymentMethod=${paymentMethod.name} '
-            'requires Edge Function update before debiting (would double-charge).');
+            '[FLOW] createOrder: wallet applied ${rpcData['wallet_applied_cents']} cents '
+            '(charge=${rpcData['charge_total']}, fully_paid=${rpcData['fully_paid_by_wallet']})');
       }
 
       // Notify partner restaurant of new order via FCM push (fire-and-forget).

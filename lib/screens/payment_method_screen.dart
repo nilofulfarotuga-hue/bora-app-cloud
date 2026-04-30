@@ -451,13 +451,25 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       }
 
       // Step 2: charge against the real order ID.
-      // Send `total` (DB column `price`) — the customer-facing price.
-      // The Edge Function does ZERO-TOLERANCE validation on this field
-      // and applies the 15% pre-auth buffer server-side before charging Stripe.
-      // Sending paymentBufferTotal here would fail the equality check.
+      // S1.5 (mixed payment): Stripe charge = total - wallet_applied_eur.
+      // Edge Fn validates against (price - wallet_applied_cents/100). Skip
+      // Stripe entirely when wallet covers the full order — RPC already
+      // marked payment_status='paid'.
       final createdOrder = orderStore.orders.first;
       final orderId = createdOrder.id;
-      final stripeAmount = createdOrder.total;
+      final walletEur = createdOrder.walletAppliedCents / 100.0;
+      final stripeAmount = createdOrder.total - walletEur;
+
+      if (stripeAmount <= 0) {
+        // Wallet covered everything — payment_status already 'paid' server-side.
+        debugPrint(
+            '[Checkout] order ${createdOrder.id} fully paid by wallet '
+            '(€${walletEur.toStringAsFixed(2)}). Skipping Stripe.');
+        if (!mounted) return;
+        Navigator.of(context).pop(true);
+        return;
+      }
+
       try {
         final data = await paymentService.createPaymentIntent(
           orderId: orderId,

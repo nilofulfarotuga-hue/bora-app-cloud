@@ -29,6 +29,7 @@ import 'chat_screen.dart';
 import 'driver_earnings_screen.dart';
 import 'driver_map_screen.dart';
 import 'driver_order_action_helper.dart';
+import 'profile_screen.dart';
 
 class DriverHomeScreen extends StatefulWidget {
   const DriverHomeScreen({super.key});
@@ -527,6 +528,18 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
           ),
           // Token balance chip — uses scoped selector value (no full watch).
           _TokenChip(balance: tokenBalance),
+          IconButton(
+            tooltip: 'Perfil',
+            icon: const Icon(Icons.person_outline, color: Colors.white),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const ProfileScreen(),
+                ),
+              );
+            },
+          ),
           IconButton(
             tooltip: "Ganhos",
             icon: const Icon(Icons.bar_chart),

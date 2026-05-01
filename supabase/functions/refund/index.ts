@@ -67,8 +67,21 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Cap: refund cannot exceed amount actually received on the PaymentIntent.
+    // BUG 3 (2026-04-30): retrieve PI + check status='succeeded' + has latest_charge
+    // antes de tentar refund. PIs órfãos (status=requires_payment_method, canceled,
+    // etc.) não têm cobrança real → retornamos 409 charge_missing em vez de 502.
     const pi = await stripe.paymentIntents.retrieve(paymentIntentId.trim());
+    if (pi.status !== 'succeeded' || !pi.latest_charge) {
+      console.log('[refund] PI without charge:', paymentIntentId, 'status=', pi.status);
+      return new Response(
+        JSON.stringify({
+          error: 'charge_missing',
+          details: `PaymentIntent ${paymentIntentId} has no successful charge (status=${pi.status}). Nothing to refund.`,
+        }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+    // Cap: refund cannot exceed amount actually received on the PaymentIntent.
     const receivedCents = pi.amount_received ?? 0;
     if (amountCents > receivedCents) {
       return new Response(

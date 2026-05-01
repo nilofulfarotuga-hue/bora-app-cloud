@@ -133,6 +133,13 @@ Deno.serve(async (req) => {
 
   let stripeRefundId: string | undefined;
   let walletResult: any = null;
+  // refundExecuted=true ⇒ podemos escrever refund_amount/refund_method.
+  // Se falso, deixamos esses campos a NULL (BUG-NEW-1: nunca escrever
+  // refund_amount sem refund efectivo).
+  let refundExecuted = false;
+  // chargeMissing=true ⇒ PI nunca confirmou charge. Marcamos
+  // payment_status='cancelled_no_charge' (BUG 3: PI órfão sem cobrança).
+  let chargeMissing = false;
 
   // ── Branch by refund method ─────────────────────────────────────────────
   if (refundEur <= 0) {
@@ -146,15 +153,37 @@ Deno.serve(async (req) => {
         409,
       );
     }
+    // BUG 3 (2026-04-30): retrieve PI antes de refundar. Se status != succeeded
+    // ou latest_charge=null, NÃO há cobrança real → skip Stripe sem 502.
+    let piStatus: string | undefined;
+    let piLatestCharge: string | null | undefined;
     try {
-      const refund = await stripe.refunds.create({
-        payment_intent: order.payment_intent_id,
-        amount: refundCents,
-      });
-      stripeRefundId = refund.id;
+      const pi = await stripe.paymentIntents.retrieve(order.payment_intent_id);
+      piStatus = pi.status;
+      piLatestCharge = (pi.latest_charge as string | null) ?? null;
     } catch (e) {
-      console.error('[cancel-with-choice] stripe failed:', e);
-      return json({ error: 'refund_failed', details: String(e) }, 502);
+      console.error('[cancel-with-choice] PI retrieve failed:', e);
+      return json({ error: 'pi_retrieve_failed', details: String(e) }, 502);
+    }
+    if (piStatus !== 'succeeded' || !piLatestCharge) {
+      console.log('[cancel-with-choice] PI without charge — skipping Stripe refund',
+        { pi: order.payment_intent_id, piStatus, piLatestCharge });
+      chargeMissing = true;
+      // Sem cobrança a reembolsar — segue para update sem refund_amount.
+    } else {
+      try {
+        // Idempotency key alinhada com Edge Fn `refund` (BUG-MN-004).
+        const idempotencyKey = `refund-${order.payment_intent_id}-${refundCents}`;
+        const refund = await stripe.refunds.create(
+          { payment_intent: order.payment_intent_id, amount: refundCents },
+          { idempotencyKey },
+        );
+        stripeRefundId = refund.id;
+        refundExecuted = true;
+      } catch (e) {
+        console.error('[cancel-with-choice] stripe failed:', e);
+        return json({ error: 'refund_failed', details: String(e) }, 502);
+      }
     }
   } else {
     // refund_method === 'wallet' — sempre disponível independentemente do payment_method
@@ -172,26 +201,42 @@ Deno.serve(async (req) => {
       return json({ error: 'wallet_credit_failed', details: walletErr.message }, 500);
     }
     walletResult = walletRpc;
+    refundExecuted = true;
   }
 
   // ── Update order ────────────────────────────────────────────────────────
   const now = new Date().toISOString();
-  const newPaymentStatus =
-    refundEur <= 0 ? 'refunded' : fee > 0 ? 'partial_refund' : 'refunded';
+  // BUG 3: PI órfão (sem cobrança) → payment_status='cancelled_no_charge'.
+  // Não promovemos para 'refunded' porque nunca houve dinheiro.
+  const newPaymentStatus = chargeMissing
+    ? 'cancelled_no_charge'
+    : refundEur <= 0
+      ? 'refunded'
+      : fee > 0
+        ? 'partial_refund'
+        : 'refunded';
+
+  // BUG-NEW-1 + BUG-NEW-3: refund_amount/refund_method/refund_status só
+  // quando refund_executed=true. Restantes ficam a NULL (constraint força).
+  // deno-lint-ignore no-explicit-any
+  const updatePayload: Record<string, any> = {
+    status: 'cancelled',
+    cancel_reason: reason,
+    cancel_fee: fee,
+    cancelled_at: now,
+    payment_status: newPaymentStatus,
+    cancellation_initiator: 'client',
+  };
+  if (refundExecuted) {
+    updatePayload.refund_amount = refundEur;
+    updatePayload.refund_method = refundMethod;
+    updatePayload.refund_status =
+      refundMethod === 'wallet' ? 'completed' : 'pending';
+  }
 
   const { error: updateErr } = await admin
     .from('orders')
-    .update({
-      status: 'cancelled',
-      cancel_reason: reason,
-      cancel_fee: fee,
-      cancelled_at: now,
-      refund_amount: refundEur,
-      refund_method: refundMethod,
-      refund_status: refundMethod === 'wallet' ? 'completed' : 'pending',
-      payment_status: newPaymentStatus,
-      cancellation_initiator: 'client',
-    })
+    .update(updatePayload)
     .eq('id', orderId)
     .eq('user_id', user.id);
 
@@ -202,15 +247,24 @@ Deno.serve(async (req) => {
 
   // ── Notify (best-effort) ────────────────────────────────────────────────
   try {
-    const message =
-      refundMethod === 'stripe'
-        ? `Reembolso de €${refundEur.toFixed(2)} processado. Pode demorar 5-10 dias úteis a aparecer no cartão. Para crédito instantâneo, escolhe wallet da próxima vez.`
-        : walletResult
-        ? `€${(walletResult.free_cents / 100).toFixed(2)} creditados em saldo livre + ${walletResult.tokens_count} tokens (≈€${(walletResult.tokens_value_cents / 100).toFixed(2)}). Disponível imediatamente.`
-        : `Reembolso processado.`;
+    let title = 'Reembolso processado';
+    let message: string;
+    if (chargeMissing) {
+      // BUG 3: pedido cancelado sem cobrança real — comunicar isto claramente.
+      title = 'Pedido cancelado';
+      message =
+        'O pedido foi cancelado. Não houve cobrança no cartão, por isso não há reembolso a processar.';
+    } else if (refundMethod === 'stripe') {
+      message = `Reembolso de €${refundEur.toFixed(2)} processado. Pode demorar 5-10 dias úteis a aparecer no cartão. Para crédito instantâneo, escolhe wallet da próxima vez.`;
+    } else if (walletResult) {
+      message = `€${(walletResult.free_cents / 100).toFixed(2)} creditados em saldo livre + ${walletResult.tokens_count} tokens (≈€${(walletResult.tokens_value_cents / 100).toFixed(2)}). Disponível imediatamente.`;
+    } else {
+      message = 'Pedido cancelado.';
+    }
     await admin.functions.invoke('notify-client', {
-      body: { user_id: user.id, title: 'Reembolso processado', body: message,
-              data: { order_id: orderId, refund_method: refundMethod } },
+      body: { user_id: user.id, title, body: message,
+              data: { order_id: orderId, refund_method: refundExecuted ? refundMethod : null,
+                      charge_missing: chargeMissing } },
     });
   } catch (e) {
     console.warn('[cancel-with-choice] notify failed (non-fatal):', e);
@@ -220,9 +274,10 @@ Deno.serve(async (req) => {
     ok: true,
     tier: t,
     fee_eur: fee,
-    refund_eur: refundEur,
-    refund_method: refundMethod,
+    refund_eur: refundExecuted ? refundEur : 0,
+    refund_method: refundExecuted ? refundMethod : null,
     refund_id: stripeRefundId ?? null,
+    charge_missing: chargeMissing,
     wallet: walletResult,
   });
 });

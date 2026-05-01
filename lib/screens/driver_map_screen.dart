@@ -1787,22 +1787,23 @@ class _FinalizePurchaseButtonState extends State<_FinalizePurchaseButton> {
   bool _loading = false;
 
   Future<void> _openDialog() async {
-    final value = await showDialog<double>(
+    final result = await showDialog<_ConfirmPurchaseResult>(
       context: context,
-      builder: (_) => const _FinalizePurchaseDialog(),
+      barrierDismissible: false,
+      builder: (_) => _ConfirmStoreshoppingPurchaseDialog(order: widget.order),
     );
-    if (value == null || !mounted) return;
+    if (result == null || !mounted) return;
 
     setState(() => _loading = true);
     final messenger = ScaffoldMessenger.of(context);
-    final reason = await context.read<OrderStore>().finalizePurchaseWithReason(
+    final reason = await context.read<OrderStore>().finalizePurchaseV2(
           orderId: widget.order.id,
-          purchaseValue: value,
+          items: result.items,
+          itemsAdded: result.itemsAdded,
         );
     if (!mounted) return;
     setState(() => _loading = false);
     if (reason != null) {
-      // BUG 6 fix: mensagem específica em vez de "Erro ao confirmar compra".
       messenger.showSnackBar(SnackBar(content: Text(reason)));
     } else {
       messenger.showSnackBar(
@@ -1840,65 +1841,370 @@ class _FinalizePurchaseButtonState extends State<_FinalizePurchaseButton> {
   }
 }
 
-/// Dialog that collects and validates the real purchase amount from the driver.
-class _FinalizePurchaseDialog extends StatefulWidget {
-  const _FinalizePurchaseDialog();
-
-  @override
-  State<_FinalizePurchaseDialog> createState() =>
-      _FinalizePurchaseDialogState();
+/// Result of the storeShopping confirm dialog: items (with bought/unavailable
+/// flags toggled by the driver) + items_added (substitutions or extras the
+/// driver writes during shopping). Sent to OrderStore.finalizePurchaseV2 →
+/// RPC finalize_storeshopping_purchase.
+class _ConfirmPurchaseResult {
+  const _ConfirmPurchaseResult({required this.items, required this.itemsAdded});
+  final List<CartItem> items;
+  final List<Map<String, dynamic>> itemsAdded;
 }
 
-class _FinalizePurchaseDialogState extends State<_FinalizePurchaseDialog> {
-  final _controller = TextEditingController();
-  String? _error;
+/// Storeshopping confirm dialog. Replaces the legacy "Valor da nota fiscal"
+/// input. Shows three sections (verde / vermelho / adicionados), lets the
+/// driver re-toggle item status and add substitution products with a base
+/// price (markup +15% applied server-side). The total is displayed in
+/// real-time using the local markup constant for guidance only — the server
+/// is the source of truth.
+class _ConfirmStoreshoppingPurchaseDialog extends StatefulWidget {
+  const _ConfirmStoreshoppingPurchaseDialog({required this.order});
+
+  final OrderModel order;
+
+  @override
+  State<_ConfirmStoreshoppingPurchaseDialog> createState() =>
+      _ConfirmStoreshoppingPurchaseDialogState();
+}
+
+class _ConfirmStoreshoppingPurchaseDialogState
+    extends State<_ConfirmStoreshoppingPurchaseDialog> {
+  // Local copy so toggles are not committed until "Confirmar".
+  late final List<CartItem> _items;
+  final List<Map<String, dynamic>> _added = [];
+  final _addNameCtrl = TextEditingController();
+  final _addPriceCtrl = TextEditingController();
+  String? _addError;
+
+  // UI-only display markup. Server reads platform_settings.non_partner_markup_pct.
+  static const double _markupPct = 0.15;
+
+  @override
+  void initState() {
+    super.initState();
+    _items = widget.order.items
+        .map((it) => CartItem(
+              productId: it.productId,
+              name: it.name,
+              price: it.price,
+              quantity: it.quantity,
+              purchaseStatus: it.purchaseStatus,
+              actualPrice: it.actualPrice,
+            ))
+        .toList();
+  }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _addNameCtrl.dispose();
+    _addPriceCtrl.dispose();
     super.dispose();
   }
 
+  double _itemsTotal(String status) {
+    double sum = 0;
+    for (final i in _items) {
+      if (i.purchaseStatus == status) sum += i.price * i.quantity;
+    }
+    return sum;
+  }
+
+  double _addedTotal() {
+    double sum = 0;
+    for (final a in _added) {
+      final base = (a['price_base_cents'] as int? ?? 0) / 100.0;
+      final qty = (a['qty'] as int? ?? 1);
+      sum += base * (1 + _markupPct) * qty;
+    }
+    return sum;
+  }
+
+  double get _adjustedTotal =>
+      _itemsTotal('bought') + _addedTotal() + widget.order.bagFee;
+
+  double get _origTotal => widget.order.paymentBufferTotal;
+
+  double get _diff => _adjustedTotal - _origTotal;
+
+  void _toggleStatus(int idx, String next) {
+    setState(() {
+      _items[idx].purchaseStatus = next;
+    });
+  }
+
+  void _addProduct() {
+    final name = _addNameCtrl.text.trim();
+    final raw = _addPriceCtrl.text.trim().replaceAll(',', '.');
+    final price = double.tryParse(raw);
+    if (name.isEmpty || price == null || price <= 0) {
+      setState(() => _addError = 'Nome e preço base válido obrigatórios.');
+      return;
+    }
+    setState(() {
+      _added.add({
+        'name': name,
+        'price_base_cents': (price * 100).round(),
+        'qty': 1,
+        'reason': 'driver_substitution',
+      });
+      _addNameCtrl.clear();
+      _addPriceCtrl.clear();
+      _addError = null;
+    });
+  }
+
+  bool get _allItemsResolved =>
+      _items.every((i) => i.purchaseStatus != 'pending');
+
   void _confirm() {
-    final text = _controller.text.trim();
-    if (text.isEmpty) {
-      setState(() => _error = 'Introduza um valor');
+    if (!_allItemsResolved) {
+      setState(() => _addError =
+          'Marca todos os items como "Comprei" ou "Não tem" antes de confirmar.');
       return;
     }
-    final value = double.tryParse(text.replaceAll(',', '.'));
-    if (value == null || value <= 0) {
-      setState(() => _error = 'Valor inválido');
-      return;
-    }
-    Navigator.pop(context, value);
+    Navigator.pop(
+      context,
+      _ConfirmPurchaseResult(items: _items, itemsAdded: _added),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final extra = _diff > 0 ? _diff : 0.0;
+    final refund = _diff < 0 ? -_diff : 0.0;
+
     return AlertDialog(
-      title: const Text('Valor da compra'),
-      content: TextField(
-        controller: _controller,
-        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        autofocus: true,
-        decoration: InputDecoration(
-          hintText: 'Ex: 18.50',
-          prefixText: '€ ',
-          errorText: _error,
-          border: const OutlineInputBorder(),
+      title: const Text('Confirmar compra'),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxHeight: 520),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (int i = 0; i < _items.length; i++)
+                _ItemRow(
+                  item: _items[i],
+                  onMarkBought: () => _toggleStatus(i, 'bought'),
+                  onMarkUnavailable: () => _toggleStatus(i, 'unavailable'),
+                ),
+              const Divider(),
+              if (_added.isNotEmpty) ...[
+                const Padding(
+                  padding: EdgeInsets.only(top: 8, bottom: 4),
+                  child: Text(
+                    'Adicionados pelo estafeta',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                  ),
+                ),
+                for (int i = 0; i < _added.length; i++)
+                  ListTile(
+                    dense: true,
+                    leading: const Icon(Icons.add_box_outlined,
+                        color: Colors.blue, size: 20),
+                    title: Text(_added[i]['name'] as String),
+                    subtitle: Text(
+                      'Base €${((_added[i]['price_base_cents'] as int) / 100).toStringAsFixed(2)} '
+                      '· Cliente paga €${(((_added[i]['price_base_cents'] as int) / 100) * (1 + _markupPct)).toStringAsFixed(2)}',
+                      style: const TextStyle(fontSize: 11),
+                    ),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.close, size: 18),
+                      onPressed: () => setState(() => _added.removeAt(i)),
+                    ),
+                  ),
+                const Divider(),
+              ],
+              const Padding(
+                padding: EdgeInsets.only(top: 4, bottom: 4),
+                child: Text(
+                  'Adicionar produto',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                ),
+              ),
+              Row(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: TextField(
+                      controller: _addNameCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Nome',
+                        isDense: true,
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 2,
+                    child: TextField(
+                      controller: _addPriceCtrl,
+                      keyboardType:
+                          const TextInputType.numberWithOptions(decimal: true),
+                      decoration: const InputDecoration(
+                        labelText: 'Preço base',
+                        prefixText: '€ ',
+                        isDense: true,
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.add_circle, color: Colors.blue),
+                    onPressed: _addProduct,
+                  ),
+                ],
+              ),
+              if (_addError != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(
+                    _addError!,
+                    style: const TextStyle(color: Colors.red, fontSize: 12),
+                  ),
+                ),
+              const Divider(height: 24),
+              _SummaryRow(label: 'Comprados', value: _itemsTotal('bought')),
+              _SummaryRow(
+                  label: 'Não tem',
+                  value: -_itemsTotal('unavailable'),
+                  color: Colors.red),
+              if (_addedTotal() > 0)
+                _SummaryRow(
+                    label: 'Adicionados (+15%)',
+                    value: _addedTotal(),
+                    color: Colors.blue),
+              if (widget.order.bagFee > 0)
+                _SummaryRow(label: 'Sacos', value: widget.order.bagFee),
+              const Divider(),
+              _SummaryRow(
+                  label: 'Total ajustado',
+                  value: _adjustedTotal,
+                  bold: true),
+              _SummaryRow(label: 'Cliente pagou', value: _origTotal),
+              if (extra > 0)
+                _SummaryRow(
+                    label: 'A cobrar ao cliente',
+                    value: extra,
+                    color: Colors.orange,
+                    bold: true),
+              if (refund > 0)
+                _SummaryRow(
+                    label: 'A reembolsar',
+                    value: refund,
+                    color: Colors.green,
+                    bold: true),
+            ],
+          ),
         ),
-        onSubmitted: (_) => _confirm(),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
           child: const Text('Cancelar'),
         ),
-        TextButton(
+        FilledButton(
           onPressed: _confirm,
-          child: const Text('Confirmar'),
+          child: const Text('Confirmar e ir para entrega'),
         ),
       ],
+    );
+  }
+}
+
+class _ItemRow extends StatelessWidget {
+  const _ItemRow({
+    required this.item,
+    required this.onMarkBought,
+    required this.onMarkUnavailable,
+  });
+
+  final CartItem item;
+  final VoidCallback onMarkBought;
+  final VoidCallback onMarkUnavailable;
+
+  @override
+  Widget build(BuildContext context) {
+    final isBought = item.purchaseStatus == 'bought';
+    final isUnavailable = item.purchaseStatus == 'unavailable';
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${item.quantity}× ${item.name}',
+                  style: TextStyle(
+                    fontSize: 13,
+                    decoration:
+                        isUnavailable ? TextDecoration.lineThrough : null,
+                    color: isUnavailable ? Colors.grey : null,
+                  ),
+                ),
+                Text(
+                  '€${(item.price * item.quantity).toStringAsFixed(2)}',
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            tooltip: 'Comprei',
+            icon: Icon(
+              isBought ? Icons.check_circle : Icons.check_circle_outline,
+              color: isBought ? Colors.green : Colors.grey,
+              size: 22,
+            ),
+            onPressed: onMarkBought,
+          ),
+          IconButton(
+            tooltip: 'Não tem',
+            icon: Icon(
+              isUnavailable ? Icons.cancel : Icons.cancel_outlined,
+              color: isUnavailable ? Colors.red : Colors.grey,
+              size: 22,
+            ),
+            onPressed: onMarkUnavailable,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SummaryRow extends StatelessWidget {
+  const _SummaryRow({
+    required this.label,
+    required this.value,
+    this.color,
+    this.bold = false,
+  });
+
+  final String label;
+  final double value;
+  final Color? color;
+  final bool bold;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = TextStyle(
+      fontSize: 13,
+      fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
+      color: color,
+    );
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: style),
+          Text('€${value.toStringAsFixed(2)}', style: style),
+        ],
+      ),
     );
   }
 }

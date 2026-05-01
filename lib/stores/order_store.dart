@@ -1411,6 +1411,96 @@ class OrderStore extends ChangeNotifier {
     return (order.refundAmount ?? 0) > 0 || (order.extraChargeAmount ?? 0) > 0;
   }
 
+  /// New finalize for storeShopping non-partner — calls the SECURITY DEFINER
+  /// RPC `finalize_storeshopping_purchase`. The RPC bypasses the
+  /// `enforce_financial_immutability` trigger via a session GUC and computes
+  /// final_total / refund / extra_charge server-side from items_status +
+  /// items_added. Returns null on success, or a String reason on failure.
+  ///
+  /// Replaces the old "Valor da nota fiscal" flow which UPDATEd financial
+  /// columns directly and was blocked by the trigger (BUG 16).
+  Future<String?> finalizePurchaseV2({
+    required String orderId,
+    required List<CartItem> items,
+    required List<Map<String, dynamic>> itemsAdded,
+  }) async {
+    final index = _orders.indexWhere((o) => o.id == orderId);
+    if (index == -1) return 'Pedido não encontrado localmente.';
+    final order = _orders[index];
+
+    if (order.serviceType != OrderServiceType.storeShopping) {
+      return 'Confirmar compra só está disponível para storeShopping.';
+    }
+    if (order.status != OrderStatus.driverAccepted &&
+        order.status != OrderStatus.pickedUp &&
+        order.status != OrderStatus.onTheWay) {
+      return 'Estado do pedido (${order.status.name}) não permite finalizar compra.';
+    }
+    if (order.isPurchaseFinalized) {
+      return 'Compra já foi finalizada.';
+    }
+
+    try {
+      final response = await supabase.rpc(
+        'finalize_storeshopping_purchase',
+        params: <String, dynamic>{
+          'p_order_id': orderId,
+          'p_items_status': items.map((i) => i.toJson()).toList(),
+          'p_items_added': itemsAdded,
+        },
+      );
+
+      // Apply server-computed totals to local state (realtime UPDATE will
+      // overwrite shortly with the same values).
+      if (response is Map) {
+        final finalCents = (response['final_total_cents'] as num?)?.toInt() ?? 0;
+        final refundCents = (response['refund_cents'] as num?)?.toInt() ?? 0;
+        final extraCents =
+            (response['extra_charge_cents'] as num?)?.toInt() ?? 0;
+        final newPaymentStatusName = response['payment_status'] as String?;
+
+        order.finalTotal = finalCents / 100.0;
+        order.refundAmount = refundCents / 100.0;
+        order.extraChargeAmount = extraCents / 100.0;
+        order.isPurchaseFinalized = true;
+        order.items = List<CartItem>.unmodifiable(items);
+        final rawAdded = response['items_added'];
+        if (rawAdded is List) {
+          order.itemsAdded = rawAdded
+              .map((e) => Map<String, dynamic>.from(e as Map))
+              .toList();
+        }
+        if (newPaymentStatusName != null) {
+          order.paymentStatus = PaymentStatus.values.firstWhere(
+            (e) => e.name == newPaymentStatusName,
+            orElse: () => order.paymentStatus,
+          );
+        }
+        notifyListeners();
+
+        // Card/wallet: trigger automatic charge/refund via Edge Functions.
+        if (order.paymentMethod == PaymentMethod.card ||
+            order.paymentMethod == PaymentMethod.mbway) {
+          if (refundCents > 0) {
+            unawaited(processRefund(order));
+          } else if (extraCents > 0) {
+            unawaited(processExtraCharge(order));
+          }
+        }
+        // Cash: driver collects diff at delivery (handled in driver UI).
+
+        final warning = response['warning'] as String?;
+        if (warning != null && warning.isNotEmpty) {
+          debugPrint('[OrderStore] finalizePurchaseV2 warning: $warning');
+        }
+      }
+      return null;
+    } catch (e) {
+      debugPrint('OrderStore: finalizePurchaseV2 RPC error => $e');
+      return 'Erro ao finalizar compra: $e';
+    }
+  }
+
   Future<bool> respondToSubstitution({
     required String orderId,
     required String productName,

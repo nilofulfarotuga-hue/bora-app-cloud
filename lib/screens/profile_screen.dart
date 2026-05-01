@@ -38,12 +38,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isUploading = false;
   bool _photoLoaded = false;
   bool _isDeletingAccount = false;
+  bool _driverSyncing = false;
 
   @override
   void initState() {
     super.initState();
     _loadPhotoUrl();
     _validateSession();
+    _ensureDriverLoaded();
+  }
+
+  Future<void> _ensureDriverLoaded() async {
+    final authStore = context.read<AuthStore>();
+    if (authStore.role != AuthRole.driver) return;
+    final driverStore = context.read<DriverStore>();
+    if (driverStore.currentDriver != null) return;
+    final uid = Supabase.instance.client.auth.currentUser?.id;
+    if (uid == null || uid.isEmpty) return;
+    if (!mounted) return;
+    setState(() => _driverSyncing = true);
+    try {
+      await driverStore.syncDriverWithAuth(uid);
+    } catch (e) {
+      debugPrint('[profile_screen] driver sync error: $e');
+    } finally {
+      if (mounted) setState(() => _driverSyncing = false);
+    }
   }
 
   /// Strategy D — Pre-emptively refresh the JWT when the profile screen opens,
@@ -416,21 +436,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     value: authStore.currentClient?.phone ?? '-',
                   ),
                 ] else if (role == AuthRole.driver) ...[
-                  _InfoTile(
-                    icon: Icons.phone_outlined,
-                    label: 'Telemóvel',
-                    value: authStore.currentDriver?.phone ?? '-',
-                  ),
-                  _InfoTile(
-                    icon: Icons.directions_car_outlined,
-                    label: 'Veículo',
-                    value: driverStore.currentVehicleType.label,
-                  ),
-                  _InfoTile(
-                    icon: Icons.badge_outlined,
-                    label: 'Matrícula',
-                    value: authStore.currentDriver?.licensePlate ?? '-',
-                  ),
+                  if (_driverSyncing && driverStore.currentDriver == null)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: Spacing.lg),
+                      child: Center(
+                        child: SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ),
+                    )
+                  else ...[
+                    _InfoTile(
+                      icon: Icons.phone_outlined,
+                      label: 'Telemóvel',
+                      value: authStore.currentDriver?.phone ??
+                          driverStore.currentDriver?.phone ??
+                          '-',
+                    ),
+                    _InfoTile(
+                      icon: Icons.directions_car_outlined,
+                      label: 'Veículo',
+                      value: driverStore.currentVehicleType.label,
+                    ),
+                    _InfoTile(
+                      icon: Icons.badge_outlined,
+                      label: 'Matrícula',
+                      value: authStore.currentDriver?.licensePlate ?? '-',
+                    ),
+                  ],
                 ] else if (role == AuthRole.partner) ...[
                   _InfoTile(
                     icon: Icons.email_outlined,

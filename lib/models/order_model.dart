@@ -112,6 +112,14 @@ class OrderModel {
   /// Positive extra charge when [finalTotal] > [paymentBufferTotal].
   double? extraChargeAmount;
 
+  /// Items added by the driver during storeShopping (caso A: cliente
+  /// pediu via chat; caso B: substituição de produto faltando). Each entry:
+  /// `{name, price_base_cents, price_final_cents, qty, reason, added_at,
+  /// added_by}`. `price_final_cents` already includes the +15%
+  /// `non_partner_markup_pct`. Populated server-side by RPC
+  /// `finalize_storeshopping_purchase`.
+  List<Map<String, dynamic>> itemsAdded;
+
   final String? customerName;
   final String? userId;
   List<CartItem> items;
@@ -210,11 +218,13 @@ class OrderModel {
     this.walletAppliedCents = 0,
     this.menuCreditAppliedCents = 0,
     this.extraChargeAmount,
+    List<Map<String, dynamic>>? itemsAdded,
     this.tipCents = 0,
     this.isTakeaway = false,
     Map<String, bool>? substitutionResponses,
   })  : estimatedTotal = estimatedTotal ?? total,
         paymentBufferTotal = paymentBufferTotal ?? total,
+        itemsAdded = itemsAdded ?? <Map<String, dynamic>>[],
         substitutionResponses = substitutionResponses ?? <String, bool>{},
         items = List<CartItem>.unmodifiable(items ?? const <CartItem>[]),
         id = id ?? const Uuid().v4(),
@@ -297,6 +307,12 @@ class OrderModel {
         ?.map((e) => CartItem.fromJson(Map<String, dynamic>.from(e as Map)))
         .toList();
 
+    final rawItemsAdded = data['items_added'] as List?;
+    final parsedItemsAdded = rawItemsAdded
+            ?.map((e) => Map<String, dynamic>.from(e as Map))
+            .toList() ??
+        <Map<String, dynamic>>[];
+
     return OrderModel(
       id: data['id'] as String,
       total: (data['price'] as num? ?? 0).toDouble(),
@@ -354,6 +370,7 @@ class OrderModel {
       menuCreditAppliedCents:
           (data['menu_credit_applied_cents'] as num?)?.toInt() ?? 0,
       extraChargeAmount: (data['extra_charge_amount'] as num?)?.toDouble(),
+      itemsAdded: parsedItemsAdded,
       tipCents: (data['tip_amount_cents'] as num?)?.toInt() ?? 0,
       isTakeaway: data['is_takeaway'] as bool? ?? false,
       // driver_lat / driver_lng intentionally NOT read — single source of
@@ -414,6 +431,7 @@ class OrderModel {
       if (menuCreditAppliedCents > 0)
         'menu_credit_applied_cents': menuCreditAppliedCents,
       if (extraChargeAmount != null) 'extra_charge_amount': extraChargeAmount,
+      if (itemsAdded.isNotEmpty) 'items_added': itemsAdded,
       // BR §4.5 — canonical tip column is `tip_amount_cents` (not `tip_cents`).
       // rating_screen.dart also writes to this column + sets tip_added_at.
       'tip_amount_cents': tipCents,

@@ -21,6 +21,7 @@ import '../models/driver_model.dart';
 import '../models/order_model.dart';
 import '../services/driver_location_ping_service.dart';
 import '../services/navigation_service.dart';
+import '../services/heartbeat_service.dart';
 import '../services/sound_service.dart';
 import '../stores/driver_store.dart';
 import '../stores/order_store.dart';
@@ -54,6 +55,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
   String? _currentShowingOrderId;
   String? _highlightedOrderId;
   final SoundService _soundService = SoundService();
+  final HeartbeatService _heartbeatService = HeartbeatService();
   final Set<String> _processingOrderIds = {};
   StreamSubscription<Position>? _positionSubscription;
   OrderStore? _orderStore; // held so we can remove the listener in dispose
@@ -83,6 +85,16 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       // driver is already configured, configurePrimaryDriver just updates.
       _ensureDriverConfigured();
 
+      // FASE 1: arranca heartbeat se driver já está online (re-abertura
+      // do app, restore session). Toggle handlers tratam transições.
+      Future<void>.delayed(const Duration(milliseconds: 500), () {
+        if (!mounted) return;
+        final driver = context.read<DriverStore>().currentDriver;
+        if (driver?.isOnline == true) {
+          unawaited(_heartbeatService.start());
+        }
+      });
+
       // Safety net: if admin has banned/suspended/removed this driver while
       // the session was alive, force a clean exit on next app foreground.
       // Edge Function admin-force-driver-logout already handles the active
@@ -111,6 +123,17 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
     super.didChangeAppLifecycleState(state);
     if (state == AppLifecycleState.resumed && mounted) {
       _enforceEffectiveStatus();
+      // FASE 1 heartbeat: app voltou ao foreground — reata pings se ainda
+      // estamos online. Sem ping, backend cron marca offline em 90s.
+      final driver = context.read<DriverStore>().currentDriver;
+      if (driver?.isOnline == true) {
+        unawaited(_heartbeatService.start());
+      }
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      // App em background → para o timer (poupa bateria). O cron backend
+      // cobre offline automático após 90s sem pings.
+      unawaited(_heartbeatService.stop());
     }
   }
 
@@ -283,6 +306,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
     _orderStore?.removeListener(_onOrderStoreChanged);
     _positionSubscription?.cancel();
     _soundService.dispose();
+    _heartbeatService.stop();
     super.dispose();
   }
 
@@ -526,6 +550,12 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                 value: isAvailable,
                 onChanged: (value) {
                   orderStore.toggleDriverAvailability(value);
+                  // FASE 1: start/stop heartbeat conforme toggle.
+                  if (value) {
+                    unawaited(_heartbeatService.start());
+                  } else {
+                    unawaited(_heartbeatService.stop());
+                  }
                 },
               ),
             ],
@@ -893,7 +923,14 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                   ),
                   Switch(
                     value: isAvailable,
-                    onChanged: (v) => orderStore.toggleDriverAvailability(v),
+                    onChanged: (v) {
+                      orderStore.toggleDriverAvailability(v);
+                      if (v) {
+                        unawaited(_heartbeatService.start());
+                      } else {
+                        unawaited(_heartbeatService.stop());
+                      }
+                    },
                     activeColor: Colors.green.shade600,
                     activeTrackColor: Colors.green.shade200,
                   ),

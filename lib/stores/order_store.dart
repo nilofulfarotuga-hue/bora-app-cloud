@@ -1422,7 +1422,8 @@ class OrderStore extends ChangeNotifier {
   Future<String?> finalizePurchaseV2({
     required String orderId,
     required List<CartItem> items,
-    required List<Map<String, dynamic>> itemsAdded,
+    List<Map<String, dynamic>> itemsAdded = const [],
+    int? bagCount,
   }) async {
     final index = _orders.indexWhere((o) => o.id == orderId);
     if (index == -1) return 'Pedido não encontrado localmente.';
@@ -1447,6 +1448,7 @@ class OrderStore extends ChangeNotifier {
           'p_order_id': orderId,
           'p_items_status': items.map((i) => i.toJson()).toList(),
           'p_items_added': itemsAdded,
+          if (bagCount != null) 'p_bag_count': bagCount,
         },
       );
 
@@ -1460,10 +1462,14 @@ class OrderStore extends ChangeNotifier {
         final newPaymentStatusName = response['payment_status'] as String?;
 
         order.finalTotal = finalCents / 100.0;
-        order.refundAmount = refundCents / 100.0;
-        order.extraChargeAmount = extraCents / 100.0;
+        order.refundAmount = refundCents > 0 ? refundCents / 100.0 : null;
+        order.extraChargeAmount = extraCents > 0 ? extraCents / 100.0 : null;
         order.isPurchaseFinalized = true;
         order.items = List<CartItem>.unmodifiable(items);
+        final bagFeeCents = (response['bag_fee_cents'] as num?)?.toInt();
+        if (bagFeeCents != null) order.bagFee = bagFeeCents / 100.0;
+        final bagCountResp = (response['bag_count'] as num?)?.toInt();
+        if (bagCountResp != null) order.bagCount = bagCountResp;
         final rawAdded = response['items_added'];
         if (rawAdded is List) {
           order.itemsAdded = rawAdded

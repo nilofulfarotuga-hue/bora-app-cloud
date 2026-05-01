@@ -45,6 +45,33 @@ Inconsistência arquitectural mas funcional. O fix actual (Opção 2 — profile
 
 ---
 
+## BUG 30 — Pickup sem finalizar storeShopping (MÉDIO)
+
+[driver_order_action_helper.dart](../../lib/screens/driver_order_action_helper.dart) permite `markPickedUp` em storeShopping não-parceiro mesmo sem `isPurchaseFinalized=true`. Estafeta pode marcar pickup sem ter finalizado a compra, levando a `final_total=NULL` e bag_fee/items_added perdidos.
+
+**Fix proposto:**
+- Server-side guard em `pickUpOrder` RPC ou trigger DB que recusa transição `driverAccepted → pickedUp` quando `service_type='storeShopping' AND isPartnerStore=false AND is_purchase_finalized=false`.
+- Mensagem clara ao estafeta: "Tens de confirmar a compra primeiro."
+
+**Risk:** LOW (server-side guard)
+**Tempo estimado:** ~20 min + smoke
+
+---
+
+## Admin gap — Cash collected display (BAIXO)
+
+Painel admin order detail ([admin_order_detail_screen.dart](../../lib/screens/admin/admin_order_detail_screen.dart)) não mostra "Cash recebido pelo estafeta: €X" para storeShopping cash. Audit log já tem os dados (`final_total_cents`, `payment_method='cash'`, `bought_total_cents`).
+
+**Fix proposto:** Adicionar secção "Reconciliação cash" em admin_order_detail mostrando:
+- `final_total` (esperado a receber)
+- Estado: collected (delivered) | pending | not_applicable (não-cash)
+- Driver settlement reference (futuro)
+
+**Risk:** LOW (read-only display)
+**Tempo estimado:** ~25 min
+
+---
+
 ## Tech-debt referenciado em decisão paralela
 
 Ver [2026-05-01-tech-debt-financial-bypass-guc.md](2026-05-01-tech-debt-financial-bypass-guc.md) — refactor do trigger `enforce_financial_immutability` para usar `current_user='postgres'` em vez de GUC `app.financial_bypass`. Pós-launch.

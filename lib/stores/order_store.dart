@@ -1289,27 +1289,60 @@ class OrderStore extends ChangeNotifier {
     return advanced;
   }
 
-  Future<bool> finalizePurchase({
+  /// BUG 6 (Fase 3 / 2026-04-30) — Alarga guard p/ aceitar `driverAccepted`.
+  ///
+  /// O UI (`driver_map_screen.dart` _FinalizePurchaseButton) já mostra o botão
+  /// em `driverAccepted` por design (estafeta finaliza compra ANTES de marcar
+  /// pickup). A guarda anterior só aceitava `pickedUp/onTheWay`, causando
+  /// rejeição silenciosa e estafeta preso (Order 6746d61f preso 36h).
+  ///
+  /// Retorna `null` em sucesso, ou um `String` com a razão da falha — caller
+  /// deve mostrar a mensagem ao utilizador em vez do snackbar genérico.
+  Future<String?> finalizePurchaseWithReason({
     required String orderId,
     required double purchaseValue,
   }) async {
-    if (purchaseValue <= 0) return false;
+    if (purchaseValue <= 0) return 'Valor inválido (deve ser > 0).';
 
     final index = _orders.indexWhere((o) => o.id == orderId);
-    if (index == -1) return false;
+    if (index == -1) return 'Pedido não encontrado localmente.';
 
     final order = _orders[index];
 
     final isEligible = order.serviceType == OrderServiceType.storeShopping ||
         !order.isPartnerStore;
-    if (!isEligible) return false;
-
-    if (order.status != OrderStatus.pickedUp &&
-        order.status != OrderStatus.onTheWay) {
-      return false;
+    if (!isEligible) {
+      return 'Confirmar compra não disponível para parceiros.';
     }
 
-    if (order.isPurchaseFinalized) return false;
+    // BUG 6 fix: aceitar driverAccepted (estafeta finaliza ANTES de pickup).
+    if (order.status != OrderStatus.driverAccepted &&
+        order.status != OrderStatus.pickedUp &&
+        order.status != OrderStatus.onTheWay) {
+      return 'Estado do pedido (${order.status.name}) não permite finalizar compra.';
+    }
+
+    if (order.isPurchaseFinalized) {
+      return 'Compra já foi finalizada.';
+    }
+    return await _finalizePurchaseUnchecked(order, purchaseValue);
+  }
+
+  /// Wrapper bool legado — mantém retrocompatibilidade com chamadores antigos.
+  Future<bool> finalizePurchase({
+    required String orderId,
+    required double purchaseValue,
+  }) async {
+    final reason = await finalizePurchaseWithReason(
+      orderId: orderId,
+      purchaseValue: purchaseValue,
+    );
+    return reason == null;
+  }
+
+  /// Lógica interna sem guards — só chamada após validação em finalizePurchaseWithReason.
+  Future<String?> _finalizePurchaseUnchecked(OrderModel order, double purchaseValue) async {
+    final orderId = order.id;
 
     final breakdown = PricingService.calculateBreakdown(
       serviceType: order.serviceType,
@@ -1350,7 +1383,7 @@ class OrderStore extends ChangeNotifier {
       await supabase.from('orders').update(update).eq('id', orderId);
     } catch (e) {
       debugPrint('OrderStore: finalizePurchase DB error => $e');
-      return false;
+      return 'Erro a gravar na base de dados: $e';
     }
 
     order.finalPurchaseValue = purchaseValue;
@@ -1371,7 +1404,7 @@ class OrderStore extends ChangeNotifier {
       }
     }
 
-    return true;
+    return null;
   }
 
   bool hasPaymentAdjustment(OrderModel order) {

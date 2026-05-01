@@ -1791,11 +1791,21 @@ class _FinalizePurchaseButtonState extends State<_FinalizePurchaseButton> {
     if (value == null || !mounted) return;
 
     setState(() => _loading = true);
-    await context.read<OrderStore>().finalizePurchase(
+    final messenger = ScaffoldMessenger.of(context);
+    final reason = await context.read<OrderStore>().finalizePurchaseWithReason(
           orderId: widget.order.id,
           purchaseValue: value,
         );
-    if (mounted) setState(() => _loading = false);
+    if (!mounted) return;
+    setState(() => _loading = false);
+    if (reason != null) {
+      // BUG 6 fix: mensagem específica em vez de "Erro ao confirmar compra".
+      messenger.showSnackBar(SnackBar(content: Text(reason)));
+    } else {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Compra confirmada.')),
+      );
+    }
   }
 
   @override

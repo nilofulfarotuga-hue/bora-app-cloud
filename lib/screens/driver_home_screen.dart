@@ -529,18 +529,6 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
           // Token balance chip — uses scoped selector value (no full watch).
           _TokenChip(balance: tokenBalance),
           IconButton(
-            tooltip: 'Perfil',
-            icon: const Icon(Icons.person_outline, color: Colors.white),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const ProfileScreen(),
-                ),
-              );
-            },
-          ),
-          IconButton(
             tooltip: "Ganhos",
             icon: const Icon(Icons.bar_chart),
             onPressed: () {
@@ -817,6 +805,18 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                   const Spacer(),
                   // Token balance chip — uses scoped selector value.
                   _TokenChip(balance: tokenBalance),
+                  const SizedBox(width: 8),
+                  // Profile shortcut — between Token and Earnings
+                  // (matches Uber/Glovo: profile next to wallet/balance).
+                  _FloatingIconButton(
+                    icon: Icons.person_outline,
+                    tooltip: 'Perfil',
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const ProfileScreen()),
+                    ),
+                  ),
                   const SizedBox(width: 8),
                   // Earnings shortcut
                   _FloatingIconButton(

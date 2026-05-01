@@ -2265,7 +2265,12 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                                   ),
                                 ),
                                 Text(
-                                  '€${(item.price * item.quantity).toStringAsFixed(2)}',
+                                  // BUG 38: items adicionados pelo estafeta
+                                  // mostram preço FINAL (com markup +15%) já
+                                  // aqui, para coincidir com o resumo lá em
+                                  // baixo. Items canónicos mostram price tal
+                                  // como vieram (cliente já pagou esse).
+                                  '€${(_isExtraItem(item) ? item.price * (1 + _markupPctDisplay) * item.quantity : item.price * item.quantity).toStringAsFixed(2)}',
                                   style: TextStyle(
                                     fontWeight: FontWeight.w600,
                                     fontSize: 14,
@@ -2491,7 +2496,7 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
               if (addedFinalTotal > 0) ...[
                 const SizedBox(height: 4),
                 _SummaryRow(
-                    label: 'Adicionados (+15%)',
+                    label: 'Adicionados',
                     value: addedFinalTotal,
                     color: Colors.blue),
               ],

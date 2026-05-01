@@ -72,6 +72,25 @@ Painel admin order detail ([admin_order_detail_screen.dart](../../lib/screens/ad
 
 ---
 
+## BUG 39 — Polyline rota não acompanha estafeta em tempo real (MÉDIO)
+
+Linha azul do mapa do estafeta é actualizada via `_trimRouteBehindDriver(currentPos)` ([driver_map_screen.dart:352](../../lib/screens/driver_map_screen.dart#L352)) e `_updateRouteMulti(driverPosition, stops)` ([driver_map_screen.dart:809](../../lib/screens/driver_map_screen.dart#L809)). Mas:
+
+- **50 m throttle** ([L832-839](../../lib/screens/driver_map_screen.dart#L832-L839)): só re-fetch da rota se driver mexeu ≥50m. Pode parecer estática em movimentos curtos.
+- **Trim only ≥3 points** ([L355](../../lib/screens/driver_map_screen.dart#L355)): rotas curtas não são trimmadas.
+- **Key cache** ([L828](../../lib/screens/driver_map_screen.dart#L828)): se origin+stops não mudou, ignora — quando driver desvia da rota original (ex: GPS imprecisão ou rua fechada), polyline fica congelada na rota desactualizada.
+
+**Fix proposto (sessão separada — toca lifecycle GPS BUG-016 PRONTO):**
+- Detectar deriva da rota: `_distanceFromRoute(currentPos)` ([L375](../../lib/screens/driver_map_screen.dart#L375)) já existe. Se >50m da rota, force `forceRouteRefresh()` ([L387](../../lib/screens/driver_map_screen.dart#L387)).
+- Reduzir 50m throttle para 20-30m em mode active delivery (status pickedUp/onTheWay).
+- Stream de driver_locations realtime → trigger trim+update sem 50m gate.
+
+**Risk:** MED (toca lifecycle GPS BUG-016 PRONTO no checklist).
+**Tempo estimado:** 45 min + smoke E2E em movimento real.
+**Pré-requisito:** launch estabilizado, branch separada.
+
+---
+
 ## Tech-debt referenciado em decisão paralela
 
 Ver [2026-05-01-tech-debt-financial-bypass-guc.md](2026-05-01-tech-debt-financial-bypass-guc.md) — refactor do trigger `enforce_financial_immutability` para usar `current_user='postgres'` em vez de GUC `app.financial_bypass`. Pós-launch.

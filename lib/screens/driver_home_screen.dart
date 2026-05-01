@@ -41,6 +41,10 @@ class DriverHomeScreen extends StatefulWidget {
 class _DriverHomeScreenState extends State<DriverHomeScreen>
     with WidgetsBindingObserver {
   Set<String> _knownOrderIds = {};
+  // BUG 36: dedupe — cobre race entre realtime e refresh manual que dispara
+  // _handleNewOrders 2× em <100ms para o mesmo order.id. Limpa ao sair de
+  // callingDriver (aceite, rejeitado, expirado).
+  final Set<String> _alreadyAlertedOrderIds = <String>{};
   bool _isShowingDialog = false;
   // ID of the offer currently visible in _showNewOrderDialog (null when none).
   // Used to discard duplicate stream re-emissions for the same offer and to
@@ -1605,7 +1609,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       final next = candidates.first;
       highlightCandidate = next.id;
 
-      if (newIds.contains(next.id)) {
+      if (newIds.contains(next.id) &&
+          !_alreadyAlertedOrderIds.contains(next.id)) {
+        _alreadyAlertedOrderIds.add(next.id);
         unawaited(_triggerNewOrderFeedback(next));
         unawaited(_soundService.playLoop());
       }
@@ -1626,6 +1632,14 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
     }
 
     _knownOrderIds = currentIds;
+    // Order saiu de callingDriver (aceite/rejeitado/expirado) → liberta o
+    // guard para que possa voltar a alertar caso reapareça (improvável, mas
+    // mantém Set bounded).
+    final callingIds = orders
+        .where((o) => o.status == OrderStatus.callingDriver)
+        .map((o) => o.id)
+        .toSet();
+    _alreadyAlertedOrderIds.removeWhere((id) => !callingIds.contains(id));
 
     // Stop sound as soon as there are no more available orders for this driver
     // (covers: order accepted, order expired, driver rejected last order).

@@ -51,7 +51,8 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen>
           .select(
               'id, status, payment_method, payment_status, payment_intent_id, '
               'price, total, final_total, vendor_name, restaurant_id, user_id, '
-              'assigned_driver_id, items, dropoff_address, pickup_address, '
+              'assigned_driver_id, items, items_added, '
+              'dropoff_address, pickup_address, '
               'cancel_reason, cancelled_at, '
               'cancelled_by, cancellation_initiator, cancellation_reason_code, '
               'refund_id, refund_status, refund_amount, refund_method, '
@@ -253,36 +254,119 @@ class _ItemsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = order['items'];
-    if (items == null) {
+    final itemsAdded = order['items_added'];
+    final canonical = items is List ? items : <dynamic>[];
+    final added = itemsAdded is List ? itemsAdded : <dynamic>[];
+
+    if (canonical.isEmpty && added.isEmpty) {
       return const Center(child: Text('Sem items registados.'));
     }
-    final list = items is List ? items : <dynamic>[];
-    if (list.isEmpty) {
-      return const Center(child: Text('Sem items registados.'));
-    }
-    return ListView.separated(
+
+    return ListView(
       padding: const EdgeInsets.all(12),
-      itemCount: list.length,
-      separatorBuilder: (_, __) => const Divider(height: 1),
-      itemBuilder: (_, i) {
-        final item = list[i];
-        if (item is! Map) return const SizedBox.shrink();
-        final m = Map<String, dynamic>.from(item);
-        final qty = m['qty'] ?? m['quantity'] ?? 1;
-        final name = m['name'] ?? m['title'] ?? '—';
-        final price = m['price'] ?? m['line_total'];
-        return ListTile(
-          dense: true,
-          leading: CircleAvatar(
-            backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-            child: Text('${qty}x', style: const TextStyle(fontSize: 11)),
+      children: [
+        if (canonical.isNotEmpty) ...[
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 4),
+            child: Text('Items do pedido',
+                style: TextStyle(
+                    fontWeight: FontWeight.w700, fontSize: 14)),
           ),
-          title: Text(name.toString()),
-          trailing: price != null
-              ? Text('€${(price as num).toStringAsFixed(2)}')
-              : null,
-        );
-      },
+          for (final raw in canonical)
+            if (raw is Map) _buildCanonicalRow(Map<String, dynamic>.from(raw)),
+        ],
+        if (added.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+              children: [
+                const Icon(Icons.add_box_outlined,
+                    size: 18, color: Colors.blue),
+                const SizedBox(width: 6),
+                Text('Adicionados pelo estafeta (${added.length})',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                        color: Colors.blue)),
+              ],
+            ),
+          ),
+          for (final raw in added)
+            if (raw is Map) _buildAddedRow(Map<String, dynamic>.from(raw)),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildCanonicalRow(Map<String, dynamic> m) {
+    final qty = m['qty'] ?? m['quantity'] ?? 1;
+    final name = m['name'] ?? m['title'] ?? '—';
+    final price = m['price'] ?? m['line_total'];
+    final status = m['purchaseStatus'] ?? m['purchase_status'];
+    Color? bg;
+    Widget? leadingIcon;
+    if (status == 'bought') {
+      bg = Colors.green.shade50;
+      leadingIcon = const Icon(Icons.check_circle,
+          color: Colors.green, size: 20);
+    } else if (status == 'unavailable') {
+      bg = Colors.red.shade50;
+      leadingIcon = const Icon(Icons.cancel, color: Colors.red, size: 20);
+    }
+    return Container(
+      color: bg,
+      child: ListTile(
+        dense: true,
+        leading: leadingIcon ??
+            CircleAvatar(
+              backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+              child: Text('${qty}x', style: const TextStyle(fontSize: 11)),
+            ),
+        title: Text(name.toString(),
+            style: TextStyle(
+              decoration: status == 'unavailable'
+                  ? TextDecoration.lineThrough
+                  : null,
+            )),
+        subtitle: status != null
+            ? Text(status.toString(),
+                style: const TextStyle(fontSize: 11))
+            : null,
+        trailing: price != null
+            ? Text('$qty× €${(price as num).toStringAsFixed(2)}')
+            : null,
+      ),
+    );
+  }
+
+  Widget _buildAddedRow(Map<String, dynamic> m) {
+    final name = m['name'] ?? '—';
+    final qty = (m['qty'] as num?)?.toInt() ?? 1;
+    final baseCents = (m['price_base_cents'] as num?)?.toInt() ?? 0;
+    final finalCents = (m['price_final_cents'] as num?)?.toInt() ?? baseCents;
+    final reason = m['reason'] as String? ?? 'driver_substitution';
+    final addedAt = m['added_at'] as String?;
+    return Container(
+      color: Colors.blue.shade50,
+      child: ListTile(
+        dense: true,
+        leading: const Icon(Icons.add_box, color: Colors.blue, size: 20),
+        title: Text(name.toString()),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Base €${(baseCents / 100).toStringAsFixed(2)}'
+                ' · Cliente €${(finalCents / 100).toStringAsFixed(2)} (×$qty)',
+                style: const TextStyle(fontSize: 11)),
+            Text('$reason${addedAt != null ? " · $addedAt" : ""}',
+                style: TextStyle(
+                    fontSize: 10, color: Colors.grey.shade700)),
+          ],
+        ),
+        trailing: Text('€${(finalCents * qty / 100).toStringAsFixed(2)}',
+            style: const TextStyle(fontWeight: FontWeight.w700)),
+      ),
     );
   }
 }

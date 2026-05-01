@@ -69,11 +69,6 @@ class _TipSelectorState extends State<TipSelector> {
           'Gorjeta (opcional)',
           style: TextStyle(fontWeight: FontWeight.w700),
         ),
-        const SizedBox(height: 4),
-        const Text(
-          '80% vai para o estafeta.',
-          style: TextStyle(fontSize: 12, color: Colors.black54),
-        ),
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,

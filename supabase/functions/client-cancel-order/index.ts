@@ -105,6 +105,33 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: 'order_id required' }, 400);
   }
 
+  // BUG-NEW-2 (Fase 6 / 2026-04-30): validar reason contra enum + cap em 200 chars.
+  const REASON_ENUM = new Set([
+    'changed_mind',
+    'wrong_address',
+    'wrong_items',
+    'too_long',
+    'driver_unresponsive',
+    'partner_unresponsive',
+    'payment_failed',
+    'payment_abandoned',
+    'other',
+  ]);
+  if (reason !== undefined && reason !== null) {
+    const trimmed = reason.trim();
+    if (trimmed.length > 200) {
+      return jsonResponse({ error: 'reason_too_long', max: 200 }, 400);
+    }
+    const head = trimmed.split(':', 1)[0].trim();
+    if (!REASON_ENUM.has(head)) {
+      return jsonResponse({
+        error: 'invalid_reason',
+        details: 'Use one of: ' + Array.from(REASON_ENUM).join(', ') + ' (or "other:<texto>")',
+      }, 400);
+    }
+    reason = trimmed;
+  }
+
   // ── Authenticate caller ──────────────────────────────────────────────────
   const authHeader = req.headers.get('Authorization') ?? '';
   const token = authHeader.replace(/^Bearer\s+/i, '').trim();

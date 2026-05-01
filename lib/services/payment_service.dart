@@ -48,16 +48,18 @@ class PaymentService {
         paymentIntentClientSecret: clientSecret,
         merchantDisplayName: 'BORA APP',
         style: ThemeMode.system,
-        // Wallet payments — Stripe routes these through the SAME PaymentIntent,
-        // so the webhook-based server-trusted flow remains intact.
+        // Apple Pay (iOS) — funciona out-of-the-box em Portugal Stripe LIVE.
         applePay: const PaymentSheetApplePay(
           merchantCountryCode: 'PT',
         ),
-        googlePay: const PaymentSheetGooglePay(
-          merchantCountryCode: 'PT',
-          currencyCode: 'EUR',
-          testEnv: kDebugMode,
-        ),
+        // BUG 9 (Fase 5 / 2026-04-30): Google Pay desativado até Danilo
+        // configurar Stripe Dashboard:
+        //   1. Stripe → Settings → Payment methods → activar Google Pay
+        //   2. Domain verification (live mode requires a verified domain)
+        //   3. Android Play Console: registar SHA-1 da app de produção
+        //   4. Re-enable: passar PaymentSheetGooglePay(...) ao retomar.
+        // Doc completa: docs/google-pay-setup.md (criada nesta fase).
+        googlePay: null,
       ),
     );
     await Stripe.instance.presentPaymentSheet();

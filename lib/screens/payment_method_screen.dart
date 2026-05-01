@@ -80,7 +80,17 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
   Widget build(BuildContext context) {
     final cartStore = context.watch<CartStore>();
     final pricing = cartStore.pricingBreakdown;
-    final totalToPay = pricing.customerTotal;
+    // BUG 2 (Fase 4 / 2026-04-30): subtrair wallet ao totalToPay.
+    // Antes: pricing.customerTotal era mostrado integralmente. Cliente via
+    // €148.69 mesmo após aplicar saldo no cart_screen — desalinhado com
+    // "Total a pagar (após saldo)" do cart bottom sheet. Stripe cobrava
+    // o full total porque payment_method_screen não desconta wallet aqui.
+    // Fix: descontar walletApplied a totalToPay para que tokens e Stripe
+    // operem sobre o valor REAL após saldo.
+    final double walletAppliedEur = cartStore.walletAppliedCents / 100.0;
+    final double totalAfterWallet =
+        (pricing.customerTotal - walletAppliedEur).clamp(0.0, double.infinity);
+    final totalToPay = totalAfterWallet;
     final hasApartmentDelivery = cartStore.apartmentDelivery;
     double baseDeliveryFee = pricing.deliveryFee - pricing.apartmentSurcharge;
     if (baseDeliveryFee < 0) {
@@ -90,6 +100,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     // ── Token discount calculation ─────────────────────────────────────────
     // BR: TOKEN_MAX_DISCOUNT_RATIO = 0.50, TOKEN_VALUE_EUR = 0.005
     // (100 tokens = €0.50 → 1 token = €0.005)
+    // BUG 2: maxDiscountEuro calculado sobre totalToPay já SEM wallet.
     final double maxDiscountEuro =
         totalToPay * BRTokens.TOKEN_MAX_DISCOUNT_RATIO;
     final int maxTokensUsable =
@@ -182,6 +193,14 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                                 ),
                               ],
                             ),
+                          ),
+
+                        // BUG 2 fix: linha do saldo aplicado, alinhada com cart_screen.
+                        if (walletAppliedEur > 0)
+                          _SummaryRow(
+                            label: 'Saldo Bora aplicado',
+                            value: -walletAppliedEur,
+                            isDiscount: true,
                           ),
 
                         // ── Token discount toggle ──────────────────────────

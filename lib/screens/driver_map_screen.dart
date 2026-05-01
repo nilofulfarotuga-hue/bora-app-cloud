@@ -579,16 +579,18 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
       );
     }
 
-    // Uber/Glovo style: só o PRÓXIMO stop tem marker no mapa.
-    // Os restantes stops ficam visíveis no painel inferior (_StopList).
-    if (optimizedRoute.stops.isNotEmpty) {
-      final stop = optimizedRoute.stops.first;
+    // BUG 7 (Fase 6 / 2026-04-30): mostrar TODOS os stops simultaneamente.
+    // Antes: só o NEXT stop tinha marker → estafeta não via partner pin
+    // depois de marcar pickup nem em pedidos com batching.
+    // Agora: pickup laranja + delivery verde sempre visíveis em paralelo.
+    final totalStops = optimizedRoute.stops.length;
+    for (var i = 0; i < totalStops; i++) {
+      final stop = optimizedRoute.stops[i];
       final isPickup = stop.isPickup;
-      final totalStops = optimizedRoute.stops.length;
-      final stepLabel = totalStops > 1 ? ' 1/$totalStops' : '';
+      final stepLabel = totalStops > 1 ? ' ${i + 1}/$totalStops' : '';
       markers.add(
         Marker(
-          markerId: const MarkerId('stop_next'),
+          markerId: MarkerId('stop_${i}_${stop.orderId}'),
           position: stop.location.toGMaps(),
           icon: isPickup
               ? MapMarkerHelper.pickupIcon
@@ -597,7 +599,8 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
             title: isPickup ? 'Recolha$stepLabel' : 'Entrega$stepLabel',
             snippet: stop.label,
           ),
-          zIndexInt: 1,
+          // Stop seguinte (i==0) tem zIndex maior para destaque.
+          zIndexInt: i == 0 ? 2 : 1,
         ),
       );
     }

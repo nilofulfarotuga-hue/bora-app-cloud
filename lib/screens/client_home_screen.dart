@@ -13,6 +13,7 @@ import '../stores/restaurant_store.dart';
 import '../stores/session_store.dart';
 import '../widgets/address_autocomplete_field.dart';
 import '../widgets/bora/bora.dart';
+import '../widgets/notification_bell.dart';
 import 'carry_groceries_screen.dart';
 import 'restaurants_screen.dart';
 import 'send_package_form_screen.dart';
@@ -144,6 +145,8 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
             title: firstName,
             subtitle: 'O que precisas hoje?',
             actions: [
+              // BUG 4 (Fase 6 / 2026-04-30): NotificationBell agora visível.
+              const NotificationBell(),
               IconButton(
                 icon: const Icon(Icons.swap_horiz, color: Colors.white),
                 tooltip: 'Mudar modo',

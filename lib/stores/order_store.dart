@@ -367,6 +367,170 @@ class OrderStore extends ChangeNotifier {
     }
   }
 
+  /// BUG 1 / Fase 2 (2026-04-30) — Card payment-first flow.
+  ///
+  /// Builds the `cart_input` payload (same shape as the create_order RPC)
+  /// and invokes the `create-payment-intent` Edge Function in NEW mode.
+  /// **Does NOT create an order** — order is created server-side by
+  /// `finalize-order-from-intent` after the Stripe webhook fires
+  /// `payment_intent.succeeded`.
+  ///
+  /// Returns `{clientSecret, paymentIntentId, draftId, amountCents}` on
+  /// success, or `null` on validation/network error.
+  Future<Map<String, dynamic>?> startCardPaymentDraft({
+    required OrderServiceType serviceType,
+    required double itemsSubtotal,
+    required LatLng destination,
+    List<CartItem>? items,
+    LatLng? pickupLocation,
+    double? distanceKm,
+    bool isPartnerStore = false,
+    bool apartmentDelivery = false,
+    bool requiresCar = false,
+    String? vendorName,
+    String? pickupAddress,
+    String? pickupStreet,
+    String? pickupCity,
+    String? pickupPostalCode,
+    String? dropoffAddress,
+    String? dropoffStreet,
+    String? dropoffCity,
+    String? dropoffPostalCode,
+    String? customerNotes,
+    String? clientPhone,
+    String? customerName,
+    int walletAppliedCents = 0,
+  }) async {
+    final liveUserId = supabase.auth.currentUser?.id;
+    if (liveUserId == null ||
+        (_authStore?.isGuestSession ?? true) ||
+        _authStore?.currentClient == null) {
+      debugPrint('[FLOW] startCardPaymentDraft BLOCKED — no authenticated client session');
+      return null;
+    }
+
+    double? googleDistance;
+    if (pickupLocation != null) {
+      try {
+        googleDistance = await MapsService.getDistanceKm(pickupLocation, destination);
+      } catch (e) {
+        debugPrint('startCardPaymentDraft: MapsService error => $e');
+      }
+    }
+    final resolvedDistance = _resolveDistance(
+      pickup: pickupLocation,
+      destination: destination,
+      providedDistance: googleDistance ?? distanceKm,
+    );
+
+    final clonedItems = items
+        ?.map(
+          (item) => CartItem(
+            productId: item.productId,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+          ),
+        )
+        .toList();
+
+    if (isPartnerStore && serviceType == OrderServiceType.restaurant) {
+      final restaurant = _restaurantStore?.restaurantByName(vendorName);
+      if (restaurant != null && !restaurant.isOpenNow()) return null;
+    }
+
+    final cartInput = <String, dynamic>{
+      'service_type': serviceType.name,
+      if (vendorName != null) 'vendor_name': vendorName,
+      'is_partner_store': isPartnerStore,
+      'distance_km': resolvedDistance,
+      'payment_method': 'card',
+      'subtotal': itemsSubtotal,
+      'apartment_delivery': apartmentDelivery,
+      'bag_count': 0,
+      'requires_car': requiresCar,
+      'wallet_applied_cents': walletAppliedCents,
+      if (pickupLocation != null) 'pickup_lat': pickupLocation.latitude,
+      if (pickupLocation != null) 'pickup_lng': pickupLocation.longitude,
+      'dropoff_lat': destination.latitude,
+      'dropoff_lng': destination.longitude,
+      if (pickupAddress != null) 'pickup_address': pickupAddress,
+      if (pickupStreet != null) 'pickup_street': pickupStreet,
+      if (pickupCity != null) 'pickup_city': pickupCity,
+      if (pickupPostalCode != null) 'pickup_postal_code': pickupPostalCode,
+      if (dropoffAddress != null) 'dropoff_address': dropoffAddress,
+      if (dropoffStreet != null) 'dropoff_street': dropoffStreet,
+      if (dropoffCity != null) 'dropoff_city': dropoffCity,
+      if (dropoffPostalCode != null) 'dropoff_postal_code': dropoffPostalCode,
+      if (customerNotes != null) 'customer_notes': customerNotes,
+      if (customerName != null) 'customer_name': customerName,
+      if (clientPhone != null) 'client_phone': clientPhone,
+      'items': clonedItems?.map((i) => i.toJson()).toList() ?? [],
+      if ((serviceType == OrderServiceType.restaurant ||
+              serviceType == OrderServiceType.storeShopping) &&
+          clonedItems != null)
+        'product_lines': clonedItems
+            .map((i) => {
+                  'product_id': i.productId,
+                  'quantity': i.quantity,
+                  'unit_price': i.price,
+                  'name': i.name,
+                })
+            .toList(),
+    };
+
+    debugPrint('[FLOW] startCardPaymentDraft → invoking create-payment-intent (new mode)');
+    try {
+      final response = await supabase.functions.invoke(
+        'create-payment-intent',
+        body: {'cart_input': cartInput},
+      );
+      final body = response.data as Map<String, dynamic>?;
+      if (body == null ||
+          body['clientSecret'] == null ||
+          body['paymentIntentId'] == null ||
+          body['draftId'] == null) {
+        debugPrint('[FLOW] startCardPaymentDraft: incomplete response: $body');
+        return null;
+      }
+      debugPrint('[FLOW] startCardPaymentDraft OK — draft=${body['draftId']} pi=${body['paymentIntentId']}');
+      return body;
+    } catch (e) {
+      debugPrint('[FLOW] startCardPaymentDraft FAILED: $e');
+      return null;
+    }
+  }
+
+  /// Polls `payment_drafts` for `used_at NOT NULL` after Stripe charge
+  /// confirmed. Returns the new `order_id` once webhook+finalize created
+  /// the order, or `null` on timeout (default 30s).
+  Future<String?> waitForOrderFromDraft(
+    String draftId, {
+    Duration timeout = const Duration(seconds: 30),
+    Duration pollInterval = const Duration(seconds: 2),
+  }) async {
+    final deadline = DateTime.now().add(timeout);
+    while (DateTime.now().isBefore(deadline)) {
+      try {
+        final row = await supabase
+            .from('payment_drafts')
+            .select('order_id, used_at')
+            .eq('id', draftId)
+            .maybeSingle();
+        if (row != null && row['used_at'] != null && row['order_id'] != null) {
+          final orderId = row['order_id'] as String;
+          debugPrint('[FLOW] waitForOrderFromDraft: order created → $orderId');
+          return orderId;
+        }
+      } catch (e) {
+        debugPrint('[FLOW] waitForOrderFromDraft poll error (continuing): $e');
+      }
+      await Future.delayed(pollInterval);
+    }
+    debugPrint('[FLOW] waitForOrderFromDraft TIMEOUT for draft=$draftId');
+    return null;
+  }
+
   Future<bool> createOrder({
     required OrderServiceType serviceType,
     required double itemsSubtotal,

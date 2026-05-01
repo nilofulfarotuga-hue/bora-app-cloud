@@ -354,6 +354,69 @@ class CartStore extends ChangeNotifier {
     _saveCart();
   }
 
+  /// BUG 1 / Fase 2 (2026-04-30) — Card payment-first flow.
+  ///
+  /// Builds the cart payload from this store's current state and invokes
+  /// the new `create-payment-intent` Edge Fn (mode B). Returns
+  /// `{clientSecret, paymentIntentId, draftId, amountCents}` on success
+  /// or `null` on validation/RPC error.
+  ///
+  /// **Does NOT clear the cart.** Caller must call [clearCart] only after
+  /// the Stripe charge is confirmed AND the order appears via realtime
+  /// (use [OrderStore.waitForOrderFromDraft]).
+  Future<Map<String, dynamic>?> startCardPaymentDraft(
+    OrderStore orderStore, {
+    String? clientPhone,
+    String? customerName,
+  }) async {
+    final isShoppingOrder = _serviceType == OrderServiceType.restaurant ||
+        _serviceType == OrderServiceType.storeShopping;
+    if (isShoppingOrder && _items.isEmpty) return null;
+    if (_pickupLocation == null) {
+      debugPrint('CartStore.startCardPaymentDraft: BLOCKED — pickupLocation null');
+      return null;
+    }
+    if (_deliveryLocation == null || _dropoffStreet.isEmpty) {
+      debugPrint('CartStore.startCardPaymentDraft: BLOCKED — delivery missing');
+      return null;
+    }
+
+    final breakdown = pricingBreakdown;
+
+    return orderStore.startCardPaymentDraft(
+      serviceType: _serviceType,
+      itemsSubtotal: breakdown.subtotal,
+      destination: _deliveryLocation!,
+      items: _items
+          .map(
+            (item) => CartItem(
+              name: item.name,
+              price: item.price,
+              quantity: item.quantity,
+            ),
+          )
+          .toList(),
+      pickupLocation: _pickupLocation,
+      distanceKm: breakdown.distanceKm,
+      isPartnerStore: _isPartnerStore,
+      requiresCar: _requiresCar,
+      vendorName: _vendorName,
+      pickupAddress: _pickupStreet ?? _vendorName,
+      pickupStreet: _pickupStreet,
+      pickupCity: _pickupCity,
+      pickupPostalCode: _pickupPostalCode,
+      dropoffAddress:
+          [_dropoffStreet, _dropoffCity].where((s) => s.isNotEmpty).join(', '),
+      dropoffStreet: _dropoffStreet,
+      dropoffCity: _dropoffCity,
+      dropoffPostalCode: _dropoffPostalCode,
+      clientPhone: clientPhone,
+      customerName: customerName,
+      apartmentDelivery: _apartmentDelivery,
+      walletAppliedCents: _walletAppliedCents,
+    );
+  }
+
   Future<bool> finishOrder(
     OrderStore orderStore, {
     required PaymentMethod paymentMethod,

@@ -426,67 +426,75 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     // Ensure valid Supabase session before inserting order (re-signs as guest if expired).
     await authStore.ensureSessionForOrder();
 
-    // ── Card: order must exist in DB before Stripe charges it ────────────────
-    // The edge function validates payment_buffer_total from the DB,
-    // so we create the order first (payment_status = pending), then charge.
+    // ── Card: PAYMENT-FIRST flow (BUG 1 / Fase 2, 2026-04-30) ────────────────
+    // Order is NOT created until Stripe charge confirms via webhook.
+    // No more orphan orders if user closes Stripe sheet / kills app.
+    //
+    // Steps:
+    //   1. cartStore.startCardPaymentDraft → create-payment-intent (NEW mode)
+    //      → payment_drafts row + Stripe PI (no order yet).
+    //   2. Stripe.presentPaymentSheet(clientSecret) → user pays.
+    //   3. Webhook payment_intent.succeeded → finalize-order-from-intent
+    //      → create_order(payment_already_confirmed=true) → dispatch.
+    //   4. Flutter polls payment_drafts for used_at → fetches order_id.
     if (_selectedMethod == PaymentMethod.card) {
-      // Step 1: create order in DB first
-      final ordered = await cartStore.finishOrder(
+      // Wallet-only path: no Stripe charge needed — fall back to legacy flow.
+      final cartTotalAfterWallet =
+          cartStore.pricingBreakdown.customerTotal -
+              (cartStore.walletAppliedCents / 100.0);
+      if (cartTotalAfterWallet <= 0) {
+        debugPrint('[Checkout] wallet covers full order — using legacy path');
+        // Use old finishOrder flow (cash-like) since no card charge needed.
+        final ordered = await cartStore.finishOrder(
+          orderStore,
+          paymentMethod: PaymentMethod.card,
+          paymentStatus: PaymentStatus.paid, // RPC will mark paid (charge_total<=0)
+          clientPhone: authStore.currentClient?.phone,
+          customerName: authStore.currentClient?.name,
+          tokensUsed: tokensUsed,
+        );
+        if (!mounted) return;
+        if (!ordered) {
+          setState(() => _isProcessing = false);
+          messenger.showSnackBar(const SnackBar(
+              content: Text('Não foi possível criar o pedido. Tente novamente.')));
+          return;
+        }
+        await _consumeTokensAndNavigate(tokensUsed);
+        return;
+      }
+
+      // Step 1: create draft + Stripe PI (no order yet)
+      final draft = await cartStore.startCardPaymentDraft(
         orderStore,
-        paymentMethod: PaymentMethod.card,
-        paymentStatus: PaymentStatus.pending,
         clientPhone: authStore.currentClient?.phone,
         customerName: authStore.currentClient?.name,
-        tokensUsed: tokensUsed,
       );
       if (!mounted) return;
-      if (!ordered) {
+      if (draft == null) {
         setState(() => _isProcessing = false);
-        messenger.showSnackBar(
-          const SnackBar(
-              content:
-                  Text('Não foi possível criar o pedido. Tente novamente.')),
-        );
+        messenger.showSnackBar(const SnackBar(
+            content:
+                Text('Não foi possível iniciar o pagamento. Tente novamente.')));
         return;
       }
 
-      // Step 2: charge against the real order ID.
-      // S1.5 (mixed payment): Stripe charge = total - wallet_applied_eur.
-      // Edge Fn validates against (price - wallet_applied_cents/100). Skip
-      // Stripe entirely when wallet covers the full order — RPC already
-      // marked payment_status='paid'.
-      final createdOrder = orderStore.orders.first;
-      final orderId = createdOrder.id;
-      final walletEur = createdOrder.walletAppliedCents / 100.0;
-      // §18 v2: menu credit (€2 from prior reservation) also reduces Stripe charge
-      final menuCreditEur = createdOrder.menuCreditAppliedCents / 100.0;
-      final stripeAmount = createdOrder.total - walletEur - menuCreditEur;
+      final clientSecret = draft['clientSecret'] as String;
+      final draftId = draft['draftId'] as String;
 
-      if (stripeAmount <= 0) {
-        // Wallet covered everything — payment_status already 'paid' server-side.
-        debugPrint(
-            '[Checkout] order ${createdOrder.id} fully paid by wallet '
-            '(€${walletEur.toStringAsFixed(2)}). Skipping Stripe.');
-        if (!mounted) return;
-        Navigator.of(context).pop(true);
-        return;
-      }
-
+      // Step 2: present Stripe sheet
       try {
-        final data = await paymentService.createPaymentIntent(
-          orderId: orderId,
-          amount: stripeAmount,
-        );
-        await paymentService.processPayment(data['clientSecret'] as String);
+        await paymentService.processPayment(clientSecret);
       } on StripeException catch (e) {
         if (!mounted) return;
         setState(() => _isProcessing = false);
         debugPrint(
             '[Checkout] card cancelled/declined: ${e.error.localizedMessage}');
+        // BUG 1 fix: NO order to clean up — webhook deletes draft on
+        // payment_intent.canceled / payment_failed. App-side: just dismiss.
         messenger.showSnackBar(
-          const SnackBar(content: Text('Pagamento não pôde ser concluído.')),
+          const SnackBar(content: Text('Pagamento cancelado. Sem cobrança.')),
         );
-        await _bailOutAndCancel(orderId);
         return;
       } catch (e) {
         if (!mounted) return;
@@ -494,19 +502,40 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
         debugPrint('[Checkout] card payment error: $e');
         messenger.showSnackBar(
           const SnackBar(
-            content: Text(
-                'Pagamento por cartão indisponível. Tente MBWay ou dinheiro.'),
+            content:
+                Text('Pagamento por cartão indisponível. Tente MBWay ou dinheiro.'),
             duration: Duration(seconds: 5),
           ),
         );
-        await _bailOutAndCancel(orderId);
         return;
       }
 
-      // Step 3: consume tokens + navigate.
-      // Dispatch is triggered server-side by the stripe-webhook Edge Function
-      // (payment_intent.succeeded → payment_status=paid → status=callingDriver
-      //  → dispatch-engine invoked). Flutter never writes payment_status.
+      // Step 3: wait for webhook to create order via finalize-order-from-intent
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Pagamento confirmado. A criar pedido...'),
+          duration: Duration(seconds: 4),
+        ),
+      );
+      // Capture navigator BEFORE await to avoid use_build_context_synchronously.
+      final navigator = Navigator.of(context);
+      final orderId = await orderStore.waitForOrderFromDraft(draftId);
+      if (!mounted) return;
+      if (orderId == null) {
+        setState(() => _isProcessing = false);
+        messenger.showSnackBar(const SnackBar(
+          content: Text(
+              'Pagamento confirmado mas a criação do pedido demorou. Verifica o histórico em alguns segundos.'),
+          duration: Duration(seconds: 6),
+        ));
+        // Clear cart anyway — order will appear via realtime when webhook completes.
+        cartStore.clearCart();
+        navigator.popUntil((route) => route.isFirst);
+        return;
+      }
+
+      // Step 4: success — clear cart + consume tokens + navigate
+      cartStore.clearCart();
       await _consumeTokensAndNavigate(tokensUsed);
       return;
     }

@@ -59,7 +59,9 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen>
               'refunded_at, created_at, '
               // T1.1: payment breakdown columns
               'wallet_applied_cents, tokens_applied_count, '
-              'tokens_applied_value_cents, stripe_charge_cents')
+              'tokens_applied_value_cents, stripe_charge_cents, '
+              // FASE 3 admin cash display
+              'driver_earnings, customer_total')
           .eq('id', widget.orderId)
           .maybeSingle();
 
@@ -396,6 +398,20 @@ class _PaymentTab extends StatelessWidget {
     final priceCents = (((order['price'] as num?) ?? 0) * 100).round();
     final hasMixedPayment = wallet > 0 || tokensCount > 0;
 
+    // FASE 3 — cash collected display
+    final orderStatus = order['status'] as String? ?? '';
+    final isCash = method == 'cash';
+    final isDelivered = orderStatus == 'delivered';
+    final cashCollected = (order['customer_total'] as num?)?.toDouble() ??
+        (order['final_total'] as num?)?.toDouble() ??
+        (order['price'] as num?)?.toDouble() ??
+        0;
+    final driverEarnings =
+        (order['driver_earnings'] as num?)?.toDouble() ?? 0;
+    // Cash adjustment = montante que driver deve à Bora no settlement
+    // (driver recebeu cash do cliente; Bora paga driver_earnings).
+    final cashAdjustment = cashCollected - driverEarnings;
+
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -412,6 +428,48 @@ class _PaymentTab extends StatelessWidget {
             ]),
           ),
         ),
+        // FASE 3: Cash entregue — só aparece se cash + delivered
+        if (isCash && isDelivered) ...[
+          const SizedBox(height: 12),
+          Card(
+            color: Colors.green.shade50,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Text('💵', style: TextStyle(fontSize: 22)),
+                      const SizedBox(width: 8),
+                      Text('Cash entregue',
+                          style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.green.shade800)),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  _row('Valor recebido pelo estafeta',
+                      '€${cashCollected.toStringAsFixed(2)}'),
+                  _row('Driver earnings',
+                      '€${driverEarnings.toStringAsFixed(2)}'),
+                  const Divider(),
+                  _row(
+                    'Cash adjustment (driver → Bora)',
+                    '€${cashAdjustment.toStringAsFixed(2)}',
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Settlement diário processa automaticamente.',
+                    style: TextStyle(
+                        fontSize: 11, color: Colors.grey.shade700),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
         // T1.1: Detalhe pagamento (decomposed components)
         if (hasMixedPayment) ...[
           const SizedBox(height: 12),

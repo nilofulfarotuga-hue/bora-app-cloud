@@ -1424,6 +1424,7 @@ class OrderStore extends ChangeNotifier {
     required List<CartItem> items,
     List<Map<String, dynamic>> itemsAdded = const [],
     int? bagCount,
+    Map<String, String> unavailablePhotos = const {},
   }) async {
     final index = _orders.indexWhere((o) => o.id == orderId);
     if (index == -1) return 'Pedido não encontrado localmente.';
@@ -1498,6 +1499,18 @@ class OrderStore extends ChangeNotifier {
         final warning = response['warning'] as String?;
         if (warning != null && warning.isNotEmpty) {
           debugPrint('[OrderStore] finalizePurchaseV2 warning: $warning');
+        }
+      }
+
+      // FASE 4: persiste fotos prova unavailable. Coluna não-financeira →
+      // UPDATE direct passa sem GUC bypass (trigger immutability ignora).
+      if (unavailablePhotos.isNotEmpty) {
+        try {
+          await supabase.from('orders').update({
+            'items_unavailable_photos': unavailablePhotos,
+          }).eq('id', orderId);
+        } catch (e) {
+          debugPrint('[OrderStore] unavailable_photos persist failed: $e');
         }
       }
       return null;

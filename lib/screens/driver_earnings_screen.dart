@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/app_colors.dart';
 import '../config/business_rules.dart' show BRTokens;
+import '../widgets/weekly_settlement_card.dart';
 
 class DriverEarningsScreen extends StatefulWidget {
   const DriverEarningsScreen({super.key});
@@ -388,6 +389,9 @@ class _DriverEarningsScreenState extends State<DriverEarningsScreen> {
                   child: ListView(
                     padding: const EdgeInsets.all(16),
                     children: [
+                      // FASE 4: novo card semanal (settlement Lisbon TZ)
+                      const WeeklySettlementCard(),
+                      const SizedBox(height: 16),
                       _BalanceCard(balance: _balance),
                       const SizedBox(height: 12),
                       Row(

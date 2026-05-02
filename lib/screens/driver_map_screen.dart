@@ -12,6 +12,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart' as ll;
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show Supabase, FileOptions;
+import 'package:url_launcher/url_launcher.dart';
 
 import '../config/business_rules.dart' show BRBags, BRDriver;
 import '../models/cart_item.dart';
@@ -1353,24 +1354,55 @@ class _BottomPanelState extends State<_BottomPanel> {
                     _FinalizedBanner(order: focusOrder),
                 ],
 
-                // Chat button — always visible for active single orders
+                // Chat + Call buttons — always visible for active single orders
                 if (!_isMultiStop) ...[
                   const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ChatScreen(
-                            order: focusOrder,
-                            senderType: ChatSenderType.driver,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ChatScreen(
+                                order: focusOrder,
+                                senderType: ChatSenderType.driver,
+                              ),
+                            ),
                           ),
+                          icon: const Icon(Icons.chat_bubble_outline),
+                          label: const Text('Chat'),
                         ),
                       ),
-                      icon: const Icon(Icons.chat_bubble_outline),
-                      label: const Text('Chat com cliente'),
-                    ),
+                      // FASE 5: tel: link directo. Twilio masking
+                      // post-launch (anotado em todos-pos-launch.md).
+                      if (focusOrder.clientPhone != null &&
+                          focusOrder.clientPhone!.trim().isNotEmpty) ...[
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () async {
+                              final tel = focusOrder.clientPhone!.trim();
+                              final uri = Uri.parse('tel:$tel');
+                              try {
+                                await launchUrl(uri);
+                              } catch (e) {
+                                if (!context.mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Não foi possível ligar: $e')),
+                                );
+                              }
+                            },
+                            icon: const Icon(Icons.phone_outlined),
+                            label: const Text('Ligar'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.green.shade700,
+                              side: BorderSide(color: Colors.green.shade300),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ],
               ],

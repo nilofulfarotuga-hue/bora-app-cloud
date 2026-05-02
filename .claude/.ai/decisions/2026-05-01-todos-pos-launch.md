@@ -91,6 +91,21 @@ Linha azul do mapa do estafeta é actualizada via `_trimRouteBehindDriver(curren
 
 ---
 
+## Twilio number masking (BAIXO, mas privacidade)
+
+[driver_map_screen.dart](../../lib/screens/driver_map_screen.dart) tem agora botão "Ligar" com `tel:${order.clientPhone}` directo. Cliente fica exposto ao número do estafeta e vice-versa. Para launch é OK (custo zero) mas longo-prazo deve usar mascaramento via Twilio (ou equivalente).
+
+**Plano pós-launch:**
+- Edge Function nova `dial-via-mask` que cria sessão Twilio Conference com 2 PINs.
+- Driver UI tap → invoca Edge Function → recebe número Twilio temporário → `tel:` para o número Twilio.
+- Cliente UI análoga.
+- Custo Twilio: ~€0.01/min PT.
+
+**Risk:** LOW (independent feature).
+**Tempo estimado:** ~2h + Twilio onboarding.
+
+---
+
 ## Tech-debt referenciado em decisão paralela
 
 Ver [2026-05-01-tech-debt-financial-bypass-guc.md](2026-05-01-tech-debt-financial-bypass-guc.md) — refactor do trigger `enforce_financial_immutability` para usar `current_user='postgres'` em vez de GUC `app.financial_bypass`. Pós-launch.

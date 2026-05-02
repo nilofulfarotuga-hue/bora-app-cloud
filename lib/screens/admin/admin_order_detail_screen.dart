@@ -52,7 +52,6 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen>
               'id, status, payment_method, payment_status, payment_intent_id, '
               'price, total, final_total, vendor_name, restaurant_id, user_id, '
               'assigned_driver_id, items, items_added, '
-              'items_unavailable_photos, '
               'dropoff_address, pickup_address, '
               'cancel_reason, cancelled_at, '
               'cancelled_by, cancellation_initiator, cancellation_reason_code, '
@@ -307,12 +306,6 @@ class _ItemsTab extends StatelessWidget {
     final name = m['name'] ?? m['title'] ?? '—';
     final price = m['price'] ?? m['line_total'];
     final status = m['purchaseStatus'] ?? m['purchase_status'];
-    final productId = (m['productId'] ?? m['product_id'])?.toString();
-    String? photoUrl;
-    final photosMap = order['items_unavailable_photos'];
-    if (photosMap is Map && productId != null) {
-      photoUrl = photosMap[productId] as String?;
-    }
     Color? bg;
     Widget? leadingIcon;
     if (status == 'bought') {
@@ -342,17 +335,9 @@ class _ItemsTab extends StatelessWidget {
             ? Text(status.toString(),
                 style: const TextStyle(fontSize: 11))
             : null,
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (photoUrl != null) ...[
-              _PhotoThumb(url: photoUrl),
-              const SizedBox(width: 8),
-            ],
-            if (price != null)
-              Text('$qty× €${(price as num).toStringAsFixed(2)}'),
-          ],
-        ),
+        trailing: price != null
+            ? Text('$qty× €${(price as num).toStringAsFixed(2)}')
+            : null,
       ),
     );
   }
@@ -741,32 +726,3 @@ String _amount(Map<String, dynamic> order) {
   return '0.00';
 }
 
-/// FASE 4: thumbnail clicável de foto prova "indisponível".
-/// Tap → dialog fullscreen com InteractiveViewer (zoom).
-class _PhotoThumb extends StatelessWidget {
-  const _PhotoThumb({required this.url});
-  final String url;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () => showDialog<void>(
-        context: context,
-        builder: (_) => Dialog(
-          child: InteractiveViewer(child: Image.network(url)),
-        ),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(6),
-        child: Image.network(
-          url,
-          width: 36,
-          height: 36,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) =>
-              const Icon(Icons.broken_image, size: 24),
-        ),
-      ),
-    );
-  }
-}

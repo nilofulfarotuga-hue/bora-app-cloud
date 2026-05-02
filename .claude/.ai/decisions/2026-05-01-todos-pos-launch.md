@@ -91,6 +91,16 @@ Linha azul do mapa do estafeta é actualizada via `_trimRouteBehindDriver(curren
 
 ---
 
+## Coluna orders.items_unavailable_photos não-usada (BAIXO)
+
+Coluna JSONB criada na sessão nocturna 2026-05-02 (FASE 4) para guardar URLs de fotos de prova "prateleira vazia". Feature foi revertida (UX intrusivo: foto em loop confundia estafeta). Coluna mantida em prod para reuso futuro:
+- Reactivar com câmera apenas opcional (botão "Adicionar foto" não bloqueante).
+- Storage policy `order-photos upload own` continua funcional para essa rota.
+
+**Acção:** nenhuma migration necessária. NÃO eliminar coluna (pode ser usada noutro caso de uso de fotos por driver, ex: foto de saco entregue).
+
+---
+
 ## Twilio number masking (BAIXO, mas privacidade)
 
 [driver_map_screen.dart](../../lib/screens/driver_map_screen.dart) tem agora botão "Ligar" com `tel:${order.clientPhone}` directo. Cliente fica exposto ao número do estafeta e vice-versa. Para launch é OK (custo zero) mas longo-prazo deve usar mascaramento via Twilio (ou equivalente).

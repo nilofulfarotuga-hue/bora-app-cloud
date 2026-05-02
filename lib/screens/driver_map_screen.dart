@@ -8,10 +8,8 @@ import 'package:flutter/foundation.dart'
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' hide LatLng;
-import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart' as ll;
 import 'package:provider/provider.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' show Supabase, FileOptions;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../config/business_rules.dart' show BRBags, BRDriver;
@@ -1972,10 +1970,6 @@ class _ShoppingListSheetContent extends StatefulWidget {
 class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
   late final List<CartItem> _items;
   late int _bagCount;
-  // FASE 4: foto prova prateleira vazia ao marcar item indisponível.
-  // Map<productId, publicUrl>. Persistido em orders.items_unavailable_photos.
-  final Map<String, String> _unavailablePhotos = {};
-  bool _uploadingPhoto = false;
 
   bool get _isRestaurant =>
       widget.order.serviceType == OrderServiceType.restaurant;
@@ -2131,52 +2125,6 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
 
   static const double _markupPctDisplay = 0.15; // server is source of truth
 
-  /// FASE 4: pede foto da prateleira, faz upload, devolve publicUrl.
-  /// Retorna null se driver cancelou ou upload falhou — neste caso, o item
-  /// NÃO é marcado como unavailable (estafeta tem de tirar foto).
-  Future<String?> _captureUnavailableProof(CartItem item) async {
-    final supabase = Supabase.instance.client;
-    final driverId = supabase.auth.currentUser?.id;
-    if (driverId == null) return null;
-
-    setState(() => _uploadingPhoto = true);
-    try {
-      final picker = ImagePicker();
-      final shot = await picker.pickImage(
-        source: ImageSource.camera,
-        imageQuality: 70,
-        maxWidth: 1280,
-      );
-      if (shot == null) return null;
-
-      final bytes = await shot.readAsBytes();
-      final ts = DateTime.now().millisecondsSinceEpoch;
-      // Path satisfaz policy "order-photos upload own" (foldername[1]=auth.uid).
-      final path =
-          '$driverId/${widget.order.id}/unavailable_${item.productId}_$ts.jpg';
-
-      await supabase.storage.from('order-photos').uploadBinary(
-            path,
-            bytes,
-            fileOptions: const FileOptions(
-              contentType: 'image/jpeg',
-              upsert: true,
-            ),
-          );
-      return supabase.storage.from('order-photos').getPublicUrl(path);
-    } catch (e) {
-      debugPrint('[unavailable photo] upload failed: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Falha a enviar foto: $e')),
-        );
-      }
-      return null;
-    } finally {
-      if (mounted) setState(() => _uploadingPhoto = false);
-    }
-  }
-
   // ── Build ───────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
@@ -2302,10 +2250,6 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                           ? () {
                               setState(() {
                                 item.purchaseStatus = 'pending';
-                                // FASE 4: limpar foto se reverter
-                                // (driver vai voltar a marcar e tirar
-                                // nova prova se quiser).
-                                _unavailablePhotos.remove(item.productId);
                               });
                             }
                           : null,
@@ -2407,38 +2351,14 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                                     child: SizedBox(
                                       height: 32,
                                       child: ElevatedButton.icon(
-                                        onPressed: _uploadingPhoto
-                                            ? null
-                                            : () async {
-                                                // FASE 4: foto prova
-                                                // obrigatória.
-                                                final url =
-                                                    await _captureUnavailableProof(
-                                                        item);
-                                                if (!mounted ||
-                                                    url == null) {
-                                                  return;
-                                                }
-                                                setState(() {
-                                                  item.purchaseStatus =
-                                                      'unavailable';
-                                                  _unavailablePhotos[
-                                                          item.productId] =
-                                                      url;
-                                                });
-                                              },
-                                        icon: _uploadingPhoto
-                                            ? const SizedBox(
-                                                width: 14,
-                                                height: 14,
-                                                child:
-                                                    CircularProgressIndicator(
-                                                        strokeWidth: 2,
-                                                        color:
-                                                            Colors.white))
-                                            : const Icon(
-                                                Icons.photo_camera_outlined,
-                                                size: 16),
+                                        onPressed: () {
+                                          setState(() {
+                                            item.purchaseStatus =
+                                                'unavailable';
+                                          });
+                                        },
+                                        icon: const Icon(Icons.close,
+                                            size: 16),
                                         label: const Text('Não há',
                                             style: TextStyle(fontSize: 12)),
                                         style: ElevatedButton.styleFrom(
@@ -2713,7 +2633,6 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                             items: canonicalItems,
                             itemsAdded: itemsAdded,
                             bagCount: _isRestaurant ? 1 : _bagCount,
-                            unavailablePhotos: _unavailablePhotos,
                           );
                           if (!mounted) return;
                           if (reason != null) {

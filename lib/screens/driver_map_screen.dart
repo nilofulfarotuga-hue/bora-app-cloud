@@ -29,10 +29,17 @@ import '../widgets/address_text.dart';
 import 'chat_screen.dart';
 import 'driver_order_action_helper.dart';
 
+// BUG 29: Google sobrepunha o nome da rua mais próxima (ex: "Alexandre
+// Herculano") perto do marker do dropoff, fazendo crer ao estafeta que a
+// entrega era nessa rua e não na real (Rua do Torreão). orders.dropoff_address
+// na DB é correcto; era o Google a renderizar o POI label nativo.
+// Fix: esconder labels de texto em road.local (mantém arterial+highway para
+// orientação geral). Driver navega pela polyline + GPS da app de mapas.
 const String _mapStyle = '''[
   {"featureType":"poi","stylers":[{"visibility":"off"}]},
   {"featureType":"transit","stylers":[{"visibility":"simplified"}]},
   {"featureType":"road","elementType":"labels.icon","stylers":[{"visibility":"off"}]},
+  {"featureType":"road.local","elementType":"labels.text","stylers":[{"visibility":"off"}]},
   {"featureType":"road","elementType":"geometry.fill","stylers":[{"color":"#FFFFFF"}]},
   {"featureType":"road.arterial","elementType":"geometry.fill","stylers":[{"color":"#F3F4F6"}]},
   {"featureType":"road.highway","elementType":"geometry.fill","stylers":[{"color":"#E5E7EB"}]},

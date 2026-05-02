@@ -22,6 +22,7 @@ import 'admin_orders_screen.dart';
 import 'admin_referrals_screen.dart';
 import 'admin_search_kpi_screen.dart';
 import 'admin_send_notification_screen.dart';
+import 'admin_settlements_screen.dart';
 import '../../widgets/admin_closed_partners_card.dart';
 import '../../widgets/admin_reservations_today_card.dart';
 import 'admin_partners_screen.dart';
@@ -226,6 +227,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       context,
                       MaterialPageRoute(
                           builder: (_) => const AdminDriverPaymentsScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.account_balance,
+                  title: 'Settlements semanais',
+                  subtitle: 'Fecho semanal driver + processar MBWay',
+                  color: Colors.indigo,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminSettlementsScreen())),
                 ),
                 const SizedBox(height: 10),
                 _NavCard(

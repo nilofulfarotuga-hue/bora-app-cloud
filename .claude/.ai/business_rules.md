@@ -41,8 +41,26 @@
 - Até 4 km: **€2,50**
 - Acima de 4 km: **€2,50 + €0,50 por km adicional**
 
-### 2.2 Taxa de Serviço
-- Cobrada separadamente do valor dos produtos
+### 2.2 Taxa de Serviço (CONFIRMADO via MCP — Sessão 2 · 2026-05-03)
+
+| Tipo de pedido | Taxa de serviço (cliente paga) | Fonte |
+|---|---|---|
+| **Parceiro** (restaurant + storeShopping com `is_partner_store=true`) | **5% × subtotal** | `client_service_fee_pct = 0.05` |
+| **Não-parceiro** (restaurant + storeShopping com `is_partner_store=false`) | **€2,50 FIXO** (não percentagem) | `delivery_base_fee_cents = 250` |
+| **Logística** (carryGroceries / sendPackage) | Incluída no `packageFee` (sem taxa separada) | — |
+
+> ⚠️ Confundir parceiro vs não-parceiro = erro grave. Verificar SEMPRE `is_partner_store`.
+
+### 2.2.1 Pagamento ao Estafeta (driver_earnings)
+
+| Caso | Fórmula | Notas |
+|---|---|---|
+| **Parceiro** (rest. + retail) | `€3,80 + €0,20×km + apt + (stacking? €3 : 0)` | SEM €0,80, SEM 30% lucro Bora |
+| **Não-parceiro `storeShopping`** | `€3,80 + €0,80 + €0,20×km + apt + 30%×boraNet` | €0,80 porque estafeta compra E entrega |
+| **Não-parceiro `restaurant`** | `€3,80 + €0,20×km + apt + 30%×boraNet` | SEM €0,80 (não compra) |
+| **Logística** (carryGroceries / sendPackage) | `€4,00 + €0,50×km + €0,80 + apt` | Base mais alta + €0,80 sempre |
+
+`boraNet = (subtotal×0,15 + deliveryFee + serviceFee) − driverFixed`
 
 ### 2.3 Entrega no Apartamento
 - Surcharge adicional de **+€1,50** quando cliente ativa
@@ -59,6 +77,22 @@
 ### 2.5 Sacos de Transporte
 - **Restaurante parceiro:** 1 saco fixo, **€0,30** (automático)
 - **Mercado (storeShopping):** **€0,10 por saco**, contados pelo estafeta (mín 0, máx 20)
+
+### 2.6 Fonte autoritativa do pricing (Sessão 2 · 2026-05-03)
+
+- **RPC `pricing_calculate` (server-side)** = ÚNICA fonte autoritativa. Lê `platform_settings`:
+  `driver_base_fee_cents=380`, `driver_per_km_cents=20`, `driver_surcharge_cents=80`,
+  `driver_profit_share_pct=0.30`, `delivery_base_fee_cents=250`,
+  `client_service_fee_pct=0.05`, `partner_visible_commission_pct=0.10`,
+  `partner_hidden_markup_pct=0.05`, `non_partner_markup_pct=0.15`,
+  `bag_fee_restaurant_cents=30`, `bag_fee_supermarket_per_bag_cents=10`.
+- **`OrderStore.createOrder`** ([lib/stores/order_store.dart:714-769](lib/stores/order_store.dart#L714-L769))
+  invoca `create_order` RPC e popula `OrderModel` integralmente a partir do `rpcData`
+  (`service_fee`, `driver_earnings`, `platform_commission`, `bag_fee`, `payment_buffer_total`).
+- **`PricingService.calculateBreakdown`** ([lib/services/pricing_service.dart](lib/services/pricing_service.dart))
+  é classificado **PREVIEW-ONLY [X]**: usado só para estimativa UX no carrinho e payment_method;
+  os valores finais do pedido não dependem deste cálculo. Mesmo assim, fórmulas Flutter
+  são byte-equivalentes às RPC (validado Sessão 2 — divergência esperada €0,00 nominal).
 
 ---
 

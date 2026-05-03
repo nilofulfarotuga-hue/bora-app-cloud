@@ -225,6 +225,39 @@ class _AdminCatalogProductsScreenState extends State<_AdminCatalogProductsScreen
     }
   }
 
+  Future<void> _resetPhoto(Map<String, dynamic> p) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Resetar foto do produto'),
+        content: Text(
+            'A foto de "${p['name']}" será removida e o produto marcado como needs_photo. Confirmar?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.orange.shade700),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Resetar'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    try {
+      await Supabase.instance.client.rpc(
+        'admin_reset_product_photo',
+        params: {'p_product_id': p['id']},
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Foto de "${p['name']}" resetada.')),
+      );
+      _load();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -278,6 +311,12 @@ class _AdminCatalogProductsScreenState extends State<_AdminCatalogProductsScreen
                           IconButton(
                             icon: const Icon(Icons.edit),
                             onPressed: () => _editPrice(p),
+                          ),
+                          IconButton(
+                            tooltip: 'Resetar foto',
+                            icon: const Icon(Icons.image_not_supported_outlined),
+                            color: Colors.orange.shade700,
+                            onPressed: () => _resetPhoto(p),
                           ),
                         ]),
                       ),

@@ -25,6 +25,7 @@ import 'admin_send_notification_screen.dart';
 import 'admin_settlements_screen.dart';
 import '../../widgets/admin_closed_partners_card.dart';
 import '../../widgets/admin_reservations_today_card.dart';
+import 'admin_partners_pending_screen.dart';
 import 'admin_partners_screen.dart';
 import 'admin_platform_settings_screen.dart';
 import 'admin_promo_codes_screen.dart';
@@ -249,6 +250,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       context,
                       MaterialPageRoute(
                           builder: (_) => const AdminPartnersScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.how_to_reg,
+                  title: 'Aprovação de parceiros',
+                  subtitle: 'Pendentes, aprovados, rejeitados',
+                  color: Colors.deepPurple,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminPartnersPendingScreen())),
                 ),
                 const SizedBox(height: 10),
                 _NavCard(

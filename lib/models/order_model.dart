@@ -112,6 +112,12 @@ class OrderModel {
   /// Positive extra charge when [finalTotal] > [paymentBufferTotal].
   double? extraChargeAmount;
 
+  /// Total a cobrar em dinheiro ao cliente (cash + extras como sacos mercado).
+  /// NULL = usar [finalTotal] como fallback. Preenchido apenas pela RPC
+  /// `finalize_storeshopping_purchase` quando `payment_method=cash` e há extra
+  /// (ex.: sacos mercado a €0.10/saco).
+  double? cashTotalDue;
+
   /// Items added by the driver during storeShopping (caso A: cliente
   /// pediu via chat; caso B: substituição de produto faltando). Each entry:
   /// `{name, price_base_cents, price_final_cents, qty, reason, added_at,
@@ -218,6 +224,7 @@ class OrderModel {
     this.walletAppliedCents = 0,
     this.menuCreditAppliedCents = 0,
     this.extraChargeAmount,
+    this.cashTotalDue,
     List<Map<String, dynamic>>? itemsAdded,
     this.tipCents = 0,
     this.isTakeaway = false,
@@ -370,6 +377,7 @@ class OrderModel {
       menuCreditAppliedCents:
           (data['menu_credit_applied_cents'] as num?)?.toInt() ?? 0,
       extraChargeAmount: (data['extra_charge_amount'] as num?)?.toDouble(),
+      cashTotalDue: (data['cash_total_due'] as num?)?.toDouble(),
       itemsAdded: parsedItemsAdded,
       tipCents: (data['tip_amount_cents'] as num?)?.toInt() ?? 0,
       isTakeaway: data['is_takeaway'] as bool? ?? false,
@@ -431,6 +439,7 @@ class OrderModel {
       if (menuCreditAppliedCents > 0)
         'menu_credit_applied_cents': menuCreditAppliedCents,
       if (extraChargeAmount != null) 'extra_charge_amount': extraChargeAmount,
+      if (cashTotalDue != null) 'cash_total_due': cashTotalDue,
       if (itemsAdded.isNotEmpty) 'items_added': itemsAdded,
       // BR §4.5 — canonical tip column is `tip_amount_cents` (not `tip_cents`).
       // rating_screen.dart also writes to this column + sets tip_added_at.

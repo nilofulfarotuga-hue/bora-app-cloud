@@ -50,7 +50,7 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen>
           .from('orders')
           .select(
               'id, status, payment_method, payment_status, payment_intent_id, '
-              'price, total, final_total, vendor_name, restaurant_id, user_id, '
+              'price, total, final_total, cash_total_due, vendor_name, restaurant_id, user_id, '
               'assigned_driver_id, items, items_added, '
               'dropoff_address, pickup_address, '
               'cancel_reason, cancelled_at, '
@@ -402,7 +402,10 @@ class _PaymentTab extends StatelessWidget {
     final orderStatus = order['status'] as String? ?? '';
     final isCash = method == 'cash';
     final isDelivered = orderStatus == 'delivered';
-    final cashCollected = (order['customer_total'] as num?)?.toDouble() ??
+    // Sessão 3: cash_total_due tem prioridade quando NOT NULL (inclui sacos
+    // mercado pós-finalização). Fallback histórico para final_total/price.
+    final cashCollected = (order['cash_total_due'] as num?)?.toDouble() ??
+        (order['customer_total'] as num?)?.toDouble() ??
         (order['final_total'] as num?)?.toDouble() ??
         (order['price'] as num?)?.toDouble() ??
         0;

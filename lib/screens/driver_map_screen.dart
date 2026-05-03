@@ -1854,6 +1854,13 @@ class _FinalizedBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final finalTotal = order.finalTotal ?? 0;
     final isCash = order.paymentMethod == PaymentMethod.cash;
+    // Sessão 3: cash_total_due acumula extras pós-finalização (ex.: sacos
+    // mercado a €0.10/saco). NULL → usar finalTotal como fallback histórico.
+    final amountToCollect = order.cashTotalDue ?? finalTotal;
+    final hasBagSurcharge =
+        order.cashTotalDue != null && order.cashTotalDue! > finalTotal;
+    final bagSurcharge =
+        hasBagSurcharge ? order.cashTotalDue! - finalTotal : 0.0;
 
     if (isCash) {
       // BUG 32: aviso GRANDE para o estafeta cobrar antes de entregar.
@@ -1876,14 +1883,31 @@ class _FinalizedBanner extends StatelessWidget {
             const Text('💵', style: TextStyle(fontSize: 28)),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(
-                'RECEBER €${finalTotal.toStringAsFixed(2)} EM DINHEIRO',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 22,
-                  letterSpacing: 0.3,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'RECEBER €${amountToCollect.toStringAsFixed(2)} EM DINHEIRO',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 22,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                  if (hasBagSurcharge) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'inclui +€${bagSurcharge.toStringAsFixed(2)} de sacos',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
           ],
@@ -2518,7 +2542,8 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                             ),
                           ),
                           IconButton(
-                            onPressed: _bagCount < 20
+                            // Cap 5 sacos × €0.10 = €0.50 max (Sessão 3 / 2026-05-04)
+                            onPressed: _bagCount < 5
                                 ? () => setState(() => _bagCount++)
                                 : null,
                             icon:

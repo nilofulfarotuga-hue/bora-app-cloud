@@ -74,9 +74,55 @@
 
 **Não-Parceiro:** 15% sobre o preço (invisível, lucro da Bora)
 
-### 2.5 Sacos de Transporte
-- **Restaurante parceiro:** 1 saco fixo, **€0,30** (automático)
-- **Mercado (storeShopping):** **€0,10 por saco**, contados pelo estafeta (mín 0, máx 20)
+### 2.5 Sacos de Transporte (Sessão 3 · 2026-05-04)
+
+| Cenário | Quem cobra | Quando | Valor |
+|---|---|---|---|
+| Restaurante **parceiro** | — | — | €0 (parceiro absorve) |
+| Restaurante **não-parceiro** | Cliente no checkout | Imediato (RPC `create_order`) | **€0,30 fixo** |
+| Mercado **parceiro** (storeShopping) | — | — | €0 (parceiro absorve) |
+| Mercado **não-parceiro** (storeShopping) | Estafeta no fim da compra | Pós-finalização (RPC `finalize_storeshopping_purchase`) | **€0,10 × sacos reais** (cap 5 sacos = **€0,50 max**) |
+
+#### Cobrança pós-entrega (mercado não-parceiro)
+
+```
+Estafeta finaliza compra (slider 0..5 sacos)
+                 ↓
+RPC finalize_storeshopping_purchase
+   • cap valida 0 ≤ bag_count ≤ 5; >5 → RAISE EXCEPTION
+   • bag_fee = bag_count × €0,10
+   • Recalcula final_total
+                 ↓
+   ┌─────────────┴─────────────┐
+payment_method = card/mbway   payment_method = cash
+   • marca payment_status        • UPDATE orders SET cash_total_due
+     = 'extraRequired'             = COALESCE(cash_total_due, final_total)
+   • Sessão 3B implementa        • Estafeta vê banner "RECEBER €X EM
+     charge automático             DINHEIRO" + "inclui +€Y de sacos"
+     off_session via              ([driver_map_screen.dart](lib/screens/driver_map_screen.dart))
+     pending_charges
+```
+
+#### Status checkpoint B3→B4 (decisão CEO-AI · 2026-05-04)
+
+- **B4 ADIADO** para Sessão 3B (charge automático off_session)
+- **Bloqueio técnico real**: `setup_future_usage` propositadamente OMISSO em
+  `create-payment-intent` ("cartão nunca gravado sem consent"); sem
+  `stripe_customer_id`/`stripe_payment_method_id` em `orders`
+- **Sessão 3B** (futura): rewrite `charge-extra` off_session + webhook handler
+  `metadata.reason='market_bags'` + drenagem `pending_charges` (cron ou pg_net)
+- **Sessão 3C** (futura): consent flow checkout (UI + DB schema +
+  `setup_future_usage='off_session'`)
+- **Política Uber/Glovo** (referência): charge automático pós-entrega com
+  idempotency-key `${order_id}_bags`; SCA recusa → push retry; cap €0,50
+
+#### Tabela técnica
+
+- Constants: `BRBags.MARKET_BAG_FEE = 0.10`, `BRBags.RESTAURANT_BAG_FEE = 0.30`
+  ([lib/config/business_rules.dart](lib/config/business_rules.dart))
+- DB cap: `pending_charges.amount_cents BETWEEN 1 AND 50` (Sessão 3 migration)
+- DB column: `orders.cash_total_due NUMERIC NULL` — NULL = usar `final_total`
+- Pedidos legado `bag_count > 5`: 0 (validado Sessão 3 Fase A)
 
 ### 2.6 Fonte autoritativa do pricing (Sessão 2 · 2026-05-03)
 

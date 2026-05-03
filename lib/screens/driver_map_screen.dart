@@ -1981,9 +1981,16 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
   bool get _isRestaurant =>
       widget.order.serviceType == OrderServiceType.restaurant;
 
-  double get _bagFee => _isRestaurant
-      ? BRBags.RESTAURANT_BAG_FEE
-      : _bagCount * BRBags.MARKET_BAG_FEE;
+  bool get _isPartnerStore => widget.order.isPartnerStore;
+
+  double get _bagFee {
+    if (_isRestaurant) {
+      // BUG 4: partner restaurant absorbs the bag (0€), non-partner pays
+      // the fixed €0.30 already collected at checkout.
+      return _isPartnerStore ? 0 : BRBags.RESTAURANT_BAG_FEE;
+    }
+    return _bagCount * BRBags.MARKET_BAG_FEE;
+  }
 
   @override
   void initState() {
@@ -2418,9 +2425,12 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
               // ── Bags section ──
-              Container(
+              // BUG 4: partner restaurant absorbs the bag (hide section).
+              // Non-partner restaurant: fixed €0.30. storeShopping: per-bag slider.
+              if (!(_isRestaurant && _isPartnerStore)) ...[
+                const SizedBox(height: 12),
+                Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: Colors.orange.shade50,
@@ -2437,14 +2447,14 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Saco de transporte',
+                                  'Sacos',
                                   style: TextStyle(
                                     fontWeight: FontWeight.w600,
                                     fontSize: 14,
                                   ),
                                 ),
                                 Text(
-                                  '(incluído automaticamente)',
+                                  '€0.30 (fixo)',
                                   style: TextStyle(
                                     fontSize: 11,
                                     color: Colors.grey,
@@ -2528,6 +2538,7 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                         ],
                       ),
               ),
+              ],
               const SizedBox(height: 12),
               // ── Totals breakdown ──
               _SummaryRow(

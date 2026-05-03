@@ -1429,8 +1429,9 @@ class OrderStore extends ChangeNotifier {
     if (index == -1) return 'Pedido não encontrado localmente.';
     final order = _orders[index];
 
-    if (order.serviceType != OrderServiceType.storeShopping) {
-      return 'Confirmar compra só está disponível para storeShopping.';
+    if (order.serviceType != OrderServiceType.storeShopping &&
+        order.serviceType != OrderServiceType.restaurant) {
+      return 'Confirmar compra só está disponível para storeShopping ou restaurant.';
     }
     if (order.status != OrderStatus.driverAccepted &&
         order.status != OrderStatus.pickedUp &&

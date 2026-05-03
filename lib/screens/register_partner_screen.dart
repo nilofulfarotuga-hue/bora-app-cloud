@@ -14,6 +14,13 @@ import '../widgets/bora/bora_primary_button.dart';
 import '../widgets/terms_link_text.dart';
 import 'partner_login_screen.dart';
 
+/// BUG 7: partner photo is optional during registration. When the field is
+/// left blank, save with this Bora-branded placeholder URL (green+orange
+/// shopping-bag SVG hosted on the project assets bucket). Partner can update
+/// the photo at any time from the partner profile screen.
+const String _kPartnerPlaceholderPhoto =
+    'https://ojykpzwqrtusfeakzrna.supabase.co/storage/v1/object/public/branding/partner-placeholder.png';
+
 class RegisterPartnerScreen extends StatefulWidget {
   const RegisterPartnerScreen({super.key});
 
@@ -78,7 +85,9 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
       phone: _phoneController.text,
       email: _emailController.text,
       password: _passwordController.text,
-      photoUrl: _photoUrlController.text,
+      photoUrl: _photoUrlController.text.trim().isEmpty
+          ? _kPartnerPlaceholderPhoto
+          : _photoUrlController.text,
       cuisineType: _cuisineController.text,
       consentAcceptedAt: DateTime.now().toUtc(),
     );
@@ -125,7 +134,9 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
         address: _addressController.text,
         phone: _phoneController.text,
         email: partner.email,
-        photoUrl: _photoUrlController.text,
+        photoUrl: _photoUrlController.text.trim().isEmpty
+            ? _kPartnerPlaceholderPhoto
+            : _photoUrlController.text,
         cuisineType: _cuisineController.text,
         category: _selectedCategory,
         lat: _pickupCoords?.latitude,
@@ -237,16 +248,11 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
                   TextFormField(
                     controller: _photoUrlController,
                     decoration: const InputDecoration(
-                      labelText: 'URL da foto do restaurante',
+                      labelText: 'URL da foto do restaurante (opcional)',
                       prefixIcon: Icon(Icons.image_outlined),
-                      helperText: 'Obrigatório — imagem visível aos clientes',
+                      helperText:
+                          'Opcional — pode adicionar depois no perfil',
                     ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Adicione uma foto do restaurante';
-                      }
-                      return null;
-                    },
                   ),
                   const SizedBox(height: 16),
                   TextFormField(

@@ -288,7 +288,7 @@ class _WeeklySettlementCardState extends State<WeeklySettlementCard> {
   Widget _buildOrderRow(Map o) {
     final method = o['payment_method'] as String? ?? '';
     final isCash = method == 'cash';
-    final finalTotal = (o['finalTotal'] as num?)?.toDouble() ?? 0;
+    final finalTotal = (o['final_total'] as num?)?.toDouble() ?? 0;
     final earnings = (o['driver_earnings'] as num?)?.toDouble() ?? 0;
     final net = (o['net_per_order'] as num?)?.toDouble() ?? 0;
     final dt = DateTime.tryParse(o['delivered_at'] as String? ?? '')

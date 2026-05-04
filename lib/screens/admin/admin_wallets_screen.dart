@@ -15,6 +15,8 @@ class _AdminWalletsScreenState extends State<AdminWalletsScreen> {
   List<AdminWalletRow> _rows = const [];
   bool _loading = true;
   String? _error;
+  // Sessão 3B
+  bool _onlyNegative = false;
 
   @override
   void initState() {
@@ -116,23 +118,40 @@ class _AdminWalletsScreenState extends State<AdminWalletsScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.all(8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _searchCtrl,
-                    decoration: const InputDecoration(
-                      hintText: 'Procurar por email ou nome',
-                      prefixIcon: Icon(Icons.search),
-                      border: OutlineInputBorder(),
+            child: Column(children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _searchCtrl,
+                      decoration: const InputDecoration(
+                        hintText: 'Procurar por email ou nome',
+                        prefixIcon: Icon(Icons.search),
+                        border: OutlineInputBorder(),
+                      ),
+                      onSubmitted: (_) => _load(),
                     ),
-                    onSubmitted: (_) => _load(),
                   ),
-                ),
-                const SizedBox(width: 8),
-                IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
-              ],
-            ),
+                  const SizedBox(width: 8),
+                  IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
+                  IconButton(
+                    tooltip: 'Exportar negativos CSV',
+                    icon: const Icon(Icons.download),
+                    onPressed: _exportNegativeCsv,
+                  ),
+                ],
+              ),
+              SwitchListTile.adaptive(
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                value: _onlyNegative,
+                onChanged: (v) => setState(() => _onlyNegative = v),
+                title: const Text('Apenas saldo negativo',
+                    style: TextStyle(fontSize: 13)),
+                secondary: Icon(Icons.warning_amber,
+                    color: Colors.red.shade700, size: 20),
+              ),
+            ]),
           ),
           Expanded(
             child: _loading
@@ -146,64 +165,191 @@ class _AdminWalletsScreenState extends State<AdminWalletsScreen> {
                                 SizedBox(height: 60),
                                 Center(child: Text('Sem clientes com saldo.')),
                               ])
-                            : ListView.builder(
-                                itemCount: _rows.length,
-                                itemBuilder: (_, i) {
-                                  final r = _rows[i];
-                                  return ListTile(
-                                    title: Text(r.fullName ?? r.email),
-                                    subtitle: Text(r.email),
-                                    trailing: Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      crossAxisAlignment: CrossAxisAlignment.end,
-                                      children: [
-                                        Text('€${(r.freeBalanceCents / 100).toStringAsFixed(2)}',
-                                            style: const TextStyle(fontWeight: FontWeight.bold)),
-                                        Text('${r.tokensBalance} tokens',
-                                            style: const TextStyle(fontSize: 11, color: Colors.amber)),
-                                      ],
-                                    ),
-                                    onTap: () => showModalBottomSheet(
-                                      context: context,
-                                      builder: (_) => SafeArea(
-                                        child: Wrap(
-                                          children: [
-                                            ListTile(
-                                              leading: const Icon(Icons.add, color: Colors.green),
-                                              title: const Text('Atribuir saldo livre'),
-                                              onTap: () {
-                                                Navigator.pop(context);
-                                                _grantOrRevoke(r, grant: true);
-                                              },
-                                            ),
-                                            ListTile(
-                                              leading: const Icon(Icons.remove, color: Colors.red),
-                                              title: const Text('Retirar saldo livre'),
-                                              onTap: () {
-                                                Navigator.pop(context);
-                                                _grantOrRevoke(r, grant: false);
-                                              },
-                                            ),
-                                            // T5.3: ver todas transactions do utilizador
-                                            ListTile(
-                                              leading: const Icon(Icons.list_alt, color: Colors.blue),
-                                              title: const Text('Ver transactions'),
-                                              onTap: () {
-                                                Navigator.pop(context);
-                                                _showUserTransactions(r);
-                                              },
-                                            ),
-                                          ],
+                            : Builder(builder: (_) {
+                                final filtered = _onlyNegative
+                                    ? _rows.where((r) => r.freeBalanceCents < 0).toList()
+                                    : List<AdminWalletRow>.from(_rows);
+                                // Sessão 3B: ordenar negativos primeiro (mais negativo)
+                                filtered.sort((a, b) =>
+                                    a.freeBalanceCents.compareTo(b.freeBalanceCents));
+                                if (filtered.isEmpty) {
+                                  return ListView(children: const [
+                                    SizedBox(height: 60),
+                                    Center(child: Text('Sem clientes a mostrar.')),
+                                  ]);
+                                }
+                                return ListView.builder(
+                                  itemCount: filtered.length,
+                                  itemBuilder: (_, i) {
+                                    final r = filtered[i];
+                                    final isNeg = r.freeBalanceCents < 0;
+                                    return ListTile(
+                                      title: Text(r.fullName ?? r.email),
+                                      subtitle: Text(r.email),
+                                      leading: isNeg
+                                          ? Icon(Icons.warning_amber,
+                                              color: Colors.red.shade700)
+                                          : null,
+                                      trailing: Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        crossAxisAlignment: CrossAxisAlignment.end,
+                                        children: [
+                                          Text('€${(r.freeBalanceCents / 100).toStringAsFixed(2)}',
+                                              style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  color: isNeg ? Colors.red.shade700 : null)),
+                                          Text('${r.tokensBalance} tokens',
+                                              style: const TextStyle(fontSize: 11, color: Colors.amber)),
+                                        ],
+                                      ),
+                                      onTap: () => showModalBottomSheet(
+                                        context: context,
+                                        builder: (_) => SafeArea(
+                                          child: Wrap(
+                                            children: [
+                                              ListTile(
+                                                leading: const Icon(Icons.add, color: Colors.green),
+                                                title: const Text('Atribuir saldo livre'),
+                                                onTap: () {
+                                                  Navigator.pop(context);
+                                                  _grantOrRevoke(r, grant: true);
+                                                },
+                                              ),
+                                              ListTile(
+                                                leading: const Icon(Icons.remove, color: Colors.red),
+                                                title: const Text('Retirar saldo livre'),
+                                                onTap: () {
+                                                  Navigator.pop(context);
+                                                  _grantOrRevoke(r, grant: false);
+                                                },
+                                              ),
+                                              if (isNeg)
+                                                ListTile(
+                                                  leading: Icon(Icons.favorite,
+                                                      color: Colors.pink.shade400),
+                                                  title: const Text('Perdoar dívida'),
+                                                  subtitle: Text(
+                                                      'Liquida €${(-r.freeBalanceCents / 100).toStringAsFixed(2)}'),
+                                                  onTap: () {
+                                                    Navigator.pop(context);
+                                                    _forgiveDebt(r);
+                                                  },
+                                                ),
+                                              ListTile(
+                                                leading: const Icon(Icons.list_alt, color: Colors.blue),
+                                                title: const Text('Ver transactions'),
+                                                onTap: () {
+                                                  Navigator.pop(context);
+                                                  _showUserTransactions(r);
+                                                },
+                                              ),
+                                            ],
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                  );
-                                },
-                              ),
+                                    );
+                                  },
+                                );
+                              }),
                       ),
           ),
         ],
       ),
+    );
+  }
+
+  // Sessão 3B: perdoar dívida (admin_forgive_wallet_debt RPC).
+  Future<void> _forgiveDebt(AdminWalletRow row) async {
+    if (row.freeBalanceCents >= 0) return;
+    final reasonCtrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Perdoar dívida'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(row.email),
+            const SizedBox(height: 4),
+            Text(
+              'Saldo actual: €${(row.freeBalanceCents / 100).toStringAsFixed(2)}',
+              style: TextStyle(color: Colors.red.shade700, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'A wallet vai a 0. Esta acção é irreversível.',
+              style: TextStyle(fontSize: 12, color: Colors.black54),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: reasonCtrl,
+              decoration: const InputDecoration(labelText: 'Motivo (obrigatório)'),
+              maxLines: 2,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.pink.shade400),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Perdoar'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final reason = reasonCtrl.text.trim();
+    if (reason.length < 3) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Motivo obrigatório (3+ chars)')));
+      }
+      return;
+    }
+    try {
+      final cents = await WalletService.instance.adminForgiveDebt(
+          userId: row.userId, reason: reason);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Dívida perdoada: €${(cents / 100).toStringAsFixed(2)}')));
+      }
+      await _load();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
+      }
+    }
+  }
+
+  // Sessão 3B: exporta CSV de wallets negativas.
+  Future<void> _exportNegativeCsv() async {
+    final negs = _rows.where((r) => r.freeBalanceCents < 0).toList()
+      ..sort((a, b) => a.freeBalanceCents.compareTo(b.freeBalanceCents));
+    if (negs.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Sem wallets negativas para exportar.')));
+      }
+      return;
+    }
+    final headers = ['user_id', 'email', 'full_name', 'balance_eur', 'last_tx_at'];
+    final rows = negs
+        .map((r) => [
+              r.userId,
+              r.email,
+              r.fullName ?? '',
+              (r.freeBalanceCents / 100).toStringAsFixed(2),
+              r.lastTxAt?.toIso8601String() ?? '',
+            ])
+        .toList();
+    final stamp = DateTime.now().toIso8601String().substring(0, 10);
+    await AdminExportService.instance.exportCsv(
+      filename: 'bora_wallets_negativas_$stamp.csv',
+      headers: headers,
+      rows: rows,
+      subject: 'Bora — Wallets negativas $stamp',
     );
   }
 

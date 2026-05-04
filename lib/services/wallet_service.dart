@@ -79,6 +79,31 @@ class WalletService {
       'p_reason': reason,
     });
   }
+
+  /// Admin perdoa dívida do cliente (wallet < 0 → 0, INSERT forgive transaction).
+  Future<int> adminForgiveDebt({
+    required String userId,
+    required String reason,
+  }) async {
+    final res = await _supa.rpc('admin_forgive_wallet_debt', params: {
+      'p_user_id': userId,
+      'p_reason': reason,
+    });
+    final m = (res as Map).cast<String, dynamic>();
+    return (m['forgiven_cents'] as num).toInt();
+  }
+}
+
+/// Constantes wallet — espelham platform_settings server-side.
+/// Atualizar em conjunto com migration 20260504020000.
+class WalletConstants {
+  WalletConstants._();
+  /// Soft cap: cliente bloqueado de criar pedidos abaixo deste saldo.
+  static const int maxNegativeCents = -1000; // -€10
+  /// Hard floor (CHECK constraint DB).
+  static const int hardFloorCents = -2000;   // -€20
+  /// Cap absoluto cents por ajuste pós-entrega.
+  static const int maxExtraChargeCents = 1000; // €10
 }
 
 class WalletBalance {
@@ -100,6 +125,15 @@ class WalletBalance {
   int get tokensValueCents =>
       (tokensBalance * tokenValueCentsX100 / 100).round();
 
+  /// Saldo negativo (Sessão 3B): cliente em dívida.
+  bool get isNegative => freeCents < 0;
+  /// Cents devidos (sempre positivo). 0 quando saldo >= 0.
+  int get debtCents => freeCents < 0 ? -freeCents : 0;
+  /// Cliente bloqueado de criar novos pedidos (atingiu soft cap).
+  bool get isBlocked => freeCents < WalletConstants.maxNegativeCents;
+  /// Aviso amarelo: passou >= 50% do soft cap mas ainda não bloqueou.
+  bool get isWarning => isNegative && freeCents <= (WalletConstants.maxNegativeCents ~/ 2);
+
   factory WalletBalance.fromJson(Map<String, dynamic> j) => WalletBalance(
         userId: j['user_id'] as String,
         freeCents: (j['free_cents'] as num?)?.toInt() ?? 0,
@@ -117,6 +151,7 @@ class WalletTx {
   final String kind;
   final String reason;
   final String? relatedOrderId;
+  final int? balanceAfterCents;
   final DateTime createdAt;
 
   WalletTx({
@@ -125,6 +160,7 @@ class WalletTx {
     required this.kind,
     required this.reason,
     required this.relatedOrderId,
+    required this.balanceAfterCents,
     required this.createdAt,
   });
 
@@ -134,6 +170,7 @@ class WalletTx {
         kind: j['kind'] as String,
         reason: j['reason'] as String,
         relatedOrderId: j['related_order_id'] as String?,
+        balanceAfterCents: (j['balance_after_cents'] as num?)?.toInt(),
         createdAt: DateTime.parse(j['created_at'] as String),
       );
 
@@ -155,6 +192,15 @@ class WalletTx {
         return 'Cashback';
       case 'referral':
         return 'Referral';
+      // Sessão 3B
+      case 'debit':
+        return 'Débito pós-entrega';
+      case 'settlement':
+        return 'Liquidação dívida anterior';
+      case 'adjustment':
+        return 'Ajuste manual';
+      case 'forgive':
+        return 'Dívida perdoada';
       default:
         return kind;
     }

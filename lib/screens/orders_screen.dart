@@ -7,9 +7,11 @@ import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
 import '../models/order_model.dart';
+import '../services/wallet_service.dart';
 import '../stores/order_store.dart';
 import 'order_details_screen.dart';
 import 'restaurants_screen.dart';
+import 'wallet_history_screen.dart';
 
 class OrdersScreen extends StatefulWidget {
   const OrdersScreen({super.key});
@@ -20,22 +22,38 @@ class OrdersScreen extends StatefulWidget {
 
 class _OrdersScreenState extends State<OrdersScreen> {
   StreamSubscription<AuthState>? _authSub;
+  // Sessão 3B: ids de pedidos com ajustes wallet (debit/settlement) para
+  // mostrar ícone "carteira" no card.
+  Map<String, List<WalletTx>> _walletByOrder = const {};
 
   @override
   void initState() {
     super.initState();
-    // Único trigger inicial (post-frame) + listener de signedIn.
-    // didChangeDependencies foi removido: disparava loadOrders extra
-    // a cada rebuild do Provider, contribuindo para o loading infinito
-    // ao alternar tabs no IndexedStack.
     _authSub = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
       if (data.event == AuthChangeEvent.signedIn && mounted) {
         context.read<OrderStore>().loadOrders();
+        _loadWallet();
       }
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) context.read<OrderStore>().loadOrders();
+      if (mounted) {
+        context.read<OrderStore>().loadOrders();
+        _loadWallet();
+      }
     });
+  }
+
+  Future<void> _loadWallet() async {
+    try {
+      final b = await WalletService.instance.getBalance();
+      final map = <String, List<WalletTx>>{};
+      for (final tx in b.lastTransactions) {
+        if (tx.relatedOrderId == null) continue;
+        if (tx.kind != 'debit' && tx.kind != 'settlement') continue;
+        map.putIfAbsent(tx.relatedOrderId!, () => []).add(tx);
+      }
+      if (mounted) setState(() => _walletByOrder = map);
+    } catch (_) {/* offline / sem wallet */}
   }
 
   @override
@@ -98,6 +116,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                         final order = orders[index];
                         return _OrderCard(
                           order: order,
+                          walletTxs: _walletByOrder[order.id] ?? const [],
                           onTap: () => Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -169,16 +188,23 @@ class _EmptyOrders extends StatelessWidget {
 }
 
 class _OrderCard extends StatelessWidget {
-  const _OrderCard({required this.order, required this.onTap});
+  const _OrderCard({
+    required this.order,
+    required this.onTap,
+    this.walletTxs = const [],
+  });
 
   final OrderModel order;
   final VoidCallback onTap;
+  /// Sessão 3B: transactions wallet (debit/settlement) deste pedido.
+  final List<WalletTx> walletTxs;
 
   @override
   Widget build(BuildContext context) {
     final totalLabel = order.isPurchaseFinalized && order.finalTotal != null
         ? '€${order.finalTotal!.toStringAsFixed(2)}'
         : '€${order.total.toStringAsFixed(2)}';
+    final hasWalletAdjust = walletTxs.isNotEmpty;
 
     return Material(
       color: Colors.white,
@@ -235,7 +261,41 @@ class _OrderCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     const SizedBox(height: Spacing.sm),
-                    _StatusChip(status: order.status),
+                    Row(
+                      children: [
+                        _StatusChip(status: order.status),
+                        if (hasWalletAdjust) ...[
+                          const SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: () => _showWalletAdjustModal(context, walletTxs),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.deepPurple.shade50,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                    color: Colors.deepPurple.shade200),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.account_balance_wallet,
+                                      size: 12,
+                                      color: Colors.deepPurple.shade700),
+                                  const SizedBox(width: 4),
+                                  Text('Carteira',
+                                      style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.deepPurple.shade700,
+                                          fontWeight: FontWeight.w600)),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -250,6 +310,76 @@ class _OrderCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Modal Sessão 3B: detalhes dos ajustes wallet ligados a um pedido.
+void _showWalletAdjustModal(BuildContext context, List<WalletTx> txs) {
+  showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    builder: (ctx) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              Icon(Icons.account_balance_wallet,
+                  color: Colors.deepPurple.shade700),
+              const SizedBox(width: 8),
+              const Text('Ajustes na carteira',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            ]),
+            const SizedBox(height: 4),
+            const Text(
+              'Movimentos relacionados com este pedido.',
+              style: TextStyle(fontSize: 12, color: Colors.black54),
+            ),
+            const SizedBox(height: 12),
+            ...txs.map((tx) {
+              final amount = (tx.amountCents.abs() / 100).toStringAsFixed(2);
+              final sign = tx.isCredit ? '+' : '−';
+              return ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(
+                  tx.kind == 'settlement'
+                      ? Icons.swap_horiz
+                      : Icons.shopping_basket,
+                  color: tx.kind == 'settlement'
+                      ? Colors.deepPurple
+                      : Colors.red.shade700,
+                ),
+                title: Text(tx.kindLabel),
+                subtitle: Text(tx.reason),
+                trailing: Text(
+                  '$sign€$amount',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: tx.isCredit ? Colors.green : Colors.red,
+                  ),
+                ),
+              );
+            }),
+            const SizedBox(height: 8),
+            Center(
+              child: TextButton.icon(
+                icon: const Icon(Icons.history),
+                label: const Text('Ver histórico completo'),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const WalletHistoryScreen()));
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 class _StatusChip extends StatelessWidget {

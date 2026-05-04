@@ -231,9 +231,14 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
   /// Cents do saldo livre que cobrem o pedido (até ao máximo do total).
   int _walletAppliedCents() {
     if (!_useWalletBalance || _wallet == null) return 0;
+    if (_wallet!.freeCents <= 0) return 0;
     final totalCents = (widget.totalToPay * 100).round();
     return _wallet!.freeCents < totalCents ? _wallet!.freeCents : totalCents;
   }
+
+  /// Sessão 3B: cents devidos do saldo negativo anterior (sempre positivo).
+  /// Vai ser liquidado server-side em create_order; UI só mostra a linha.
+  int _settlementCents() => _wallet?.debtCents ?? 0;
 
   @override
   Widget build(BuildContext context) {
@@ -244,7 +249,12 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
     final totalToPay = widget.totalToPay;
     final walletAppliedCents = _walletAppliedCents();
     final walletAppliedEur = walletAppliedCents / 100;
-    final remainingToPay = (totalToPay - walletAppliedEur).clamp(0.0, double.infinity);
+    // Sessão 3B: settlement de saldo devedor anterior (server-side em create_order)
+    final settlementCents = _settlementCents();
+    final settlementEur = settlementCents / 100.0;
+    final isWalletBlocked = _wallet?.isBlocked ?? false;
+    final remainingToPay = (totalToPay - walletAppliedEur + settlementEur)
+        .clamp(0.0, double.infinity);
 
     return SafeArea(
       top: false,
@@ -359,6 +369,22 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                   accent: true,
                 ),
             ],
+            // ── Sessão 3B: saldo devedor anterior ──────────────────────────
+            if (settlementCents > 0) ...[
+              const Divider(height: Spacing.lg),
+              _SummaryRow(
+                label: 'Saldo devedor anterior',
+                value: settlementEur,
+                accent: true,
+              ),
+              Padding(
+                padding: const EdgeInsets.only(top: 4, bottom: 4),
+                child: Text(
+                  'Liquidação automática da dívida em carteira.',
+                  style: TextStyle(fontSize: 11, color: Colors.red.shade700),
+                ),
+              ),
+            ],
             const Divider(height: Spacing.xxl),
             _SummaryRow(
               label: _useWalletBalance && walletAppliedCents > 0
@@ -367,13 +393,43 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
               value: remainingToPay,
               isStrong: true,
             ),
+            if (isWalletBlocked) ...[
+              const SizedBox(height: Spacing.md),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  border: Border.all(color: Colors.red.shade300),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.block, color: Colors.red.shade700, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Carteira bloqueada (saldo €${(_wallet!.freeCents / 100).toStringAsFixed(2)}). '
+                        'Liquide para fazer novos pedidos.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.red.shade900,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: Spacing.lg),
             BoraPrimaryButton(
-              label: remainingToPay <= 0
-                  ? 'Pagar com saldo Bora'
-                  : 'Finalizar pedido',
+              label: isWalletBlocked
+                  ? 'Carteira bloqueada — regularize'
+                  : (remainingToPay <= 0
+                      ? 'Pagar com saldo Bora'
+                      : 'Finalizar pedido'),
               icon: Icons.shopping_bag_outlined,
-              onPressed: cartStore.items.isEmpty
+              onPressed: cartStore.items.isEmpty || isWalletBlocked
                   ? null
                   : () async {
                       // Mirror current wallet selection to CartStore so

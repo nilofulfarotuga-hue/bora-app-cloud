@@ -981,20 +981,72 @@ class _WalletCardsBlock extends StatelessWidget {
       builder: (ctx, snap) {
         final loading = snap.connectionState == ConnectionState.waiting;
         final b = snap.data;
+        // Sessão 3B: card adapta cor ao estado (verde / amarelo / vermelho).
+        final isNeg = b?.isNegative ?? false;
+        final isBlocked = b?.isBlocked ?? false;
+        final isWarning = b?.isWarning ?? false;
+        final cardColor = isBlocked
+            ? Colors.red.shade50
+            : (isWarning
+                ? Colors.orange.shade50
+                : (isNeg ? Colors.red.shade50 : Colors.green.shade50));
+        final borderColor = isBlocked
+            ? Colors.red.shade300
+            : (isWarning
+                ? Colors.orange.shade300
+                : (isNeg ? Colors.red.shade200 : Colors.green.shade200));
+        final iconColor = isBlocked || isNeg
+            ? Colors.red.shade700
+            : (isWarning ? Colors.orange.shade700 : Colors.green);
+        final subtitle = isBlocked
+            ? 'Não pode fazer pedidos · regularize'
+            : (isNeg
+                ? 'Saldo devedor — descontado na próxima compra'
+                : 'Livre — nunca expira');
+        final valueColor = isNeg ? Colors.red.shade700 : null;
+
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Column(
             children: [
               _walletTile(
                 context,
-                color: Colors.green.shade50,
-                borderColor: Colors.green.shade200,
+                color: cardColor,
+                borderColor: borderColor,
                 icon: Icons.account_balance_wallet,
-                iconColor: Colors.green,
+                iconColor: iconColor,
                 title: 'Saldo Bora',
-                subtitle: 'Livre — nunca expira',
+                subtitle: subtitle,
                 value: loading ? null : '€${((b?.freeCents ?? 0) / 100).toStringAsFixed(2)}',
+                valueColor: valueColor,
               ),
+              if (!loading && isBlocked) ...[
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    border: Border.all(color: Colors.red.shade300),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.warning_amber, color: Colors.red.shade700, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Carteira em dívida grave. Liquide para fazer novos pedidos.',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.red.shade900,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 8),
               _walletTile(
                 context,
@@ -1032,6 +1084,7 @@ class _WalletCardsBlock extends StatelessWidget {
     required String title,
     required String subtitle,
     required String? value,
+    Color? valueColor,
   }) {
     return InkWell(
       onTap: () => Navigator.push(
@@ -1072,8 +1125,10 @@ class _WalletCardsBlock extends StatelessWidget {
                     child: CircularProgressIndicator(strokeWidth: 2))
                 : Text(
                     value,
-                    style: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.w800),
+                    style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: valueColor),
                   ),
             const SizedBox(width: 4),
             const Icon(Icons.chevron_right, color: Colors.black38, size: 20),

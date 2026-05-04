@@ -59,18 +59,34 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
 
   Widget _buildBody() {
     final b = _balance!;
+    final isNeg = b.isNegative;
+    final isBlocked = b.isBlocked;
+    final cardColor = isNeg ? Colors.red.shade50 : Colors.green.shade50;
+    final iconColor = isNeg ? Colors.red.shade700 : Colors.green;
+    final subtitle = isBlocked
+        ? 'BLOQUEADO — regularize para fazer pedidos'
+        : (isNeg
+            ? 'Saldo devedor — descontado na próxima compra'
+            : 'Livre, nunca expira');
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        // Card saldo livre
+        // Card saldo livre (Sessão 3B: vermelho se negativo)
         Card(
-          color: Colors.green.shade50,
+          color: cardColor,
           child: ListTile(
-            leading: const Icon(Icons.account_balance_wallet, color: Colors.green),
+            leading: Icon(Icons.account_balance_wallet, color: iconColor),
             title: const Text('Saldo Bora'),
-            subtitle: const Text('Livre, nunca expira'),
+            subtitle: Text(subtitle,
+                style: TextStyle(
+                  color: isNeg ? Colors.red.shade900 : null,
+                  fontWeight: isBlocked ? FontWeight.w700 : null,
+                )),
             trailing: Text('€${(b.freeCents / 100).toStringAsFixed(2)}',
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: isNeg ? Colors.red.shade700 : null)),
           ),
         ),
         const SizedBox(height: 8),
@@ -114,12 +130,59 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
   Widget _txTile(WalletTx tx) {
     final color = tx.isCredit ? Colors.green : Colors.red;
     final sign = tx.isCredit ? '+' : '';
+    // Sessão 3B: ícone distinto por kind (default: arrow up/down)
+    IconData icon;
+    Color iconCol = color;
+    switch (tx.kind) {
+      case 'settlement':
+        icon = Icons.swap_horiz;
+        iconCol = Colors.deepPurple;
+        break;
+      case 'forgive':
+        icon = Icons.favorite;
+        iconCol = Colors.pink;
+        break;
+      case 'adjustment':
+        icon = Icons.edit;
+        iconCol = Colors.orange;
+        break;
+      case 'debit':
+        icon = Icons.shopping_basket;
+        iconCol = Colors.red.shade700;
+        break;
+      case 'refund_credit_free':
+      case 'refund_credit_tokens':
+        icon = Icons.undo;
+        iconCol = Colors.green.shade700;
+        break;
+      case 'admin_grant':
+        icon = Icons.card_giftcard;
+        iconCol = Colors.green;
+        break;
+      case 'admin_revoke':
+        icon = Icons.remove_circle_outline;
+        iconCol = Colors.red.shade700;
+        break;
+      case 'cashback':
+        icon = Icons.savings;
+        iconCol = Colors.green;
+        break;
+      case 'referral':
+        icon = Icons.group;
+        iconCol = Colors.blue;
+        break;
+      default:
+        icon = tx.isCredit ? Icons.arrow_downward : Icons.arrow_upward;
+    }
+    final balanceLine = tx.balanceAfterCents != null
+        ? '\nSaldo após: €${(tx.balanceAfterCents! / 100).toStringAsFixed(2)}'
+        : '';
     return ListTile(
-      leading: Icon(tx.isCredit ? Icons.arrow_downward : Icons.arrow_upward, color: color),
+      leading: Icon(icon, color: iconCol),
       title: Text(tx.kindLabel),
       subtitle: Text(
-        '${tx.reason}\n${_fmtDate(tx.createdAt)}',
-        maxLines: 3,
+        '${tx.reason}\n${_fmtDate(tx.createdAt)}$balanceLine',
+        maxLines: 4,
       ),
       isThreeLine: true,
       trailing: Text(

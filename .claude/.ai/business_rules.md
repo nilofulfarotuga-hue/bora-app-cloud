@@ -1162,7 +1162,112 @@ Settings (`platform_settings`):
 
 ---
 
+## §28 — Wallet com Saldo Negativo (Sessão 3B-NOVA, 2026-05-04)
+
+### §28.1 Contexto e regime fiscal
+
+A Bora opera sob o **regime simplificado Art. 53.º CIVA** (isenção de IVA enquanto facturação anual <€15.000). Confirmado com contabilista: aceitar saldo negativo até **−€20** sem documento fiscal imediato é compatível com este regime, desde que cada movimento gere registo interno em `wallet_transactions` referenciado na próxima factura emitida.
+
+Quando facturação ultrapassar €15.000 → emissão automática de factura/nota débito por cada `wallet_transactions` com `kind='debit'` (TODO Sessão futura — ver `.claude/.ai/todos/sessao_3b_pending.md`).
+
+Esta política substituiu o plano original Stripe off_session (abandonado por bloqueios A4 MBWay + A8 STRIPE_MODE + A9 termos legais).
+
+### §28.2 Limites
+
+| Limite | Valor | Onde se aplica |
+|---|---|---|
+| Soft cap (gate) | **−€10** | `create_order` RAISE `WALLET_BLOCKED` |
+| Hard floor (DB CHECK) | **−€20** | `client_wallets.free_balance_cents >= -2000` |
+| Cap absoluto / pedido | **€10** | `wallet_apply_post_delivery_adjustment` |
+| Alerta admin | **90 dias** sem actividade | `pg_cron wallet_overdue_alerts` |
+| Acção obrigatória admin | **180 dias** sem actividade | mesmo cron, action='wallet_action_required' |
+
+Configuráveis via `platform_settings`:
+- `wallet_max_negative_balance_cents` (-1000)
+- `wallet_hard_floor_cents` (-2000)
+- `max_extra_charge_cents` (1000)
+- `wallet_negative_alert_days` (90)
+- `wallet_negative_action_days` (180)
+- `wallet_negative_enabled` (true) — kill-switch
+
+### §28.3 Casos de uso (gera saldo negativo)
+
+1. **Sacos mercado extras:** estafeta usa N sacos (€0.10/saco, cap 5).
+2. **Substituição de produto:** troca por mais caro (cap +30% subtotal já existe).
+3. **Adição de produto extra:** cliente concorda, markup 15% aplicado.
+4. Cap absoluto combinado **€10/pedido** (1+2+3).
+
+Cash continua a usar `cash_total_due` (Sessão 3, sem mudança).
+
+### §28.4 Ordem de operações `create_order` (CRÍTICA)
+
+1. SELECT FOR UPDATE wallet (incondicional)
+2. Gate: `balance < wallet_max_negative_balance_cents` → RAISE `WALLET_BLOCKED`
+3. Cálculo subtotal (markup non-partner) + pricing
+4. `consume_menu_credit_for_order` (tokens/menu credits descontam ANTES)
+5. `v_charge_total = customer_total - wallet_eur - credit/100`
+6. **Settlement:** se `balance < 0` → `charge_total += |balance|`, wallet→0, INSERT `wallet_transactions kind='settlement'`
+7. INSERT order com charge_total final
+8. `wallet_debit_for_order` se cliente aplicou saldo positivo
+
+Esta ordem garante:
+- Tokens descontam ANTES do settlement (cliente recebe desconto, depois paga dívida)
+- Settlement aplicado UMA vez por pedido (FOR UPDATE evita race)
+- Charge_total no INSERT é o valor real cobrado
+
+### §28.5 Ordem de operações `finalize_storeshopping_purchase`
+
+Quando há extra a cobrar em `card`/`mbway` E `wallet_negative_enabled=true`:
+- Chama `wallet_apply_post_delivery_adjustment(order, user, amount, reason, 'debit')`
+- Idempotente via `idempotency_key = 'adj_' + order_id + '_' + kind`
+- Cap €10 validado dentro da RPC
+- `payment_status` mantém `'paid'` (já paid no checkout)
+- Em caso de falha (hard floor exceeded) → fallback `extraRequired` (Sessão 3)
+
+### §28.6 Refund quando wallet negativa
+
+`wallet_credit_refund_split` modificado:
+- Se `balance < 0`: 1º abate dívida (`kind='settlement'`)
+- 2º split do remanescente: 80% saldo livre + 20% tokens (regra original)
+
+### §28.7 Notificações cliente (TODO Sessão futura)
+
+Push templates desejados (a implementar quando Sessão 1B push validada em prod):
+- "Sacos extras: €X descontados. Carteira: −€Y (cobrado próxima compra)" — quando wallet cruza zero
+- "Saldo regularizado. Obrigado!" — quando settlement zera dívida
+- "A sua carteira tem dívida pendente há 90 dias" — alerta cliente (broadcast admin)
+
+In-app já implementado (Sessão 3B):
+- Profile: card vermelho/amarelo/erro (`isNegative`/`isWarning`/`isBlocked`)
+- Cart: linha "Saldo devedor anterior: +€X.XX" + bloqueio botão se < soft cap
+- Wallet history: novos kinds com ícones distintos + `balance_after_cents`
+- Orders: chip "Carteira" + modal detalhes ajustes
+- Admin wallets: filtro "apenas negativo" + botão "Perdoar dívida" + CSV export
+
+### §28.8 Política Uber/Glovo (referência)
+
+Uber Eats e Glovo usam abordagem similar:
+- Saldo negativo até X EUR, próxima compra liquida automaticamente.
+- Bora segue mesmo padrão, com cap mais conservador (-€20 vs -€50 da concorrência).
+
+### §28.9 Boas práticas implementadas
+
+- Idempotency: `wallet_transactions.idempotency_key UNIQUE` para evitar débitos duplicados em retries.
+- Audit trail: `balance_after_cents` em todas as transactions Sessão 3B.
+- RLS: cliente lê só os seus; admin tudo. Mutações apenas via `SECURITY DEFINER` RPCs.
+- `SELECT FOR UPDATE` em todas as operações que mutam wallet — race-safe.
+- Kill-switch (`wallet_negative_enabled=false`) → comportamento Sessão 3 (`extraRequired`).
+- Hard floor DB (CHECK) defende contra bugs RPC futuros.
+
+### §28.10 Admin e governança
+
+- Admin pode perdoar dívida via `admin_forgive_wallet_debt(user, reason)` — gera `wallet_transactions kind='forgive'`, audit log, wallet → 0.
+- pg_cron diário 09:00 UTC: wallets com `balance<0` e inactividade ≥90d geram `admin_audit_log action='wallet_overdue_alert'`; ≥180d → `'wallet_action_required'`.
+- Deduplicação 24h evita spam de alertas.
+
+---
+
 *Documento de regras de negócio — Bora App*
-*Última atualização: 2026-04-18 (§27.6 actualizado — Fase 4 Continente +1.500 / Auchan +1.500 via SFCC L1; Pingo Doce/Lidl/Intermarché deferidos; cascata L1→L4 + orçamento L4 €50/mês; âmbito `-guarda`)*
+*Última atualização: 2026-05-04 (§28 adicionado — Wallet com Saldo Negativo, Sessão 3B-NOVA)*
 *Atualizar sempre que houver mudanças nas regras de negócio*
 *Fonte de verdade usada por: todas as skills do sistema*

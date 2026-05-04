@@ -1341,9 +1341,42 @@ Cash settlement path (estafeta cobra em mão) actualmente usa `cash_total_due` p
 
 **Pendente Sessão 4C:** fix transversal nos 107 call sites de `CartItem(...)`; limpeza retroactiva de `orders.items` históricos via lookup nome→SKU.
 
+## §30. Knowledge Infra (Sessão Pré-5A — 2026-05-04)
+
+### §30.1 Vault Obsidian canónico
+
+A documentação interna não-código (notas, decisões, sessões, regras-history) vive em **`bora_app/.obsidian-vault/`** dentro do próprio repo.
+
+**Antes (deprecated):** `C:\Users\danil\Desktop\Bora` (path local, fora do git, sem backup automático).
+**Agora:** `bora_app/.obsidian-vault/` — backup natural via git, portátil entre máquinas.
+
+### §30.2 Sync scripts — REMOVIDOS / NÃO CRIAR
+
+INDEX.md (`.claude/.ai/knowledge/INDEX.md`) mencionava `from-obsidian/` como subfolder de sync unidireccional. **Foi planeamento futuro nunca implementado** e foi abandonado nesta sessão.
+
+**Não existem sync scripts em `.claude/.ai/knowledge/`** e **não devem ser criados**:
+- Vault vive dentro do repo → commits do git são o "sync" natural.
+- Não há vault externo a manter.
+- Eventuais backups externos (OneDrive/Dropbox) ficam fora do scope da app.
+
+### §30.3 Source backup
+
+Source `C:\Users\danil\Desktop\Bora` foi **preservado intactus** durante a migração (Copy-Item binary, source intactus drift=0).
+
+**Critério para apagar source:**
+- Mínimo 7 dias de uso OK em destino
+- SHA256 weekly match check (manual)
+- Após validação: apagar source em sessão futura ou manual
+
+### §30.4 Conteúdo commitado vs ignorado
+
+**Tracked (commitado):** 51 .md + `.obsidian/community-plugins.json` + `.obsidian/core-plugins.json` (lista plugins partilhável) + `appearance.json` + `graph.json` + `text-generator.json` (config base não-volátil).
+
+**Ignored em `.gitignore`:** `workspace*`, `cache`, `app.json`, `plugins/` (binários), `themes/`, `.smart-env/` (cache Smart Connections, 4.9 MB, re-gerado pelo plugin), `.trash/`, `.obsidian/.obsidian/` recursivo (artefacto plugin com `.exe`).
+
 ---
 
 *Documento de regras de negócio — Bora App*
-*Última atualização: 2026-05-04 (§29 adicionado — Housekeeping financeiro Sessão 4)*
+*Última atualização: 2026-05-04 (§30 adicionado — Knowledge Infra Pré-5A)*
 *Atualizar sempre que houver mudanças nas regras de negócio*
 *Fonte de verdade usada por: todas as skills do sistema*

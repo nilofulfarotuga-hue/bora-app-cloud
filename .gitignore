@@ -98,3 +98,20 @@ backend/.env
 *.pem
 *.p12
 *.keystore
+
+# ── Obsidian vault (.obsidian-vault/) — local config & cache ──────────────────
+# Vault canónico vive em bora_app/.obsidian-vault/ (commit 2026-05-04).
+# Setup partilhável commitado: notas .md + lista de plugins.
+# Ignorado: caches, workspace, plugins binários, smart-env (>1MB).
+.obsidian-vault/.obsidian/workspace*
+.obsidian-vault/.obsidian/workspace.json
+.obsidian-vault/.obsidian/cache
+.obsidian-vault/.obsidian/app.json
+.obsidian-vault/.obsidian/plugins/
+.obsidian-vault/.obsidian/themes/
+.obsidian-vault/.smart-env/
+.obsidian-vault/.trash/
+# Artefacto plugin: .obsidian/.obsidian/ recursivo (preservado em disco
+# para SHA256 match com source, mas NAO commitado - contem .exe + caches)
+.obsidian-vault/.obsidian/.obsidian/
+.obsidian-vault/.obsidian/.smart-env/

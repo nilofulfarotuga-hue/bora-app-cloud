@@ -21,7 +21,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   ProductVariant? _selectedVariant;
   int _quantity = 1;
 
-  String _variantKey(ProductVariant v) => '${widget.product.name}__${v.id}';
+  // Sessão 4C: ProductVariant.id é UUID válido — usar directamente.
+  // Embeber o nome do produto criava productId que falhava lookup na RPC.
+  String _variantKey(ProductVariant v) => v.id;
 
   void _addToCart(BuildContext context, ProductVariant v) {
     context.read<CartStore>().addItem(CartItem(

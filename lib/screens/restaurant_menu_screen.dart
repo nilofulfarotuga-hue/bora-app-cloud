@@ -185,8 +185,17 @@ class RestaurantMenuScreen extends StatelessWidget {
                                   Theme.of(context).colorScheme.primary,
                               onFavorite: () => favorites.toggle(favKey),
                               onAdd: () {
+                                // Sessão 4C: remover fallback `?? item.name`.
+                                // BusinessMapper sempre passa product.id real
+                                // (Bug-B fix 2026-04-30). Se productId for null
+                                // aqui é bug a montante — falhar explicitamente.
+                                final productId = item.productId;
+                                if (productId == null || productId.isEmpty) {
+                                  throw StateError(
+                                      'MenuItem sem productId: ${item.name}');
+                                }
                                 context.read<CartStore>().addItem(CartItem(
-                                    productId: item.productId ?? item.name,
+                                    productId: productId,
                                     name: item.name,
                                     price: item.price));
                                 ScaffoldMessenger.of(context)

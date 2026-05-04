@@ -1143,7 +1143,9 @@ class _VariantMiniCard extends StatelessWidget {
   final bool showPremiumBadge;
   final bool isPartnerStore;
 
-  String get _variantKey => '${productName}__${variant.id}';
+  // Sessão 4C: ProductVariant.id é UUID válido — usar directamente.
+  // Embeber o nome do produto criava productId que falhava lookup na RPC.
+  String get _variantKey => variant.id;
 
   void _addToCart(BuildContext context) {
     context.read<CartStore>().addItem(CartItem(

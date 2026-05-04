@@ -1526,7 +1526,55 @@ Todas idempotentes via `INSERT...ON CONFLICT(skill_name) DO UPDATE` (version++).
 
 ---
 
+## §33 — Flutter productId integrity (Sessão 4C, 2026-05-04)
+
+### §33.1 Source of truth
+`productId` enviado em qualquer payload `create_order` (RPC) ou `cart_input` (Edge Fn `create-payment-intent`) **DEVE** vir de `ProductModel.id` (linha de DB em `public.products` ou `public.product_variants`). NUNCA do `name` / `title` / chave sintética que embuta nome.
+
+### §33.2 Validação run-time em construtores
+`CartItem` constructor (`lib/models/cart_item.dart`) valida via `if-throw ArgumentError` no body do constructor. **NÃO usar apenas `assert()`** — em Dart, `assert()` é STRIP em release mode (sempre). Asserts ficam como camada adicional dev/debug; o `if-throw` é a defesa primária em release.
+
+### §33.3 Helper `isValidProductId(String id)`
+Critério (`lib/stores/order_store.dart`, top-level):
+- não vazio
+- sem espaço
+- length entre 3 e 200 chars
+
+NÃO usar regex de prefixo. Produção tem 9+ formatos válidos confirmados via MCP: `pd`, `cnt`, `auc`, `merc`, `glv`, `cm`, `lidl`, `prod`, UUIDs hex puros sem prefixo, sentinelas `extra_<timestamp>` (driver-added items).
+
+### §33.4 `validateOrderPayload(Map payload)` pré-RPC
+Helper top-level em `order_store.dart`. Percorre `payload['product_lines']` e valida cada `product_id`. Lança `FormatException` se inválido. Logistics (`carryGroceries` / `sendPackage`) não tem `product_lines` → early return OK.
+
+**Chamada obrigatória ANTES de cada invocation:**
+- `order_store.dart:484` — antes de `supabase.functions.invoke('create-payment-intent')`
+- `order_store.dart:721` — antes de `supabase.rpc('create_order')`
+
+Caller apanha `FormatException` e devolve `null` / `false` sem chegar à rede.
+
+### §33.5 Defesa em profundidade
+Mitigação SQL 4B5 (fallback `unit_price` server-side) **MANTÉM-SE** em produção. Não removida. Camadas:
+1. **Constructor `CartItem`** (release-safe `if-throw`) — bloqueia criação local
+2. **Asserts** (4B5) — detector dev/debug
+3. **`validateOrderPayload`** (4C) — bloqueia envio à rede
+4. **SQL `unit_price` fallback** (4B5) — defesa final server-side se algo escapar
+
+### §33.6 Lição arquitectural Dart
+- `assert()` é STRIP em release mode SEMPRE (comportamento da linguagem).
+- Asserts são **detectores dev**, nunca defesa primária.
+- Defesas críticas em release usam `if (cond) throw` explícito no body do constructor / método.
+- Initializer list (`: assert(...)`) também strip em release; só body executa sempre.
+
+### §33.7 Sítios de cart-add corrigidos
+- `lib/screens/product_detail_screen.dart:24` — `_variantKey(v) = v.id` (não embute nome)
+- `lib/screens/store_products_screen.dart:1146` — `_variantKey = variant.id` (não embute nome)
+- `lib/screens/restaurant_menu_screen.dart:188` — fallback `?? item.name` removido; throw `StateError` se `MenuItem.productId` null (bug a montante)
+
+### §33.8 Logging
+`debugPrint(...)` (Sentry / Crashlytics ausentes do projecto). Confirmado via grep em `lib/` + `pubspec.yaml`.
+
+---
+
 *Documento de regras de negócio — Bora App*
-*Última atualização: 2026-05-04 (§31 + §32 adicionados — Sessão 5A-1 backend foundation agente IA suporte + Architectural Debt)*
+*Última atualização: 2026-05-04 (§31 + §32 + §33 adicionados — Sessões 5A-1, Architectural Debt, 4C Flutter productId fix)*
 *Atualizar sempre que houver mudanças nas regras de negócio*
 *Fonte de verdade usada por: todas as skills do sistema*

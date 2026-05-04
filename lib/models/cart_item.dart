@@ -6,12 +6,12 @@ class CartItem {
   String purchaseStatus; // 'pending', 'bought', 'unavailable'
   double? actualPrice; // real price if different from estimated (future use)
 
-  // Sessão 4 B5 (mitigação dev/debug only — asserts strip em release):
+  // Sessão 4C (2026-05-04): defesa run-time em release.
+  // Asserts (4B5) STRIP em release → asserts são detectores dev. Validação
+  // crítica usa `if-throw` no body do constructor (executa também em release).
   // Callers DEVEM passar productId real (TEXT) da row em public.products.
-  // Fallback `?? name` removido. fromJson usa _raw (sem asserts) por
-  // tolerância a legacy data persistida em orders.items pré-Bug-B fix.
-  // Fix transversal completo (107 call sites, limpeza retroactiva
-  // orders.items) → Sessão 4C dedicada.
+  // fromJson usa _raw (sem validação) por tolerância a legacy data persistida
+  // em orders.items pré-Bug-B fix.
   CartItem({
     required this.productId,
     required this.name,
@@ -23,7 +23,20 @@ class CartItem {
         assert(!productId.contains(' '),
             'CartItem.productId com espaço — parece nome ($productId)'),
         assert(productId.length < 200,
-            'CartItem.productId muito longo — parece nome (len=${productId.length})');
+            'CartItem.productId muito longo — parece nome (len=${productId.length})') {
+    if (productId.isEmpty) {
+      throw ArgumentError.value(productId, 'productId',
+          'CartItem.productId vazio');
+    }
+    if (productId.contains(' ')) {
+      throw ArgumentError.value(productId, 'productId',
+          'CartItem.productId contém espaço — parece nome');
+    }
+    if (productId.length > 200) {
+      throw ArgumentError.value(productId, 'productId',
+          'CartItem.productId muito longo (${productId.length} chars) — parece nome');
+    }
+  }
 
   // Construtor sem asserts para desserializar legacy data persistida em
   // orders.items (productId pode ser nome literal pré-Bug-B fix). Não usar

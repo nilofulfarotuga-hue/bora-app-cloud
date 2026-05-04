@@ -34,6 +34,38 @@ class PartnerOrderLine {
   double get lineTotal => product.price * quantity;
 }
 
+/// Sessão 4C: validação de productId enviado para create_order RPC / Edge Fn.
+/// Não usa regex de prefixo — produção tem 9+ formatos válidos
+/// (pd, cnt, auc, merc, glv, cm, lidl, prod, UUIDs hex puros, sentinelas
+/// `extra_<timestamp>`). Critério: não vazio + sem espaço + 3-200 chars.
+bool isValidProductId(String id) {
+  if (id.isEmpty) return false;
+  if (id.contains(' ')) return false;
+  if (id.length < 3 || id.length > 200) return false;
+  return true;
+}
+
+/// Sessão 4C: bloqueia ordens órfãs de entrarem no servidor.
+/// Percorre `product_lines` no payload e valida cada `product_id`.
+/// Lança [FormatException] se algum productId inválido — caller apanha
+/// e mostra erro UI sem chegar à RPC. Defesa em profundidade adicional
+/// à mitigação SQL 4B5 (unit_price fallback server-side).
+void validateOrderPayload(Map<String, dynamic> payload) {
+  final lines = payload['product_lines'] as List?;
+  if (lines == null || lines.isEmpty) return; // logistics: sem product_lines.
+  for (final raw in lines) {
+    final line = raw as Map<String, dynamic>;
+    final pid = (line['product_id'] ?? '').toString();
+    if (!isValidProductId(pid)) {
+      final itemName = line['name']?.toString() ?? '<sem nome>';
+      debugPrint(
+          '[FLOW] validateOrderPayload INVALID_PRODUCT_ID pid="$pid" item="$itemName"');
+      throw FormatException(
+          'Invalid productId no payload: "$pid" (item: $itemName)');
+    }
+  }
+}
+
 class OrderStore extends ChangeNotifier {
   final supabase = Supabase.instance.client;
 
@@ -479,6 +511,15 @@ class OrderStore extends ChangeNotifier {
             .toList(),
     };
 
+    // Sessão 4C: defesa pré-RPC contra productId inválido.
+    // Bloqueia chegada de "nome" como product_id ao Edge Fn / RPC.
+    try {
+      validateOrderPayload(cartInput);
+    } on FormatException catch (e) {
+      debugPrint('[FLOW] startCardPaymentDraft BLOCKED — $e');
+      return null;
+    }
+
     debugPrint('[FLOW] startCardPaymentDraft → invoking create-payment-intent (new mode)');
     try {
       final response = await supabase.functions.invoke(
@@ -700,6 +741,15 @@ class OrderStore extends ChangeNotifier {
                 })
             .toList(),
     };
+
+    // Sessão 4C: defesa pré-RPC contra productId inválido.
+    // Bloqueia chegada de "nome" como product_id à RPC create_order.
+    try {
+      validateOrderPayload(rpcInput);
+    } on FormatException catch (e) {
+      debugPrint('[FLOW] createOrder BLOCKED — $e');
+      return false;
+    }
 
     debugPrint(
         '[FLOW] createOrder START → RPC create_order type=${serviceType.name}');

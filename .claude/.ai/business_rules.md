@@ -1376,7 +1376,86 @@ Source `C:\Users\danil\Desktop\Bora` foi **preservado intactus** durante a migra
 
 ---
 
+## §31 — AGENTE IA SUPORTE (5A-1, 2026-05-04)
+
+### §31.1 Stack
+- **Provider**: Google Gemini 1.5 Flash (free tier ~1500 req/dia, function calling nativo).
+- **Skills system**: playbooks markdown na tabela `support_skills` (DB-driven, versionable, admin edita sem redeploy).
+- **Tabelas (6)**: `support_settings`, `support_skills`, `support_chatbot_sessions`, `support_chatbot_messages`, `support_chatbot_quota`, `support_agent_actions`.
+- **Edge Functions (2)**: `support-chatbot` (verify_jwt=true, Gemini + tool-calling), `support-submit-ticket` (verify_jwt=true, tracking only).
+- **Tickets**: `support_tickets` legacy preservado + 9 colunas novas aditivas (`channel`, `subject`, `body`, `assigned_to`, `admin_notes`, `updated_at`, `resolved_at`, `session_id`, `order_id`).
+
+### §31.2 Limites configuráveis (`support_settings` singleton id=1)
+- `rate_limit_per_user_day`: 30 mensagens/dia
+- `max_messages_per_session`: 30 mensagens/sessão
+- `max_output_tokens_per_call`: 8000 tokens
+- `max_user_message_chars`: 2000 chars (truncate, com sanitização anti-injection)
+- `max_tool_iterations`: 5 ciclos function-calling
+- `shadow_mode`: true (skills write/cancel apenas propõem em 5B+)
+- `support_agent_enabled`: true (kill switch global → app esconde FAB)
+
+### §31.3 Regras críticas
+- **Agente NUNCA calcula dinheiro**, refunds, créditos ou estimativas financeiras → escalar via skill `HUMAN_REQUEST`.
+- **Agente NUNCA inventa valores** → se não tem info via tool, diz-o e oferece humano.
+- **Tom**: PT europeu, amigável e directo, respostas ≤ 3 frases.
+- **Marcador escalação**: `[HANDOFF_HUMAN]` no fim do reply → cria `support_tickets` channel='chatbot'.
+
+### §31.4 RPCs whitelisted tool-calling (5)
+Todas `SECURITY DEFINER`, todas usam `auth.uid()` directamente. **NENHUMA aceita `p_user_id`** (defesa contra impersonation via tool-call hallucination).
+
+| RPC | Args | Returns |
+|-----|------|---------|
+| `agent_get_user_orders_summary(p_limit int=5)` | int 1-20 | Últimos pedidos (id, status, partner, total_cents, can_be_cancelled) |
+| `agent_get_order_status(p_order_id text)` | order id | status, current_step, driver_name, can_be_cancelled |
+| `agent_get_user_wallet_summary()` | — | free_balance_cents, is_blocked, soft/hard floor, explanation |
+| `agent_get_user_tokens_summary()` | — | tokens_balance, expiring_soon_count |
+| `agent_get_refund_status(p_order_id text)` | order id | refund_status, method, amount, ETA texto |
+
+Order ownership validado em `agent_get_order_status` e `agent_get_refund_status` (lança `ORDER_NOT_FOUND_OR_NOT_OWNER`).
+
+### §31.5 Defesas Edge Function `support-chatbot`
+- Sanitização: strip control chars (preserva \\t, \\n) + reject `<<<SYSTEM>>>` / `<<<END_SYSTEM>>>` literais (400).
+- System prompt em delimitador isolado + Gemini `system_instruction` nativo (belt-and-suspenders).
+- Whitelist tool names — function call não whitelisted → handoff humano.
+- Cap iter tool-calling: 5; cap msg/sessão: 30; cap msg/dia: 30; cap tokens output: 8000.
+- Quota incrementada via `increment_chatbot_quota()` (UPSERT atómico, anti race-condition).
+
+### §31.6 Canais de contacto
+- WhatsApp: `+351937501673` (configurável `support_settings.whatsapp_number`)
+- Email: `boraappbora@gmail.com` (configurável `support_settings.support_email`)
+- WhatsApp tap **NÃO** cria ticket (anti-spam) — analytics futura via `support_channel_taps` (5B).
+
+### §31.7 Skills 5A (read-only, seed em 5A-2)
+9 skills aprovadas: `ORDER_STATUS_CHECK`, `WALLET_INFO`, `TOKENS_INFO`, `RESERVATION_INFO`, `RECEIPT_RESEND`, `FAQ_GENERAL`, `CONTACT_HUMAN`, `HUMAN_REQUEST`, `ESCALATION_FALLBACK`.
+
+Skills WRITE/CANCEL/MARKET ficam para 5B (modo SHADOW 4 semanas → admin aprova).
+
+### §31.8 RAG diferido
+pgvector ausente — RAG embeddings de business_rules + sessões anteriores ficam para 5C.
+
+---
+
+## §32 — Architectural Debt (Sessão 7 dedicada)
+
+### §32.1 BUG 39 — UUID/TEXT mismatch em `orders.id`
+- `orders.id` é **TEXT** em produção (legado).
+- Tabelas que referenciam `orders.id` com tipo **UUID** (mismatch):
+  - `messages.order_id` (chat operacional cliente↔estafeta)
+  - `bora_tokens.source_order_id`
+- Triggers que cruzam tipos usam `::UUID` cast explícito — workaround deliberado.
+- Plano: `decisions/2026-04-29-restaurants-id-uuid-refactor.md` (Sessão 7 dedicada).
+- **Não corrigir ad-hoc** — mudança transversal exige sessão própria.
+
+### §32.2 BUG 34 (related)
+`orders.id`, `restaurants.id`, `products.id` todos TEXT em prod. Refactor único bundled.
+
+### §32.3 BUG 35/37
+- BUG 35: RPC `finalize_storeshopping_purchase` — corrigido em sessões anteriores; manter regressão.
+- BUG 37: `fn_award_tokens_on_delivery` cast UUID — relacionado §32.1.
+
+---
+
 *Documento de regras de negócio — Bora App*
-*Última atualização: 2026-05-04 (§30 adicionado — Knowledge Infra Pré-5A)*
+*Última atualização: 2026-05-04 (§31 + §32 adicionados — Sessão 5A-1 backend foundation agente IA suporte + Architectural Debt)*
 *Atualizar sempre que houver mudanças nas regras de negócio*
 *Fonte de verdade usada por: todas as skills do sistema*

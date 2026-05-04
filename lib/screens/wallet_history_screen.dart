@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/wallet_service.dart';
+import '../widgets/bora_support_fab.dart';
 
 /// Wallet History — lista de transactions do utilizador (saldo livre + tokens).
 class WalletHistoryScreen extends StatefulWidget {
@@ -43,6 +44,7 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Saldo Bora')),
+      floatingActionButton: const BoraSupportFab(),
       body: RefreshIndicator(
         onRefresh: _load,
         child: _loading

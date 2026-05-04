@@ -9,6 +9,7 @@ import '../models/chat_message.dart';
 import '../models/order_model.dart';
 import '../stores/driver_store.dart';
 import '../stores/order_store.dart';
+import '../widgets/bora_support_fab.dart';
 import '../widgets/refund_choice_dialog.dart';
 import 'chat_screen.dart';
 import 'wallet_history_screen.dart';
@@ -38,6 +39,7 @@ class OrderDetailsScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text('Pedido $_orderCode'),
       ),
+      floatingActionButton: BoraSupportFab(orderId: order.id),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [

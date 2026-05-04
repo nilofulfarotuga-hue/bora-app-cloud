@@ -12,6 +12,7 @@ import 'package:supabase_flutter/supabase_flutter.dart' show Supabase;
 
 import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
+import '../widgets/bora_support_fab.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../utils/constants.dart';
 import '../utils/map_utils.dart';
@@ -494,6 +495,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
 
     return Scaffold(
       backgroundColor: AppColors.surface,
+      floatingActionButton: const BoraSupportFab(),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,

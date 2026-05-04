@@ -11,6 +11,7 @@ import '../models/chat_message.dart';
 import '../models/order_model.dart';
 import '../models/rating_model.dart';
 import '../widgets/address_text.dart';
+import '../widgets/bora_support_fab.dart';
 import '../services/directions_service.dart';
 import '../services/order_eta_service.dart';
 import '../stores/driver_store.dart';
@@ -233,6 +234,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         const ll.LatLng(kGuardaLat, kGuardaLng);
 
     return Scaffold(
+      floatingActionButton: BoraSupportFab(orderId: widget.order.id),
       body: Stack(
         children: [
           // ── Fullscreen map ─────────────────────────────────────────────────

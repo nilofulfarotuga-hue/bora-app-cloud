@@ -8,6 +8,7 @@ import '../stores/cart_store.dart';
 import '../stores/restaurant_store.dart';
 import '../utils/business_mapper.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
+import '../widgets/bora_support_fab.dart';
 import 'store_categories_screen.dart';
 import 'store_products_screen.dart';
 
@@ -106,6 +107,7 @@ class StoresScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
+      floatingActionButton: const BoraSupportFab(),
       appBar: BoraScreenAppBar(title: _title),
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),

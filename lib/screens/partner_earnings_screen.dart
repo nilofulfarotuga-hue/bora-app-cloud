@@ -7,6 +7,7 @@ import '../config/app_spacing.dart';
 import '../models/order_model.dart';
 import '../models/restaurant_model.dart';
 import '../stores/order_store.dart';
+import '../widgets/bora_support_fab.dart';
 
 enum _Period { today, week, month }
 
@@ -84,6 +85,7 @@ class _PartnerEarningsScreenState extends State<PartnerEarningsScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.surface,
+      floatingActionButton: const BoraSupportFab(),
       appBar: AppBar(
         title: const Text(
           'Ganhos',

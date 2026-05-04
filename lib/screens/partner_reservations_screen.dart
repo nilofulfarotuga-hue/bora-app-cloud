@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/app_colors.dart';
 import '../models/reservation_model.dart';
+import '../widgets/bora_support_fab.dart';
 
 /// Partner dashboard — reservations section (BR §14.7).
 class PartnerReservationsScreen extends StatefulWidget {
@@ -80,6 +81,7 @@ class _PartnerReservationsScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.surface,
+      floatingActionButton: const BoraSupportFab(),
       appBar: AppBar(
         title: const Text(
           'Reservas',

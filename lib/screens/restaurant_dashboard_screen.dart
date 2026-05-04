@@ -9,6 +9,7 @@ import '../models/restaurant_model.dart';
 import 'partner_call_driver_screen.dart';
 import 'partner_products_screen.dart';
 import '../widgets/address_text.dart';
+import '../widgets/bora_support_fab.dart';
 import 'register_partner_screen.dart';
 import '../stores/order_store.dart';
 import '../stores/restaurant_store.dart';
@@ -57,6 +58,7 @@ class RestaurantDashboardScreen extends StatelessWidget {
     if (restaurants.isEmpty) {
       return Scaffold(
         backgroundColor: AppColors.surface,
+        floatingActionButton: const BoraSupportFab(),
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           foregroundColor: Colors.white,
@@ -118,6 +120,7 @@ class RestaurantDashboardScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AppColors.surface,
+      floatingActionButton: const BoraSupportFab(),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,

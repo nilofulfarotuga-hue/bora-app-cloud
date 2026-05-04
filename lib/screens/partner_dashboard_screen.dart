@@ -7,6 +7,7 @@ import 'package:vibration/vibration.dart';
 
 import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
+import '../widgets/bora_support_fab.dart';
 import '../models/chat_message.dart';
 import '../models/order_model.dart';
 import '../models/restaurant_model.dart';
@@ -164,6 +165,7 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.surface,
+      floatingActionButton: const BoraSupportFab(),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,

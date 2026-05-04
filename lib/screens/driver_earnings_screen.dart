@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/app_colors.dart';
 import '../config/business_rules.dart' show BRTokens;
+import '../widgets/bora_support_fab.dart';
 import '../widgets/weekly_settlement_card.dart';
 
 class DriverEarningsScreen extends StatefulWidget {
@@ -312,6 +313,7 @@ class _DriverEarningsScreenState extends State<DriverEarningsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.surface,
+      floatingActionButton: const BoraSupportFab(),
       appBar: AppBar(
         title: const Text(
           'Ganhos',

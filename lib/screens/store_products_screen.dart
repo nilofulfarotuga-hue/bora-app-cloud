@@ -13,6 +13,7 @@ import '../stores/cart_store.dart';
 import '../stores/favorite_store.dart';
 import '../stores/restaurant_store.dart';
 import '../widgets/bora/bora_product_card.dart';
+import '../widgets/bora_support_fab.dart';
 import 'cart_screen.dart';
 import 'product_detail_screen.dart';
 
@@ -197,6 +198,7 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
+      floatingActionButton: const BoraSupportFab(),
       appBar: AppBar(
         title: Text(
           widget.storeName,

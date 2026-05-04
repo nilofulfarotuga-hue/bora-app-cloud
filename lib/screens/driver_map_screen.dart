@@ -18,6 +18,7 @@ import '../models/chat_message.dart';
 import '../models/order_model.dart';
 import '../services/directions_service.dart';
 import '../services/navigation_service.dart';
+import '../widgets/bora_support_fab.dart';
 import '../services/route_optimizer.dart';
 import '../stores/driver_store.dart';
 import '../stores/order_store.dart';
@@ -685,6 +686,10 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
     final topPadding = MediaQuery.of(context).padding.top;
 
     return Scaffold(
+      floatingActionButton: const BoraSupportFab(
+        position: FabPosition.topRight,
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endTop,
       body: Stack(
         children: [
           // GoogleMap must have explicit size on Web (PlatformView requirement).

@@ -12,6 +12,7 @@ import '../stores/favorite_store.dart';
 import '../stores/restaurant_store.dart';
 import '../utils/business_mapper.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
+import '../widgets/bora_support_fab.dart';
 import 'restaurant_menu_screen.dart';
 
 class RestaurantsScreen extends StatelessWidget {
@@ -38,6 +39,7 @@ class RestaurantsScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AppColors.surface,
+      floatingActionButton: const BoraSupportFab(),
       appBar: BoraScreenAppBar(
         title: reservationsOnly ? 'Reservar Mesa' : 'Restaurantes',
       ),

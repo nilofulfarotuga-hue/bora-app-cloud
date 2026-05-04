@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../widgets/bora_support_fab.dart';
+
 /// T2.E (BR §18) — Lista de reservas do cliente + cancel button.
 class ClientReservationsScreen extends StatefulWidget {
   const ClientReservationsScreen({super.key});
@@ -126,6 +128,7 @@ class _ClientReservationsScreenState extends State<ClientReservationsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('As minhas reservas')),
+      floatingActionButton: const BoraSupportFab(),
       body: RefreshIndicator(
         onRefresh: _load,
         child: _loading

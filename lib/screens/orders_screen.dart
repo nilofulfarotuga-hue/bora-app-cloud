@@ -9,6 +9,7 @@ import '../config/app_spacing.dart';
 import '../models/order_model.dart';
 import '../services/wallet_service.dart';
 import '../stores/order_store.dart';
+import '../widgets/bora_support_fab.dart';
 import 'order_details_screen.dart';
 import 'restaurants_screen.dart';
 import 'wallet_history_screen.dart';
@@ -76,6 +77,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.surface,
+      floatingActionButton: const BoraSupportFab(),
       appBar: AppBar(
         title: const Text(
           'Pedidos',

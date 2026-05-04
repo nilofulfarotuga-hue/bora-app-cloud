@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/in_app_notifications_service.dart';
+import '../widgets/bora_support_fab.dart';
 
 /// T2.3 — Lista de in-app notifications cliente.
 class NotificationsScreen extends StatefulWidget {
@@ -73,6 +74,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             ),
         ],
       ),
+      floatingActionButton: const BoraSupportFab(),
       body: RefreshIndicator(
         onRefresh: _load,
         child: _loading

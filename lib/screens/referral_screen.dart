@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../widgets/bora_support_fab.dart';
+
 /// Referral / Convite — Feature 10.
 /// Mostra código único do utilizador + botão Share + estatísticas.
 /// Backend: RPC `client_get_or_create_referral_code` + tabela `referral_codes`.
@@ -86,6 +88,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Convidar amigos')),
+      floatingActionButton: const BoraSupportFab(),
       body: RefreshIndicator(
         onRefresh: _load,
         child: _loading

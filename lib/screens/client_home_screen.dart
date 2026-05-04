@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
@@ -13,6 +12,7 @@ import '../stores/restaurant_store.dart';
 import '../stores/session_store.dart';
 import '../widgets/address_autocomplete_field.dart';
 import '../widgets/bora/bora.dart';
+import '../widgets/bora_support_fab.dart';
 import '../widgets/notification_bell.dart';
 import 'carry_groceries_screen.dart';
 import 'restaurants_screen.dart';
@@ -90,14 +90,6 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     );
   }
 
-  Future<void> _openWhatsApp() async {
-    final url = Uri.parse(
-        'https://wa.me/351937501673?text=Olá! Preciso de ajuda com o Bora App');
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
-    }
-  }
-
   void _navigateWithAddressGuard(VoidCallback nav) {
     final street = context.read<CartStore>().dropoffStreet;
     if (street.isEmpty) {
@@ -133,12 +125,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.surface,
-      floatingActionButton: FloatingActionButton(
-        onPressed: _openWhatsApp,
-        backgroundColor: const Color(0xFF25D366),
-        tooltip: 'Suporte WhatsApp',
-        child: const Icon(Icons.chat_rounded, color: Colors.white, size: 26),
-      ),
+      floatingActionButton: const BoraSupportFab(),
       body: Column(
         children: [
           BoraAppBar(

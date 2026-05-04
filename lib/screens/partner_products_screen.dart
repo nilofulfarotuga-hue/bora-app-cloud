@@ -5,6 +5,7 @@ import '../config/app_colors.dart';
 import '../models/partner_product.dart';
 import '../models/restaurant_model.dart';
 import '../stores/partner_product_store.dart';
+import '../widgets/bora_support_fab.dart';
 import 'add_product_screen.dart';
 
 class PartnerProductsScreen extends StatefulWidget {
@@ -83,22 +84,36 @@ class _PartnerProductsScreenState extends State<PartnerProductsScreen> {
         icon: const Icon(Icons.add),
         label: const Text('Adicionar produto'),
       ),
-      body: SafeArea(
-        child: products.isEmpty
-            ? _EmptyProducts(restaurantName: widget.restaurant.name)
-            : ListView.separated(
-                padding: const EdgeInsets.all(16),
-                itemCount: products.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
-                itemBuilder: (context, index) {
-                  final product = products[index];
-                  return _ProductTile(
-                    product: product,
-                    onToggleAvailability: (value) =>
-                        _toggleAvailability(product, value),
-                  );
-                },
+      body: Stack(
+        children: [
+          SafeArea(
+            child: products.isEmpty
+                ? _EmptyProducts(restaurantName: widget.restaurant.name)
+                : ListView.separated(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: products.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    itemBuilder: (context, index) {
+                      final product = products[index];
+                      return _ProductTile(
+                        product: product,
+                        onToggleAvailability: (value) =>
+                            _toggleAvailability(product, value),
+                      );
+                    },
+                  ),
+          ),
+          const Positioned(
+            top: 16,
+            right: 16,
+            child: SafeArea(
+              child: BoraSupportFab(
+                position: FabPosition.topRight,
+                heroTag: 'bora_support_fab_partner_products',
               ),
+            ),
+          ),
+        ],
       ),
     );
   }

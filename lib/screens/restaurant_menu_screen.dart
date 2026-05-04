@@ -10,6 +10,7 @@ import '../stores/cart_store.dart';
 import '../stores/favorite_store.dart';
 import '../stores/restaurant_store.dart';
 import '../widgets/bora/bora.dart';
+import '../widgets/bora_support_fab.dart';
 import 'cart_screen.dart';
 import 'product_detail_screen.dart';
 import 'reservation_flow_screen.dart';
@@ -95,6 +96,7 @@ class RestaurantMenuScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AppColors.surface,
+      floatingActionButton: const BoraSupportFab(),
       appBar: AppBar(
         title: Text(
           restaurant.name,

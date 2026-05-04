@@ -1433,6 +1433,55 @@ Skills WRITE/CANCEL/MARKET ficam para 5B (modo SHADOW 4 semanas → admin aprova
 ### §31.8 RAG diferido
 pgvector ausente — RAG embeddings de business_rules + sessões anteriores ficam para 5C.
 
+### §31.9 Frontend integração (5A-2, 2026-05-04)
+
+**Provider state global (anti-flicker 3-state):**
+- `SupportSettingsProvider` carrega `support_settings` on app start + refresh on `AppLifecycleState.resumed`.
+- `enum SupportSettingsState { loading, loaded, error }`:
+  - `loading` → FAB não renderiza (sem flicker boot)
+  - `loaded` → respeita `support_agent_enabled` real
+  - `error` → esconde card "Bora IA"; WhatsApp/Email visíveis (degraded mode)
+
+**Widgets criados:**
+- `BoraScaffold` — wrapper minimal (sem refactor scaffolds existentes)
+- `BoraSupportFab` — `FabPosition.{bottomRight,bottomLeft,topRight,topLeft}` (default BR; TR para screens com FAB próprio)
+- `BoraSupportSheet` — 3 cards: "Bora IA" (condicional `shouldShowAiCard`), WhatsApp, Email
+- `SupportChatScreen` — Realtime em `support_chatbot_messages` + Edge Fn `support-chatbot`
+- `SupportEmailFormScreen` — submit via Edge Fn `support-submit-ticket`
+- `AdminSupportTicketsScreen` — lista admin mínima + RPC `admin_resolve_ticket(p_ticket_id, p_notes)`
+
+**Realtime publication:** `ALTER PUBLICATION supabase_realtime ADD TABLE support_chatbot_messages;` (migration `20260504080100`).
+
+**WhatsApp tap NÃO cria ticket** — só `chat`/`email` criam (anti-spam §31.6).
+
+**503 differentiation UX:**
+- 503 + `error: 'GEMINI_API_KEY missing'` → "Sistema em configuração. Contacta WhatsApp/Email"
+- 503 outros (settings off) → "Indisponível temporariamente"
+
+### §31.10 Skills 5A-2 (seed read-only)
+
+9 skills active=true em `support_skills`:
+1. **ORDER_STATUS** — `agent_get_order_status`
+2. **ORDER_HISTORY** — `agent_get_user_orders_summary`
+3. **WALLET_INFO** — `agent_get_user_wallet_summary`
+4. **WALLET_BLOCKED_HELP** — `agent_get_user_wallet_summary`
+5. **TOKENS_INFO** — `agent_get_user_tokens_summary` (fórmula real `ROUND(price×3) min 1`, expira 60d)
+6. **REFUND_STATUS** — `agent_get_refund_status` (placeholder; refund detail real em 5B)
+7. **GENERAL_FAQ** — sem tools (cobertura Guarda, tipos serviço)
+8. **APP_TROUBLESHOOTING** — sem tools (GPS, push, crash)
+9. **HUMAN_REQUEST** — escalate (cria ticket channel='chatbot')
+
+Todas idempotentes via `INSERT...ON CONFLICT(skill_name) DO UPDATE` (version++).
+
+**Itens [VERIFICAR] pendentes para Danilo preencher:** ETA real (5C), prazo legal liquidação manual wallet, conversão "100 tokens=€0.50", refund amount real (5B), horário operacional, taxa entrega base, versão mínima Android/iOS.
+
+### §31.11 Admin RPC
+
+`admin_resolve_ticket(p_ticket_id uuid, p_notes text DEFAULT NULL)`:
+- Requer `is_admin()` (RAISE `NOT_ADMIN` se não admin).
+- UPDATE `status='resolved'`, `resolved_at=now()`, `updated_at=now()`.
+- **Audit inline:** append `[timestamp] resolved by <auth.uid()>: <p_notes>` em `admin_notes` (preserva histórico).
+
 ---
 
 ## §32 — Architectural Debt (Sessão 7 dedicada)
@@ -1452,6 +1501,28 @@ pgvector ausente — RAG embeddings de business_rules + sessões anteriores fica
 ### §32.3 BUG 35/37
 - BUG 35: RPC `finalize_storeshopping_purchase` — corrigido em sessões anteriores; manter regressão.
 - BUG 37: `fn_award_tokens_on_delivery` cast UUID — relacionado §32.1.
+
+### §32.4 Tokens cliente — discrepância docs vs código (5A-2 detectado)
+
+**Detectado:** business_rules.md secção tokens (§lugar tokens) diz **"3% do valor do pedido"** mas o trigger real `fn_award_tokens_on_delivery` em prod usa **`GREATEST(1, ROUND(price × 3))`** (validado via MCP 2026-05-04).
+
+**Impacto:** se `price=10€`, doc esperaria `0.30 tokens` mas código atribui `30 tokens`. Discrepância 100x.
+
+**Acção:**
+- Skill `TOKENS_INFO` (5A-2 B17) cita **fórmula real** do código (`ROUND(price×3) min 1`, expira 60d).
+- Confirmar com Danilo em sessão futura: qual é a fórmula desejada?
+  - Se fórmula correcta é `ROUND(price×3)`: actualizar business_rules.md secção tokens.
+  - Se fórmula correcta é "3% do valor": corrigir trigger `fn_award_tokens_on_delivery`.
+
+**NÃO fixar nesta sessão** — escopo 5A-2 é frontend + skills seed.
+
+### §32.5 Bug crítico 5A-1 corrigido em 5A-2 (B-FIX-1)
+
+**Detectado em 5A-2 audit:** RPC `agent_get_order_status` (5A-1) mapeava estados snake_case (`pending`, `accepted`, `picked_up`, ...) que **NÃO existem em prod**. Estados reais em `orders.status` (validados via MCP DISTINCT) são camelCase Dart-like: `created`, `preparing`, `callingDriver`, `driverAccepted`, `pickedUp`, `onTheWay`, `delivered`, `cancelled`, `rejected`.
+
+**Impacto antes do fix:** RPC devolvia `current_step = status` (fallthrough do CASE) para todos os estados — UX degradada (utilizador veria texto cru tipo "driverAccepted" em vez de "Estafeta a caminho do parceiro").
+
+**Fix aplicado:** migration `20260504080000_5a2_fix_agent_order_status_camelcase.sql`. CASE actualizado com 9 estados reais + textos PT-EU. `can_be_cancelled` agora é `status IN ('created','preparing','callingDriver')` (corresponde ao flow real).
 
 ---
 

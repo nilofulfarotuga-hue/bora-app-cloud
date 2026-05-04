@@ -24,6 +24,7 @@ import 'stores/partner_product_store.dart';
 import 'stores/restaurant_store.dart';
 import 'stores/favorite_store.dart';
 import 'config/app_theme.dart';
+import 'providers/support_settings_provider.dart';
 import 'stores/consent_store.dart';
 import 'stores/session_store.dart';
 import 'widgets/consent_banner.dart';
@@ -76,7 +77,7 @@ Future<void> main() async {
   ));
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({
     super.key,
     required this.sessionStore,
@@ -87,11 +88,44 @@ class MyApp extends StatelessWidget {
   final ConsentStore consentStore;
 
   @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
+  late final SupportSettingsProvider _supportSettings;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _supportSettings = SupportSettingsProvider()..load();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _supportSettings.load();
+    }
+  }
+
+  SessionStore get sessionStore => widget.sessionStore;
+  ConsentStore get consentStore => widget.consentStore;
+
+  @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider<SessionStore>.value(value: sessionStore),
         ChangeNotifierProvider<ConsentStore>.value(value: consentStore),
+        ChangeNotifierProvider<SupportSettingsProvider>.value(
+          value: _supportSettings,
+        ),
         ChangeNotifierProvider<AuthStore>(
           create: (_) => AuthStore(),
         ),

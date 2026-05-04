@@ -6,20 +6,36 @@ class CartItem {
   String purchaseStatus; // 'pending', 'bought', 'unavailable'
   double? actualPrice; // real price if different from estimated (future use)
 
-  // Bug-B fix 2026-04-30: callers MUST now pass real productId for product
-  // flows (restaurant menu, store products). Fallback to name only kept for
-  // logistics services (carryGroceries / sendPackage) and legacy paths where
-  // create_order ignores product_lines anyway. Real-product call sites have
-  // been updated in business_mapper.dart, restaurant_menu_screen.dart,
-  // cart_store.dart.
+  // Sessão 4 B5 (mitigação dev/debug only — asserts strip em release):
+  // Callers DEVEM passar productId real (TEXT) da row em public.products.
+  // Fallback `?? name` removido. fromJson usa _raw (sem asserts) por
+  // tolerância a legacy data persistida em orders.items pré-Bug-B fix.
+  // Fix transversal completo (107 call sites, limpeza retroactiva
+  // orders.items) → Sessão 4C dedicada.
   CartItem({
-    String? productId,
+    required this.productId,
     required this.name,
     required this.price,
     this.quantity = 1,
     this.purchaseStatus = 'pending',
     this.actualPrice,
-  }) : productId = productId ?? name;
+  })  : assert(productId.isNotEmpty, 'CartItem.productId vazio'),
+        assert(!productId.contains(' '),
+            'CartItem.productId com espaço — parece nome ($productId)'),
+        assert(productId.length < 200,
+            'CartItem.productId muito longo — parece nome (len=${productId.length})');
+
+  // Construtor sem asserts para desserializar legacy data persistida em
+  // orders.items (productId pode ser nome literal pré-Bug-B fix). Não usar
+  // para criar novas instâncias — usar [CartItem.new] que valida via asserts.
+  CartItem._raw({
+    required this.productId,
+    required this.name,
+    required this.price,
+    this.quantity = 1,
+    this.purchaseStatus = 'pending',
+    this.actualPrice,
+  });
 
   Map<String, dynamic> toJson() => {
         'productId': productId,
@@ -30,12 +46,16 @@ class CartItem {
         if (actualPrice != null) 'actualPrice': actualPrice,
       };
 
-  factory CartItem.fromJson(Map<String, dynamic> json) => CartItem(
-        productId: json['productId'] as String?,
-        name: json['name'] as String,
-        price: (json['price'] as num).toDouble(),
-        quantity: json['quantity'] as int? ?? 1,
-        purchaseStatus: json['purchaseStatus'] as String? ?? 'pending',
-        actualPrice: (json['actualPrice'] as num?)?.toDouble(),
-      );
+  factory CartItem.fromJson(Map<String, dynamic> json) {
+    final rawId = json['productId'] as String?;
+    final name = json['name'] as String;
+    return CartItem._raw(
+      productId: (rawId == null || rawId.isEmpty) ? name : rawId,
+      name: name,
+      price: (json['price'] as num).toDouble(),
+      quantity: json['quantity'] as int? ?? 1,
+      purchaseStatus: json['purchaseStatus'] as String? ?? 'pending',
+      actualPrice: (json['actualPrice'] as num?)?.toDouble(),
+    );
+  }
 }

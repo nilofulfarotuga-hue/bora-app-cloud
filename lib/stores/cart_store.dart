@@ -390,6 +390,7 @@ class CartStore extends ChangeNotifier {
       items: _items
           .map(
             (item) => CartItem(
+              productId: item.productId,
               name: item.name,
               price: item.price,
               quantity: item.quantity,
@@ -475,6 +476,7 @@ class CartStore extends ChangeNotifier {
       items: _items
           .map(
             (item) => CartItem(
+              productId: item.productId,
               name: item.name,
               price: item.price,
               quantity: item.quantity,

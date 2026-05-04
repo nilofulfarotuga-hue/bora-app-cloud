@@ -184,7 +184,7 @@ class RestaurantMenuScreen extends StatelessWidget {
                               onFavorite: () => favorites.toggle(favKey),
                               onAdd: () {
                                 context.read<CartStore>().addItem(CartItem(
-                                    productId: item.productId, // Bug-B fix
+                                    productId: item.productId ?? item.name,
                                     name: item.name,
                                     price: item.price));
                                 ScaffoldMessenger.of(context)

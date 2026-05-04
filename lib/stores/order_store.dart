@@ -827,12 +827,10 @@ class OrderStore extends ChangeNotifier {
         }
       }
 
-      // NOTE: MBWay confirmation is server-only. The client does NOT trigger
-      // confirm-mbway-payment from here — that would make the "server-trusted"
-      // path trivially forgeable. A real MBWay provider webhook (or a manual
-      // operator call) is the only authorised way to flip payment_status.
-      // Until that integration exists, MBWay orders block at the payment gate
-      // by design (safe default).
+      // NOTE: MBWay confirmation is server-only via stripe-webhook (Stripe
+      // PaymentIntent succeeded → flips payment_status to 'paid'). The client
+      // does NOT trigger confirmation directly — that would make the
+      // "server-trusted" path trivially forgeable.
 
       // Fire-and-forget: status simulation is a best-effort side-effect.
       // createOrder returns true as soon as the order is committed to the server.
@@ -1732,6 +1730,7 @@ class OrderStore extends ChangeNotifier {
       items: items
           .map(
             (line) => CartItem(
+              productId: line.product.id,
               name: line.product.name,
               price: line.product.price,
               quantity: line.quantity,
@@ -2257,7 +2256,7 @@ class OrderStore extends ChangeNotifier {
     // Re-fetch the order row from the DB (never trust local state, cache or
     // client flags). Dispatch is only allowed when ONE of the following is
     // true, read live from Postgres:
-    //   1. payment_status == 'paid'   (Stripe webhook OR confirm-mbway-payment)
+    //   1. payment_status == 'paid'   (stripe-webhook handles card + MBWay)
     //   2. payment_method == 'cash'   (COD partner orders — no server confirmation path)
     // Any other combination blocks the Edge Function invocation entirely.
     try {

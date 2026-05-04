@@ -1267,7 +1267,83 @@ Uber Eats e Glovo usam abordagem similar:
 
 ---
 
+## §29. Housekeeping financeiro e DB conventions (Sessão 4 — 2026-05-04)
+
+### §29.1 Tipos NUMERIC para colunas monetárias (regra-chave)
+
+- **Nunca usar `double precision` em colunas monetárias.** Float binário introduz erros silenciosos em rounding (ex.: `0.1 + 0.2 ≠ 0.3`).
+- Usar `NUMERIC` (precisão arbitrária) para qualquer coluna que represente euros, cêntimos como decimal, taxas, comissões, refunds.
+- Pattern dual-write para migração faseada (ver §29.2).
+- Excepção: cálculos transientes em PL/pgSQL podem usar `int` (cents) — só persistência exige NUMERIC.
+
+**Status actual (2026-05-04):**
+- ✅ `customer_total, subtotal, delivery_fee, service_fee, platform_commission, driver_earnings, bag_fee` → `numeric`
+- ⚠️ `final_total` → `double precision` (em dual-write `final_total_numeric` desde B2; commit 2 swap futuro)
+- 🐛 `extra_charge_amount` → `double precision` (mesmo padrão; sessão futura housekeeping)
+
+### §29.2 Trigger naming: sufixo `trg_zz_*` para última posição alfabética
+
+- PostgreSQL dispara triggers do mesmo evento por ordem alfabética do nome.
+- Para garantir que um trigger executa **APÓS** triggers críticos (ex.: financial_lock, financial_split), usar prefixo `trg_zz_*`.
+- Convenção entra em vigor com `trg_zz_final_total_dual_write` (Sessão 4 B2).
+- Nota: `trigger_*` (com 'i') é alfabeticamente posterior a `trg_zz_*` (porque 'g' < 'i'). Em colisão, preferir renomear o trigger de tipo `trigger_*` para `trg_*` se a ordem importar.
+
+### §29.3 Edge Functions activas (snapshot 2026-05-04 pós-Sessão 4 B1)
+
+Lista limpa pós-deletes:
+- `dispatch-engine` (verify_jwt=false)
+- `stripe-webhook` (verify_jwt=false)
+- `create-payment-intent` (verify_jwt=false)
+- `create-mbway-payment-intent` (verify_jwt=true, LIVE)
+- `notify-driver` / `notify-partner` / `notify-client`
+- `refund` / `charge-extra`
+- `delete-account` / `client-cancel-order` / `cancel-order-with-choice` / `execute-cancellation`
+- `update-products` / `admin-force-driver-logout` / `admin-cancel-order` / `upload-avatar`
+- `create-reservation-payment-intent` / `finalize-order-from-intent`
+
+**Apagadas em Sessão 4 B1 (2026-05-04):**
+- `confirm-mbway-payment` (obsoleta — substituída por stripe-webhook PaymentIntent succeeded)
+- `create-mbway-payment-intent-debug` (variante debug deixada em prod)
+
+### §29.4 Settlement marker para `extra_charge_amount` (Sessão 4 B3)
+
+Tabela `orders` ganhou 2 colunas:
+- `extra_charge_settled_at TIMESTAMPTZ NULL` — timestamp da liquidação (NULL = pendente)
+- `extra_charge_settled_via TEXT NULL CHECK IN ('wallet','cash','none')`
+
+Histórico de `extra_charge_amount` é **preservado** após settlement (não setar a 0). A liquidação é apenas marcada nas 2 colunas novas.
+
+`finalize_storeshopping_purchase` marca automaticamente `settled_via='wallet'` quando `wallet_apply_post_delivery_adjustment` succeeds.
+
+Cash settlement path (estafeta cobra em mão) actualmente usa `cash_total_due` paralelo; settlement marker via `'cash'` será aplicado em sessão futura quando arquitectura for unificada.
+
+### §29.5 Pricing Quote Consistency (Sessão 4 B4)
+
+`quote_order_pricing` e `create_order` ambas usam `distance_km` do payload (não recalculam server-side).
+
+**Caller é responsável por:**
+1. Calcular `distance_km` UMA vez via método consistente (Haversine ou outro).
+2. Enviar **MESMO** `distance_km` para quote E para create_order.
+3. Não recalcular entre quote e create_order.
+
+**Tolerância:** ± €0.01 paridade pricing (smoke obrigatório em alterações de pricing).
+
+⚠️ **Sessão futura — anti-fraud:** validar server-side recalculando `distance_km` a partir de coords (`pickup_lat/lng → dropoff_lat/lng`) usando `earthdistance` ou PostGIS. Sem isto, cliente malicioso pode reduzir `delivery_fee` enviando distance fabricada.
+
+### §29.6 Flutter `productId` (Sessão 4 B5 — mitigação dev-only)
+
+`CartItem.productId` deve ser sempre o ID real da row em `products` (TEXT). Nunca o nome do produto.
+
+**Defesa em profundidade:**
+- Flutter (dev/debug): assert no construtor `CartItem` rejeita strings vazias, com espaço, ou >200 chars.
+- ⚠️ Asserts são strip em release mode (produção) — mitigação NÃO protege prod actualmente.
+- Server-side: fallback `unit_price` em `create_order` (Sessão 1) — defesa em profundidade, manter sempre.
+
+**Pendente Sessão 4C:** fix transversal nos 107 call sites de `CartItem(...)`; limpeza retroactiva de `orders.items` históricos via lookup nome→SKU.
+
+---
+
 *Documento de regras de negócio — Bora App*
-*Última atualização: 2026-05-04 (§28 adicionado — Wallet com Saldo Negativo, Sessão 3B-NOVA)*
+*Última atualização: 2026-05-04 (§29 adicionado — Housekeeping financeiro Sessão 4)*
 *Atualizar sempre que houver mudanças nas regras de negócio*
 *Fonte de verdade usada por: todas as skills do sistema*

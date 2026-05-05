@@ -21,6 +21,31 @@ const TOOL_WHITELIST = new Set([
 const SYSTEM_DELIM_OPEN = '<<<SYSTEM>>>';
 const SYSTEM_DELIM_CLOSE = '<<<END_SYSTEM>>>';
 
+// === RAG (5C-β) ===
+const RAG_EMBED_ENDPOINT =
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent';
+const RAG_EMBED_DIM = 768;
+const RAG_EMBED_TIMEOUT_MS = 1500;
+const RAG_MATCH_COUNT = 8;
+const RAG_DEDUP_PER_FILE = 2;
+const RAG_FINAL_LIMIT = 5;
+const RAG_MIN_SIMILARITY = 0.5;
+
+async function sha256Hex(text: string): Promise<string | null> {
+  try {
+    const buf = await crypto.subtle.digest(
+      'SHA-256',
+      new TextEncoder().encode(text),
+    );
+    return Array.from(new Uint8Array(buf))
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('');
+  } catch (e) {
+    console.warn('[RAG] SHA256 unavailable:', (e as Error).message);
+    return null;
+  }
+}
+
 interface SupportSettings {
   rate_limit_per_user_day: number;
   max_messages_per_session: number;
@@ -31,6 +56,7 @@ interface SupportSettings {
   support_agent_enabled: boolean;
   whatsapp_number: string;
   support_email: string;
+  rag_enabled: boolean;
 }
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -115,8 +141,9 @@ function buildSystemPrompt(
   orderId: string | null,
   settings: SupportSettings,
   skillsMd: string,
+  ragContext: string,
 ): string {
-  return [
+  const lines = [
     SYSTEM_DELIM_OPEN,
     'Es o agente IA da Bora App, plataforma de entregas em Guarda, Portugal.',
     'Linguagem: PT europeu, tom amigavel e directo.',
@@ -132,8 +159,12 @@ function buildSystemPrompt(
     '',
     'Skills disponiveis (read-only, 5A):',
     skillsMd || '(vazio - seed em 5A-2)',
-    SYSTEM_DELIM_CLOSE,
-  ].join('\n');
+  ];
+  if (ragContext) {
+    lines.push('', ragContext);
+  }
+  lines.push(SYSTEM_DELIM_CLOSE);
+  return lines.join('\n');
 }
 
 async function callRpc(
@@ -182,6 +213,141 @@ async function callGemini(
   } catch (e) {
     return { ok: false, error: `gemini fetch fail: ${(e as Error).message}` };
   }
+}
+
+// === RAG context builder (5C-β) ===
+async function buildRagContext(
+  userMessage: string,
+  // deno-lint-ignore no-explicit-any
+  adminClient: any,
+): Promise<string> {
+  if (!GEMINI_API_KEY) return '';
+
+  const queryNorm = userMessage.trim().toLowerCase().substring(0, 500);
+  const queryHash = await sha256Hex(queryNorm);
+  let queryEmbedding: number[] | null = null;
+
+  // 1. Cache lookup (skip se queryHash null)
+  if (queryHash) {
+    const { data: cached } = await adminClient
+      .from('support_embedding_cache')
+      .select('embedding, hit_count')
+      .eq('query_hash', queryHash)
+      .maybeSingle();
+
+    if (cached?.embedding) {
+      try {
+        const raw = cached.embedding;
+        queryEmbedding = typeof raw === 'string'
+          ? JSON.parse(raw) as number[]
+          : raw as number[];
+      } catch {
+        queryEmbedding = null;
+      }
+      if (queryEmbedding && queryEmbedding.length === RAG_EMBED_DIM) {
+        await adminClient
+          .from('support_embedding_cache')
+          .update({
+            last_used_at: new Date().toISOString(),
+            hit_count: (cached.hit_count ?? 1) + 1,
+          })
+          .eq('query_hash', queryHash);
+        console.log('[RAG] cache HIT');
+      } else {
+        queryEmbedding = null;
+      }
+    }
+  }
+
+  // 2. Cache miss → Gemini embedding com timeout 1.5s
+  if (!queryEmbedding) {
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), RAG_EMBED_TIMEOUT_MS);
+    try {
+      const embRes = await fetch(RAG_EMBED_ENDPOINT, {
+        method: 'POST',
+        signal: ctrl.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': GEMINI_API_KEY,
+        },
+        body: JSON.stringify({
+          content: { parts: [{ text: userMessage }] },
+          outputDimensionality: RAG_EMBED_DIM,
+          taskType: 'RETRIEVAL_QUERY',
+        }),
+      });
+      clearTimeout(tid);
+
+      if (embRes.ok) {
+        const embData = await embRes.json();
+        const values = embData?.embedding?.values;
+        if (Array.isArray(values) && values.length === RAG_EMBED_DIM) {
+          queryEmbedding = values;
+          if (queryHash) {
+            const embLit = `[${queryEmbedding.join(',')}]`;
+            await adminClient
+              .from('support_embedding_cache')
+              .upsert({
+                query_hash: queryHash,
+                query_text: userMessage.substring(0, 500),
+                embedding: embLit,
+              }, {
+                onConflict: 'query_hash',
+                ignoreDuplicates: true,
+              });
+            console.log('[RAG] cache MISS → embedded + cached');
+          }
+        } else {
+          console.warn('[RAG] unexpected embedding shape');
+        }
+      } else {
+        console.warn('[RAG] embedding http', embRes.status);
+      }
+    } catch (e) {
+      clearTimeout(tid);
+      console.warn('[RAG] embedding timeout/error:', (e as Error).message);
+    }
+  }
+
+  if (!queryEmbedding) return '';
+
+  // 3. Match knowledge top-N com dedup por source_file
+  const { data: chunks, error: matchErr } = await adminClient.rpc('match_knowledge', {
+    query_embedding: queryEmbedding,
+    match_count: RAG_MATCH_COUNT,
+    min_similarity: RAG_MIN_SIMILARITY,
+  });
+
+  if (matchErr) {
+    console.warn('[RAG] match_knowledge error:', matchErr.message);
+    return '';
+  }
+  if (!chunks || chunks.length === 0) {
+    console.log('[RAG] no chunks above threshold');
+    return '';
+  }
+
+  const fileCounts = new Map<string, number>();
+  // deno-lint-ignore no-explicit-any
+  const dedup = (chunks as any[]).filter((c) => {
+    const cnt = fileCounts.get(c.source_file) || 0;
+    if (cnt >= RAG_DEDUP_PER_FILE) return false;
+    fileCounts.set(c.source_file, cnt + 1);
+    return true;
+  }).slice(0, RAG_FINAL_LIMIT);
+
+  const ragContext =
+    '=== CONHECIMENTO BORA APP ===\n' +
+    '(Contexto de fundo — usa apenas se relevante para a pergunta; tools mantem fluxo principal)\n\n' +
+    // deno-lint-ignore no-explicit-any
+    dedup.map((c: any) =>
+      `[${c.source_type}/${c.section_title ?? 'geral'}]\n${c.chunk_text}`
+    ).join('\n\n---\n\n') +
+    '\n=== FIM CONHECIMENTO ===';
+
+  console.log('[RAG] chunks:', chunks.length, '| after dedup:', dedup.length, '| context chars:', ragContext.length);
+  return ragContext;
 }
 
 Deno.serve(async (req: Request) => {
@@ -294,7 +460,21 @@ Deno.serve(async (req: Request) => {
       `### ${s.skill_name}\n${s.playbook_md}`)
     .join('\n\n');
 
-  const systemPrompt = buildSystemPrompt(userRole, payload.order_id ?? null, settings, skillsMd);
+  // === RAG CONTEXT INJECTION (5C-β) ===
+  // Skills (instruções) ficam PRIMEIRO no prompt; ragContext (contexto) DEPOIS.
+  // Try/catch garante fallback graceful — chatbot funciona sem RAG se falhar.
+  let ragContext = '';
+  if (settings.rag_enabled === true) {
+    try {
+      ragContext = await buildRagContext(userMessage, adminClient);
+    } catch (e) {
+      console.error('[RAG] injection error (fallback sem RAG):', (e as Error).message);
+      ragContext = '';
+    }
+  }
+  // === FIM RAG ===
+
+  const systemPrompt = buildSystemPrompt(userRole, payload.order_id ?? null, settings, skillsMd, ragContext);
   const tools = buildFunctionDeclarations();
 
   const contents: any[] = [];

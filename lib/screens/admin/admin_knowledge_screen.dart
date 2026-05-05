@@ -1,6 +1,6 @@
 // Sessão 5C-α/7 — Admin Knowledge Base.
 // Mostra estatísticas RAG via RPC admin_get_knowledge_stats() (admin-only).
-// RAG NÃO está activo em 5C-α — botão re-indexar fica desactivado até 5C-β.
+// 5C-β: botão re-indexar ACTIVO via Edge Fn reindex-knowledge.
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -20,6 +20,10 @@ class _AdminKnowledgeScreenState extends State<AdminKnowledgeScreen> {
   bool _loading = false;
   String? _error;
   Map<String, dynamic>? _data;
+
+  // 5C-β re-index controls
+  String _reindexMode = 'pending';
+  bool _reindexing = false;
 
   @override
   void initState() {
@@ -45,6 +49,78 @@ class _AdminKnowledgeScreenState extends State<AdminKnowledgeScreen> {
         _error = e.toString();
         _loading = false;
       });
+    }
+  }
+
+  Future<void> _reindex() async {
+    if (_reindexing) return;
+
+    if (_reindexMode == 'all') {
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Re-indexar TODOS os chunks?'),
+          content: const Text(
+            'ATENÇÃO: vai re-embedar todos os 534 chunks. '
+            'Pode usar ~36% da quota Gemini do dia. '
+            'Confirmas?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.warning,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Confirmar'),
+            ),
+          ],
+        ),
+      );
+      if (confirm != true) return;
+    }
+
+    setState(() => _reindexing = true);
+    try {
+      final res = await _supabase.functions.invoke(
+        'reindex-knowledge',
+        body: {'mode': _reindexMode, 'max_chunks': 100},
+      );
+      if (!mounted) return;
+
+      final data = res.data;
+      String msg;
+      if (data is Map) {
+        final r = data['reindexed'] ?? 0;
+        final e = data['errors'] ?? 0;
+        final m = data['message'] ?? '';
+        msg = '$r chunks re-indexados, $e erros'
+            '${m is String && m.isNotEmpty ? ' · $m' : ''}';
+      } else {
+        msg = 'Resposta: $data';
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(msg),
+          backgroundColor: AppColors.success,
+        ),
+      );
+      await _fetch();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro re-index: $e'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _reindexing = false);
     }
   }
 
@@ -312,25 +388,73 @@ class _AdminKnowledgeScreenState extends State<AdminKnowledgeScreen> {
 
   Widget _reindexCta() {
     return Card(
-      color: Colors.grey.shade100,
+      color: AppColors.primary.withValues(alpha: 0.05),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ElevatedButton.icon(
-              onPressed: null, // 5C-α: desactivado
-              icon: const Icon(Icons.refresh),
-              label: const Text('Re-indexar embeddings pendentes'),
+            const Text(
+              'Re-indexar embeddings',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
-            const SizedBox(height: 6),
-            Text(
-              '(disponível após 5C-β)',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey.shade700,
-                fontStyle: FontStyle.italic,
-              ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Text('Modo: '),
+                const SizedBox(width: 8),
+                DropdownButton<String>(
+                  value: _reindexMode,
+                  onChanged: _reindexing
+                      ? null
+                      : (v) => setState(() => _reindexMode = v ?? 'pending'),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'pending',
+                      child: Text('Pendentes (NULL embedding)'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'all',
+                      child: Text('Todos (re-embed completo)'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: _reindexing ? null : _reindex,
+                  icon: _reindexing
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.refresh),
+                  label: Text(
+                    _reindexing ? 'A re-indexar…' : 'Re-indexar agora',
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Limite 100 chunks por chamada · rate-limited 1 req/s',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -381,7 +505,8 @@ class _AdminKnowledgeScreenState extends State<AdminKnowledgeScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Nota: RAG só fica activo após Sessão 5C-β (feature flag rag_enabled).',
+              'Nota: RAG controlado por feature flag support_settings.rag_enabled. '
+              'Kill switch SQL: UPDATE support_settings SET rag_enabled=false WHERE id=1.',
               style: TextStyle(
                 fontSize: 12,
                 color: Colors.grey.shade700,

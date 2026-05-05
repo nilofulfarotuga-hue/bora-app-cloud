@@ -1,9 +1,15 @@
 // Sessão 5A-2 B12 — BoraSupportFab
+// Sessão 6 B2 — onTap mudou: chat IA directo se kill switch ON.
 // Botão de suporte. Cor #E65100, Icons.help_outline.
 // FabPosition: BR (default) | BL | TR | TL — para evitar conflito com FAB próprio.
+// Comportamento: provider.shouldShowAiCard==true → Navigator.push(SupportChatScreen);
+// senão (kill OFF / state=loading|error) → fallback BoraSupportSheet (menu antigo).
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../providers/support_settings_provider.dart';
+import '../screens/support_chat_screen.dart';
 import 'bora_support_sheet.dart';
 
 enum FabPosition { bottomRight, bottomLeft, topRight, topLeft }
@@ -33,11 +39,20 @@ class BoraSupportFab extends StatelessWidget {
   }
 
   void _open(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => BoraSupportSheet(orderId: orderId),
-    );
+    final provider = context.read<SupportSettingsProvider>();
+    if (provider.shouldShowAiCard) {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => SupportChatScreen(orderId: orderId),
+        ),
+      );
+    } else {
+      showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (ctx) => BoraSupportSheet(orderId: orderId),
+      );
+    }
   }
 }

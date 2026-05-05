@@ -11,9 +11,16 @@ import '../screens/support_chat_screen.dart';
 import '../screens/support_email_form_screen.dart';
 
 class BoraSupportSheet extends StatelessWidget {
-  const BoraSupportSheet({super.key, this.orderId});
+  const BoraSupportSheet({
+    super.key,
+    this.orderId,
+    this.showAgentCard = true,
+  });
 
   final String? orderId;
+  // Sessão 6 B2 — quando false, esconde card BoraIA (usado pelo botão
+  // "Falar com humano" dentro do chat para mostrar só WhatsApp+Email).
+  final bool showAgentCard;
 
   @override
   Widget build(BuildContext context) {
@@ -51,7 +58,7 @@ class BoraSupportSheet extends StatelessWidget {
                 style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
               ),
             const SizedBox(height: 16),
-            if (provider.shouldShowAiCard)
+            if (showAgentCard && provider.shouldShowAiCard)
               _ContactCard(
                 icon: Icons.smart_toy_outlined,
                 color: const Color(0xFFE65100),
@@ -66,7 +73,8 @@ class BoraSupportSheet extends StatelessWidget {
                   );
                 },
               ),
-            if (provider.shouldShowAiCard) const SizedBox(height: 12),
+            if (showAgentCard && provider.shouldShowAiCard)
+              const SizedBox(height: 12),
             _ContactCard(
               icon: Icons.chat_bubble_outline,
               color: const Color(0xFF25D366),

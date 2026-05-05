@@ -238,6 +238,33 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
             sending: _sending,
             onSend: _send,
           ),
+          // Sessão 6 B2 — fallback discreto para WhatsApp/Email
+          // (kill switch ON ⇒ FAB abre chat directo, este botão é o
+          // último recurso humano DENTRO do chat).
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+              child: TextButton(
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.grey.shade600,
+                  textStyle: const TextStyle(fontSize: 12),
+                ),
+                onPressed: () {
+                  showModalBottomSheet<void>(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (_) => BoraSupportSheet(
+                      orderId: widget.orderId,
+                      showAgentCard: false,
+                    ),
+                  );
+                },
+                child: const Text('Falar com humano'),
+              ),
+            ),
+          ),
         ],
       ),
     );

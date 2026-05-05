@@ -1612,9 +1612,74 @@ Mitigação SQL 4B5 (fallback `unit_price` server-side) **MANTÉM-SE** em produ�
 - Comportamento `onTap` mudou: chat directo se kill ON, fallback `BoraSupportSheet` se OFF.
 - `BoraSupportSheet` aceita `showAgentCard:bool=true` (default `true`); botão "Falar com humano" no chat passa `false` (só WhatsApp+Email).
 
+## §35 — RAG Knowledge Base (Sessão 5C-α · 2026-05-05)
+
+### 35.1 Infra
+- Extensão `vector` instalada (schema `extensions`, default v0.8.0).
+- Tabela `public.support_knowledge_chunks`:
+  - `id uuid PK`, `source_file text`, `source_type text` CHECK
+    (`obsidian` | `knowledge` | `business_rules`),
+  - `chunk_index int`, `section_title text`, `chunk_text text`,
+  - `char_count int GENERATED ALWAYS AS length(chunk_text) STORED`,
+  - `content_hash text` (SHA256), `embedding extensions.vector(768)`,
+  - `indexed_at timestamptz DEFAULT now()`,
+  - UNIQUE(`source_file`,`chunk_index`) + UNIQUE(`content_hash`).
+- RLS activa, policy `service_role_only` (`auth.role()='service_role'`).
+- Índice HNSW cosine: `m=16, ef_construction=64` em `embedding`.
+- Índice secundário em `source_type`.
+
+### 35.2 Ingest (script local Deno)
+- Ficheiro: `scripts/rag/ingest_knowledge.ts`.
+- 3 fontes: `bora_app/.obsidian-vault/` (`obsidian`),
+  `bora_app/.claude/.ai/knowledge/` (`knowledge`),
+  `bora_app/.claude/.ai/business_rules.md` (`business_rules`).
+- Gemini `text-embedding-004` (768 dims) via REST.
+- Chunking: split por `^##` (regex multiline). Section title = primeira
+  linha após `##`. Fallback `\n\n` quando ficheiro sem `##`.
+- Cap `MAX_CHUNK_CHARS=8000` — sub-divisão por parágrafos.
+- Rate limit 1 req/s. Retry 3× em 429 com backoff 60 s.
+- Dedupe SHA256 — `content_hash` UNIQUE.
+- Upsert por `(source_file, chunk_index)`.
+- Secrets: `scripts/rag/.env` (gitignored). Template em `.env.example`.
+  Vars: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_API_KEY`.
+- Comando:
+  ```
+  cd scripts/rag
+  deno run --allow-net --allow-read --allow-env \
+    --env-file=.env ingest_knowledge.ts
+  ```
+
+### 35.3 RPCs
+- `match_knowledge(query_embedding vector(768), match_count int=5,
+  min_similarity float=0.5)` — `SECURITY DEFINER`, GRANT
+  `authenticated, service_role`. HNSW cosine search.
+- `admin_get_knowledge_stats() → jsonb` — admin-only
+  (`is_admin()` guard, RAISE `NOT_ADMIN`). Devolve total_chunks,
+  embedded_chunks, pending_chunks, by_source, last_indexed,
+  avg/max_chunk_chars, unique_files.
+
+### 35.4 RAG NÃO activo em 5C-α
+- Esta sessão **não** toca `support-chatbot` Edge Fn em prod.
+- Activação real fica para Sessão 5C-β via feature flag
+  `support_settings.rag_enabled` (DEFAULT `false`).
+- Botão "Re-indexar" em `AdminKnowledgeScreen` está desactivado
+  (label `(disponível após 5C-β)`).
+
+### 35.5 Custo Gemini
+- Free tier ≈ 1 500 req/dia.
+- Ingest inicial estimado ≈ 410 chunks (~7 min @1 req/s, ≈ 27% quota).
+- Re-ingest incremental: dedupe SHA256 → só chunks novos pagam.
+
+### 35.6 Admin Screen
+- `lib/screens/admin/admin_knowledge_screen.dart` — chama RPC,
+  4 stat cards (Total / Indexados / Pendentes / Última Indexação),
+  breakdown por fonte, métricas (avg/max/unique). Botão re-index
+  desactivado em 5C-α. Linkado em `admin_dashboard_screen.dart` junto
+  ao card "Estatísticas Suporte IA".
+
 ---
 
 *Documento de regras de negócio — Bora App*
-*Última atualização: 2026-05-05 (## 28 adicionado — Sessão 6 Housekeeping + UX Suporte)*
+*Última atualização: 2026-05-05 (§35 adicionado — Sessão 5C-α RAG infra)*
 *Atualizar sempre que houver mudanças nas regras de negócio*
 *Fonte de verdade usada por: todas as skills do sistema*

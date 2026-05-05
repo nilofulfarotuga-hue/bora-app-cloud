@@ -1281,6 +1281,16 @@ Uber Eats e Glovo usam abordagem similar:
 - ⚠️ `final_total` → `double precision` (em dual-write `final_total_numeric` desde B2; commit 2 swap futuro)
 - 🐛 `extra_charge_amount` → `double precision` (mesmo padrão; sessão futura housekeeping)
 
+**§29.1 actualização (B2 commit 2, 2026-05-05):**
+- ✅ `final_total` migração `double precision` → `numeric` **CONCLUÍDA**.
+- Trigger `trg_zz_final_total_dual_write` + função `fn_sync_final_total_numeric` removidos.
+- Coluna única `orders.final_total` agora `numeric`. Sessão 4 C3 fechada.
+- Migration: `b2c2_drop_rename_final_total` (apply_migration MCP).
+- Achado lateral: trigger `orders_enforce_cash_limit` foi DROP+RECREATE (depende explicitamente de `final_total`).
+- Achado lateral: RPC `agent_get_user_orders_summary` corrigida (referenciava `final_total_numeric` directamente — fix `CREATE OR REPLACE` na mesma transacção).
+- 12 RPCs continuam a referenciar `final_total` por nome (todas funcionais).
+- Próximo housekeeping: `extra_charge_amount` → numeric.
+
 ### §29.2 Trigger naming: sufixo `trg_zz_*` para última posição alfabética
 
 - PostgreSQL dispara triggers do mesmo evento por ordem alfabética do nome.

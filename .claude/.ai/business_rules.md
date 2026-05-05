@@ -1658,12 +1658,21 @@ Mitigação SQL 4B5 (fallback `unit_price` server-side) **MANTÉM-SE** em produ�
   embedded_chunks, pending_chunks, by_source, last_indexed,
   avg/max_chunk_chars, unique_files.
 
-### 35.4 RAG NÃO activo em 5C-α
-- Esta sessão **não** toca `support-chatbot` Edge Fn em prod.
-- Activação real fica para Sessão 5C-β via feature flag
-  `support_settings.rag_enabled` (DEFAULT `false`).
-- Botão "Re-indexar" em `AdminKnowledgeScreen` está desactivado
-  (label `(disponível após 5C-β)`).
+### 35.4 RAG ACTIVO (Sessão 5C-β · 2026-05-06)
+- `support_settings.rag_enabled BOOLEAN DEFAULT false` (kill switch SQL).
+- `support-chatbot` v2 deployed (sha256 `d3a0c9f4...`):
+  - `buildRagContext()` invocado se `settings.rag_enabled === true`
+  - Try/catch wrapper → fallback graceful (sem RAG) em caso de erro
+  - Cache lookup `support_embedding_cache` por SHA256(query lowercased trimmed)
+  - Cache miss → `gemini-embedding-001` `RETRIEVAL_QUERY` 768 dims, timeout 1.5s
+  - `match_knowledge(top=8, min_sim=0.5)` + dedup max 2/source_file → top-5
+  - Skills (instruções) ANTES do ragContext (contexto) no system prompt
+  - Logs `[RAG] cache HIT/MISS/no chunks above threshold` para debug
+- Edge Fn `reindex-knowledge` v1 (admin-only, modes `pending`|`all`,
+  max_chunks=100, rate-limited 1 req/s).
+- Botão "Re-indexar agora" em `AdminKnowledgeScreen` ACTIVO com dropdown
+  modo + warning modal para mode=`all`.
+- Versão prévia para rollback: `support-chatbot` v1 sha256 `ac532794...`
 
 ### 35.5 Custo Gemini
 - Free tier ≈ 1 500 req/dia.
@@ -1673,13 +1682,24 @@ Mitigação SQL 4B5 (fallback `unit_price` server-side) **MANTÉM-SE** em produ�
 ### 35.6 Admin Screen
 - `lib/screens/admin/admin_knowledge_screen.dart` — chama RPC,
   4 stat cards (Total / Indexados / Pendentes / Última Indexação),
-  breakdown por fonte, métricas (avg/max/unique). Botão re-index
-  desactivado em 5C-α. Linkado em `admin_dashboard_screen.dart` junto
-  ao card "Estatísticas Suporte IA".
+  breakdown por fonte, métricas (avg/max/unique). Botão **Re-indexar agora**
+  ACTIVO em 5C-β: dropdown modo (pending/all) + warning modal para
+  mode=all. Linkado em `admin_dashboard_screen.dart` junto ao card
+  "Estatísticas Suporte IA".
+
+### 35.7 Performance + custo (5C-β)
+- **Latência**: cache HIT ~+50ms · cache MISS ~+1-1.5s (1ª query)
+- **System prompt cresce** ~5K chars (até 5 chunks dedup × ~1K avg) →
+  ~1.25K tokens extra input/call
+- **Custo Gemini Flash extra**: ~€0.000084/call input
+- **Quota Gemini embedding**: free tier 100 RPD para `gemini-embedding-001`
+  (cache mitiga exhaustion; cada query única consome 1 unidade)
+- **Kill switch**: `UPDATE support_settings SET rag_enabled=false WHERE id=1`
+  → próxima request sem `[RAG]` nos logs
 
 ---
 
 *Documento de regras de negócio — Bora App*
-*Última atualização: 2026-05-05 (§35 adicionado — Sessão 5C-α RAG infra)*
+*Última atualização: 2026-05-06 (§35.4-35.7 actualizados — Sessão 5C-β RAG activation)*
 *Atualizar sempre que houver mudanças nas regras de negócio*
 *Fonte de verdade usada por: todas as skills do sistema*

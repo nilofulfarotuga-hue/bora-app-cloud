@@ -87,6 +87,9 @@ scripts/scraper/node_modules/
 scripts/rag/.env
 scripts/rag/*.log
 
+# ── Deno cache lockfile (CLI-generated, per-machine) ─────────────────────────
+deno.lock
+
 # ── Claude Code local settings (per-machine, never commit) ───────────────────
 .claude/settings.local.json
 

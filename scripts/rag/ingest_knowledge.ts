@@ -42,8 +42,11 @@ const SOURCES: Array<{ path: string; type: string }> = [
 
 const MAX_CHUNK_CHARS = 8000;
 const RATE_LIMIT_MS = 1000;
+// gemini-embedding-001 (Matryoshka) — text-embedding-004 deprecated em 2026.
+// outputDimensionality=768 mantém compat com vector(768) na tabela.
 const GEMINI_ENDPOINT =
-  "https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent";
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent";
+const EMBED_DIM = 768;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
@@ -187,8 +190,9 @@ async function embedText(
           "x-goog-api-key": GEMINI_API_KEY!,
         },
         body: JSON.stringify({
-          model: "models/text-embedding-004",
           content: { parts: [{ text }] },
+          taskType: "RETRIEVAL_DOCUMENT",
+          outputDimensionality: EMBED_DIM,
         }),
       });
 
@@ -210,8 +214,8 @@ async function embedText(
 
       const json = await res.json();
       const values = json?.embedding?.values;
-      if (!Array.isArray(values) || values.length !== 768) {
-        console.error("  ✗ Unexpected embedding shape");
+      if (!Array.isArray(values) || values.length !== EMBED_DIM) {
+        console.error(`  ✗ Unexpected embedding shape (got ${values?.length ?? "null"})`);
         return null;
       }
       return values as number[];

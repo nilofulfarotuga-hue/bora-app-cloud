@@ -83,8 +83,9 @@ scripts/scraper/.env
 scripts/scraper/output/
 scripts/scraper/node_modules/
 
-# ── RAG ingest secrets (Sessão 5C-α/7) ───────────────────────────────────────
+# ── RAG ingest secrets + logs (Sessão 5C-α/7) ────────────────────────────────
 scripts/rag/.env
+scripts/rag/*.log
 
 # ── Claude Code local settings (per-machine, never commit) ───────────────────
 .claude/settings.local.json

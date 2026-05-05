@@ -1574,7 +1574,37 @@ Mitigação SQL 4B5 (fallback `unit_price` server-side) **MANTÉM-SE** em produ�
 
 ---
 
+## 28. HOUSEKEEPING + UX SUPORTE (Sessão 6 · 2026-05-05)
+
+### 28.1 Pedidos teste (`is_test_order`)
+- Coluna `BOOLEAN NOT NULL DEFAULT false` em `orders`. Index parcial `WHERE is_test_order=true`.
+- 4 pedidos pré-launch marcados (€253.08 stripe charges, testes Danilo 30/04+01/05): `1c561ae0…`, `31a5ccd3…`, `88e36c67…`, `b90966bf…`.
+- Migration: `20260505060000_06_orders_is_test_order.sql` — usa `RAISE EXCEPTION` se UPDATE não marcar exactamente 4.
+- TODO admin filter `is_test_order=false` em 3 dashboards (`admin_orders_screen`, `admin_order_detail_screen`, `admin_driver_detail_screen`).
+
+### 28.2 Filosofia UX suporte (Danilo 2026-05-05)
+- Bora App em fase TESTE pré-launch
+- Robô IA = porta principal
+- FAB cliente → **chat IA directo** (kill switch ON via `support_settings.support_agent_enabled`)
+- WhatsApp/Email DENTRO do chat ("Falar com humano" rodapé discreto)
+- Fallback emergência: kill OFF / Provider state=error/loading → bottomSheet (menu antigo)
+
+### 28.3 Estatísticas robô IA
+- RPC `admin_get_support_stats(p_from timestamptz, p_to timestamptz) → jsonb` SECURITY DEFINER admin-only via `is_admin()`.
+- Migration: `20260505060100_06_admin_get_support_stats.sql`.
+- 12 métricas: sessões totais/resolvidas/escaladas, resolution_rate_pct, avg_messages_per_session, tokens.{input,output,total}, cost_eur_estimated, top_skills[10], escalating_skills[5], tickets_by_channel, avg_satisfaction, satisfaction_responses.
+- Custo Gemini Flash 2026-05: €0.067/M input + €0.27/M output (hardcoded RPC; USD→EUR ≈0.90).
+- Screen: `lib/screens/admin/admin_support_stats_screen.dart`.
+- TODO: migrar pricing para `support_settings.pricing_jsonb`.
+
+### 28.4 BoraSupportFab compatibilidade
+- Assinatura `BoraSupportFab({orderId, position, heroTag})` MANTIDA — 22 screens com FAB não afectadas.
+- Comportamento `onTap` mudou: chat directo se kill ON, fallback `BoraSupportSheet` se OFF.
+- `BoraSupportSheet` aceita `showAgentCard:bool=true` (default `true`); botão "Falar com humano" no chat passa `false` (só WhatsApp+Email).
+
+---
+
 *Documento de regras de negócio — Bora App*
-*Última atualização: 2026-05-04 (§31 + §32 + §33 adicionados — Sessões 5A-1, Architectural Debt, 4C Flutter productId fix)*
+*Última atualização: 2026-05-05 (## 28 adicionado — Sessão 6 Housekeeping + UX Suporte)*
 *Atualizar sempre que houver mudanças nas regras de negócio*
 *Fonte de verdade usada por: todas as skills do sistema*

@@ -23,6 +23,7 @@ import 'admin_referrals_screen.dart';
 import 'admin_search_kpi_screen.dart';
 import 'admin_send_notification_screen.dart';
 import 'admin_settlements_screen.dart';
+import 'admin_support_stats_screen.dart';
 import '../../widgets/admin_closed_partners_card.dart';
 import '../../widgets/admin_reservations_today_card.dart';
 import 'admin_partners_pending_screen.dart';
@@ -468,6 +469,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       MaterialPageRoute(
                           builder: (_) =>
                               const AdminEdgeFunctionsScreen())),
+                ),
+                const SizedBox(height: 10),
+                // Sessão 6 B3 — Estatísticas robô IA
+                _NavCard(
+                  icon: Icons.smart_toy_outlined,
+                  title: 'Estatísticas Suporte IA',
+                  subtitle: 'Sessões, resolução, tokens, custo Gemini',
+                  color: Colors.deepPurple,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminSupportStatsScreen())),
                 ),
                 const SizedBox(height: 10),
                 // T1: Category mapping

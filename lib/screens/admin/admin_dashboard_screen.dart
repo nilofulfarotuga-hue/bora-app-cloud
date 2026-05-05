@@ -24,6 +24,7 @@ import 'admin_search_kpi_screen.dart';
 import 'admin_send_notification_screen.dart';
 import 'admin_settlements_screen.dart';
 import 'admin_support_stats_screen.dart';
+import 'admin_knowledge_screen.dart';
 import '../../widgets/admin_closed_partners_card.dart';
 import '../../widgets/admin_reservations_today_card.dart';
 import 'admin_partners_pending_screen.dart';
@@ -482,6 +483,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       MaterialPageRoute(
                           builder: (_) =>
                               const AdminSupportStatsScreen())),
+                ),
+                const SizedBox(height: 10),
+                // Sessão 5C-α — Knowledge Base (RAG)
+                _NavCard(
+                  icon: Icons.menu_book_outlined,
+                  title: 'Knowledge Base',
+                  subtitle: 'RAG embeddings · Obsidian + knowledge + rules',
+                  color: Colors.indigo,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminKnowledgeScreen())),
                 ),
                 const SizedBox(height: 10),
                 // T1: Category mapping

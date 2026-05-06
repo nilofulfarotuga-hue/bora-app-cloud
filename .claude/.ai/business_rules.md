@@ -2135,7 +2135,145 @@ Lookup `target_skill_id` + `previous_value` em INSERT
 
 ---
 
+## §39 — COMUNICAÇÃO ROBÔ A ↔ ROBÔ B (Sessão 5F · 2026-05-06)
+
+Comunicação assíncrona entre os dois robôs do sistema:
+- **Robô A** = `support-chatbot` Edge Fn (Gemini 1.5 Flash; cliente)
+- **Robô B** = Claude Code com skill `ask-knowledge-base` + RAG
+
+Cliente reporta problema técnico → Robô A escala via skill
+`ASK_ROBOT_B` + tool `agent_ask_robot_b` → Claude Code consulta
+RAG via `match_knowledge` (5C-α) e responde via
+`robot_b_respond`. Admin observa em `AdminCrosstalkScreen` (5F)
+ou no terminal via `scripts/crosstalk/check_pending.ts`.
+
+### §39.1 Tabela `robot_crosstalk`
+
+```
+direction       text     ('a_to_b' | 'b_to_a')
+status          text     ('pending' | 'answered' | 'ignored')
+asked_by        text     ('robot_a' | 'robot_b' | 'admin')
+answered_by     text     ('robot_a' | 'robot_b' | 'admin' | NULL)
+question        text     (anonimizada server-side)
+question_context jsonb   ({screen_name, error_message, …})
+answer          text     (preenchida em b_to_a respond)
+rag_chunks_used jsonb    (chunks consultados pelo Robô B)
+session_id      uuid FK → support_chatbot_sessions
+                          ON DELETE SET NULL  (preserva histórico)
+skill_triggered text     ('ASK_ROBOT_B' default)
+```
+
+RLS: `admin_all` (`is_admin()`) + `service_role_all`. Realtime
+publication ADD para `AdminCrosstalkScreen` badge live.
+
+### §39.2 Helper `_anonymize_pii(text)` PostgreSQL
+
+Função SQL `IMMUTABLE` reusable. Anonimiza email / phone PT
+(`+351 9XX XXX XXX`) / phone genérico / UUID / números 4+
+em ordem **UUID antes do phone genérico** (fix bug detectado
+em smoke S2 — JS 5D `analyze-conversations` tem mesmo bug,
+TODO 5F-β).
+
+### §39.3 Robô A → B (`agent_ask_robot_b`)
+
+- RPC SECURITY DEFINER, GRANT `authenticated + service_role`
+- Check interno `auth.uid() IS NOT NULL`
+- INSERT `direction='a_to_b'`, `status='pending'`,
+  `asked_by='robot_a'`, anonimização automática via helper
+- Tool `agent_ask_robot_b` no `support-chatbot v7`
+  (TOOL_WHITELIST + buildFunctionDeclarations; segue padrão
+  callRpc genérico, não branch shadow)
+- Skill `ASK_ROBOT_B` mode='escalate', allowed_tools=
+  `["agent_ask_robot_b"]`, category='technical_support',
+  active=true (B2 seed)
+
+Diferenciação vs `HUMAN_REQUEST` (escalate):
+- `ASK_ROBOT_B`: bug técnico ou comportamento inesperado app
+- `HUMAN_REQUEST`: cliente pede explicitamente humano
+
+### §39.4 Robô B → A (`robot_b_respond`)
+
+- RPC SECURITY DEFINER, GRANT **`service_role` only**
+  (scripts crosstalk via `SUPABASE_SERVICE_ROLE_KEY`)
+- UPDATE pending → `answered`, `answered_by='robot_b'`,
+  preenche `answer`+`rag_chunks_used`+`answered_at`
+- Falha `CROSSTALK_NOT_FOUND_OR_NOT_PENDING` se row
+  inexistente OU já answered (evita double-respond)
+
+### §39.5 Admin observador (`admin_list_crosstalk`)
+
+- RPC SECURITY DEFINER, GRANT `authenticated`
+- Check interno `is_admin()`; non-admin → `RAISE NOT_ADMIN`
+- Filtros `p_status` (pending/answered/ignored/all) +
+  `p_direction` (a_to_b/b_to_a/all)
+- Returns table com `rag_chunks_count` agregado +
+  `rag_chunks_used` JSON completo para drill-down
+
+`AdminCrosstalkScreen`: cards com badge direcção (laranja A→B
+/ verde B→A) + status amarelo/verde, tap chunks → JSON dialog.
+Realtime subscription filtrada `status=eq.pending` para badge.
+**Modo observador apenas** — sem botão reply em 5F.
+
+### §39.6 Skill Claude Code `ask-knowledge-base`
+
+`.claude/skills/ask-knowledge-base/SKILL.md` instrui workflow:
+
+1. `scripts/crosstalk/check_pending.ts` — lista a_to_b pending
+2. `scripts/crosstalk/query_knowledge.ts <termo>` — RAG via
+   `match_knowledge` (Gemini embedding RETRIEVAL_QUERY dim=768,
+   top-8 com min_similarity=0.5)
+3. `scripts/crosstalk/respond.ts <id> <answer>` — submete via
+   `robot_b_respond`
+
+Scripts gate: se `SUPABASE_SERVICE_ROLE_KEY` ausente em
+`scripts/rag/.env` → exit 1 com mensagem clara.
+
+### §39.7 Fluxo end-to-end
+
+```
+[cliente]      "a app fecha ao abrir o mapa"
+   ↓           (Robô A skill ASK_ROBOT_B)
+[chatbot v7]   tool agent_ask_robot_b(question, context)
+   ↓           anonimização _anonymize_pii server-side
+[robot_crosstalk] INSERT direction=a_to_b status=pending
+   ↓           realtime push
+[Admin / CC]   AdminCrosstalkScreen badge OR check_pending.ts
+   ↓           query_knowledge.ts <termo> → RAG chunks
+[Robô B]       respond.ts <id> "answer" '[chunks]'
+   ↓           robot_b_respond service_role
+[robot_crosstalk] UPDATE status=answered answered_by=robot_b
+   ↓
+[Admin]        AdminCrosstalkScreen vê resposta
+```
+
+### §39.8 Limitações conhecidas (5F)
+
+- **Comunicação manual**: Robô B responde manualmente via
+  scripts; sem auto-resposta — TODO 5F-β.
+- **Sem push admin**: realtime badge só na UI; sem
+  notification — TODO 5F-β.
+- **Admin observador apenas**: `admin_respond_to_crosstalk`
+  RPC + UI reply são TODO 5F-β.
+- **`SUPABASE_SERVICE_ROLE_KEY`**: requer `scripts/rag/.env`
+  configurado pelo Danilo manualmente; sem fallback.
+- **Anonymization PG vs JS drift**: PG (5F) corrigido com
+  UUID antes phone genérico; JS 5D `analyze-conversations`
+  mantém bug — TODO 5F-β.
+- **Sem métricas**: rate respondido vs ignored — TODO 5F-β.
+
+### §39.9 Defesas
+
+- RLS `robot_crosstalk` admin + service_role only
+- RPCs SECURITY DEFINER + check interno
+- `robot_b_respond` GRANT exclusivo `service_role` (scripts)
+- Anonimização automática server-side em INSERT (não confia
+  em client)
+- Skill `ASK_ROBOT_B` `requires_human_handoff=false` (não
+  escala automaticamente para ticket — só regista crosstalk)
+
+---
+
 *Documento de regras de negócio — Bora App*
-*Última atualização: 2026-05-06 (§38 — Sessão 5E Auto-Implement Zonas Seguras)*
+*Última atualização: 2026-05-06 (§39 — Sessão 5F Comunicação Robô A↔B)*
 *Atualizar sempre que houver mudanças nas regras de negócio*
 *Fonte de verdade usada por: todas as skills do sistema*

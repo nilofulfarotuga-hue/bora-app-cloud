@@ -11,6 +11,7 @@ import 'admin_cancellation_requests_screen.dart';
 import 'admin_catalog_screen.dart';
 import 'admin_clients_screen.dart';
 import 'admin_complaints_screen.dart';
+import 'admin_crosstalk_screen.dart';
 import 'admin_driver_approval_screen.dart';
 import 'admin_driver_payments_screen.dart';
 import 'admin_cashbacks_screen.dart';
@@ -523,6 +524,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       MaterialPageRoute(
                           builder: (_) =>
                               const AdminSkillSuggestionsScreen())),
+                ),
+                const SizedBox(height: 10),
+                // Sessão 5F — Comunicação Robô A ↔ Robô B (crosstalk)
+                _NavCard(
+                  icon: Icons.forum_outlined,
+                  title: 'Comunicação A↔B',
+                  subtitle: 'Perguntas do robô A ao robô B + respostas RAG',
+                  color: const Color(0xFF1B5E20),
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminCrosstalkScreen())),
                 ),
                 const SizedBox(height: 10),
                 // T1: Category mapping

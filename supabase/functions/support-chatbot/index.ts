@@ -1,7 +1,8 @@
-// Sessão 5A-1 B9 + 5C-β RAG + 5B-α B4 + 5B-β1 B5 — Edge Fn support-chatbot
+// Sessão 5A-1 B9 + 5C-β RAG + 5B-α B4 + 5B-β1 B5 + 5F B3 — Edge Fn support-chatbot
 // Gemini 1.5 Flash + tool-calling whitelisted + defesas anti-injection.
 // 5B-α: tool agent_propose_action (write_shadow) → support_pending_actions.
 // 5B-β1: 3 tools especializadas (cancel/password/account) — Grupo 2 skills.
+// 5F: tool agent_ask_robot_b (skill ASK_ROBOT_B) → robot_crosstalk a_to_b.
 // verify_jwt: true. POST { session_id?, message, order_id? }.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
@@ -24,6 +25,8 @@ const TOOL_WHITELIST = new Set([
   'agent_propose_action_cancel',
   'agent_propose_action_password',
   'agent_propose_action_account',
+  // 5F: comunicação Robô A → B (skill ASK_ROBOT_B)
+  'agent_ask_robot_b',
 ]);
 
 const PROPOSE_ACTION_TOOL_NAMES = new Set([
@@ -252,6 +255,38 @@ function buildFunctionDeclarations() {
           agent_reasoning: { type: 'string' },
         },
         required: ['skill_name', 'action_type', 'action_payload', 'agent_reasoning'],
+      },
+    },
+    {
+      name: 'agent_ask_robot_b',
+      description:
+        'Regista problema tecnico da app (skill ASK_ROBOT_B) para analise assincrona pela ' +
+        'equipa tecnica via robot_crosstalk. Usar APENAS para comportamento app (bug, crash, ' +
+        'lentidao, ecra preto). NAO usar para pedido/pagamento/entrega/conta — usar skills ' +
+        'apropriadas (ORDER_STATUS, REFUND_*, UPDATE_DELIVERY_*, ACCOUNT_UPDATE) ou HUMAN_REQUEST. ' +
+        'Apos chamar, informa o cliente que o problema foi registado para analise tecnica.',
+      parameters: {
+        type: 'object',
+        properties: {
+          p_question: {
+            type: 'string',
+            description:
+              'Descricao completa do problema tecnico (sera anonimizada server-side: ' +
+              'emails, telefones, UUIDs, numeros longos sao mascarados).',
+          },
+          p_skill_triggered: {
+            type: 'string',
+            enum: ['ASK_ROBOT_B'],
+            description: 'Sempre "ASK_ROBOT_B".',
+          },
+          p_context: {
+            type: 'object',
+            description:
+              'Contexto opcional: { screen_name?: string, error_message?: string, ' +
+              'frequency?: "always"|"sometimes"|"once", reproduction_steps?: string }.',
+          },
+        },
+        required: ['p_question', 'p_skill_triggered'],
       },
     },
   ];

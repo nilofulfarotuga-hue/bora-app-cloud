@@ -2017,7 +2017,125 @@ obrigatório no dialog.
 
 ---
 
+## §38 — AUTO-IMPLEMENT ZONAS SEGURAS (Sessão 5E · 2026-05-06)
+
+Estende §37: o pipeline de proposta passa a suportar 3 tipos com
+classificação SAFE (1-clique) vs CRITICAL (manual). Regra ouro
+`§37.5` mantém-se: **Danilo aprova SEMPRE** — 5E não cria
+auto-approve sem intervenção humana.
+
+### §38.1 Tipos de proposta
+
+- `new_skill` (5D): criar skill nova.
+- `playbook_update` (5E): actualizar `support_skills.playbook_md`
+  de skill existente. Captura `previous_value` para rollback.
+- `settings_update` (5E): actualizar coluna SAFE de
+  `support_settings`. Captura `previous_value` para rollback.
+
+### §38.2 Zonas
+
+- **SAFE**: aprovação 1-clique → RPC executa imediatamente.
+- **CRITICAL**: UI desactiva botão aprovar; mudança requer SQL
+  manual via consola.
+
+### §38.3 Skills CRITICAL (`playbook_update` zona crítica)
+
+Hardcoded em `admin_approve_skill_suggestion` + Edge Fn
+`analyze-conversations`:
+
+- `CANCEL_PRE_PURCHASE`
+- `CANCEL_DURING_PURCHASE`
+- `RESERVATION_CANCEL`
+- `PASSWORD_RESET`
+- `ACCOUNT_UPDATE`
+- `UPDATE_DELIVERY_INSTRUCTIONS`
+- `UPDATE_DELIVERY_ADDRESS`
+- `OTP_RESEND` *(defensivo — skill ainda não existe na DB,
+  reservada CRITICAL se criada no futuro)*
+
+### §38.4 SAFE settings whitelist (8 keys, validadas em A1)
+
+Coluna real `support_settings`:
+
+- `chatbot_welcome_text` *(text)*
+- `sla_hours` *(integer)*
+- `max_messages_per_session` *(integer)*
+- `rate_limit_per_user_day` *(integer)*
+- `max_output_tokens_per_call` *(integer)*
+- `max_user_message_chars` *(integer)*
+- `max_tool_iterations` *(integer)*
+- `skill_analysis_min_messages` *(integer)*
+
+Cast type-aware via `format('UPDATE %I = $1::%s', key, data_type)`
++ EXCEPTION wrapper `CAST_FAILED`.
+
+### §38.5 CRITICAL settings (NÃO via proposta)
+
+Mudança apenas via SQL directo:
+
+- `gemini_model` *(impacto runtime chatbot)*
+- `rag_enabled` *(toggle pipeline RAG)*
+- `support_agent_enabled` *(kill switch global)*
+- `shadow_mode` *(write_shadow vs effective)*
+- `whatsapp_number`, `support_email` *(canais contacto)*
+
+### §38.6 Rollback manual
+
+`admin_rollback_suggestion(p_suggestion_id) RETURNS jsonb`:
+
+- `playbook_update` → restaura `previous_value`,
+  `version = GREATEST(version - 1, 1)`.
+- `settings_update` → restaura `previous_value` com cast
+  type-aware via `format()`.
+- `new_skill` → `RAISE ROLLBACK_NOT_SUPPORTED_FOR_TYPE`
+  (DELETE manual da skill criada).
+
+Status final → `'rolled_back'` (CHECK constraint estendida em B1).
+
+### §38.7 Defesas SQL injection
+
+- `target_setting_key` CHECK constraint regex `^[a-z_]+$` (B1).
+- Whitelist `v_safe_keys` validada **antes** de `format()` (B2).
+- `format(%I::%s)` escape de identifier + `data_type` lookup
+  em `information_schema.columns`.
+- Edge Fn replica regex + whitelist client-side antes de INSERT.
+
+### §38.8 BREAKING change RPC
+
+`admin_approve_skill_suggestion` retorno mudou de `uuid` (5D) →
+`jsonb` (5E) com fields:
+`{type, skill_id, skill_name, setting_key, old_value, new_value, data_type}`.
+Flutter 5D ignorava retorno → **sem regressão**.
+
+### §38.9 UNIQUE constraint estendido
+
+`(pattern_hash, status)` → `(pattern_hash, proposal_type, status)`.
+Mesmo padrão pode ter propostas distintas por tipo
+(ex: `new_skill` E `playbook_update` mesma summary).
+
+### §38.10 Limitações conhecidas (5E)
+
+- **Versioning frágil**: `version - 1` em rollback não é
+  monotonic (ideal: tabela `support_skills_history`); TODO 5E-β.
+- **Diff visual**: `TextField` simples; TODO biblioteca diff
+  proper (5E-β).
+- **`new_skill` rollback**: DELETE manual via SQL; aceitado.
+- **Token output Gemini limit**: `maxOutputTokens=8192`; playbooks
+  >8K tokens podem ser truncados.
+- **Auto-approve threshold**: não implementado; sempre humano-in-loop.
+- **Auditoria histórica**: aprovador (`reviewed_by`) capturado
+  mas sem dashboard de métricas; TODO 5E-β.
+
+### §38.11 Edge Fn `analyze-conversations` v2
+
+Estendida para propor 3 tipos via Gemini. SHA `47949922bb…`
+substituiu v1 `627d5c82…`. `maxOutputTokens` 4096 → 8192.
+Lookup `target_skill_id` + `previous_value` em INSERT
+(playbook_update e settings_update). `breakdown` no response.
+
+---
+
 *Documento de regras de negócio — Bora App*
-*Última atualização: 2026-05-06 (§37 — Sessão 5D Auto-Suggest Cron Skills)*
+*Última atualização: 2026-05-06 (§38 — Sessão 5E Auto-Implement Zonas Seguras)*
 *Atualizar sempre que houver mudanças nas regras de negócio*
 *Fonte de verdade usada por: todas as skills do sistema*

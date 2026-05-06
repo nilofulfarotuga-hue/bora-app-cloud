@@ -1757,18 +1757,51 @@ gravam propostas em fila para aprovação manual.
 - Sanitização anti-injection (`stripControlChars`, `SYSTEM_DELIM`) inalterada
 - RAG (5C-β) inalterado; chatbot funciona com ou sem RAG
 
-### §36.7 Limitações conhecidas
-- `pg_net` settings (`app.supabase_url`, `app.service_role_key`) NÃO
-  configurados em prod — qualquer skill futura que dependa de
-  `pg_net.http_post` cai no path `EXCEPTION 'PG_NET_NOT_CONFIGURED'`
+### §36.7 Skills Grupo 2 (Sessão 5B-β1 · 2026-05-06)
+- `ACCOUNT_UPDATE` (mode=`write_shadow`):
+  - Campos permitidos: `name` (2-100 chars), `phone` (E.164)
+  - **FORBIDDEN_FIELD** explícito: email, password, role, wallet, tokens, fcm_token
+  - Backwards-compat: aceita `full_name` como alias para `name`
+- `PASSWORD_RESET` (mode=`write_shadow`):
+  - Email vem de `auth.users` (não `public.users` que pode ter NULL)
+  - Fire-and-forget via `pg_net` → Edge Fn nova `support-password-reset`
+  - Edge Fn: `verify_jwt=false` + check `Authorization === SUPABASE_SERVICE_ROLE_KEY`
+  - Verifica `user_id ↔ email` match em auth antes de chamar `auth.resetPasswordForEmail`
+- `CANCEL_PRE_PURCHASE` (mode=`write_shadow`, **dispatch externo**):
+  - `admin_approve_action` retorna `EXCEPTION 'EXTERNAL_DISPATCH_REQUIRED'` para forçar Flutter a despachar
+  - Flutter `AdminPendingActionsScreen._approveCancelPrePurchase` chama
+    `admin-cancel-order` Edge Fn (com admin JWT) → Stripe refund automático
+    → `admin_finalize_action` RPC para marcar como executed
+  - Reason recomendado: `client_request: <texto>`
+
+### §36.8 Trigger push admin (Sessão 5B-β1)
+- `trg_zz_pending_action_notify_admin` AFTER INSERT em `support_pending_actions`
+- Função `fn_notify_admin_pending_action()` SECURITY DEFINER
+- Lookup admin: `users` WHERE `fcm_token IS NOT NULL` AND `auth.users.email IN (admin emails)`
+- Guard `IS NOT NULL` em `app.supabase_url`/`app.service_role_key` →
+  silent skip se settings ausentes (não bloqueia INSERT)
+- Chama `notify-client` Edge Fn com `clientId=admin_id`, title="Nova proposta IA"
+
+### §36.9 RPC `admin_finalize_action` (Sessão 5B-β1)
+- Permite Flutter marcar pending action como executed/failed/rejected após
+  dispatch externo (CANCEL_PRE_PURCHASE → admin-cancel-order Edge Fn)
+- Signature: `admin_finalize_action(p_action_id uuid, p_status text, p_result jsonb, p_reason text)`
+- Validações: is_admin() + status ∈ (executed,failed,rejected) + action ainda pending
+
+### §36.10 Limitações conhecidas (actualizadas)
+- `pg_net` settings (`app.supabase_url`, `app.service_role_key`) NÃO configurados
+  em prod — `PASSWORD_RESET` falha em runtime com `PG_NET_NOT_CONFIGURED` até config
+- Trigger push admin: idem — silent skip se settings null (badge realtime
+  funciona como fallback desde 5B-α)
 - Cliente não vê estado da sua proposta (apenas "aguarda aprovação");
-  notificação in-app adiada para 5B-β
-- Não há push admin (FCM) ou email Resend para nova proposta — só badge
-  visual no Admin Inbox; integrações adiadas para 5B-β
+  notificação in-app adiada para 5B-β2
+- `users.email` é NULL para muitos registos — RPC PASSWORD_RESET lê de
+  `auth.users` (source of truth)
+- Email Resend SMTP custom: adiado para 5B-β2
 
 ---
 
 *Documento de regras de negócio — Bora App*
-*Última atualização: 2026-05-06 (§36 adicionado — Sessão 5B-α WRITE shadow infra + Grupo 1)*
+*Última atualização: 2026-05-06 (§36.7-36.10 — Sessão 5B-β1 Grupo 2 + push admin trigger)*
 *Atualizar sempre que houver mudanças nas regras de negócio*
 *Fonte de verdade usada por: todas as skills do sistema*

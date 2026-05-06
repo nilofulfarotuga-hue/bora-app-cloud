@@ -1,7 +1,7 @@
-// Sessão 5A-1 B9 + 5C-β RAG + 5B-α B4 — Edge Fn support-chatbot
+// Sessão 5A-1 B9 + 5C-β RAG + 5B-α B4 + 5B-β1 B5 — Edge Fn support-chatbot
 // Gemini 1.5 Flash + tool-calling whitelisted + defesas anti-injection.
-// 5B-α: tool agent_propose_action (write_shadow) → grava em
-// support_pending_actions para aprovação manual do admin.
+// 5B-α: tool agent_propose_action (write_shadow) → support_pending_actions.
+// 5B-β1: 3 tools especializadas (cancel/password/account) — Grupo 2 skills.
 // verify_jwt: true. POST { session_id?, message, order_id? }.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
@@ -20,11 +20,25 @@ const TOOL_WHITELIST = new Set([
   'agent_get_refund_status',
   // 5B-α: write_shadow proposal (service_role-only, routed via adminClient)
   'agent_propose_action',
+  // 5B-β1: tools especializadas Grupo 2
+  'agent_propose_action_cancel',
+  'agent_propose_action_password',
+  'agent_propose_action_account',
+]);
+
+const PROPOSE_ACTION_TOOL_NAMES = new Set([
+  'agent_propose_action',
+  'agent_propose_action_cancel',
+  'agent_propose_action_password',
+  'agent_propose_action_account',
 ]);
 
 const WRITE_SHADOW_ACTION_TYPES = new Set([
   'UPDATE_DELIVERY_INSTRUCTIONS',
   'UPDATE_DELIVERY_ADDRESS',
+  'CANCEL_PRE_PURCHASE',
+  'PASSWORD_RESET',
+  'ACCOUNT_UPDATE',
 ]);
 
 const SYSTEM_DELIM_OPEN = '<<<SYSTEM>>>';
@@ -145,9 +159,8 @@ function buildFunctionDeclarations() {
     {
       name: 'agent_propose_action',
       description:
-        'Propoe uma accao WRITE em modo shadow. ' +
+        'Propoe uma accao WRITE em modo shadow (skill UPDATE_DELIVERY_INSTRUCTIONS ou UPDATE_DELIVERY_ADDRESS). ' +
         'O admin Danilo aprova manualmente antes de a accao ser executada. ' +
-        'Usar APENAS para action_type valido (UPDATE_DELIVERY_INSTRUCTIONS, UPDATE_DELIVERY_ADDRESS). ' +
         'NUNCA usar para leitura (usa as tools agent_get_* para isso). ' +
         'Apos chamar, informa o cliente que a alteracao aguarda aprovacao.',
       parameters: {
@@ -156,24 +169,87 @@ function buildFunctionDeclarations() {
           skill_name: {
             type: 'string',
             enum: ['UPDATE_DELIVERY_INSTRUCTIONS', 'UPDATE_DELIVERY_ADDRESS'],
-            description: 'Nome da skill a propor.',
           },
           action_type: {
             type: 'string',
             enum: ['UPDATE_DELIVERY_INSTRUCTIONS', 'UPDATE_DELIVERY_ADDRESS'],
-            description: 'Tipo de accao (igual ao skill_name).',
           },
           action_payload: {
             type: 'object',
             description:
-              'Payload da accao. ' +
               'UPDATE_DELIVERY_INSTRUCTIONS: { order_id: string, new_value: string<=200ch }. ' +
               'UPDATE_DELIVERY_ADDRESS: { order_id: string, new_address: string }.',
           },
+          agent_reasoning: { type: 'string' },
+        },
+        required: ['skill_name', 'action_type', 'action_payload', 'agent_reasoning'],
+      },
+    },
+    {
+      name: 'agent_propose_action_cancel',
+      description:
+        'Propoe cancelamento de pedido pre-compra (skill CANCEL_PRE_PURCHASE). ' +
+        'IRREVERSIVEL — confirmar com cliente antes. ' +
+        'Apenas para status created ou preparing. ' +
+        'Apos aprovacao do admin, sistema chama admin-cancel-order (Stripe refund automatico).',
+      parameters: {
+        type: 'object',
+        properties: {
+          skill_name: { type: 'string', enum: ['CANCEL_PRE_PURCHASE'] },
+          action_type: { type: 'string', enum: ['CANCEL_PRE_PURCHASE'] },
+          action_payload: {
+            type: 'object',
+            description:
+              '{ order_id: string, reason: string } — reason recomendado: ' +
+              '"client_request: <texto curto>".',
+          },
+          agent_reasoning: { type: 'string' },
+        },
+        required: ['skill_name', 'action_type', 'action_payload', 'agent_reasoning'],
+      },
+    },
+    {
+      name: 'agent_propose_action_password',
+      description:
+        'Propoe reset password (skill PASSWORD_RESET). ' +
+        'Confirmar identidade (nome) ANTES. ' +
+        'Email e buscado automaticamente do user_id — payload deve ser objecto vazio {}. ' +
+        'Maximo 2 propostas por sessao.',
+      parameters: {
+        type: 'object',
+        properties: {
+          skill_name: { type: 'string', enum: ['PASSWORD_RESET'] },
+          action_type: { type: 'string', enum: ['PASSWORD_RESET'] },
+          action_payload: {
+            type: 'object',
+            description: '{} (vazio — email vem de auth.users via user_id da sessao)',
+          },
           agent_reasoning: {
             type: 'string',
-            description: 'Curta explicacao em PT (1-2 frases) para o admin perceber porque a proposta faz sentido.',
+            description: 'Inclui o nome confirmado pelo cliente.',
           },
+        },
+        required: ['skill_name', 'action_type', 'action_payload', 'agent_reasoning'],
+      },
+    },
+    {
+      name: 'agent_propose_action_account',
+      description:
+        'Propoe actualizacao de dados da conta (skill ACCOUNT_UPDATE). ' +
+        'Apenas name e/ou phone permitidos. ' +
+        'NUNCA email, password, role, wallet, tokens, fcm_token (RPC bloqueia FORBIDDEN_FIELD).',
+      parameters: {
+        type: 'object',
+        properties: {
+          skill_name: { type: 'string', enum: ['ACCOUNT_UPDATE'] },
+          action_type: { type: 'string', enum: ['ACCOUNT_UPDATE'] },
+          action_payload: {
+            type: 'object',
+            description:
+              '{ name?: string (2-100ch), phone?: string (formato E.164: +351912345678) }. ' +
+              'Pelo menos um dos campos e obrigatorio.',
+          },
+          agent_reasoning: { type: 'string' },
         },
         required: ['skill_name', 'action_type', 'action_payload', 'agent_reasoning'],
       },
@@ -571,10 +647,10 @@ Deno.serve(async (req: Request) => {
         escalated = true;
         break;
       }
-      // 5B-α: agent_propose_action é service_role only → adminClient direct.
-      // As outras tools (agent_get_*) usam user JWT + RLS via callRpc.
+      // 5B-α + 5B-β1: tools agent_propose_action* sao service_role only →
+      // adminClient direct. As outras tools (agent_get_*) usam user JWT + RLS via callRpc.
       let rpcRes: { ok: boolean; data?: unknown; error?: string };
-      if (fnName === 'agent_propose_action') {
+      if (PROPOSE_ACTION_TOOL_NAMES.has(fnName)) {
         const args = fnArgs as Record<string, unknown>;
         const skill_name = typeof args.skill_name === 'string' ? args.skill_name : '';
         const action_type = typeof args.action_type === 'string' ? args.action_type : '';

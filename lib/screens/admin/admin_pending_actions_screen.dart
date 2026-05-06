@@ -39,6 +39,9 @@ class _AdminPendingActionsScreenState
   static const _actionTypeLabels = <String, String>{
     'UPDATE_DELIVERY_INSTRUCTIONS': 'Alterar instruções de entrega',
     'UPDATE_DELIVERY_ADDRESS': 'Alterar morada de entrega',
+    'CANCEL_PRE_PURCHASE': 'Cancelar pedido pré-compra',
+    'PASSWORD_RESET': 'Reset password',
+    'ACCOUNT_UPDATE': 'Actualizar dados conta',
   };
 
   @override
@@ -144,6 +147,13 @@ class _AdminPendingActionsScreenState
     );
     if (confirmed != true) return;
     try {
+      final actionType = action['action_type'] as String? ?? '';
+      // 5B-β1: CANCEL_PRE_PURCHASE → dispatch externo via admin-cancel-order
+      // (admin_approve_action RPC retorna EXTERNAL_DISPATCH_REQUIRED)
+      if (actionType == 'CANCEL_PRE_PURCHASE') {
+        await _approveCancelPrePurchase(action);
+        return;
+      }
       final result = await _supabase.rpc('admin_approve_action',
           params: {'p_action_id': action['id']});
       if (!mounted) return;
@@ -163,6 +173,88 @@ class _AdminPendingActionsScreenState
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(backgroundColor: Colors.red, content: Text('Erro: $e')));
+    }
+  }
+
+  Future<void> _approveCancelPrePurchase(Map<String, dynamic> action) async {
+    final payload = action['action_payload'] as Map?;
+    final orderId = payload?['order_id'] as String?;
+    final rawReason = (payload?['reason'] as String?)?.trim();
+
+    if (orderId == null || orderId.isEmpty) {
+      await _supabase.rpc('admin_finalize_action', params: {
+        'p_action_id': action['id'],
+        'p_status': 'failed',
+        'p_result': {'error': 'INVALID_ORDER_ID — payload missing order_id'},
+        'p_reason': null,
+      });
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          backgroundColor: Colors.red,
+          content: Text('Falhou: order_id ausente no payload')));
+      await _load();
+      await _refreshBadge();
+      return;
+    }
+
+    final reasonText = (rawReason == null || rawReason.isEmpty)
+        ? 'client_request: cancelamento via suporte IA (admin aprovado)'
+        : (rawReason.contains(':') ? rawReason : 'client_request: $rawReason');
+
+    try {
+      final res = await _supabase.functions.invoke('admin-cancel-order',
+          body: {
+            'order_id': orderId,
+            'reason_code': 'client_request',
+            'reason': reasonText,
+          });
+      final data = res.data as Map?;
+      final ok = data != null && data['success'] == true;
+      if (ok) {
+        await _supabase.rpc('admin_finalize_action', params: {
+          'p_action_id': action['id'],
+          'p_status': 'executed',
+          'p_result': {
+            'cancelled_via': 'admin-cancel-order',
+            'order_id': orderId,
+            'refund': data['refund'],
+            'previous_status': data['previous_status'],
+          },
+          'p_reason': null,
+        });
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            backgroundColor: _boraGreen,
+            content: Text('Pedido cancelado · refund ${data['refund']?['result'] ?? 'n/a'}')));
+      } else {
+        final errMsg = data?['error']?.toString() ?? 'admin-cancel-order falhou';
+        await _supabase.rpc('admin_finalize_action', params: {
+          'p_action_id': action['id'],
+          'p_status': 'failed',
+          'p_result': {'error': errMsg, 'detail': data?.toString()},
+          'p_reason': null,
+        });
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            backgroundColor: Colors.red,
+            content: Text('Falhou: $errMsg')));
+      }
+      await _load();
+      await _refreshBadge();
+    } catch (e) {
+      try {
+        await _supabase.rpc('admin_finalize_action', params: {
+          'p_action_id': action['id'],
+          'p_status': 'failed',
+          'p_result': {'error': e.toString()},
+          'p_reason': null,
+        });
+      } catch (_) {/* ignore secondary error */}
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          backgroundColor: Colors.red, content: Text('Erro: $e')));
+      await _load();
+      await _refreshBadge();
     }
   }
 

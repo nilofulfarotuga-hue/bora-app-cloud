@@ -1866,9 +1866,69 @@ admin tem feedback visível + secret fica no Edge runtime.
 - `CANCEL_DURING_PURCHASE` (5B-β2a)
 - `RESERVATION_CANCEL` (5B-β2a)
 
+### §36.13 Skills Grupo 3b (Sessão 5B-β2b · 2026-05-06)
+
+Info-only mercado + escalate — 4 skills sem geração de pending action.
+
+**ITEM_UNAVAILABLE** (`read_only`)
+- Activação: cliente pergunta sobre item não entregue ou substituído.
+- Regras BR §3.x (reserva 15% anti-falta): cliente paga estimativa
+  ×1.15; se item em falta, **estafeta substitui** por similar se cliente
+  não responder no chat; cliente paga apenas o valor real.
+- Tool: `agent_explain_event`.
+
+**ITEM_ADDED** (`read_only`)
+- Activação: cliente questiona item extra cobrado (➕ no app).
+- Fórmula: `preço_base_mercado × 1.15 × qty` (15% =
+  `_nonPartnerMarkupRate`); server aplica autoritativo em
+  `finalize_storeshopping_purchase`.
+- Tool: `agent_explain_event`.
+
+**PRICE_DIFFERENCE** (`read_only`)
+- Activação: diferença estimativa vs final.
+- Regra: cobrança Stripe = estimativa ×1.15 (reserva 15%); cliente paga
+  apenas o real comprado; extra é libertado automaticamente. NÃO
+  prometer reembolso da diferença.
+- Tool: `agent_explain_event`.
+
+**PARTNER_REJECTED_ORDER** (`escalate`)
+- Activação: parceiro rejeitou pedido (sem stock / encerrado /
+  capacidade).
+- Mecanismo: marker `[HANDOFF_HUMAN]` + `allowed_tools=[]`
+  (consistência com `HUMAN_REQUEST` 5A-1).
+- Sistema cria `support_tickets` automaticamente quando `escalated=true`.
+- NÃO usa `agent_explain_event`. NÃO promete compensação (humano decide).
+
+### §36.14 5B COMPLETO — total skills (após 5B-β2b)
+
+- `read_only`: **11** (8 5A-2 + 3 Grupo 3b 5B-β2b)
+- `write_shadow`: **7** (3 Grupo 1 5B-α + 2 Grupo 2 5B-β1 + 2 Grupo 3a 5B-β2a)
+- `escalate`: **2** (HUMAN_REQUEST 5A-1 + PARTNER_REJECTED_ORDER 5B-β2b)
+- **Total active: 20**
+
+5B fechado. Próximas sessões: 5D (auto-suggest cron), 5E (auto-implement
+zonas seguras), 5F (Robô A↔B), 5G (painel admin inbox), Sessão 6
+(avaliações estrelas), Sessão 7 (validações finais + UUID refactor +
+docs §12.3 / taxa cancel_during).
+
+### §36.15 Tool `agent_explain_event` (Sessão 5B-β2b · 2026-05-06)
+
+Tool read-only de logging em `support_agent_actions` (NÃO em
+`support_pending_actions`). Não gera pending action; não requer
+aprovação admin.
+
+- **Whitelist:** `ITEM_UNAVAILABLE`, `ITEM_ADDED`, `PRICE_DIFFERENCE`.
+- **shadow_status:** `'not_applicable'` (CHECK constraint da tabela
+  aceita este valor).
+- **Auth:** insert via `adminClient` (service_role) — bypass de RLS.
+- **Falha silenciosa:** try/catch + console.warn; não bloqueia o fluxo
+  conversacional.
+- **Não usada por:** `PARTNER_REJECTED_ORDER` (essa skill usa
+  `[HANDOFF_HUMAN]` marker que cria ticket automaticamente).
+
 ---
 
 *Documento de regras de negócio — Bora App*
-*Última atualização: 2026-05-06 (§36.11-36.12 — Sessão 5B-β2a Grupo 3a + pattern EXTERNAL_DISPATCH_REQUIRED)*
+*Última atualização: 2026-05-06 (§36.13-36.15 — Sessão 5B-β2b Grupo 3b + tool agent_explain_event; 5B COMPLETO)*
 *Atualizar sempre que houver mudanças nas regras de negócio*
 *Fonte de verdade usada por: todas as skills do sistema*

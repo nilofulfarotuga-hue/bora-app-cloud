@@ -1,6 +1,10 @@
 // Sessão 5B-α B5 — Admin Inbox de propostas WRITE shadow do agente IA.
-// Lista propostas (pending/executed/rejected/failed/all), aprovar com modal
-// confirmação, rejeitar com motivo, realtime badge para pending novas.
+// Lista propostas (pending/dispatched/executed/rejected/failed/all), aprovar
+// com modal confirmação, rejeitar com motivo, realtime badge.
+// Sessão 5B-β2a B5: status='dispatched' + botão Executar para skills com
+// EXTERNAL_DISPATCH_REQUIRED (CANCEL_PRE_PURCHASE/CANCEL_DURING_PURCHASE/
+// RESERVATION_CANCEL). Aprovar coloca em dispatched (RPC valida); admin
+// preme Executar para invocar Edge Fn alvo + admin_finalize_action.
 
 import 'dart:async';
 
@@ -30,6 +34,7 @@ class _AdminPendingActionsScreenState
 
   static const _filterOptions = <String, String>{
     'pending': 'Pendentes',
+    'dispatched': 'Aguarda dispatch',
     'executed': 'Executadas',
     'rejected': 'Rejeitadas',
     'failed': 'Falhadas',
@@ -40,6 +45,8 @@ class _AdminPendingActionsScreenState
     'UPDATE_DELIVERY_INSTRUCTIONS': 'Alterar instruções de entrega',
     'UPDATE_DELIVERY_ADDRESS': 'Alterar morada de entrega',
     'CANCEL_PRE_PURCHASE': 'Cancelar pedido pré-compra',
+    'CANCEL_DURING_PURCHASE': 'Cancelar pedido (estafeta envolvido)',
+    'RESERVATION_CANCEL': 'Cancelar reserva',
     'PASSWORD_RESET': 'Reset password',
     'ACCOUNT_UPDATE': 'Actualizar dados conta',
   };
@@ -147,24 +154,26 @@ class _AdminPendingActionsScreenState
     );
     if (confirmed != true) return;
     try {
-      final actionType = action['action_type'] as String? ?? '';
-      // 5B-β1: CANCEL_PRE_PURCHASE → dispatch externo via admin-cancel-order
-      // (admin_approve_action RPC retorna EXTERNAL_DISPATCH_REQUIRED)
-      if (actionType == 'CANCEL_PRE_PURCHASE') {
-        await _approveCancelPrePurchase(action);
-        return;
-      }
+      // 5B-β2a: pattern unificado — admin_approve_action sempre.
+      // Para skills EXTERNAL_DISPATCH_REQUIRED, RPC retorna status=dispatched
+      // e a UI mostra botão Executar. Para skills self-contained, retorna
+      // status=executed directamente.
       final result = await _supabase.rpc('admin_approve_action',
           params: {'p_action_id': action['id']});
       if (!mounted) return;
       final r = result as Map?;
       final hasError = r != null && r['error'] != null;
+      final isDispatch = r != null && r['action'] == 'EXTERNAL_DISPATCH_REQUIRED';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          backgroundColor: hasError ? Colors.red : _boraGreen,
+          backgroundColor: hasError
+              ? Colors.red
+              : (isDispatch ? Colors.amber.shade800 : _boraGreen),
           content: Text(hasError
               ? 'Falhou: ${r['error']}'
-              : 'Acção executada com sucesso'),
+              : isDispatch
+                  ? 'Validado · aguarda dispatch (${r['target']})'
+                  : 'Acção executada com sucesso'),
         ),
       );
       await _load();
@@ -176,75 +185,159 @@ class _AdminPendingActionsScreenState
     }
   }
 
-  Future<void> _approveCancelPrePurchase(Map<String, dynamic> action) async {
-    final payload = action['action_payload'] as Map?;
-    final orderId = payload?['order_id'] as String?;
-    final rawReason = (payload?['reason'] as String?)?.trim();
+  // 5B-β2a — Despacha acção em status='dispatched' para o Edge Fn alvo
+  // e finaliza com admin_finalize_action.
+  Future<void> _dispatch(Map<String, dynamic> action) async {
+    final actionType = action['action_type'] as String? ?? '';
+    final dispatchTarget = action['dispatch_target'] as String? ?? '';
+    final payload = (action['action_payload'] as Map?) ?? {};
+    final actionId = action['id'];
 
-    if (orderId == null || orderId.isEmpty) {
+    if (dispatchTarget.isEmpty) {
       await _supabase.rpc('admin_finalize_action', params: {
-        'p_action_id': action['id'],
+        'p_action_id': actionId,
         'p_status': 'failed',
-        'p_result': {'error': 'INVALID_ORDER_ID — payload missing order_id'},
+        'p_result': {'error': 'NO_DISPATCH_TARGET — corrupted dispatched row'},
         'p_reason': null,
       });
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           backgroundColor: Colors.red,
-          content: Text('Falhou: order_id ausente no payload')));
+          content: Text('Falhou: dispatch_target em falta')));
       await _load();
       await _refreshBadge();
       return;
     }
 
-    final reasonText = (rawReason == null || rawReason.isEmpty)
-        ? 'client_request: cancelamento via suporte IA (admin aprovado)'
-        : (rawReason.contains(':') ? rawReason : 'client_request: $rawReason');
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirmar execução'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+                'Esta acção é IRREVERSÍVEL. Sistema vai despachar imediatamente.'),
+            const SizedBox(height: 12),
+            Text(_actionTypeLabels[actionType] ?? actionType,
+                style: const TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text('Target: $dispatchTarget',
+                style: const TextStyle(
+                    fontFamily: 'monospace', fontSize: 12)),
+            const SizedBox(height: 8),
+            Text(_formatPayload(payload),
+                style: const TextStyle(
+                    fontFamily: 'monospace', fontSize: 12)),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.amber.shade800),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Executar dispatch',
+                style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
 
     try {
-      final res = await _supabase.functions.invoke('admin-cancel-order',
-          body: {
-            'order_id': orderId,
-            'reason_code': 'client_request',
-            'reason': reasonText,
-          });
-      final data = res.data as Map?;
+      Map<String, dynamic>? data;
+      String? errorMsg;
+      if (dispatchTarget == 'admin-cancel-order') {
+        final orderId = payload['order_id'] as String?;
+        if (orderId == null || orderId.isEmpty) {
+          errorMsg = 'INVALID_ORDER_ID — payload missing order_id';
+        } else {
+          final reasonInPayload = (payload['reason'] as String?)?.trim();
+          final reasonText = (reasonInPayload == null || reasonInPayload.isEmpty)
+              ? 'client_request: cancelamento via suporte IA (admin aprovado)'
+              : (reasonInPayload.contains(':')
+                  ? reasonInPayload
+                  : 'client_request: $reasonInPayload');
+          final res = await _supabase.functions.invoke('admin-cancel-order',
+              body: {
+                'order_id': orderId,
+                'reason_code': 'client_request',
+                'reason': reasonText,
+              });
+          data = (res.data as Map?)?.cast<String, dynamic>();
+        }
+      } else if (dispatchTarget == 'admin-cancel-reservation') {
+        final reservationId = payload['reservation_id'] as String?;
+        if (reservationId == null || reservationId.isEmpty) {
+          errorMsg = 'INVALID_RESERVATION_ID — payload missing reservation_id';
+        } else {
+          final res = await _supabase.functions.invoke(
+              'admin-cancel-reservation',
+              body: {
+                'reservation_id': reservationId,
+                'reason': 'cancelamento via suporte IA (admin aprovado)',
+              });
+          data = (res.data as Map?)?.cast<String, dynamic>();
+        }
+      } else {
+        errorMsg = 'UNKNOWN_DISPATCH_TARGET: $dispatchTarget';
+      }
+
+      if (errorMsg != null) {
+        await _supabase.rpc('admin_finalize_action', params: {
+          'p_action_id': actionId,
+          'p_status': 'failed',
+          'p_result': {'error': errorMsg},
+          'p_reason': null,
+        });
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            backgroundColor: Colors.red, content: Text('Falhou: $errorMsg')));
+        await _load();
+        await _refreshBadge();
+        return;
+      }
+
       final ok = data != null && data['success'] == true;
       if (ok) {
         await _supabase.rpc('admin_finalize_action', params: {
-          'p_action_id': action['id'],
+          'p_action_id': actionId,
           'p_status': 'executed',
           'p_result': {
-            'cancelled_via': 'admin-cancel-order',
-            'order_id': orderId,
+            'dispatched_via': dispatchTarget,
+            'idempotent': data['idempotent'],
             'refund': data['refund'],
             'previous_status': data['previous_status'],
+            'new_status': data['new_status'],
           },
           'p_reason': null,
         });
         if (!mounted) return;
+        final refundResult = data['refund']?['result']?.toString() ?? 'n/a';
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             backgroundColor: _boraGreen,
-            content: Text('Pedido cancelado · refund ${data['refund']?['result'] ?? 'n/a'}')));
+            content: Text('Despachado · refund $refundResult')));
       } else {
-        final errMsg = data?['error']?.toString() ?? 'admin-cancel-order falhou';
+        final err = data?['error']?.toString() ?? '$dispatchTarget falhou';
         await _supabase.rpc('admin_finalize_action', params: {
-          'p_action_id': action['id'],
+          'p_action_id': actionId,
           'p_status': 'failed',
-          'p_result': {'error': errMsg, 'detail': data?.toString()},
+          'p_result': {'error': err, 'detail': data?.toString()},
           'p_reason': null,
         });
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            backgroundColor: Colors.red,
-            content: Text('Falhou: $errMsg')));
+            backgroundColor: Colors.red, content: Text('Falhou: $err')));
       }
       await _load();
       await _refreshBadge();
     } catch (e) {
       try {
         await _supabase.rpc('admin_finalize_action', params: {
-          'p_action_id': action['id'],
+          'p_action_id': actionId,
           'p_status': 'failed',
           'p_result': {'error': e.toString()},
           'p_reason': null,
@@ -318,6 +411,8 @@ class _AdminPendingActionsScreenState
     switch (status) {
       case 'pending':
         return _boraOrange;
+      case 'dispatched':
+        return Colors.amber.shade800;
       case 'executed':
         return _boraGreen;
       case 'rejected':
@@ -444,6 +539,8 @@ class _AdminPendingActionsScreenState
     final status = a['status'] as String? ?? 'unknown';
     final actionType = a['action_type'] as String? ?? '';
     final isPending = status == 'pending';
+    final isDispatched = status == 'dispatched';
+    final dispatchTarget = a['dispatch_target'] as String?;
     final result = a['execution_result'];
     final rejectionReason = a['rejection_reason'] as String?;
 
@@ -518,7 +615,34 @@ class _AdminPendingActionsScreenState
                 Text('Revisto em: ${_formatTs(a['reviewed_at'])}',
                     style: const TextStyle(
                         fontSize: 11, color: Colors.black45)),
-              if (result != null) ...[
+              if (isDispatched && a['dispatched_at'] != null)
+                Text('Dispatch desde: ${_formatTs(a['dispatched_at'])}',
+                    style: TextStyle(
+                        fontSize: 11, color: Colors.amber.shade900)),
+              if (isDispatched && dispatchTarget != null) ...[
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  color: const Color(0xFFFFF8E1),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Target: $dispatchTarget',
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.amber.shade900)),
+                      if (result is Map) ...[
+                        const SizedBox(height: 4),
+                        Text(_formatPayload(result),
+                            style: const TextStyle(
+                                fontFamily: 'monospace', fontSize: 11)),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+              if (!isDispatched && result != null) ...[
                 const SizedBox(height: 6),
                 Container(
                   padding: const EdgeInsets.all(8),
@@ -566,6 +690,20 @@ class _AdminPendingActionsScreenState
                     ),
                   ),
                 ],
+              ),
+            ],
+            if (isDispatched) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.amber.shade800,
+                      foregroundColor: Colors.white),
+                  icon: const Icon(Icons.rocket_launch),
+                  label: const Text('Executar dispatch'),
+                  onPressed: () => _dispatch(a),
+                ),
               ),
             ],
           ],

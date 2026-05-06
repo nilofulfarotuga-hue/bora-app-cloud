@@ -1799,9 +1799,76 @@ gravam propostas em fila para aprovação manual.
   `auth.users` (source of truth)
 - Email Resend SMTP custom: adiado para 5B-β2
 
+### §36.11 Skills Grupo 3a (Sessão 5B-β2a · 2026-05-06)
+
+Cancelamentos avançados — 2 skills `write_shadow` reais com integração externa.
+
+**CANCEL_DURING_PURCHASE**
+- Activação: cliente quer cancelar pedido com estafeta envolvido —
+  status ∈ {`callingDriver`, `driverAccepted`, `pickedUp`, `onTheWay`}.
+- Status ∈ {`created`, `preparing`} → redirige para `CANCEL_PRE_PURCHASE`.
+- Pattern: `EXTERNAL_DISPATCH_REQUIRED` (ver §36.12).
+- Dispatch target: `admin-cancel-order` Edge Fn (com admin JWT).
+- Reembolso: admin decide caso a caso conforme §8.3 (taxas variam por fase);
+  playbook NÃO menciona valor exacto.
+
+**RESERVATION_CANCEL**
+- Activação: cliente quer cancelar reserva de mesa em status
+  ∈ {`pending`, `approved`}.
+- Janela de reembolso: `platform_settings.reservation_cancel_window_hours = 2`
+  (≥2h → reembolso total €3; <2h → Bora retém — ver §18.3).
+- Pattern: `EXTERNAL_DISPATCH_REQUIRED` (ver §36.12).
+- Dispatch target: `admin-cancel-reservation` Edge Fn (NOVA — espelha
+  `admin-cancel-order` para reservas).
+- RPC dedicada `admin_cancel_reservation_on_behalf_of(p_reservation_id, p_reason)`
+  — SECURITY DEFINER, sem owner check; espelha `client_cancel_reservation`
+  semanticamente mas auditada como acção admin.
+- Stripe refund é processado pela Edge Fn (RPC só retorna `prepayment_pi`).
+
+⚠️ **Inconsistência docs reportada**: §12.3 menciona janela de "4 horas",
+contradizendo §18.3 e DB (2h). DB é fonte da verdade — corrigir §12.3 em
+sessão de housekeeping.
+
+### §36.12 Pattern `EXTERNAL_DISPATCH_REQUIRED` (Sessão 5B-β2a · 2026-05-06)
+
+Pattern para skills `write_shadow` cuja execução envolve operação externa
+irreversível (Stripe refund, push FCM, etc.) que não pode ser feita
+fire-and-forget de dentro de uma RPC SECURITY DEFINER.
+
+**Status flow:** `pending → dispatched → executed | failed`
+
+1. **Aprovação (`pending → dispatched`)** — Admin clica "Aprovar" no inbox.
+   `admin_approve_action` valida preconditions (status do pedido/reserva,
+   ownership, payload schema) e:
+   - Marca `support_pending_actions.status = 'dispatched'`
+   - Preenche `dispatch_target` (e.g. `admin-cancel-order`,
+     `admin-cancel-reservation`)
+   - Preenche `dispatched_at = now()`
+   - Devolve `execution_result = { action: 'EXTERNAL_DISPATCH_REQUIRED',
+     target, ...metadata }`
+
+2. **Dispatch (`dispatched → executed | failed`)** — Admin clica "Executar"
+   no inbox. `AdminPendingActionsScreen`:
+   - Modal de confirmação (dispatch é irreversível)
+   - `switch (dispatch_target)` → `Supabase.functions.invoke(...)` com admin JWT
+   - Captura resultado e chama `admin_finalize_action(p_action_id, p_status,
+     p_result, p_reason)` (RPC pré-existente desde 5B-β1 — NÃO foi criada
+     `admin_mark_action_dispatched`).
+   - Refresh do inbox
+
+**Razão arquitectural:** `pg_net.http_post` é fire-and-forget (perde resultado
+real); chamar Stripe API directamente de dentro do PG seria síncrono mas
+requer service_role secret no SQL config. Dispatch via Flutter resolve ambos:
+admin tem feedback visível + secret fica no Edge runtime.
+
+**Skills usando o pattern (5B-β2a):**
+- `CANCEL_PRE_PURCHASE` (refactor 5B-β2a — antes raise EXCEPTION → failed)
+- `CANCEL_DURING_PURCHASE` (5B-β2a)
+- `RESERVATION_CANCEL` (5B-β2a)
+
 ---
 
 *Documento de regras de negócio — Bora App*
-*Última atualização: 2026-05-06 (§36.7-36.10 — Sessão 5B-β1 Grupo 2 + push admin trigger)*
+*Última atualização: 2026-05-06 (§36.11-36.12 — Sessão 5B-β2a Grupo 3a + pattern EXTERNAL_DISPATCH_REQUIRED)*
 *Atualizar sempre que houver mudanças nas regras de negócio*
 *Fonte de verdade usada por: todas as skills do sistema*

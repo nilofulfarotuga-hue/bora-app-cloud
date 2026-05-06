@@ -26,6 +26,7 @@ import 'admin_settlements_screen.dart';
 import 'admin_support_stats_screen.dart';
 import 'admin_knowledge_screen.dart';
 import 'admin_pending_actions_screen.dart';
+import 'admin_skill_suggestions_screen.dart';
 import '../../widgets/admin_closed_partners_card.dart';
 import '../../widgets/admin_reservations_today_card.dart';
 import 'admin_partners_pending_screen.dart';
@@ -509,6 +510,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       MaterialPageRoute(
                           builder: (_) =>
                               const AdminPendingActionsScreen())),
+                ),
+                const SizedBox(height: 10),
+                // Sessão 5D — Sugestões de skills novas (auto-suggest)
+                _NavCard(
+                  icon: Icons.auto_awesome,
+                  title: 'Sugestões Skills IA',
+                  subtitle: 'Skills novas propostas pelo cron semanal',
+                  color: const Color(0xFFFF8F00),
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminSkillSuggestionsScreen())),
                 ),
                 const SizedBox(height: 10),
                 // T1: Category mapping

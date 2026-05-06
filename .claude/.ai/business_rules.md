@@ -1928,7 +1928,96 @@ aprovação admin.
 
 ---
 
+## §37 — AUTO-SUGGEST CRON SKILLS (Sessão 5D · 2026-05-06)
+
+Sistema automático que analisa conversas chatbot e propõe novas skills
+para cobrir padrões não cobertos por skills existentes.
+
+### §37.1 Cron semanal
+
+- `cron.job` `analyze-conversations-weekly`, schedule `0 4 * * 1`
+  (segundas 04:00 UTC), active=true.
+- Dispara `net.http_post` para Edge Fn `analyze-conversations` com
+  `{ scheduled: true, days_back: 7, dry_run: false }`.
+- ⚠️ Cron registado mas **inactivo em runtime** até config de
+  `app.supabase_url` + `app.service_role_key` em prod (TODO histórico
+  partilhado com PASSWORD_RESET / push admin trigger — ver §36.10).
+
+### §37.2 Pipeline de análise
+
+1. Lê mensagens `support_chatbot_messages` role='user' dos últimos 7
+   dias (limit 200), prioridade para sessões `escalated=true`.
+2. Threshold mínimo: `support_settings.skill_analysis_min_messages = 5`
+   (default; admin pode editar). Abaixo → retorna
+   `{ reason: 'below_threshold' }` sem chamar Gemini.
+3. Anonimização PII regex: emails / phones (incluindo +351) /
+   uuids / números 4+ dígitos → `[email]/[phone]/[id]/[number]`.
+   Library GDPR (Microsoft Presidio) adiada (TODO 5D-β).
+4. Pre-load anti-dedup: `skill_name` (active) + `pattern_summary`
+   (pending) injectados no prompt como "NÃO duplicar".
+5. Gemini 1.5 Flash (`gemini_model` setting). Output esperado:
+   JSON array sem markdown fences. Parser robusto strip
+   ```` ```json ``` ```` se modelo ignorar instrução.
+
+### §37.3 Tabela `skill_suggestions`
+
+```
+id (uuid PK), suggested_at, status, pattern_summary,
+sample_messages (jsonb), message_count, suggested_skill_name,
+suggested_category, suggested_mode, suggested_playbook_md,
+suggested_allowed_tools (jsonb), reviewed_at/by, rejection_reason,
+implemented_skill_id (FK → support_skills.id ON DELETE SET NULL),
+implemented_at, analysis_window_start/end, gemini_model,
+pattern_hash, UNIQUE(pattern_hash, status)
+```
+
+- Status flow: `pending → implemented | rejected`.
+- `pattern_hash = SHA256(pattern_summary.lowercase().trim())` —
+  UNIQUE(pattern_hash, status) previne duplicatas em `pending`.
+- RLS: admin_all (SELECT/INSERT/UPDATE/DELETE) + service_role_insert
+  (Edge Fn).
+- Realtime publication: `supabase_realtime` (badge admin actualiza ao
+  vivo).
+
+### §37.4 Admin workflow
+
+`AdminSkillSuggestionsScreen` em `lib/screens/admin/`:
+
+- Banner topo com cron status (próxima análise + última análise).
+  Se `support_settings.last_skill_analysis_at IS NULL`, banner amber
+  "Cron inactivo (config pendente)".
+- Botão "🔄 Analisar Agora (7 dias)" — invoca Edge Fn directamente
+  com JWT admin (não usa pg_net), rate-limited 1/h server-side.
+- Lista cards filtrável: pending / approved / rejected / implemented /
+  all.
+- Aprovar → AlertDialog editor (skill_name + category + mode dropdown +
+  playbook multiline 10 rows monospace) → `admin_approve_skill_suggestion`
+  RPC cria skill activa + marca status=implemented.
+- Rejeitar → motivo opcional → `admin_reject_skill_suggestion` RPC.
+- Realtime badge contador pendentes no AppBar.
+
+### §37.5 Regra de ouro
+
+**Danilo aprova SEMPRE** antes de skill nova entrar em produção.
+Sistema NÃO cria skills automaticamente. Editor de playbook
+obrigatório no dialog.
+
+### §37.6 Limitações conhecidas (5D)
+
+- `pg_net` settings (`app.supabase_url`, `app.service_role_key`) NULL
+  → cron inactivo em runtime; mitigação via botão manual.
+- Anonimização PII regex simples — TODO library GDPR (5D-β).
+- Dedup textual (SHA256 sobre `pattern_summary`) — TODO embeddar
+  `support_skills.playbook_md` em `support_knowledge_chunks`
+  (`source_type='skill'`) e usar `match_knowledge` semantic similarity
+  ≥0.8 antes de INSERT (5D-β).
+- Sem métricas: % aprovadas vs rejeitadas (5D-β).
+- Sem editor markdown avançado: TextField multiline raw (5D-β).
+- Sem re-análise inteligente (padrão N semanas consecutivas) — 5D-β.
+
+---
+
 *Documento de regras de negócio — Bora App*
-*Última atualização: 2026-05-06 (§36.13-36.15 — Sessão 5B-β2b Grupo 3b + tool agent_explain_event; 5B COMPLETO)*
+*Última atualização: 2026-05-06 (§37 — Sessão 5D Auto-Suggest Cron Skills)*
 *Atualizar sempre que houver mudanças nas regras de negócio*
 *Fonte de verdade usada por: todas as skills do sistema*

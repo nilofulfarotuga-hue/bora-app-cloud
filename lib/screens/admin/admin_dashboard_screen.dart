@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '../../services/admin_push_service.dart';
 import '../../services/auth_admin_service.dart';
 import '../../widgets/admin_realtime_metrics_card.dart';
 import 'admin_advanced_kpis_screen.dart';
@@ -67,6 +68,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   void initState() {
     super.initState();
     _metricsFuture = _loadMetrics();
+    // 5F-β — registar FCM token admin + ouvir taps em pushes crosstalk_critical.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      AdminPushService.registerForAdmin();
+      AdminPushService.setupDeepLinks(context);
+    });
   }
 
   Future<Map<String, dynamic>> _loadMetrics() async {

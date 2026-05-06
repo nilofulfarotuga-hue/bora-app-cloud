@@ -1,8 +1,8 @@
-// Sessão 5F B5 + 5F-α B3 — Admin observador robot_crosstalk
-// Lista comunicação Robô A ↔ Robô B (read-only em 5F).
+// Sessão 5F B5 + 5F-α B3 + 5F-β B4 — Admin observador robot_crosstalk
+// Lista comunicação Robô A ↔ Robô B + reply UI (5F-β).
 // Filtros status + direction + urgency. Realtime badge pending.
 // 5F-α: badges urgência 🔴/🟡/🟢, filtro urgency, banner crítico topo.
-// TODO 5F-β: admin_respond_to_crosstalk + UI reply.
+// 5F-β: botão Responder em pending → admin_respond_to_crosstalk RPC.
 
 import 'dart:async';
 
@@ -416,21 +416,21 @@ class _AdminCrosstalkScreenState extends State<AdminCrosstalkScreen> {
         padding: EdgeInsets.all(14),
         child: Row(
           children: [
-            Icon(Icons.info_outline, color: _boraGreen),
+            Icon(Icons.chat_bubble_outline, color: _boraGreen),
             SizedBox(width: 8),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Modo observador (5F)',
+                    'Reply UI activa (5F-β)',
                     style: TextStyle(
                         fontWeight: FontWeight.bold, fontSize: 13),
                   ),
                   SizedBox(height: 4),
                   Text(
-                    'Resposta às perguntas pendentes via scripts/crosstalk/respond.ts. '
-                    'Reply UI será adicionada em 5F-β.',
+                    'Toca em "Responder" nos cards pendentes para responder ao cliente. '
+                    'A resposta fica registada com answered_by=admin.',
                     style: TextStyle(fontSize: 12, color: Colors.black54),
                   ),
                 ],
@@ -440,6 +440,130 @@ class _AdminCrosstalkScreenState extends State<AdminCrosstalkScreen> {
         ),
       ),
     );
+  }
+
+  // 5F-β — Dialog para responder a uma comunicação pendente
+  Future<void> _openReplyDialog(Map<String, dynamic> ct) async {
+    final controller = TextEditingController();
+    final question = (ct['question'] as String?) ?? '';
+    final preview =
+        question.length > 200 ? '${question.substring(0, 200)}…' : question;
+    final formKey = GlobalKey<FormState>();
+
+    final answer = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dctx) {
+        return AlertDialog(
+          title: const Text('Responder ao cliente'),
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF5F5F5),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      preview,
+                      style: const TextStyle(fontSize: 12, color: Colors.black87),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: controller,
+                    autofocus: true,
+                    minLines: 5,
+                    maxLines: 10,
+                    style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+                    decoration: const InputDecoration(
+                      labelText: 'Resposta',
+                      hintText: 'Resposta que será guardada no histórico…',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) {
+                        return 'A resposta não pode ficar vazia';
+                      }
+                      return null;
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dctx),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _boraGreen,
+                foregroundColor: Colors.white,
+              ),
+              icon: const Icon(Icons.send, size: 16),
+              label: const Text('Enviar resposta'),
+              onPressed: () {
+                if (formKey.currentState?.validate() != true) return;
+                Navigator.pop(dctx, controller.text.trim());
+              },
+            ),
+          ],
+        );
+      },
+    );
+
+    if (answer == null || answer.isEmpty) return;
+    if (!mounted) return;
+
+    try {
+      await _supabase.rpc('admin_respond_to_crosstalk', params: {
+        'p_crosstalk_id': ct['id'],
+        'p_answer': answer,
+      });
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: _boraGreen,
+          content: Text('✅ Resposta guardada'),
+        ),
+      );
+      await _load();
+      await _refreshBadge();
+    } on PostgrestException catch (e) {
+      if (!mounted) return;
+      final msg = _mapRpcError(e.message);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: _critical,
+          content: Text('Erro: $msg'),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: _critical,
+          content: Text('Erro: $e'),
+        ),
+      );
+    }
+  }
+
+  String _mapRpcError(String raw) {
+    if (raw.contains('NOT_ADMIN')) return 'Sem permissão de admin';
+    if (raw.contains('ANSWER_REQUIRED')) return 'Resposta vazia';
+    if (raw.contains('CROSSTALK_NOT_FOUND_OR_NOT_PENDING')) {
+      return 'Comunicação já não está pendente (foi respondida noutro device?)';
+    }
+    return raw;
   }
 
   Widget _buildErrorCard() {
@@ -483,11 +607,14 @@ class _AdminCrosstalkScreenState extends State<AdminCrosstalkScreen> {
     final urgency = (ct['urgency'] as String?) ?? 'normal'; // 5F-α
     final question = ct['question'] as String? ?? '';
     final answer = ct['answer'] as String?;
+    final answeredBy = ct['answered_by'] as String?; // 5F-β
     final skill = ct['skill_triggered'] as String?;
     final ragCount = ct['rag_chunks_count'] as int? ?? 0;
     final hasContext =
         (ct['question_context'] as Map?)?.isNotEmpty == true;
     final dirBadge = _directionBadge(direction);
+    // 5F-β — só perguntas A→B pendentes podem ser respondidas pelo admin
+    final canReply = status == 'pending' && direction == 'a_to_b';
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -577,13 +704,74 @@ class _AdminCrosstalkScreenState extends State<AdminCrosstalkScreen> {
                         fontSize: 11, color: Colors.black45)),
               ],
             ),
+            // 5F-β — botão Responder em cards pending A→B
+            if (canReply) ...[
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerRight,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _boraGreen,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 8),
+                  ),
+                  icon: const Icon(Icons.reply, size: 16),
+                  label: const Text('Responder',
+                      style: TextStyle(fontSize: 13)),
+                  onPressed: () => _openReplyDialog(ct),
+                ),
+              ),
+            ],
             if (answer != null && answer.isNotEmpty) ...[
               const Divider(height: 16),
-              const Text('Resposta:',
-                  style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black54)),
+              Row(
+                children: [
+                  const Text('Resposta:',
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black54)),
+                  const Spacer(),
+                  // 5F-β — chip distintivo conforme quem respondeu
+                  if (answeredBy == 'admin')
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: _boraGreen.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        '✋ Respondido por admin',
+                        style: TextStyle(
+                          color: _boraGreen,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 10,
+                        ),
+                      ),
+                    )
+                  else if (answeredBy == 'b' || answeredBy == 'a')
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        answeredBy == 'b'
+                            ? '🤖 Respondido por Robô B'
+                            : '🤖 Respondido por Robô A',
+                        style: TextStyle(
+                          color: Colors.blue.shade800,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
               const SizedBox(height: 4),
               Container(
                 padding: const EdgeInsets.all(8),

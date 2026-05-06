@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'services/notification_service.dart';
 import 'auth/auth_store.dart';
 import 'dispatch/dispatch_engine.dart';
+import 'screens/admin/admin_crosstalk_screen.dart';
 import 'screens/admin/admin_dashboard_screen.dart';
 import 'screens/client_login_screen.dart';
 import 'screens/client_main_screen.dart';
@@ -189,6 +190,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           '/role': (_) => const RoleScreen(),
           '/login': (_) => const LoginScreen(),
           '/admin': (_) => const AdminDashboardScreen(),
+          // 5F-β — deep link de notificação push crosstalk_critical
+          '/admin/crosstalk': (_) => const AdminCrosstalkScreen(),
         },
         home: const ConsentBanner(child: _RootNavigator()),
       ),

@@ -1,0 +1,497 @@
+// Sessão 5B-α B5 — Admin Inbox de propostas WRITE shadow do agente IA.
+// Lista propostas (pending/executed/rejected/failed/all), aprovar com modal
+// confirmação, rejeitar com motivo, realtime badge para pending novas.
+
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+class AdminPendingActionsScreen extends StatefulWidget {
+  const AdminPendingActionsScreen({super.key});
+
+  @override
+  State<AdminPendingActionsScreen> createState() =>
+      _AdminPendingActionsScreenState();
+}
+
+class _AdminPendingActionsScreenState
+    extends State<AdminPendingActionsScreen> {
+  static const _boraGreen = Color(0xFF1B5E20);
+  static const _boraOrange = Color(0xFFE65100);
+
+  final _supabase = Supabase.instance.client;
+  String _statusFilter = 'pending';
+  List<Map<String, dynamic>> _actions = [];
+  int _pendingBadgeCount = 0;
+  bool _loading = false;
+  String? _error;
+  RealtimeChannel? _channel;
+
+  static const _filterOptions = <String, String>{
+    'pending': 'Pendentes',
+    'executed': 'Executadas',
+    'rejected': 'Rejeitadas',
+    'failed': 'Falhadas',
+    'all': 'Todas',
+  };
+
+  static const _actionTypeLabels = <String, String>{
+    'UPDATE_DELIVERY_INSTRUCTIONS': 'Alterar instruções de entrega',
+    'UPDATE_DELIVERY_ADDRESS': 'Alterar morada de entrega',
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+    _refreshBadge();
+    _subscribeRealtime();
+  }
+
+  @override
+  void dispose() {
+    if (_channel != null) {
+      _supabase.removeChannel(_channel!);
+    }
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final data = await _supabase.rpc('admin_list_pending_actions', params: {
+        'p_status': _statusFilter,
+        'p_limit': 50,
+      });
+      final list = (data as List? ?? [])
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+      if (!mounted) return;
+      setState(() {
+        _actions = list;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _refreshBadge() async {
+    try {
+      final data = await _supabase.rpc('admin_list_pending_actions', params: {
+        'p_status': 'pending',
+        'p_limit': 100,
+      });
+      final list = (data as List? ?? []);
+      if (!mounted) return;
+      setState(() => _pendingBadgeCount = list.length);
+    } catch (_) {/* silent */}
+  }
+
+  void _subscribeRealtime() {
+    _channel = _supabase.channel('admin_pending_actions');
+    _channel!.onPostgresChanges(
+      event: PostgresChangeEvent.all,
+      schema: 'public',
+      table: 'support_pending_actions',
+      callback: (_) {
+        _refreshBadge();
+        if (_statusFilter == 'pending' || _statusFilter == 'all') _load();
+      },
+    ).subscribe();
+  }
+
+  Future<void> _approve(Map<String, dynamic> action) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirmar aprovação'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+                'Esta acção será EXECUTADA imediatamente após confirmação. Não pode ser desfeita.'),
+            const SizedBox(height: 12),
+            Text(_actionTypeLabels[action['action_type']] ??
+                action['action_type'] as String),
+            const SizedBox(height: 8),
+            Text(_formatPayload(action['action_payload']),
+                style: const TextStyle(
+                    fontFamily: 'monospace', fontSize: 12)),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: _boraGreen),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Aprovar e executar',
+                style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      final result = await _supabase.rpc('admin_approve_action',
+          params: {'p_action_id': action['id']});
+      if (!mounted) return;
+      final r = result as Map?;
+      final hasError = r != null && r['error'] != null;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: hasError ? Colors.red : _boraGreen,
+          content: Text(hasError
+              ? 'Falhou: ${r['error']}'
+              : 'Acção executada com sucesso'),
+        ),
+      );
+      await _load();
+      await _refreshBadge();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(backgroundColor: Colors.red, content: Text('Erro: $e')));
+    }
+  }
+
+  Future<void> _reject(Map<String, dynamic> action) async {
+    final ctrl = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Rejeitar proposta'),
+        content: TextField(
+          controller: ctrl,
+          maxLength: 200,
+          maxLines: 3,
+          decoration: const InputDecoration(
+            labelText: 'Motivo (opcional)',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancelar')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: _boraOrange),
+            onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
+            child: const Text('Rejeitar',
+                style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (reason == null) return;
+    try {
+      await _supabase.rpc('admin_reject_action', params: {
+        'p_action_id': action['id'],
+        'p_reason': reason.isEmpty ? null : reason,
+      });
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          backgroundColor: _boraOrange,
+          content: Text('Proposta rejeitada')));
+      await _load();
+      await _refreshBadge();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(backgroundColor: Colors.red, content: Text('Erro: $e')));
+    }
+  }
+
+  String _formatPayload(dynamic payload) {
+    if (payload is Map) {
+      return payload.entries
+          .map((e) => '${e.key}: ${e.value}')
+          .join('\n');
+    }
+    return payload?.toString() ?? '';
+  }
+
+  Color _statusColor(String status) {
+    switch (status) {
+      case 'pending':
+        return _boraOrange;
+      case 'executed':
+        return _boraGreen;
+      case 'rejected':
+        return Colors.grey;
+      case 'failed':
+        return Colors.red;
+      default:
+        return Colors.black45;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: _boraGreen,
+        foregroundColor: Colors.white,
+        title: Row(
+          children: [
+            const Text('Propostas IA'),
+            if (_pendingBadgeCount > 0) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: _boraOrange,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '$_pendingBadgeCount',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.filter_list),
+            tooltip: 'Filtrar status',
+            initialValue: _statusFilter,
+            onSelected: (v) {
+              setState(() => _statusFilter = v);
+              _load();
+            },
+            itemBuilder: (_) => _filterOptions.entries
+                .map((e) => PopupMenuItem(value: e.key, child: Text(e.value)))
+                .toList(),
+          ),
+        ],
+      ),
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await _load();
+          await _refreshBadge();
+        },
+        child: _buildBody(),
+      ),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_loading && _actions.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_error != null) {
+      return ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Card(
+            color: const Color(0xFFFFEBEE),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Erro ao carregar propostas',
+                      style: TextStyle(
+                          color: Color(0xFFC62828),
+                          fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Text(_error!,
+                      style: const TextStyle(color: Color(0xFFC62828))),
+                  const SizedBox(height: 12),
+                  ElevatedButton(
+                      onPressed: _load, child: const Text('Tentar de novo')),
+                ],
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+    if (_actions.isEmpty) {
+      return ListView(
+        children: [
+          const SizedBox(height: 80),
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(
+                _statusFilter == 'pending'
+                    ? 'Nenhuma proposta pendente.'
+                    : 'Sem registos para "${_filterOptions[_statusFilter]}".',
+                textAlign: TextAlign.center,
+                style:
+                    const TextStyle(fontSize: 16, color: Colors.black54),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.all(12),
+      itemCount: _actions.length,
+      itemBuilder: (_, i) => _buildCard(_actions[i]),
+    );
+  }
+
+  Widget _buildCard(Map<String, dynamic> a) {
+    final status = a['status'] as String? ?? 'unknown';
+    final actionType = a['action_type'] as String? ?? '';
+    final isPending = status == 'pending';
+    final result = a['execution_result'];
+    final rejectionReason = a['rejection_reason'] as String?;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _actionTypeLabels[actionType] ?? actionType,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _statusColor(status).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(status,
+                      style: TextStyle(
+                          color: _statusColor(status),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text('Cliente: ${a['user_email'] ?? '(sem email)'}',
+                style: const TextStyle(color: Colors.black54, fontSize: 13)),
+            const SizedBox(height: 8),
+            if (a['user_message'] != null) ...[
+              Container(
+                padding: const EdgeInsets.all(8),
+                color: const Color(0xFFF5F5F5),
+                child: Text('"${a['user_message']}"',
+                    style: const TextStyle(
+                        fontStyle: FontStyle.italic, fontSize: 13)),
+              ),
+              const SizedBox(height: 8),
+            ],
+            const Text('Robô propõe:',
+                style: TextStyle(
+                    fontWeight: FontWeight.bold, fontSize: 13)),
+            const SizedBox(height: 4),
+            Container(
+              padding: const EdgeInsets.all(8),
+              color: const Color(0xFFE8F5E9),
+              child: Text(_formatPayload(a['action_payload']),
+                  style: const TextStyle(
+                      fontFamily: 'monospace', fontSize: 12)),
+            ),
+            if (a['agent_reasoning'] != null) ...[
+              const SizedBox(height: 8),
+              Text('Razão: ${a['agent_reasoning']}',
+                  style: const TextStyle(
+                      fontSize: 12, color: Colors.black87)),
+            ],
+            const SizedBox(height: 8),
+            Text('Proposto em: ${_formatTs(a['proposed_at'])}',
+                style: const TextStyle(
+                    fontSize: 11, color: Colors.black45)),
+            if (!isPending) ...[
+              if (a['reviewed_at'] != null)
+                Text('Revisto em: ${_formatTs(a['reviewed_at'])}',
+                    style: const TextStyle(
+                        fontSize: 11, color: Colors.black45)),
+              if (result != null) ...[
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  color: status == 'failed'
+                      ? const Color(0xFFFFEBEE)
+                      : const Color(0xFFF1F8E9),
+                  child: Text('Resultado: ${result.toString()}',
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: status == 'failed'
+                              ? Colors.red[900]
+                              : Colors.black87)),
+                ),
+              ],
+              if (rejectionReason != null && rejectionReason.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text('Motivo rejeição: $rejectionReason',
+                    style: const TextStyle(
+                        fontSize: 12, fontStyle: FontStyle.italic)),
+              ],
+            ],
+            if (isPending) ...[
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                          backgroundColor: _boraGreen,
+                          foregroundColor: Colors.white),
+                      icon: const Icon(Icons.check),
+                      label: const Text('Aprovar'),
+                      onPressed: () => _approve(a),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                          backgroundColor: _boraOrange,
+                          foregroundColor: Colors.white),
+                      icon: const Icon(Icons.close),
+                      label: const Text('Rejeitar'),
+                      onPressed: () => _reject(a),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatTs(dynamic ts) {
+    if (ts == null) return '-';
+    try {
+      final dt = DateTime.parse(ts as String).toLocal();
+      return '${dt.year}-${_pad(dt.month)}-${_pad(dt.day)} '
+          '${_pad(dt.hour)}:${_pad(dt.minute)}';
+    } catch (_) {
+      return ts.toString();
+    }
+  }
+
+  String _pad(int n) => n.toString().padLeft(2, '0');
+}

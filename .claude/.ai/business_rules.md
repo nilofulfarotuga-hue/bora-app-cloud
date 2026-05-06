@@ -1697,9 +1697,78 @@ Mitigação SQL 4B5 (fallback `unit_price` server-side) **MANTÉM-SE** em produ�
 - **Kill switch**: `UPDATE support_settings SET rag_enabled=false WHERE id=1`
   → próxima request sem `[RAG]` nos logs
 
+## §36 — AGENTE IA WRITE Shadow (Sessão 5B-α · 2026-05-06)
+
+### §36.1 Filosofia
+**Robô PROPÕE → Danilo APROVA → só então EXECUTA.**
+NUNCA executa automaticamente. Skills WRITE em modo `write_shadow`
+gravam propostas em fila para aprovação manual.
+
+### §36.2 Estrutura `support_pending_actions`
+- Tabela fila: `id, session_id, user_id, skill_name, action_type,
+  action_payload (jsonb), status, proposed_at, reviewed_at,
+  reviewed_by, executed_at, execution_result, rejection_reason,
+  user_message, agent_reasoning`
+- `status`: `pending → executed | failed | rejected`
+- RLS: clientes vêem só as suas (`user_id=auth.uid()`); admin vê
+  todas (`is_admin()`); INSERT só `service_role`
+- Realtime publication activa para badge admin instantâneo
+
+### §36.3 Skills Grupo 1 (5B-α)
+- `UPDATE_DELIVERY_INSTRUCTIONS` (mode=`write_shadow`):
+  - Estados permitidos: `created, preparing, callingDriver, driverAccepted`
+  - Bloqueado: `pickedUp, onTheWay, delivered, cancelled`
+  - Limite: 200 chars, substitui (não acumula)
+  - **Nota técnica:** skill name é `UPDATE_DELIVERY_INSTRUCTIONS` mas a
+    coluna real DB é `orders.customer_notes` (mapeamento no RPC)
+- `UPDATE_DELIVERY_ADDRESS` (mode=`write_shadow`):
+  - Estados permitidos: `created, preparing` apenas
+  - Reset `dropoff_lat/lng = NULL` → re-geocode no próximo dispatch
+  - Fora-de-zona escala via `HUMAN_REQUEST`
+- **Adiados para 5B-β**: `OTP_RESEND` (sem flow OTP no app + `pg_net`
+  settings ausentes), Grupo 2, Grupo 3
+
+### §36.4 Defesa em profundidade — RPCs admin
+- `agent_propose_action` é `SECURITY DEFINER` + GRANT só a `service_role`
+  → app cliente NUNCA pode chamar directo, só via Edge Fn `support-chatbot`
+  com `adminClient`
+- `admin_approve_action`/`admin_reject_action`/`admin_list_pending_actions`
+  têm `IF NOT public.is_admin() THEN RAISE 'NOT_ADMIN'` no topo
+- `admin_approve_action` envolve o CASE em `BEGIN/EXCEPTION WHEN OTHERS`:
+  qualquer erro → `status='failed'` + `execution_result.error` populado
+- `GET DIAGNOSTICS v_rows_affected = ROW_COUNT` após cada UPDATE:
+  zero rows → `RAISE EXCEPTION 'NO_ROWS_AFFECTED'`
+- `orders.id` é TEXT (legado) — RPC compara como text directo, sem cast UUID
+
+### §36.5 Admin Inbox (Flutter)
+- `lib/screens/admin/admin_pending_actions_screen.dart`
+- AppBar: badge contador realtime para pendentes novas
+- Filtro status: pending / executed / rejected / failed / all
+- Pull-to-refresh + realtime channel `support_pending_actions`
+- Cards: cliente, mensagem original, payload formatado, agent_reasoning,
+  timestamps, botões Aprovar (modal confirmação) / Rejeitar (TextField motivo)
+- Linkado em `admin_dashboard_screen.dart` junto ao card "Knowledge Base"
+
+### §36.6 Edge Function `support-chatbot` v3
+- Tool `agent_propose_action` adicionada ao `TOOL_WHITELIST`
+- Routing especial: `agent_propose_action` é service_role only,
+  chama `adminClient.rpc(...)` directo (NÃO via `callRpc(userJwt, ...)`)
+- Outras 5 tools `agent_get_*` continuam via user JWT + RLS (read-only)
+- Sanitização anti-injection (`stripControlChars`, `SYSTEM_DELIM`) inalterada
+- RAG (5C-β) inalterado; chatbot funciona com ou sem RAG
+
+### §36.7 Limitações conhecidas
+- `pg_net` settings (`app.supabase_url`, `app.service_role_key`) NÃO
+  configurados em prod — qualquer skill futura que dependa de
+  `pg_net.http_post` cai no path `EXCEPTION 'PG_NET_NOT_CONFIGURED'`
+- Cliente não vê estado da sua proposta (apenas "aguarda aprovação");
+  notificação in-app adiada para 5B-β
+- Não há push admin (FCM) ou email Resend para nova proposta — só badge
+  visual no Admin Inbox; integrações adiadas para 5B-β
+
 ---
 
 *Documento de regras de negócio — Bora App*
-*Última atualização: 2026-05-06 (§35.4-35.7 actualizados — Sessão 5C-β RAG activation)*
+*Última atualização: 2026-05-06 (§36 adicionado — Sessão 5B-α WRITE shadow infra + Grupo 1)*
 *Atualizar sempre que houver mudanças nas regras de negócio*
 *Fonte de verdade usada por: todas as skills do sistema*

@@ -1,5 +1,7 @@
-// Sessão 5A-1 B9 — Edge Fn support-chatbot
+// Sessão 5A-1 B9 + 5C-β RAG + 5B-α B4 — Edge Fn support-chatbot
 // Gemini 1.5 Flash + tool-calling whitelisted + defesas anti-injection.
+// 5B-α: tool agent_propose_action (write_shadow) → grava em
+// support_pending_actions para aprovação manual do admin.
 // verify_jwt: true. POST { session_id?, message, order_id? }.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
@@ -16,6 +18,13 @@ const TOOL_WHITELIST = new Set([
   'agent_get_user_wallet_summary',
   'agent_get_user_tokens_summary',
   'agent_get_refund_status',
+  // 5B-α: write_shadow proposal (service_role-only, routed via adminClient)
+  'agent_propose_action',
+]);
+
+const WRITE_SHADOW_ACTION_TYPES = new Set([
+  'UPDATE_DELIVERY_INSTRUCTIONS',
+  'UPDATE_DELIVERY_ADDRESS',
 ]);
 
 const SYSTEM_DELIM_OPEN = '<<<SYSTEM>>>';
@@ -131,6 +140,42 @@ function buildFunctionDeclarations() {
           p_order_id: { type: 'string', description: 'ID do pedido.' },
         },
         required: ['p_order_id'],
+      },
+    },
+    {
+      name: 'agent_propose_action',
+      description:
+        'Propoe uma accao WRITE em modo shadow. ' +
+        'O admin Danilo aprova manualmente antes de a accao ser executada. ' +
+        'Usar APENAS para action_type valido (UPDATE_DELIVERY_INSTRUCTIONS, UPDATE_DELIVERY_ADDRESS). ' +
+        'NUNCA usar para leitura (usa as tools agent_get_* para isso). ' +
+        'Apos chamar, informa o cliente que a alteracao aguarda aprovacao.',
+      parameters: {
+        type: 'object',
+        properties: {
+          skill_name: {
+            type: 'string',
+            enum: ['UPDATE_DELIVERY_INSTRUCTIONS', 'UPDATE_DELIVERY_ADDRESS'],
+            description: 'Nome da skill a propor.',
+          },
+          action_type: {
+            type: 'string',
+            enum: ['UPDATE_DELIVERY_INSTRUCTIONS', 'UPDATE_DELIVERY_ADDRESS'],
+            description: 'Tipo de accao (igual ao skill_name).',
+          },
+          action_payload: {
+            type: 'object',
+            description:
+              'Payload da accao. ' +
+              'UPDATE_DELIVERY_INSTRUCTIONS: { order_id: string, new_value: string<=200ch }. ' +
+              'UPDATE_DELIVERY_ADDRESS: { order_id: string, new_address: string }.',
+          },
+          agent_reasoning: {
+            type: 'string',
+            description: 'Curta explicacao em PT (1-2 frases) para o admin perceber porque a proposta faz sentido.',
+          },
+        },
+        required: ['skill_name', 'action_type', 'action_payload', 'agent_reasoning'],
       },
     },
   ];
@@ -526,7 +571,55 @@ Deno.serve(async (req: Request) => {
         escalated = true;
         break;
       }
-      const rpcRes = await callRpc(userJwt, fnName, fnArgs);
+      // 5B-α: agent_propose_action é service_role only → adminClient direct.
+      // As outras tools (agent_get_*) usam user JWT + RLS via callRpc.
+      let rpcRes: { ok: boolean; data?: unknown; error?: string };
+      if (fnName === 'agent_propose_action') {
+        const args = fnArgs as Record<string, unknown>;
+        const skill_name = typeof args.skill_name === 'string' ? args.skill_name : '';
+        const action_type = typeof args.action_type === 'string' ? args.action_type : '';
+        const action_payload = args.action_payload;
+        const agent_reasoning =
+          typeof args.agent_reasoning === 'string' ? args.agent_reasoning : null;
+
+        if (!WRITE_SHADOW_ACTION_TYPES.has(action_type)) {
+          rpcRes = { ok: false, error: `action_type not allowed: ${action_type}` };
+        } else if (
+          action_payload === null ||
+          typeof action_payload !== 'object' ||
+          Array.isArray(action_payload)
+        ) {
+          rpcRes = { ok: false, error: 'action_payload must be object' };
+        } else {
+          const { data: actionId, error: propErr } = await adminClient.rpc(
+            'agent_propose_action',
+            {
+              p_session_id: sessionId,
+              p_user_id: userId,
+              p_skill_name: skill_name,
+              p_action_type: action_type,
+              p_action_payload: action_payload,
+              p_user_message: userMessage,
+              p_agent_reasoning: agent_reasoning,
+            },
+          );
+          if (propErr) {
+            console.error('[propose_action] error:', propErr);
+            rpcRes = { ok: false, error: propErr.message };
+          } else {
+            rpcRes = {
+              ok: true,
+              data: {
+                proposed: true,
+                action_id: actionId,
+                message: 'Proposta criada. Aguarda aprovacao do admin.',
+              },
+            };
+          }
+        }
+      } else {
+        rpcRes = await callRpc(userJwt, fnName, fnArgs);
+      }
       await adminClient.from('support_chatbot_messages').insert({
         session_id: sessionId, role: 'tool',
         content: rpcRes.ok ? 'ok' : (rpcRes.error ?? 'rpc error'),

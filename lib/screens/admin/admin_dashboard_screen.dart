@@ -25,6 +25,7 @@ import 'admin_send_notification_screen.dart';
 import 'admin_settlements_screen.dart';
 import 'admin_support_stats_screen.dart';
 import 'admin_knowledge_screen.dart';
+import 'admin_pending_actions_screen.dart';
 import '../../widgets/admin_closed_partners_card.dart';
 import '../../widgets/admin_reservations_today_card.dart';
 import 'admin_partners_pending_screen.dart';
@@ -495,6 +496,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       context,
                       MaterialPageRoute(
                           builder: (_) => const AdminKnowledgeScreen())),
+                ),
+                const SizedBox(height: 10),
+                // Sessão 5B-α — Propostas IA (write_shadow)
+                _NavCard(
+                  icon: Icons.fact_check_outlined,
+                  title: 'Propostas IA',
+                  subtitle: 'Aprovar/rejeitar acções WRITE do robô',
+                  color: const Color(0xFFE65100),
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminPendingActionsScreen())),
                 ),
                 const SizedBox(height: 10),
                 // T1: Category mapping

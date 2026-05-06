@@ -1,6 +1,7 @@
-// Sessão 5F B5 — Admin observador robot_crosstalk
+// Sessão 5F B5 + 5F-α B3 — Admin observador robot_crosstalk
 // Lista comunicação Robô A ↔ Robô B (read-only em 5F).
-// Filtros status + direction. Realtime badge pending.
+// Filtros status + direction + urgency. Realtime badge pending.
+// 5F-α: badges urgência 🔴/🟡/🟢, filtro urgency, banner crítico topo.
 // TODO 5F-β: admin_respond_to_crosstalk + UI reply.
 
 import 'dart:async';
@@ -19,12 +20,16 @@ class _AdminCrosstalkScreenState extends State<AdminCrosstalkScreen> {
   static const _boraGreen = Color(0xFF1B5E20);
   static const _boraOrange = Color(0xFFE65100);
   static const _amber = Color(0xFFFF8F00);
+  static const _critical = Color(0xFFD32F2F); // 5F-α: vermelho críticas
+  static const _criticalBg = Color(0xFFFFEBEE);
 
   final _supabase = Supabase.instance.client;
   String _statusFilter = 'all';
   String _directionFilter = 'all';
+  String _urgencyFilter = 'all'; // 5F-α
   List<Map<String, dynamic>> _crosstalks = [];
   int _pendingBadge = 0;
+  int _criticalCount = 0; // 5F-α — pending+critical
   bool _loading = false;
   String? _error;
   RealtimeChannel? _channel;
@@ -40,6 +45,14 @@ class _AdminCrosstalkScreenState extends State<AdminCrosstalkScreen> {
     'all': 'Ambas direcções',
     'a_to_b': 'Robô A → Robô B',
     'b_to_a': 'Robô B → Robô A',
+  };
+
+  // 5F-α
+  static const _urgencyOptions = <String, String>{
+    'all': 'Todas urgências',
+    'critical': '🔴 Críticas',
+    'medium': '🟡 Médias',
+    'normal': '🟢 Normais',
   };
 
   @override
@@ -67,6 +80,7 @@ class _AdminCrosstalkScreenState extends State<AdminCrosstalkScreen> {
       final data = await _supabase.rpc('admin_list_crosstalk', params: {
         'p_status': _statusFilter,
         'p_direction': _directionFilter,
+        'p_urgency': _urgencyFilter, // 5F-α
         'p_limit': 100,
       });
       final list = (data as List? ?? [])
@@ -91,11 +105,21 @@ class _AdminCrosstalkScreenState extends State<AdminCrosstalkScreen> {
       final data = await _supabase.rpc('admin_list_crosstalk', params: {
         'p_status': 'pending',
         'p_direction': 'a_to_b',
+        'p_urgency': 'all', // 5F-α — agregamos para criticalCount localmente
         'p_limit': 200,
       });
       final list = (data as List? ?? []);
       if (!mounted) return;
-      setState(() => _pendingBadge = list.length);
+      // 5F-α: contagem critical computada do mesmo payload
+      var critical = 0;
+      for (final e in list) {
+        final m = Map<String, dynamic>.from(e as Map);
+        if (m['urgency'] == 'critical') critical++;
+      }
+      setState(() {
+        _pendingBadge = list.length;
+        _criticalCount = critical;
+      });
     } catch (_) {/* silent */}
   }
 
@@ -229,6 +253,39 @@ class _AdminCrosstalkScreenState extends State<AdminCrosstalkScreen> {
     }
   }
 
+  // 5F-α
+  ({String label, Color color}) _urgencyBadgeData(String urg) {
+    switch (urg) {
+      case 'critical':
+        return (label: '🔴 CRÍTICO', color: _critical);
+      case 'medium':
+        return (label: '🟡 MÉDIO', color: _amber);
+      case 'normal':
+        return (label: '🟢 NORMAL', color: Colors.grey);
+      default:
+        return (label: urg.toUpperCase(), color: Colors.black45);
+    }
+  }
+
+  Widget _buildUrgencyBadge(String urgency) {
+    final ub = _urgencyBadgeData(urgency);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: ub.color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        ub.label,
+        style: TextStyle(
+          color: ub.color,
+          fontWeight: FontWeight.bold,
+          fontSize: 10,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -281,6 +338,19 @@ class _AdminCrosstalkScreenState extends State<AdminCrosstalkScreen> {
                 .map((e) => PopupMenuItem(value: e.key, child: Text(e.value)))
                 .toList(),
           ),
+          // 5F-α: filtro urgência
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.priority_high),
+            tooltip: 'Urgência',
+            initialValue: _urgencyFilter,
+            onSelected: (v) {
+              setState(() => _urgencyFilter = v);
+              _load();
+            },
+            itemBuilder: (_) => _urgencyOptions.entries
+                .map((e) => PopupMenuItem(value: e.key, child: Text(e.value)))
+                .toList(),
+          ),
         ],
       ),
       body: RefreshIndicator(
@@ -300,12 +370,42 @@ class _AdminCrosstalkScreenState extends State<AdminCrosstalkScreen> {
     return ListView(
       padding: const EdgeInsets.all(12),
       children: [
+        // 5F-α: banner crítico empilhado ACIMA do banner observador (Opção 2)
+        if (_criticalCount > 0) _buildCriticalBanner(),
+        if (_criticalCount > 0) const SizedBox(height: 8),
         _buildBanner(),
         const SizedBox(height: 12),
         if (_error != null) _buildErrorCard(),
         if (_crosstalks.isEmpty && _error == null) _buildEmpty(),
         ..._crosstalks.map(_buildCard),
       ],
+    );
+  }
+
+  // 5F-α: banner topo CRÍTICAS pendentes (vermelho, condicional)
+  Widget _buildCriticalBanner() {
+    return Card(
+      color: _criticalBg,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: _critical),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                '⚠️ $_criticalCount comunicação(ões) CRÍTICA(S) pendente(s) — '
+                'analisar imediatamente.',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                  color: _critical,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -380,6 +480,7 @@ class _AdminCrosstalkScreenState extends State<AdminCrosstalkScreen> {
   Widget _buildCard(Map<String, dynamic> ct) {
     final status = (ct['status'] as String?) ?? 'pending';
     final direction = (ct['direction'] as String?) ?? 'a_to_b';
+    final urgency = (ct['urgency'] as String?) ?? 'normal'; // 5F-α
     final question = ct['question'] as String? ?? '';
     final answer = ct['answer'] as String?;
     final skill = ct['skill_triggered'] as String?;
@@ -405,6 +506,8 @@ class _AdminCrosstalkScreenState extends State<AdminCrosstalkScreen> {
                         fontWeight: FontWeight.bold,
                         color: dirBadge.color)),
                 const Spacer(),
+                _buildUrgencyBadge(urgency), // 5F-α
+                const SizedBox(width: 6),
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 4),

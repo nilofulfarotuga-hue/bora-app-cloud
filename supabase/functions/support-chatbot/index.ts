@@ -1,8 +1,9 @@
-// Sessão 5A-1 B9 + 5C-β RAG + 5B-α B4 + 5B-β1 B5 + 5F B3 — Edge Fn support-chatbot
+// Sessão 5A-1 B9 + 5C-β RAG + 5B-α B4 + 5B-β1 B5 + 5F B3 + 5F-α B2 — Edge Fn support-chatbot
 // Gemini 1.5 Flash + tool-calling whitelisted + defesas anti-injection.
 // 5B-α: tool agent_propose_action (write_shadow) → support_pending_actions.
 // 5B-β1: 3 tools especializadas (cancel/password/account) — Grupo 2 skills.
 // 5F: tool agent_ask_robot_b (skill ASK_ROBOT_B) → robot_crosstalk a_to_b.
+// 5F-α: tool agent_ask_robot_b ganha p_urgency (critical/medium/normal).
 // verify_jwt: true. POST { session_id?, message, order_id? }.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
@@ -284,6 +285,16 @@ function buildFunctionDeclarations() {
             description:
               'Contexto opcional: { screen_name?: string, error_message?: string, ' +
               'frequency?: "always"|"sometimes"|"once", reproduction_steps?: string }.',
+          },
+          p_urgency: {
+            type: 'string',
+            enum: ['critical', 'medium', 'normal'],
+            description:
+              'Classificacao urgencia (5F-alpha). ' +
+              'critical: bloqueia uso ou perde dinheiro (ex: pagamento descontado sem pedido criado). ' +
+              'medium: atrapalha mas tem workaround (ex: app lenta no checkout). ' +
+              'normal: comportamento estranho mas nao bloqueia (ex: icone visualmente torto). ' +
+              'Default normal se omitido. Ver skill ASK_ROBOT_B playbook v2.',
           },
         },
         required: ['p_question', 'p_skill_triggered'],

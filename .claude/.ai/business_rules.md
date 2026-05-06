@@ -2273,7 +2273,110 @@ Scripts gate: se `SUPABASE_SERVICE_ROLE_KEY` ausente em
 
 ---
 
+## §40 — NOTIFICAÇÕES URGÊNCIA ADMIN (Sessão 5F-α · 2026-05-06)
+
+Estende §39 com classificação de urgência por Robô A no momento
+da escalação para `robot_crosstalk`. Em 5F-α o canal é
+**realtime apenas** (admin tem de ter `AdminCrosstalkScreen`
+aberta para ver o badge live). Push real (FCM + email) fica
+para 5F-β.
+
+### §40.1 Coluna `robot_crosstalk.urgency`
+
+- `text NOT NULL DEFAULT 'normal'`
+- `CHECK (urgency IN ('critical','medium','normal'))`
+- Index parcial `idx_crosstalk_urgency_critical` em
+  `(urgency, status, created_at DESC) WHERE urgency='critical' AND status='pending'`
+- Backfill ALTER ADD: rows existentes ficam `'normal'`
+  (em 5F-α a tabela tinha 0 rows — backfill irrelevante)
+
+### §40.2 Classificação no Robô A
+
+`support_skills.ASK_ROBOT_B.playbook_md` v2 instrui Gemini a
+classificar antes de chamar `agent_ask_robot_b`:
+
+- 🔴 **critical** — bloqueia uso ou perde dinheiro
+  (pagamento descontado sem pedido criado, conta bloqueada,
+  app crash bloqueante no checkout, perda de dados/acesso indevido)
+- 🟡 **medium** — atrapalha mas tem workaround
+  (lentidão, botão intermitente, crashes não-bloqueantes)
+- 🟢 **normal** — comportamento estranho mas não bloqueia
+  (UI torta, ícone duplicado, notificação tardia)
+
+Para `critical` o Robô A **NÃO** sugere soluções básicas
+(reabrir/internet/reiniciar) — regista imediatamente para
+análise técnica.
+
+### §40.3 Tool `agent_ask_robot_b` (chatbot v8)
+
+- Param novo `p_urgency` enum opcional (`critical|medium|normal`)
+- Default `'normal'` se omitido
+- **Sanitização server-side** RPC: valor inválido → fallback `'normal'`
+  (não falha hard — Gemini pode mandar lixo sem partir o fluxo)
+- GRANT preservado: `authenticated + service_role` (Opção A do
+  audit 5F-α — chatbot chama via user JWT, anti-spam vem de
+  `support_settings.rate_limit_per_user_day`)
+- Dispatcher genérico do chatbot (`callRpc`) passa `p_urgency`
+  ao RPC automaticamente — apenas 1 mudança no Edge Fn
+  (`buildFunctionDeclarations` ganha prop `p_urgency`)
+
+### §40.4 `admin_list_crosstalk`
+
+- 4 args (added `p_urgency` 3º antes de `p_limit`):
+  `(p_status, p_direction, p_urgency, p_limit)`
+- Coluna `urgency` adicionada ao `RETURNS TABLE`
+- ORDER BY `CASE urgency WHEN 'critical' THEN 1 WHEN 'medium' THEN 2 WHEN 'normal' THEN 3`
+  então `created_at DESC` — críticas sempre no topo
+- DROP+CREATE necessário porque `RETURNS TABLE` mudou — RE-GRANT
+  explícito para `authenticated + service_role`
+- Flutter `AdminCrosstalkScreen` já usa NAMED params → adicionar
+  `'p_urgency'` é compatível sem migração extra
+
+### §40.5 `AdminCrosstalkScreen`
+
+- Estado `_urgencyFilter` (default `'all'`) + `_criticalCount`
+- 3º `PopupMenuButton` urgência no AppBar
+  (4 opções: all/critical/medium/normal com emojis)
+- `_buildUrgencyBadge(String)` — Container colorido
+  (vermelho/âmbar/cinza) + texto bold em cada card, ao lado
+  do badge de status
+- **Banner crítico (Opção 2)**: empilhado **acima** do banner
+  observador 5F quando `_criticalCount > 0`
+  (Card vermelho `#FFEBEE` com aviso "⚠️ N comunicação(ões)
+  CRÍTICA(S) pendente(s)")
+- `_refreshBadge` reusa o payload pendente (1 só RPC call)
+  para computar `_pendingBadge` e `_criticalCount`
+- Realtime preservado (5F filter `status=eq.pending`) —
+  recarrega lista + recalcula contador crítico
+
+### §40.6 Limitações 5F-α
+
+- **Notificação só funciona com app aberta** — admin tem de
+  estar com `AdminCrosstalkScreen` no ecrã para ver o badge live.
+- **Push real (mesmo com app fechada)** requer 5F-β:
+  `pg_net` settings (`app.supabase_url`, `app.service_role_key`),
+  tabela `admin_push_tokens` com FCM tokens, Edge Fn
+  `notify-admin-urgent`, trigger AFTER INSERT.
+- **Email Resend** requer config 5F-β (Resend API key em secrets).
+- **Sem WhatsApp** — decisão Danilo: zero custo extra, sem
+  dependência terceira.
+- **Sem reply UI** — admin continua a responder via
+  `scripts/crosstalk/respond.ts`. `admin_respond_to_crosstalk`
+  RPC + UI reply são TODO 5F-β.
+- **Anonymization JS drift** (5D `analyze-conversations`) —
+  TODO 5F-β.
+
+### §40.7 Regra ouro 5F-α
+
+> Robô A classifica → Robô B vê em tempo real (admin app aberta) →
+> Danilo decide e responde manualmente via scripts/crosstalk.
+
+Push notification real só em 5F-β. Em 5F-α o banner topo
+vermelho garante visibilidade imediata em sessão admin activa.
+
+---
+
 *Documento de regras de negócio — Bora App*
-*Última atualização: 2026-05-06 (§39 — Sessão 5F Comunicação Robô A↔B)*
+*Última atualização: 2026-05-06 (§40 — Sessão 5F-α Notificações Urgência Admin)*
 *Atualizar sempre que houver mudanças nas regras de negócio*
 *Fonte de verdade usada por: todas as skills do sistema*

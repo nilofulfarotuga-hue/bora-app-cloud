@@ -2376,7 +2376,166 @@ vermelho garante visibilidade imediata em sessão admin activa.
 
 ---
 
+## §41 — PUSH ADMIN URGENTE + REPLY UI + EMAIL (Sessão 5F-β · 2026-05-07)
+
+### §41.1 Tabela `admin_push_tokens`
+
+- 1 row por device admin (multi-device por admin) — `fcm_token UNIQUE`
+- Schema: `id uuid pk`, `admin_id uuid FK auth.users ON DELETE CASCADE`,
+  `fcm_token text NOT NULL UNIQUE`, `device_label text`,
+  `platform text CHECK in (android,ios,web)`,
+  `last_used_at timestamptz`, `created_at timestamptz`
+- Indexes: `idx_admin_push_tokens_admin (admin_id)`,
+  `idx_admin_push_tokens_last_used (last_used_at DESC)`
+- RLS enabled + 2 policies:
+  - `admin_own` — `admin_id = auth.uid() AND is_admin()` (FOR ALL)
+  - `service_role_all` — `auth.role() = 'service_role'` (Edge Fn cleanup)
+
+### §41.2 RPC `admin_register_push_token(p_fcm_token, p_device_label, p_platform)`
+
+- SECURITY DEFINER; gate `is_admin()`; valida platform enum + token não-vazio
+- UPSERT em conflict `fcm_token`:
+  - `admin_id` actualizado para current admin (handles device sharing)
+  - `device_label`/`platform` actualizam apenas se passados (COALESCE)
+  - `last_used_at = now()` em cada registo
+- Returns `uuid` (id da row)
+- GRANT EXECUTE TO authenticated; REVOKE FROM public, anon
+- Erros: `NOT_ADMIN`, `FCM_TOKEN_REQUIRED`, `INVALID_PLATFORM`
+
+### §41.3 RPC `admin_respond_to_crosstalk(p_crosstalk_id, p_answer)`
+
+- SECURITY DEFINER; gate `is_admin()`; valida `p_answer` não-vazio (trim)
+- UPDATE robot_crosstalk SET `answer`, `answered_at=now()`,
+  `answered_by='admin'`, `status='answered'`
+  WHERE `id = p_crosstalk_id AND status = 'pending'`
+- Erro `CROSSTALK_NOT_FOUND_OR_NOT_PENDING` se WHERE não bater
+- Returns `jsonb { answered:true, crosstalk_id, answered_by:'admin' }`
+- GRANT EXECUTE TO authenticated
+- Distinção: `answered_by` agora pode ser `'b'` (Robô B via scripts) ou
+  `'admin'` (Danilo via UI 5F-β) — UI mostra chips diferentes
+
+### §41.4 Trigger `_notify_admin_urgent_trigger`
+
+- AFTER INSERT em `robot_crosstalk` (`trg_robot_crosstalk_notify_urgent`)
+- Filtro: só `direction='a_to_b' AND urgency='critical' AND status='pending'`
+- Gate `pg_net` settings: skip silent (RAISE NOTICE) se
+  `app.supabase_url` ou `app.service_role_key` em falta
+- Chama `notify-admin-urgent` Edge Fn via `net.http_post`
+- EXCEPTION WHEN OTHERS: nunca bloqueia INSERT; apenas RAISE NOTICE
+- Body: `{ crosstalk_id, question, session_id, context }`
+
+### §41.5 Edge Fn `notify-admin-urgent`
+
+- `verify_jwt=false`; auth interna por match exacto
+  `Authorization: Bearer <SUPABASE_SERVICE_ROLE_KEY>` → 403 caso contrário
+- Pattern FCM **HTTP v1 + OAuth2 Service Account** (consistente com
+  `notify-driver`/`notify-client`/`notify-partner`):
+  - Endpoint `https://fcm.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/messages:send`
+  - JWT RS256 assertion → access_token (`getFirebaseAccessToken`)
+- Push paralelo via `Promise.allSettled` para todos `admin_push_tokens`
+- Cleanup automático: tokens com `errorCode IN (UNREGISTERED, INVALID_ARGUMENT)`
+  → DELETE row em `admin_push_tokens`
+- Email Resend **opcional**: skip silent se `RESEND_API_KEY` MISSING;
+  HTML escapado em `escapeHtml()`
+- Returns 200 sempre com `{ ok, crosstalk_id, push_attempted, push_success,
+  push_cleaned, email_sent }`
+- Graceful no-op quando Firebase env vars MISSING
+
+### §41.6 Flutter `AdminPushService`
+
+- Singleton private (static class) em `lib/services/admin_push_service.dart`
+- `registerForAdmin()`:
+  - Gate `AuthAdminService.isAdmin()` — no-op para não-admin
+  - Reusa `NotificationService.instance.fcmToken` (não duplica permission)
+  - Fallback `FirebaseMessaging.instance.getToken()` se singleton vazio
+  - Listener `onTokenRefresh` registado uma vez (`_refreshSub ??= ...`)
+  - Idempotente: guard `_registering` evita races
+- `setupDeepLinks(context)`:
+  - `onMessageOpenedApp` — push tap em foreground/background
+  - `getInitialMessage()` — cold-start (app fechada quando push chegou)
+  - Filtro `data.type == 'crosstalk_critical'` → `pushNamed('/admin/crosstalk')`
+  - Idempotente: guard `_deepLinksWired`
+- Device label via `Platform.operatingSystem` (sem `device_info_plus` dep)
+
+### §41.7 AdminCrosstalkScreen reply UI (5F-β)
+
+- Botão "💬 Responder" (verde Bora) em cards `status='pending' AND direction='a_to_b'`
+- Dialog `_openReplyDialog`:
+  - Preview pergunta (200 chars max) + TextField multiline 5-10 linhas
+  - Validator não-vazio
+  - Submit → RPC `admin_respond_to_crosstalk`
+  - SnackBar verde sucesso / vermelho erro (mapeia NOT_ADMIN /
+    ANSWER_REQUIRED / CROSSTALK_NOT_FOUND_OR_NOT_PENDING para PT)
+  - Reload + refresh badge após sucesso
+- Chip distintivo no bloco answer:
+  - `answered_by='admin'` → "✋ Respondido por admin" (verde Bora)
+  - `answered_by='b'/'a'` → "🤖 Respondido por Robô B/A" (azul)
+- Banner topo actualizado: "Reply UI activa (5F-β)"
+- Hookup dashboard: `WidgetsBinding.addPostFrameCallback` em
+  `AdminDashboardScreen.initState` chama
+  `AdminPushService.registerForAdmin() + setupDeepLinks(context)`
+- Rota nomeada nova: `'/admin/crosstalk'` em `main.dart` para deep link
+
+### §41.8 Activação manual Danilo (pós-deploy) — TODOs CRÍTICOS
+
+#### 1. `pg_net` settings (BLOQUEANTE — trigger inactivo até config)
+
+ALTER DATABASE via MCP falha por privilege. Configurar via Supabase
+Dashboard SQL editor:
+
+```sql
+ALTER DATABASE postgres
+  SET app.supabase_url = 'https://ojykpzwqrtusfeakzrna.supabase.co';
+ALTER DATABASE postgres
+  SET app.service_role_key = '<service_role_key do dashboard>';
+SELECT pg_reload_conf();
+```
+
+Activa simultaneamente: 5D cron, 5B-β1 trigger,
+`PASSWORD_RESET` real, **5F-β notify-admin-urgent trigger**.
+
+#### 2. `RESEND_API_KEY` (opcional — só email)
+
+```bash
+supabase secrets set RESEND_API_KEY=<key> \
+  --project-ref ojykpzwqrtusfeakzrna
+```
+
+Sem isto: push FCM funciona normalmente; email skip silent
+(log: `RESEND_API_KEY missing — email skipped`).
+
+#### 3. Domínio email Resend
+
+Confirmar `noreply@boraapp.com` verificado no Resend Dashboard.
+Caso seja outro, editar Edge Fn linha `EMAIL_FROM`.
+
+#### 4. Admin abrir admin app uma vez pós-deploy
+
+Sem isto: 0 tokens em `admin_push_tokens` → 1ª notificação não chega
+(push_attempted=0). `AdminPushService.registerForAdmin()` corre
+no `initState` do dashboard.
+
+### §41.9 Limitações 5F-β
+
+- **Trigger inactivo até `pg_net` config** (TODO §41.8 #1 BLOQUEANTE)
+- **Email skip se Resend missing** — comportamento por design
+- **1ª notificação só após admin abrir app** — registo FCM token no `initState`
+- **WhatsApp não suportado** — decisão Danilo (zero custo extra)
+- **Sem `device_info_plus`** — `device_label` é `os + version` (sem modelo)
+- **Anonymization JS drift** (5D `analyze-conversations`) — continua TODO
+
+### §41.10 Regra ouro 5F-β
+
+> Cliente reporta crítico → trigger DB → Edge Fn → push FCM em todos
+> devices admin + email opcional → admin abre app via deep link →
+> responde via Reply UI → resposta vai para `answered_by='admin'`.
+
+Push real **mesmo com app fechada** desde que `pg_net` settings
+configurados e admin tenha aberto app pelo menos uma vez.
+
+---
+
 *Documento de regras de negócio — Bora App*
-*Última atualização: 2026-05-06 (§40 — Sessão 5F-α Notificações Urgência Admin)*
+*Última atualização: 2026-05-07 (§41 — Sessão 5F-β Push Admin Urgente + Reply UI + Email)*
 *Atualizar sempre que houver mudanças nas regras de negócio*
 *Fonte de verdade usada por: todas as skills do sistema*

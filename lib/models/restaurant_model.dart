@@ -152,6 +152,8 @@ class RestaurantModel {
     this.lng,
     this.reservationsEnabled = false,
     this.businessHours = const BusinessHours(),
+    this.avgRating,
+    this.ratingsCount = 0,
   });
 
   final String id;
@@ -172,6 +174,12 @@ class RestaurantModel {
   final bool reservationsEnabled;
 
   final BusinessHours businessHours;
+
+  /// BR §44 — média de avaliações (1.0-5.0) ou null se ainda sem ratings.
+  final double? avgRating;
+
+  /// BR §44 — número de avaliações públicas + não flagged que contam para a média.
+  final int ratingsCount;
 
   /// Returns a [LatLng] when both coordinates are stored; null otherwise.
   LatLng? get location =>
@@ -219,6 +227,8 @@ class RestaurantModel {
     double? lng,
     bool? reservationsEnabled,
     BusinessHours? businessHours,
+    double? avgRating,
+    int? ratingsCount,
   }) {
     return RestaurantModel(
       id: id,
@@ -235,6 +245,8 @@ class RestaurantModel {
       lng: lng ?? this.lng,
       reservationsEnabled: reservationsEnabled ?? this.reservationsEnabled,
       businessHours: businessHours ?? this.businessHours,
+      avgRating: avgRating ?? this.avgRating,
+      ratingsCount: ratingsCount ?? this.ratingsCount,
     );
   }
 }

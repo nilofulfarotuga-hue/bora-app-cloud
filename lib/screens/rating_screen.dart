@@ -35,6 +35,7 @@ class _RatingScreenState extends State<RatingScreen> {
   final _commentController = TextEditingController();
   final Set<String> _selectedTags = <String>{};
   bool _submitting = false;
+  bool _isPrivate = false;
   int _tipCents = 0;
 
   @override
@@ -72,8 +73,8 @@ class _RatingScreenState extends State<RatingScreen> {
 
       final isDriverSubject =
           widget.subjectType == RatingSubjectType.driver;
-      // T2.1: server-side RPC enforces order ownership + status='delivered'
-      // + idempotency (one rating per order/subject/rater).
+      // Sessão 6: server-side RPC valida order ownership + status='delivered'
+      // + idempotência (UNIQUE INDEX parcial em order_id+subject_type+rater).
       await client.rpc('submit_rating', params: {
         'p_order_id': widget.order.id,
         'p_subject_type':
@@ -84,6 +85,7 @@ class _RatingScreenState extends State<RatingScreen> {
             ? null
             : _commentController.text.trim(),
         'p_tags': _selectedTags.toList(),
+        'p_is_private': _isPrivate,
       });
 
       // Persist tip (BR §4.5) — best-effort, failure does not invalidate rating.
@@ -188,7 +190,22 @@ class _RatingScreenState extends State<RatingScreen> {
                   onChanged: (cents) => _tipCents = cents,
                 ),
               ],
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
+              SwitchListTile(
+                value: _isPrivate,
+                onChanged: _submitting ? null : (v) => setState(() => _isPrivate = v),
+                title: const Text(
+                  'Avaliação privada',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: const Text(
+                  'Apenas a equipa Bora vê. Não aparece no perfil público.',
+                  style: TextStyle(fontSize: 12),
+                ),
+                contentPadding: EdgeInsets.zero,
+                activeThumbColor: const Color(0xFF1B5E20),
+              ),
+              const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
                 height: 52,

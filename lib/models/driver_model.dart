@@ -46,6 +46,8 @@ class DriverModel {
     this.licensePlate,
     this.isOnline = false,
     this.status = DriverStatus.approved,
+    this.avgRating,
+    this.ratingsCount = 0,
     List<DriverAssignmentInfo>? activeAssignments,
   }) : activeAssignments = activeAssignments ?? <DriverAssignmentInfo>[];
 
@@ -57,6 +59,13 @@ class DriverModel {
   String? licensePlate;
   bool isOnline;
   DriverStatus status;
+
+  /// BR §44 — média de avaliações (1.0-5.0) ou null se ainda sem ratings.
+  double? avgRating;
+
+  /// BR §44 — número de avaliações públicas + não flagged.
+  int ratingsCount;
+
   final List<DriverAssignmentInfo> activeAssignments;
 
   bool supportsService(OrderServiceType serviceType,

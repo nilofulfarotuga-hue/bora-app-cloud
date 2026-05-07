@@ -166,6 +166,8 @@ class DriverStore extends ChangeNotifier {
               orElse: () => VehicleType.motorcycle),
           phone: row['phone'] as String? ?? '',
           isOnline: row['is_online'] as bool? ?? false,
+          avgRating: (row['avg_rating'] as num?)?.toDouble(),
+          ratingsCount: (row['ratings_count'] as num?)?.toInt() ?? 0,
         );
         _drivers.add(driver);
         debugPrint(

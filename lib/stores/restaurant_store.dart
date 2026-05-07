@@ -894,6 +894,8 @@ class RestaurantStore extends ChangeNotifier {
       lng: (data['lng'] as num?)?.toDouble(),
       reservationsEnabled: data['reservations_enabled'] as bool? ?? false,
       businessHours: BusinessHours.fromJson(data['business_hours']),
+      avgRating: (data['avg_rating'] as num?)?.toDouble(),
+      ratingsCount: (data['ratings_count'] as num?)?.toInt() ?? 0,
     );
   }
 

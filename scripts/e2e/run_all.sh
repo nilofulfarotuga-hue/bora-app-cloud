@@ -42,8 +42,30 @@ run_seed() {
 }
 
 run_smoke() {
-  echo "[run_all] smoke ..."
+  echo "[run_all] smoke (7E-A boot) ..."
   python -m pytest tests/test_smoke.py -v
+}
+
+# 7E-B — suite completa (groups 1, 2, 4, 7). Não usar set -e neste bloco,
+# senão o script aborta na 1ª falha de teste.
+run_smoke_7eb() {
+  echo "[run_all] smoke 7E-B (groups 1, 2, 4, 7) ..."
+  set +e
+  python -m pytest tests/ -v --tb=short --html=reports/last_run.html --self-contained-html
+  PYTEST_EXIT=$?
+  set -e
+  if [ "$PYTEST_EXIT" -eq 0 ]; then
+    echo "✅ Suite 7E-B OK"
+  else
+    echo "❌ Falhas detectadas em 7E-B (pytest EXIT=$PYTEST_EXIT) — ver BUGS_FOUND.md"
+  fi
+  echo ""
+  echo "════════════════════════════════════════════════"
+  echo "Política 7E-B: FAILs não bloqueiam merge."
+  echo "Bugs documentados em scripts/e2e/BUGS_FOUND.md"
+  echo "Report: reports/last_run.html"
+  echo "════════════════════════════════════════════════"
+  return 0
 }
 
 run_cleanup_confirm() {
@@ -52,11 +74,13 @@ run_cleanup_confirm() {
 }
 
 case "$ACTION" in
-  all)     run_seed; run_smoke ;;
+  all)     run_seed; run_smoke_7eb ;;
   seed)    run_seed ;;
   smoke)   run_smoke ;;
+  smoke-7eb) run_smoke_7eb ;;
   cleanup) run_cleanup_confirm ;;
   *)       echo "[run_all] acção desconhecida: $ACTION"; exit 2 ;;
 esac
 
 echo "[run_all] ✓ completo"
+exit 0  # política CEO-AI: FAILs não bloqueiam merge

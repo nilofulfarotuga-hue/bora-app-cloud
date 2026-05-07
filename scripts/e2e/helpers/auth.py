@@ -90,6 +90,45 @@ def user_client(access_token: str) -> Client:
     return client
 
 
+# Alias compatível com naming usado em conftest.py (7E-B).
+get_admin_client = admin_client
+
+
+def login_as_user(email: str, password: str = TEST_PASSWORD) -> Client:
+    """Autentica via email/password e devolve um ``Client`` com JWT do utilizador.
+
+    Adicionado em 7E-B para suportar testes que precisam executar RPCs com
+    a identidade do cliente / estafeta (ex.: ``client_cancel_order`` em T35,
+    ``driver_cancel_order`` em T37).
+
+    Pipeline:
+    1. ``load_env()`` (idempotente).
+    2. Cria cliente novo + ``sign_in_with_password``.
+    3. Aplica o token a ``postgrest.auth`` para RLS funcionar nos selects.
+    4. Anexa ``_access_token`` ao client (atributo lateral) para os helpers
+       de Edge Fn poderem ler sem depender de ``auth.get_session()`` (que
+       em algumas versões supabase-py não expõe o token sincronamente).
+
+    Raises:
+        RuntimeError: se o login falhar (credenciais inválidas, user banido).
+    """
+    load_env()
+    url = os.environ["SUPABASE_URL"]
+    key = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+    client = create_client(url, key)
+    response = client.auth.sign_in_with_password({"email": email, "password": password})
+    session = getattr(response, "session", None)
+    token = getattr(session, "access_token", None) if session else None
+    if not token:
+        raise RuntimeError(
+            f"login_as_user falhou para {email!r} — verifica seed.py + password."
+        )
+    client.postgrest.auth(token)
+    # Atributo lateral para helpers que invocam Edge Fns via httpx.
+    client._access_token = token  # type: ignore[attr-defined]
+    return client
+
+
 def is_stripe_live() -> bool:
     """Opt-in flag — activar Stripe real (nunca em CI)."""
     return os.environ.get("E2E_STRIPE_LIVE") == "1"

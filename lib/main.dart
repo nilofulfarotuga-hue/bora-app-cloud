@@ -10,7 +10,9 @@ import 'auth/auth_store.dart';
 import 'dispatch/dispatch_engine.dart';
 import 'screens/admin/admin_crosstalk_screen.dart';
 import 'screens/admin/admin_dashboard_screen.dart';
+import 'screens/admin/admin_ratings_screen.dart';
 import 'screens/admin/admin_skill_suggestions_metrics_screen.dart';
+import 'screens/restaurant_ratings_list_screen.dart';
 import 'screens/client_login_screen.dart';
 import 'screens/client_main_screen.dart';
 import 'screens/driver_home_screen.dart';
@@ -202,6 +204,44 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           // 5G — métricas detalhadas das propostas IA
           '/admin/suggestions/metrics': (_) =>
               const AdminSkillSuggestionsMetricsScreen(),
+          // Sessão 6 §44 — Avaliações
+          '/admin/ratings': (_) => const AdminRatingsScreen(),
+        },
+        onGenerateRoute: (settings) {
+          // §44 — deep link da push low_rating: /partner/ratings precisa
+          // restaurant_id + restaurant_name nos arguments.
+          if (settings.name == '/partner/ratings' ||
+              settings.name == '/restaurant/ratings') {
+            final args = settings.arguments;
+            if (args is Map) {
+              final id = args['restaurant_id']?.toString();
+              final name = args['restaurant_name']?.toString() ?? 'Restaurante';
+              if (id != null) {
+                return MaterialPageRoute<void>(
+                  builder: (_) => RestaurantRatingsListScreen(
+                    restaurantId: id,
+                    restaurantName: name,
+                  ),
+                );
+              }
+            }
+          }
+          if (settings.name == '/driver/ratings') {
+            final args = settings.arguments;
+            if (args is Map) {
+              final id = args['driver_id']?.toString();
+              final name = args['driver_name']?.toString() ?? 'Estafeta';
+              if (id != null) {
+                return MaterialPageRoute<void>(
+                  builder: (_) => DriverRatingsListScreen(
+                    driverId: id,
+                    driverName: name,
+                  ),
+                );
+              }
+            }
+          }
+          return null;
         },
         home: const ConsentBanner(child: _RootNavigator()),
       ),

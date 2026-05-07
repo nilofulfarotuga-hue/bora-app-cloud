@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
 import '../config/maps_config.dart';
+import '../models/order_model.dart';
+import '../models/rating_model.dart';
 import '../models/restaurant_model.dart';
 import '../services/location_service.dart';
 import '../stores/cart_store.dart';
+import '../stores/order_store.dart';
 import '../stores/restaurant_store.dart';
 import '../stores/session_store.dart';
 import '../widgets/address_autocomplete_field.dart';
@@ -15,6 +19,7 @@ import '../widgets/bora/bora.dart';
 import '../widgets/bora_support_fab.dart';
 import '../widgets/notification_bell.dart';
 import 'carry_groceries_screen.dart';
+import 'rating_screen.dart';
 import 'restaurants_screen.dart';
 import 'send_package_form_screen.dart';
 import 'stores_screen.dart';
@@ -34,7 +39,55 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
       if (!mounted) return;
       context.read<RestaurantStore>().loadRestaurantsFromSupabase();
       _detectLocation();
+      // Sessão 6 §44 — abre RatingScreen se há pedido entregue ainda não avaliado.
+      _checkUnratedOrders();
     });
+  }
+
+  /// BR §44.6 — pós-login/abertura, procura último pedido `delivered`
+  /// com `rated_at IS NULL`. Se existir, prompt RatingScreen depois de 1.2s
+  /// (não-bloqueante; cliente pode "Saltar"). Falhas são silenciosas.
+  Future<void> _checkUnratedOrders() async {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) return;
+      final rows = await Supabase.instance.client
+          .from('orders')
+          .select('id, restaurant_id')
+          .eq('user_id', user.id)
+          .eq('status', 'delivered')
+          .filter('rated_at', 'is', null)
+          .order('delivered_at', ascending: false)
+          .limit(1);
+      if (!mounted) return;
+      if (rows.isEmpty) return;
+      final first = rows.first;
+      final orderId = first['id'] as String?;
+      final restaurantId = first['restaurant_id'] as String?;
+      if (orderId == null || restaurantId == null) return;
+      OrderModel? found;
+      for (final o in context.read<OrderStore>().orders) {
+        if (o.id == orderId) {
+          found = o;
+          break;
+        }
+      }
+      if (found == null) return;
+      final order = found;
+      await Future<void>.delayed(const Duration(milliseconds: 1200));
+      if (!mounted) return;
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => RatingScreen(
+            order: order,
+            subjectType: RatingSubjectType.partner,
+            subjectId: restaurantId,
+          ),
+        ),
+      );
+    } catch (e) {
+      debugPrint('[unrated_orders] $e');
+    }
   }
 
   /// Pre-fills the CartStore delivery address on startup.

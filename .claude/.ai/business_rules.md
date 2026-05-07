@@ -2535,7 +2535,111 @@ configurados e admin tenha aberto app pelo menos uma vez.
 
 ---
 
+## §42 Activação pg_net via Supabase Vault (Sessão 5F-β-α)
+
+### §42.1 Decisão arquitectural
+
+`ALTER DATABASE postgres SET app.*` requer privilégio **superuser** que
+**não está disponível em Supabase managed**. Tentativa anterior (5F-β
+audit, §41.8) confirmou `permission denied`.
+
+**Solução:** Supabase Vault (`supabase_vault` extension v0.3.1).
+- Encrypted-at-rest (segurança superior a current_setting)
+- Acessível via `vault.decrypted_secrets` em `SECURITY DEFINER` functions
+- Permite rotação de keys sem alterar código (apenas UPDATE row)
+- Padrão moderno recomendado pelos docs Supabase
+
+### §42.2 Vault secrets registados
+
+| name | propósito |
+|---|---|
+| `project_url` | `https://ojykpzwqrtusfeakzrna.supabase.co` |
+| `service_role_key` | JWT service_role (nunca loggar valor; rotar periodicamente) |
+| `dispatch_anon_jwt` | (pré-existente, S2 cutover 2026-04-30) |
+
+### §42.3 Padrão para futuros triggers
+
+```sql
+DECLARE v_url text; v_key text;
+BEGIN
+  SELECT decrypted_secret INTO v_url
+  FROM vault.decrypted_secrets WHERE name = 'project_url';
+  SELECT decrypted_secret INTO v_key
+  FROM vault.decrypted_secrets WHERE name = 'service_role_key';
+  IF v_url IS NULL OR v_key IS NULL THEN RETURN; END IF;
+  PERFORM net.http_post(url := v_url || '/functions/v1/<edge_fn>', ...);
+END;
+```
+
+Para cron jobs: subqueries inline `(SELECT decrypted_secret FROM
+vault.decrypted_secrets WHERE name = '...')`.
+
+### §42.4 Rotação de keys
+
+```sql
+UPDATE vault.secrets SET secret = '<new>', updated_at = now()
+WHERE name = 'service_role_key';
+```
+
+### §42.5 Componentes refactorizados (5F-β-α)
+
+| Componente | Origem | Migration |
+|---|---|---|
+| `_notify_admin_urgent_trigger` | 5F-β | B2 |
+| `admin_approve_action` (PASSWORD_RESET) | 5B-β1 | B3 |
+| `fn_notify_admin_pending_action` | 5B-β1 | B3 |
+| cron jobid 28 (analyze-conversations-weekly) | 5D | B4 |
+
+### §42.6 Features activadas
+
+- 5D cron auto-suggest skills (weekly)
+- 5B-β1 push admin pending actions
+- 5F-β push admin urgência crítica
+- PASSWORD_RESET real
+
+### §42.7 Migration B1 — Opção B (recomendada)
+
+`.sql` **NÃO** committado ao repo (apenas apply_migration directo).
+Zero exposição service_role_key em git history.
+
+### §42.8 Limitações + fix1
+
+- ~~Edge Fns com `Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')` fazem
+  string-match exacto~~ → **5F-β-α-fix1**: Edge Fn `notify-admin-urgent`
+  refactorizado para `verify_jwt=true` + JWT payload role check em vez
+  de string-match contra env var. Padrão moderno Supabase, à prova de
+  rotação de key. Aplicar mesmo padrão em qualquer nova Edge Fn que
+  precise de auth service_role.
+- `SECURITY DEFINER` owner deve ter acesso ao vault (default `postgres`)
+- Sem auto-rotation; manual UPDATE
+
+### §42.8.1 Padrão auth Edge Fn (5F-β-α-fix1)
+
+```ts
+// deploy com verify_jwt=true (platform valida signature)
+const authHeader = req.headers.get('Authorization') ?? ''
+if (!authHeader.startsWith('Bearer ')) return forbidden403
+try {
+  const token = authHeader.substring(7)
+  const payload = JSON.parse(atob(token.split('.')[1]))
+  if (payload.role !== 'service_role') return forbidden403
+} catch { return forbidden403 }
+```
+
+### §42.9 Cron jobs `update-*` (legacy) — fora de escopo
+
+7 jobs usam `current_setting('app.settings.service_role_key', true)`
+(formato antigo). Sessão futura "5F-β-β cron cleanup".
+
+### §42.10 Regra ouro
+
+> Settings dinâmicas em Supabase managed → vault, nunca `ALTER
+> DATABASE SET app.*`. Toda nova função com URL+key lê vault em
+> variáveis locais com gate `IF NULL THEN RETURN`.
+
+---
+
 *Documento de regras de negócio — Bora App*
-*Última atualização: 2026-05-07 (§41 — Sessão 5F-β Push Admin Urgente + Reply UI + Email)*
+*Última atualização: 2026-05-07 (§42 — Sessão 5F-β-α Activação pg_net via Vault)*
 *Atualizar sempre que houver mudanças nas regras de negócio*
 *Fonte de verdade usada por: todas as skills do sistema*

@@ -5,8 +5,9 @@
 // registered admin devices when a `robot_crosstalk` row is inserted with
 // urgency='critical' and direction='a_to_b'.
 //
-// Auth: verify_jwt=false. Internal auth via Authorization: Bearer
-// <SUPABASE_SERVICE_ROLE_KEY> match (called by trigger _notify_admin_urgent_trigger).
+// Auth: verify_jwt=true (5F-β-α-fix1). Platform valida signature do JWT;
+// função decoda payload e confirma role='service_role'. À prova de
+// rotação da SUPABASE_SERVICE_ROLE_KEY (não depende de string-match contra env).
 //
 // Required Supabase secrets:
 //   FIREBASE_PROJECT_ID         — for FCM v1 endpoint
@@ -39,11 +40,25 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!
   const serviceKey  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
-  // ─── Auth: only service_role calls allowed ────────────────────────────────
+  // ─── Auth: verify_jwt=true valida signature; aqui confirma role ───────────
   const authHeader = req.headers.get('Authorization') ?? ''
-  const expected   = `Bearer ${serviceKey}`
-  if (authHeader !== expected) {
-    console.warn('[notify-admin-urgent] forbidden — auth mismatch')
+  if (!authHeader.startsWith('Bearer ')) {
+    return new Response(
+      JSON.stringify({ ok: false, error: 'forbidden' }),
+      { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    )
+  }
+  try {
+    const token = authHeader.substring(7)
+    const payload = JSON.parse(atob(token.split('.')[1]))
+    if (payload.role !== 'service_role') {
+      console.warn('[notify-admin-urgent] forbidden — role mismatch:', payload.role)
+      return new Response(
+        JSON.stringify({ ok: false, error: 'forbidden' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
+  } catch (_e) {
     return new Response(
       JSON.stringify({ ok: false, error: 'forbidden' }),
       { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },

@@ -2743,7 +2743,141 @@ Empty states "Sem dados ainda" para cada gráfico se RPC devolve vazio.
 
 ---
 
+## §44 Avaliações por Estrelas (Sessão 6)
+
+Sistema completo de feedback do cliente sobre **restaurantes** (parceiros) e **estafetas** após pedido entregue, com moderação admin e notificações push em tempo real ao parceiro quando há avaliação baixa.
+
+### §44.1 Tabela `ratings` — estrutura genérica
+
+A tabela `ratings` é **genérica** (`subject_type` + `subject_id`) — pode receber feedback sobre vários tipos de sujeito sem mudanças de schema:
+
+| Coluna | Tipo | Notas |
+|---|---|---|
+| `id` | uuid PK | `gen_random_uuid()` |
+| `subject_type` | text | CHECK IN (`partner`, `driver`, `app`) |
+| `subject_id` | text | flexibilidade: `restaurants.id` (text) ou `drivers.id::text` |
+| `stars` | smallint | CHECK 1-5 |
+| `rating` | numeric | **legacy dormente** — não usar em código novo |
+| `tags` | text[] | array livre, controlado UI |
+| `comment` | text | opcional |
+| `is_private` | boolean | `true` → só admin/rater/owner vê |
+| `flagged_inappropriate` | boolean | moderação admin |
+| `flagged_at`, `flagged_by` | timestamptz, uuid | audit trail flag |
+| `response_text`, `response_at` | text, timestamptz | resposta do parceiro |
+| `order_id`, `driver_id`, `rater_user_id` | uuid | refs |
+
+**Decisão arquitectural** — usar `restaurants` (tabela existente) em vez de criar `partners`. A coluna `rating` numeric é **mantida dormente** (legacy 5D); novas avaliações usam apenas `stars`.
+
+### §44.2 RLS (5+1 policies)
+
+| Policy | Cmd | Quem |
+|---|---|---|
+| `ratings_public_read` | SELECT | qualquer um, **excepto** privadas e flagged |
+| `ratings_own_read` | SELECT | rater (mesmo privadas/flagged que ele submeteu) |
+| `ratings_partner_owner_read` | SELECT | dono do `restaurants` (campo `user_`) |
+| `ratings_insert_own` | INSERT | rater apenas para o próprio `auth.uid()` |
+| `ratings_admin_all` | ALL | `is_admin()` |
+| `ratings_service_role` | ALL | `auth.role()='service_role'` |
+
+### §44.3 6 RPCs
+
+1. **`submit_rating(p_order_id, p_subject_type, p_subject_id, p_stars, p_comment, p_tags, p_is_private)`** — valida ownership do pedido + status `delivered` + idempotente (UNIQUE INDEX parcial). Aceita `subject_type='app'` para feedback geral (sem order). Marca `orders.rated_at` na primeira avaliação.
+2. **`get_restaurant_ratings_summary(p_restaurant_id)`** — devolve `{ total, avg_stars, distribution, recent[] }` apenas das ratings públicas + não-flagged. Auth + anon.
+3. **`get_driver_ratings_summary(p_driver_id)`** — idem para estafetas. Auth + anon.
+4. **`admin_list_ratings(p_subject_type, p_max_stars, p_only_flagged, p_only_private, p_search, p_limit, p_offset)`** — `_admin_op_guard()`; ORDER `flagged DESC, stars ASC, created DESC`.
+5. **`admin_flag_rating(p_rating_id, p_flag)`** — toggle moderação; preenche `flagged_at` + `flagged_by` quando true, NULL quando false.
+6. **`restaurant_respond_to_rating(p_rating_id, p_response)`** — owner check `restaurants.user_ = auth.uid()`. Renomeado de `partner_respond_to_rating` (schema usa `restaurants`).
+
+Bonus: **`admin_low_rated_subjects(p_threshold, p_min_count)`** — sujeitos com média ≤ 2.0 e ≥ 3 avaliações (candidatos a moderação).
+
+### §44.4 Triggers auto-update averages
+
+`_update_restaurant_avg_rating` + `_update_driver_avg_rating` — `AFTER INSERT/UPDATE/DELETE` em `ratings`:
+
+- Excluem privadas e flagged do cálculo
+- `restaurants.id` é TEXT (assignment directo); `drivers.id` é UUID (cast `::uuid` com `EXCEPTION invalid_text_representation` para subject_id mal-formado)
+- Escrevem em `restaurants.avg_rating + ratings_count` e `drivers.avg_rating + ratings_count`
+- Recalc full em cada change (TODO 6-α: running average para volume > 100k)
+
+### §44.5 Notificação partner low rating
+
+Push automático ao restaurante quando ele recebe avaliação `< 3` estrelas e não-privada:
+
+- **Sem tabela** `partner_push_tokens` — usa-se `restaurants.fcm_token` (já existia, pattern análogo a `drivers.fcm_token`)
+- Trigger `_notify_partner_low_rating_trigger` (`AFTER INSERT WHERE stars<3 AND subject_type='partner' AND NOT is_private`)
+  - Vault refactor pattern (5F-β-α-fix1) — `vault.read_secret('supabase_url'/'supabase_service_role_key')`
+  - `PERFORM net.http_post(...)` fire-and-forget com `EXCEPTION WHEN OTHERS RAISE WARNING`
+- Edge Fn `notify-partner-low-rating` (`verify_jwt=true`)
+  - Pattern idêntico a `notify-admin-urgent` v2 (5F-β-α-fix1)
+  - **FCM v1 OAuth2** via `Deno.env.get('FIREBASE_PROJECT_ID')` + `Deno.env.get('FIREBASE_SERVICE_ACCOUNT')` (NÃO `vault.decrypted_secrets` — replica padrão Edge Fn existente)
+  - Cleanup automático tokens `UNREGISTERED`/`INVALID_ARGUMENT` via `restaurants.fcm_token = NULL`
+  - Body push: title "Avaliação recebida — Bora App", deep link `route='/partner/ratings'` em `data`
+
+### §44.6 RatingScreen — Flutter
+
+Já existia (5D); estendida nesta sessão:
+
+- Aparece automaticamente via lifecycle hook `ClientHomeScreen.initState()` quando há `orders.status='delivered' AND rated_at IS NULL` para o user actual
+- Delay 1.2s antes de push (não-bloqueante; cliente pode "Saltar")
+- 5 estrelas tappable + tags chips (positive/negative segundo stars)
+- Comentário opcional + `TipSelector` (apenas subject driver, BR §4.5)
+- **Switch "Avaliação privada"** novo (BR §44.6) — passa `p_is_private` ao RPC
+- Strings 100% PT-PT
+
+### §44.7 RestaurantRatingsListScreen + DriverRatingsListScreen
+
+Lista pública para clientes (e parceiros vendo o seu próprio):
+
+- Header card com média + total de avaliações + distribuição 5★→1★ (bars custom, sem `fl_chart`)
+- Lista cards com: estrelas + data + comentário + tags + **resposta do parceiro** (se aplicável, container indented verde claro)
+- Filtra automaticamente `is_private` + `flagged_inappropriate` (server-side via summary RPC)
+
+### §44.8 AdminRatingsScreen
+
+Reescrito nesta sessão:
+
+- **Filtros completos**: Sujeito (Todos/Restaurantes/Estafetas/App), Máx. estrelas (≤1..≤4/Todas), Switch "Só sinalizadas", Switch "Só privadas", TextField pesquisa em comentário
+- ORDER server-side: flagged primeiro, stars ASC, created DESC
+- Cards com badges (estrelas + chip sujeito + lock se privada + flag se sinalizada)
+- IconButton trailing toggle flag inline
+- Tap → AlertDialog drill-down: id, sujeito, rater_user_id, order_id, data, privada, flagged, comentário full, tags, resposta partner; botão Sinalizar/Remover sinal
+- AppBar action `admin_low_rated_subjects` (sujeitos com média < 2.0 e ≥ 3 avaliações)
+- Background gradient verde Bora
+
+### §44.9 PT-PT obrigatório
+
+Strings canónicas (vault de glossário Bora):
+
+- "Estrelas / Avaliação / Comentário (opcional) / Avaliação privada"
+- "Sinalizar como inapropriado" / "Remover sinal" / "Resposta do parceiro:"
+- "Saltar" / "Enviar avaliação" / "Obrigado pela tua avaliação!"
+- "Restaurantes / Estafetas / App"
+- "Sujeitos com média < 2.0 (≥ 3 avaliações)"
+
+### §44.10 Anti-double-rating
+
+`UNIQUE INDEX` parcial:
+
+```sql
+idx_ratings_unique_order_subject
+  ON ratings (order_id, subject_type, rater_user_id)
+  WHERE order_id IS NOT NULL
+```
+
+`submit_rating` faz lookup-then-INSERT com EXCEPTION `unique_violation` → `RAISE EXCEPTION 'ALREADY_RATED'`. Idempotente para UPDATE da própria.
+
+### §44.11 Limitações conhecidas
+
+- **Tags** — array sem CHECK (livre); UI define dropdown; configurar via `support_settings` é **TODO 6-α**
+- **subject_type='app'** — sem trigger update average (por design — feedback geral não tem owner)
+- **Resposta do parceiro** — sem moderação automática (anti-swearing) — **TODO 6-α**
+- **Trigger AVG** — recalc full por evento; running average increment é **TODO 6-α** para volume > 100k ratings
+- **`ratings.rating`** column legacy — preservada dormente (não usar em código novo)
+- **PartnerPushService Flutter** — não implementado nesta sessão; `restaurants.fcm_token` deve ser registado via futuro hook em `RestaurantDashboardScreen` (refactor stateless→stateful) — **TODO 6-α**. Edge Fn trata gracefully quando `fcm_token IS NULL`.
+
+---
+
 *Documento de regras de negócio — Bora App*
-*Última atualização: 2026-05-07 (§43 — Sessão 5G Painel Admin Inbox Avançado)*
+*Última atualização: 2026-05-07 (§44 — Sessão 6 Avaliações por Estrelas)*
 *Atualizar sempre que houver mudanças nas regras de negócio*
 *Fonte de verdade usada por: todas as skills do sistema*

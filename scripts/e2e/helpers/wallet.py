@@ -11,10 +11,9 @@ Adaptações 7E-B audit + validação MCP em prod:
        remaining.
     c) balance < 0 e refund < dívida → tudo a settle, sem split (free=0,
        tokens=0).
-- ``tokens_count = tokens_amount_cents × 20`` (bonus 10x face a
-  ``token_value_eur_x1000=5``). Comportamento ACTUAL validado via MCP;
-  se for fórmula intencional → não BUG; senão → BUG-7E-B-005
-  (severidade ALTA — 10x overspend tokens).
+- ``tokens_count = tokens_amount_cents × 2`` — fórmula matemática
+  correcta (1 token = €0.005 = meio cêntimo). Fix aplicado em 7-FIX
+  (migration 20260507223228) — anteriormente era ×20 (BUG-7E-B-005).
 - ``hard_floor`` é dinâmico via ``platform_settings`` (default −2000c =
   −€20.00). Erro ``wallet_hard_floor_exceeded`` ERRCODE 23514.
 - ``wallet_get_balance`` retorna jsonb (auto-dict via supabase-py).
@@ -25,7 +24,9 @@ from supabase import Client
 DEFAULT_HARD_FLOOR_CENTS: int = -2000   # platform_settings.wallet_hard_floor_cents
 DEFAULT_SOFT_CAP_CENTS: int = -1000     # platform_settings.wallet_max_negative_balance_cents
 SPLIT_FREE_PCT: float = 0.80            # platform_settings.wallet_split_free_pct
-TOKENS_PER_CENT: int = 20               # bonus 10x vs token_value_eur_x1000=5
+# 7-FIX (2026-05-07): factor ×2 corrigido. 1 token = €0.005 ⇒ 1 cent ⇒ 2 tokens.
+# Antes era ×20 (BUG-7E-B-005, fix em migration 20260507223228).
+TOKENS_PER_CENT: int = 2
 
 
 # ─────────────────────────────────────────────────────────────
@@ -154,12 +155,11 @@ def assert_tokens_conversion(
     tokens_amount_cents: int,
     expected_tokens_count: int,
 ) -> None:
-    """Valida ``tokens_count = tokens_amount_cents × 20`` (regra ACTUAL).
+    """Valida ``tokens_count = tokens_amount_cents × 2`` (regra correcta pós 7-FIX).
 
-    NOTA: Bonus 10x face a ``token_value_eur_x1000=5`` (1 token = €0.005,
-    pelo que €0.20 ⇒ 40 tokens "à conversão" mas o RPC dá 400 tokens =
-    €2.00 valor). Confirmar com Danilo após smoke se intencional
-    (retenção) ou BUG-7E-B-005 (severidade ALTA — 10x overspend).
+    Matemática: 1 token = €0.005 ⇒ 1 cent investido em tokens deve gerar
+    2 tokens (1c / 0.5c = 2). Fix em 7-FIX (migration 20260507223228)
+    corrigiu o factor que estava em ×20 (BUG-7E-B-005).
     """
     expected = tokens_amount_cents * TOKENS_PER_CENT
     assert expected_tokens_count == expected, (

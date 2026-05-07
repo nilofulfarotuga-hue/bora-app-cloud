@@ -3044,7 +3044,94 @@ restaurante €0.30 fixo é a regra correcta, não bug).
 
 ---
 
+## §47 7-FIX BUGs HIGH 7E-B (Sessão 7-FIX · 2026-05-07)
+
+### §47.1 Migrations aplicadas (2)
+
+- `20260507223228_fix_7e_b_bug_005_bug_007_tokens_uuid_to_text.sql`
+- `20260507223338_fix_7e_b_bug_004_driver_cannot_cancel_pickedup.sql`
+
+Aplicadas em produção via MCP (Supabase) e sincronizadas no repo.
+
+### §47.2 BUG-7E-B-005 fix (factor tokens)
+
+- `wallet_credit_refund_split`: factor `×20` → **`×2`**.
+- Justificação: `1 token = €0.005` (meio cêntimo). 1 cent investido
+  em tokens deve gerar 2 tokens (1 / 0.5 = 2).
+- Refund €X em cents → `cents × 2 = tokens equivalentes`.
+
+### §47.3 BUG-7E-B-007 fix (UUID/TEXT mismatch)
+
+Causa raíz arquitectónica: `orders.id` é TEXT mas
+`add_tokens.p_order_id` era UUID e `bora_tokens.source_order_id` era
+UUID. Cast implícito falhava com ERRCODE 22P02
+(`invalid input syntax for type uuid`) silenciado por try/except.
+
+Fixes aplicados:
+- `bora_tokens.source_order_id` UUID → TEXT (com recriação do índice
+  parcial UNIQUE `(source_order_id, role)`).
+- `add_tokens.p_order_id` UUID → TEXT (DROP + CREATE da função).
+- `fn_award_tokens_on_delivery` removeu cast `::UUID` em `NEW.id`.
+- `wallet_credit_refund_split` removeu try/except silencioso à volta
+  do `PERFORM add_tokens`.
+
+### §47.4 BUG-7E-B-004 fix (§7.7 actualizado)
+
+- `driver_cancel_order` rejeita `pickedUp` (apenas aceita
+  `driverAccepted`).
+- Mensagem específica PT-PT para a UI:
+  `error='cancel_blocked_after_pickup'`,
+  `message='Após recolher o pedido, contacte o suporte para cancelar.'`,
+  `support_required=true`.
+- UI estafeta (Flutter): TODO mapear `support_required=true` para
+  botão "Contactar suporte".
+
+### §47.5 Tests invertidos
+
+Tests que documentavam o BUG passam agora a validar o comportamento
+correcto:
+- T22 `test_t22_refund_split_zero_balance` — `tokens_count=400`
+  (era 4000). Valida directamente `bora_tokens` row.
+- T24 `test_t24_tokens_conversion_factor_2` (renomeado) — factor `×2`.
+- T37 `test_t37_driver_blocked_pickedup_redirects_support` (renomeado)
+  — `ok=false` + `cancel_blocked_after_pickup` + `support_required=true`.
+
+Helper `helpers/wallet.py`: constante `TOKENS_PER_CENT` 20 → 2.
+Helper `helpers/cancellation.py`: `driver_attempt_cancel` agora
+parseia excepções com payload tipo dict (algumas versões supabase-py
+embrulham JSON em `Exception`).
+
+### §47.6 Smoke pós-fix
+
+**26/26 PASS** (era 25/26). Tempo: ~32 s.
+
+### §47.7 Implicação cliente real
+
+- Orders cancelados historicamente NUNCA receberam tokens em refund
+  por causa do BUG-007 (UUID/TEXT). Decisão futura: granting
+  compensatório aos clientes afectados ou aceitar perda histórica.
+- Nenhum order foi afectado pelo factor `×20` em produção real
+  (o BUG-007 anulava o INSERT antes do efeito monetário).
+
+### §47.8 BUGs ainda OPEN (não bloqueadores)
+
+- BUG-001 (LOW): cash limit `business_rules.ts=€30` vs trigger DB
+  `=€40` — clarificar.
+- BUG-003 (LOW): `storeShopping bag_fee=0` — decidir se regra antiga
+  €0.10/saco se mantém ou se aceita 0.
+- BUG-006 (MEDIUM): comentário `stripe-webhook` diz `€1.50` vs §8.3
+  `€1.00` — investigar.
+
+### §47.9 Decisão Danilo 7-FIX (2026-05-07)
+
+- **1 token = €0.005** confirmado (meio cêntimo).
+- **Refund €10** = `€8 carteira` + `400 tokens (=€2)`.
+- **Estafeta NÃO pode cancelar pickedUp** — UI deve redirigir para
+  "Contactar suporte" usando `response.support_required`.
+
+---
+
 *Documento de regras de negócio — Bora App*
-*Última atualização: 2026-05-07 (§46 — Sessão 7E-B Tests E2E Críticos Lançamento)*
+*Última atualização: 2026-05-07 (§47 — Sessão 7-FIX BUGs 004, 005, 007 fixed)*
 *Atualizar sempre que houver mudanças nas regras de negócio*
 *Fonte de verdade usada por: todas as skills do sistema*

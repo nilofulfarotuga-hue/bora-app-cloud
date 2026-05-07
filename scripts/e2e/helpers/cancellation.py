@@ -179,6 +179,7 @@ def driver_attempt_cancel(
         ``{'ok': bool, 'error'?: str}`` devolvido pela RPC. Em excepção
         Python, devolve ``(False, {'ok': False, 'error': str(e)})``.
     """
+    import ast
     try:
         result = driver_authenticated.rpc(
             'driver_cancel_order',
@@ -187,7 +188,18 @@ def driver_attempt_cancel(
         data = result.data if isinstance(result.data, dict) else {}
         return (bool(data.get('ok', False)), data)
     except Exception as e:
-        return (False, {'ok': False, 'error': str(e)})
+        # Algumas versões supabase-py atiram o response inteiro como excepção
+        # quando o JSON tem chaves específicas. Tentar reparse para dict.
+        msg = str(e)
+        try:
+            stripped = msg.strip()
+            if stripped.startswith('{') and stripped.endswith('}'):
+                parsed = ast.literal_eval(stripped)
+                if isinstance(parsed, dict):
+                    return (False, parsed)
+        except (ValueError, SyntaxError):
+            pass
+        return (False, {'ok': False, 'error': msg})
 
 
 # ─────────────────────────────────────────────────────────────

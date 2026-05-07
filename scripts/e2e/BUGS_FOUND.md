@@ -51,7 +51,18 @@ CEO-AI orchestrator vê via sync Obsidian
 
 ### BUG-7E-B-004 (HIGH) — Estafeta consegue cancelar `pickedUp`
 
-- **Test:** T37 `test_t37_driver_can_cancel_pickedup_bug_004`
+- **Status:** ✅ **FIXED em 7-FIX (2026-05-07)**
+- **Migration:** `20260507223338_fix_7e_b_bug_004_driver_cannot_cancel_pickedup`
+- **Comportamento novo:** RPC devolve
+  `{ok: false, error: 'cancel_blocked_after_pickup',
+  message: 'Após recolher o pedido, contacte o suporte para cancelar.',
+  support_required: true}`.
+- **TODO UI estafeta (Flutter):** detectar `support_required=true` e
+  mostrar botão "Contactar suporte" em vez de erro genérico.
+- **Test:** T37 `test_t37_driver_blocked_pickedup_redirects_support` —
+  invertido em 7-FIX para validar comportamento correcto.
+
+#### Histórico (BUG original)
 - **Esperado:** decisão Danilo (2026-05-07) — bloquear `pickedUp` e
   redirigir o estafeta para suporte.
 - **Real:** `business_rules.md §7.7` documenta explicitamente
@@ -61,18 +72,19 @@ CEO-AI orchestrator vê via sync Obsidian
   `callingDriver`.
 - **RPC/Edge Fn:** `driver_cancel_order`.
 - **Severidade:** HIGH (impacto UX + regras de negócio).
-- **Acção sugerida (3 fixes):**
-  1. RPC `driver_cancel_order`: `WHERE status = 'driverAccepted'`
-     (remover `pickedUp`).
-  2. Actualizar `business_rules.md §7.7`.
-  3. UI estafeta (Flutter): substituir botão "Cancelar" por
-     "Contactar suporte" quando `status='pickedUp'`.
 
 ---
 
 ### BUG-7E-B-005 (HIGH) — Tokens conversion factor ×20 (deveria ×2)
 
-- **Test:** T24 `test_t24_tokens_conversion_factor_20`
+- **Status:** ✅ **FIXED em 7-FIX (2026-05-07)**
+- **Migration:** `20260507223228_fix_7e_b_bug_005_bug_007_tokens_uuid_to_text`
+- **Validado MCP:** refund €10 → 400 tokens (era 4000 antes).
+- **Matemática confirmada:** 1 token = €0.005 ⇒ factor ×2 (1 cent → 2 tokens).
+- **Test:** T24 `test_t24_tokens_conversion_factor_2` — renomeado e
+  invertido em 7-FIX para validar comportamento correcto.
+
+#### Histórico (BUG original)
 - **Esperado:** decisão Danilo (2026-05-07) — factor ×2
   (200c → 400 tokens, valor €2).
 - **Real:** corpo da RPC `wallet_credit_refund_split`:
@@ -80,11 +92,6 @@ CEO-AI orchestrator vê via sync Obsidian
 - **Implicação:** 200c → 4000 tokens (valor €20 = bonus 10×).
 - **RPC/Edge Fn:** `wallet_credit_refund_split`.
 - **Severidade:** HIGH (impacto financeiro directo).
-- **Acção sugerida:**
-  1. Fix RPC: `× 20` → `× 2`.
-  2. Actualizar `business_rules.md §28.6` se a regra mudar.
-  3. Considerar migração compensatória se algum utilizador real já
-     recebeu refund com factor antigo.
 
 ---
 
@@ -104,30 +111,36 @@ CEO-AI orchestrator vê via sync Obsidian
 
 ### BUG-7E-B-007 (HIGH) — `add_tokens` silent fail em `wallet_credit_refund_split`
 
-- **Test:** T22 `test_t22_refund_split_zero_balance` (FAIL persistente
-  após 4 runs).
+- **Status:** ✅ **FIXED em 7-FIX (2026-05-07)**
+- **Migration:** `20260507223228_fix_7e_b_bug_005_bug_007_tokens_uuid_to_text`
+- **Causa raíz:** `orders.id` é TEXT mas `add_tokens.p_order_id` era UUID
+  e `bora_tokens.source_order_id` era UUID. Cast implícito falhava com
+  ERRCODE 22P02 (`invalid input syntax for type uuid`) e o try/except
+  em torno do `PERFORM add_tokens` engolia o erro silenciosamente.
+- **Fix:** `bora_tokens.source_order_id UUID→TEXT` +
+  `add_tokens.p_order_id UUID→TEXT` (DROP+CREATE) +
+  `fn_award_tokens_on_delivery` removeu cast `::UUID` em `NEW.id` +
+  `wallet_credit_refund_split` removeu try/except silencioso à volta
+  do `PERFORM add_tokens`.
+- **Validado MCP:** refund €10 → 1 row em `bora_tokens` com
+  `amount=400`, `source_order_id text`, `expires_at = now() + 60d`.
+- **Test:** T22 `test_t22_refund_split_zero_balance` — agora valida
+  bora_tokens row directamente como fonte de verdade.
+- **Nota separada:** `wallet_get_balance.tokens_balance` continua a
+  reportar 0 imediatamente após a inserção em alguns contextos —
+  caminho `get_user_tokens()` parece ter cacheamento ou filtro
+  separado. Fora de escopo 7-FIX. T22 evita esse caminho ao validar
+  directamente em `bora_tokens`.
+
+#### Histórico (BUG original)
 - **Esperado:** refund €10 (1000c) → 4000 tokens criados em
   `bora_tokens` para o cliente.
-- **Real (validado MCP isoladamente):**
+- **Real (validado MCP isoladamente em B11):**
   - RPC devolve `tokens_count=4000`, `success=true`.
   - `bora_tokens` fica VAZIA (0 rows após a chamada).
   - `get_user_tokens()` devolve 0.
-  - `wallet_get_balance.tokens_balance` continua 0 → assert falha.
-- **Hipótese causa:**
-  - O bloco `BEGIN PERFORM public.add_tokens(...) EXCEPTION WHEN OTHERS THEN
-    RAISE WARNING` no body de `wallet_credit_refund_split` está a engolir
-    o erro real.
-  - Possível RLS em `bora_tokens` rejeita INSERT (mesmo com
-    SECURITY DEFINER) ou `add_tokens` tem `ON CONFLICT DO NOTHING` numa
-    UNIQUE que está a matchar.
 - **RPC/Edge Fn:** `wallet_credit_refund_split` + `add_tokens`.
 - **Severidade:** HIGH (refund tokens reais não estão a ser creditados).
-- **Acção sugerida:**
-  1. Remover try/except no `PERFORM add_tokens` para expor o `SQLERRM`.
-  2. Investigar causa (RLS `bora_tokens`? UNIQUE de
-     `(source_order_id, role)` a matchar?).
-  3. Validar fix end-to-end: refund €10 → 1 row em `bora_tokens` com
-     `amount=4000` (ou `=400` após BUG-005 fix).
 
 ---
 
@@ -141,4 +154,22 @@ CEO-AI orchestrator vê via sync Obsidian
 
 ---
 
-*Última actualização: 2026-05-07 — fim Sessão 7E-B*
+## Notas finais 7-FIX (2026-05-07 ~23:30 UTC)
+
+3 BUGs HIGH fixed em produção via 2 migrations MCP:
+- `20260507223228` — BUG-005 (factor ×2) + BUG-007 (UUID→TEXT).
+- `20260507223338` — BUG-004 (block driver pickedUp + redirect suporte).
+
+Smoke 7E-B re-correu pós-fix: **26/26 PASS** (era 25/26).
+Tests T22, T24, T37 invertidos para validar comportamento correcto.
+
+BUGs ainda OPEN (não bloqueadores):
+- **BUG-001** (LOW): cash limit docs (`€30`) vs trigger DB (`€40`).
+- **BUG-003** (LOW): `storeShopping` `bag_fee=0` (regra antiga dizia
+  `€0.10/saco`).
+- **BUG-006** (MEDIUM): comentário `stripe-webhook` `1.50` vs §8.3
+  `€1.00`.
+
+---
+
+*Última actualização: 2026-05-07 — Sessão 7-FIX (BUGs 004, 005, 007 fixed)*

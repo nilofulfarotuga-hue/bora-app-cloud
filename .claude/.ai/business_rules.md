@@ -2877,7 +2877,79 @@ idx_ratings_unique_order_subject
 
 ---
 
+## §45 Testes E2E — Framework (Sessão 7E-A · 2026-05-07)
+
+### §45.1 Framework Python `scripts/e2e/`
+
+- Stack: `pytest 8.3.4` + `supabase 2.10.0` + `httpx 0.27.2` + `python-dotenv 1.0.1` (versões PINNED)
+- `service_role_key` reutilizado de `scripts/rag/.env` via `load_dotenv("../rag/.env")` em `helpers/auth.py` — **single source** (Decisão arquitectural #1). NUNCA copiar para `.env.test` nem `.env.test.example`.
+- `.gitignore` enforce: `.env.test`, `.venv/`, `reports/*.html`, `reports/*.json`, `__pycache__/`, `*.pyc`, `.pytest_cache/`
+- Cross-platform (Windows + Linux + macOS) via `run_all.sh` (Git Bash em Windows)
+- Testes não cobrem UI Flutter — `flutter test` fica para sub-sessão futura (7E-Flutter)
+
+### §45.2 Fixtures 3+3+3 (`seed.py` idempotente)
+
+- 3 clientes (`e2e_client_*@boraapp.test`): wallets variadas — A=€100, B=€0, C=€20+€5 promo
+- 3 estafetas (`91000090{1,2,3}@driver.bora.app`): online/offline, partner/non-partner, GPS Guarda (40.5404, -7.2683)
+- 3 restaurantes (prefixo `E2E_TEST_`): partner restaurant + non-partner restaurant + supermarket partner
+- Markers obrigatórios: domínio `@boraapp.test` em emails, prefixo `E2E_TEST_` em restaurants, `is_test_order=true` em orders
+- Idempotência: UPSERT por email/phone/id → re-run não duplica
+- Password constante (`E2E_TestPassword_2026!`, ≥12 chars, não trivial) — domínio `.test` garante zero risco em produção
+
+### §45.3 Mocks granulares (DEFAULT)
+
+| Sistema | Mock default | Activar real |
+|---|---|---|
+| Stripe `create-payment-intent` / `refund` | SQL UPDATE `payment_status='paid'` | `E2E_STRIPE_LIVE=1` (manual only) |
+| MBWay | SQL UPDATE simulando webhook | nunca live em CI |
+| FCM (`notify-*`) | `push_log: list[dict]` em memória | — |
+| Gemini (`support-chatbot`) | `RESPONSE_FIXTURES: dict` hardcoded | `E2E_GEMINI_LIVE=1` |
+| dispatch-engine (pg_cron) | RPC `accept_dispatch_offer` directa | nunca live |
+
+### §45.4 Cleanup (`cleanup.py`)
+
+- `python cleanup.py` = **dry-run** (lista o que apagaria, sem mutar)
+- `python cleanup.py --confirm` = apaga real
+- Escopo APENAS markers E2E (NUNCA produção):
+  - `orders WHERE is_test_order = true`
+  - `auth.users` com `email LIKE '%@boraapp.test'` ou phone E2E em `@driver.bora.app`
+  - `restaurants` com `id LIKE 'E2E_TEST_%'`
+- Ordem foreign keys respeitada: orders → drivers/wallets → restaurants → auth.users
+
+### §45.5 Roadmap sub-sessões (lançadas após 7E-A merge)
+
+- **7E-A** ✅ framework + fixtures + 3 smokes (4-6h) — esta sessão
+- **7E-B** ⏳ pricing + dispatch + wallet + cancellation (~23 tests, 4-6h)
+- **7E-C** ⏳ stacking + tokens + ratings + store + reservations + refunds (~30 tests, 4-6h)
+- **7E-D** ⏳ robot + suggestions + RLS + lifecycle (~14 tests, 3-5h)
+
+**Total agregado:** ~67 tests em 4 sub-sessões viáveis.
+
+### §45.6 Política de FAIL
+
+- Tests que falham em 7E-B/C/D **NÃO bloqueiam merge**
+- Cada FAIL legítimo abre BUG separado em backlog (referenciar test_id)
+- GAPS de implementação documentados em `scripts/e2e/TODO.md` (ex: §32.4 fórmula tokens divergente entre docs e código — descoberta esperada em 7E-C T25-T29)
+
+### §45.7 Limitações conhecidas
+
+- Não testa UI Flutter (TODO 7E-Flutter futuro)
+- Não testa Stripe live (mock total — webhook signatures não determinísticas)
+- Não testa GPS real do estafeta (coords fixas em fixture)
+- Não testa push notification real (mock `push_log` em memória)
+- **Validação manual final com pessoas reais ainda necessária antes de qualquer release**
+
+### §45.8 Smoke B9 (3 testes independentes de seed)
+
+1. `test_env_vars_loaded` — confirma `SUPABASE_URL` + `SERVICE_ROLE_KEY` lidos de `scripts/rag/.env`
+2. `test_admin_client_connects` — confirma que `restaurants` aceita query do service_role
+3. `test_test_password_constant` — confirma `TEST_PASSWORD` ≥12 chars e não trivial
+
+Critério de PASS: 3/3 em <5s sem precisar de `seed.py`. Falha → boot do framework está partido, abortar antes de avançar para 7E-B.
+
+---
+
 *Documento de regras de negócio — Bora App*
-*Última atualização: 2026-05-07 (§44 — Sessão 6 Avaliações por Estrelas)*
+*Última atualização: 2026-05-07 (§45 — Sessão 7E-A Framework E2E Tests)*
 *Atualizar sempre que houver mudanças nas regras de negócio*
 *Fonte de verdade usada por: todas as skills do sistema*

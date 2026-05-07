@@ -10,6 +10,7 @@ import 'auth/auth_store.dart';
 import 'dispatch/dispatch_engine.dart';
 import 'screens/admin/admin_crosstalk_screen.dart';
 import 'screens/admin/admin_dashboard_screen.dart';
+import 'screens/admin/admin_skill_suggestions_metrics_screen.dart';
 import 'screens/client_login_screen.dart';
 import 'screens/client_main_screen.dart';
 import 'screens/driver_home_screen.dart';
@@ -35,6 +36,11 @@ import 'widgets/consent_banner.dart';
 // Never hardcode these values here.
 const String _supabaseUrl = String.fromEnvironment('SUPABASE_URL');
 const String _supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
+
+// 5G — RouteObserver global para detectar regresso ao dashboard admin
+// (refresh do badge contador propostas pendentes).
+final RouteObserver<PageRoute<dynamic>> routeObserver =
+    RouteObserver<PageRoute<dynamic>>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -186,12 +192,16 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         debugShowCheckedModeBanner: false,
         title: 'BORA APP',
         theme: AppTheme.lightTheme,
+        navigatorObservers: [routeObserver],
         routes: {
           '/role': (_) => const RoleScreen(),
           '/login': (_) => const LoginScreen(),
           '/admin': (_) => const AdminDashboardScreen(),
           // 5F-β — deep link de notificação push crosstalk_critical
           '/admin/crosstalk': (_) => const AdminCrosstalkScreen(),
+          // 5G — métricas detalhadas das propostas IA
+          '/admin/suggestions/metrics': (_) =>
+              const AdminSkillSuggestionsMetricsScreen(),
         },
         home: const ConsentBanner(child: _RootNavigator()),
       ),

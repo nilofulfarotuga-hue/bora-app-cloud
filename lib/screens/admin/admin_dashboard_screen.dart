@@ -2,6 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../main.dart' show routeObserver;
 import '../../config/app_colors.dart';
 import '../../services/admin_push_service.dart';
 import '../../services/auth_admin_service.dart';
@@ -61,19 +62,43 @@ class AdminDashboardScreen extends StatefulWidget {
   State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
 }
 
-class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
+class _AdminDashboardScreenState extends State<AdminDashboardScreen>
+    with RouteAware {
   late Future<Map<String, dynamic>> _metricsFuture;
+  int _pendingSuggestionsCount = 0;
 
   @override
   void initState() {
     super.initState();
     _metricsFuture = _loadMetrics();
+    _loadPendingSuggestionsCount();
     // 5F-β — registar FCM token admin + ouvir taps em pushes crosstalk_critical.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       AdminPushService.registerForAdmin();
       AdminPushService.setupDeepLinks(context);
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route is PageRoute) {
+      routeObserver.subscribe(this, route);
+    }
+  }
+
+  @override
+  void dispose() {
+    routeObserver.unsubscribe(this);
+    super.dispose();
+  }
+
+  // 5G — refresh do badge sempre que admin volta para o dashboard.
+  @override
+  void didPopNext() {
+    _loadPendingSuggestionsCount();
   }
 
   Future<Map<String, dynamic>> _loadMetrics() async {
@@ -84,11 +109,26 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     throw StateError('Unexpected RPC response type: ${response.runtimeType}');
   }
 
+  Future<void> _loadPendingSuggestionsCount() async {
+    try {
+      final response = await Supabase.instance.client
+          .rpc('admin_skill_suggestions_stats');
+      if (!mounted) return;
+      final stats = response is Map
+          ? Map<String, dynamic>.from(response)
+          : <String, dynamic>{};
+      setState(() {
+        _pendingSuggestionsCount = (stats['pending'] as num?)?.toInt() ?? 0;
+      });
+    } catch (_) {/* silent */}
+  }
+
   Future<void> _refresh() async {
     setState(() {
       _metricsFuture = _loadMetrics();
     });
     await _metricsFuture;
+    await _loadPendingSuggestionsCount();
   }
 
   bool get _isAuthorized => AuthAdminService.isAdmin();
@@ -521,11 +561,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 ),
                 const SizedBox(height: 10),
                 // Sessão 5D — Sugestões de skills novas (auto-suggest)
+                // 5G — badge contador propostas pendentes
                 _NavCard(
                   icon: Icons.auto_awesome,
                   title: 'Sugestões Skills IA',
                   subtitle: 'Skills novas propostas pelo cron semanal',
                   color: const Color(0xFFFF8F00),
+                  badgeCount: _pendingSuggestionsCount,
                   onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -770,6 +812,7 @@ class _NavCard extends StatelessWidget {
     required this.subtitle,
     required this.color,
     required this.onTap,
+    this.badgeCount = 0,
   });
 
   final IconData icon;
@@ -777,6 +820,7 @@ class _NavCard extends StatelessWidget {
   final String subtitle;
   final Color color;
   final VoidCallback onTap;
+  final int badgeCount;
 
   @override
   Widget build(BuildContext context) {
@@ -785,9 +829,38 @@ class _NavCard extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       child: ListTile(
         onTap: onTap,
-        leading: CircleAvatar(
-          backgroundColor: color.withValues(alpha: 0.12),
-          child: Icon(icon, color: color),
+        leading: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            CircleAvatar(
+              backgroundColor: color.withValues(alpha: 0.12),
+              child: Icon(icon, color: color),
+            ),
+            if (badgeCount > 0)
+              Positioned(
+                right: -6,
+                top: -6,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade700,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.white, width: 1.5),
+                  ),
+                  constraints:
+                      const BoxConstraints(minWidth: 20, minHeight: 20),
+                  child: Text(
+                    badgeCount > 99 ? '99+' : badgeCount.toString(),
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+          ],
         ),
         title: Text(title,
             style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),

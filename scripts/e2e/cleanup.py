@@ -86,7 +86,7 @@ def main() -> int:
     # 1. Orders primeiro (FKs em ledger_entries, wallet_transactions etc.).
     if e2e_orders:
         client.table("orders").delete().eq("is_test_order", True).execute()
-        print(f"✓ apagados {len(e2e_orders)} orders")
+        print(f"[OK] apagados {len(e2e_orders)} orders")
 
     # 2/3. drivers + client_wallets (FK auth.users) — cascata via auth.users delete
     #      mas explicito para clareza.
@@ -94,12 +94,12 @@ def main() -> int:
     if user_ids:
         client.table("drivers").delete().in_("id", user_ids).execute()
         client.table("client_wallets").delete().in_("user_id", user_ids).execute()
-        print(f"✓ apagadas linhas drivers/client_wallets para {len(user_ids)} users")
+        print(f"[OK] apagadas linhas drivers/client_wallets para {len(user_ids)} users")
 
     # 4. restaurants (cascata em products via FK).
     if e2e_restaurants:
         client.table("restaurants").delete().like("id", f"{TEST_RESTAURANT_PREFIX}%").execute()
-        print(f"✓ apagados {len(e2e_restaurants)} restaurants (+ products via cascade)")
+        print(f"[OK] apagados {len(e2e_restaurants)} restaurants (+ products via cascade)")
 
     # 5. auth.users — admin.delete_user(uid).
     for u in e2e_users:
@@ -107,9 +107,9 @@ def main() -> int:
             client.auth.admin.delete_user(u["id"])
         except Exception as e:
             print(f"  ⚠ falhou delete user {u['email']}: {e}")
-    print(f"✓ apagados {len(e2e_users)} auth.users")
+    print(f"[OK] apagados {len(e2e_users)} auth.users")
 
-    print("\n✓ cleanup completo")
+    print("\n[OK] cleanup completo")
     return 0
 
 

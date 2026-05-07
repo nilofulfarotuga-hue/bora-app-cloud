@@ -36,9 +36,18 @@ CLIENT_SPECS: list[dict[str, Any]] = [
 ]
 
 DRIVER_SPECS: list[dict[str, Any]] = [
-    {"slug": "driver_a", "phone": "910000901", "name": "E2E Driver A", "vehicle": "car",  "online": True,  "lat": 40.5404, "lng": -7.2683},
-    {"slug": "driver_b", "phone": "910000902", "name": "E2E Driver B", "vehicle": "bike", "online": False, "lat": 40.5404, "lng": -7.2683},
-    {"slug": "driver_c", "phone": "910000903", "name": "E2E Driver C", "vehicle": "car",  "online": True,  "lat": 40.5404, "lng": -7.2683},
+    {"slug": "driver_a", "phone": "910000901", "name": "E2E_TEST_Driver_A", "vehicle": "car",  "online": True,  "lat": 40.5404, "lng": -7.2683},
+    {"slug": "driver_b", "phone": "910000902", "name": "E2E_TEST_Driver_B", "vehicle": "bike", "online": False, "lat": 40.5404, "lng": -7.2683},
+    {"slug": "driver_c", "phone": "910000903", "name": "E2E_TEST_Driver_C", "vehicle": "car",  "online": True,  "lat": 40.5404, "lng": -7.2683},
+]
+
+# Partner owners — auth.users com bora_role=partner. Cada owner é "dono" de
+# um restaurant via restaurants.user_ (BR §44 audit). Sem owner válido,
+# restaurant_respond_to_rating em 7E-C parte.
+PARTNER_OWNER_SPECS: list[dict[str, Any]] = [
+    {"slug": "owner_a", "email": f"e2e_partner_a{TEST_EMAIL_DOMAIN}", "restaurant_id": f"{TEST_RESTAURANT_PREFIX}PartnerRest"},
+    {"slug": "owner_b", "email": f"e2e_partner_b{TEST_EMAIL_DOMAIN}", "restaurant_id": f"{TEST_RESTAURANT_PREFIX}NonPartnerRest"},
+    {"slug": "owner_c", "email": f"e2e_partner_c{TEST_EMAIL_DOMAIN}", "restaurant_id": f"{TEST_RESTAURANT_PREFIX}Market"},
 ]
 
 RESTAURANT_SPECS: list[dict[str, Any]] = [
@@ -71,7 +80,7 @@ def _ensure_auth_user(client, email: str, password: str, role: str, name: str) -
     existing = _find_user_by_email(client, email)
     if existing is not None:
         uid = getattr(existing, "id", None) or existing.get("id")
-        print(f"  [auth] ✓ existe: {email} ({uid})")
+        print(f"  [auth] [OK] existe: {email} ({uid})")
         return uid
 
     res = client.auth.admin.create_user(
@@ -152,11 +161,30 @@ def seed_drivers(client) -> list[str]:
 # ──────────────────────────────────────────────────────────────────────────
 
 
-def seed_restaurants(client) -> list[str]:
-    """Cria 3 restaurantes (TEXT id estável). Devolve lista de IDs."""
+def seed_partner_owners(client) -> dict[str, str]:
+    """Cria 3 partner owners em auth.users. Devolve dict slug→uid."""
+    print("\n=== seed partner owners ===")
+    owners: dict[str, str] = {}
+    for spec in PARTNER_OWNER_SPECS:
+        uid = _ensure_auth_user(client, spec["email"], TEST_PASSWORD, "partner", spec["slug"])
+        owners[spec["slug"]] = uid
+    return owners
+
+
+def seed_restaurants(client, owners_by_restaurant: dict[str, str]) -> list[str]:
+    """Cria 3 restaurantes e popula `user_` com o partner owner associado.
+
+    `owners_by_restaurant`: dict mapping restaurant_id → owner_uid.
+    """
     print("\n=== seed restaurantes ===")
     ids: list[str] = []
     for spec in RESTAURANT_SPECS:
+        owner_uid = owners_by_restaurant.get(spec["id"])
+        if owner_uid is None:
+            raise RuntimeError(
+                f"seed.py BUG: sem owner para restaurant {spec['id']!r}. "
+                "Confirma PARTNER_OWNER_SPECS."
+            )
         client.table("restaurants").upsert(
             {
                 "id": spec["id"],
@@ -171,13 +199,72 @@ def seed_restaurants(client) -> list[str]:
                 "is_online": True,
                 "lat": spec["lat"],
                 "lng": spec["lng"],
+                "user_": owner_uid,
             },
             on_conflict="id",
         ).execute()
         ids.append(spec["id"])
-        print(f"  [restaurant] {spec['id']} · {spec['category']} · partner={spec['is_partner']}")
+        print(f"  [restaurant] {spec['id']} · {spec['category']} · partner={spec['is_partner']} · owner={owner_uid[:8]}...")
 
     return ids
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Post-seed asserts (B4 — fail-loud, evita silent regressions)
+# ──────────────────────────────────────────────────────────────────────────
+
+
+def _count(client, table: str, **filters) -> int:
+    """Wrapper para .select(count='exact') do supabase-py."""
+    q = client.table(table).select("*", count="exact")
+    for col, val in filters.items():
+        if col.endswith("__like"):
+            q = q.like(col[:-6], val)
+        elif col.endswith("__is_null"):
+            q = q.is_(col[:-9], "null") if val else q.not_.is_(col[:-9], "null")
+        else:
+            q = q.eq(col, val)
+    return q.execute().count or 0
+
+
+def _assert_post_seed(client, expected_clients: int, expected_drivers: int, expected_owners: int) -> None:
+    """Confirma estado pós-seed. Raise RuntimeError se algum invariante falhar.
+
+    Não chamar `print` para success — só `raise` em fail. O caller imprime "[OK]".
+    """
+    n_drivers = _count(client, "drivers", name__like="E2E_TEST_%")
+    if n_drivers != 3:
+        raise RuntimeError(
+            f"_assert_post_seed: drivers WHERE name LIKE 'E2E_TEST_%' = {n_drivers}, esperado 3. "
+            "Silent fail no upsert? Verifica response.data dos clientes/drivers/restaurants."
+        )
+
+    res = client.table("restaurants").select("id, user_").like("id", "E2E_TEST_%").execute()
+    null_owners = [r["id"] for r in (res.data or []) if r.get("user_") is None]
+    if null_owners:
+        raise RuntimeError(
+            f"_assert_post_seed: restaurants com user_=NULL: {null_owners}. "
+            "B3 (UPDATE user_) falhou ou owners não foram criados antes."
+        )
+    if len(res.data or []) != 3:
+        raise RuntimeError(
+            f"_assert_post_seed: restaurants E2E_TEST_* = {len(res.data or [])}, esperado 3."
+        )
+
+    # auth.users com domínio @boraapp.test = 3 clientes + 3 partner owners = 6.
+    # Estafetas usam @driver.bora.app, não contam para este assert.
+    auth_res = client.auth.admin.list_users()
+    users = auth_res if isinstance(auth_res, list) else getattr(auth_res, "users", [])
+    boraapp_test_users = []
+    for u in users:
+        email = getattr(u, "email", None) or (u.get("email") if isinstance(u, dict) else None) or ""
+        if email.endswith("@boraapp.test"):
+            boraapp_test_users.append(email)
+    if len(boraapp_test_users) != 6:
+        raise RuntimeError(
+            f"_assert_post_seed: auth.users com email @boraapp.test = {len(boraapp_test_users)}, "
+            f"esperado 6 (3 clientes + 3 partner owners). Encontrados: {boraapp_test_users}"
+        )
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -187,13 +274,26 @@ def seed_restaurants(client) -> list[str]:
 
 def main() -> int:
     client = admin_client()
-    print("Bora E2E seed — fixtures 3+3+3 (idempotente)")
+    print("Bora E2E seed — fixtures 3+3+3 + 3 partner owners (idempotente)")
 
     clients = seed_clients(client)
     drivers = seed_drivers(client)
-    restaurants = seed_restaurants(client)
+    owners = seed_partner_owners(client)
 
-    print(f"\n✓ Seed completo: {len(clients)} clientes, {len(drivers)} estafetas, {len(restaurants)} restaurantes")
+    # Mapeamento restaurant_id → owner_uid (B3).
+    owners_by_restaurant: dict[str, str] = {
+        spec["restaurant_id"]: owners[spec["slug"]] for spec in PARTNER_OWNER_SPECS
+    }
+    restaurants = seed_restaurants(client, owners_by_restaurant)
+
+    # B4 — fail-loud asserts. Raise se algo silenciosamente não foi criado.
+    _assert_post_seed(client, len(clients), len(drivers), len(owners))
+
+    print(
+        f"\n[OK] Seed completo (asserts OK): {len(clients)} clientes, "
+        f"{len(drivers)} estafetas, {len(owners)} partner owners, "
+        f"{len(restaurants)} restaurantes"
+    )
     return 0
 
 

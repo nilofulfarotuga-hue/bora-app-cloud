@@ -42,3 +42,39 @@ def test_test_password_constant():
     # Nunca deve ser uma password trivial (defesa contra copy-paste de demos prod).
     forbidden = {"123456", "password", "12345678", "qwerty"}
     assert TEST_PASSWORD not in forbidden, "TEST_PASSWORD trivial — escolher algo único"
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# B5 — guard-rails contra silent regressions no seed.
+# Assumem que `python seed.py` já correu (ou pytest após `run_all.sh seed`).
+# Falham com mensagem accionável se o seed estiver incompleto.
+# ──────────────────────────────────────────────────────────────────────────
+
+
+def test_seed_creates_3_drivers_with_test_marker(admin_client):
+    """drivers WHERE name LIKE 'E2E_TEST_%' deve ser exactamente 3.
+
+    Detecta o silent-fail clássico do supabase-py em upserts (response 200 sem
+    data inserted). Ver hotfix 7E-A B0 — naming convention E2E_TEST_Driver_X.
+    """
+    res = admin_client.table("drivers").select("id, name").like("name", "E2E_TEST_%").execute()
+    rows = res.data or []
+    assert len(rows) == 3, (
+        f"esperado 3 drivers E2E_TEST_*, encontrei {len(rows)}: "
+        f"{[r['name'] for r in rows]}. Correr `python seed.py`?"
+    )
+
+
+def test_seed_restaurants_have_owners(admin_client):
+    """Todos os 3 restaurants E2E_TEST_* devem ter user_ != NULL.
+
+    Sem owner válido, restaurant_respond_to_rating em 7E-C parte (BR §44).
+    """
+    res = admin_client.table("restaurants").select("id, user_").like("id", "E2E_TEST_%").execute()
+    rows = res.data or []
+    assert len(rows) == 3, f"esperado 3 restaurants E2E_TEST_*, encontrei {len(rows)}"
+    null_owners = [r["id"] for r in rows if r.get("user_") is None]
+    assert not null_owners, (
+        f"restaurants E2E_TEST_* com user_=NULL: {null_owners}. "
+        "Correr `python seed.py` para popular partner owners + UPDATE user_."
+    )

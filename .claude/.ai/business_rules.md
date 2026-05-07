@@ -2949,7 +2949,102 @@ Critério de PASS: 3/3 em <5s sem precisar de `seed.py`. Falha → boot do frame
 
 ---
 
+## §46 Tests E2E Críticos Lançamento (Sessão 7E-B · 2026-05-07)
+
+### §46.1 Helpers implementados (5 ficheiros novos + 1 stub substituído)
+
+- `pricing.py` — 8 asserts, incl. apartment dual surcharge
+  (`+€1.50 delivery + €0.50 commission`).
+- `wallet.py` — settlement-first + tokens factor 1:20 ACTUAL +
+  hard_floor + `assert_refund_balance_changes`.
+- `dispatch.py` — haversine + activate/reposition + `link_test_drivers_to_auth`.
+- `cancellation.py` — 3 paths (client/admin/driver) + `get_cancel_fee_retained`
+  (lê `orders.cancel_fee` directamente) + `get_order_refund_state`.
+- `orders.py` — `create_test_order` + `advance_status` (com
+  `STATUS_AT_COLUMNS` reduzido) + `delete_test_orders`.
+- `auth.py` — adicionado `login_as_user(email, password)` + alias
+  `get_admin_client`.
+
+### §46.2 26 tests implementados — 25/26 PASS (96.2%)
+
+- Grupo 1 Pricing: T01–T08 (11/11 collection items, incl. parametrize T03×3 + T04×2).
+- Grupo 2 Dispatch: T09–T13 (5/5).
+- Grupo 4 Wallet: T19–T24 (5/6 — T22 FAIL legítimo, BUG-007).
+- Grupo 7 Cancellation: T35–T38 (4/4).
+
+### §46.3 Decisões arquitecturais
+
+- `pricing_calculate` é RPC pura — testes directos sem `create_order`
+  (excepto T04 que precisa do trigger cash limit).
+- Unit consistency: **EUR (numeric)** — `pricing_calculate` devolve TABLE
+  com valores em EUR, não cents. Tolerância `EPSILON=0.005`.
+- `STATUS_AT_COLUMNS` reduzido a `{delivered_at, cancelled_at}` — outros
+  status fazem só UPDATE de `status` (sem timestamp dedicado em prod).
+- T38 admin cancel usa **RPC `admin_cancel_order` directamente**, não a
+  Edge Fn (que rejeita service_role JWT).
+- `orders.cancel_fee` é coluna (não kind em `wallet_transactions`).
+- Drivers `E2E_TEST_*` arrancam `is_online=false`; `dispatch_setup`
+  fixture activa+reposition+link e teardown reverte (link `user_id`
+  fica idempotentemente).
+- Auto-settlement em `create_order`: balance<0 é zerado antes de
+  pricing → setup de T23 obriga a inverter ordem (criar order primeiro,
+  depois UPSERT balance=-1000).
+
+### §46.4 5 BUGs documentados (`scripts/e2e/BUGS_FOUND.md`)
+
+- **BUG-7E-B-001** (LOW): cash limit docs vs code (`business_rules.ts`
+  €30 vs trigger DB €40).
+- **BUG-7E-B-003** (LOW): `pricing_calculate` devolve `bag_fee=0` para
+  `storeShopping` (regra antiga dizia €0.10/saco).
+- **BUG-7E-B-004** (HIGH): estafeta cancela `pickedUp` (regra nova
+  Danilo bloqueia + redirect suporte).
+- **BUG-7E-B-005** (HIGH): tokens factor ×20 em `wallet_credit_refund_split`
+  (deveria ×2 — bonus 10× actualmente).
+- **BUG-7E-B-006** (MEDIUM): comentário `stripe-webhook` diz €1.50
+  before_dispatch — diverge §8.3 (€1.00).
+- **BUG-7E-B-007** (HIGH): `add_tokens` silent fail dentro de
+  `wallet_credit_refund_split` (try/except engole erro; tokens não
+  persistem em `bora_tokens`).
+
+Nota: **BUG-7E-B-002 saltado** (reclassificado durante o run — bag fee
+restaurante €0.30 fixo é a regra correcta, não bug).
+
+### §46.5 Decisão Danilo §7.7 (2026-05-07)
+
+- Estafeta NÃO deve poder cancelar `pickedUp`.
+- Em vez disso, mostrar fluxo "Contactar suporte".
+- Implementação adiada: fix RPC + UI + actualização §7.7 em sessão
+  futura (BUG-7E-B-004 captura plano).
+
+### §46.6 Política FAIL workflow
+
+- `run_all.sh` adiciona action `smoke-7eb` que corre `pytest tests/`
+  com `set +e` e devolve `exit 0` sempre — política CEO-AI: FAILs não
+  bloqueiam merge.
+- 25/26 PASS supera meta original do prompt (~18-19/23 esperado).
+- 1 FAIL legítimo (T22 BUG-007) documentado.
+- Sync para `.obsidian-vault/sessoes/07e_b_bugs.md` para CEO-AI
+  orchestrator ver em próximas invocações.
+
+### §46.7 Próximas sub-sessões
+
+- 7E-C ⏳ stacking + tokens completos + ratings + store + reservations
+  + refund flow choice (~30 tests, 4-6h).
+- 7E-D ⏳ robot crosstalk + skill suggestions + RLS + lifecycle
+  (~14 tests, 3-5h).
+
+### §46.8 Limitações conhecidas
+
+- Tests não correm em pytest-xdist (cleanup global apaga is_test_order=true
+  de outros workers).
+- Side effects dos 17 triggers em `UPDATE orders` não são validados
+  individualmente — assumem-se inócuos para `is_test_order=true`.
+- Edge Fn `admin-cancel-order` não testada (T38 usa RPC directo).
+- Refund choice flow (cartão vs app) → 7E-C.
+
+---
+
 *Documento de regras de negócio — Bora App*
-*Última atualização: 2026-05-07 (§45 — Sessão 7E-A Framework E2E Tests)*
+*Última atualização: 2026-05-07 (§46 — Sessão 7E-B Tests E2E Críticos Lançamento)*
 *Atualizar sempre que houver mudanças nas regras de negócio*
 *Fonte de verdade usada por: todas as skills do sistema*

@@ -2639,7 +2639,111 @@ try {
 
 ---
 
+## §43 — Painel Admin Inbox Avançado (Sessão 5G)
+
+### §43.1 Coluna `admin_notes` em `skill_suggestions`
+
+- `text NULL DEFAULT NULL` (B1)
+- Notas internas só visíveis ao admin
+- Atualizada via `admin_update_skill_suggestion_note(p_id, p_note)`
+- UI faz autosave 1s debounce
+- `p_note` vazio ou só whitespace → guardado como `NULL`
+
+### §43.2 Status enum estendido (B1)
+
+`CHECK status IN (...)` com **6 valores**:
+
+| valor | quando | origem |
+|---|---|---|
+| `pending` | sugestão acabada de criar | 5D |
+| `approved` | aprovada (pré-implementação) | 5D |
+| `rejected` | rejeitada manual | 5D |
+| `implemented` | aprovada e aplicada | 5E |
+| `rolled_back` | aplicada e depois revertida | 5E |
+| `auto_archived` | >30 dias `pending` sem revisão | **5G novo** |
+
+> 5E values **preservados sem mudança**. `ALTER CHECK` correu com 0 rows em prod.
+
+### §43.3 4 RPCs novas (B2)
+
+| RPC | Devolve | Notas |
+|---|---|---|
+| `admin_skill_suggestions_stats()` | jsonb 10 campos | total / pending / approved / implemented / rejected / rolled_back / auto_archived / with_notes / pct_approved / oldest_pending_days |
+| `admin_skill_suggestions_metrics()` | jsonb 5 campos | avg_review_hours · top_categories (até 10) · by_month (6m) · by_type · by_zone |
+| `admin_bulk_reject_skill_suggestions(p_ids uuid[], p_reason text)` | jsonb `{rejected_count, requested_count}` | max 50 ids · reason obrigatório · só rejeita rows com `status='pending'` |
+| `admin_update_skill_suggestion_note(p_id uuid, p_note text)` | void | `RAISE EXCEPTION SUGGESTION_NOT_FOUND` se id inválido |
+
+Todas com `is_admin()` gate, `SECURITY DEFINER`, `search_path=public`,
+`REVOKE ALL ... FROM public, anon`, `GRANT EXECUTE TO authenticated`.
+
+### §43.4 `admin_list_skill_suggestions` REPLACE (B3)
+
+`(p_status, p_type, p_zone, p_category, p_search, p_limit)` — 6 params, todos com defaults backward-compat com a versão antiga (`p_status='pending'`, `p_limit=50`).
+
+- `p_search` usa FTS portuguesa: `to_tsvector('portuguese', pattern_summary) @@ plainto_tsquery('portuguese', p_search)`
+- ORDER BY status: `pending=1, implemented=2, approved=3, rejected=4, rolled_back=5, auto_archived=6`
+- ORDER BY zone: `critical=1, safe=2`
+- Tie-break: `suggested_at DESC`
+
+### §43.5 Cron `auto-archive-old-suggestions` (B4)
+
+- **Schedule:** `'0 3 * * *'` (diária 03:00 UTC)
+- **Função:** `_auto_archive_old_suggestions()` — `UPDATE skill_suggestions SET status='auto_archived', reviewed_at=now() WHERE status='pending' AND suggested_at < now() - interval '30 days'`
+- Idempotente (`DO $$ ... cron.unschedule ... $$`)
+
+### §43.6 Indexes novos (B1)
+
+| index | tipo |
+|---|---|
+| `idx_skill_suggestions_status_type` | btree (status, proposal_type, suggested_at DESC) |
+| `idx_skill_suggestions_zone` | btree (zone_type) WHERE zone_type NOT NULL |
+| `idx_skill_suggestions_category` | btree (suggested_category) |
+| `idx_skill_suggestions_search` | GIN to_tsvector('portuguese', pattern_summary) |
+
+Coexistem com 6 indexes existentes (5D + 5E) sem conflito.
+
+### §43.7 UI Flutter — `AdminSkillSuggestionsScreen` (B5)
+
+8 features adicionadas mantendo retrocompatibilidade:
+
+1. **Stats card no topo** — 4 contadores (Pendentes/Implementadas/Rejeitadas/Arquivadas) + taxa aprovação + dias mais antigo pendente
+2. **`ExpansionTile` filtros** — Estado / Tipo / Zona / Categoria (texto livre) + Pesquisa FTS-PT debounce 500ms + botão "Limpar filtros"
+3. **Diff lado-a-lado** — para `playbook_update`: 2 colunas (Antes vermelho / Depois verde), linhas diferentes destacadas. Naive linha-a-linha; **LCS proper TODO 5G-β** (`diff_match_patch`)
+4. **Bulk reject** — checkbox em cards `pending`, AppBar muda quando selecção activa (laranja + contador), dialog "Rejeitar N propostas" com razão obrigatória
+5. **Notas internas** — TextField `maxLines=3, maxLength=500` por card; autosave 1s debounce via `_onNoteChanged(id, value)`
+6. **FAB Métricas** — laranja, navega para `/admin/suggestions/metrics`
+7. **Empty states PT-PT** — distingue "Sem propostas no momento" vs "Nenhum resultado para os filtros"
+8. **Status enum estendido na UI** — 7 opções dropdown (Pendentes/Implementadas/Aprovadas/Rejeitadas/Revertidas/Arquivadas/Todas)
+
+`_refreshBadge` agora usa `admin_skill_suggestions_stats` (1 RPC com 10 campos) em vez de `.length` da lista — mais eficiente.
+
+### §43.8 UI Flutter — `AdminSkillSuggestionsMetricsScreen` (B6)
+
+Novo ecrã `/admin/suggestions/metrics`. 4 gráficos `fl_chart 0.69.0`:
+
+| Gráfico | Tipo | Cores Bora |
+|---|---|---|
+| Por tipo | Pie | verde · laranja · cinza |
+| Por zona | Pie | verde · vermelho |
+| Top categorias | Bar | verde |
+| Por mês (6m) | Line | laranja |
+
+Empty states "Sem dados ainda" para cada gráfico se RPC devolve vazio.
+
+### §43.9 UI Flutter — `AdminDashboardScreen` (B7)
+
+- `_NavCard` ganha param opcional `badgeCount: int = 0`
+- "Sugestões Skills IA" mostra bolinha vermelha com contador pendentes (>99 → "99+")
+- `RouteAware` mixin: `didPopNext` chama `_loadPendingSuggestionsCount()` — refresh quando admin volta do écran de propostas
+- `routeObserver` global em `main.dart` (`navigatorObservers`)
+
+### §43.10 Regra ouro
+
+> Toda nova feature admin **não** entra na Launch Readiness Checklist a menos que afecte directamente Receita / UX cliente / Estabilidade core. 5G é Categoria 4 (Velocidade de Lançamento).
+
+---
+
 *Documento de regras de negócio — Bora App*
-*Última atualização: 2026-05-07 (§42 — Sessão 5F-β-α Activação pg_net via Vault)*
+*Última atualização: 2026-05-07 (§43 — Sessão 5G Painel Admin Inbox Avançado)*
 *Atualizar sempre que houver mudanças nas regras de negócio*
 *Fonte de verdade usada por: todas as skills do sistema*

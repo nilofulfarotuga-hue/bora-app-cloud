@@ -1,0 +1,35 @@
+# Sessão 7E-A — E2E framework gitignore
+# Nunca commit credenciais ou outputs locais.
+
+# Secrets — service_role_key vem de scripts/rag/.env (single source).
+# Se algum dia alguém criar .env.test localmente, IGNORAR.
+.env.test
+.env.test.local
+.env.local
+
+# Python venv
+.venv/
+venv/
+env/
+
+# Pytest / coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Reports (HTML/JSON gerados localmente)
+reports/*.html
+reports/*.json
+reports/*.xml
+
+# Bytecode
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Editor
+.vscode/
+.idea/
+*.swp

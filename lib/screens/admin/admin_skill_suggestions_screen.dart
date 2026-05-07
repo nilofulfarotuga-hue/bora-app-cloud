@@ -29,20 +29,30 @@ class _AdminSkillSuggestionsScreenState
   String _statusFilter = 'pending';
   String _typeFilter = 'all';
   String _zoneFilter = 'all';
+  String _categoryFilter = 'all';
   List<Map<String, dynamic>> _suggestions = [];
   int _pendingBadgeCount = 0;
+  Map<String, dynamic> _stats = const {};
   bool _loading = false;
   bool _analyzing = false;
   DateTime? _lastAnalysisAt;
   String? _error;
   RealtimeChannel? _channel;
 
+  // 5G — pesquisa, bulk select, notas
+  final TextEditingController _searchController = TextEditingController();
+  Timer? _searchDebounce;
+  final Set<String> _selectedIds = {};
+  final Map<String, TextEditingController> _noteControllers = {};
+  final Map<String, Timer> _noteDebounce = {};
+
   static const _filterOptions = <String, String>{
     'pending': 'Pendentes',
+    'implemented': 'Implementadas',
     'approved': 'Aprovadas',
     'rejected': 'Rejeitadas',
-    'implemented': 'Implementadas',
     'rolled_back': 'Revertidas',
+    'auto_archived': 'Arquivadas',
     'all': 'Todas',
   };
 
@@ -73,13 +83,15 @@ class _AdminSkillSuggestionsScreenState
     if (_channel != null) {
       _supabase.removeChannel(_channel!);
     }
+    _searchDebounce?.cancel();
+    for (final t in _noteDebounce.values) {
+      t.cancel();
+    }
+    for (final c in _noteControllers.values) {
+      c.dispose();
+    }
+    _searchController.dispose();
     super.dispose();
-  }
-
-  bool _matchesFilters(Map<String, dynamic> s) {
-    if (_typeFilter != 'all' && s['proposal_type'] != _typeFilter) return false;
-    if (_zoneFilter != 'all' && s['zone_type'] != _zoneFilter) return false;
-    return true;
   }
 
   Future<void> _load() async {
@@ -88,13 +100,28 @@ class _AdminSkillSuggestionsScreenState
       _error = null;
     });
     try {
-      final data = await _supabase.rpc('admin_list_skill_suggestions',
-          params: {'p_status': _statusFilter, 'p_limit': 100});
+      final search = _searchController.text.trim();
+      final data = await _supabase.rpc('admin_list_skill_suggestions', params: {
+        'p_status': _statusFilter,
+        'p_type': _typeFilter,
+        'p_zone': _zoneFilter,
+        'p_category': _categoryFilter,
+        'p_search': search.isEmpty ? null : search,
+        'p_limit': 100,
+      });
       final list = (data as List? ?? [])
           .map((e) => Map<String, dynamic>.from(e as Map))
-          .where(_matchesFilters)
           .toList();
       if (!mounted) return;
+      // Garbage-collect note controllers de IDs que já não estão na lista actual.
+      final activeIds = list.map((e) => e['id'] as String).toSet();
+      _noteControllers.removeWhere((id, c) {
+        if (activeIds.contains(id)) return false;
+        c.dispose();
+        _noteDebounce.remove(id)?.cancel();
+        return true;
+      });
+      _selectedIds.removeWhere((id) => !activeIds.contains(id));
       setState(() {
         _suggestions = list;
         _loading = false;
@@ -110,12 +137,120 @@ class _AdminSkillSuggestionsScreenState
 
   Future<void> _refreshBadge() async {
     try {
-      final data = await _supabase.rpc('admin_list_skill_suggestions',
-          params: {'p_status': 'pending', 'p_limit': 200});
-      final list = (data as List? ?? []);
+      final data = await _supabase.rpc('admin_skill_suggestions_stats');
       if (!mounted) return;
-      setState(() => _pendingBadgeCount = list.length);
+      final stats =
+          data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
+      setState(() {
+        _stats = stats;
+        _pendingBadgeCount = (stats['pending'] as num?)?.toInt() ?? 0;
+      });
     } catch (_) {/* silent */}
+  }
+
+  void _onSearchChanged(String _) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 500), _load);
+  }
+
+  void _clearFilters() {
+    setState(() {
+      _statusFilter = 'pending';
+      _typeFilter = 'all';
+      _zoneFilter = 'all';
+      _categoryFilter = 'all';
+      _searchController.clear();
+    });
+    _load();
+  }
+
+  void _toggleSelected(String id, bool? value) {
+    setState(() {
+      if (value == true) {
+        _selectedIds.add(id);
+      } else {
+        _selectedIds.remove(id);
+      }
+    });
+  }
+
+  Future<void> _showBulkRejectDialog() async {
+    if (_selectedIds.isEmpty) return;
+    final reasonCtrl = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSt) => AlertDialog(
+          title: Text('Rejeitar ${_selectedIds.length} propostas?'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Razão obrigatória (aplicada a todas):',
+                  style: TextStyle(fontSize: 12, color: Colors.black54)),
+              const SizedBox(height: 8),
+              TextField(
+                controller: reasonCtrl,
+                maxLines: 3,
+                maxLength: 200,
+                onChanged: (_) => setSt(() {}),
+                decoration: const InputDecoration(
+                  labelText: 'Razão',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _boraOrange,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: reasonCtrl.text.trim().isEmpty
+                  ? null
+                  : () => Navigator.pop(ctx, true),
+              child: Text('Rejeitar ${_selectedIds.length}'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      final ids = _selectedIds.toList();
+      final result = await _supabase
+          .rpc('admin_bulk_reject_skill_suggestions', params: {
+        'p_ids': ids,
+        'p_reason': reasonCtrl.text.trim(),
+      });
+      final count = (result is Map && result['rejected_count'] is num)
+          ? (result['rejected_count'] as num).toInt()
+          : ids.length;
+      _toast('$count propostas rejeitadas', _boraOrange);
+      if (mounted) setState(() => _selectedIds.clear());
+      await _load();
+      await _refreshBadge();
+    } catch (e) {
+      _toast('Erro: $e', Colors.red);
+    }
+  }
+
+  void _onNoteChanged(String id, String value) {
+    _noteDebounce[id]?.cancel();
+    _noteDebounce[id] = Timer(const Duration(seconds: 1), () async {
+      try {
+        await _supabase.rpc('admin_update_skill_suggestion_note', params: {
+          'p_id': id,
+          'p_note': value.trim(),
+        });
+      } catch (_) {/* silent autosave */}
+    });
   }
 
   Future<void> _loadLastAnalysis() async {
@@ -647,8 +782,29 @@ class _AdminSkillSuggestionsScreenState
         return Colors.grey;
       case 'rolled_back':
         return _amber;
+      case 'auto_archived':
+        return Colors.grey.shade600;
       default:
         return Colors.black45;
+    }
+  }
+
+  String _statusLabel(String status) {
+    switch (status) {
+      case 'pending':
+        return 'Pendente';
+      case 'implemented':
+        return 'Implementada';
+      case 'approved':
+        return 'Aprovada';
+      case 'rejected':
+        return 'Rejeitada';
+      case 'rolled_back':
+        return 'Revertida';
+      case 'auto_archived':
+        return 'Arquivada';
+      default:
+        return status;
     }
   }
 
@@ -674,70 +830,61 @@ class _AdminSkillSuggestionsScreenState
 
   @override
   Widget build(BuildContext context) {
+    final hasSelection = _selectedIds.isNotEmpty;
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: _boraGreen,
+        backgroundColor: hasSelection ? _boraOrange : _boraGreen,
         foregroundColor: Colors.white,
-        title: Row(
-          children: [
-            const Text('Sugestões IA'),
-            if (_pendingBadgeCount > 0) ...[
-              const SizedBox(width: 8),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: _boraOrange,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '$_pendingBadgeCount',
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold, fontSize: 13),
-                ),
+        leading: hasSelection
+            ? IconButton(
+                icon: const Icon(Icons.close),
+                tooltip: 'Limpar selecção',
+                onPressed: () => setState(() => _selectedIds.clear()),
+              )
+            : null,
+        title: hasSelection
+            ? Text('${_selectedIds.length} seleccionadas')
+            : Row(
+                children: [
+                  const Text('Sugestões IA'),
+                  if (_pendingBadgeCount > 0) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: _boraOrange,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '$_pendingBadgeCount',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ],
               ),
-            ],
-          ],
-        ),
-        actions: [
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.filter_list),
-            tooltip: 'Status',
-            initialValue: _statusFilter,
-            onSelected: (v) {
-              setState(() => _statusFilter = v);
-              _load();
-            },
-            itemBuilder: (_) => _filterOptions.entries
-                .map((e) => PopupMenuItem(value: e.key, child: Text(e.value)))
-                .toList(),
-          ),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.category),
-            tooltip: 'Tipo proposta',
-            initialValue: _typeFilter,
-            onSelected: (v) {
-              setState(() => _typeFilter = v);
-              _load();
-            },
-            itemBuilder: (_) => _typeFilterOptions.entries
-                .map((e) => PopupMenuItem(value: e.key, child: Text(e.value)))
-                .toList(),
-          ),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.shield),
-            tooltip: 'Zona',
-            initialValue: _zoneFilter,
-            onSelected: (v) {
-              setState(() => _zoneFilter = v);
-              _load();
-            },
-            itemBuilder: (_) => _zoneFilterOptions.entries
-                .map((e) => PopupMenuItem(value: e.key, child: Text(e.value)))
-                .toList(),
-          ),
-        ],
+        actions: hasSelection
+            ? [
+                IconButton(
+                  icon: const Icon(Icons.delete_sweep),
+                  tooltip: 'Rejeitar em lote',
+                  onPressed: _showBulkRejectDialog,
+                ),
+              ]
+            : const [],
       ),
+      floatingActionButton: hasSelection
+          ? null
+          : FloatingActionButton.extended(
+              backgroundColor: _boraOrange,
+              foregroundColor: Colors.white,
+              onPressed: () => Navigator.pushNamed(
+                  context, '/admin/suggestions/metrics'),
+              icon: const Icon(Icons.bar_chart),
+              label: const Text('Métricas'),
+            ),
       body: RefreshIndicator(
         onRefresh: () async {
           await _load();
@@ -756,12 +903,190 @@ class _AdminSkillSuggestionsScreenState
     return ListView(
       padding: const EdgeInsets.all(12),
       children: [
+        _buildStatsCard(),
+        const SizedBox(height: 8),
+        _buildFiltersPanel(),
+        const SizedBox(height: 12),
         _buildBanner(),
         const SizedBox(height: 12),
         if (_error != null) _buildErrorCard(),
         if (_suggestions.isEmpty && _error == null) _buildEmpty(),
         ..._suggestions.map(_buildCard),
+        const SizedBox(height: 80), // espaço para FAB
       ],
+    );
+  }
+
+  Widget _buildStatsCard() {
+    final pending = (_stats['pending'] as num?)?.toInt() ?? 0;
+    final implemented = (_stats['implemented'] as num?)?.toInt() ?? 0;
+    final rejected = (_stats['rejected'] as num?)?.toInt() ?? 0;
+    final archived = (_stats['auto_archived'] as num?)?.toInt() ?? 0;
+    final pctApproved = _stats['pct_approved'];
+    final oldestDays =
+        (_stats['oldest_pending_days'] as num?)?.toInt() ?? 0;
+    return Card(
+      color: const Color(0xFFE8F5E9),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Estatísticas',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _statBox('Pendentes', pending, _boraOrange),
+                _statBox('Implementadas', implemented, _boraGreen),
+                _statBox('Rejeitadas', rejected, Colors.red.shade700),
+                _statBox('Arquivadas', archived, Colors.grey.shade700),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Taxa de aprovação: ${pctApproved ?? 0}% · '
+              'Mais antiga pendente: $oldestDays dias',
+              style: const TextStyle(fontSize: 11, color: Colors.black54),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _statBox(String label, int value, Color color) {
+    return Column(
+      children: [
+        Text(
+          '$value',
+          style: TextStyle(
+              fontSize: 18, fontWeight: FontWeight.bold, color: color),
+        ),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 10, color: Colors.black87),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFiltersPanel() {
+    return Card(
+      child: ExpansionTile(
+        leading: const Icon(Icons.filter_list),
+        title: const Text('Filtros e pesquisa'),
+        childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+        children: [
+          DropdownButtonFormField<String>(
+            initialValue: _statusFilter,
+            decoration: const InputDecoration(
+              labelText: 'Estado',
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+            items: _filterOptions.entries
+                .map((e) => DropdownMenuItem(
+                      value: e.key,
+                      child: Text(e.value),
+                    ))
+                .toList(),
+            onChanged: (v) {
+              if (v == null) return;
+              setState(() => _statusFilter = v);
+              _load();
+            },
+          ),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String>(
+            initialValue: _typeFilter,
+            decoration: const InputDecoration(
+              labelText: 'Tipo',
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+            items: _typeFilterOptions.entries
+                .map((e) => DropdownMenuItem(
+                      value: e.key,
+                      child: Text(e.value),
+                    ))
+                .toList(),
+            onChanged: (v) {
+              if (v == null) return;
+              setState(() => _typeFilter = v);
+              _load();
+            },
+          ),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String>(
+            initialValue: _zoneFilter,
+            decoration: const InputDecoration(
+              labelText: 'Zona',
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+            items: _zoneFilterOptions.entries
+                .map((e) => DropdownMenuItem(
+                      value: e.key,
+                      child: Text(e.value),
+                    ))
+                .toList(),
+            onChanged: (v) {
+              if (v == null) return;
+              setState(() => _zoneFilter = v);
+              _load();
+            },
+          ),
+          const SizedBox(height: 8),
+          // Categoria — texto livre (categoria dinâmica = TODO 5G-β)
+          TextField(
+            decoration: InputDecoration(
+              labelText: 'Categoria (vazio = Todas)',
+              border: const OutlineInputBorder(),
+              isDense: true,
+              suffixIcon: _categoryFilter == 'all'
+                  ? null
+                  : IconButton(
+                      icon: const Icon(Icons.clear, size: 18),
+                      onPressed: () {
+                        setState(() => _categoryFilter = 'all');
+                        _load();
+                      },
+                    ),
+            ),
+            controller:
+                TextEditingController(text: _categoryFilter == 'all' ? '' : _categoryFilter),
+            onSubmitted: (v) {
+              final t = v.trim();
+              setState(() => _categoryFilter = t.isEmpty ? 'all' : t);
+              _load();
+            },
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _searchController,
+            decoration: const InputDecoration(
+              labelText: 'Pesquisar no resumo…',
+              prefixIcon: Icon(Icons.search),
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+            onChanged: _onSearchChanged,
+          ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              icon: const Icon(Icons.refresh, size: 16),
+              label: const Text('Limpar filtros'),
+              onPressed: _clearFilters,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -855,13 +1180,24 @@ class _AdminSkillSuggestionsScreenState
   }
 
   Widget _buildEmpty() {
+    final hasActiveFilter = _typeFilter != 'all' ||
+        _zoneFilter != 'all' ||
+        _categoryFilter != 'all' ||
+        _searchController.text.trim().isNotEmpty;
+    final String message;
+    if (hasActiveFilter) {
+      message = 'Nenhum resultado para os filtros aplicados.';
+    } else if (_statusFilter == 'pending') {
+      message =
+          'Sem propostas no momento.\nCorre análise ou aguarda cron de segunda.';
+    } else {
+      message = 'Sem registos para o estado seleccionado.';
+    }
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 24),
       child: Center(
         child: Text(
-          _statusFilter == 'pending'
-              ? 'Nenhuma sugestão pendente.\nCorre análise ou aguarda cron de segunda.'
-              : 'Sem registos para os filtros activos.',
+          message,
           textAlign: TextAlign.center,
           style: const TextStyle(fontSize: 16, color: Colors.black54),
         ),
@@ -889,8 +1225,11 @@ class _AdminSkillSuggestionsScreenState
 
     final typeBadge = _typeBadge(type);
 
+    final id = s['id'] as String;
+    final isSelected = _selectedIds.contains(id);
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
+      color: isSelected ? const Color(0xFFFFF3E0) : null,
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(
@@ -898,6 +1237,20 @@ class _AdminSkillSuggestionsScreenState
           children: [
             Row(
               children: [
+                if (isPending)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 4),
+                    child: SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: Checkbox(
+                        value: isSelected,
+                        onChanged: (v) => _toggleSelected(id, v),
+                        materialTapTargetSize:
+                            MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    ),
+                  ),
                 Icon(typeBadge.icon, size: 16, color: typeBadge.color),
                 const SizedBox(width: 4),
                 Text(typeBadge.label,
@@ -925,7 +1278,7 @@ class _AdminSkillSuggestionsScreenState
                           size: 12,
                           color: isCritical ? _critical : _boraGreen),
                       const SizedBox(width: 4),
-                      Text(isCritical ? 'CRITICAL' : 'SAFE',
+                      Text(isCritical ? 'CRÍTICA' : 'SEGURA',
                           style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
@@ -941,7 +1294,7 @@ class _AdminSkillSuggestionsScreenState
                     color: _statusColor(status).withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Text(status,
+                  child: Text(_statusLabel(status),
                       style: TextStyle(
                           color: _statusColor(status),
                           fontWeight: FontWeight.bold,
@@ -999,8 +1352,104 @@ class _AdminSkillSuggestionsScreenState
             ],
             if (isPending) _buildPendingActions(s, isCritical),
             if (canRollback) _buildRollbackAction(s),
+            _buildAdminNotes(s),
           ],
         ),
+      ),
+    );
+  }
+
+  /// Diff naive linha-a-linha (sem LCS). Linhas presentes em ambos lados
+  /// ficam transparentes; só presentes num lado ficam highlighted.
+  /// LCS proper / package diff_match_patch: TODO 5G-β.
+  Widget _buildSideBySideDiff(String oldText, String newText) {
+    final oldLines = oldText.split('\n');
+    final newLines = newText.split('\n');
+    final newSet = newLines.toSet();
+    final oldSet = oldLines.toSet();
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.all(8),
+            color: const Color(0xFFFFEBEE),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Antes',
+                    style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFFC62828))),
+                const SizedBox(height: 4),
+                ...oldLines.map((line) => Container(
+                      width: double.infinity,
+                      color: newSet.contains(line)
+                          ? Colors.transparent
+                          : const Color(0xFFFFCDD2),
+                      child: Text(
+                        line.isEmpty ? ' ' : line,
+                        style: const TextStyle(
+                            fontFamily: 'monospace', fontSize: 11),
+                      ),
+                    )),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 4),
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.all(8),
+            color: const Color(0xFFE8F5E9),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Depois',
+                    style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1B5E20))),
+                const SizedBox(height: 4),
+                ...newLines.map((line) => Container(
+                      width: double.infinity,
+                      color: oldSet.contains(line)
+                          ? Colors.transparent
+                          : const Color(0xFFC8E6C9),
+                      child: Text(
+                        line.isEmpty ? ' ' : line,
+                        style: const TextStyle(
+                            fontFamily: 'monospace', fontSize: 11),
+                      ),
+                    )),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAdminNotes(Map<String, dynamic> s) {
+    final id = s['id'] as String;
+    final controller = _noteControllers.putIfAbsent(id, () {
+      return TextEditingController(text: (s['admin_notes'] as String?) ?? '');
+    });
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: TextField(
+        controller: controller,
+        maxLines: 3,
+        maxLength: 500,
+        style: const TextStyle(fontSize: 12),
+        decoration: const InputDecoration(
+          labelText: 'Notas internas (só admin vê)',
+          helperText: 'Guardado automaticamente',
+          border: OutlineInputBorder(),
+          isDense: true,
+        ),
+        onChanged: (v) => _onNoteChanged(id, v),
       ),
     );
   }
@@ -1048,43 +1497,10 @@ class _AdminSkillSuggestionsScreenState
           const SizedBox(height: 6),
           ExpansionTile(
             tilePadding: EdgeInsets.zero,
-            title: const Text('Diff playbook (anterior → novo)',
+            title: const Text('Diff playbook (lado-a-lado)',
                 style: TextStyle(fontSize: 12)),
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                color: const Color(0xFFFFEBEE),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Anterior:',
-                        style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFFC62828))),
-                    Text(previous,
-                        style: const TextStyle(
-                            fontFamily: 'monospace', fontSize: 11)),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.all(8),
-                color: const Color(0xFFE8F5E9),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Novo:',
-                        style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF1B5E20))),
-                    Text(suggested,
-                        style: const TextStyle(
-                            fontFamily: 'monospace', fontSize: 11)),
-                  ],
-                ),
-              ),
+              _buildSideBySideDiff(previous, suggested),
             ],
           ),
         ];

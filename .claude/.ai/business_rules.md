@@ -3297,7 +3297,64 @@ Claude Code via repo.
 
 ---
 
+## §49 — Cancel Fees Runtime Refactor (Sessão 7-α-CANCEL-FEES-REFACTOR · 2026-05-08)
+
+**Decisão:** As constantes `CANCEL_FEE_BEFORE_DISPATCH_EUR`,
+`CANCEL_FEE_AFTER_ACCEPT_EUR`, `CANCEL_FEE_AFTER_PURCHASE_RATIO`
+foram migradas de `_shared/business_rules.ts` (hardcoded ao deploy
+time) para `platform_settings` (DB) lida em runtime. Resolve drift
+identificado entre código deployed e settings em prod.
+
+### §49.1 Source of truth (NOVA)
+
+Tabela `platform_settings`:
+- `cancel_fee_before_dispatch_cents` = 150 (€1.50) — pré-existia
+- `cancel_fee_after_accept_cents` = 250 (€2.50) — criada 2026-05-08
+- `cancel_fee_after_pickup_ratio` = 1.00 (100%) — criada 2026-05-08
+
+### §49.2 Helper `_shared/platform_settings.ts`
+
+- `getCancelFees()` — leitura cached (TTL 5min) com fallback
+  defensivo. Logging WARN se DB falha.
+- `computeCancelFeeEur(tier, totalEur, fees)` — wrapper conveniente
+  para os 3 tiers (`before_dispatch | after_accept | after_pickup`).
+
+### §49.3 Edge Functions refactored
+
+| Função | Versão antes → depois | Linhas Δ |
+|---|---|---|
+| `client-cancel-order` | v11 → v12 ACTIVE | -16 |
+| `cancel-order-with-choice` | v3 → v4 ACTIVE | -16 |
+| `execute-cancellation` | v2 → v3 ACTIVE | -12 |
+
+### §49.4 Não alterado
+
+- Tier resolution logic (`resolveTier` / `tier`).
+- Stripe refund / wallet credit / RPC calls.
+- `notify-client` invocation.
+- `business_rules.ts` mantém as 3 constantes como **FALLBACK
+  defensivo** (usado se BD falhar).
+
+### §49.5 Benefícios
+
+- Admin pode alterar fees em `platform_settings` sem precisar de
+  re-deploy. Drift entre código e DB eliminado.
+- Cache de 5min limita load no Postgres.
+- Settings change → propagation máx. 5min por Edge Function process.
+
+### §49.6 Smoke test
+
+Diferido para fim da maratona (regra Danilo).
+
+### §49.7 Anomalia registada (fora-scope)
+
+`lib/widgets/refund_choice_dialog.dart:145-154` usa
+`Radio.onChanged`/`groupValue` deprecated post-Flutter 3.32 —
+TODO separado.
+
+---
+
 *Documento de regras de negócio — Bora App*
-*Última atualização: 2026-05-08 (§48 — Sessão 7 MEGAFINAL · 6 migrations + 6 BUGs CLOSED)*
+*Última atualização: 2026-05-08 (§49 — Cancel Fees Runtime Refactor · platform_settings as source of truth)*
 *Atualizar sempre que houver mudanças nas regras de negócio*
 *Fonte de verdade usada por: todas as skills do sistema*

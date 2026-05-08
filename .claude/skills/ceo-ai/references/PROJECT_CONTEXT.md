@@ -53,7 +53,7 @@ bora_app/
 │   │   ├── create-payment-intent/
 │   │   ├── stripe-webhook/
 │   │   ├── confirm-mbway-payment/
-│   │   └── _shared/           # business_rules.ts, cors.ts
+│   │   └── _shared/           # business_rules.ts (fallback), cors.ts, platform_settings.ts (cancel fees @runtime)
 │   └── migrations/            # 10+ migrations SQL
 └── pubspec.yaml
 ```

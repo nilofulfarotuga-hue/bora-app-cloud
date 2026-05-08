@@ -20,11 +20,7 @@
 
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import {
-  CANCEL_FEE_BEFORE_DISPATCH_EUR,
-  CANCEL_FEE_AFTER_ACCEPT_EUR,
-  CANCEL_FEE_AFTER_PURCHASE_RATIO,
-} from '../_shared/business_rules.ts';
+import { getCancelFees, computeCancelFeeEur } from '../_shared/platform_settings.ts';
 import { corsHeaders } from '../_shared/cors.ts';
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
@@ -55,19 +51,6 @@ function tier(status: string): Tier {
       return 'invalid';
   }
 }
-function feeEur(t: Tier, total: number): number {
-  switch (t) {
-    case 'before_dispatch':
-      return CANCEL_FEE_BEFORE_DISPATCH_EUR;
-    case 'after_accept':
-      return CANCEL_FEE_AFTER_ACCEPT_EUR;
-    case 'after_pickup':
-      return total * CANCEL_FEE_AFTER_PURCHASE_RATIO;
-    default:
-      return 0;
-  }
-}
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
@@ -127,7 +110,8 @@ Deno.serve(async (req) => {
   const totalEur = Number(
     order.customer_total ?? order.final_total ?? order.total ?? order.estimated_total ?? 0,
   );
-  const fee = Number(feeEur(t, totalEur).toFixed(2));
+  const fees = await getCancelFees();
+  const fee = Number(computeCancelFeeEur(t, totalEur, fees).toFixed(2));
   const refundEur = Math.max(0, Number((totalEur - fee).toFixed(2)));
   const refundCents = Math.round(refundEur * 100);
 

@@ -2,10 +2,10 @@
 //
 // Client-initiated order cancellation (BR §8.3).
 //
-// Fee tiers (source of truth: _shared/business_rules.ts):
-//   • created / preparing / callingDriver → 1.00 EUR
-//   • driverAccepted                       → 2.50 EUR
-//   • pickedUp / onTheWay                  → 100% of total (no refund)
+// Fee tiers (source of truth: platform_settings via _shared/platform_settings.ts):
+//   created / preparing / callingDriver -> cancel_fee_before_dispatch_cents
+//   driverAccepted                      -> cancel_fee_after_accept_cents
+//   pickedUp / onTheWay                 -> total * cancel_fee_after_pickup_ratio
 //
 // Behaviour:
 //   1. Authenticates the caller via JWT.
@@ -27,11 +27,7 @@
 
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import {
-  CANCEL_FEE_BEFORE_DISPATCH_EUR,
-  CANCEL_FEE_AFTER_ACCEPT_EUR,
-  CANCEL_FEE_AFTER_PURCHASE_RATIO,
-} from '../_shared/business_rules.ts';
+import { getCancelFees, computeCancelFeeEur } from '../_shared/platform_settings.ts';
 import { corsHeaders } from '../_shared/cors.ts';
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
@@ -61,19 +57,6 @@ function resolveTier(status: string): CancelTier {
       return 'after_pickup';
     default:
       return 'invalid';
-  }
-}
-
-function computeFeeEur(tier: CancelTier, total: number): number {
-  switch (tier) {
-    case 'before_dispatch':
-      return CANCEL_FEE_BEFORE_DISPATCH_EUR;
-    case 'after_accept':
-      return CANCEL_FEE_AFTER_ACCEPT_EUR;
-    case 'after_pickup':
-      return total * CANCEL_FEE_AFTER_PURCHASE_RATIO;
-    case 'invalid':
-      return 0;
   }
 }
 
@@ -183,7 +166,8 @@ Deno.serve(async (req: Request) => {
       0,
   );
 
-  const feeEur = Number(computeFeeEur(tier, totalEur).toFixed(2));
+  const fees = await getCancelFees();
+  const feeEur = Number(computeCancelFeeEur(tier, totalEur, fees).toFixed(2));
   const refundEur = Math.max(0, Number((totalEur - feeEur).toFixed(2)));
 
   // ── Stripe refund (card only, when there is something to refund) ─────────

@@ -258,4 +258,38 @@ para launch.
 
 ---
 
-*Última actualização: 2026-05-08 — Sessão 7-UI-BUG004 (BUG-004 ciclo completo encerrado: backend 7-FIX + UI 7-UI-BUG004; 6/6 BUGs 7E-B fechados em todas as camadas)*
+## ORPHANED ORDERS CLEANUP (2026-05-08)
+
+Sessão: `7-alpha-ORPHANED-CLEANUP`.
+Aplicado via MCP directo + migration files locais (preservar histórico repo).
+
+- ✅ **CAT A** — 9 orders `cash+rejected+pending` → `cancelled_no_charge`
+  - Migration: `20260508135500_cleanup_orphaned_orders_cat_a.sql`
+  - IDs: `79ca3c7a`, `93b7bf00`, `be175307`, `3ce12489`, `22d13fb5`,
+    `b0a2af78`, `5c470d30`, `de02d96c`, `a550efe3`
+  - Risco: zero (orders já terminadas, apenas estado coerente)
+- ✅ **CAT B** — 3 orders stuck `driverAccepted` >19 dias → `cancelled`
+  - Migration: `20260508135700_cleanup_orphaned_orders_cat_b_skip_triggers.sql`
+  - IDs: `94d02b17`, `cd0193ab`, `cc706061`
+  - `user_id` orphan: `f9ad894e-42a2-44ca-a4b0-2546bdb11cb9` (não existe
+    em `users`, daí usar `SET session_replication_role=replica`)
+  - Risco: baixo (>19 dias, `driver_transactions` preservadas)
+- 🟡 **CAT C** — 1 order DEFERIDA (TODO governance futuro)
+  - ID: `92276b06-688a-4068-be82-dc32145ccf5d`
+  - Estado: `status=delivered` + `payment_status=pending` +
+    `payment_method=card` + `payment_intent_id=NULL`
+  - Total: €30.59 / `delivered_at`: 2026-04-16 07:10:10
+  - `driver_transactions`: 1 (driver foi processado)
+  - Razão defer: order entregue há 22 dias mas pagamento ficou
+    `pending` sem PI Stripe — pode ser pagamento manual/legacy externo,
+    bug histórico (regressão antiga sem PI), ou webhook nunca chegou.
+  - Decisão admin necessária sobre `payment_status` correcto.
+    NÃO mexer sem revisão manual.
+
+**Validação prod pós-cleanup:**
+- ZERO orders stuck >7 dias em estados não-terminais.
+- 1 order Cat C aguarda decisão admin.
+
+---
+
+*Última actualização: 2026-05-08 — Sessão 7-α-ORPHANED-CLEANUP (12 orders históricas limpas, 1 deferida; 0 stuck >7 dias em prod)*

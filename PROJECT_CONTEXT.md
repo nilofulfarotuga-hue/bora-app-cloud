@@ -350,3 +350,17 @@ Toda a navegação é gerida pelo `_RootNavigator` em `main.dart` — **widget-r
 2. **Realtime sync entre dispositivos** — identificado como "Current Focus" no CLAUDE.md. Se o driver e o cliente não verem o mesmo estado de um pedido em tempo real, o fluxo de entrega quebra. **Ação:** resolver antes do lançamento.
 
 3. **Push Notifications desativadas** — sem Firebase ativo, os drivers não recebem notificações de novas ofertas. Dependem exclusivamente do polling/realtime enquanto a app estiver aberta. Em produção, drivers com app em background não recebem ofertas. **Ação:** activar Firebase com google-services.json antes do lançamento.
+
+---
+
+### 13. Reservas PRO
+
+Sistema de reservas mesa BEST-IN-CLASS aplicado 2026-05-08.
+
+**Estado:** F1 SCHEMA aplicada (8 tabelas + 10 cols `reservations` + 13 settings novos). F2 BACKEND CORE pendente.
+
+**Tabelas:** `restaurant_floor_plans`, `restaurant_tables`, `restaurant_pacing_rules`, `restaurant_turn_times`, `reservation_table_assignments`, `reservation_waitlist`, `reservation_notify_list`, `client_restaurant_profiles`.
+
+**Detalhes:** ver `.claude/.ai/business_rules.md` §50.
+
+**Roadmap:** F2 BACKEND CORE → F3 UI CLIENTE → F4 UI PARCEIRO + ADMIN.

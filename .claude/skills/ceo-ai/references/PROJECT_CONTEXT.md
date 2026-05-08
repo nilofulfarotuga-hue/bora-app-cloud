@@ -417,3 +417,17 @@ Toda a navegação é gerida pelo `_RootNavigator` em `main.dart` — **widget-r
 - `lib/stores/order_store.dart` — método público `updateBagCount(orderId, count)`
 - `lib/screens/driver_home_screen.dart` — `_showBagCountDialog` para pedidos storeShopping
 - `supabase/migrations/add_bag_count_to_orders` — `bag_count INTEGER DEFAULT 0` em orders
+
+---
+
+### 13. Reservas PRO
+
+Sistema de reservas mesa BEST-IN-CLASS aplicado 2026-05-08.
+
+**Estado:** F1 SCHEMA aplicada (8 tabelas + 10 cols `reservations` + 13 settings novos). F2 BACKEND CORE pendente.
+
+**Tabelas:** `restaurant_floor_plans`, `restaurant_tables`, `restaurant_pacing_rules`, `restaurant_turn_times`, `reservation_table_assignments`, `reservation_waitlist`, `reservation_notify_list`, `client_restaurant_profiles`.
+
+**Detalhes:** ver `.claude/.ai/business_rules.md` §50.
+
+**Roadmap:** F2 BACKEND CORE → F3 UI CLIENTE → F4 UI PARCEIRO + ADMIN.

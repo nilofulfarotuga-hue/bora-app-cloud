@@ -3354,7 +3354,69 @@ TODO separado.
 
 ---
 
+## §50 — RESERVAS PRO (Sessão reservas-pro-F1-SCHEMA · 2026-05-08)
+
+Estratégia: BEST-IN-CLASS Portugal, GRATUITO para parceiros
+(aquisição). Benchmark: OpenTable, Resy, SevenRooms, Tableo.
+
+### §50.1 — 8 tabelas em F1 (aplicado 2026-05-08)
+
+- `restaurant_floor_plans`: multi-layout (normal/eventos)
+- `restaurant_tables`: mesas físicas (numero/capacity/zona/pos_xy)
+- `restaurant_pacing_rules`: limites por slot horário
+- `restaurant_turn_times`: tempo médio por party size
+- `reservation_table_assignments`: liga reserva a mesa(s)
+- `reservation_waitlist`: fila de espera
+- `reservation_notify_list`: avisar se vagar (modelo OpenTable Notify)
+- `client_restaurant_profiles`: histórico/preferências
+
+### §50.2 — 10 colunas novas em `reservations`
+
+- `floor_plan_id` (snapshot), `event_type`
+- `special_requests`, `occasion`
+- `is_walk_in`, `seated_at`, `finished_at`
+- `reminder_24h_sent_at`, `reminder_2h_sent_at`, `confirmation_sent_at`
+
+### §50.3 — 13 settings novos em `platform_settings` (defaults globais)
+
+- `reservation_default_slot_duration_minutes` = 30
+- `reservation_default_walk_in_pct` = 25
+- `reservation_default_turn_time_2` = 90
+- `reservation_default_turn_time_4` = 120
+- `reservation_default_turn_time_6_plus` = 150
+- `reservation_waitlist_expiry_hours` = 4
+- `reservation_notify_list_expiry_hours` = 24
+- `reservation_max_advance_days` = 60
+- `reservation_min_advance_minutes` = 30
+- `reservation_no_show_threshold_count` = 3
+- `reservation_late_cancel_threshold_count` = 5
+- `reservation_reminder_24h_enabled` = true
+- `reservation_reminder_2h_enabled` = true
+
+### §50.4 — Roadmap
+
+- F1 SCHEMA (3-4h) **APLICADA 2026-05-08**
+- F2 BACKEND CORE (4-6h) PENDENTE
+- F3 UI CLIENTE (3-5h) PENDENTE
+- F4 UI PARCEIRO + ADMIN (5-10h) PENDENTE
+
+### §50.5 — Admin tem acesso TOTAL
+
+ver/editar/criar/banir/configurar/exportar/auditar tudo
+(regra geral admin painel — reflectida em RLS por service_role bypass).
+
+### §50.6 — Migrations files locais
+
+- `20260508231040_reservas_pro_f1_01_restaurant_config_tables.sql`
+- `20260508231127_reservas_pro_f1_02_reservation_runtime_tables.sql`
+- `20260508231156_reservas_pro_f1_03_alter_reservations_and_settings.sql`
+
+Timestamps batem com `supabase_migrations.schema_migrations`
+em prod (zero drift).
+
+---
+
 *Documento de regras de negócio — Bora App*
-*Última atualização: 2026-05-08 (§49 — Cancel Fees Runtime Refactor · platform_settings as source of truth)*
+*Última atualização: 2026-05-08 (§50 — Reservas PRO F1 SCHEMA · 8 tabelas + 10 cols + 13 settings)*
 *Atualizar sempre que houver mudanças nas regras de negócio*
 *Fonte de verdade usada por: todas as skills do sistema*

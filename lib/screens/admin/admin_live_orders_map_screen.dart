@@ -6,6 +6,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart' as gmap;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../utils/constants.dart';
+import '../../widgets/admin/test_order_badge.dart';
 
 /// Admin Live Operations — Pedidos & Drivers em Tempo Real (B1).
 ///
@@ -37,6 +38,10 @@ class _AdminLiveOrdersMapScreenState extends State<AdminLiveOrdersMapScreen> {
   List<Map<String, dynamic>> _drivers = const [];
   Map<String, dynamic>? _selected;
 
+  /// 7-alpha-ADMIN-FILTER: toggle de inclusao de pedidos de teste.
+  /// Default false (so reais). Re-fetch ao alternar.
+  bool _incluirTeste = false;
+
   @override
   void initState() {
     super.initState();
@@ -56,7 +61,9 @@ class _AdminLiveOrdersMapScreenState extends State<AdminLiveOrdersMapScreen> {
     try {
       final supa = Supabase.instance.client;
       final results = await Future.wait([
-        supa.rpc('admin_live_orders'),
+        // 7-alpha-ADMIN-FILTER: passa toggle como param para a RPC filtrar.
+        supa.rpc('admin_live_orders',
+            params: {'p_include_test_orders': _incluirTeste}),
         supa.rpc('admin_live_drivers'),
       ]);
       if (!mounted) return;
@@ -95,6 +102,10 @@ class _AdminLiveOrdersMapScreenState extends State<AdminLiveOrdersMapScreen> {
       final dropLat = (o['dropoff_lat'] as num?)?.toDouble();
       final dropLng = (o['dropoff_lng'] as num?)?.toDouble();
 
+      // 7-alpha-ADMIN-FILTER: prefixo [TESTE] no titulo quando is_test_order.
+      final isTest = o['is_test_order'] == true;
+      final testPrefix = isTest ? '[TESTE] ' : '';
+
       if (pickupLat != null && pickupLng != null) {
         markers.add(Marker(
           markerId: MarkerId('pickup_$id'),
@@ -103,7 +114,7 @@ class _AdminLiveOrdersMapScreenState extends State<AdminLiveOrdersMapScreen> {
             isActive ? BitmapDescriptor.hueGreen : BitmapDescriptor.hueOrange,
           ),
           infoWindow: InfoWindow(
-            title: o['vendor_name'] as String? ?? 'Pickup',
+            title: '$testPrefix${o['vendor_name'] as String? ?? 'Coleta'}',
             snippet: '${o['service_type']} · €${o['total']}',
           ),
           onTap: () => setState(() => _selected = o),
@@ -117,7 +128,7 @@ class _AdminLiveOrdersMapScreenState extends State<AdminLiveOrdersMapScreen> {
           icon: BitmapDescriptor.defaultMarkerWithHue(
               BitmapDescriptor.hueViolet),
           infoWindow: InfoWindow(
-            title: o['customer_name'] as String? ?? 'Cliente',
+            title: '$testPrefix${o['customer_name'] as String? ?? 'Cliente'}',
             snippet: o['dropoff_address'] as String? ?? '',
           ),
           onTap: () => setState(() => _selected = o),
@@ -137,7 +148,7 @@ class _AdminLiveOrdersMapScreenState extends State<AdminLiveOrdersMapScreen> {
         icon:
             BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
         infoWindow: InfoWindow(
-          title: d['driver_name'] as String? ?? 'Driver',
+          title: d['driver_name'] as String? ?? 'Estafeta',
           snippet: d['active_order_id'] != null
               ? 'Em entrega · #${(d['active_order_id'] as String).substring(0, 6)}'
               : 'Disponível',
@@ -165,6 +176,25 @@ class _AdminLiveOrdersMapScreenState extends State<AdminLiveOrdersMapScreen> {
       appBar: AppBar(
         title: const Text('Pedidos ao Vivo'),
         actions: [
+          // 7-alpha-ADMIN-FILTER: switch para incluir pedidos de teste.
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Incluir testes',
+                    style: TextStyle(fontSize: 12)),
+                Switch(
+                  value: _incluirTeste,
+                  activeThumbColor: Colors.orange.shade800,
+                  onChanged: (v) {
+                    setState(() => _incluirTeste = v);
+                    _refresh();
+                  },
+                ),
+              ],
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Atualizar',
@@ -180,9 +210,9 @@ class _AdminLiveOrdersMapScreenState extends State<AdminLiveOrdersMapScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _stat('Pending', pendingCount, Colors.orange),
-                _stat('Active', activeCount, Colors.green),
-                _stat('Drivers', onlineCount, Colors.blue),
+                _stat('Pendentes', pendingCount, Colors.orange),
+                _stat('Ativos', activeCount, Colors.green),
+                _stat('Estafetas', onlineCount, Colors.blue),
                 _stat('Total', _orders.length, Colors.black87),
               ],
             ),
@@ -277,12 +307,18 @@ class _SidePanel extends StatelessWidget {
                 Expanded(
                   child: Text(
                     _isDriver
-                        ? (data['driver_name'] as String? ?? 'Driver')
+                        ? (data['driver_name'] as String? ?? 'Estafeta')
                         : (data['vendor_name'] as String? ?? 'Pedido'),
                     style: const TextStyle(
                         fontWeight: FontWeight.bold, fontSize: 16),
                   ),
                 ),
+                // 7-alpha-ADMIN-FILTER: badge teste no sidepanel (so para pedidos).
+                if (!_isDriver && data['is_test_order'] == true) ...[
+                  const SizedBox(width: 6),
+                  const TestOrderBadge(),
+                  const SizedBox(width: 6),
+                ],
                 IconButton(
                     icon: const Icon(Icons.close, size: 18),
                     onPressed: onClose),

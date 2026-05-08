@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../services/admin_export_service.dart';
+import '../../widgets/admin/test_order_badge.dart';
 import '_admin_cancel_order_dialog.dart';
 import 'admin_order_detail_screen.dart';
 
@@ -20,24 +21,33 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
   String _statusFilter = 'all';
   // T1.1: filter by payment method including 'mixed' (wallet/tokens applied).
   String _paymentFilter = 'all';
+  // 7-alpha-ADMIN-FILTER: filtro is_test_order. Default 'real' (so reais).
+  String _filtroTeste = 'real';
+
   static const _paymentOptions = <(String, String)>[
     ('all', 'Todos'),
     ('card', 'Cartão'),
     ('mbway', 'MBWay'),
     ('cash', 'Dinheiro'),
-    ('mixed', 'Misto (wallet/tokens)'),
+    ('mixed', 'Misto (carteira/tokens)'),
   ];
 
   static const _statusOptions = [
     ('all', 'Todos'),
     ('created', 'Criado'),
-    ('preparing', 'A preparar'),
-    ('callingDriver', 'A chamar'),
-    ('driverAccepted', 'Aceite'),
-    ('pickedUp', 'Recolhido'),
+    ('preparing', 'Preparando'),
+    ('callingDriver', 'Chamando'),
+    ('driverAccepted', 'Aceito'),
+    ('pickedUp', 'Coletado'),
     ('onTheWay', 'A caminho'),
     ('delivered', 'Entregue'),
     ('rejected', 'Rejeitado'),
+  ];
+
+  static const _testOptions = <(String, String)>[
+    ('real', 'Pedidos reais'),
+    ('test', 'Apenas teste'),
+    ('all', 'Todos'),
   ];
 
   @override
@@ -53,11 +63,12 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
     });
     try {
       // T1.1: extra cols for payment breakdown column.
+      // 7-alpha-ADMIN-FILTER: include is_test_order para badge inline.
       var base = Supabase.instance.client.from('orders').select(
           'id, status, payment_method, payment_status, price, created_at, '
           'vendor_name, assigned_driver_id, customer_name, '
           'wallet_applied_cents, tokens_applied_count, tokens_applied_value_cents, '
-          'stripe_charge_cents');
+          'stripe_charge_cents, is_test_order');
       var query = _statusFilter == 'all' ? base : base.eq('status', _statusFilter);
       if (_paymentFilter != 'all') {
         // 'mixed' covers any order with wallet OR tokens applied.
@@ -67,6 +78,13 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
           query = query.eq('payment_method', _paymentFilter);
         }
       }
+      // 7-alpha-ADMIN-FILTER: filtra is_test_order conforme estado.
+      if (_filtroTeste == 'real') {
+        query = query.eq('is_test_order', false);
+      } else if (_filtroTeste == 'test') {
+        query = query.eq('is_test_order', true);
+      }
+      // 'all' = sem filtro is_test_order.
       final data =
           await query.order('created_at', ascending: false).limit(100);
       if (mounted) {
@@ -169,10 +187,10 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
   String _statusLabel(String status) {
     const labels = {
       'created': 'Criado',
-      'preparing': 'A preparar',
-      'callingDriver': 'A chamar estafeta',
-      'driverAccepted': 'Estafeta aceite',
-      'pickedUp': 'Recolhido',
+      'preparing': 'Preparando',
+      'callingDriver': 'Chamando estafeta',
+      'driverAccepted': 'Estafeta aceito',
+      'pickedUp': 'Coletado',
       'onTheWay': 'A caminho',
       'delivered': 'Entregue',
       'rejected': 'Rejeitado',
@@ -245,6 +263,31 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
               }).toList(),
             ),
           ),
+          // 7-alpha-ADMIN-FILTER: chips de filtro is_test_order (3 estados).
+          SizedBox(
+            height: 44,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              children: _testOptions.map((opt) {
+                final isSelected = _filtroTeste == opt.$1;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: FilterChip(
+                    label: Text(opt.$2,
+                        style: const TextStyle(fontSize: 12)),
+                    selected: isSelected,
+                    selectedColor: Colors.orange.withValues(alpha: 0.18),
+                    checkmarkColor: Colors.orange.shade800,
+                    onSelected: (_) {
+                      setState(() => _filtroTeste = opt.$1);
+                      _load();
+                    },
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
           const Divider(height: 1),
           Expanded(
             child: _loading
@@ -252,7 +295,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                 : _error != null
                     ? Center(child: Text('Erro: $_error'))
                     : _orders.isEmpty
-                        ? const Center(child: Text('Sem pedidos'))
+                        ? const Center(child: Text('Nenhum pedido'))
                         : RefreshIndicator(
                             onRefresh: _load,
                             child: ListView.separated(
@@ -286,6 +329,12 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                                                     fontSize: 15),
                                               ),
                                             ),
+                                            // 7-alpha-ADMIN-FILTER: badge teste inline.
+                                            if (o['is_test_order'] == true) ...[
+                                              const SizedBox(width: 6),
+                                              const TestOrderBadge(compact: true),
+                                              const SizedBox(width: 6),
+                                            ],
                                             Container(
                                               padding:
                                                   const EdgeInsets.symmetric(

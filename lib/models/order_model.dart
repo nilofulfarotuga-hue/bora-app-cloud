@@ -65,6 +65,11 @@ class OrderModel {
   final String? dropoffPostalCode;
   final String? customerNotes;
   final bool isPartnerStore;
+
+  /// True quando o pedido foi marcado como teste (admin/QA).
+  /// Filtrado por defeito do painel admin para nao poluir metricas reais.
+  /// Coluna DB: orders.is_test_order (BOOLEAN DEFAULT false).
+  final bool isTestOrder;
   final bool apartmentDelivery;
   final bool isDistanceEstimated;
   final bool requiresCar;
@@ -189,6 +194,7 @@ class OrderModel {
     this.dropoffPostalCode,
     this.customerNotes,
     this.isPartnerStore = false,
+    this.isTestOrder = false,
     this.apartmentDelivery = false,
     this.isDistanceEstimated = false,
     this.requiresCar = false,
@@ -335,6 +341,7 @@ class OrderModel {
       orderType: orderType,
       paymentMethod: paymentMethod,
       isPartnerStore: data['is_partner_store'] as bool? ?? false,
+      isTestOrder: data['is_test_order'] as bool? ?? false,
       apartmentDelivery: data['apartment_delivery'] as bool? ?? false,
       isDistanceEstimated: data['is_distance_estimated'] as bool? ?? false,
       requiresCar: data['requires_car'] as bool? ?? false,
@@ -408,6 +415,8 @@ class OrderModel {
       'distance_km': distanceKm,
       'delivery_price': deliveryPrice,
       'is_partner_store': isPartnerStore,
+      // Apenas serializa quando true (rows existentes assumem default false).
+      if (isTestOrder) 'is_test_order': isTestOrder,
       'apartment_delivery': apartmentDelivery,
       'is_distance_estimated': isDistanceEstimated,
       'requires_car': requiresCar,

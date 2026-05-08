@@ -72,7 +72,7 @@ MOSTRAR RACIOCÍNIO: Só quando Danilo discordar
 ### PRONTO (não mexer sem razão forte)
 - Order lifecycle completo (created → delivered + rejected)
 - Dispatch Engine server-side (Edge Function com retry/timeout)
-- Sistema financeiro (ledger, driver balances, cash cap €30, settlement)
+- Sistema financeiro (ledger, driver balances, cash cap €40, settlement)
 - Tokens/Loyalty (FIFO, auto-award, discount checkout 50% max)
 - Pricing engine (4 service types com fee breakdown)
 - Auth dual-layer (in-memory + Supabase + demo accounts)

@@ -21,15 +21,23 @@ CEO-AI orchestrator vê via sync Obsidian
 
 ### BUG-7E-B-001 (LOW) — Cash limit DOCS_VS_CODE mismatch
 
-- **Status:** ✅ **CLOSED 2026-05-08 (Sessão 7 MEGAFINAL)**
+- **Status:** ✅ **CLOSED 2026-05-08 (Sessão 7 MEGAFINAL + 7-TS-AUDIT)**
 - **Razão**: setting `platform_settings.max_cash_amount_cents=4000`
   (€40) já era correcta em prod. Era apenas desalinhamento docs —
   `business_rules.ts` (código) dizia €30. Documentação
   `business_rules.md §3.2` actualizada com valor `4000` cents +
   nome do trigger `orders_enforce_cash_limit`.
 - **Migration:** nenhuma (apenas docs).
-- **Pendente** (fora deste scope): alinhar `business_rules.ts` (código)
-  noutra sessão se necessário.
+- **Pendente RESOLVIDO em 7-TS-AUDIT (2026-05-08)**:
+  `business_rules.ts` `CASH_MAX_ORDER_VALUE_EUR=40.00` +
+  `CANCEL_FEE_BEFORE_DISPATCH_EUR=1.50` (bonus alinhamento descoberto
+  no audit completo TS vs `platform_settings`). Doc drift "cash cap
+  €30" corrigido em 4 ficheiros (PROJECT_CONTEXT.md ×4 refs,
+  ceo-ai/SKILL.md, ceo-ai/references/PROJECT_CONTEXT.md ×4 refs,
+  obsidian/negocios/visao-geral.md). Backend não tocado — Edge
+  Functions consumers (`client-cancel-order`, `execute-cancellation`,
+  `cancel-order-with-choice`, `stripe-webhook`) usam constantes TS
+  importadas directamente.
 
 #### Histórico (BUG original)
 - **Test:** T04 `test_t04_cash_at_limit_passes` / `test_t04_cash_above_limit_fails`

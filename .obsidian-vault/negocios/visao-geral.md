@@ -39,7 +39,7 @@
 ### ✅ Pronto para produção
 - Order lifecycle completo
 - Dispatch Engine server-side (Edge Function com retry)
-- Sistema financeiro (ledger, driver balances, cash cap €30)
+- Sistema financeiro (ledger, driver balances, cash cap €40)
 - Tokens/Loyalty (atribuição automática, FIFO)
 - Pricing engine (todos os tipos de serviço)
 - Auth dual-layer + demo accounts offline

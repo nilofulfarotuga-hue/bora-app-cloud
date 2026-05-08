@@ -89,7 +89,7 @@ Não existem ficheiros `SKILL.md` no projeto. O conceito de "orquestrador" aplic
 | Logistics rate per km | €0.50/km |
 | Surcharge apartamento total | €1.50 (driver €1.00 + platform €0.50) |
 | Plataform commission rate | 20% |
-| Limite cash por pedido | €30 (server-enforced via trigger) |
+| Limite cash por pedido | €40 (server-enforced via trigger; source: `platform_settings.max_cash_amount_cents`) |
 
 #### Batching (DriverCapacityService)
 | Tipo de serviço | Regra |
@@ -113,7 +113,7 @@ Não existem ficheiros `SKILL.md` no projeto. O conceito de "orquestrador" aplic
 | `20260404000000_bora_tokens.sql` | Sistema de tokens/loyalty |
 | `20260404000001_bora_tokens_type_fix.sql` | Fix de tipo UUID |
 | `20260404000002_consume_tokens.sql` | Função FIFO consume_tokens() |
-| `20260409000000_driver_balance_cash_system.sql` | Saldo cash drivers + cap €30 |
+| `20260409000000_driver_balance_cash_system.sql` | Saldo cash drivers + cap (actualmente €40 via `platform_settings`) |
 | `20260409000001_order_financial_split.sql` | Campos financeiros por pedido |
 | `20260409000002_financial_ledger.sql` | Ledger financeiro |
 | `20260409000003_admin_dashboard_metrics.sql` | Métricas para dashboard admin |
@@ -288,7 +288,7 @@ Toda a navegação é gerida pelo `_RootNavigator` em `main.dart` — **widget-r
 |---|---|---|
 | **Stripe** | Funcional | Mobile-only (kIsWeb guard). Backend via **Supabase Edge Functions** (`create-payment-intent`, `refund`, `charge-extra`) — não usa BACKEND_BASE_URL. Webhook ativo. Min 0.50 EUR enforced. |
 | **MBWay** | Simulado | Edge Function `confirm-mbway-payment` — sem integração real com banco |
-| **Cash** | Funcional | Server-side cap €30. Settlement automático via trigger. |
+| **Cash** | Funcional | Server-side cap €40 (`platform_settings.max_cash_amount_cents`). Settlement automático via trigger. |
 | **Google Maps** | Funcional | `google_maps_flutter` para widget + `latlong2` para cálculos. API key em `maps_config.dart` |
 | **Google Places Autocomplete** | Funcional | Conditional imports (web/mobile/stub) |
 | **Supabase Realtime** | Funcional | orders_channel (INSERT/UPDATE/DELETE) + public:drivers. Retry 5s. Fallback timer 3s. |
@@ -320,7 +320,7 @@ Toda a navegação é gerida pelo `_RootNavigator` em `main.dart` — **widget-r
 #### ✅ PRONTO para produção
 - **Order lifecycle completo** — criação, status flow, entrega, confirmação por código
 - **Dispatch Engine server-side** — Edge Function robusta com retry, timeout, anti-duplicação
-- **Sistema financeiro** — ledger, driver balances, cash cap €30, settlement automático
+- **Sistema financeiro** — ledger, driver balances, cash cap €40, settlement automático
 - **Tokens/Loyalty** — atribuição automática, FIFO consumption, token discount no checkout
 - **Pricing engine** — todos os tipos de serviço com fee breakdown completo
 - **Auth dual-layer** — in-memory + Supabase, demo accounts offline, SharedPreferences

@@ -7,6 +7,71 @@ CEO-AI orchestrator vê via sync Obsidian
 
 ---
 
+## Sessão 7E-D (2026-05-08) — 20/21 PASS + 1 SKIP (3 BUGs RLS documentados)
+
+Suite 7E-D cobre 4 áreas terciárias pré-launch:
+- Grupo 11 (robot/chatbot) ✅ 5/5
+- Grupo 12 (skill suggestions) ✅ 3/3
+- Grupo 13 (RLS) ✅ 4/5 (T66 skipped — anon key ausente)
+- Grupo 14 (lifecycle) ✅ 8/8 (T68 paramétrize 4×)
+
+Resultado: 20 passed / 1 skipped / 0 failed em 47s.
+Cleanup OK: zero leaked test data em 6 sistemas validados via MCP.
+
+### BUG-7E-D-001 (MEDIUM) — RLS `drivers` SELECT frouxa
+
+- **Status:** 🟡 **OPEN** — privacidade driver comprometida.
+- **Tabela:** `drivers`.
+- **Policy:** `drivers_select_authenticated`.
+- **Problema:** `qual = "auth.uid() IS NOT NULL"` → qualquer driver
+  autenticado vê TODOS os drivers (nomes, coordenadas GPS, stats,
+  totais de earnings, etc).
+- **Impacto:** privacidade entre estafetas. Driver A consegue ver onde
+  está driver B em tempo real, ler `iban`/`nif`/`vehicle_type` etc.
+- **Bloqueante launch:** NÃO (drivers não veem dados financeiros de
+  outros — estes ficam em `driver_transactions` / `driver_balances`
+  com policies separadas).
+- **Fix sugerido:** alterar `qual` para `user_id = auth.uid()` ou
+  `auth.jwt() ->> 'role' = 'admin'`. Manter exception para admin
+  via `bora_role='admin'` em JWT.
+- **Detectado:** MCP query em prod + T63 DOCUMENT_ACTUAL.
+
+### BUG-7E-D-002 (HIGH) — RLS `reservations` partner read all
+
+- **Status:** 🔴 **OPEN — DECISÃO DANILO PRÉ-LAUNCH** (privacidade
+  comprometida; pode bloquear launch consoante interpretação RGPD).
+- **Tabela:** `reservations`.
+- **Policy:** `reservations_partner_read_all`.
+- **Problema:** `qual = "true"` → qualquer partner autenticado vê
+  TODAS as reservations de TODOS os restaurantes (incluindo nomes,
+  telefones, datas/horas reservadas em restaurantes concorrentes).
+- **Impacto:** PRIVACIDADE COMPROMETIDA. Cliente A reserva mesa em
+  restaurante B → partner C (concorrente) consegue ler o nome,
+  telefone e data/hora dessa reserva.
+- **Bloqueante launch:** **CONSIDERAR** — dados pessoais de clientes
+  (nome, telefone) expostos a partners não relacionados. RGPD risk.
+- **Fix sugerido:** alterar `qual` para
+  ```sql
+  restaurant_id IN (
+    SELECT id FROM restaurants WHERE user_ = auth.uid()
+  )
+  ```
+- **Detectado:** MCP query em prod + T64 DOCUMENT_ACTUAL.
+
+### BUG-7E-D-003 (INFO) — `SUPABASE_ANON_KEY` ausente em env
+
+- **Status:** ℹ️ **OPEN** (info-level, não bloqueante).
+- **Ficheiro:** `scripts/rag/.env` (single source dos E2E).
+- **Problema:** T66 (anonymous user RLS) faz skip porque
+  `SUPABASE_ANON_KEY` não está exportada em env. Sem essa key,
+  não é possível criar cliente Supabase sem JWT user para validar
+  que anon não consegue ler tabelas sensíveis.
+- **Impacto:** cobertura RLS incompleta para anon path.
+- **Fix sugerido:** adicionar `SUPABASE_ANON_KEY` ao `.env.example`
+  e documentar setup. Test passa skip→pass automático após config.
+
+---
+
 ## Sessão 7E-C (2026-05-08) — 27/32 PASS + 5 SKIP (3 BUGs reais)
 
 Suite 7E-C cobre 6 grupos de tests secundários pré-launch:

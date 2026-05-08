@@ -6,7 +6,29 @@ CEO-AI orchestrator vê via sync Obsidian
 (`.obsidian-vault/sessoes/07e_b_bugs.md`).
 
 > Espelho do ficheiro canónico `scripts/e2e/BUGS_FOUND.md`.
-> Última sync: 2026-05-08 (Sessão 7-UI-BUG004).
+> Última sync: 2026-05-08 (Sessão 7-α-MIGRATIONS-SYNC-MANUAL).
+
+---
+
+## ⚠️ TODOs governança DB
+
+### TODO 7-α (sync migrations locais) — PARTIAL 2026-05-08
+
+- ✅ **6 migrations `2026-05-08` sincronizadas** (commit `78c73ec`,
+  sessão `7-alpha-MIGRATIONS-SYNC-MANUAL`). SQL extraído directamente
+  de `supabase_migrations.schema_migrations` via MCP (Opção A) porque
+  `supabase db pull --linked` abortou por drift histórico massivo.
+- ⏸️ **Drift sistemático de ~140 migrations** DEFERIDO para sessão
+  dedicada de governança DB (`7-α-GOVERNANCE` — sugerida):
+  - ~70 ficheiros locais sem entry em `schema_migrations` prod
+    (CLI sugere `migration repair --status reverted`).
+  - ~80 entries em `schema_migrations` prod sem ficheiro local
+    (CLI sugere `migration repair --status applied`).
+  - `supabase db pull --linked` falha enquanto este drift não for
+    reconciliado.
+- 🟢 **Não bloqueia launch** — prod funciona normalmente; é apenas
+  drift de histórico CLI (cosmético). Resolver quando houver tempo
+  de auditoria profunda (~1-3h).
 
 ---
 

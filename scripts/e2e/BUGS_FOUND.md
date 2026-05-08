@@ -71,16 +71,32 @@ CEO-AI orchestrator vê via sync Obsidian
 
 ### BUG-7E-B-004 (HIGH) — Estafeta consegue cancelar `pickedUp`
 
-- **Status:** ✅ **FIXED em 7-FIX (2026-05-07)**
-- **Migration:** `20260507223338_fix_7e_b_bug_004_driver_cannot_cancel_pickedup`
-- **Comportamento novo:** RPC devolve
-  `{ok: false, error: 'cancel_blocked_after_pickup',
-  message: 'Após recolher o pedido, contacte o suporte para cancelar.',
-  support_required: true}`.
-- **TODO UI estafeta (Flutter):** detectar `support_required=true` e
-  mostrar botão "Contactar suporte" em vez de erro genérico.
+- **Status:** ✅ **CLOSED 2026-05-08 (Sessão 7-UI-BUG004)**
+- **Backend FIX:** 7-FIX (2026-05-07) — migration
+  `20260507223338_fix_7e_b_bug_004_driver_cannot_cancel_pickedup`.
+  RPC devolve `{ok:false, error:'cancel_blocked_after_pickup',
+  message:'Após recolher o pedido, contacte o suporte para cancelar.',
+  support_required:true}`.
+- **UI FIX:** 7-UI-BUG004 (2026-05-08) — ciclo completo encerrado:
+  - Novo widget `lib/widgets/cancel_blocked_pickup_sheet.dart` com 2
+    botões: "Contactar suporte" (verde Bora `AppTheme.primary`) +
+    "Ligar agora" (laranja Bora `AppTheme.secondary`, `tel:+351937501673`).
+  - `OrderStore.driverCancelAcceptedOrder` refactor: passa de
+    `Future<bool>` para `Future<Map<String,dynamic>>`, expondo
+    `support_required` à UI.
+  - `DriverHomeScreen._handleCancelDelivery` detecta
+    `support_required==true` e abre o bottom sheet; outros erros
+    preservam o SnackBar existente.
+  - `SupportChatScreen` aceita `String? initialMessage` opcional —
+    pre-fill `"Preciso cancelar o pedido #ID (já recolhido). Motivo: "`.
+  - Permissions: Android `<queries>` append `tel` intent +
+    iOS `LSApplicationQueriesSchemes` novo bloco com `tel`.
+  - Validação manual checklist em
+    `.claude/.ai/reports/2026-05-08_session_7_ui_bug004/02_validation_manual.md`.
 - **Test:** T37 `test_t37_driver_blocked_pickedup_redirects_support` —
-  invertido em 7-FIX para validar comportamento correcto.
+  invertido em 7-FIX para validar comportamento correcto. Backend-only.
+- **Não modificado:** `support-chatbot` Edge Fn v8 (PROTECTED) +
+  `admin_cancel_order` (RPC separada).
 
 #### Histórico (BUG original)
 - **Esperado:** decisão Danilo (2026-05-07) — bloquear `pickedUp` e
@@ -212,4 +228,4 @@ para launch.
 
 ---
 
-*Última actualização: 2026-05-08 — Sessão 7 MEGAFINAL (BUGs 001, 003, 006 closed; 6/6 BUGs 7E-B fechados)*
+*Última actualização: 2026-05-08 — Sessão 7-UI-BUG004 (BUG-004 ciclo completo encerrado: backend 7-FIX + UI 7-UI-BUG004; 6/6 BUGs 7E-B fechados em todas as camadas)*

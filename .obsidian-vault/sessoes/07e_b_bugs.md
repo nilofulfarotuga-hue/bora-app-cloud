@@ -6,7 +6,7 @@ CEO-AI orchestrator vê via sync Obsidian
 (`.obsidian-vault/sessoes/07e_b_bugs.md`).
 
 > Espelho do ficheiro canónico `scripts/e2e/BUGS_FOUND.md`.
-> Última sync: 2026-05-08 (Sessão 7 MEGAFINAL).
+> Última sync: 2026-05-08 (Sessão 7-UI-BUG004).
 
 ---
 
@@ -49,15 +49,25 @@ CEO-AI orchestrator vê via sync Obsidian
 
 ### BUG-7E-B-004 (HIGH) — Estafeta consegue cancelar `pickedUp`
 
-- **Status:** ✅ **FIXED em 7-FIX (2026-05-07)**
-- **Migration:** `20260507223338_fix_7e_b_bug_004_driver_cannot_cancel_pickedup`
-- **Comportamento novo:** RPC devolve
-  `{ok: false, error: 'cancel_blocked_after_pickup',
-  message: 'Após recolher o pedido, contacte o suporte para cancelar.',
-  support_required: true}`.
-- **TODO UI estafeta (Flutter):** detectar `support_required=true` e
-  mostrar botão "Contactar suporte".
-- **Test:** T37 `test_t37_driver_blocked_pickedup_redirects_support`.
+- **Status:** ✅ **CLOSED 2026-05-08 (Sessão 7-UI-BUG004 — ciclo completo)**
+- **Backend FIX:** 7-FIX (2026-05-07) — migration
+  `20260507223338_fix_7e_b_bug_004_driver_cannot_cancel_pickedup`.
+  RPC devolve `{ok:false, error:'cancel_blocked_after_pickup',
+  message:'Após recolher o pedido, contacte o suporte para cancelar.',
+  support_required:true}`.
+- **UI FIX:** 7-UI-BUG004 (2026-05-08):
+  - Widget novo `lib/widgets/cancel_blocked_pickup_sheet.dart` (verde
+    `AppTheme.primary` + laranja `AppTheme.secondary`).
+  - `OrderStore.driverCancelAcceptedOrder`: `Future<bool>` →
+    `Future<Map<String,dynamic>>`, expõe `support_required`.
+  - `DriverHomeScreen._handleCancelDelivery` abre bottom sheet quando
+    `support_required==true`; outros erros preservam SnackBar.
+  - `SupportChatScreen` aceita `String? initialMessage` opcional →
+    pre-fill `"Preciso cancelar o pedido #ID (já recolhido). Motivo: "`.
+  - Permissions: Android `<queries>` `tel` intent appended +
+    iOS `LSApplicationQueriesSchemes` adicionado.
+- **Test:** T37 `test_t37_driver_blocked_pickedup_redirects_support`
+  (backend-only, esperado).
 
 ---
 
@@ -118,7 +128,7 @@ CEO-AI orchestrator vê via sync Obsidian
 |---|---|---|---|
 | 001 | LOW | 7 MEGAFINAL (2026-05-08) | Doc fix |
 | 003 | LOW | 7 MEGAFINAL (2026-05-08) | FALSE POSITIVE |
-| 004 | HIGH | 7-FIX (2026-05-07) | Migration |
+| 004 | HIGH | 7-FIX backend + **7-UI-BUG004** UI (2026-05-08) | Migration + Flutter UI |
 | 005 | HIGH | 7-FIX (2026-05-07) | Migration |
 | 006 | MEDIUM | 7 MEGAFINAL (2026-05-08) | Setting + migration |
 | 007 | HIGH | 7-FIX (2026-05-07) | Migration |
@@ -127,4 +137,4 @@ CEO-AI orchestrator vê via sync Obsidian
 
 ---
 
-*Última actualização: 2026-05-08 — Sessão 7 MEGAFINAL (BUGs 001, 003, 006 closed; 6/6 fechados)*
+*Última actualização: 2026-05-08 — Sessão 7-UI-BUG004 (UI complementa backend BUG-004; 6/6 fechados em todas as camadas)*

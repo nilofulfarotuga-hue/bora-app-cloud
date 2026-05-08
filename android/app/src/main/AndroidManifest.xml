@@ -57,5 +57,11 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
+        <!-- Sessão 7-UI-BUG004: tel: launcher para botão "Ligar agora" do
+             bottom sheet de cancelamento bloqueado pós-pickedUp. -->
+        <intent>
+            <action android:name="android.intent.action.DIAL"/>
+            <data android:scheme="tel"/>
+        </intent>
     </queries>
 </manifest>

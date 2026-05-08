@@ -1134,18 +1134,34 @@ class OrderStore extends ChangeNotifier {
   /// `driver_cancel_order`. The RPC handles the DB-side transition back to
   /// `callingDriver` and re-triggers dispatch. Flutter only needs to remove
   /// the row from local state so the driver UI updates immediately.
-  Future<bool> driverCancelAcceptedOrder(OrderModel order) async {
+  ///
+  /// Sessão 7-UI-BUG004: a RPC devolve um JSON com `ok`, `error`,
+  /// `support_required` e `message`. Pós status `pickedUp` o backend
+  /// recusa com `support_required:true` (BUG-7E-B-004 fix em 7-FIX,
+  /// migration 20260507223338). Devolvemos o Map para a UI poder
+  /// abrir o bottom sheet de redirecção ao suporte.
+  Future<Map<String, dynamic>> driverCancelAcceptedOrder(
+      OrderModel order) async {
     try {
-      await supabase.rpc(
+      final response = await supabase.rpc(
         'driver_cancel_order',
         params: {'p_order_id': order.id},
       );
-      _orders.removeWhere((o) => o.id == order.id);
-      notifyListeners();
-      return true;
+      final result = (response is Map)
+          ? Map<String, dynamic>.from(response)
+          : <String, dynamic>{'ok': false, 'error': 'invalid_response'};
+      if (result['ok'] == true) {
+        _orders.removeWhere((o) => o.id == order.id);
+        notifyListeners();
+      }
+      return result;
     } catch (e) {
       debugPrint('[OrderStore] driverCancelAcceptedOrder: $e');
-      return false;
+      return <String, dynamic>{
+        'ok': false,
+        'error': 'rpc_exception',
+        'message': e.toString(),
+      };
     }
   }
 

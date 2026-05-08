@@ -13,9 +13,11 @@ import 'package:supabase_flutter/supabase_flutter.dart' show Supabase;
 import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
 import '../widgets/bora_support_fab.dart';
+import '../widgets/cancel_blocked_pickup_sheet.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../utils/constants.dart';
 import '../utils/map_utils.dart';
+import 'support_chat_screen.dart';
 
 import '../models/chat_message.dart';
 import '../models/driver_model.dart';
@@ -1527,14 +1529,47 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
 
   Future<void> _handleCancelDelivery(
       OrderModel order, OrderStore orderStore) async {
-    final success = await orderStore.driverCancelAcceptedOrder(order);
+    final result = await orderStore.driverCancelAcceptedOrder(order);
     if (!mounted) return;
+
+    // Sessão 7-UI-BUG004: pós-pickedUp o backend recusa com
+    // `support_required:true`. Abrir bottom sheet de redirecção
+    // ao suporte em vez do SnackBar genérico.
+    if (result['support_required'] == true) {
+      showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius:
+              BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (_) => CancelBlockedPickupSheet(
+          orderId: order.id,
+          onContactSupport: () => _openSupportChatForBlockedCancel(order.id),
+        ),
+      );
+      return;
+    }
+
+    final success = result['ok'] == true;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
           success
               ? 'Entrega cancelada. Pedido devolvido ao sistema.'
               : 'Não foi possível cancelar a entrega.',
+        ),
+      ),
+    );
+  }
+
+  void _openSupportChatForBlockedCancel(String orderId) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => SupportChatScreen(
+          orderId: orderId,
+          initialMessage:
+              'Preciso cancelar o pedido #$orderId (já recolhido). Motivo: ',
         ),
       ),
     );

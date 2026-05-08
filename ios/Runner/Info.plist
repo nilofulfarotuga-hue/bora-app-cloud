@@ -83,5 +83,11 @@
 		<string>fetch</string>
 		<string>remote-notification</string>
 	</array>
+	<!-- Sessão 7-UI-BUG004: tel: launcher para botão "Ligar agora" do
+	     bottom sheet de cancelamento bloqueado pós-pickedUp. -->
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>tel</string>
+	</array>
 </dict>
 </plist>

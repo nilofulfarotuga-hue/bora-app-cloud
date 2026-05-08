@@ -11,9 +11,18 @@ import '../providers/support_settings_provider.dart';
 import '../widgets/bora_support_sheet.dart';
 
 class SupportChatScreen extends StatefulWidget {
-  const SupportChatScreen({super.key, this.orderId});
+  const SupportChatScreen({
+    super.key,
+    this.orderId,
+    this.initialMessage,
+  });
 
   final String? orderId;
+
+  /// Sessão 7-UI-BUG004: pre-fill opcional do TextField. Permite redireccionar
+  /// o estafeta a partir do bottom sheet de cancelamento bloqueado pós-pickedUp
+  /// já com a mensagem inicial preenchida (pronta a editar e enviar).
+  final String? initialMessage;
 
   @override
   State<SupportChatScreen> createState() => _SupportChatScreenState();
@@ -40,6 +49,13 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
     _messages.add(_ChatMessage.assistant(
       'Olá! Sou a Bora IA. Como posso ajudar?',
     ));
+    final pre = widget.initialMessage;
+    if (pre != null && pre.isNotEmpty) {
+      _input.value = TextEditingValue(
+        text: pre,
+        selection: TextSelection.collapsed(offset: pre.length),
+      );
+    }
   }
 
   @override

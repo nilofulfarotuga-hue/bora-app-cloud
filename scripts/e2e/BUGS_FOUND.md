@@ -36,26 +36,36 @@ Cleanup OK: zero leaked test data em 6 sistemas validados via MCP.
   via `bora_role='admin'` em JWT.
 - **Detectado:** MCP query em prod + T63 DOCUMENT_ACTUAL.
 
-### BUG-7E-D-002 (HIGH) — RLS `reservations` partner read all
+### BUG-7E-D-002 (HIGH RGPD) — RLS `reservations` partner read all
 
-- **Status:** 🔴 **OPEN — DECISÃO DANILO PRÉ-LAUNCH** (privacidade
-  comprometida; pode bloquear launch consoante interpretação RGPD).
+- **Status:** ✅ **CLOSED 2026-05-08** (Danilo aprovou fix imediato
+  pós-7E-D — bloqueante RGPD para launch comercial em PT/UE).
+- **Migration:** `20260508160000_fix_bug_7ed_002_reservations_partner_rls_rgpd`
+  (aplicada via MCP em prod; ficheiro local commitado para sync).
+- **Fix aplicado:**
+  - DROP policy `reservations_partner_read_all` (qual=`true`).
+  - CREATE policy `reservations_partner_read_own` com qual:
+    ```sql
+    restaurant_id IN (SELECT id FROM restaurants WHERE user_ = auth.uid())
+    ```
+  - Validado em prod: 2 policies activas (client_owner + partner_read_own).
+- **Fluxo preservado:**
+  - Clientes mantêm `reservations_client_owner` ALL policy (ver
+    suas próprias reservas).
+  - Partner UPDATE (aceitar/rejeitar) via RPC
+    `partner_decide_reservation` SECURITY DEFINER (BUG-7E-C-003
+    já fixed previamente).
+- **Test reabilitado:** T64 com assertion invertida (valida nova
+  policy: partner SÓ vê reservas dos seus restaurantes).
+
+#### Histórico (BUG original)
 - **Tabela:** `reservations`.
-- **Policy:** `reservations_partner_read_all`.
-- **Problema:** `qual = "true"` → qualquer partner autenticado vê
-  TODAS as reservations de TODOS os restaurantes (incluindo nomes,
-  telefones, datas/horas reservadas em restaurantes concorrentes).
+- **Policy original:** `reservations_partner_read_all` qual=`true`.
+- **Problema:** qualquer partner autenticado via TODAS as reservations
+  de TODOS os restaurantes (incluindo nomes, telefones, datas/horas).
 - **Impacto:** PRIVACIDADE COMPROMETIDA. Cliente A reserva mesa em
-  restaurante B → partner C (concorrente) consegue ler o nome,
-  telefone e data/hora dessa reserva.
-- **Bloqueante launch:** **CONSIDERAR** — dados pessoais de clientes
-  (nome, telefone) expostos a partners não relacionados. RGPD risk.
-- **Fix sugerido:** alterar `qual` para
-  ```sql
-  restaurant_id IN (
-    SELECT id FROM restaurants WHERE user_ = auth.uid()
-  )
-  ```
+  restaurante B → partner C (concorrente) lia o nome, telefone e
+  data/hora dessa reserva.
 - **Detectado:** MCP query em prod + T64 DOCUMENT_ACTUAL.
 
 ### BUG-7E-D-003 (INFO) — `SUPABASE_ANON_KEY` ausente em env

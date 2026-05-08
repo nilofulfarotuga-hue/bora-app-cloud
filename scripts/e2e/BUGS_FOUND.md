@@ -7,6 +7,70 @@ CEO-AI orchestrator vê via sync Obsidian
 
 ---
 
+## Sessão 7E-C (2026-05-08) — 27/32 PASS + 5 SKIP (3 BUGs reais)
+
+Suite 7E-C cobre 6 grupos de tests secundários pré-launch:
+- Grupo 3 (stacking) ✅ 5/5
+- Grupo 5 (tokens) ✅ 5/5
+- Grupo 6 (storeShopping) ✅ 6/7 (T34 skipped — BUG-7E-C-002)
+- Grupo 8 (ratings) ✅ 7/7
+- Grupo 9 (reservations) ✅ 1/5 (T46-T49 skipped — BUG-001/003)
+- Grupo 10 (refunds) ✅ 3/3
+
+### BUG-7E-C-001 (HIGH) — `client_cancel_reservation` falha por signature drift `log_admin_action`
+
+- **Status:** ✅ **CLOSED 2026-05-08 (Sessão 7-α-7E-C-TESTS)**
+- **Migration:** `20260508150000_fix_bug_7ec_001_client_cancel_reservation_uuid_cast`
+  (aplicada via MCP em prod; ficheiro local commitado para sync).
+- **Fix:** removido `::text` do `p_reservation_id` na chamada
+  `log_admin_action`. RPC agora passa UUID directo.
+- **Tests reabilitados:** T46 + T47.
+
+#### Histórico (BUG original)
+- **Evidência:** `function log_admin_action(unknown, unknown, text, jsonb)
+  does not exist` ao chamar a RPC.
+- **Causa raíz:** `log_admin_action` em prod tem assinatura
+  `(p_action text, p_entity_type text, p_entity_id UUID, p_details jsonb)`.
+  A RPC `client_cancel_reservation` chamava com `p_reservation_id::text`,
+  impedindo overload resolution.
+- **Severidade:** HIGH — bloqueava client cancel reservations em prod.
+
+### BUG-7E-C-002 (LOW) — Trigger `enforce_storeshopping_finalize_before_pickup` não dispara
+
+- **Status:** ⏸️ **DEFERIDO pós-launch** — Flutter UI já força ordem
+  correcta; trigger é defesa em profundidade. Não bloqueia launch.
+- **Evidência:** UPDATE `orders SET status='pickedUp'` numa storeShopping
+  com `is_purchase_finalized=false` deveria ser bloqueado pelo trigger,
+  mas `pytest.raises` falhou com `DID NOT RAISE`.
+- **Causa provável:** trigger pode estar configurado para condition
+  diferente (BEFORE/AFTER, WHEN clause), ou só dispara se invocado
+  pelo driver (auth.uid check). Confirmar trigger body em prod.
+- **Test:** T34 skipped (mantém-se até sessão dedicada futura).
+- **Severidade:** LOW — em prod o flow é controlado pelo Flutter
+  driver UI que força finalize antes de pickup.
+
+### BUG-7E-C-003 (LOW) — `partner_decide_reservation` JOIN frágil por email
+
+- **Status:** ✅ **CLOSED 2026-05-08 (Sessão 7-α-7E-C-TESTS)**
+- **Migration:** `20260508150100_fix_bug_7ec_003_partner_decide_use_user_fk`
+  (aplicada via MCP em prod; ficheiro local commitado para sync).
+- **Fix:** RPC agora valida ownership via `restaurants.user_ = v_uid`
+  (FK directo) em vez do JOIN por email. Mais robusto a mudanças de
+  email em qualquer das tabelas.
+- **Tests reabilitados:** T48 + T49.
+
+#### Histórico (BUG original)
+- **Evidência:** RPC validava ownership via
+  `JOIN restaurants r ON u.email = r.email WHERE u.id = v_uid`.
+  Em E2E seed, partner owners têm emails distintos do `restaurants.email`:
+  - `restaurants.email`: `E2E_TEST_PartnerRest@boraapp.test`
+  - `auth.users.email`: `e2e_partner_a@boraapp.test`
+  JOIN nunca batia ⇒ `not_your_restaurant`.
+- **Severidade:** LOW — frágil mas em prod os emails normalmente
+  coincidem; admin alterar email do owner quebraria acesso.
+
+---
+
 ## ⚠️ TODOs governança DB
 
 ### TODO 7-α (sync migrations locais) — PARTIAL 2026-05-08

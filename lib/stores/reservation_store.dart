@@ -2,7 +2,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' show TimeOfDay;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../models/notify_entry.dart';
 import '../models/reservation_model.dart';
+import '../models/waitlist_entry.dart';
 
 /// Store cliente para reservas (Reservas PRO §51).
 ///
@@ -209,6 +211,76 @@ class ReservationStore extends ChangeNotifier {
       debugPrint('[ReservationStore] confirm payment: $e');
     } finally {
       await fetchMyReservations();
+    }
+  }
+
+  /// Lista próprias entries da fila de espera (RLS filtra por
+  /// client_user_id = auth.uid()).
+  Future<List<WaitlistEntry>> fetchMyWaitlist() async {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) {
+      throw Exception('Sessão expirada. Volta a entrar.');
+    }
+    try {
+      final res = await _supabase
+          .from('reservation_waitlist')
+          .select('*, restaurants(id, name, photo_url, image_url)')
+          .eq('client_user_id', userId)
+          .order('created_at', ascending: false);
+      return (res as List)
+          .map((row) =>
+              WaitlistEntry.fromMap(Map<String, dynamic>.from(row as Map)))
+          .toList();
+    } catch (e) {
+      debugPrint('[ReservationStore] fetchMyWaitlist error: $e');
+      throw Exception('Não foi possível carregar a fila de espera.');
+    }
+  }
+
+  /// Lista próprias entries de "avisar se vagar" (RLS).
+  Future<List<NotifyEntry>> fetchMyNotify() async {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) {
+      throw Exception('Sessão expirada. Volta a entrar.');
+    }
+    try {
+      final res = await _supabase
+          .from('reservation_notify_list')
+          .select('*, restaurants(id, name, photo_url, image_url)')
+          .eq('client_user_id', userId)
+          .order('created_at', ascending: false);
+      return (res as List)
+          .map((row) =>
+              NotifyEntry.fromMap(Map<String, dynamic>.from(row as Map)))
+          .toList();
+    } catch (e) {
+      debugPrint('[ReservationStore] fetchMyNotify error: $e');
+      throw Exception('Não foi possível carregar a lista "avisar se vagar".');
+    }
+  }
+
+  /// Cancela entry da fila (UPDATE status='cancelled').
+  /// NÃO DELETE — mantém audit trail e triggers analytics.
+  Future<void> leaveWaitlist(String waitlistId) async {
+    try {
+      await _supabase
+          .from('reservation_waitlist')
+          .update({'status': 'cancelled'}).eq('id', waitlistId);
+    } catch (e) {
+      debugPrint('[ReservationStore] leaveWaitlist error: $e');
+      throw Exception('Não foi possível sair da fila.');
+    }
+  }
+
+  /// Cancela entry da lista notify (UPDATE status='cancelled').
+  Future<void> leaveNotify(String notifyId) async {
+    try {
+      await _supabase
+          .from('reservation_notify_list')
+          .update({'status': 'cancelled'}).eq('id', notifyId);
+    } catch (e) {
+      debugPrint('[ReservationStore] leaveNotify error: $e');
+      throw Exception('Não foi possível sair da lista.');
     }
   }
 

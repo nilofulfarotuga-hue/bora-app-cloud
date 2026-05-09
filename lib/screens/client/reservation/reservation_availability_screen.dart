@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../../../config/app_theme.dart';
 import '../../../stores/reservation_store.dart';
 import 'reservation_checkout_screen.dart';
+import 'reservation_notify_join_screen.dart';
+import 'reservation_waitlist_join_screen.dart';
 
 /// Reservas PRO F3.B — busca slots disponíveis no restaurante.
 /// Date picker (locale pt_PT), party size, time picker opcional.
@@ -129,14 +131,6 @@ class _ReservationAvailabilityScreenState
           selectedDateTime: slotDateTime,
           partySize: _selectedPartySize,
         ),
-      ),
-    );
-  }
-
-  void _showComingSoon(String label) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$label — em breve, disponível na próxima atualização.'),
       ),
     );
   }
@@ -373,13 +367,34 @@ class _ReservationAvailabilityScreenState
             ),
             const SizedBox(height: 16),
             OutlinedButton.icon(
-              onPressed: () => _showComingSoon('Fila de espera'),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ReservationWaitlistJoinScreen(
+                    restaurantId: widget.restaurantId,
+                    restaurantName: widget.restaurantName,
+                    prefilledDate: _selectedDate,
+                    prefilledPartySize: _selectedPartySize,
+                  ),
+                ),
+              ),
               icon: const Icon(Icons.schedule),
               label: const Text('Entrar fila de espera'),
             ),
             const SizedBox(height: 8),
             OutlinedButton.icon(
-              onPressed: () => _showComingSoon('Avisar se vagar'),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ReservationNotifyJoinScreen(
+                    restaurantId: widget.restaurantId,
+                    restaurantName: widget.restaurantName,
+                    prefilledDate: _selectedDate,
+                    prefilledTime: _selectedTime,
+                    prefilledPartySize: _selectedPartySize,
+                  ),
+                ),
+              ),
               icon: const Icon(Icons.notifications_active_outlined),
               label: const Text('Avisar se vagar'),
             ),

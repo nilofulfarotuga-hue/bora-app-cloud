@@ -18,6 +18,7 @@ import '../stores/restaurant_store.dart';
 import '../services/sound_service.dart';
 import '../stores/session_store.dart';
 import '../widgets/address_text.dart';
+import 'partner/reservations/partner_reservations_home_screen.dart';
 import 'partner_call_driver_screen.dart';
 import 'partner_earnings_screen.dart';
 import 'partner_hours_screen.dart';
@@ -268,6 +269,24 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                   onChanged: (value) => restaurantStore
                       .toggleReservationsEnabled(currentRestaurant.id, value),
                 ),
+                if (currentRestaurant.reservationsEnabled) ...[
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => PartnerReservationsHomeScreen(
+                            restaurantId: currentRestaurant.id,
+                            restaurantName: currentRestaurant.name,
+                          ),
+                        ),
+                      ),
+                      icon: const Icon(Icons.event_seat),
+                      label: const Text('Reservas Pro'),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 24),
                 _OrdersSection(
                   orders: partnerOrders,

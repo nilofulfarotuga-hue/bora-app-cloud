@@ -25,6 +25,7 @@ import 'stores/chat_store.dart';
 import 'stores/driver_store.dart';
 import 'stores/order_store.dart';
 import 'stores/partner_product_store.dart';
+import 'stores/partner_reservas_store.dart';
 import 'stores/reservation_store.dart';
 import 'stores/restaurant_store.dart';
 import 'stores/favorite_store.dart';
@@ -156,6 +157,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         ),
         ChangeNotifierProvider<ReservationStore>(
           create: (_) => ReservationStore(),
+        ),
+        ChangeNotifierProvider<PartnerReservasStore>(
+          create: (_) => PartnerReservasStore(),
         ),
         ChangeNotifierProxyProvider<RestaurantStore, PartnerProductStore>(
           create: (_) => PartnerProductStore(),

@@ -37,6 +37,7 @@ import 'admin_partners_screen.dart';
 import 'admin_platform_settings_screen.dart';
 import 'admin_promo_codes_screen.dart';
 import 'admin_ratings_screen.dart';
+import 'admin_reservations_metrics_screen.dart';
 import 'admin_reservations_screen.dart';
 import 'admin_tokens_screen.dart';
 import 'admin_wallets_screen.dart';
@@ -326,6 +327,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       MaterialPageRoute(
                           builder: (_) =>
                               const AdminReservationsScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.bar_chart,
+                  title: 'Métricas Reservas Pro',
+                  subtitle: 'KPIs de reservas (7/30/90 dias)',
+                  color: Colors.deepPurple,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminReservationsMetricsScreen())),
                 ),
                 const SizedBox(height: 10),
                 _NavCard(

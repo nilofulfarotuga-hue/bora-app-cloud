@@ -446,6 +446,10 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
     with SingleTickerProviderStateMixin {
   late final AnimationController _flashController;
 
+  /// Anti double-tap durante a chamada `restaurantMarkReady`. Map por orderId
+  /// para coexistir com o pattern usado no resto do dashboard parceiro.
+  final Map<String, bool> _chamandobusy = {};
+
   bool get _isNew => widget.order.status == OrderStatus.created;
 
   @override
@@ -518,7 +522,6 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
   Widget _buildContent(ThemeData theme) {
     final order = widget.order;
     final isNew = _isNew;
-    final canCallDriver = order.status == OrderStatus.preparing;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -697,29 +700,129 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
                   label: const Text('Rejeitar'),
                 ),
               ),
-            ] else if (canCallDriver) ...[
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    widget.onCallDriver(order);
-                  },
-                  icon: const Icon(Icons.local_shipping_outlined),
-                  label: const Text('Chamar estafeta'),
-                ),
-              ),
             ] else ...[
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: null,
-                  icon: const Icon(Icons.timelapse_outlined),
-                  label: Text(order.status.label),
-                ),
-              ),
+              Expanded(child: _buildBotaoEstafeta(order)),
             ],
           ],
         ),
       ],
     );
+  }
+
+  Future<void> _chamarEstafeta(OrderModel order) async {
+    final orderId = order.id;
+    if (_chamandobusy[orderId] == true) return;
+
+    setState(() => _chamandobusy[orderId] = true);
+    try {
+      await widget.onCallDriver(order);
+    } finally {
+      if (mounted) {
+        setState(() => _chamandobusy.remove(orderId));
+      }
+    }
+  }
+
+  Widget _buildBotaoEstafeta(OrderModel order) {
+    final busy = _chamandobusy[order.id] == true;
+
+    switch (order.status) {
+      case OrderStatus.preparing:
+        return SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: busy ? null : () => _chamarEstafeta(order),
+            icon: busy
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Icon(Icons.delivery_dining),
+            label: Text(busy ? 'A chamar...' : 'Chamar estafeta'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFE65100),
+              foregroundColor: Colors.white,
+              minimumSize: const Size(double.infinity, 48),
+            ),
+          ),
+        );
+
+      case OrderStatus.callingDriver:
+        return SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: null,
+            icon: const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.white70,
+              ),
+            ),
+            label: const Text('Aguardando estafeta...'),
+            style: ElevatedButton.styleFrom(
+              disabledBackgroundColor: Colors.grey.shade400,
+              disabledForegroundColor: Colors.white,
+              minimumSize: const Size(double.infinity, 48),
+            ),
+          ),
+        );
+
+      case OrderStatus.driverAccepted:
+      case OrderStatus.pickedUp:
+      case OrderStatus.onTheWay:
+        return SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: null,
+            icon: const Icon(Icons.directions_bike),
+            label: const Text('Estafeta a caminho'),
+            style: ElevatedButton.styleFrom(
+              disabledBackgroundColor: Colors.grey.shade400,
+              disabledForegroundColor: Colors.white,
+              minimumSize: const Size(double.infinity, 48),
+            ),
+          ),
+        );
+
+      case OrderStatus.delivered:
+        return SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: null,
+            icon: const Icon(Icons.check_circle),
+            label: const Text('Entregue ✓'),
+            style: ElevatedButton.styleFrom(
+              disabledBackgroundColor: const Color(0xFF1B5E20),
+              disabledForegroundColor: Colors.white,
+              minimumSize: const Size(double.infinity, 48),
+            ),
+          ),
+        );
+
+      case OrderStatus.rejected:
+      case OrderStatus.cancelled:
+        return SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: null,
+            icon: const Icon(Icons.cancel_outlined),
+            label: Text(order.status.label),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(double.infinity, 48),
+              foregroundColor: Colors.grey,
+            ),
+          ),
+        );
+
+      case OrderStatus.created:
+        return const SizedBox.shrink();
+    }
   }
 }
 

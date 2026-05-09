@@ -471,6 +471,13 @@ class RestaurantStore extends ChangeNotifier {
 
     debugPrint('RestaurantStore: registering partner ${restaurant.name}');
 
+    // user_ é o owner do restaurante (auth.uid()). Sem isto o RLS bloqueia
+    // tudo o que o parceiro tenta fazer no seu próprio restaurante.
+    final ownerUid = supabase.auth.currentUser?.id;
+    if (ownerUid == null) {
+      throw StateError('Sessão expirada — faz login novamente.');
+    }
+
     try {
       await supabase.from('restaurants').insert({
         'id': restaurant.id,
@@ -484,6 +491,7 @@ class RestaurantStore extends ChangeNotifier {
         'category': restaurant.category.name,
         'is_online': true,
         'business_hours': restaurant.businessHours.toJson(),
+        'user_': ownerUid,
         if (restaurant.lat != null) 'lat': restaurant.lat,
         if (restaurant.lng != null) 'lng': restaurant.lng,
       });

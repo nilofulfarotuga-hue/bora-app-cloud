@@ -3416,7 +3416,101 @@ em prod (zero drift).
 
 ---
 
+## §51 — RESERVAS PRO F2 BACKEND CORE (Sessão reservas-pro-F2-BACKEND-CORE · 2026-05-09)
+
+F2 aplicado 2026-05-09. Camada lógica de negócio sobre F1 SCHEMA (§50).
+
+### §51.1 — 4 RPCs Cliente
+
+- `client_search_availability(restaurant_id, date, party_size, time?)` —
+  devolve slots disponíveis com turn time + max_covers + tables.
+- `client_join_waitlist(restaurant_id, party, target_date, time_window)` —
+  entra fila FIFO + valida não-blocked.
+- `client_join_notify(restaurant_id, date, time, party, flexibility)` —
+  modelo OpenTable Notify, expira em 24h.
+- `client_arrived(reservation_id)` — push parceiro "cliente chegou".
+
+### §51.2 — 6 RPCs Parceiro
+
+- `partner_create_floor_plan(name, is_default, dimensions)`
+- `partner_add_table(numero, capacity, zona, pos_xy, shape)`
+- `partner_combine_tables(table_id, combinable_with[])`
+- `partner_seat_walk_in(party, table_id, name?, phone?)` —
+  cria reserva `is_walk_in=true` já seated.
+- `partner_mark_seated(reservation_id, table_id?)` —
+  push cliente "mesa pronta".
+- `partner_mark_finished(reservation_id)` —
+  auto-update profile (visits++, auto-VIP).
+
+### §51.3 — 5 Triggers automáticos
+
+- `trg_reservation_notify_partner_new` (INSERT) → push parceiro "nova reserva pendente"
+- `trg_reservation_late_cancel` (UPDATE status) → push parceiro "oportunidade" + auto-match notify list (max 5 FIFO)
+- `trg_reservation_seated` (UPDATE seated_at) → push cliente
+- `trg_reservation_finished` (UPDATE finished_at) → auto-update `client_restaurant_profiles`
+- `trg_waitlist_notify_partner_new` (INSERT) → push parceiro
+
+### §51.4 — 5 CRON Jobs (pg_cron)
+
+- `reservas_pro_reminders_24h` (a cada 30min)
+- `reservas_pro_reminders_2h` (a cada 15min)
+- `reservas_pro_pending_alert` (a cada 1min — alerta parceiro >5min)
+- `reservas_pro_morning_summary` (8h UTC daily — sumário reservas hoje)
+- `reservas_pro_expire_lists` (a cada hora — waitlist + notify_list)
+
+### §51.5 — 9 Notificações Parceiro automáticas
+
+1. Nova reserva pendente
+2. Pendente >5min sem resposta (urgente)
+3. Resumo manhã 8h
+4. Cliente cancelou tardio (oportunidade)
+5. Cliente chegou (estou aqui)
+6. Walk-in entrou waitlist
+7. Notify list activada (X clientes notificados)
+8. (Reservado VIP — F4)
+9. (Reservado cliente blocked tentou reservar — F4)
+
+### §51.6 — 7 Notificações Cliente automáticas
+
+1. Reserva confirmada (parceiro accept)
+2. Reserva rejeitada (parceiro recusou)
+3. Lembrete 24h antes
+4. Lembrete 2h antes
+5. Mesa pronta (parceiro seated)
+6. Notify list match (vagou — 15min para confirmar)
+7. (Reservado waitlist chamado — F4)
+
+### §51.7 — Auto-Logic
+
+- Auto-VIP após 5 visits OK.
+- Auto-block após 3 no-shows OU 5 late cancels (settings em `platform_settings`).
+- Profile auto-update no `finished_at`.
+
+### §51.8 — FCM Real (TODO post-launch)
+
+Helper `_reservas_pro_notify_partner_push` tem chamada `net.http_post`
+comentada. Activar quando Firebase Service Account configurado em
+production secrets. Por agora só in-app notifications.
+
+### §51.9 — Migrations files locais
+
+- `20260509000041_reservas_pro_f2a_triggers_and_helpers.sql`
+- `20260509000306_reservas_pro_f2b_client_rpcs.sql`
+- `20260509000407_reservas_pro_f2c_partner_rpcs.sql`
+- `20260509000453_reservas_pro_f2d_cron_jobs.sql`
+
+Timestamps batem com `supabase_migrations.schema_migrations` em prod.
+
+### §51.10 — Roadmap
+
+- F1 SCHEMA: APLICADA (§50, commit `39fd6e9`)
+- F2 BACKEND CORE: APLICADA (esta secção)
+- F3 UI CLIENTE: PENDENTE (~3-5h)
+- F4 UI PARCEIRO + ADMIN: PENDENTE (~5-10h)
+
+---
+
 *Documento de regras de negócio — Bora App*
-*Última atualização: 2026-05-08 (§50 — Reservas PRO F1 SCHEMA · 8 tabelas + 10 cols + 13 settings)*
+*Última atualização: 2026-05-09 (§51 — Reservas PRO F2 BACKEND CORE · 10 RPCs + 5 triggers + 5 CRONs)*
 *Atualizar sempre que houver mudanças nas regras de negócio*
 *Fonte de verdade usada por: todas as skills do sistema*

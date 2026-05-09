@@ -422,12 +422,22 @@ Toda a navegação é gerida pelo `_RootNavigator` em `main.dart` — **widget-r
 
 ### 13. Reservas PRO
 
-Sistema de reservas mesa BEST-IN-CLASS aplicado 2026-05-08.
+Sistema de reservas mesa BEST-IN-CLASS aplicado 2026-05-08/09.
 
-**Estado:** F1 SCHEMA aplicada (8 tabelas + 10 cols `reservations` + 13 settings novos). F2 BACKEND CORE pendente.
+**Estado:** F1 SCHEMA + F2 BACKEND CORE aplicados. F3 UI CLIENTE pendente.
+
+**F1 SCHEMA (2026-05-08):** 8 tabelas + 10 cols `reservations` + 13 settings novos.
 
 **Tabelas:** `restaurant_floor_plans`, `restaurant_tables`, `restaurant_pacing_rules`, `restaurant_turn_times`, `reservation_table_assignments`, `reservation_waitlist`, `reservation_notify_list`, `client_restaurant_profiles`.
 
-**Detalhes:** ver `.claude/.ai/business_rules.md` §50.
+**F2 BACKEND CORE (2026-05-09):**
+- 4 RPCs cliente (`client_search_availability`, `client_join_waitlist`, `client_join_notify`, `client_arrived`)
+- 6 RPCs parceiro (`partner_create_floor_plan`, `partner_add_table`, `partner_combine_tables`, `partner_seat_walk_in`, `partner_mark_seated`, `partner_mark_finished`)
+- 5 triggers (4 reservations + 1 waitlist)
+- 5 CRON jobs pg_cron (reminders 24h/2h, pending alert, morning summary, expire lists)
+- 9 notificações parceiro + 7 cliente automáticas
+- Auto-logic: auto-VIP após 5 visits, auto-block após 3 no-shows / 5 late cancels
 
-**Roadmap:** F2 BACKEND CORE → F3 UI CLIENTE → F4 UI PARCEIRO + ADMIN.
+**Detalhes:** ver `.claude/.ai/business_rules.md` §50 (schema) + §51 (backend).
+
+**Roadmap:** F3 UI CLIENTE → F4 UI PARCEIRO + ADMIN.

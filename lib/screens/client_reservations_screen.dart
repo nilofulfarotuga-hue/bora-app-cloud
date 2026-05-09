@@ -1,54 +1,54 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../models/reservation_model.dart';
+import '../stores/reservation_store.dart';
+import '../widgets/bora/bora.dart';
 import '../widgets/bora_support_fab.dart';
 
-/// T2.E (BR §18) — Lista de reservas do cliente + cancel button.
+/// T2.E (BR §18) + Reservas PRO F3.A — Lista de reservas do cliente.
+/// 3 tabs: Próximas / Passadas / Canceladas.
+/// Preserva _cancel() (RPC client_cancel_reservation, lógica refund <2h).
 class ClientReservationsScreen extends StatefulWidget {
   const ClientReservationsScreen({super.key});
+
   @override
   State<ClientReservationsScreen> createState() =>
       _ClientReservationsScreenState();
 }
 
-class _ClientReservationsScreenState extends State<ClientReservationsScreen> {
-  bool _loading = true;
-  List<Map<String, dynamic>> _items = const [];
+class _ClientReservationsScreenState extends State<ClientReservationsScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
 
   @override
   void initState() {
     super.initState();
-    _load();
+    _tabController = TabController(length: 3, vsync: this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<ReservationStore>().fetchMyReservations();
+    });
   }
 
-  Future<void> _load() async {
-    setState(() => _loading = true);
-    try {
-      final res = await Supabase.instance.client
-          .from('reservations')
-          .select()
-          .eq('client_user_id',
-              Supabase.instance.client.auth.currentUser?.id ?? '')
-          .order('reserved_for', ascending: false)
-          .limit(100);
-      if (!mounted) return;
-      setState(() {
-        _items = (res as List).cast<Map<String, dynamic>>();
-        _loading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _loading = false);
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Erro: $e')));
-    }
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
-  Future<void> _cancel(Map<String, dynamic> r) async {
-    final reservedFor = DateTime.parse(r['reserved_for'] as String);
+  Future<void> _refresh() =>
+      context.read<ReservationStore>().fetchMyReservations();
+
+  /// Cancela reserva via RPC client_cancel_reservation.
+  /// Mantém lógica refund <2h (BR §18). Não usa F2 RPCs (cancel é F3.B scope).
+  Future<void> _cancel(ReservationModel r) async {
+    final reservedFor = r.reservedFor;
     final hoursUntil =
         reservedFor.difference(DateTime.now()).inMinutes / 60.0;
     final willRefund = hoursUntil >= 2.0;
+    final prepaymentEur = (r.prepaymentCents / 100).toStringAsFixed(2);
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -56,123 +56,212 @@ class _ClientReservationsScreenState extends State<ClientReservationsScreen> {
         title: const Text('Cancelar reserva?'),
         content: Text(
           willRefund
-              ? 'Faltam ${hoursUntil.toStringAsFixed(1)}h. Reembolso de €${((r['prepayment_cents'] as num) / 100).toStringAsFixed(2)} em 5–10 dias.'
-              : 'Faltam apenas ${hoursUntil.toStringAsFixed(1)}h (<2h). Pré-pagamento de €${((r['prepayment_cents'] as num) / 100).toStringAsFixed(2)} NÃO é devolvido.',
+              ? 'Faltam ${hoursUntil.toStringAsFixed(1)}h. Reembolso de €$prepaymentEur em 5–10 dias.'
+              : 'Faltam apenas ${hoursUntil.toStringAsFixed(1)}h (<2h). Pré-pagamento de €$prepaymentEur NÃO é devolvido.',
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Voltar')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Voltar'),
+          ),
           FilledButton(
             style: FilledButton.styleFrom(
-                backgroundColor: willRefund ? null : Colors.red),
+              backgroundColor: willRefund ? null : Colors.red,
+            ),
             onPressed: () => Navigator.pop(ctx, true),
-            child:
-                Text(willRefund ? 'Cancelar com reembolso' : 'Cancelar (perco €3)'),
+            child: Text(willRefund
+                ? 'Cancelar com reembolso'
+                : 'Cancelar (perco €$prepaymentEur)'),
           ),
         ],
       ),
     );
 
-    if (confirmed != true) return;
+    if (confirmed != true || !mounted) return;
 
     try {
-      await Supabase.instance.client.rpc('client_cancel_reservation',
-          params: {
-            'p_reservation_id': r['id'],
-            'p_reason': null,
-          });
+      await Supabase.instance.client.rpc(
+        'client_cancel_reservation',
+        params: {
+          'p_reservation_id': r.id,
+          'p_reason': null,
+        },
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Reserva cancelada.')));
-      _load();
+        const SnackBar(content: Text('Reserva cancelada.')),
+      );
+      await _refresh();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Erro ao cancelar: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao cancelar: $e')),
+      );
     }
   }
 
-  Color _statusColor(String status) {
-    switch (status) {
-      case 'approved':
-      case 'arrived':
-        return Colors.green;
-      case 'pending':
-      case 'pending_payment':
-        return Colors.orange;
-      case 'no_show':
-      case 'cancelled_no_refund':
-      case 'rejected_refunded':
-        return Colors.red;
-      case 'cancelled_refunded':
-        return Colors.blueGrey;
-      default:
-        return Colors.grey;
+  /// Cliente carrega "estou aqui" (RPC F2 client_arrived).
+  Future<void> _markArrived(ReservationModel r) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await context.read<ReservationStore>().markArrived(r.id);
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Chegada confirmada. O parceiro foi avisado.')),
+      );
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.toString())));
     }
   }
 
-  String _statusLabel(String s) => {
-        'pending_payment': 'Aguardando pagamento',
-        'pending': 'Aguardando restaurante',
-        'approved': 'Aprovada',
-        'arrived': 'Chegou (crédito atribuído)',
-        'rejected_refunded': 'Rejeitada (reembolsada)',
-        'cancelled_refunded': 'Cancelada (reembolsada)',
-        'cancelled_no_refund': 'Cancelada (sem reembolso)',
-        'no_show': 'Falta',
-      }[s] ??
-      s;
+  void _openDetails(ReservationModel r) {
+    // F3.B: ecrã detalhes completo (com edit/checkout/floor plan).
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Detalhes da reserva — em breve.'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('As minhas reservas')),
       floatingActionButton: const BoraSupportFab(),
-      body: RefreshIndicator(
-        onRefresh: _load,
-        child: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : _items.isEmpty
-                ? ListView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    children: const [
-                      SizedBox(height: 80),
-                      Center(child: Text('Sem reservas.')),
-                    ],
-                  )
-                : ListView.builder(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    itemCount: _items.length,
-                    itemBuilder: (_, i) {
-                      final r = _items[i];
-                      final status = r['status'] as String? ?? '';
-                      final reservedFor =
-                          DateTime.tryParse(r['reserved_for'] as String? ?? '');
-                      final canCancel = const ['pending', 'approved']
-                          .contains(status);
-                      return Card(
-                        child: ListTile(
-                          leading: Icon(
-                            Icons.event_seat,
-                            color: _statusColor(status),
-                          ),
-                          title: Text(
-                              '${r['people']} pax · ${reservedFor != null ? "${reservedFor.day}/${reservedFor.month} ${reservedFor.hour.toString().padLeft(2, '0')}:${reservedFor.minute.toString().padLeft(2, '0')}" : '—'}'),
-                          subtitle: Text(
-                              '${_statusLabel(status)}\n€${((r['prepayment_cents'] as num? ?? 0) / 100).toStringAsFixed(2)}'),
-                          isThreeLine: true,
-                          trailing: canCancel
-                              ? IconButton(
-                                  icon: const Icon(Icons.cancel,
-                                      color: Colors.red),
-                                  onPressed: () => _cancel(r),
-                                )
-                              : null,
-                        ),
-                      );
-                    },
+      appBar: AppBar(
+        title: const Text('As minhas reservas'),
+        bottom: TabBar(
+          controller: _tabController,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          indicatorColor: Colors.white,
+          tabs: const [
+            Tab(text: 'Próximas'),
+            Tab(text: 'Passadas'),
+            Tab(text: 'Canceladas'),
+          ],
+        ),
+      ),
+      body: Consumer<ReservationStore>(
+        builder: (context, store, _) {
+          if (store.loading && store.myReservations.isEmpty) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (store.error != null && store.myReservations.isEmpty) {
+            return _ErrorState(
+              message: store.error!,
+              onRetry: _refresh,
+            );
+          }
+          return TabBarView(
+            controller: _tabController,
+            children: [
+              _ReservationList(
+                reservations: store.upcomingReservations,
+                onRefresh: _refresh,
+                emptyText:
+                    'Ainda não tens reservas. Vai à página do restaurante para reservar mesa!',
+                buildCard: (r) => ReservationCard(
+                  reservation: r,
+                  onDetails: () => _openDetails(r),
+                  onArrive: r.isApproved && r.arrivedAt == null
+                      ? () => _markArrived(r)
+                      : null,
+                  onCancel: () => _cancel(r),
+                ),
+              ),
+              _ReservationList(
+                reservations: store.pastReservations,
+                onRefresh: _refresh,
+                emptyText: 'Sem reservas passadas.',
+                buildCard: (r) => ReservationCard(
+                  reservation: r,
+                  onDetails: () => _openDetails(r),
+                ),
+              ),
+              _ReservationList(
+                reservations: store.cancelledReservations,
+                onRefresh: _refresh,
+                emptyText: 'Sem reservas canceladas.',
+                buildCard: (r) => ReservationCard(
+                  reservation: r,
+                  onDetails: () => _openDetails(r),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _ReservationList extends StatelessWidget {
+  const _ReservationList({
+    required this.reservations,
+    required this.onRefresh,
+    required this.emptyText,
+    required this.buildCard,
+  });
+
+  final List<ReservationModel> reservations;
+  final Future<void> Function() onRefresh;
+  final String emptyText;
+  final Widget Function(ReservationModel) buildCard;
+
+  @override
+  Widget build(BuildContext context) {
+    return RefreshIndicator(
+      onRefresh: onRefresh,
+      child: reservations.isEmpty
+          ? ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: [
+                const SizedBox(height: 80),
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32),
+                    child: Text(
+                      emptyText,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.black54),
+                    ),
                   ),
+                ),
+              ],
+            )
+          : ListView.builder(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              itemCount: reservations.length,
+              itemBuilder: (_, i) => buildCard(reservations[i]),
+            ),
+    );
+  }
+}
+
+class _ErrorState extends StatelessWidget {
+  const _ErrorState({required this.message, required this.onRetry});
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline, size: 48, color: Colors.red),
+            const SizedBox(height: 12),
+            Text(message, textAlign: TextAlign.center),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: onRetry,
+              child: const Text('Tentar de novo'),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -20,6 +20,7 @@ import '../services/auth_admin_service.dart';
 import '../services/wallet_service.dart';
 import '../stores/driver_store.dart';
 import '../stores/session_store.dart';
+import 'client_reservations_screen.dart';
 import 'orders_screen.dart';
 import 'referral_screen.dart';
 import 'support_screen.dart';
@@ -537,6 +538,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(builder: (_) => const OrdersScreen()),
+                    ),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.calendar_today_outlined,
+                        color: AppTheme.primary),
+                    title: const Text('Minhas Reservas'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const ClientReservationsScreen()),
                     ),
                   ),
                   ListTile(

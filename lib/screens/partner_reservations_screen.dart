@@ -145,30 +145,49 @@ class _ReservationCard extends StatelessWidget {
       case ReservationStatus.pending:
         return 'Pendente';
       case ReservationStatus.accepted:
+      case ReservationStatus.approved:
         return 'Aceite';
       case ReservationStatus.suggestedOtherTime:
         return 'Sugerida outra hora';
       case ReservationStatus.rejected:
+      case ReservationStatus.rejectedRefunded:
         return 'Recusada';
       case ReservationStatus.customerArrived:
+      case ReservationStatus.arrived:
         return 'Cliente chegou';
       case ReservationStatus.cancelled:
+      case ReservationStatus.cancelledRefunded:
+      case ReservationStatus.cancelledNoRefund:
         return 'Cancelada';
+      case ReservationStatus.noShow:
+        return 'Não compareceu';
+      default:
+        return reservation.status;
     }
   }
 
   Color get _statusColor {
     switch (reservation.status) {
       case ReservationStatus.pending:
+      case ReservationStatus.pendingPayment:
         return Colors.orange;
       case ReservationStatus.accepted:
+      case ReservationStatus.approved:
+      case ReservationStatus.confirmed:
       case ReservationStatus.customerArrived:
+      case ReservationStatus.arrived:
         return Colors.green;
       case ReservationStatus.suggestedOtherTime:
         return Colors.blue;
       case ReservationStatus.rejected:
+      case ReservationStatus.rejectedRefunded:
       case ReservationStatus.cancelled:
+      case ReservationStatus.cancelledRefunded:
+      case ReservationStatus.cancelledNoRefund:
+      case ReservationStatus.noShow:
         return Colors.red;
+      default:
+        return Colors.grey;
     }
   }
 

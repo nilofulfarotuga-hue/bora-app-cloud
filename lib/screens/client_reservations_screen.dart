@@ -6,6 +6,7 @@ import '../models/reservation_model.dart';
 import '../stores/reservation_store.dart';
 import '../widgets/bora/bora.dart';
 import '../widgets/bora_support_fab.dart';
+import 'client/reservation/reservation_details_screen.dart';
 
 /// T2.E (BR §18) + Reservas PRO F3.A — Lista de reservas do cliente.
 /// 3 tabs: Próximas / Passadas / Canceladas.
@@ -114,11 +115,13 @@ class _ClientReservationsScreenState extends State<ClientReservationsScreen>
   }
 
   void _openDetails(ReservationModel r) {
-    // F3.B: ecrã detalhes completo (com edit/checkout/floor plan).
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Detalhes da reserva — em breve.'),
-        duration: Duration(seconds: 2),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ReservationDetailsScreen(
+          reservation: r,
+          onCancelRequested: () => _cancel(r),
+        ),
       ),
     );
   }

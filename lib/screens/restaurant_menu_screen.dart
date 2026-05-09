@@ -12,8 +12,8 @@ import '../stores/restaurant_store.dart';
 import '../widgets/bora/bora.dart';
 import '../widgets/bora_support_fab.dart';
 import 'cart_screen.dart';
+import 'client/reservation/reservation_availability_screen.dart';
 import 'product_detail_screen.dart';
-import 'reservation_flow_screen.dart';
 
 class RestaurantMenuScreen extends StatelessWidget {
   final Restaurant restaurant;
@@ -147,8 +147,11 @@ class RestaurantMenuScreen extends StatelessWidget {
                   onPressed: () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) =>
-                          ReservationFlowScreen(restaurant: model),
+                      builder: (_) => ReservationAvailabilityScreen(
+                        restaurantId: model.id,
+                        restaurantName: model.name,
+                        restaurantPhotoUrl: model.photoUrl,
+                      ),
                     ),
                   ),
                   icon: const Icon(Icons.event_seat_outlined),

@@ -155,6 +155,63 @@ class ReservationStore extends ChangeNotifier {
     }
   }
 
+  /// Cria PaymentIntent Stripe para reserva via Edge Function.
+  /// Edge Fn `create-reservation-payment-intent` v3 aceita: restaurant_id,
+  /// people, reserved_for, client_name, client_phone, notes (combinado).
+  /// Resposta: { reservation_id, paymentIntentId, clientSecret, amount_cents }.
+  Future<Map<String, dynamic>> createReservationPaymentIntent({
+    required String restaurantId,
+    required int people,
+    required DateTime reservedFor,
+    String? combinedNotes,
+    String? clientName,
+    String? clientPhone,
+  }) async {
+    try {
+      final response = await _supabase.functions.invoke(
+        'create-reservation-payment-intent',
+        body: {
+          'restaurant_id': restaurantId,
+          'people': people,
+          'reserved_for': reservedFor.toUtc().toIso8601String(),
+          if (combinedNotes != null && combinedNotes.isNotEmpty)
+            'notes': combinedNotes,
+          if (clientName != null && clientName.isNotEmpty)
+            'client_name': clientName,
+          if (clientPhone != null && clientPhone.isNotEmpty)
+            'client_phone': clientPhone,
+        },
+      );
+      if (response.data == null) {
+        throw Exception('Resposta vazia do servidor.');
+      }
+      final data = Map<String, dynamic>.from(response.data as Map);
+      if (data.containsKey('error')) {
+        throw Exception(_mapErrorPtPt(data['error'].toString()));
+      }
+      return data;
+    } catch (e) {
+      debugPrint('[ReservationStore] createPaymentIntent error: $e');
+      rethrow;
+    }
+  }
+
+  /// Confirma pagamento da reserva após Stripe sucesso (RPC F2 fallback).
+  /// Webhook auto-confirma payment_status; este RPC é fallback que valida
+  /// estado client-side e refresh state.
+  Future<void> confirmReservationPayment(String reservationId) async {
+    try {
+      await _supabase.rpc(
+        'client_confirm_reservation_payment',
+        params: {'p_reservation_id': reservationId},
+      );
+    } catch (e) {
+      debugPrint('[ReservationStore] confirm payment: $e');
+    } finally {
+      await fetchMyReservations();
+    }
+  }
+
   // ─── Helpers ─────────────────────────────────────────────────────────────
 
   String _formatDate(DateTime d) =>

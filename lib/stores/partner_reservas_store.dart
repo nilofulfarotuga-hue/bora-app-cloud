@@ -28,7 +28,7 @@ class PartnerReservasStore extends ChangeNotifier {
     try {
       var query = _supabase
           .from('reservations')
-          .select('*, users:client_user_id(name, phone)')
+          .select('*')
           .eq('restaurant_id', restaurantId);
 
       switch (filter) {

@@ -1,8 +1,8 @@
 configurations.all {
     resolutionStrategy {
-        force("org.jetbrains.kotlin:kotlin-stdlib:2.1.0")
-        force("org.jetbrains.kotlin:kotlin-stdlib-jdk7:2.1.0")
-        force("org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.1.0")
+        force("org.jetbrains.kotlin:kotlin-stdlib:2.3.10")
+        force("org.jetbrains.kotlin:kotlin-stdlib-jdk7:2.3.10")
+        force("org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.3.10")
     }
 }
 
@@ -24,8 +24,10 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
+    kotlin {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        }
     }
 
     defaultConfig {
@@ -68,7 +70,7 @@ flutter {
 
 dependencies {
     implementation("androidx.appcompat:appcompat:1.7.0")
-    implementation("org.jetbrains.kotlin:kotlin-stdlib:2.1.0")
+    implementation("org.jetbrains.kotlin:kotlin-stdlib:2.3.10")
 }
 
 

@@ -13,6 +13,17 @@
 //
 // Called by:
 //   • Flutter NotificationService.notifyPartnerNewOrder() — fire-and-forget after createOrder
+//   • DB helper _reservas_pro_notify_partner_push() — fire-and-forget for reservations/waitlist
+//
+// Body fields:
+//   orderId      (required) — order id OR reservation/waitlist id (used in data payload)
+//   restaurantId (required) — used to look up restaurants.fcm_token
+//   items        (optional) — order items summary, used only when customBody is absent
+//   total        (optional) — order total in EUR, used only when customBody is absent
+//   customTitle  (optional) — overrides hardcoded "🔔 Novo pedido!"
+//   customBody   (optional) — overrides items+total composition
+//   kind         (optional) — Android channel_id and data.type override
+//                             ("bora_orders"/"new_order" if absent)
 //
 // Returns 200 in all cases (including when Firebase is not configured or
 // the restaurant has no FCM token) so the caller never needs to retry.
@@ -48,6 +59,9 @@ Deno.serve(async (req) => {
   let restaurantId: string
   let items: string
   let total: number
+  let customTitle: string | undefined
+  let customBody: string | undefined
+  let kind: string | undefined
 
   try {
     const body  = await req.json()
@@ -55,6 +69,12 @@ Deno.serve(async (req) => {
     restaurantId = body.restaurantId
     items        = body.items ?? ''
     total        = Number(body.total ?? 0)
+    customTitle  = typeof body.customTitle === 'string' && body.customTitle.length > 0
+      ? body.customTitle : undefined
+    customBody   = typeof body.customBody === 'string' && body.customBody.length > 0
+      ? body.customBody : undefined
+    kind         = typeof body.kind === 'string' && body.kind.length > 0
+      ? body.kind : undefined
   } catch (e) {
     return new Response(
       JSON.stringify({ ok: false, error: 'Invalid JSON body' }),
@@ -94,13 +114,18 @@ Deno.serve(async (req) => {
     )
   }
 
-  console.log(`[notify-partner] Sending push to restaurant=${restaurantId} (${restaurant.name}) order=${orderId}`)
+  console.log(`[notify-partner] Sending push to restaurant=${restaurantId} (${restaurant.name}) order=${orderId} kind=${kind ?? 'new_order'}`)
 
-  // ── Build notification body ───────────────────────────────────────────────
-  // e.g. "2x Sushi, 1x Ramen • €24.50"
-  const bodyText = items
+  // ── Build notification title + body ───────────────────────────────────────
+  // customTitle/customBody override, else fall back to legacy "novo pedido" composition.
+  const title = customTitle ?? '🔔 Novo pedido!'
+  const bodyText = customBody ?? (items
     ? `${items} • €${total.toFixed(2)}`
-    : `Novo pedido • €${total.toFixed(2)}`
+    : `Novo pedido • €${total.toFixed(2)}`)
+
+  // Channel + data.type — `kind` overrides both. Defaults stay backward-compatible.
+  const channelId = kind ?? 'bora_orders'
+  const dataType  = kind ?? 'new_order'
 
   // ── Obtain Firebase OAuth2 access token ──────────────────────────────────
   let accessToken: string
@@ -122,18 +147,18 @@ Deno.serve(async (req) => {
     message: {
       token: restaurant.fcm_token,
       notification: {
-        title: '🔔 Novo pedido!',
+        title,
         body: bodyText,
       },
       data: {
         orderId:      String(orderId),
         restaurantId: String(restaurantId),
-        type:         'new_order',
+        type:         dataType,
       },
       android: {
         priority: 'high',
         notification: {
-          channel_id: 'bora_orders',
+          channel_id: channelId,
           sound:      'bora_alert',
         },
       },

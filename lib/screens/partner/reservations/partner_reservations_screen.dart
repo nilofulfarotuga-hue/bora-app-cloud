@@ -33,13 +33,14 @@ class _PartnerReservationsScreenState extends State<PartnerReservationsScreen>
   late TabController _tabController;
   late Future<List<ReservationModel>> _pendingFuture;
   late Future<List<ReservationModel>> _todayFuture;
+  late Future<List<ReservationModel>> _futureFuture;
   late Future<List<ReservationModel>> _historyFuture;
   Map<String, ClientRestaurantProfile> _profilesByClientId = {};
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _refreshAll();
   }
 
@@ -59,6 +60,10 @@ class _PartnerReservationsScreenState extends State<PartnerReservationsScreen>
       _todayFuture = store.fetchRestaurantReservations(
         restaurantId: widget.restaurantId,
         filter: 'today',
+      );
+      _futureFuture = store.fetchRestaurantReservations(
+        restaurantId: widget.restaurantId,
+        filter: 'future',
       );
       _historyFuture = store.fetchRestaurantReservations(
         restaurantId: widget.restaurantId,
@@ -289,6 +294,7 @@ class _PartnerReservationsScreenState extends State<PartnerReservationsScreen>
           tabs: const [
             Tab(text: 'Pendentes'),
             Tab(text: 'Hoje'),
+            Tab(text: 'Futuras'),
             Tab(text: 'Histórico'),
           ],
         ),
@@ -298,6 +304,7 @@ class _PartnerReservationsScreenState extends State<PartnerReservationsScreen>
         children: [
           _buildList(_pendingFuture, 'Sem reservas pendentes.'),
           _buildList(_todayFuture, 'Sem reservas hoje.'),
+          _buildFutureList(_futureFuture),
           _buildList(_historyFuture, 'Sem reservas passadas.'),
         ],
       ),
@@ -373,6 +380,89 @@ class _PartnerReservationsScreenState extends State<PartnerReservationsScreen>
       },
     );
   }
+
+  // BUG 3 — separador "Futuras" agrupado por data (header sticky).
+  Widget _buildFutureList(Future<List<ReservationModel>> future) {
+    return FutureBuilder<List<ReservationModel>>(
+      future: future,
+      builder: (context, snap) {
+        if (snap.connectionState != ConnectionState.done) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snap.hasError) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.error_outline,
+                      size: 48, color: Colors.red),
+                  const SizedBox(height: 12),
+                  Text(
+                    snap.error.toString().replaceFirst('Exception: ', ''),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                  ElevatedButton(
+                    onPressed: () async => _refreshAll(),
+                    child: const Text('Tentar de novo'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+        final list = snap.data ?? const <ReservationModel>[];
+        if (list.isEmpty) {
+          return RefreshIndicator(
+            onRefresh: () async => _refreshAll(),
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: const [
+                SizedBox(height: 80),
+                Center(
+                  child: Text(
+                    'Sem reservas futuras agendadas.',
+                    style: TextStyle(color: AppTheme.textSecondary),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+        // Agrupa por dia local preservando ordem ASC do servidor.
+        final items = <Widget>[];
+        String? currentKey;
+        for (final r in list) {
+          final local = r.reservedFor.toLocal();
+          final key = '${local.year}-${local.month}-${local.day}';
+          if (key != currentKey) {
+            currentKey = key;
+            items.add(_FutureDateHeader(date: local));
+          }
+          items.add(_ReservationCard(
+            reservation: r,
+            profile: _profilesByClientId[r.clientUserId],
+            readOnly: true,
+            onAccept: () async {},
+            onReject: () async {},
+            onMarkArrival: () async {},
+            onSeat: () async {},
+            onFinish: () async {},
+          ));
+        }
+        return RefreshIndicator(
+          onRefresh: () async => _refreshAll(),
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            children: items,
+          ),
+        );
+      },
+    );
+  }
 }
 
 class _ReservationCard extends StatefulWidget {
@@ -384,6 +474,7 @@ class _ReservationCard extends StatefulWidget {
     required this.onMarkArrival,
     required this.onSeat,
     required this.onFinish,
+    this.readOnly = false,
   });
 
   final ReservationModel reservation;
@@ -393,6 +484,7 @@ class _ReservationCard extends StatefulWidget {
   final Future<void> Function() onMarkArrival;
   final Future<void> Function() onSeat;
   final Future<void> Function() onFinish;
+  final bool readOnly;
 
   @override
   State<_ReservationCard> createState() => _ReservationCardState();
@@ -506,8 +598,10 @@ class _ReservationCardState extends State<_ReservationCard> {
                 ),
               ),
             ],
-            const SizedBox(height: 10),
-            _buildActions(r),
+            if (!widget.readOnly) ...[
+              const SizedBox(height: 10),
+              _buildActions(r),
+            ],
           ],
         ),
       ),
@@ -765,5 +859,37 @@ class _TablePickerSheet extends StatelessWidget {
       default:
         return 'Interior';
     }
+  }
+}
+
+class _FutureDateHeader extends StatelessWidget {
+  const _FutureDateHeader({required this.date});
+
+  final DateTime date;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 6),
+      child: Text(
+        _formatDateHeaderPt(date),
+        style: const TextStyle(
+          fontWeight: FontWeight.w700,
+          color: AppTheme.textPrimary,
+          fontSize: 14,
+        ),
+      ),
+    );
+  }
+
+  static String _formatDateHeaderPt(DateTime d) {
+    const wd = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+    const mo = [
+      'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
+      'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez',
+    ];
+    final w = wd[(d.weekday - 1).clamp(0, 6)];
+    final m = mo[(d.month - 1).clamp(0, 11)];
+    return '$w, ${d.day} $m';
   }
 }

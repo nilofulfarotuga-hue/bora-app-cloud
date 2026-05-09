@@ -20,7 +20,7 @@ class PartnerReservasStore extends ChangeNotifier {
 
   // ───────────── RESERVAS ─────────────
 
-  /// `filter`: 'pending' / 'approved' / 'today' / 'all' / 'history'.
+  /// `filter`: 'pending' / 'approved' / 'today' / 'future' / 'all' / 'history'.
   Future<List<ReservationModel>> fetchRestaurantReservations({
     required String restaurantId,
     String filter = 'today',
@@ -45,6 +45,13 @@ class PartnerReservasStore extends ChangeNotifier {
           query = query
               .gte('reserved_for', start.toIso8601String())
               .lt('reserved_for', end.toIso8601String());
+          break;
+        case 'future':
+          // BUG 3 — reservas futuras (após NOW), ainda activas.
+          final now = DateTime.now();
+          query = query
+              .gt('reserved_for', now.toIso8601String())
+              .inFilter('status', ['pending', 'approved', 'arrived']);
           break;
         case 'history':
           final today = DateTime.now();

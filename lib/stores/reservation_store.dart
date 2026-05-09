@@ -111,8 +111,11 @@ class ReservationStore extends ChangeNotifier {
       final result = await _supabase.rpc('client_join_waitlist', params: params);
       return Map<String, dynamic>.from(result as Map);
     } on PostgrestException catch (e) {
+      debugPrint(
+          '[ReservationStore] joinWaitlist PostgrestException: code=${e.code} message=${e.message} details=${e.details} hint=${e.hint}');
       throw Exception(_mapErrorPtPt(e.code ?? e.message));
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('[ReservationStore] joinWaitlist error: $e\n$st');
       throw Exception('Erro ao entrar na fila. Tenta de novo.');
     }
   }
@@ -312,6 +315,10 @@ class ReservationStore extends ChangeNotifier {
       'not_your_reservation': 'Esta reserva não é tua.',
       'already_arrived': 'Já carregaste "estou aqui".',
       'user_not_found': 'Conta não encontrada.',
+      'profile_incomplete_name':
+          'Adiciona o teu nome no perfil antes de entrar na fila.',
+      'profile_incomplete_phone':
+          'Adiciona o teu telefone no perfil antes de entrar na fila.',
     };
     if (mapping.containsKey(code)) return mapping[code]!;
     if (code.startsWith('cannot_arrive_status')) {

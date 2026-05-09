@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:vibration/vibration.dart';
 
@@ -37,6 +38,9 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
   final Set<String> _knownCreatedOrderIds = <String>{};
   final SoundService _soundService = SoundService();
   Timer? _vibrationTimer;
+  int _pendingReservationsCount = 0;
+  final Set<String> _seenPendingReservationIds = <String>{};
+  RealtimeChannel? _reservationsChannel;
 
   @override
   void initState() {
@@ -45,11 +49,74 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
       if (!mounted) return;
       context.read<PartnerProductStore>().selectRestaurant(widget.restaurant);
       context.read<OrderStore>().loadOrders();
+      unawaited(_loadPendingReservationsCount());
+      _subscribeReservationsRealtime();
     });
+  }
+
+  Future<void> _loadPendingReservationsCount() async {
+    try {
+      final rows = await Supabase.instance.client
+          .from('reservations')
+          .select('id')
+          .eq('restaurant_id', widget.restaurant.id)
+          .eq('status', 'pending');
+      if (!mounted) return;
+      final list = (rows as List).cast<Map<String, dynamic>>();
+      _seenPendingReservationIds
+        ..clear()
+        ..addAll(list.map((r) => r['id'].toString()));
+      final count = list.length;
+      if (count != _pendingReservationsCount) {
+        setState(() => _pendingReservationsCount = count);
+      }
+    } catch (e) {
+      debugPrint(
+          '[PartnerDashboard] _loadPendingReservationsCount error: $e');
+    }
+  }
+
+  void _subscribeReservationsRealtime() {
+    if (_reservationsChannel != null) return;
+    final channelName = 'partner_reservations_${widget.restaurant.id}';
+    _reservationsChannel = Supabase.instance.client
+        .channel(channelName)
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'reservations',
+          callback: (payload) {
+            if (!mounted) return;
+            final rec = payload.newRecord;
+            if (rec.isEmpty) return;
+            if (rec['restaurant_id'] != widget.restaurant.id) return;
+            if (rec['status'] != 'pending') return;
+            final id = rec['id']?.toString();
+            if (id == null || _seenPendingReservationIds.contains(id)) return;
+            _seenPendingReservationIds.add(id);
+            setState(() => _pendingReservationsCount += 1);
+            final clientName =
+                (rec['client_name'] as String?)?.trim().isNotEmpty == true
+                    ? rec['client_name'] as String
+                    : 'cliente';
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Nova reserva de $clientName'),
+                backgroundColor: AppColors.warning,
+                duration: const Duration(seconds: 4),
+              ),
+            );
+            debugPrint(
+                '[PartnerDashboard] realtime new pending reservation $id');
+          },
+        )
+      ..subscribe();
   }
 
   @override
   void dispose() {
+    _reservationsChannel?.unsubscribe();
+    _reservationsChannel = null;
     _vibrationTimer?.cancel();
     _soundService.dispose();
     super.dispose();
@@ -220,6 +287,21 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (currentRestaurant.reservationsEnabled &&
+                    _pendingReservationsCount > 0) ...[
+                  _PendingReservationsBadge(
+                    count: _pendingReservationsCount,
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => PartnerReservationsHomeScreen(
+                          restaurantId: currentRestaurant.id,
+                          restaurantName: currentRestaurant.name,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 _EarningsSummary(
                   todayAmount: todayEarnings,
                   weekAmount: weekEarnings,
@@ -1190,6 +1272,64 @@ class _ActionButton extends StatelessWidget {
             ),
             const Icon(Icons.chevron_right),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PendingReservationsBadge extends StatelessWidget {
+  const _PendingReservationsBadge({
+    required this.count,
+    required this.onTap,
+  });
+
+  final int count;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = count == 1
+        ? '1 reserva pendente'
+        : '$count reservas pendentes';
+    return Material(
+      color: AppColors.warning,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              const Icon(Icons.event_seat, color: Colors.white, size: 22),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    const Text(
+                      'Toca para abrir Reservas Pro',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: Colors.white),
+            ],
+          ),
         ),
       ),
     );

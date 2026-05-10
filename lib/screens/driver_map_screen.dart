@@ -110,6 +110,19 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
       Duration(milliseconds: 16); // ~60 fps
   static const double _jitterThresholdMetres = 1.0; // skip animation below this
 
+  // ── Waze-style camera (BUG B) ─────────────────────────────────────────────
+  // Driver pose: closer zoom, 3D tilt, bearing follows direction of travel.
+  static const double _wazeZoom = 17.5;
+  static const double _wazeTilt = 45.0;
+  // Auto-resume follow after 15 s if user pans manually.
+  static const Duration _followResumeDelay = Duration(seconds: 15);
+  bool _followCamera = true;
+  Timer? _followResumeTimer;
+  // Differentiate user-initiated vs programmatic camera moves. Set true
+  // immediately before any animateCamera call; reset after 250 ms.
+  bool _programmaticMove = false;
+  Timer? _programmaticMoveTimer;
+
   // Debounce timer: delays the Directions API call by 2.5 s after the last
   // qualifying movement, preventing bursts during rapid position updates.
   Timer? _debounceTimer;
@@ -179,6 +192,8 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
   void dispose() {
     _debounceTimer?.cancel();
     _interpolationTimer?.cancel();
+    _followResumeTimer?.cancel();
+    _programmaticMoveTimer?.cancel();
     _positionSubscription?.cancel();
     _directionsService.dispose();
     super.dispose();
@@ -414,6 +429,56 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
     if (mounted) setState(() {});
   }
 
+  /// Wraps animateCamera so user-vs-programmatic moves can be told apart.
+  /// Sets [_programmaticMove] for ~250 ms; onCameraMoveStarted treats moves
+  /// during that window as system-driven and won't pause follow mode.
+  void _animateCameraProgrammatic(CameraUpdate update) {
+    _programmaticMove = true;
+    _programmaticMoveTimer?.cancel();
+    _programmaticMoveTimer = Timer(const Duration(milliseconds: 250), () {
+      _programmaticMove = false;
+    });
+    _mapController?.animateCamera(update);
+  }
+
+  /// Builds the Waze-style camera pose for the driver map (zoom 17.5,
+  /// tilt 45°, bearing follows direction of travel).
+  CameraUpdate _wazeCameraUpdate(ll.LatLng target) {
+    return CameraUpdate.newCameraPosition(CameraPosition(
+      target: target.toGMaps(),
+      zoom: _wazeZoom,
+      tilt: _wazeTilt,
+      bearing: _bearing,
+    ));
+  }
+
+  /// User panned the map manually → pause auto-follow for [_followResumeDelay].
+  void _onUserCameraMoveStarted() {
+    if (_programmaticMove) return; // ignore our own animateCamera triggers
+    _followResumeTimer?.cancel();
+    _followResumeTimer = Timer(_followResumeDelay, () {
+      if (!mounted) return;
+      setState(() => _followCamera = true);
+      final pos = _smoothedPosition;
+      if (pos != null) {
+        _animateCameraProgrammatic(_wazeCameraUpdate(pos));
+      }
+    });
+    if (_followCamera) {
+      setState(() => _followCamera = false);
+    }
+  }
+
+  /// Recenter button → snap to driver with full Waze pose + resume follow.
+  void _onRecenter() {
+    final pos = _smoothedPosition;
+    _followResumeTimer?.cancel();
+    setState(() => _followCamera = true);
+    if (pos != null) {
+      _animateCameraProgrammatic(_wazeCameraUpdate(pos));
+    }
+  }
+
   /// Smooth Uber-style interpolation from the CURRENT displayed position to
   /// the new GPS fix. Updates both the marker (via [_smoothedPosition] +
   /// setState) and the camera (via [animateCamera]) in lockstep at ~60 fps.
@@ -432,9 +497,13 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
     if (_smoothedPosition == null) {
       _smoothedPosition = newPos;
       if (mounted) setState(() {});
-      _mapController?.animateCamera(
-        CameraUpdate.newLatLng(newPos.toGMaps()),
-      );
+      if (_followCamera) {
+        _animateCameraProgrammatic(_wazeCameraUpdate(newPos));
+      } else {
+        _animateCameraProgrammatic(
+          CameraUpdate.newLatLng(newPos.toGMaps()),
+        );
+      }
       return;
     }
 
@@ -486,9 +555,9 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
       setState(() {
         _smoothedPosition = intermediate;
       });
-      _mapController?.animateCamera(
-        CameraUpdate.newLatLng(intermediate.toGMaps()),
-      );
+      if (_followCamera) {
+        _animateCameraProgrammatic(_wazeCameraUpdate(intermediate));
+      }
 
       if (currentFrame >= totalFrames) {
         // Clamp to exact target and stop.
@@ -717,6 +786,7 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
               onMapCreated: (controller) {
                 _mapController = controller;
               },
+              onCameraMoveStarted: _onUserCameraMoveStarted,
             ),
           ),
 
@@ -730,19 +800,22 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
             ),
           ),
 
-          // Center-on-driver button — centres on the currently-displayed
-          // (smoothed) position so the camera lands exactly where the marker
-          // is, even mid-animation.
+          // Recenter button — restores Waze pose (zoom 17.5, tilt 45°,
+          // bearing) and resumes follow mode. Positioned mid-right so it
+          // doesn't collide with the support FAB (top) or the bottom sheet.
           Positioned(
-            top: topPadding + 8,
-            right: 12,
-            child: _MapButton(
-              icon: Icons.my_location,
-              onTap: () {
-                _mapController?.animateCamera(
-                  CameraUpdate.newLatLng(displayPosition.toGMaps()),
-                );
-              },
+            right: 16,
+            top: MediaQuery.of(context).size.height * 0.62,
+            child: Semantics(
+              label: 'Centralizar mapa',
+              button: true,
+              child: FloatingActionButton.small(
+                heroTag: 'map_recenter_btn_driver',
+                backgroundColor: const Color(0xFF1B5E20),
+                foregroundColor: Colors.white,
+                onPressed: _onRecenter,
+                child: const Icon(Icons.my_location),
+              ),
             ),
           ),
 

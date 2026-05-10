@@ -43,6 +43,16 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   ll.LatLng? _lastCameraTarget;
   bool _ratingNavigated = false;
 
+  // ── Waze-style camera (BUG B) — client overview pose ────────────────────
+  // Wider than driver's pose so origin+destination+driver fit on screen.
+  static const double _wazeZoom = 16.5;
+  static const double _wazeTilt = 30.0;
+  static const Duration _followResumeDelay = Duration(seconds: 15);
+  bool _followCamera = true;
+  Timer? _followResumeTimer;
+  bool _programmaticMove = false;
+  Timer? _programmaticMoveTimer;
+
   @override
   void initState() {
     super.initState();
@@ -52,7 +62,54 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   @override
   void dispose() {
     _directionsService.dispose();
+    _followResumeTimer?.cancel();
+    _programmaticMoveTimer?.cancel();
     super.dispose();
+  }
+
+  Future<void> _animateCameraProgrammatic(CameraUpdate update) async {
+    _programmaticMove = true;
+    _programmaticMoveTimer?.cancel();
+    _programmaticMoveTimer = Timer(const Duration(milliseconds: 250), () {
+      _programmaticMove = false;
+    });
+    if (!_mapController.isCompleted) return;
+    final controller = await _mapController.future;
+    await controller.animateCamera(update);
+  }
+
+  CameraUpdate _wazeCameraUpdate(ll.LatLng target) =>
+      CameraUpdate.newCameraPosition(CameraPosition(
+        target: target.toGMaps(),
+        zoom: _wazeZoom,
+        tilt: _wazeTilt,
+        bearing: 0, // client view is north-up
+      ));
+
+  void _onUserCameraMoveStarted() {
+    if (_programmaticMove) return;
+    _followResumeTimer?.cancel();
+    _followResumeTimer = Timer(_followResumeDelay, () {
+      if (!mounted) return;
+      setState(() => _followCamera = true);
+      // Force a re-fit on next build by clearing the dedup memo.
+      _lastCameraDriver = null;
+      _lastCameraTarget = null;
+    });
+    if (_followCamera) {
+      setState(() => _followCamera = false);
+    }
+  }
+
+  void _onRecenter() {
+    _followResumeTimer?.cancel();
+    setState(() => _followCamera = true);
+    _lastCameraDriver = null;
+    _lastCameraTarget = null;
+    // Force an immediate camera refresh on the next frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() {});
+    });
   }
 
   OrderModel _freshOrder(OrderStore orderStore) {
@@ -133,16 +190,21 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   }
 
   Future<void> _fitCamera(ll.LatLng driver, ll.LatLng target) async {
+    if (!_followCamera) return; // user is panning manually
     if (!_mapController.isCompleted) return;
     if (_lastCameraDriver == driver && _lastCameraTarget == target) return;
     _lastCameraDriver = driver;
     _lastCameraTarget = target;
-    final controller = await _mapController.future;
     final bounds = boundsFromPoints(
       _routePoints.isNotEmpty ? _routePoints : <ll.LatLng>[driver, target],
     );
     if (bounds != null) {
-      await controller.animateCamera(CameraUpdate.newLatLngBounds(bounds, 100));
+      await _animateCameraProgrammatic(
+        CameraUpdate.newLatLngBounds(bounds, 100),
+      );
+    } else {
+      // Single point fallback: Waze pose centred on the driver.
+      await _animateCameraProgrammatic(_wazeCameraUpdate(driver));
     }
   }
 
@@ -241,7 +303,8 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
           GoogleMap(
             initialCameraPosition: CameraPosition(
               target: mapCenter.toGMaps(),
-              zoom: 14,
+              zoom: _wazeZoom,
+              tilt: _wazeTilt,
             ),
             markers: markers,
             polylines: polylines,
@@ -252,6 +315,25 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
             onMapCreated: (c) {
               if (!_mapController.isCompleted) _mapController.complete(c);
             },
+            onCameraMoveStarted: _onUserCameraMoveStarted,
+          ),
+
+          // ── Recenter button (BUG E) — mid-right, doesn't collide with
+          // BoraSupportFab (top-right) or the draggable bottom sheet.
+          Positioned(
+            right: 16,
+            top: MediaQuery.of(context).size.height * 0.62,
+            child: Semantics(
+              label: 'Centralizar mapa',
+              button: true,
+              child: FloatingActionButton.small(
+                heroTag: 'map_recenter_btn_client',
+                backgroundColor: const Color(0xFF1B5E20),
+                foregroundColor: Colors.white,
+                onPressed: _onRecenter,
+                child: const Icon(Icons.my_location),
+              ),
+            ),
           ),
 
           // ── Back button ────────────────────────────────────────────────────

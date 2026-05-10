@@ -1,0 +1,13 @@
+appId: com.example.bora_app
+name: Parceiro — Login
+tags:
+  - parceiro
+  - auth
+---
+- launchApp:
+    clearState: true
+- runFlow: ../../_shared/login_parceiro.yaml
+
+# Sucesso = dashboard parceiro visível.
+- assertVisible:
+    text: "Reservas Pro|Pedidos|Ganhos"

@@ -1,0 +1,30 @@
+appId: com.example.bora_app
+name: Parceiro — Rejeitar pedido com motivo
+tags:
+  - parceiro
+  - pedidos
+---
+- launchApp:
+    clearState: true
+- runFlow: ../../_shared/login_parceiro.yaml
+
+- runFlow:
+    when:
+      visible: "Rejeitar"
+    commands:
+      - tapOn:
+          text: "Rejeitar"
+          index: 0
+      - extendedWaitUntil:
+          visible:
+            text: "Motivo|Razão"
+          timeout: 10000
+      - tapOn:
+          text: "Motivo|Razão"
+      - inputText: "Sem stock"
+      - tapOn:
+          text: "Confirmar|Rejeitar"
+      - extendedWaitUntil:
+          visible:
+            text: "rejeitado|cancelado"
+          timeout: 15000

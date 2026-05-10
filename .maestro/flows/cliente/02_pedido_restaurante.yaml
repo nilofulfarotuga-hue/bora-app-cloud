@@ -1,0 +1,46 @@
+appId: com.example.bora_app
+name: Cliente — Pedido restaurante (golden path)
+tags:
+  - cliente
+  - pedidos
+  - restaurante
+---
+- launchApp:
+    clearState: true
+- runFlow: ../../_shared/login_cliente.yaml
+
+# Tile do serviço Restaurante (lib/data/fake_data.dart tem 5 restaurantes seed).
+- tapOn: "Restaurante"
+- extendedWaitUntil:
+    visible: "Pizza"
+    timeout: 10000
+# Selecciona o primeiro restaurante visível (Pizza Danilo do seed).
+- tapOn:
+    text: ".*[Pp]izza.*"
+- waitForAnimationToEnd
+
+# Adicionar primeiro produto disponível.
+- tapOn:
+    text: "Adicionar"
+    index: 0
+- waitForAnimationToEnd
+
+# Ir para o carrinho.
+- tapOn: "Carrinho"
+- extendedWaitUntil:
+    visible: "Finalizar"
+    timeout: 10000
+- tapOn: "Finalizar"
+
+# Checkout — escolher Cash (sem cartão real para teste E2E).
+- runFlow:
+    when:
+      visible: "Dinheiro"
+    commands:
+      - tapOn: "Dinheiro"
+- tapOn:
+    text: "Pagar|Confirmar pedido"
+- extendedWaitUntil:
+    visible:
+      text: "preparando|criado|a preparar"
+    timeout: 30000

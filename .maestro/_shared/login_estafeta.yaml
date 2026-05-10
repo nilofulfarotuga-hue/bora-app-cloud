@@ -1,0 +1,22 @@
+appId: com.example.bora_app
+---
+# Sub-flow: login como estafeta. Driver demo phone 910000000 / 123456.
+- evalScript: ${output.phone = MAESTRO_DRIVER_PHONE ?? "910000000"}
+- evalScript: ${output.pwd = MAESTRO_DRIVER_PASSWORD ?? "123456"}
+
+- runFlow:
+    when:
+      visible: "Estafeta"
+    commands:
+      - tapOn: "Estafeta"
+      - extendedWaitUntil:
+          visible: "Telefone"
+          timeout: 10000
+      - tapOn: "Telefone"
+      - inputText: ${output.phone}
+      - tapOn: "Palavra-passe"
+      - inputText: ${output.pwd}
+      - tapOn: "Entrar"
+      - extendedWaitUntil:
+          notVisible: "Entrar"
+          timeout: 15000

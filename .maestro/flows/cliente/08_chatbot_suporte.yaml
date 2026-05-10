@@ -1,0 +1,32 @@
+appId: com.example.bora_app
+name: Cliente — Chatbot Bora IA
+tags:
+  - cliente
+  - suporte
+  - chatbot
+---
+- launchApp:
+    clearState: true
+- runFlow: ../../_shared/login_cliente.yaml
+
+# FAB de suporte (BoraSupportFab) presente em vários ecrãs.
+- tapOn:
+    text: "Ajuda|Bora IA|Suporte"
+- extendedWaitUntil:
+    visible:
+      text: "Bora IA|Como posso ajudar"
+    timeout: 10000
+
+- tapOn:
+    text: "Mensagem|Escreve|Pergunta"
+- inputText: "oi"
+- tapOn:
+    text: "Enviar"
+    optional: true
+- pressKey: Enter
+
+# Aguardar resposta do bot.
+- extendedWaitUntil:
+    visible:
+      text: "Olá|Posso ajudar|Sobre o Bora"
+    timeout: 30000

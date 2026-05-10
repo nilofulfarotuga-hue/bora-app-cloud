@@ -1,0 +1,37 @@
+appId: com.example.bora_app
+name: Cliente — Entrar na fila de espera
+tags:
+  - cliente
+  - reservas
+  - waitlist
+---
+- launchApp:
+    clearState: true
+- runFlow: ../../_shared/login_cliente.yaml
+
+- tapOn: "Reservar Mesa"
+- extendedWaitUntil:
+    visible: "Pizza"
+    timeout: 10000
+- tapOn:
+    text: ".*[Pp]izza.*"
+- waitForAnimationToEnd
+
+# Cair em "Entrar na fila de espera" se restaurante sem slots livres,
+# ou via opção explícita.
+- tapOn:
+    text: "Entrar na fila|fila de espera"
+
+- extendedWaitUntil:
+    visible: "Lista de espera em"
+    timeout: 10000
+
+- tapOn:
+    text: "^2$"
+    optional: true
+
+- tapOn: "Entrar na fila"
+- extendedWaitUntil:
+    visible:
+      text: "Estás na fila|Posição"
+    timeout: 15000

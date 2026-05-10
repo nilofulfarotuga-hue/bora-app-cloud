@@ -1,0 +1,38 @@
+appId: com.example.bora_app
+name: Parceiro — Walk-in (sentar cliente sem reserva)
+tags:
+  - parceiro
+  - reservas
+  - walk-in
+---
+- launchApp:
+    clearState: true
+- runFlow: ../../_shared/login_parceiro.yaml
+
+- tapOn: "Reservas Pro"
+- extendedWaitUntil:
+    visible:
+      text: "Walk-in|Walk in"
+    timeout: 10000
+- tapOn:
+    text: "Walk-in|Walk in"
+
+- extendedWaitUntil:
+    visible:
+      text: "Mesa|Lugar"
+    timeout: 10000
+
+- runFlow:
+    when:
+      visible: "Mesa"
+    commands:
+      - tapOn:
+          text: "Mesa"
+          index: 0
+
+- tapOn:
+    text: "Sentar|Confirmar"
+- extendedWaitUntil:
+    visible:
+      text: "Sentado|Cliente sentado"
+    timeout: 15000

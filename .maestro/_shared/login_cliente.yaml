@@ -1,0 +1,27 @@
+appId: com.example.bora_app
+---
+# Sub-flow: login como cliente. Invocado via runFlow.
+# Pre-condição: app aberta no role-picker OU já logada (idempotente).
+- evalScript: ${output.email = MAESTRO_CLIENT_EMAIL ?? "nilofulfarotuga@gmail.com"}
+- evalScript: ${output.pwd = MAESTRO_CLIENT_PASSWORD ?? "123456"}
+
+# Se já há sessão activa o role-picker não aparece — saltar com runFlow when.
+- runFlow:
+    when:
+      visible: "Cliente"
+    commands:
+      - tapOn: "Cliente"
+      - extendedWaitUntil:
+          visible: "Email"
+          timeout: 10000
+      - tapOn:
+          id: "email"
+          optional: true
+      - tapOn: "Email"
+      - inputText: ${output.email}
+      - tapOn: "Palavra-passe"
+      - inputText: ${output.pwd}
+      - tapOn: "Entrar"
+      - extendedWaitUntil:
+          notVisible: "Entrar"
+          timeout: 15000

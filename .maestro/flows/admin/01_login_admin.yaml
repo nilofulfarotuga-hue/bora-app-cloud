@@ -1,0 +1,13 @@
+appId: com.example.bora_app
+name: Admin — Login + acesso ao painel
+tags:
+  - admin
+  - auth
+---
+- launchApp:
+    clearState: true
+- runFlow: ../../_shared/login_admin.yaml
+
+# Sucesso = dashboard admin visível.
+- assertVisible:
+    text: "Settlements semanais|Pedidos|Acerto reservas parceiros"

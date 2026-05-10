@@ -1,0 +1,28 @@
+appId: com.example.bora_app
+name: Estafeta — Ver ganhos + tokens
+tags:
+  - estafeta
+  - ganhos
+  - tokens
+---
+- launchApp:
+    clearState: true
+- runFlow: ../../_shared/login_estafeta.yaml
+
+- tapOn:
+    text: "Ganhos|Carteira"
+- extendedWaitUntil:
+    visible:
+      text: "€|Total"
+    timeout: 10000
+
+# Tokens ganhos.
+- runFlow:
+    when:
+      visible: "Tokens"
+    commands:
+      - tapOn: "Tokens"
+      - extendedWaitUntil:
+          visible:
+            text: "tokens|Tokens"
+          timeout: 10000

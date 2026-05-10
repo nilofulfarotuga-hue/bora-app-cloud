@@ -1,0 +1,23 @@
+appId: com.example.bora_app
+---
+# Sub-flow: login como parceiro. Email teste9@bora (UID e663a627-...)
+# associado ao restaurante partner-1778337167307322 ("pizza danilo").
+- evalScript: ${output.email = MAESTRO_PARTNER_EMAIL ?? "teste9@bora"}
+- evalScript: ${output.pwd = MAESTRO_PARTNER_PASSWORD ?? "123456"}
+
+- runFlow:
+    when:
+      visible: "Parceiro"
+    commands:
+      - tapOn: "Parceiro"
+      - extendedWaitUntil:
+          visible: "Email"
+          timeout: 10000
+      - tapOn: "Email"
+      - inputText: ${output.email}
+      - tapOn: "Palavra-passe"
+      - inputText: ${output.pwd}
+      - tapOn: "Entrar"
+      - extendedWaitUntil:
+          notVisible: "Entrar"
+          timeout: 15000

@@ -1,0 +1,32 @@
+appId: com.example.bora_app
+name: Cliente — Carteira + Tokens
+tags:
+  - cliente
+  - wallet
+  - tokens
+---
+- launchApp:
+    clearState: true
+- runFlow: ../../_shared/login_cliente.yaml
+
+- tapOn: "Perfil"
+- extendedWaitUntil:
+    visible: "Carteira"
+    timeout: 10000
+
+# Carteira — ver saldo.
+- tapOn: "Carteira"
+- extendedWaitUntil:
+    visible: "Saldo"
+    timeout: 10000
+- assertVisible:
+    text: "€"
+- back
+
+# Tokens — ver total.
+- tapOn:
+    text: "Tokens|Loyalty"
+- extendedWaitUntil:
+    visible:
+      text: "tokens|Tokens"
+    timeout: 10000

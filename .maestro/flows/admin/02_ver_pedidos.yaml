@@ -1,0 +1,16 @@
+appId: com.example.bora_app
+name: Admin — Lista de pedidos activos
+tags:
+  - admin
+  - pedidos
+---
+- launchApp:
+    clearState: true
+- runFlow: ../../_shared/login_admin.yaml
+
+- tapOn:
+    text: "^Pedidos$"
+- extendedWaitUntil:
+    visible:
+      text: "Activos|created|preparando|Sem pedidos"
+    timeout: 10000

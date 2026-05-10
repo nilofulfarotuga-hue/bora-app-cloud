@@ -1,0 +1,31 @@
+appId: com.example.bora_app
+---
+# Sub-flow: login como admin. Admin = utilizadores com email em
+# allowlist hardcoded em profile_screen.dart (nilofulfarotuga@gmail.com,
+# nilofulfarotuga-tuga@gmail.com). Login = role Cliente + acesso painel.
+- evalScript: ${output.email = MAESTRO_ADMIN_EMAIL ?? "nilofulfarotuga@gmail.com"}
+- evalScript: ${output.pwd = MAESTRO_ADMIN_PASSWORD ?? "123456"}
+
+- runFlow:
+    when:
+      visible: "Cliente"
+    commands:
+      - tapOn: "Cliente"
+      - extendedWaitUntil:
+          visible: "Email"
+          timeout: 10000
+      - tapOn: "Email"
+      - inputText: ${output.email}
+      - tapOn: "Palavra-passe"
+      - inputText: ${output.pwd}
+      - tapOn: "Entrar"
+      - extendedWaitUntil:
+          notVisible: "Entrar"
+          timeout: 15000
+
+# Aceder ao painel admin via Perfil → Admin
+- tapOn: "Perfil"
+- extendedWaitUntil:
+    visible: "Admin"
+    timeout: 10000
+- tapOn: "Admin"

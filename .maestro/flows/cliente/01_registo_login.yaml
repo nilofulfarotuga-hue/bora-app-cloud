@@ -1,0 +1,14 @@
+appId: com.example.bora_app
+name: Cliente — Registo / Login
+tags:
+  - cliente
+  - auth
+---
+- launchApp:
+    clearState: true
+- runFlow: ../../_shared/login_cliente.yaml
+# Sucesso = home cliente visível
+- assertVisible:
+    text: "Cliente"
+    optional: true
+- assertVisible: "Restaurante"

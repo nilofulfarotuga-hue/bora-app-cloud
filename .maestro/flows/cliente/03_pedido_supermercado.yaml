@@ -1,0 +1,44 @@
+appId: com.example.bora_app
+name: Cliente — Pedido supermercado (storeShopping)
+tags:
+  - cliente
+  - pedidos
+  - supermercado
+---
+- launchApp:
+    clearState: true
+- runFlow: ../../_shared/login_cliente.yaml
+
+- tapOn: "Supermercado"
+- extendedWaitUntil:
+    visible:
+      text: "Continente|Pingo Doce|Auchan|Lidl"
+    timeout: 10000
+# Primeiro supermercado visível.
+- tapOn:
+    text: ".*(Continente|Pingo Doce|Auchan|Lidl).*"
+    index: 0
+- waitForAnimationToEnd
+
+# Adicionar produto.
+- tapOn:
+    text: "Adicionar"
+    index: 0
+
+# Carrinho → checkout cash.
+- tapOn: "Carrinho"
+- extendedWaitUntil:
+    visible: "Finalizar"
+    timeout: 10000
+- tapOn: "Finalizar"
+- runFlow:
+    when:
+      visible: "Dinheiro"
+    commands:
+      - tapOn: "Dinheiro"
+- tapOn:
+    text: "Pagar|Confirmar"
+- extendedWaitUntil:
+    visible:
+      text: "preparando|criado"
+    timeout: 30000

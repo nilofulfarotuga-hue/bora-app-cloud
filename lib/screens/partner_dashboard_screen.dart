@@ -110,6 +110,37 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                 '[PartnerDashboard] realtime new pending reservation $id');
           },
         )
+        .onPostgresChanges(
+          // BUG A — escutar UPDATE para decrementar quando status sai de
+          // 'pending' (aceitar/rejeitar/sentar/etc) e re-incrementar se
+          // voltar para pending.
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'reservations',
+          callback: (payload) {
+            if (!mounted) return;
+            final rec = payload.newRecord;
+            if (rec.isEmpty) return;
+            if (rec['restaurant_id'] != widget.restaurant.id) return;
+            final id = rec['id']?.toString();
+            if (id == null) return;
+            final newStatus = rec['status'];
+            final wasInSet = _seenPendingReservationIds.contains(id);
+            if (newStatus != 'pending' && wasInSet) {
+              _seenPendingReservationIds.remove(id);
+              if (_pendingReservationsCount > 0) {
+                setState(() => _pendingReservationsCount -= 1);
+              }
+              debugPrint(
+                  '[PartnerDashboard] realtime pending→$newStatus reservation $id');
+            } else if (newStatus == 'pending' && !wasInSet) {
+              _seenPendingReservationIds.add(id);
+              setState(() => _pendingReservationsCount += 1);
+              debugPrint(
+                  '[PartnerDashboard] realtime →pending reservation $id');
+            }
+          },
+        )
       ..subscribe();
   }
 
@@ -291,14 +322,19 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                     _pendingReservationsCount > 0) ...[
                   _PendingReservationsBadge(
                     count: _pendingReservationsCount,
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => PartnerReservationsHomeScreen(
-                          restaurantId: currentRestaurant.id,
-                          restaurantName: currentRestaurant.name,
-                        ),
-                      ),
-                    ),
+                    onTap: () => Navigator.of(context)
+                        .push(
+                          MaterialPageRoute(
+                            builder: (_) => PartnerReservationsHomeScreen(
+                              restaurantId: currentRestaurant.id,
+                              restaurantName: currentRestaurant.name,
+                            ),
+                          ),
+                        )
+                        // BUG A — refresh ao voltar de Reservas Pro.
+                        .then((_) {
+                      if (mounted) _loadPendingReservationsCount();
+                    }),
                   ),
                   const SizedBox(height: 16),
                 ],
@@ -356,14 +392,19 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
-                      onPressed: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => PartnerReservationsHomeScreen(
-                            restaurantId: currentRestaurant.id,
-                            restaurantName: currentRestaurant.name,
-                          ),
-                        ),
-                      ),
+                      onPressed: () => Navigator.of(context)
+                          .push(
+                            MaterialPageRoute(
+                              builder: (_) => PartnerReservationsHomeScreen(
+                                restaurantId: currentRestaurant.id,
+                                restaurantName: currentRestaurant.name,
+                              ),
+                            ),
+                          )
+                          // BUG A — refresh ao voltar de Reservas Pro.
+                          .then((_) {
+                        if (mounted) _loadPendingReservationsCount();
+                      }),
                       icon: const Icon(Icons.event_seat),
                       label: const Text('Reservas Pro'),
                     ),

@@ -23,7 +23,12 @@ class MainActivity : FlutterFragmentActivity() {
         ).apply {
             description = "Notificações de novas reservas para o parceiro."
             enableVibration(true)
+            // BUG B — vibração dupla (500ms ON, 200ms OFF, 500ms ON).
+            vibrationPattern = longArrayOf(0L, 500L, 200L, 500L)
             enableLights(true)
+            // Heads-up garantido (IMPORTANCE_HIGH já cobre); notificação
+            // permanece até parceiro descartar (sem timeout automático).
+            setShowBadge(true)
         }
         manager.createNotificationChannel(channel)
     }

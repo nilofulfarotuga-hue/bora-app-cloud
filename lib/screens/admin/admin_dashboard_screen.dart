@@ -22,6 +22,7 @@ import 'admin_drivers_screen.dart';
 import 'admin_edge_functions_screen.dart';
 import 'admin_live_orders_map_screen.dart';
 import 'admin_orders_screen.dart';
+import 'admin_partner_settlements_screen.dart';
 import 'admin_referrals_screen.dart';
 import 'admin_search_kpi_screen.dart';
 import 'admin_send_notification_screen.dart';
@@ -292,6 +293,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       context,
                       MaterialPageRoute(
                           builder: (_) => const AdminSettlementsScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.event_seat,
+                  title: 'Acerto reservas parceiros',
+                  subtitle:
+                      'Créditos €2 usados pelos clientes — pagar ao restaurante',
+                  color: Colors.teal,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminPartnerSettlementsScreen())),
                 ),
                 const SizedBox(height: 10),
                 _NavCard(

@@ -1,6 +1,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
@@ -22,6 +23,63 @@ class PartnerEarningsScreen extends StatefulWidget {
 
 class _PartnerEarningsScreenState extends State<PartnerEarningsScreen> {
   _Period _period = _Period.week;
+
+  // Reservas — créditos €2 do `restaurant_menu_credits`.
+  int _reservationUsedCount = 0;
+  int _reservationUsedCents = 0;
+  int _reservationPendingCount = 0;
+  int _reservationPendingCents = 0;
+  bool _reservationsLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadReservationCredits();
+    });
+  }
+
+  void _onPeriodChanged(_Period p) {
+    setState(() => _period = p);
+    _loadReservationCredits();
+  }
+
+  Future<void> _loadReservationCredits() async {
+    if (!mounted) return;
+    setState(() => _reservationsLoading = true);
+    try {
+      final start = _startOfPeriod(DateTime.now());
+      final supabase = Supabase.instance.client;
+
+      final usedRows = await supabase
+          .from('restaurant_menu_credits')
+          .select('amount_cents')
+          .eq('restaurant_id', widget.restaurant.id)
+          .gte('used_at', start.toIso8601String());
+
+      final pendingRows = await supabase
+          .from('restaurant_menu_credits')
+          .select('amount_cents')
+          .eq('restaurant_id', widget.restaurant.id)
+          .filter('used_at', 'is', null);
+
+      if (!mounted) return;
+      final used = (usedRows as List).cast<Map<String, dynamic>>();
+      final pending = (pendingRows as List).cast<Map<String, dynamic>>();
+      setState(() {
+        _reservationUsedCount = used.length;
+        _reservationUsedCents = used.fold<int>(
+            0, (s, r) => s + ((r['amount_cents'] as num?)?.toInt() ?? 0));
+        _reservationPendingCount = pending.length;
+        _reservationPendingCents = pending.fold<int>(
+            0, (s, r) => s + ((r['amount_cents'] as num?)?.toInt() ?? 0));
+        _reservationsLoading = false;
+      });
+    } catch (e) {
+      debugPrint('[PartnerEarnings] _loadReservationCredits error: $e');
+      if (mounted) setState(() => _reservationsLoading = false);
+    }
+  }
 
   double _partnerRevenue(OrderModel order) {
     final commission = order.platformCommissionAmount;
@@ -104,11 +162,11 @@ class _PartnerEarningsScreenState extends State<PartnerEarningsScreen> {
           children: [
             _PeriodSelector(
               value: _period,
-              onChanged: (p) => setState(() => _period = p),
+              onChanged: _onPeriodChanged,
             ),
             const SizedBox(height: Spacing.lg),
             _HeroCard(
-              amount: totalEarnings,
+              amount: totalEarnings + _reservationUsedCents / 100.0,
               periodLabel: _periodLabel(_period),
             ),
             const SizedBox(height: Spacing.lg),
@@ -116,6 +174,15 @@ class _PartnerEarningsScreenState extends State<PartnerEarningsScreen> {
               ordersCount: periodOrders.length,
               avgTicket: avgTicket,
               commission: totalCommission,
+            ),
+            const SizedBox(height: Spacing.lg),
+            _ReservationsSection(
+              loading: _reservationsLoading,
+              usedCount: _reservationUsedCount,
+              usedCents: _reservationUsedCents,
+              pendingCount: _reservationPendingCount,
+              pendingCents: _reservationPendingCents,
+              periodLabel: _periodLabel(_period),
             ),
             const SizedBox(height: Spacing.xl),
             if (_period != _Period.today) ...[
@@ -525,6 +592,140 @@ class _OrderTile extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _ReservationsSection extends StatelessWidget {
+  const _ReservationsSection({
+    required this.loading,
+    required this.usedCount,
+    required this.usedCents,
+    required this.pendingCount,
+    required this.pendingCents,
+    required this.periodLabel,
+  });
+
+  final bool loading;
+  final int usedCount;
+  final int usedCents;
+  final int pendingCount;
+  final int pendingCents;
+  final String periodLabel;
+
+  String _euros(int cents) => '€${(cents / 100.0).toStringAsFixed(2)}';
+
+  String _label(int n, String singular, String plural) =>
+      n == 1 ? '1 $singular' : '$n $plural';
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      color: AppColors.card,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(Spacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.event_seat,
+                    size: 20, color: AppColors.primary),
+                const SizedBox(width: 8),
+                const Text(
+                  'Reservas',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const Spacer(),
+                if (loading)
+                  const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            _Row(
+              label:
+                  'Créditos usados ($periodLabel)',
+              detail: _label(usedCount, 'reserva', 'reservas'),
+              amount: _euros(usedCents),
+              amountColor: AppColors.primary,
+              hint: 'A receber no acerto semanal',
+            ),
+            const SizedBox(height: 10),
+            _Row(
+              label: 'Créditos pendentes',
+              detail: _label(pendingCount, 'reserva', 'reservas'),
+              amount: _euros(pendingCents),
+              amountColor: AppColors.textSecondary,
+              hint: 'Cliente ainda não usou no restaurante',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Row extends StatelessWidget {
+  const _Row({
+    required this.label,
+    required this.detail,
+    required this.amount,
+    required this.amountColor,
+    required this.hint,
+  });
+
+  final String label;
+  final String detail;
+  final String amount;
+  final Color amountColor;
+  final String hint;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+            Text(
+              amount,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: amountColor,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 2),
+        Text(
+          '$detail · $hint',
+          style: const TextStyle(
+            fontSize: 11,
+            color: AppColors.textSecondary,
+          ),
+        ),
+      ],
     );
   }
 }

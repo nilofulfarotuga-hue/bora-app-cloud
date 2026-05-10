@@ -358,6 +358,8 @@ class _ReservationCheckoutScreenState extends State<ReservationCheckoutScreen> {
             ),
             SizedBox(height: 8),
             _TermLine(text: '€3 retidos no cartão para garantir reserva.'),
+            _TermLine(text: '   • €1 taxa de serviço Bora App.'),
+            _TermLine(text: '   • €2 crédito para usar no restaurante.'),
             _TermLine(text: 'Reembolso 100% se cancelares até 2h antes.'),
             _TermLine(
                 text:

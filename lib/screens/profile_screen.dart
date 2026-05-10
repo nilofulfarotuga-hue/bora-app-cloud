@@ -1184,7 +1184,7 @@ class _TokenBalanceRow extends StatelessWidget {
 
     return FutureBuilder<int>(
       future: _client.rpc('get_user_tokens',
-          params: {'p_user_id': userId}).then((v) => (v as int?) ?? 0),
+          params: {'p_user_id': userId}).then((v) => (v as num?)?.toInt() ?? 0),
       builder: (context, snapshot) {
         final balance = snapshot.data ?? 0;
         final isLoading = snapshot.connectionState == ConnectionState.waiting;

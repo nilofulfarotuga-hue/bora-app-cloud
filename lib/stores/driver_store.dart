@@ -64,7 +64,7 @@ class DriverStore extends ChangeNotifier {
         'get_user_tokens',
         params: {'p_user_id': userId},
       );
-      return (response as int?) ?? 0;
+      return (response as num?)?.toInt() ?? 0;
     } catch (e) {
       debugPrint('[DriverStore] fetchTokenBalance error: $e');
       return 0;

@@ -66,7 +66,7 @@ class _DriverEarningsScreenState extends State<DriverEarningsScreen> {
         'get_user_tokens',
         params: {'p_user_id': uid},
       );
-      _tokens = (tokenResp as int?) ?? 0;
+      _tokens = (tokenResp as num?)?.toInt() ?? 0;
 
       final driverRow = await supabase
           .from('drivers')

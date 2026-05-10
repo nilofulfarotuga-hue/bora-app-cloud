@@ -66,7 +66,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       );
       if (mounted) {
         setState(() {
-          _availableTokens = (response as int?) ?? 0;
+          _availableTokens = (response as num?)?.toInt() ?? 0;
           _tokensLoaded = true;
         });
       }

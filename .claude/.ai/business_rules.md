@@ -1533,7 +1533,47 @@ Todas idempotentes via `INSERT...ON CONFLICT(skill_name) DO UPDATE` (version++).
 
 **NÃO fixar nesta sessão** — escopo 5A-2 é frontend + skills seed.
 
-### §32.5 Bug crítico 5A-1 corrigido em 5A-2 (B-FIX-1)
+**Update 2026-05-11:** fórmula `ROUND(price×3)` validada operacional em pedido
+CAA3A9 (€21.18 → 64 tokens cliente). Decisão de alinhar docs ↔ código continua
+pendente (sessão dedicada). Não tocada nesta sessão.
+
+### §32.6 Cashback automático 1% removido (2026-05-11)
+
+**Removido:** trigger `trg_award_cashback` + função `fn_award_cashback_on_delivery` +
+setting `platform_settings.cashback_pct=0.01` que creditava 1% em
+`wallet_transactions` em qualquer pedido entregue. **Regra que nunca foi aprovada.**
+
+Migration: `20260510120000_fix_cashback_remove_and_tokens_read.sql`.
+
+**Sem backfill, sem estorno** (decisão Danilo 2026-05-10).
+
+**Incentivo ao cliente passa a ser apenas tokens** (regra §4 mantém-se).
+Refund 80/20 em cancelamentos cliente continua **intacto** (`wallet_credit_refund_split`).
+
+### §32.7 wallet_get_balance — leitura tokens corrigida (2026-05-11)
+
+**Bug:** `wallet_get_balance` tratava `get_user_tokens()` como JSONB (`->>'balance'`)
+mas a função retorna `INTEGER`. Exception silenciosa devolvia sempre
+`tokens_balance: 0` apesar de existirem tokens activos na DB
+(ex: cliente c9fccf85 tinha 748 tokens, UI mostrava 0).
+
+**Fix:** uso directo do `INTEGER`. Migration `20260510120000`.
+
+**Conexão:** encerra a "Nota separada" residual de BUG-7E-B-007
+(`wallet_get_balance.tokens_balance` reportar 0 após inserção).
+
+- **BUG-7E-B-005 (×20):** likely-fixed em 7-FIX 2026-05-07 (factor ×2 operacional).
+  Reconfirmado em 2026-05-11 — fórmula `ROUND(price×3)` creditou 64 tokens em CAA3A9.
+- **BUG-7E-B-007 (add_tokens silent fail):** **CLOSED** — silent fail era na **leitura**,
+  não na escrita. `add_tokens` continua saudável (`INSERT ... ON CONFLICT DO NOTHING`).
+
+**Fortalecido também:** 4 call sites Flutter usavam `(response as int?) ?? 0`
+no retorno de `get_user_tokens`. Trocados para `(response as num?)?.toInt() ?? 0`
+(tolerância a `int`/`double` da serialização PostgREST).
+Ficheiros: `lib/screens/profile_screen.dart`, `lib/screens/payment_method_screen.dart`,
+`lib/screens/driver_earnings_screen.dart`, `lib/stores/driver_store.dart`.
+
+### §32.8 Bug crítico 5A-1 corrigido em 5A-2 (B-FIX-1)
 
 **Detectado em 5A-2 audit:** RPC `agent_get_order_status` (5A-1) mapeava estados snake_case (`pending`, `accepted`, `picked_up`, ...) que **NÃO existem em prod**. Estados reais em `orders.status` (validados via MCP DISTINCT) são camelCase Dart-like: `created`, `preparing`, `callingDriver`, `driverAccepted`, `pickedUp`, `onTheWay`, `delivered`, `cancelled`, `rejected`.
 

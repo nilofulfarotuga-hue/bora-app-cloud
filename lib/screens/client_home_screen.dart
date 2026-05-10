@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../auth/auth_store.dart';
@@ -11,7 +12,6 @@ import '../models/rating_model.dart';
 import '../models/restaurant_model.dart';
 import '../services/location_service.dart';
 import '../stores/cart_store.dart';
-import '../stores/order_store.dart';
 import '../stores/restaurant_store.dart';
 import '../stores/session_store.dart';
 import '../widgets/address_autocomplete_field.dart';
@@ -44,47 +44,119 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     });
   }
 
-  /// BR §44.6 — pós-login/abertura, procura último pedido `delivered`
-  /// com `rated_at IS NULL`. Se existir, prompt RatingScreen depois de 1.2s
-  /// (não-bloqueante; cliente pode "Saltar"). Falhas são silenciosas.
+  /// BR §44.6 — pós-login/abertura, procura pedido `delivered` recente
+  /// (≤ 48h) com avaliação pendente (driver e/ou partner). Abre
+  /// RatingScreen sequencialmente para cada sujeito ainda não avaliado.
+  ///
+  /// Anti-spam (DEFAULT padrão Glovo, 2026-05-11): se o cliente saltar
+  /// o mesmo pedido 2× consecutivas (counter em SharedPreferences), o
+  /// pedido deixa de prompt. Total = 1 mostra automática + 2 skips.
+  ///
+  /// Aplica a TODOS service_type (restaurant, storeShopping,
+  /// carryGroceries, sendPackage). Falhas silenciosas.
   Future<void> _checkUnratedOrders() async {
     try {
-      final user = Supabase.instance.client.auth.currentUser;
+      final supabase = Supabase.instance.client;
+      final user = supabase.auth.currentUser;
       if (user == null) return;
-      final rows = await Supabase.instance.client
+
+      // 1) Candidatos: pedidos delivered nas últimas 48h.
+      final since = DateTime.now()
+          .toUtc()
+          .subtract(const Duration(hours: 48))
+          .toIso8601String();
+      final List<dynamic> candidateRows = await supabase
           .from('orders')
-          .select('id, restaurant_id')
+          .select()
           .eq('user_id', user.id)
           .eq('status', 'delivered')
-          .filter('rated_at', 'is', null)
-          .order('delivered_at', ascending: false)
-          .limit(1);
+          .gte('delivered_at', since)
+          .order('delivered_at', ascending: false);
       if (!mounted) return;
-      if (rows.isEmpty) return;
-      final first = rows.first;
-      final orderId = first['id'] as String?;
-      final restaurantId = first['restaurant_id'] as String?;
-      if (orderId == null || restaurantId == null) return;
-      OrderModel? found;
-      for (final o in context.read<OrderStore>().orders) {
-        if (o.id == orderId) {
-          found = o;
-          break;
-        }
+      if (candidateRows.isEmpty) return;
+
+      // 2) Subjects já avaliados por este utilizador para estes pedidos.
+      final orderIds = candidateRows
+          .map((r) => (r as Map)['id'] as String?)
+          .whereType<String>()
+          .toList();
+      if (orderIds.isEmpty) return;
+      final List<dynamic> ratedRows = await supabase
+          .from('ratings')
+          .select('order_id, subject_type')
+          .eq('rater_user_id', user.id)
+          .inFilter('order_id', orderIds);
+      final ratedBySubject = <String, Set<String>>{};
+      for (final r in ratedRows) {
+        final m = (r as Map);
+        final oid = m['order_id'] as String?;
+        final st = m['subject_type'] as String?;
+        if (oid == null || st == null) continue;
+        ratedBySubject.putIfAbsent(oid, () => <String>{}).add(st);
       }
-      if (found == null) return;
-      final order = found;
-      await Future<void>.delayed(const Duration(milliseconds: 1200));
-      if (!mounted) return;
-      Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => RatingScreen(
-            order: order,
-            subjectType: RatingSubjectType.partner,
-            subjectId: restaurantId,
-          ),
-        ),
-      );
+
+      // 3) Skip counters (anti-spam).
+      final prefs = await SharedPreferences.getInstance();
+
+      // 4) Procurar primeiro pedido com pelo menos um sujeito pendente.
+      for (final raw in candidateRows) {
+        final row = (raw as Map).cast<String, dynamic>();
+        final orderId = row['id'] as String?;
+        if (orderId == null) continue;
+
+        final skipKey = 'rating_skipped_${orderId}_count';
+        if ((prefs.getInt(skipKey) ?? 0) >= 2) continue;
+
+        final order = OrderModel.fromSupabase(row);
+        final rated = ratedBySubject[orderId] ?? const <String>{};
+        final driverId = order.assignedDriverId;
+        final restaurantId = row['restaurant_id'] as String?;
+        final needsDriver = driverId != null &&
+            driverId.isNotEmpty &&
+            !rated.contains('driver');
+        final needsPartner = order.isPartnerStore &&
+            restaurantId != null &&
+            restaurantId.isNotEmpty &&
+            !rated.contains('partner');
+
+        if (!needsDriver && !needsPartner) continue;
+
+        await Future<void>.delayed(const Duration(milliseconds: 1200));
+        if (!mounted) return;
+
+        var anySkipped = false;
+        if (needsDriver) {
+          final result = await Navigator.of(context).push<bool>(
+            MaterialPageRoute<bool>(
+              builder: (_) => RatingScreen(
+                order: order,
+                subjectType: RatingSubjectType.driver,
+                subjectId: driverId,
+              ),
+            ),
+          );
+          if (result != true) anySkipped = true;
+        }
+        if (!mounted) return;
+        if (needsPartner) {
+          final result = await Navigator.of(context).push<bool>(
+            MaterialPageRoute<bool>(
+              builder: (_) => RatingScreen(
+                order: order,
+                subjectType: RatingSubjectType.partner,
+                subjectId: restaurantId,
+              ),
+            ),
+          );
+          if (result != true) anySkipped = true;
+        }
+
+        if (anySkipped) {
+          await prefs.setInt(
+              skipKey, (prefs.getInt(skipKey) ?? 0) + 1);
+        }
+        break; // only ever ask about one order per app open
+      }
     } catch (e) {
       debugPrint('[unrated_orders] $e');
     }

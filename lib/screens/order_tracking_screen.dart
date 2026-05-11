@@ -529,6 +529,8 @@ class _BottomCardState extends State<_BottomCard> {
                   _EtaBadge(
                     label: OrderEtaService.label(order)!,
                     status: order.status,
+                    serviceType: order.serviceType,
+                    vendorName: order.vendorName,
                   ),
                 ],
 
@@ -1005,10 +1007,18 @@ class _AddressRow extends StatelessWidget {
 }
 
 class _EtaBadge extends StatelessWidget {
-  const _EtaBadge({required this.label, required this.status});
+  const _EtaBadge({
+    required this.label,
+    required this.status,
+    this.serviceType,
+    this.vendorName,
+  });
 
   final String label;
   final OrderStatus status;
+  // BUG 3 — opcionais para text dinâmico por service_type.
+  final OrderServiceType? serviceType;
+  final String? vendorName;
 
   @override
   Widget build(BuildContext context) {
@@ -1064,14 +1074,25 @@ class _EtaBadge extends StatelessWidget {
   }
 
   String _subLabel(OrderStatus s) {
+    // BUG 3 — texto dinâmico por service_type (memory: sessão 17-bugs 2026-05-11).
+    final vendor = (vendorName ?? '').trim();
+    final isStore = serviceType == OrderServiceType.storeShopping;
+    final pickupLabel = isStore
+        ? (vendor.isEmpty ? 'da loja' : 'do $vendor')
+        : 'do restaurante';
+    final preparingLabel = isStore
+        ? (vendor.isEmpty
+            ? 'A loja a preparar o pedido'
+            : '$vendor a preparar o pedido')
+        : 'Restaurante a preparar o pedido';
     switch (s) {
       case OrderStatus.created:
       case OrderStatus.preparing:
-        return 'Restaurante a preparar o pedido';
+        return preparingLabel;
       case OrderStatus.callingDriver:
         return 'À procura de estafeta';
       case OrderStatus.driverAccepted:
-        return 'Estafeta a caminho do restaurante';
+        return 'Estafeta a caminho $pickupLabel';
       case OrderStatus.pickedUp:
       case OrderStatus.onTheWay:
         return 'Estafeta a caminho da sua morada';

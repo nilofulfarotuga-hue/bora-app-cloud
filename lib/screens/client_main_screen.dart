@@ -37,9 +37,12 @@ class _ClientMainScreenState extends State<ClientMainScreen> {
 
   OrderModel? _findActiveOrder(List<OrderModel> orders) {
     for (final o in orders) {
+      // BUG 6 — incluir cancelled na exclusão (cliente não deve abrir
+      // detail de pedido cancelado automaticamente).
       if (o.status.index >= OrderStatus.driverAccepted.index &&
           o.status != OrderStatus.delivered &&
-          o.status != OrderStatus.rejected) {
+          o.status != OrderStatus.rejected &&
+          o.status != OrderStatus.cancelled) {
         return o;
       }
     }

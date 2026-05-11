@@ -385,6 +385,9 @@ class DriverStore extends ChangeNotifier {
     return _capacityService.canAssignOrder(driver, order);
   }
 
+  // BUG 4 — throttle para orders.driver_lat/lng (max 1 update / 5s).
+  DateTime? _lastOrderLocationDbUpdate;
+
   void updateDriverLocation(String driverId, LatLng location) {
     final driver = getDriverById(driverId);
     if (driver == null) return;
@@ -397,6 +400,31 @@ class DriverStore extends ChangeNotifier {
       'lng': location.longitude,
       'updated_at': DateTime.now().toUtc().toIso8601String(),
     });
+
+    // BUG 4 — também actualiza orders.driver_lat/lng quando há pedido activo
+    // em fase em que cliente vê estafeta no mapa. Throttle 5s.
+    final trackedId = _trackedOrderId;
+    if (trackedId == null || trackedId.isEmpty) return;
+    final now = DateTime.now();
+    if (_lastOrderLocationDbUpdate != null &&
+        now.difference(_lastOrderLocationDbUpdate!).inSeconds < 5) {
+      return;
+    }
+    _lastOrderLocationDbUpdate = now;
+    unawaited(
+      _client
+          .from('orders')
+          .update({
+            'driver_lat': location.latitude,
+            'driver_lng': location.longitude,
+          })
+          .eq('id', trackedId)
+          .inFilter('status',
+              ['driverAccepted', 'pickedUp', 'onTheWay']).catchError((e) {
+        debugPrint('[DriverStore] orders.driver_lat update err: $e');
+        return <Map<String, dynamic>>[];
+      }),
+    );
   }
 
   /// Marks this order as the currently tracked one and starts the periodic

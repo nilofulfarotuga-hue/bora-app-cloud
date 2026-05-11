@@ -1354,6 +1354,7 @@ class _BottomPanelState extends State<_BottomPanel> {
 
                                   final messenger =
                                       ScaffoldMessenger.of(context);
+                                  final nav = Navigator.of(context);
                                   setState(() => _isLoading = true);
                                   final success = await action.execute();
                                   if (success) {
@@ -1366,6 +1367,12 @@ class _BottomPanelState extends State<_BottomPanel> {
                                         duration: const Duration(seconds: 2),
                                       ),
                                     );
+                                    // BUG 5 — pós Concluir entrega volta para
+                                    // home estafeta em vez de ficar na tela
+                                    // detail vazia.
+                                    if (willFinish && mounted) {
+                                      nav.popUntil((route) => route.isFirst);
+                                    }
                                   } else {
                                     if (mounted) {
                                       setState(() => _isLoading = false);

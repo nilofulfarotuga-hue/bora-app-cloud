@@ -322,11 +322,13 @@ class NotificationService {
     String? vendorName,
     String? driverName,
     int? etaMinutes,
+    String? serviceType, // BUG 3 — 'restaurant' | 'storeShopping' | etc
   }) async {
     final msg = _statusMessageForClient(
       status: status,
       vendorName: vendorName,
       driverName: driverName,
+      serviceType: serviceType,
       etaMinutes: etaMinutes,
     );
     if (msg == null) return;
@@ -346,15 +348,20 @@ class NotificationService {
     String? vendorName,
     String? driverName,
     int? etaMinutes,
+    String? serviceType,
   }) {
     final vendor = (vendorName ?? '').trim();
     final driver = (driverName ?? '').trim();
+    // BUG 3 — texto dinâmico por service_type
+    final isStore = serviceType == 'storeShopping';
+    final pickupNoun = isStore ? 'loja' : 'restaurante';
+    final pickupArticle = isStore ? 'A' : 'O';
     switch (status) {
       case 'preparing':
         return (
           'Pedido aceite',
           vendor.isEmpty
-              ? '👨‍🍳 O restaurante está a preparar o seu pedido'
+              ? '👨‍🍳 $pickupArticle $pickupNoun está a preparar o seu pedido'
               : '👨‍🍳 $vendor está a preparar o seu pedido',
         );
       case 'callingDriver':
@@ -364,7 +371,7 @@ class NotificationService {
         );
       case 'driverAccepted':
         return (
-          'Estafeta a caminho do restaurante',
+          'Estafeta a caminho d${isStore ? "a loja" : "o restaurante"}',
           driver.isEmpty
               ? '✅ Um estafeta aceitou o seu pedido'
               : '✅ $driver aceitou o seu pedido',

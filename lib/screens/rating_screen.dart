@@ -182,7 +182,10 @@ class _RatingScreenState extends State<RatingScreen> {
                   border: OutlineInputBorder(),
                 ),
               ),
-              if (widget.subjectType == RatingSubjectType.driver) ...[
+              // BUG 9 — esconder gorjeta em CASH. Em CASH não há como cobrar
+              // gorjeta extra (cliente já entregou dinheiro exacto no balcão).
+              if (widget.subjectType == RatingSubjectType.driver &&
+                  widget.order.paymentMethod != PaymentMethod.cash) ...[
                 const SizedBox(height: 20),
                 TipSelector(
                   initialCents: 0,

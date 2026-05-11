@@ -2274,8 +2274,8 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
     final origTotal = order.paymentBufferTotal;
     final adjustedTotal = boughtTotal + _bagFee + addedFinalTotal;
     final diff = adjustedTotal - origTotal;
-    final extraToCharge = diff > 0 ? diff : 0.0;
-    final refundDue = diff < 0 ? -diff : 0.0;
+    // BUG 16+17 — extraToCharge/refundDue retirados; agora exibimos
+    // diff directo com texto explicativo distinto por payment_method.
 
     final isCash = order.paymentMethod == PaymentMethod.cash;
 
@@ -2702,20 +2702,45 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                   ],
                 ),
               ] else ...[
-                _SummaryRow(label: 'Cliente pagou', value: origTotal),
-                if (extraToCharge > 0)
-                  _SummaryRow(
-                    label: 'Extra a cobrar',
-                    value: extraToCharge,
-                    color: Colors.orange,
-                    bold: true,
-                  ),
-                if (refundDue > 0)
-                  _SummaryRow(
-                    label: 'A reembolsar',
-                    value: refundDue,
-                    color: Colors.green,
-                    bold: true,
+                // BUG 16+17 fix — pedido MBWay/Stripe: cliente JÁ pagou na app.
+                // NÃO mostrar "Cliente pagou" (era confuso e usava field errado).
+                // Mostrar valor que Bora reembolsa ao estafeta + diferença vs
+                // estimativa.
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Bora reembolsa-te:',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                      ),
+                    ),
+                    Text(
+                      '€${adjustedTotal.toStringAsFixed(2)}',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 16,
+                        color: Colors.green.shade700,
+                      ),
+                    ),
+                  ],
+                ),
+                if (diff.abs() > 0.01)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      diff < 0
+                          ? 'Cliente recebe €${(-diff).toStringAsFixed(2)} de reembolso (compras saíram mais baratas)'
+                          : 'Cliente será cobrado +€${diff.toStringAsFixed(2)} (compras saíram mais caras)',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: diff < 0
+                            ? Colors.green.shade700
+                            : Colors.orange.shade700,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
                   ),
               ],
               if (unavailableCount > 0)

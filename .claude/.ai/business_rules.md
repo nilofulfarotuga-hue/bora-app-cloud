@@ -3606,9 +3606,41 @@ Timestamps batem com `supabase_migrations.schema_migrations` em prod.
 **Decisões fixas:**
 - (A) Multi-device · (B) Push chat sempre · (C) 3 retries → inactivo · (D) Sem backfill · (E) Apagar ambíguos · (F) rated_at sempre · (G) Câmara only · (H) OCR sempre · (I) Push cliente sempre · (J) Threshold €5 · (K) Added conta normal · (L) Novo modelo reembolso
 
+### §52.4 — V1 finalize_storeshopping_purchase DEPRECATED não-parceiro
+
+⚠️ Desde 2026-05-11 (trigger #18 `trg_zz_set_purchase_flow_version`):
+- Novos pedidos `service_type='storeShopping' AND is_partner_store=false` são forçados a `purchase_flow_version=2` na criação
+- V1 `finalize_storeshopping_purchase` mantém-se em código apenas para:
+  - Pedidos antigos pré-2026-05-11 com `purchase_flow_version=1` (retro-compat)
+  - `service_type='storeShopping' AND is_partner_store=true` (parceiro mantém v1 até decisão futura)
+  - `service_type='restaurant'` (não-storeshopping, fluxo distinto)
+- V1 tinha bug histórico de cálculo €1.70 (sessão 2026-05-11 close-todos análise) — **NÃO será corrigido** porque V1 já não recebe pedidos não-parceiro novos
+- V2 (`finalize_storeshopping_purchase_v2`) é o único path activo para storeShopping não-parceiro
+
+### §52.5 — Driver earnings — fórmula (single source of truth)
+
+A fórmula completa está em `lib/services/pricing_service.dart` (constantes
++ função `calculateBreakdown`). Para storeShopping NÃO-PARCEIRO:
+
+```
+boraMarkup     = subtotal × 0.15  (markup oculto, já no subtotal)
+driverFixed    = €3.80 + €0.80 (shopping bonus) + (€0.20 × distance_km) + €1.00 (se apartment)
+boraGross      = boraMarkup + delivery_fee + service_fee
+boraNet        = max(0, boraGross − driverFixed)
+driver_share30 = boraNet × 0.30
+driver_earnings = driverFixed + driver_share30  (arredondado 2 casas)
+```
+
+**Validação prática (pedido teste 2026-05-11, id `5041075d`):**
+- subtotal=€8.44, distance=4.445km, delivery_fee=€2.72, service_fee=€2.50
+- boraMarkup = €1.27 · driverFixed = €5.49 · boraGross = €6.49 · boraNet = €1.00 · share = €0.30
+- **driver_earnings = €5.79** ✅ (DB matches)
+
+Para validar futuros casos suspeitos, invocar skill `driver-earnings-validator`.
+
 ---
 
 *Documento de regras de negócio — Bora App*
-*Última atualização: 2026-05-11 (§52 — Push tokens multi-device + chat push + StoreShopping v2 completo)*
+*Última atualização: 2026-05-11 (§52.4+§52.5 — V1 deprecated não-parceiro + driver earnings fórmula validation)*
 *Atualizar sempre que houver mudanças nas regras de negócio*
 *Fonte de verdade usada por: todas as skills do sistema*

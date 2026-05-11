@@ -83,6 +83,12 @@ class OrderDetailsScreen extends StatelessWidget {
             _ItemsCard(order: liveOrder),
           ],
 
+          // ── BLOCO 3.7 close-TODOs — StoreShopping v2 badges/breakdown ─
+          if (liveOrder.purchaseFlowVersion == 2) ...[
+            const SizedBox(height: 16),
+            _PurchaseV2Card(order: liveOrder),
+          ],
+
           const SizedBox(height: 16),
 
           // ── Codes card ────────────────────────────────────────────────
@@ -930,5 +936,281 @@ class _Row extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+// ── BLOCO 3.7 (close-TODOs 2026-05-11) — StoreShopping v2 badges card ─────
+//
+// Renderiza items pós-compra com badges semânticos quando
+// order.purchaseFlowVersion == 2. Backward compat: pedidos v1 NÃO renderizam
+// este widget (gate ao nível da composição parent). PT-PT.
+
+class _PurchaseV2Card extends StatefulWidget {
+  const _PurchaseV2Card({required this.order});
+  final OrderModel order;
+
+  @override
+  State<_PurchaseV2Card> createState() => _PurchaseV2CardState();
+}
+
+class _PurchaseV2CardState extends State<_PurchaseV2Card> {
+  List<Map<String, dynamic>>? _items;
+  Map<String, dynamic>? _receipt;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final orderId = widget.order.id;
+      final results = await Future.wait<dynamic>([
+        Supabase.instance.client
+            .from('order_purchase_items_v2')
+            .select('id, original_name, original_price_cents, original_qty, '
+                'status, actual_name, actual_price_cents, actual_qty')
+            .eq('order_id', orderId)
+            .order('created_at', ascending: true),
+        Supabase.instance.client
+            .from('order_receipts_v2')
+            .select('driver_typed_total_cents, reimbursement_status')
+            .eq('order_id', orderId)
+            .maybeSingle(),
+      ]);
+      if (mounted) {
+        setState(() {
+          _items = List<Map<String, dynamic>>.from(results[0] as List);
+          _receipt = results[1] as Map<String, dynamic>?;
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  int _unavailableCreditCents() {
+    if (_items == null) return 0;
+    var sum = 0;
+    for (final it in _items!) {
+      if (it['status'] == 'unavailable') {
+        final p = (it['original_price_cents'] as int?) ?? 0;
+        final q = (it['original_qty'] as int?) ?? 1;
+        sum += p * q;
+      }
+    }
+    return sum;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return Card(
+        color: AppTheme.cardBg,
+        child: const Padding(
+          padding: EdgeInsets.all(16),
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      );
+    }
+    final items = _items ?? const <Map<String, dynamic>>[];
+    final creditCents = _unavailableCreditCents();
+    final creditEur = (creditCents / 100).toStringAsFixed(2);
+
+    return Card(
+      color: AppTheme.cardBg,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.shopping_basket, color: AppTheme.secondary),
+                const SizedBox(width: 8),
+                const Text(
+                  'Compra detalhada',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (items.isEmpty)
+              Text(
+                'Aguardando o estafeta concluir a compra na loja…',
+                style: TextStyle(color: Colors.grey.shade600),
+              )
+            else
+              ...items.map(_itemRow),
+            if (creditCents > 0) ...[
+              const Divider(height: 24),
+              Row(
+                children: [
+                  Icon(Icons.account_balance_wallet,
+                      size: 18, color: AppTheme.primary),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Crédito por items indisponíveis',
+                      style: TextStyle(color: Colors.grey.shade700),
+                    ),
+                  ),
+                  Text(
+                    '+€$creditEur',
+                    style: TextStyle(
+                      color: AppTheme.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Foi adicionado ao seu saldo livre (Carteira).',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              ),
+            ],
+            if (_receipt != null) ...[
+              const Divider(height: 24),
+              Row(
+                children: [
+                  Icon(Icons.receipt_long, size: 18, color: Colors.grey.shade700),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Total do talão',
+                      style: TextStyle(color: Colors.grey.shade700),
+                    ),
+                  ),
+                  Text(
+                    '€${((_receipt!['driver_typed_total_cents'] as int? ?? 0) / 100).toStringAsFixed(2)}',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _itemRow(Map<String, dynamic> it) {
+    final status = (it['status'] as String?) ?? 'pending';
+    final name = (it['original_name'] as String?) ?? '';
+    final actualName = it['actual_name'] as String?;
+    final actualPriceCents = it['actual_price_cents'] as int?;
+    final originalPriceCents = (it['original_price_cents'] as int?) ?? 0;
+    final qty = (it['original_qty'] as int?) ?? 1;
+    final priceEur = (originalPriceCents / 100).toStringAsFixed(2);
+    final actualEur = actualPriceCents != null
+        ? (actualPriceCents / 100).toStringAsFixed(2)
+        : null;
+
+    final (icon, color, label, subtitle) = _statusMeta(
+      status: status,
+      actualName: actualName,
+      actualEur: actualEur,
+      originalEur: priceEur,
+      qty: qty,
+    );
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  status == 'added' && actualName != null ? actualName : name,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                if (subtitle.isNotEmpty)
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: status == 'unavailable'
+                          ? Colors.grey.shade700
+                          : color,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  (IconData, Color, String, String) _statusMeta({
+    required String status,
+    required String? actualName,
+    required String? actualEur,
+    required String originalEur,
+    required int qty,
+  }) {
+    switch (status) {
+      case 'purchased':
+        return (
+          Icons.check_circle,
+          const Color(0xFF1B5E20),
+          'COMPRADO',
+          '${qty}× · €$originalEur',
+        );
+      case 'unavailable':
+        return (
+          Icons.cancel,
+          const Color(0xFFC62828),
+          'INDISPONÍVEL',
+          'Não disponível — €$originalEur creditados ao saldo',
+        );
+      case 'replaced':
+        final byPart = actualName != null ? ' por "$actualName"' : '';
+        final priceEur = actualEur ?? originalEur;
+        return (
+          Icons.swap_horiz,
+          const Color(0xFF1A73E8),
+          'SUBSTITUÍDO',
+          'Substituído$byPart · €$priceEur',
+        );
+      case 'added':
+        return (
+          Icons.add_circle,
+          const Color(0xFFE65100),
+          'ADICIONADO',
+          'Adicionado pelo estafeta · €${actualEur ?? "?"}',
+        );
+      default:
+        return (
+          Icons.radio_button_unchecked,
+          Colors.grey.shade600,
+          'PENDENTE',
+          '${qty}× · €$originalEur',
+        );
+    }
   }
 }

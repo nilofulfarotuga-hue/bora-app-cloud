@@ -2810,8 +2810,10 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                                     ),
                                   );
                             } catch (e) {
-                              messenger.showSnackBar(SnackBar(
-                                  content: Text('Erro upload talão: $e')));
+                              debugPrint(
+                                  '[driver_map] receipt upload error: $e');
+                              if (!mounted) return;
+                              await _showUploadErrorDialog(context);
                               return;
                             }
 
@@ -2890,6 +2892,29 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
 
 // ─── BUG 1 — Capture receipt photo + typed total (modal bottom sheet) ──────
 
+/// BUG C (sessão exec 2026-05-12) — AlertDialog PT-PT quando upload falha.
+/// Substitui SnackBar transient (4s) por dialog modal mais visível.
+Future<void> _showUploadErrorDialog(BuildContext context) async {
+  await showDialog<void>(
+    context: context,
+    builder: (_) => AlertDialog(
+      icon: const Icon(Icons.error_outline, color: Colors.red, size: 48),
+      title: const Text('Falha ao enviar talão'),
+      content: const Text(
+        'Não foi possível guardar a foto do talão. Verifica a tua '
+        'ligação à internet e tenta de novo.\n\n'
+        'Se o problema persistir, contacta o admin.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('OK'),
+        ),
+      ],
+    ),
+  );
+}
+
 /// Mostra modal para estafeta tirar foto do talão + digitar valor total.
 /// Returns (File, totalCents) ou null se cancelado. Decisão G: só câmara.
 Future<(File, int)?> _captureReceiptForV2(
@@ -2919,10 +2944,25 @@ class _ReceiptCaptureSheetState extends State<_ReceiptCaptureSheet> {
   bool _submitting = false;
 
   @override
+  void initState() {
+    super.initState();
+    // BUG I — rebuild on total text change para enable/disable Confirmar
+    _totalCtrl.addListener(_onTotalChanged);
+  }
+
+  void _onTotalChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
   void dispose() {
+    _totalCtrl.removeListener(_onTotalChanged);
     _totalCtrl.dispose();
     super.dispose();
   }
+
+  bool get _canSubmit =>
+      !_submitting && _photo != null && _totalCtrl.text.trim().isNotEmpty;
 
   Future<void> _takePhoto() async {
     try {
@@ -3043,7 +3083,8 @@ class _ReceiptCaptureSheetState extends State<_ReceiptCaptureSheet> {
             ),
             const SizedBox(height: 16),
             ElevatedButton.icon(
-              onPressed: _submitting ? null : _onSubmit,
+              // BUG I — disabled até foto + valor preenchidos
+              onPressed: _canSubmit ? _onSubmit : null,
               icon: _submitting
                   ? const SizedBox(
                       width: 16,
@@ -3056,9 +3097,26 @@ class _ReceiptCaptureSheetState extends State<_ReceiptCaptureSheet> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green.shade600,
                 foregroundColor: Colors.white,
+                disabledBackgroundColor: Colors.grey.shade300,
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
             ),
+            // BUG I — texto helper quando disabled
+            if (!_canSubmit && !_submitting)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  _photo == null
+                      ? 'Tira foto do talão para continuar'
+                      : 'Digita o valor pago no talão',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                    fontStyle: FontStyle.italic,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
             const SizedBox(height: 8),
             TextButton(
               onPressed: () => Navigator.of(context).pop(),

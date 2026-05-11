@@ -1573,6 +1573,86 @@ class OrderStore extends ChangeNotifier {
     }
   }
 
+  /// BUG 1 — Finaliza compra storeShopping V2 não-parceiro com foto talão +
+  /// valor digitado pelo estafeta. Decisão NOVA 2026-05-11: foto+valor
+  /// obrigatórios em TODOS payment_methods (cash + card + mbway) para
+  /// auditoria. Chama RPC finalize_storeshopping_purchase_v2 (paralelo
+  /// a v1). Returns null on success, String reason on failure.
+  ///
+  /// [photoStoragePath] — path no bucket 'receipts', e.g. 'receipts/<order_id>.jpg'
+  /// [driverTypedTotalCents] — valor que o estafeta digitou do talão
+  /// [items] — items canónicos do pedido com purchaseStatus decidido
+  /// [itemsAdded] — items adicionados pelo estafeta
+  Future<String?> finalizeStoreShoppingV2WithReceipt({
+    required String orderId,
+    required String photoStoragePath,
+    required int driverTypedTotalCents,
+    required List<CartItem> items,
+    List<Map<String, dynamic>> itemsAdded = const [],
+  }) async {
+    final index = _orders.indexWhere((o) => o.id == orderId);
+    if (index == -1) return 'Pedido não encontrado localmente.';
+    final order = _orders[index];
+
+    if (order.serviceType != OrderServiceType.storeShopping ||
+        order.isPartnerStore) {
+      return 'V2 só aplica a storeShopping não-parceiro.';
+    }
+
+    // Build p_items payload aligned com order_purchase_items_v2 schema v2.
+    final payload = <Map<String, dynamic>>[];
+    for (final it in items) {
+      final statusV2 = it.purchaseStatus == 'bought'
+          ? 'purchased'
+          : it.purchaseStatus == 'unavailable'
+              ? 'unavailable'
+              : 'purchased'; // pending shouldn't happen (allDecided gate)
+      payload.add({
+        'original_item_id': it.productId,
+        'original_name': it.name,
+        'original_price_cents': (it.price * 100).round(),
+        'original_qty': it.quantity,
+        'status': statusV2,
+      });
+    }
+    for (final added in itemsAdded) {
+      payload.add({
+        'original_name': (added['name'] as String?) ?? '',
+        'original_price_cents': 0,
+        'original_qty': (added['qty'] as int?) ?? 1,
+        'status': 'added',
+        'actual_name': (added['name'] as String?) ?? '',
+        'actual_price_cents': (added['price_base_cents'] as int?) ?? 0,
+        'actual_qty': (added['qty'] as int?) ?? 1,
+      });
+    }
+
+    try {
+      final response = await supabase.rpc(
+        'finalize_storeshopping_purchase_v2',
+        params: <String, dynamic>{
+          'p_order_id': orderId,
+          'p_driver_typed_total_cents': driverTypedTotalCents,
+          'p_receipt_photo_url': photoStoragePath,
+          'p_items': payload,
+        },
+      );
+
+      debugPrint('[OrderStore] finalize_storeshopping_purchase_v2 OK: $response');
+
+      // Local state: o realtime UPDATE eventualmente refletirá. Update
+      // mínimo aqui para UX imediata (status onTheWay + purchase_finalized).
+      order.isPurchaseFinalized = true;
+      // status onTheWay vem via realtime; não força aqui.
+      notifyListeners();
+
+      return null;
+    } catch (e) {
+      debugPrint('OrderStore: finalize_storeshopping_purchase_v2 RPC error => $e');
+      return 'Erro ao finalizar compra (v2): $e';
+    }
+  }
+
   Future<bool> respondToSubstitution({
     required String orderId,
     required String productName,

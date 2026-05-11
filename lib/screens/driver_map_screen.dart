@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'dart:io' show File;
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
+import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
@@ -2736,9 +2739,6 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                           final orderStore = context.read<OrderStore>();
                           final messenger = ScaffoldMessenger.of(context);
                           final nav = Navigator.of(context);
-                          // Split: canonical → p_items_status (only id+status
-                          // are read by the RPC). Driver-added (extra_*) →
-                          // p_items_added with price_base_cents.
                           final itemsAdded = extraItems
                               .map((i) => <String, dynamic>{
                                     'name': i.name,
@@ -2748,6 +2748,63 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                                     'reason': 'driver_added',
                                   })
                               .toList();
+
+                          // BUG 1 — Fork V2 para storeShopping não-parceiro.
+                          // Decisão NOVA: foto+valor obrigatórios em TODOS
+                          // payment_methods para auditoria admin.
+                          final useV2 = order.serviceType ==
+                                  OrderServiceType.storeShopping &&
+                              !order.isPartnerStore;
+                          if (useV2) {
+                            final result =
+                                await _captureReceiptForV2(context, order);
+                            if (!mounted) return;
+                            if (result == null) return; // cancelado
+                            final photoFile = result.$1;
+                            final totalCents = result.$2;
+
+                            String storagePath;
+                            try {
+                              final bytes = await photoFile.readAsBytes();
+                              storagePath = 'receipts/${order.id}.jpg';
+                              await Supabase.instance.client.storage
+                                  .from('receipts')
+                                  .uploadBinary(
+                                    storagePath,
+                                    bytes,
+                                    fileOptions: const FileOptions(
+                                      upsert: true,
+                                      contentType: 'image/jpeg',
+                                    ),
+                                  );
+                            } catch (e) {
+                              messenger.showSnackBar(SnackBar(
+                                  content: Text('Erro upload talão: $e')));
+                              return;
+                            }
+
+                            final reason = await orderStore
+                                .finalizeStoreShoppingV2WithReceipt(
+                              orderId: order.id,
+                              photoStoragePath: storagePath,
+                              driverTypedTotalCents: totalCents,
+                              items: canonicalItems,
+                              itemsAdded: itemsAdded,
+                            );
+                            if (!mounted) return;
+                            if (reason != null) {
+                              messenger.showSnackBar(
+                                  SnackBar(content: Text(reason)));
+                            } else {
+                              nav.pop();
+                              messenger.showSnackBar(const SnackBar(
+                                  content: Text(
+                                      'Compra finalizada — siga para entrega')));
+                            }
+                            return;
+                          }
+
+                          // V1 legacy (storeShopping partner OU restaurant).
                           final reason =
                               await orderStore.finalizePurchaseV2(
                             orderId: order.id,
@@ -2793,6 +2850,189 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── BUG 1 — Capture receipt photo + typed total (modal bottom sheet) ──────
+
+/// Mostra modal para estafeta tirar foto do talão + digitar valor total.
+/// Returns (File, totalCents) ou null se cancelado. Decisão G: só câmara.
+Future<(File, int)?> _captureReceiptForV2(
+    BuildContext context, OrderModel order) async {
+  final isCash = order.paymentMethod == PaymentMethod.cash;
+  return showModalBottomSheet<(File, int)>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (sheetCtx) {
+      return _ReceiptCaptureSheet(isCash: isCash);
+    },
+  );
+}
+
+class _ReceiptCaptureSheet extends StatefulWidget {
+  const _ReceiptCaptureSheet({required this.isCash});
+  final bool isCash;
+
+  @override
+  State<_ReceiptCaptureSheet> createState() => _ReceiptCaptureSheetState();
+}
+
+class _ReceiptCaptureSheetState extends State<_ReceiptCaptureSheet> {
+  File? _photo;
+  final _totalCtrl = TextEditingController();
+  bool _submitting = false;
+
+  @override
+  void dispose() {
+    _totalCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _takePhoto() async {
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(
+        source: ImageSource.camera, // Decisão G — só câmara
+        preferredCameraDevice: CameraDevice.rear,
+        imageQuality: 80,
+        maxWidth: 1600,
+      );
+      if (picked != null && mounted) {
+        setState(() => _photo = File(picked.path));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro câmara: $e')),
+        );
+      }
+    }
+  }
+
+  void _onSubmit() {
+    final eur = double.tryParse(_totalCtrl.text.replaceAll(',', '.'));
+    if (eur == null || eur <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Valor do talão inválido.')),
+      );
+      return;
+    }
+    if (_photo == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tira foto do talão primeiro.')),
+      );
+      return;
+    }
+    final cents = (eur * 100).round();
+    setState(() => _submitting = true);
+    Navigator.of(context).pop<(File, int)>((_photo!, cents));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final hint = widget.isCash
+        ? 'Foto guardada para registo Bora (auditoria).'
+        : 'Foto + valor permitem Bora reembolsar-te o valor correcto do talão.';
+    return Padding(
+      padding: EdgeInsets.only(bottom: bottomInset),
+      child: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+              margin: const EdgeInsets.only(bottom: 16),
+            ),
+            const Text(
+              'Foto do talão + valor pago',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 17),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              hint,
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            GestureDetector(
+              onTap: _takePhoto,
+              child: Container(
+                height: 160,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: _photo == null
+                    ? const Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.camera_alt, size: 36),
+                            SizedBox(height: 8),
+                            Text('Tirar foto do talão'),
+                          ],
+                        ),
+                      )
+                    : ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child:
+                            Image.file(_photo!, fit: BoxFit.cover),
+                      ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _totalCtrl,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                labelText: 'Valor total no talão (€)',
+                prefixIcon: Icon(Icons.euro),
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: _submitting ? null : _onSubmit,
+              icon: _submitting
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.check),
+              label: Text(_submitting ? 'A enviar...' : 'Confirmar'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green.shade600,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancelar'),
+            ),
+          ],
         ),
       ),
     );

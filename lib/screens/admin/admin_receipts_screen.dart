@@ -60,8 +60,9 @@ class _AdminReceiptsScreenState extends State<AdminReceiptsScreen>
         children: const [
           _ReceiptsList(filter: _ReceiptFilter.pendingAdmin),
           _ReceiptsList(filter: _ReceiptFilter.ocrFlagged),
-          _ReceiptsList(filter: _ReceiptFilter.cashSettled),
-          _ReceiptsList(filter: _ReceiptFilter.all),
+          _HistoricoTab(),
+          _ReceiptsList(
+              filter: _ReceiptFilter.all, paginated: true),
         ],
       ),
     );
@@ -71,16 +72,20 @@ class _AdminReceiptsScreenState extends State<AdminReceiptsScreen>
 enum _ReceiptFilter { pendingAdmin, ocrFlagged, cashSettled, all }
 
 class _ReceiptsList extends StatefulWidget {
-  const _ReceiptsList({required this.filter});
+  const _ReceiptsList({required this.filter, this.paginated = false});
   final _ReceiptFilter filter;
+  final bool paginated;
 
   @override
   State<_ReceiptsList> createState() => _ReceiptsListState();
 }
 
 class _ReceiptsListState extends State<_ReceiptsList> {
+  static const int _pageSize = 50;
+
   List<Map<String, dynamic>> _rows = [];
   bool _loading = true;
+  bool _hasMore = true;
   String? _error;
 
   @override
@@ -89,10 +94,11 @@ class _ReceiptsListState extends State<_ReceiptsList> {
     _load();
   }
 
-  Future<void> _load() async {
+  Future<void> _load({bool append = false}) async {
     setState(() {
       _loading = true;
       _error = null;
+      if (!append) _rows = [];
     });
     try {
       var q = Supabase.instance.client
@@ -106,7 +112,8 @@ class _ReceiptsListState extends State<_ReceiptsList> {
           q = q.eq('reimbursement_status', 'pending_admin');
           break;
         case _ReceiptFilter.ocrFlagged:
-          q = q.eq('ocr_flagged', true);
+          // Decisão TODO 5: ocr_flagged=true OU abs(diff_cents) > 100
+          q = q.or('ocr_flagged.eq.true,ocr_diff_cents.gt.100,ocr_diff_cents.lt.-100');
           break;
         case _ReceiptFilter.cashSettled:
           q = q.eq('reimbursement_status', 'cash_settled');
@@ -114,10 +121,18 @@ class _ReceiptsListState extends State<_ReceiptsList> {
         case _ReceiptFilter.all:
           break;
       }
-      final data = await q.order('created_at', ascending: true);
+      final pendingAscending = widget.filter == _ReceiptFilter.pendingAdmin;
+      final from = append ? _rows.length : 0;
+      final to = from + _pageSize - 1;
+      final builder = q.order('created_at', ascending: pendingAscending);
+      final data = widget.paginated
+          ? await builder.range(from, to)
+          : await builder;
+      final fresh = List<Map<String, dynamic>>.from(data);
       if (mounted) {
         setState(() {
-          _rows = List<Map<String, dynamic>>.from(data);
+          _rows = append ? [..._rows, ...fresh] : fresh;
+          _hasMore = widget.paginated && fresh.length == _pageSize;
           _loading = false;
         });
       }
@@ -146,17 +161,273 @@ class _ReceiptsListState extends State<_ReceiptsList> {
       );
     }
     return RefreshIndicator(
-      onRefresh: _load,
+      onRefresh: () => _load(),
       child: ListView.builder(
         padding: const EdgeInsets.all(12),
-        itemCount: _rows.length,
-        itemBuilder: (_, i) => _ReceiptCard(
-          row: _rows[i],
-          onAfterAction: _load,
-        ),
+        itemCount: _rows.length + (widget.paginated && _hasMore ? 1 : 0),
+        itemBuilder: (_, i) {
+          if (i >= _rows.length) {
+            return Padding(
+              padding: const EdgeInsets.all(16),
+              child: Center(
+                child: OutlinedButton.icon(
+                  onPressed: _loading ? null : () => _load(append: true),
+                  icon: const Icon(Icons.expand_more),
+                  label: Text(_loading ? 'A carregar...' : 'Carregar mais 50'),
+                ),
+              ),
+            );
+          }
+          return _ReceiptCard(
+            row: _rows[i],
+            onAfterAction: () => _load(),
+          );
+        },
       ),
     );
   }
+}
+
+// ─── Tab 3: Histórico com filtros ──────────────────────────────────────────
+
+class _HistoricoTab extends StatefulWidget {
+  const _HistoricoTab();
+
+  @override
+  State<_HistoricoTab> createState() => _HistoricoTabState();
+}
+
+class _HistoricoTabState extends State<_HistoricoTab> {
+  DateTimeRange? _dateRange;
+  String? _driverIdFilter;
+  String _statusFilter = 'todos';
+  List<Map<String, dynamic>> _drivers = [];
+  List<Map<String, dynamic>> _rows = [];
+  bool _loading = false;
+  String? _error;
+
+  static const _statusOptions = {
+    'todos': 'Todos',
+    'admin_paid': 'Pago',
+    'rejected': 'Rejeitado',
+    'cash_settled': 'CASH',
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDrivers();
+    _load();
+  }
+
+  Future<void> _loadDrivers() async {
+    try {
+      final data = await Supabase.instance.client
+          .from('drivers')
+          .select('id, name')
+          .order('name');
+      if (mounted) {
+        setState(() => _drivers = List<Map<String, dynamic>>.from(data));
+      }
+    } catch (_) {/* silent */}
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      var q = Supabase.instance.client
+          .from('order_receipts_v2')
+          .select('id, order_id, photo_url, driver_typed_total_cents, '
+              'ocr_extracted_total_cents, ocr_diff_cents, ocr_flagged, '
+              'reimbursement_status, reimbursement_amount_cents, '
+              'reimbursement_admin_notes, created_at');
+
+      if (_statusFilter == 'todos') {
+        q = q.inFilter('reimbursement_status',
+            ['admin_paid', 'rejected', 'cash_settled']);
+      } else {
+        q = q.eq('reimbursement_status', _statusFilter);
+      }
+      if (_dateRange != null) {
+        q = q
+            .gte('created_at', _dateRange!.start.toIso8601String())
+            .lte('created_at', _dateRange!.end
+                .add(const Duration(days: 1))
+                .toIso8601String());
+      }
+      // Driver filter via JOIN orders: filtramos client-side por simplicidade
+      final data = await q.order('created_at', ascending: false).limit(200);
+      var rows = List<Map<String, dynamic>>.from(data);
+
+      if (_driverIdFilter != null && _driverIdFilter!.isNotEmpty) {
+        // Lookup driver assignments
+        final orderIds = rows.map((r) => r['order_id'] as String).toList();
+        if (orderIds.isNotEmpty) {
+          final orders = await Supabase.instance.client
+              .from('orders')
+              .select('id, assigned_driver_id')
+              .inFilter('id', orderIds);
+          final keepIds = (orders as List)
+              .where((o) => o['assigned_driver_id'] == _driverIdFilter)
+              .map((o) => o['id'] as String)
+              .toSet();
+          rows = rows.where((r) => keepIds.contains(r['order_id'])).toList();
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _rows = rows;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  void _resetFilters() {
+    setState(() {
+      _dateRange = null;
+      _driverIdFilter = null;
+      _statusFilter = 'todos';
+    });
+    _load();
+  }
+
+  Future<void> _pickDateRange() async {
+    final now = DateTime.now();
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2024),
+      lastDate: now,
+      initialDateRange: _dateRange ??
+          DateTimeRange(
+            start: now.subtract(const Duration(days: 30)),
+            end: now,
+          ),
+    );
+    if (picked != null) {
+      setState(() => _dateRange = picked);
+      _load();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          color: AppColors.surface,
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              OutlinedButton.icon(
+                onPressed: _pickDateRange,
+                icon: const Icon(Icons.date_range, size: 16),
+                label: Text(
+                  _dateRange == null
+                      ? 'Período'
+                      : '${_fmt(_dateRange!.start)} → ${_fmt(_dateRange!.end)}',
+                ),
+              ),
+              SizedBox(
+                width: 200,
+                child: DropdownButtonFormField<String?>(
+                  initialValue: _driverIdFilter,
+                  decoration: const InputDecoration(
+                    labelText: 'Estafeta',
+                    isDense: true,
+                    border: OutlineInputBorder(),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  ),
+                  items: [
+                    const DropdownMenuItem<String?>(
+                        value: null, child: Text('Todos')),
+                    ..._drivers.map((d) => DropdownMenuItem<String?>(
+                          value: d['id'] as String,
+                          child: Text((d['name'] as String?) ?? '—'),
+                        )),
+                  ],
+                  onChanged: (v) {
+                    setState(() => _driverIdFilter = v);
+                    _load();
+                  },
+                ),
+              ),
+              SizedBox(
+                width: 160,
+                child: DropdownButtonFormField<String>(
+                  initialValue: _statusFilter,
+                  decoration: const InputDecoration(
+                    labelText: 'Status',
+                    isDense: true,
+                    border: OutlineInputBorder(),
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  ),
+                  items: _statusOptions.entries
+                      .map((e) => DropdownMenuItem(
+                            value: e.key,
+                            child: Text(e.value),
+                          ))
+                      .toList(),
+                  onChanged: (v) {
+                    if (v == null) return;
+                    setState(() => _statusFilter = v);
+                    _load();
+                  },
+                ),
+              ),
+              TextButton.icon(
+                onPressed: _resetFilters,
+                icon: const Icon(Icons.refresh, size: 16),
+                label: const Text('Resetar'),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: _loading
+              ? const Center(child: CircularProgressIndicator())
+              : _error != null
+                  ? Center(child: Text('Erro: $_error'))
+                  : _rows.isEmpty
+                      ? Center(
+                          child: Text('Sem resultados.',
+                              style: TextStyle(
+                                  color: AppColors.textSecondary)),
+                        )
+                      : RefreshIndicator(
+                          onRefresh: _load,
+                          child: ListView.builder(
+                            padding: const EdgeInsets.all(12),
+                            itemCount: _rows.length,
+                            itemBuilder: (_, i) => _ReceiptCard(
+                              row: _rows[i],
+                              onAfterAction: _load,
+                            ),
+                          ),
+                        ),
+        ),
+      ],
+    );
+  }
+
+  String _fmt(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}';
 }
 
 class _ReceiptCard extends StatefulWidget {

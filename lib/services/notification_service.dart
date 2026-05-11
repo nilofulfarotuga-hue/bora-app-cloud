@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'push_token_service.dart';
 import 'sound_service.dart';
 
 /// Background message handler — must be a top-level function (not a closure).
@@ -154,6 +155,8 @@ class NotificationService {
       _boundRole = 'driver';
       _boundId = driverId;
       debugPrint('[NotificationService] FCM token saved for driver $driverId');
+      // 5G — Multi-device register (Decisão A). Fire-and-forget.
+      PushTokenService.registerForRole('driver').ignore();
     } catch (e) {
       debugPrint('[NotificationService] saveTokenForDriver error: $e');
     }
@@ -176,6 +179,8 @@ class NotificationService {
       _boundRole = 'client';
       _boundId = clientId;
       debugPrint('[NotificationService] FCM token saved for client $clientId');
+      // 5G — Multi-device register (Decisão A). Fire-and-forget.
+      PushTokenService.registerForRole('client').ignore();
     } catch (e) {
       debugPrint('[NotificationService] saveTokenForClient error: $e');
     }

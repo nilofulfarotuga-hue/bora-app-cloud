@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' hide LatLng;
 import 'package:latlong2/latlong.dart' as ll;
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show Supabase;
 
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
@@ -43,6 +44,12 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   ll.LatLng? _lastCameraTarget;
   bool _ratingNavigated = false;
 
+  // BUG #3 (sessão exec post-test 2026-05-12) — fallback fetch para o nome
+  // do estafeta quando DriverStore.getDriverById retorna null (driver não
+  // está carregado em memória mas existe em DB).
+  String? _fetchedDriverName;
+  String? _fetchedFor;
+
   // ── Waze-style camera (BUG B) — client overview pose ────────────────────
   // Wider than driver's pose so origin+destination+driver fit on screen.
   static const double _wazeZoom = 16.5;
@@ -57,6 +64,24 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   void initState() {
     super.initState();
     MapMarkerHelper.preload();
+  }
+
+  /// BUG #3 — Best-effort fetch do nome do estafeta de drivers.name quando
+  /// DriverStore não tem o driver carregado. Idempotente (cache por driverId).
+  Future<void> _maybeFetchDriverName(String driverId) async {
+    if (_fetchedFor == driverId) return;
+    _fetchedFor = driverId;
+    try {
+      final row = await Supabase.instance.client
+          .from('drivers')
+          .select('name')
+          .eq('id', driverId)
+          .maybeSingle();
+      final name = row?['name'] as String?;
+      if (name != null && name.isNotEmpty && mounted) {
+        setState(() => _fetchedDriverName = name);
+      }
+    } catch (_) {/* silent — falls back to 'Estafeta' */}
   }
 
   @override
@@ -228,6 +253,13 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     final assignedId = order.assignedDriverId;
     final driver =
         assignedId != null ? driverStore.getDriverById(assignedId) : null;
+    // BUG #3 — se DriverStore não tem o driver carregado mas o pedido tem
+    // assigned_driver_id, faz fallback fetch ao nome via Supabase.
+    if (assignedId != null && (driver?.name == null || driver!.name.isEmpty)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _maybeFetchDriverName(assignedId);
+      });
+    }
     // Single source of truth: DriverStore.currentDriver.location, synced in
     // real time via the `drivers` table subscription. Scoped via select() so
     // that only changes to THIS driver's location trigger a rebuild.
@@ -272,7 +304,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         markerId: const MarkerId('driver'),
         position: driverPosition.toGMaps(),
         icon: MapMarkerHelper.driverIcon,
-        infoWindow: InfoWindow(title: driver?.name ?? 'Estafeta'),
+        infoWindow: InfoWindow(title: (driver?.name ?? _fetchedDriverName ?? 'Estafeta')),
         zIndexInt: 2,
       ));
     }
@@ -372,7 +404,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
             builder: (_, scrollController) => _BottomCard(
               scrollController: scrollController,
               order: order,
-              driverName: driver?.name,
+              driverName: driver?.name ?? _fetchedDriverName,
             ),
           ),
         ],

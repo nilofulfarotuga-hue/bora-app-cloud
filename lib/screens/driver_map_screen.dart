@@ -2688,26 +2688,37 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
               ),
               const SizedBox(height: 6),
               if (isCash) ...[
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Cliente paga na entrega:',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 16,
+                // BUG H (sessão exec 2026-05-12) — breakdown completo em CASH.
+                // Estafeta cobra ao cliente TOTAL = produtos + sacos +
+                // adicionados + taxa serviço + entrega.
+                _SummaryRow(
+                    label: 'Taxa de serviço', value: order.serviceFee),
+                _SummaryRow(label: 'Entrega', value: order.deliveryFee),
+                const Divider(height: 12),
+                Builder(builder: (_) {
+                  final cashTotal =
+                      adjustedTotal + order.serviceFee + order.deliveryFee;
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Cliente paga na entrega:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 17,
+                        ),
                       ),
-                    ),
-                    Text(
-                      '€${adjustedTotal.toStringAsFixed(2)}',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 16,
-                        color: Colors.green.shade700,
+                      Text(
+                        '€${cashTotal.toStringAsFixed(2)}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 17,
+                          color: Colors.green.shade700,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  );
+                }),
               ] else ...[
                 // BUG 16+17 fix — pedido MBWay/Stripe: cliente JÁ pagou na app.
                 // NÃO mostrar "Cliente pagou" (era confuso e usava field errado).

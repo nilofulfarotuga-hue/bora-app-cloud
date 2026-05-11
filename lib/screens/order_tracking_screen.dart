@@ -126,8 +126,13 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     if (_ratingNavigated) return;
     if (order.status != OrderStatus.delivered) return;
     final driverId = order.assignedDriverId;
+    // BLOCO 2.1 — subject_id partner deve ser restaurant_id (UUID), nunca
+    // vendor_name. Se restaurantId estiver vazio, NÃO abrir partial rating
+    // (evita ambíguos legacy).
+    final restaurantId = order.restaurantId;
     final hasPartner = order.isPartnerStore &&
-        (order.vendorName != null && order.vendorName!.isNotEmpty);
+        restaurantId != null &&
+        restaurantId.isNotEmpty;
     if ((driverId == null || driverId.isEmpty) && !hasPartner) return;
     _ratingNavigated = true;
     WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -152,7 +157,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
             builder: (_) => RatingScreen(
               order: order,
               subjectType: RatingSubjectType.partner,
-              subjectId: order.vendorName!,
+              subjectId: restaurantId,
             ),
           ),
         );

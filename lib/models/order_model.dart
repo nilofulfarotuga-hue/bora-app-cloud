@@ -55,6 +55,9 @@ class OrderModel {
   final LatLng? pickupLocation;
   final LatLng? destination;
   final String? vendorName;
+  /// orders.restaurant_id — UUID/text do parceiro (restaurant/supermarket).
+  /// Use este campo (não vendorName) como subject_id em ratings partner.
+  final String? restaurantId;
   final String? pickupAddress;
   final String? pickupStreet;
   final String? pickupCity;
@@ -184,6 +187,7 @@ class OrderModel {
     this.pickupLocation,
     this.destination,
     this.vendorName,
+    this.restaurantId,
     this.pickupAddress,
     this.pickupStreet,
     this.pickupCity,
@@ -346,6 +350,7 @@ class OrderModel {
       isDistanceEstimated: data['is_distance_estimated'] as bool? ?? false,
       requiresCar: data['requires_car'] as bool? ?? false,
       vendorName: data['vendor_name'] as String?,
+      restaurantId: data['restaurant_id'] as String?,
       pickupAddress: data['pickup_address'] as String?,
       pickupStreet: data['pickup_street'] as String?,
       pickupCity: data['pickup_city'] as String?,
@@ -421,6 +426,7 @@ class OrderModel {
       'is_distance_estimated': isDistanceEstimated,
       'requires_car': requiresCar,
       'vendor_name': vendorName,
+      if (restaurantId != null) 'restaurant_id': restaurantId,
       'pickup_address': pickupAddress,
       'pickup_street': pickupStreet,
       'pickup_city': pickupCity,

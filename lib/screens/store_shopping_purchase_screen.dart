@@ -13,6 +13,8 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../services/receipt_upload_service.dart';
+
 import '../config/app_colors.dart';
 import '../models/cart_item.dart';
 import '../models/order_model.dart';
@@ -113,20 +115,12 @@ class _StoreShoppingPurchaseScreenState
       final supabase = Supabase.instance.client;
       final orderId = widget.order.id;
 
-      // 1) Upload foto
-      // BUG #1 fix — path SEM prefixo 'receipts/' (cliente Supabase já adiciona
-      // bucket name automaticamente; passar 'receipts/X' resultava em
-      // /object/receipts/receipts/X → 400).
-      final bytes = await _receiptPhoto!.readAsBytes();
-      final path = '$orderId.jpg';
-      await supabase.storage.from('receipts').uploadBinary(
-            path,
-            bytes,
-            fileOptions: const FileOptions(
-              upsert: true,
-              contentType: 'image/jpeg',
-            ),
-          );
+      // 1) Upload foto via Edge Function (BUG #1 v2 — bypass storage rate).
+      final path = await ReceiptUploadService.uploadReceipt(
+        orderId: orderId,
+        photoFile: _receiptPhoto!,
+        totalCents: typedCents,
+      );
 
       // 2) Montar payload items
       final payload = <Map<String, dynamic>>[];

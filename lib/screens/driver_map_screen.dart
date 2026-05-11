@@ -6,6 +6,8 @@ import 'dart:ui' as ui;
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../services/receipt_upload_service.dart';
+
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:flutter/material.dart';
@@ -2806,24 +2808,18 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                             final photoFile = result.$1;
                             final totalCents = result.$2;
 
+                            // BUG #1 v2 (sessão exec 2026-05-12 pós-teste) —
+                            // Upload via Edge Function `upload-receipt` em vez
+                            // de storage.from() directo. Bypass storage rate
+                            // limits, validação server-side completa, mensagens
+                            // erro PT-PT por código.
                             String storagePath;
                             try {
-                              final bytes = await photoFile.readAsBytes();
-                              // BUG #1 fix — path SEM prefixo 'receipts/'.
-                              // Cliente Supabase já adiciona bucket name como
-                              // prefixo automaticamente. Passar 'receipts/X'
-                              // resultava em URL /object/receipts/receipts/X → 400.
-                              storagePath = '${order.id}.jpg';
-                              await Supabase.instance.client.storage
-                                  .from('receipts')
-                                  .uploadBinary(
-                                    storagePath,
-                                    bytes,
-                                    fileOptions: const FileOptions(
-                                      upsert: true,
-                                      contentType: 'image/jpeg',
-                                    ),
-                                  );
+                              storagePath = await ReceiptUploadService.uploadReceipt(
+                                orderId: order.id,
+                                photoFile: photoFile,
+                                totalCents: totalCents,
+                              );
                             } catch (e) {
                               debugPrint(
                                   '[driver_map] receipt upload error: $e');

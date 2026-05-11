@@ -25,6 +25,7 @@ import '../models/order_model.dart';
 import '../services/driver_location_ping_service.dart';
 import '../services/navigation_service.dart';
 import '../services/heartbeat_service.dart';
+import '../services/push_token_service.dart';
 import '../services/sound_service.dart';
 import '../stores/driver_store.dart';
 import '../stores/order_store.dart';
@@ -87,6 +88,15 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       // This sync runs once on screen init and is idempotent — if the
       // driver is already configured, configurePrimaryDriver just updates.
       _ensureDriverConfigured();
+
+      // BUG E (sessão exec 2026-05-12) — defensive register driver_push_tokens.
+      // Garante registo mesmo se driver_login_screen.saveTokenForDriver falhou
+      // por timing (FCM token ainda não obtido) ou se app abriu já logged-in
+      // (skip login flow). Idempotente via _lastRegisteredToken cache.
+      Future.microtask(() {
+        if (!mounted) return;
+        PushTokenService.registerForRole('driver');
+      });
 
       // FASE 1: arranca heartbeat se driver já está online (re-abertura
       // do app, restore session). Toggle handlers tratam transições.

@@ -32,41 +32,56 @@ class PushTokenService {
   static String? _lastRegisteredToken;
   static String? _lastRegisteredRole;
 
+  /// BUG E (sessão exec 2026-05-12) — Log helper visível em release builds.
+  /// debugPrint é stripped em release; usar print() para sair em logcat/Xcode.
+  static void _log(String msg) {
+    // ignore: avoid_print
+    print('[PushTokenService] $msg');
+  }
+
   /// Registers the current device for the given [role] ('client' | 'driver').
   /// Idempotent: safe to call multiple times. Re-uses the FCM token from
   /// [NotificationService.instance.fcmToken] when available.
   ///
-  /// Skips silently if:
-  ///   • Not authenticated
+  /// BUG E — retry 3x com backoff (1s, 3s, 9s) quando getToken() retorna null
+  /// ou RPC falha por race condition (auth não settled).
+  ///
+  /// Skips silently se:
+  ///   • Not authenticated (após retries)
   ///   • Role is not 'client' or 'driver'
-  ///   • No FCM token available (e.g. iOS simulator, web)
+  ///   • No FCM token available após 3 retries
   static Future<void> registerForRole(String role) async {
     if (_registering) return;
     if (role != 'client' && role != 'driver') {
-      debugPrint('[PushTokenService] skip — invalid role: $role');
+      _log('skip — invalid role: $role');
       return;
     }
 
     final client = Supabase.instance.client;
     if (client.auth.currentUser == null) {
-      debugPrint('[PushTokenService] skip — not authenticated');
+      _log('skip — not authenticated');
       return;
     }
 
     _registering = true;
     try {
-      // Reuse existing token from NotificationService when possible.
+      // BUG E — retry getToken com backoff 1s/3s/9s.
       String? token = NotificationService.instance.fcmToken;
-      if (token == null || token.isEmpty) {
+      const delays = [Duration(seconds: 1), Duration(seconds: 3), Duration(seconds: 9)];
+      var attempt = 0;
+      while ((token == null || token.isEmpty) && attempt < delays.length) {
         try {
           token = await FirebaseMessaging.instance.getToken();
+          if (token != null && token.isNotEmpty) break;
         } catch (e) {
-          debugPrint('[PushTokenService] getToken() failed: $e');
-          return;
+          _log('getToken() attempt ${attempt + 1} failed: $e');
         }
+        _log('token null — waiting ${delays[attempt].inSeconds}s (attempt ${attempt + 1}/3)');
+        await Future.delayed(delays[attempt]);
+        attempt++;
       }
       if (token == null || token.isEmpty) {
-        debugPrint('[PushTokenService] no FCM token available — skipping');
+        _log('no FCM token after 3 retries — skipping');
         return;
       }
 
@@ -82,6 +97,26 @@ class PushTokenService {
       );
     } finally {
       _registering = false;
+    }
+  }
+
+  /// BUG E — Auto-detect role from auth metadata + register.
+  /// Útil para chamar em auth gate (main / _RootNavigator) sem precisar
+  /// de saber explicitamente qual o role. Lê auth.currentUser.userMetadata
+  /// ['bora_role'] — se 'driver' ou 'client', regista. Senão skip.
+  static Future<void> registerCurrentDeviceAutoDetect() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      _log('autodetect skip — no auth user');
+      return;
+    }
+    final meta = user.userMetadata ?? <String, dynamic>{};
+    final role = (meta['bora_role'] as String?)?.toLowerCase();
+    if (role == 'driver' || role == 'client') {
+      _log('autodetect → registerForRole($role)');
+      await registerForRole(role!);
+    } else {
+      _log('autodetect skip — role=$role not (driver|client)');
     }
   }
 
@@ -105,9 +140,9 @@ class PushTokenService {
       );
       _lastRegisteredToken = token;
       _lastRegisteredRole = role;
-      debugPrint('[PushTokenService] ✓ token registered for $role');
+      _log('✓ token registered for $role (table: ${role}_push_tokens)');
     } catch (e) {
-      debugPrint('[PushTokenService] register failed: $e');
+      _log('✗ register_push_token RPC failed for role=$role: $e');
     }
   }
 

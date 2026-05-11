@@ -55,14 +55,26 @@ Future<void> main() async {
   );
 
   if (!kIsWeb) {
-    // Injected via --dart-define=STRIPE_PUBLISHABLE_KEY=pk_live_...
-    // or --dart-define-from-file=.dart_defines
-    // Never hardcode the key here — not even the test key.
-    const stripePublishableKey = String.fromEnvironment('STRIPE_PUBLISHABLE_KEY');
+    // BUG 13 — Stripe mode toggle. Default = live (safety).
+    // For QA com cartões 4242…: pass --dart-define=BORA_STRIPE_MODE=test
+    //   AND --dart-define=STRIPE_TEST_PUBLISHABLE_KEY=pk_test_...
+    // Edge Fn create-payment-intent + create-mbway-payment-intent leem o
+    // BORA_STRIPE_MODE da Edge Fn env (configurada no Supabase Secrets) e
+    // escolhem STRIPE_TEST_SECRET_KEY ou STRIPE_SECRET_KEY em conformidade.
+    const stripeMode =
+        String.fromEnvironment('BORA_STRIPE_MODE', defaultValue: 'live');
+    const stripeLivePublishableKey =
+        String.fromEnvironment('STRIPE_PUBLISHABLE_KEY');
+    const stripeTestPublishableKey =
+        String.fromEnvironment('STRIPE_TEST_PUBLISHABLE_KEY');
+    const stripePublishableKey = stripeMode == 'test'
+        ? stripeTestPublishableKey
+        : stripeLivePublishableKey;
     if (stripePublishableKey.isEmpty) {
       throw StateError(
-        'STRIPE_PUBLISHABLE_KEY is missing. '
-        'Run with: flutter run --dart-define-from-file=.dart_defines',
+        'Stripe publishable key missing (mode=$stripeMode). '
+        'Run with: flutter run --dart-define-from-file=.dart_defines '
+        '${stripeMode == "test" ? "--dart-define=BORA_STRIPE_MODE=test --dart-define=STRIPE_TEST_PUBLISHABLE_KEY=..." : ""}',
       );
     }
     Stripe.publishableKey = stripePublishableKey;

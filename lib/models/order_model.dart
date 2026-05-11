@@ -58,6 +58,9 @@ class OrderModel {
   /// orders.restaurant_id — UUID/text do parceiro (restaurant/supermarket).
   /// Use este campo (não vendorName) como subject_id em ratings partner.
   final String? restaurantId;
+  /// orders.purchase_flow_version — 1=legacy v1, 2=novo fluxo storeShopping v2.
+  /// UI client decide se mostra badges/breakdown novos com base neste campo.
+  final int purchaseFlowVersion;
   final String? pickupAddress;
   final String? pickupStreet;
   final String? pickupCity;
@@ -188,6 +191,7 @@ class OrderModel {
     this.destination,
     this.vendorName,
     this.restaurantId,
+    this.purchaseFlowVersion = 1,
     this.pickupAddress,
     this.pickupStreet,
     this.pickupCity,
@@ -351,6 +355,7 @@ class OrderModel {
       requiresCar: data['requires_car'] as bool? ?? false,
       vendorName: data['vendor_name'] as String?,
       restaurantId: data['restaurant_id'] as String?,
+      purchaseFlowVersion: (data['purchase_flow_version'] as num?)?.toInt() ?? 1,
       pickupAddress: data['pickup_address'] as String?,
       pickupStreet: data['pickup_street'] as String?,
       pickupCity: data['pickup_city'] as String?,

@@ -2809,7 +2809,11 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                             String storagePath;
                             try {
                               final bytes = await photoFile.readAsBytes();
-                              storagePath = 'receipts/${order.id}.jpg';
+                              // BUG #1 fix — path SEM prefixo 'receipts/'.
+                              // Cliente Supabase já adiciona bucket name como
+                              // prefixo automaticamente. Passar 'receipts/X'
+                              // resultava em URL /object/receipts/receipts/X → 400.
+                              storagePath = '${order.id}.jpg';
                               await Supabase.instance.client.storage
                                   .from('receipts')
                                   .uploadBinary(

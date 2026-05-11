@@ -114,8 +114,11 @@ class _StoreShoppingPurchaseScreenState
       final orderId = widget.order.id;
 
       // 1) Upload foto
+      // BUG #1 fix — path SEM prefixo 'receipts/' (cliente Supabase já adiciona
+      // bucket name automaticamente; passar 'receipts/X' resultava em
+      // /object/receipts/receipts/X → 400).
       final bytes = await _receiptPhoto!.readAsBytes();
-      final path = 'receipts/$orderId.jpg';
+      final path = '$orderId.jpg';
       await supabase.storage.from('receipts').uploadBinary(
             path,
             bytes,

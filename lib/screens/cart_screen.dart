@@ -1,3 +1,5 @@
+import 'dart:async' show unawaited;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -435,52 +437,16 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                       cartStore.setWalletApplied(
                           _useWalletBalance ? walletAppliedCents : 0);
 
-                      // BUG F (sessão exec 2026-05-12) — quote server-side
-                      // antes do checkout para apanhar diff vs local pricing
-                      // (server recalcula distance real).
-                      final localTotal =
-                          cartStore.pricingBreakdown.customerTotal;
-                      final quote = await cartStore.quoteOrderPricing(
+                      // BUG #2 (sessão post-test 2026-05-12) — REMOVIDO
+                      // AlertDialog 'Total ajustado'. Cliente já vê total no
+                      // carrinho + PaymentMethodScreen. Server quote continua
+                      // a correr (best-effort silencioso) — RPC create_order
+                      // server-side recalcula authoritative total final.
+                      // Cliente paga o que vê. Sem surpresa, sem dialog.
+                      unawaited(cartStore.quoteOrderPricing(
                         walletAppliedCents:
                             _useWalletBalance ? walletAppliedCents : 0,
-                      );
-                      if (!context.mounted) return;
-                      if (quote != null) {
-                        final serverTotal =
-                            (quote['customer_total'] as num?)?.toDouble() ??
-                                (quote['payment_buffer_total'] as num?)
-                                    ?.toDouble() ??
-                                localTotal;
-                        if ((serverTotal - localTotal).abs() > 0.05) {
-                          final accept = await showDialog<bool>(
-                            context: context,
-                            builder: (dctx) => AlertDialog(
-                              icon: const Icon(Icons.info_outline,
-                                  color: Colors.orange, size: 40),
-                              title: const Text('Total ajustado'),
-                              content: Text(
-                                'A distância exacta foi recalculada e o '
-                                'total ficou €${serverTotal.toStringAsFixed(2)} '
-                                '(estimado: €${localTotal.toStringAsFixed(2)}).\n\n'
-                                'Pretendes continuar?',
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () =>
-                                      Navigator.of(dctx).pop(false),
-                                  child: const Text('Cancelar'),
-                                ),
-                                ElevatedButton(
-                                  onPressed: () =>
-                                      Navigator.of(dctx).pop(true),
-                                  child: const Text('Continuar'),
-                                ),
-                              ],
-                            ),
-                          );
-                          if (!context.mounted || accept != true) return;
-                        }
-                      }
+                      ));
 
                       final confirmed = await Navigator.push<bool>(
                         context,

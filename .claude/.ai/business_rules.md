@@ -3550,7 +3550,65 @@ Timestamps batem com `supabase_migrations.schema_migrations` em prod.
 
 ---
 
+## §52. Push Tokens Multi-Device + Chat Push + StoreShopping v2 (Sessão Mega 2026-05-11)
+
+### §52.1 — Push Tokens Infrastructure (BLOCO 1)
+
+- Tabelas `client_push_tokens` + `driver_push_tokens` com `UNIQUE(user_id, fcm_token)` (multi-device, Decisão A — não apaga ao adicionar novo device)
+- RPC `register_push_token(p_role, p_fcm_token, p_device_label, p_platform)` — UPSERT idempotente
+- RPC `mark_token_failed(p_table, p_token, p_reason)` — incrementa `fail_count`, marca `active=false` quando ≥3 (Decisão C)
+- RLS: owner-only + service_role bypass
+- `PushTokenService.dart` corre em paralelo com `NotificationService` legacy single-token (transição)
+- Edge Fn `notify-chat-message` (verify_jwt=false) — pattern FCM v1 OAuth2 multi-device
+- Trigger AFTER INSERT em `public.messages` — gate `current_setting('app.supabase_url')`, silent skip, NUNCA bloqueia INSERT
+- Recipient: `sender_type='client'` → driver_push_tokens; `='driver'` → client_push_tokens
+- Decisão B: push dispara SEMPRE (mesmo com app aberta no chat)
+
+### §52.2 — Rating subject_id estável (UUID/text)
+
+- Driver: `subject_id = order.assignedDriverId`
+- Partner: `subject_id = order.restaurantId` (NUNCA `vendor_name`)
+- App: `subject_id = 'app'`
+- `submit_rating` escreve `UPDATE orders SET rated_at = COALESCE(rated_at, now())` (Decisão F — JÁ existia)
+- Decisão D: sem backfill. Decisão E: ratings partner com subject_id não-resolvível → DELETE.
+- `OrderModel.restaurantId` mapeia `orders.restaurant_id`.
+
+### §52.3 — StoreShopping não-parceiro v2 (BLOCO 3)
+
+**Backward compat total:** `orders.purchase_flow_version` SMALLINT default 1 (legacy). v2 RPC paralela; v1 intacta.
+
+**Schema novo:**
+- `order_purchase_items_v2`: snapshot + status (purchased/unavailable/replaced/added) + actual_* + `client_confirmation_message_id`
+- `order_receipts_v2`: foto + OCR + `reimbursement_status` (pending_admin/admin_paid/cash_settled/rejected)
+- Bucket `receipts` privado. RLS via Studio (`supabase/TODO_STORAGE_RLS.sql`).
+
+**RPC `finalize_storeshopping_purchase_v2`** dispara via pg_net:
+1. Crédito wallet cliente para items unavailable (`refund_credit_free`, idempotency_key `v2_unavail_<order_id>`)
+2. `notify-admin-reimbursement` (Stripe/MBWay only)
+3. `ocr-receipt` (sempre — Decisão H shadow Gemini Flash)
+4. `notify-purchase-finalized` (sempre — Decisão I)
+5. Status → `onTheWay`
+
+**Reembolso estafeta (Decisão L NOVO MODELO):**
+- **Stripe/MBWay** → `'pending_admin'`. Edge Fn `notify-admin-reimbursement` push persistente admin com `driver_mbway_phone`. Admin faz MBWay externo + marca pago via `admin_mark_receipt_paid` → credita carteira estafeta (`kind='reimbursement_storeshopping'`).
+- **CASH** → `'cash_settled'` auto. Estafeta já recebeu directo. Payout semanal calcula `ganhos_operacionais − cash_recebido_directo`.
+- Ganhos operacionais (€3.80 + km + €0.80 + 30%) sempre payout semanal, NUNCA reembolso.
+- Threshold €50 DESCARTADO.
+
+**UI estafeta** (`store_shopping_purchase_screen.dart`):
+- Lista items com 4 acções
+- Threshold €5 (Decisão J): substituição/adição diff > €5 → bloqueia até chat com cliente (`client_confirmation_message_id`)
+- Foto câmara APENAS (Decisão G)
+- Upload `receipts/{order_id}.jpg` + RPC v2
+
+**UI admin** (`admin_receipts_screen.dart`, PT-BR): 4 tabs. Tab Pendentes principal com Marcar Pago / Rejeitar (motivo obrigatório). RPCs `admin_mark_receipt_paid` + `admin_reject_receipt` com audit log e `is_admin()` guard.
+
+**Decisões fixas:**
+- (A) Multi-device · (B) Push chat sempre · (C) 3 retries → inactivo · (D) Sem backfill · (E) Apagar ambíguos · (F) rated_at sempre · (G) Câmara only · (H) OCR sempre · (I) Push cliente sempre · (J) Threshold €5 · (K) Added conta normal · (L) Novo modelo reembolso
+
+---
+
 *Documento de regras de negócio — Bora App*
-*Última atualização: 2026-05-09 (§51 — Reservas PRO F2 BACKEND CORE · 10 RPCs + 5 triggers + 5 CRONs)*
+*Última atualização: 2026-05-11 (§52 — Push tokens multi-device + chat push + StoreShopping v2 completo)*
 *Atualizar sempre que houver mudanças nas regras de negócio*
 *Fonte de verdade usada por: todas as skills do sistema*

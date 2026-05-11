@@ -148,15 +148,18 @@ class NotificationService {
       debugPrint('[NotificationService] saveTokenForDriver: no FCM token yet');
       return;
     }
+    _boundRole = 'driver';
+    _boundId = driverId;
+
+    // BUG 2 fix — multi-device PRIMEIRO (independente de drivers.update,
+    // que pode falhar por RLS strict em drivers não-aprovados).
+    PushTokenService.registerForRole('driver').ignore();
+
     try {
       await Supabase.instance.client
           .from('drivers')
           .update({'fcm_token': token}).eq('id', driverId);
-      _boundRole = 'driver';
-      _boundId = driverId;
       debugPrint('[NotificationService] FCM token saved for driver $driverId');
-      // 5G — Multi-device register (Decisão A). Fire-and-forget.
-      PushTokenService.registerForRole('driver').ignore();
     } catch (e) {
       debugPrint('[NotificationService] saveTokenForDriver error: $e');
     }
@@ -171,16 +174,18 @@ class NotificationService {
       debugPrint('[NotificationService] saveTokenForClient: no FCM token yet');
       return;
     }
+    _boundRole = 'client';
+    _boundId = clientId;
+
+    // BUG 2 fix — multi-device PRIMEIRO (independente de users.upsert).
+    PushTokenService.registerForRole('client').ignore();
+
     try {
       await Supabase.instance.client.from('users').upsert({
         'id': clientId,
         'fcm_token': token,
       });
-      _boundRole = 'client';
-      _boundId = clientId;
       debugPrint('[NotificationService] FCM token saved for client $clientId');
-      // 5G — Multi-device register (Decisão A). Fire-and-forget.
-      PushTokenService.registerForRole('client').ignore();
     } catch (e) {
       debugPrint('[NotificationService] saveTokenForClient error: $e');
     }

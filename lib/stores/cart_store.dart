@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/cart_item.dart';
 import '../models/order_model.dart';
@@ -162,6 +163,61 @@ class CartStore extends ChangeNotifier {
         isPartnerStore: _isPartnerStore,
         apartmentDelivery: _apartmentDelivery,
       );
+
+  // BUG F (sessão exec 2026-05-12) — server-authoritative pricing quote.
+  // Flutter pricingBreakdown usa distância local que pode diferir do server
+  // (server recalcula com rota real). Esta função chama RPC quote_order_pricing
+  // server-side para obter total authoritative ANTES do checkout final.
+  //
+  // Cache 30s para evitar quota spam. Returns null em erro (fallback caller
+  // usa pricingBreakdown local + disclaimer "Total estimado").
+  Map<String, dynamic>? _quoteCache;
+  DateTime? _quoteCacheTime;
+
+  Future<Map<String, dynamic>?> quoteOrderPricing({
+    int walletAppliedCents = 0,
+  }) async {
+    // Cache hit (30s freshness)
+    final now = DateTime.now();
+    if (_quoteCache != null &&
+        _quoteCacheTime != null &&
+        now.difference(_quoteCacheTime!).inSeconds < 30) {
+      return _quoteCache;
+    }
+
+    if (_pickupLocation == null || _deliveryLocation == null) return null;
+
+    final cartInput = <String, dynamic>{
+      'service_type': _serviceType.name,
+      'is_partner_store': _isPartnerStore,
+      'items': _items.map((i) => i.toJson()).toList(),
+      'distance_km': _distanceKm,
+      'apartment_delivery': _apartmentDelivery,
+      'pickup_lat': _pickupLocation!.latitude,
+      'pickup_lng': _pickupLocation!.longitude,
+      'destination_lat': _deliveryLocation!.latitude,
+      'destination_lng': _deliveryLocation!.longitude,
+      'wallet_applied_cents': walletAppliedCents,
+      'payment_method': 'card', // any non-cash, RPC ignora para quote
+    };
+
+    try {
+      final result = await Supabase.instance.client
+          .rpc('quote_order_pricing', params: {'p_input': cartInput});
+      if (result is Map) {
+        _quoteCache = Map<String, dynamic>.from(result);
+        _quoteCacheTime = now;
+        return _quoteCache;
+      }
+    } catch (e) {
+      debugPrint('[CartStore] quote_order_pricing failed: $e');
+    }
+    return null;
+  }
+
+  // Cache invalidation hook — chamar a partir de setters quando cart muda.
+  // Não exposto agora (30s freshness é aceitável para o use case checkout).
+  // Quando necessário invalidar manualmente: _quoteCache=null; _quoteCacheTime=null;
 
   // Takeaway flag for partner restaurants (BR §14.9).
   bool _isTakeaway = false;

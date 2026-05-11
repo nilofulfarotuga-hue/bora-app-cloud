@@ -432,11 +432,56 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
               onPressed: cartStore.items.isEmpty || isWalletBlocked
                   ? null
                   : () async {
-                      // Mirror current wallet selection to CartStore so
-                      // PaymentMethodScreen can pre-auth Stripe at the right
-                      // amount and CartStore.finishOrder triggers the debit.
                       cartStore.setWalletApplied(
                           _useWalletBalance ? walletAppliedCents : 0);
+
+                      // BUG F (sessão exec 2026-05-12) — quote server-side
+                      // antes do checkout para apanhar diff vs local pricing
+                      // (server recalcula distance real).
+                      final localTotal =
+                          cartStore.pricingBreakdown.customerTotal;
+                      final quote = await cartStore.quoteOrderPricing(
+                        walletAppliedCents:
+                            _useWalletBalance ? walletAppliedCents : 0,
+                      );
+                      if (!context.mounted) return;
+                      if (quote != null) {
+                        final serverTotal =
+                            (quote['customer_total'] as num?)?.toDouble() ??
+                                (quote['payment_buffer_total'] as num?)
+                                    ?.toDouble() ??
+                                localTotal;
+                        if ((serverTotal - localTotal).abs() > 0.05) {
+                          final accept = await showDialog<bool>(
+                            context: context,
+                            builder: (dctx) => AlertDialog(
+                              icon: const Icon(Icons.info_outline,
+                                  color: Colors.orange, size: 40),
+                              title: const Text('Total ajustado'),
+                              content: Text(
+                                'A distância exacta foi recalculada e o '
+                                'total ficou €${serverTotal.toStringAsFixed(2)} '
+                                '(estimado: €${localTotal.toStringAsFixed(2)}).\n\n'
+                                'Pretendes continuar?',
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () =>
+                                      Navigator.of(dctx).pop(false),
+                                  child: const Text('Cancelar'),
+                                ),
+                                ElevatedButton(
+                                  onPressed: () =>
+                                      Navigator.of(dctx).pop(true),
+                                  child: const Text('Continuar'),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (!context.mounted || accept != true) return;
+                        }
+                      }
+
                       final confirmed = await Navigator.push<bool>(
                         context,
                         MaterialPageRoute(

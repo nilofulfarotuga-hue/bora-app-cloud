@@ -152,8 +152,15 @@ class OrderStore extends ChangeNotifier {
 
   void _bootstrap() {
     _subscribeToOrders();
+    // BUG #2 (sessão exec post-test 2026-05-12) — defensive fix:
+    // reduzir notifyListeners de 3s para 30s. Em produção apareciam
+    // 3-4 GET /rest/v1/orders por segundo (centenas em 60s) — hipótese
+    // é cascade de rebuilds disparados por este timer. Timer só existe
+    // como fallback se Realtime stream stalar; 30s ainda é seguro.
+    // TODO: sessão dedicada com flutter run --verbose para identificar
+    // origem real do loop (pode ser realtime emit em vez do timer).
     _fallbackRefreshTimer = Timer.periodic(
-      const Duration(seconds: 3),
+      const Duration(seconds: 30),
       (_) => notifyListeners(),
     );
   }

@@ -896,47 +896,79 @@ class _BottomCardState extends State<_BottomCard> {
   }
 
   Future<void> _confirmClientCancel(BuildContext context) async {
-    final reasonController = TextEditingController();
+    // BUG #2 (2026-05-12) — dropdown 8 motivos fixos PT-PT + campo livre se "Outro motivo".
+    const reasonOptions = <String>[
+      'Esperei muito tempo',
+      'Fiz o pedido por engano',
+      'Quero alterar o pedido',
+      'Restaurante/loja demorou demais',
+      'Preço diferente do esperado',
+      'Problema com o pagamento',
+      'Endereço de entrega errado',
+      'Outro motivo',
+    ];
+    String? selectedReason;
+    final otherReasonController = TextEditingController();
     final feeLabel = _feeLabelForStatus(widget.order.status, widget.order.total);
 
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Cancelar pedido'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Taxa de cancelamento: $feeLabel',
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'Tens a certeza que queres cancelar este pedido?',
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: reasonController,
-              maxLines: 2,
-              decoration: const InputDecoration(
-                labelText: 'Razão (opcional)',
-                border: OutlineInputBorder(),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Cancelar pedido'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Taxa de cancelamento: $feeLabel',
+                style: const TextStyle(fontWeight: FontWeight.w700),
               ),
+              const SizedBox(height: 12),
+              const Text('Tens a certeza que queres cancelar este pedido?'),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: selectedReason,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  labelText: 'Motivo (obrigatório)',
+                  border: OutlineInputBorder(),
+                ),
+                items: reasonOptions
+                    .map((r) => DropdownMenuItem<String>(
+                          value: r,
+                          child: Text(r, overflow: TextOverflow.ellipsis),
+                        ))
+                    .toList(),
+                onChanged: (v) => setDialogState(() => selectedReason = v),
+              ),
+              if (selectedReason == 'Outro motivo') ...[
+                const SizedBox(height: 8),
+                TextField(
+                  controller: otherReasonController,
+                  maxLines: 2,
+                  decoration: const InputDecoration(
+                    labelText: 'Descreve o motivo (opcional)',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Não'),
+            ),
+            TextButton(
+              onPressed: selectedReason == null
+                  ? null
+                  : () => Navigator.of(ctx).pop(true),
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Confirmar cancelamento'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Não'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Confirmar cancelamento'),
-          ),
-        ],
       ),
     );
 
@@ -946,9 +978,15 @@ class _BottomCardState extends State<_BottomCard> {
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
 
+    // Compor reason final: dropdown + campo livre se "Outro motivo"
+    final finalReason = selectedReason == 'Outro motivo' &&
+            otherReasonController.text.trim().isNotEmpty
+        ? 'Outro motivo: ${otherReasonController.text.trim()}'
+        : (selectedReason ?? '');
+
     final result = await orderStore.clientCancelOrder(
       widget.order,
-      reason: reasonController.text,
+      reason: finalReason,
     );
 
     if (!context.mounted) return;

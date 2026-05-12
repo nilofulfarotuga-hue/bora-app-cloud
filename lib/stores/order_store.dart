@@ -486,7 +486,12 @@ class OrderStore extends ChangeNotifier {
       'payment_method': 'card',
       'subtotal': itemsSubtotal,
       'apartment_delivery': apartmentDelivery,
-      'bag_count': 0,
+      // BUG #3 (2026-05-12) — bag_count dinâmico por service_type.
+      // Server (pricing_calculate) aplica:
+      //   restaurant → bag_fee_restaurant_cents=30 fixo se bag_count>=1
+      //   storeShopping → bag_fee_supermarket_per_bag_cents=10 × bag_count
+      //   carry/sendPackage → 0
+      'bag_count': _resolveBagCount(serviceType, 1),
       'requires_car': requiresCar,
       'wallet_applied_cents': walletAppliedCents,
       if (pickupLocation != null) 'pickup_lat': pickupLocation.latitude,
@@ -577,6 +582,25 @@ class OrderStore extends ChangeNotifier {
     }
     debugPrint('[FLOW] waitForOrderFromDraft TIMEOUT for draft=$draftId');
     return null;
+  }
+
+  /// BUG #3 (2026-05-12) — resolve bag_count baseado em service_type.
+  /// Server (pricing_calculate) usa este valor para calcular bag_fee via settings:
+  ///   restaurant: bag_fee_restaurant_cents=30 (fixo se bag_count>=1)
+  ///   storeShopping: bag_fee_supermarket_per_bag_cents=10 × bag_count
+  ///   carry/sendPackage: sem bag_fee.
+  /// Default requestedBagCount=1 (cliente normal). Pode ser refinado em futura
+  /// versão para receber input "Quantos sacos?" no checkout storeShopping.
+  int _resolveBagCount(OrderServiceType serviceType, int requestedBagCount) {
+    switch (serviceType) {
+      case OrderServiceType.restaurant:
+        return 1; // server aplica €0.30 fixo
+      case OrderServiceType.storeShopping:
+        return requestedBagCount.clamp(1, 99); // server aplica €0.10 × N
+      case OrderServiceType.carryGroceries:
+      case OrderServiceType.sendPackage:
+        return 0;
+    }
   }
 
   Future<bool> createOrder({
@@ -709,7 +733,8 @@ class OrderStore extends ChangeNotifier {
       'payment_method': paymentMethod.name,
       'subtotal': itemsSubtotal,
       'apartment_delivery': apartmentDelivery,
-      'bag_count': 0,
+      // BUG #3 (2026-05-12) — bag_count dinâmico por service_type.
+      'bag_count': _resolveBagCount(serviceType, 1),
       'requires_car': requiresCar,
       // S1.4: Wallet debit happens atomically inside create_order RPC.
       // Pre-validates balance with FOR UPDATE lock; throws on insufficient.

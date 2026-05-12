@@ -120,6 +120,12 @@ class OrderModel {
   /// (cliente arrived at a previous reservation). Stripe charge subtracts it.
   int menuCreditAppliedCents;
 
+  /// BUG #1 frontend (§54 / 2026-05-12) — cents da dívida prévia da wallet
+  /// do cliente que é cobrada via este pedido. Populado pela RPC create_order
+  /// quando v_wallet_balance_pre<0. Default 0. Driver UI em CASH cobra:
+  /// totalToCollectCash = (cashTotalDue ?? finalTotal ?? total) + debtCollectedCents/100.
+  final int debtCollectedCents;
+
   /// Positive extra charge when [finalTotal] > [paymentBufferTotal].
   double? extraChargeAmount;
 
@@ -237,6 +243,7 @@ class OrderModel {
     this.refundMethod,
     this.walletAppliedCents = 0,
     this.menuCreditAppliedCents = 0,
+    this.debtCollectedCents = 0,
     this.extraChargeAmount,
     this.cashTotalDue,
     List<Map<String, dynamic>>? itemsAdded,
@@ -252,6 +259,17 @@ class OrderModel {
         createdAt = createdAt ?? DateTime.now(),
         driverOfferHistory = driverOfferHistory ?? <String>[],
         triedDriverIds = triedDriverIds ?? <String>[];
+
+  // BUG #1 frontend (§54 / 2026-05-12) — Driver UI helpers em CASH
+  /// Total a cobrar do cliente em dinheiro: pedido + dívida prévia (se houver).
+  /// Hierarquia: cashTotalDue (set pelo finalize_storeshopping_purchase para sacos)
+  /// → finalTotal (set pelo finalize quando há reconcile) → total (price original).
+  /// + dívida em cents convertida a EUR.
+  double get totalToCollectCash =>
+      (cashTotalDue ?? finalTotal ?? total) + debtCollectedCents / 100.0;
+
+  /// True se este pedido inclui cobrança de dívida prévia da wallet do cliente.
+  bool get hasCashDebt => debtCollectedCents > 0;
 
   // ─────────────────────────────────────────────────────────────────────────
   // FIX (CRITICAL): Previously fromSupabase hardcoded
@@ -393,6 +411,8 @@ class OrderModel {
       walletAppliedCents: (data['wallet_applied_cents'] as num?)?.toInt() ?? 0,
       menuCreditAppliedCents:
           (data['menu_credit_applied_cents'] as num?)?.toInt() ?? 0,
+      debtCollectedCents:
+          (data['debt_collected_cents'] as num?)?.toInt() ?? 0,
       extraChargeAmount: (data['extra_charge_amount'] as num?)?.toDouble(),
       cashTotalDue: (data['cash_total_due'] as num?)?.toDouble(),
       itemsAdded: parsedItemsAdded,
@@ -458,6 +478,7 @@ class OrderModel {
       if (walletAppliedCents > 0) 'wallet_applied_cents': walletAppliedCents,
       if (menuCreditAppliedCents > 0)
         'menu_credit_applied_cents': menuCreditAppliedCents,
+      if (debtCollectedCents > 0) 'debt_collected_cents': debtCollectedCents,
       if (extraChargeAmount != null) 'extra_charge_amount': extraChargeAmount,
       if (cashTotalDue != null) 'cash_total_due': cashTotalDue,
       if (itemsAdded.isNotEmpty) 'items_added': itemsAdded,

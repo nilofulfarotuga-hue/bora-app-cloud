@@ -198,6 +198,7 @@ class CartStore extends ChangeNotifier {
       'destination_lat': _deliveryLocation!.latitude,
       'destination_lng': _deliveryLocation!.longitude,
       'wallet_applied_cents': walletAppliedCents,
+      'include_debt': true, // BUG #1 frontend (2026-05-12): server inclui dívida wallet em charge_total + retorna debt_settle_cents
       'payment_method': 'card', // any non-cash, RPC ignora para quote
     };
 

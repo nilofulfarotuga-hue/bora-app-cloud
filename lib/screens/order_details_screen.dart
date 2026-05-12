@@ -78,7 +78,9 @@ class OrderDetailsScreen extends StatelessWidget {
           _OrderInfoCard(order: liveOrder),
 
           // ── Items card (only when order has items) ──────────────────
-          if (liveOrder.items.isNotEmpty) ...[
+          // BUG #4 (2026-05-12) — esconder em storeShopping V2 porque
+          // _PurchaseV2Card abaixo já mostra items definitivos pós-finalize.
+          if (liveOrder.items.isNotEmpty && liveOrder.purchaseFlowVersion != 2) ...[
             const SizedBox(height: 16),
             _ItemsCard(order: liveOrder),
           ],

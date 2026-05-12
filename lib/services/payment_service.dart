@@ -161,4 +161,47 @@ class PaymentService {
     await Future.delayed(const Duration(milliseconds: 150));
     return true;
   }
+
+  /// BUG #1 frontend (2026-05-12) — Pagar dívida wallet standalone com Stripe sheet.
+  /// Chama Edge Function pay-debt-standalone → recebe clientSecret → presentPaymentSheet.
+  /// Webhook stripe-webhook v23 detecta metadata e settle automaticamente (não bloqueia caller).
+  /// Retorna paymentIntentId em sucesso, null em cancel/decline.
+  Future<String?> payDebtViaSheet({
+    required int amountCents,
+    required String paymentMethod, // 'card' | 'mbway'
+    String? mbwayPhone,
+  }) async {
+    if (kIsWeb) throw StateError('Card payments are only supported on mobile.');
+    try {
+      final body = <String, dynamic>{
+        'amount_cents': amountCents,
+        'payment_method': paymentMethod,
+      };
+      if (paymentMethod == 'mbway' && mbwayPhone != null) {
+        body['mbway_phone'] = mbwayPhone;
+      }
+      final response = await Supabase.instance.client.functions.invoke(
+        'pay-debt-standalone',
+        body: body,
+      );
+      final data = response.data as Map<String, dynamic>?;
+      if (data == null || data['clientSecret'] == null) {
+        debugPrint('[PaymentService] payDebtViaSheet: invalid response: $data');
+        return null;
+      }
+      // MBWay: já confirmado server-side (push enviada). Apenas retorna PI.
+      if (paymentMethod == 'mbway') {
+        return data['paymentIntentId'] as String?;
+      }
+      // Card: abre Stripe sheet.
+      await processPayment(data['clientSecret'] as String);
+      return data['paymentIntentId'] as String?;
+    } on StripeException catch (e) {
+      debugPrint('[PaymentService] payDebt cancelled/declined: ${e.error.localizedMessage}');
+      return null;
+    } catch (e) {
+      debugPrint('[PaymentService] payDebtViaSheet error: $e');
+      return null;
+    }
+  }
 }

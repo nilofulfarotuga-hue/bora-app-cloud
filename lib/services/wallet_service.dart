@@ -92,6 +92,30 @@ class WalletService {
     final m = (res as Map).cast<String, dynamic>();
     return (m['forgiven_cents'] as num).toInt();
   }
+
+  /// BUG #1 frontend (2026-05-12) — Pagar dívida wallet standalone (sem pedido).
+  ///   amountCents: mínimo = abs(dívida); pode ser mais (surplus → saldo positivo).
+  ///   paymentMethod: 'card' | 'mbway'.
+  ///   mbwayPhone: obrigatório se 'mbway', formato +351XXXXXXXXX.
+  /// Retorna {clientSecret, paymentIntentId, mode, debt_cents, amount_cents}.
+  Future<Map<String, dynamic>> payDebtStandalone({
+    required int amountCents,
+    required String paymentMethod,
+    String? mbwayPhone,
+  }) async {
+    final body = <String, dynamic>{
+      'amount_cents': amountCents,
+      'payment_method': paymentMethod,
+    };
+    if (paymentMethod == 'mbway' && mbwayPhone != null) {
+      body['mbway_phone'] = mbwayPhone;
+    }
+    final res = await _supa.functions.invoke('pay-debt-standalone', body: body);
+    if (res.status >= 400) {
+      throw Exception('pay_debt_standalone_failed: ${res.data}');
+    }
+    return (res.data as Map).cast<String, dynamic>();
+  }
 }
 
 /// Constantes wallet — espelham platform_settings server-side.
@@ -201,6 +225,9 @@ class WalletTx {
         return 'Ajuste manual';
       case 'forgive':
         return 'Dívida perdoada';
+      // BUG #1 backend (§53 — 2026-05-12)
+      case 'cancel_fee_debit':
+        return 'Taxa de cancelamento';
       default:
         return kind;
     }

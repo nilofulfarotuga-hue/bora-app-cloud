@@ -1171,10 +1171,54 @@ class _WalletCardsBlock extends StatelessWidget {
 // Fetches the active token balance via get_user_tokens() RPC and displays it.
 // Works for both client and driver — uses the currently authenticated user ID.
 
-class _TokenBalanceRow extends StatelessWidget {
-  _TokenBalanceRow();
+// BUG #6 (2026-05-12) — Stateful + WidgetsBindingObserver para refrescar
+// tokens automaticamente quando a app volta ao foreground (resumed).
+// Antes era StatelessWidget com FutureBuilder cuja future era recriada por
+// cada rebuild — mas sem trigger de rebuild quando focus muda. Resultado:
+// saldo desactualizado até pull-to-refresh manual.
+class _TokenBalanceRow extends StatefulWidget {
+  const _TokenBalanceRow();
 
+  @override
+  State<_TokenBalanceRow> createState() => _TokenBalanceRowState();
+}
+
+class _TokenBalanceRowState extends State<_TokenBalanceRow>
+    with WidgetsBindingObserver {
   final _client = Supabase.instance.client;
+  late Future<int> _balanceFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _balanceFuture = _fetch();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      setState(() => _balanceFuture = _fetch());
+    }
+  }
+
+  Future<int> _fetch() async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return 0;
+    try {
+      final v = await _client
+          .rpc('get_user_tokens', params: {'p_user_id': userId});
+      return (v as num?)?.toInt() ?? 0;
+    } catch (_) {
+      return 0;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1183,8 +1227,7 @@ class _TokenBalanceRow extends StatelessWidget {
     if (userId == null) return const SizedBox.shrink();
 
     return FutureBuilder<int>(
-      future: _client.rpc('get_user_tokens',
-          params: {'p_user_id': userId}).then((v) => (v as num?)?.toInt() ?? 0),
+      future: _balanceFuture,
       builder: (context, snapshot) {
         final balance = snapshot.data ?? 0;
         final isLoading = snapshot.connectionState == ConnectionState.waiting;

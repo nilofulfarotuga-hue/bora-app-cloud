@@ -3640,7 +3640,56 @@ Para validar futuros casos suspeitos, invocar skill `driver-earnings-validator`.
 
 ---
 
+## §53 — CANCEL FEE CASH/MBWAY-NÃO-PAGO = DÍVIDA WALLET NEGATIVA (2026-05-12)
+
+Cancelamento de pedido NÃO PAGO (CASH, ou MBWay sem confirmação) gera
+DÍVIDA na wallet (saldo negativo), não reembolso.
+
+**Tiers** (lidos de `platform_settings`):
+- `before_dispatch` (created/preparing/callingDriver): -€1.50
+- `after_accept` (driverAccepted): -€2.50
+- `after_pickup` (pickedUp/onTheWay): -€total do pedido (até €40 máx, limite CASH)
+
+**Hard floors separados** (cada RPC valida o SEU):
+- Ajustes/sacos/trocas (`wallet_debit_for_order`):
+    setting `wallet_hard_floor_cents` = -2000 (€20)
+- Cancelamento CASH/MBWay-não-pago (`wallet_debit_cancel_fee`):
+    setting `wallet_cancel_hard_floor_cents` = -4000 (€40)
+
+**CHECK constraint** da coluna `client_wallets.free_balance_cents`:
+`free_balance_cents >= -4000` (pior caso absoluto).
+
+**Idempotência:** `idempotency_key = 'cancel_fee_' || order_id`.
+Cada pedido pode gerar APENAS UM `cancel_fee_debit` (validado via SELECT prévio).
+
+**Edge Functions actualizadas:**
+- `cancel-order-with-choice` v11 (2026-05-12)
+- `client-cancel-order` v19 (2026-05-12)
+
+Detecção do caminho: `nothingToRefund && isUnpaid` onde
+`isUnpaid = payment_method='cash' OR (payment_method='mbway' AND payment_status<>'paid')`.
+
+**Fallback se hard floor excedido:**
+RPC lança `wallet_cancel_hard_floor_exceeded` (ERRCODE 23514) → Edge Function
+captura, invoca `notify-admin-urgent` (kind=`wallet_cancel_floor_exceeded`),
+cancela pedido SEM débito com `payment_status='cancelled_no_charge'`.
+
+**`payment_status` resultante (caminho CASH/MBWay-não-pago):**
+- `cancelled_with_debt` → débito wallet aplicado ✅
+- `cancelled_no_charge` → fallback (sem débito, falha hard floor ou sem fee)
+
+**Próximo checkout cobra dívida** (BUG #1 frontend — próximo prompt):
+- CASH novo pedido: estafeta cobra TOTAL+dívida na entrega → wallet=0
+- Stripe/MBWay: PI inclui dívida → webhook confirma → wallet=0
+
+NÃO CONFUNDIR com `wallet_credit_refund_split` (refunds 80/20 de pedidos PAGOS).
+
+**`wallet_transactions.kind` total agora 12:**
+adicionado `cancel_fee_debit` (era 11 kinds em §52).
+
+---
+
 *Documento de regras de negócio — Bora App*
-*Última atualização: 2026-05-11 (§52.4+§52.5 — V1 deprecated não-parceiro + driver earnings fórmula validation)*
+*Última atualização: 2026-05-12 (§53 — Cancel fee CASH/MBWay-não-pago = dívida wallet negativa)*
 *Atualizar sempre que houver mudanças nas regras de negócio*
 *Fonte de verdade usada por: todas as skills do sistema*

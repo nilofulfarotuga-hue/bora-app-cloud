@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/wallet_service.dart';
 import '../widgets/bora_support_fab.dart';
+import '../widgets/pay_debt_modal.dart';
 
 /// Wallet History — lista de transactions do utilizador (saldo livre + tokens).
 class WalletHistoryScreen extends StatefulWidget {
@@ -91,6 +92,41 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
                     color: isNeg ? Colors.red.shade700 : null)),
           ),
         ),
+        // BUG #1 frontend (§54 / 2026-05-12) — botão "Pagar dívida agora" + guard Stripe €0.50
+        if (isNeg) ...[
+          const SizedBox(height: 8),
+          if (b.debtCents >= 50)
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () async {
+                  final paid = await showDialog<bool>(
+                    context: context,
+                    builder: (_) => PayDebtModal(debtCents: b.debtCents),
+                  );
+                  if (paid == true && mounted) {
+                    await _load();
+                  }
+                },
+                icon: const Icon(Icons.payment),
+                label: Text('Pagar dívida agora (€${(b.debtCents / 100).toStringAsFixed(2)})'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1B5E20),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: Text(
+                'Dívida menor que €0.50 — será cobrada no próximo pedido.',
+                style: TextStyle(fontSize: 12, color: Colors.red.shade700, fontStyle: FontStyle.italic),
+                textAlign: TextAlign.center,
+              ),
+            ),
+        ],
         const SizedBox(height: 8),
         // Card tokens
         Card(
@@ -172,6 +208,11 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
       case 'referral':
         icon = Icons.group;
         iconCol = Colors.blue;
+        break;
+      // BUG #1 backend (§53) — taxa de cancelamento
+      case 'cancel_fee_debit':
+        icon = Icons.cancel_schedule_send;
+        iconCol = Colors.red.shade700;
         break;
       default:
         icon = tx.isCredit ? Icons.arrow_downward : Icons.arrow_upward;

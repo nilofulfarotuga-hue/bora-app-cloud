@@ -1,22 +1,6 @@
 // supabase/functions/cancel-order-with-choice/index.ts
-//
-// Client-initiated cancellation with REFUND METHOD CHOICE (Feature 1, 2026-04-30).
-//
-// Body: { order_id: string, reason: string, refund_method: 'stripe' | 'wallet' }
-//
-// Flow:
-//   1. Auth caller via JWT (must be order owner)
-//   2. Validate order status (uses same tier logic as client-cancel-order)
-//   3. Compute fee + refundable amount
-//   4. If refund_method='stripe':
-//        → stripe.refunds.create (5-10 dias úteis)
-//        → push: "Reembolso de €X processado, demora 5-10 dias úteis."
-//   5. If refund_method='wallet':
-//        → RPC wallet_credit_refund_split (instant 80% free + 20% tokens)
-//        → push: "€X creditados! €A em saldo livre + Y tokens (≈€B)"
-//   6. UPDATE orders SET status='cancelled', cancel_*, refund_method, payment_status
-//
-// Source of truth split: platform_settings.wallet_split_free_pct (default 0.80)
+// FIX 2026-05-12: CASH antes de entrega não tem reembolso.
+// v11 (2026-05-12 — Bug #1): cancel CASH/MBWay-não-pago → débito wallet (dívida), não simples cancel.
 
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -28,7 +12,6 @@ const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
   httpClient: Stripe.createFetchHttpClient(),
 });
 
-// deno-lint-ignore no-explicit-any
 const json = (body: any, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
@@ -95,7 +78,8 @@ Deno.serve(async (req) => {
     .from('orders')
     .select(
       'id, user_id, status, payment_method, payment_intent_id, payment_status, ' +
-        'total, estimated_total, final_total, customer_total, refund_amount',
+        'total, estimated_total, final_total, customer_total, refund_amount, ' +
+        'stripe_charge_cents, wallet_applied_cents, tokens_applied_value_cents',
     )
     .eq('id', orderId)
     .maybeSingle();
@@ -115,20 +99,66 @@ Deno.serve(async (req) => {
   const refundEur = Math.max(0, Number((totalEur - fee).toFixed(2)));
   const refundCents = Math.round(refundEur * 100);
 
+  // FIX 2026-05-12: Calcular quanto cliente REALMENTE pagou
+  const paidCents = Number(order.stripe_charge_cents ?? 0)
+                  + Number(order.wallet_applied_cents ?? 0)
+                  + Number(order.tokens_applied_value_cents ?? 0);
+  const nothingToRefund = paidCents === 0;
+
   let stripeRefundId: string | undefined;
   let walletResult: any = null;
-  // refundExecuted=true ⇒ podemos escrever refund_amount/refund_method.
-  // Se falso, deixamos esses campos a NULL (BUG-NEW-1: nunca escrever
-  // refund_amount sem refund efectivo).
   let refundExecuted = false;
-  // chargeMissing=true ⇒ PI nunca confirmou charge. Marcamos
-  // payment_status='cancelled_no_charge' (BUG 3: PI órfão sem cobrança).
   let chargeMissing = false;
 
-  // ── Branch by refund method ─────────────────────────────────────────────
-  if (refundEur <= 0) {
-    // 100% retido — não há refund a processar (after_pickup tier)
-    // Continua para update da order, sem chamar Stripe nem wallet
+  // v11: débito wallet para CASH/MBWay-não-pago
+  let cancelFeeDebited = false;
+  let cancelFeeDebitResult: any = null;
+
+  if (nothingToRefund) {
+    // CASH ou MBWay não-pago → débito wallet (dívida), sem reembolso
+    const isUnpaid =
+      order.payment_method === 'cash' ||
+      (order.payment_method === 'mbway' && order.payment_status !== 'paid');
+
+    if (fee > 0 && isUnpaid) {
+      const { data: debitRpc, error: debitErr } = await admin.rpc(
+        'wallet_debit_cancel_fee',
+        {
+          p_user_id: user.id,
+          p_order_id: orderId,
+          p_fee_cents: Math.round(fee * 100),
+          p_tier: t,
+        },
+      );
+      if (debitErr) {
+        // Hard floor excedido → cancelar SEM débito + alertar (não bloquear cancelamento)
+        console.error('[cancel-with-choice] wallet_debit_cancel_fee failed:', debitErr);
+        try {
+          await admin.functions.invoke('notify-admin-urgent', {
+            body: {
+              kind: 'wallet_cancel_floor_exceeded',
+              order_id: orderId,
+              user_id: user.id,
+              fee_cents: Math.round(fee * 100),
+              tier: t,
+              error: debitErr.message,
+            },
+          });
+        } catch (_) { /* fire-and-forget */ }
+        chargeMissing = true; // fallback comportamento legado
+      } else {
+        cancelFeeDebited = true;
+        cancelFeeDebitResult = debitRpc;
+      }
+    } else {
+      // Sem fee ou pagamento já refundable noutro caminho — fallback simple cancel
+      console.log('[cancel-with-choice] no payment + no fee, simple cancel', {
+        orderId, payment_method: order.payment_method, status: order.status,
+      });
+      chargeMissing = true;
+    }
+  } else if (refundEur <= 0) {
+    // 100% retido
   } else if (refundMethod === 'stripe') {
     if (order.payment_method !== 'card' || !order.payment_intent_id) {
       return json(
@@ -137,8 +167,6 @@ Deno.serve(async (req) => {
         409,
       );
     }
-    // BUG 3 (2026-04-30): retrieve PI antes de refundar. Se status != succeeded
-    // ou latest_charge=null, NÃO há cobrança real → skip Stripe sem 502.
     let piStatus: string | undefined;
     let piLatestCharge: string | null | undefined;
     try {
@@ -150,13 +178,9 @@ Deno.serve(async (req) => {
       return json({ error: 'pi_retrieve_failed', details: String(e) }, 502);
     }
     if (piStatus !== 'succeeded' || !piLatestCharge) {
-      console.log('[cancel-with-choice] PI without charge — skipping Stripe refund',
-        { pi: order.payment_intent_id, piStatus, piLatestCharge });
       chargeMissing = true;
-      // Sem cobrança a reembolsar — segue para update sem refund_amount.
     } else {
       try {
-        // Idempotency key alinhada com Edge Fn `refund` (BUG-MN-004).
         const idempotencyKey = `refund-${order.payment_intent_id}-${refundCents}`;
         const refund = await stripe.refunds.create(
           { payment_intent: order.payment_intent_id, amount: refundCents },
@@ -170,7 +194,6 @@ Deno.serve(async (req) => {
       }
     }
   } else {
-    // refund_method === 'wallet' — sempre disponível independentemente do payment_method
     const { data: walletRpc, error: walletErr } = await admin.rpc(
       'wallet_credit_refund_split',
       {
@@ -188,25 +211,21 @@ Deno.serve(async (req) => {
     refundExecuted = true;
   }
 
-  // ── Update order ────────────────────────────────────────────────────────
   const now = new Date().toISOString();
-  // BUG 3: PI órfão (sem cobrança) → payment_status='cancelled_no_charge'.
-  // Não promovemos para 'refunded' porque nunca houve dinheiro.
-  const newPaymentStatus = chargeMissing
-    ? 'cancelled_no_charge'
-    : refundEur <= 0
-      ? 'refunded'
-      : fee > 0
-        ? 'partial_refund'
-        : 'refunded';
+  const newPaymentStatus = cancelFeeDebited
+    ? 'cancelled_with_debt'
+    : chargeMissing
+      ? 'cancelled_no_charge'
+      : refundEur <= 0
+        ? 'refunded'
+        : fee > 0
+          ? 'partial_refund'
+          : 'refunded';
 
-  // BUG-NEW-1 + BUG-NEW-3: refund_amount/refund_method/refund_status só
-  // quando refund_executed=true. Restantes ficam a NULL (constraint força).
-  // deno-lint-ignore no-explicit-any
   const updatePayload: Record<string, any> = {
     status: 'cancelled',
     cancel_reason: reason,
-    cancel_fee: fee,
+    cancel_fee: cancelFeeDebited ? fee : (nothingToRefund ? 0 : fee),
     cancelled_at: now,
     payment_status: newPaymentStatus,
     cancellation_initiator: 'client',
@@ -229,17 +248,23 @@ Deno.serve(async (req) => {
     return json({ error: 'db_update_failed', details: updateErr.message }, 500);
   }
 
-  // ── Notify (best-effort) ────────────────────────────────────────────────
   try {
     let title = 'Reembolso processado';
     let message: string;
-    if (chargeMissing) {
-      // BUG 3: pedido cancelado sem cobrança real — comunicar isto claramente.
+    if (cancelFeeDebited) {
+      title = 'Pedido cancelado';
+      message =
+        `Pedido cancelado. Taxa de cancelamento €${fee.toFixed(2)} foi adicionada como dívida na tua conta. ` +
+        `Será cobrada no próximo pedido.`;
+    } else if (nothingToRefund) {
+      title = 'Pedido cancelado';
+      message = 'O pedido foi cancelado. Como ainda não tinhas pago, não há reembolso a processar.';
+    } else if (chargeMissing) {
       title = 'Pedido cancelado';
       message =
         'O pedido foi cancelado. Não houve cobrança no cartão, por isso não há reembolso a processar.';
     } else if (refundMethod === 'stripe') {
-      message = `Reembolso de €${refundEur.toFixed(2)} processado. Pode demorar 5-10 dias úteis a aparecer no cartão. Para crédito instantâneo, escolhe wallet da próxima vez.`;
+      message = `Reembolso de €${refundEur.toFixed(2)} processado. Pode demorar 5-10 dias úteis a aparecer no cartão.`;
     } else if (walletResult) {
       message = `€${(walletResult.free_cents / 100).toFixed(2)} creditados em saldo livre + ${walletResult.tokens_count} tokens (≈€${(walletResult.tokens_value_cents / 100).toFixed(2)}). Disponível imediatamente.`;
     } else {
@@ -248,7 +273,8 @@ Deno.serve(async (req) => {
     await admin.functions.invoke('notify-client', {
       body: { user_id: user.id, title, body: message,
               data: { order_id: orderId, refund_method: refundExecuted ? refundMethod : null,
-                      charge_missing: chargeMissing } },
+                      charge_missing: chargeMissing,
+                      cancel_fee_debited: cancelFeeDebited } },
     });
   } catch (e) {
     console.warn('[cancel-with-choice] notify failed (non-fatal):', e);
@@ -257,11 +283,14 @@ Deno.serve(async (req) => {
   return json({
     ok: true,
     tier: t,
-    fee_eur: fee,
+    fee_eur: cancelFeeDebited || !nothingToRefund ? fee : 0,
     refund_eur: refundExecuted ? refundEur : 0,
     refund_method: refundExecuted ? refundMethod : null,
     refund_id: stripeRefundId ?? null,
     charge_missing: chargeMissing,
+    nothing_to_refund: nothingToRefund,
+    cancel_fee_debited: cancelFeeDebited,
+    cancel_fee_debit: cancelFeeDebitResult,
     wallet: walletResult,
   });
 });

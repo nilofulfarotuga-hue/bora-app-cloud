@@ -34,10 +34,14 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
   bool _useTokens = false;
   bool _tokensLoaded = false;
 
+  // BUG #1 frontend (§54 / 2026-05-12) — dívida wallet a cobrar neste checkout
+  int _debtSettleCents = 0;
+
   @override
   void initState() {
     super.initState();
     _loadTokens();
+    _loadDebt();
     // Pre-fill with profile phone (digits-only) if available — user can override.
     final profilePhone = context.read<AuthStore>().currentClient?.phone;
     if (profilePhone != null && profilePhone.isNotEmpty) {
@@ -51,6 +55,23 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
   void dispose() {
     _mbwayPhoneController.dispose();
     super.dispose();
+  }
+
+  /// BUG #1 frontend (§54 / 2026-05-12) — busca debt_settle_cents do quote authoritative.
+  /// Server-side: quote_order_pricing com include_debt:true lê client_wallets.free_balance_cents.
+  Future<void> _loadDebt() async {
+    try {
+      final cartStore = context.read<CartStore>();
+      final quote = await cartStore.quoteOrderPricing(
+        walletAppliedCents: cartStore.walletAppliedCents,
+      );
+      if (mounted && quote != null) {
+        final debt = (quote['debt_settle_cents'] as num?)?.toInt() ?? 0;
+        setState(() => _debtSettleCents = debt);
+      }
+    } catch (e) {
+      debugPrint('[PaymentMethodScreen] _loadDebt error: $e');
+    }
   }
 
   Future<void> _loadTokens() async {
@@ -108,8 +129,13 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     final int tokensToUse = min(_availableTokens, maxTokensUsable);
     final double tokenDiscount =
         _useTokens ? (tokensToUse * BRTokens.TOKEN_VALUE_EUR) : 0.0;
+    final double debtEur = _debtSettleCents / 100.0;
     final double finalPrice =
-        (totalToPay - tokenDiscount).clamp(0.0, double.infinity);
+        (totalToPay - tokenDiscount + debtEur).clamp(0.0, double.infinity);
+
+    // BUG #1 frontend (§54) — CASH disabled se total_pedido + dívida > €40 (limite hardcoded)
+    final double totalCashWithDebt = finalPrice; // já inclui dívida + após desconto tokens
+    final bool cashBlockedByLimit = totalCashWithDebt > 40.0;
 
     const paymentOptions = <_PaymentOption>[
       _PaymentOption(
@@ -262,6 +288,23 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                             isDiscount: true,
                           ),
 
+                        // BUG #1 frontend (§54) — linha dívida anterior (vermelho)
+                        if (_debtSettleCents > 0)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('Dívida anterior',
+                                    style: TextStyle(color: Colors.red.shade700)),
+                                Text('+€${debtEur.toStringAsFixed(2)}',
+                                    style: TextStyle(
+                                        color: Colors.red.shade700,
+                                        fontWeight: FontWeight.w600)),
+                              ],
+                            ),
+                          ),
+
                         _SummaryRow(
                           label: 'Total a pagar',
                           value: finalPrice,
@@ -280,17 +323,23 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                 ),
                 const SizedBox(height: 12),
                 Column(
-                  children: paymentOptions
-                      .map((option) => _PaymentOptionTile(
-                            option: option,
-                            groupValue: _selectedMethod,
-                            onChanged: (value) {
-                              if (value != null) {
-                                setState(() => _selectedMethod = value);
-                              }
-                            },
-                          ))
-                      .toList(),
+                  children: paymentOptions.map((option) {
+                    final bool disabled = option.method == PaymentMethod.cash &&
+                        cashBlockedByLimit;
+                    return _PaymentOptionTile(
+                      option: option,
+                      groupValue: _selectedMethod,
+                      disabled: disabled,
+                      disabledTooltip: disabled
+                          ? 'Limite dinheiro €40 excedido. Tens €${debtEur.toStringAsFixed(2)} de dívida + €${(finalPrice - debtEur).toStringAsFixed(2)} deste pedido = €${finalPrice.toStringAsFixed(2)}. Escolhe Cartão ou MBWay.'
+                          : null,
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() => _selectedMethod = value);
+                        }
+                      },
+                    );
+                  }).toList(),
                 ),
                 if (_selectedMethod == PaymentMethod.mbway) ...[
                   const SizedBox(height: 12),
@@ -720,36 +769,52 @@ class _PaymentOptionTile extends StatelessWidget {
     required this.option,
     required this.groupValue,
     required this.onChanged,
+    this.disabled = false,
+    this.disabledTooltip,
   });
 
   final _PaymentOption option;
   final PaymentMethod groupValue;
   final ValueChanged<PaymentMethod?> onChanged;
+  final bool disabled;
+  final String? disabledTooltip;
 
   @override
   Widget build(BuildContext context) {
     final isSelected = option.method == groupValue;
-    return Card(
-      elevation: isSelected ? 4 : 1,
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: isSelected
-              ? Theme.of(context).colorScheme.primary
-              : Colors.grey.shade300,
-          width: 1.2,
+    final card = Opacity(
+      opacity: disabled ? 0.4 : 1.0,
+      child: Card(
+        elevation: isSelected ? 4 : 1,
+        margin: const EdgeInsets.symmetric(vertical: 8),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(
+            color: isSelected
+                ? Theme.of(context).colorScheme.primary
+                : Colors.grey.shade300,
+            width: 1.2,
+          ),
+        ),
+        child: RadioListTile<PaymentMethod>(
+          value: option.method,
+          groupValue: groupValue,
+          onChanged: disabled ? null : onChanged,
+          title: Text(option.title),
+          subtitle: Text(option.subtitle),
+          secondary: Icon(option.icon),
         ),
       ),
-      child: RadioListTile<PaymentMethod>(
-        value: option.method,
-        groupValue: groupValue,
-        onChanged: onChanged,
-        title: Text(option.title),
-        subtitle: Text(option.subtitle),
-        secondary: Icon(option.icon),
-      ),
     );
+    if (disabled && disabledTooltip != null) {
+      return Tooltip(
+        message: disabledTooltip!,
+        triggerMode: TooltipTriggerMode.tap,
+        showDuration: const Duration(seconds: 6),
+        child: card,
+      );
+    }
+    return card;
   }
 }
 

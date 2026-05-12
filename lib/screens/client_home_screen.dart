@@ -31,10 +31,14 @@ class ClientHomeScreen extends StatefulWidget {
   State<ClientHomeScreen> createState() => _ClientHomeScreenState();
 }
 
-class _ClientHomeScreenState extends State<ClientHomeScreen> {
+class _ClientHomeScreenState extends State<ClientHomeScreen>
+    with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    // BUG #5 (2026-05-12) — observa lifecycle para re-checar pedidos avaliáveis
+    // quando app volta ao foreground (não precisa reabrir manualmente).
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context.read<RestaurantStore>().loadRestaurantsFromSupabase();
@@ -42,6 +46,22 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
       // Sessão 6 §44 — abre RatingScreen se há pedido entregue ainda não avaliado.
       _checkUnratedOrders();
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  // BUG #5 (2026-05-12) — quando a app volta ao foreground (resumed),
+  // re-verifica pedidos delivered não-avaliados. Resolve "modal só aparece
+  // ao reabrir app" sem precisar de fechar/reabrir manualmente.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      _checkUnratedOrders();
+    }
   }
 
   /// BR §44.6 — pós-login/abertura, procura pedido `delivered` recente

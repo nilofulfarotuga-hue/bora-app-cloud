@@ -3640,68 +3640,66 @@ Para validar futuros casos suspeitos, invocar skill `driver-earnings-validator`.
 
 ---
 
-## §54 — COBRANÇA DA DÍVIDA NO CHECKOUT (2026-05-12)
+## §54 — COBRANÇA DA DÍVIDA NO CHECKOUT (actualizado 2026-05-12 PROMPT 4a/4b)
 
-Dívida wallet (`free_balance_cents < 0`, gerada por §53) é cobrada por **3 mecanismos**:
+`orders.debt_collected_cents` = cents da dívida prévia cobrada via este pedido.
+Populado em `create_order` quando `v_wallet_balance_pre<0`. Default 0.
+`final_total` = preço do pedido (SEM dívida).
+`payment_buffer_total` = `final_total + dívida` (para Stripe/limite €40).
+Driver UI em CASH: total a cobrar = `final_total + debt_collected_cents/100` (mostrado como `order.totalToCollectCash` + linha extra laranja `↳ inclui €X.XX de dívida anterior`).
 
-### 1. Próximo pedido CASH
-- **Frontend**: `quote_order_pricing(include_debt:true)` retorna `debt_settle_cents`. Checkout soma à linha total; opção CASH desabilitada (Opacity 0.4 + tooltip PT-PT) se `total_pedido + dívida > €40` (limite hardcoded em `enforce_cash_payment_limit`).
-- **Backend**: trigger `apply_client_debt_settlement_on_cash_delivery` dispara em `status='delivered' AND payment_method='cash'` → chama `wallet_settle_debt(NEW.user_id, abs(balance), 'cash_delivery', 'settle_cash_'||NEW.id)` → wallet=0.
-- **Defensivo**: BEGIN/EXCEPTION + RAISE WARNING; trigger NUNCA bloqueia UPDATE de status.
-- **Ordem alfabética**: `apply_client_*` corre antes de `orders_cash_settlement` (driver). Tabelas independentes (`client_wallets` vs `driver_balances`) → zero conflito.
+Dívida wallet (`free_balance_cents < 0`) é cobrada por **3 mecanismos**:
 
-### 2. Próximo pedido Cartão / MBWay
-- **Frontend**: `CartStore.quoteOrderPricing()` sempre passa `include_debt:true`.
-- **Server**: `quote_order_pricing` soma `v_debt_cents/100` a `v_charge_total` + buffer (×1.15 se restaurant/storeShopping não-parceiro).
-- **Edge Functions**: `create-payment-intent` / `create-mbway-payment-intent` (não tocadas) recebem charge_total já com dívida → PI criado com amount=charge_total.
-- **PI metadata**: precisa incluir `debt_settle_cents` + `user_id` para webhook detectar. **Fluxo actual** das Edge Functions já passa user_id; debt_settle_cents é adicionado pelo client via `cart_store.dart` → enviado no payment_drafts.payload → finalize... [TODO: verificar se Edge Functions propagam metadata; se não, precisa adicionar metadata explícita no PI quando criado]
-- **Webhook `stripe-webhook v23`**: detecta `intent.metadata.debt_settle_cents > 0` + `user_id` → chama `wallet_settle_debt(user_id, debt_settle_cents, 'stripe_pi', 'settle_pi_'||intent.id)` → wallet=0. Fluxo de pedido (finalize ou order_id) continua intacto.
+### 1. CASH (trigger delivered)
+- `create_order`: **NÃO zera wallet**; `debt_collected_cents=dívida`; `payment_buffer_total` inclui dívida
+- Estafeta cobra `final_total + debt_collected_cents/100` (UI mostra linha dívida)
+- Trigger `apply_client_debt_settlement_on_cash_delivery`: em `status=delivered`, zera wallet
+- Idempotency_key: `'settle_cash_<order_id>'`
 
-### 3. Standalone "Pagar dívida agora"
-- **UI tela Saldo Bora**: se `balance.isNegative`:
-  - `debtCents >= 50` → botão verde `"Pagar dívida agora (€X.XX)"` abre `PayDebtModal`
-  - `debtCents < 50` → botão escondido + texto pequeno: `"Dívida menor que €0.50 — será cobrada no próximo pedido."` (cobrança automática via mecanismos 1 ou 2)
-- **Modal `PayDebtModal`**:
-  - Opção valor: "Pagar dívida (€X.XX)" default vs "Pagar mais [input] €" (valida input >= dívida+1cent)
-  - Selector método: Cartão / MBWay (input phone se MBWay, regex `+351\d{9}`)
-  - Botão Confirmar desabilita durante chamada (`isLoading`) — evita double-click
-- **Edge Function `pay-debt-standalone v1`**:
-  - JWT verify ON
-  - Valida: `amountCents >= 50`, `debtAbs >= 50`, `amountCents >= debtAbs`, phone MBWay regex
-  - Cria PI com `metadata.standalone_debt_settle='true'` + `debt_settle_cents` + `user_id`
-  - MBWay: confirm server-side com `payment_method_types:['multibanco']`
-- **Webhook v23 ramo standalone**: detecta `metadata.standalone_debt_settle === 'true'` → settle + `break` (não há pedido, não chama finalize).
+### 2a. Cartão NEW (inline em `create_order`)
+- Flutter envia `include_debt:true` → `quote_order_pricing` inclui dívida no buffer
+- `create_order(payment_already_confirmed=true)`: zera wallet inline + INSERT settlement
+- Idempotency_key: `'settle_create_order_<order_id>'`
+
+### 2b. MBWay / Cartão LEGACY (trigger payment_paid)
+- `create_order`: **NÃO zera wallet**; `debt_collected_cents=dívida`; buffer inclui dívida
+- Stripe cobra buffer (inclui dívida) via `create-mbway-payment-intent` ou `create-payment-intent modeLegacy`
+- `stripe-webhook v23` actualiza `payment_status='paid'` via UPDATE explícito
+- Trigger `apply_client_debt_settlement_on_payment_paid`: zera wallet
+- Idempotency_key: `'settle_paid_<order_id>'`
+
+### 3. Standalone (botão "Pagar dívida agora")
+- Tela Saldo Bora → botão (visível se `debt >= €0.50`)
+- Edge Function `pay-debt-standalone v1` cria PI com `metadata.standalone_debt_settle='true'`
+- `stripe-webhook v23` detecta → `wallet_settle_debt` → `break`
+- Idempotency_key: `'settle_pi_<intent.id>'`
+
+### Tabela idem-keys (sem colisão entre os 4 caminhos)
+| Caminho | Idem-key |
+|---|---|
+| Cartão NEW via `create_order` | `settle_create_order_<order_id>` |
+| CASH trigger delivered | `settle_cash_<order_id>` |
+| MBWay/Cartão LEGACY trigger payment_paid | `settle_paid_<order_id>` |
+| Standalone PI | `settle_pi_<intent.id>` |
 
 ### Guard Stripe min €0.50
-- Stripe rejeita PaymentIntent com amount < 50 cents.
-- Standalone bloqueia se `debtAbs < 50` (UI esconde botão + texto explicativo).
-- Mecanismos 1 e 2 não têm o problema (dívida soma-se ao pedido cujo total já é ≥ €0.50).
+- Standalone **NÃO disponível** se dívida < 50 cents (UI esconde botão)
+- Cobrança automática via checkout (mecanismos 1 ou 2) para dívidas pequenas
 
-### Idempotência
-- `wallet_settle_debt` aceita `p_idem_key` construído pelo caller:
-  - Trigger CASH: `'settle_cash_' || order_id`
-  - Webhook: `'settle_pi_' || payment_intent.id`
-- SELECT prévio em `wallet_transactions.idempotency_key` → 2ª chamada retorna `idempotent:true` sem duplicar débito.
-- Reentregas Stripe webhooks são seguras.
-
-### Surplus (excedente)
-- `wallet_settle_debt` aceita `amount > debt`. Excedente vira saldo positivo:
-  - **100% para `free_balance_cents`** (NÃO regra 80/20 — é settle, não refund).
-- Modal mostra snackbar pós-sucesso:
-  - Sem surplus: `"Dívida paga!"`
-  - Com surplus: `"Dívida paga! Tens €X.XX em saldo."` (transparência)
+### Surplus
+`wallet_settle_debt` aceita `amount > debt` → excedente = saldo positivo (**100% `free_balance_cents`** — NÃO regra 80/20).
 
 ### CHECK constraint
-- `client_wallets.free_balance_cents >= -4000` (relaxado em §53 BUG #1 backend)
-- 2 hard floors via RPCs (verifica setting próprio):
+- `client_wallets.free_balance_cents >= -4000` (relaxado em §53)
+- 2 hard floors via RPCs (cada RPC valida o seu via `platform_settings`):
   - `wallet_debit_for_order` → `wallet_hard_floor_cents = -2000`
   - `wallet_debit_cancel_fee` → `wallet_cancel_hard_floor_cents = -4000`
-- `wallet_settle_debt` **não tem hard floor** (apenas adiciona — nunca pode tornar wallet mais negativa).
+- `wallet_settle_debt` **não tem hard floor** (apenas adiciona).
 
-### `wallet_transactions.kind` actualizado
-- Total 12 kinds (era 11 antes de §53).
-- Kinds usados nesta sessão:
-  - `settlement` (existia) — agora também usada por trigger CASH + webhook PI
+### `wallet_transactions.kind`
+- 12 kinds totais (era 11 antes de §53)
+- Kinds usados em §53/§54:
+  - `settlement` (existia) — agora usada pelos 4 caminhos (inline create_order, trigger CASH, trigger payment_paid, webhook standalone)
   - `cancel_fee_debit` (§53) — débito por cancelamento
 
 NÃO CONFUNDIR com `wallet_credit_refund_split` (refunds 80/20 de pedidos PAGOS) ou `admin_forgive_wallet_debt` (admin zera dívida sem cobrança).
@@ -3758,6 +3756,6 @@ adicionado `cancel_fee_debit` (era 11 kinds em §52).
 ---
 
 *Documento de regras de negócio — Bora App*
-*Última atualização: 2026-05-12 (§54 — Cobrança da dívida no checkout: CASH/Cartão+MBWay/Standalone)*
+*Última atualização: 2026-05-12 (§54 PROMPT 4a/4b refinado — lifecycle completo + driver UI debt_collected_cents)*
 *Atualizar sempre que houver mudanças nas regras de negócio*
 *Fonte de verdade usada por: todas as skills do sistema*

@@ -1216,19 +1216,41 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: Colors.orange.shade400),
                     ),
-                    child: Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.warning_amber_rounded,
-                            color: Colors.orange.shade800, size: 20),
-                        const SizedBox(width: 8),
-                        Text(
-                          'COBRAR EM DINHEIRO',
-                          style: TextStyle(
-                            color: Colors.orange.shade900,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
+                        Row(
+                          children: [
+                            Icon(Icons.warning_amber_rounded,
+                                color: Colors.orange.shade800, size: 20),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'COBRAR EM DINHEIRO: €${order.totalToCollectCash.toStringAsFixed(2)}',
+                                style: TextStyle(
+                                  color: Colors.orange.shade900,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
+                        // BUG #1 frontend (§54) — linha extra se inclui dívida prévia
+                        if (order.hasCashDebt) ...[
+                          const SizedBox(height: 4),
+                          Padding(
+                            padding: const EdgeInsets.only(left: 28),
+                            child: Text(
+                              '↳ inclui €${(order.debtCollectedCents / 100).toStringAsFixed(2)} de dívida anterior',
+                              style: const TextStyle(
+                                color: Color(0xFFE65100),
+                                fontSize: 12,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),

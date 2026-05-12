@@ -52,6 +52,28 @@ Deno.serve(async (req: Request) => {
     //                          marca paid + dispatch.
     case 'payment_intent.succeeded': {
       const intent = event.data.object as Stripe.PaymentIntent;
+
+      // ⭐ NOVO v23 (2026-05-12 BUG #1 frontend) — debt settle via metadata
+      const debtSettleCents = parseInt(intent.metadata?.debt_settle_cents ?? '0');
+      const piUserId = intent.metadata?.user_id;
+      if (debtSettleCents > 0 && piUserId) {
+        const { error: settleErr } = await supabase.rpc('wallet_settle_debt', {
+          p_user_id: piUserId,
+          p_amount_cents: debtSettleCents,
+          p_source: 'stripe_pi',
+          p_idem_key: 'settle_pi_' + intent.id,
+        });
+        if (settleErr) {
+          console.error('[stripe-webhook] wallet_settle_debt failed:', settleErr.message, intent.id);
+        } else {
+          console.log('[stripe-webhook] debt settled:', piUserId, debtSettleCents, intent.id);
+        }
+      }
+      // ⭐ NOVO v23 — standalone debt-only PI: parar aqui (não há pedido)
+      if (intent.metadata?.standalone_debt_settle === 'true') {
+        break;
+      }
+
       const draft_id = intent.metadata?.draft_id;
       const order_id = intent.metadata?.order_id;
 

@@ -2,13 +2,15 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../services/order_photo_upload_service.dart';
 
 /// Reusable mandatory photo picker used by sendPackage and carryGroceries
 /// forms (BR §7.5, §7.6).
 ///
-/// Handles camera/gallery selection, upload to the `order-photos` bucket,
-/// and calls [onUploaded] with the public URL. Shows a local preview.
+/// BUG #7 (2026-05-13) — upload via Edge Function `upload-order-photo`
+/// (service_role bypassa RLS storage) em vez de `storage.from(...)` directo
+/// que dava erro 403. Calls [onUploaded] com a URL pública retornada.
 class MandatoryPhotoPicker extends StatefulWidget {
   const MandatoryPhotoPicker({
     super.key,
@@ -48,24 +50,14 @@ class _MandatoryPhotoPickerState extends State<MandatoryPhotoPicker> {
       });
       widget.onUploaded(null);
 
-      final client = Supabase.instance.client;
-      final uid = client.auth.currentUser?.id;
-      if (uid == null) {
-        setState(() => _uploading = false);
-        return;
-      }
-      final bytes = await picked.readAsBytes();
-      final filename =
-          '$uid/${widget.pathPrefix}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      await client.storage.from('order-photos').uploadBinary(
-            filename,
-            bytes,
-            fileOptions: const FileOptions(
-              upsert: true,
-              contentType: 'image/jpeg',
-            ),
-          );
-      final url = client.storage.from('order-photos').getPublicUrl(filename);
+      // BUG #7 (2026-05-13) — upload via Edge Function (service_role).
+      // OrderPhotoUploadService faz base64 + invoke('upload-order-photo')
+      // e devolve a URL pública. Auth + size validados server-side.
+      final tmpFile = File(picked.path);
+      final url = await OrderPhotoUploadService.uploadOrderPhoto(
+        photoFile: tmpFile,
+        pathPrefix: widget.pathPrefix,
+      );
       if (!mounted) return;
       setState(() {
         _uploading = false;

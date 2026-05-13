@@ -399,11 +399,14 @@ class OrderStore extends ChangeNotifier {
     _restaurantStore?.syncPartnerOrders(_orders);
   }
 
-  void toggleDriverAvailability(bool value) {
+  // BUG #5 (2026-05-13) — retornar bool para a UI poder mostrar snackbar
+  // quando o toggle é rejeitado (pedidos activos genuinamente em curso).
+  bool toggleDriverAvailability(bool value) {
     final success = _driverStore.toggleAvailability(_currentDriverId, value);
     if (success) {
       notifyListeners();
     }
+    return success;
   }
 
   /// BUG 1 / Fase 2 (2026-04-30) — Card payment-first flow.
@@ -2249,11 +2252,30 @@ class OrderStore extends ChangeNotifier {
                   debugPrint(
                       '[OrderStore] active notify: assigned→$driverId order=$orderId');
                   _mergeDriverRows([rec], _driverActiveIds);
+
+                  // BUG #5 (2026-05-13) — quando pedido chega a estado
+                  // terminal via Realtime (delivered/cancelled/rejected),
+                  // libertar activeAssignments local. Sem isto,
+                  // driver_store.toggleAvailability bloqueia o toggle
+                  // offline porque activeAssignments fica stale.
+                  // finishOrder local já trata o caso síncrono — este
+                  // path cobre updates externos (admin, trigger, outro
+                  // device).
+                  final status = rec['status'] as String?;
+                  const terminal = {'delivered', 'cancelled', 'rejected'};
+                  if (status != null && terminal.contains(status)) {
+                    _driverStore.releaseOrderForDriver(driverId, orderId);
+                    _driverStore.stopTracking(orderId);
+                  }
                 } else if (_driverActiveIds.contains(orderId)) {
                   debugPrint(
                       '[OrderStore] active notify: assignment removed order=$orderId');
                   _driverActiveIds.remove(orderId);
                   _orders.removeWhere((o) => o.id == orderId);
+                  // BUG #5 (2026-05-13) — assignment_driver_id foi anulado
+                  // server-side; libertar a assignment local também.
+                  _driverStore.releaseOrderForDriver(driverId, orderId);
+                  _driverStore.stopTracking(orderId);
                   notifyListeners();
                 }
               },

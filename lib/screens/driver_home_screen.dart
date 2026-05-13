@@ -563,7 +563,22 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
               Switch(
                 value: isAvailable,
                 onChanged: (value) {
-                  orderStore.toggleDriverAvailability(value);
+                  // BUG #5 (2026-05-13) — capturar success do toggle. Se
+                  // o driver tenta ficar offline com pedidos genuinamente
+                  // activos, mostrar snackbar em vez de falhar silencioso.
+                  final success =
+                      orderStore.toggleDriverAvailability(value);
+                  if (!success && !value) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Tens pedidos activos. Conclui-os antes de ficar offline.',
+                        ),
+                        duration: Duration(seconds: 3),
+                      ),
+                    );
+                    return;
+                  }
                   // FASE 1: start/stop heartbeat conforme toggle.
                   if (value) {
                     unawaited(_heartbeatService.start());
@@ -938,7 +953,20 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                   Switch(
                     value: isAvailable,
                     onChanged: (v) {
-                      orderStore.toggleDriverAvailability(v);
+                      // BUG #5 (2026-05-13) — idem ao callsite no app bar.
+                      final success =
+                          orderStore.toggleDriverAvailability(v);
+                      if (!success && !v) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Tens pedidos activos. Conclui-os antes de ficar offline.',
+                            ),
+                            duration: Duration(seconds: 3),
+                          ),
+                        );
+                        return;
+                      }
                       if (v) {
                         unawaited(_heartbeatService.start());
                       } else {

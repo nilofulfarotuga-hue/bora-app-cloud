@@ -1095,8 +1095,9 @@ class _PurchaseV2CardState extends State<_PurchaseV2Card> {
             ],
             if (_receipt != null) ...[
               const Divider(height: 24),
-              // BUG #3 (2026-05-13) — duas linhas: soma real dos itens
-              // comprados + valor digitado pelo estafeta (auditoria).
+              // BUG C (2026-05-13) — "Total digitado pelo estafeta" foi
+              // removido daqui (era exposto ao cliente por engano). Mantem-se
+              // apenas no ecra do estafeta (auditoria interna).
               Row(
                 children: [
                   Icon(Icons.shopping_basket,
@@ -1111,26 +1112,6 @@ class _PurchaseV2CardState extends State<_PurchaseV2Card> {
                   Text(
                     '€${(_purchasedItemsTotalCents() / 100).toStringAsFixed(2)}',
                     style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Row(
-                children: [
-                  Icon(Icons.receipt_long,
-                      size: 16, color: Colors.grey.shade600),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      'Total digitado pelo estafeta',
-                      style: TextStyle(
-                          color: Colors.grey.shade600, fontSize: 12),
-                    ),
-                  ),
-                  Text(
-                    '€${((_receipt!['driver_typed_total_cents'] as int? ?? 0) / 100).toStringAsFixed(2)}',
-                    style: TextStyle(
-                        fontSize: 12, color: Colors.grey.shade700),
                   ),
                 ],
               ),

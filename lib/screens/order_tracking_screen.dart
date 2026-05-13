@@ -825,7 +825,10 @@ class _BottomCardState extends State<_BottomCard> {
                   ),
                 ],
 
-                // ── Total ────────────────────────────────────────────────
+                // ── Resumo do pedido ─────────────────────────────────────
+                // BUG #4 (2026-05-13) — decomposição completa em vez do
+                // total monolítico. Mostra subtotal, taxa entrega, taxa
+                // serviço, gorjeta, saldo aplicado + total final.
                 const SizedBox(height: 16),
                 Container(
                   padding:
@@ -834,20 +837,35 @@ class _BottomCardState extends State<_BottomCard> {
                     color: Colors.grey.shade50,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text(
-                        'Total do pedido',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                      Text(
-                        '€${order.total.toStringAsFixed(2)}',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
+                      if (order.subtotal > 0)
+                        _SummaryRow(
+                            label: 'Subtotal', value: order.subtotal),
+                      if (order.deliveryFee > 0)
+                        _SummaryRow(
+                            label: 'Taxa de entrega',
+                            value: order.deliveryFee),
+                      if (order.serviceFee > 0)
+                        _SummaryRow(
+                            label: 'Taxa de serviço',
+                            value: order.serviceFee),
+                      if (order.tipCents > 0)
+                        _SummaryRow(
+                            label: 'Gorjeta',
+                            value: order.tipCents / 100,
+                            accent: true),
+                      if (order.walletAppliedCents > 0)
+                        _SummaryRow(
+                            label: 'Saldo Bora aplicado',
+                            value: -(order.walletAppliedCents / 100),
+                            isDiscount: true),
+                      Divider(color: Colors.grey.shade300, height: 16),
+                      _SummaryRow(
+                        label: 'Total do pedido',
+                        value: order.total,
+                        isStrong: true,
                       ),
                     ],
                   ),
@@ -1169,5 +1187,52 @@ class _EtaBadge extends StatelessWidget {
       default:
         return '';
     }
+  }
+}
+
+// BUG #4 (2026-05-13) — _SummaryRow privado para a decomposição do resumo
+// no _BottomCard. Espelha o widget homónimo em cart_screen.dart, com extra
+// `isDiscount` para mostrar valores negativos (saldo aplicado).
+class _SummaryRow extends StatelessWidget {
+  const _SummaryRow({
+    required this.label,
+    required this.value,
+    this.isStrong = false,
+    this.accent = false,
+    this.isDiscount = false,
+  });
+
+  final String label;
+  final double value;
+  final bool isStrong;
+  final bool accent;
+  final bool isDiscount;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = accent
+        ? AppColors.accent
+        : (isDiscount
+            ? AppColors.success
+            : (isStrong ? AppColors.textPrimary : AppColors.textSecondary));
+    final style = TextStyle(
+      fontSize: isStrong ? 16 : 14,
+      fontWeight: isStrong ? FontWeight.w800 : FontWeight.w500,
+      color: color,
+    );
+    final displayValue = isDiscount
+        ? '-€${value.abs().toStringAsFixed(2)}'
+        : '€${value.toStringAsFixed(2)}';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: style),
+          Text(displayValue, style: style),
+        ],
+      ),
+    );
   }
 }

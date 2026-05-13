@@ -1007,6 +1007,24 @@ class _PurchaseV2CardState extends State<_PurchaseV2Card> {
     return sum;
   }
 
+  // BUG #3 (2026-05-13) — soma real dos itens efectivamente comprados
+  // (status purchased/replaced). Distingue do `driver_typed_total_cents` que
+  // é o valor digitado pelo estafeta (auditoria).
+  int _purchasedItemsTotalCents() {
+    if (_items == null) return 0;
+    var sum = 0;
+    for (final it in _items!) {
+      final status = it['status'] as String?;
+      if (status != 'purchased' && status != 'replaced') continue;
+      final price = (it['actual_price_cents'] as int?) ??
+          (it['original_price_cents'] as int? ?? 0);
+      final qty = (it['actual_qty'] as int?) ??
+          (it['original_qty'] as int? ?? 0);
+      sum += price * qty;
+    }
+    return sum;
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -1077,19 +1095,42 @@ class _PurchaseV2CardState extends State<_PurchaseV2Card> {
             ],
             if (_receipt != null) ...[
               const Divider(height: 24),
+              // BUG #3 (2026-05-13) — duas linhas: soma real dos itens
+              // comprados + valor digitado pelo estafeta (auditoria).
               Row(
                 children: [
-                  Icon(Icons.receipt_long, size: 18, color: Colors.grey.shade700),
+                  Icon(Icons.shopping_basket,
+                      size: 18, color: Colors.grey.shade700),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      'Total do talão',
+                      'Soma dos itens',
                       style: TextStyle(color: Colors.grey.shade700),
                     ),
                   ),
                   Text(
-                    '€${((_receipt!['driver_typed_total_cents'] as int? ?? 0) / 100).toStringAsFixed(2)}',
+                    '€${(_purchasedItemsTotalCents() / 100).toStringAsFixed(2)}',
                     style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Icon(Icons.receipt_long,
+                      size: 16, color: Colors.grey.shade600),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Total digitado pelo estafeta',
+                      style: TextStyle(
+                          color: Colors.grey.shade600, fontSize: 12),
+                    ),
+                  ),
+                  Text(
+                    '€${((_receipt!['driver_typed_total_cents'] as int? ?? 0) / 100).toStringAsFixed(2)}',
+                    style: TextStyle(
+                        fontSize: 12, color: Colors.grey.shade700),
                   ),
                 ],
               ),

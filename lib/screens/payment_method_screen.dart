@@ -524,14 +524,8 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
         if (!mounted) return;
         if (!ordered) {
           setState(() => _isProcessing = false);
-          messenger.showSnackBar(SnackBar(
-            content: Text(
-              '❌ Não foi possível criar o pedido.\n\n'
-              'DIAG: ${cartStore.lastFinishOrderDiag}',
-            ),
-            duration: const Duration(seconds: 15),
-            backgroundColor: Colors.red.shade800,
-          ));
+          messenger.showSnackBar(const SnackBar(
+              content: Text('Não foi possível criar o pedido. Tente novamente.')));
           return;
         }
         await _consumeTokensAndNavigate(tokensUsed);
@@ -547,14 +541,9 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       if (!mounted) return;
       if (draft == null) {
         setState(() => _isProcessing = false);
-        messenger.showSnackBar(SnackBar(
-          content: Text(
-            '❌ Não foi possível iniciar o pagamento.\n\n'
-            'DIAG: ${cartStore.lastCardPaymentDiag}',
-          ),
-          duration: const Duration(seconds: 15),
-          backgroundColor: Colors.red.shade800,
-        ));
+        messenger.showSnackBar(const SnackBar(
+            content:
+                Text('Não foi possível iniciar o pagamento. Tente novamente.')));
         return;
       }
 
@@ -642,13 +631,8 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
         if (!mounted) return;
         if (!mbwayOrdered) {
           setState(() => _isProcessing = false);
-          messenger.showSnackBar(SnackBar(
-            content: Text(
-              '❌ Não foi possível criar o pedido.\n\n'
-              'DIAG: ${cartStore.lastFinishOrderDiag}',
-            ),
-            duration: const Duration(seconds: 15),
-            backgroundColor: Colors.red.shade800,
+          messenger.showSnackBar(const SnackBar(
+            content: Text('Não foi possível criar o pedido. Tente novamente.'),
           ));
           return;
         }
@@ -664,13 +648,8 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
         );
         if (!mounted) return;
         if (piId == null) {
-          messenger.showSnackBar(SnackBar(
-            content: const Text(
-              '❌ Não foi possível iniciar o pagamento MBWay.\n\n'
-              'DIAG: paymentService.initiateMbwayPayment retornou null',
-            ),
-            duration: const Duration(seconds: 15),
-            backgroundColor: Colors.red.shade800,
+          messenger.showSnackBar(const SnackBar(
+            content: Text('Não foi possível iniciar o pagamento MBWay.'),
           ));
           await _bailOutAndCancel(mbwayOrder.id);
           return;
@@ -719,14 +698,10 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     setState(() => _isProcessing = false);
 
     if (!ordered) {
-      messenger.showSnackBar(SnackBar(
-        content: Text(
-          '❌ Não foi possível criar o pedido.\n\n'
-          'DIAG: ${cartStore.lastFinishOrderDiag}',
-        ),
-        duration: const Duration(seconds: 15),
-        backgroundColor: Colors.red.shade800,
-      ));
+      messenger.showSnackBar(
+        const SnackBar(
+            content: Text('Não foi possível criar o pedido. Tente novamente.')),
+      );
       return;
     }
 

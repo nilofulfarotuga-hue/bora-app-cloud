@@ -14,6 +14,7 @@ import '../utils/business_mapper.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora_support_fab.dart';
 import 'restaurant_menu_screen.dart';
+import 'restaurant_options_screen.dart';
 
 class RestaurantsScreen extends StatelessWidget {
   const RestaurantsScreen({super.key, this.reservationsOnly = false});
@@ -146,13 +147,25 @@ class RestaurantsScreen extends StatelessWidget {
       business: business,
     );
 
+    // BUG #9+10 (2026-05-13) — parceiros com reservas activas vão para
+    // RestaurantOptionsScreen (3 cartões: Entrega / Ir buscar / Reservar)
+    // antes do cardápio. Outros casos (parceiro sem reservas, não-parceiro)
+    // vão directo ao menu (Q13 confirmou: menos cliques).
+    final showOptions = business.isPartner && business.reservationsEnabled;
+
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => RestaurantMenuScreen(
-          restaurant: restaurant,
-          restaurantId: business.id,
-        ),
+        builder: (_) => showOptions
+            ? RestaurantOptionsScreen(
+                business: business,
+                restaurant: restaurant,
+                restaurantId: business.id,
+              )
+            : RestaurantMenuScreen(
+                restaurant: restaurant,
+                restaurantId: business.id,
+              ),
       ),
     );
   }

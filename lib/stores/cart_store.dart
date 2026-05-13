@@ -419,6 +419,13 @@ class CartStore extends ChangeNotifier {
     _saveCart();
   }
 
+  // DIAG temporário — remover após rollback pre-diag-2026-05-13
+  String _lastFinishOrderDiag = '';
+  String get lastFinishOrderDiag => _lastFinishOrderDiag;
+
+  String _lastCardPaymentDiag = '';
+  String get lastCardPaymentDiag => _lastCardPaymentDiag;
+
   /// BUG 1 / Fase 2 (2026-04-30) — Card payment-first flow.
   ///
   /// Builds the cart payload from this store's current state and invokes
@@ -434,21 +441,34 @@ class CartStore extends ChangeNotifier {
     String? clientPhone,
     String? customerName,
   }) async {
+    _lastCardPaymentDiag = 'startCardPaymentDraft start | '
+        'serviceType=$_serviceType | '
+        'vendor=${_vendorName?.hashCode ?? "null"} | '
+        'isPartner=$_isPartnerStore | '
+        'pickup=${_pickupLocation != null} | '
+        'delivery=${_deliveryLocation != null} | '
+        'dropoffStreetEmpty=${_dropoffStreet.isEmpty} | '
+        'items=${_items.length}';
     final isShoppingOrder = _serviceType == OrderServiceType.restaurant ||
         _serviceType == OrderServiceType.storeShopping;
-    if (isShoppingOrder && _items.isEmpty) return null;
+    if (isShoppingOrder && _items.isEmpty) {
+      _lastCardPaymentDiag += ' | BLOCKED: items_empty';
+      return null;
+    }
     if (_pickupLocation == null) {
+      _lastCardPaymentDiag += ' | BLOCKED: pickup_null';
       debugPrint('CartStore.startCardPaymentDraft: BLOCKED — pickupLocation null');
       return null;
     }
     if (_deliveryLocation == null || _dropoffStreet.isEmpty) {
+      _lastCardPaymentDiag += ' | BLOCKED: delivery_or_dropoff_missing';
       debugPrint('CartStore.startCardPaymentDraft: BLOCKED — delivery missing');
       return null;
     }
 
     final breakdown = pricingBreakdown;
 
-    return orderStore.startCardPaymentDraft(
+    final draft = await orderStore.startCardPaymentDraft(
       serviceType: _serviceType,
       itemsSubtotal: breakdown.subtotal,
       destination: _deliveryLocation!,
@@ -481,6 +501,10 @@ class CartStore extends ChangeNotifier {
       apartmentDelivery: _apartmentDelivery,
       walletAppliedCents: _walletAppliedCents,
     );
+    if (draft == null) {
+      _lastCardPaymentDiag += ' | BLOCKED: orderStore_returned_null';
+    }
+    return draft;
   }
 
   Future<bool> finishOrder(
@@ -495,11 +519,24 @@ class CartStore extends ChangeNotifier {
     // phase (FIFO) — not yet deducted from bora_tokens table.
     int tokensUsed = 0,
   }) async {
+    _lastFinishOrderDiag = 'finishOrder start | '
+        'serviceType=$_serviceType | '
+        'vendor=${_vendorName?.hashCode ?? "null"} | '
+        'isPartner=$_isPartnerStore | '
+        'pickup=${_pickupLocation != null} | '
+        'delivery=${_deliveryLocation != null} | '
+        'dropoffStreetEmpty=${_dropoffStreet.isEmpty} | '
+        'items=${_items.length} | '
+        'takeaway=$_isTakeaway | '
+        'paymentMethod=$paymentMethod';
     // Items are required for shopping-type orders; logistics orders (carry
     // groceries, send package) have no cart items by design.
     final isShoppingOrder = _serviceType == OrderServiceType.restaurant ||
         _serviceType == OrderServiceType.storeShopping;
-    if (isShoppingOrder && _items.isEmpty) return false;
+    if (isShoppingOrder && _items.isEmpty) {
+      _lastFinishOrderDiag += ' | BLOCKED: items_empty';
+      return false;
+    }
 
     // ── FIX: Block order creation when pickup coordinates are missing.
     // Previously, null pickupLocation silently passed through, causing:
@@ -509,6 +546,7 @@ class CartStore extends ChangeNotifier {
     //   - incorrect pricing
     // Now we fail explicitly so the UI can show a clear error.
     if (_pickupLocation == null) {
+      _lastFinishOrderDiag += ' | BLOCKED: pickup_null';
       debugPrint(
         'CartStore.finishOrder: BLOCKED — pickupLocation is null for '
         'vendor "$_vendorName". Cannot create order without pickup coords.',
@@ -517,6 +555,7 @@ class CartStore extends ChangeNotifier {
     }
 
     if (_deliveryLocation == null) {
+      _lastFinishOrderDiag += ' | BLOCKED: delivery_null';
       debugPrint(
         'CartStore.finishOrder: BLOCKED — deliveryLocation is null. '
         'User must define a delivery address before placing an order.',
@@ -525,6 +564,7 @@ class CartStore extends ChangeNotifier {
     }
 
     if (_dropoffStreet.isEmpty) {
+      _lastFinishOrderDiag += ' | BLOCKED: dropoff_street_empty';
       debugPrint('CartStore.finishOrder: BLOCKED — dropoffStreet is empty.');
       return false;
     }
@@ -574,7 +614,10 @@ class CartStore extends ChangeNotifier {
       walletAppliedCents: _walletAppliedCents,
     );
 
-    if (!success) return false;
+    if (!success) {
+      _lastFinishOrderDiag += ' | BLOCKED: order_store_create_failed';
+      return false;
+    }
     _packagePhotoUrl = null;
     _groceriesPhotoUrl = null;
     _isTakeaway = false;

@@ -35,6 +35,10 @@ class _ReservationAvailabilityScreenState
   Map<String, dynamic>? _availabilityResult;
   bool _searching = false;
 
+  // DIAG temporário (BUG #11) — remover após rollback pre-diag-2026-05-13
+  String? _debugLastResponse;
+  String? _debugLastError;
+
   Future<void> _pickDate() async {
     // BUG #12 (2026-05-13) — try/catch defensivo. Causa principal corrigida
     // em main.dart (flutter_localizations delegates). Este catch garante que
@@ -97,6 +101,8 @@ class _ReservationAvailabilityScreenState
     setState(() {
       _searching = true;
       _availabilityResult = null;
+      _debugLastResponse = null;
+      _debugLastError = null;
     });
     try {
       final result =
@@ -107,9 +113,12 @@ class _ReservationAvailabilityScreenState
                 targetTime: _selectedTime,
               );
       if (!mounted) return;
+      _debugLastResponse = result.toString();
       setState(() => _availabilityResult = result);
-    } catch (e) {
+    } catch (e, st) {
       if (!mounted) return;
+      final stackStr = st.toString().split('\n').take(5).join('\n');
+      _debugLastError = '$e\n$stackStr';
       final msg = e.toString().replaceFirst('Exception: ', '');
       if (msg.contains('Não podes reservar')) {
         await showDialog<void>(
@@ -423,6 +432,46 @@ class _ReservationAvailabilityScreenState
               icon: const Icon(Icons.notifications_active_outlined),
               label: const Text('Avisar se vagar'),
             ),
+            // DIAG temporário BUG #11 — remover após rollback pre-diag-2026-05-13
+            if (_debugLastResponse != null || _debugLastError != null) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.yellow.shade100,
+                  border: Border.all(color: Colors.orange),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '🐛 DEBUG RESERVAS (temporário):',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 11),
+                    ),
+                    const SizedBox(height: 4),
+                    Text('Restaurant ID: ${widget.restaurantId}',
+                        style: const TextStyle(fontSize: 10)),
+                    Text('Date: ${_selectedDate.toIso8601String()}',
+                        style: const TextStyle(fontSize: 10)),
+                    Text('Party: $_selectedPartySize',
+                        style: const TextStyle(fontSize: 10)),
+                    Text(
+                        'Time: ${_selectedTime?.format(context) ?? "null"}',
+                        style: const TextStyle(fontSize: 10)),
+                    const SizedBox(height: 8),
+                    if (_debugLastError != null)
+                      Text('❌ ERRO: $_debugLastError',
+                          style: const TextStyle(
+                              fontSize: 10, color: Colors.red)),
+                    if (_debugLastResponse != null)
+                      Text('✅ RESPOSTA: $_debugLastResponse',
+                          style: const TextStyle(fontSize: 10)),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       ),

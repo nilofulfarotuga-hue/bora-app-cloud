@@ -417,9 +417,15 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                     final accepted =
                         await orderStore.restaurantAcceptOrder(order);
                     if (!context.mounted) return;
+                    // BUG F (2026-05-13) — incluir ultimos 4 chars do order id
+                    // para o parceiro identificar QUAL pedido em situacoes
+                    // com varios pedidos simultaneos.
+                    final shortId = order.id.length >= 4
+                        ? order.id.substring(order.id.length - 4).toUpperCase()
+                        : order.id.toUpperCase();
                     final message = accepted
-                        ? 'Pedido aceite. Prepare os itens.'
-                        : 'Não foi possível aceitar o pedido.';
+                        ? 'Pedido aceite — #$shortId. Prepare os itens.'
+                        : 'Não foi possível aceitar o pedido — #$shortId.';
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text(message)),
                     );
@@ -428,9 +434,12 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                     final rejected =
                         await orderStore.restaurantRejectOrder(order);
                     if (!context.mounted) return;
+                    final shortId = order.id.length >= 4
+                        ? order.id.substring(order.id.length - 4).toUpperCase()
+                        : order.id.toUpperCase();
                     final message = rejected
-                        ? 'Pedido rejeitado.'
-                        : 'Não foi possível rejeitar o pedido.';
+                        ? 'Pedido rejeitado — #$shortId.'
+                        : 'Não foi possível rejeitar o pedido — #$shortId.';
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text(message)),
                     );
@@ -438,9 +447,12 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                   onCallDriver: (order) async {
                     final ready = await orderStore.restaurantMarkReady(order);
                     if (!context.mounted) return;
+                    final shortId = order.id.length >= 4
+                        ? order.id.substring(order.id.length - 4).toUpperCase()
+                        : order.id.toUpperCase();
                     final message = ready
-                        ? 'Estafeta a caminho!'
-                        : 'Não foi possível chamar o estafeta.';
+                        ? 'Estafeta a caminho — #$shortId'
+                        : 'Não foi possível chamar o estafeta — #$shortId.';
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text(message)),
                     );

@@ -75,19 +75,45 @@ class ReservationStore extends ChangeNotifier {
     required int partySize,
     TimeOfDay? targetTime,
   }) async {
+    // BUG #11 Fase 1 (2026-05-13) — debug instrumentação temporária para
+    // capturar input/output reais quando o user repete o teste. Manter até
+    // root cause confirmado, depois remover ou trocar para log estruturado.
+    final params = <String, dynamic>{
+      'p_restaurant_id': restaurantId,
+      'p_target_date': _formatDate(date),
+      'p_party_size': partySize,
+      'p_target_time': targetTime != null ? _formatTime(targetTime) : null,
+    };
+    debugPrint('[ReservationStore] searchAvailability → params=$params '
+        '(weekday=${date.weekday} ie ${_weekdayPtPt(date.weekday)})');
     try {
-      final result = await _supabase.rpc('client_search_availability', params: {
-        'p_restaurant_id': restaurantId,
-        'p_target_date': _formatDate(date),
-        'p_party_size': partySize,
-        'p_target_time': targetTime != null ? _formatTime(targetTime) : null,
-      });
+      final result =
+          await _supabase.rpc('client_search_availability', params: params);
+      debugPrint('[ReservationStore] searchAvailability ← $result');
       return Map<String, dynamic>.from(result as Map);
     } on PostgrestException catch (e) {
+      debugPrint('[ReservationStore] searchAvailability PostgrestException: '
+          'code=${e.code} message=${e.message}');
       throw Exception(_mapErrorPtPt(e.code ?? e.message));
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('[ReservationStore] searchAvailability error: $e\n$st');
       throw Exception('Erro ao procurar disponibilidade. Tenta de novo.');
     }
+  }
+
+  static String _weekdayPtPt(int weekday) {
+    // DateTime.weekday: 1=Mon..7=Sun
+    const names = [
+      '', // index 0 unused
+      'Segunda',
+      'Terça',
+      'Quarta',
+      'Quinta',
+      'Sexta',
+      'Sábado',
+      'Domingo',
+    ];
+    return names[weekday.clamp(1, 7)];
   }
 
   /// Entra na fila de espera (RPC F2). Trigger envia push parceiro.

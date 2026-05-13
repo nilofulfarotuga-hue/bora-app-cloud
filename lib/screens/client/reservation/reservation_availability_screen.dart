@@ -341,6 +341,16 @@ class _ReservationAvailabilityScreenState
   }
 
   Widget _buildEmptyState() {
+    // BUG #11 Fase 1 (2026-05-13) — mensagem differenciada quando data
+    // é fim-de-semana (sem pacing rules activas neste restaurante) vs
+    // semana cheia (slots existem mas estão cheios/passados). DateTime
+    // .weekday: 6=Sáb, 7=Dom. PostgreSQL EXTRACT(DOW): 0=Dom..6=Sáb.
+    final dow = _selectedDate.weekday;
+    final isWeekend = dow == 6 || dow == 7;
+    final title = isWeekend
+        ? 'Este restaurante pode não aceitar reservas a '
+            '${dow == 6 ? "Sábado" : "Domingo"}'
+        : 'Sem disponibilidade nesta data';
     return Card(
       elevation: 1,
       child: Padding(
@@ -350,10 +360,10 @@ class _ReservationAvailabilityScreenState
           children: [
             const Icon(Icons.event_busy, size: 40, color: Colors.grey),
             const SizedBox(height: 12),
-            const Text(
-              'Sem disponibilidade nesta data',
+            Text(
+              title,
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
                 color: AppTheme.textPrimary,

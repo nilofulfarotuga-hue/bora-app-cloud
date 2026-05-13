@@ -1065,6 +1065,31 @@ class _PurchaseV2CardState extends State<_PurchaseV2Card> {
               )
             else
               ...items.map(_itemRow),
+            // BUG B (2026-05-13) — mostrar saco como linha na lista quando
+            // bagCount > 0. Usa bagFee/bagCount para preco unitario (mercado
+            // €0.10 cada; restaurante €0.30 fixo logo bagCount=1).
+            if (widget.order.bagCount > 0 && widget.order.bagFee > 0)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.shopping_bag_outlined,
+                        color: AppTheme.secondary, size: 20),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        '🛍️ Saco plástico — ${widget.order.bagCount}× €${(widget.order.bagFee / widget.order.bagCount).toStringAsFixed(2)}',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    Text(
+                      '€${widget.order.bagFee.toStringAsFixed(2)}',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+              ),
             if (creditCents > 0) ...[
               const Divider(height: 24),
               Row(

@@ -409,9 +409,13 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                     Icon(Icons.block, color: Colors.red.shade700, size: 18),
                     const SizedBox(width: 8),
                     Expanded(
+                      // BUG #1 (2026-05-13) — banner informativo, não bloqueia
+                      // o avanço para PaymentMethodScreen. Cartão e MBWay
+                      // liquidam dívida automaticamente; só CASH é gated em
+                      // payment_method_screen.dart (BUG #1 §54).
                       child: Text(
-                        'Carteira bloqueada (saldo €${(_wallet!.freeCents / 100).toStringAsFixed(2)}). '
-                        'Liquide para fazer novos pedidos.',
+                        'Carteira em dívida (saldo €${(_wallet!.freeCents / 100).toStringAsFixed(2)}). '
+                        'Paga com Cartão ou MBWay para liquidar automaticamente.',
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.red.shade900,
@@ -425,13 +429,14 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
             ],
             const SizedBox(height: Spacing.lg),
             BoraPrimaryButton(
-              label: isWalletBlocked
-                  ? 'Carteira bloqueada — regularize'
-                  : (remainingToPay <= 0
-                      ? 'Pagar com saldo Bora'
-                      : 'Finalizar pedido'),
+              // BUG #1 (2026-05-13) — `isWalletBlocked` deixa de bloquear o
+              // botão e o label. Cartão/MBWay liquidam a dívida no checkout;
+              // só CASH é disabled em payment_method_screen.dart (BUG #1 §54).
+              label: remainingToPay <= 0
+                  ? 'Pagar com saldo Bora'
+                  : 'Finalizar pedido',
               icon: Icons.shopping_bag_outlined,
-              onPressed: cartStore.items.isEmpty || isWalletBlocked
+              onPressed: cartStore.items.isEmpty
                   ? null
                   : () async {
                       cartStore.setWalletApplied(

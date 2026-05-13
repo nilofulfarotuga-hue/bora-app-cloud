@@ -490,7 +490,13 @@ class _ReservationAvailabilityScreenState
       if (item is String) {
         dt = _parseSlot(item);
       } else if (item is Map) {
-        final t = item['time'] ?? item['slot'] ?? item['hhmm'];
+        // BUG #11 (2026-05-13) — RPC client_search_availability devolve
+        // slots como objectos com key `slot_time` (ISO timestamp). Os outros
+        // fallbacks ficam para compatibilidade caso a RPC mude o shape.
+        final t = item['slot_time'] ??
+            item['time'] ??
+            item['slot'] ??
+            item['hhmm'];
         if (t is String) dt = _parseSlot(t);
       }
       if (dt != null) out.add(dt);

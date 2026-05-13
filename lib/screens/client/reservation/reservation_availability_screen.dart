@@ -36,16 +36,31 @@ class _ReservationAvailabilityScreenState
   bool _searching = false;
 
   Future<void> _pickDate() async {
-    final now = DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate.isBefore(now) ? now : _selectedDate,
-      firstDate: now,
-      lastDate: now.add(const Duration(days: 60)),
-      locale: const Locale('pt', 'PT'),
-    );
-    if (picked != null && mounted) {
-      setState(() => _selectedDate = picked);
+    // BUG #12 (2026-05-13) — try/catch defensivo. Causa principal corrigida
+    // em main.dart (flutter_localizations delegates). Este catch garante que
+    // qualquer falha futura mostra snackbar em vez de tela em branco.
+    try {
+      final now = DateTime.now();
+      final picked = await showDatePicker(
+        context: context,
+        initialDate: _selectedDate.isBefore(now) ? now : _selectedDate,
+        firstDate: now,
+        lastDate: now.add(const Duration(days: 60)),
+        locale: const Locale('pt', 'PT'),
+      );
+      if (picked != null && mounted) {
+        setState(() => _selectedDate = picked);
+      }
+    } catch (e, st) {
+      debugPrint('[ReservationAvailability] _pickDate error: $e\n$st');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Erro ao abrir calendário. Tenta de novo.'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 

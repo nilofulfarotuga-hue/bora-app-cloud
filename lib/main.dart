@@ -1,6 +1,9 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+// BUG #12 (2026-05-13) — delegates Material/Widgets/Cupertino + Locale PT-PT
+// para o showDatePicker e outros widgets localizados funcionarem fora EN.
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -214,6 +217,20 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         debugShowCheckedModeBanner: false,
         title: 'BORA APP',
         theme: AppTheme.lightTheme,
+        // BUG #12 (2026-05-13) — localizations PT-PT/BR/EN. Sem delegates,
+        // showDatePicker crashava silencioso em Android (calendario em
+        // branco). Default locale PT-PT.
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('pt', 'PT'),
+          Locale('pt', 'BR'),
+          Locale('en'),
+        ],
+        locale: const Locale('pt', 'PT'),
         navigatorObservers: [routeObserver],
         routes: {
           '/role': (_) => const RoleScreen(),

@@ -11,6 +11,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  # BUG #12 (2026-05-13) — necessario para showDatePicker em locales nao-EN.
+  # Sem isto, o calendario renderiza em branco/crashava em Android.
+  flutter_localizations:
+    sdk: flutter
   cupertino_icons: ^1.0.6
   vibration: ^3.1.8
   provider: ^6.1.2

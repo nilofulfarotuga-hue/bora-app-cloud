@@ -188,22 +188,54 @@ class StoresScreen extends StatelessWidget {
     return entries;
   }
 
-  void _openStore(BuildContext context, _StoreEntry entry) {
+  Future<void> _openStore(BuildContext context, _StoreEntry entry) async {
+    // BUG #6 (2026-05-13) — se há carrinho activo de OUTRA loja, pedir
+    // confirmação antes de descartar.  configureSession() ainda tem o
+    // silent-clear como defesa em profundidade.
+    final cart = context.read<CartStore>();
+    final differentVendor = cart.items.isNotEmpty &&
+        cart.vendorName != null &&
+        cart.vendorName != entry.store.name;
+    if (differentVendor) {
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Carrinho activo'),
+          content: Text(
+            'Tens itens no carrinho de ${cart.vendorName}. '
+            'Queres cancelar e começar novo pedido em ${entry.store.name}?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Voltar'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Sim, novo pedido'),
+            ),
+          ],
+        ),
+      );
+      if (confirm != true) return;
+      if (!context.mounted) return;
+      cart.clearCart();
+    }
+
     // Prefer the store's real coordinates (now present in DB for non-partners
     // too) so distance_km reflects the actual pickup→dropoff route. Fallback
     // to the client's delivery location if missing.
-    final pickupLocation =
-        entry.business.location ?? context.read<CartStore>().deliveryLocation;
+    final pickupLocation = entry.business.location ?? cart.deliveryLocation;
 
-    context.read<CartStore>().configureSession(
-          serviceType: OrderServiceType.storeShopping,
-          isPartnerStore: entry.business.isPartner,
-          vendorName: entry.store.name,
-          pickupLocation: pickupLocation,
-          pickupStreet: entry.business.address,
-          pickupCity: null,
-          pickupPostalCode: null,
-        );
+    cart.configureSession(
+      serviceType: OrderServiceType.storeShopping,
+      isPartnerStore: entry.business.isPartner,
+      vendorName: entry.store.name,
+      pickupLocation: pickupLocation,
+      pickupStreet: entry.business.address,
+      pickupCity: null,
+      pickupPostalCode: null,
+    );
 
     final isLargeStore =
         entry.business.category == BusinessCategory.supermarket ||

@@ -405,8 +405,16 @@ class CartStore extends ChangeNotifier {
   }
 
   void clearCart() {
+    // BUG #6 (2026-05-13) — reset completo. Antes só limpava _items e
+    // _apartmentDelivery; tip/wallet/takeaway/photoUrls ficavam stale ao
+    // trocar de loja e davam erro "não foi possível finalizar".
     _items.clear();
     _apartmentDelivery = false;
+    _tipCents = 0;
+    _walletAppliedCents = 0;
+    _isTakeaway = false;
+    _packagePhotoUrl = null;
+    _groceriesPhotoUrl = null;
     notifyListeners();
     _saveCart();
   }

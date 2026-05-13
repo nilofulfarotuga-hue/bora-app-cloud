@@ -340,8 +340,7 @@ Quando há novo pedido próximo, a app do estafeta:
 
 ### 7.6 Fluxo `carryGroceries` (levar compras)
 - Cliente já fez as compras
-- Cliente **tem obrigatoriamente** de tirar foto das compras antes de pedir
-- Estafeta vê a foto antes de aceitar
+- ~~Foto obrigatória das compras antes de pedir~~ — **REMOVIDA (2026-05-13)** por decisão do Danilo. Fluxo simplificado: loja + endereço + pagamento.
 - **Requer carro** — motas/bicicletas não recebem este tipo de pedido
 - Recolha em casa do cliente → entrega no destino → código 4 dígitos
 
@@ -471,7 +470,7 @@ Quando cliente pagou com componentes mistos (wallet + Stripe + tokens):
 
 ### 10.6 Levar Compras (carryGroceries)
 - Cliente já fez as compras
-- **Foto obrigatória** antes de pedir
+- ~~Foto obrigatória antes de pedir~~ — **REMOVIDA (2026-05-13)**. Ver §7.6.
 - Serviço `carryGroceries`
 - **Requer carro** (não aceita motas ou bicicletas)
 
@@ -1004,7 +1003,7 @@ Ficheiros críticos que NÃO devem ser editados sem análise prévia:
 - Histórico de pedidos
 - Avaliações com etiquetas (BR §13) ✅
 - Gorjetas/Tips — widget + DB (BR §4.5) ✅
-- Fotos obrigatórias sendPackage/carryGroceries (BR §7.5/7.6) ✅
+- Foto obrigatória sendPackage (BR §7.5) ✅ — carryGroceries removida 2026-05-13
 - Takeaway em parceiros (BR §14.9) ✅
 - Reservas de mesa — fluxo base (BR §14) ✅
 - Driver Help — botão + DB + RPC (BR §5.2) ✅

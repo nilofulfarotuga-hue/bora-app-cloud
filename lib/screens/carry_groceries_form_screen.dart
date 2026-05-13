@@ -8,7 +8,6 @@ import '../services/location_service.dart';
 import '../stores/cart_store.dart';
 import '../widgets/address_autocomplete_field.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
-import '../widgets/mandatory_photo_picker.dart';
 import 'payment_method_screen.dart';
 
 class CarryGroceriesFormScreen extends StatefulWidget {
@@ -28,8 +27,8 @@ class _CarryGroceriesFormScreenState extends State<CarryGroceriesFormScreen> {
 
   bool _loadingLocation = false;
 
-  // Mandatory groceries photo (BR §7.6).
-  String? _groceriesPhotoUrl;
+  // BUG #8 (2026-05-13) — BR §7.6 deprecated. Foto obrigatória removida em
+  // carryGroceries por decisão do Danilo. Fluxo: loja + endereço + pagamento.
 
   static const _fallbackAddress = 'Guarda, Portugal';
 
@@ -96,17 +95,9 @@ class _CarryGroceriesFormScreenState extends State<CarryGroceriesFormScreen> {
       return;
     }
 
-    if (_groceriesPhotoUrl == null || _groceriesPhotoUrl!.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content:
-                Text('Adiciona uma foto das compras — obrigatório.')),
-      );
-      return;
-    }
-
     // Configure CartStore so PaymentMethodScreen can show the breakdown
     // and call cartStore.finishOrder() — same flow as sendPackage.
+    // BUG #8 (2026-05-13) — foto BR §7.6 deprecated/removida.
     final cart = context.read<CartStore>();
     cart.configureSession(
       serviceType: OrderServiceType.carryGroceries,
@@ -116,7 +107,7 @@ class _CarryGroceriesFormScreenState extends State<CarryGroceriesFormScreen> {
       pickupStreet: pickupAddress,
       dropoffStreet: dropoffAddress,
     );
-    cart.setGroceriesPhotoUrl(_groceriesPhotoUrl);
+    cart.setGroceriesPhotoUrl(null);
 
     Navigator.push<bool>(
       context,
@@ -173,14 +164,6 @@ class _CarryGroceriesFormScreenState extends State<CarryGroceriesFormScreen> {
             onSelected: (address, coords) {
               setState(() => _dropoffLocation = coords);
             },
-          ),
-          const SizedBox(height: 24),
-          MandatoryPhotoPicker(
-            label: 'Foto das compras (obrigatória)',
-            hint:
-                'O estafeta vê a foto antes de aceitar. Requer carro. (BR §7.6)',
-            pathPrefix: 'groceries',
-            onUploaded: (url) => setState(() => _groceriesPhotoUrl = url),
           ),
           const SizedBox(height: 24),
           ElevatedButton(

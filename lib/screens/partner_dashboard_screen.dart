@@ -976,6 +976,15 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
               coords: order.destination,
             ),
           ),
+        // PROMPT C — Takeaway badges (banner discreto no topo + alerta curbside).
+        if (order.isTakeaway) ...[
+          const SizedBox(height: 8),
+          _TakeawayBadge(order: order),
+        ],
+        if (order.isTakeaway && order.takeawayIsCurbside) ...[
+          const SizedBox(height: 8),
+          _CurbsideAlert(info: order.takeawayCurbsideInfo),
+        ],
         const SizedBox(height: 12),
         Text(
           'Itens',
@@ -1001,7 +1010,27 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
         const SizedBox(height: 16),
         Row(
           children: [
-            if (order.status == OrderStatus.created) ...[
+            // PROMPT C — Takeaway: aceitar com ETA picker (8 opções) em vez de
+            // accept directo. Restantes status takeaway tratam-se em
+            // _buildTakeawayActionButton.
+            if (order.isTakeaway &&
+                order.status == OrderStatus.created) ...[
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () => _showTakeawayEtaPicker(order),
+                  icon: const Icon(Icons.timer_outlined),
+                  label: const Text('Aceitar com ETA'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => widget.onReject(order),
+                  icon: const Icon(Icons.close),
+                  label: const Text('Rejeitar'),
+                ),
+              ),
+            ] else if (order.status == OrderStatus.created) ...[
               Expanded(
                 child: ElevatedButton.icon(
                   onPressed: () {
@@ -1021,6 +1050,8 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
                   label: const Text('Rejeitar'),
                 ),
               ),
+            ] else if (order.isTakeaway) ...[
+              Expanded(child: _buildTakeawayActionButton(order)),
             ] else ...[
               Expanded(child: _buildBotaoEstafeta(order)),
             ],
@@ -1041,6 +1072,293 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
       if (mounted) {
         setState(() => _chamandobusy.remove(orderId));
       }
+    }
+  }
+
+  // ─── Takeaway actions (PROMPT C) ─────────────────────────────────────────
+
+  /// Opções de ETA mostradas no bottom sheet (BR §14.9c).
+  static const List<int> _kTakeawayEtaOptions = [3, 5, 10, 15, 20, 30, 45, 60];
+
+  /// Abre bottom sheet com 8 opções de ETA. Default destacado = restaurante
+  /// `takeawayDefaultPrepMinutes` (fallback 15). Ao confirmar, chama RPC
+  /// `partner_takeaway_accept(p_order_id, p_prep_minutes)`.
+  Future<void> _showTakeawayEtaPicker(OrderModel order) async {
+    final orderId = order.id;
+    if (_chamandobusy[orderId] == true) return;
+
+    final restaurantStore = context.read<RestaurantStore>();
+    int defaultMinutes = 15;
+    final vendor = order.vendorName;
+    if (vendor != null) {
+      final matches = restaurantStore.restaurants.where((r) => r.name == vendor);
+      if (matches.isNotEmpty) {
+        defaultMinutes = matches.first.takeawayDefaultPrepMinutes;
+      }
+    }
+
+    final chosen = await showModalBottomSheet<int>(
+      context: context,
+      isScrollControlled: false,
+      builder: (sheetCtx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20),
+                child: Text(
+                  'Aceitar pedido — tempo de preparação',
+                  style:
+                      TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                ),
+              ),
+              const Padding(
+                padding:
+                    EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                child: Text(
+                  'O cliente será notificado com este tempo.',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ),
+              const SizedBox(height: 8),
+              ..._kTakeawayEtaOptions.map((mins) {
+                final isDefault = mins == defaultMinutes;
+                return ListTile(
+                  leading: Icon(
+                    Icons.timer_outlined,
+                    color: isDefault ? AppColors.success : null,
+                  ),
+                  title: Text(
+                    '$mins minutos',
+                    style: TextStyle(
+                      fontWeight:
+                          isDefault ? FontWeight.w700 : FontWeight.w500,
+                      color: isDefault ? AppColors.success : null,
+                    ),
+                  ),
+                  trailing: isDefault
+                      ? const Text(
+                          'Padrão',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.success,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        )
+                      : null,
+                  onTap: () => Navigator.of(sheetCtx).pop(mins),
+                );
+              }),
+              const SizedBox(height: 12),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (chosen == null || !mounted) return;
+
+    setState(() => _chamandobusy[orderId] = true);
+    try {
+      await Supabase.instance.client.rpc(
+        'partner_takeaway_accept',
+        params: {
+          'p_order_id': orderId,
+          'p_prep_minutes': chosen,
+        },
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Pedido aceite — pronto em $chosen min'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao aceitar pedido: $e'),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _chamandobusy.remove(orderId));
+    }
+  }
+
+  /// Chama RPC `partner_takeaway_mark_ready(p_order_id)`. Servidor muda status
+  /// para readyForPickup e dispara push ao cliente (notify-client).
+  Future<void> _markTakeawayReady(OrderModel order) async {
+    final orderId = order.id;
+    if (_chamandobusy[orderId] == true) return;
+
+    setState(() => _chamandobusy[orderId] = true);
+    try {
+      await Supabase.instance.client.rpc(
+        'partner_takeaway_mark_ready',
+        params: {'p_order_id': orderId},
+      );
+      if (mounted) {
+        final code = order.takeawayPickupCode ?? '';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(code.isEmpty
+                ? 'Cliente notificado'
+                : 'Cliente notificado — código de levantamento: $code'),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro: $e'),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _chamandobusy.remove(orderId));
+    }
+  }
+
+  /// Chama RPC `partner_takeaway_mark_picked_up(p_order_id)`. Servidor muda
+  /// status para delivered (takeaway não tem estafeta).
+  Future<void> _markTakeawayPickedUp(OrderModel order) async {
+    final orderId = order.id;
+    if (_chamandobusy[orderId] == true) return;
+
+    setState(() => _chamandobusy[orderId] = true);
+    try {
+      await Supabase.instance.client.rpc(
+        'partner_takeaway_mark_picked_up',
+        params: {'p_order_id': orderId},
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Levantamento confirmado — bom dia!'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro: $e'),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _chamandobusy.remove(orderId));
+    }
+  }
+
+  /// Botão CTA específico para pedidos takeaway, consoante o status actual.
+  /// Substitui o `_buildBotaoEstafeta` (que é só para delivery).
+  Widget _buildTakeawayActionButton(OrderModel order) {
+    final busy = _chamandobusy[order.id] == true;
+    switch (order.status) {
+      case OrderStatus.preparing:
+        return SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: busy ? null : () => _markTakeawayReady(order),
+            icon: busy
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Icon(Icons.notifications_active),
+            label: Text(busy ? 'A marcar...' : 'Marcar como Pronto'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFE65100),
+              foregroundColor: Colors.white,
+              minimumSize: const Size(double.infinity, 48),
+            ),
+          ),
+        );
+      case OrderStatus.readyForPickup:
+        return SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: busy ? null : () => _markTakeawayPickedUp(order),
+            icon: busy
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Icon(Icons.check_circle_outline),
+            label: Text(busy
+                ? 'A confirmar...'
+                : 'Cliente apareceu — Confirmar levantamento'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1B5E20),
+              foregroundColor: Colors.white,
+              minimumSize: const Size(double.infinity, 48),
+            ),
+          ),
+        );
+      case OrderStatus.delivered:
+        return SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: null,
+            icon: const Icon(Icons.check_circle),
+            label: const Text('Levantado ✓'),
+            style: ElevatedButton.styleFrom(
+              disabledBackgroundColor: const Color(0xFF1B5E20),
+              disabledForegroundColor: Colors.white,
+              minimumSize: const Size(double.infinity, 48),
+            ),
+          ),
+        );
+      case OrderStatus.rejected:
+      case OrderStatus.cancelled:
+        return SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: null,
+            icon: const Icon(Icons.cancel_outlined),
+            label: Text(order.status.label),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(double.infinity, 48),
+              foregroundColor: Colors.grey,
+            ),
+          ),
+        );
+      case OrderStatus.created:
+      case OrderStatus.callingDriver:
+      case OrderStatus.driverAccepted:
+      case OrderStatus.pickedUp:
+      case OrderStatus.onTheWay:
+        // Estados não esperados em takeaway — defensivo.
+        return const SizedBox.shrink();
     }
   }
 
@@ -1141,27 +1459,119 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
           ),
         );
 
-      // PROMPT B (2026-05-14) — case readyForPickup adicionado para o
-      // switch ficar exhaustive. Display básico apenas; PROMPT C vai
-      // substituir por CTA "Marcar levantado" (partner_takeaway_mark_picked_up).
+      // PROMPT C (2026-05-14) — pedidos takeaway são roteados via
+      // _buildTakeawayActionButton (chamado do Row em _buildContent). Este
+      // ramo cobre o caso defensivo de delivery alcançar readyForPickup
+      // (não deveria acontecer; servidor é authoritative).
       case OrderStatus.readyForPickup:
-        return SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: null,
-            icon: const Icon(Icons.storefront_outlined),
-            label: const Text('Pronto para levantar'),
-            style: ElevatedButton.styleFrom(
-              disabledBackgroundColor: const Color(0xFF1B5E20),
-              disabledForegroundColor: Colors.white,
-              minimumSize: const Size(double.infinity, 48),
-            ),
-          ),
-        );
+        return const SizedBox.shrink();
 
       case OrderStatus.created:
         return const SizedBox.shrink();
     }
+  }
+}
+
+/// PROMPT C — Badge discreto no card de pedido takeaway. Distingue
+/// visualmente da lista de delivery e mostra ETA quando preparing.
+class _TakeawayBadge extends StatelessWidget {
+  const _TakeawayBadge({required this.order});
+
+  final OrderModel order;
+
+  @override
+  Widget build(BuildContext context) {
+    final code = order.takeawayPickupCode;
+    final readyAt = order.takeawayReadyAt;
+    final prep = order.takeawayPrepMinutes;
+
+    String detail;
+    if (order.status == OrderStatus.readyForPickup && code != null) {
+      detail = 'Código: $code';
+    } else if (order.status == OrderStatus.preparing && readyAt != null) {
+      final hh = readyAt.hour.toString().padLeft(2, '0');
+      final mm = readyAt.minute.toString().padLeft(2, '0');
+      detail = 'Pronto às $hh:$mm';
+    } else if (order.status == OrderStatus.preparing && prep != null) {
+      detail = '~$prep min';
+    } else {
+      detail = 'Cliente vai levantar';
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.success.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+            color: AppColors.success.withValues(alpha: 0.3), width: 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.shopping_bag_outlined,
+              size: 16, color: AppColors.success),
+          const SizedBox(width: 6),
+          Text(
+            'Takeaway · $detail',
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: AppColors.success,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// PROMPT C — Alerta visual destacado quando o cliente escolheu curbside
+/// (esperar no carro). O parceiro precisa de identificar a viatura antes
+/// de levar o pedido cá fora.
+class _CurbsideAlert extends StatelessWidget {
+  const _CurbsideAlert({required this.info});
+
+  final String? info;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.orange.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.orange.shade400, width: 1.2),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.directions_car, color: Colors.orange.shade800),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'CURBSIDE — cliente espera no carro',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: Colors.orange.shade900,
+                  ),
+                ),
+                if (info != null && info!.isNotEmpty)
+                  Text(
+                    info!,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.orange.shade900,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

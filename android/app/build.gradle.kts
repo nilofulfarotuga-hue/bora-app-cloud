@@ -35,7 +35,10 @@ android {
         applicationId = "com.example.bora_app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        // BUG fix pós-takeaway (2026-05-14): minSdk=21 (Android 5.0) garante
+        // que APK instala em >99% de dispositivos activos. Default do Flutter
+        // pode ser mais alto, bloqueando devices antigos.
+        minSdk = 21
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

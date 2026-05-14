@@ -13,6 +13,7 @@ import '../stores/cart_store.dart';
 import '../stores/order_store.dart';
 import 'package:flutter_stripe/flutter_stripe.dart' show StripeException;
 
+import '../models/saved_card.dart';
 import '../services/payment_service.dart';
 
 class PaymentMethodScreen extends StatefulWidget {
@@ -37,11 +38,17 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
   // BUG #1 frontend (§54 / 2026-05-12) — dívida wallet a cobrar neste checkout
   int _debtSettleCents = 0;
 
+  // 2026-05-14 — cartoes guardados (Stripe Customer).
+  List<SavedCard> _savedCards = const [];
+  String? _selectedSavedPmId; // null = "pagar com novo cartao".
+  bool _loadingCards = false;
+
   @override
   void initState() {
     super.initState();
     _loadTokens();
     _loadDebt();
+    _loadSavedCards();
     // Pre-fill with profile phone (digits-only) if available — user can override.
     final profilePhone = context.read<AuthStore>().currentClient?.phone;
     if (profilePhone != null && profilePhone.isNotEmpty) {
@@ -71,6 +78,33 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       }
     } catch (e) {
       debugPrint('[PaymentMethodScreen] _loadDebt error: $e');
+    }
+  }
+
+  /// 2026-05-14 — busca cartoes guardados via Edge Fn list-saved-cards.
+  /// Pre-selecciona o cartao default (is_default=true) se existir.
+  Future<void> _loadSavedCards() async {
+    if (kIsWeb) return;
+    setState(() => _loadingCards = true);
+    try {
+      final cards = await PaymentService().fetchSavedCards();
+      if (!mounted) return;
+      setState(() {
+        _savedCards = cards;
+        _loadingCards = false;
+        _selectedSavedPmId = cards
+            .firstWhere(
+              (c) => c.isDefault,
+              orElse: () => cards.isNotEmpty
+                  ? cards.first
+                  : const SavedCard(id: '', brand: '', last4: ''),
+            )
+            .id;
+        if (_selectedSavedPmId == '') _selectedSavedPmId = null;
+      });
+    } catch (e) {
+      debugPrint('[PaymentMethodScreen] _loadSavedCards error: $e');
+      if (mounted) setState(() => _loadingCards = false);
     }
   }
 
@@ -349,6 +383,73 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                     );
                   }).toList(),
                 ),
+                if (_selectedMethod == PaymentMethod.card &&
+                    (_savedCards.isNotEmpty || _loadingCards)) ...[
+                  const SizedBox(height: 12),
+                  Card(
+                    elevation: 1,
+                    margin: EdgeInsets.zero,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
+                            child: Text(
+                              'Cartões guardados',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleSmall
+                                  ?.copyWith(fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                          if (_loadingCards)
+                            const Padding(
+                              padding: EdgeInsets.all(16),
+                              child: Center(
+                                child: SizedBox(
+                                  height: 18,
+                                  width: 18,
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2),
+                                ),
+                              ),
+                            )
+                          else ...[
+                            for (final card in _savedCards)
+                              RadioListTile<String?>(
+                                value: card.id,
+                                groupValue: _selectedSavedPmId,
+                                onChanged: (v) =>
+                                    setState(() => _selectedSavedPmId = v),
+                                title: Text(
+                                  '${card.prettyBrand} •••• ${card.last4}',
+                                ),
+                                subtitle: Text(
+                                  card.isDefault
+                                      ? '${card.prettyExpiry}  ·  predefinido'
+                                      : card.prettyExpiry,
+                                ),
+                                dense: true,
+                              ),
+                            RadioListTile<String?>(
+                              value: null,
+                              groupValue: _selectedSavedPmId,
+                              onChanged: (v) =>
+                                  setState(() => _selectedSavedPmId = v),
+                              title: const Text('+ Pagar com novo cartão'),
+                              dense: true,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
                 if (_selectedMethod == PaymentMethod.mbway) ...[
                   const SizedBox(height: 12),
                   Card(
@@ -540,11 +641,14 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
         return;
       }
 
-      // Step 1: create draft + Stripe PI (no order yet)
+      // Step 1: create draft + Stripe PI (no order yet).
+      // 2026-05-14 — passa _selectedSavedPmId; Edge Fn v28 cria PI com
+      // confirm:true off_session quando saved_pm_id presente.
       final draft = await cartStore.startCardPaymentDraft(
         orderStore,
         clientPhone: authStore.currentClient?.phone,
         customerName: authStore.currentClient?.name,
+        savedPmId: _selectedSavedPmId,
       );
       if (!mounted) return;
       if (draft == null) {
@@ -557,10 +661,30 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
 
       final clientSecret = draft['clientSecret'] as String;
       final draftId = draft['draftId'] as String;
+      final requiresAction = (draft['requiresAction'] as bool?) ?? false;
 
-      // Step 2: present Stripe sheet
+      // Step 2: confirm payment.
+      // - Cartao guardado: PI ja foi confirm:true off_session server-side. So
+      //   abrimos sheet se requiresAction=true (3DS challenge).
+      // - Cartao novo: fluxo PaymentSheet normal (recolhe nome via
+      //   billingDetailsCollectionConfiguration).
       try {
-        await paymentService.processPayment(clientSecret);
+        if (_selectedSavedPmId != null) {
+          final ok = await paymentService.confirmSavedCardPayment(
+            clientSecret: clientSecret,
+            requiresAction: requiresAction,
+          );
+          if (!ok) {
+            if (!mounted) return;
+            setState(() => _isProcessing = false);
+            messenger.showSnackBar(const SnackBar(
+                content: Text(
+                    'Pagamento com cartão guardado não foi concluído. Tenta de novo ou usa um cartão diferente.')));
+            return;
+          }
+        } else {
+          await paymentService.processPayment(clientSecret);
+        }
       } on StripeException catch (e) {
         if (!mounted) return;
         setState(() => _isProcessing = false);

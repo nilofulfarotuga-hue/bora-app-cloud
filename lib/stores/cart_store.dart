@@ -479,6 +479,7 @@ class CartStore extends ChangeNotifier {
     OrderStore orderStore, {
     String? clientPhone,
     String? customerName,
+    String? savedPmId,
   }) async {
     final isShoppingOrder = _serviceType == OrderServiceType.restaurant ||
         _serviceType == OrderServiceType.storeShopping;
@@ -526,6 +527,7 @@ class CartStore extends ChangeNotifier {
       customerName: customerName,
       apartmentDelivery: _apartmentDelivery,
       walletAppliedCents: _walletAppliedCents,
+      savedPmId: savedPmId,
     );
   }
 

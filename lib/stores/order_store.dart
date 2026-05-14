@@ -442,6 +442,7 @@ class OrderStore extends ChangeNotifier {
     String? clientPhone,
     String? customerName,
     int walletAppliedCents = 0,
+    String? savedPmId,
   }) async {
     final liveUserId = supabase.auth.currentUser?.id;
     if (liveUserId == null ||
@@ -524,6 +525,8 @@ class OrderStore extends ChangeNotifier {
                   'name': i.name,
                 })
             .toList(),
+      // 2026-05-14 — cartao guardado (Edge Fn v28 lê + remove do payload draft).
+      if (savedPmId != null) 'saved_pm_id': savedPmId,
     };
 
     // Sessão 4C: defesa pré-RPC contra productId inválido.
@@ -549,7 +552,9 @@ class OrderStore extends ChangeNotifier {
         debugPrint('[FLOW] startCardPaymentDraft: incomplete response: $body');
         return null;
       }
-      debugPrint('[FLOW] startCardPaymentDraft OK — draft=${body['draftId']} pi=${body['paymentIntentId']}');
+      debugPrint('[FLOW] startCardPaymentDraft OK — draft=${body['draftId']} '
+          'pi=${body['paymentIntentId']} status=${body['status']} '
+          'requiresAction=${body['requiresAction']}');
       return body;
     } catch (e) {
       debugPrint('[FLOW] startCardPaymentDraft FAILED: $e');

@@ -3,6 +3,8 @@ import 'package:flutter/material.dart' show ThemeMode;
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../models/saved_card.dart';
+
 class PaymentService {
   // ─── Primary API (called by OrderStore) ──────────────────────────────────
 
@@ -48,6 +50,15 @@ class PaymentService {
         paymentIntentClientSecret: clientSecret,
         merchantDisplayName: 'BORA APP',
         style: ThemeMode.system,
+        // 2026-05-14: nome do titular obrigatorio no PaymentSheet.
+        // PCI-safe — Stripe UI nativa colecta o nome (NAO TextFormField separado).
+        billingDetailsCollectionConfiguration:
+            const BillingDetailsCollectionConfiguration(
+          name: CollectionMode.always,
+          email: CollectionMode.never,
+          phone: CollectionMode.never,
+          address: AddressCollectionMode.never,
+        ),
         // Apple Pay (iOS) — funciona out-of-the-box em Portugal Stripe LIVE.
         applePay: const PaymentSheetApplePay(
           merchantCountryCode: 'PT',
@@ -202,6 +213,57 @@ class PaymentService {
     } catch (e) {
       debugPrint('[PaymentService] payDebtViaSheet error: $e');
       return null;
+    }
+  }
+
+  // ─── Saved cards (2026-05-14) ───────────────────────────────────────────
+
+  /// Lista cartoes guardados do user actual via Edge Fn list-saved-cards.
+  /// Retorna [] se user ainda nao tem stripe_customer_id (nunca pagou com cartao).
+  Future<List<SavedCard>> fetchSavedCards() async {
+    if (kIsWeb) return const [];
+    try {
+      final res = await Supabase.instance.client.functions
+          .invoke('list-saved-cards');
+      final data = res.data as Map<String, dynamic>?;
+      final raw = (data?['cards'] as List?) ?? const [];
+      return raw
+          .map((m) => SavedCard.fromMap(Map<String, dynamic>.from(m as Map)))
+          .toList();
+    } catch (e) {
+      debugPrint('[PaymentService] fetchSavedCards error: $e');
+      return const [];
+    }
+  }
+
+  /// Confirma pagamento off-session ja criado pela Edge Fn (cartao guardado).
+  /// Se [requiresAction] for true, abre PaymentSheet para resolver 3DS challenge.
+  /// Caso contrario retorna true (PI ja foi succeeded server-side).
+  Future<bool> confirmSavedCardPayment({
+    required String clientSecret,
+    required bool requiresAction,
+  }) async {
+    if (kIsWeb) throw StateError('Card payments are only supported on mobile.');
+    if (!requiresAction) return true;
+    try {
+      await Stripe.instance.initPaymentSheet(
+        paymentSheetParameters: SetupPaymentSheetParameters(
+          paymentIntentClientSecret: clientSecret,
+          merchantDisplayName: 'BORA APP',
+          style: ThemeMode.system,
+          applePay: const PaymentSheetApplePay(merchantCountryCode: 'PT'),
+          googlePay: null,
+        ),
+      );
+      await Stripe.instance.presentPaymentSheet();
+      return true;
+    } on StripeException catch (e) {
+      debugPrint(
+          '[PaymentService] saved card 3DS cancelled: ${e.error.localizedMessage}');
+      return false;
+    } catch (e) {
+      debugPrint('[PaymentService] confirmSavedCardPayment error: $e');
+      return false;
     }
   }
 }

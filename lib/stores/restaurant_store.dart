@@ -984,7 +984,12 @@ class RestaurantStore extends ChangeNotifier {
   }
 
   bool _isRestaurantPartnerOrder(OrderModel order) {
-    return order.serviceType == OrderServiceType.restaurant &&
+    // 2026-05-14 fix: takeaway tambem e' um pedido de partner-restaurant
+    // (mesmo balcao, mesmo dashboard — apenas sem estafeta). Sem este OR,
+    // pedidos com service_type='takeaway' eram silenciosamente excluidos
+    // do bucket _ordersByRestaurant e o parceiro nao os via no dashboard.
+    return (order.serviceType == OrderServiceType.restaurant ||
+            order.serviceType == OrderServiceType.takeaway) &&
         order.isPartnerStore;
   }
 

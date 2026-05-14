@@ -1859,7 +1859,14 @@ class OrderStore extends ChangeNotifier {
     return _orders.where((order) {
       final vendor = order.vendorName;
       if (vendor == null) return false;
-      if (order.serviceType != OrderServiceType.restaurant) return false;
+      // 2026-05-14 fix: takeaway tambem e' um pedido de partner-restaurant.
+      // Antes este filtro excluia silenciosamente service_type='takeaway',
+      // pelo que o parceiro nao via os pedidos takeaway no dashboard
+      // (apesar do som/realtime estarem OK). Aceitar ambos os tipos.
+      if (order.serviceType != OrderServiceType.restaurant &&
+          order.serviceType != OrderServiceType.takeaway) {
+        return false;
+      }
       if (!order.isPartnerStore &&
           order.orderType != OrderType.partnerRestaurant) {
         return false;

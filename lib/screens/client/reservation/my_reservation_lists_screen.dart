@@ -27,6 +27,8 @@ class _MyReservationListsScreenState extends State<MyReservationListsScreen> {
   void initState() {
     super.initState();
     final store = context.read<ReservationStore>();
+    // 2026-05-14 — H1 fix: garantir stream realtime ligado (idempotente).
+    store.subscribeMyReservations();
     _waitlistFuture = store.fetchMyWaitlist();
     _notifyFuture = store.fetchMyNotify();
   }

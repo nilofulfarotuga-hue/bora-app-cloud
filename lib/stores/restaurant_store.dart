@@ -212,10 +212,19 @@ class RestaurantStore extends ChangeNotifier {
       int offset = 0;
       final List<dynamic> allRecords = [];
 
+      // 2026-05-14 perf: .eq('is_available', true) usa o indice parcial
+      // idx_products_restaurant_id WHERE is_available=true (ja existe na DB)
+      // — reduz drasticamente as rows lidas (esp. mercados com >5k unavailable).
+      // Projeccao explicita evita transferir colunas grandes nao usadas
+      // (search_normalized, taxonomy_*, needs_review, ...).
+      const String projection =
+          'id,restaurant_id,name,description,price,price_low,photo_url,'
+          'is_available,category,category_root,is_popular,is_on_sale,discount_price';
       while (true) {
         final List<dynamic> page = await supabase
             .from('products')
-            .select()
+            .select(projection)
+            .eq('is_available', true)
             .range(offset, offset + pageSize - 1);
         allRecords.addAll(page);
         if (page.length < pageSize) break;

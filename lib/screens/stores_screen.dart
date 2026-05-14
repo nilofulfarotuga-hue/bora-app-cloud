@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -431,13 +432,14 @@ class _StoreLogo extends StatelessWidget {
         child: SizedBox(
           width: 56,
           height: 56,
-          child: Image.network(
-            photoUrl,
+          child: CachedNetworkImage(
+            imageUrl: photoUrl,
             fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => _FallbackLogo(
-              initial: initial,
-              color: bannerColor,
-            ),
+            fadeInDuration: const Duration(milliseconds: 120),
+            placeholder: (_, __) =>
+                _FallbackLogo(initial: initial, color: bannerColor),
+            errorWidget: (_, __, ___) =>
+                _FallbackLogo(initial: initial, color: bannerColor),
           ),
         ),
       );

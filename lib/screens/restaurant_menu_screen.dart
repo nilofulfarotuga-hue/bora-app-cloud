@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -395,10 +396,12 @@ class _SectionCard extends StatelessWidget {
                 Expanded(
                   flex: 60,
                   child: imageUrl.isNotEmpty
-                      ? Image.network(
-                          imageUrl,
+                      ? CachedNetworkImage(
+                          imageUrl: imageUrl,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => _SectionPlaceholder(),
+                          fadeInDuration: const Duration(milliseconds: 120),
+                          placeholder: (_, __) => _SectionPlaceholder(),
+                          errorWidget: (_, __, ___) => _SectionPlaceholder(),
                         )
                       : _SectionPlaceholder(),
                 ),
@@ -690,10 +693,12 @@ class _ProductThumbnail extends StatelessWidget {
         child: SizedBox(
           width: 64,
           height: 64,
-          child: Image.network(
-            photoUrl,
+          child: CachedNetworkImage(
+            imageUrl: photoUrl,
             fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => _FoodPlaceholder(),
+            fadeInDuration: const Duration(milliseconds: 120),
+            placeholder: (_, __) => _FoodPlaceholder(),
+            errorWidget: (_, __, ___) => _FoodPlaceholder(),
           ),
         ),
       );

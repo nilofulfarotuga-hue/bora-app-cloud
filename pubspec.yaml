@@ -40,6 +40,10 @@ dependencies:
   firebase_messaging: ^15.0.0
   image_picker: ^1.1.2
   image: ^4.5.4
+  # 2026-05-14 perf: cache de imagens em disco (Image.network re-download a cada
+  # build — em listas grandes [restaurants, products, stores] e' notavelmente
+  # lento). cached_network_image usa flutter_cache_manager por baixo.
+  cached_network_image: ^3.4.1
 
   # SHARE + EXPORTS (CSV/PDF) — admin reports + cliente referral share sheet
   share_plus: ^10.0.0

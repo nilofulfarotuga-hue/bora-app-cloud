@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../../config/app_colors.dart';
@@ -68,10 +69,12 @@ class BoraProductCard extends StatelessWidget {
                 fit: StackFit.expand,
                 children: [
                   if (hasPhoto)
-                    Image.network(
-                      product.photoUrl,
+                    CachedNetworkImage(
+                      imageUrl: product.photoUrl,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const _Placeholder(),
+                      fadeInDuration: const Duration(milliseconds: 120),
+                      placeholder: (_, __) => const _Placeholder(),
+                      errorWidget: (_, __, ___) => const _Placeholder(),
                     )
                   else
                     const _Placeholder(),

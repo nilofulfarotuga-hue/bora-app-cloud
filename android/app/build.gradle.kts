@@ -44,7 +44,11 @@ android {
         versionName = flutter.versionName
         ndk {
             abiFilters.clear()
-            abiFilters.add("arm64-v8a")
+            // 2026-05-14 fix: armeabi-v7a adicionado para suportar Android
+            // 32-bit (~5-10% de devices activos em PT, sobretudo gamas baixas
+            // pre-2018 que continuam em uso). Sem isto o APK nao instala.
+            // arm64-v8a: cobre todos os Android 64-bit modernos.
+            abiFilters.addAll(listOf("arm64-v8a", "armeabi-v7a"))
         }
     }
 

@@ -82,18 +82,20 @@ Future<void> main() async {
     }
     Stripe.publishableKey = stripePublishableKey;
     Stripe.merchantIdentifier = 'merchant.com.boraapp.app';
-    await Stripe.instance.applySettings();
+    // 2026-05-14 perf: Stripe.applySettings + Firebase chain correm em paralelo
+    // (eram em serie). NotificationService depende do Firebase, por isso fica
+    // encadeado dentro da mesma future.
     // NOTE: Requires google-services.json (Android) and GoogleService-Info.plist (iOS).
-    // See README_FIREBASE_SETUP.md for setup instructions.
-    await Firebase.initializeApp();
-    await NotificationService.instance.init();
+    await Future.wait([
+      Stripe.instance.applySettings(),
+      Firebase.initializeApp().then((_) => NotificationService.instance.init()),
+    ]);
   }
 
+  // 2026-05-14 perf: SessionStore.load + ConsentStore.load em paralelo.
   final sessionStore = SessionStore();
-  await sessionStore.load();
-
   final consentStore = ConsentStore();
-  await consentStore.load();
+  await Future.wait([sessionStore.load(), consentStore.load()]);
 
   Provider.debugCheckInvalidValueType = null;
 

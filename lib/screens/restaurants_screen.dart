@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -334,10 +335,16 @@ class _RestaurantLogo extends StatelessWidget {
         child: SizedBox(
           width: 48,
           height: 48,
-          child: Image.network(
-            photoUrl,
+          child: CachedNetworkImage(
+            imageUrl: photoUrl,
             fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => _InitialBox(
+            fadeInDuration: const Duration(milliseconds: 120),
+            placeholder: (_, __) => _InitialBox(
+              initial: initial,
+              bgColor: bgColor,
+              textColor: textColor,
+            ),
+            errorWidget: (_, __, ___) => _InitialBox(
               initial: initial,
               bgColor: bgColor,
               textColor: textColor,

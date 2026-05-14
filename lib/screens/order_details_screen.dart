@@ -130,6 +130,10 @@ class OrderDetailsScreen extends StatelessWidget {
       case OrderStatus.pickedUp:
       case OrderStatus.onTheWay:
         return true;
+      case OrderStatus.readyForPickup:
+        // Takeaway pronto — cliente deve levantar; suporte humano trata
+        // cancelamentos excepcionais.
+        return false;
       case OrderStatus.delivered:
       case OrderStatus.rejected:
       case OrderStatus.cancelled:
@@ -338,6 +342,8 @@ class _StatusCard extends StatelessWidget {
       case OrderStatus.created:
       case OrderStatus.preparing:
         return Colors.orange;
+      case OrderStatus.readyForPickup:
+        return AppTheme.primary;
       case OrderStatus.callingDriver:
         return Colors.blue;
       case OrderStatus.driverAccepted:
@@ -358,6 +364,8 @@ class _StatusCard extends StatelessWidget {
         return Icons.receipt_long_outlined;
       case OrderStatus.preparing:
         return Icons.soup_kitchen_outlined;
+      case OrderStatus.readyForPickup:
+        return Icons.storefront_outlined;
       case OrderStatus.callingDriver:
         return Icons.search_outlined;
       case OrderStatus.driverAccepted:

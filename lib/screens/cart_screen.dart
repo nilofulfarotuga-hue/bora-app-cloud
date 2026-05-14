@@ -5,9 +5,12 @@ import 'package:provider/provider.dart';
 
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
+import '../models/order_service_type.dart';
 import '../services/wallet_service.dart';
 import '../stores/cart_store.dart';
+import '../stores/restaurant_store.dart';
 import '../widgets/bora/bora.dart';
+import '../widgets/takeaway/curbside_inputs.dart';
 import '../widgets/tip_selector.dart';
 import 'orders_screen.dart';
 import 'payment_method_screen.dart';
@@ -284,12 +287,19 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (cartStore.isPartnerStore)
+            // R5 — switch só aparece quando o cliente NÃO chegou via
+            // RestaurantOptionsScreen. Vindo dessa tela, a modalidade está
+            // bloqueada (cliente volta atrás para trocar). Evita UX ambíguo.
+            if (cartStore.isPartnerStore && !cartStore.serviceTypeLockedByOptions)
               SwitchListTile.adaptive(
                 value: cartStore.isTakeaway,
                 onChanged: cartStore.items.isEmpty
                     ? null
-                    : (value) => cartStore.setTakeaway(value),
+                    : (value) => cartStore.setServiceTypeFromOption(
+                        value
+                            ? OrderServiceType.takeaway
+                            : OrderServiceType.restaurant,
+                      ),
                 contentPadding: EdgeInsets.zero,
                 activeColor: AppColors.primary,
                 title: const Text(
@@ -301,6 +311,10 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                   style: TextStyle(fontSize: 12),
                 ),
               ),
+            // D6 — curbside inputs (visível apenas em takeaway, se o
+            // restaurante actual tem curbside habilitado). Pré-paid no
+            // cart_screen → sempre editável (isLocked=false).
+            if (cartStore.isTakeaway) _CurbsideForCart(cartStore: cartStore),
             SwitchListTile.adaptive(
               value: apartmentEnabled,
               onChanged: cartStore.items.isEmpty || cartStore.isTakeaway
@@ -472,6 +486,40 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// D6 — Wrapper que faz lookup do RestaurantModel pelo vendorName e mostra
+/// [CurbsideInputs] apenas se o restaurante tem `curbsideEnabled=true`.
+/// Extraído como widget separado para evitar Builder inline complexo dentro
+/// do checkout panel.
+class _CurbsideForCart extends StatelessWidget {
+  const _CurbsideForCart({required this.cartStore});
+
+  final CartStore cartStore;
+
+  @override
+  Widget build(BuildContext context) {
+    final restaurantStore = context.watch<RestaurantStore>();
+    final vendor = cartStore.vendorName;
+    if (vendor == null) return const SizedBox.shrink();
+
+    final matches =
+        restaurantStore.restaurants.where((r) => r.name == vendor);
+    if (matches.isEmpty) return const SizedBox.shrink();
+    final restaurant = matches.first;
+    if (!restaurant.curbsideEnabled) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: Spacing.sm),
+      child: CurbsideInputs(
+        isCurbside: cartStore.isCurbside,
+        curbsideInfo: cartStore.curbsideInfo,
+        isLocked: false,
+        onCurbsideChanged: cartStore.setCurbside,
+        onInfoChanged: cartStore.setCurbsideInfo,
       ),
     );
   }

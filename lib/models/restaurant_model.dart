@@ -151,6 +151,9 @@ class RestaurantModel {
     this.lat,
     this.lng,
     this.reservationsEnabled = false,
+    this.takeawayEnabled = false,
+    this.curbsideEnabled = false,
+    this.takeawayDefaultPrepMinutes = 15,
     this.businessHours = const BusinessHours(),
     this.avgRating,
     this.ratingsCount = 0,
@@ -172,6 +175,18 @@ class RestaurantModel {
   /// BR §14.10 — whether this restaurant accepts table reservations.
   /// Default false. Partner toggles it from the dashboard.
   final bool reservationsEnabled;
+
+  /// BR §14.9 — restaurante aceita pedidos takeaway (cliente levanta no balcão).
+  /// Default false. Partner toggles no dashboard.
+  final bool takeawayEnabled;
+
+  /// BR §14.9b — restaurante suporta curbside (cliente espera no carro).
+  /// Default false. Só efectivo se takeawayEnabled=true.
+  final bool curbsideEnabled;
+
+  /// BR §14.9c — ETA default em minutos quando parceiro aceita o pedido sem
+  /// escolher manualmente (3/5/10/15/20/30/45/60). Default 15.
+  final int takeawayDefaultPrepMinutes;
 
   final BusinessHours businessHours;
 
@@ -226,6 +241,9 @@ class RestaurantModel {
     double? lat,
     double? lng,
     bool? reservationsEnabled,
+    bool? takeawayEnabled,
+    bool? curbsideEnabled,
+    int? takeawayDefaultPrepMinutes,
     BusinessHours? businessHours,
     double? avgRating,
     int? ratingsCount,
@@ -244,6 +262,10 @@ class RestaurantModel {
       lat: lat ?? this.lat,
       lng: lng ?? this.lng,
       reservationsEnabled: reservationsEnabled ?? this.reservationsEnabled,
+      takeawayEnabled: takeawayEnabled ?? this.takeawayEnabled,
+      curbsideEnabled: curbsideEnabled ?? this.curbsideEnabled,
+      takeawayDefaultPrepMinutes:
+          takeawayDefaultPrepMinutes ?? this.takeawayDefaultPrepMinutes,
       businessHours: businessHours ?? this.businessHours,
       avgRating: avgRating ?? this.avgRating,
       ratingsCount: ratingsCount ?? this.ratingsCount,

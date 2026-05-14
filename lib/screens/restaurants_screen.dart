@@ -147,11 +147,12 @@ class RestaurantsScreen extends StatelessWidget {
       business: business,
     );
 
-    // BUG #9+10 (2026-05-13) — parceiros com reservas activas vão para
-    // RestaurantOptionsScreen (3 cartões: Entrega / Ir buscar / Reservar)
-    // antes do cardápio. Outros casos (parceiro sem reservas, não-parceiro)
-    // vão directo ao menu (Q13 confirmou: menos cliques).
-    final showOptions = business.isPartner && business.reservationsEnabled;
+    // BUG #9+10 (2026-05-13) + D1/D2 (2026-05-14) — mostra ecrã de opções
+    // se houver pelo menos uma opção além do menu directo. Cartões são
+    // condicionais individualmente em RestaurantOptionsScreen. Sem reservas
+    // e sem takeaway → directo ao menu (menos cliques).
+    final showOptions = business.isPartner &&
+        (business.reservationsEnabled || business.takeawayEnabled);
 
     Navigator.push(
       context,

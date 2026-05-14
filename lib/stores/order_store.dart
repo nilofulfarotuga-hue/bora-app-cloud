@@ -603,6 +603,10 @@ class OrderStore extends ChangeNotifier {
       case OrderServiceType.carryGroceries:
       case OrderServiceType.sendPackage:
         return 0;
+      case OrderServiceType.takeaway:
+        // Confirmado via MCP: create_order RPC zera todas as fees para
+        // takeaway (delivery=0, service=0, bag=0). Cliente só paga subtotal.
+        return 0;
     }
   }
 
@@ -634,7 +638,11 @@ class OrderStore extends ChangeNotifier {
     double tokenDiscountEur = 0.0,
     String? packagePhotoUrl,
     String? groceriesPhotoUrl,
-    bool isTakeaway = false,
+    // D4 — `isTakeaway` removido. Caller deve passar
+    // `serviceType: OrderServiceType.takeaway` via OrderModel (cart_store
+    // já o faz através de _serviceType).
+    bool takeawayIsCurbside = false,
+    String? takeawayCurbsideInfo,
     int tipCents = 0,
     int walletAppliedCents = 0,
   }) async {
@@ -846,7 +854,11 @@ class OrderStore extends ChangeNotifier {
             (rpcData['payment_buffer_total'] as num).toDouble() -
                 tokenDiscountEur,
         tipCents: tipCents,
-        isTakeaway: isTakeaway,
+        // D4 — takeaway agora vem implícito via serviceType. Curbside é
+        // gravado pelo servidor via create_order RPC (server-trusted) e
+        // espelhado abaixo no UPDATE side-effect.
+        takeawayIsCurbside: takeawayIsCurbside,
+        takeawayCurbsideInfo: takeawayCurbsideInfo,
         walletAppliedCents:
             (rpcData['wallet_applied_cents'] as num?)?.toInt() ?? 0,
         menuCreditAppliedCents:
@@ -859,18 +871,27 @@ class OrderStore extends ChangeNotifier {
 
       debugPrint('[FLOW] createOrder: RPC + local state OK');
 
-      // Persist mandatory photos for sendPackage / carryGroceries (BR §7.5/7.6).
-      // Side-effect update after insert — keeps createOrder additive to _saveOrderToDatabase.
-      if (packagePhotoUrl != null || groceriesPhotoUrl != null || isTakeaway) {
+      // Persist mandatory photos for sendPackage / carryGroceries (BR §7.5/7.6)
+      // + curbside info (D6). Side-effect update after insert.
+      // Coluna `is_takeaway` foi APAGADA do servidor — NÃO gravar.
+      final hasCurbsideData = takeawayIsCurbside ||
+          (takeawayCurbsideInfo != null && takeawayCurbsideInfo.isNotEmpty);
+      if (packagePhotoUrl != null ||
+          groceriesPhotoUrl != null ||
+          hasCurbsideData) {
         try {
           await supabase.from('orders').update({
             if (packagePhotoUrl != null) 'package_photo_url': packagePhotoUrl,
             if (groceriesPhotoUrl != null)
               'groceries_photo_url': groceriesPhotoUrl,
-            if (isTakeaway) 'is_takeaway': true,
+            if (takeawayIsCurbside) 'takeaway_is_curbside': true,
+            if (takeawayCurbsideInfo != null &&
+                takeawayCurbsideInfo.isNotEmpty)
+              'takeaway_curbside_info': takeawayCurbsideInfo,
           }).eq('id', order.id);
         } catch (e) {
-          debugPrint('[FLOW] createOrder: photo/takeaway update failed => $e');
+          debugPrint(
+              '[FLOW] createOrder: photo/curbside update failed => $e');
         }
       }
 
@@ -1029,6 +1050,17 @@ class OrderStore extends ChangeNotifier {
       OrderModel order, OrderStatus targetStatus) async {
     debugPrint(
         '[FLOW] _advanceStatus: ${order.status.name} → ${targetStatus.name} id=${order.id}');
+
+    // D8 — takeaway: cliente Flutter NÃO avança status. Servidor (RPCs
+    // partner_takeaway_*) é authoritative. Apenas cancelamento/rejeição
+    // são permitidos por este caminho.
+    if (order.serviceType == OrderServiceType.takeaway &&
+        targetStatus != OrderStatus.cancelled &&
+        targetStatus != OrderStatus.rejected) {
+      debugPrint(
+          '[FLOW] _advanceStatus: BLOCKED — takeaway only mutated server-side (id=${order.id})');
+      return false;
+    }
 
     final inList = _orders.any((o) => o.id == order.id);
     if (!inList) {

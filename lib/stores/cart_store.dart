@@ -220,11 +220,53 @@ class CartStore extends ChangeNotifier {
   // Não exposto agora (30s freshness é aceitável para o use case checkout).
   // Quando necessário invalidar manualmente: _quoteCache=null; _quoteCacheTime=null;
 
-  // Takeaway flag for partner restaurants (BR §14.9).
-  bool _isTakeaway = false;
-  bool get isTakeaway => _isTakeaway;
-  void setTakeaway(bool v) {
-    _isTakeaway = v;
+  // BR §14.9 — Takeaway agora é derivado de _serviceType (single source of
+  // truth). Coluna `is_takeaway` foi APAGADA no servidor. O getter público
+  // mantém compatibilidade com call sites existentes que verificam
+  // cartStore.isTakeaway (cart_screen.dart, order_store.dart).
+  bool get isTakeaway => _serviceType == OrderServiceType.takeaway;
+
+  /// R5 — true quando o cliente escolheu modalidade via RestaurantOptionsScreen.
+  /// O switch "Entrega ⇄ Ir buscar" em cart_screen.dart fica escondido para
+  /// evitar UX ambíguo. Cliente que quer trocar volta atrás ao ecrã de opções.
+  /// Reset em clearCart().
+  bool _serviceTypeLockedByOptions = false;
+  bool get serviceTypeLockedByOptions => _serviceTypeLockedByOptions;
+
+  /// Setter usado por RestaurantOptionsScreen ("Entrega" vs "Ir buscar").
+  /// Alterna entre restaurant e takeaway sem mexer nos restantes campos do
+  /// contexto. Caller deve garantir que o cart está vazio se a troca muda
+  /// vendor/loja — isto apenas troca a modalidade. Activa o lock R5.
+  void setServiceTypeFromOption(OrderServiceType type) {
+    _serviceTypeLockedByOptions = true;
+    if (_serviceType == type) {
+      notifyListeners();
+      return;
+    }
+    _serviceType = type;
+    // Curbside só faz sentido em takeaway — limpar ao sair.
+    if (type != OrderServiceType.takeaway) {
+      _isCurbside = false;
+      _curbsideInfo = null;
+    }
+    notifyListeners();
+  }
+
+  // BR §14.9b/D6 — Curbside (cliente espera no carro). Imutável pós-paid
+  // (UI-only guard em cart_screen e order_tracking_screen). Não usar para
+  // takeaway-disabled restaurants.
+  bool _isCurbside = false;
+  bool get isCurbside => _isCurbside;
+  void setCurbside(bool v) {
+    _isCurbside = v;
+    notifyListeners();
+  }
+
+  String? _curbsideInfo;
+  String? get curbsideInfo => _curbsideInfo;
+  void setCurbsideInfo(String? v) {
+    final trimmed = v?.trim();
+    _curbsideInfo = (trimmed == null || trimmed.isEmpty) ? null : trimmed;
     notifyListeners();
   }
 
@@ -412,7 +454,11 @@ class CartStore extends ChangeNotifier {
     _apartmentDelivery = false;
     _tipCents = 0;
     _walletAppliedCents = 0;
-    _isTakeaway = false;
+    // D4 — takeaway agora é derivado de _serviceType. Reset = default restaurant.
+    _serviceType = OrderServiceType.restaurant;
+    _isCurbside = false;
+    _curbsideInfo = null;
+    _serviceTypeLockedByOptions = false;
     _packagePhotoUrl = null;
     _groceriesPhotoUrl = null;
     notifyListeners();
@@ -569,7 +615,10 @@ class CartStore extends ChangeNotifier {
       tokenDiscountEur: tokensUsed * BRTokens.TOKEN_VALUE_EUR,
       packagePhotoUrl: _packagePhotoUrl,
       groceriesPhotoUrl: _groceriesPhotoUrl,
-      isTakeaway: _isTakeaway,
+      // D4 — takeaway propaga via serviceType: OrderServiceType.takeaway.
+      // Curbside vai como params separados (cliente input pré-paid).
+      takeawayIsCurbside: _isCurbside,
+      takeawayCurbsideInfo: _curbsideInfo,
       tipCents: _tipCents,
       walletAppliedCents: _walletAppliedCents,
     );
@@ -577,7 +626,7 @@ class CartStore extends ChangeNotifier {
     if (!success) return false;
     _packagePhotoUrl = null;
     _groceriesPhotoUrl = null;
-    _isTakeaway = false;
+    // serviceType + curbside resetados em clearCart() abaixo.
     _tipCents = 0;
     _walletAppliedCents = 0;
     clearCart();

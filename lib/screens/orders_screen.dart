@@ -393,6 +393,8 @@ class _StatusChip extends StatelessWidget {
     switch (status) {
       case OrderStatus.delivered:
         return AppColors.success;
+      case OrderStatus.readyForPickup:
+        return AppColors.success; // takeaway pronto = positivo
       case OrderStatus.rejected:
       case OrderStatus.cancelled:
         return AppColors.error;

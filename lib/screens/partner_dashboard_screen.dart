@@ -1141,6 +1141,24 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
           ),
         );
 
+      // PROMPT B (2026-05-14) — case readyForPickup adicionado para o
+      // switch ficar exhaustive. Display básico apenas; PROMPT C vai
+      // substituir por CTA "Marcar levantado" (partner_takeaway_mark_picked_up).
+      case OrderStatus.readyForPickup:
+        return SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: null,
+            icon: const Icon(Icons.storefront_outlined),
+            label: const Text('Pronto para levantar'),
+            style: ElevatedButton.styleFrom(
+              disabledBackgroundColor: const Color(0xFF1B5E20),
+              disabledForegroundColor: Colors.white,
+              minimumSize: const Size(double.infinity, 48),
+            ),
+          ),
+        );
+
       case OrderStatus.created:
         return const SizedBox.shrink();
     }

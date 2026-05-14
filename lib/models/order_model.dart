@@ -11,6 +11,12 @@ const double _platformCommissionRate = 0.20;
 enum OrderStatus {
   created,
   preparing,
+  // BR §14.11 — takeaway only. Status do parceiro depois de marcar pronto;
+  // cliente apresenta takeaway_pickup_code no balcão. Inserido entre
+  // preparing e callingDriver para preservar semântica de comparações
+  // `.index <= callingDriver.index` (mantém pedido takeaway como activo
+  // até cliente levantar).
+  readyForPickup,
   callingDriver,
   driverAccepted,
   pickedUp,
@@ -150,9 +156,29 @@ class OrderModel {
   /// Client gratuity in EUR cents (BR §4.5). Split 80/20 is handled downstream.
   int tipCents;
 
-  /// Whether the client chose takeaway (BR §14.9). Partner restaurants only.
-  /// When true, dispatch is bypassed — the client picks up directly.
-  bool isTakeaway;
+  /// BR §14.11 — código alfanumérico 6 chars gerado pelo servidor ao criar
+  /// pedido takeaway. Cliente apresenta no balcão. NULL para delivery.
+  final String? takeawayPickupCode;
+
+  /// Timestamp quando partner_takeaway_accept foi chamado, dando ETA ao cliente.
+  /// = createdAt + takeawayPrepMinutes. NULL para delivery.
+  final DateTime? takeawayReadyAt;
+
+  /// Timestamp quando parceiro marcou levantado (status → delivered).
+  /// NULL até levantamento.
+  final DateTime? takeawayPickedUpAt;
+
+  /// Minutos de preparação anunciados pelo parceiro ao aceitar (3/5/10/15/20/30/45/60).
+  /// Default vem de restaurants.takeaway_default_prep_minutes. NULL para delivery.
+  final int? takeawayPrepMinutes;
+
+  /// True se cliente vai esperar no carro (curbside). Default false.
+  /// Imutável pós payment_status='paid' (D6, UI-only guard).
+  final bool takeawayIsCurbside;
+
+  /// Texto livre cliente preencheu para curbside (matrícula/cor/modelo).
+  /// Imutável pós payment_status='paid' (D6, UI-only guard).
+  final String? takeawayCurbsideInfo;
 
   String? assignedDriverId;
   String? currentDriverOfferId;
@@ -248,7 +274,12 @@ class OrderModel {
     this.cashTotalDue,
     List<Map<String, dynamic>>? itemsAdded,
     this.tipCents = 0,
-    this.isTakeaway = false,
+    this.takeawayPickupCode,
+    this.takeawayReadyAt,
+    this.takeawayPickedUpAt,
+    this.takeawayPrepMinutes,
+    this.takeawayIsCurbside = false,
+    this.takeawayCurbsideInfo,
     Map<String, bool>? substitutionResponses,
   })  : estimatedTotal = estimatedTotal ?? total,
         paymentBufferTotal = paymentBufferTotal ?? total,
@@ -417,7 +448,16 @@ class OrderModel {
       cashTotalDue: (data['cash_total_due'] as num?)?.toDouble(),
       itemsAdded: parsedItemsAdded,
       tipCents: (data['tip_amount_cents'] as num?)?.toInt() ?? 0,
-      isTakeaway: data['is_takeaway'] as bool? ?? false,
+      takeawayPickupCode: data['takeaway_pickup_code'] as String?,
+      takeawayReadyAt: data['takeaway_ready_at'] != null
+          ? DateTime.tryParse(data['takeaway_ready_at'].toString())
+          : null,
+      takeawayPickedUpAt: data['takeaway_picked_up_at'] != null
+          ? DateTime.tryParse(data['takeaway_picked_up_at'].toString())
+          : null,
+      takeawayPrepMinutes: (data['takeaway_prep_minutes'] as num?)?.toInt(),
+      takeawayIsCurbside: data['takeaway_is_curbside'] as bool? ?? false,
+      takeawayCurbsideInfo: data['takeaway_curbside_info'] as String?,
       // driver_lat / driver_lng intentionally NOT read — single source of
       // truth is DriverStore.currentDriver.location (drivers table realtime).
       items: parsedItems,
@@ -486,7 +526,13 @@ class OrderModel {
       // rating_screen.dart also writes to this column + sets tip_added_at.
       'tip_amount_cents': tipCents,
       if (tipCents > 0) 'tip_added_at': DateTime.now().toUtc().toIso8601String(),
-      if (isTakeaway) 'is_takeaway': true,
+      // Coluna `is_takeaway` foi APAGADA do servidor (2026-05-13).
+      // Fonte de verdade: service_type='takeaway'. Curbside é cliente-input
+      // gravado pelo RPC create_order — UPSERT directo aqui inclui apenas
+      // estes 2 campos.
+      if (takeawayIsCurbside) 'takeaway_is_curbside': true,
+      if (takeawayCurbsideInfo != null && takeawayCurbsideInfo!.isNotEmpty)
+        'takeaway_curbside_info': takeawayCurbsideInfo,
       if (paymentIntentId != null) 'payment_intent_id': paymentIntentId,
       if (finalPurchaseValue != null)
         'final_purchase_value': finalPurchaseValue,
@@ -508,6 +554,10 @@ class OrderModel {
 
 extension OrderModelX on OrderModel {
   bool get isPartnerOrder => orderType == OrderType.partnerRestaurant;
+
+  /// BR §14.11 — getter compatível com call sites antigos. Substitui o
+  /// campo bool `isTakeaway` removido. Fonte de verdade: serviceType.
+  bool get isTakeaway => serviceType == OrderServiceType.takeaway;
 
   /// Human-readable order reference derived from the order UUID (e.g. `#A1B2C3`).
   /// Deterministic — no DB column needed.
@@ -541,6 +591,8 @@ extension OrderStatusLabel on OrderStatus {
         return 'Pedido criado';
       case OrderStatus.preparing:
         return 'Restaurante preparando';
+      case OrderStatus.readyForPickup:
+        return 'Pronto para levantar';
       case OrderStatus.callingDriver:
         return 'Aguardando estafeta';
       case OrderStatus.driverAccepted:

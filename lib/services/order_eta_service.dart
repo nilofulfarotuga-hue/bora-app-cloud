@@ -26,6 +26,9 @@ class OrderEtaService {
       case OrderStatus.delivered:
       case OrderStatus.rejected:
       case OrderStatus.cancelled:
+      case OrderStatus.readyForPickup:
+        // Takeaway: sem driver, sem ETA de entrega. UI mostra `takeawayReadyAt`
+        // ou `takeawayPrepMinutes` directamente (PickupCodeCard).
         return null;
       case OrderStatus.created:
       case OrderStatus.preparing:

@@ -1779,6 +1779,11 @@ class _StatusBadge extends StatelessWidget {
       case OrderStatus.created:
       case OrderStatus.preparing:
         return Colors.orange;
+      case OrderStatus.readyForPickup:
+        // Defensivo — driver não deve receber pedido takeaway; mantém cinza
+        // para que a UI não rebente se o realtime entregar uma ordem deste
+        // tipo por engano.
+        return Colors.grey;
       case OrderStatus.callingDriver:
       case OrderStatus.driverAccepted:
         return const Color(0xFF1C6EF2);

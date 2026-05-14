@@ -13,6 +13,7 @@ import '../models/order_model.dart';
 import '../models/rating_model.dart';
 import '../widgets/address_text.dart';
 import '../widgets/bora_support_fab.dart';
+import '../widgets/takeaway/pickup_code_card.dart';
 import '../services/directions_service.dart';
 import '../services/order_eta_service.dart';
 import '../stores/driver_store.dart';
@@ -372,6 +373,19 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
               ),
             ),
           ),
+
+          // ── Takeaway readyForPickup banner ─────────────────────────────────
+          // BR §14.11 — quando o parceiro marca pronto, sobrepõe um card grande
+          // sobre o mapa com o pickup_code. Mantém o mapa atrás (UX consistente
+          // com o resto do ecrã) e desaparece ao mudar de estado.
+          if (widget.order.status == OrderStatus.readyForPickup)
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                    Spacing.lg, 60, Spacing.lg, Spacing.lg),
+                child: PickupCodeCard(order: widget.order),
+              ),
+            ),
 
           // ── Back button ────────────────────────────────────────────────────
           SafeArea(
@@ -906,6 +920,9 @@ class _BottomCardState extends State<_BottomCard> {
       case OrderStatus.pickedUp:
       case OrderStatus.onTheWay:
         return '100% (€${total.toStringAsFixed(2)})';
+      case OrderStatus.readyForPickup:
+        // Takeaway pronto não cancelável pelo cliente (suporte humano trata).
+        return '—';
       case OrderStatus.delivered:
       case OrderStatus.rejected:
       case OrderStatus.cancelled:

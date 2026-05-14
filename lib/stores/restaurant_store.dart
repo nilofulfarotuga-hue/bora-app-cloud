@@ -805,6 +805,9 @@ class RestaurantStore extends ChangeNotifier {
         lat: old.lat,
         lng: old.lng,
         reservationsEnabled: old.reservationsEnabled,
+        takeawayEnabled: old.takeawayEnabled,
+        curbsideEnabled: old.curbsideEnabled,
+        takeawayDefaultPrepMinutes: old.takeawayDefaultPrepMinutes,
         businessHours: old.businessHours,
       );
       notifyListeners();
@@ -901,6 +904,10 @@ class RestaurantStore extends ChangeNotifier {
       lat: (data['lat'] as num?)?.toDouble(),
       lng: (data['lng'] as num?)?.toDouble(),
       reservationsEnabled: data['reservations_enabled'] as bool? ?? false,
+      takeawayEnabled: data['takeaway_enabled'] as bool? ?? false,
+      curbsideEnabled: data['curbside_enabled'] as bool? ?? false,
+      takeawayDefaultPrepMinutes:
+          (data['takeaway_default_prep_minutes'] as num?)?.toInt() ?? 15,
       businessHours: BusinessHours.fromJson(data['business_hours']),
       avgRating: (data['avg_rating'] as num?)?.toDouble(),
       ratingsCount: (data['ratings_count'] as num?)?.toInt() ?? 0,

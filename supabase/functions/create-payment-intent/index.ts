@@ -1,12 +1,13 @@
-// supabase/functions/create-payment-intent/index.ts — v20 (BUG 1 / Fase 2)
+// supabase/functions/create-payment-intent/index.ts — v28 (Stripe Customer + saved card)
 //
 // DUAL-MODE Edge Function:
 //
 //   Mode A (LEGACY): body = { order_id, amount }
 //     - Carrega order existente, cobra payment_buffer_total via Stripe.
 //     - Mantido para MBWay legacy + qualquer fluxo que ainda crie order primeiro.
+//     - INTACTO em v28 (zero alteracoes nesta fase).
 //
-//   Mode B (NEW — preferido p/ card): body = { cart_input }
+//   Mode B (NEW): body = { cart_input, [saved_pm_id?] }
 //     - cart_input contém o payload completo (mesmo formato do create_order RPC).
 //     - Calcula price server-side via quote_order_pricing.
 //     - Cria PaymentIntent com metadata.draft_id.
@@ -14,11 +15,13 @@
 //     - NÃO cria order. Order é criada pelo webhook em payment_intent.succeeded
 //       via Edge Fn finalize-order-from-intent.
 //
-// Stripe LIVE notes:
-//   - setup_future_usage NÃO definido → cartão nunca gravado sem consent.
-//   - automatic_payment_methods.enabled=true para card. No NEW mode, restringimos
-//     a 'card' para evitar conflito com mbway (mbway tem fluxo separado).
-//   - Cliente pode chamar com Authorization Bearer (anon JWT do user signed-in).
+// v28 (2026-05-14) Stripe Customer + saved card:
+//   - getOrCreateCustomer: idempotente (UNIQUE parcial em users.stripe_customer_id).
+//     Service role para SELECT/UPDATE em users (NUNCA userClient — RLS bloquearia).
+//     Falha = non-blocking: PI segue sem customer (degradacao graciosa).
+//   - PI agora inclui customer + setup_future_usage='off_session' quando customer ok.
+//   - Suporte a saved_pm_id: confirm=true off_session com SCA exemption (PSD2 EU).
+//     Resposta inclui requiresAction para Flutter abrir 3DS sheet quando preciso.
 
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -46,6 +49,58 @@ const json = (body: any, status = 200) =>
     status,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
+
+// v28 — Stripe Customer idempotente.
+// CRITICAL: usa service-role client (admin) para SELECT/UPDATE em users.
+// userClient (anon JWT) NAO funciona aqui porque RLS em users bloqueia
+// updates de colunas de admin como stripe_customer_id.
+// Falha = non-blocking: retorna null e PI e' criado sem customer (degrada graciosamente).
+// deno-lint-ignore no-explicit-any
+async function getOrCreateCustomer(admin: any, userId: string): Promise<string | null> {
+  try {
+    const { data: userRow, error: selErr } = await admin
+      .from('users')
+      .select('stripe_customer_id, email, name')
+      .eq('id', userId)
+      .maybeSingle();
+    if (selErr) {
+      console.error('[stripe-customer] users select failed:', selErr.message);
+      return null;
+    }
+    if (userRow?.stripe_customer_id) return userRow.stripe_customer_id as string;
+
+    const customer = await stripe.customers.create({
+      email: (userRow?.email as string | undefined) ?? undefined,
+      name: (userRow?.name as string | undefined) ?? undefined,
+      metadata: { supabase_uid: userId },
+    });
+
+    // Idempotente: so escreve se ainda for NULL (race-safe via UNIQUE parcial).
+    const { error: updErr } = await admin
+      .from('users')
+      .update({ stripe_customer_id: customer.id })
+      .eq('id', userId)
+      .is('stripe_customer_id', null);
+
+    if (updErr) {
+      // Race: outro request criou primeiro. Re-ler e cleanup do customer orfao.
+      const { data: refetch } = await admin
+        .from('users')
+        .select('stripe_customer_id')
+        .eq('id', userId)
+        .maybeSingle();
+      const winner = refetch?.stripe_customer_id as string | undefined;
+      if (winner && winner !== customer.id) {
+        try { await stripe.customers.del(customer.id); } catch (_) { /* swallow */ }
+        return winner;
+      }
+    }
+    return customer.id;
+  } catch (err) {
+    console.error('[stripe-customer] getOrCreateCustomer error:', err);
+    return null;
+  }
+}
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -180,10 +235,16 @@ async function modeNew(req: Request, cart: Record<string, any>): Promise<Respons
   const amountCents = Math.round(bufferEur * 100);
   if (amountCents < 50) return json({ error: 'Amount too small (min 0.50 EUR)' }, 400);
 
-  // Stripe PI sem setup_future_usage (não gravar cartão sem consent explícito).
+  // v28 — extrair saved_pm_id do cart (NAO persistir no payload do draft).
+  const savedPmId = typeof cart?.saved_pm_id === 'string' ? cart.saved_pm_id : null;
+  if (savedPmId) delete cart.saved_pm_id;
+
   // automatic_payment_methods enabled → suporta card + Google/Apple Pay quando
   // configurados no Dashboard.
   const admin = createClient(supabaseUrl, serviceKey);
+
+  // v28 — resolver/criar Stripe Customer (admin client, non-blocking).
+  const customerId = await getOrCreateCustomer(admin, user.id);
 
   // Pre-INSERT draft com placeholder; UPDATE depois com payment_intent_id.
   // Usamos transaction client-side (2 statements). Em caso de erro Stripe,
@@ -206,15 +267,32 @@ async function modeNew(req: Request, cart: Record<string, any>): Promise<Respons
   const draftId = draftRow.id as string;
 
   // Criar Stripe PI agora com draft_id no metadata.
+  // v28: dois caminhos:
+  //   (a) saved_pm_id + customerId → confirm:true off_session (cartao guardado).
+  //   (b) caso normal → customer + setup_future_usage='off_session' para guardar
+  //       o cartao usado nesta compra (se Stripe Customer disponivel).
   let paymentIntent: Stripe.PaymentIntent;
   try {
-    paymentIntent = await stripe.paymentIntents.create({
-      amount: amountCents,
-      currency: 'eur',
-      automatic_payment_methods: { enabled: true },
-      metadata: { draft_id: draftId, user_id: user.id },
-      // setup_future_usage propositadamente OMISSO (não gravar cartão).
-    });
+    if (savedPmId && customerId) {
+      paymentIntent = await stripe.paymentIntents.create({
+        amount: amountCents,
+        currency: 'eur',
+        customer: customerId,
+        payment_method: savedPmId,
+        confirm: true,
+        off_session: true,
+        automatic_payment_methods: { enabled: true, allow_redirects: 'never' },
+        metadata: { draft_id: draftId, user_id: user.id },
+      });
+    } else {
+      paymentIntent = await stripe.paymentIntents.create({
+        amount: amountCents,
+        currency: 'eur',
+        ...(customerId ? { customer: customerId, setup_future_usage: 'off_session' as const } : {}),
+        automatic_payment_methods: { enabled: true },
+        metadata: { draft_id: draftId, user_id: user.id },
+      });
+    }
   } catch (e) {
     console.error('[create-payment-intent new] Stripe PI create failed:', e);
     // Limpar draft órfão (Stripe falhou antes de criar PI).
@@ -235,13 +313,16 @@ async function modeNew(req: Request, cart: Record<string, any>): Promise<Respons
     return json({ error: 'draft_update_failed', details: updateErr.message }, 500);
   }
 
-  console.log('[create-payment-intent new] PI=', paymentIntent.id, 'draft=', draftId,
-    'amount=€', (amountCents / 100).toFixed(2));
+  console.log('[create-payment-intent new v28] PI=', paymentIntent.id, 'draft=', draftId,
+    'customer=', customerId ?? 'none', 'savedPm=', savedPmId ?? 'none',
+    'status=', paymentIntent.status, 'amount=€', (amountCents / 100).toFixed(2));
 
   return json({
     clientSecret: paymentIntent.client_secret,
     paymentIntentId: paymentIntent.id,
     draftId,
     amountCents,
+    status: paymentIntent.status,
+    requiresAction: paymentIntent.status === 'requires_action',
   });
 }

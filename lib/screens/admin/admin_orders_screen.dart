@@ -23,6 +23,10 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
   String _paymentFilter = 'all';
   // 7-alpha-ADMIN-FILTER: filtro is_test_order. Default 'real' (so reais).
   String _filtroTeste = 'real';
+  // PROMPT C (2026-05-14, PT-BR) — filtro por tipo de serviço.
+  // 'all', 'delivery' (restaurant/storeShopping/carryGroceries/sendPackage),
+  // 'takeaway'.
+  String _serviceTypeFilter = 'all';
 
   static const _paymentOptions = <(String, String)>[
     ('all', 'Todos'),
@@ -36,12 +40,19 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
     ('all', 'Todos'),
     ('created', 'Criado'),
     ('preparing', 'Preparando'),
+    ('readyForPickup', 'Pronto para retirada'),
     ('callingDriver', 'Chamando'),
     ('driverAccepted', 'Aceito'),
     ('pickedUp', 'Coletado'),
     ('onTheWay', 'A caminho'),
     ('delivered', 'Entregue'),
     ('rejected', 'Rejeitado'),
+  ];
+
+  static const _serviceTypeOptions = <(String, String)>[
+    ('all', 'Todos'),
+    ('delivery', 'Entrega'),
+    ('takeaway', 'Takeaway'),
   ];
 
   static const _testOptions = <(String, String)>[
@@ -64,9 +75,12 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
     try {
       // T1.1: extra cols for payment breakdown column.
       // 7-alpha-ADMIN-FILTER: include is_test_order para badge inline.
+      // PROMPT C: include service_type + takeaway_pickup_code para filtro
+      // e coluna "Código retirada".
       var base = Supabase.instance.client.from('orders').select(
           'id, status, payment_method, payment_status, price, created_at, '
-          'vendor_name, assigned_driver_id, customer_name, '
+          'vendor_name, assigned_driver_id, customer_name, service_type, '
+          'takeaway_pickup_code, '
           'wallet_applied_cents, tokens_applied_count, tokens_applied_value_cents, '
           'stripe_charge_cents, is_test_order');
       var query = _statusFilter == 'all' ? base : base.eq('status', _statusFilter);
@@ -83,6 +97,12 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
         query = query.eq('is_test_order', false);
       } else if (_filtroTeste == 'test') {
         query = query.eq('is_test_order', true);
+      }
+      // PROMPT C — filtro por tipo de serviço (PT-BR).
+      if (_serviceTypeFilter == 'takeaway') {
+        query = query.eq('service_type', 'takeaway');
+      } else if (_serviceTypeFilter == 'delivery') {
+        query = query.neq('service_type', 'takeaway');
       }
       // 'all' = sem filtro is_test_order.
       final data =
@@ -171,6 +191,8 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
     switch (status) {
       case 'delivered':
         return AppColors.primary;
+      case 'readyForPickup':
+        return Colors.green; // takeaway pronto
       case 'rejected':
         return Colors.red;
       case 'driverAccepted':
@@ -188,6 +210,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
     const labels = {
       'created': 'Criado',
       'preparing': 'Preparando',
+      'readyForPickup': 'Pronto para retirada',
       'callingDriver': 'Chamando estafeta',
       'driverAccepted': 'Estafeta aceito',
       'pickedUp': 'Coletado',
@@ -288,6 +311,31 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
               }).toList(),
             ),
           ),
+          // PROMPT C (PT-BR) — chips de tipo de serviço (Entrega/Takeaway/Todos)
+          SizedBox(
+            height: 44,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              children: _serviceTypeOptions.map((opt) {
+                final isSelected = _serviceTypeFilter == opt.$1;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: FilterChip(
+                    label: Text(opt.$2,
+                        style: const TextStyle(fontSize: 12)),
+                    selected: isSelected,
+                    selectedColor: Colors.teal.withValues(alpha: 0.18),
+                    checkmarkColor: Colors.teal.shade800,
+                    onSelected: (_) {
+                      setState(() => _serviceTypeFilter = opt.$1);
+                      _load();
+                    },
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
           const Divider(height: 1),
           Expanded(
             child: _loading
@@ -366,6 +414,25 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                                         ),
                                         // T1.1: payment breakdown badges
                                         _PaymentBreakdownBadges(order: o),
+                                        // PROMPT C — código de retirada (PT-BR)
+                                        // Aparece apenas quando service_type='takeaway'
+                                        // e takeaway_pickup_code está presente.
+                                        if (o['service_type'] == 'takeaway' &&
+                                            (o['takeaway_pickup_code']
+                                                    as String? ??
+                                                    '')
+                                                .isNotEmpty)
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                                top: 2),
+                                            child: Text(
+                                              'Código retirada: ${o['takeaway_pickup_code']}',
+                                              style: TextStyle(
+                                                  color: Colors.green.shade800,
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w600),
+                                            ),
+                                          ),
                                         Text(
                                           'ID: ${(o['id'] as String).substring(0, 8).toUpperCase()}',
                                           style: const TextStyle(

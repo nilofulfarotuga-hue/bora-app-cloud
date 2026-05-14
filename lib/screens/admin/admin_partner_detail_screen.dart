@@ -63,7 +63,8 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
       final restaurantData = await Supabase.instance.client
           .from('restaurants')
           .select(
-              'id, name, category, address, phone, email, is_partner, is_online, is_active_admin, business_hours')
+              'id, name, category, address, phone, email, is_partner, is_online, is_active_admin, business_hours, '
+              'takeaway_enabled, curbside_enabled, takeaway_default_prep_minutes')
           .eq('id', widget.restaurantId)
           .single();
       final openData = await Supabase.instance.client.rpc('is_partner_open', params: {
@@ -340,9 +341,93 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
               label: const Text('Forçar ABRIR'),
             ),
           ],
+          const SizedBox(height: 24),
+          _AdminTakeawayConfigCard(
+            takeawayEnabled:
+                _restaurant?['takeaway_enabled'] as bool? ?? false,
+            curbsideEnabled:
+                _restaurant?['curbside_enabled'] as bool? ?? false,
+            prepMinutes:
+                (_restaurant?['takeaway_default_prep_minutes'] as num?)
+                        ?.toInt() ??
+                    15,
+            onToggleTakeaway: (v) => _setAdminTakeawayEnabled(v),
+            onToggleCurbside: (v) => _setAdminCurbsideEnabled(v),
+            onPrepMinutesChanged: (m) => _setAdminPrepMinutes(m),
+          ),
         ],
       ),
     );
+  }
+
+  // ─── Takeaway admin actions (PROMPT C, PT-BR) ───────────────────────────
+  Future<void> _setAdminTakeawayEnabled(bool enabled) async {
+    try {
+      final updates = <String, dynamic>{'takeaway_enabled': enabled};
+      // Desabilitar curbside automaticamente quando takeaway é desabilitado
+      // (estado consistente — mesmo comportamento do painel do parceiro).
+      if (!enabled) updates['curbside_enabled'] = false;
+      await Supabase.instance.client
+          .from('restaurants')
+          .update(updates)
+          .eq('id', widget.restaurantId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(enabled
+              ? 'Takeaway habilitado'
+              : 'Takeaway desabilitado'),
+        ));
+      }
+      _loadAll();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Erro: $e')));
+      }
+    }
+  }
+
+  Future<void> _setAdminCurbsideEnabled(bool enabled) async {
+    try {
+      await Supabase.instance.client
+          .from('restaurants')
+          .update({'curbside_enabled': enabled}).eq(
+              'id', widget.restaurantId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(enabled
+              ? 'Curbside habilitado'
+              : 'Curbside desabilitado'),
+        ));
+      }
+      _loadAll();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Erro: $e')));
+      }
+    }
+  }
+
+  Future<void> _setAdminPrepMinutes(int minutes) async {
+    final clamped = minutes.clamp(3, 60);
+    try {
+      await Supabase.instance.client
+          .from('restaurants')
+          .update({'takeaway_default_prep_minutes': clamped}).eq(
+              'id', widget.restaurantId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Preparo padrão: $clamped min'),
+        ));
+      }
+      _loadAll();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Erro: $e')));
+      }
+    }
   }
 
   Future<void> _setOverride(String state) async {
@@ -949,6 +1034,172 @@ class _PartnerCatalogTabState extends State<_PartnerCatalogTab> {
                     );
                   },
                 ),
+    );
+  }
+}
+
+/// PROMPT C (2026-05-14) — Card de configurações Takeaway para o admin.
+/// PT-BR (regra 21). 3 controles: switch master, switch curbside (so
+/// editavel se master ON), input numerico preparo padrão (3-60 min).
+class _AdminTakeawayConfigCard extends StatefulWidget {
+  const _AdminTakeawayConfigCard({
+    required this.takeawayEnabled,
+    required this.curbsideEnabled,
+    required this.prepMinutes,
+    required this.onToggleTakeaway,
+    required this.onToggleCurbside,
+    required this.onPrepMinutesChanged,
+  });
+
+  final bool takeawayEnabled;
+  final bool curbsideEnabled;
+  final int prepMinutes;
+  final ValueChanged<bool> onToggleTakeaway;
+  final ValueChanged<bool> onToggleCurbside;
+  final ValueChanged<int> onPrepMinutesChanged;
+
+  @override
+  State<_AdminTakeawayConfigCard> createState() =>
+      _AdminTakeawayConfigCardState();
+}
+
+class _AdminTakeawayConfigCardState extends State<_AdminTakeawayConfigCard> {
+  late TextEditingController _prepController;
+
+  @override
+  void initState() {
+    super.initState();
+    _prepController =
+        TextEditingController(text: widget.prepMinutes.toString());
+  }
+
+  @override
+  void didUpdateWidget(covariant _AdminTakeawayConfigCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final newText = widget.prepMinutes.toString();
+    if (_prepController.text != newText) {
+      _prepController.text = newText;
+    }
+  }
+
+  @override
+  void dispose() {
+    _prepController.dispose();
+    super.dispose();
+  }
+
+  void _commit() {
+    final parsed = int.tryParse(_prepController.text.trim());
+    if (parsed == null) {
+      _prepController.text = widget.prepMinutes.toString();
+      return;
+    }
+    final clamped = parsed.clamp(3, 60);
+    widget.onPrepMinutesChanged(clamped);
+    if (clamped != parsed) _prepController.text = clamped.toString();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.grey.shade300),
+      ),
+      child: Column(
+        children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 16, 16, 4),
+            child: Row(
+              children: [
+                Icon(Icons.shopping_bag_outlined),
+                SizedBox(width: 8),
+                Text(
+                  'Configurações de Takeaway',
+                  style: TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
+          ),
+          SwitchListTile.adaptive(
+            value: widget.takeawayEnabled,
+            onChanged: widget.onToggleTakeaway,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            title: const Text(
+              'Takeaway habilitado',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            subtitle: const Text(
+              'Permite pedidos para levantamento (cliente vê botão "Ir buscar").',
+              style: TextStyle(fontSize: 12),
+            ),
+            activeColor: const Color(0xFF1B5E20),
+          ),
+          if (widget.takeawayEnabled) ...[
+            const Divider(height: 1),
+            SwitchListTile.adaptive(
+              value: widget.curbsideEnabled,
+              onChanged: widget.onToggleCurbside,
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              title: const Text(
+                'Curbside habilitado',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              subtitle: const Text(
+                'Atendimento no carro (cliente informa matrícula).',
+                style: TextStyle(fontSize: 12),
+              ),
+              activeColor: const Color(0xFFE65100),
+            ),
+            const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Tempo de preparo padrão (minutos)',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        Text(
+                          '3-60 min. Aparece pré-selecionado ao parceiro aceitar.',
+                          style:
+                              TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  SizedBox(
+                    width: 76,
+                    child: TextField(
+                      controller: _prepController,
+                      keyboardType: TextInputType.number,
+                      textAlign: TextAlign.center,
+                      onSubmitted: (_) => _commit(),
+                      onEditingComplete: _commit,
+                      decoration: const InputDecoration(
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                        contentPadding: EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 10),
+                        suffixText: 'min',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

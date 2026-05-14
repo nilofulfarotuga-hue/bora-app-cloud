@@ -689,6 +689,75 @@ class RestaurantStore extends ChangeNotifier {
     }
   }
 
+  // ─── Takeaway opt-in toggle (BR §14.9) ──────────────────────────────────
+  Future<void> toggleTakeawayEnabled(
+      String restaurantId, bool enabled) async {
+    final index = _restaurants.indexWhere((r) => r.id == restaurantId);
+    if (index != -1) {
+      _restaurants[index] =
+          _restaurants[index].copyWith(takeawayEnabled: enabled);
+      // Curbside só faz sentido se takeaway estiver activo — desactivar
+      // automaticamente para evitar estado inconsistente na UI cliente.
+      if (!enabled) {
+        _restaurants[index] =
+            _restaurants[index].copyWith(curbsideEnabled: false);
+      }
+      notifyListeners();
+    }
+    try {
+      final updates = <String, dynamic>{'takeaway_enabled': enabled};
+      if (!enabled) updates['curbside_enabled'] = false;
+      await supabase
+          .from('restaurants')
+          .update(updates)
+          .eq('id', restaurantId);
+    } catch (e) {
+      debugPrint('RestaurantStore: toggleTakeawayEnabled error => $e');
+    }
+  }
+
+  // ─── Curbside opt-in toggle (BR §14.9b) ─────────────────────────────────
+  /// Só efectivo se takeawayEnabled=true. UI desactiva o switch quando
+  /// takeaway está off.
+  Future<void> toggleCurbsideEnabled(
+      String restaurantId, bool enabled) async {
+    final index = _restaurants.indexWhere((r) => r.id == restaurantId);
+    if (index != -1) {
+      _restaurants[index] =
+          _restaurants[index].copyWith(curbsideEnabled: enabled);
+      notifyListeners();
+    }
+    try {
+      await supabase
+          .from('restaurants')
+          .update({'curbside_enabled': enabled}).eq('id', restaurantId);
+    } catch (e) {
+      debugPrint('RestaurantStore: toggleCurbsideEnabled error => $e');
+    }
+  }
+
+  // ─── Default prep minutes (BR §14.9c) ───────────────────────────────────
+  /// Aceita 3-60 min. Valores fora desta janela são clamped.
+  Future<void> setTakeawayDefaultPrepMinutes(
+      String restaurantId, int minutes) async {
+    final clamped = minutes.clamp(3, 60);
+    final index = _restaurants.indexWhere((r) => r.id == restaurantId);
+    if (index != -1) {
+      _restaurants[index] = _restaurants[index]
+          .copyWith(takeawayDefaultPrepMinutes: clamped);
+      notifyListeners();
+    }
+    try {
+      await supabase
+          .from('restaurants')
+          .update({'takeaway_default_prep_minutes': clamped})
+          .eq('id', restaurantId);
+    } catch (e) {
+      debugPrint(
+          'RestaurantStore: setTakeawayDefaultPrepMinutes error => $e');
+    }
+  }
+
   // ─── Business hours ──────────────────────────────────────────────────────
   Future<void> updateBusinessHours(
       String restaurantId, BusinessHours hours) async {

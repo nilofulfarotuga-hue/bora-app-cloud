@@ -573,6 +573,17 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                   onChanged: (value) => restaurantStore
                       .toggleReservationsEnabled(currentRestaurant.id, value),
                 ),
+                const SizedBox(height: 8),
+                _TakeawayToggleCard(
+                  restaurant: currentRestaurant,
+                  onToggleTakeaway: (value) => restaurantStore
+                      .toggleTakeawayEnabled(currentRestaurant.id, value),
+                  onToggleCurbside: (value) => restaurantStore
+                      .toggleCurbsideEnabled(currentRestaurant.id, value),
+                  onPrepMinutesChanged: (minutes) =>
+                      restaurantStore.setTakeawayDefaultPrepMinutes(
+                          currentRestaurant.id, minutes),
+                ),
                 if (currentRestaurant.reservationsEnabled) ...[
                   const SizedBox(height: 8),
                   SizedBox(
@@ -1872,6 +1883,165 @@ class _ReservationsToggleCard extends StatelessWidget {
           style: const TextStyle(fontSize: 12),
         ),
         activeColor: const Color(0xFF1B5E20),
+      ),
+    );
+  }
+}
+
+/// PROMPT C — Cartão com 3 controlos takeaway: switch master, switch
+/// curbside (disabled se master off), input de minutos default. Padrão
+/// visual segue [_ReservationsToggleCard].
+class _TakeawayToggleCard extends StatefulWidget {
+  const _TakeawayToggleCard({
+    required this.restaurant,
+    required this.onToggleTakeaway,
+    required this.onToggleCurbside,
+    required this.onPrepMinutesChanged,
+  });
+
+  final RestaurantModel restaurant;
+  final ValueChanged<bool> onToggleTakeaway;
+  final ValueChanged<bool> onToggleCurbside;
+  final ValueChanged<int> onPrepMinutesChanged;
+
+  @override
+  State<_TakeawayToggleCard> createState() => _TakeawayToggleCardState();
+}
+
+class _TakeawayToggleCardState extends State<_TakeawayToggleCard> {
+  late TextEditingController _prepController;
+
+  @override
+  void initState() {
+    super.initState();
+    _prepController = TextEditingController(
+      text: widget.restaurant.takeawayDefaultPrepMinutes.toString(),
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant _TakeawayToggleCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final newText =
+        widget.restaurant.takeawayDefaultPrepMinutes.toString();
+    if (_prepController.text != newText) {
+      _prepController.text = newText;
+    }
+  }
+
+  @override
+  void dispose() {
+    _prepController.dispose();
+    super.dispose();
+  }
+
+  void _commitPrepMinutes() {
+    final parsed = int.tryParse(_prepController.text.trim());
+    if (parsed == null) {
+      // Repor texto válido visível no input.
+      _prepController.text =
+          widget.restaurant.takeawayDefaultPrepMinutes.toString();
+      return;
+    }
+    final clamped = parsed.clamp(3, 60);
+    widget.onPrepMinutesChanged(clamped);
+    if (clamped != parsed) {
+      _prepController.text = clamped.toString();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final takeawayEnabled = widget.restaurant.takeawayEnabled;
+    final curbsideEnabled = widget.restaurant.curbsideEnabled;
+
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.grey.shade300),
+      ),
+      child: Column(
+        children: [
+          SwitchListTile.adaptive(
+            value: takeawayEnabled,
+            onChanged: widget.onToggleTakeaway,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            title: const Text(
+              'Aceitar pedidos para levantamento (Takeaway)',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            subtitle: Text(
+              takeawayEnabled
+                  ? 'O botão "Ir buscar" aparece aos clientes.'
+                  : 'Desligado — só entrega. (BR §14.9)',
+              style: const TextStyle(fontSize: 12),
+            ),
+            activeColor: const Color(0xFF1B5E20),
+          ),
+          if (takeawayEnabled) ...[
+            const Divider(height: 1),
+            SwitchListTile.adaptive(
+              value: curbsideEnabled,
+              onChanged: widget.onToggleCurbside,
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              title: const Text(
+                'Permitir levantamento no carro (Curbside)',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              subtitle: Text(
+                curbsideEnabled
+                    ? 'Cliente pode informar matrícula e esperar no carro.'
+                    : 'Apenas levantamento ao balcão.',
+                style: const TextStyle(fontSize: 12),
+              ),
+              activeColor: const Color(0xFFE65100),
+            ),
+            const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Tempo de preparação padrão',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        Text(
+                          'Em minutos (3-60). Aparece pré-seleccionado ao aceitar.',
+                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  SizedBox(
+                    width: 76,
+                    child: TextField(
+                      controller: _prepController,
+                      keyboardType: TextInputType.number,
+                      textAlign: TextAlign.center,
+                      onSubmitted: (_) => _commitPrepMinutes(),
+                      onEditingComplete: _commitPrepMinutes,
+                      decoration: const InputDecoration(
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                        contentPadding: EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 10),
+                        suffixText: 'min',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

@@ -35,6 +35,7 @@ import '../../widgets/admin_closed_partners_card.dart';
 import '../../widgets/admin_reservations_today_card.dart';
 import 'admin_partners_pending_screen.dart';
 import 'admin_partners_screen.dart';
+import 'admin_dispatch_settings_screen.dart';
 import 'admin_platform_settings_screen.dart';
 import 'admin_promo_codes_screen.dart';
 import 'admin_ratings_screen.dart';
@@ -485,6 +486,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       context,
                       MaterialPageRoute(
                           builder: (_) => const AdminPlatformSettingsScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.local_shipping_outlined,
+                  title: 'Configurações de Despacho',
+                  subtitle:
+                      'Timeouts, retry, limite parceiro (REGRAS 2-5)',
+                  color: Colors.orange,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminDispatchSettingsScreen())),
                 ),
                 const SizedBox(height: 10),
                 // T5.1

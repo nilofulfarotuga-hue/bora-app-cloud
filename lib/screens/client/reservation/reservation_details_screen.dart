@@ -28,7 +28,26 @@ class ReservationDetailsScreen extends StatefulWidget {
 class _ReservationDetailsScreenState extends State<ReservationDetailsScreen> {
   bool _arriving = false;
 
-  ReservationModel get _r => widget.reservation;
+  @override
+  void initState() {
+    super.initState();
+    // 2026-05-14 — H1 fix: garantir stream realtime + fetch inicial.
+    final store = context.read<ReservationStore>();
+    store.subscribeMyReservations();
+    if (store.findById(widget.reservation.id) == null) {
+      // ignore: discarded_futures
+      store.fetchMyReservations();
+    }
+  }
+
+  /// 2026-05-14 — Lookup reactivo no store (listen:false, safe em handlers).
+  /// Para o build re-renderizar quando o status mudar, o build() chama
+  /// context.watch<ReservationStore>() (linha no inicio).
+  /// Fallback: widget.reservation enquanto stream nao popular o store.
+  ReservationModel get _r =>
+      Provider.of<ReservationStore>(context, listen: false)
+          .findById(widget.reservation.id) ??
+      widget.reservation;
 
   bool get _arriveWindowActive {
     final diff = _r.reservedFor.difference(DateTime.now());
@@ -92,6 +111,10 @@ class _ReservationDetailsScreenState extends State<ReservationDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // 2026-05-14 — H1 fix: subscrever ReservationStore para re-render quando
+    // o status muda em tempo real (parceiro aprova/rejeita). Watch ignora o
+    // valor; o getter _r faz o lookup com listen:false.
+    context.watch<ReservationStore>();
     return Scaffold(
       appBar: AppBar(title: const Text('Detalhes da reserva')),
       body: SafeArea(

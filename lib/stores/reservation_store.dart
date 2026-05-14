@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' show TimeOfDay;
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -22,6 +24,12 @@ class ReservationStore extends ChangeNotifier {
   bool _loading = false;
   String? _error;
 
+  // 2026-05-14 — H1 fix: realtime subscription para reservas do user.
+  // Pre-requisito: migration 20260514120001 adicionou reservations a
+  // publication supabase_realtime.
+  StreamSubscription? _myReservationsSub;
+  bool _subscribed = false;
+
   List<ReservationModel> get myReservations => _myReservations;
   bool get loading => _loading;
   String? get error => _error;
@@ -35,6 +43,67 @@ class ReservationStore extends ChangeNotifier {
 
   List<ReservationModel> get cancelledReservations =>
       _myReservations.where((r) => r.isCancelled).toList();
+
+  /// 2026-05-14 — Lookup reactivo por id (usado pelo details screen
+  /// para reflectir mudancas de status sem reabrir).
+  ReservationModel? findById(String id) {
+    for (final r in _myReservations) {
+      if (r.id == id) return r;
+    }
+    return null;
+  }
+
+  /// 2026-05-14 — Subscreve mudancas em tempo real das reservas do user.
+  /// Idempotente. Stream filtrado server-side por client_user_id (RLS)
+  /// + .eq() no cliente para reduzir trafego.
+  /// Pre-requisito: tabela reservations adicionada a publication
+  /// supabase_realtime (migration 20260514120001).
+  ///
+  /// .stream() do Supabase NAO suporta JOIN. Por isso preservamos os campos
+  /// restaurantName/restaurantPhotoUrl da fetch inicial via merge por id.
+  void subscribeMyReservations() {
+    if (_subscribed) return;
+    final uid = _supabase.auth.currentUser?.id;
+    if (uid == null) return;
+    _subscribed = true;
+    _myReservationsSub = _supabase
+        .from('reservations')
+        .stream(primaryKey: ['id'])
+        .eq('client_user_id', uid)
+        .order('reserved_for', ascending: false)
+        .listen((rows) {
+      // .stream() entrega lista completa em cada evento.
+      final byId = {for (final r in _myReservations) r.id: r};
+      _myReservations = rows.map((row) {
+        final fresh = ReservationModel.fromSupabase(
+          Map<String, dynamic>.from(row),
+        );
+        final prev = byId[fresh.id];
+        if (prev?.restaurantName != null && fresh.restaurantName == null) {
+          return fresh.copyWithRestaurantInfo(
+            name: prev!.restaurantName,
+            photoUrl: prev.restaurantPhotoUrl,
+          );
+        }
+        return fresh;
+      }).toList();
+      notifyListeners();
+    }, onError: (Object e) {
+      debugPrint('[ReservationStore] realtime stream error: $e');
+    });
+  }
+
+  void unsubscribeMyReservations() {
+    _myReservationsSub?.cancel();
+    _myReservationsSub = null;
+    _subscribed = false;
+  }
+
+  @override
+  void dispose() {
+    _myReservationsSub?.cancel();
+    super.dispose();
+  }
 
   /// Lê reservas do cliente actual (RLS filtra automaticamente por
   /// client_user_id = auth.uid()) com JOIN restaurants para nome/foto.

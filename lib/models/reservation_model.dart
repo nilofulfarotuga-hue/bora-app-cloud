@@ -150,6 +150,42 @@ class ReservationModel {
         'prepayment_cents': prepaymentCents,
       };
 
+  /// 2026-05-14 — preserva metadata do restaurant (name/photo) ao reconstruir
+  /// a reserva a partir de um stream realtime. .stream() do Supabase nao
+  /// suporta JOIN, por isso o ReservationStore usa este helper para anexar
+  /// os campos vindos da fetch inicial (que faz JOIN).
+  ReservationModel copyWithRestaurantInfo({String? name, String? photoUrl}) =>
+      ReservationModel(
+        id: id,
+        restaurantId: restaurantId,
+        clientUserId: clientUserId,
+        clientName: clientName,
+        clientPhone: clientPhone,
+        people: people,
+        reservedFor: reservedFor,
+        status: status,
+        notes: notes,
+        prepaymentCents: prepaymentCents,
+        prepaymentPi: prepaymentPi,
+        decidedAt: decidedAt,
+        arrivedAt: arrivedAt,
+        cancelledAt: cancelledAt,
+        cancelReason: cancelReason,
+        createdAt: createdAt,
+        floorPlanId: floorPlanId,
+        eventType: eventType,
+        specialRequests: specialRequests,
+        occasion: occasion,
+        isWalkIn: isWalkIn,
+        seatedAt: seatedAt,
+        finishedAt: finishedAt,
+        reminder24hSentAt: reminder24hSentAt,
+        reminder2hSentAt: reminder2hSentAt,
+        confirmationSentAt: confirmationSentAt,
+        restaurantName: name ?? restaurantName,
+        restaurantPhotoUrl: photoUrl ?? restaurantPhotoUrl,
+      );
+
   // ─── Helpers de estado (consumidos por screens cliente) ───────────────────
 
   bool get isPending =>

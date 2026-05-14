@@ -5,6 +5,7 @@ import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
 import '../models/business_view_models.dart';
 import '../models/cart_item.dart';
+import '../models/order_service_type.dart';
 import '../models/partner_product.dart';
 import '../stores/cart_store.dart';
 import '../stores/favorite_store.dart';
@@ -134,9 +135,15 @@ class RestaurantMenuScreen extends StatelessWidget {
         children: [
           // BR §14.10 — botão "Reservar mesa" só aparece quando o parceiro
           // activa reservas no painel. Default: oculto.
+          // BUG fix pós-takeaway (2026-05-14): se cliente veio pelo fluxo
+          // takeaway (Ir buscar), esconder também — não faz sentido reservar
+          // mesa quando o pedido é para levantamento ao balcão.
           Builder(builder: (context) {
             final model = restaurantStore.restaurantById(restaurantId);
             if (model == null || !model.reservationsEnabled) {
+              return const SizedBox.shrink();
+            }
+            if (cart.serviceType == OrderServiceType.takeaway) {
               return const SizedBox.shrink();
             }
             return Padding(

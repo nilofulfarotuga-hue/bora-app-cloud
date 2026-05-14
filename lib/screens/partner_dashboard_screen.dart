@@ -1023,6 +1023,8 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
         if (order.isTakeaway) ...[
           const SizedBox(height: 8),
           _TakeawayBadge(order: order),
+          const SizedBox(height: 6),
+          _TakeawayPaymentIndicator(order: order),
         ],
         if (order.isTakeaway && order.takeawayIsCurbside) ...[
           const SizedBox(height: 8),
@@ -1572,6 +1574,62 @@ class _TakeawayBadge extends StatelessWidget {
               fontSize: 13,
               fontWeight: FontWeight.w600,
               color: AppColors.success,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Indicador de pagamento para pedidos takeaway. Mostra ao parceiro se
+/// tem de cobrar dinheiro na loja ou se o pedido já está pago online.
+/// Laranja = receber cash, verde = pago online.
+class _TakeawayPaymentIndicator extends StatelessWidget {
+  const _TakeawayPaymentIndicator({required this.order});
+
+  final OrderModel order;
+
+  @override
+  Widget build(BuildContext context) {
+    final isCash = order.paymentMethod == PaymentMethod.cash;
+    final isPaid = order.paymentStatus == PaymentStatus.paid;
+
+    final Color color;
+    final IconData icon;
+    final String label;
+    if (isCash) {
+      color = Colors.orange.shade800;
+      icon = Icons.payments_outlined;
+      label = 'Receber €${order.total.toStringAsFixed(2)} na loja';
+    } else if (isPaid) {
+      color = AppColors.success;
+      icon = Icons.check_circle_outline;
+      label = 'Pago online';
+    } else {
+      color = Colors.grey.shade700;
+      icon = Icons.hourglass_empty;
+      label = 'Pagamento online pendente';
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.35), width: 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: color,
             ),
           ),
         ],

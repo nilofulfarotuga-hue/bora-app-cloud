@@ -14,6 +14,7 @@ import '../models/rating_model.dart';
 import '../widgets/address_text.dart';
 import '../widgets/bora_support_fab.dart';
 import '../widgets/takeaway/pickup_code_card.dart';
+import '../widgets/takeaway/preparing_countdown_banner.dart';
 import '../services/directions_service.dart';
 import '../services/order_eta_service.dart';
 import '../stores/driver_store.dart';
@@ -373,6 +374,21 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
               ),
             ),
           ),
+
+          // ── Takeaway preparing countdown banner ────────────────────────────
+          // Quando o parceiro aceita o pedido takeaway com um ETA, o servidor
+          // grava takeawayReadyAt. Mostramos uma barra com headline dinâmico
+          // ("Pronto em ~X min") que actualiza a cada 30s.
+          if (widget.order.isTakeaway &&
+              widget.order.status == OrderStatus.preparing &&
+              widget.order.takeawayReadyAt != null)
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                    Spacing.lg, 60, Spacing.lg, Spacing.lg),
+                child: PreparingCountdownBanner(order: widget.order),
+              ),
+            ),
 
           // ── Takeaway readyForPickup banner ─────────────────────────────────
           // BR §14.11 — quando o parceiro marca pronto, sobrepõe um card grande

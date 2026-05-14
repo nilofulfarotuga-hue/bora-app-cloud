@@ -38,6 +38,10 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
   final Set<String> _knownCreatedOrderIds = <String>{};
   final SoundService _soundService = SoundService();
   Timer? _vibrationTimer;
+  // BUG-PT-006 (2026-05-14) — fallback de segurança. Se a condição de
+  // paragem do som não disparar (latência realtime, bug logic, etc.),
+  // o som auto-para após 60s para evitar loop infinito no parceiro.
+  Timer? _soundTimeoutTimer;
   int _pendingReservationsCount = 0;
   final Set<String> _seenPendingReservationIds = <String>{};
   RealtimeChannel? _reservationsChannel;
@@ -168,6 +172,7 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
     _dispatchDecisionChannel?.unsubscribe();
     _dispatchDecisionChannel = null;
     _vibrationTimer?.cancel();
+    _soundTimeoutTimer?.cancel();
     _soundService.dispose();
     super.dispose();
   }
@@ -354,6 +359,29 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
     _vibrationTimer = null;
   }
 
+  // BUG-PT-006 (2026-05-14) — helpers centralizados que combinam som +
+  // vibração + timeout de segurança. Tudo passa por aqui para garantir
+  // que os 3 ciclos param em sincronia.
+  Future<void> _startSoundAndVibration() async {
+    unawaited(_soundService.playLoop());
+    unawaited(_startVibrationLoop());
+    // Fallback: máximo 60s. Se a condição lógica de paragem não disparar
+    // (takeaway com latência realtime, status nunca muda, etc.), o
+    // parceiro NÃO fica com som infinito.
+    _soundTimeoutTimer?.cancel();
+    _soundTimeoutTimer = Timer(const Duration(seconds: 60), () {
+      debugPrint('[BUG-PT-006] Som auto-parado após timeout 60s');
+      _stopSoundAndVibration();
+    });
+  }
+
+  void _stopSoundAndVibration() {
+    unawaited(_soundService.stop());
+    _stopVibrationLoop();
+    _soundTimeoutTimer?.cancel();
+    _soundTimeoutTimer = null;
+  }
+
   Future<void> _handleTestMode() async {
     final authStore = context.read<AuthStore>();
     final sessionStore = context.read<SessionStore>();
@@ -370,11 +398,15 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
         .toSet();
 
     if (createdIds.isNotEmpty) {
-      unawaited(_soundService.playLoop());
-      unawaited(_startVibrationLoop());
+      // Só (re)inicia se houver pedidos created que ainda não tinham
+      // sido vistos — evita reset do timeout 60s a cada rebuild.
+      final hasNewOrders =
+          createdIds.any((id) => !_knownCreatedOrderIds.contains(id));
+      if (hasNewOrders) {
+        unawaited(_startSoundAndVibration());
+      }
     } else {
-      unawaited(_soundService.stop());
-      _stopVibrationLoop();
+      _stopSoundAndVibration();
     }
 
     _knownCreatedOrderIds
@@ -1179,6 +1211,17 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
     );
 
     if (chosen == null || !mounted) return;
+
+    // BUG-PT-006 (2026-05-14) — parar som/vibração IMEDIATAMENTE quando o
+    // parceiro confirma a ETA, sem esperar pelo round-trip do realtime
+    // a propagar status=preparing. Takeaway não passa por callingDriver,
+    // logo a condição lógica de paragem chega tarde — UX inaceitável.
+    //
+    // O dashboard parent é onde vive o SoundService. Procurar pelo state
+    // ancestor e chamar o helper centralizado.
+    _PartnerDashboardScreenState? dashState =
+        context.findAncestorStateOfType<_PartnerDashboardScreenState>();
+    dashState?._stopSoundAndVibration();
 
     setState(() => _chamandobusy[orderId] = true);
     try {

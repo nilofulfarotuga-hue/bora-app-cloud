@@ -42,6 +42,18 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
   final Set<String> _seenPendingReservationIds = <String>{};
   RealtimeChannel? _reservationsChannel;
 
+  // REGRA 5 — modal "Continuar +10 min / Cancelar" aparece quando
+  // dispatch_online_attempt_seconds >= dispatch_max_total_seconds_with_drivers_online
+  // (1200s = 20 min de tentativas reais com drivers online, conta apenas
+  // tempo COM drivers online — REGRA 4). Anti-spam: cada order_id só dispara
+  // o modal UMA vez por sessão da app (após decisão, backend reseta o gate
+  // via dispatch_partner_decision_at + dispatch_extended_until; nova janela
+  // dispara nova entrada no Set quando o ID volta a ficar elegível — mas
+  // dentro da mesma sessão guardamos para evitar re-mostrar).
+  RealtimeChannel? _dispatchDecisionChannel;
+  final Set<String> _shownDispatchModalForOrderIds = <String>{};
+  bool _isShowingDispatchModal = false;
+
   @override
   void initState() {
     super.initState();
@@ -51,6 +63,11 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
       context.read<OrderStore>().loadOrders();
       unawaited(_loadPendingReservationsCount());
       _subscribeReservationsRealtime();
+      _subscribeDispatchDecisionRealtime();
+      // Verificar imediatamente se já há pedidos elegíveis (load inicial
+      // pode trazer rows que já passaram o limite enquanto a app estava
+      // fechada).
+      unawaited(_checkPendingDispatchDecisions());
     });
   }
 
@@ -148,9 +165,178 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
   void dispose() {
     _reservationsChannel?.unsubscribe();
     _reservationsChannel = null;
+    _dispatchDecisionChannel?.unsubscribe();
+    _dispatchDecisionChannel = null;
     _vibrationTimer?.cancel();
     _soundService.dispose();
     super.dispose();
+  }
+
+  // ── REGRA 5: Dispatch decision modal ─────────────────────────────────────
+  // Quando o pedido está em callingDriver há ≥20 min de tentativas reais
+  // (com drivers online — REGRA 4 já cuidou da contabilização no backend),
+  // o parceiro precisa de decidir: continuar +10 min ou cancelar.
+  void _subscribeDispatchDecisionRealtime() {
+    if (_dispatchDecisionChannel != null) return;
+    final channelName =
+        'partner_dispatch_decision_${widget.restaurant.id}';
+    _dispatchDecisionChannel = Supabase.instance.client
+        .channel(channelName)
+        .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'orders',
+          callback: (payload) {
+            if (!mounted) return;
+            final rec = payload.newRecord;
+            if (rec.isEmpty) return;
+            if (rec['restaurant_id'] != widget.restaurant.id) return;
+            _maybeShowDispatchModalFromRow(rec);
+          },
+        )
+      ..subscribe();
+  }
+
+  Future<void> _checkPendingDispatchDecisions() async {
+    try {
+      final rows = await Supabase.instance.client
+          .from('orders')
+          .select(
+            'id, status, dispatch_online_attempt_seconds, '
+            'dispatch_partner_decision_at, dispatch_extended_until, '
+            'vendor_name, estimated_total, price',
+          )
+          .eq('restaurant_id', widget.restaurant.id)
+          .eq('status', OrderStatus.callingDriver.name)
+          .filter('dispatch_partner_decision_at', 'is', null);
+      if (!mounted) return;
+      for (final row in (rows as List).cast<Map<String, dynamic>>()) {
+        _maybeShowDispatchModalFromRow(row);
+      }
+    } catch (e) {
+      debugPrint(
+          '[PartnerDashboard] _checkPendingDispatchDecisions error: $e');
+    }
+  }
+
+  void _maybeShowDispatchModalFromRow(Map<String, dynamic> rec) {
+    if (!mounted) return;
+    if (_isShowingDispatchModal) return;
+    final id = rec['id']?.toString();
+    if (id == null) return;
+    if (_shownDispatchModalForOrderIds.contains(id)) return;
+    if (rec['status'] != OrderStatus.callingDriver.name) return;
+    if (rec['dispatch_partner_decision_at'] != null) return;
+    final attemptRaw = rec['dispatch_online_attempt_seconds'];
+    final attempts = attemptRaw is num ? attemptRaw.toInt() : 0;
+    // Hardcoded threshold = default da setting dispatch_max_total_seconds_with_drivers_online.
+    // Backend é a fonte de verdade; aqui só decidimos quando mostrar o modal.
+    // Se admin reduzir a setting para 600s, o backend ainda dispara via realtime
+    // quando attempts ≥ 600 — vamos mostrar nesse caso também (>= 600).
+    // Para evitar mostrar prematuramente em ambientes onde a setting é maior,
+    // usamos 1200s como gate mínimo aqui (≈20 min).
+    if (attempts < 1200) return;
+    _shownDispatchModalForOrderIds.add(id);
+    final vendorName = rec['vendor_name'] as String? ?? 'Pedido';
+    final totalRaw = rec['estimated_total'] ?? rec['price'];
+    final total = totalRaw is num ? totalRaw.toDouble() : 0.0;
+    unawaited(_showDispatchDecisionModal(
+      orderId: id,
+      vendorName: vendorName,
+      total: total,
+      attemptSeconds: attempts,
+    ));
+  }
+
+  Future<void> _showDispatchDecisionModal({
+    required String orderId,
+    required String vendorName,
+    required double total,
+    required int attemptSeconds,
+  }) async {
+    if (!mounted) return;
+    _isShowingDispatchModal = true;
+    final minutes = (attemptSeconds / 60).floor();
+    final action = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        icon: const Icon(Icons.local_shipping_outlined,
+            size: 36, color: AppColors.warning),
+        title: const Text('Sem estafetas disponíveis'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Já tentámos atribuir um estafeta ao pedido de "$vendorName" '
+              'durante $minutes minutos sem sucesso.',
+              style: const TextStyle(fontSize: 15),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'O que pretende fazer?',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Total: €${total.toStringAsFixed(2)}',
+              style: const TextStyle(
+                  fontSize: 13, color: Colors.black54),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            onPressed: () => Navigator.pop(ctx, 'cancel'),
+            child: const Text('Cancelar pedido'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(ctx, 'continue_10min'),
+            icon: const Icon(Icons.timer_outlined),
+            label: const Text('Continuar +10 min'),
+          ),
+        ],
+      ),
+    );
+
+    _isShowingDispatchModal = false;
+    if (action == null || !mounted) return;
+
+    try {
+      await Supabase.instance.client.rpc(
+        'partner_dispatch_decision',
+        params: {'p_order_id': orderId, 'p_action': action},
+      );
+      if (!mounted) return;
+      final msg = action == 'continue_10min'
+          ? 'Continuamos a procurar estafeta…'
+          : 'Pedido cancelado.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(msg),
+          backgroundColor: action == 'continue_10min'
+              ? AppColors.success
+              : AppColors.error,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+      debugPrint(
+          '[PartnerDashboard] dispatch decision $action OK order=$orderId');
+    } catch (e) {
+      debugPrint(
+          '[PartnerDashboard] partner_dispatch_decision error: $e');
+      if (!mounted) return;
+      // Permite re-tentar se RPC falhou.
+      _shownDispatchModalForOrderIds.remove(orderId);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro a registar decisão: $e'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
   }
 
   Future<void> _startVibrationLoop() async {

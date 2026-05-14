@@ -134,17 +134,23 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
         (totalToPay - tokenDiscount + debtEur).clamp(0.0, double.infinity);
 
     // BUG #1 frontend (§54) — CASH disabled se total_pedido + dívida > €40 (limite hardcoded)
+    // BUG fix pós-takeaway (2026-05-14): limite €40 NÃO se aplica a takeaway —
+    // "Pagar na loja" é gerido pelo parceiro, sem estafeta a cobrar dinheiro.
     final double totalCashWithDebt = finalPrice; // já inclui dívida + após desconto tokens
-    final bool cashBlockedByLimit = totalCashWithDebt > 40.0;
+    final bool cashBlockedByLimit =
+        !cartStore.isTakeaway && totalCashWithDebt > 40.0;
 
-    const paymentOptions = <_PaymentOption>[
-      _PaymentOption(
+    // BUG fix pós-takeaway (2026-05-14): em takeaway, "Dinheiro" passa a
+    // "Pagar na loja" (parceiro recebe directamente). Valor enviado ao
+    // servidor mantém-se 'cash' — só muda label/subtitle na UI.
+    final paymentOptions = <_PaymentOption>[
+      const _PaymentOption(
         method: PaymentMethod.card,
         title: 'Cartão (Stripe)',
         subtitle: 'Pague com cartão de crédito ou débito.',
         icon: Icons.credit_card,
       ),
-      _PaymentOption(
+      const _PaymentOption(
         method: PaymentMethod.mbway,
         title: 'MBWay',
         subtitle: 'Receba uma notificação e confirme no MBWay.',
@@ -152,8 +158,10 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       ),
       _PaymentOption(
         method: PaymentMethod.cash,
-        title: 'Dinheiro',
-        subtitle: 'Pague diretamente ao estafeta na entrega.',
+        title: cartStore.isTakeaway ? 'Pagar na loja' : 'Dinheiro',
+        subtitle: cartStore.isTakeaway
+            ? 'Pague diretamente ao parceiro ao levantar.'
+            : 'Pague diretamente ao estafeta na entrega.',
         icon: Icons.payments,
       ),
     ];

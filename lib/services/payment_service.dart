@@ -63,14 +63,18 @@ class PaymentService {
         applePay: const PaymentSheetApplePay(
           merchantCountryCode: 'PT',
         ),
-        // BUG 9 (Fase 5 / 2026-04-30): Google Pay desativado até Danilo
-        // configurar Stripe Dashboard:
-        //   1. Stripe → Settings → Payment methods → activar Google Pay
-        //   2. Domain verification (live mode requires a verified domain)
-        //   3. Android Play Console: registar SHA-1 da app de produção
-        //   4. Re-enable: passar PaymentSheetGooglePay(...) ao retomar.
-        // Doc completa: docs/google-pay-setup.md (criada nesta fase).
-        googlePay: null,
+        // 2026-05-14: Google Pay activado (PT/EUR, live mode).
+        // Pre-requisitos operacionais:
+        //   1. Stripe Dashboard → Settings → Payment methods → Google Pay ON.
+        //   2. AndroidManifest.xml com gms.wallet.api.enabled meta-data.
+        //   3. Google Play Console com SHA-1 da release key registado.
+        // Stripe degrada graciosamente se nao configurado (sem opcao no sheet,
+        // sem crash).
+        googlePay: const PaymentSheetGooglePay(
+          merchantCountryCode: 'PT',
+          currencyCode: 'EUR',
+          testEnv: false,
+        ),
       ),
     );
     await Stripe.instance.presentPaymentSheet();
@@ -252,7 +256,11 @@ class PaymentService {
           merchantDisplayName: 'BORA APP',
           style: ThemeMode.system,
           applePay: const PaymentSheetApplePay(merchantCountryCode: 'PT'),
-          googlePay: null,
+          googlePay: const PaymentSheetGooglePay(
+            merchantCountryCode: 'PT',
+            currencyCode: 'EUR',
+            testEnv: false,
+          ),
         ),
       );
       await Stripe.instance.presentPaymentSheet();

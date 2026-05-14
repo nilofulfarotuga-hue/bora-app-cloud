@@ -105,8 +105,14 @@ class _ReservationCheckoutScreenState extends State<ReservationCheckoutScreen> {
           merchantDisplayName: 'BORA APP',
           style: ThemeMode.system,
           applePay: const PaymentSheetApplePay(merchantCountryCode: 'PT'),
-          // BUG 9 (Fase 5) — Google Pay desactivado, alinhado com payment_service.
-          googlePay: null,
+          // 2026-05-14 — Google Pay activado (PT/EUR live), alinhado com
+          // payment_service. AndroidManifest gms.wallet.api.enabled meta-data
+          // adicionado no mesmo commit.
+          googlePay: const PaymentSheetGooglePay(
+            merchantCountryCode: 'PT',
+            currencyCode: 'EUR',
+            testEnv: false,
+          ),
         ),
       );
 

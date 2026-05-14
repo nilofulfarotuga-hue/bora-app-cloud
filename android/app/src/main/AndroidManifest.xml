@@ -22,6 +22,13 @@
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyBYLjK1RtPdi4WM7pMGmupesBgUIWMkfkw"/>
 
+        <!-- 2026-05-14: Google Pay (Stripe PaymentSheet). Habilita Wallet API
+             no dispositivo Android para o sheet mostrar a opcao Google Pay
+             quando configurada no Stripe Dashboard + SHA-1 release no Play Console. -->
+        <meta-data
+            android:name="com.google.android.gms.wallet.api.enabled"
+            android:value="true" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

@@ -42,19 +42,56 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
-// How long a driver has to respond to an offer (seconds).
-const OFFER_TIMEOUT_SECONDS = 40
-
-// Re-invocation fires this many ms after assigning an offer.
-// Must be > OFFER_TIMEOUT_SECONDS so the offer has already expired by the time
-// processDispatch runs — preventing redundant invocations before expiry.
-const REDISPATCH_DELAY_MS = (OFFER_TIMEOUT_SECONDS + 2) * 1000
+// DEFAULTS — overridden at runtime by platform_settings (loadDispatchSettings).
+// Kept here so behaviour is sane if DB is unreachable on cold start.
+const DEFAULT_OFFER_TIMEOUT_SECONDS = 40
+const DEFAULT_RETRY_NO_DRIVER_SECONDS = 10
 
 // How many times scheduleRedispatch retries the self-invoke fetch on failure.
 const REDISPATCH_MAX_RETRIES = 3
 
 // Delay between retry attempts in scheduleRedispatch (ms).
 const REDISPATCH_RETRY_DELAY_MS = 2000
+
+// ── Dispatch settings (loaded from platform_settings on each invocation) ─────
+// REGRA 2/3: retryNoDriverS = retry interval when no driver available
+// REGRA 5  : maxTotalS, extensionS, safetyS used by bora_dispatch_maintenance
+//            (NOT here — Edge Function only reads what it needs for retry).
+type DispatchSettings = {
+  offerTimeoutS: number
+  retryNoDriverS: number
+}
+
+async function loadDispatchSettings(supabase: any): Promise<DispatchSettings> {
+  try {
+    const { data, error } = await supabase
+      .from('platform_settings')
+      .select('key, value')
+      .in('key', [
+        'dispatch_offer_timeout_seconds',
+        'dispatch_retry_no_driver_seconds',
+      ])
+    if (error) throw error
+    const map = new Map<string, number>()
+    for (const row of data ?? []) {
+      const v = row.value
+      const n = typeof v === 'number' ? v : Number(v)
+      if (!Number.isNaN(n)) map.set(row.key as string, n)
+    }
+    return {
+      offerTimeoutS: map.get('dispatch_offer_timeout_seconds')
+        ?? DEFAULT_OFFER_TIMEOUT_SECONDS,
+      retryNoDriverS: map.get('dispatch_retry_no_driver_seconds')
+        ?? DEFAULT_RETRY_NO_DRIVER_SECONDS,
+    }
+  } catch (e) {
+    console.warn('[dispatch-engine] loadDispatchSettings failed → defaults:', e)
+    return {
+      offerTimeoutS: DEFAULT_OFFER_TIMEOUT_SECONDS,
+      retryNoDriverS: DEFAULT_RETRY_NO_DRIVER_SECONDS,
+    }
+  }
+}
 
 // Preferred radius for dispatch. Falls back to nearest driver if no one is
 // within this distance — prevents silent no-dispatch in sparse areas.
@@ -118,6 +155,15 @@ Deno.serve(async (req) => {
 
   console.log(`[dispatch-engine] ── INVOKED ── orderId=${orderId ?? 'ALL (cron/manual)'}`)
 
+  // Load runtime settings ONCE per invocation (cached in this isolate scope).
+  // REGRAS 2/3: retry adaptive delay = dispatch_retry_no_driver_seconds (10s).
+  // Offer timeout monitor still uses dispatch_offer_timeout_seconds (40s) + 2s.
+  const settings = await loadDispatchSettings(supabase)
+  console.log(
+    `[dispatch-engine] settings: offerTimeout=${settings.offerTimeoutS}s ` +
+    `retryNoDriver=${settings.retryNoDriverS}s`
+  )
+
   // redispatchPromise is declared OUTSIDE try/catch so finally can always see it.
   let redispatchPromise: Promise<void> | null = null
   let response: Response
@@ -126,17 +172,18 @@ Deno.serve(async (req) => {
     const assigned = await processDispatch(supabase, orderId)
 
     if (orderId) {
-      // FIX: decideRedispatch now returns boolean (schedule or not).
-      // scheduleRedispatch() is called WITHOUT await so it returns its
-      // Promise<void> immediately — the 42s sleep runs in the background.
-      // EdgeRuntime.waitUntil keeps the isolate alive for those 42s.
-      // Previously: `await decideRedispatch()` returned scheduleRedispatch()'s
-      // Promise, which JS async-flattening caused await to resolve only AFTER
-      // the full 42s sleep + fetch, making redispatchPromise = void (falsy)
-      // and waitUntil never called. Chain died within 150s for 4+ drivers.
-      const shouldSchedule = await decideRedispatch(supabase, orderId, assigned)
-      if (shouldSchedule) {
-        redispatchPromise = scheduleRedispatch(supabaseUrl, serviceKey, orderId)
+      // decideRedispatch returns {schedule, delayMs}.
+      //   • assigned=true       → delayMs = (offerTimeoutS + 2) * 1000  (monitor)
+      //   • no driver + pending → delayMs = retryNoDriverS * 1000        (REGRA 2/3)
+      // scheduleRedispatch() called WITHOUT await so 10s/42s sleep runs in
+      // background via EdgeRuntime.waitUntil.
+      const decision = await decideRedispatch(
+        supabase, orderId, assigned, settings,
+      )
+      if (decision.schedule) {
+        redispatchPromise = scheduleRedispatch(
+          supabaseUrl, serviceKey, orderId, decision.delayMs,
+        )
       }
     }
 
@@ -149,9 +196,13 @@ Deno.serve(async (req) => {
 
     if (orderId) {
       try {
-        const shouldSchedule = await decideRedispatch(supabase, orderId, false)
-        if (shouldSchedule) {
-          redispatchPromise = scheduleRedispatch(supabaseUrl, serviceKey, orderId)
+        const decision = await decideRedispatch(
+          supabase, orderId, false, settings,
+        )
+        if (decision.schedule) {
+          redispatchPromise = scheduleRedispatch(
+            supabaseUrl, serviceKey, orderId, decision.delayMs,
+          )
         }
       } catch (_) {}
     }
@@ -196,37 +247,43 @@ Deno.serve(async (req) => {
  *   (d) assigned = false, order is no longer callingDriver (accepted/delivered)
  *       Dispatch is done.  Chain terminates cleanly.
  */
-// FIX: returns boolean instead of Promise<void> | null.
-// Returning scheduleRedispatch() from an async function caused JS to flatten
-// the Promise chain — `await decideRedispatch()` would block for the full
-// 42s sleep before returning, making redispatchPromise=void (falsy) and
-// EdgeRuntime.waitUntil never called. Each hop cascaded synchronously,
-// killing chains of 4+ drivers within the 150s isolate limit.
+// decideRedispatch returns {schedule, delayMs}.
+// REGRA 2/3: when no driver was assigned this hop (cycle reset or sparse area)
+// the retry runs in retryNoDriverS (10s) — NOT offerTimeoutS+2 (42s).
+// REGRA 5  : if dispatch_partner_decision_at IS NOT NULL OR
+//            dispatch_extended_until is in the past → chain stops
+//            (parceiro cancelou OU extensão expirou; cron tratará disso).
 async function decideRedispatch(
   supabase: any,
   orderId: string,
   assigned: boolean,
-): Promise<boolean> {
+  settings: DispatchSettings,
+): Promise<{ schedule: boolean; delayMs: number }> {
   if (assigned) {
     // Case (a): happy path — we own the offer, monitor for timeout.
+    const delayMs = (settings.offerTimeoutS + 2) * 1000
     console.log(
       `[dispatch-engine] redispatch scheduled for order=${orderId} ` +
-      `in ${REDISPATCH_DELAY_MS / 1000}s (offer timeout monitor)`
+      `in ${delayMs / 1000}s (offer timeout monitor)`
     )
-    return true
+    return { schedule: true, delayMs }
   }
 
   // Need to know WHY we didn't assign — peek at current order state.
   const { data: peek, error: peekErr } = await supabase
     .from('orders')
-    .select('status, assigned_driver_id, current_driver_offer_id, driver_offer_expires_at')
+    .select(
+      'status, assigned_driver_id, current_driver_offer_id, ' +
+      'driver_offer_expires_at, dispatch_extended_until, ' +
+      'dispatch_partner_decision_at'
+    )
     .eq('id', orderId)
     .maybeSingle()
 
   if (peekErr) {
     console.error('[dispatch-engine] decideRedispatch peek error:', JSON.stringify(peekErr))
     // Safe default: schedule retry to avoid orphaning the order.
-    return true
+    return { schedule: true, delayMs: settings.retryNoDriverS * 1000 }
   }
 
   const isPending = peek?.status === 'callingDriver' && !peek?.assigned_driver_id
@@ -237,12 +294,27 @@ async function decideRedispatch(
       `[dispatch-engine] order=${orderId} status=${peek?.status ?? 'unknown'} ` +
       `— chain terminates`
     )
-    return false
+    return { schedule: false, delayMs: 0 }
+  }
+
+  // REGRA 5 — if partner cancelled or refused to extend, stop the chain.
+  // bora_dispatch_maintenance will handle TTL/cleanup.
+  if (peek?.dispatch_partner_decision_at != null) {
+    const extendedUntil = peek?.dispatch_extended_until
+    const expired = extendedUntil != null &&
+      new Date(extendedUntil) < new Date()
+    if (expired) {
+      console.log(
+        `[dispatch-engine] order=${orderId} partner extension expired ` +
+        `(decision_at=${peek.dispatch_partner_decision_at}, ` +
+        `extended_until=${extendedUntil}) — chain stops`
+      )
+      return { schedule: false, delayMs: 0 }
+    }
   }
 
   // Case (c): check if another worker already owns an active, non-expired offer.
-  // If yes, return false — that worker will schedule its own redispatch.
-  // Returning true here was causing exponential worker growth (error 546).
+  // If yes, that worker will schedule its own redispatch — NOT add a duplicate.
   const offerExpiry = peek?.driver_offer_expires_at
   const hasActiveOffer =
     peek?.current_driver_offer_id != null &&
@@ -255,16 +327,16 @@ async function decideRedispatch(
       `(driver=${peek.current_driver_offer_id}, expires=${offerExpiry}) ` +
       `— another worker owns the chain, NOT scheduling duplicate`
     )
-    return false
+    return { schedule: false, delayMs: 0 }
   }
 
-  // Case (b): no active offer — order is orphaned or offer just expired.
-  // Schedule retry so order is not permanently stuck.
+  // Case (b): no active offer — pending. REGRA 2/3: retry in retryNoDriverS (10s).
+  const delayMs = settings.retryNoDriverS * 1000
   console.log(
     `[dispatch-engine] order=${orderId} pending, no active offer ` +
-    `— redispatch in ${REDISPATCH_DELAY_MS / 1000}s`
+    `— redispatch in ${delayMs / 1000}s (REGRA 2/3 retry)`
   )
-  return true
+  return { schedule: true, delayMs }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -685,8 +757,9 @@ async function scheduleRedispatch(
   supabaseUrl: string,
   serviceKey: string,
   orderId: string,
+  delayMs: number,
 ): Promise<void> {
-  await sleep(REDISPATCH_DELAY_MS)
+  await sleep(delayMs)
 
   const functionUrl = `${supabaseUrl}/functions/v1/dispatch-engine`
 
@@ -694,7 +767,7 @@ async function scheduleRedispatch(
     try {
       console.log(
         `[dispatch] ⏰ redispatch attempt=${attempt}/${REDISPATCH_MAX_RETRIES} ` +
-        `order=${orderId} (offer timeout elapsed)`
+        `order=${orderId} (delayMs=${delayMs} elapsed)`
       )
       const res = await fetch(functionUrl, {
         method: 'POST',

@@ -50,6 +50,11 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
   // _handleNewOrders 2× em <100ms para o mesmo order.id. Limpa ao sair de
   // callingDriver (aceite, rejeitado, expirado).
   final Set<String> _alreadyAlertedOrderIds = <String>{};
+  // BUG H6 — Pedidos descartados localmente por chegarem com offer já vencida.
+  // NÃO chamar onReject() (dispatch re-atribuiria → loop infinito). Apenas
+  // remove do destaque/som local até backend re-atribuir a outro driver ou
+  // limpar o offer. Limpa quando o pedido sai de callingDriver.
+  final Set<String> _dismissedExpiredOrderIds = <String>{};
   bool _isShowingDialog = false;
   // ID of the offer currently visible in _showNewOrderDialog (null when none).
   // Used to discard duplicate stream re-emissions for the same offer and to
@@ -663,6 +668,22 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                         },
                         onReject: () =>
                             _handleRejectOrder(highlightedOrder, orderStore),
+                        onDismissExpired: () {
+                          // BUG H6 — dismiss silencioso quando o offer chega
+                          // já vencido. NÃO chama _handleRejectOrder (evita
+                          // loop dispatch). Apenas remove do destaque local;
+                          // o backend já vai re-atribuir a outro driver.
+                          if (mounted) {
+                            setState(() {
+                              _dismissedExpiredOrderIds
+                                  .add(highlightedOrder.id);
+                              if (_highlightedOrderId == highlightedOrder.id) {
+                                _highlightedOrderId = null;
+                              }
+                            });
+                            unawaited(_soundService.stop());
+                          }
+                        },
                       ),
                       const SizedBox(height: 16),
                     ],
@@ -1718,7 +1739,24 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
   }
 
   void _handleNewOrders(List<OrderModel> orders, OrderStore store) {
-    final currentIds = orders.map((o) => o.id).toSet();
+    // BUG H6 — Guard defensivo: filtra ofertas que chegam já vencidas do
+    // backend (stale snapshot, lag >40s, cron 2-min ainda não limpou). Não
+    // disparam som, não destacam, não criam card de countdown. Dispatch
+    // backend re-atribui a outro driver; este device descarta localmente.
+    final now = DateTime.now();
+    final visibleOrders = orders.where((o) {
+      if (_dismissedExpiredOrderIds.contains(o.id)) return false;
+      final exp = o.driverOfferExpiresAt;
+      if (exp != null &&
+          o.status == OrderStatus.callingDriver &&
+          exp.isBefore(now)) {
+        _dismissedExpiredOrderIds.add(o.id);
+        return false;
+      }
+      return true;
+    }).toList();
+
+    final currentIds = visibleOrders.map((o) => o.id).toSet();
     final newIds = currentIds.difference(_knownOrderIds);
 
     String? highlightCandidate = _highlightedOrderId;
@@ -1730,7 +1768,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
     // FIFO candidate selection — oldest eligible offer is shown first.
     // Excludes in-flight and duplicate dialogs so only ONE offer is surfaced
     // at any time.
-    final candidates = orders
+    final candidates = visibleOrders
         .where((o) =>
             o.status == OrderStatus.callingDriver &&
             !_processingOrderIds.contains(o.id) &&
@@ -1755,8 +1793,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
           _showNewOrderDialog(next, store);
         });
       }
-    } else if (highlightCandidate == null && orders.isNotEmpty) {
-      highlightCandidate = orders.first.id;
+    } else if (highlightCandidate == null && visibleOrders.isNotEmpty) {
+      highlightCandidate = visibleOrders.first.id;
     }
 
     if (highlightCandidate != _highlightedOrderId && mounted) {
@@ -1769,15 +1807,19 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
     // Order saiu de callingDriver (aceite/rejeitado/expirado) → liberta o
     // guard para que possa voltar a alertar caso reapareça (improvável, mas
     // mantém Set bounded).
-    final callingIds = orders
+    final callingIds = visibleOrders
         .where((o) => o.status == OrderStatus.callingDriver)
         .map((o) => o.id)
         .toSet();
     _alreadyAlertedOrderIds.removeWhere((id) => !callingIds.contains(id));
+    // BUG H6 — mantém o set bounded: limpa entries cujos pedidos já saíram
+    // de callingDriver (backend re-atribuiu ou cancelou).
+    _dismissedExpiredOrderIds
+        .removeWhere((id) => !callingIds.contains(id));
 
     // Stop sound as soon as there are no more available orders for this driver
     // (covers: order accepted, order expired, driver rejected last order).
-    if (orders.isEmpty) {
+    if (visibleOrders.isEmpty) {
       unawaited(_soundService.stop());
     } else if (!_soundService.isPlaying) {
       // Orders present but sound not playing — audio was interrupted externally
@@ -2179,6 +2221,7 @@ class _DriverOrderAlertCard extends StatefulWidget {
     required this.isEnabled,
     required this.onAccept,
     required this.onReject,
+    this.onDismissExpired,
     this.driverLocation,
   });
 
@@ -2186,6 +2229,9 @@ class _DriverOrderAlertCard extends StatefulWidget {
   final bool isEnabled;
   final Future<void> Function() onAccept;
   final VoidCallback onReject;
+  // BUG H6 — Disparado quando o offer chega vencido. NÃO chama onReject
+  // (evita loop dispatch). Caller deve remover o pedido do destaque local.
+  final VoidCallback? onDismissExpired;
   final LatLng? driverLocation;
 
   @override
@@ -2198,6 +2244,10 @@ class _DriverOrderAlertCardState extends State<_DriverOrderAlertCard>
   bool _isLoading = false;
   Timer? _countdownTimer;
   int _secondsLeft = 40;
+  // BUG H6 — true se a oferta já chega com driver_offer_expires_at < NOW
+  // (stale subscription snapshot, lag de rede >40s, ou cron 2-min ainda
+  // não limpou). Renderiza versão minimal e dispara onDismissExpired após 2s.
+  bool _isExpiredOnArrival = false;
 
   @override
   void initState() {
@@ -2211,6 +2261,19 @@ class _DriverOrderAlertCardState extends State<_DriverOrderAlertCard>
 
   void _startCountdown() {
     final expiry = widget.order.driverOfferExpiresAt;
+
+    // BUG H6 — Guard: oferta chega já vencida do backend. NÃO chamar
+    // widget.onReject() (causaria loop dispatch→re-atribui→novo card vencido).
+    // Mostra "Oferta expirada" 2s e dismiss silenciosamente via callback.
+    if (expiry != null && expiry.isBefore(DateTime.now())) {
+      _isExpiredOnArrival = true;
+      _secondsLeft = 0;
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) widget.onDismissExpired?.call();
+      });
+      return; // NÃO inicia Timer.periodic — não há countdown a correr
+    }
+
     if (expiry != null) {
       _secondsLeft = expiry.difference(DateTime.now()).inSeconds.clamp(0, 40);
     }
@@ -2223,6 +2286,7 @@ class _DriverOrderAlertCardState extends State<_DriverOrderAlertCard>
       setState(() => _secondsLeft = secs);
       if (_secondsLeft <= 0) {
         _countdownTimer?.cancel();
+        // Timeout natural durante os 40s legítimos — comportamento original.
         widget.onReject();
       }
     });
@@ -2239,6 +2303,33 @@ class _DriverOrderAlertCardState extends State<_DriverOrderAlertCard>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final order = widget.order;
+
+    // BUG H6 — Render minimal cinzento para oferta vencida-ao-chegar.
+    // Mantém o card visível 2s para o estafeta perceber, depois o caller
+    // remove via onDismissExpired. Sem som, sem botões, sem countdown.
+    if (_isExpiredOnArrival) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.shade400, width: 1),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.schedule, color: Colors.grey.shade600),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Oferta expirada — a procurar outro pedido…',
+                style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     final baseColor = Colors.orange.shade50;
     final highlightColor = Colors.orange.shade200.withValues(alpha: 0.9);
 

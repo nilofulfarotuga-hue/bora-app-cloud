@@ -29,6 +29,11 @@ enum OrderStatus {
 enum OrderType {
   partnerRestaurant,
   nonPartnerPurchase,
+  // BUG 7 (2026-05-15) — adicionados para cobrir todos os service_types.
+  // .name é o que é gravado em orders.order_type (sem CHECK constraint em DB).
+  takeaway,
+  sendPackage,
+  carryGroceries,
 }
 
 enum PaymentMethod {

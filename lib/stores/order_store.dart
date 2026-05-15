@@ -1808,14 +1808,29 @@ class OrderStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  // BUG 7 (2026-05-15) — mapeamento completo por service_type. Antes
+  // retornava sempre partnerRestaurant ou nonPartnerPurchase, perdendo
+  // takeaway/sendPackage/carryGroceries (que eram gravados como
+  // nonPartnerPurchase). Sem CHECK constraint em DB; nomes do enum vão
+  // directamente para orders.order_type via .name.
   OrderType _resolveOrderType({
     required OrderServiceType serviceType,
     required bool isPartnerStore,
   }) {
-    if (serviceType == OrderServiceType.restaurant && isPartnerStore) {
-      return OrderType.partnerRestaurant;
+    switch (serviceType) {
+      case OrderServiceType.takeaway:
+        return OrderType.takeaway;
+      case OrderServiceType.sendPackage:
+        return OrderType.sendPackage;
+      case OrderServiceType.carryGroceries:
+        return OrderType.carryGroceries;
+      case OrderServiceType.restaurant:
+        return isPartnerStore
+            ? OrderType.partnerRestaurant
+            : OrderType.nonPartnerPurchase;
+      case OrderServiceType.storeShopping:
+        return OrderType.nonPartnerPurchase;
     }
-    return OrderType.nonPartnerPurchase;
   }
 
   Future<bool> restaurantAcceptOrder(OrderModel order) async {

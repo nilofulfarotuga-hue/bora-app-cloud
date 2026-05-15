@@ -147,12 +147,17 @@ class PaymentService {
   }
 
   /// Initiates a real MBWay charge via Stripe.
-  /// Creates + confirms a PaymentIntent server-side; Stripe sends push to user's MBWay app.
-  /// Resolution comes via stripe-webhook (payment_intent.succeeded → payment_status=paid).
+  /// v20 (2026-05-15): Edge Fn devolve client_secret e Flutter apresenta o
+  /// Stripe PaymentSheet (que recolhe MBWay phone nativamente e despoleta o
+  /// push para a MBWay app). Server-confirm v19 tinha parâmetro inválido
+  /// `payment_method_data.mb_way.phone` → 500.
+  /// Resolução final via stripe-webhook (payment_intent.succeeded → paid).
+  /// Retorna paymentIntentId em sucesso, null em cancel/decline/erro.
   Future<String?> initiateMbwayPayment({
     required String orderId,
     required String phone,
   }) async {
+    if (kIsWeb) return null;
     try {
       final response = await Supabase.instance.client.functions.invoke(
         'create-mbway-payment-intent',
@@ -164,8 +169,25 @@ class PaymentService {
         return null;
       }
       final piId = body!['paymentIntentId'] as String?;
-      debugPrint('[PaymentService] MBWay intent initiated: $piId');
+      final clientSecret = body['clientSecret'] as String?;
+      if (piId == null || clientSecret == null) {
+        debugPrint('[PaymentService] initiateMbwayPayment incomplete: $body');
+        return null;
+      }
+      await Stripe.instance.initPaymentSheet(
+        paymentSheetParameters: SetupPaymentSheetParameters(
+          paymentIntentClientSecret: clientSecret,
+          merchantDisplayName: 'BORA APP',
+          style: ThemeMode.system,
+        ),
+      );
+      await Stripe.instance.presentPaymentSheet();
+      debugPrint('[PaymentService] MBWay PaymentSheet completed: $piId');
       return piId;
+    } on StripeException catch (e) {
+      debugPrint('[PaymentService] MBWay PaymentSheet cancelled: '
+          '${e.error.localizedMessage}');
+      return null;
     } catch (e) {
       debugPrint('[PaymentService] initiateMbwayPayment error: $e');
       return null;

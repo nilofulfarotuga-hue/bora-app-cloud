@@ -73,26 +73,29 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Step 1: Create PaymentIntent for mb_way
+    // v20 (2026-05-15) — fix: PaymentSheet client-side. Server-confirm v19
+    // tinha payment_method_data.mb_way.phone, parametro inexistente na API
+    // Stripe → 500 garantido (parameter_unknown registado em mbway_debug_errors).
+    // Agora cria PI + devolve client_secret. Flutter apresenta Stripe PaymentSheet
+    // que recolhe MBWay phone nativamente e despoleta o push para a MBWay app.
+    // phone continua recebido apenas para logging/auditoria.
     const intent = await stripe.paymentIntents.create({
       amount: amountCents,
       currency: 'eur',
       payment_method_types: ['mb_way'],
       metadata: { order_id },
-    });
+    }, { idempotencyKey: `mbway_${order_id}` });
 
-    // Step 2: Confirm server-side with phone number — triggers push notification to MBWay app
-    await stripe.paymentIntents.confirm(intent.id, {
-      payment_method_data: {
-        type: 'mb_way',
-        mb_way: { phone: e164 },
-      },
-    });
-
-    console.log('[create-mbway-payment-intent] intent confirmed:', intent.id, `order=${order_id}`, `phone=${e164}`);
+    console.log('[create-mbway-payment-intent] intent created (PaymentSheet flow):',
+      intent.id, `order=${order_id}`, `phone=${e164}`, `mode=${STRIPE_MODE}`);
 
     return new Response(
-      JSON.stringify({ ok: true, paymentIntentId: intent.id }),
+      JSON.stringify({
+        ok: true,
+        paymentIntentId: intent.id,
+        clientSecret: intent.client_secret,
+        mode: STRIPE_MODE,
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   } catch (err) {

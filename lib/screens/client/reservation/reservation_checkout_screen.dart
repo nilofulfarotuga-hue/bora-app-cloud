@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 
 import '../../../config/app_theme.dart';
 import '../../../stores/reservation_store.dart';
+import 'reservation_mbway_waiting_dialog.dart';
+import 'reservation_payment_method_sheet.dart';
 
 /// Reservas PRO F3.B — checkout reserva com pré-pagamento Stripe €3.
 /// Cria PaymentIntent via Edge Fn `create-reservation-payment-intent` v3,
@@ -74,15 +76,44 @@ class _ReservationCheckoutScreenState extends State<ReservationCheckoutScreen> {
     return parts.join('\n\n');
   }
 
+  /// Constante hard-coded conservadora — preço default do prepagamento.
+  /// Server (Edge Fn) é a fonte de verdade via platform_settings, mas
+  /// o bottom sheet é UX-only; o valor real cobrado é o que o servidor decidir.
+  static const double _kReservationPrepaymentEur = 3.0;
+
   Future<void> _onConfirmAndPay() async {
     if (_processing) return;
-    setState(() => _processing = true);
 
+    // 1) Bottom sheet: escolha de método (Card | MBWay), sem Cash.
+    final choice = await showModalBottomSheet<ReservationPaymentChoice>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => const ReservationPaymentMethodSheet(
+        amountEur: _kReservationPrepaymentEur,
+      ),
+    );
+    if (choice == null || !mounted) return;
+
+    setState(() => _processing = true);
+    try {
+      if (choice.method == ReservationPaymentMethod.card) {
+        await _payWithCard();
+      } else {
+        await _payWithMbway(choice.mbwayPhone!);
+      }
+    } finally {
+      if (mounted) setState(() => _processing = false);
+    }
+  }
+
+  Future<void> _payWithCard() async {
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
-
     try {
-      // a) Criar PaymentIntent (notes combinado).
+      // a) Criar PaymentIntent (notes combinado). Edge Fn v9 → payment_method_types: ['card'].
       final pi =
           await context.read<ReservationStore>().createReservationPaymentIntent(
                 restaurantId: widget.restaurantId,
@@ -105,9 +136,6 @@ class _ReservationCheckoutScreenState extends State<ReservationCheckoutScreen> {
           merchantDisplayName: 'BORA APP',
           style: ThemeMode.system,
           applePay: const PaymentSheetApplePay(merchantCountryCode: 'PT'),
-          // 2026-05-14 — Google Pay activado (PT/EUR live), alinhado com
-          // payment_service. AndroidManifest gms.wallet.api.enabled meta-data
-          // adicionado no mesmo commit.
           googlePay: const PaymentSheetGooglePay(
             merchantCountryCode: 'PT',
             currencyCode: 'EUR',
@@ -150,8 +178,74 @@ class _ReservationCheckoutScreenState extends State<ReservationCheckoutScreen> {
       messenger.showSnackBar(
         SnackBar(content: Text(msg), backgroundColor: Colors.red),
       );
-    } finally {
-      if (mounted) setState(() => _processing = false);
+    }
+  }
+
+  Future<void> _payWithMbway(String phone) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    try {
+      // a) Criar reserva pending_payment + PI MBWay server-confirmed.
+      //    Stripe envia push à app MBWay imediatamente.
+      final pi = await context
+          .read<ReservationStore>()
+          .createMbwayReservationPaymentIntent(
+            restaurantId: widget.restaurantId,
+            people: widget.partySize,
+            reservedFor: widget.selectedDateTime,
+            mbwayPhone: phone,
+            combinedNotes: _buildCombinedNotes(),
+          );
+
+      final reservationId = pi['reservation_id'] as String?;
+      final amountCents = (pi['amount_cents'] as num?)?.toInt() ?? 300;
+      if (reservationId == null) {
+        throw Exception('Resposta inválida do servidor.');
+      }
+
+      if (!mounted) return;
+
+      // b) Dialog de espera: poll a reservations.status até pending ou timeout.
+      final paid = await showDialog<bool>(
+            context: context,
+            barrierDismissible: false,
+            builder: (_) => ReservationMBWayWaitingDialog(
+              reservationId: reservationId,
+              amount: amountCents / 100.0,
+            ),
+          ) ??
+          false;
+
+      if (!mounted) return;
+      if (!paid) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Pagamento MBWay não confirmado ou expirou.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      // c) Sucesso — confirmar via RPC fallback (idempotente).
+      await context
+          .read<ReservationStore>()
+          .confirmReservationPayment(reservationId);
+
+      if (!mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Reserva pendente! O parceiro confirma em breve.'),
+          backgroundColor: AppTheme.primary,
+        ),
+      );
+      navigator.popUntil((route) => route.isFirst);
+    } catch (e) {
+      if (!mounted) return;
+      final msg = e.toString().replaceFirst('Exception: ', '');
+      messenger.showSnackBar(
+        SnackBar(content: Text(msg), backgroundColor: Colors.red),
+      );
     }
   }
 

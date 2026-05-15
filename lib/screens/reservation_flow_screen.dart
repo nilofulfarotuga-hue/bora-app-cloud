@@ -3,6 +3,8 @@ import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/restaurant_model.dart';
+import 'client/reservation/reservation_mbway_waiting_dialog.dart';
+import 'client/reservation/reservation_payment_method_sheet.dart';
 
 /// Client-facing screen to reserve a table at a partner restaurant (BR §14).
 ///
@@ -61,6 +63,8 @@ class _ReservationFlowScreenState extends State<ReservationFlowScreen> {
         _time.minute,
       );
 
+  static const double _kReservationPrepaymentEur = 3.0;
+
   Future<void> _submit() async {
     if (_nameController.text.trim().isEmpty ||
         _phoneController.text.trim().isEmpty) {
@@ -70,23 +74,46 @@ class _ReservationFlowScreenState extends State<ReservationFlowScreen> {
       return;
     }
 
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sessão expirou.')),
+      );
+      return;
+    }
+
+    // 1) Bottom sheet: escolha de método (Card | MBWay), sem Cash.
+    final choice = await showModalBottomSheet<ReservationPaymentChoice>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => const ReservationPaymentMethodSheet(
+        amountEur: _kReservationPrepaymentEur,
+      ),
+    );
+    if (choice == null || !mounted) return;
+
     setState(() => _submitting = true);
+    try {
+      if (choice.method == ReservationPaymentMethod.card) {
+        await _payWithCard();
+      } else {
+        await _payWithMbway(choice.mbwayPhone!);
+      }
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  Future<void> _payWithCard() async {
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
-
     try {
       final client = Supabase.instance.client;
-      final user = client.auth.currentUser;
-      if (user == null) {
-        messenger.showSnackBar(
-          const SnackBar(content: Text('Sessão expirou.')),
-        );
-        setState(() => _submitting = false);
-        return;
-      }
 
-      // T2.E (BR §18): chama Edge Fn que cria reservation pending_payment +
-      // Stripe PaymentIntent €3.
+      // T2.E (BR §18): Edge Fn v9 cria reservation pending_payment + PI card-only.
       final res = await client.functions.invoke(
         'create-reservation-payment-intent',
         body: {
@@ -106,16 +133,20 @@ class _ReservationFlowScreenState extends State<ReservationFlowScreen> {
       final clientSecret = data['clientSecret'] as String;
       final reservationId = data['reservation_id'] as String;
 
-      // Confirm Stripe PaymentSheet
       await Stripe.instance.initPaymentSheet(
         paymentSheetParameters: SetupPaymentSheetParameters(
           paymentIntentClientSecret: clientSecret,
           merchantDisplayName: 'Bora App',
+          applePay: const PaymentSheetApplePay(merchantCountryCode: 'PT'),
+          googlePay: const PaymentSheetGooglePay(
+            merchantCountryCode: 'PT',
+            currencyCode: 'EUR',
+            testEnv: false,
+          ),
         ),
       );
       await Stripe.instance.presentPaymentSheet();
 
-      // Mark reservation as paid → notify partner
       await client.rpc('client_confirm_reservation_payment',
           params: {'p_reservation_id': reservationId});
 
@@ -128,7 +159,73 @@ class _ReservationFlowScreenState extends State<ReservationFlowScreen> {
       navigator.pop(true);
     } catch (e) {
       if (!mounted) return;
-      setState(() => _submitting = false);
+      messenger.showSnackBar(
+        SnackBar(content: Text('Erro ao reservar: $e')),
+      );
+    }
+  }
+
+  Future<void> _payWithMbway(String phone) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    try {
+      final client = Supabase.instance.client;
+
+      final res = await client.functions.invoke(
+        'create-mbway-reservation-payment-intent',
+        body: {
+          'restaurant_id': widget.restaurant.id,
+          'people': _people,
+          'reserved_for': _combined.toUtc().toIso8601String(),
+          'client_name': _nameController.text.trim(),
+          'client_phone': _phoneController.text.trim(),
+          'phone': phone,
+          if (_notesController.text.trim().isNotEmpty)
+            'notes': _notesController.text.trim(),
+        },
+      );
+      if (res.status >= 400) {
+        throw Exception('mbway_reservation_failed: ${res.data}');
+      }
+      final data = (res.data as Map).cast<String, dynamic>();
+      final reservationId = data['reservation_id'] as String;
+      final amountCents = (data['amount_cents'] as num?)?.toInt() ?? 300;
+
+      if (!mounted) return;
+
+      final paid = await showDialog<bool>(
+            context: context,
+            barrierDismissible: false,
+            builder: (_) => ReservationMBWayWaitingDialog(
+              reservationId: reservationId,
+              amount: amountCents / 100.0,
+            ),
+          ) ??
+          false;
+
+      if (!mounted) return;
+      if (!paid) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Pagamento MBWay não confirmado ou expirou.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      await client.rpc('client_confirm_reservation_payment',
+          params: {'p_reservation_id': reservationId});
+
+      if (!mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(
+            content: Text(
+                'Reserva criada (€3 ringfenced). Aguarda confirmação do restaurante.')),
+      );
+      navigator.pop(true);
+    } catch (e) {
+      if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(content: Text('Erro ao reservar: $e')),
       );

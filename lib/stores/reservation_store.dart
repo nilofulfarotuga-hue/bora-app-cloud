@@ -296,6 +296,53 @@ class ReservationStore extends ChangeNotifier {
     }
   }
 
+  /// Cria reserva pending_payment + PaymentIntent MBWay server-confirm.
+  /// Edge Fn `create-mbway-reservation-payment-intent` v1 espelha o padrão
+  /// dos pedidos normais (create-mbway-payment-intent v21) — confirm:true com
+  /// billing_details.phone, push imediato para MBWay.
+  ///
+  /// Resposta: { reservation_id, paymentIntentId, status, amount_cents }.
+  /// O Flutter deve depois apresentar dialog de espera com poll a
+  /// `reservations.status` até `pending` (webhook confirma) ou timeout.
+  Future<Map<String, dynamic>> createMbwayReservationPaymentIntent({
+    required String restaurantId,
+    required int people,
+    required DateTime reservedFor,
+    required String mbwayPhone,
+    String? combinedNotes,
+    String? clientName,
+    String? clientPhone,
+  }) async {
+    try {
+      final response = await _supabase.functions.invoke(
+        'create-mbway-reservation-payment-intent',
+        body: {
+          'restaurant_id': restaurantId,
+          'people': people,
+          'reserved_for': reservedFor.toUtc().toIso8601String(),
+          'phone': mbwayPhone,
+          if (combinedNotes != null && combinedNotes.isNotEmpty)
+            'notes': combinedNotes,
+          if (clientName != null && clientName.isNotEmpty)
+            'client_name': clientName,
+          if (clientPhone != null && clientPhone.isNotEmpty)
+            'client_phone': clientPhone,
+        },
+      );
+      if (response.data == null) {
+        throw Exception('Resposta vazia do servidor.');
+      }
+      final data = Map<String, dynamic>.from(response.data as Map);
+      if (data.containsKey('error')) {
+        throw Exception(_mapErrorPtPt(data['error'].toString()));
+      }
+      return data;
+    } catch (e) {
+      debugPrint('[ReservationStore] createMbwayPaymentIntent error: $e');
+      rethrow;
+    }
+  }
+
   /// Confirma pagamento da reserva após Stripe sucesso (RPC F2 fallback).
   /// Webhook auto-confirma payment_status; este RPC é fallback que valida
   /// estado client-side e refresh state.

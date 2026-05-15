@@ -147,12 +147,20 @@ class PaymentService {
   }
 
   /// Initiates a real MBWay charge via Stripe.
-  /// v20 (2026-05-15): Edge Fn devolve client_secret e Flutter apresenta o
-  /// Stripe PaymentSheet (que recolhe MBWay phone nativamente e despoleta o
-  /// push para a MBWay app). Server-confirm v19 tinha parâmetro inválido
-  /// `payment_method_data.mb_way.phone` → 500.
-  /// Resolução final via stripe-webhook (payment_intent.succeeded → paid).
-  /// Retorna paymentIntentId em sucesso, null em cancel/decline/erro.
+  ///
+  /// v21 (2026-05-15) — server-side confirmation. O Edge Function confirma o
+  /// PaymentIntent com `payment_method_data.billing_details.phone` e o Stripe
+  /// envia imediatamente o push para a app MBWay. O cliente Flutter recebe o
+  /// paymentIntentId e mostra o `_MBWayWaitingDialog` que faz poll a
+  /// `orders.payment_status` até o webhook marcar como 'paid'.
+  ///
+  /// Histórico:
+  ///   v19 — tentou server-confirm com mb_way.phone (parâmetro inexistente).
+  ///   v20 — PaymentSheet client-side, mas presentPaymentSheet() bloqueava
+  ///         à espera de confirmação MBWay e utilizadores fechavam → cancel.
+  ///   v21 — server-confirm com billing_details.phone (parâmetro correcto).
+  ///
+  /// Retorna paymentIntentId em sucesso, null em erro do Edge Function.
   Future<String?> initiateMbwayPayment({
     required String orderId,
     required String phone,
@@ -169,25 +177,13 @@ class PaymentService {
         return null;
       }
       final piId = body!['paymentIntentId'] as String?;
-      final clientSecret = body['clientSecret'] as String?;
-      if (piId == null || clientSecret == null) {
+      if (piId == null) {
         debugPrint('[PaymentService] initiateMbwayPayment incomplete: $body');
         return null;
       }
-      await Stripe.instance.initPaymentSheet(
-        paymentSheetParameters: SetupPaymentSheetParameters(
-          paymentIntentClientSecret: clientSecret,
-          merchantDisplayName: 'BORA APP',
-          style: ThemeMode.system,
-        ),
-      );
-      await Stripe.instance.presentPaymentSheet();
-      debugPrint('[PaymentService] MBWay PaymentSheet completed: $piId');
+      debugPrint('[PaymentService] MBWay PI confirmed server-side: $piId '
+          'status=${body['status']}');
       return piId;
-    } on StripeException catch (e) {
-      debugPrint('[PaymentService] MBWay PaymentSheet cancelled: '
-          '${e.error.localizedMessage}');
-      return null;
     } catch (e) {
       debugPrint('[PaymentService] initiateMbwayPayment error: $e');
       return null;

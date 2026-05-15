@@ -749,9 +749,15 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       case PaymentMethod.card:
         break; // handled above
       case PaymentMethod.mbway:
-        // Real MBWay flow mirrors card: order created first (pending),
-        // then Stripe sends push to user's MBWay app, then stripe-webhook
-        // resolves payment_status=paid server-side.
+        // v21 (2026-05-15) — server-side confirmation flow:
+        //   1. cartStore.finishOrder → pedido criado em DB (payment_status=pending)
+        //   2. paymentService.initiateMbwayPayment → Edge Fn create-mbway-payment-intent
+        //      confirma o PaymentIntent server-side com billing_details.phone.
+        //      Stripe envia push à app MBWay IMEDIATAMENTE e devolve paymentIntentId.
+        //   3. _showMBWayWaitingDialog → ecrã com countdown 120s + poll a cada 3s
+        //      a orders.payment_status até detectar 'paid' (webhook resolveu).
+        //   4. Se utilizador cancela ou expira → _bailOutAndCancel (reason=payment_failed
+        //      → client-cancel-order v20 isenta de taxa de cancelamento).
         final mbwayOrdered = await cartStore.finishOrder(
           orderStore,
           paymentMethod: PaymentMethod.mbway,

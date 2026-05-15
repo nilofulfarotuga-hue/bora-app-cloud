@@ -14,6 +14,7 @@ import '../stores/restaurant_store.dart';
 import '../utils/business_mapper.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora_support_fab.dart';
+import 'reservation_flow_screen.dart';
 import 'restaurant_menu_screen.dart';
 import 'restaurant_options_screen.dart';
 
@@ -147,6 +148,22 @@ class RestaurantsScreen extends StatelessWidget {
       restaurantStore: restaurantStore,
       business: business,
     );
+
+    // BUG 3 (2026-05-15) — se cliente veio do fluxo "Reservar Mesa", saltar
+    // o ecrã de opções e ir directamente à reserva.
+    // ReservationFlowScreen espera RestaurantModel (business), não o adaptador
+    // de menu Restaurant (variable `restaurant` acima).
+    if (reservationsOnly &&
+        business.isPartner &&
+        business.reservationsEnabled) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ReservationFlowScreen(restaurant: business),
+        ),
+      );
+      return;
+    }
 
     // BUG #9+10 (2026-05-13) + D1/D2 (2026-05-14) — mostra ecrã de opções
     // se houver pelo menos uma opção além do menu directo. Cartões são

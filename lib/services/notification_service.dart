@@ -114,10 +114,13 @@ class NotificationService {
     });
 
     // Foreground messages: show in-app sound; UI already shows via Realtime.
+    // new_order is handled by _handleNewOrders (realtime stream) — skip to
+    // avoid double-sound when MBWay payment is confirmed.
     FirebaseMessaging.onMessage.listen((RemoteMessage msg) {
       debugPrint(
         '[NotificationService FG] ${msg.notification?.title} — ${msg.notification?.body}',
       );
+      if (msg.data['type'] == 'new_order') return;
       _sound.playOnce();
     });
 

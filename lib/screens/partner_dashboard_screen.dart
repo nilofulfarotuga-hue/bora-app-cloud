@@ -401,7 +401,10 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
 
   void _handleNewOrders(List<OrderModel> orders) async {
     final createdIds = orders
-        .where((order) => order.status == OrderStatus.created)
+        .where((order) =>
+            order.status == OrderStatus.created &&
+            !(order.paymentMethod == PaymentMethod.mbway &&
+              order.paymentStatus == PaymentStatus.pending))
         .map((order) => order.id)
         .toSet();
 

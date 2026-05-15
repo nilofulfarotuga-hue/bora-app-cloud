@@ -768,14 +768,23 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
           ));
           return;
         }
-        final mbwayOrder = orderStore.orders.first;
+        // FIX 4 (2026-05-15) — usa lastCreatedOrderId em vez de orders.first
+        // (que pode ser reordenado por realtime entre createOrder e este acesso).
+        final mbwayOrderId = orderStore.lastCreatedOrderId;
+        if (mbwayOrderId == null) {
+          setState(() => _isProcessing = false);
+          messenger.showSnackBar(const SnackBar(
+            content: Text('Erro interno: pedido criado mas ID não disponível.'),
+          ));
+          return;
+        }
         // Use the user-entered MBWay number (validated as 9 digits in pre-flight).
         // Edge Function handles E.164 conversion (prepends +351).
         final clientPhone =
             _mbwayPhoneController.text.replaceAll(RegExp(r'\D'), '');
         setState(() => _isProcessing = false);
         final piId = await paymentService.initiateMbwayPayment(
-          orderId: mbwayOrder.id,
+          orderId: mbwayOrderId,
           phone: clientPhone,
         );
         if (!mounted) return;
@@ -783,16 +792,16 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
           messenger.showSnackBar(const SnackBar(
             content: Text('Não foi possível iniciar o pagamento MBWay.'),
           ));
-          await _bailOutAndCancel(mbwayOrder.id);
+          await _bailOutAndCancel(mbwayOrderId);
           return;
         }
-        final mbwayPaid = await _showMBWayWaitingDialog(mbwayOrder.id, amount);
+        final mbwayPaid = await _showMBWayWaitingDialog(mbwayOrderId, amount);
         if (!mounted) return;
         if (!mbwayPaid) {
           messenger.showSnackBar(const SnackBar(
             content: Text('Pagamento MBWay não confirmado ou expirou.'),
           ));
-          await _bailOutAndCancel(mbwayOrder.id);
+          await _bailOutAndCancel(mbwayOrderId);
           return;
         }
         await _consumeTokensAndNavigate(tokensUsed);

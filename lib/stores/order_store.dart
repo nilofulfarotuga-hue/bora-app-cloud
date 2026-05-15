@@ -204,6 +204,12 @@ class OrderStore extends ChangeNotifier {
   final PaymentService _paymentService = PaymentService();
   final DriverLocationService _driverLocationService = DriverLocationService();
 
+  // FIX 4 (2026-05-15) — orderId do pedido mais recentemente criado por
+  // createOrder(). Robusto contra reordenações de _orders por realtime
+  // (ao contrário de orders.first.id).
+  String? _lastCreatedOrderId;
+  String? get lastCreatedOrderId => _lastCreatedOrderId;
+
   String? _pendingClientSecret;
   String? consumePendingClientSecret() {
     final cs = _pendingClientSecret;
@@ -872,6 +878,7 @@ class OrderStore extends ChangeNotifier {
 
       final order = serverOrder;
       _orders.insert(0, order);
+      _lastCreatedOrderId = order.id;
       notifyListeners();
 
       debugPrint('[FLOW] createOrder: RPC + local state OK');
@@ -917,8 +924,11 @@ class OrderStore extends ChangeNotifier {
 
       // Notify partner restaurant of new order via FCM push (fire-and-forget).
       // Only for partner restaurant orders — supermarket/logistics flows are handled differently.
+      // MBWay: notificação feita pelo stripe-webhook após payment_intent.succeeded
+      // para não notificar o parceiro antes do pagamento estar confirmado.
       if (order.isPartnerStore &&
-          order.serviceType == OrderServiceType.restaurant) {
+          order.serviceType == OrderServiceType.restaurant &&
+          order.paymentMethod != PaymentMethod.mbway) {
         final restaurant = _restaurantStore?.restaurantByName(order.vendorName);
         if (restaurant != null) {
           final itemsSummary = order.items

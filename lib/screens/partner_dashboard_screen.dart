@@ -116,6 +116,9 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
             if (id == null || _seenPendingReservationIds.contains(id)) return;
             _seenPendingReservationIds.add(id);
             setState(() => _pendingReservationsCount += 1);
+            // BUG 5 (2026-05-15) — som persistente para nova reserva pendente.
+            // Mesmo padrão usado para pedidos novos (created). Idempotente.
+            unawaited(_startSoundAndVibration());
             final clientName =
                 (rec['client_name'] as String?)?.trim().isNotEmpty == true
                     ? rec['client_name'] as String
@@ -151,6 +154,11 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
               _seenPendingReservationIds.remove(id);
               if (_pendingReservationsCount > 0) {
                 setState(() => _pendingReservationsCount -= 1);
+              }
+              // BUG 5 (2026-05-15) — parar som quando deixar de haver
+              // reservas pendentes. _stopSoundAndVibration() é idempotente.
+              if (_pendingReservationsCount == 0) {
+                _stopSoundAndVibration();
               }
               debugPrint(
                   '[PartnerDashboard] realtime pending→$newStatus reservation $id');

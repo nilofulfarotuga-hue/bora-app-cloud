@@ -1281,6 +1281,16 @@ class _BottomPanelState extends State<_BottomPanel> {
 
                 const SizedBox(height: 16),
 
+                // BUG 9 (2026-05-15) — banner "RECEBER €X" para pedidos cash
+                // a partir de pickedUp (estafeta já recolheu, está a caminho).
+                // Texto diferenciado parceiro/não-parceiro dentro do widget.
+                if (focusOrder.paymentMethod == PaymentMethod.cash &&
+                    (focusOrder.status == OrderStatus.pickedUp ||
+                        focusOrder.status == OrderStatus.onTheWay)) ...[
+                  _CashCollectBanner(order: focusOrder),
+                  const SizedBox(height: 16),
+                ],
+
                 // "Ver compras" button — pickup phase only, if order has items
                 if (focusOrder.items.isNotEmpty &&
                     (focusOrder.status == OrderStatus.driverAccepted ||
@@ -2053,6 +2063,82 @@ class _FinalizedBanner extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+
+/// BUG 9 (2026-05-15) — banner persistente "RECEBER €X" durante a entrega
+/// para qualquer pedido cash. Distinto de _FinalizedBanner (storeShopping V2).
+/// Texto diferenciado:
+///   - Parceiro: "RECEBER €X — entregar ao parceiro"
+///   - Não-parceiro: "RECEBER €X EM DINHEIRO"
+/// Instanciado a partir de pickedUp (estafeta já recolheu o pedido).
+class _CashCollectBanner extends StatelessWidget {
+  const _CashCollectBanner({required this.order});
+
+  final OrderModel order;
+
+  @override
+  Widget build(BuildContext context) {
+    if (order.paymentMethod != PaymentMethod.cash) {
+      return const SizedBox.shrink();
+    }
+    final amount = order.totalToCollectCash;
+    final hasDebt = order.hasCashDebt;
+    final debtEur = order.debtCollectedCents / 100.0;
+    final isPartner = order.isPartnerStore;
+    final mainText = isPartner
+        ? 'RECEBER €${amount.toStringAsFixed(2)} — entregar ao parceiro'
+        : 'RECEBER €${amount.toStringAsFixed(2)} EM DINHEIRO';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE65100),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x33000000),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          const Text('💵', style: TextStyle(fontSize: 28)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  mainText,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 20,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+                if (hasDebt) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'inclui +€${debtEur.toStringAsFixed(2)} de dívida anterior',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class _ApartmentDeliveryBanner extends StatelessWidget {
   const _ApartmentDeliveryBanner();

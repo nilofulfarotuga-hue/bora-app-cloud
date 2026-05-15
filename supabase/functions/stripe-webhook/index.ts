@@ -53,6 +53,31 @@ Deno.serve(async (req: Request) => {
     case 'payment_intent.succeeded': {
       const intent = event.data.object as Stripe.PaymentIntent;
 
+      // ⭐ NOVO v24 (2026-05-15 BUG 1+2 reservas) — reservation_prepayment
+      // Confirma reserva pending_payment → pending via RPC idempotente.
+      // Termina aqui (não processar como order). Lock + PI validation no RPC.
+      // Notificação parceiro tratada por client_confirm_reservation_payment
+      // (fallback Flutter chamado pós-PaymentSheet). Este webhook é defesa.
+      if (intent.metadata?.purpose === 'reservation_prepayment') {
+        const reservationId = intent.metadata?.reservation_id;
+        if (reservationId) {
+          const { data, error } = await supabase.rpc(
+            'confirm_reservation_payment_webhook',
+            { p_reservation_id: reservationId, p_payment_intent_id: intent.id },
+          );
+          if (error) {
+            console.error('[stripe-webhook] reservation confirm failed:',
+              error.message, intent.id);
+          } else {
+            console.log('[stripe-webhook] reservation confirmed:', data, intent.id);
+          }
+        } else {
+          console.error('[stripe-webhook] reservation_prepayment missing reservation_id:',
+            intent.id);
+        }
+        break;
+      }
+
       // ⭐ NOVO v23 (2026-05-12 BUG #1 frontend) — debt settle via metadata
       const debtSettleCents = parseInt(intent.metadata?.debt_settle_cents ?? '0');
       const piUserId = intent.metadata?.user_id;
@@ -176,6 +201,30 @@ Deno.serve(async (req: Request) => {
     case 'payment_intent.payment_failed':
     case 'payment_intent.canceled': {
       const intent = event.data.object as Stripe.PaymentIntent;
+
+      // ⭐ NOVO v24 (2026-05-15 BUG 1+2 reservas) — reservation orphan cleanup
+      // Apaga reserva pending_payment quando o utilizador cancela o
+      // PaymentSheet ou a cobrança falha. Idempotente (DELETE).
+      if (intent.metadata?.purpose === 'reservation_prepayment') {
+        const reservationId = intent.metadata?.reservation_id;
+        if (reservationId) {
+          const reason = event.type === 'payment_intent.canceled'
+            ? 'user_canceled' : 'payment_failed';
+          const { data, error } = await supabase.rpc('cancel_orphan_reservation', {
+            p_reservation_id: reservationId,
+            p_payment_intent_id: intent.id,
+            p_reason: reason,
+          });
+          if (error) {
+            console.error('[stripe-webhook] reservation cancel failed:',
+              error.message, intent.id);
+          } else {
+            console.log('[stripe-webhook] reservation orphan cleanup:', data, intent.id);
+          }
+        }
+        break;
+      }
+
       const draft_id = intent.metadata?.draft_id;
       const order_id = intent.metadata?.order_id;
       const failureMsg = intent.last_payment_error?.message ?? event.type;

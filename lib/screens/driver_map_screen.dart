@@ -1951,11 +1951,15 @@ class _FinalizedBanner extends StatelessWidget {
     final isCash = order.paymentMethod == PaymentMethod.cash;
     // Sessão 3: cash_total_due acumula extras pós-finalização (ex.: sacos
     // mercado a €0.10/saco). NULL → usar finalTotal como fallback histórico.
-    final amountToCollect = order.cashTotalDue ?? finalTotal;
+    // BUG 8 (2026-05-15): usar getter totalToCollectCash que SOMA debt_collected_cents
+    // (dívida prévia da wallet que cliente paga ao estafeta em cash).
+    final amountToCollect = order.totalToCollectCash;
     final hasBagSurcharge =
         order.cashTotalDue != null && order.cashTotalDue! > finalTotal;
     final bagSurcharge =
         hasBagSurcharge ? order.cashTotalDue! - finalTotal : 0.0;
+    final hasCashDebt = order.hasCashDebt;
+    final debtEur = order.debtCollectedCents / 100.0;
 
     if (isCash) {
       // BUG 32: aviso GRANDE para o estafeta cobrar antes de entregar.
@@ -1995,6 +1999,17 @@ class _FinalizedBanner extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       'inclui +€${bagSurcharge.toStringAsFixed(2)} de sacos',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                  if (hasCashDebt) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'inclui +€${debtEur.toStringAsFixed(2)} de dívida anterior',
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w600,

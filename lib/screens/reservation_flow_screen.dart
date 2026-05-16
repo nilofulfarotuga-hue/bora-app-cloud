@@ -110,9 +110,10 @@ class _ReservationFlowScreenState extends State<ReservationFlowScreen> {
   Future<void> _payWithCard() async {
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
+    final client = Supabase.instance.client;
+    String? reservationId;
+    String? paymentIntentId;
     try {
-      final client = Supabase.instance.client;
-
       // T2.E (BR §18): Edge Fn v9 cria reservation pending_payment + PI card-only.
       final res = await client.functions.invoke(
         'create-reservation-payment-intent',
@@ -131,7 +132,9 @@ class _ReservationFlowScreenState extends State<ReservationFlowScreen> {
       }
       final data = (res.data as Map).cast<String, dynamic>();
       final clientSecret = data['clientSecret'] as String;
-      final reservationId = data['reservation_id'] as String;
+      reservationId = data['reservation_id'] as String;
+      // Stripe clientSecret format: pi_xxx_secret_yyy → extract PI id for cleanup.
+      paymentIntentId = clientSecret.split('_secret_').first;
 
       await Stripe.instance.initPaymentSheet(
         paymentSheetParameters: SetupPaymentSheetParameters(
@@ -157,10 +160,41 @@ class _ReservationFlowScreenState extends State<ReservationFlowScreen> {
                 'Reserva criada (€3 ringfenced). Aguarda confirmação do restaurante.')),
       );
       navigator.pop(true);
-    } catch (e) {
+    } on StripeException catch (e) {
+      if (e.error.code == FailureCode.Canceled) {
+        // Cancelamento intencional — limpar reserva órfã pending_payment.
+        if (reservationId != null && paymentIntentId != null) {
+          try {
+            await client.rpc('cancel_orphan_reservation', params: {
+              'p_reservation_id': reservationId,
+              'p_payment_intent_id': paymentIntentId,
+              'p_reason': 'user_canceled',
+            });
+          } catch (_) {
+            // Best-effort. Webhook fará cleanup quando Stripe cancelar o PI.
+          }
+        }
+        if (!mounted) return;
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Pagamento cancelado.')),
+        );
+        return;
+      }
       if (!mounted) return;
       messenger.showSnackBar(
-        SnackBar(content: Text('Erro ao reservar: $e')),
+        SnackBar(
+          content: Text(
+              e.error.localizedMessage ?? 'Erro no pagamento. Tenta de novo.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Erro ao reservar. Tenta de novo.'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -224,10 +258,28 @@ class _ReservationFlowScreenState extends State<ReservationFlowScreen> {
                 'Reserva criada (€3 ringfenced). Aguarda confirmação do restaurante.')),
       );
       navigator.pop(true);
-    } catch (e) {
+    } on StripeException catch (e) {
+      if (!mounted) return;
+      if (e.error.code == FailureCode.Canceled) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Pagamento cancelado.')),
+        );
+        return;
+      }
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+              e.error.localizedMessage ?? 'Erro no pagamento. Tenta de novo.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } catch (_) {
       if (!mounted) return;
       messenger.showSnackBar(
-        SnackBar(content: Text('Erro ao reservar: $e')),
+        const SnackBar(
+          content: Text('Erro ao reservar. Tenta de novo.'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }

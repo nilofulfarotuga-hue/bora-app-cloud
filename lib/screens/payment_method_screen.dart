@@ -11,7 +11,7 @@ import '../config/business_rules.dart' show BRTokens;
 import '../models/order_model.dart';
 import '../stores/cart_store.dart';
 import '../stores/order_store.dart';
-import 'package:flutter_stripe/flutter_stripe.dart' show StripeException;
+import 'package:flutter_stripe/flutter_stripe.dart' show StripeException, FailureCode;
 
 import '../models/saved_card.dart';
 import '../services/payment_service.dart';
@@ -692,9 +692,19 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
             '[Checkout] card cancelled/declined: ${e.error.localizedMessage}');
         // BUG 1 fix: NO order to clean up — webhook deletes draft on
         // payment_intent.canceled / payment_failed. App-side: just dismiss.
-        messenger.showSnackBar(
-          const SnackBar(content: Text('Pagamento cancelado. Sem cobrança.')),
-        );
+        if (e.error.code == FailureCode.Canceled) {
+          messenger.showSnackBar(
+            const SnackBar(content: Text('Pagamento cancelado. Sem cobrança.')),
+          );
+        } else {
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text(
+                  e.error.localizedMessage ?? 'Pagamento recusado. Tenta de novo.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
         return;
       } catch (e) {
         if (!mounted) return;

@@ -215,6 +215,22 @@ class NotificationService {
     } catch (e) {
       debugPrint('[NotificationService] saveTokenForPartner error: $e');
     }
+
+    final authUid = Supabase.instance.client.auth.currentUser?.id;
+    if (authUid != null) {
+      try {
+        await Supabase.instance.client
+            .from('partner_push_tokens')
+            .upsert({
+          'partner_id': authUid,
+          'fcm_token': token,
+          'last_used_at': DateTime.now().toUtc().toIso8601String(),
+        }, onConflict: 'partner_id, fcm_token');
+      } catch (e) {
+        debugPrint(
+            '[NotificationService] partner_push_tokens upsert error: $e');
+      }
+    }
   }
 
   /// Clears the FCM token from DB for the currently bound user.

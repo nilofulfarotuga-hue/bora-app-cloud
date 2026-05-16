@@ -754,9 +754,33 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
       }
     });
 
-    final nextAction = focusOrder != null
-        ? resolveDriverOrderAction(orderStore, focusOrder)
-        : null;
+    // BUG-STACKING-BOTAO (2026-05-16): with multiple stacked orders, a single
+    // `nextAction` tied to focusOrder could be null (e.g. focusOrder is a
+    // delivery for an already-picked-up order while another order still waits
+    // for pickup) → driver had no button to advance the pending pickup.
+    // Build one action per pending order, ordered by RouteOptimizer
+    // (pickups first, then deliveries per business_rules.md §6.6).
+    final pendingActions =
+        <({OrderModel order, DriverOrderAction action})>[];
+    final seenOrderIds = <String>{};
+    for (final stop in optimizedRoute.stops) {
+      if (seenOrderIds.contains(stop.orderId)) continue;
+      final candidates = myOrders.where((x) => x.id == stop.orderId);
+      if (candidates.isEmpty) continue;
+      final o = candidates.first;
+      seenOrderIds.add(o.id);
+      final a = resolveDriverOrderAction(orderStore, o);
+      if (a == null) continue;
+      pendingActions.add((order: o, action: a));
+    }
+    if (pendingActions.isEmpty && focusOrder != null) {
+      final a = resolveDriverOrderAction(orderStore, focusOrder);
+      if (a != null) {
+        pendingActions.add((order: focusOrder, action: a));
+      }
+    }
+    final nextAction =
+        pendingActions.isNotEmpty ? pendingActions.first.action : null;
     final topPadding = MediaQuery.of(context).padding.top;
 
     return Scaffold(
@@ -844,6 +868,7 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
                     orders: myOrders,
                     driverPosition: displayPosition,
                     nextAction: nextAction,
+                    pendingActions: pendingActions,
                     routeDurationMinutes: _routeDurationMinutes,
                   ),
                 );
@@ -1014,6 +1039,7 @@ class _BottomPanel extends StatefulWidget {
     required this.orders,
     required this.driverPosition,
     required this.nextAction,
+    required this.pendingActions,
     this.routeDurationMinutes,
   });
 
@@ -1023,6 +1049,7 @@ class _BottomPanel extends StatefulWidget {
   final List<OrderModel> orders;
   final ll.LatLng? driverPosition;
   final DriverOrderAction? nextAction;
+  final List<({OrderModel order, DriverOrderAction action})> pendingActions;
   final double? routeDurationMinutes;
 
   @override
@@ -1169,11 +1196,87 @@ class _BottomPanelState extends State<_BottomPanel> {
     );
   }
 
+  // BUG-STACKING-BOTAO (2026-05-16): per-order action button.
+  // Each entry in widget.pendingActions renders one of these. `showVendor`
+  // appends " — <vendor>" to the label so the driver can tell apart multiple
+  // stacked orders. `_isLoading` is shared across buttons (driver can only
+  // execute one action at a time).
+  Widget _buildActionButton({
+    required ({OrderModel order, DriverOrderAction action}) entry,
+    required bool showVendor,
+  }) {
+    final order = entry.order;
+    final action = entry.action;
+    final vendor =
+        (order.vendorName?.trim().isNotEmpty ?? false)
+            ? order.vendorName!.trim()
+            : order.serviceType.label;
+    final label = showVendor ? '${action.label} — $vendor' : action.label;
+    return ElevatedButton(
+      onPressed: _isLoading
+          ? null
+          : () async {
+              final willFinish = order.status == OrderStatus.onTheWay;
+              // BUG 33: cash skips the 4-digit code (driver receives physical
+              // cash = real validation). Card/MBWay still require code.
+              final isCash = order.paymentMethod == PaymentMethod.cash;
+              if (willFinish && !isCash) {
+                await _showDeliveryCodeDialog(action);
+                return;
+              }
+              final messenger = ScaffoldMessenger.of(context);
+              final nav = Navigator.of(context);
+              setState(() => _isLoading = true);
+              final success = await action.execute();
+              if (success) {
+                if (mounted) setState(() => _isLoading = false);
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text(action.successMessage),
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+                // BUG 5 — pós Concluir entrega volta para home estafeta em vez
+                // de ficar na tela detail vazia. Só pop quando NÃO há mais
+                // pedidos activos; com stacking, ficar no mapa.
+                if (willFinish && mounted && widget.orders.length <= 1) {
+                  nav.popUntil((route) => route.isFirst);
+                }
+              } else {
+                if (mounted) setState(() => _isLoading = false);
+                messenger.showSnackBar(
+                  const SnackBar(
+                    content: Text('Não foi possível atualizar o pedido.'),
+                  ),
+                );
+              }
+            },
+      style: ElevatedButton.styleFrom(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 14),
+      ),
+      child: _isLoading
+          ? const SizedBox(
+              height: 18,
+              width: 18,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.white,
+              ),
+            )
+          : Text(
+              label,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final focusOrder = widget.focusOrder;
     final nextStop = widget.nextStop;
-    final nextAction = widget.nextAction;
     final eta = widget.routeDurationMinutes != null
         ? '${widget.routeDurationMinutes!.round()} min'
         : null;
@@ -1318,10 +1421,47 @@ class _BottomPanelState extends State<_BottomPanel> {
                   const SizedBox(height: 12),
                 ],
 
-                // Action buttons row
-                Row(
-                  children: [
-                    OutlinedButton.icon(
+                // Action buttons — one per pending order.
+                // Single-pending layout = Navegar + Expanded(action) inline
+                // (identical to pre-2026-05-16 behaviour). Multi-pending
+                // layout = Navegar full-width on top, one labelled button per
+                // pending order below. Empty list = Navegar only.
+                if (widget.pendingActions.length <= 1) ...[
+                  Row(
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: nextStop == null
+                            ? null
+                            : () => NavigationService.openNavigationOptions(
+                                  context,
+                                  nextStop.location,
+                                ),
+                        icon:
+                            const Icon(Icons.navigation_outlined, size: 18),
+                        label: const Text('Navegar'),
+                        style: OutlinedButton.styleFrom(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 12),
+                        ),
+                      ),
+                      if (widget.pendingActions.isNotEmpty) ...[
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildActionButton(
+                            entry: widget.pendingActions.first,
+                            showVendor: false,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ] else ...[
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
                       onPressed: nextStop == null
                           ? null
                           : () => NavigationService.openNavigationOptions(
@@ -1334,94 +1474,19 @@ class _BottomPanelState extends State<_BottomPanel> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 12),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
                     ),
-                    if (nextAction != null) ...[
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: _isLoading
-                              ? null
-                              : () async {
-                                  // Capture before async gap: the widget may be
-                                  // disposed when finishOrder removes it from
-                                  // myOrders, making mounted == false too early.
-                                  final action = nextAction;
-                                  final willFinish =
-                                      widget.focusOrder?.status ==
-                                          OrderStatus.onTheWay;
-
-                                  // BUG 33: cash skips the 4-digit code
-                                  // (driver receives physical cash = real
-                                  // validation). Card/MBWay still require code.
-                                  final isCash = widget.focusOrder
-                                          ?.paymentMethod ==
-                                      PaymentMethod.cash;
-                                  if (willFinish && !isCash) {
-                                    await _showDeliveryCodeDialog(action);
-                                    return;
-                                  }
-
-                                  final messenger =
-                                      ScaffoldMessenger.of(context);
-                                  final nav = Navigator.of(context);
-                                  setState(() => _isLoading = true);
-                                  final success = await action.execute();
-                                  if (success) {
-                                    if (mounted) {
-                                      setState(() => _isLoading = false);
-                                    }
-                                    messenger.showSnackBar(
-                                      SnackBar(
-                                        content: Text(action.successMessage),
-                                        duration: const Duration(seconds: 2),
-                                      ),
-                                    );
-                                    // BUG 5 — pós Concluir entrega volta para
-                                    // home estafeta em vez de ficar na tela
-                                    // detail vazia.
-                                    if (willFinish && mounted) {
-                                      nav.popUntil((route) => route.isFirst);
-                                    }
-                                  } else {
-                                    if (mounted) {
-                                      setState(() => _isLoading = false);
-                                    }
-                                    messenger.showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                            'Não foi possível atualizar o pedido.'),
-                                      ),
-                                    );
-                                  }
-                                },
-                          style: ElevatedButton.styleFrom(
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                          ),
-                          child: _isLoading
-                              ? const SizedBox(
-                                  height: 18,
-                                  width: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : Text(
-                                  nextAction.label,
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.w600),
-                                ),
-                        ),
-                      ),
-                    ],
+                  ),
+                  for (final entry in widget.pendingActions) ...[
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child:
+                          _buildActionButton(entry: entry, showVendor: true),
+                    ),
                   ],
-                ),
+                ],
               ] else ...[
                 // No order accepted — show empty map message
                 Center(

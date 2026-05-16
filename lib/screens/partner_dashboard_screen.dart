@@ -16,6 +16,7 @@ import 'chat_screen.dart';
 import '../stores/order_store.dart';
 import '../stores/partner_product_store.dart';
 import '../stores/restaurant_store.dart';
+import '../services/notification_service.dart';
 import '../services/sound_service.dart';
 import '../stores/session_store.dart';
 import '../widgets/address_text.dart';
@@ -72,6 +73,12 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
       // pode trazer rows que já passaram o limite enquanto a app estava
       // fechada).
       unawaited(_checkPendingDispatchDecisions());
+      // Defensive FCM token re-register on every dashboard boot.
+      // Garante registo mesmo se partner_login_screen.saveTokenForPartner
+      // falhou (token ainda não disponível na altura do login).
+      NotificationService.instance
+          .saveTokenForPartner(widget.restaurant.id)
+          .ignore();
     });
   }
 

@@ -610,9 +610,25 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
     final nextStop =
         optimizedRoute.stops.isNotEmpty ? optimizedRoute.stops.first : null;
 
-    // Focus order: the order whose next stop comes first.
-    // If no orders, focusOrder is null (will render empty map).
-    final focusOrder = myOrders.isNotEmpty
+    // D1 (2026-05-16): focusOrder = primeiro pedido com acção pendente,
+    // ordenado pela RouteOptimizer (pickups primeiro, dropoffs depois).
+    // Antes era "primeiro stop optimizado" — mas com stacking esse stop podia
+    // ser uma entrega de pedido already-picked-up (mais próximo do estafeta),
+    // deixando Chat / Notas / Apartment-banner a referenciar um pedido sem
+    // acção activa. business_rules.md §6.6 + §7.x.
+    OrderModel? focusOrder;
+    for (final stop in optimizedRoute.stops) {
+      final candidates = myOrders.where((o) => o.id == stop.orderId);
+      if (candidates.isEmpty) continue;
+      final o = candidates.first;
+      if (resolveDriverOrderAction(orderStore, o) != null) {
+        focusOrder = o;
+        break;
+      }
+    }
+    // Fallback: nenhum pedido com acção pendente → usar o pedido cuja paragem
+    // é primeira (ou o primeiro pedido na lista).
+    focusOrder ??= myOrders.isNotEmpty
         ? (nextStop != null
             ? myOrders.firstWhere(
                 (o) => o.id == nextStop.orderId,
@@ -1525,62 +1541,66 @@ class _BottomPanelState extends State<_BottomPanel> {
                   _FinalizedBanner(order: o),
                 ],
 
-                // Chat + Call buttons — always visible for active single orders
-                if (!_isMultiStop) ...[
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
+                // Chat + Call buttons — visible whenever there's a focusOrder.
+                // BUG-STACKING-CHAT (2026-05-16): previously gated by
+                // `!_isMultiStop` which silently dropped contact buttons as
+                // soon as the driver had 2+ stacked orders. Now tied to
+                // focusOrder (the order with the next pending action).
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ChatScreen(
+                              order: focusOrder,
+                              senderType: ChatSenderType.driver,
+                            ),
+                          ),
+                        ),
+                        icon: const Icon(Icons.chat_bubble_outline),
+                        label: const Text('Chat'),
+                      ),
+                    ),
+                    // FASE 5: tel: link directo. Twilio masking
+                    // post-launch (anotado em todos-pos-launch.md).
+                    if (focusOrder.clientPhone != null &&
+                        focusOrder.clientPhone!.trim().isNotEmpty) ...[
+                      const SizedBox(width: 8),
                       Expanded(
                         child: OutlinedButton.icon(
-                          onPressed: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => ChatScreen(
-                                order: focusOrder,
-                                senderType: ChatSenderType.driver,
-                              ),
-                            ),
+                          onPressed: () async {
+                            final tel = focusOrder.clientPhone!.trim();
+                            final uri = Uri.parse('tel:$tel');
+                            try {
+                              await launchUrl(uri);
+                            } catch (e) {
+                              if (!context.mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Não foi possível ligar: $e')),
+                              );
+                            }
+                          },
+                          icon: const Icon(Icons.phone_outlined),
+                          label: const Text('Ligar'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.green.shade700,
+                            side: BorderSide(color: Colors.green.shade300),
                           ),
-                          icon: const Icon(Icons.chat_bubble_outline),
-                          label: const Text('Chat'),
                         ),
                       ),
-                      // FASE 5: tel: link directo. Twilio masking
-                      // post-launch (anotado em todos-pos-launch.md).
-                      if (focusOrder.clientPhone != null &&
-                          focusOrder.clientPhone!.trim().isNotEmpty) ...[
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () async {
-                              final tel = focusOrder.clientPhone!.trim();
-                              final uri = Uri.parse('tel:$tel');
-                              try {
-                                await launchUrl(uri);
-                              } catch (e) {
-                                if (!context.mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Não foi possível ligar: $e')),
-                                );
-                              }
-                            },
-                            icon: const Icon(Icons.phone_outlined),
-                            label: const Text('Ligar'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.green.shade700,
-                              side: BorderSide(color: Colors.green.shade300),
-                            ),
-                          ),
-                        ),
-                      ],
                     ],
-                  ),
-                ],
+                  ],
+                ),
               ],
 
-              // Customer notes (single order only — too noisy for multi)
-              if (!_isMultiStop &&
-                  focusOrder != null &&
+              // Customer notes — tied to focusOrder (the order with the next
+              // pending action). BUG-STACKING-NOTES (2026-05-16): removed
+              // `!_isMultiStop` guard that previously hid the customer note
+              // entirely once the driver had 2+ stacked orders.
+              if (focusOrder != null &&
                   focusOrder.customerNotes != null &&
                   focusOrder.customerNotes!.isNotEmpty) ...[
                 const SizedBox(height: 12),
@@ -1609,8 +1629,9 @@ class _BottomPanelState extends State<_BottomPanel> {
                 ),
               ],
 
-              if (!_isMultiStop &&
-                  focusOrder != null &&
+              // Apartment delivery banner — tied to focusOrder.
+              // BUG-STACKING-APT (2026-05-16): removed `!_isMultiStop` guard.
+              if (focusOrder != null &&
                   focusOrder.apartmentDelivery) ...[
                 const SizedBox(height: 12),
                 const _ApartmentDeliveryBanner(),

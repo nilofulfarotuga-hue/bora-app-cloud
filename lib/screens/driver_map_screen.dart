@@ -1959,80 +1959,12 @@ class _FinalizedBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final finalTotal = order.finalTotal ?? 0;
     final isCash = order.paymentMethod == PaymentMethod.cash;
-    // Sessão 3: cash_total_due acumula extras pós-finalização (ex.: sacos
-    // mercado a €0.10/saco). NULL → usar finalTotal como fallback histórico.
-    // BUG 8 (2026-05-15): usar getter totalToCollectCash que SOMA debt_collected_cents
-    // (dívida prévia da wallet que cliente paga ao estafeta em cash).
-    final amountToCollect = order.totalToCollectCash;
-    final hasBagSurcharge =
-        order.cashTotalDue != null && order.cashTotalDue! > finalTotal;
-    final bagSurcharge =
-        hasBagSurcharge ? order.cashTotalDue! - finalTotal : 0.0;
-    final hasCashDebt = order.hasCashDebt;
-    final debtEur = order.debtCollectedCents / 100.0;
 
     if (isCash) {
-      // BUG 32: aviso GRANDE para o estafeta cobrar antes de entregar.
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        decoration: BoxDecoration(
-          color: const Color(0xFFE65100),
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x33000000),
-              blurRadius: 8,
-              offset: Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            const Text('💵', style: TextStyle(fontSize: 28)),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'RECEBER €${amountToCollect.toStringAsFixed(2)} EM DINHEIRO',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 22,
-                      letterSpacing: 0.3,
-                    ),
-                  ),
-                  if (hasBagSurcharge) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      'inclui +€${bagSurcharge.toStringAsFixed(2)} de sacos',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
-                  if (hasCashDebt) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      'inclui +€${debtEur.toStringAsFixed(2)} de dívida anterior',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ),
-      );
+      // 2026-05-16: banner cash legacy (BUG 32) removido — _CashCollectBanner
+      // já cobre esta responsabilidade (parceiro + não-parceiro). Evita duplo
+      // "RECEBER €X EM DINHEIRO" no widget tree.
+      return const SizedBox.shrink();
     }
 
     return Container(
@@ -2550,7 +2482,8 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                                 ),
                               ],
                             ),
-                            if (isPending) ...[
+                            // Partner stores: read-only list (driver only picks up).
+                            if (!_isPartnerStore && isPending) ...[
                               const SizedBox(height: 8),
                               Row(
                                 children: [
@@ -2621,30 +2554,31 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
               const SizedBox(height: 8),
               const Divider(height: 1),
               const SizedBox(height: 12),
-              // ── Add product button ──
-              Center(
-                child: OutlinedButton.icon(
-                  onPressed: () async {
-                    final newItem = await _showAddProductDialog();
-                    if (newItem != null && mounted) {
-                      setState(() {
-                        _items.add(newItem);
-                      });
-                    }
-                  },
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Adicionar produto'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.green.shade700,
-                    side: BorderSide(color: Colors.green.shade700),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+              // ── Add product button (only for non-partner storeShopping) ──
+              if (!_isPartnerStore)
+                Center(
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      final newItem = await _showAddProductDialog();
+                      if (newItem != null && mounted) {
+                        setState(() {
+                          _items.add(newItem);
+                        });
+                      }
+                    },
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('Adicionar produto'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.green.shade700,
+                      side: BorderSide(color: Colors.green.shade700),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
                     ),
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   ),
                 ),
-              ),
               // ── Bags section ──
               // BUG 4: partner restaurant absorbs the bag (hide section).
               // Non-partner restaurant: fixed €0.30. storeShopping: per-bag slider.

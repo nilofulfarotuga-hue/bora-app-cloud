@@ -940,7 +940,7 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
                 ],
               ),
             ),
-            if ((order.clientPhone ?? '').isNotEmpty) ...[
+            if ((order.clientPhone ?? '').isNotEmpty)
               IconButton(
                 icon: const Icon(Icons.phone, size: 20),
                 tooltip: 'Ligar cliente',
@@ -951,20 +951,20 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
                   }
                 },
               ),
-              IconButton(
-                icon: const Icon(Icons.chat_bubble_outline, size: 20),
-                tooltip: 'Chat cliente',
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => ChatScreen(
-                      order: order,
-                      senderType: ChatSenderType.client,
-                    ),
+            // Chat — sempre visível (não precisa de telefone).
+            IconButton(
+              icon: const Icon(Icons.chat_bubble_outline, size: 20),
+              tooltip: 'Chat cliente',
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ChatScreen(
+                    order: order,
+                    senderType: ChatSenderType.client,
                   ),
                 ),
               ),
-            ],
+            ),
           ],
         ),
         // ── Estafeta (aparece após aceitação) ────────────────────────────
@@ -991,7 +991,7 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
                   ],
                 ),
               ),
-              if ((order.driverPhone ?? '').isNotEmpty) ...[
+              if ((order.driverPhone ?? '').isNotEmpty)
                 IconButton(
                   icon: const Icon(Icons.phone, size: 20),
                   tooltip: 'Ligar estafeta',
@@ -1003,20 +1003,20 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
                     }
                   },
                 ),
-                IconButton(
-                  icon: const Icon(Icons.chat_bubble_outline, size: 20),
-                  tooltip: 'Chat estafeta',
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ChatScreen(
-                        order: order,
-                        senderType: ChatSenderType.driver,
-                      ),
+              // Chat — sempre visível (não precisa de telefone).
+              IconButton(
+                icon: const Icon(Icons.chat_bubble_outline, size: 20),
+                tooltip: 'Chat estafeta',
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ChatScreen(
+                      order: order,
+                      senderType: ChatSenderType.driver,
                     ),
                   ),
                 ),
-              ],
+              ),
             ],
           ),
         ],

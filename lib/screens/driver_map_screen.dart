@@ -1506,22 +1506,23 @@ class _BottomPanelState extends State<_BottomPanel> {
 
               // If focusOrder is available: show finalize/chat sections
               if (focusOrder != null) ...[
-                // Finalize purchase — only for orders where driver buys goods.
-                // Available from driverAccepted onwards so the driver can
-                // finalize BEFORE confirming pickup (Confirmar recolha is
-                // hidden while !isPurchaseFinalized in driverAccepted).
-                if (!_isMultiStop &&
-                    !focusOrder.isPartnerStore &&
-                    (focusOrder.serviceType == OrderServiceType.storeShopping ||
-                        focusOrder.serviceType ==
-                            OrderServiceType.restaurant) &&
-                    (focusOrder.status == OrderStatus.driverAccepted ||
-                        focusOrder.status == OrderStatus.pickedUp ||
-                        focusOrder.status == OrderStatus.onTheWay)) ...[
+                // BUG-STACKING-FINALIZED (2026-05-16): with 2+ stacked orders
+                // the previous `!_isMultiStop` guard hid the FinalizedBanner
+                // for non-partner orders entirely — driver lost confirmation
+                // that the purchase reconcile had succeeded. Iterate every
+                // active non-partner shopping/restaurant order and render
+                // its own banner.
+                for (final o in widget.orders.where((x) =>
+                    !x.isPartnerStore &&
+                    (x.serviceType == OrderServiceType.storeShopping ||
+                        x.serviceType == OrderServiceType.restaurant) &&
+                    (x.status == OrderStatus.driverAccepted ||
+                        x.status == OrderStatus.pickedUp ||
+                        x.status == OrderStatus.onTheWay) &&
+                    x.isPurchaseFinalized &&
+                    x.finalTotal != null)) ...[
                   const SizedBox(height: 12),
-                  if (focusOrder.isPurchaseFinalized &&
-                      focusOrder.finalTotal != null)
-                    _FinalizedBanner(order: focusOrder),
+                  _FinalizedBanner(order: o),
                 ],
 
                 // Chat + Call buttons — always visible for active single orders

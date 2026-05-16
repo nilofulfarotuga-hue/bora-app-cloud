@@ -1859,6 +1859,22 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       return;
     }
 
+    // BUG-STACKING-OFFER (2026-05-16): the DB trigger
+    // `recalc_driver_earnings_on_stack` only fires AFTER assignment
+    // (assigned_driver_id NULL → driver_id), so at offer time
+    // `order.driverEarnings` still holds the single-order value (eg €4.00 /
+    // €5.35) instead of the canonical stacked bonus. Replicate the formula
+    // here so the driver sees the correct value BEFORE accepting.
+    // Source: business_rules.md §2.2 + §6.4. Mirrors pricing_calculate()
+    // partner branch + recalc_driver_earnings_on_stack RPC.
+    //   Partner stacked:     €3.00 + apt_driver_share
+    //   Non-partner stacked: €3.00 + 0.30 × platform_commission + apt_driver_share
+    //   apt_driver_share:    €1.00 when order.apartmentDelivery else €0.00
+    final apartmentDriverShare = order.apartmentDelivery ? 1.00 : 0.0;
+    final stackedEarnings = order.isPartnerStore
+        ? 3.00 + apartmentDriverShare
+        : 3.00 + (0.30 * order.platformCommission) + apartmentDriverShare;
+
     // Double guard: multiple post-frame callbacks can queue before the first
     // flips _isShowingDialog. Re-check on entry so only ONE offer dialog is
     // ever visible. Second offer is DISCARDED (not queued) — the offers
@@ -1945,7 +1961,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                           color: Colors.orange.shade900, size: 20),
                       const SizedBox(width: 8),
                       Text(
-                        '+€${order.driverEarnings.toStringAsFixed(2)}',
+                        '+€${stackedEarnings.toStringAsFixed(2)}',
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w800,
@@ -2038,7 +2054,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                 onPressed: () =>
                     Navigator.of(dialogCtx, rootNavigator: true).pop('accept'),
                 child: Text(
-                    'Aceitar · +€${order.driverEarnings.toStringAsFixed(2)}'),
+                    'Aceitar · +€${stackedEarnings.toStringAsFixed(2)}'),
               ),
             ],
           ),

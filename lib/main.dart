@@ -216,6 +216,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         ),
       ],
       child: MaterialApp(
+        navigatorKey: NotificationService.navigatorKey,
         debugShowCheckedModeBanner: false,
         title: 'BORA APP',
         theme: AppTheme.lightTheme,

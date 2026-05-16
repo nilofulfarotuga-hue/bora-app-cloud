@@ -1,10 +1,16 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../models/chat_message.dart';
+import '../models/order_model.dart';
+import '../screens/chat_screen.dart';
 import 'push_token_service.dart';
 import 'sound_service.dart';
 
@@ -34,6 +40,8 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 class NotificationService {
   NotificationService._();
   static final NotificationService instance = NotificationService._();
+
+  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
   final _sound = SoundService();
   bool _initialized = false;
@@ -121,6 +129,10 @@ class NotificationService {
         '[NotificationService FG] ${msg.notification?.title} — ${msg.notification?.body}',
       );
       if (msg.data['type'] == 'new_order') return;
+      if (msg.data['type'] == 'chat') {
+        _showChatBanner(msg);
+        return;
+      }
       _sound.playOnce();
     });
 
@@ -440,9 +452,182 @@ class NotificationService {
     }
   }
 
+  // ── Foreground chat banner ────────────────────────────────────────────────
+
+  void _showChatBanner(RemoteMessage message) {
+    final overlayState = navigatorKey.currentState?.overlay;
+    if (overlayState == null) return;
+
+    final title = message.notification?.title ?? '💬 Nova mensagem';
+    final body = message.notification?.body ?? '';
+    final orderId = message.data['order_id'] as String?;
+
+    late OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (ctx) => _ChatBannerWidget(
+        title: title,
+        body: body,
+        onTap: () {
+          entry.remove();
+          if (orderId != null) _openChat(orderId);
+        },
+        onDismiss: () => entry.remove(),
+      ),
+    );
+    overlayState.insert(entry);
+    SystemSound.play(SystemSoundType.click);
+  }
+
+  void _openChat(String orderId) async {
+    final senderType = switch (_boundRole) {
+      'client' => ChatSenderType.client,
+      'driver' => ChatSenderType.driver,
+      'partner' => ChatSenderType.partner,
+      _ => null,
+    };
+    if (senderType == null) return;
+
+    final ctx = navigatorKey.currentContext;
+    if (ctx == null) return;
+
+    try {
+      final data = await Supabase.instance.client
+          .from('orders')
+          .select()
+          .eq('id', orderId)
+          .maybeSingle();
+      if (data == null || !ctx.mounted) return;
+      final order = OrderModel.fromSupabase(data);
+      Navigator.of(ctx).push(MaterialPageRoute<void>(
+        builder: (_) => ChatScreen(order: order, senderType: senderType),
+      ));
+    } catch (e) {
+      debugPrint('[NotificationService] _openChat error: $e');
+    }
+  }
+
   // ── Dispose ───────────────────────────────────────────────────────────────
 
   void dispose() {
     _sound.dispose();
+  }
+}
+
+// ── Chat banner widget ────────────────────────────────────────────────────────
+
+class _ChatBannerWidget extends StatefulWidget {
+  const _ChatBannerWidget({
+    required this.title,
+    required this.body,
+    required this.onTap,
+    required this.onDismiss,
+  });
+
+  final String title;
+  final String body;
+  final VoidCallback onTap;
+  final VoidCallback onDismiss;
+
+  @override
+  State<_ChatBannerWidget> createState() => _ChatBannerWidgetState();
+}
+
+class _ChatBannerWidgetState extends State<_ChatBannerWidget>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<Offset> _slide;
+  late final Animation<double> _fade;
+  bool _dismissed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 280),
+    );
+    _slide = Tween<Offset>(
+      begin: const Offset(0, -1),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
+    _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeIn);
+    _ctrl.forward();
+    Future.delayed(const Duration(seconds: 4), _dismiss);
+  }
+
+  void _dismiss() async {
+    if (_dismissed || !mounted) return;
+    _dismissed = true;
+    await _ctrl.reverse();
+    widget.onDismiss();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final topPadding = MediaQuery.of(context).padding.top;
+    return Positioned(
+      top: topPadding + 8,
+      left: 16,
+      right: 16,
+      child: SlideTransition(
+        position: _slide,
+        child: FadeTransition(
+          opacity: _fade,
+          child: GestureDetector(
+            onTap: widget.onTap,
+            onVerticalDragEnd: (d) {
+              if (d.velocity.pixelsPerSecond.dy < 0) _dismiss();
+            },
+            child: Material(
+              elevation: 8,
+              borderRadius: BorderRadius.circular(16),
+              color: const Color(0xFF1C1C1E).withValues(alpha: 0.93),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
+                  children: [
+                    const Icon(Icons.chat_bubble_rounded,
+                        color: Color(0xFF2E7D32), size: 26),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            widget.title,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                          if (widget.body.isNotEmpty)
+                            Text(
+                              widget.body,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 13,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

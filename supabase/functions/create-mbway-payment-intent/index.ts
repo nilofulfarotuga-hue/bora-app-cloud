@@ -73,27 +73,53 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // v20 (2026-05-15) — fix: PaymentSheet client-side. Server-confirm v19
-    // tinha payment_method_data.mb_way.phone, parametro inexistente na API
-    // Stripe → 500 garantido (parameter_unknown registado em mbway_debug_errors).
-    // Agora cria PI + devolve client_secret. Flutter apresenta Stripe PaymentSheet
-    // que recolhe MBWay phone nativamente e despoleta o push para a MBWay app.
-    // phone continua recebido apenas para logging/auditoria.
+    // v21 (2026-05-15) — server-side confirmation com billing_details.phone.
+    //
+    // Histórico:
+    //   v19 — tentou server-confirm com payment_method_data.mb_way.phone
+    //         (parâmetro inexistente) → 500.
+    //   v20 — mudou para PaymentSheet client-side. Problema: o PaymentSheet
+    //         para mb_way não retorna após enviar o push (espera confirmação
+    //         na app MBWay). Utilizador fecha PaymentSheet → StripeException
+    //         → pedido cancelado.
+    //   v21 — server-confirm CORRECTO com payment_method_data.billing_details.phone.
+    //         O parâmetro correcto é billing_details.phone (não mb_way.phone).
+    //         Stripe confirma o PI, envia push MBWay imediatamente, devolve
+    //         paymentIntentId. Flutter mostra _MBWayWaitingDialog que faz poll
+    //         a payment_status até o webhook (payment_intent.succeeded) marcar
+    //         como 'paid'.
     const intent = await stripe.paymentIntents.create({
       amount: amountCents,
       currency: 'eur',
       payment_method_types: ['mb_way'],
+      payment_method_data: {
+        type: 'mb_way',
+        billing_details: { phone: e164 },
+      },
+      confirm: true,
       metadata: { order_id },
     }, { idempotencyKey: `mbway_${order_id}` });
 
-    console.log('[create-mbway-payment-intent] intent created (PaymentSheet flow):',
-      intent.id, `order=${order_id}`, `phone=${e164}`, `mode=${STRIPE_MODE}`);
+    console.log('[create-mbway-payment-intent] intent confirmed (server-side):',
+      intent.id, `order=${order_id}`, `phone=${e164}`, `status=${intent.status}`, `mode=${STRIPE_MODE}`);
+
+    // Guardar payment_intent_id no pedido para auditoria e reconciliação.
+    const { error: piUpdateErr } = await supabase
+      .from('orders')
+      .update({ payment_intent_id: intent.id })
+      .eq('id', order_id);
+
+    if (piUpdateErr) {
+      console.error('[create-mbway-payment-intent] failed to save payment_intent_id:',
+        piUpdateErr.message, intent.id);
+      // não bloquear o fluxo — o webhook ainda consegue resolver via metadata.order_id
+    }
 
     return new Response(
       JSON.stringify({
         ok: true,
         paymentIntentId: intent.id,
-        clientSecret: intent.client_secret,
+        status: intent.status,
         mode: STRIPE_MODE,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },

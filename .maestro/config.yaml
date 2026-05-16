@@ -1,10 +1,9 @@
-# Maestro global config (referência) — appId centralizado.
-# Cada flow declara o seu próprio appId conforme o spec Maestro requer.
-# Mantemos esta nota como source-of-truth do bundle id.
-appId: com.example.bora_app
+# Maestro workspace config (.maestro/config.yaml).
+# Glob patterns relative to this file's directory.
+# Excludes _shared/ (sub-flows reusable via runFlow — não são entry points).
 
-# Notas:
-#   • Cada flow YAML em flows/*/*.yaml tem o seu próprio appId.
-#   • Para iOS: alterar para com.example.boraApp.
-#   • Credenciais via env vars BORA_CLIENT_EMAIL / BORA_CLIENT_PASSWORD
-#     (e equivalentes _PARTNER_/_DRIVER_/_ADMIN_) — ver README.
+flows:
+  - flows/cliente/*.yaml
+  - flows/parceiro/*.yaml
+  - flows/estafeta/*.yaml
+  - flows/admin/*.yaml

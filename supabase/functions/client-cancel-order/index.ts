@@ -100,13 +100,18 @@ Deno.serve(async (req: Request) => {
   let chargeMissing = false;
 
   // v19: débito wallet para CASH/MBWay-não-pago
+  // v20 (2026-05-15): falha técnica MBWay (reason='payment_failed') não debita
+  // wallet — utilizador não deve ser penalizado por timeout/cancel do
+  // PaymentSheet quando nunca chegou a confirmar na app MBWay.
   let cancelFeeDebited = false;
   let cancelFeeDebitResult: any = null;
+  const isTechnicalFailure = reason === 'payment_failed';
 
   if (nothingToRefund) {
     const isUnpaid =
-      order.payment_method === 'cash' ||
-      (order.payment_method === 'mbway' && order.payment_status !== 'paid');
+      !isTechnicalFailure &&
+      (order.payment_method === 'cash' ||
+        (order.payment_method === 'mbway' && order.payment_status !== 'paid'));
 
     if (feeEur > 0 && isUnpaid) {
       const { data: debitRpc, error: debitErr } = await admin.rpc(

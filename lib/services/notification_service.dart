@@ -206,8 +206,12 @@ class NotificationService {
     }
   }
 
-  /// Saves the FCM token to `restaurants.fcm_token` for the given [restaurantId].
+  /// Saves the FCM token for the given [restaurantId] partner.
   /// Call this after a partner successfully logs in.
+  ///
+  /// Writes to both:
+  ///   • partner_push_tokens via register_push_token RPC (auth.uid() server-side)
+  ///   • restaurants.fcm_token (legacy — mantido durante transição)
   Future<void> saveTokenForPartner(String restaurantId) async {
     if (!_consentGranted) return;
     final token = _fcmToken;
@@ -216,32 +220,21 @@ class NotificationService {
           '[NotificationService] saveTokenForPartner: no FCM token yet');
       return;
     }
+    // Set binding BEFORE try blocks so onTokenRefresh re-registers correctly.
+    _boundRole = 'partner';
+    _boundId = restaurantId;
+
+    // Multi-device UPSERT via RPC register_push_token (usa auth.uid() server-side).
+    PushTokenService.registerForRole('partner').ignore();
+
     try {
       await Supabase.instance.client
           .from('restaurants')
           .update({'fcm_token': token}).eq('id', restaurantId);
-      _boundRole = 'partner';
-      _boundId = restaurantId;
       debugPrint(
           '[NotificationService] FCM token saved for partner $restaurantId');
     } catch (e) {
       debugPrint('[NotificationService] saveTokenForPartner error: $e');
-    }
-
-    final authUid = Supabase.instance.client.auth.currentUser?.id;
-    if (authUid != null) {
-      try {
-        await Supabase.instance.client
-            .from('partner_push_tokens')
-            .upsert({
-          'partner_id': authUid,
-          'fcm_token': token,
-          'last_used_at': DateTime.now().toUtc().toIso8601String(),
-        }, onConflict: 'partner_id, fcm_token');
-      } catch (e) {
-        debugPrint(
-            '[NotificationService] partner_push_tokens upsert error: $e');
-      }
     }
   }
 

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../models/order_model.dart';
 import '../stores/order_store.dart';
 import '../widgets/bora/bora.dart';
+import 'client/reservation/my_reservation_lists_screen.dart';
 import 'client_home_screen.dart';
 import 'order_tracking_screen.dart';
 import 'orders_screen.dart';
@@ -32,6 +33,7 @@ class _ClientMainScreenState extends State<ClientMainScreen> {
   final List<Widget> _screens = const [
     ClientHomeScreen(),
     OrdersScreen(),
+    MyReservationListsScreen(),
     ProfileScreen(),
   ];
 
@@ -72,6 +74,28 @@ class _ClientMainScreenState extends State<ClientMainScreen> {
       bottomNavigationBar: BoraBottomNav(
         currentIndex: _selectedIndex,
         onTap: (index) => setState(() => _selectedIndex = index),
+        items: const [
+          BoraBottomNavItem(
+            icon: Icons.home_outlined,
+            activeIcon: Icons.home,
+            label: 'Início',
+          ),
+          BoraBottomNavItem(
+            icon: Icons.receipt_long_outlined,
+            activeIcon: Icons.receipt_long,
+            label: 'Pedidos',
+          ),
+          BoraBottomNavItem(
+            icon: Icons.event_available_outlined,
+            activeIcon: Icons.event_available,
+            label: 'Reservas',
+          ),
+          BoraBottomNavItem(
+            icon: Icons.person_outline,
+            activeIcon: Icons.person,
+            label: 'Perfil',
+          ),
+        ],
       ),
     );
   }

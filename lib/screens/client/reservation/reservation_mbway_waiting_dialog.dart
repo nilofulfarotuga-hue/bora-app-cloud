@@ -62,7 +62,10 @@ class _ReservationMBWayWaitingDialogState
         // Falha: webhook (ou RPC orphan cleanup) marcou cancelled.
         if (status != null && status != 'pending_payment' && mounted && !_done) {
           _done = true;
-          Navigator.of(context).pop(status == 'pending');
+          // Accept any terminal status (pending, approved, cancelled, etc.).
+          // pending_payment is the only "still waiting" state; everything else
+          // means the webhook has acted — pop(true) for non-cancelled statuses.
+          Navigator.of(context).pop(status != 'cancelled' && status != 'rejected');
         }
       } catch (_) {}
     }

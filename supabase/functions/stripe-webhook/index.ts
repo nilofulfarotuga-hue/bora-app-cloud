@@ -53,11 +53,10 @@ Deno.serve(async (req: Request) => {
     case 'payment_intent.succeeded': {
       const intent = event.data.object as Stripe.PaymentIntent;
 
-      // ⭐ NOVO v24 (2026-05-15 BUG 1+2 reservas) — reservation_prepayment
+      // ⭐ NOVO v26 (2026-05-16) — reservation_prepayment
       // Confirma reserva pending_payment → pending via RPC idempotente.
       // Termina aqui (não processar como order). Lock + PI validation no RPC.
-      // Notificação parceiro tratada por client_confirm_reservation_payment
-      // (fallback Flutter chamado pós-PaymentSheet). Este webhook é defesa.
+      // Notifica parceiro com FCM+som (mesmo padrão do MBWay de pedidos).
       if (intent.metadata?.purpose === 'reservation_prepayment') {
         const reservationId = intent.metadata?.reservation_id;
         if (reservationId) {
@@ -70,6 +69,30 @@ Deno.serve(async (req: Request) => {
               error.message, intent.id);
           } else {
             console.log('[stripe-webhook] reservation confirmed:', data, intent.id);
+            // Notify partner — fire-and-forget (same pattern as MBWay orders L164).
+            const { data: resRow } = await supabase
+              .from('reservations')
+              .select('restaurant_id, guests')
+              .eq('id', reservationId)
+              .maybeSingle();
+            if (resRow?.restaurant_id) {
+              const notifyUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/notify-partner`;
+              fetch(notifyUrl, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+                },
+                body: JSON.stringify({
+                  orderId: reservationId,
+                  restaurantId: resRow.restaurant_id,
+                  customTitle: 'Nova reserva confirmada!',
+                  customBody: `Reserva para ${resRow.guests ?? '?'} pessoas confirmada com pagamento.`,
+                }),
+              }).catch((e: unknown) =>
+                console.error('[stripe-webhook] notify-partner reservation failed:', e),
+              );
+            }
           }
         } else {
           console.error('[stripe-webhook] reservation_prepayment missing reservation_id:',
@@ -143,7 +166,7 @@ Deno.serve(async (req: Request) => {
 
       const { data: orderRow, error: fetchErr } = await supabase
         .from('orders')
-        .select('status, is_partner_store, service_type')
+        .select('status, is_partner_store, service_type, payment_method, restaurant_id, customer_total, final_total, total, estimated_total')
         .eq('id', order_id)
         .single();
 
@@ -155,6 +178,32 @@ Deno.serve(async (req: Request) => {
       const currentStatus = orderRow.status as string;
       const isPartnerRestaurant =
         orderRow.is_partner_store === true && orderRow.service_type === 'restaurant';
+
+      // v25 (2026-05-15) — MBWay partner notification gating.
+      // Flutter já NÃO notifica o parceiro para MBWay (order_store.dart). A
+      // notificação só dispara aqui, após payment_intent.succeeded confirmar
+      // o pagamento. Card/cash continuam a ser notificados pelo Flutter no
+      // momento da criação do pedido (payment_status já é paid nesse caso).
+      if (isPartnerRestaurant && orderRow.payment_method === 'mbway' && orderRow.restaurant_id) {
+        const totalEur = Number(
+          orderRow.customer_total ?? orderRow.final_total ?? orderRow.total ?? orderRow.estimated_total ?? 0,
+        );
+        const notifyUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/notify-partner`;
+        fetch(notifyUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+          },
+          body: JSON.stringify({
+            orderId: order_id,
+            restaurantId: orderRow.restaurant_id,
+            total: totalEur,
+          }),
+        })
+          .then((r) => console.log('[stripe-webhook] notify-partner (mbway) status:', r.status, 'order:', order_id))
+          .catch((e) => console.error('[stripe-webhook] notify-partner (mbway) failed:', e));
+      }
 
       if (!isPartnerRestaurant &&
           (currentStatus === 'created' || currentStatus === 'preparing')) {

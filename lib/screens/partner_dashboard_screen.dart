@@ -960,7 +960,8 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
                 MaterialPageRoute(
                   builder: (_) => ChatScreen(
                     order: order,
-                    senderType: ChatSenderType.client,
+                    senderType: ChatSenderType.partner,
+                    chatTarget: ChatTarget.client,
                   ),
                 ),
               ),
@@ -1012,7 +1013,8 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
                   MaterialPageRoute(
                     builder: (_) => ChatScreen(
                       order: order,
-                      senderType: ChatSenderType.driver,
+                      senderType: ChatSenderType.partner,
+                      chatTarget: ChatTarget.driver,
                     ),
                   ),
                 ),

@@ -496,6 +496,10 @@ class OrderStore extends ChangeNotifier {
       'payment_method': 'card',
       'subtotal': itemsSubtotal,
       'apartment_delivery': apartmentDelivery,
+      'order_type': _resolveOrderType(
+        serviceType: serviceType,
+        isPartnerStore: isPartnerStore,
+      ).name,
       // BUG #3 (2026-05-12) — bag_count dinâmico por service_type.
       // Server (pricing_calculate) aplica:
       //   restaurant → bag_fee_restaurant_cents=30 fixo se bag_count>=1
@@ -755,6 +759,7 @@ class OrderStore extends ChangeNotifier {
       'payment_method': paymentMethod.name,
       'subtotal': itemsSubtotal,
       'apartment_delivery': apartmentDelivery,
+      'order_type': orderType.name,
       // BUG #3 (2026-05-12) — bag_count dinâmico por service_type.
       'bag_count': _resolveBagCount(serviceType, 1),
       'requires_car': requiresCar,
@@ -2575,32 +2580,42 @@ class OrderStore extends ChangeNotifier {
   }
 
   /// Records how many carrier bags the driver used for a market order.
-  /// Persists bag_count + bag_fee (count × €0.10) to DB and updates local state.
+  /// Calls the SECURITY DEFINER RPC `update_bag_count_bypass` which bypasses
+  /// the `enforce_financial_immutability` trigger via a session GUC and
+  /// computes bag_fee server-side from platform_settings.
   /// Sends a push to the client when count > 0 (fire-and-forget).
+  ///
+  /// Replaces the old direct UPDATE which failed silently against the
+  /// financial immutability trigger (BUG 27).
   Future<void> updateBagCount(String orderId, int count) async {
     try {
-      final bagFee = _roundCurrency(count * 0.10);
-      await supabase.from('orders').update({
-        'bag_count': count,
-        'bag_fee': bagFee,
-      }).eq('id', orderId);
+      final response = await supabase.rpc(
+        'update_bag_count_bypass',
+        params: {'p_order_id': orderId, 'p_count': count},
+      );
+      int finalCount = count;
+      double finalFee = _roundCurrency(count * 0.10);
+      if (response is Map) {
+        final respCount = (response['bag_count'] as num?)?.toInt();
+        if (respCount != null) finalCount = respCount;
+        final cents = (response['bag_fee_cents'] as num?)?.toInt();
+        if (cents != null) finalFee = cents / 100.0;
+      }
       final idx = _orders.indexWhere((o) => o.id == orderId);
+      String? clientId;
       if (idx != -1) {
-        _orders[idx].bagCount = count;
-        _orders[idx].bagFee = bagFee;
+        _orders[idx].bagCount = finalCount;
+        _orders[idx].bagFee = finalFee;
+        clientId = _orders[idx].userId;
         notifyListeners();
       }
-      // Notify client: "Sacos adicionados: X saco(s) × €0.10 = €X.XX"
-      if (count > 0) {
-        final clientId = idx != -1 ? _orders[idx].userId : null;
-        if (clientId != null && clientId.isNotEmpty) {
-          NotificationService.instance.notifyClientBagCount(
-            clientId: clientId,
-            orderId: orderId,
-            bagCount: count,
-            bagFee: bagFee,
-          ).ignore();
-        }
+      if (finalCount > 0 && clientId != null && clientId.isNotEmpty) {
+        NotificationService.instance.notifyClientBagCount(
+          clientId: clientId,
+          orderId: orderId,
+          bagCount: finalCount,
+          bagFee: finalFee,
+        ).ignore();
       }
     } catch (e) {
       debugPrint('OrderStore.updateBagCount error: $e');

@@ -273,7 +273,7 @@ class _CancelOrderButton extends StatelessWidget {
   /// Cents do reembolso esperado por tier.
   /// before_dispatch=€1 fee, after_accept=€2.50 fee, after_pickup=100% fee.
   double _refundableEur() {
-    final total = order.total;
+    final total = order.total + order.bagFee;
     switch (order.status) {
       case OrderStatus.created:
       case OrderStatus.preparing:
@@ -576,7 +576,7 @@ class _OrderInfoCard extends StatelessWidget {
           _Row(label: 'Serviço', value: order.serviceType.label),
           _Row(
               label: 'Total',
-              value: '€${order.total.toStringAsFixed(2)}',
+              value: '€${(order.total + order.bagFee).toStringAsFixed(2)}',
               bold: true),
           _Row(
               label: 'Taxa de entrega',

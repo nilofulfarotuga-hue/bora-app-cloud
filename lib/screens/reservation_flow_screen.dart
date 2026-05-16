@@ -140,6 +140,10 @@ class _ReservationFlowScreenState extends State<ReservationFlowScreen> {
         paymentSheetParameters: SetupPaymentSheetParameters(
           paymentIntentClientSecret: clientSecret,
           merchantDisplayName: 'Bora App',
+          billingDetailsCollectionConfiguration:
+              const BillingDetailsCollectionConfiguration(
+            name: CollectionMode.always,
+          ),
           applePay: const PaymentSheetApplePay(merchantCountryCode: 'PT'),
           googlePay: const PaymentSheetGooglePay(
             merchantCountryCode: 'PT',

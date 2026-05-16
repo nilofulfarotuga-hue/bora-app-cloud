@@ -135,6 +135,10 @@ class _ReservationCheckoutScreenState extends State<ReservationCheckoutScreen> {
           paymentIntentClientSecret: clientSecret,
           merchantDisplayName: 'BORA APP',
           style: ThemeMode.system,
+          billingDetailsCollectionConfiguration:
+              const BillingDetailsCollectionConfiguration(
+            name: CollectionMode.always,
+          ),
           applePay: const PaymentSheetApplePay(merchantCountryCode: 'PT'),
           googlePay: const PaymentSheetGooglePay(
             merchantCountryCode: 'PT',

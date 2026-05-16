@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import '../models/order_model.dart';
 import '../stores/order_store.dart';
 import '../widgets/bora/bora.dart';
-import 'client/reservation/my_reservation_lists_screen.dart';
+import 'client_reservations_screen.dart';
 import 'client_home_screen.dart';
 import 'order_tracking_screen.dart';
 import 'orders_screen.dart';
@@ -33,7 +33,7 @@ class _ClientMainScreenState extends State<ClientMainScreen> {
   final List<Widget> _screens = const [
     ClientHomeScreen(),
     OrdersScreen(),
-    MyReservationListsScreen(),
+    ClientReservationsScreen(),
     ProfileScreen(),
   ];
 

@@ -157,6 +157,7 @@ class RestaurantModel {
     this.businessHours = const BusinessHours(),
     this.avgRating,
     this.ratingsCount = 0,
+    this.heroImageUrl,
   });
 
   final String id;
@@ -195,6 +196,11 @@ class RestaurantModel {
 
   /// BR §44 — número de avaliações públicas + não flagged que contam para a média.
   final int ratingsCount;
+
+  /// URL da imagem hero (banner largo) do mercado/restaurante.
+  /// Gerida via admin → bucket restaurant-assets/hero/<id>.<ext>.
+  /// Null quando ainda não configurada — UI usa fallback em cascata.
+  final String? heroImageUrl;
 
   /// Returns a [LatLng] when both coordinates are stored; null otherwise.
   LatLng? get location =>
@@ -247,6 +253,7 @@ class RestaurantModel {
     BusinessHours? businessHours,
     double? avgRating,
     int? ratingsCount,
+    String? heroImageUrl,
   }) {
     return RestaurantModel(
       id: id,
@@ -269,6 +276,7 @@ class RestaurantModel {
       businessHours: businessHours ?? this.businessHours,
       avgRating: avgRating ?? this.avgRating,
       ratingsCount: ratingsCount ?? this.ratingsCount,
+      heroImageUrl: heroImageUrl ?? this.heroImageUrl,
     );
   }
 }

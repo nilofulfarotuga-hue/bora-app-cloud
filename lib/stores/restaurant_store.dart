@@ -989,6 +989,7 @@ class RestaurantStore extends ChangeNotifier {
       businessHours: BusinessHours.fromJson(data['business_hours']),
       avgRating: (data['avg_rating'] as num?)?.toDouble(),
       ratingsCount: (data['ratings_count'] as num?)?.toInt() ?? 0,
+      heroImageUrl: data['hero_image_url'] as String?,
     );
   }
 

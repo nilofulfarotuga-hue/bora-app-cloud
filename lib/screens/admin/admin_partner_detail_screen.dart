@@ -1,7 +1,10 @@
 // T3 — Admin partner detail with tabs: Dados / Horários / Estado / Datas Especiais.
 // Requires partner_hours_system migration (T4 of sessão nocturna 2026-04-29).
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -33,6 +36,8 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
   Map<String, dynamic>? _openStatus; // result of is_partner_open()
   BusinessHours _hours = const BusinessHours();
   bool _savingHours = false;
+  String? _heroImageUrl;
+  bool _uploadingHero = false;
 
   static const _days = <({int weekday, String label, String key})>[
     (weekday: DateTime.monday,    label: 'Segunda-feira', key: 'mon'),
@@ -64,7 +69,7 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
           .from('restaurants')
           .select(
               'id, name, category, address, phone, email, is_partner, is_online, is_active_admin, business_hours, '
-              'takeaway_enabled, curbside_enabled, takeaway_default_prep_minutes')
+              'takeaway_enabled, curbside_enabled, takeaway_default_prep_minutes, hero_image_url')
           .eq('id', widget.restaurantId)
           .single();
       final openData = await Supabase.instance.client.rpc('is_partner_open', params: {
@@ -78,6 +83,7 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
         setState(() {
           _restaurant = r;
           _hours = bh;
+          _heroImageUrl = r['hero_image_url'] as String?;
           _openStatus = results[1] is Map
               ? Map<String, dynamic>.from(results[1] as Map)
               : {'is_open': results[1]};
@@ -90,6 +96,93 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text('Erro ao carregar: $e')));
       }
+    }
+  }
+
+  // ─── Hero image upload (PT-BR) ────────────────────────────────────────────
+
+  Future<void> _uploadHero() async {
+    final picker = ImagePicker();
+    final file = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+      maxWidth: 1200,
+    );
+    if (file == null || !mounted) return;
+    final bytes = await File(file.path).readAsBytes();
+    if (bytes.length > 10 * 1024 * 1024) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Imagem muito grande (máx 10 MB).')),
+      );
+      return;
+    }
+    final ext = file.path.split('.').last.toLowerCase();
+    if (!['jpg', 'jpeg', 'png', 'webp'].contains(ext)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Formato inválido. Use JPEG, PNG ou WebP.')),
+      );
+      return;
+    }
+    setState(() => _uploadingHero = true);
+    try {
+      final path = 'hero/${widget.restaurantId}.$ext';
+      await Supabase.instance.client.storage
+          .from('restaurant-assets')
+          .uploadBinary(path, bytes,
+              fileOptions: FileOptions(
+                  upsert: true, contentType: 'image/$ext'));
+      final publicUrl = Supabase.instance.client.storage
+          .from('restaurant-assets')
+          .getPublicUrl(path);
+      await Supabase.instance.client
+          .from('restaurants')
+          .update({'hero_image_url': publicUrl})
+          .eq('id', widget.restaurantId);
+      if (mounted) {
+        setState(() => _heroImageUrl = publicUrl);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Imagem do banner enviada com sucesso.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Erro ao enviar imagem: $e')));
+    } finally {
+      if (mounted) setState(() => _uploadingHero = false);
+    }
+  }
+
+  Future<void> _removeHero() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Remover banner?'),
+        content: const Text('O banner do mercado será removido. Continuar?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar')),
+          FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Remover')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    try {
+      await Supabase.instance.client
+          .from('restaurants')
+          .update({'hero_image_url': null})
+          .eq('id', widget.restaurantId);
+      if (mounted) {
+        setState(() => _heroImageUrl = null);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Imagem removida.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Erro ao remover: $e')));
     }
   }
 
@@ -116,6 +209,84 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
           _infoRow(Icons.toggle_on,
               r['is_active_admin'] != false ? 'Activo no admin' : 'DESACTIVADO', ''),
           const SizedBox(height: 24),
+          // ── Banner do mercado (hero) ────────────────────────────────────
+          Card(
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(color: Colors.grey.shade300),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(children: [
+                    Icon(Icons.image_outlined, size: 20),
+                    SizedBox(width: 8),
+                    Text('Imagem do banner do mercado (hero)',
+                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                  ]),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Aparece no topo do mercado (estilo Glovo). JPEG, PNG ou WebP, máx 10 MB.',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 12),
+                  if (_heroImageUrl != null && _heroImageUrl!.isNotEmpty)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.network(
+                        _heroImageUrl!,
+                        height: 120,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) =>
+                            const SizedBox(height: 120,
+                                child: Center(child: Icon(Icons.broken_image))),
+                      ),
+                    )
+                  else
+                    Container(
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: const Center(
+                          child: Text('Sem banner configurado',
+                              style: TextStyle(color: Colors.grey))),
+                    ),
+                  const SizedBox(height: 12),
+                  Row(children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _uploadingHero ? null : _uploadHero,
+                        icon: _uploadingHero
+                            ? const SizedBox(width: 16, height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2))
+                            : const Icon(Icons.upload),
+                        label: Text(_heroImageUrl != null ? 'Trocar imagem' : 'Enviar imagem'),
+                      ),
+                    ),
+                    if (_heroImageUrl != null) ...[
+                      const SizedBox(width: 8),
+                      OutlinedButton.icon(
+                        onPressed: _uploadingHero ? null : _removeHero,
+                        icon: const Icon(Icons.delete_outline, color: Colors.red),
+                        label: const Text('Remover',
+                            style: TextStyle(color: Colors.red)),
+                        style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Colors.red)),
+                      ),
+                    ],
+                  ]),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
           FilledButton.icon(
             onPressed: () async {
               final res = await showDialog<Map<String, dynamic>>(
@@ -937,6 +1108,28 @@ class _PartnerCatalogTabState extends State<_PartnerCatalogTab> {
     }
   }
 
+  Future<void> _togglePopular(String productId, bool currentlyPopular) async {
+    try {
+      await Supabase.instance.client
+          .from('products')
+          .update({'is_popular': !currentlyPopular})
+          .eq('id', productId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(!currentlyPopular
+              ? 'Marcado como popular'
+              : 'Removido dos populares'),
+          duration: const Duration(milliseconds: 1200),
+        ));
+      }
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Erro: $e')));
+    }
+  }
+
   Future<void> _editPrice(String productId, double current) async {
     final controller =
         TextEditingController(text: current.toStringAsFixed(2));
@@ -1009,24 +1202,47 @@ class _PartnerCatalogTabState extends State<_PartnerCatalogTab> {
                         (p['is_available'] as bool?) ?? true;
                     final price =
                         ((p['price'] as num?) ?? 0).toDouble();
+                    final popular =
+                        (p['is_popular'] as bool?) ?? false;
                     return Card(
                       child: ListTile(
                         title: Text(p['name'] as String? ?? '—'),
                         subtitle: Text(
                             'Categoria: ${p['category'] ?? '—'}'),
-                        trailing: Row(
+                        trailing: Column(
                           mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            TextButton(
-                              onPressed: () =>
-                                  _editPrice(id, price),
-                              child: Text(
-                                  '€${price.toStringAsFixed(2)}'),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                TextButton(
+                                  onPressed: () =>
+                                      _editPrice(id, price),
+                                  child: Text(
+                                      '€${price.toStringAsFixed(2)}'),
+                                ),
+                                Switch(
+                                  value: available,
+                                  onChanged: (_) =>
+                                      _toggleAvailability(id, available),
+                                ),
+                              ],
                             ),
-                            Switch(
-                              value: available,
-                              onChanged: (_) =>
-                                  _toggleAvailability(id, available),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Text('Popular',
+                                    style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.grey)),
+                                Switch(
+                                  value: popular,
+                                  activeThumbColor: const Color(0xFFFFB300),
+                                  onChanged: (_) =>
+                                      _togglePopular(id, popular),
+                                ),
+                              ],
                             ),
                           ],
                         ),

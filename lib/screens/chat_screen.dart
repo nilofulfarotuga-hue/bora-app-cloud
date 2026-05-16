@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/chat_message.dart';
@@ -8,15 +9,19 @@ import '../models/order_model.dart';
 import '../stores/chat_store.dart';
 import '../stores/order_store.dart';
 
+enum ChatTarget { client, driver }
+
 class ChatScreen extends StatefulWidget {
   const ChatScreen({
     super.key,
     required this.order,
     required this.senderType,
+    this.chatTarget,
   });
 
   final OrderModel order;
   final ChatSenderType senderType;
+  final ChatTarget? chatTarget;
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -26,14 +31,20 @@ class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _msgCtrl = TextEditingController();
   final ScrollController _scrollCtrl = ScrollController();
 
-  String get _senderRole =>
-      widget.senderType == ChatSenderType.client ? 'client' : 'driver';
+  String get _senderRole => switch (widget.senderType) {
+    ChatSenderType.client  => 'client',
+    ChatSenderType.driver  => 'driver',
+    ChatSenderType.partner => 'partner',
+  };
 
   String get _senderId {
     final o = widget.order;
-    return widget.senderType == ChatSenderType.client
-        ? (o.clientPhone ?? 'client_${o.id}')
-        : (o.assignedDriverId ?? 'driver_${o.id}');
+    return switch (widget.senderType) {
+      ChatSenderType.client  => o.clientPhone ?? 'client_${o.id}',
+      ChatSenderType.driver  => o.assignedDriverId ?? 'driver_${o.id}',
+      ChatSenderType.partner =>
+          Supabase.instance.client.auth.currentUser?.id ?? 'partner_${o.id}',
+    };
   }
 
   @override
@@ -49,6 +60,19 @@ class _ChatScreenState extends State<ChatScreen> {
     _msgCtrl.dispose();
     _scrollCtrl.dispose();
     super.dispose();
+  }
+
+  String _appBarTitle(OrderModel o) {
+    final vendor = o.vendorName ?? 'Pedido';
+    return switch (widget.senderType) {
+      ChatSenderType.client  => 'Chat c/ Estafeta · $vendor',
+      ChatSenderType.driver  => 'Chat c/ Cliente · $vendor',
+      ChatSenderType.partner => switch (widget.chatTarget) {
+        ChatTarget.client => 'Chat c/ Cliente · $vendor',
+        ChatTarget.driver => 'Chat c/ Estafeta · $vendor',
+        null              => 'Chat · $vendor',
+      },
+    };
   }
 
   @override
@@ -73,15 +97,21 @@ class _ChatScreenState extends State<ChatScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Chat · ${liveOrder.vendorName ?? 'Pedido'}'),
+        title: Text(_appBarTitle(liveOrder)),
         actions: [
           IconButton(
             icon: const Icon(Icons.phone),
             tooltip: 'Ligar',
             onPressed: () async {
-              final phone = widget.senderType == ChatSenderType.driver
-                  ? liveOrder.clientPhone
-                  : liveOrder.driverPhone;
+              final phone = switch (widget.senderType) {
+                ChatSenderType.driver  => liveOrder.clientPhone,
+                ChatSenderType.client  => liveOrder.driverPhone,
+                ChatSenderType.partner => switch (widget.chatTarget) {
+                  ChatTarget.client => liveOrder.clientPhone,
+                  ChatTarget.driver => liveOrder.driverPhone,
+                  null              => null,
+                },
+              };
               if (phone == null || phone.isEmpty) return;
               final uri = Uri(scheme: 'tel', path: phone);
               if (await canLaunchUrl(uri)) {

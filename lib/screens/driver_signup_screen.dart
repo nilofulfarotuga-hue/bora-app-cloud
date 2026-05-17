@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../auth/auth_store.dart';
@@ -54,6 +55,15 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
 
   final _imagePicker = ImagePicker();
 
+  static const _kDraftKey = 'bora_app.signup_draft.driver';
+
+  @override
+  void initState() {
+    super.initState();
+    _recoverLostImage();
+    _restoreDraft();
+  }
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -65,6 +75,81 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
     _licensePlateController.dispose();
     _ibanController.dispose();
     super.dispose();
+  }
+
+  /// Recupera foto perdida após activity recreation no Android (ImagePicker).
+  Future<void> _recoverLostImage() async {
+    final lost = await _imagePicker.retrieveLostData();
+    if (lost.isEmpty || !mounted) return;
+    final file = lost.file;
+    if (file == null) return;
+    setState(() {
+      if (_selfieFile == null) {
+        _selfieFile = file;
+      } else if (_documentPhotoFile == null) {
+        _documentPhotoFile = file;
+      } else {
+        _vehiclePhotoFile = file;
+      }
+    });
+  }
+
+  void _saveDraft() {
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.setString('$_kDraftKey.name', _nameController.text);
+      prefs.setString('$_kDraftKey.email', _emailController.text);
+      prefs.setString('$_kDraftKey.phone', _phoneController.text);
+      prefs.setString('$_kDraftKey.docType', _documentType);
+      prefs.setString('$_kDraftKey.docNumber', _documentNumberController.text);
+      prefs.setString('$_kDraftKey.vehicleType', _vehicleType.name);
+      prefs.setString('$_kDraftKey.plate', _licensePlateController.text);
+      prefs.setString('$_kDraftKey.iban', _ibanController.text);
+    });
+  }
+
+  Future<void> _restoreDraft() async {
+    final prefs = await SharedPreferences.getInstance();
+    final name = prefs.getString('$_kDraftKey.name');
+    if (name == null || !mounted) return;
+    setState(() {
+      if (name.isNotEmpty) _nameController.text = name;
+      final email = prefs.getString('$_kDraftKey.email') ?? '';
+      if (email.isNotEmpty) _emailController.text = email;
+      final phone = prefs.getString('$_kDraftKey.phone') ?? '';
+      if (phone.isNotEmpty) _phoneController.text = phone;
+      final docType = prefs.getString('$_kDraftKey.docType');
+      if (docType != null) _documentType = docType;
+      final docNumber = prefs.getString('$_kDraftKey.docNumber') ?? '';
+      if (docNumber.isNotEmpty) _documentNumberController.text = docNumber;
+      final vehicleTypeName = prefs.getString('$_kDraftKey.vehicleType');
+      if (vehicleTypeName != null) {
+        try {
+          _vehicleType =
+              VehicleType.values.firstWhere((v) => v.name == vehicleTypeName);
+        } catch (_) {}
+      }
+      final plate = prefs.getString('$_kDraftKey.plate') ?? '';
+      if (plate.isNotEmpty) _licensePlateController.text = plate;
+      final iban = prefs.getString('$_kDraftKey.iban') ?? '';
+      if (iban.isNotEmpty) _ibanController.text = iban;
+    });
+  }
+
+  void _clearDraft() {
+    SharedPreferences.getInstance().then((prefs) {
+      for (final key in [
+        'name',
+        'email',
+        'phone',
+        'docType',
+        'docNumber',
+        'vehicleType',
+        'plate',
+        'iban',
+      ]) {
+        prefs.remove('$_kDraftKey.$key');
+      }
+    });
   }
 
   Future<void> _pickPhoto({
@@ -240,6 +325,7 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
 
       // 4. Limpar sessão auth (evita que RootNavigator salte para DriverHomeScreen)
       context.read<AuthStore>().logout();
+      _clearDraft();
 
       // 5. Ir para ecrã pendente
       Navigator.pushReplacement(
@@ -332,6 +418,7 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
                     const SizedBox(height: 16),
                     TextFormField(
                       controller: _nameController,
+                      onChanged: (_) => _saveDraft(),
                       textCapitalization: TextCapitalization.words,
                       decoration: const InputDecoration(
                         labelText: 'Nome completo',
@@ -344,6 +431,7 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _emailController,
+                      onChanged: (_) => _saveDraft(),
                       keyboardType: TextInputType.emailAddress,
                       autocorrect: false,
                       decoration: const InputDecoration(
@@ -434,11 +522,15 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
                           .map(
                               (t) => DropdownMenuItem(value: t, child: Text(t)))
                           .toList(),
-                      onChanged: (v) => setState(() => _documentType = v!),
+                      onChanged: (v) {
+                        setState(() => _documentType = v!);
+                        _saveDraft();
+                      },
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _documentNumberController,
+                      onChanged: (_) => _saveDraft(),
                       decoration: const InputDecoration(
                         labelText: 'Número do documento',
                         prefixIcon: Icon(Icons.numbers),
@@ -483,17 +575,21 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
                         ),
                       ],
                       selected: {_vehicleType},
-                      onSelectionChanged: (s) => setState(() {
-                        _vehicleType = s.first;
-                        if (_vehicleType == VehicleType.bicycle) {
-                          _licensePlateController.clear();
-                        }
-                      }),
+                      onSelectionChanged: (s) {
+                        setState(() {
+                          _vehicleType = s.first;
+                          if (_vehicleType == VehicleType.bicycle) {
+                            _licensePlateController.clear();
+                          }
+                        });
+                        _saveDraft();
+                      },
                     ),
                     if (_vehicleType != VehicleType.bicycle) ...[
                       const SizedBox(height: 12),
                       TextFormField(
                         controller: _licensePlateController,
+                        onChanged: (_) => _saveDraft(),
                         textCapitalization: TextCapitalization.characters,
                         decoration: const InputDecoration(
                           labelText: 'Matrícula',
@@ -524,6 +620,7 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
                 title: 'Dados de Pagamento',
                 child: TextFormField(
                   controller: _ibanController,
+                  onChanged: (_) => _saveDraft(),
                   autocorrect: false,
                   textCapitalization: TextCapitalization.characters,
                   decoration: const InputDecoration(

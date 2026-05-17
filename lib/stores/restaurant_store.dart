@@ -6,6 +6,7 @@ import '../models/order_model.dart';
 import '../models/partner_product.dart';
 import '../models/product_variant.dart';
 import '../models/restaurant_model.dart';
+import '../services/foreground_service.dart';
 
 class RestaurantStore extends ChangeNotifier {
   final supabase = Supabase.instance.client;
@@ -677,6 +678,30 @@ class RestaurantStore extends ChangeNotifier {
           .update({'is_online': isOnline}).eq('id', restaurantId);
     } catch (e) {
       debugPrint('RestaurantStore: toggleRestaurantOnline error => $e');
+    }
+    // Sessão 2026-05-17 — foreground service: loja aberta = app sempre activa
+    // para receber pedidos (padrão Glovo/Uber Eats partner).
+    unawaited(_syncForegroundService(isOnline));
+  }
+
+  /// Liga foreground service quando loja vai Online; pára quando offline.
+  /// Pede POST_NOTIFICATIONS (Android 13+) se ainda não concedido.
+  Future<void> _syncForegroundService(bool online) async {
+    try {
+      if (online) {
+        final granted =
+            await BoraForegroundService.ensureNotificationPermission();
+        if (!granted) {
+          debugPrint(
+              '[RestaurantStore] foreground notif perm denied — service não iniciado');
+          return;
+        }
+        await BoraForegroundService.startPartner();
+      } else {
+        await BoraForegroundService.stop();
+      }
+    } catch (e) {
+      debugPrint('[RestaurantStore] _syncForegroundService error: $e');
     }
   }
 

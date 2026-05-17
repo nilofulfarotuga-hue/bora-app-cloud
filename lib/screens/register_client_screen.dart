@@ -383,6 +383,11 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
           await supabase.auth.updateUser(
             UserAttributes(data: {'bora_photo_url': publicUrl}),
           );
+          // UPSERT em public.users — sem trigger automático auth→public,
+          // a row pode não existir ainda. Cria com id+photo_url.
+          await supabase
+              .from('users')
+              .upsert({'id': uid, 'photo_url': publicUrl});
         }
       } catch (e) {
         debugPrint('RegisterClientScreen: avatar upload failed => $e');

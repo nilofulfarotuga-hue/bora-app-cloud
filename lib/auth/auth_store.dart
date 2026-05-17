@@ -282,6 +282,35 @@ class AuthStore extends ChangeNotifier {
       debugPrint('AuthStore: updateUser photoUrl failed => $e');
     }
 
+    // Push to public tables so other devices and admin screens see the photo.
+    // UPSERT for users (row may not exist — no auto-create trigger from auth).
+    // UPDATE for drivers/restaurants (row always exists after signup/onboarding).
+    final uid = _supabase.auth.currentUser?.id;
+    if (uid != null) {
+      try {
+        if (_currentClient != null) {
+          await _supabase
+              .from('users')
+              .upsert({'id': uid, 'photo_url': url});
+        } else if (_currentDriver != null) {
+          await _supabase
+              .from('drivers')
+              .update({'photo_url': url})
+              .eq('user_id', uid);
+        } else if (_currentPartner != null) {
+          final restaurantId = _partnerRestaurant?.id;
+          if (restaurantId != null) {
+            await _supabase
+                .from('restaurants')
+                .update({'photo_url': url})
+                .eq('id', restaurantId);
+          }
+        }
+      } catch (e) {
+        debugPrint('AuthStore: updateCurrentUserPhoto public table => $e');
+      }
+    }
+
     notifyListeners();
   }
 

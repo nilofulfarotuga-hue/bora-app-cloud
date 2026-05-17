@@ -12,6 +12,34 @@ import '../stores/restaurant_store.dart';
 
 enum ChatTarget { client, driver }
 
+/// Returns the conversation channel for a ChatScreen invocation.
+/// Returns null when channel cannot be determined (legacy / all messages shown).
+String? resolveConversationType(
+  ChatSenderType senderType,
+  OrderStatus status,
+  ChatTarget? chatTarget,
+) {
+  return switch (senderType) {
+    ChatSenderType.client => switch (status) {
+      OrderStatus.preparing          => 'client_partner',
+      OrderStatus.pickedUp ||
+      OrderStatus.onTheWay           => 'client_driver',
+      _                              => null,
+    },
+    ChatSenderType.driver => switch (status) {
+      OrderStatus.driverAccepted     => 'driver_partner',
+      OrderStatus.pickedUp ||
+      OrderStatus.onTheWay           => 'client_driver',
+      _                              => null,
+    },
+    ChatSenderType.partner => switch (chatTarget) {
+      ChatTarget.client => 'client_partner',
+      ChatTarget.driver => 'driver_partner',
+      null              => null,
+    },
+  };
+}
+
 class ChatScreen extends StatefulWidget {
   const ChatScreen({
     super.key,

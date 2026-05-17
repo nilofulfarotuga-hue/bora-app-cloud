@@ -713,6 +713,8 @@ class _BottomCardState extends State<_BottomCard> {
                             builder: (_) => ChatScreen(
                               order: order,
                               senderType: ChatSenderType.client,
+                              conversationType: resolveConversationType(
+                                  ChatSenderType.client, order.status, null),
                             ),
                           ),
                         ),

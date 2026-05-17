@@ -969,6 +969,8 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
                     order: order,
                     senderType: ChatSenderType.partner,
                     chatTarget: ChatTarget.client,
+                    conversationType: resolveConversationType(
+                        ChatSenderType.partner, order.status, ChatTarget.client),
                   ),
                 ),
               ),
@@ -1022,6 +1024,8 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
                       order: order,
                       senderType: ChatSenderType.partner,
                       chatTarget: ChatTarget.driver,
+                      conversationType: resolveConversationType(
+                          ChatSenderType.partner, order.status, ChatTarget.driver),
                     ),
                   ),
                 ),

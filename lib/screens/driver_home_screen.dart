@@ -1554,6 +1554,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                           builder: (_) => ChatScreen(
                             order: order,
                             senderType: ChatSenderType.driver,
+                            conversationType: resolveConversationType(
+                                ChatSenderType.driver, order.status, null),
                           ),
                         ),
                       );

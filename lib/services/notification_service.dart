@@ -492,7 +492,11 @@ class NotificationService {
       if (data == null || !ctx.mounted) return;
       final order = OrderModel.fromSupabase(data);
       Navigator.of(ctx).push(MaterialPageRoute<void>(
-        builder: (_) => ChatScreen(order: order, senderType: senderType),
+        builder: (_) => ChatScreen(
+          order: order,
+          senderType: senderType,
+          conversationType: resolveConversationType(senderType, order.status, null),
+        ),
       ));
     } catch (e) {
       debugPrint('[NotificationService] _openChat error: $e');

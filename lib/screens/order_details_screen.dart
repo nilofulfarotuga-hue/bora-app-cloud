@@ -66,6 +66,8 @@ class OrderDetailsScreen extends StatelessWidget {
                   builder: (_) => ChatScreen(
                     order: liveOrder,
                     senderType: ChatSenderType.client,
+                    conversationType: resolveConversationType(
+                        ChatSenderType.client, liveOrder.status, null),
                   ),
                 ),
               ),

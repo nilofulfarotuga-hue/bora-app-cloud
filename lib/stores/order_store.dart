@@ -780,7 +780,7 @@ class OrderStore extends ChangeNotifier {
       if (dropoffPostalCode != null) 'dropoff_postal_code': dropoffPostalCode,
       if (customerNotes != null) 'customer_notes': customerNotes,
       if (customerName != null) 'customer_name': customerName,
-      if (clientPhone != null) 'customer_phone': clientPhone,
+      if (clientPhone != null) 'client_phone': clientPhone,
       if (paymentIntentId != null) 'payment_intent_id': paymentIntentId,
       'items': clonedItems?.map((i) => i.toJson()).toList() ?? [],
       // restaurant / storeShopping: pass product_lines so RPC recalculates

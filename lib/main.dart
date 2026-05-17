@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 // BUG #12 (2026-05-13) — delegates Material/Widgets/Cupertino + Locale PT-PT
 // para o showDatePicker e outros widgets localizados funcionarem fora EN.
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'services/foreground_service.dart';
 import 'services/notification_service.dart';
 import 'auth/auth_store.dart';
 import 'dispatch/dispatch_engine.dart';
@@ -49,6 +51,39 @@ const String _supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
 final RouteObserver<PageRoute<dynamic>> routeObserver =
     RouteObserver<PageRoute<dynamic>>();
 
+/// Sessão 2026-05-17 — Foreground service: regista os canais Android de alta
+/// prioridade para que FCM consiga acordar a app com som + vibração mesmo
+/// quando minimizada/fechada. Também inicializa o flutter_foreground_task.
+Future<void> _setupForegroundAndUrgentChannel() async {
+  if (kIsWeb) return;
+  try {
+    // 1) Canal de alta prioridade para pedidos novos (Importance.max).
+    //    Sem isto registado no Android Oreo+, FCM com priority=high é
+    //    silenciado. notify-driver/notify-partner usam channel_id
+    //    'bora_orders_urgent'.
+    const urgentChannel = AndroidNotificationChannel(
+      'bora_orders_urgent',
+      'Bora — Pedidos urgentes',
+      description: 'Notificações de novos pedidos (alta prioridade + som).',
+      importance: Importance.max,
+      playSound: true,
+      enableVibration: true,
+      showBadge: true,
+    );
+    final localPlugin = FlutterLocalNotificationsPlugin();
+    await localPlugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(urgentChannel);
+
+    // 2) Init flutter_foreground_task — regista também o canal LOW
+    //    'bora_service' para a notificação persistente.
+    await BoraForegroundService.init();
+  } catch (e) {
+    debugPrint('[main] _setupForegroundAndUrgentChannel error: $e');
+  }
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -89,6 +124,8 @@ Future<void> main() async {
     await Future.wait([
       Stripe.instance.applySettings(),
       Firebase.initializeApp().then((_) => NotificationService.instance.init()),
+      // Sessão 2026-05-17 — foreground service config + canal urgente Android.
+      _setupForegroundAndUrgentChannel(),
     ]);
   }
 

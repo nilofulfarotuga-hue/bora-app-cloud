@@ -2962,6 +2962,7 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                               driverTypedTotalCents: totalCents,
                               items: canonicalItems,
                               itemsAdded: itemsAdded,
+                              bagCount: _bagCount,
                             );
                             if (!mounted) return;
                             if (reason != null) {

@@ -123,8 +123,12 @@ Deno.serve(async (req) => {
     ? `${items} • €${total.toFixed(2)}`
     : `Novo pedido • €${total.toFixed(2)}`)
 
-  // Channel + data.type — `kind` overrides both. Defaults stay backward-compatible.
-  const channelId = kind ?? 'bora_orders'
+  // Channel + data.type — `kind` overrides both. Sessão 2026-05-17:
+  // pedidos novos vão para o canal urgente registado no Flutter
+  // (main.dart::_setupForegroundAndUrgentChannel); outros tipos (reservas,
+  // waitlist, etc) continuam no canal `bora_orders` para backward compat.
+  const isUrgent  = kind == null || kind === 'new_order'
+  const channelId = isUrgent ? 'bora_orders_urgent' : kind
   const dataType  = kind ?? 'new_order'
 
   // ── Obtain Firebase OAuth2 access token ──────────────────────────────────
@@ -160,6 +164,12 @@ Deno.serve(async (req) => {
         notification: {
           channel_id: channelId,
           sound:      'bora_alert',
+          ...(isUrgent ? {
+            notification_priority:   'PRIORITY_MAX',
+            default_vibrate_timings: true,
+            default_light_settings:  true,
+            visibility:              'PUBLIC',
+          } : {}),
         },
       },
       apns: {
@@ -169,6 +179,7 @@ Deno.serve(async (req) => {
             sound:               'bora_alert.wav',
             badge:               1,
             'content-available': 1,
+            ...(isUrgent ? { 'interruption-level': 'time-sensitive' } : {}),
           },
         },
       },

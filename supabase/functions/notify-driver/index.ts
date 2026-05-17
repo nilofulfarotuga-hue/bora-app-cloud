@@ -125,17 +125,25 @@ Deno.serve(async (req) => {
       android: {
         priority: 'high',
         notification: {
-          channel_id: 'bora_orders',
-          sound: 'bora_alert',
+          // Sessão 2026-05-17 — canal urgente registado no Flutter
+          // (main.dart::_setupForegroundAndUrgentChannel). Importance.max
+          // garante som + vibração mesmo com app fechada.
+          channel_id:            'bora_orders_urgent',
+          sound:                 'bora_alert',
+          notification_priority: 'PRIORITY_MAX',
+          default_vibrate_timings: true,
+          default_light_settings:  true,
+          visibility:              'PUBLIC',
         },
       },
       apns: {
         headers: { 'apns-priority': '10' },
         payload: {
           aps: {
-            sound: 'bora_alert.wav',
-            badge: 1,
+            sound:               'bora_alert.wav',
+            badge:               1,
             'content-available': 1,
+            'interruption-level': 'time-sensitive',
           },
         },
       },

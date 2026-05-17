@@ -1,14 +1,15 @@
 // @ts-nocheck
 // supabase/functions/notify-chat-message/index.ts
 //
-// v2 — Multi-recipient chat push notifications (FCM HTTP v1 / OAuth2).
+// v3 — Multi-recipient chat push notifications with conversation_type routing.
 //
 // Trigger: AFTER INSERT on `public.messages`.
 //
-// Routing (v2 — all three roles supported):
-//   sender_type='client'  → notify: driver (driver_push_tokens) + partner (via RPC)
-//   sender_type='driver'  → notify: client (client_push_tokens) + partner (via RPC)
-//   sender_type='partner' → notify: client (client_push_tokens) + driver (driver_push_tokens)
+// Routing (v3 — channel-aware):
+//   conversation_type='client_partner' → notify only client + partner (driver excluded)
+//   conversation_type='client_driver'  → notify only client + driver (partner excluded)
+//   conversation_type='driver_partner' → notify only driver + partner (client excluded)
+//   conversation_type=NULL (legacy)    → fallback: notify other 2 by sender_type
 //
 // Decisão A: multi-device — ALL active tokens per recipient.
 // Decisão B: fires even when app is open (foreground banner handled in Flutter).
@@ -84,7 +85,7 @@ Deno.serve(async (req) => {
   // ── Fetch message ────────────────────────────────────────────────────────
   const { data: msg, error: msgErr } = await supabase
     .from('messages')
-    .select('id, order_id, sender_type, message, created_at')
+    .select('id, order_id, sender_type, message, created_at, conversation_type')
     .eq('id', messageId)
     .maybeSingle()
 
@@ -121,25 +122,43 @@ Deno.serve(async (req) => {
     return json({ ok: false, reason: 'order_not_found' })
   }
 
-  // ── Determine recipients ──────────────────────────────────────────────────
-  // sender is excluded; all others in the conversation are notified.
+  // ── Determine recipients (v3: channel-aware routing) ─────────────────────
+  const convType = (msg.conversation_type ?? null) as string | null
   const lookups: Lookup[] = []
 
-  if (senderType === 'client') {
-    if (order.assigned_driver_id)
-      lookups.push({ kind: 'standard', table: 'driver_push_tokens', userId: String(order.assigned_driver_id) })
-    if (order.restaurant_id)
+  if (convType === 'client_partner') {
+    if (senderType === 'client' && order.restaurant_id)
       lookups.push({ kind: 'partner', restaurantId: String(order.restaurant_id) })
-  } else if (senderType === 'driver') {
-    if (order.user_id)
+    else if (senderType === 'partner' && order.user_id)
       lookups.push({ kind: 'standard', table: 'client_push_tokens', userId: String(order.user_id) })
-    if (order.restaurant_id)
-      lookups.push({ kind: 'partner', restaurantId: String(order.restaurant_id) })
-  } else if (senderType === 'partner') {
-    if (order.user_id)
-      lookups.push({ kind: 'standard', table: 'client_push_tokens', userId: String(order.user_id) })
-    if (order.assigned_driver_id)
+  } else if (convType === 'client_driver') {
+    if (senderType === 'client' && order.assigned_driver_id)
       lookups.push({ kind: 'standard', table: 'driver_push_tokens', userId: String(order.assigned_driver_id) })
+    else if (senderType === 'driver' && order.user_id)
+      lookups.push({ kind: 'standard', table: 'client_push_tokens', userId: String(order.user_id) })
+  } else if (convType === 'driver_partner') {
+    if (senderType === 'driver' && order.restaurant_id)
+      lookups.push({ kind: 'partner', restaurantId: String(order.restaurant_id) })
+    else if (senderType === 'partner' && order.assigned_driver_id)
+      lookups.push({ kind: 'standard', table: 'driver_push_tokens', userId: String(order.assigned_driver_id) })
+  } else {
+    // Legacy (conversation_type = NULL): notify other 2 participants by sender_type
+    if (senderType === 'client') {
+      if (order.assigned_driver_id)
+        lookups.push({ kind: 'standard', table: 'driver_push_tokens', userId: String(order.assigned_driver_id) })
+      if (order.restaurant_id)
+        lookups.push({ kind: 'partner', restaurantId: String(order.restaurant_id) })
+    } else if (senderType === 'driver') {
+      if (order.user_id)
+        lookups.push({ kind: 'standard', table: 'client_push_tokens', userId: String(order.user_id) })
+      if (order.restaurant_id)
+        lookups.push({ kind: 'partner', restaurantId: String(order.restaurant_id) })
+    } else if (senderType === 'partner') {
+      if (order.user_id)
+        lookups.push({ kind: 'standard', table: 'client_push_tokens', userId: String(order.user_id) })
+      if (order.assigned_driver_id)
+        lookups.push({ kind: 'standard', table: 'driver_push_tokens', userId: String(order.assigned_driver_id) })
+    }
   }
 
   if (lookups.length === 0) {
@@ -287,7 +306,7 @@ Deno.serve(async (req) => {
     }
   }
 
-  console.log(`[notify-chat-message] msg=${messageId} sender=${senderType} sent=${totalSent} cleaned=${totalCleaned}`)
+  console.log(`[notify-chat-message] msg=${messageId} conv=${convType ?? 'legacy'} sender=${senderType} sent=${totalSent} cleaned=${totalCleaned}`)
   return json({ ok: true, sent: totalSent, cleaned: totalCleaned })
 })
 

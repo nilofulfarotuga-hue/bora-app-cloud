@@ -7,6 +7,18 @@
 <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
 <!-- Android 14+ requires a typed foreground-service permission for location -->
 <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
+<!-- Foreground service (2026-05-17) — driver online + partner loja aberta.
+     dataSync = heartbeat 30s para Supabase; required em Android 14+. -->
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
+<!-- Android 13+ runtime permission para mostrar notificações (POST_NOTIFICATIONS).
+     Necessário para a notificação persistente do foreground service +
+     pedidos urgentes do canal 'bora_orders_urgent'. -->
+<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+<!-- Vibração para notificações urgentes de novo pedido. -->
+<uses-permission android:name="android.permission.VIBRATE"/>
+<!-- Boot completed (opcional) — flutter_foreground_task permite autoRunOnBoot
+     mas mantemos autoRunOnBoot=false; perm declarada para compatibilidade. -->
+<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
 <!-- Wake-lock: prevents CPU from sleeping while tracking is active -->
 <uses-permission android:name="android.permission.WAKE_LOCK"/>
 <!-- Camera: profile photo, sendPackage photo, carryGroceries photo (BR §7.5/§7.6), partner product photo -->

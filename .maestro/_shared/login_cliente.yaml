@@ -14,7 +14,7 @@ appId: com.example.bora_app
           timeout: 5000
 
 - evalScript: ${output.email = MAESTRO_CLIENT_EMAIL ?? "nilofulfarotuga@gmail.com"}
-- evalScript: ${output.pwd = MAESTRO_CLIENT_PASSWORD ?? "123456"}
+- evalScript: ${output.pwd = MAESTRO_CLIENT_PASSWORD ?? "Bora1234"}
 
 # Se já há sessão activa o role-picker não aparece — saltar com runFlow when.
 - runFlow:

@@ -19,9 +19,9 @@ appId: com.example.bora_app
 # Se já há sessão activa o role-picker não aparece — saltar com runFlow when.
 - runFlow:
     when:
-      visible: "Cliente"
+      visible: "Sou Cliente"
     commands:
-      - tapOn: "Cliente"
+      - tapOn: "Sou Cliente"
       - extendedWaitUntil:
           visible: "Email"
           timeout: 10000

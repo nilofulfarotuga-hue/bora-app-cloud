@@ -19,9 +19,9 @@ appId: com.example.bora_app
 
 - runFlow:
     when:
-      visible: "Cliente"
+      visible: "Sou Cliente"
     commands:
-      - tapOn: "Cliente"
+      - tapOn: "Sou Cliente"
       - extendedWaitUntil:
           visible: "Email"
           timeout: 10000

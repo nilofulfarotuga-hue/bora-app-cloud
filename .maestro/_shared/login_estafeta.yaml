@@ -17,9 +17,9 @@ appId: com.example.bora_app
 
 - runFlow:
     when:
-      visible: "Estafeta"
+      visible: "Sou Estafeta"
     commands:
-      - tapOn: "Estafeta"
+      - tapOn: "Sou Estafeta"
       - extendedWaitUntil:
           visible: "Telefone"
           timeout: 10000

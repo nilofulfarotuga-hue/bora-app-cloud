@@ -8,6 +8,7 @@ import '../models/message_model.dart';
 import '../models/order_model.dart';
 import '../stores/chat_store.dart';
 import '../stores/order_store.dart';
+import '../stores/restaurant_store.dart';
 
 enum ChatTarget { client, driver }
 
@@ -62,6 +63,32 @@ class _ChatScreenState extends State<ChatScreen> {
     super.dispose();
   }
 
+  String? _resolveCallPhone(BuildContext context, OrderModel o) {
+    final restaurantPhone = context
+        .read<RestaurantStore>()
+        .restaurantByName(o.vendorName)
+        ?.phone;
+    return switch (widget.senderType) {
+      ChatSenderType.client => switch (o.status) {
+        OrderStatus.preparing            => restaurantPhone,
+        OrderStatus.pickedUp ||
+        OrderStatus.onTheWay             => o.driverPhone,
+        _                                => null,
+      },
+      ChatSenderType.driver => switch (o.status) {
+        OrderStatus.driverAccepted       => restaurantPhone,
+        OrderStatus.pickedUp ||
+        OrderStatus.onTheWay             => o.clientPhone,
+        _                                => null,
+      },
+      ChatSenderType.partner => switch (widget.chatTarget) {
+        ChatTarget.client => o.clientPhone,
+        ChatTarget.driver => o.driverPhone,
+        null              => null,
+      },
+    };
+  }
+
   String _appBarTitle(OrderModel o) {
     final vendor = o.vendorName ?? 'Pedido';
     return switch (widget.senderType) {
@@ -99,24 +126,20 @@ class _ChatScreenState extends State<ChatScreen> {
       appBar: AppBar(
         title: Text(_appBarTitle(liveOrder)),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.phone),
-            tooltip: 'Ligar',
-            onPressed: () async {
-              final phone = switch (widget.senderType) {
-                ChatSenderType.driver  => liveOrder.clientPhone,
-                ChatSenderType.client  => liveOrder.driverPhone,
-                ChatSenderType.partner => switch (widget.chatTarget) {
-                  ChatTarget.client => liveOrder.clientPhone,
-                  ChatTarget.driver => liveOrder.driverPhone,
-                  null              => null,
+          Builder(
+            builder: (ctx) {
+              final phone = _resolveCallPhone(ctx, liveOrder);
+              if (phone == null || phone.isEmpty) return const SizedBox.shrink();
+              return IconButton(
+                icon: const Icon(Icons.phone),
+                tooltip: 'Ligar',
+                onPressed: () async {
+                  final uri = Uri(scheme: 'tel', path: phone);
+                  if (await canLaunchUrl(uri)) {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  }
                 },
-              };
-              if (phone == null || phone.isEmpty) return;
-              final uri = Uri(scheme: 'tel', path: phone);
-              if (await canLaunchUrl(uri)) {
-                await launchUrl(uri, mode: LaunchMode.externalApplication);
-              }
+              );
             },
           ),
         ],

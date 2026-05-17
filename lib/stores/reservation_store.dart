@@ -113,9 +113,12 @@ class ReservationStore extends ChangeNotifier {
     notifyListeners();
 
     try {
+      // 2026-05-17 — BUG 1 fix: coluna `image_url` não existe em restaurants.
+      // Colunas reais: id, name, photo_url, user_. Pedir image_url devolvia
+      // PostgREST 42703 e a UI mostrava "Ocorreu um erro".
       final response = await _supabase
           .from('reservations')
-          .select('*, restaurants(id, name, photo_url, image_url)')
+          .select('*, restaurants(id, name, photo_url)')
           .order('reserved_for', ascending: false)
           .limit(100);
 
@@ -369,7 +372,7 @@ class ReservationStore extends ChangeNotifier {
     try {
       final res = await _supabase
           .from('reservation_waitlist')
-          .select('*, restaurants(id, name, photo_url, image_url)')
+          .select('*, restaurants(id, name, photo_url)')
           .eq('client_user_id', userId)
           .order('created_at', ascending: false);
       return (res as List)
@@ -391,7 +394,7 @@ class ReservationStore extends ChangeNotifier {
     try {
       final res = await _supabase
           .from('reservation_notify_list')
-          .select('*, restaurants(id, name, photo_url, image_url)')
+          .select('*, restaurants(id, name, photo_url)')
           .eq('client_user_id', userId)
           .order('created_at', ascending: false);
       return (res as List)

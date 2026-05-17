@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../dispatch/driver_capacity_service.dart';
 import '../models/driver_model.dart';
 import '../models/order_model.dart';
+import '../services/foreground_service.dart';
 import '../utils/constants.dart';
 
 class DriverStore extends ChangeNotifier {
@@ -264,7 +265,31 @@ class DriverStore extends ChangeNotifier {
     driver.isOnline = value;
     notifyListeners();
     unawaited(updateDriverOnlineStatus(driverId, value));
+    // Sessão 2026-05-17 — foreground service: notificação persistente +
+    // processo activo enquanto driver está Online (padrão Glovo/Uber).
+    unawaited(_syncForegroundService(value));
     return true;
+  }
+
+  /// Liga o foreground service quando driver vai Online; pára quando offline.
+  /// Pede POST_NOTIFICATIONS (Android 13+) se ainda não concedido.
+  Future<void> _syncForegroundService(bool online) async {
+    try {
+      if (online) {
+        final granted =
+            await BoraForegroundService.ensureNotificationPermission();
+        if (!granted) {
+          debugPrint(
+              '[DriverStore] foreground notif perm denied — service não iniciado');
+          return;
+        }
+        await BoraForegroundService.startDriver();
+      } else {
+        await BoraForegroundService.stop();
+      }
+    } catch (e) {
+      debugPrint('[DriverStore] _syncForegroundService error: $e');
+    }
   }
 
   /// INSERT a drivers row for [uid] only if one does not already exist.

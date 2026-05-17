@@ -10,4 +10,4 @@ tags:
 
 # Sucesso = dashboard parceiro visível.
 - assertVisible:
-    text: "Reservas Pro|Pedidos|Ganhos"
+    text: "Pedidos"

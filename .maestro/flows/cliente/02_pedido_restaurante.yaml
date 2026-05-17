@@ -9,8 +9,8 @@ tags:
     clearState: true
 - runFlow: ../../_shared/login_cliente.yaml
 
-# Tile do serviço Restaurante (lib/data/fake_data.dart tem 5 restaurantes seed).
-- tapOn: "Restaurante"
+# Tile do serviço Restaurantes (lib/data/fake_data.dart tem 5 restaurantes seed).
+- tapOn: "Restaurantes"
 - extendedWaitUntil:
     visible: "Pizza"
     timeout: 10000

@@ -9,7 +9,7 @@ tags:
     clearState: true
 - runFlow: ../../_shared/login_cliente.yaml
 
-- tapOn: "Supermercado"
+- tapOn: "Supermercados"
 - extendedWaitUntil:
     visible:
       text: "Continente|Pingo Doce|Auchan|Lidl"

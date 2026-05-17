@@ -10,4 +10,4 @@ tags:
 
 # Sucesso = home estafeta visível.
 - assertVisible:
-    text: "Online|Offline|Disponível"
+    text: "Online"

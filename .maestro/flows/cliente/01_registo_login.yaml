@@ -11,4 +11,4 @@ tags:
 - assertVisible:
     text: "Cliente"
     optional: true
-- assertVisible: "Restaurante"
+- assertVisible: "Restaurantes"

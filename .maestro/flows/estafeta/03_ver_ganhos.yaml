@@ -10,7 +10,7 @@ tags:
 - runFlow: ../../_shared/login_estafeta.yaml
 
 - tapOn:
-    text: "Ganhos|Carteira"
+    text: "Ganhos"
 - extendedWaitUntil:
     visible:
       text: "€|Total"

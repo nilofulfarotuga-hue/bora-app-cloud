@@ -29,7 +29,12 @@ class _ClientReservationsScreenState extends State<ClientReservationsScreen>
     _tabController = TabController(length: 3, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      context.read<ReservationStore>().fetchMyReservations();
+      final store = context.read<ReservationStore>();
+      store.fetchMyReservations();
+      // BUG OS-1 (2026-05-17) — antes só era ligado em MyReservationListsScreen,
+      // por isso este ecrã (a lista principal) não recebia updates Realtime.
+      // Idempotente — safe para chamar mesmo se já subscrito.
+      store.subscribeMyReservations();
     });
   }
 

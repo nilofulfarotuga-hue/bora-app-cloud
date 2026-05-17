@@ -30,6 +30,14 @@ class ReservationStore extends ChangeNotifier {
   StreamSubscription? _myReservationsSub;
   bool _subscribed = false;
 
+  // BUG OS-2 (2026-05-17) — .stream() do Supabase não suporta JOIN, por
+  // isso reservas novas que chegam por Realtime vêm sem restaurantName/
+  // restaurantPhotoUrl. Mantemos uma cache em memória e fazemos fetch
+  // assíncrono leve para preencher cards sem JOIN no stream.
+  final Map<String, ({String name, String? photoUrl})> _restaurantInfoCache =
+      <String, ({String name, String? photoUrl})>{};
+  final Set<String> _restaurantFetchInFlight = <String>{};
+
   List<ReservationModel> get myReservations => _myReservations;
   bool get loading => _loading;
   String? get error => _error;
@@ -74,23 +82,84 @@ class ReservationStore extends ChangeNotifier {
         .listen((rows) {
       // .stream() entrega lista completa em cada evento.
       final byId = {for (final r in _myReservations) r.id: r};
+      // BUG OS-2 (2026-05-17) — recolher restaurantIds que ainda não têm
+      // nome/photo, para fetch assíncrono fora do map.
+      final missing = <String>{};
       _myReservations = rows.map((row) {
         final fresh = ReservationModel.fromSupabase(
           Map<String, dynamic>.from(row),
         );
-        final prev = byId[fresh.id];
-        if (prev?.restaurantName != null && fresh.restaurantName == null) {
-          return fresh.copyWithRestaurantInfo(
-            name: prev!.restaurantName,
-            photoUrl: prev.restaurantPhotoUrl,
+        // Cache info do restaurante quando vier preenchida (raro via .stream).
+        if (fresh.restaurantName != null) {
+          _restaurantInfoCache[fresh.restaurantId] = (
+            name: fresh.restaurantName!,
+            photoUrl: fresh.restaurantPhotoUrl,
           );
+        }
+        if (fresh.restaurantName == null) {
+          // 1) preserve do estado anterior por id.
+          final prev = byId[fresh.id];
+          if (prev?.restaurantName != null) {
+            return fresh.copyWithRestaurantInfo(
+              name: prev!.restaurantName,
+              photoUrl: prev.restaurantPhotoUrl,
+            );
+          }
+          // 2) cache em memória por restaurantId.
+          final cached = _restaurantInfoCache[fresh.restaurantId];
+          if (cached != null) {
+            return fresh.copyWithRestaurantInfo(
+              name: cached.name,
+              photoUrl: cached.photoUrl,
+            );
+          }
+          // 3) cache miss — agenda fetch assíncrono.
+          missing.add(fresh.restaurantId);
         }
         return fresh;
       }).toList();
       notifyListeners();
+      for (final id in missing) {
+        // Fire-and-forget. Re-emite via notifyListeners quando chega.
+        unawaited(_ensureRestaurantInfoFetched(id));
+      }
     }, onError: (Object e) {
       debugPrint('[ReservationStore] realtime stream error: $e');
     });
+  }
+
+  /// BUG OS-2 (2026-05-17) — fetch leve dos campos restaurant que .stream()
+  /// não consegue trazer via JOIN. Idempotente (cache + in-flight set).
+  Future<void> _ensureRestaurantInfoFetched(String restaurantId) async {
+    if (_restaurantInfoCache.containsKey(restaurantId)) return;
+    if (!_restaurantFetchInFlight.add(restaurantId)) return;
+    try {
+      final row = await _supabase
+          .from('restaurants')
+          .select('name, photo_url')
+          .eq('id', restaurantId)
+          .maybeSingle();
+      if (row == null) return;
+      final name = row['name'] as String?;
+      if (name == null) return;
+      final photoUrl = row['photo_url'] as String?;
+      _restaurantInfoCache[restaurantId] = (name: name, photoUrl: photoUrl);
+      // Re-merge: preenche reservas locais com o mesmo restaurantId.
+      var changed = false;
+      _myReservations = _myReservations.map((r) {
+        if (r.restaurantId == restaurantId && r.restaurantName == null) {
+          changed = true;
+          return r.copyWithRestaurantInfo(name: name, photoUrl: photoUrl);
+        }
+        return r;
+      }).toList();
+      if (changed) notifyListeners();
+    } catch (e) {
+      debugPrint(
+          '[ReservationStore] _ensureRestaurantInfoFetched $restaurantId: $e');
+    } finally {
+      _restaurantFetchInFlight.remove(restaurantId);
+    }
   }
 
   void unsubscribeMyReservations() {

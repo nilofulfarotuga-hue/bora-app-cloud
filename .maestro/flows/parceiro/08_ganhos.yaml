@@ -9,10 +9,10 @@ tags:
     clearState: true
 - runFlow: ../../_shared/login_parceiro.yaml
 
-- tapOn: "Ganhos"
+- tapOn: "Ver detalhe de ganhos"
 - extendedWaitUntil:
     visible:
-      text: "Hoje"
+      text: "Ganhos hoje|Ganhos totais"
     timeout: 10000
 
 # Cycling pelos 3 períodos.

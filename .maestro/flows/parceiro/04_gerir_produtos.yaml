@@ -9,7 +9,7 @@ tags:
 - runFlow: ../../_shared/login_parceiro.yaml
 
 - tapOn:
-    text: "Produtos"
+    text: "Gerir produtos"
 - extendedWaitUntil:
     visible:
       text: "€"

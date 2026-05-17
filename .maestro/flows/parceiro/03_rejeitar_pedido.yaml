@@ -12,19 +12,13 @@ tags:
     when:
       visible: "Rejeitar"
     commands:
+      # Parceiro rejeita directamente sem dialog de motivo
+      # (confirmado em partner_dashboard_screen.dart L1095/L1115).
+      # Sucesso = SnackBar "Pedido rejeitado" (L688).
       - tapOn:
           text: "Rejeitar"
           index: 0
       - extendedWaitUntil:
           visible:
-            text: "Motivo|Razão"
-          timeout: 10000
-      - tapOn:
-          text: "Motivo|Razão"
-      - inputText: "Sem stock"
-      - tapOn:
-          text: "Confirmar|Rejeitar"
-      - extendedWaitUntil:
-          visible:
-            text: "rejeitado|cancelado"
+            text: "Pedido rejeitado"
           timeout: 15000

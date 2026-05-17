@@ -38,6 +38,8 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
   bool _savingHours = false;
   String? _heroImageUrl;
   bool _uploadingHero = false;
+  String? _logoImageUrl;
+  bool _uploadingLogo = false;
 
   static const _days = <({int weekday, String label, String key})>[
     (weekday: DateTime.monday,    label: 'Segunda-feira', key: 'mon'),
@@ -69,7 +71,7 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
           .from('restaurants')
           .select(
               'id, name, category, address, phone, email, is_partner, is_online, is_active_admin, business_hours, '
-              'takeaway_enabled, curbside_enabled, takeaway_default_prep_minutes, hero_image_url')
+              'takeaway_enabled, curbside_enabled, takeaway_default_prep_minutes, hero_image_url, photo_url')
           .eq('id', widget.restaurantId)
           .single();
       final openData = await Supabase.instance.client.rpc('is_partner_open', params: {
@@ -84,6 +86,7 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
           _restaurant = r;
           _hours = bh;
           _heroImageUrl = r['hero_image_url'] as String?;
+          _logoImageUrl = r['photo_url'] as String?;
           _openStatus = results[1] is Map
               ? Map<String, dynamic>.from(results[1] as Map)
               : {'is_open': results[1]};
@@ -208,6 +211,118 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
     }
   }
 
+  // ─── Logo upload ──────────────────────────────────────────────────────────
+
+  Future<void> _uploadLogo() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Tirar foto'),
+              onTap: () => Navigator.pop(context, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Escolher da galeria'),
+              onTap: () => Navigator.pop(context, ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null || !mounted) return;
+    final picker = ImagePicker();
+    final file = await picker.pickImage(
+      source: source,
+      imageQuality: 85,
+      maxWidth: 1200,
+    );
+    if (file == null || !mounted) return;
+    final bytes = await File(file.path).readAsBytes();
+    if (bytes.length > 10 * 1024 * 1024) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Imagem muito grande (máx 10 MB).')),
+      );
+      return;
+    }
+    final ext = file.path.split('.').last.toLowerCase();
+    if (!['jpg', 'jpeg', 'png', 'webp'].contains(ext)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Formato inválido. Use JPEG, PNG ou WebP.')),
+      );
+      return;
+    }
+    setState(() => _uploadingLogo = true);
+    try {
+      final path = 'logo/${widget.restaurantId}.$ext';
+      await Supabase.instance.client.storage
+          .from('restaurant-assets')
+          .uploadBinary(path, bytes,
+              fileOptions:
+                  FileOptions(upsert: true, contentType: 'image/$ext'));
+      final publicUrl = Supabase.instance.client.storage
+          .from('restaurant-assets')
+          .getPublicUrl(path);
+      await Supabase.instance.client
+          .from('restaurants')
+          .update({'photo_url': publicUrl})
+          .eq('id', widget.restaurantId);
+      if (mounted) {
+        setState(() => _logoImageUrl = publicUrl);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Logo enviado com sucesso.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Erro ao enviar logo: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _uploadingLogo = false);
+    }
+  }
+
+  Future<void> _removeLogo() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Remover logo?'),
+        content: const Text('O logo do parceiro será removido. Continuar?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar')),
+          FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Remover')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    try {
+      await Supabase.instance.client
+          .from('restaurants')
+          .update({'photo_url': null})
+          .eq('id', widget.restaurantId);
+      if (mounted) {
+        setState(() => _logoImageUrl = null);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Logo removido.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Erro ao remover: $e')));
+      }
+    }
+  }
+
   // ─── TAB 1 — DADOS ────────────────────────────────────────────────────────
 
   Widget _buildDadosTab() {
@@ -297,6 +412,91 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
                       OutlinedButton.icon(
                         onPressed: _uploadingHero ? null : _removeHero,
                         icon: const Icon(Icons.delete_outline, color: Colors.red),
+                        label: const Text('Remover',
+                            style: TextStyle(color: Colors.red)),
+                        style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Colors.red)),
+                      ),
+                    ],
+                  ]),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          // ── Logo do parceiro (photo_url) ────────────────────────────────
+          Card(
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(color: Colors.grey.shade300),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(children: [
+                    Icon(Icons.store_outlined, size: 20),
+                    SizedBox(width: 8),
+                    Text('Logo do parceiro',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w700, fontSize: 15)),
+                  ]),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Aparece na listagem de restaurantes. JPEG, PNG ou WebP, máx 10 MB.',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 12),
+                  if (_logoImageUrl != null && _logoImageUrl!.isNotEmpty)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.network(
+                        _logoImageUrl!,
+                        height: 120,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const SizedBox(
+                            height: 120,
+                            child: Center(child: Icon(Icons.broken_image))),
+                      ),
+                    )
+                  else
+                    Container(
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: const Center(
+                          child: Text('Sem logo configurado',
+                              style: TextStyle(color: Colors.grey))),
+                    ),
+                  const SizedBox(height: 12),
+                  Row(children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _uploadingLogo ? null : _uploadLogo,
+                        icon: _uploadingLogo
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2))
+                            : const Icon(Icons.upload),
+                        label: Text(_logoImageUrl != null
+                            ? 'Trocar logo'
+                            : 'Enviar logo'),
+                      ),
+                    ),
+                    if (_logoImageUrl != null) ...[
+                      const SizedBox(width: 8),
+                      OutlinedButton.icon(
+                        onPressed: _uploadingLogo ? null : _removeLogo,
+                        icon: const Icon(Icons.delete_outline,
+                            color: Colors.red),
                         label: const Text('Remover',
                             style: TextStyle(color: Colors.red)),
                         style: OutlinedButton.styleFrom(

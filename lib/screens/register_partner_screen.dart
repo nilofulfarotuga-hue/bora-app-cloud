@@ -1,6 +1,11 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart' as ll;
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
@@ -36,8 +41,10 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
   final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _photoUrlController = TextEditingController();
   final _cuisineController = TextEditingController();
+
+  XFile? _logoFile;
+  final _imagePicker = ImagePicker();
 
   BusinessCategory _selectedCategory = BusinessCategory.restaurant;
   ll.LatLng? _pickupCoords;
@@ -49,6 +56,14 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
   /// Shown inline under the email field when Supabase rejects a duplicate.
   String? _emailInlineError;
 
+  static const _kDraftKey = 'bora_app.signup_draft.partner';
+
+  @override
+  void initState() {
+    super.initState();
+    _restoreDraft();
+  }
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -56,7 +71,6 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
     _phoneController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
-    _photoUrlController.dispose();
     _cuisineController.dispose();
     super.dispose();
   }
@@ -85,9 +99,7 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
       phone: _phoneController.text,
       email: _emailController.text,
       password: _passwordController.text,
-      photoUrl: _photoUrlController.text.trim().isEmpty
-          ? _kPartnerPlaceholderPhoto
-          : _photoUrlController.text,
+      photoUrl: _kPartnerPlaceholderPhoto,
       cuisineType: _cuisineController.text,
       consentAcceptedAt: DateTime.now().toUtc(),
     );
@@ -134,9 +146,7 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
         address: _addressController.text,
         phone: _phoneController.text,
         email: partner.email,
-        photoUrl: _photoUrlController.text.trim().isEmpty
-            ? _kPartnerPlaceholderPhoto
-            : _photoUrlController.text,
+        photoUrl: _kPartnerPlaceholderPhoto,
         cuisineType: _cuisineController.text,
         category: _selectedCategory,
         lat: _pickupCoords?.latitude,
@@ -148,6 +158,32 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
 
       /// Seleciona restaurante no store de produtos
       partnerProductStore.selectRestaurant(restaurant);
+
+      /// Upload logo se o utilizador tirou/escolheu foto
+      if (_logoFile != null) {
+        try {
+          final bytes = await _logoFile!.readAsBytes();
+          final ext = _logoFile!.path.contains('.')
+              ? _logoFile!.path.split('.').last.toLowerCase()
+              : 'jpg';
+          final path = 'logo/${restaurant.id}.$ext';
+          final storage = Supabase.instance.client.storage;
+          await storage.from('restaurant-assets').uploadBinary(
+                path,
+                bytes,
+                fileOptions:
+                    FileOptions(upsert: true, contentType: 'image/$ext'),
+              );
+          final url = storage.from('restaurant-assets').getPublicUrl(path);
+          await Supabase.instance.client
+              .from('restaurants')
+              .update({'photo_url': url})
+              .eq('id', restaurant.id);
+          authStore.updateCurrentUserPhoto(url);
+        } catch (e) {
+          debugPrint('RegisterPartnerScreen: logo upload failed => $e');
+        }
+      }
     } catch (error) {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
@@ -160,9 +196,112 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
     }
 
     await sessionStore.setRole(UserRole.partner);
+    _clearDraft();
 
     if (!mounted) return;
     setState(() => _isSubmitting = false);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Conta criada com sucesso!')),
+    );
+    Navigator.of(context).popUntil((route) => route.isFirst);
+  }
+
+  Future<void> _pickLogo(ImageSource source) async {
+    try {
+      final picked = await _imagePicker.pickImage(
+        source: source,
+        maxWidth: 1200,
+        imageQuality: 85,
+      );
+      if (picked != null && mounted) setState(() => _logoFile = picked);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao seleccionar imagem: $e')),
+        );
+      }
+    }
+  }
+
+  void _showLogoOptions() {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt, color: AppColors.accent),
+              title: const Text('Tirar foto'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickLogo(ImageSource.camera);
+              },
+            ),
+            ListTile(
+              leading:
+                  const Icon(Icons.photo_library, color: AppColors.accent),
+              title: const Text('Escolher da galeria'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickLogo(ImageSource.gallery);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _saveDraft() {
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.setString('$_kDraftKey.name', _nameController.text);
+      prefs.setString('$_kDraftKey.address', _addressController.text);
+      prefs.setString('$_kDraftKey.phone', _phoneController.text);
+      prefs.setString('$_kDraftKey.email', _emailController.text);
+      prefs.setString('$_kDraftKey.cuisine', _cuisineController.text);
+      prefs.setString('$_kDraftKey.category', _selectedCategory.name);
+    });
+  }
+
+  Future<void> _restoreDraft() async {
+    final prefs = await SharedPreferences.getInstance();
+    final name = prefs.getString('$_kDraftKey.name');
+    if (name == null || !mounted) return;
+    setState(() {
+      if (name.isNotEmpty) _nameController.text = name;
+      final address = prefs.getString('$_kDraftKey.address') ?? '';
+      if (address.isNotEmpty) _addressController.text = address;
+      final phone = prefs.getString('$_kDraftKey.phone') ?? '';
+      if (phone.isNotEmpty) _phoneController.text = phone;
+      final email = prefs.getString('$_kDraftKey.email') ?? '';
+      if (email.isNotEmpty) _emailController.text = email;
+      final cuisine = prefs.getString('$_kDraftKey.cuisine') ?? '';
+      if (cuisine.isNotEmpty) _cuisineController.text = cuisine;
+      final categoryName = prefs.getString('$_kDraftKey.category');
+      if (categoryName != null) {
+        try {
+          _selectedCategory = BusinessCategory.values
+              .firstWhere((c) => c.name == categoryName);
+        } catch (_) {}
+      }
+    });
+  }
+
+  void _clearDraft() {
+    SharedPreferences.getInstance().then((prefs) {
+      for (final key in [
+        'name',
+        'address',
+        'phone',
+        'email',
+        'cuisine',
+        'category'
+      ]) {
+        prefs.remove('$_kDraftKey.$key');
+      }
+    });
   }
 
   @override
@@ -205,6 +344,7 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _nameController,
+                    onChanged: (_) => _saveDraft(),
                     decoration: const InputDecoration(
                       labelText: 'Nome do estabelecimento',
                       prefixIcon: Icon(Icons.storefront_outlined),
@@ -233,6 +373,7 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _phoneController,
+                    onChanged: (_) => _saveDraft(),
                     decoration: const InputDecoration(
                       labelText: 'Telefone',
                       prefixIcon: Icon(Icons.phone_outlined),
@@ -245,18 +386,53 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
                     },
                   ),
                   const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _photoUrlController,
-                    decoration: const InputDecoration(
-                      labelText: 'URL da foto do restaurante (opcional)',
-                      prefixIcon: Icon(Icons.image_outlined),
-                      helperText:
-                          'Opcional — pode adicionar depois no perfil',
+                  // ── Logo do estabelecimento ───────────────────────────
+                  GestureDetector(
+                    onTap: _isSubmitting ? null : _showLogoOptions,
+                    child: Container(
+                      height: 140,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.shade300),
+                        image: _logoFile != null
+                            ? DecorationImage(
+                                image: FileImage(File(_logoFile!.path)),
+                                fit: BoxFit.cover,
+                              )
+                            : null,
+                      ),
+                      alignment: Alignment.center,
+                      child: _logoFile == null
+                              ? Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.add_a_photo_outlined,
+                                        color: Colors.grey.shade600, size: 32),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Logo do estabelecimento\n(opcional)',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                          color: Colors.grey.shade700),
+                                    ),
+                                  ],
+                                )
+                              : const Align(
+                                  alignment: Alignment.bottomRight,
+                                  child: Padding(
+                                    padding: EdgeInsets.all(8),
+                                    child: Icon(Icons.check_circle,
+                                        color: Colors.green, size: 28),
+                                  ),
+                                ),
                     ),
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _cuisineController,
+                    onChanged: (_) => _saveDraft(),
                     decoration: const InputDecoration(
                       labelText: 'Tipo de cozinha',
                       prefixIcon: Icon(Icons.restaurant_menu),
@@ -280,6 +456,7 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
                     onChanged: (value) {
                       if (value == null) return;
                       setState(() => _selectedCategory = value);
+                      _saveDraft();
                     },
                   ),
                   const SizedBox(height: 32),
@@ -292,7 +469,7 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
                     onChanged: (_) {
-                      // Clear inline duplicate error as soon as the user edits.
+                      _saveDraft();
                       if (_emailInlineError != null) {
                         setState(() => _emailInlineError = null);
                       }

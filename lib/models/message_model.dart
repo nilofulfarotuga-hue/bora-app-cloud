@@ -42,6 +42,7 @@ class MessageModel {
     required this.type,
     required this.content,
     required this.createdAt,
+    this.conversationType,
   });
 
   final String id;
@@ -56,6 +57,10 @@ class MessageModel {
   /// for [MessageType.substitution].
   final String content;
   final DateTime createdAt;
+
+  /// Chat channel: 'client_partner', 'client_driver', or 'driver_partner'.
+  /// Null for legacy messages — displayed in all channels.
+  final String? conversationType;
 
   /// Parsed substitution data. Returns null for text messages or on
   /// malformed JSON.
@@ -76,6 +81,7 @@ class MessageModel {
     required String senderId,
     required String senderRole,
     required String content,
+    String? conversationType,
   }) {
     return MessageModel(
       id: const Uuid().v4(),
@@ -85,6 +91,7 @@ class MessageModel {
       type: MessageType.text,
       content: content,
       createdAt: DateTime.now(),
+      conversationType: conversationType,
     );
   }
 
@@ -94,6 +101,7 @@ class MessageModel {
     required String original,
     required String suggestion,
     required double price,
+    String? conversationType,
   }) {
     final payload = SubstitutionContent(
       original: original,
@@ -108,6 +116,7 @@ class MessageModel {
       type: MessageType.substitution,
       content: jsonEncode(payload.toJson()),
       createdAt: DateTime.now(),
+      conversationType: conversationType,
     );
   }
 
@@ -129,6 +138,7 @@ class MessageModel {
       createdAt: data['created_at'] != null
           ? DateTime.tryParse(data['created_at'].toString()) ?? DateTime.now()
           : DateTime.now(),
+      conversationType: data['conversation_type'] as String?,
     );
   }
 
@@ -138,5 +148,6 @@ class MessageModel {
         'sender_type': senderRole,
         'message': content,
         'created_at': createdAt.toIso8601String(),
+        if (conversationType != null) 'conversation_type': conversationType,
       };
 }

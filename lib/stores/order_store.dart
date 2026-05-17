@@ -1676,6 +1676,7 @@ class OrderStore extends ChangeNotifier {
     required int driverTypedTotalCents,
     required List<CartItem> items,
     List<Map<String, dynamic>> itemsAdded = const [],
+    int bagCount = 1,
   }) async {
     final index = _orders.indexWhere((o) => o.id == orderId);
     if (index == -1) return 'Pedido não encontrado localmente.';
@@ -1722,6 +1723,7 @@ class OrderStore extends ChangeNotifier {
           'p_driver_typed_total_cents': driverTypedTotalCents,
           'p_receipt_photo_url': photoStoragePath,
           'p_items': payload,
+          'p_bag_count': bagCount,
         },
       );
 
@@ -1730,6 +1732,8 @@ class OrderStore extends ChangeNotifier {
       // Local state: o realtime UPDATE eventualmente refletirá. Update
       // mínimo aqui para UX imediata (status onTheWay + purchase_finalized).
       order.isPurchaseFinalized = true;
+      order.bagCount = bagCount;
+      order.bagFee = bagCount * 0.10;
       // status onTheWay vem via realtime; não força aqui.
       notifyListeners();
 

@@ -14,10 +14,10 @@ tags:
 - tapOn: "Perfil"
 - extendedWaitUntil:
     visible:
-      text: "Os meus pedidos|Pedidos"
+      text: "Pedidos"
     timeout: 10000
 - tapOn:
-    text: "Os meus pedidos|Pedidos"
+    text: "Pedidos"
 
 - runFlow:
     when:

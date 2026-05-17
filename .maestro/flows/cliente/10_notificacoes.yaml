@@ -25,6 +25,6 @@ tags:
 
 - runFlow:
     when:
-      visible: "Marcar como lidas"
+      visible: "Marcar todas"
     commands:
-      - tapOn: "Marcar como lidas"
+      - tapOn: "Marcar todas"

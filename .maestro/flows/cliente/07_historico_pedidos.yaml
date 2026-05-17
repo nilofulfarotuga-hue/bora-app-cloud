@@ -11,11 +11,11 @@ tags:
 - tapOn: "Perfil"
 - extendedWaitUntil:
     visible:
-      text: "Os meus pedidos|Histórico|Pedidos"
+      text: "Histórico|Pedidos"
     timeout: 10000
 
 - tapOn:
-    text: "Os meus pedidos|Histórico"
+    text: "Histórico"
 
 # Lista carregada (mesmo vazia mostra estado).
 - extendedWaitUntil:

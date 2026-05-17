@@ -28,18 +28,18 @@ tags:
 - tapOn: "Aceitar"
 - extendedWaitUntil:
     visible:
-      text: "Recolhido|Marcar recolhido"
+      text: "Recolhido"
     timeout: 15000
 
 - tapOn:
-    text: "Recolhido|Marcar recolhido"
+    text: "Recolhido"
 - extendedWaitUntil:
     visible:
-      text: "Entregue|Marcar entregue"
+      text: "Entregue"
     timeout: 15000
 
 - tapOn:
-    text: "Entregue|Marcar entregue"
+    text: "Entregue"
 
 # Código 4-dígitos (BR §7.7) — preencher com 0000 placeholder se solicitado.
 - runFlow:

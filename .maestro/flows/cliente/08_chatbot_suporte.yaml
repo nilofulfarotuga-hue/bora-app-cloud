@@ -28,5 +28,5 @@ tags:
 # Aguardar resposta do bot.
 - extendedWaitUntil:
     visible:
-      text: "Olá|Posso ajudar|Sobre o Bora"
+      text: "Olá|Posso ajudar"
     timeout: 30000

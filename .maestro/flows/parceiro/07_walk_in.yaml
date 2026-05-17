@@ -12,10 +12,10 @@ tags:
 - tapOn: "Reservas Pro"
 - extendedWaitUntil:
     visible:
-      text: "Walk-in|Walk in"
+      text: "Walk-in"
     timeout: 10000
 - tapOn:
-    text: "Walk-in|Walk in"
+    text: "Walk-in"
 
 - extendedWaitUntil:
     visible:
@@ -34,5 +34,5 @@ tags:
     text: "Sentar|Confirmar"
 - extendedWaitUntil:
     visible:
-      text: "Sentado|Cliente sentado"
+      text: "Sentado"
     timeout: 15000

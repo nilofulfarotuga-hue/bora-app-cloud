@@ -82,6 +82,15 @@
 		<string>location</string>
 		<string>fetch</string>
 		<string>remote-notification</string>
+		<string>processing</string>
+	</array>
+	<!-- Sessão 2026-05-17 (foreground service) — BGTaskScheduler IDs do
+	     flutter_foreground_task para iOS. iOS não tem foreground service real;
+	     o background fetch + remote-notification (alta prioridade FCM) faz o
+	     equivalente. Driver/parceiro recebem pedidos via APNs priority 10. -->
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.pravera.flutter_foreground_task</string>
 	</array>
 	<!-- Sessão 7-UI-BUG004: tel: launcher para botão "Ligar agora" do
 	     bottom sheet de cancelamento bloqueado pós-pickedUp. -->

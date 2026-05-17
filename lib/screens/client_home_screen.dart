@@ -12,6 +12,7 @@ import '../models/rating_model.dart';
 import '../models/restaurant_model.dart';
 import '../services/location_service.dart';
 import '../stores/cart_store.dart';
+import '../stores/order_store.dart';
 import '../stores/restaurant_store.dart';
 import '../stores/session_store.dart';
 import '../widgets/address_autocomplete_field.dart';
@@ -33,6 +34,18 @@ class ClientHomeScreen extends StatefulWidget {
 
 class _ClientHomeScreenState extends State<ClientHomeScreen>
     with WidgetsBindingObserver {
+  // BUG 3 (2026-05-17) — Realtime listener for the unrated rating dialog.
+  // OrderStore exposes `lastDeliveredAt`, updated whenever an order
+  // transitions to delivered via Realtime. When the timestamp moves into
+  // the recent past (≤10s), we re-run _checkUnratedOrders after a small
+  // UX delay so the dialog appears in foreground without an app reopen.
+  OrderStore? _orderStore;
+  // BUG 3 (2026-05-17) — guard against concurrent runs.
+  // _checkUnratedOrders is now triggered from three places (initState,
+  // didChangeAppLifecycleState.resumed, OrderStore listener) so a quick
+  // resume + Realtime delivered could stack two RatingScreen pushes.
+  bool _ratingCheckInFlight = false;
+
   @override
   void initState() {
     super.initState();
@@ -45,12 +58,16 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
       _detectLocation();
       // Sessão 6 §44 — abre RatingScreen se há pedido entregue ainda não avaliado.
       _checkUnratedOrders();
+      // BUG 3 (2026-05-17) — attach Realtime listener on OrderStore.
+      _orderStore = context.read<OrderStore>();
+      _orderStore!.addListener(_onOrderStoreChanged);
     });
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _orderStore?.removeListener(_onOrderStoreChanged);
     super.dispose();
   }
 
@@ -64,6 +81,18 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
     }
   }
 
+  void _onOrderStoreChanged() {
+    if (!mounted) return;
+    final stamp = _orderStore?.lastDeliveredAt;
+    if (stamp == null) return;
+    if (DateTime.now().difference(stamp).inSeconds > 10) return;
+    // Small UX delay so the user sees the delivered status before the
+    // rating prompt covers it.
+    Future<void>.delayed(const Duration(seconds: 2), () {
+      if (mounted) _checkUnratedOrders();
+    });
+  }
+
   /// BR §44.6 — pós-login/abertura, procura pedido `delivered` recente
   /// (≤ 48h) com avaliação pendente (driver e/ou partner). Abre
   /// RatingScreen sequencialmente para cada sujeito ainda não avaliado.
@@ -75,6 +104,8 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
   /// Aplica a TODOS service_type (restaurant, storeShopping,
   /// carryGroceries, sendPackage). Falhas silenciosas.
   Future<void> _checkUnratedOrders() async {
+    if (_ratingCheckInFlight) return;
+    _ratingCheckInFlight = true;
     try {
       final supabase = Supabase.instance.client;
       final user = supabase.auth.currentUser;
@@ -179,6 +210,8 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
       }
     } catch (e) {
       debugPrint('[unrated_orders] $e');
+    } finally {
+      _ratingCheckInFlight = false;
     }
   }
 

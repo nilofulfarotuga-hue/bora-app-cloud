@@ -225,8 +225,44 @@ class OrderStore extends ChangeNotifier {
   Timer? _fallbackRefreshTimer;
   final Map<String, DateTime> _lastDispatchCall = {};
 
+  // BUG 3 (2026-05-17) — Rating dialog Realtime trigger.
+  // ClientHomeScreen reads `lastDeliveredAt` and fires _checkUnratedOrders
+  // whenever a new order transitions to delivered, so the rating dialog
+  // appears within seconds of the actual delivery — no app reopen needed.
+  //
+  // Detection runs inside notifyListeners() so it covers every code path
+  // that mutates _orders (main client stream, fallback channel, driver
+  // streams, _advanceStatus). The first notify only seeds the seen-set
+  // with delivered orders that already exist on startup, so historical
+  // orders never trigger the dialog.
+  final Set<String> _seenDeliveredOrderIds = <String>{};
+  DateTime? _lastDeliveredAt;
+  bool _deliveredTrackingInitialised = false;
+  DateTime? get lastDeliveredAt => _lastDeliveredAt;
+
   /// Order IDs locally dismissed by this driver (reject or cancel).
   final Set<String> _dismissedOrderIds = {};
+
+  // BUG 3 (2026-05-17) — Run delivered-transition detection on every notify.
+  // Seeds the seen-set on the first call (so historical delivered orders
+  // are ignored); subsequent calls mark `_lastDeliveredAt` when a NEW
+  // delivered orderId appears, signalling ClientHomeScreen to re-check
+  // unrated orders without waiting for app resume.
+  @override
+  void notifyListeners() {
+    _trackDeliveredTransitions();
+    super.notifyListeners();
+  }
+
+  void _trackDeliveredTransitions() {
+    for (final o in _orders) {
+      if (o.status != OrderStatus.delivered) continue;
+      if (_seenDeliveredOrderIds.add(o.id) && _deliveredTrackingInitialised) {
+        _lastDeliveredAt = DateTime.now();
+      }
+    }
+    _deliveredTrackingInitialised = true;
+  }
 
   List<OrderModel> get orders => List.unmodifiable(_orders);
 

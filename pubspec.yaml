@@ -52,6 +52,15 @@ dependencies:
   printing: ^5.11.0
   path_provider: ^2.1.4
 
+  # FOREGROUND SERVICE (Sessão 2026-05-17) — mantém driver/parceiro sempre
+  # online em background com notificação persistente (padrão Glovo/Uber Eats).
+  # Requer Kotlin >=1.9.10 e Gradle >=8.6.0 (confirmados: 2.3.10 / 8.14).
+  flutter_foreground_task: ^8.17.0
+  # Necessário para registar o canal Android 'bora_orders_urgent' (Importance.MAX)
+  # antes de FCM enviar pedidos novos — sem canal registado, Android Oreo+
+  # silencia notificações de alta prioridade.
+  flutter_local_notifications: ^17.2.4
+
 
 
 

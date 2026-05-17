@@ -18,11 +18,16 @@ class ChatScreen extends StatefulWidget {
     required this.order,
     required this.senderType,
     this.chatTarget,
+    this.conversationType,
   });
 
   final OrderModel order;
   final ChatSenderType senderType;
   final ChatTarget? chatTarget;
+
+  /// 'client_partner', 'client_driver', or 'driver_partner'.
+  /// Null = show all messages (legacy / no channel filtering).
+  final String? conversationType;
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -110,7 +115,13 @@ class _ChatScreenState extends State<ChatScreen> {
       (o) => o.id == widget.order.id,
       orElse: () => widget.order,
     );
-    final messages = chatStore.messagesForOrder(widget.order.id);
+    final messages = chatStore
+        .messagesForOrder(widget.order.id)
+        .where((m) =>
+            widget.conversationType == null ||
+            m.conversationType == null ||
+            m.conversationType == widget.conversationType)
+        .toList();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollCtrl.hasClients && messages.isNotEmpty) {
@@ -227,6 +238,7 @@ class _ChatScreenState extends State<ChatScreen> {
         senderId: _senderId,
         senderRole: _senderRole,
         content: text,
+        conversationType: widget.conversationType,
       );
     } catch (e) {
       debugPrint('ChatScreen._handleSend: $e');
@@ -273,6 +285,7 @@ class _ChatScreenState extends State<ChatScreen> {
         original: result.original,
         suggestion: result.suggestion,
         price: result.price,
+        conversationType: widget.conversationType,
       );
     } catch (_) {
       if (mounted) {

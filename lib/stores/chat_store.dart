@@ -87,12 +87,14 @@ class ChatStore extends ChangeNotifier {
     required String senderId,
     required String senderRole,
     required String content,
+    String? conversationType,
   }) async {
     final msg = MessageModel.text(
       orderId: orderId,
       senderId: senderId,
       senderRole: senderRole,
       content: content,
+      conversationType: conversationType,
     );
 
     // Optimistic insert — shows the message instantly in the UI.
@@ -126,6 +128,7 @@ class ChatStore extends ChangeNotifier {
     required String original,
     required String suggestion,
     required double price,
+    String? conversationType,
   }) async {
     final msg = MessageModel.substitution(
       orderId: orderId,
@@ -133,6 +136,7 @@ class ChatStore extends ChangeNotifier {
       original: original,
       suggestion: suggestion,
       price: price,
+      conversationType: conversationType,
     );
 
     // Optimistic insert.

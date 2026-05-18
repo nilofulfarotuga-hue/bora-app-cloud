@@ -22,6 +22,7 @@ import 'admin_drivers_screen.dart';
 import 'admin_edge_functions_screen.dart';
 import 'admin_live_orders_map_screen.dart';
 import 'admin_orders_screen.dart';
+import 'admin_global_search_screen.dart';
 import 'admin_partner_payouts_screen.dart';
 import 'admin_partner_settlements_screen.dart';
 import 'admin_referrals_screen.dart';
@@ -158,6 +159,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       appBar: AppBar(
         title: const Text('Painel Admin'),
         actions: [
+          // BLOCO C (2026-05-18) — Pesquisa global cross-entity.
+          IconButton(
+            icon: const Icon(Icons.search),
+            tooltip: 'Buscar (clientes, entregadores, parceiros, pedidos)',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const AdminGlobalSearchScreen(),
+              ),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _refresh,

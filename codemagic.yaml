@@ -41,22 +41,34 @@ workflows:
       - name: Build APK release
         script: |
           set +e
+          # Tentar com Gradle stacktrace + info para mensagem real
+          export GRADLE_OPTS="$GRADLE_OPTS -Dorg.gradle.logging.level=info"
           flutter build apk --release \
             --dart-define-from-file=.dart_defines \
             --no-tree-shake-icons \
-            --verbose 2>&1 | tee /tmp/apk_build.log
+            --verbose 2>&1 | tee "$CM_BUILD_DIR/apk_build.log"
           RC=${PIPESTATUS[0]}
+          # Copia para artifact path independentemente do resultado.
+          cp "$CM_BUILD_DIR/apk_build.log" "$CM_BUILD_DIR/build/apk_build_full.log" 2>/dev/null || true
+          mkdir -p "$CM_BUILD_DIR/build/logs"
+          cp "$CM_BUILD_DIR/apk_build.log" "$CM_BUILD_DIR/build/logs/apk_build_full.log" 2>/dev/null || true
           if [ "$RC" != "0" ]; then
             echo ""
-            echo "================ BUILD FAILED — EXTRACT ================"
-            grep -B 2 -A 40 -E "FAILURE:|What went wrong:|Caused by:|Execution failed for task|Error:" /tmp/apk_build.log || true
-            echo "================ TAIL 200 LINHAS ================"
-            tail -200 /tmp/apk_build.log
+            echo "================ BUILD FAILED ================"
+            echo "Full log saved as artifact: build/logs/apk_build_full.log"
+            echo ""
+            echo "================ FIRST FAILURE / What went wrong / Caused by ================"
+            grep -n -B 2 -A 50 -E "FAILURE:|What went wrong:|Caused by:|Execution failed for task|^Error:|OutOfMemoryError|Could not resolve" "$CM_BUILD_DIR/apk_build.log" || echo "(nenhuma destas palavras-chave encontrada)"
+            echo ""
+            echo "================ ULTIMAS 400 LINHAS ================"
+            tail -400 "$CM_BUILD_DIR/apk_build.log"
             exit $RC
           fi
     artifacts:
       - build/**/outputs/**/*.apk
       - build/**/outputs/**/mapping.txt
+      - build/logs/apk_build_full.log
+      - apk_build.log
       - flutter_drive.log
     publishing:
       email:

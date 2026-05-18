@@ -174,6 +174,87 @@ class _AdminSkillSuggestionsScreenState
     });
   }
 
+  Future<void> _showBulkApproveDialog() async {
+    if (_selectedIds.isEmpty) return;
+
+    // Verify all selected are safe zone
+    final allSafe = _selectedIds.every((id) {
+      final s = _suggestions.firstWhere(
+          (s) => s['id'] == id,
+          orElse: () => <String, dynamic>{});
+      return (s['zone_type'] as String?) == 'safe';
+    });
+
+    if (!allSafe) {
+      _toast(
+        'Selecção contém propostas CRÍTICAS — só é possível aprovar propostas SAFE em lote.',
+        _critical,
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Aprovar ${_selectedIds.length} propostas SAFE?'),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Todas as propostas seleccionadas são SAFE e serão aprovadas imediatamente.',
+              style: TextStyle(fontSize: 13),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Esta acção é irreversível (excepto playbook_update e settings_update que suportam rollback individual).',
+              style: TextStyle(fontSize: 11, color: Colors.black54),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _boraGreen,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Aprovar ${_selectedIds.length}'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    try {
+      final ids = _selectedIds.toList();
+      final result = await _supabase.rpc(
+        'admin_bulk_approve_skill_suggestions',
+        params: {'p_ids': ids},
+      );
+      final data =
+          result is Map ? Map<String, dynamic>.from(result) : <String, dynamic>{};
+      final approved = (data['approved'] as num?)?.toInt() ?? 0;
+      final skipped = (data['skipped_critical'] as num?)?.toInt() ?? 0;
+      final errors = (data['errors'] as num?)?.toInt() ?? 0;
+      final msg = errors > 0
+          ? '$approved aprovada(s), $skipped ignorada(s), $errors erro(s)'
+          : skipped > 0
+              ? '$approved aprovada(s), $skipped ignorada(s) (não-safe ou não-pendente)'
+              : '$approved aprovada(s) com sucesso';
+      _toast(msg, errors > 0 ? Colors.orange : _boraGreen);
+      if (mounted) setState(() => _selectedIds.clear());
+      await _load();
+      await _refreshBadge();
+    } catch (e) {
+      _toast('Erro: $e', Colors.red);
+    }
+  }
+
   Future<void> _showBulkRejectDialog() async {
     if (_selectedIds.isEmpty) return;
     final reasonCtrl = TextEditingController();
@@ -867,6 +948,21 @@ class _AdminSkillSuggestionsScreenState
               ),
         actions: hasSelection
             ? [
+                Builder(builder: (ctx) {
+                  final allSafe = _selectedIds.every((id) {
+                    final s = _suggestions.firstWhere(
+                        (s) => s['id'] == id,
+                        orElse: () => <String, dynamic>{});
+                    return (s['zone_type'] as String?) == 'safe';
+                  });
+                  return IconButton(
+                    icon: const Icon(Icons.check_circle_outline),
+                    tooltip: allSafe
+                        ? 'Aprovar em lote (todas SAFE)'
+                        : 'Aprovar em lote (contém CRÍTICAS — desactivado)',
+                    onPressed: allSafe ? _showBulkApproveDialog : null,
+                  );
+                }),
                 IconButton(
                   icon: const Icon(Icons.delete_sweep),
                   tooltip: 'Rejeitar em lote',

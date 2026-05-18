@@ -163,7 +163,7 @@ class _AdminSettlementsScreenState extends State<AdminSettlementsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Settlements semanais'),
+        title: const Text('Fechamento Semanal — Estafetas'),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         actions: [

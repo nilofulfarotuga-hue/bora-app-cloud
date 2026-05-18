@@ -522,7 +522,7 @@ class _AdminPartnerPayoutsScreenState extends State<AdminPartnerPayoutsScreen> {
     return Scaffold(
       backgroundColor: AppColors.surface,
       appBar: AppBar(
-        title: const Text('Repasses a Parceiros'),
+        title: const Text('Fechamento Semanal — Parceiros'),
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         elevation: 0,

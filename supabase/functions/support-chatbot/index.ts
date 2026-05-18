@@ -608,9 +608,14 @@ Deno.serve(async (req: Request) => {
     sessionId = newSess.id as string;
   }
 
-  await adminClient.from('support_chatbot_messages').insert({
-    session_id: sessionId, role: 'user', content: userMessage,
-  });
+  {
+    const { error: insUserErr } = await adminClient.from('support_chatbot_messages').insert({
+      session_id: sessionId, role: 'user', content: userMessage,
+    });
+    if (insUserErr) {
+      console.error('[CHATBOT] insert user message failed:', insUserErr.message, insUserErr.details ?? '');
+    }
+  }
 
   const { data: histRows } = await adminClient
     .from('support_chatbot_messages')
@@ -742,12 +747,17 @@ Deno.serve(async (req: Request) => {
       } else {
         rpcRes = await callRpc(userJwt, fnName, fnArgs);
       }
-      await adminClient.from('support_chatbot_messages').insert({
-        session_id: sessionId, role: 'tool',
-        content: rpcRes.ok ? 'ok' : (rpcRes.error ?? 'rpc error'),
-        tool_name: fnName, tool_input: fnArgs,
-        tool_output: rpcRes.ok ? rpcRes.data : { error: rpcRes.error },
-      });
+      {
+        const { error: insToolErr } = await adminClient.from('support_chatbot_messages').insert({
+          session_id: sessionId, role: 'tool',
+          content: rpcRes.ok ? 'ok' : (rpcRes.error ?? 'rpc error'),
+          tool_name: fnName, tool_input: fnArgs,
+          tool_output: rpcRes.ok ? rpcRes.data : { error: rpcRes.error },
+        });
+        if (insToolErr) {
+          console.error('[CHATBOT] insert tool message failed:', insToolErr.message, insToolErr.details ?? '');
+        }
+      }
       contents.push({ role: 'model', parts: [{ functionCall: fnCallPart.functionCall }] });
       contents.push({
         role: 'function',
@@ -778,10 +788,15 @@ Deno.serve(async (req: Request) => {
     finalText = finalText.replace('[HANDOFF_HUMAN]', '').trim();
   }
 
-  await adminClient.from('support_chatbot_messages').insert({
-    session_id: sessionId, role: 'assistant', content: finalText,
-    tokens_used: totalTokens || null,
-  });
+  {
+    const { error: insAsstErr } = await adminClient.from('support_chatbot_messages').insert({
+      session_id: sessionId, role: 'assistant', content: finalText,
+      tokens_used: totalTokens || null,
+    });
+    if (insAsstErr) {
+      console.error('[CHATBOT] insert assistant message failed:', insAsstErr.message, insAsstErr.details ?? '');
+    }
+  }
 
   const newCount = messagesCount + 1;
   let ticketId: string | null = null;
@@ -804,6 +819,55 @@ Deno.serve(async (req: Request) => {
       escalation_reason: geminiError ?? 'agent_handoff',
       ticket_id: ticketId,
     }).eq('id', sessionId);
+
+    // P0-S15-002 (2026-05-17) — SKILL_GAP_LOG inline.
+    // Quando o bot escala (max_tool_iterations ou [HANDOFF_HUMAN]) regista
+    // uma sugestão de skill em pending. Dedup por hash da query. Sessão
+    // semanal analyze-conversations continua a complementar com batch.
+    try {
+      const summary = userMessage.toLowerCase().trim().slice(0, 200);
+      const hashBuf = await crypto.subtle.digest(
+        'SHA-256',
+        new TextEncoder().encode(summary),
+      );
+      const hashHex = Array.from(new Uint8Array(hashBuf))
+        .map((b) => b.toString(16).padStart(2, '0')).join('');
+
+      const { data: existing } = await adminClient
+        .from('skill_suggestions')
+        .select('id')
+        .eq('pattern_hash', hashHex)
+        .in('status', ['pending', 'approved'])
+        .limit(1)
+        .maybeSingle();
+
+      if (!existing) {
+        const nowIso = new Date().toISOString();
+        const { error: insSkillErr } = await adminClient
+          .from('skill_suggestions').insert({
+            proposal_type:         'new_skill',
+            zone_type:             'safe',
+            pattern_summary:       summary,
+            sample_messages:       [userMessage.slice(0, 500)],
+            message_count:         1,
+            suggested_category:    'general',
+            suggested_mode:        'read_only',
+            suggested_playbook_md: '',
+            suggested_allowed_tools: [],
+            pattern_hash:          hashHex,
+            gemini_model:          null,
+            analysis_window_start: nowIso,
+            analysis_window_end:   nowIso,
+          });
+        if (insSkillErr) {
+          console.error('[CHATBOT] inline skill_suggestion insert failed:',
+            insSkillErr.message, insSkillErr.details ?? '');
+        }
+      }
+    } catch (e) {
+      console.error('[CHATBOT] inline skill_suggestion exception:',
+        (e as Error).message);
+    }
   } else {
     await adminClient.from('support_chatbot_sessions')
       .update({ messages_count: newCount }).eq('id', sessionId);

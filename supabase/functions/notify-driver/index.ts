@@ -111,38 +111,37 @@ Deno.serve(async (req) => {
   // ── Send FCM v1 push notification ─────────────────────────────────────────
   const fcmUrl = `https://fcm.googleapis.com/v1/projects/${firebaseProjectId}/messages:send`
 
+  // Sessão 2026-05-18 — DATA-ONLY MESSAGE (estilo Uber/Glovo).
+  // Removido o campo `notification` (top-level + android.notification) para
+  // forçar o Android a entregar ao _firebaseMessagingBackgroundHandler do
+  // Flutter mesmo com a app fechada/background. O handler dispara depois a
+  // notificação local com fullScreenIntent + som bora_alert + vibração.
+  // Se houver `notification`, o Android trata como "display message" e NÃO
+  // chama o background handler → sem som, sem overlay, sem timer.
   const message = {
     message: {
       token: driver.fcm_token,
-      notification: {
-        title: '🔔 Novo pedido!',
-        body: `${vendorName} • €${total.toFixed(2)}`,
-      },
       data: {
-        orderId: String(orderId),
-        type: 'new_order_offer',
+        orderId:    String(orderId),
+        type:       'new_order_offer',
+        vendorName: vendorName,
+        total:      total.toFixed(2),
+        title:      '🔔 Novo pedido!',
+        body:       `${vendorName} • €${total.toFixed(2)}`,
       },
       android: {
         priority: 'high',
-        notification: {
-          // Sessão 2026-05-17 — canal urgente registado no Flutter
-          // (main.dart::_setupForegroundAndUrgentChannel). Importance.max
-          // garante som + vibração mesmo com app fechada.
-          channel_id:            'bora_orders_urgent',
-          sound:                 'bora_alert',
-          notification_priority: 'PRIORITY_MAX',
-          default_vibrate_timings: true,
-          default_light_settings:  true,
-          visibility:              'PUBLIC',
-        },
+        // SEM bloco `notification` — data-only.
       },
       apns: {
-        headers: { 'apns-priority': '10' },
+        headers: {
+          'apns-priority':  '10',
+          'apns-push-type': 'background',
+        },
         payload: {
           aps: {
-            sound:               'bora_alert.wav',
-            badge:               1,
-            'content-available': 1,
+            'content-available':  1,
+            sound:                'bora_alert.wav',
             'interruption-level': 'time-sensitive',
           },
         },

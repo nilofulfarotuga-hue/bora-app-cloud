@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -15,11 +17,80 @@ import 'push_token_service.dart';
 import 'sound_service.dart';
 
 /// Background message handler — must be a top-level function (not a closure).
-/// Called by FCM when a data message arrives and the app is terminated/background.
+/// Called by FCM when a DATA-ONLY message arrives (sem campo `notification`)
+/// e a app está em background OU terminada/fechada.
+///
+/// Sessão 2026-05-18 — estilo Uber/Glovo: a Edge Function notify-driver envia
+/// apenas `data` para forçar este handler a correr. Aqui disparamos uma
+/// notificação local com fullScreenIntent (acorda o ecrã), som bora_alert e
+/// vibração agressiva — exactamente como Uber/Glovo fazem para que o estafeta
+/// nunca perca uma oferta com o telemóvel bloqueado.
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  debugPrint(
-      '[NotificationService BG] ${message.notification?.title}: ${message.notification?.body}');
+  // Firebase pode não estar inicializado neste isolate em background.
+  try {
+    await Firebase.initializeApp();
+  } catch (_) {
+    // already initialized
+  }
+
+  final data = message.data;
+  final type = data['type'];
+
+  debugPrint('[NotificationService BG] data=$data');
+
+  if (type != 'new_order_offer') return;
+
+  final androidDetails = AndroidNotificationDetails(
+    'bora_orders_urgent',
+    'Bora — Pedidos urgentes',
+    channelDescription:
+        'Notificações de novos pedidos (alta prioridade + som).',
+    importance: Importance.max,
+    priority: Priority.max,
+    fullScreenIntent: true, // acorda ecrã + mostra over lock screen
+    playSound: true,
+    sound: const RawResourceAndroidNotificationSound('bora_alert'),
+    enableVibration: true,
+    vibrationPattern: Int64List.fromList(<int>[0, 500, 200, 500, 200, 500]),
+    category: AndroidNotificationCategory.call,
+    visibility: NotificationVisibility.public,
+    ticker: 'Novo pedido!',
+  );
+
+  final details = NotificationDetails(android: androidDetails);
+
+  final orderId = (data['orderId'] ?? '').toString();
+  final title = (data['title'] ?? '🔔 Novo pedido!').toString();
+  final body = (data['body'] ?? 'Novo pedido disponível').toString();
+
+  final plugin = FlutterLocalNotificationsPlugin();
+
+  // Garante canal criado neste isolate (caso o handler corra antes do main).
+  await plugin
+      .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>()
+      ?.createNotificationChannel(
+        const AndroidNotificationChannel(
+          'bora_orders_urgent',
+          'Bora — Pedidos urgentes',
+          description:
+              'Notificações de novos pedidos (alta prioridade + som).',
+          importance: Importance.max,
+          playSound: true,
+          sound: RawResourceAndroidNotificationSound('bora_alert'),
+          enableVibration: true,
+          showBadge: true,
+        ),
+      );
+
+  await plugin.show(
+    orderId.hashCode,
+    title,
+    body,
+    details,
+    payload: jsonEncode(data),
+  );
 }
 
 /// Wraps Firebase Cloud Messaging for BORA APP.
@@ -126,10 +197,14 @@ class NotificationService {
     // avoid double-sound when MBWay payment is confirmed.
     FirebaseMessaging.onMessage.listen((RemoteMessage msg) {
       debugPrint(
-        '[NotificationService FG] ${msg.notification?.title} — ${msg.notification?.body}',
+        '[NotificationService FG] data=${msg.data}',
       );
-      if (msg.data['type'] == 'new_order') return;
-      if (msg.data['type'] == 'chat') {
+      final type = msg.data['type'];
+      // new_order / new_order_offer: o realtime channel já renderiza o card
+      // com countdown + dispara o som via UI. Skipar aqui evita double-sound.
+      if (type == 'new_order') return;
+      if (type == 'new_order_offer') return;
+      if (type == 'chat') {
         _showChatBanner(msg);
         return;
       }

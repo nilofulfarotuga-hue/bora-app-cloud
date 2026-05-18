@@ -16,6 +16,16 @@
 <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 <!-- Vibração para notificações urgentes de novo pedido. -->
 <uses-permission android:name="android.permission.VIBRATE"/>
+<!-- Sessão 2026-05-18 — Full-screen intent estilo Uber/Glovo: permite que a
+     notificação de novo pedido acorde o ecrã e seja mostrada sobre o lock
+     screen com botões aceitar/rejeitar. Exigido em Android 10+ para
+     fullScreenIntent=true funcionar. Em Android 14+ requer também que o
+     utilizador conceda a permissão "Apps que podem mostrar ecrã completo"
+     em Definições → Apps → Bora → Notificações. -->
+<uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>
+<!-- Necessário para o sistema acordar/manter o ecrã ligado quando chega o
+     fullScreenIntent com app fechada. -->
+<uses-permission android:name="android.permission.TURN_SCREEN_ON"/>
 <!-- Boot completed (opcional) — flutter_foreground_task permite autoRunOnBoot
      mas mantemos autoRunOnBoot=false; perm declarada para compatibilidade. -->
 <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
@@ -55,6 +65,9 @@
             android:theme="@style/LaunchTheme"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
+            android:showOnLockScreen="true"
+            android:turnScreenOn="true"
+            android:showWhenLocked="true"
             android:windowSoftInputMode="adjustResize">
             <!-- Specifies an Android theme to apply to this Activity as soon as
                  the Android process has started. This theme is visible to the user

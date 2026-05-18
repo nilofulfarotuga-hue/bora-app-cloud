@@ -5,8 +5,10 @@ import 'package:google_maps_flutter/google_maps_flutter.dart' hide LatLng;
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmap;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../services/admin/admin_order_service.dart';
 import '../../utils/constants.dart';
 import '../../widgets/admin/test_order_badge.dart';
+import '_admin_cancel_order_dialog.dart';
 
 /// Admin Live Operations — Pedidos & Drivers em Tempo Real (B1).
 ///
@@ -258,6 +260,22 @@ class _AdminLiveOrdersMapScreenState extends State<AdminLiveOrdersMapScreen> {
                     child: _SidePanel(
                       data: _selected!,
                       onClose: () => setState(() => _selected = null),
+                      onCancelOrder: () async {
+                        // Q3 (2026-05-17) — Cancelar pedido directamente do mapa.
+                        final order = _selected!;
+                        final result =
+                            await showDialog<AdminCancelOrderResult>(
+                          context: context,
+                          builder: (_) =>
+                              AdminCancelOrderDialog(order: order),
+                        );
+                        if (result != null) {
+                          if (mounted) {
+                            setState(() => _selected = null);
+                          }
+                          await _refresh();
+                        }
+                      },
                     ),
                   ),
               ],
@@ -282,11 +300,32 @@ class _AdminLiveOrdersMapScreenState extends State<AdminLiveOrdersMapScreen> {
 }
 
 class _SidePanel extends StatelessWidget {
-  const _SidePanel({required this.data, required this.onClose});
+  const _SidePanel({
+    required this.data,
+    required this.onClose,
+    this.onCancelOrder,
+  });
   final Map<String, dynamic> data;
   final VoidCallback onClose;
+  // Q3 (2026-05-17) — null para drivers (sem cancel applicable).
+  final VoidCallback? onCancelOrder;
 
   bool get _isDriver => data.containsKey('driver_id');
+
+  // Q3 — apenas estados cancelable.
+  static const _cancelableStates = {
+    'created',
+    'preparing',
+    'readyForPickup',
+    'callingDriver',
+    'driverAccepted',
+  };
+
+  bool get _isCancelable {
+    if (_isDriver) return false;
+    final status = data['status'] as String? ?? '';
+    return _cancelableStates.contains(status);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -326,6 +365,27 @@ class _SidePanel extends StatelessWidget {
             ),
             const Divider(),
             if (_isDriver) ..._driverDetails() else ..._orderDetails(),
+            // Q3 (2026-05-17) — botão "Cancelar pedido" só para estados
+            // cancelable. Reusa AdminCancelOrderDialog (callback handler do
+            // parent state faz o refresh + reset selection).
+            if (_isCancelable && onCancelOrder != null) ...[
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.cancel_outlined,
+                      color: Colors.red, size: 18),
+                  label: const Text(
+                    'Cancelar pedido',
+                    style: TextStyle(color: Colors.red),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Colors.red),
+                  ),
+                  onPressed: onCancelOrder,
+                ),
+              ),
+            ],
           ],
         ),
       ),

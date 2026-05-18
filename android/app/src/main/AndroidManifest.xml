@@ -63,6 +63,17 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- flutter_foreground_task v8.x — serviço necessário para foreground
+             service real (driver online + parceiro loja aberta). Sem esta
+             declaração startService() falha silenciosamente em Android 8+.
+             foregroundServiceType=dataSync corresponde à permissão
+             FOREGROUND_SERVICE_DATA_SYNC já declarada acima. -->
+        <service
+            android:name="com.foregroundtask.FlutterForegroundTaskService"
+            android:exported="false"
+            android:stopWithTask="false"
+            android:foregroundServiceType="dataSync"/>
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

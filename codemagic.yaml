@@ -40,33 +40,9 @@ workflows:
         script: flutter analyze --no-fatal-infos --no-fatal-warnings || true
       - name: Build APK release
         script: |
-          #!/usr/bin/env bash
-          set +e
-
-          # 1) Tentar flutter build SEM --verbose (mostra erros Gradle directos)
           flutter build apk --release \
             --dart-define-from-file=.dart_defines \
-            --no-tree-shake-icons \
-            2>&1 | tee "$CM_BUILD_DIR/apk_build.log"
-          RC=${PIPESTATUS[0]}
-
-          mkdir -p "$CM_BUILD_DIR/build/logs"
-          cp "$CM_BUILD_DIR/apk_build.log" \
-             "$CM_BUILD_DIR/build/logs/apk_build_full.log" 2>/dev/null || true
-
-          if [ "$RC" != "0" ]; then
-            echo ""
-            echo "=== FLUTTER BUILD FALHOU (RC=$RC) ==="
-            echo ""
-            echo "=== LOG COMPLETO (sem verbose — erro Gradle visivel) ==="
-            cat "$CM_BUILD_DIR/apk_build.log"
-            echo ""
-            echo "=== GRADLE DIRECTO COM STACKTRACE ==="
-            cd "$CM_BUILD_DIR/android" && \
-              ./gradlew assembleRelease --stacktrace --info \
-              2>&1 | tail -200 || true
-            exit $RC
-          fi
+            --no-tree-shake-icons
     artifacts:
       - build/**/outputs/**/*.apk
       - build/**/outputs/**/mapping.txt

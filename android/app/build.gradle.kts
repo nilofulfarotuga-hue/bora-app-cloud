@@ -22,6 +22,8 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // flutter_local_notifications requer core library desugaring (Java 8+ APIs em Android <26).
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlin {
@@ -76,6 +78,8 @@ flutter {
 }
 
 dependencies {
+    // Core library desugaring — necessário para flutter_local_notifications (Java 8+ time APIs).
+    coreLibraryDesugaring("com.android.tools.build:desugar_jdk_libs:2.1.4")
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("org.jetbrains.kotlin:kotlin-stdlib:2.3.10")
 }

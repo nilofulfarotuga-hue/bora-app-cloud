@@ -246,21 +246,51 @@ class _StatusBadge extends StatelessWidget {
     if (r.isFinished) {
       return ('Concluída', AppTheme.primary);
     }
-    if (r.isCancelled) {
-      return ('Cancelada', Colors.grey);
-    }
     if (r.isNoShow) {
       return ('Não compareceu', Colors.red);
     }
     if (r.isArrived) {
       return ('Chegou', AppTheme.primary);
     }
+    if (r.status == ReservationStatus.seated) {
+      return ('Sentado', AppTheme.primary);
+    }
     if (r.isApproved) {
       return ('Confirmada', AppTheme.primary);
     }
     if (r.isPending) {
-      return ('A aguardar', AppTheme.secondary);
+      return (
+        r.status == ReservationStatus.pendingPayment
+            ? 'Aguarda pagamento'
+            : 'Pendente',
+        AppTheme.secondary,
+      );
     }
-    return (r.status, Colors.grey);
+    if (r.isCancelled) {
+      return (_labelForStatus(r.status), Colors.grey);
+    }
+    return (_labelForStatus(r.status), Colors.grey);
+  }
+
+  static String _labelForStatus(String status) {
+    switch (status) {
+      case 'pending':              return 'Pendente';
+      case 'pending_payment':      return 'Aguarda pagamento';
+      case 'confirmed':            return 'Confirmada';
+      case 'approved':             return 'Confirmada';
+      case 'arrived':              return 'Chegou';
+      case 'seated':               return 'Sentado';
+      case 'completed':            return 'Concluída';
+      case 'no_show':              return 'Não compareceu';
+      case 'cancelled_by_client':  return 'Cancelada por si';
+      case 'cancelled_by_partner': return 'Cancelada pelo restaurante';
+      case 'cancelled_by_admin':   return 'Cancelada pela Bora';
+      case 'cancelled_refunded':   return 'Cancelada (reembolso)';
+      case 'cancelled_no_refund':  return 'Cancelada (sem reembolso)';
+      case 'rejected_refunded':    return 'Recusada (reembolso)';
+      case 'cancelled':            return 'Cancelada';
+      case 'rejected':             return 'Recusada';
+      default:                     return status;
+    }
   }
 }

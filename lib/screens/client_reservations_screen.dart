@@ -166,8 +166,9 @@ class _ClientReservationsScreenState extends State<ClientReservationsScreen>
               _ReservationList(
                 reservations: store.upcomingReservations,
                 onRefresh: _refresh,
+                emptyIcon: Icons.calendar_today,
                 emptyText:
-                    'Ainda não tens reservas. Vai à página do restaurante para reservar mesa!',
+                    'Ainda não tens reservas\nExplora restaurantes e reserva a tua mesa!',
                 buildCard: (r) => ReservationCard(
                   reservation: r,
                   onDetails: () => _openDetails(r),
@@ -180,7 +181,8 @@ class _ClientReservationsScreenState extends State<ClientReservationsScreen>
               _ReservationList(
                 reservations: store.pastReservations,
                 onRefresh: _refresh,
-                emptyText: 'Sem reservas passadas.',
+                emptyIcon: Icons.history,
+                emptyText: 'Sem reservas anteriores',
                 buildCard: (r) => ReservationCard(
                   reservation: r,
                   onDetails: () => _openDetails(r),
@@ -189,7 +191,8 @@ class _ClientReservationsScreenState extends State<ClientReservationsScreen>
               _ReservationList(
                 reservations: store.cancelledReservations,
                 onRefresh: _refresh,
-                emptyText: 'Sem reservas canceladas.',
+                emptyIcon: Icons.cancel_outlined,
+                emptyText: 'Nenhuma reserva cancelada',
                 buildCard: (r) => ReservationCard(
                   reservation: r,
                   onDetails: () => _openDetails(r),
@@ -208,12 +211,14 @@ class _ReservationList extends StatelessWidget {
     required this.reservations,
     required this.onRefresh,
     required this.emptyText,
+    required this.emptyIcon,
     required this.buildCard,
   });
 
   final List<ReservationModel> reservations;
   final Future<void> Function() onRefresh;
   final String emptyText;
+  final IconData emptyIcon;
   final Widget Function(ReservationModel) buildCard;
 
   @override
@@ -228,10 +233,24 @@ class _ReservationList extends StatelessWidget {
                 Center(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 32),
-                    child: Text(
-                      emptyText,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.black54),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          emptyIcon,
+                          size: 56,
+                          color: Colors.black26,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          emptyText,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.black54,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),

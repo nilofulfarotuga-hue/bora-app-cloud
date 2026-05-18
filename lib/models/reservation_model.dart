@@ -10,10 +10,15 @@ class ReservationStatus {
   static const String approved = 'approved';
   static const String confirmed = 'confirmed';
   static const String arrived = 'arrived';
+  static const String seated = 'seated';
   static const String rejectedRefunded = 'rejected_refunded';
   static const String cancelledRefunded = 'cancelled_refunded';
   static const String cancelledNoRefund = 'cancelled_no_refund';
   static const String noShow = 'no_show';
+  // Cancelamentos com actor explícito (novos statuses backend).
+  static const String cancelledByClient = 'cancelled_by_client';
+  static const String cancelledByPartner = 'cancelled_by_partner';
+  static const String cancelledByAdmin = 'cancelled_by_admin';
 
   // Legacy (BR §14 original) — DB aceita ambos os conjuntos. Mantido
   // para que partner/admin screens existentes continuem a funcionar.
@@ -195,6 +200,7 @@ class ReservationModel {
   bool get isApproved =>
       status == ReservationStatus.approved ||
       status == ReservationStatus.confirmed ||
+      status == ReservationStatus.seated ||
       status == ReservationStatus.accepted; // legacy
 
   bool get isArrived =>
@@ -206,8 +212,12 @@ class ReservationModel {
       status == ReservationStatus.rejectedRefunded ||
       status == ReservationStatus.cancelledRefunded ||
       status == ReservationStatus.cancelledNoRefund ||
+      status == ReservationStatus.cancelledByClient ||
+      status == ReservationStatus.cancelledByPartner ||
+      status == ReservationStatus.cancelledByAdmin ||
       status == ReservationStatus.cancelled || // legacy
-      status == ReservationStatus.rejected; // legacy
+      status == ReservationStatus.rejected || // legacy
+      cancelledAt != null; // fallback: cancelled_at preenchido
 
   bool get isNoShow => status == ReservationStatus.noShow;
 

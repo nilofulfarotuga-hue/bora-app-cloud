@@ -20,6 +20,13 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
   String? _error;
   List<Map<String, dynamic>> _clients = [];
 
+  // Q5 (2026-05-17) — contagem de blocks por cliente.
+  // client_user_id → numero de restaurantes em que está blocked.
+  Map<String, int> _blocksByClient = const {};
+
+  // Q5 — cache de partners para dropdown no dialog block (lazy-loaded).
+  List<Map<String, dynamic>>? _partnersCache;
+
   @override
   void initState() {
     super.initState();
@@ -62,12 +69,52 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
           _loading = false;
         });
       }
+      // Q5 — carregar blocks em paralelo (não bloqueante).
+      _loadBlocksByClient();
     } catch (e, st) {
       debugPrint('[admin_clients] _load error: $e\n$st');
       if (mounted) setState(() {
         _error = e.toString();
         _loading = false;
       });
+    }
+  }
+
+  // Q5 — contagem de blocks por cliente carregada via SELECT directo
+  // (RLS admin policy permite). Não bloqueia o load principal.
+  Future<void> _loadBlocksByClient() async {
+    try {
+      final rows = await Supabase.instance.client
+          .from('client_restaurant_profiles')
+          .select('client_user_id')
+          .eq('is_blocked', true);
+      final counts = <String, int>{};
+      for (final raw in (rows as List)) {
+        final id = (raw as Map)['client_user_id']?.toString();
+        if (id == null) continue;
+        counts[id] = (counts[id] ?? 0) + 1;
+      }
+      if (mounted) setState(() => _blocksByClient = counts);
+    } catch (e) {
+      debugPrint('[admin_clients] _loadBlocksByClient error: $e');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _loadPartnersOnce() async {
+    if (_partnersCache != null) return _partnersCache!;
+    try {
+      final res = await Supabase.instance.client
+          .rpc('admin_partners_with_counts');
+      _partnersCache = ((res as List?) ?? const [])
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList()
+        ..sort((a, b) => (a['name'] as String? ?? '')
+            .toLowerCase()
+            .compareTo((b['name'] as String? ?? '').toLowerCase()));
+      return _partnersCache!;
+    } catch (e) {
+      debugPrint('[admin_clients] _loadPartnersOnce error: $e');
+      return const [];
     }
   }
 
@@ -188,6 +235,227 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
     }
   }
 
+  // Q5 (2026-05-17) — Bloquear cliente de um restaurante específico.
+  // admin_block_client(p_client_user_id uuid, p_restaurant_id text, p_reason text)
+  // Diferente de ban: este é por-restaurante (cliente continua a poder
+  // usar a Bora noutros parceiros). Uso típico: parceiro pediu para banir
+  // cliente da SUA loja.
+  Future<void> _block(Map<String, dynamic> client) async {
+    final reasonCtrl = TextEditingController();
+    String? selectedPartnerId;
+    String? selectedPartnerName;
+    final partners = await _loadPartnersOnce();
+    if (!mounted) return;
+    if (partners.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Sem parceiros disponíveis.'),
+          backgroundColor: Colors.orange));
+      return;
+    }
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSt) => AlertDialog(
+          title: Text('Bloquear de restaurante · ${client['email']}'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'O cliente não vai conseguir pedir deste restaurante. '
+                'Continua activo noutros parceiros.',
+                style: TextStyle(fontSize: 12, color: Colors.black54),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                isExpanded: true,
+                initialValue: selectedPartnerId,
+                decoration: const InputDecoration(labelText: 'Restaurante'),
+                items: partners.map((p) {
+                  final id = p['id']?.toString() ?? '';
+                  final name = (p['name'] as String?) ?? id;
+                  return DropdownMenuItem<String>(
+                    value: id,
+                    child: Text(name, overflow: TextOverflow.ellipsis),
+                  );
+                }).toList(),
+                onChanged: (v) => setSt(() {
+                  selectedPartnerId = v;
+                  selectedPartnerName = partners
+                      .firstWhere(
+                        (x) => x['id']?.toString() == v,
+                        orElse: () => const {},
+                      )['name'] as String?;
+                }),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: reasonCtrl,
+                decoration: const InputDecoration(
+                    labelText: 'Motivo (obrigatório, 3+ chars)'),
+                maxLines: 2,
+                onChanged: (_) => setSt(() {}),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancelar')),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: Colors.orange.shade700),
+              onPressed: (selectedPartnerId != null &&
+                      reasonCtrl.text.trim().length >= 3)
+                  ? () => Navigator.pop(ctx, true)
+                  : null,
+              child: const Text('Bloquear'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (ok != true || !mounted) return;
+    try {
+      await Supabase.instance.client.rpc('admin_block_client', params: {
+        'p_client_user_id': client['user_id'],
+        'p_restaurant_id': selectedPartnerId,
+        'p_reason': reasonCtrl.text.trim(),
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(
+                'Cliente bloqueado de ${selectedPartnerName ?? selectedPartnerId}.'),
+            backgroundColor: Colors.orange.shade700));
+        _load();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red));
+      }
+    }
+  }
+
+  // Q5 (2026-05-17) — Desbloquear cliente de um restaurante.
+  // Mostra lista dos restaurantes onde o cliente está bloqueado e permite
+  // escolher qual desbloquear.
+  Future<void> _unblock(Map<String, dynamic> client) async {
+    final clientUserId = client['user_id'] as String?;
+    if (clientUserId == null) return;
+    // Carrega profiles bloqueados deste cliente.
+    List<Map<String, dynamic>> blocked = const [];
+    try {
+      final rows = await Supabase.instance.client
+          .from('client_restaurant_profiles')
+          .select('restaurant_id, blocked_reason, blocked_at')
+          .eq('client_user_id', clientUserId)
+          .eq('is_blocked', true);
+      blocked = (rows as List).cast<Map<String, dynamic>>();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red));
+      }
+      return;
+    }
+    if (!mounted) return;
+    if (blocked.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Cliente não tem nenhum bloqueio activo.')));
+      return;
+    }
+    // Enriquecer com nomes de partners (cache).
+    final partners = await _loadPartnersOnce();
+    final partnerName = <String, String>{
+      for (final p in partners)
+        (p['id']?.toString() ?? ''): (p['name'] as String?) ?? '?'
+    };
+    if (!mounted) return;
+
+    final noteCtrl = TextEditingController();
+    String? targetRid;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSt) => AlertDialog(
+          title: Text('Desbloquear · ${client['email']}'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Escolha de qual restaurante remover o bloqueio.',
+                style: TextStyle(fontSize: 12, color: Colors.black54),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.maxFinite,
+                height: 200,
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: blocked.length,
+                  itemBuilder: (_, i) {
+                    final b = blocked[i];
+                    final rid = (b['restaurant_id'] as String?) ?? '';
+                    final name = partnerName[rid] ?? rid;
+                    final reason = b['blocked_reason'] as String? ?? '—';
+                    return RadioListTile<String>(
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                      title: Text(name, style: const TextStyle(fontSize: 13)),
+                      subtitle: Text(reason,
+                          style: const TextStyle(fontSize: 11)),
+                      value: rid,
+                      groupValue: targetRid,
+                      onChanged: (v) => setSt(() => targetRid = v),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: noteCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Nota (opcional)',
+                  helperText: 'Visível no audit log',
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancelar')),
+            FilledButton(
+              onPressed:
+                  targetRid != null ? () => Navigator.pop(ctx, true) : null,
+              child: const Text('Desbloquear'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (ok != true || !mounted) return;
+    try {
+      await Supabase.instance.client.rpc('admin_unblock_client', params: {
+        'p_client_user_id': clientUserId,
+        'p_restaurant_id': targetRid,
+        'p_note': noteCtrl.text.trim().isEmpty ? null : noteCtrl.text.trim(),
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Desbloqueado.'),
+            backgroundColor: Colors.green));
+        _load();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red));
+      }
+    }
+  }
+
   Future<void> _showHistory(Map<String, dynamic> client) async {
     try {
       final res = await Supabase.instance.client.rpc('admin_get_client_history', params: {
@@ -299,6 +567,8 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
                         itemBuilder: (ctx, i) {
                           final c = _clients[i];
                           final banned = c['is_banned'] == true;
+                          final userId = c['user_id']?.toString() ?? '';
+                          final blockCount = _blocksByClient[userId] ?? 0;
                           return Card(
                             margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                             child: ListTile(
@@ -307,7 +577,49 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
                                 child: Text(_initialFor(c),
                                     style: const TextStyle(color: Colors.white)),
                               ),
-                              title: Text(_displayNameFor(c)),
+                              title: Row(
+                                children: [
+                                  Expanded(child: Text(_displayNameFor(c))),
+                                  if (banned) ...[
+                                    const SizedBox(width: 4),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: Colors.red.shade700,
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: const Text(
+                                        'BANIDO',
+                                        style: TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                  if (blockCount > 0) ...[
+                                    const SizedBox(width: 4),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: Colors.orange.shade700,
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        'BLOQUEADO em $blockCount',
+                                        style: const TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
                               subtitle: Text(
                                   '${c['email'] ?? "—"} · ${c['total_orders'] ?? 0} pedidos · €${c['total_spent'] ?? 0}\n'
                                   '${c['token_balance'] ?? 0} tokens · ${banned ? "BANIDO até ${c['banned_until']}" : "Activo"}'),
@@ -317,13 +629,22 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
                                   if (action == 'history') _showHistory(c);
                                   if (action == 'ban') _ban(c);
                                   if (action == 'unban') _unban(c);
+                                  if (action == 'block') _block(c);
+                                  if (action == 'unblock') _unblock(c);
                                 },
                                 itemBuilder: (_) => [
                                   const PopupMenuItem(value: 'history', child: Text('Histórico')),
                                   if (!banned)
-                                    const PopupMenuItem(value: 'ban', child: Text('Banir')),
+                                    const PopupMenuItem(value: 'ban', child: Text('Banir da app')),
                                   if (banned)
                                     const PopupMenuItem(value: 'unban', child: Text('Desbanir')),
+                                  const PopupMenuItem(
+                                      value: 'block',
+                                      child: Text('Bloquear de restaurante')),
+                                  if (blockCount > 0)
+                                    const PopupMenuItem(
+                                        value: 'unblock',
+                                        child: Text('Desbloquear...')),
                                 ],
                               ),
                             ),

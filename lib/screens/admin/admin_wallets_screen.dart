@@ -184,7 +184,33 @@ class _AdminWalletsScreenState extends State<AdminWalletsScreen> {
                                     final r = filtered[i];
                                     final isNeg = r.freeBalanceCents < 0;
                                     return ListTile(
-                                      title: Text(r.fullName ?? r.email),
+                                      title: Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(r.fullName ?? r.email),
+                                          ),
+                                          if (isNeg) ...[
+                                            const SizedBox(width: 6),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                  horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: Colors.red.shade700,
+                                                borderRadius:
+                                                    BorderRadius.circular(4),
+                                              ),
+                                              child: const Text(
+                                                'EM DÍVIDA',
+                                                style: TextStyle(
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
                                       subtitle: Text(r.email),
                                       leading: isNeg
                                           ? Icon(Icons.warning_amber,
@@ -308,17 +334,69 @@ class _AdminWalletsScreenState extends State<AdminWalletsScreen> {
       }
       return;
     }
+    // Q2 (2026-05-17) — Regra 8: confirmação dupla em mov. de dinheiro real.
+    if (!mounted) return;
+    final confirmCtrl = TextEditingController();
+    bool confirmOk = false;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSt) => AlertDialog(
+          title: const Text('Confirmação final'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Vai perdoar €${(-row.freeBalanceCents / 100).toStringAsFixed(2)} '
+                'a ${row.email}. A Bora absorve o prejuízo.',
+                style: const TextStyle(fontSize: 13),
+              ),
+              const SizedBox(height: 12),
+              const Text('Digite "CONFIRMAR" para prosseguir:'),
+              const SizedBox(height: 8),
+              TextField(
+                controller: confirmCtrl,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  hintText: 'CONFIRMAR',
+                  border: OutlineInputBorder(),
+                ),
+                onChanged: (v) =>
+                    setSt(() => confirmOk = v.trim() == 'CONFIRMAR'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: Colors.pink.shade400),
+              onPressed: confirmOk ? () => Navigator.pop(ctx, true) : null,
+              child: const Text('Perdoar'),
+            ),
+          ],
+        ),
+      ),
+    );
+    confirmCtrl.dispose();
+    if (confirmed != true) return;
     try {
       final cents = await WalletService.instance.adminForgiveDebt(
           userId: row.userId, reason: reason);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            backgroundColor: Colors.green.shade700,
             content: Text('Dívida perdoada: €${(cents / 100).toStringAsFixed(2)}')));
       }
       await _load();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            backgroundColor: Colors.red,
+            content: Text('Erro: $e')));
       }
     }
   }

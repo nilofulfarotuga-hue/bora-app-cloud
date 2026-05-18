@@ -28,6 +28,8 @@ const TOOL_WHITELIST = new Set([
   'agent_propose_action_account',
   // 5F: comunicação Robô A → B (skill ASK_ROBOT_B)
   'agent_ask_robot_b',
+  // 5G: proposta IMEDIATA de skill nova quando bot detecta gap (Robot A realtime)
+  'propose_skill_now',
 ]);
 
 const PROPOSE_ACTION_TOOL_NAMES = new Set([
@@ -300,6 +302,58 @@ function buildFunctionDeclarations() {
         required: ['p_question', 'p_skill_triggered'],
       },
     },
+    {
+      name: 'propose_skill_now',
+      description:
+        '5G — Quando identificas que NAO tens skill para resolver um problema novo do cliente, propoes IMEDIATAMENTE uma skill nova ao admin Danilo. ' +
+        'PRE-REQUISITOS antes de chamar: ' +
+        '(a) ja fizeste pelo menos 1-2 perguntas para perceber o problema; ' +
+        '(b) o problema NAO esta coberto por nenhuma das skills disponiveis no system prompt; ' +
+        '(c) o problema parece razoavel/recorrente, nao caso isolado e absurdo; ' +
+        '(d) NAO e disputa/legal/RGPD/fraude (esses sao SEMPRE escalate humano direct). ' +
+        'Apos chamar, informa o cliente: "Vou escalar isto para o admin resolver agora mesmo, e na proxima vez ja consigo ajudar directamente."',
+      parameters: {
+        type: 'object',
+        properties: {
+          pattern_summary: {
+            type: 'string',
+            description: 'Descricao curta do problema em 1 frase (max 200 chars).',
+          },
+          conversation_context: {
+            type: 'string',
+            description:
+              'Resumo da conversa, info recolhida (pedido, motivo, preferencias). Max 1000 chars.',
+          },
+          suggested_skill_name: {
+            type: 'string',
+            description: 'UPPER_SNAKE_CASE, prefixo do dominio (ex: PAYMENT_METHOD_CHANGE_MID_ORDER).',
+          },
+          suggested_playbook_md: {
+            type: 'string',
+            description:
+              'Markdown com 3-7 passos numerados para o admin resolver e para a skill futura executar. Max 2000 chars.',
+          },
+          suggested_mode: {
+            type: 'string',
+            enum: ['read_only', 'write_shadow', 'escalate'],
+            description:
+              'read_only: so consulta dados. write_shadow: mexe em estado mas admin aprova. escalate: sempre humano.',
+          },
+          sample_user_question: {
+            type: 'string',
+            description: 'A pergunta original do cliente (textual, max 500 chars).',
+          },
+        },
+        required: [
+          'pattern_summary',
+          'conversation_context',
+          'suggested_skill_name',
+          'suggested_playbook_md',
+          'suggested_mode',
+          'sample_user_question',
+        ],
+      },
+    },
   ];
 }
 
@@ -312,15 +366,74 @@ function buildSystemPrompt(
 ): string {
   const lines = [
     SYSTEM_DELIM_OPEN,
-    'Es o agente IA da Bora App, plataforma de entregas em Guarda, Portugal.',
+    'Es o agente IA da Bora App, plataforma de entregas + supermercados + reservas em Guarda, Portugal.',
     'Linguagem: PT europeu, tom amigavel e directo.',
     `Utilizador: role=${userRole}${orderId ? `, pedido em foco=${orderId}` : ''}.`,
     '',
-    'REGRA CRITICA #1: NUNCA calculas dinheiro, refunds, creditos ou estimativas financeiras.',
-    'Se a pergunta envolve calculo financeiro, escala via skill HUMAN_REQUEST.',
-    'REGRA CRITICA #2: NUNCA inventas valores. Se nao tens info via tool, dizes-o e ofereces humano.',
-    'REGRA #3: Respostas curtas (<=3 frases) excepto se explicacao tecnica necessaria.',
-    'REGRA #4: Em caso de duvida ou queixa seria, marca [HANDOFF_HUMAN] no fim para escalar.',
+    '═══ COMPORTAMENTO OBRIGATORIO (5G — gather info first) ═══',
+    '1. ANTES de dizer "nao sei" ou escalar, FAZ pelo menos 1-2 perguntas para perceber o contexto.',
+    '2. Cancelamentos: pergunta ID do pedido, motivo, preferencia reembolso (cartao 5-10d OU carteira Bora imediato).',
+    '3. Reembolsos: pergunta ID, qual o problema especifico, valor afectado.',
+    '4. Bug app: pergunta o que estavas a fazer, ecra exacto, mensagem de erro, frequencia.',
+    '5. SO depois de teres info suficiente:',
+    '   - SE consegues resolver com tool existente → resolve.',
+    '   - SE nao consegues → chama propose_skill_now (passar contexto completo) E informa cliente que escalas.',
+    '',
+    '═══ REGRAS DE NEGOCIO BORA APP (cita nao inventes) ═══',
+    'ENTREGA:',
+    '- Base: €2,50 ate 4km · +€0,50/km depois.',
+    '- Saco restaurante: €0,30 fixo. Saco mercado: €0,10/saco (cap 5 sacos = €0,50 max).',
+    '- Markup nao-parceiro: +15% (oculto, ja incluido no subtotal).',
+    'COMISSAO PARCEIRO (10+5+5%):',
+    '- 10% visivel (parceiro paga no settlement).',
+    '- 5% markup oculto (incluido no preco do produto).',
+    '- 5% taxa servico cliente (visivel no recibo).',
+    'CANCELAMENTO PEDIDO:',
+    '- Antes do dispatch (created/preparing, sem driver) → cancelamento livre, refund 100%.',
+    '- Apos dispatch (driverAccepted) → taxa €2,50.',
+    '- Apos pickup (pickedUp/onTheWay) → 100% retido, sem refund (driver ja comprou).',
+    '- Reembolso por: cartao (5-10 dias uteis) OU carteira Bora (imediato).',
+    'WALLET REFUND SPLIT (cliente cancela com refund → escolhe wallet):',
+    '- 80% saldo livre (sem regras, usa em qualquer pedido).',
+    '- 20% convertido em TOKENS (100 tokens = €0,50, expira 60d, max 50% desconto/pedido).',
+    'TOKENS (sistema SEPARADO da wallet):',
+    '- Driver normal: +40 por entrega. Driver parceiro: +50.',
+    '- Cliente: ROUND(preco × 3), minimo 1 token por pedido.',
+    '- 100 tokens = €0,50, max 50% desconto/pedido, expira 60d.',
+    'STORESHOPPING NAO-PARCEIRO (mercado sem app integrada):',
+    '- Cliente paga base + 15% markup oculto.',
+    '- Driver compra fisicamente no mercado, fotografa o talao no fim.',
+    '- Reembolso driver: admin processa MBWay externo manual apos ver foto (NAO automatico).',
+    '- Substituicoes: ✅ comprado / ❌ nao tem (refund parcial) / ➕ adicionado (cobra diff).',
+    'RESERVAS DE MESA:',
+    '- Pre-pagamento €3 cliente paga (€2 para parceiro chegada / €1 para Bora servico).',
+    '- Cancela >2h antes → refund total €3.',
+    '- Cancela <2h antes → Bora fica 100% (€3).',
+    '- No-show → Bora fica 100% (€3). Parceiro nao recebe.',
+    '',
+    '═══ REGRAS CRITICAS (nao quebrar) ═══',
+    '#1: NUNCA calculas dinheiro complexo, refunds finais, creditos finais (sao calculados por RPCs/triggers).',
+    '   Podes citar as regras acima, mas o valor exacto vem das tools agent_get_refund_status / agent_get_user_wallet_summary.',
+    '#2: NUNCA inventas valores, IDs, nomes de RPC, colunas ou comportamento — usa tools.',
+    '#3: Respostas curtas (<=3 frases) excepto explicacao tecnica necessaria.',
+    '#4: Em duvida ou queixa seria, marca [HANDOFF_HUMAN] no fim.',
+    '',
+    '═══ O QUE NUNCA FAZES (sempre escalar humano) ═══',
+    '- Disputas entre cliente/driver/parceiro.',
+    '- RGPD / dados pessoais sensiveis (apaga conta, copia dados).',
+    '- Reclamacoes graves: fraude, abuso, seguranca, comida estragada, acidentes.',
+    '- Decisoes legais / contratuais.',
+    '- Pedidos para mexer em dinheiro real fora das tools agent_propose_action_*.',
+    '',
+    '═══ QUANDO PROPOR SKILL NOVA (chamar propose_skill_now) ═══',
+    '- Identificas padrao recorrente nao coberto pelas skills disponiveis abaixo.',
+    '- Cliente pede algo razoavel que devias saber fazer mas nao tens skill.',
+    '- Respondeste "nao sei" e podia ter sido evitado se tivesses skill.',
+    'ANTES de propor:',
+    '- Verifica se ja existe skill que cobre nas skills disponiveis abaixo — se sim, usa-a, NAO proponhas duplicada.',
+    '- Acumula contexto suficiente (>=1 mensagem do cliente com detalhe, nao proponhas com so saudacao).',
+    '- propose_skill_now insere em skill_suggestions com source=robot_a_realtime + notifica admin (severity=high).',
+    '- Apos chamar, informa cliente que vais escalar agora e que na proxima vez ja sabes responder.',
     '',
     `WhatsApp suporte: ${settings.whatsapp_number}. Email: ${settings.support_email}.`,
     '',
@@ -700,8 +813,98 @@ Deno.serve(async (req: Request) => {
       }
       // 5B-α + 5B-β1: tools agent_propose_action* sao service_role only →
       // adminClient direct. As outras tools (agent_get_*) usam user JWT + RLS via callRpc.
+      // 5G: propose_skill_now → insert directo em skill_suggestions + notify admin (realtime gap detection).
       let rpcRes: { ok: boolean; data?: unknown; error?: string };
-      if (PROPOSE_ACTION_TOOL_NAMES.has(fnName)) {
+      if (fnName === 'propose_skill_now') {
+        const args = fnArgs as Record<string, unknown>;
+        const pattern_summary = typeof args.pattern_summary === 'string' ? args.pattern_summary.slice(0, 200) : '';
+        const conversation_context = typeof args.conversation_context === 'string' ? args.conversation_context.slice(0, 1000) : '';
+        const suggested_skill_name = typeof args.suggested_skill_name === 'string' ? args.suggested_skill_name.slice(0, 80).toUpperCase() : '';
+        const suggested_playbook_md = typeof args.suggested_playbook_md === 'string' ? args.suggested_playbook_md.slice(0, 2000) : '';
+        const suggested_mode_raw = typeof args.suggested_mode === 'string' ? args.suggested_mode : 'read_only';
+        const suggested_mode = ['read_only', 'write_shadow', 'escalate'].includes(suggested_mode_raw) ? suggested_mode_raw : 'read_only';
+        const sample_user_question = typeof args.sample_user_question === 'string' ? args.sample_user_question.slice(0, 500) : '';
+
+        if (!pattern_summary || !suggested_skill_name || !suggested_playbook_md) {
+          rpcRes = { ok: false, error: 'pattern_summary, suggested_skill_name e suggested_playbook_md sao obrigatorios.' };
+        } else {
+          // Idempotency curta: nao duplicar se ja existe pending mesma skill nas ultimas 24h.
+          const { data: existing } = await adminClient
+            .from('skill_suggestions')
+            .select('id')
+            .eq('suggested_skill_name', suggested_skill_name)
+            .eq('status', 'pending')
+            .gte('suggested_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+            .maybeSingle();
+
+          if (existing?.id) {
+            rpcRes = {
+              ok: true,
+              data: {
+                proposed: false,
+                duplicate: true,
+                message: 'Skill ja proposta nas ultimas 24h, aguarda revisao do admin.',
+                existing_id: existing.id,
+              },
+            };
+          } else {
+            const { data: ins, error: insErr } = await adminClient
+              .from('skill_suggestions')
+              .insert({
+                pattern_summary,
+                suggested_skill_name,
+                suggested_playbook_md,
+                suggested_mode,
+                sample_messages: [
+                  { role: 'user', content: sample_user_question },
+                  { role: 'assistant_context', content: conversation_context },
+                ],
+                message_count: 2,
+                proposal_type: 'new_skill',
+                zone_type: 'safe',
+                gemini_model: settings.gemini_model,
+                source: 'robot_a_realtime',
+                status: 'pending',
+              })
+              .select('id')
+              .single();
+
+            if (insErr) {
+              console.error('[propose_skill_now] insert error:', insErr);
+              rpcRes = { ok: false, error: insErr.message };
+            } else {
+              const newId = (ins?.id as string) ?? null;
+              // Notificar admin em tempo real (severity=high)
+              try {
+                await adminClient.rpc('notify_admin_event', {
+                  p_event_type: 'skill_proposal_realtime',
+                  p_severity: 'high',
+                  p_summary: `Robot A propoe skill: ${pattern_summary}`,
+                  p_entity_type: 'skill_suggestion',
+                  p_entity_id: newId,
+                  p_payload: {
+                    suggested_skill_name,
+                    suggested_mode,
+                    source: 'robot_a_realtime',
+                    session_id: sessionId,
+                  },
+                  p_deep_link: '/admin/skill-suggestions',
+                });
+              } catch (notifErr) {
+                console.warn('[propose_skill_now] notify_admin_event failed:', (notifErr as Error).message);
+              }
+              rpcRes = {
+                ok: true,
+                data: {
+                  proposed: true,
+                  skill_suggestion_id: newId,
+                  message: 'Proposta registada. Admin foi notificado em tempo real.',
+                },
+              };
+            }
+          }
+        }
+      } else if (PROPOSE_ACTION_TOOL_NAMES.has(fnName)) {
         const args = fnArgs as Record<string, unknown>;
         const skill_name = typeof args.skill_name === 'string' ? args.skill_name : '';
         const action_type = typeof args.action_type === 'string' ? args.action_type : '';

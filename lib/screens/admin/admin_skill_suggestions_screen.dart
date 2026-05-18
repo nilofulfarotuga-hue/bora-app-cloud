@@ -1309,6 +1309,8 @@ class _AdminSkillSuggestionsScreenState
     final isImplemented = status == 'implemented';
     final isCritical = zone == 'critical';
     final summary = s['pattern_summary'] as String? ?? '';
+    final source = (s['source'] as String?) ?? 'robot_b_batch';
+    final isRealtime = source == 'robot_a_realtime';
     final samples = (s['sample_messages'] as List? ?? [])
         .map((e) => e.toString())
         .toList();
@@ -1379,6 +1381,36 @@ class _AdminSkillSuggestionsScreenState
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
                               color: isCritical ? _critical : _boraGreen)),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: (isRealtime
+                            ? const Color(0xFF7E57C2)
+                            : Colors.blueGrey)
+                        .withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(isRealtime ? '🤖' : '⏰',
+                          style: const TextStyle(fontSize: 11)),
+                      const SizedBox(width: 3),
+                      Text(
+                        isRealtime ? 'Robot A · tempo real' : 'Robot B · batch',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: isRealtime
+                              ? const Color(0xFF6A1B9A)
+                              : Colors.blueGrey.shade800,
+                        ),
+                      ),
                     ],
                   ),
                 ),

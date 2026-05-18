@@ -5,10 +5,17 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../providers/support_settings_provider.dart';
 import '../widgets/bora_support_sheet.dart';
+
+/// Sessão 2026-05-18 — persistência local do session_id activo.
+/// Sem isto, sair e voltar ao ecrã do chatbot criava sessão nova (perdia
+/// histórico + contexto da IA). A chave guarda apenas o UUID; o histórico
+/// vem da DB via _loadHistory().
+const String _kActiveSessionPrefsKey = 'active_support_session_id';
 
 class SupportChatScreen extends StatefulWidget {
   const SupportChatScreen({
@@ -55,6 +62,99 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
         text: pre,
         selection: TextSelection.collapsed(offset: pre.length),
       );
+    }
+    // Sessão 2026-05-18 — tenta restaurar sessão activa antes de mostrar
+    // estado vazio. Fire-and-forget; greeting fica visível enquanto carrega.
+    _restoreSession();
+  }
+
+  /// Lê o session_id persistido em SharedPreferences. Se existir e
+  /// ainda estiver activo (ended_at IS NULL && escalated = false), carrega
+  /// o histórico de mensagens e subscreve o realtime channel. Caso contrário
+  /// limpa a chave e deixa o utilizador iniciar conversa nova.
+  Future<void> _restoreSession() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getString(_kActiveSessionPrefsKey);
+      if (saved == null || saved.isEmpty) return;
+
+      // RLS garante que só vemos sessões do auth.uid() — não precisa filtrar
+      // user_id explicitamente.
+      final session = await _supabase
+          .from('support_chatbot_sessions')
+          .select('id, ended_at, escalated, ticket_id')
+          .eq('id', saved)
+          .maybeSingle();
+
+      if (session == null) {
+        await prefs.remove(_kActiveSessionPrefsKey);
+        return;
+      }
+      final ended = session['ended_at'];
+      final escalated = (session['escalated'] as bool?) ?? false;
+      if (ended != null || escalated) {
+        // Sessão terminada/escalada — limpar para próxima abertura criar nova.
+        await prefs.remove(_kActiveSessionPrefsKey);
+        return;
+      }
+
+      if (!mounted) return;
+      _sessionId = saved;
+      _ticketId = session['ticket_id'] as String?;
+      _subscribeRealtime(saved);
+      await _loadHistory(saved);
+    } catch (e) {
+      debugPrint('[SupportChatScreen] _restoreSession error: $e');
+    }
+  }
+
+  /// Carrega as últimas 50 mensagens da sessão por ordem cronológica.
+  Future<void> _loadHistory(String sessionId) async {
+    if (!mounted) return;
+    try {
+      final rows = await _supabase
+          .from('support_chatbot_messages')
+          .select('role, content, created_at')
+          .eq('session_id', sessionId)
+          .order('created_at', ascending: true)
+          .limit(50);
+
+      if (!mounted) return;
+      setState(() {
+        if (rows.isNotEmpty) {
+          // Remove o greeting inicial — substituído pelo histórico real.
+          _messages.clear();
+        }
+        for (final r in rows as List) {
+          final role = r['role'] as String?;
+          final content = (r['content'] as String?) ?? '';
+          if (content.isEmpty) continue;
+          _messages.add(role == 'user'
+              ? _ChatMessage.user(content)
+              : _ChatMessage.assistant(content));
+        }
+      });
+      _scrollToBottom();
+    } catch (e) {
+      debugPrint('[SupportChatScreen] _loadHistory error: $e');
+    }
+  }
+
+  Future<void> _persistSessionId(String sessionId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kActiveSessionPrefsKey, sessionId);
+    } catch (e) {
+      debugPrint('[SupportChatScreen] _persistSessionId error: $e');
+    }
+  }
+
+  Future<void> _clearPersistedSession() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_kActiveSessionPrefsKey);
+    } catch (e) {
+      debugPrint('[SupportChatScreen] _clearPersistedSession error: $e');
     }
   }
 
@@ -127,6 +227,8 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
         if (sessionId != null && _sessionId == null) {
           _sessionId = sessionId;
           _subscribeRealtime(sessionId);
+          // Sessão 2026-05-18 — persistir para sobreviver a dispose() do widget.
+          _persistSessionId(sessionId);
         }
         _messages.add(_ChatMessage.assistant(reply));
         _escalated = escalated;
@@ -137,6 +239,9 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
       });
       _scrollToBottom();
       if (escalated && mounted) {
+        // Sessão escalou para humano → limpar persistência para que a
+        // próxima abertura do chatbot inicie sessão IA nova.
+        _clearPersistedSession();
         Future<void>.delayed(const Duration(milliseconds: 600), _showHandoff);
       }
     } on FunctionException catch (e) {

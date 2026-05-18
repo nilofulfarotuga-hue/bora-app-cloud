@@ -190,10 +190,11 @@ class PricingService {
       final packageFee = _packageBaseFee + (extraDistance * _packageExtraPerKm);
       deliveryFee = packageFee + apartmentSurcharge;
       platformCommission = _packagePlatformShare + apartmentPlatformBonus;
-      // Logistics drivers carry/collect AND deliver → €0.80 bonus applies.
+      // Driver: base pay + per-km rate applied only to km beyond base distance.
+      // No _shoppingDriverBonus — logistics base already accounts for the
+      // collection effort (logistics_driver_base_cents = 400 cents = €4.00).
       driverEarnings = _roundCurrency(_logisticsDriverBasePay +
-          (_logisticsDriverPerKmRate * normalizedDistance) +
-          _shoppingDriverBonus +
+          (_logisticsDriverPerKmRate * extraDistance) +
           apartmentDriverBonus);
     } else {
       // ── FALLBACK (should not normally be reached) ──────────────────────────

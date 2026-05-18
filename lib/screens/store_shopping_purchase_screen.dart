@@ -37,6 +37,7 @@ class _StoreShoppingPurchaseScreenState
   File? _receiptPhoto;
   final _totalCtrl = TextEditingController();
   bool _submitting = false;
+  final _picker = ImagePicker();
 
   @override
   void initState() {
@@ -44,6 +45,15 @@ class _StoreShoppingPurchaseScreenState
     _items = widget.order.items
         .map((c) => _LocalItem.fromCart(c))
         .toList(growable: false);
+    _recoverLostReceiptPhoto();
+  }
+
+  /// Recovers photo lost when Android kills the app during camera session.
+  Future<void> _recoverLostReceiptPhoto() async {
+    final lost = await _picker.retrieveLostData();
+    if (lost.isEmpty || !mounted) return;
+    final file = lost.file;
+    if (file != null) setState(() => _receiptPhoto = File(file.path));
   }
 
   @override
@@ -69,9 +79,8 @@ class _StoreShoppingPurchaseScreenState
           : _items.every((i) => i.status != 'pending');
 
   Future<void> _pickReceiptPhoto() async {
-    final picker = ImagePicker();
     // Decisão G — só câmara, sem galeria.
-    final picked = await picker.pickImage(
+    final picked = await _picker.pickImage(
       source: ImageSource.camera,
       preferredCameraDevice: CameraDevice.rear,
       imageQuality: 80,

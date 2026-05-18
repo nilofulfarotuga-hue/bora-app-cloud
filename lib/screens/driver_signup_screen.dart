@@ -202,13 +202,6 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
     );
   }
 
-  bool _isValidIBAN(String raw) {
-    final clean = raw.replaceAll(' ', '').toUpperCase();
-    if (clean.length != 25) return false;
-    if (!clean.startsWith('PT50')) return false;
-    return RegExp(r'^\d{21}$').hasMatch(clean.substring(4));
-  }
-
   Future<String?> _uploadPhoto(XFile file, String userId, String tag) async {
     final bytes = await file.readAsBytes();
     final ext = file.path.contains('.')
@@ -440,8 +433,7 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
                       ),
                       validator: (v) {
                         if (v == null || v.trim().isEmpty) return 'Obrigatório';
-                        if (!v.contains('@')) return 'Email inválido';
-                        return null;
+                        return null; // formato validado pelo admin — não bloquear
                       },
                     ),
                     const SizedBox(height: 12),
@@ -452,10 +444,8 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
                         labelText: 'Telefone',
                         prefixIcon: Icon(Icons.phone_outlined),
                       ),
-                      validator: (v) => (v == null ||
-                              v.replaceAll(RegExp(r'\D'), '').length < 9)
-                          ? 'Número inválido'
-                          : null,
+                      validator: (v) =>
+                          (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
@@ -630,10 +620,7 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
                   ),
                   validator: (v) {
                     if (v == null || v.trim().isEmpty) return 'Obrigatório';
-                    if (!_isValidIBAN(v)) {
-                      return 'IBAN inválido (PT50 + 21 dígitos = 25 caracteres)';
-                    }
-                    return null;
+                    return null; // formato confirmado pelo admin — não bloquear
                   },
                 ),
               ),

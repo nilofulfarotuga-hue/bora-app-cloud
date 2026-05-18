@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../config/app_colors.dart';
 import '_admin_rpc_errors.dart';
@@ -640,6 +641,7 @@ class _DriverList extends StatelessWidget {
                             style: const TextStyle(
                                 fontSize: 12, color: AppColors.textSecondary),
                           ),
+                        _DriverWarningChips(driver: d),
                       ],
                     ),
                   ),
@@ -716,7 +718,9 @@ class _DriverDetailSheet extends StatelessWidget {
               style: const TextStyle(color: AppColors.textSecondary),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 12),
+          Center(child: _ContactButtons(phone: driver['phone'] as String?)),
+          const SizedBox(height: 8),
 
           // Documento
           _InfoRow(
@@ -800,6 +804,88 @@ class _DriverDetailSheet extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+// ── Warning chips — invalid email/phone format ────────────────────────────────
+
+class _DriverWarningChips extends StatelessWidget {
+  const _DriverWarningChips({required this.driver});
+  final Map<String, dynamic> driver;
+
+  @override
+  Widget build(BuildContext context) {
+    final warnings = <String>[];
+    final email = driver['email'] as String? ?? '';
+    final phone = driver['phone'] as String? ?? '';
+    final iban = driver['iban'] as String? ?? '';
+    if (email.isNotEmpty && !email.contains('@')) warnings.add('⚠️ email');
+    if (phone.isNotEmpty && phone.replaceAll(RegExp(r'\D'), '').length < 9) {
+      warnings.add('⚠️ telefone');
+    }
+    if (iban.isNotEmpty && iban.replaceAll(' ', '').length != 25) {
+      warnings.add('⚠️ IBAN');
+    }
+    if (warnings.isEmpty) return const SizedBox.shrink();
+    return Wrap(
+      spacing: 4,
+      children: warnings
+          .map((w) => Container(
+                margin: const EdgeInsets.only(top: 2),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: Colors.orange.shade300),
+                ),
+                child: Text(w,
+                    style: TextStyle(
+                        fontSize: 10, color: Colors.orange.shade900)),
+              ))
+          .toList(),
+    );
+  }
+}
+
+// ── Contact buttons ───────────────────────────────────────────────────────────
+
+class _ContactButtons extends StatelessWidget {
+  const _ContactButtons({required this.phone});
+  final String? phone;
+
+  Future<void> _launch(String scheme) async {
+    if (phone == null || phone!.isEmpty) return;
+    final uri = Uri.parse('$scheme:${phone!.replaceAll(' ', '')}');
+    if (await canLaunchUrl(uri)) await launchUrl(uri);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (phone == null || phone!.isEmpty) return const SizedBox.shrink();
+    return Row(
+      children: [
+        OutlinedButton.icon(
+          onPressed: () => _launch('tel'),
+          icon: const Icon(Icons.phone, size: 16),
+          label: const Text('Ligar'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.primary,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          ),
+        ),
+        const SizedBox(width: 8),
+        OutlinedButton.icon(
+          onPressed: () => _launch('sms'),
+          icon: const Icon(Icons.sms, size: 16),
+          label: const Text('SMS'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.accent,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          ),
+        ),
+      ],
     );
   }
 }

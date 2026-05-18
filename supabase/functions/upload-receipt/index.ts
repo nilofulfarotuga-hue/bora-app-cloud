@@ -85,13 +85,19 @@ Deno.serve(async (req: Request) => {
   })
   const { data: order, error: orderErr } = await admin
     .from('orders')
-    .select('id, assigned_driver_id, status')
+    .select('id, assigned_driver_id, current_driver_offer_id, status')
     .eq('id', body.orderId)
     .single()
   if (orderErr || !order) {
     return jsonResp(404, { error: 'order_not_found', detail: orderErr?.message })
   }
-  if (order.assigned_driver_id !== callerId) {
+  // Primary check: assigned_driver_id set (normal accepted flow)
+  // Fallback: assigned_driver_id is NULL (race condition — dispatch set status before
+  // Flutter wrote assigned_driver_id) but caller holds the active offer.
+  const isOwner =
+    order.assigned_driver_id === callerId ||
+    (order.assigned_driver_id == null && order.current_driver_offer_id === callerId)
+  if (!isOwner) {
     return jsonResp(403, { error: 'not_your_order' })
   }
 

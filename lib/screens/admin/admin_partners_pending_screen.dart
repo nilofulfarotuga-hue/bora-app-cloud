@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../config/app_colors.dart';
 
@@ -156,6 +157,49 @@ class _AdminPartnersPendingScreenState
         _ => Colors.grey.shade700,
       };
 
+  Widget _PartnerWarningChip(String label) => Container(
+        margin: const EdgeInsets.only(top: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: Colors.orange.shade50,
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: Colors.orange.shade300),
+        ),
+        child: Text(label,
+            style: TextStyle(fontSize: 10, color: Colors.orange.shade900)),
+      );
+
+  Widget _PartnerContactButtons({required String? phone}) {
+    if (phone == null || phone.isEmpty) return const SizedBox.shrink();
+    Future<void> launch(String scheme) async {
+      final uri = Uri.parse('$scheme:${phone.replaceAll(' ', '')}');
+      if (await canLaunchUrl(uri)) await launchUrl(uri);
+    }
+    return Row(
+      children: [
+        OutlinedButton.icon(
+          onPressed: () => launch('tel'),
+          icon: const Icon(Icons.phone, size: 16),
+          label: const Text('Ligar'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Colors.green.shade700,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          ),
+        ),
+        const SizedBox(width: 8),
+        OutlinedButton.icon(
+          onPressed: () => launch('sms'),
+          icon: const Icon(Icons.sms, size: 16),
+          label: const Text('SMS'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Colors.blue.shade700,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -280,15 +324,26 @@ class _AdminPartnersPendingScreenState
               ],
             ),
             const SizedBox(height: 4),
-            if ((r['email'] as String?)?.isNotEmpty ?? false)
+            if ((r['email'] as String?)?.isNotEmpty ?? false) ...[
               Text('📧 ${r['email']}',
                   style: const TextStyle(fontSize: 12)),
-            if ((r['phone'] as String?)?.isNotEmpty ?? false)
+              if (!(r['email'] as String).contains('@'))
+                _PartnerWarningChip('⚠️ email com formato inválido — verificar'),
+            ],
+            if ((r['phone'] as String?)?.isNotEmpty ?? false) ...[
               Text('☎️ ${r['phone']}',
                   style: const TextStyle(fontSize: 12)),
+              if ((r['phone'] as String)
+                      .replaceAll(RegExp(r'\D'), '')
+                      .length <
+                  9)
+                _PartnerWarningChip('⚠️ telefone com formato inválido — verificar'),
+            ],
             if ((r['address'] as String?)?.isNotEmpty ?? false)
               Text('📍 ${r['address']}',
                   style: const TextStyle(fontSize: 12)),
+            const SizedBox(height: 6),
+            _PartnerContactButtons(phone: r['phone'] as String?),
             if (createdAt != null)
               Text(
                 'Criado: ${createdAt.day.toString().padLeft(2, '0')}/${createdAt.month.toString().padLeft(2, '0')}/${createdAt.year}',

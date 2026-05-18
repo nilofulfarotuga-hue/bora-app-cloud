@@ -321,7 +321,7 @@ class _AdminRatingsScreenState extends State<AdminRatingsScreen> {
                           DropdownMenuItem(
                               value: 'partner', child: Text('Restaurantes')),
                           DropdownMenuItem(
-                              value: 'driver', child: Text('Entregadors')),
+                              value: 'driver', child: Text('Entregadores')),
                           DropdownMenuItem(
                               value: 'app', child: Text('App')),
                         ],

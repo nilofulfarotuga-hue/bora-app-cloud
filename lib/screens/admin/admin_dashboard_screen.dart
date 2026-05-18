@@ -34,6 +34,10 @@ import 'admin_support_stats_screen.dart';
 import 'admin_knowledge_screen.dart';
 import 'admin_pending_actions_screen.dart';
 import 'admin_skill_suggestions_screen.dart';
+import 'admin_support_tickets_screen.dart';
+import 'admin_orphan_payments_screen.dart';
+import 'admin_receipts_screen.dart';
+import 'admin_ai_assistant_screen.dart';
 import '../../widgets/admin_closed_partners_card.dart';
 import '../../widgets/admin_reservations_today_card.dart';
 import 'admin_partners_pending_screen.dart';
@@ -303,8 +307,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 const SizedBox(height: 10),
                 _NavCard(
                   icon: Icons.delivery_dining,
-                  title: 'Entregadors',
-                  subtitle: 'Lista e estado de todos os entregadors',
+                  title: 'Entregadores',
+                  subtitle: 'Lista e estado de todos os entregadores',
                   color: Colors.blue,
                   onTap: () => Navigator.push(
                       context,
@@ -326,7 +330,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 _NavCard(
                   icon: Icons.payments,
                   title: 'Pagamentos',
-                  subtitle: 'Saques e ganhos semanais dos entregadors',
+                  subtitle: 'Saques e ganhos semanais dos entregadores',
                   color: AppColors.primary,
                   onTap: () => Navigator.push(
                       context,
@@ -336,8 +340,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 const SizedBox(height: 10),
                 _NavCard(
                   icon: Icons.account_balance,
-                  title: 'Settlements semanais',
-                  subtitle: 'Fecho semanal driver + processar MBWay',
+                  title: 'Fechamento Semanal — Estafetas',
+                  subtitle: 'Fecho semanal + processar MBWay',
                   color: Colors.indigo,
                   onTap: () => Navigator.push(
                       context,
@@ -361,9 +365,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 _NavCard(
                   // Q1 (2026-05-17) — Repasses a parceiros (admin_partner_payouts trio).
                   icon: Icons.payments_outlined,
-                  title: 'Repasses parceiros',
+                  title: 'Fechamento Semanal — Parceiros',
                   subtitle:
-                      'Marcar pagamentos a parceiros · summary por período · CSV',
+                      'Marcar pagamentos · vendas − comissão · CSV',
                   color: Colors.indigo,
                   onTap: () => Navigator.push(
                       context,
@@ -443,7 +447,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 _NavCard(
                   icon: Icons.account_balance_wallet,
                   title: 'Tokens',
-                  subtitle: 'Saldo, atribuir, revogar (clientes + entregadors)',
+                  subtitle: 'Saldo, atribuir, revogar (clientes + entregadores)',
                   color: Colors.deepPurple,
                   onTap: () => Navigator.push(
                       context,
@@ -701,6 +705,63 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       MaterialPageRoute(
                           builder: (_) =>
                               const AdminCategoryMappingScreen())),
+                ),
+                const SizedBox(height: 18),
+                // ── Ferramentas (ecrãs anteriormente órfãos) ──
+                Padding(
+                  padding: const EdgeInsets.only(left: 4, bottom: 8, top: 4),
+                  child: Text(
+                    'Ferramentas',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: Colors.grey.shade800,
+                        ),
+                  ),
+                ),
+                _NavCard(
+                  icon: Icons.auto_awesome,
+                  title: 'Assistente IA — Admin',
+                  subtitle: 'Chat IA: consultar dados, configs, acções',
+                  color: const Color(0xFF7E57C2),
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminAiAssistantScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.support_agent,
+                  title: 'Suporte — Tickets',
+                  subtitle: 'Tickets de suporte abertos e histórico',
+                  color: Colors.indigo,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminSupportTicketsScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.warning_amber_rounded,
+                  title: 'Pagamentos órfãos',
+                  subtitle: 'Stripe pago sem ordem associada',
+                  color: const Color(0xFFD32F2F),
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminOrphanPaymentsScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.receipt,
+                  title: 'Reembolsos estafetas',
+                  subtitle: 'StoreShopping V2 · talões + reembolso MBWay',
+                  color: const Color(0xFFE65100),
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminReceiptsScreen())),
                 ),
                 const SizedBox(height: 16),
                 Center(

@@ -165,7 +165,7 @@ class _AdminTokensScreenState extends State<AdminTokensScreen>
       appBar: AppBar(
         title: const Text('Tokens'),
         backgroundColor: AppColors.primary,
-        bottom: TabBar(controller: _tab, tabs: const [Tab(text: 'Clientes'), Tab(text: 'Entregadors')],
+        bottom: TabBar(controller: _tab, tabs: const [Tab(text: 'Clientes'), Tab(text: 'Entregadores')],
             onTap: (_) {
               setState(() {
                 _selectedUserId = null;

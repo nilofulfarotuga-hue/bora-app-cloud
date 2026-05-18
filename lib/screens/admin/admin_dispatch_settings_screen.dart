@@ -46,7 +46,7 @@ class _AdminDispatchSettingsScreenState
       label: 'Retry sem novo entregador',
       unit: 'segundos',
       description:
-          'Tempo entre tentativas quando não há entregadors disponíveis '
+          'Tempo entre tentativas quando não há entregadores disponíveis '
           '(todos rejeitaram ou único entregador online — REGRAS 2 e 3).',
       minValue: 5,
       maxValue: 60,
@@ -55,10 +55,10 @@ class _AdminDispatchSettingsScreenState
     ),
     _DispatchSettingSpec(
       key: 'dispatch_max_total_seconds_with_drivers_online',
-      label: 'Limite com entregadors online',
+      label: 'Limite com entregadores online',
       unit: 'segundos',
       description:
-          'Tempo total acumulado com entregadors online antes do modal aparecer '
+          'Tempo total acumulado com entregadores online antes do modal aparecer '
           'ao parceiro pedindo decisão. Conta APENAS o tempo com drivers '
           'online (REGRA 4). 1200s = 20 minutos.',
       minValue: 300,
@@ -411,7 +411,7 @@ class _HeaderBanner extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Estes 5 parâmetros regem como o sistema escolhe entregadors, '
+                  'Estes 5 parâmetros regem como o sistema escolhe entregadores, '
                   'quando re-tenta, e quando pede decisão ao parceiro. '
                   'Mudanças aplicam-se em tempo real.',
                   style: TextStyle(

@@ -286,7 +286,7 @@ class _AdminLiveOrdersMapScreenState extends State<AdminLiveOrdersMapScreen> {
               children: [
                 _stat('Pendentes', pendingCount, Colors.orange),
                 _stat('Ativos', activeCount, Colors.green),
-                _stat('Entregadors', onlineCount, Colors.blue),
+                _stat('Entregadores', onlineCount, Colors.blue),
                 _stat('Total', _orders.length, Colors.black87),
               ],
             ),

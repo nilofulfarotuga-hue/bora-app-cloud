@@ -33,7 +33,9 @@ class _AdminAuditLogScreenState extends State<AdminAuditLogScreen> {
       final res = await Supabase.instance.client.rpc('admin_list_audit_action_types');
       final list = (res as List).map((e) => (e as Map)['action'] as String).toList();
       if (mounted) setState(() => _actionTypes = list);
-    } catch (_) {}
+    } catch (e, st) {
+      debugPrint('[admin_audit_log] _loadActionTypes failed: $e\n$st');
+    }
   }
 
   Future<void> _load() async {

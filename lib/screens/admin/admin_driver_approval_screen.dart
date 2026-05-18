@@ -403,7 +403,9 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
           params: {'p_driver_id': id, 'p_reason': reason},
         );
         rejected++;
-      } catch (_) {}
+      } catch (e, st) {
+        debugPrint('[admin_driver_approval] reject driver $id failed: $e\n$st');
+      }
     }
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(

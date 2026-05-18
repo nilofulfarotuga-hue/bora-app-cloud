@@ -708,7 +708,9 @@ class _MetricsHeaderState extends State<_MetricsHeader> {
       final res = await Supabase.instance.client
           .rpc('admin_reservations_metrics', params: {'p_days': 30});
       if (mounted) setState(() => _data = (res as Map).cast<String, dynamic>());
-    } catch (_) {}
+    } catch (e, st) {
+      debugPrint('[admin_reservations._MetricsHeader] load failed: $e\n$st');
+    }
   }
 
   @override

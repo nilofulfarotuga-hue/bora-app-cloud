@@ -380,6 +380,230 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
     );
   }
 
+  // ─── P1-S6-001 walk-in sheet (admin_seat_walk_in) ───────────────────────────
+
+  Future<void> _showWalkInSheet() async {
+    final restaurantIdCtrl = TextEditingController();
+    final clientNameCtrl = TextEditingController(text: 'Walk-in admin');
+    final clientPhoneCtrl = TextEditingController();
+    int people = 2;
+    List<Map<String, dynamic>> tables = const [];
+    String? selectedTableId;
+    bool loadingTables = false;
+    bool submitting = false;
+
+    final outerContext = context;
+    final messenger = ScaffoldMessenger.of(outerContext);
+
+    Future<void> loadTables(StateSetter setSt) async {
+      final rid = restaurantIdCtrl.text.trim();
+      if (rid.isEmpty) {
+        tables = const [];
+        selectedTableId = null;
+        setSt(() {});
+        return;
+      }
+      setSt(() => loadingTables = true);
+      try {
+        final rows = await Supabase.instance.client
+            .from('restaurant_tables')
+            .select('id, numero, capacity, zona, active')
+            .eq('restaurant_id', rid)
+            .eq('active', true)
+            .order('numero', ascending: true);
+        tables = (rows as List).cast<Map<String, dynamic>>();
+        selectedTableId = null;
+      } catch (e) {
+        tables = const [];
+        messenger.showSnackBar(SnackBar(
+          backgroundColor: Colors.red,
+          content: Text('Erro a carregar mesas: $e'),
+        ));
+      } finally {
+        setSt(() => loadingTables = false);
+      }
+    }
+
+    await showModalBottomSheet<void>(
+      context: outerContext,
+      isScrollControlled: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSt) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom,
+            left: 16,
+            right: 16,
+            top: 16,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Sentar walk-in',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Regista um cliente que chega sem reserva. Cria reserva '
+                  'imediata com status approved e atribui a mesa escolhida.',
+                  style: TextStyle(fontSize: 12, color: Colors.black54),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: restaurantIdCtrl,
+                  decoration: InputDecoration(
+                    labelText: 'Restaurant ID',
+                    helperText: 'Copia de admin_partners_screen',
+                    suffixIcon: IconButton(
+                      icon: const Icon(Icons.refresh),
+                      tooltip: 'Carregar mesas',
+                      onPressed:
+                          submitting ? null : () => loadTables(setSt),
+                    ),
+                  ),
+                  onSubmitted: (_) => loadTables(setSt),
+                ),
+                const SizedBox(height: 12),
+                if (loadingTables)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child:
+                        Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                  )
+                else if (tables.isEmpty)
+                  const Text(
+                    'Sem mesas activas (carrega para listar).',
+                    style: TextStyle(fontSize: 12, color: Colors.black45),
+                  )
+                else
+                  DropdownButtonFormField<String>(
+                    value: selectedTableId,
+                    decoration: const InputDecoration(labelText: 'Mesa'),
+                    items: tables
+                        .map((t) => DropdownMenuItem<String>(
+                              value: t['id'] as String,
+                              child: Text(
+                                'Mesa ${t['numero']} · cap ${t['capacity']} · '
+                                '${t['zona']}',
+                              ),
+                            ))
+                        .toList(),
+                    onChanged: submitting
+                        ? null
+                        : (v) => setSt(() => selectedTableId = v),
+                  ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    const Text('Pessoas:'),
+                    const SizedBox(width: 12),
+                    IconButton(
+                      icon: const Icon(Icons.remove_circle_outline),
+                      onPressed: people > 1 && !submitting
+                          ? () => setSt(() => people--)
+                          : null,
+                    ),
+                    Text('$people',
+                        style: const TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold)),
+                    IconButton(
+                      icon: const Icon(Icons.add_circle_outline),
+                      onPressed: people < 50 && !submitting
+                          ? () => setSt(() => people++)
+                          : null,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: clientNameCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Nome cliente',
+                    helperText: 'Default: "Walk-in admin"',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: clientPhoneCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Telefone (opcional)',
+                    helperText: 'Para envio de eventual SMS',
+                  ),
+                  keyboardType: TextInputType.phone,
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: submitting
+                          ? null
+                          : () => Navigator.pop(ctx),
+                      child: const Text('Cancelar'),
+                    ),
+                    const SizedBox(width: 8),
+                    FilledButton.icon(
+                      icon: const Icon(Icons.event_seat),
+                      label: Text(submitting ? 'A sentar...' : 'Sentar'),
+                      onPressed: (submitting ||
+                              selectedTableId == null ||
+                              restaurantIdCtrl.text.trim().isEmpty)
+                          ? null
+                          : () async {
+                              setSt(() => submitting = true);
+                              try {
+                                final phone =
+                                    clientPhoneCtrl.text.trim().isEmpty
+                                        ? null
+                                        : clientPhoneCtrl.text.trim();
+                                final name = clientNameCtrl.text.trim().isEmpty
+                                    ? 'Walk-in admin'
+                                    : clientNameCtrl.text.trim();
+                                await Supabase.instance.client.rpc(
+                                  'admin_seat_walk_in',
+                                  params: {
+                                    'p_restaurant_id':
+                                        restaurantIdCtrl.text.trim(),
+                                    'p_party': people,
+                                    'p_table_id': selectedTableId,
+                                    'p_client_name': name,
+                                    'p_client_phone': phone,
+                                  },
+                                );
+                                if (!mounted) return;
+                                Navigator.pop(ctx);
+                                messenger.showSnackBar(const SnackBar(
+                                  backgroundColor: AppColors.primary,
+                                  content: Text('Walk-in sentado.'),
+                                ));
+                                setState(() => _future = _load());
+                              } catch (e) {
+                                if (!ctx.mounted) return;
+                                setSt(() => submitting = false);
+                                messenger.showSnackBar(SnackBar(
+                                  backgroundColor: Colors.red,
+                                  content: Text('Erro: $e'),
+                                ));
+                              }
+                            },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    restaurantIdCtrl.dispose();
+    clientNameCtrl.dispose();
+    clientPhoneCtrl.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -400,6 +624,12 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
             icon: const Icon(Icons.add_circle, color: Colors.greenAccent),
             tooltip: 'Forçar criar reserva',
             onPressed: _showForceCreateSheet,
+          ),
+          IconButton(
+            // P1-S6-001 (2026-05-17) — Sentar walk-in (admin_seat_walk_in).
+            icon: const Icon(Icons.event_seat, color: Colors.amberAccent),
+            tooltip: 'Sentar walk-in',
+            onPressed: _showWalkInSheet,
           ),
           IconButton(
             icon: const Icon(Icons.cancel_outlined, color: Colors.redAccent),

@@ -1,23 +1,24 @@
-// admin-ai-assistant — chat IA do painel admin com tool use Claude
-// Requer secrets: ANTHROPIC_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+// admin-ai-assistant — chat IA do painel admin com Gemini 2.5 Flash + function calling
+// Requer secret no Supabase: GEMINI_API_KEY (já configurado para Robot B)
 //
-// Modelo: claude-sonnet-4-6 (Sonnet 4.6, custo-efectivo).
-// Tools disponíveis (read-only nesta v1 — write virá após Danilo aprovar):
-//   - sql_select: executa SELECT arbitrário em public schema (timeouts curtos)
-//   - list_pending_actions: helper para listar acções pendentes
-//   - get_platform_setting / set_platform_setting: ler/escrever platform_settings
+// Modelo: gemini-2.5-flash (gratuito até quota).
+// Tools v1 (read-only):
+//   - sql_select: SELECT arbitrário em public (banlist DML/DDL)
+//   - get_platform_setting: lê platform_settings por chave
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import Anthropic from "https://esm.sh/@anthropic-ai/sdk@0.30.1";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
-const MODEL = "claude-sonnet-4-6";
+const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") ?? "";
+const MODEL = "gemini-2.5-flash";
+const MAX_TOOL_ITERS = 4;
+const MAX_OUTPUT_TOKENS = 2048;
 
 const SYSTEM_PROMPT = `És o assistente IA do painel admin da Bora App (delivery + supermercados + reservas em Guarda, Portugal).
 
-Tens acesso directo ao Supabase via tools. Idioma: PT-BR (Danilo é brasileiro).
+Tens acesso directo ao Supabase via tools (function calling). Idioma de resposta: PT-BR (Danilo é brasileiro).
 
 REGRAS ABSOLUTAS:
 - Antes de qualquer escrita → confirma o que vais fazer e pede ok ao Danilo na mesma resposta.
@@ -36,54 +37,46 @@ admin_list_pending_actions, admin_finalize_action, admin_approve_driver, admin_r
 admin_mark_receipt_paid, admin_reject_receipt, admin_bulk_approve_skill_suggestions,
 admin_bulk_reject_skill_suggestions, admin_list_audit_log.
 
-Quando perguntarem por dados (ex: "pedidos de hoje"), usa o tool sql_select com uma query SELECT.
-Sê conciso. Mostra resultados em formato fácil de ler.
+Quando perguntarem por dados (ex: "pedidos de hoje"), chama a tool sql_select com uma query SELECT.
+Sê conciso. Mostra resultados em formato fácil de ler. Não devolvas JSON cru — resume e formata.
 `;
 
+// Function declarations no formato Gemini
 const TOOLS = [
   {
     name: "sql_select",
     description:
-      "Executa uma query SELECT no schema public. SOMENTE SELECT — DML/DDL é rejeitado. Timeout 5s. Limita resultados a 200 linhas.",
-    input_schema: {
+      "Executa uma query SELECT no schema public da DB. SOMENTE SELECT — DML/DDL é rejeitado. Timeout curto. Limita resultados a 200 linhas automaticamente.",
+    parameters: {
       type: "object",
       properties: {
         query: {
           type: "string",
-          description: "SELECT statement (sem DML/DDL).",
+          description: "SELECT statement em PostgreSQL.",
         },
         rationale: {
           type: "string",
           description: "Porque é necessária esta query.",
         },
       },
-      required: ["query", "rationale"],
+      required: ["query"],
     },
   },
   {
     name: "get_platform_setting",
-    description: "Lê um valor de platform_settings pela chave.",
-    input_schema: {
+    description: "Lê um valor de platform_settings pela chave (ex: 'delivery_base_eur', 'partner_commission_visible').",
+    parameters: {
       type: "object",
-      properties: { key: { type: "string" } },
+      properties: {
+        key: { type: "string", description: "Chave em platform_settings." },
+      },
       required: ["key"],
     },
   },
 ];
 
-interface ToolUseBlock {
-  type: "tool_use";
-  id: string;
-  name: string;
-  input: Record<string, unknown>;
-}
-
-interface ToolResultBlock {
-  type: "tool_result";
-  tool_use_id: string;
-  content: string;
-  is_error?: boolean;
-}
+// deno-lint-ignore no-explicit-any
+type Json = any;
 
 function isDangerousSQL(q: string): boolean {
   const upper = q.toUpperCase();
@@ -97,78 +90,96 @@ function isDangerousSQL(q: string): boolean {
     "CREATE ",
     "GRANT ",
     "REVOKE ",
+    "COPY ",
     ";--",
   ];
   return banned.some((b) => upper.includes(b)) || !upper.trim().startsWith("SELECT");
 }
 
 async function execTool(
-  block: ToolUseBlock,
+  fnName: string,
+  fnArgs: Record<string, unknown>,
   sb: ReturnType<typeof createClient>,
-): Promise<ToolResultBlock> {
+): Promise<{ ok: boolean; result?: unknown; error?: string }> {
   try {
-    if (block.name === "sql_select") {
-      const q = (block.input.query as string) ?? "";
+    if (fnName === "sql_select") {
+      const q = (fnArgs.query as string) ?? "";
       if (isDangerousSQL(q)) {
-        return {
-          type: "tool_result",
-          tool_use_id: block.id,
-          content: "ERRO: apenas SELECT é permitido neste tool.",
-          is_error: true,
-        };
+        return { ok: false, error: "Apenas SELECT é permitido neste tool." };
       }
-      // pg_meta query via service role
       const limited = q.match(/LIMIT\s+\d+/i) ? q : `${q.replace(/;\s*$/, "")} LIMIT 200`;
       const { data, error } = await sb.rpc("admin_run_select", { p_query: limited });
-      if (error) {
-        return {
-          type: "tool_result",
-          tool_use_id: block.id,
-          content: `ERRO SQL: ${error.message}`,
-          is_error: true,
-        };
+      if (error) return { ok: false, error: `SQL: ${error.message}` };
+      // Trim para 6KB para não estourar o token budget
+      let trimmed = data ?? [];
+      if (Array.isArray(trimmed) && JSON.stringify(trimmed).length > 6000) {
+        trimmed = trimmed.slice(0, 50);
       }
-      return {
-        type: "tool_result",
-        tool_use_id: block.id,
-        content: JSON.stringify(data ?? []).slice(0, 8000),
-      };
+      return { ok: true, result: trimmed };
     }
-    if (block.name === "get_platform_setting") {
-      const key = block.input.key as string;
+    if (fnName === "get_platform_setting") {
+      const key = fnArgs.key as string;
       const { data, error } = await sb
         .from("platform_settings")
         .select("key, value, description")
         .eq("key", key)
         .maybeSingle();
-      if (error) {
-        return {
-          type: "tool_result",
-          tool_use_id: block.id,
-          content: `ERRO: ${error.message}`,
-          is_error: true,
-        };
-      }
-      return {
-        type: "tool_result",
-        tool_use_id: block.id,
-        content: JSON.stringify(data ?? { error: "key não encontrada" }),
-      };
+      if (error) return { ok: false, error: error.message };
+      if (!data) return { ok: true, result: { error: "key não encontrada", key } };
+      return { ok: true, result: data };
     }
-    return {
-      type: "tool_result",
-      tool_use_id: block.id,
-      content: `Tool ${block.name} desconhecido.`,
-      is_error: true,
-    };
+    return { ok: false, error: `Tool ${fnName} desconhecido.` };
   } catch (e) {
-    return {
-      type: "tool_result",
-      tool_use_id: block.id,
-      content: `EXCEPÇÃO: ${(e as Error).message}`,
-      is_error: true,
-    };
+    return { ok: false, error: `Excepção: ${(e as Error).message}` };
   }
+}
+
+async function callGemini(
+  systemPrompt: string,
+  contents: Json[],
+  tools: Json[],
+): Promise<{ ok: boolean; data?: Json; error?: string }> {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
+  const body = {
+    system_instruction: { parts: [{ text: systemPrompt }] },
+    contents,
+    tools: [{ function_declarations: tools }],
+    generationConfig: { maxOutputTokens: MAX_OUTPUT_TOKENS, temperature: 0.3 },
+  };
+  try {
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": GEMINI_API_KEY },
+      body: JSON.stringify(body),
+    });
+    if (!resp.ok) {
+      const text = await resp.text();
+      return { ok: false, error: `gemini http ${resp.status}: ${text.slice(0, 500)}` };
+    }
+    const j = await resp.json();
+    return { ok: true, data: j };
+  } catch (e) {
+    return { ok: false, error: `gemini fetch fail: ${(e as Error).message}` };
+  }
+}
+
+// Converte mensagens do Flutter ({role:'user'|'assistant', content:string}) em
+// formato Gemini ({role:'user'|'model', parts:[{text}]}).
+function toGeminiContents(
+  msgs: Array<{ role: string; content: unknown }>,
+): Json[] {
+  const out: Json[] = [];
+  for (const m of msgs) {
+    const role = m.role === "assistant" ? "model" : m.role === "user" ? "user" : null;
+    if (!role) continue;
+    const text =
+      typeof m.content === "string"
+        ? m.content
+        : JSON.stringify(m.content);
+    if (!text.trim()) continue;
+    out.push({ role, parts: [{ text }] });
+  }
+  return out;
 }
 
 Deno.serve(async (req) => {
@@ -182,97 +193,135 @@ Deno.serve(async (req) => {
     return new Response("Method not allowed", { status: 405, headers: cors });
 
   try {
+    if (!GEMINI_API_KEY) {
+      return new Response(JSON.stringify({ error: "GEMINI_API_KEY missing in secrets" }), {
+        status: 500,
+        headers: { ...cors, "content-type": "application/json" },
+      });
+    }
+
     const authHeader = req.headers.get("authorization") ?? "";
     const jwt = authHeader.replace(/^Bearer\s+/i, "");
     if (!jwt) return new Response("missing auth", { status: 401, headers: cors });
 
-    // Verificar role admin no JWT
-    const userClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY") ?? "", {
+    // Valida role admin no JWT do user
+    const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
     });
     const { data: userData, error: userErr } = await userClient.auth.getUser();
-    if (userErr || !userData?.user)
+    if (userErr || !userData?.user) {
       return new Response("invalid jwt", { status: 401, headers: cors });
+    }
     const role =
       (userData.user.app_metadata as Record<string, unknown>)?.["role"] ??
       (userData.user.user_metadata as Record<string, unknown>)?.["role"];
-    if (role !== "admin")
+    if (role !== "admin") {
       return new Response("forbidden — admin only", { status: 403, headers: cors });
+    }
 
     const body = await req.json().catch(() => ({}));
     const incomingMessages: Array<{ role: string; content: unknown }> =
-      Array.isArray(body.messages) ? body.messages : [];
-    const sessionId: string | null = body.session_id ?? null;
-
-    if (!ANTHROPIC_API_KEY)
-      return new Response(JSON.stringify({ error: "ANTHROPIC_API_KEY missing" }), {
-        status: 500,
+      Array.isArray(body.messages)
+        ? body.messages
+        : typeof body.message === "string"
+          ? [{ role: "user", content: body.message }]
+          : [];
+    if (incomingMessages.length === 0) {
+      return new Response(JSON.stringify({ error: "no messages" }), {
+        status: 400,
         headers: { ...cors, "content-type": "application/json" },
       });
+    }
+    const sessionId: string | null = body.session_id ?? null;
 
-    const anthropic = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
     const sbAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
     const actionsLog: Array<Record<string, unknown>> = [];
-
-    // Tool-use loop (max 4 iterations)
-    let working = [...incomingMessages];
+    const contents: Json[] = toGeminiContents(incomingMessages);
     let finalText = "";
-    for (let i = 0; i < 4; i++) {
-      const resp = await anthropic.messages.create({
-        model: MODEL,
-        max_tokens: 1500,
-        system: SYSTEM_PROMPT,
-        tools: TOOLS as unknown as Anthropic.Tool[],
-        // deno-lint-ignore no-explicit-any
-        messages: working as any,
-      });
+    let geminiError: string | null = null;
 
-      const textParts = resp.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text);
-      finalText = textParts.join("\n");
-
-      const toolUses = resp.content.filter((b) => b.type === "tool_use") as unknown as ToolUseBlock[];
-      if (toolUses.length === 0) {
-        working.push({ role: "assistant", content: resp.content });
+    let toolIters = 0;
+    while (toolIters <= MAX_TOOL_ITERS) {
+      const gemRes = await callGemini(SYSTEM_PROMPT, contents, TOOLS);
+      if (!gemRes.ok) {
+        geminiError = gemRes.error ?? "gemini unknown error";
         break;
       }
+      const cand = gemRes.data?.candidates?.[0];
+      const parts: Json[] = cand?.content?.parts ?? [];
+      const fnCallPart = parts.find((p: Json) => p.functionCall);
 
-      working.push({ role: "assistant", content: resp.content });
-      const toolResults: ToolResultBlock[] = [];
-      for (const tu of toolUses) {
-        const res = await execTool(tu, sbAdmin);
-        toolResults.push(res);
+      if (fnCallPart) {
+        const fnName: string = fnCallPart.functionCall.name;
+        const fnArgs: Record<string, unknown> = fnCallPart.functionCall.args ?? {};
+        const res = await execTool(fnName, fnArgs, sbAdmin);
         actionsLog.push({
-          tool: tu.name,
-          input: tu.input,
-          ok: !res.is_error,
+          tool: fnName,
+          input: fnArgs,
+          ok: res.ok,
           ts: new Date().toISOString(),
         });
+        contents.push({ role: "model", parts: [{ functionCall: fnCallPart.functionCall }] });
+        contents.push({
+          role: "function",
+          parts: [
+            {
+              functionResponse: {
+                name: fnName,
+                response: res.ok ? { result: res.result } : { error: res.error },
+              },
+            },
+          ],
+        });
+        toolIters++;
+        continue;
       }
-      working.push({ role: "user", content: toolResults });
+
+      finalText = parts.map((p: Json) => p.text ?? "").join("").trim();
+      break;
     }
 
-    // Persistir sessão
+    if (geminiError) {
+      return new Response(
+        JSON.stringify({ error: geminiError, actions: actionsLog }),
+        { status: 502, headers: { ...cors, "content-type": "application/json" } },
+      );
+    }
+
+    if (!finalText) {
+      finalText = "(sem resposta do modelo — tenta reformular)";
+    }
+
+    // Persiste sessão completa para auditoria
     let savedSessionId = sessionId;
+    const allMessages = [
+      ...incomingMessages,
+      { role: "assistant", content: finalText },
+    ];
     if (sessionId) {
       await sbAdmin
         .from("admin_ai_sessions")
-        .update({ messages: working, actions: actionsLog })
+        .update({ messages: allMessages, actions: actionsLog })
         .eq("id", sessionId);
     } else {
+      const firstUser = incomingMessages.find((m) => m.role === "user");
+      const title = typeof firstUser?.content === "string"
+        ? firstUser.content.slice(0, 80)
+        : "Nova sessão";
       const { data: ins } = await sbAdmin
         .from("admin_ai_sessions")
         .insert({
           admin_id: userData.user.id,
-          title: (incomingMessages[0]?.content as string)?.toString().slice(0, 80) ?? "Nova sessão",
-          messages: working,
+          title,
+          messages: allMessages,
           actions: actionsLog,
         })
         .select("id")
         .single();
-      savedSessionId = ins?.id ?? null;
+      savedSessionId = (ins?.id as string) ?? null;
     }
 
     return new Response(
@@ -280,7 +329,7 @@ Deno.serve(async (req) => {
         session_id: savedSessionId,
         reply: finalText,
         actions: actionsLog,
-        messages: working,
+        model: MODEL,
       }),
       { headers: { ...cors, "content-type": "application/json" } },
     );

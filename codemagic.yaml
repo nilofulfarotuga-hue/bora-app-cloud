@@ -40,9 +40,20 @@ workflows:
         script: flutter analyze --no-fatal-infos --no-fatal-warnings || true
       - name: Build APK release
         script: |
+          set +e
           flutter build apk --release \
             --dart-define-from-file=.dart_defines \
-            --no-tree-shake-icons
+            --no-tree-shake-icons \
+            --verbose 2>&1 | tee /tmp/apk_build.log
+          RC=${PIPESTATUS[0]}
+          if [ "$RC" != "0" ]; then
+            echo ""
+            echo "================ BUILD FAILED — EXTRACT ================"
+            grep -B 2 -A 40 -E "FAILURE:|What went wrong:|Caused by:|Execution failed for task|Error:" /tmp/apk_build.log || true
+            echo "================ TAIL 200 LINHAS ================"
+            tail -200 /tmp/apk_build.log
+            exit $RC
+          fi
     artifacts:
       - build/**/outputs/**/*.apk
       - build/**/outputs/**/mapping.txt

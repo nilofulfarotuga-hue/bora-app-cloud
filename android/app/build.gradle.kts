@@ -79,7 +79,7 @@ flutter {
 
 dependencies {
     // Core library desugaring — necessário para flutter_local_notifications (Java 8+ time APIs).
-    coreLibraryDesugaring("com.android.tools.build:desugar_jdk_libs:2.1.4")
+    coreLibraryDesugaring("com.android.tools.build:desugar_jdk_libs:2.0.4")
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("org.jetbrains.kotlin:kotlin-stdlib:2.3.10")
 }

@@ -248,10 +248,16 @@ class OrderStore extends ChangeNotifier {
   // are ignored); subsequent calls mark `_lastDeliveredAt` when a NEW
   // delivered orderId appears, signalling ClientHomeScreen to re-check
   // unrated orders without waiting for app resume.
+  //
+  // APK-FIX-DUPLICATE-DEF (2026-05-18) — merge com override anterior que
+  // sincronizava partner orders ao restaurant store. Em release mode dart
+  // compile aborta com duplicate_definition. Comportamento idêntico ao
+  // anterior, apenas consolidado num único override.
   @override
   void notifyListeners() {
     _trackDeliveredTransitions();
     super.notifyListeners();
+    _restaurantStore?.syncPartnerOrders(_orders);
   }
 
   void _trackDeliveredTransitions() {
@@ -435,11 +441,10 @@ class OrderStore extends ChangeNotifier {
   // ignore: avoid_unused_parameters
   void updateDispatchEngine(DispatchEngine dispatchEngine) {}
 
-  @override
-  void notifyListeners() {
-    super.notifyListeners();
-    _restaurantStore?.syncPartnerOrders(_orders);
-  }
+  // APK-FIX-DUPLICATE-DEF (2026-05-18) — override `notifyListeners` foi
+  // consolidado em L256 (acima) com `_trackDeliveredTransitions` + sync
+  // do partner restaurant store. Esta duplicação aqui causava erro fatal
+  // em dart compile release (duplicate_definition).
 
   // BUG #5 (2026-05-13) — retornar bool para a UI poder mostrar snackbar
   // quando o toggle é rejeitado (pedidos activos genuinamente em curso).

@@ -22,6 +22,10 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
   List<Map<String, dynamic>> _rejected = [];
   bool _loading = true;
 
+  // Bulk select
+  final Set<String> _selectedIds = {};
+  bool get _isMultiSelectMode => _selectedIds.isNotEmpty;
+
   static const _columns =
       'id, name, phone, email, vehicle_type, photo_url, document_type, '
       'document_number, document_photo_url, vehicle_photo_url, iban, '
@@ -319,6 +323,97 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
     }
   }
 
+  Future<void> _bulkApprove() async {
+    final ids = _selectedIds.toList();
+    int approved = 0;
+    int skipped = 0;
+    for (final id in ids) {
+      final driver = _pending.firstWhere(
+        (d) => d['id'] == id,
+        orElse: () => <String, dynamic>{},
+      );
+      final missing = _missingDocs(driver);
+      if (missing.isNotEmpty) {
+        skipped++;
+        continue;
+      }
+      try {
+        await Supabase.instance.client.rpc(
+          'admin_approve_driver',
+          params: {
+            'p_driver_id': id,
+            'p_force': false,
+            'p_justification': 'bulk_approval',
+          },
+        );
+        approved++;
+      } catch (_) {
+        skipped++;
+      }
+    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text('$approved aprovados, $skipped ignorados (docs incompletos)'),
+      backgroundColor: AppColors.primary,
+    ));
+    await _load();
+    setState(() => _selectedIds.clear());
+  }
+
+  Future<void> _bulkReject() async {
+    final controller = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) {
+          final ok = controller.text.trim().length >= 3;
+          return AlertDialog(
+            title: Text('Rejeitar ${_selectedIds.length} candidatos'),
+            content: TextField(
+              controller: controller,
+              onChanged: (_) => setLocal(() {}),
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'Motivo (mín. 3 caracteres)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, null),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                onPressed: ok ? () => Navigator.pop(ctx, controller.text.trim()) : null,
+                child: const Text('Rejeitar todos'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    if (reason == null) return;
+    final ids = _selectedIds.toList();
+    int rejected = 0;
+    for (final id in ids) {
+      try {
+        await Supabase.instance.client.rpc(
+          'admin_reject_driver',
+          params: {'p_driver_id': id, 'p_reason': reason},
+        );
+        rejected++;
+      } catch (_) {}
+    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text('$rejected rejeitados'),
+      backgroundColor: Colors.red,
+    ));
+    await _load();
+    setState(() => _selectedIds.clear());
+  }
+
   void _showDetail(Map<String, dynamic> driver) {
     showModalBottomSheet(
       context: context,
@@ -341,13 +436,34 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Aprovações de Entregadores'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _load,
-          ),
-        ],
+        leading: _isMultiSelectMode
+            ? IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => setState(() => _selectedIds.clear()),
+              )
+            : null,
+        title: _isMultiSelectMode
+            ? Text('${_selectedIds.length} seleccionados')
+            : const Text('Aprovações de Entregadores'),
+        actions: _isMultiSelectMode
+            ? [
+                TextButton(
+                  onPressed: _bulkApprove,
+                  child: const Text('Aprovar todos',
+                      style: TextStyle(color: Colors.white)),
+                ),
+                TextButton(
+                  onPressed: _bulkReject,
+                  child: const Text('Rejeitar todos',
+                      style: TextStyle(color: Colors.white70)),
+                ),
+              ]
+            : [
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  onPressed: _load,
+                ),
+              ],
         bottom: TabBar(
           controller: _tabController,
           labelColor: Colors.white,
@@ -360,6 +476,14 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
           ],
         ),
       ),
+      floatingActionButton: _isMultiSelectMode
+          ? FloatingActionButton.extended(
+              backgroundColor: const Color(0xFF1B5E20),
+              onPressed: _bulkApprove,
+              icon: const Icon(Icons.check_circle),
+              label: Text('Aprovar (${_selectedIds.length})'),
+            )
+          : null,
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : TabBarView(
@@ -368,29 +492,48 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
                 _DriverList(
                   drivers: _pending,
                   emptyMessage: 'Nenhuma candidatura pendente.',
-                  onTap: _showDetail,
-                  actions: (d) => Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.check_circle,
-                            color: AppColors.primary),
-                        tooltip: 'Aprovar',
-                        onPressed: () => _approve(d['id'] as String),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.cancel, color: Colors.red),
-                        tooltip: 'Rejeitar',
-                        onPressed: () => _reject(d['id'] as String),
-                      ),
-                    ],
-                  ),
+                  onTap: (d) {
+                    if (_isMultiSelectMode) {
+                      final id = d['id'] as String;
+                      setState(() {
+                        if (_selectedIds.contains(id)) {
+                          _selectedIds.remove(id);
+                        } else {
+                          _selectedIds.add(id);
+                        }
+                      });
+                    } else {
+                      _showDetail(d);
+                    }
+                  },
+                  onLongPress: (d) {
+                    final id = d['id'] as String;
+                    setState(() => _selectedIds.add(id));
+                  },
+                  selectedIds: _selectedIds,
+                  actions: (d) {
+                    if (_isMultiSelectMode) return const SizedBox.shrink();
+                    return Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.check_circle,
+                              color: AppColors.primary),
+                          tooltip: 'Aprovar',
+                          onPressed: () => _approve(d['id'] as String),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.cancel, color: Colors.red),
+                          tooltip: 'Rejeitar',
+                          onPressed: () => _reject(d['id'] as String),
+                        ),
+                      ],
+                    );
+                  },
                 ),
                 _DriverList(
                   drivers: _approved,
                   emptyMessage: 'Nenhum entregador aprovado.',
-                  // Drivers aprovados saem do fluxo de candidatura e entram
-                  // no ecrã de gestão completo (FASE 3 BUG 2).
                   onTap: (d) {
                     final id = d['id'] as String?;
                     if (id == null) return;
@@ -419,12 +562,16 @@ class _DriverList extends StatelessWidget {
     required this.drivers,
     required this.emptyMessage,
     required this.onTap,
+    this.onLongPress,
+    this.selectedIds,
     this.actions,
   });
 
   final List<Map<String, dynamic>> drivers;
   final String emptyMessage;
   final void Function(Map<String, dynamic>) onTap;
+  final void Function(Map<String, dynamic>)? onLongPress;
+  final Set<String>? selectedIds;
   final Widget Function(Map<String, dynamic>)? actions;
 
   @override
@@ -443,10 +590,20 @@ class _DriverList extends StatelessWidget {
         final d = drivers[i];
         final photoUrl = d['photo_url'] as String?;
         final createdAt = DateTime.tryParse(d['created_at'] as String? ?? '');
+        final id = d['id'] as String? ?? '';
+        final isSelected = selectedIds?.contains(id) ?? false;
         return Card(
+          color: isSelected ? const Color(0xFFE8F5E9) : null,
+          shape: isSelected
+              ? RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  side: const BorderSide(color: Color(0xFF1B5E20), width: 2),
+                )
+              : null,
           child: InkWell(
             borderRadius: BorderRadius.circular(14),
             onTap: () => onTap(d),
+            onLongPress: onLongPress != null ? () => onLongPress!(d) : null,
             child: Padding(
               padding: const EdgeInsets.all(12),
               child: Row(

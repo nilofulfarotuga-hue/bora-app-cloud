@@ -338,7 +338,7 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
         children: [
           _infoRow(Icons.store, 'Nome', r['name'] as String? ?? '—'),
           _infoRow(Icons.category, 'Categoria', r['category'] as String? ?? '—'),
-          _infoRow(Icons.location_on, 'Morada', r['address'] as String? ?? '—'),
+          _infoRow(Icons.location_on, 'Endereço', r['address'] as String? ?? '—'),
           _infoRow(Icons.phone, 'Telefone', r['phone'] as String? ?? '—'),
           _infoRow(Icons.email, 'Email', r['email'] as String? ?? '—'),
           _infoRow(Icons.handshake,
@@ -652,7 +652,7 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
               ? const SizedBox(width: 16, height: 16,
                   child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
               : const Icon(Icons.save),
-          label: const Text('Guardar horários'),
+          label: const Text('Salvar horários'),
         ),
       ],
     );
@@ -991,7 +991,7 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Guardar')),
+            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Salvar')),
           ],
         ),
       ),
@@ -1376,7 +1376,7 @@ class _PartnerCatalogTabState extends State<_PartnerCatalogTab> {
                   controller.text.replaceAll(',', '.'));
               if (v != null && v >= 0) Navigator.pop(ctx, v);
             },
-            child: const Text('Guardar'),
+            child: const Text('Salvar'),
           ),
         ],
       ),
@@ -1392,7 +1392,7 @@ class _PartnerCatalogTabState extends State<_PartnerCatalogTab> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Erro ao guardar preço: $e')));
+          .showSnackBar(SnackBar(content: Text('Erro ao salvar preço: $e')));
     }
   }
 

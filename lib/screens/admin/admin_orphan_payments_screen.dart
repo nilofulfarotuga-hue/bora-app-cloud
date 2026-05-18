@@ -53,7 +53,7 @@ class _AdminOrphanPaymentsScreenState extends State<AdminOrphanPaymentsScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao apagar draft: $e')),
+          SnackBar(content: Text('Erro ao excluir draft: $e')),
         );
       }
     }
@@ -172,7 +172,7 @@ class _OrphanCard extends StatelessWidget {
                 alignment: Alignment.centerRight,
                 child: TextButton.icon(
                   icon: const Icon(Icons.delete, size: 16),
-                  label: const Text('Apagar draft'),
+                  label: const Text('Excluir draft'),
                   onPressed: () => onDelete(id),
                 ),
               ),

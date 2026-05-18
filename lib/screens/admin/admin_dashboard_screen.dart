@@ -277,8 +277,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 const SizedBox(height: 10),
                 _NavCard(
                   icon: Icons.delivery_dining,
-                  title: 'Estafetas',
-                  subtitle: 'Lista e estado de todos os estafetas',
+                  title: 'Entregadors',
+                  subtitle: 'Lista e estado de todos os entregadors',
                   color: Colors.blue,
                   onTap: () => Navigator.push(
                       context,
@@ -300,7 +300,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 _NavCard(
                   icon: Icons.payments,
                   title: 'Pagamentos',
-                  subtitle: 'Saques e ganhos semanais dos estafetas',
+                  subtitle: 'Saques e ganhos semanais dos entregadors',
                   color: AppColors.primary,
                   onTap: () => Navigator.push(
                       context,
@@ -417,7 +417,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 _NavCard(
                   icon: Icons.account_balance_wallet,
                   title: 'Tokens',
-                  subtitle: 'Saldo, atribuir, revogar (clientes + estafetas)',
+                  subtitle: 'Saldo, atribuir, revogar (clientes + entregadors)',
                   color: Colors.deepPurple,
                   onTap: () => Navigator.push(
                       context,

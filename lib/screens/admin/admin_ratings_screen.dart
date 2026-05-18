@@ -144,7 +144,7 @@ class _AdminRatingsScreenState extends State<AdminRatingsScreen> {
       case 'partner':
         return 'Restaurante';
       case 'driver':
-        return 'Estafeta';
+        return 'Entregador';
       case 'app':
         return 'App';
       default:
@@ -321,7 +321,7 @@ class _AdminRatingsScreenState extends State<AdminRatingsScreen> {
                           DropdownMenuItem(
                               value: 'partner', child: Text('Restaurantes')),
                           DropdownMenuItem(
-                              value: 'driver', child: Text('Estafetas')),
+                              value: 'driver', child: Text('Entregadors')),
                           DropdownMenuItem(
                               value: 'app', child: Text('App')),
                         ],
@@ -403,7 +403,7 @@ class _AdminRatingsScreenState extends State<AdminRatingsScreen> {
                   controller: _searchController,
                   decoration: InputDecoration(
                     isDense: true,
-                    labelText: 'Pesquisar comentário',
+                    labelText: 'Buscar comentário',
                     prefixIcon: const Icon(Icons.search, size: 18),
                     border: const OutlineInputBorder(),
                     suffixIcon: _searchController.text.isEmpty

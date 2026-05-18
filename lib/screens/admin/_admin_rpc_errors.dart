@@ -14,13 +14,13 @@ String humanizeAdminRpcError(Object error) {
       return 'Sem permissões de admin para esta acção.';
     }
     if (msg.startsWith('driver_not_found')) {
-      return 'Estafeta não encontrado. Refresca a lista.';
+      return 'Entregador não encontrado. Refresca a lista.';
     }
     if (msg.startsWith('driver_already_approved')) {
-      return 'Este estafeta já estava aprovado.';
+      return 'Este entregador já estava aprovado.';
     }
     if (msg.startsWith('driver_already_rejected')) {
-      return 'Este estafeta já estava rejeitado.';
+      return 'Este entregador já estava rejeitado.';
     }
     if (msg.startsWith('missing_docs:')) {
       final list = msg.substring('missing_docs:'.length).trim();

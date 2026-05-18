@@ -79,7 +79,7 @@ class _AdminDriverDetailScreenState extends State<AdminDriverDetailScreen>
         if (mounted) {
           setState(() {
             _loading = false;
-            _error = 'Estafeta não encontrado.';
+            _error = 'Entregador não encontrado.';
           });
         }
         return;
@@ -136,7 +136,7 @@ class _AdminDriverDetailScreenState extends State<AdminDriverDetailScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_driver?['name'] as String? ?? 'Estafeta'),
+        title: Text(_driver?['name'] as String? ?? 'Entregador'),
         actions: [
           IconButton(icon: const Icon(Icons.refresh), onPressed: _refresh),
         ],
@@ -314,8 +314,8 @@ class _OverviewTab extends StatelessWidget {
         bannedUntil: result.bannedUntil,
       );
       toast(result.bannedUntil == null
-          ? 'Estafeta banido permanentemente.'
-          : 'Estafeta suspenso até ${_fmtDate(result.bannedUntil!)}.');
+          ? 'Entregador banido permanentemente.'
+          : 'Entregador suspenso até ${_fmtDate(result.bannedUntil!)}.');
     } on AdminDriverException catch (e) {
       toast(e.message, isError: true);
     }
@@ -331,7 +331,7 @@ class _OverviewTab extends StatelessWidget {
     final ok = await showDialog<bool>(
       context: ctx,
       builder: (_) => AlertDialog(
-        title: const Text('Reactivar estafeta?'),
+        title: const Text('Reactivar entregador?'),
         content: Text(
             'Vai limpar ban, suspensão e/ou soft-delete de "${driver['name']}".'),
         actions: [
@@ -364,7 +364,7 @@ class _OverviewTab extends StatelessWidget {
       context: ctx,
       builder: (_) => const _ReasonDialog(
         title: 'Forçar logout?',
-        body: 'Vai revogar TODAS as sessões activas deste estafeta. '
+        body: 'Vai revogar TODAS as sessões activas deste entregador. '
             'O driver perderá a app no próximo refresh.',
         confirmLabel: 'Forçar logout',
       ),
@@ -401,7 +401,7 @@ class _OverviewTab extends StatelessWidget {
         driverId: driver['id'] as String,
         reason: result,
       );
-      toast('Estafeta removido (soft delete).');
+      toast('Entregador removido (soft delete).');
     } on AdminDriverException catch (e) {
       toast(e.message, isError: true);
     }
@@ -790,7 +790,7 @@ class _EditDriverSheetState extends State<_EditDriverSheet> {
                           nif:          _diff(_nif, widget.driver['nif'] as String?),
                         ));
                       },
-                child: const Text('Guardar'),
+                child: const Text('Salvar'),
               )),
             ]),
             const SizedBox(height: 16),
@@ -850,7 +850,7 @@ class _BanDialogState extends State<_BanDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Banir / suspender estafeta'),
+      title: const Text('Banir / suspender entregador'),
       content: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -977,11 +977,11 @@ class _SoftDeleteDialogState extends State<_SoftDeleteDialog> {
     final nameOk = _name.text.trim() == widget.expectedName.trim();
     final reasonOk = _reason.text.trim().length >= 3;
     return AlertDialog(
-      title: const Text('Remover estafeta'),
+      title: const Text('Remover entregador'),
       content: Column(mainAxisSize: MainAxisSize.min, children: [
         const Text(
           'Soft delete: o registo é preservado para integridade de pedidos/transacções/audit, '
-          'mas o estafeta deixa de operar.',
+          'mas o entregador deixa de operar.',
           style: TextStyle(fontSize: 13),
         ),
         const SizedBox(height: 12),
@@ -989,7 +989,7 @@ class _SoftDeleteDialogState extends State<_SoftDeleteDialog> {
             style: const TextStyle(fontSize: 12, color: AppColors.error)),
         TextField(
           controller: _name,
-          decoration: const InputDecoration(labelText: 'Nome do estafeta'),
+          decoration: const InputDecoration(labelText: 'Nome do entregador'),
           onChanged: (_) => setState(() {}),
         ),
         TextField(

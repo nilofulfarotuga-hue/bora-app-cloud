@@ -209,7 +209,7 @@ class _SummaryTab extends StatelessWidget {
               padding: const EdgeInsets.all(12),
               child: Column(children: [
                 _row(Icons.person_outline, 'Cliente', order['user_id']),
-                _row(Icons.two_wheeler, 'Estafeta', order['assigned_driver_id'] ?? '—'),
+                _row(Icons.two_wheeler, 'Entregador', order['assigned_driver_id'] ?? '—'),
                 _row(Icons.store, 'Restaurante (FK)', order['restaurant_id'] ?? '—'),
                 _row(Icons.location_on, 'Entrega',
                     order['dropoff_address'] ?? '—'),
@@ -286,7 +286,7 @@ class _ItemsTab extends StatelessWidget {
                 const Icon(Icons.add_box_outlined,
                     size: 18, color: Colors.blue),
                 const SizedBox(width: 6),
-                Text('Adicionados pelo estafeta (${added.length})',
+                Text('Adicionados pelo entregador (${added.length})',
                     style: const TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 14,
@@ -453,7 +453,7 @@ class _PaymentTab extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  _row('Valor recebido pelo estafeta',
+                  _row('Valor recebido pelo entregador',
                       '€${cashCollected.toStringAsFixed(2)}'),
                   _row('Driver earnings',
                       '€${driverEarnings.toStringAsFixed(2)}'),
@@ -661,7 +661,7 @@ class _StatusBadge extends StatelessWidget {
     final (label, color) = switch (status) {
       'created'        => ('Criado', Colors.grey),
       'preparing'      => ('A preparar', Colors.amber),
-      'callingDriver'  => ('A chamar estafeta', Colors.orange),
+      'callingDriver'  => ('A chamar entregador', Colors.orange),
       'driverAccepted' => ('Aceite', Colors.blue),
       'pickedUp'       => ('Recolhido', Colors.purple),
       'onTheWay'       => ('A caminho', Colors.purple),

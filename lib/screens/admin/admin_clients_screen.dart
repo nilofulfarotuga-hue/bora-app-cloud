@@ -521,7 +521,7 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
                   child: TextField(
                     controller: _search,
                     decoration: const InputDecoration(
-                      hintText: 'Pesquisar email/nome/telefone',
+                      hintText: 'Buscar email/nome/telefone',
                       prefixIcon: Icon(Icons.search),
                       isDense: true,
                     ),

@@ -43,9 +43,9 @@ class _AdminPendingActionsScreenState
 
   static const _actionTypeLabels = <String, String>{
     'UPDATE_DELIVERY_INSTRUCTIONS': 'Alterar instruções de entrega',
-    'UPDATE_DELIVERY_ADDRESS': 'Alterar morada de entrega',
+    'UPDATE_DELIVERY_ADDRESS': 'Alterar endereço de entrega',
     'CANCEL_PRE_PURCHASE': 'Cancelar pedido pré-compra',
-    'CANCEL_DURING_PURCHASE': 'Cancelar pedido (estafeta envolvido)',
+    'CANCEL_DURING_PURCHASE': 'Cancelar pedido (entregador envolvido)',
     'RESERVATION_CANCEL': 'Cancelar reserva',
     'PASSWORD_RESET': 'Reset password',
     'ACCOUNT_UPDATE': 'Actualizar dados conta',

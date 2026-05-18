@@ -347,7 +347,7 @@ class _AdminKnowledgeScreenState extends State<AdminKnowledgeScreen> {
                 '$maxC chars',
                 warning: maxC > 8000,
               ),
-              _metricRow('Ficheiros únicos', '$unique'),
+              _metricRow('Arquivos únicos', '$unique'),
             ],
           ),
         ),
@@ -475,7 +475,7 @@ class _AdminKnowledgeScreenState extends State<AdminKnowledgeScreen> {
                 Icon(Icons.terminal, color: AppColors.primary, size: 20),
                 SizedBox(width: 8),
                 Text(
-                  'Como indexar novos ficheiros',
+                  'Como indexar novos arquivos',
                   style: TextStyle(fontWeight: FontWeight.w600),
                 ),
               ],

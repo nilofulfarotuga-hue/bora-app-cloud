@@ -155,7 +155,7 @@ class _AdminLiveOrdersMapScreenState extends State<AdminLiveOrdersMapScreen> {
         icon:
             BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
         infoWindow: InfoWindow(
-          title: d['driver_name'] as String? ?? 'Estafeta',
+          title: d['driver_name'] as String? ?? 'Entregador',
           snippet: d['active_order_id'] != null
               ? 'Em entrega · #${(d['active_order_id'] as String).substring(0, 6)}'
               : 'Disponível',
@@ -286,7 +286,7 @@ class _AdminLiveOrdersMapScreenState extends State<AdminLiveOrdersMapScreen> {
               children: [
                 _stat('Pendentes', pendingCount, Colors.orange),
                 _stat('Ativos', activeCount, Colors.green),
-                _stat('Estafetas', onlineCount, Colors.blue),
+                _stat('Entregadors', onlineCount, Colors.blue),
                 _stat('Total', _orders.length, Colors.black87),
               ],
             ),
@@ -432,7 +432,7 @@ class _SidePanel extends StatelessWidget {
                 Expanded(
                   child: Text(
                     _isDriver
-                        ? (data['driver_name'] as String? ?? 'Estafeta')
+                        ? (data['driver_name'] as String? ?? 'Entregador')
                         : (data['vendor_name'] as String? ?? 'Pedido'),
                     style: const TextStyle(
                         fontWeight: FontWeight.bold, fontSize: 16),

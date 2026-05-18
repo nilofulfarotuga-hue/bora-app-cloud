@@ -89,7 +89,7 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
 
     if (missing.isEmpty) {
       final ok = await _confirmSimple(
-        title: 'Aprovar estafeta?',
+        title: 'Aprovar entregador?',
         body: 'Vais aprovar ${driver['name'] ?? 'este estafeta'}.',
         confirmLabel: 'Aprovar',
         confirmColor: AppColors.primary,
@@ -119,8 +119,8 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
           res is Map && res['was_forced'] == true; // ignore: avoid_dynamic_calls
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(wasForced
-            ? 'Estafeta aprovado (override admin).'
-            : 'Estafeta aprovado.'),
+            ? 'Entregador aprovado (override admin).'
+            : 'Entregador aprovado.'),
         backgroundColor:
             wasForced ? Colors.orange.shade700 : AppColors.primary,
       ));
@@ -341,7 +341,7 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Aprovações de Estafetas'),
+        title: const Text('Aprovações de Entregadors'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -388,7 +388,7 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
                 ),
                 _DriverList(
                   drivers: _approved,
-                  emptyMessage: 'Nenhum estafeta aprovado.',
+                  emptyMessage: 'Nenhum entregador aprovado.',
                   // Drivers aprovados saem do fluxo de candidatura e entram
                   // no ecrã de gestão completo (FASE 3 BUG 2).
                   onTap: (d) {

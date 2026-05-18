@@ -28,6 +28,11 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
   // 'takeaway'.
   String _serviceTypeFilter = 'all';
 
+  // Bulk cancel state
+  final Set<String> _selectedIds = {};
+  bool get _isMultiSelectMode => _selectedIds.isNotEmpty;
+  static const _cancelableStatuses = {'created', 'preparing', 'callingDriver'};
+
   static const _paymentOptions = <(String, String)>[
     ('all', 'Todos'),
     ('card', 'Cartão'),
@@ -134,6 +139,130 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
     }
   }
 
+  /// Bulk cancel all selected orders with double-confirmation + reason code.
+  Future<void> _bulkCancel() async {
+    if (_selectedIds.isEmpty) return;
+
+    // Dialog 1: confirm count
+    final first = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cancelar pedidos em lote'),
+        content: Text(
+            'Vai cancelar ${_selectedIds.length} pedido(s). Continuar?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Voltar'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Continuar',
+                style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (first != true || !mounted) return;
+
+    // Dialog 2: reason code + optional text
+    String reasonCode = 'client_request';
+    final reasonCtrl = TextEditingController();
+    const reasonCodes = <(String, String)>[
+      ('client_request', 'Pedido do cliente'),
+      ('partner_unable', 'Parceiro indisponível'),
+      ('driver_unavailable', 'Entregador indisponível'),
+      ('payment_failed', 'Pagamento falhou'),
+      ('fraud_suspected', 'Suspeita de fraude'),
+      ('system_error', 'Erro técnico'),
+      ('address_invalid', 'Endereço inválido'),
+      ('food_quality_issue', 'Problema de qualidade'),
+      ('other', 'Outro'),
+    ];
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSt) => AlertDialog(
+          title: const Text('Motivo do cancelamento'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<String>(
+                value: reasonCode,
+                decoration: const InputDecoration(labelText: 'Categoria'),
+                items: reasonCodes
+                    .map((c) =>
+                        DropdownMenuItem(value: c.$1, child: Text(c.$2)))
+                    .toList(),
+                onChanged: (v) => setSt(() => reasonCode = v ?? 'other'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: reasonCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Motivo (opcional)',
+                  border: OutlineInputBorder(),
+                ),
+                minLines: 2,
+                maxLines: 4,
+                onChanged: (_) => setSt(() {}),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text('Cancelar ${_selectedIds.length} pedido(s)',
+                  style: const TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final ids = _selectedIds.toList();
+    final reasonText = reasonCtrl.text.trim().isNotEmpty
+        ? reasonCtrl.text.trim()
+        : reasonCodes
+            .firstWhere((c) => c.$1 == reasonCode,
+                orElse: () => (reasonCode, reasonCode))
+            .$2;
+    int success = 0;
+    int errors = 0;
+    for (final id in ids) {
+      try {
+        await Supabase.instance.client.functions.invoke(
+          'admin-cancel-order',
+          body: {
+            'order_id': id,
+            'reason_code': reasonCode,
+            'reason': reasonText,
+          },
+        );
+        success++;
+      } catch (_) {
+        errors++;
+      }
+    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(errors == 0
+          ? '$success cancelado(s) com sucesso'
+          : '$success cancelado(s), $errors com erro'),
+      backgroundColor: errors > 0 ? Colors.orange : Colors.green,
+    ));
+    setState(() => _selectedIds.clear());
+    await _load();
+  }
+
   /// Push the new full-screen detail (FASE 4 BUG 3 F1.D).
   void _openDetail(Map<String, dynamic> order) {
     final id = order['id'] as String?;
@@ -223,18 +352,52 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final hasCancelableSelected = _selectedIds.any((id) {
+      final o = _orders.firstWhere(
+          (o) => o['id'] == id,
+          orElse: () => <String, dynamic>{});
+      return _cancelableStatuses.contains(o['status'] as String? ?? '');
+    });
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Gestão de Pedidos'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.download),
-            tooltip: 'Exportar CSV',
-            onPressed: _orders.isEmpty ? null : _exportCsv,
-          ),
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
-        ],
-      ),
+      appBar: _isMultiSelectMode
+          ? AppBar(
+              backgroundColor: Colors.red.shade700,
+              foregroundColor: Colors.white,
+              leading: IconButton(
+                icon: const Icon(Icons.close),
+                tooltip: 'Limpar selecção',
+                onPressed: () => setState(() => _selectedIds.clear()),
+              ),
+              title: Text('${_selectedIds.length} seleccionado(s)'),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.cancel_outlined),
+                  tooltip: 'Cancelar em lote',
+                  onPressed: hasCancelableSelected ? _bulkCancel : null,
+                ),
+              ],
+            )
+          : AppBar(
+              title: const Text('Gestão de Pedidos'),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.download),
+                  tooltip: 'Exportar CSV',
+                  onPressed: _orders.isEmpty ? null : _exportCsv,
+                ),
+                IconButton(
+                    icon: const Icon(Icons.refresh), onPressed: _load),
+              ],
+            ),
+      floatingActionButton: (_isMultiSelectMode && hasCancelableSelected)
+          ? FloatingActionButton.extended(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              onPressed: _bulkCancel,
+              icon: const Icon(Icons.cancel_outlined),
+              label: Text('Cancelar (${_selectedIds.length})'),
+            )
+          : null,
       body: Column(
         children: [
           // Filter chips: status
@@ -356,9 +519,28 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                                 final status = o['status'] as String? ?? '';
                                 final canCancel =
                                     !['delivered', 'rejected'].contains(status);
+                                final isCancelable =
+                                    _cancelableStatuses.contains(status);
+                                final id = o['id'] as String? ?? '';
+                                final isSelected = _selectedIds.contains(id);
                                 return Card(
+                                  color: isSelected
+                                      ? Colors.red.withValues(alpha: 0.08)
+                                      : null,
                                   child: InkWell(
-                                    onTap: () => _openDetail(o),
+                                    onTap: _isMultiSelectMode && isCancelable
+                                        ? () => setState(() {
+                                              if (isSelected) {
+                                                _selectedIds.remove(id);
+                                              } else {
+                                                _selectedIds.add(id);
+                                              }
+                                            })
+                                        : () => _openDetail(o),
+                                    onLongPress: isCancelable
+                                        ? () => setState(
+                                            () => _selectedIds.add(id))
+                                        : null,
                                     borderRadius: BorderRadius.circular(8),
                                     child: Padding(
                                     padding: const EdgeInsets.all(14),

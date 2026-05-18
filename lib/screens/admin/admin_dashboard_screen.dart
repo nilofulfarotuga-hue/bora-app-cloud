@@ -22,6 +22,7 @@ import 'admin_drivers_screen.dart';
 import 'admin_edge_functions_screen.dart';
 import 'admin_live_orders_map_screen.dart';
 import 'admin_orders_screen.dart';
+import 'admin_partner_payouts_screen.dart';
 import 'admin_partner_settlements_screen.dart';
 import 'admin_referrals_screen.dart';
 import 'admin_search_kpi_screen.dart';
@@ -307,6 +308,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       MaterialPageRoute(
                           builder: (_) =>
                               const AdminPartnerSettlementsScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  // Q1 (2026-05-17) — Repasses a parceiros (admin_partner_payouts trio).
+                  icon: Icons.payments_outlined,
+                  title: 'Repasses parceiros',
+                  subtitle:
+                      'Marcar pagamentos a parceiros · summary por período · CSV',
+                  color: Colors.indigo,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminPartnerPayoutsScreen())),
                 ),
                 const SizedBox(height: 10),
                 _NavCard(

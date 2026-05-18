@@ -21,6 +21,12 @@
 <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
 <!-- Wake-lock: prevents CPU from sleeping while tracking is active -->
 <uses-permission android:name="android.permission.WAKE_LOCK"/>
+<!-- Battery optimisation: permite pedir ao utilizador para excluir a app
+     da gestão de bateria → foreground service sobrevive em background longo. -->
+<uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
+<!-- Draw over other apps: necessário para flutter_foreground_task mostrar
+     overlay estilo Uber/Glovo por cima de outras apps. -->
+<uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
 <!-- Camera: profile photo, sendPackage photo, carryGroceries photo (BR §7.5/§7.6), partner product photo -->
 <uses-permission android:name="android.permission.CAMERA"/>
 <!-- Gallery access for partner product photo: Android 13+ uses READ_MEDIA_IMAGES, older uses READ_EXTERNAL_STORAGE -->

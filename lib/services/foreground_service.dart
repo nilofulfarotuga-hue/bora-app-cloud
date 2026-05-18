@@ -51,6 +51,18 @@ class BoraForegroundService {
     debugPrint('[BoraForegroundService] initialised');
   }
 
+  /// Pede exclusão da optimização de bateria (Android 6+).
+  /// Sem isto o OS pode matar o foreground service em background longo.
+  static Future<void> ensureBatteryOptimization() async {
+    try {
+      if (!await FlutterForegroundTask.isIgnoringBatteryOptimizations) {
+        await FlutterForegroundTask.requestIgnoreBatteryOptimization();
+      }
+    } catch (e) {
+      debugPrint('[BoraForegroundService] battery opt error: $e');
+    }
+  }
+
   /// Pede permissão POST_NOTIFICATIONS (Android 13+) se ainda não concedida.
   /// Returns `true` quando o utilizador concedeu.
   static Future<bool> ensureNotificationPermission() async {
@@ -88,6 +100,7 @@ class BoraForegroundService {
     required String text,
   }) async {
     try {
+      await ensureBatteryOptimization();
       if (await FlutterForegroundTask.isRunningService) {
         await FlutterForegroundTask.updateService(
           notificationTitle: title,

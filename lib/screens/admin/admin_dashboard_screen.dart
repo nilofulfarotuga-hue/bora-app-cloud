@@ -72,12 +72,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     with RouteAware {
   late Future<Map<String, dynamic>> _metricsFuture;
   int _pendingSuggestionsCount = 0;
+  int _unreadNotificationsCount = 0;
 
   @override
   void initState() {
     super.initState();
     _metricsFuture = _loadMetrics();
     _loadPendingSuggestionsCount();
+    _loadUnreadNotificationsCount();
     // 5F-β — registar FCM token admin + ouvir taps em pushes crosstalk_critical.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -105,6 +107,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   @override
   void didPopNext() {
     _loadPendingSuggestionsCount();
+    _loadUnreadNotificationsCount();
   }
 
   Future<Map<String, dynamic>> _loadMetrics() async {
@@ -129,12 +132,28 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     } catch (_) {/* silent */}
   }
 
+  Future<void> _loadUnreadNotificationsCount() async {
+    try {
+      final rows = await Supabase.instance.client
+          .from('admin_notifications')
+          .select('id')
+          .isFilter('read_at', null)
+          .isFilter('archived_at', null)
+          .limit(100);
+      if (!mounted) return;
+      setState(() {
+        _unreadNotificationsCount = (rows as List).length;
+      });
+    } catch (_) {/* silent */}
+  }
+
   Future<void> _refresh() async {
     setState(() {
       _metricsFuture = _loadMetrics();
     });
     await _metricsFuture;
     await _loadPendingSuggestionsCount();
+    await _loadUnreadNotificationsCount();
   }
 
   bool get _isAuthorized => AuthAdminService.isAdmin();
@@ -170,13 +189,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
               ),
             ),
           ),
-          // BLOCO A (2026-05-18) — Inbox de notificações admin.
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            tooltip: 'Notificações',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => const AdminNotificationsInboxScreen(),
+          // BLOCO A (2026-05-18) — Inbox de notificações admin + badge não-lidos.
+          Badge(
+            isLabelVisible: _unreadNotificationsCount > 0,
+            label: Text(_unreadNotificationsCount > 9
+                ? '9+'
+                : '$_unreadNotificationsCount'),
+            backgroundColor: Colors.red.shade700,
+            child: IconButton(
+              icon: const Icon(Icons.notifications_outlined),
+              tooltip: 'Notificações ($_unreadNotificationsCount não lidas)',
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const AdminNotificationsInboxScreen(),
+                ),
               ),
             ),
           ),

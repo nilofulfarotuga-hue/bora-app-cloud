@@ -341,7 +341,7 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Aprovações de Entregadors'),
+        title: const Text('Aprovações de Entregadores'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),

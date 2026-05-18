@@ -41,6 +41,9 @@ class _AdminPartnerPayoutsScreenState extends State<AdminPartnerPayoutsScreen> {
   DateTime _periodEnd = DateTime.now();
   String _statusFilter = 'pending'; // 'pending' | 'paid' | 'all'
 
+  // Bulk multi-select
+  final Set<String> _selectedPartnerIds = {};
+
   // Dados carregados
   Map<String, dynamic> _summary = const {};
   List<Map<String, dynamic>> _rows = const [];
@@ -257,6 +260,105 @@ class _AdminPartnerPayoutsScreenState extends State<AdminPartnerPayoutsScreen> {
     }
   }
 
+  // ─── 3b. Marcar MÚLTIPLOS parceiros como pagos (bulk) ─────────────────────
+
+  Future<void> _bulkMarkPaid() async {
+    if (_selectedPartnerIds.isEmpty) return;
+
+    final names = _selectedPartnerIds.map((pid) {
+      final p = _partners.firstWhere(
+          (x) => x['id']?.toString() == pid,
+          orElse: () => <String, dynamic>{});
+      return (p['name'] as String?) ?? pid.substring(0, 8);
+    }).toList();
+
+    // Dialog 1 — confirmar com lista de parceiros
+    final firstOk = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        title: const Text('Marcar repasses de vários parceiros como pagos?'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('${_selectedPartnerIds.length} parceiro(s) seleccionado(s):',
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              ...names.map((n) => Text('• $n',
+                  style: const TextStyle(fontSize: 13))),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.warning.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                      color: AppColors.warning.withValues(alpha: 0.4)),
+                ),
+                child: const Row(children: [
+                  Icon(Icons.warning_amber_rounded,
+                      color: AppColors.warning, size: 20),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Marca TODOS os repasses pendentes de cada parceiro como pagos. IRREVERSÍVEL.',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ]),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Voltar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Continuar'),
+          ),
+        ],
+      ),
+    );
+    if (firstOk != true || !mounted) return;
+
+    // Dialog 2 — digitar "CONFIRMAR"
+    final confirmOk = await _askConfirmType(context, expected: 'CONFIRMAR');
+    if (confirmOk != true || !mounted) return;
+
+    int successCount = 0;
+    int errorCount = 0;
+    for (final pid in _selectedPartnerIds.toList()) {
+      try {
+        final externalId = _newUuidV4();
+        await _supabase.rpc(
+          'admin_mark_partner_payouts_paid',
+          params: {
+            'p_partner_id': pid,
+            'p_payout_external_id': externalId,
+          },
+        );
+        successCount++;
+      } catch (_) {
+        errorCount++;
+      }
+    }
+    if (!mounted) return;
+    _toast(
+      errorCount == 0
+          ? '$successCount parceiro(s) marcado(s) como pagos'
+          : '$successCount marcado(s), $errorCount com erro',
+      errorCount > 0 ? Colors.orange : AppColors.primary,
+    );
+    setState(() => _selectedPartnerIds.clear());
+    if (_selectedPartnerId != null) await _loadData();
+  }
+
   // ─── 4. Export CSV dos repasses listados ───────────────────────────────────
 
   Future<void> _exportCsv() async {
@@ -442,6 +544,15 @@ class _AdminPartnerPayoutsScreenState extends State<AdminPartnerPayoutsScreen> {
           ),
         ],
       ),
+      floatingActionButton: _selectedPartnerIds.isNotEmpty
+          ? FloatingActionButton.extended(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              onPressed: _bulkMarkPaid,
+              icon: const Icon(Icons.check_circle),
+              label: Text('Marcar pagos (${_selectedPartnerIds.length})'),
+            )
+          : null,
       body: SafeArea(
         child: Column(
           children: [
@@ -458,37 +569,81 @@ class _AdminPartnerPayoutsScreenState extends State<AdminPartnerPayoutsScreen> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Linha 1: parceiro
-          _loadingPartners
-              ? const LinearProgressIndicator(minHeight: 2)
-              : DropdownButtonFormField<String>(
-                  initialValue: _selectedPartnerId,
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Parceiro',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: _partners.map((p) {
-                    final id = p['id']?.toString() ?? '';
-                    final name = (p['name'] as String?) ?? id;
-                    return DropdownMenuItem<String>(
-                      value: id,
-                      child: Text(name, overflow: TextOverflow.ellipsis),
-                    );
-                  }).toList(),
-                  onChanged: (v) {
-                    final p = _partners.firstWhere(
-                      (x) => x['id']?.toString() == v,
-                      orElse: () => const {},
-                    );
-                    setState(() {
-                      _selectedPartnerId = v;
-                      _selectedPartnerName = p['name'] as String?;
-                    });
-                    _loadData();
-                  },
+          // Linha 1: lista scrollável de parceiros com checkbox
+          if (_loadingPartners)
+            const LinearProgressIndicator(minHeight: 2)
+          else ...[
+            const Text('Parceiros',
+                style: TextStyle(fontSize: 12, color: Colors.black54)),
+            const SizedBox(height: 4),
+            Container(
+              constraints: const BoxConstraints(maxHeight: 180),
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.black26),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: _partners.length,
+                itemBuilder: (_, i) {
+                  final p = _partners[i];
+                  final id = p['id']?.toString() ?? '';
+                  final name = (p['name'] as String?) ?? id;
+                  final isSelected = _selectedPartnerIds.contains(id);
+                  final isPrimary = _selectedPartnerId == id;
+                  return CheckboxListTile(
+                    dense: true,
+                    title: Text(name,
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: isPrimary
+                                ? FontWeight.bold
+                                : FontWeight.normal)),
+                    value: isSelected,
+                    onChanged: (v) {
+                      setState(() {
+                        if (v == true) {
+                          _selectedPartnerIds.add(id);
+                          // Also set as primary for detail view
+                          _selectedPartnerId = id;
+                          _selectedPartnerName = name;
+                        } else {
+                          _selectedPartnerIds.remove(id);
+                          if (_selectedPartnerId == id) {
+                            _selectedPartnerId =
+                                _selectedPartnerIds.isNotEmpty
+                                    ? _selectedPartnerIds.first
+                                    : null;
+                            _selectedPartnerName = _selectedPartnerId != null
+                                ? (_partners.firstWhere(
+                                        (x) =>
+                                            x['id']?.toString() ==
+                                            _selectedPartnerId,
+                                        orElse: () =>
+                                            <String, dynamic>{})['name']
+                                    as String?)
+                                : null;
+                          }
+                        }
+                      });
+                      if (_selectedPartnerId != null) _loadData();
+                    },
+                  );
+                },
+              ),
+            ),
+            if (_selectedPartnerIds.length > 1)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  '${_selectedPartnerIds.length} parceiros seleccionados — detalhes do último seleccionado abaixo',
+                  style: const TextStyle(
+                      fontSize: 11, color: Colors.black45),
                 ),
+              ),
+          ],
           const SizedBox(height: 8),
           // Linha 2: período + status
           Row(

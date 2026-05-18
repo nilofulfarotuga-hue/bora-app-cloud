@@ -1069,7 +1069,7 @@ class _AdminSkillSuggestionsScreenState
           TextField(
             controller: _searchController,
             decoration: const InputDecoration(
-              labelText: 'Pesquisar no resumo…',
+              labelText: 'Buscar no resumo…',
               prefixIcon: Icon(Icons.search),
               border: OutlineInputBorder(),
               isDense: true,

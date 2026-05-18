@@ -347,7 +347,7 @@ class _HistoricoTabState extends State<_HistoricoTab> {
                 child: DropdownButtonFormField<String?>(
                   initialValue: _driverIdFilter,
                   decoration: const InputDecoration(
-                    labelText: 'Estafeta',
+                    labelText: 'Entregador',
                     isDense: true,
                     border: OutlineInputBorder(),
                     contentPadding:
@@ -628,7 +628,7 @@ class _ReceiptCardState extends State<_ReceiptCard> {
               children: [
                 const Icon(Icons.euro, size: 18),
                 const SizedBox(width: 4),
-                Text('Talão estafeta: €$eur',
+                Text('Talão entregador: €$eur',
                     style: const TextStyle(
                         fontSize: 18, fontWeight: FontWeight.w600)),
               ],
@@ -645,7 +645,7 @@ class _ReceiptCardState extends State<_ReceiptCard> {
               ),
             if (_driverName != null) ...[
               const SizedBox(height: 8),
-              Text('Estafeta: $_driverName',
+              Text('Entregador: $_driverName',
                   style: const TextStyle(fontWeight: FontWeight.w500)),
               if (_driverMbway != null && _driverMbway!.isNotEmpty)
                 Padding(

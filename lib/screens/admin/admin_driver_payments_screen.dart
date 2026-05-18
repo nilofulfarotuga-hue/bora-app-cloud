@@ -70,7 +70,7 @@ class _AdminDriverPaymentsScreenState extends State<AdminDriverPaymentsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Pagamentos de Estafetas'),
+        title: const Text('Pagamentos de Entregadors'),
         actions: [
           IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
         ],

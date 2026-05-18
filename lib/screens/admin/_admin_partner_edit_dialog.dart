@@ -90,7 +90,7 @@ class _AdminPartnerEditDialogState extends State<AdminPartnerEditDialog> {
           children: [
             TextField(controller: _name, decoration: const InputDecoration(labelText: 'Nome')),
             const SizedBox(height: 8),
-            TextField(controller: _address, decoration: const InputDecoration(labelText: 'Morada')),
+            TextField(controller: _address, decoration: const InputDecoration(labelText: 'Endereço')),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
               value: _category,
@@ -116,7 +116,7 @@ class _AdminPartnerEditDialogState extends State<AdminPartnerEditDialog> {
           onPressed: _saving ? null : _save,
           child: _saving
               ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-              : const Text('Guardar'),
+              : const Text('Salvar'),
         ),
       ],
     );

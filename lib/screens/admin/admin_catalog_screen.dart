@@ -69,7 +69,7 @@ class _AdminCatalogScreenState extends State<AdminCatalogScreen> {
           child: TextField(
             controller: _search,
             decoration: const InputDecoration(
-                hintText: 'Pesquisar parceiro', prefixIcon: Icon(Icons.search), isDense: true),
+                hintText: 'Buscar parceiro', prefixIcon: Icon(Icons.search), isDense: true),
             onSubmitted: (_) => _load(),
           ),
         ),
@@ -208,7 +208,7 @@ class _AdminCatalogProductsScreenState extends State<_AdminCatalogProductsScreen
         ]),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Guardar')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Salvar')),
         ],
       ),
     );
@@ -271,7 +271,7 @@ class _AdminCatalogProductsScreenState extends State<_AdminCatalogProductsScreen
           child: Row(children: [
             Expanded(child: TextField(
               controller: _search,
-              decoration: const InputDecoration(hintText: 'Pesquisar', prefixIcon: Icon(Icons.search), isDense: true),
+              decoration: const InputDecoration(hintText: 'Buscar', prefixIcon: Icon(Icons.search), isDense: true),
               onSubmitted: (_) => _load(),
             )),
             const SizedBox(width: 8),

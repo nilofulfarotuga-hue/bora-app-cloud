@@ -44,6 +44,11 @@ class _AdminLiveOrdersMapScreenState extends State<AdminLiveOrdersMapScreen> {
   /// Default false (so reais). Re-fetch ao alternar.
   bool _incluirTeste = false;
 
+  /// BLOCO D (2026-05-18) — toggle heatmap geográfico (client-side, agrupa
+  /// pickup lat/lng dos pedidos visíveis em células ~200m e desenha Circles
+  /// coloridos por densidade).
+  bool _heatmapEnabled = false;
+
   @override
   void initState() {
     super.initState();
@@ -150,7 +155,7 @@ class _AdminLiveOrdersMapScreenState extends State<AdminLiveOrdersMapScreen> {
         icon:
             BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
         infoWindow: InfoWindow(
-          title: d['driver_name'] as String? ?? 'Estafeta',
+          title: d['driver_name'] as String? ?? 'Entregador',
           snippet: d['active_order_id'] != null
               ? 'Em entrega · #${(d['active_order_id'] as String).substring(0, 6)}'
               : 'Disponível',
@@ -160,6 +165,59 @@ class _AdminLiveOrdersMapScreenState extends State<AdminLiveOrdersMapScreen> {
     }
 
     return markers;
+  }
+
+  /// BLOCO D — agrupa pickup lat/lng em células ~200m e devolve Circles.
+  /// Cores por densidade: amarelo (1-2) → laranja (3-4) → vermelho (5+).
+  Set<Circle> _buildHeatmapCircles() {
+    if (!_heatmapEnabled || _orders.isEmpty) return const {};
+
+    // Tamanho da célula em graus (aprox 0.002° ≈ ~220m em latitude).
+    const cellSize = 0.002;
+    final Map<String, _HeatCell> cells = {};
+
+    for (final o in _orders) {
+      final lat = (o['pickup_lat'] as num?)?.toDouble();
+      final lng = (o['pickup_lng'] as num?)?.toDouble();
+      if (lat == null || lng == null) continue;
+      final binLat = (lat / cellSize).floor() * cellSize;
+      final binLng = (lng / cellSize).floor() * cellSize;
+      final key = '$binLat,$binLng';
+      final cell = cells.putIfAbsent(
+        key,
+        () => _HeatCell(
+          centerLat: binLat + cellSize / 2,
+          centerLng: binLng + cellSize / 2,
+          count: 0,
+        ),
+      );
+      cell.count++;
+    }
+
+    final out = <Circle>{};
+    for (final c in cells.values) {
+      final Color color;
+      final double alpha;
+      if (c.count >= 5) {
+        color = Colors.red;
+        alpha = 0.45;
+      } else if (c.count >= 3) {
+        color = Colors.orange;
+        alpha = 0.35;
+      } else {
+        color = Colors.yellow;
+        alpha = 0.25;
+      }
+      out.add(Circle(
+        circleId: CircleId('heat_${c.centerLat}_${c.centerLng}'),
+        center: gmap.LatLng(c.centerLat, c.centerLng),
+        radius: 150,
+        fillColor: color.withValues(alpha: alpha),
+        strokeColor: color.withValues(alpha: alpha + 0.15),
+        strokeWidth: 1,
+      ));
+    }
+    return out;
   }
 
   @override
@@ -197,6 +255,20 @@ class _AdminLiveOrdersMapScreenState extends State<AdminLiveOrdersMapScreen> {
               ],
             ),
           ),
+          // BLOCO D (2026-05-18) — toggle heatmap geográfico.
+          IconButton(
+            icon: Icon(
+              _heatmapEnabled
+                  ? Icons.layers
+                  : Icons.layers_outlined,
+              color: _heatmapEnabled ? Colors.amber : null,
+            ),
+            tooltip: _heatmapEnabled
+                ? 'Desligar heatmap'
+                : 'Ligar heatmap (densidade de pedidos)',
+            onPressed: () =>
+                setState(() => _heatmapEnabled = !_heatmapEnabled),
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Atualizar',
@@ -214,7 +286,7 @@ class _AdminLiveOrdersMapScreenState extends State<AdminLiveOrdersMapScreen> {
               children: [
                 _stat('Pendentes', pendingCount, Colors.orange),
                 _stat('Ativos', activeCount, Colors.green),
-                _stat('Estafetas', onlineCount, Colors.blue),
+                _stat('Entregadors', onlineCount, Colors.blue),
                 _stat('Total', _orders.length, Colors.black87),
               ],
             ),
@@ -237,6 +309,8 @@ class _AdminLiveOrdersMapScreenState extends State<AdminLiveOrdersMapScreen> {
                     zoom: 13,
                   ),
                   markers: _buildMarkers(),
+                  // BLOCO D (2026-05-18) — overlay heatmap quando activo.
+                  circles: _buildHeatmapCircles(),
                   myLocationButtonEnabled: false,
                   zoomControlsEnabled: true,
                   onMapCreated: (c) => _mapController = c,
@@ -299,6 +373,18 @@ class _AdminLiveOrdersMapScreenState extends State<AdminLiveOrdersMapScreen> {
   }
 }
 
+// BLOCO D (2026-05-18) — célula de heatmap (interno).
+class _HeatCell {
+  _HeatCell({
+    required this.centerLat,
+    required this.centerLng,
+    required this.count,
+  });
+  final double centerLat;
+  final double centerLng;
+  int count;
+}
+
 class _SidePanel extends StatelessWidget {
   const _SidePanel({
     required this.data,
@@ -346,7 +432,7 @@ class _SidePanel extends StatelessWidget {
                 Expanded(
                   child: Text(
                     _isDriver
-                        ? (data['driver_name'] as String? ?? 'Estafeta')
+                        ? (data['driver_name'] as String? ?? 'Entregador')
                         : (data['vendor_name'] as String? ?? 'Pedido'),
                     style: const TextStyle(
                         fontWeight: FontWeight.bold, fontSize: 16),

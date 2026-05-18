@@ -72,7 +72,7 @@ class _AdminComplaintsScreenState extends State<AdminComplaintsScreen> {
           ]),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Guardar')),
+            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Salvar')),
           ],
         ),
       ),

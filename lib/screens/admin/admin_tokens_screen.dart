@@ -165,7 +165,7 @@ class _AdminTokensScreenState extends State<AdminTokensScreen>
       appBar: AppBar(
         title: const Text('Tokens'),
         backgroundColor: AppColors.primary,
-        bottom: TabBar(controller: _tab, tabs: const [Tab(text: 'Clientes'), Tab(text: 'Estafetas')],
+        bottom: TabBar(controller: _tab, tabs: const [Tab(text: 'Clientes'), Tab(text: 'Entregadors')],
             onTap: (_) {
               setState(() {
                 _selectedUserId = null;
@@ -180,7 +180,7 @@ class _AdminTokensScreenState extends State<AdminTokensScreen>
           child: TextField(
             controller: _searchClient,
             decoration: InputDecoration(
-              hintText: 'Pesquisar utilizador',
+              hintText: 'Buscar usuário',
               prefixIcon: const Icon(Icons.search),
               suffixIcon: IconButton(icon: const Icon(Icons.send), onPressed: _searchUser),
             ),

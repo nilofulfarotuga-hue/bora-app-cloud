@@ -107,7 +107,7 @@ class _AdminCategoryMappingScreenState
                 child: const Text('Cancelar')),
             FilledButton(
                 onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Guardar')),
+                child: const Text('Salvar')),
           ],
         ),
       ),

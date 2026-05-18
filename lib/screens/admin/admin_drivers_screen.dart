@@ -65,7 +65,7 @@ class _AdminDriversScreenState extends State<AdminDriversScreen> {
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Estafeta aprovado.'),
+        content: Text('Entregador aprovado.'),
         backgroundColor: AppColors.primary,
       ));
       await _load();
@@ -201,7 +201,7 @@ class _AdminDriversScreenState extends State<AdminDriversScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Gestão de Estafetas'),
+        title: const Text('Gestão de Entregadors'),
         actions: [
           IconButton(icon: const Icon(Icons.refresh), onPressed: _load)
         ],

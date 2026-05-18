@@ -30,11 +30,11 @@ class _AdminCancelOrderDialogState extends State<AdminCancelOrderDialog> {
   static const List<(String, String)> _reasonCodes = [
     ('client_request',     'Pedido do cliente'),
     ('partner_unable',     'Parceiro indisponível'),
-    ('driver_unavailable', 'Estafeta indisponível'),
+    ('driver_unavailable', 'Entregador indisponível'),
     ('payment_failed',     'Pagamento falhou'),
     ('fraud_suspected',    'Suspeita de fraude'),
     ('system_error',       'Erro técnico'),
-    ('address_invalid',    'Morada inválida'),
+    ('address_invalid',    'Endereço inválida'),
     ('food_quality_issue', 'Problema de qualidade'),
     ('other',              'Outro'),
   ];

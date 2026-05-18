@@ -34,7 +34,7 @@ class _AdminDispatchSettingsScreenState
       label: 'Timeout da oferta',
       unit: 'segundos',
       description:
-          'Quanto tempo o estafeta tem para aceitar/recusar a oferta antes '
+          'Quanto tempo o entregador tem para aceitar/recusar a oferta antes '
           'de o sistema marcar como tentativa expirada e ofertar ao próximo.',
       minValue: 10,
       maxValue: 120,
@@ -43,11 +43,11 @@ class _AdminDispatchSettingsScreenState
     ),
     _DispatchSettingSpec(
       key: 'dispatch_retry_no_driver_seconds',
-      label: 'Retry sem novo estafeta',
+      label: 'Retry sem novo entregador',
       unit: 'segundos',
       description:
-          'Tempo entre tentativas quando não há estafetas disponíveis '
-          '(todos rejeitaram ou único estafeta online — REGRAS 2 e 3).',
+          'Tempo entre tentativas quando não há entregadors disponíveis '
+          '(todos rejeitaram ou único entregador online — REGRAS 2 e 3).',
       minValue: 5,
       maxValue: 60,
       defaultValue: 10,
@@ -55,10 +55,10 @@ class _AdminDispatchSettingsScreenState
     ),
     _DispatchSettingSpec(
       key: 'dispatch_max_total_seconds_with_drivers_online',
-      label: 'Limite com estafetas online',
+      label: 'Limite com entregadors online',
       unit: 'segundos',
       description:
-          'Tempo total acumulado com estafetas online antes do modal aparecer '
+          'Tempo total acumulado com entregadors online antes do modal aparecer '
           'ao parceiro pedindo decisão. Conta APENAS o tempo com drivers '
           'online (REGRA 4). 1200s = 20 minutos.',
       minValue: 300,
@@ -411,7 +411,7 @@ class _HeaderBanner extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Estes 5 parâmetros regem como o sistema escolhe estafetas, '
+                  'Estes 5 parâmetros regem como o sistema escolhe entregadors, '
                   'quando re-tenta, e quando pede decisão ao parceiro. '
                   'Mudanças aplicam-se em tempo real.',
                   style: TextStyle(

@@ -22,6 +22,8 @@ import 'admin_drivers_screen.dart';
 import 'admin_edge_functions_screen.dart';
 import 'admin_live_orders_map_screen.dart';
 import 'admin_orders_screen.dart';
+import 'admin_global_search_screen.dart';
+import 'admin_notifications_inbox_screen.dart';
 import 'admin_partner_payouts_screen.dart';
 import 'admin_partner_settlements_screen.dart';
 import 'admin_referrals_screen.dart';
@@ -158,6 +160,26 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       appBar: AppBar(
         title: const Text('Painel Admin'),
         actions: [
+          // BLOCO C (2026-05-18) — Pesquisa global cross-entity.
+          IconButton(
+            icon: const Icon(Icons.search),
+            tooltip: 'Buscar (clientes, entregadores, parceiros, pedidos)',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const AdminGlobalSearchScreen(),
+              ),
+            ),
+          ),
+          // BLOCO A (2026-05-18) — Inbox de notificações admin.
+          IconButton(
+            icon: const Icon(Icons.notifications_outlined),
+            tooltip: 'Notificações',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const AdminNotificationsInboxScreen(),
+              ),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _refresh,
@@ -255,8 +277,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 const SizedBox(height: 10),
                 _NavCard(
                   icon: Icons.delivery_dining,
-                  title: 'Estafetas',
-                  subtitle: 'Lista e estado de todos os estafetas',
+                  title: 'Entregadors',
+                  subtitle: 'Lista e estado de todos os entregadors',
                   color: Colors.blue,
                   onTap: () => Navigator.push(
                       context,
@@ -278,7 +300,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 _NavCard(
                   icon: Icons.payments,
                   title: 'Pagamentos',
-                  subtitle: 'Saques e ganhos semanais dos estafetas',
+                  subtitle: 'Saques e ganhos semanais dos entregadors',
                   color: AppColors.primary,
                   onTap: () => Navigator.push(
                       context,
@@ -395,7 +417,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 _NavCard(
                   icon: Icons.account_balance_wallet,
                   title: 'Tokens',
-                  subtitle: 'Saldo, atribuir, revogar (clientes + estafetas)',
+                  subtitle: 'Saldo, atribuir, revogar (clientes + entregadors)',
                   color: Colors.deepPurple,
                   onTap: () => Navigator.push(
                       context,

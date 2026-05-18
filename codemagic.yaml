@@ -45,7 +45,6 @@ workflows:
           flutter build apk --release \
             --dart-define-from-file=.dart_defines \
             --no-tree-shake-icons \
-            --stacktrace \
             --verbose 2>&1 | tee "$CM_BUILD_DIR/apk_build.log"
           RC=${PIPESTATUS[0]}
           mkdir -p "$CM_BUILD_DIR/build/logs"

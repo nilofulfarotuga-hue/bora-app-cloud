@@ -23,6 +23,7 @@ import 'admin_edge_functions_screen.dart';
 import 'admin_live_orders_map_screen.dart';
 import 'admin_orders_screen.dart';
 import 'admin_global_search_screen.dart';
+import 'admin_notifications_inbox_screen.dart';
 import 'admin_partner_payouts_screen.dart';
 import 'admin_partner_settlements_screen.dart';
 import 'admin_referrals_screen.dart';
@@ -166,6 +167,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (_) => const AdminGlobalSearchScreen(),
+              ),
+            ),
+          ),
+          // BLOCO A (2026-05-18) — Inbox de notificações admin.
+          IconButton(
+            icon: const Icon(Icons.notifications_outlined),
+            tooltip: 'Notificações',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const AdminNotificationsInboxScreen(),
               ),
             ),
           ),

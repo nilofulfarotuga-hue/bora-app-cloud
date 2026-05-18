@@ -40,28 +40,31 @@ workflows:
         script: flutter analyze --no-fatal-infos --no-fatal-warnings || true
       - name: Build APK release
         script: |
+          #!/usr/bin/env bash
           set +e
-          export GRADLE_OPTS="$GRADLE_OPTS -Dorg.gradle.logging.level=info"
+
+          # 1) Tentar flutter build SEM --verbose (mostra erros Gradle directos)
           flutter build apk --release \
             --dart-define-from-file=.dart_defines \
             --no-tree-shake-icons \
-            --verbose 2>&1 | tee "$CM_BUILD_DIR/apk_build.log"
+            2>&1 | tee "$CM_BUILD_DIR/apk_build.log"
           RC=${PIPESTATUS[0]}
+
           mkdir -p "$CM_BUILD_DIR/build/logs"
-          cp "$CM_BUILD_DIR/apk_build.log" "$CM_BUILD_DIR/build/logs/apk_build_full.log" 2>/dev/null || true
+          cp "$CM_BUILD_DIR/apk_build.log" \
+             "$CM_BUILD_DIR/build/logs/apk_build_full.log" 2>/dev/null || true
+
           if [ "$RC" != "0" ]; then
             echo ""
-            echo "================ BUILD FAILED ================"
-            echo "Log artifact: build/logs/apk_build_full.log"
+            echo "=== FLUTTER BUILD FALHOU (RC=$RC) ==="
             echo ""
-            echo "================ PRIMEIRAS 500 LINHAS (onde erro Gradle aparece) ================"
-            head -500 "$CM_BUILD_DIR/apk_build.log"
+            echo "=== LOG COMPLETO (sem verbose — erro Gradle visivel) ==="
+            cat "$CM_BUILD_DIR/apk_build.log"
             echo ""
-            echo "================ GREP FAILURE/CAUSED BY (cobertura toda) ================"
-            grep -n -B 2 -A 30 -E "FAILURE:|What went wrong:|Caused by:|Execution failed for task|^Error:|^e:|OutOfMemoryError|Could not resolve|Unresolved reference|Duplicate class" "$CM_BUILD_DIR/apk_build.log" | head -200 || echo "(nenhuma destas palavras-chave encontrada)"
-            echo ""
-            echo "================ ULTIMAS 100 LINHAS ================"
-            tail -100 "$CM_BUILD_DIR/apk_build.log"
+            echo "=== GRADLE DIRECTO COM STACKTRACE ==="
+            cd "$CM_BUILD_DIR/android" && \
+              ./gradlew assembleRelease --stacktrace --info \
+              2>&1 | tail -200 || true
             exit $RC
           fi
     artifacts:

@@ -27,6 +27,7 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _referralCodeController = TextEditingController();
 
   bool _isSubmitting = false;
   bool _obscurePassword = true;
@@ -55,6 +56,7 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
     _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _referralCodeController.dispose();
     super.dispose();
   }
 
@@ -231,6 +233,16 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
                 },
               ),
               const SizedBox(height: 16),
+              TextFormField(
+                controller: _referralCodeController,
+                textCapitalization: TextCapitalization.characters,
+                decoration: const InputDecoration(
+                  labelText: 'Código de convite (opcional)',
+                  hintText: 'Ex: BORA-ABC-1234',
+                  prefixIcon: Icon(Icons.card_giftcard_outlined),
+                ),
+              ),
+              const SizedBox(height: 16),
               CheckboxListTile(
                 value: _acceptedTerms,
                 onChanged: _isSubmitting
@@ -391,6 +403,29 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
         }
       } catch (e) {
         debugPrint('RegisterClientScreen: avatar upload failed => $e');
+      }
+    }
+
+    // ── Código de convite (opcional) ───────────────────────────────────────
+    // Se o utilizador colou um código no formulário, regista-o via RPC.
+    // Falhas não bloqueiam o registo — o utilizador já tem conta válida.
+    final referralCode = _referralCodeController.text.trim().toUpperCase();
+    if (referralCode.isNotEmpty) {
+      try {
+        await Supabase.instance.client.rpc(
+          'client_register_with_referral',
+          params: {'p_referral_code': referralCode},
+        );
+      } catch (e) {
+        debugPrint('[Referral] Erro ao registar código "$referralCode": $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content:
+                  Text('Código de convite inválido ou expirado — conta criada à mesma.'),
+            ),
+          );
+        }
       }
     }
 

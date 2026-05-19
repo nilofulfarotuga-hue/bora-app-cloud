@@ -172,7 +172,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
                 _step(1, 'Partilha o teu código com amigos.'),
                 _step(2, 'Eles registam-se na app com o teu código.'),
                 _step(3,
-                    'Quando fizerem o 1º pedido (≥€10) entregue, vocês recebem €5 cada um em saldo livre.'),
+                    'Quando fizerem o 1º pedido (≥€20) entregue, vocês recebem €5 cada um em saldo livre.'),
               ],
             ),
           ),
@@ -206,7 +206,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
         const Padding(
           padding: EdgeInsets.symmetric(horizontal: 16),
           child: Text(
-            'Convites expiram após 30 dias. Pedido mínimo €10.',
+            'Convites expiram após 30 dias. Pedido mínimo €20.',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 11, color: Colors.black45),
           ),

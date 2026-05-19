@@ -1069,6 +1069,57 @@ Ficheiros críticos que NÃO devem ser editados sem análise prévia:
 - Intermarché: scraping intermarche.pt
 - Análise legal obrigatória antes de implementar cada scraper
 
+### 27.7 Lojas Non-Grocery — Wells / Worten / Leroy Merlin / Kiwoko / Zippy (Sessão Autónoma 2026-05-19)
+
+Brief autónoma 2026-05-19 adicionou 5 lojas Bora non-partner em categorias novas (farmácia, electrónica, bricolage, animais, roupa criança), todas com `service_type='storeShopping'`, `is_partner=false`, `user_=NULL`, geridas pelo admin.
+
+| Loja          | restaurant_id           | category  | Cron weekly      | Meta produtos | Fonte preços    |
+|---------------|-------------------------|-----------|------------------|---------------|------------------|
+| Wells         | wells-guarda            | pharmacy  | `0 4 * * 1`      | ≥250 OTC      | wells.pt         |
+| Worten        | worten-guarda           | store     | `0 5 * * 1`      | ≥500          | worten.pt        |
+| Leroy Merlin  | leroy-merlin-guarda     | store     | `0 6 * * 1`      | ≥400          | leroymerlin.pt   |
+| Kiwoko        | kiwoko-guarda           | store     | `0 4 * * 2`      | ≥200          | kiwoko.pt        |
+| Zippy         | zippy-guarda            | store     | `0 5 * * 2`      | ≥150          | zippyonline.com  |
+
+#### Regras específicas
+
+- **Preço sempre PURO do site oficial.** 15% markup aplicado em runtime por `pricing_calculate` (já existente em §27/§2.4). NUNCA guardar preço com markup embutido.
+- **Imagens** vêm prioritariamente do site oficial (L1), depois Glovo CDN (L2), depois Uber Eats CDN (L3), depois Mercadona (L4 só para produtos genéricos), depois `photo_url=NULL + needs_photo=true`. NUNCA imagens com watermark Glovo/Uber Eats.
+- **Sem produtos prescrição médica** em Wells (apenas OTC). Wells separa com badge — filtrar no scrape.
+- **Variantes obrigatórias** em Zippy (`product_variants` para tamanhos 3M…12A) e Worten (cor/capacidade).
+- **Cobertura mínima** para considerar loja completa: ≥80% por categoria vs Glovo Guarda, ≥95% fotos válidas, ≥90% preços válidos, ZERO duplicados.
+- **Validação visual obrigatória** vs Glovo Guarda — documento `VISUAL_COMPARISON_<loja>.md` na raiz.
+- **Smoke test end-to-end** obrigatório antes de fechar loja: cliente consegue pagar Stripe + MBWay + cash.
+
+#### Fluxo por loja (FASE A → H, sequencial bloqueante)
+
+1. **A** — robots.txt compliance + URLs Glovo Guarda + Uber Eats Guarda
+2. **B** — Scrape produtos Glovo + Uber Eats (dedup fuzzy ≥85%, manter Glovo em conflito)
+3. **C** — Scrape preços do site oficial — produtos sem preço ficam `is_available=false`, `needs_review=true`
+4. **D** — INSERT/UPSERT em `products` via MCP Supabase
+5. **E** — Verificar UI Flutter (`MarketStoreScreen` é reutilizável; `BusinessCategory` já tem `pharmacy|store`)
+6. **F** — pg_cron weekly refresh agendado
+7. **G** — Smoke test SQL + comparação visual com Glovo
+8. **H** — Commit + push em `autonomous-night-2026-04-29`
+
+#### Categorias por loja
+
+- **Wells:** `pharmacy_otc`, `pharmacy_baby`, `pharmacy_beauty`, `pharmacy_hygiene`, `pharmacy_vitamins`
+- **Worten:** Telemóveis, Computadores, TV, Eletrodomésticos, Gaming, Acessórios
+- **Leroy Merlin:** Ferramentas, Jardim, Construção, Decoração, Banho, Eléctrico (produtos >10kg/100L → descrição `[Entrega especial]`)
+- **Kiwoko:** Cão, Gato, Pássaros, Peixes, Roedores, Réptil × {Ração, Brinquedos, Acessórios, Higiene}
+- **Zippy:** Bebé Menino, Bebé Menina, Menino, Menina, Acessórios, Calçado
+
+#### Estado actual (2026-05-19)
+
+| Loja          | restaurants row | Produtos | Cobertura vs Glovo | Status         |
+|---------------|:----------------:|---------:|---------------------:|----------------|
+| Wells         | ✅ inserida      | 0        | 0%                  | A iniciar Fase A |
+| Worten        | ✅ inserida      | 0        | 0%                  | Bloqueada por Wells |
+| Leroy Merlin  | ✅ inserida      | 0        | 0%                  | Bloqueada       |
+| Kiwoko        | ✅ inserida      | 0        | 0%                  | Bloqueada       |
+| Zippy         | ✅ inserida      | 0        | 0%                  | Bloqueada       |
+
 ### 27.5 Regras Anti-Falha
 - Se scraper falha → log + alerta admin + retry no domingo.
 - Se menos de 5.000 produtos → alerta admin.

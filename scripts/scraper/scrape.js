@@ -6,6 +6,7 @@
  *   node scrape.js --only=pingodoce
  *   node scrape.js --only=intermarche
  *   node scrape.js --only=mercadona
+ *   node scrape.js --only=wells
  *   node scrape.js --only=mcdonalds
  *   node scrape.js --only=kfc
  *   node scrape.js --only=burgerking
@@ -23,6 +24,7 @@ import { scrapeMcdonalds } from './scrapers/mcdonalds.js';
 import { scrapeKfc } from './scrapers/kfc.js';
 import { scrapeBurgerking } from './scrapers/burgerking.js';
 import { scrapePizzahut } from './scrapers/pizzahut.js';
+import { scrapeWells } from './scrapers/wells.js';
 
 const MAX = parseInt(process.env.MAX_PRODUCTS_PER_SITE || '0') || Infinity;
 const only = process.argv.find(a => a.startsWith('--only='))?.split('=')[1]?.toLowerCase();
@@ -32,6 +34,7 @@ const PHASES = [
   { key: 'pingodoce',   fn: (b) => scrapePingodoce(b, MAX) },
   { key: 'intermarche', fn: (b) => scrapeIntermarche(b, MAX) },
   { key: 'mercadona',   fn: (b) => scrapeMercadona(b, MAX) },
+  { key: 'wells',       fn: (b) => scrapeWells(b, MAX) },
   { key: 'mcdonalds',   fn: (b) => scrapeMcdonalds(b, MAX) },
   { key: 'kfc',         fn: (b) => scrapeKfc(b, MAX) },
   { key: 'burgerking',  fn: (b) => scrapeBurgerking(b, MAX) },
@@ -50,7 +53,7 @@ async function main() {
       : PHASES;
 
   if (phases.length === 0) {
-    console.error(`❌ Site desconhecido: ${only}. Usa: continente, pingodoce, intermarche, mercadona, mcdonalds, kfc, burgerking, pizzahut, restaurants`);
+    console.error(`❌ Site desconhecido: ${only}. Usa: continente, pingodoce, intermarche, mercadona, wells, mcdonalds, kfc, burgerking, pizzahut, restaurants`);
     process.exit(1);
   }
 

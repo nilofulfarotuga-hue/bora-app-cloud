@@ -71,4 +71,9 @@ class AppColors {
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
+  static const LinearGradient tileStores = LinearGradient(
+    colors: [Color(0xFF455A64), Color(0xFF607D8B)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
 }

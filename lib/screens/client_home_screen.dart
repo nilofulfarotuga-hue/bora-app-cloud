@@ -418,6 +418,20 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
         }),
       ),
       _TileData(
+        label: 'Lojas',
+        gradient: AppColors.tileStores,
+        icon: Icons.storefront,
+        onTap: () => _navigateWithAddressGuard(() {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const StoresScreen(
+                  initialCategory: BusinessCategory.store),
+            ),
+          );
+        }),
+      ),
+      _TileData(
         label: 'Enviar\nEncomenda',
         gradient: AppColors.tileSendPackage,
         icon: Icons.local_shipping,

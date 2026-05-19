@@ -105,7 +105,7 @@ class _ReceiptsListState extends State<_ReceiptsList> {
           .from('order_receipts_v2')
           .select('id, order_id, photo_url, driver_typed_total_cents, '
               'ocr_extracted_total_cents, ocr_diff_cents, ocr_flagged, '
-              'reimbursement_status, reimbursement_amount_cents, '
+              'ocr_ran_at, reimbursement_status, reimbursement_amount_cents, '
               'reimbursement_admin_notes, created_at');
       switch (widget.filter) {
         case _ReceiptFilter.pendingAdmin:
@@ -242,7 +242,7 @@ class _HistoricoTabState extends State<_HistoricoTab> {
           .from('order_receipts_v2')
           .select('id, order_id, photo_url, driver_typed_total_cents, '
               'ocr_extracted_total_cents, ocr_diff_cents, ocr_flagged, '
-              'reimbursement_status, reimbursement_amount_cents, '
+              'ocr_ran_at, reimbursement_status, reimbursement_amount_cents, '
               'reimbursement_admin_notes, created_at');
 
       if (_statusFilter == 'todos') {
@@ -459,7 +459,7 @@ class _ReceiptCardState extends State<_ReceiptCard> {
         final clean = path.replaceFirst(RegExp(r'^receipts/'), '');
         final signed = await Supabase.instance.client.storage
             .from('receipts')
-            .createSignedUrl(clean, 60 * 10);
+            .createSignedUrl(clean, 3600);
         if (mounted) setState(() => _signedPhotoUrl = signed);
       }
       // Driver MBWay phone
@@ -584,12 +584,19 @@ class _ReceiptCardState extends State<_ReceiptCard> {
     final ocrCents = row['ocr_extracted_total_cents'] as int?;
     final diffCents = row['ocr_diff_cents'] as int?;
     final flagged = row['ocr_flagged'] as bool? ?? false;
+    final ocrRanAt = row['ocr_ran_at'] as String?;
     final orderId = row['order_id'] as String;
     final eur = (typedCents / 100).toStringAsFixed(2);
 
     return Card(
-      color: AppColors.card,
+      color: flagged ? AppColors.error.withAlpha(15) : AppColors.card,
       margin: const EdgeInsets.symmetric(vertical: 6),
+      shape: flagged
+          ? RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(color: AppColors.error.withAlpha(100), width: 1.5),
+            )
+          : null,
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -604,6 +611,21 @@ class _ReceiptCardState extends State<_ReceiptCard> {
                         fontWeight: FontWeight.bold, fontSize: 16),
                   ),
                 ),
+                if (flagged) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.error,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text('⚠️ OCR',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold)),
+                  ),
+                  const SizedBox(width: 6),
+                ],
                 _statusChip(status),
               ],
             ),
@@ -622,6 +644,35 @@ class _ReceiptCardState extends State<_ReceiptCard> {
                         const Icon(Icons.broken_image, size: 40),
                   ),
                 ),
+              )
+            else if ((widget.row['photo_url'] as String?)?.isNotEmpty == true)
+              Container(
+                height: 40,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Center(
+                  child: SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+              )
+            else
+              Container(
+                height: 40,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Center(
+                  child: Text('Sem foto',
+                      style: TextStyle(color: AppColors.textSecondary)),
+                ),
               ),
             const SizedBox(height: 8),
             Row(
@@ -633,16 +684,14 @@ class _ReceiptCardState extends State<_ReceiptCard> {
                         fontSize: 18, fontWeight: FontWeight.w600)),
               ],
             ),
-            if (ocrCents != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text(
-                  'OCR: €${(ocrCents / 100).toStringAsFixed(2)}'
-                  '${diffCents != null ? "  (diff: €${(diffCents / 100).toStringAsFixed(2)})" : ""}'
-                  '${flagged ? "  ⚠️" : ""}',
-                  style: TextStyle(color: AppColors.textSecondary),
-                ),
-              ),
+            const SizedBox(height: 4),
+            _OcrRow(
+              flagged: flagged,
+              ocrCents: ocrCents,
+              typedCents: typedCents,
+              diffCents: diffCents,
+              ocrRanAt: ocrRanAt,
+            ),
             if (_driverName != null) ...[
               const SizedBox(height: 8),
               Text('Entregador: $_driverName',
@@ -755,5 +804,77 @@ class _ReceiptCardState extends State<_ReceiptCard> {
         ),
       ),
     );
+  }
+}
+
+// ─── Widget OCR status ──────────────────────────────────────────────────────
+
+class _OcrRow extends StatelessWidget {
+  const _OcrRow({
+    required this.flagged,
+    required this.ocrCents,
+    required this.typedCents,
+    required this.diffCents,
+    required this.ocrRanAt,
+  });
+
+  final bool flagged;
+  final int? ocrCents;
+  final int typedCents;
+  final int? diffCents;
+  final String? ocrRanAt;
+
+  @override
+  Widget build(BuildContext context) {
+    // OCR ainda não correu
+    if (ocrRanAt == null) {
+      return Row(children: [
+        Icon(Icons.sync, size: 16, color: Colors.grey[500]),
+        const SizedBox(width: 6),
+        Text('OCR a processar...',
+            style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+      ]);
+    }
+
+    // OCR correu mas não conseguiu ler valor
+    if (ocrCents == null) {
+      return Row(children: [
+        Icon(Icons.help_outline, size: 16, color: Colors.grey[500]),
+        const SizedBox(width: 6),
+        Text('OCR: não conseguiu ler',
+            style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+      ]);
+    }
+
+    final ocrEur = (ocrCents! / 100).toStringAsFixed(2);
+    final typedEur = (typedCents / 100).toStringAsFixed(2);
+    final diffEur = diffCents != null
+        ? (diffCents!.abs() / 100).toStringAsFixed(2)
+        : null;
+
+    // OCR flagged — diferença > 50 cents
+    if (flagged) {
+      return Row(children: [
+        const Icon(Icons.warning_amber_rounded, size: 16, color: Colors.red),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            'OCR: €$ocrEur  (digitado: €$typedEur'
+            '${diffEur != null ? " — diferença: €$diffEur" : ""})',
+            style: const TextStyle(
+                color: Colors.red, fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+        ),
+      ]);
+    }
+
+    // OCR OK
+    return Row(children: [
+      const Icon(Icons.check_circle_outline, size: 16, color: Colors.green),
+      const SizedBox(width: 6),
+      Text('OCR: €$ocrEur ✓',
+          style: const TextStyle(
+              color: Colors.green, fontSize: 13, fontWeight: FontWeight.w500)),
+    ]);
   }
 }

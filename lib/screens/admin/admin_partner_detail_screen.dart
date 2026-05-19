@@ -150,7 +150,8 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
     }
     setState(() => _uploadingHero = true);
     try {
-      final path = 'hero/${widget.restaurantId}.$ext';
+      final userId = Supabase.instance.client.auth.currentUser?.id ?? '';
+      final path = '$userId/hero/${widget.restaurantId}.$ext';
       await Supabase.instance.client.storage
           .from('restaurant-assets')
           .uploadBinary(path, bytes,
@@ -258,7 +259,8 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
     }
     setState(() => _uploadingLogo = true);
     try {
-      final path = 'logo/${widget.restaurantId}.$ext';
+      final userId = Supabase.instance.client.auth.currentUser?.id ?? '';
+      final path = '$userId/logo/${widget.restaurantId}.$ext';
       await Supabase.instance.client.storage
           .from('restaurant-assets')
           .uploadBinary(path, bytes,

@@ -166,7 +166,8 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
           final ext = _logoFile!.path.contains('.')
               ? _logoFile!.path.split('.').last.toLowerCase()
               : 'jpg';
-          final path = 'logo/${restaurant.id}.$ext';
+          final userId = Supabase.instance.client.auth.currentUser?.id ?? '';
+          final path = '$userId/logo/${restaurant.id}.$ext';
           final storage = Supabase.instance.client.storage;
           await storage.from('restaurant-assets').uploadBinary(
                 path,

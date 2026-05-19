@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../dispatch/driver_capacity_service.dart';
 import '../models/driver_model.dart';
 import '../models/order_model.dart';
+import '../services/floating_bubble_service.dart';
 import '../services/foreground_service.dart';
 import '../utils/constants.dart';
 
@@ -273,6 +274,7 @@ class DriverStore extends ChangeNotifier {
 
   /// Liga o foreground service quando driver vai Online; pára quando offline.
   /// Pede POST_NOTIFICATIONS (Android 13+) se ainda não concedido.
+  /// Sessão 2026-05-19 — também activa a floating bubble (Sistema B).
   Future<void> _syncForegroundService(bool online) async {
     try {
       if (online) {
@@ -284,8 +286,14 @@ class DriverStore extends ChangeNotifier {
           return;
         }
         await BoraForegroundService.startDriver();
+        // Bolinha estilo Uber/Glovo — pede SYSTEM_ALERT_WINDOW se ainda não
+        // concedido. Se utilizador recusar, foreground service continua a
+        // funcionar; só a bolinha não aparece.
+        unawaited(BoraBubbleService.ensureOverlayPermission()
+            .then((_) => BoraBubbleService.setDriverOnline(true)));
       } else {
         await BoraForegroundService.stop();
+        await BoraBubbleService.setDriverOnline(false);
       }
     } catch (e) {
       debugPrint('[DriverStore] _syncForegroundService error: $e');

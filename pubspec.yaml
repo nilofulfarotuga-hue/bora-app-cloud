@@ -61,6 +61,13 @@ dependencies:
   # silencia notificações de alta prioridade.
   flutter_local_notifications: ^17.2.4
 
+  # FLOATING BUBBLE (Sessão 2026-05-19) — bolinha estilo Uber/Glovo que aparece
+  # quando driver Online + app vai para background. Android-only (iOS não
+  # suporta system overlays). Requer SYSTEM_ALERT_WINDOW (já declarado).
+  # API: FloatingBubbleOverlay.instance.startBubble/stopBubble + onTap traz app
+  # ao foreground built-in. v1.0.5 publicado Dez/2025, minSdk 21 (compatível).
+  floating_bubble_overlay: ^1.0.5
+
 
 
 

@@ -9,6 +9,7 @@ import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'services/floating_bubble_service.dart';
 import 'services/foreground_service.dart';
 import 'services/notification_service.dart';
 import 'auth/auth_store.dart';
@@ -181,6 +182,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       _supportSettings.load();
     }
+    // Sessão 2026-05-19 — floating bubble: mostra/esconde consoante app
+    // está em background/foreground. Sem-op em iOS.
+    BoraBubbleService.onAppLifecycleChange(state);
   }
 
   SessionStore get sessionStore => widget.sessionStore;

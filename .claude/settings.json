@@ -45,7 +45,10 @@
       "PowerShell(Expand-Archive:*)",
       "Bash(maestro:*)",
       "PowerShell(*maestro*)",
-      "PowerShell(*mobile.dev*)"
+      "PowerShell(*mobile.dev*)",
+      "Bash(supabase secrets set:*)",
+      "Bash(supabase secrets list:*)",
+      "Bash(curl:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

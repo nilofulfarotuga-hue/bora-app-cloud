@@ -22,6 +22,7 @@ class _AdminSendNotificationScreenState
   // P1-S11-002 — Segmentos suportados por admin_create_broadcast.
   String _scheduleSegment = 'all';
   String _kind = 'admin';
+  String _recipientType = 'client'; // 'client' | 'driver' | 'partner'
   final _userIdCtrl = TextEditingController();
   final _titleCtrl = TextEditingController();
   final _bodyCtrl = TextEditingController();
@@ -91,14 +92,14 @@ class _AdminSendNotificationScreenState
           ),
         ));
       } else {
-        await Supabase.instance.client.rpc('admin_send_notification', params: {
-          'p_user_id': _userIdCtrl.text.trim(),
-          'p_kind': _kind,
+        await Supabase.instance.client.rpc('admin_send_push_notification', params: {
+          'p_recipient_type': _recipientType,
+          'p_recipient_id': _userIdCtrl.text.trim(),
           'p_title': _titleCtrl.text.trim(),
           'p_body': _bodyCtrl.text.trim().isEmpty ? null : _bodyCtrl.text.trim(),
         });
         messenger.showSnackBar(
-            const SnackBar(content: Text('Notification enviada.')));
+            const SnackBar(content: Text('Push notification enviada.')));
       }
       _titleCtrl.clear();
       _bodyCtrl.clear();
@@ -206,7 +207,7 @@ class _AdminSendNotificationScreenState
                 ),
               ),
             ],
-            if (_mode == 'one_user')
+            if (_mode == 'one_user') ...[
               TextFormField(
                 controller: _userIdCtrl,
                 decoration: const InputDecoration(
@@ -216,6 +217,21 @@ class _AdminSendNotificationScreenState
                     ? 'UUID inválido'
                     : null,
               ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: _recipientType,
+                decoration: const InputDecoration(
+                  labelText: 'Tipo de destinatário',
+                  helperText: 'Tipo de utilizador para envio FCM',
+                ),
+                items: const [
+                  DropdownMenuItem(value: 'client', child: Text('Cliente')),
+                  DropdownMenuItem(value: 'driver', child: Text('Driver')),
+                  DropdownMenuItem(value: 'partner', child: Text('Parceiro')),
+                ],
+                onChanged: (v) => setState(() => _recipientType = v!),
+              ),
+            ],
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               value: _kind,

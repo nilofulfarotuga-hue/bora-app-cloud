@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../config/app_theme.dart';
 import '../models/chat_message.dart';
 import '../models/order_model.dart';
+import '../services/wallet_service.dart';
 import '../stores/driver_store.dart';
 import '../stores/order_store.dart';
 import '../widgets/bora_support_fab.dart';
@@ -296,11 +297,50 @@ class _CancelOrderButton extends StatelessWidget {
     return pm; // 'card' | 'mbway' | 'cash'
   }
 
+  /// Cents da taxa de cancelamento (total - refundable). Para cash o cliente
+  /// não pagou nada à frente — esta taxa é debitada à wallet (saldo devedor).
+  double _cancelFeeEur() {
+    final total = order.total + order.bagFee;
+    return (total - _refundableEur()).clamp(0, double.infinity);
+  }
+
   @override
   Widget build(BuildContext context) {
     final refundable = _refundableEur();
+    final isCash = order.paymentMethod == PaymentMethod.cash;
     return OutlinedButton.icon(
       onPressed: () async {
+        if (isCash) {
+          // Cash: não há dinheiro digital para reembolsar. Mostrar apenas
+          // dialog informativo com a taxa que ficará em dívida na wallet.
+          final reason = await _showCashCancelDialog(context, _cancelFeeEur());
+          if (reason == null || !context.mounted) return;
+          try {
+            await WalletService.instance.cancelWithChoice(
+              orderId: order.id,
+              reason: reason,
+              refundMethod: 'wallet',
+            );
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Pedido cancelado. Taxa de €${_cancelFeeEur().toStringAsFixed(2)} '
+                  'descontada na próxima compra.',
+                ),
+              ),
+            );
+            await context.read<OrderStore>().loadOrders();
+          } catch (e) {
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Erro ao cancelar: $e')),
+            );
+          }
+          return;
+        }
+
+        // Card / MBWay: dialog completo com opções de reembolso.
         final res = await showRefundChoiceDialog(
           context,
           orderId: order.id,
@@ -330,6 +370,78 @@ class _CancelOrderButton extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Dialog informativo para cancelamento de pedido cash. Retorna o motivo
+/// (não-vazio) se o utilizador confirmou, ou null se cancelou.
+Future<String?> _showCashCancelDialog(BuildContext context, double feeEur) {
+  final reasonCtrl = TextEditingController();
+  String? error;
+  bool submitting = false;
+  return showDialog<String>(
+    context: context,
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setState) {
+        return AlertDialog(
+          title: const Text('Cancelar pedido'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Pagamento em dinheiro: não há reembolso a fazer.\n\n'
+                  'A tua conta ficará com uma dívida de €${feeEur.toStringAsFixed(2)} '
+                  '(taxa de cancelamento). O valor será descontado '
+                  'automaticamente na tua próxima compra.',
+                  style: const TextStyle(fontSize: 14),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: reasonCtrl,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Motivo do cancelamento',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                if (error != null) ...[
+                  const SizedBox(height: 8),
+                  Text(error!, style: const TextStyle(color: Colors.red)),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: submitting ? null : () => Navigator.pop(ctx),
+              child: const Text('Voltar'),
+            ),
+            FilledButton(
+              onPressed: submitting
+                  ? null
+                  : () {
+                      final r = reasonCtrl.text.trim();
+                      if (r.length < 3) {
+                        setState(() => error =
+                            'Indica um motivo (mínimo 3 caracteres)');
+                        return;
+                      }
+                      setState(() => submitting = true);
+                      Navigator.pop(ctx, r);
+                    },
+              child: submitting
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Text('Confirmar cancelamento'),
+            ),
+          ],
+        );
+      },
+    ),
+  );
 }
 
 // ── Status card ───────────────────────────────────────────────────────────────

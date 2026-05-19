@@ -428,7 +428,7 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                       // liquidam dívida automaticamente; só CASH é gated em
                       // payment_method_screen.dart (BUG #1 §54).
                       child: Text(
-                        'Carteira em dívida (saldo €${(_wallet!.freeCents / 100).toStringAsFixed(2)}). '
+                        'Carteira em dívida (saldo ${_wallet!.freeFormatted}). '
                         'Paga com Cartão ou MBWay para liquidar automaticamente.',
                         style: TextStyle(
                           fontSize: 12,

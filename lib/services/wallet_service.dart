@@ -149,6 +149,13 @@ class WalletBalance {
   int get tokensValueCents =>
       (tokensBalance * tokenValueCentsX100 / 100).round();
 
+  /// Saldo formatado "€X.XX" (positivo) ou "-€X.XX" (negativo).
+  /// O sinal vem ANTES do símbolo de moeda para evitar "€-1.50".
+  String get freeFormatted {
+    final abs = (freeCents.abs() / 100).toStringAsFixed(2);
+    return freeCents < 0 ? '-€$abs' : '€$abs';
+  }
+
   /// Saldo negativo (Sessão 3B): cliente em dívida.
   bool get isNegative => freeCents < 0;
   /// Cents devidos (sempre positivo). 0 quando saldo >= 0.

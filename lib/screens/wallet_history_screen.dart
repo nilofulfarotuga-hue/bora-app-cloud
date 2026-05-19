@@ -85,7 +85,7 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
                   color: isNeg ? Colors.red.shade900 : null,
                   fontWeight: isBlocked ? FontWeight.w700 : null,
                 )),
-            trailing: Text('€${(b.freeCents / 100).toStringAsFixed(2)}',
+            trailing: Text(b.freeFormatted,
                 style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,

@@ -1045,7 +1045,7 @@ class _WalletCardsBlock extends StatelessWidget {
                 iconColor: iconColor,
                 title: 'Saldo Bora',
                 subtitle: subtitle,
-                value: loading ? null : '€${((b?.freeCents ?? 0) / 100).toStringAsFixed(2)}',
+                value: loading ? null : (b?.freeFormatted ?? '€0.00'),
                 valueColor: valueColor,
               ),
               if (!loading && isBlocked) ...[

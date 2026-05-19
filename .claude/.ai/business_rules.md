@@ -1039,14 +1039,26 @@ Ficheiros críticos que NÃO devem ser editados sem análise prévia:
 - Sábado: Intermarché
 - Domingo: descanso / retry de falhas da semana
 
-### 27.2 Requisitos de Qualidade (revisto 2026-04-18)
+### 27.2 Requisitos de Qualidade (revisto 2026-05-19)
 
-- Mínimo 5.000 produtos por mercado.
+- Mínimo 5.000 produtos por mercado (não aplica a lojas non-grocery §27.7).
 - **Fotos podem ser partilhadas entre mercados SE for o mesmo produto** (ex.: uma lata de Coca-Cola é a mesma em qualquer mercado). Match por `(nome_normalizado, marca, unidade)`.
 - **PROIBIDO** usar fotos fictícias (placeholder recoloriado, imagem gerada, fallback repetido em lote).
 - **PROIBIDO** usar foto de produto diferente (ex.: foto de leite num produto de iogurte).
 - **Preços NUNCA partilhados** — cada mercado guarda o seu preço real, actualizado na mesma operação do scraper.
 - Nomes dos produtos em português.
+
+#### 27.2.1 REGRA GLOBAL DE SCRAPING — pipeline canónico (revisto 2026-05-19, sessão Wells)
+
+A partir desta sessão, **TODAS as lojas Bora (mercados + non-grocery)** seguem este pipeline ordenado para construir o catálogo:
+
+1. **Produtos + imagens** — fonte primária: **Glovo Guarda** da loja (scrape Playwright + intercept `page.on('response')` JSON). Imagens vêm do CDN Glovo (`glovo.dhmedia.io/image/...`).
+2. **Preço** — fonte primária: **site oficial da loja** (Product-Show + JSON-LD para SFCC; `__NEXT_DATA__` para Next.js; DOM scrape como fallback).
+3. **Fallback de preço:** se o site oficial não tem preço do produto (variantes, sem stock, etc.) → usar **preço Glovo ÷ 1.15** (sistema aplica +15% em runtime via `pricing_calculate`). Marcar `source='glovo_guarda'` ou `'<loja>_glovo_fallback_<data>'`.
+4. **NUNCA deixar produto sem preço.** Se nenhuma das duas fontes tem preço → **DELETE** o produto (não importar). Não criar entradas `is_available=false`/`price=NULL` que nunca serão vendidas — poluem o catálogo.
+5. **Dedup obrigatório por nome normalizado** (lowercase + sem acentos + sem pontuação + sem espaços extra) antes de cada INSERT.
+6. **Imagens com watermark Glovo/Uber NÃO permitidas** — Glovo CDN serve imagens limpas dos packshots oficiais; verificar antes de aceitar.
+7. **NUNCA puxar PREÇO de Glovo como fonte primária.** Glovo aplica markup próprio — usar só nome+imagem+categoria como fonte. Glovo só entra na coluna de preço quando é fallback explícito (regra 3) e o número é dividido por 1.15.
 - Cascata canónica de imagens (tentar por ordem, parar no primeiro hit válido):
   1. **L1** — site oficial do próprio mercado (CDN do mercado).
   2. **L2** — biblioteca partilhada de outros mercados (Mercadona primeiro, depois os restantes), match por `(nome_normalizado, marca, unidade)`.
@@ -1110,15 +1122,28 @@ Brief autónoma 2026-05-19 adicionou 5 lojas Bora non-partner em categorias nova
 - **Kiwoko:** Cão, Gato, Pássaros, Peixes, Roedores, Réptil × {Ração, Brinquedos, Acessórios, Higiene}
 - **Zippy:** Bebé Menino, Bebé Menina, Menino, Menina, Acessórios, Calçado
 
-#### Estado actual (2026-05-19)
+#### Estado actual (2026-05-19 — após sessão Wells + Glovo import)
 
-| Loja          | restaurants row | Produtos | Cobertura vs Glovo | Status         |
-|---------------|:----------------:|---------:|---------------------:|----------------|
-| Wells         | ✅ inserida      | 0        | 0%                  | A iniciar Fase A |
-| Worten        | ✅ inserida      | 0        | 0%                  | Bloqueada por Wells |
-| Leroy Merlin  | ✅ inserida      | 0        | 0%                  | Bloqueada       |
-| Kiwoko        | ✅ inserida      | 0        | 0%                  | Bloqueada       |
-| Zippy         | ✅ inserida      | 0        | 0%                  | Bloqueada       |
+| Loja          | restaurants row | Produtos | Fontes preço | Status |
+|---------------|:----------------:|---------:|--------------|--------|
+| Wells         | ✅ | **476** | 229 wells.pt + 247 glovo_guarda (÷1.15) | ✅ funcional |
+| Worten        | ✅ | 0 | — | Bloqueada por Wells (próxima) |
+| Leroy Merlin  | ✅ | 0 | — | Bloqueada |
+| Kiwoko        | ✅ | 0 | — | Bloqueada |
+| Zippy         | ✅ | 0 | — | Bloqueada |
+
+**Wells breakdown por taxonomy_section:**
+- `pharmacy_otc`: 233 (avg €17.08) — saúde + cosmética premium wells.pt + dermocosmética Glovo
+- `pharmacy_beauty`: 206 (avg €14.35) — cremes/perfumes/cabelo
+- `pharmacy_hygiene`: 20 (avg €5.05)
+- `pharmacy_baby`: 12 (avg €4.43)
+- `pharmacy_vitamins`: 5 (avg €18.40)
+
+**Lições da sessão Wells:**
+- 63 produtos wells.pt sem preço (lentes contacto + luxury cosmetics + Wella EIMI) foram DELETADOS — Glovo Wells não os carrega (regulatorios + gama diferente). Aplicar regra 27.2.1 §4 ("NUNCA produto sem preço → DELETE") a partir daqui.
+- Scraper Wells [scripts/scraper/scrapers/wells.js](../../../scripts/scraper/scrapers/wells.js) — pattern SFCC (sitemap_0-product.xml + JSON-LD parse).
+- Scraper Glovo [scripts/scraper/wells_glovo_backfill.js](../../../scripts/scraper/wells_glovo_backfill.js) — pattern Playwright (network intercept + DOM extraction + category clicks). **Resolve o bloqueio 503 Cloudflare** que afectava WebFetch.
+- Importer [scripts/scraper/wells_glovo_import.js](../../../scripts/scraper/wells_glovo_import.js) — recebe output Glovo, dedup, INSERT batch. Reutilizável para outras lojas.
 
 ### 27.5 Regras Anti-Falha
 - Se scraper falha → log + alerta admin + retry no domingo.

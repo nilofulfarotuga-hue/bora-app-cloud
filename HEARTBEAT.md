@@ -1,5 +1,15 @@
 # HEARTBEAT
 
+## 2026-05-20 12:30 UTC — 5 LOJAS OPERACIONAIS (889 produtos)
+
+- ✅ Wells 476 · Worten 168 · Leroy 105 · Kiwoko 88 · Zippy 52
+- Solução: cdp_click_subcats.js — click cada sub-cat React button → wait → intercept
+  (root cause anterior: produtos só carregam quando se clica numa sub-cat, não no landing)
+- StoreIds: Worten=124378 · Leroy=539720 · Kiwoko=529912 · Zippy=123602
+- Schema confirmed: produtos têm { name, priceInfo.amount, imageUrl }
+- Cobertura ainda parcial vs metas brief (Worten 168/500, Leroy 105/400, etc) — segunda passada
+  pode apanhar mais via "Mostrar tudo" navigation
+
 ## 2026-05-20 11:00 UTC — Desbloqueio CDP parcial
 
 - ✅ CDP funcionou (Chrome real session + Glovo address pré-confirmado)

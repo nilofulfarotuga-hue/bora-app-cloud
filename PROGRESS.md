@@ -55,8 +55,10 @@
 
 | Loja | Produtos | Com foto | Com preço | Cobertura vs Glovo | Status |
 |---|---:|---:|---:|---:|---|
-| Wells | 476 | 100% | 100% | parcial vs Glovo | ✅ funcional |
-| Worten | 3 | 100% | 100% | CDP first-run | ⚠️ poucos — intercept walker precisa fix |
-| Leroy Merlin | 0 | — | — | — | ⚠️ intercept retorna 0 (JSON format diferente) |
-| Kiwoko | 36 | 100% | 100% | CDP first-run | ✅ funcional (catálogo pequeno) |
-| Zippy | 0 | — | — | — | ⚠️ intercept retorna 0 (mesmo problema) |
+| Wells | 476 | 100% | 100% | OK | ✅ funcional |
+| Worten | 168 | 98% | 100% | click-subcats | ✅ funcional (€3-€817, max alto = electrónica) |
+| Leroy Merlin | 105 | 100% | 100% | click-subcats | ✅ funcional (€0.95-€95) |
+| Kiwoko | 88 | 100% | 100% | click-subcats | ✅ funcional (€1.82-€107) |
+| Zippy | 52 | 88% | 100% | click-subcats | ✅ funcional (€0.87-€40) |
+
+**TOTAL non-grocery: 889 produtos** (5 lojas Bora todas operacionais).

@@ -1,5 +1,13 @@
 # HEARTBEAT
 
+## 2026-05-20 16:00 UTC — DEEP-SUBCATS BREAKTHROUGH (1754 produtos · 3/5 metas)
+
+- cdp_deep_subcats.js (scroll-until-stable + scheduled delivery + per-cat logging)
+- Wells 476 · Worten 283 · Leroy **511** · Kiwoko **396** · Zippy 88
+- Brief metas: Wells 190%✅ · Leroy 128%✅ · Kiwoko 198%✅ · Worten 57% · Zippy 59%
+- Worten+Zippy esgotaram catálogo Glovo Guarda (2ª passada: 0 novos)
+- Per-sub-cat top hits: Leroy "Ferramentas"+147, "Ferragens"+134 · Kiwoko "Cães"+146, "Gatos"+124
+
 ## 2026-05-20 14:00 UTC — SATURAÇÃO 4 PASSADAS (1173 produtos)
 
 - Wells 476 · Worten 254 · Leroy 217 · Kiwoko 145 · Zippy 81

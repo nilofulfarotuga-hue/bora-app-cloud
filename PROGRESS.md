@@ -55,10 +55,10 @@
 
 | Loja | Produtos | Com foto | Com preço | Cobertura vs Glovo | Status |
 |---|---:|---:|---:|---:|---|
-| Wells | 476 | 100% | 100% | OK | ✅ funcional |
-| Worten | 254 | 98% | 100% | click-subcats (4 passadas) | ✅ funcional |
-| Leroy Merlin | 217 | 100% | 100% | click-subcats (4 passadas) | ✅ funcional |
-| Kiwoko | 145 | 100% | 100% | click-subcats (4 passadas) | ✅ funcional |
-| Zippy | 81 | 93% | 100% | click-subcats (4 passadas) | ✅ funcional |
+| Wells | 476 | 100% | 100% | sitemap+Glovo | ✅ 190% meta ✅ |
+| Worten | 283 | 98% | 100% | deep-subcats scroll-until-stable | ✅ 57% (catálogo Glovo esgotado) |
+| Leroy Merlin | 511 | 100% | 100% | deep-subcats scroll-until-stable | ✅ 128% meta ✅ |
+| Kiwoko | 396 | 100% | 100% | deep-subcats scroll-until-stable | ✅ 198% meta ✅ |
+| Zippy | 88 | 93% | 100% | deep-subcats scroll-until-stable | ✅ 59% (catálogo Glovo esgotado) |
 
-**TOTAL non-grocery: 1173 produtos** (5 lojas Bora todas operacionais). Saturação após 4ª passada — produtos novos = 0 nas 3 últimas lojas, +29 só em Leroy.
+**TOTAL non-grocery: 1754 produtos** · 3/5 lojas excederam meta brief (Wells/Leroy/Kiwoko). Worten/Zippy esgotaram catálogo Glovo Guarda — para mais seria necessário scrape sites oficiais.

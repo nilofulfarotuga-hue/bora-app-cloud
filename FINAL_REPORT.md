@@ -4,27 +4,35 @@
 > Total horas estimadas: ~12-14h efectivas em múltiplas sessões Claude Code
 > Validation Gate (CLAUDE.md): aprovado via AskUserQuestion no início
 
-## 📊 Resultado final: 1173 produtos non-grocery em 5 lojas
+## 📊 Resultado final: 1754 produtos non-grocery em 5 lojas
 
 | Loja | restaurant_id | Produtos | Com foto | Categoria |
 |------|---------------|---------:|---------:|-----------|
 | **Wells** | wells-guarda | **476** | 100% | pharmacy |
-| **Worten** | worten-guarda | **254** | 98% | store (Electrónica) |
-| **Leroy Merlin** | leroy-merlin-guarda | **217** | 100% | store (Bricolage) |
-| **Kiwoko** | kiwoko-guarda | **145** | 100% | store (Animais) |
-| **Zippy** | zippy-guarda | **81** | 93% | store (Roupa Criança) |
+| **Worten** | worten-guarda | **283** | 98% | store (Electrónica) |
+| **Leroy Merlin** | leroy-merlin-guarda | **511** | 100% | store (Bricolage) |
+| **Kiwoko** | kiwoko-guarda | **396** | 100% | store (Animais) |
+| **Zippy** | zippy-guarda | **88** | 93% | store (Roupa Criança) |
 
 ## 🎯 vs Metas brief
 
 | Loja | Meta brief | Atingido | % |
 |------|-----------:|---------:|---:|
 | Wells | ≥250 OTC | 476 | **190%** ✅ |
-| Worten | ≥500 | 254 | 51% |
-| Leroy Merlin | ≥400 | 217 | 54% |
-| Kiwoko | ≥200 | 145 | 73% |
-| Zippy | ≥150 | 81 | 54% |
+| Worten | ≥500 | 283 | 57% (catálogo Glovo esgotado) |
+| Leroy Merlin | ≥400 | 511 | **128%** ✅ |
+| Kiwoko | ≥200 | 396 | **198%** ✅ |
+| Zippy | ≥150 | 88 | 59% (catálogo Glovo esgotado) |
 
-Após 4 passadas, saturação atingida (Worten/Kiwoko/Zippy 0 novos na 4ª passada). Catálogo Glovo Guarda destas lojas está esgotado — para mais produtos, scrape dos sites oficiais é necessário.
+**3/5 lojas excederam meta.** Worten + Zippy esgotaram catálogo Glovo Guarda (2ª passada deep retornou 0 novos). Para metas completas seria necessário scrape sites oficiais (worten.pt sitemap, zippyonline.com Shopify `/products.json`).
+
+## 🔑 Solução técnica chave (cdp_deep_subcats.js)
+
+1. **CDP connect** ao Chrome real do Danilo (port 9222)
+2. **scheduled delivery** click — vê produtos mesmo com loja fechada
+3. **scroll-until-stable** dentro de cada sub-cat: scroll 80× max, abortar quando 20 scrolls consecutivos não trazem novos produtos via intercept
+4. **Per-sub-cat logging** mostra contagem absoluta por categoria
+5. **Walker amplificado** apanha name + priceInfo.amount + imageUrl em qualquer nível JSON
 
 Wells excedeu meta. Outras 4 lojas têm produtos viáveis para venda mas não atingiram a meta — Glovo Guarda mostra apenas top produtos (não catálogo completo). Para atingir as metas seria necessário scrape dos sites oficiais (Worten/Leroy/Kiwoko/Zippy) que têm catálogos muito maiores.
 

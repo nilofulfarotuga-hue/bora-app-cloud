@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
-import '_admin_rpc_errors.dart';
 import 'admin_driver_detail_screen.dart';
 
 class AdminDriversScreen extends StatefulWidget {
@@ -77,62 +76,9 @@ class _AdminDriversScreenState extends State<AdminDriversScreen>
     }
   }
 
-  Future<void> _approveDriver(String driverId) async {
-    try {
-      await Supabase.instance.client.rpc(
-        'admin_approve_driver',
-        params: {
-          'p_driver_id': driverId,
-          'p_force': false,
-          'p_justification': null,
-        },
-      );
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Entregador aprovado.'),
-        backgroundColor: AppColors.primary,
-      ));
-      await _load();
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(humanizeAdminRpcError(e)),
-        backgroundColor: Colors.red,
-        duration: const Duration(seconds: 5),
-      ));
-    }
-  }
-
-  void _approvePendingFromList(String driverId) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Aprovar candidatura?'),
-        content: const Text(
-            'Confirma a aprovação directa (sem documentos forçados).'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancelar')),
-          ElevatedButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Aprovar')),
-        ],
-      ),
-    );
-    if (ok == true) {
-      await _approveDriver(driverId);
-    }
-  }
-
   void _openDetail(Map<String, dynamic> driver) {
     final id = driver['id'] as String?;
     if (id == null) return;
-    final status = (driver['approval_status'] as String?) ?? 'pending';
-    if (status == 'pending') {
-      _approvePendingFromList(id);
-      return;
-    }
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => AdminDriverDetailScreen(driverId: id),

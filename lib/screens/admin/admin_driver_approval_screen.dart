@@ -200,47 +200,49 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
             title: const Text('Faltam documentos'),
             content: SizedBox(
               width: 360,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Vais aprovar ${driver['name'] ?? 'este estafeta'} '
-                    'mesmo sem:',
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 8),
-                  ...missing.map((m) => Padding(
-                        padding: const EdgeInsets.only(
-                            left: 8, top: 2, bottom: 2),
-                        child: Text(
-                          '• $m',
-                          style: const TextStyle(color: Colors.red),
-                        ),
-                      )),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: controller,
-                    onChanged: (_) => setLocal(() {}),
-                    maxLines: 2,
-                    decoration: const InputDecoration(
-                      labelText:
-                          'Justificação (obrigatória, mín. 3 caracteres)',
-                      border: OutlineInputBorder(),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Vais aprovar ${driver['name'] ?? 'este estafeta'} '
+                      'mesmo sem:',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  CheckboxListTile(
-                    contentPadding: EdgeInsets.zero,
-                    value: acknowledged,
-                    onChanged: (v) =>
-                        setLocal(() => acknowledged = v ?? false),
-                    title: const Text(
-                      'Compreendo o risco e quero aprovar mesmo assim.',
+                    const SizedBox(height: 8),
+                    ...missing.map((m) => Padding(
+                          padding: const EdgeInsets.only(
+                              left: 8, top: 2, bottom: 2),
+                          child: Text(
+                            '• $m',
+                            style: const TextStyle(color: Colors.red),
+                          ),
+                        )),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: controller,
+                      onChanged: (_) => setLocal(() {}),
+                      maxLines: 2,
+                      decoration: const InputDecoration(
+                        labelText:
+                            'Justificação (obrigatória, mín. 3 caracteres)',
+                        border: OutlineInputBorder(),
+                      ),
                     ),
-                    controlAffinity: ListTileControlAffinity.leading,
-                  ),
-                ],
+                    const SizedBox(height: 8),
+                    CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      value: acknowledged,
+                      onChanged: (v) =>
+                          setLocal(() => acknowledged = v ?? false),
+                      title: const Text(
+                        'Compreendo o risco e quero aprovar mesmo assim.',
+                      ),
+                      controlAffinity: ListTileControlAffinity.leading,
+                    ),
+                  ],
+                ),
               ),
             ),
             actions: [

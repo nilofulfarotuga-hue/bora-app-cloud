@@ -105,6 +105,9 @@ backend/.env
 *.pem
 *.p12
 *.keystore
+*.jks
+key.properties
+android/key.properties
 
 # ── Obsidian vault (.obsidian-vault/) — local config & cache ──────────────────
 # Vault canónico vive em bora_app/.obsidian-vault/ (commit 2026-05-04).

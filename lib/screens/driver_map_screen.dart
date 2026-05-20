@@ -1571,12 +1571,20 @@ class _BottomPanelState extends State<_BottomPanel> {
                           ),
                         ),
                         icon: const Icon(Icons.chat_bubble_outline),
-                        label: Text(
-                          resolveConversationType(ChatSenderType.driver,
-                                      focusOrder.status, null) ==
-                                  'driver_partner'
-                              ? 'Chat c/ Restaurante'
-                              : 'Chat c/ Cliente',
+                        // BUG-UI (2026-05-20) — label curto + ellipsis evita
+                        // overflow em ecrãs pequenos (esp. multi-stop com
+                        // Row partilhada com botão "Ligar").
+                        label: Flexible(
+                          child: Text(
+                            resolveConversationType(ChatSenderType.driver,
+                                        focusOrder.status, null) ==
+                                    'driver_partner'
+                                ? 'Chat · Restaurante'
+                                : 'Chat · Cliente',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            softWrap: false,
+                          ),
                         ),
                       ),
                     ),

@@ -473,6 +473,11 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
 
     // BUG-UI-04 (2026-05-20) — split active vs. history so the dashboard
     // doesn't accumulate every delivered/cancelled/rejected order forever.
+    //
+    // Decisão Danilo (2026-05-20): `rejected` é estado terminal (parceiro
+    // recusou) e DEVE aparecer no histórico junto com delivered/cancelled —
+    // NÃO ficar preso na lista activa. Os 3 estados terminais (delivered,
+    // cancelled, rejected) saem do active e entram no historical bottom sheet.
     final activePartnerOrders = partnerOrders
         .where((o) =>
             o.status != OrderStatus.delivered &&
@@ -876,11 +881,24 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                                 ],
                               ),
                               const SizedBox(height: 4),
-                              Text(
-                                (o.clientPhone ?? '').isNotEmpty
-                                    ? 'Cliente · ${o.clientPhone}'
-                                    : 'Cliente',
-                                style: TextStyle(color: Colors.grey.shade700),
+                              Builder(
+                                builder: (_) {
+                                  final name =
+                                      (o.customerName ?? '').trim();
+                                  final phone = (o.clientPhone ?? '').trim();
+                                  final label = name.isNotEmpty
+                                      ? (phone.isNotEmpty
+                                          ? '$name · $phone'
+                                          : name)
+                                      : (phone.isNotEmpty
+                                          ? 'Cliente · $phone'
+                                          : 'Cliente');
+                                  return Text(
+                                    label,
+                                    style: TextStyle(
+                                        color: Colors.grey.shade700),
+                                  );
+                                },
                               ),
                               const SizedBox(height: 6),
                               Row(

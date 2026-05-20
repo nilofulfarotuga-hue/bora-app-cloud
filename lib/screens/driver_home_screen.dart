@@ -25,8 +25,10 @@ import '../models/order_model.dart';
 import '../services/driver_location_ping_service.dart';
 import '../services/navigation_service.dart';
 import '../services/heartbeat_service.dart';
+import '../services/notification_service.dart';
 import '../services/push_token_service.dart';
 import '../services/sound_service.dart';
+import '../widgets/notification_bell.dart';
 import '../stores/driver_store.dart';
 import '../stores/order_store.dart';
 import '../stores/session_store.dart';
@@ -510,6 +512,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       );
     }
 
+    NotificationService.setupBroadcastDeepLink(context);
     return Scaffold(
       backgroundColor: AppColors.surface,
       floatingActionButton: const BoraSupportFab(),
@@ -550,6 +553,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
           ),
         ),
         actions: [
+          const NotificationBell(),
           TextButton.icon(
             onPressed: _handleTestMode,
             style: TextButton.styleFrom(

@@ -71,6 +71,13 @@ class _AdminSendNotificationScreenState
           'p_title': _titleCtrl.text.trim(),
           'p_body': _bodyCtrl.text.trim().isEmpty ? null : _bodyCtrl.text.trim(),
         });
+        // Also save to in_app_notifications so the bell shows unread.
+        Supabase.instance.client.rpc('admin_save_broadcast_in_app', params: {
+          'p_segment': _segment,
+          'p_kind': _kind,
+          'p_title': _titleCtrl.text.trim(),
+          'p_body': _bodyCtrl.text.trim().isEmpty ? null : _bodyCtrl.text.trim(),
+        }).ignore();
         messenger.showSnackBar(
             SnackBar(content: Text('Broadcast enviado: $res destinatários')));
       } else if (_mode == 'schedule') {

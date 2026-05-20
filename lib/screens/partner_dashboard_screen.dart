@@ -17,6 +17,7 @@ import '../stores/order_store.dart';
 import '../stores/partner_product_store.dart';
 import '../stores/restaurant_store.dart';
 import '../services/notification_service.dart';
+import '../widgets/notification_bell.dart';
 import '../services/sound_service.dart';
 import '../stores/session_store.dart';
 import '../widgets/address_text.dart';
@@ -519,6 +520,7 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
         theme.appBarTheme.foregroundColor ?? theme.colorScheme.onPrimary;
     final subtitleColor = appBarForeground.withValues(alpha: 0.7);
 
+    NotificationService.setupBroadcastDeepLink(context);
     return Scaffold(
       backgroundColor: AppColors.surface,
       floatingActionButton: const BoraSupportFab(),
@@ -547,6 +549,7 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
           ],
         ),
         actions: [
+          const NotificationBell(),
           TextButton.icon(
             onPressed: () => restaurantStore.toggleRestaurantOnline(
                 widget.restaurant.id, !currentRestaurant.isOnline),

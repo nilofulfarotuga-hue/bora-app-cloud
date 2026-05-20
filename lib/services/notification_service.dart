@@ -13,6 +13,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/chat_message.dart';
 import '../models/order_model.dart';
 import '../screens/chat_screen.dart';
+import '../screens/notifications_screen.dart';
 import 'push_token_service.dart';
 import 'sound_service.dart';
 
@@ -180,6 +181,30 @@ class NotificationService {
       _initialized = false;
       debugPrint('[NotificationService] consent revoked — FCM disabled');
     }
+  }
+
+  // ── Broadcast deep-link ───────────────────────────────────────────────────
+
+  static bool _broadcastDeepLinkWired = false;
+
+  /// Routes admin_broadcast / admin_message FCM taps to NotificationsScreen.
+  /// Idempotent — safe to call from build().
+  static void setupBroadcastDeepLink(BuildContext context) {
+    if (_broadcastDeepLinkWired) return;
+    _broadcastDeepLinkWired = true;
+    final navigator = Navigator.of(context);
+    void openInbox() => navigator.push(
+          MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+        );
+    FirebaseMessaging.onMessageOpenedApp.listen((msg) {
+      final t = msg.data['type'];
+      if (t == 'admin_broadcast' || t == 'admin_message') openInbox();
+    });
+    FirebaseMessaging.instance.getInitialMessage().then((msg) {
+      if (msg == null) return;
+      final t = msg.data['type'];
+      if (t == 'admin_broadcast' || t == 'admin_message') openInbox();
+    });
   }
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────

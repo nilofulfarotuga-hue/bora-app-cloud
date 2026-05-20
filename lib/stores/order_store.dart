@@ -2318,6 +2318,9 @@ class OrderStore extends ChangeNotifier {
                       '[OrderStore] onPostgresChanges: offer revoked order=$orderId');
                   _driverOfferIds.remove(orderId);
                   _orders.removeWhere((o) => o.id == orderId);
+                  // 2026-05-20 — cancela a notificação persistente estilo chamada
+                  // (FLAG_INSISTENT em loop) assim que a oferta expira/é revogada.
+                  unawaited(cancelDriverOfferNotification(orderId));
                   notifyListeners();
                 }
               },

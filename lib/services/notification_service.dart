@@ -41,14 +41,22 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
   if (type != 'new_order_offer') return;
 
+  final orderId = (data['orderId'] ?? '').toString();
+  final title = (data['title'] ?? '🔔 Novo pedido!').toString();
+  final body = (data['body'] ?? 'Novo pedido disponível').toString();
+
+  // 2026-05-20 — estilo chamada (Uber/Glovo): notificação não dispensável,
+  // som contínuo via FLAG_INSISTENT (=4), action buttons aceitar/rejeitar
+  // que abrem o app no card da oferta. Auto-cancel acontece quando o
+  // realtime detecta `current_driver_offer_id` revogado (ver OrderStore).
   final androidDetails = AndroidNotificationDetails(
     'bora_orders_urgent',
     'Bora — Pedidos urgentes',
     channelDescription:
-        'Notificações de novos pedidos (alta prioridade + som).',
+        'Notificações de novos pedidos (alta prioridade + som contínuo).',
     importance: Importance.max,
     priority: Priority.max,
-    fullScreenIntent: true, // acorda ecrã + mostra over lock screen
+    fullScreenIntent: true,
     playSound: true,
     sound: const RawResourceAndroidNotificationSound('bora_alert'),
     enableVibration: true,
@@ -56,13 +64,28 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     category: AndroidNotificationCategory.call,
     visibility: NotificationVisibility.public,
     ticker: 'Novo pedido!',
+    ongoing: true, // não dispensável por swipe (estilo chamada)
+    autoCancel: true, // tap (body ou action) silencia + abre o app
+    // FLAG_INSISTENT (=4) — Android toca o som em loop até o utilizador
+    // interagir. É o que diferencia uma oferta de uma notificação normal.
+    additionalFlags: Int32List.fromList(<int>[4]),
+    actions: <AndroidNotificationAction>[
+      const AndroidNotificationAction(
+        'bora_offer_accept',
+        '✅ Aceitar',
+        showsUserInterface: true,
+        cancelNotification: true,
+      ),
+      const AndroidNotificationAction(
+        'bora_offer_reject',
+        '❌ Rejeitar',
+        showsUserInterface: true,
+        cancelNotification: true,
+      ),
+    ],
   );
 
   final details = NotificationDetails(android: androidDetails);
-
-  final orderId = (data['orderId'] ?? '').toString();
-  final title = (data['title'] ?? '🔔 Novo pedido!').toString();
-  final body = (data['body'] ?? 'Novo pedido disponível').toString();
 
   final plugin = FlutterLocalNotificationsPlugin();
 
@@ -91,6 +114,23 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     details,
     payload: jsonEncode(data),
   );
+}
+
+/// Cancela a notificação persistente de uma oferta quando:
+///   • o estafeta aceitou via UI
+///   • o backend revogou (timeout / outro driver aceitou / cliente cancelou)
+///   • realtime detectou `current_driver_offer_id != myDriverId`
+///
+/// Idempotente — chamar duas vezes não dá erro. Usado por OrderStore no
+/// realtime handler (sessão 2026-05-20).
+Future<void> cancelDriverOfferNotification(String orderId) async {
+  if (orderId.isEmpty) return;
+  try {
+    await FlutterLocalNotificationsPlugin().cancel(orderId.hashCode);
+    debugPrint('[NotificationService] cancelled offer notif order=$orderId');
+  } catch (e) {
+    debugPrint('[NotificationService] cancel error: $e');
+  }
 }
 
 /// Wraps Firebase Cloud Messaging for BORA APP.

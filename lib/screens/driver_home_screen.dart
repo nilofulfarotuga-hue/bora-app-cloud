@@ -141,18 +141,18 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
     super.didChangeAppLifecycleState(state);
     if (state == AppLifecycleState.resumed && mounted) {
       _enforceEffectiveStatus();
-      // FASE 1 heartbeat: app voltou ao foreground — reata pings se ainda
-      // estamos online. Sem ping, backend cron marca offline em 90s.
+      // Safety net: garante heartbeat ligado no resume (idempotente).
       final driver = context.read<DriverStore>().currentDriver;
       if (driver?.isOnline == true) {
         unawaited(_heartbeatService.start());
       }
-    } else if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.detached) {
-      // App em background → para o timer (poupa bateria). O cron backend
-      // cobre offline automático após 90s sem pings.
-      unawaited(_heartbeatService.stop());
     }
+    // 2026-05-20 — NÃO parar heartbeat em paused/detached enquanto driver
+    // está Online. O BoraForegroundService detém WAKE_LOCK + mantém o processo
+    // vivo, o Timer.periodic(30s) continua a disparar e os pings continuam
+    // a chegar ao Supabase. Parar aqui causava mark-stale-drivers-offline
+    // (>90s sem ping) → estafeta ficava offline em background e perdia ofertas.
+    // Stop legítimo só via toggle Offline, logout ou dispose() do screen.
   }
 
   /// Calls `driver_effective_status(auth.uid())` and, if the driver is no

@@ -1522,6 +1522,14 @@ class _BottomPanelState extends State<_BottomPanel> {
 
               // If focusOrder is available: show finalize/chat sections
               if (focusOrder != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Pedido #${focusOrder.id.length >= 6 ? focusOrder.id.substring(0, 6).toUpperCase() : focusOrder.id.toUpperCase()}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.5,
+                  ),
+                ),
                 // BUG-STACKING-FINALIZED (2026-05-16): with 2+ stacked orders
                 // the previous `!_isMultiStop` guard hid the FinalizedBanner
                 // for non-partner orders entirely — driver lost confirmation
@@ -1563,7 +1571,13 @@ class _BottomPanelState extends State<_BottomPanel> {
                           ),
                         ),
                         icon: const Icon(Icons.chat_bubble_outline),
-                        label: const Text('Chat'),
+                        label: Text(
+                          resolveConversationType(ChatSenderType.driver,
+                                      focusOrder.status, null) ==
+                                  'driver_partner'
+                              ? 'Chat c/ Restaurante'
+                              : 'Chat c/ Cliente',
+                        ),
                       ),
                     ),
                     // FASE 5: tel: link directo. Twilio masking

@@ -37,7 +37,7 @@ class MessageModel {
   MessageModel({
     required this.id,
     required this.orderId,
-    required this.senderId,
+    required this.senderType,
     required this.senderRole,
     required this.type,
     required this.content,
@@ -47,7 +47,11 @@ class MessageModel {
 
   final String id;
   final String orderId;
-  final String senderId;
+
+  /// Sender identity. Backed by the `sender_type` column in DB
+  /// (legacy field name was `senderId` but never held a real id — only the
+  /// sender's type string, since the table has no sender_id column).
+  final String senderType;
 
   /// 'client' or 'driver'
   final String senderRole;
@@ -78,7 +82,7 @@ class MessageModel {
 
   factory MessageModel.text({
     required String orderId,
-    required String senderId,
+    required String senderType,
     required String senderRole,
     required String content,
     String? conversationType,
@@ -86,7 +90,7 @@ class MessageModel {
     return MessageModel(
       id: const Uuid().v4(),
       orderId: orderId,
-      senderId: senderId,
+      senderType: senderType,
       senderRole: senderRole,
       type: MessageType.text,
       content: content,
@@ -97,7 +101,7 @@ class MessageModel {
 
   factory MessageModel.substitution({
     required String orderId,
-    required String senderId,
+    required String senderType,
     required String original,
     required String suggestion,
     required double price,
@@ -111,7 +115,7 @@ class MessageModel {
     return MessageModel(
       id: const Uuid().v4(),
       orderId: orderId,
-      senderId: senderId,
+      senderType: senderType,
       senderRole: 'driver',
       type: MessageType.substitution,
       content: jsonEncode(payload.toJson()),
@@ -131,7 +135,7 @@ class MessageModel {
     return MessageModel(
       id: data['id'] as String,
       orderId: data['order_id'] as String,
-      senderId: data['sender_type'] as String? ?? '',
+      senderType: data['sender_type'] as String? ?? '',
       senderRole: data['sender_type'] as String? ?? 'client',
       type: type,
       content: data['message'] as String? ?? '',

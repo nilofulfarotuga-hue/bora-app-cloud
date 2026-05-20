@@ -471,9 +471,25 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
     final partnerOrders =
         orderStore.partnerOrdersForRestaurant(widget.restaurant.name);
 
+    // BUG-UI-04 (2026-05-20) — split active vs. history so the dashboard
+    // doesn't accumulate every delivered/cancelled/rejected order forever.
+    final activePartnerOrders = partnerOrders
+        .where((o) =>
+            o.status != OrderStatus.delivered &&
+            o.status != OrderStatus.cancelled &&
+            o.status != OrderStatus.rejected)
+        .toList();
+    final historicalPartnerOrders = partnerOrders
+        .where((o) =>
+            o.status == OrderStatus.delivered ||
+            o.status == OrderStatus.cancelled ||
+            o.status == OrderStatus.rejected)
+        .toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      _handleNewOrders(partnerOrders);
+      _handleNewOrders(activePartnerOrders);
     });
 
     final now = DateTime.now();
@@ -658,8 +674,19 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                   ),
                 ],
                 const SizedBox(height: 24),
+                if (historicalPartnerOrders.isNotEmpty)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      onPressed: () => _showHistorySheet(
+                          context, historicalPartnerOrders),
+                      icon: const Icon(Icons.history, size: 18),
+                      label: Text(
+                          'Ver Histórico (${historicalPartnerOrders.length})'),
+                    ),
+                  ),
                 _OrdersSection(
-                  orders: partnerOrders,
+                  orders: activePartnerOrders,
                   onAccept: (order) async {
                     final accepted =
                         await orderStore.restaurantAcceptOrder(order);
@@ -748,6 +775,160 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
         ),
       ),
     );
+  }
+
+  /// BUG-UI-04 (2026-05-20) — Bottom sheet com pedidos finalizados
+  /// (delivered / cancelled / rejected). Lista vem já ordenada
+  /// desc por createdAt do `build()`.
+  Future<void> _showHistorySheet(
+    BuildContext context,
+    List<OrderModel> history,
+  ) {
+    return showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetCtx) {
+        return DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.7,
+          minChildSize: 0.4,
+          maxChildSize: 0.95,
+          builder: (_, scrollCtrl) {
+            return Column(
+              children: [
+                const SizedBox(height: 8),
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade400,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.history),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Histórico (${history.length})',
+                        style: Theme.of(sheetCtx).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Divider(height: 1),
+                Expanded(
+                  child: ListView.separated(
+                    controller: scrollCtrl,
+                    padding: const EdgeInsets.all(16),
+                    itemCount: history.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemBuilder: (_, i) {
+                      final o = history[i];
+                      final shortId = o.id.length >= 6
+                          ? o.id.substring(0, 6).toUpperCase()
+                          : o.id.toUpperCase();
+                      final statusColor = o.status == OrderStatus.delivered
+                          ? Colors.green.shade700
+                          : Colors.red.shade700;
+                      final statusLabel = o.status == OrderStatus.delivered
+                          ? 'Entregue'
+                          : o.status == OrderStatus.cancelled
+                              ? 'Cancelado'
+                              : 'Rejeitado';
+                      final when = _formatHistoryDate(o.createdAt);
+                      return Card(
+                        margin: EdgeInsets.zero,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(14),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    '#$shortId',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                  Text(
+                                    '€${o.total.toStringAsFixed(2)}',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                (o.clientPhone ?? '').isNotEmpty
+                                    ? 'Cliente · ${o.clientPhone}'
+                                    : 'Cliente',
+                                style: TextStyle(color: Colors.grey.shade700),
+                              ),
+                              const SizedBox(height: 6),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    statusLabel,
+                                    style: TextStyle(
+                                      color: statusColor,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  Text(
+                                    when,
+                                    style: TextStyle(
+                                      color: Colors.grey.shade600,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  String _formatHistoryDate(DateTime dt) {
+    final now = DateTime.now();
+    final sameDay = dt.year == now.year &&
+        dt.month == now.month &&
+        dt.day == now.day;
+    final hh = dt.hour.toString().padLeft(2, '0');
+    final mm = dt.minute.toString().padLeft(2, '0');
+    if (sameDay) return 'Hoje · $hh:$mm';
+    final dd = dt.day.toString().padLeft(2, '0');
+    final mo = dt.month.toString().padLeft(2, '0');
+    return '$dd/$mo · $hh:$mm';
   }
 }
 
@@ -904,6 +1085,9 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
   Widget _buildContent(ThemeData theme) {
     final order = widget.order;
     final isNew = _isNew;
+    final shortId = order.id.length >= 6
+        ? order.id.substring(0, 6).toUpperCase()
+        : order.id.toUpperCase();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -911,11 +1095,25 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              isNew ? 'Novo pedido' : order.status.label,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: isNew ? theme.colorScheme.primary : null,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '#$shortId',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: Colors.grey.shade600,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  Text(
+                    isNew ? 'Novo pedido' : order.status.label,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: isNew ? theme.colorScheme.primary : null,
+                    ),
+                  ),
+                ],
               ),
             ),
             Text(

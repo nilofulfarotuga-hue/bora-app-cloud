@@ -263,7 +263,7 @@ class _ChatScreenState extends State<ChatScreen> {
     try {
       await chatStore.sendMessage(
         orderId: widget.order.id,
-        senderId: _senderId,
+        senderType: _senderId,
         senderRole: _senderRole,
         content: text,
         conversationType: widget.conversationType,
@@ -309,7 +309,7 @@ class _ChatScreenState extends State<ChatScreen> {
     try {
       await chatStore.sendSubstitution(
         orderId: widget.order.id,
-        senderId: _senderId,
+        senderType: _senderId,
         original: result.original,
         suggestion: result.suggestion,
         price: result.price,

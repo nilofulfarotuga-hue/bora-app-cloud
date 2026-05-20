@@ -1529,6 +1529,14 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
             ),
             const SizedBox(height: 12),
             Text(
+              'Pedido #${order.id.length >= 6 ? order.id.substring(0, 6).toUpperCase() : order.id.toUpperCase()}',
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.5,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
               'Telefone do cliente: '
               '${(order.clientPhone ?? '').isNotEmpty ? order.clientPhone! : 'Não disponível'}',
             ),
@@ -1561,7 +1569,13 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                       );
                     },
                     icon: const Icon(Icons.chat_bubble_outline),
-                    label: const Text('Chat'),
+                    label: Text(
+                      resolveConversationType(
+                                  ChatSenderType.driver, order.status, null) ==
+                              'driver_partner'
+                          ? 'Chat c/ Restaurante'
+                          : 'Chat c/ Cliente',
+                    ),
                   ),
                 ),
               ],

@@ -719,7 +719,11 @@ class _BottomCardState extends State<_BottomCard> {
                           ),
                         ),
                         icon: const Icon(Icons.chat_bubble_outline, size: 18),
-                        label: const Text('Falar com o estafeta'),
+                        label: Text(
+                          order.status == OrderStatus.preparing
+                              ? 'Falar com o Restaurante'
+                              : 'Falar com o Estafeta',
+                        ),
                       ),
                     ),
 

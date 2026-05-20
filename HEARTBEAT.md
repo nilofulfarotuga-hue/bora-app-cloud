@@ -1,5 +1,14 @@
 # HEARTBEAT
 
+## 2026-05-20 08:00 UTC — Worten/Leroy/Kiwoko/Zippy BLOQUEADAS
+
+- 4 lojas Glovo Guarda confirmadas (slugs reais: worten-vivaci-guarda-grd, leroy-merlin-grd, kiwoko-grd, zippy-grd)
+- Tentativas: glovo_multi_import.js (sub-cat clicks) + glovo_deep_scroll.js (60× scrolls + intercept) → 0 produtos cada
+- Root cause: address gating + Glovo-Perseus-Session-Id missing + sub-cats sem URL pattern + React state-only navigation
+- Wells continua 476 produtos ✅
+- Status detalhado: `WORTEN_LEROY_KIWOKO_ZIPPY_STATUS.md`
+- **Próxima sessão precisa de Opção A (address persistence)** OU Opção B (sites oficiais) OU Opção C (manual seed)
+
 ## 2026-05-19 22:00 UTC — Wells fechada
 
 - **Loja actual:** Wells ✅ → Worten 🟡 (próxima)

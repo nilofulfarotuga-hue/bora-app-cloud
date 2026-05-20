@@ -55,8 +55,8 @@
 
 | Loja | Produtos | Com foto | Com preço | Cobertura vs Glovo | Status |
 |---|---:|---:|---:|---:|---|
-| Wells | 292 | 100% | 78.4% | DEFERIDO (Glovo 503) | ✅ funcional |
-| Worten | — | — | — | — | pending |
-| Leroy Merlin | — | — | — | — | pending |
-| Kiwoko | — | — | — | — | pending |
-| Zippy | — | — | — | — | pending |
+| Wells | 476 | 100% | 100% | parcial vs Glovo | ✅ funcional |
+| Worten | 0 | — | — | — | ⚠️ Glovo address-gated, ver STATUS |
+| Leroy Merlin | 0 | — | — | — | ⚠️ Glovo address-gated, ver STATUS |
+| Kiwoko | 0 | — | — | — | ⚠️ Glovo address-gated, ver STATUS |
+| Zippy | 0 | — | — | — | ⚠️ Glovo address-gated, ver STATUS |

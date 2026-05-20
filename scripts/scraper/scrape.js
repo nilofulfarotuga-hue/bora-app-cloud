@@ -25,6 +25,7 @@ import { scrapeKfc } from './scrapers/kfc.js';
 import { scrapeBurgerking } from './scrapers/burgerking.js';
 import { scrapePizzahut } from './scrapers/pizzahut.js';
 import { scrapeWells } from './scrapers/wells.js';
+import { scrapeWorten } from './scrapers/worten.js';
 
 const MAX = parseInt(process.env.MAX_PRODUCTS_PER_SITE || '0') || Infinity;
 const only = process.argv.find(a => a.startsWith('--only='))?.split('=')[1]?.toLowerCase();
@@ -35,6 +36,7 @@ const PHASES = [
   { key: 'intermarche', fn: (b) => scrapeIntermarche(b, MAX) },
   { key: 'mercadona',   fn: (b) => scrapeMercadona(b, MAX) },
   { key: 'wells',       fn: (b) => scrapeWells(b, MAX) },
+  { key: 'worten',      fn: (b) => scrapeWorten(b, MAX) },
   { key: 'mcdonalds',   fn: (b) => scrapeMcdonalds(b, MAX) },
   { key: 'kfc',         fn: (b) => scrapeKfc(b, MAX) },
   { key: 'burgerking',  fn: (b) => scrapeBurgerking(b, MAX) },

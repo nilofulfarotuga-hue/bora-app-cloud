@@ -1,4 +1,4 @@
-package com.example.bora_app
+package pt.boraapp.bora
 
 import android.app.NotificationChannel
 import android.app.NotificationManager

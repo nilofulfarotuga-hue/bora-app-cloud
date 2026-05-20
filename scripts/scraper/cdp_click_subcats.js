@@ -30,7 +30,7 @@ const MARKUP = 1.15;
 const outDir = path.join(process.cwd(), 'output');
 if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
 
-const EXCLUDE_BUTTONS = ['Guarda', 'Iniciar sessão', 'Informações sobre as taxas', 'Conformidade', 'Política de Trocas e Devoluções', 'Voltar', 'Pesquisar'];
+const EXCLUDE_BUTTONS = ['Guarda', 'Iniciar sessão', 'Informações sobre as taxas', 'Conformidade', 'Política de Trocas e Devoluções', 'Voltar', 'Pesquisar', 'Promoções', 'Promoção', 'Descontos', 'Promo'];
 
 const sleep = (a, b) => new Promise(r => setTimeout(r, Math.floor(Math.random() * (b - a) + a)));
 
@@ -95,7 +95,8 @@ async function clickAllSubcats(page, store) {
     const set = new Set();
     for (const b of btns) {
       const t = (b.textContent || '').trim();
-      if (t && t.length > 2 && t.length < 80 && !exclude.includes(t) && !/^\d/.test(t) && !/grátis|gratis|prime|promo|sobre|0,/i.test(t)) {
+      // Exclude UI noise + "Promoções" (duplicados de outras categorias com sale prices)
+      if (t && t.length > 2 && t.length < 80 && !exclude.includes(t) && !/^\d+[,.]?\d*\s*€?$/.test(t) && !/^(grátis|gratis|prime|promoção|promoções|promocao|promocoes|promo|descontos?)$/i.test(t.trim())) {
         set.add(t);
       }
     }
@@ -117,10 +118,12 @@ async function clickAllSubcats(page, store) {
         return false;
       }, txt);
       if (clicked) {
-        await sleep(1200, 1800);
-        // Scroll within potential opened panel
-        await page.evaluate(() => window.scrollBy(0, 800)).catch(() => {});
-        await sleep(500, 800);
+        await sleep(1800, 2500);
+        // Scroll within potential opened panel — multiple times to trigger lazy
+        for (let s = 0; s < 4; s++) {
+          try { await page.evaluate(() => window.scrollBy(0, 1000)); } catch (e) {}
+          await sleep(500, 800);
+        }
         // Try clicking "Mostrar tudo" if present
         try {
           const mostrar = await page.evaluate(() => {

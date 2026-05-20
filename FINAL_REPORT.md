@@ -4,25 +4,27 @@
 > Total horas estimadas: ~12-14h efectivas em múltiplas sessões Claude Code
 > Validation Gate (CLAUDE.md): aprovado via AskUserQuestion no início
 
-## 📊 Resultado final: 938 produtos non-grocery em 5 lojas
+## 📊 Resultado final: 1173 produtos non-grocery em 5 lojas
 
-| Loja | restaurant_id | Produtos | Com foto | Preço range | Categoria |
-|------|---------------|---------:|---------:|-------------|-----------|
-| **Wells** | wells-guarda | **476** | 100% | €0.34 - €77.76 | pharmacy |
-| **Worten** | worten-guarda | **174** | 98% | €3.47 - €817.38 | store (Electrónica) |
-| **Leroy Merlin** | leroy-merlin-guarda | **129** | 100% | €0.95 - €94.78 | store (Bricolage) |
-| **Kiwoko** | kiwoko-guarda | **100** | 100% | €1.82 - €106.69 | store (Animais) |
-| **Zippy** | zippy-guarda | **59** | 90% | €0.87 - €39.99 | store (Roupa Criança) |
+| Loja | restaurant_id | Produtos | Com foto | Categoria |
+|------|---------------|---------:|---------:|-----------|
+| **Wells** | wells-guarda | **476** | 100% | pharmacy |
+| **Worten** | worten-guarda | **254** | 98% | store (Electrónica) |
+| **Leroy Merlin** | leroy-merlin-guarda | **217** | 100% | store (Bricolage) |
+| **Kiwoko** | kiwoko-guarda | **145** | 100% | store (Animais) |
+| **Zippy** | zippy-guarda | **81** | 93% | store (Roupa Criança) |
 
 ## 🎯 vs Metas brief
 
 | Loja | Meta brief | Atingido | % |
 |------|-----------:|---------:|---:|
 | Wells | ≥250 OTC | 476 | **190%** ✅ |
-| Worten | ≥500 | 174 | 35% |
-| Leroy Merlin | ≥400 | 129 | 32% |
-| Kiwoko | ≥200 | 100 | 50% |
-| Zippy | ≥150 | 59 | 39% |
+| Worten | ≥500 | 254 | 51% |
+| Leroy Merlin | ≥400 | 217 | 54% |
+| Kiwoko | ≥200 | 145 | 73% |
+| Zippy | ≥150 | 81 | 54% |
+
+Após 4 passadas, saturação atingida (Worten/Kiwoko/Zippy 0 novos na 4ª passada). Catálogo Glovo Guarda destas lojas está esgotado — para mais produtos, scrape dos sites oficiais é necessário.
 
 Wells excedeu meta. Outras 4 lojas têm produtos viáveis para venda mas não atingiram a meta — Glovo Guarda mostra apenas top produtos (não catálogo completo). Para atingir as metas seria necessário scrape dos sites oficiais (Worten/Leroy/Kiwoko/Zippy) que têm catálogos muito maiores.
 

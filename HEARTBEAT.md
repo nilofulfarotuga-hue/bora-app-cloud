@@ -1,5 +1,12 @@
 # HEARTBEAT
 
+## 2026-05-20 14:00 UTC — SATURAÇÃO 4 PASSADAS (1173 produtos)
+
+- Wells 476 · Worten 254 · Leroy 217 · Kiwoko 145 · Zippy 81
+- Returns 4ª passada: Worten 0, Leroy +29, Kiwoko 0, Zippy 0 → saturação
+- "Promoções" excluído conforme decisão Danilo (duplicados sale-priced de outras cats)
+- Walker amplificado + scroll deep 4× dentro de cada sub-cat foi a chave
+
 ## 2026-05-20 12:30 UTC — 5 LOJAS OPERACIONAIS (889 produtos)
 
 - ✅ Wells 476 · Worten 168 · Leroy 105 · Kiwoko 88 · Zippy 52

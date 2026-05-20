@@ -56,9 +56,9 @@
 | Loja | Produtos | Com foto | Com preço | Cobertura vs Glovo | Status |
 |---|---:|---:|---:|---:|---|
 | Wells | 476 | 100% | 100% | OK | ✅ funcional |
-| Worten | 168 | 98% | 100% | click-subcats | ✅ funcional (€3-€817, max alto = electrónica) |
-| Leroy Merlin | 105 | 100% | 100% | click-subcats | ✅ funcional (€0.95-€95) |
-| Kiwoko | 88 | 100% | 100% | click-subcats | ✅ funcional (€1.82-€107) |
-| Zippy | 52 | 88% | 100% | click-subcats | ✅ funcional (€0.87-€40) |
+| Worten | 174 | 98% | 100% | click-subcats (2 passadas) | ✅ funcional (€3-€817) |
+| Leroy Merlin | 129 | 100% | 100% | click-subcats (2 passadas) | ✅ funcional (€0.95-€95) |
+| Kiwoko | 100 | 100% | 100% | click-subcats (2 passadas) | ✅ funcional (€1.82-€107) |
+| Zippy | 59 | 90% | 100% | click-subcats (2 passadas) | ✅ funcional (€0.87-€40) |
 
-**TOTAL non-grocery: 889 produtos** (5 lojas Bora todas operacionais).
+**TOTAL non-grocery: 938 produtos** (5 lojas Bora todas operacionais).

@@ -1557,6 +1557,8 @@ class _BottomPanelState extends State<_BottomPanel> {
                             builder: (_) => ChatScreen(
                               order: focusOrder,
                               senderType: ChatSenderType.driver,
+                              conversationType: resolveConversationType(
+                                  ChatSenderType.driver, focusOrder.status, null),
                             ),
                           ),
                         ),

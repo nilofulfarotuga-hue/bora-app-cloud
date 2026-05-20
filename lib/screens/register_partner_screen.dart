@@ -19,12 +19,10 @@ import '../widgets/bora/bora_primary_button.dart';
 import '../widgets/terms_link_text.dart';
 import 'partner_login_screen.dart';
 
-/// BUG 7: partner photo is optional during registration. When the field is
-/// left blank, save with this Bora-branded placeholder URL (green+orange
-/// shopping-bag SVG hosted on the project assets bucket). Partner can update
-/// the photo at any time from the partner profile screen.
-const String _kPartnerPlaceholderPhoto =
-    'https://ojykpzwqrtusfeakzrna.supabase.co/storage/v1/object/public/branding/partner-placeholder.png';
+/// BUG 7: partner photo is optional during registration. When left blank,
+/// save empty string so the app shows a local placeholder widget instead of
+/// fetching a remote URL. Partner can update the photo at any time.
+const String _kPartnerPlaceholderPhoto = '';
 
 class RegisterPartnerScreen extends StatefulWidget {
   const RegisterPartnerScreen({super.key});

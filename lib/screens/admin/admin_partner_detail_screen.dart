@@ -150,6 +150,7 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
     }
     setState(() => _uploadingHero = true);
     try {
+      try { await Supabase.instance.client.auth.refreshSession(); } catch (_) {}
       final userId = Supabase.instance.client.auth.currentUser?.id ?? '';
       final path = '$userId/hero/${widget.restaurantId}.$ext';
       await Supabase.instance.client.storage
@@ -259,6 +260,7 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
     }
     setState(() => _uploadingLogo = true);
     try {
+      try { await Supabase.instance.client.auth.refreshSession(); } catch (_) {}
       final userId = Supabase.instance.client.auth.currentUser?.id ?? '';
       final path = '$userId/logo/${widget.restaurantId}.$ext';
       await Supabase.instance.client.storage

@@ -67,7 +67,10 @@ android {
         create("release") {
             val storeFileName = keystoreProperties["storeFile"] as String?
             if (storeFileName != null) {
-                storeFile = file(storeFileName)
+                // Resolve relativo ao rootProject (android/) — key.properties usa
+                // "app/release.keystore" para apontar para android/app/release.keystore.
+                // file() resolveria relativo ao módulo :app (android/app/), duplicando "app/".
+                storeFile = rootProject.file(storeFileName)
             }
             storePassword = keystoreProperties["storePassword"] as String?
             keyAlias = keystoreProperties["keyAlias"] as String?

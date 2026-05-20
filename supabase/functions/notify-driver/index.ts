@@ -95,6 +95,26 @@ Deno.serve(async (req) => {
 
   console.log(`[notify-driver] Sending push to driver=${driverId} (${driver.name}) order=${orderId}`)
 
+  // ── Fetch order distance_km for the offer card ────────────────────────────
+  // Sessão 2026-05-20 — sem distância, o estafeta não decide sem abrir o app.
+  // Fonte: orders.distance_km (FLOAT8 NOT NULL DEFAULT 0). Fallback '0' se row
+  // já foi limpa ou DEFAULT nunca foi sobreposto pela criação do pedido.
+  let distanceKm = '0'
+  try {
+    const { data: order } = await supabase
+      .from('orders')
+      .select('distance_km')
+      .eq('id', orderId)
+      .maybeSingle()
+    const km = Number(order?.distance_km ?? 0)
+    if (Number.isFinite(km) && km > 0) {
+      distanceKm = km.toFixed(1)
+    }
+  } catch (e) {
+    console.warn('[notify-driver] failed to fetch distance_km:', e)
+    // Mantém fallback '0' — não bloqueia o push.
+  }
+
   // ── Obtain Firebase OAuth2 access token ───────────────────────────────────
   let accessToken: string
   try {
@@ -126,8 +146,11 @@ Deno.serve(async (req) => {
         type:       'new_order_offer',
         vendorName: vendorName,
         total:      total.toFixed(2),
+        distanceKm: distanceKm,
         title:      '🔔 Novo pedido!',
-        body:       `${vendorName} • €${total.toFixed(2)}`,
+        body:       distanceKm !== '0'
+          ? `${vendorName} • €${total.toFixed(2)} • ${distanceKm}km`
+          : `${vendorName} • €${total.toFixed(2)}`,
       },
       android: {
         priority: 'high',

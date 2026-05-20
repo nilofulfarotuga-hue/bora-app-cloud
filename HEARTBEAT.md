@@ -1,5 +1,15 @@
 # HEARTBEAT
 
+## 2026-05-20 11:00 UTC — Desbloqueio CDP parcial
+
+- ✅ CDP funcionou (Chrome real session + Glovo address pré-confirmado)
+- ✅ Worten: 3 produtos · Kiwoko: 36 produtos · primeira leva inserida
+- ⚠ Leroy / Zippy: 200+ API calls feitas mas intercept walker retorna 0 produtos
+  (JSON schema diferente — Worten/Leroy/Zippy não usam `{name, price}` em sub-objects)
+- Total non-grocery actual: **Wells 476 + Worten 3 + Kiwoko 36 = 515 produtos**
+- Próximo: debug walker (dump responses JSON crú) para Worten/Leroy/Zippy
+- URLs canónicas Glovo: `https://glovoapp.com/pt/pt/guarda/stores/<slug>` (com `/stores/`)
+
 ## 2026-05-20 08:00 UTC — Worten/Leroy/Kiwoko/Zippy BLOQUEADAS
 
 - 4 lojas Glovo Guarda confirmadas (slugs reais: worten-vivaci-guarda-grd, leroy-merlin-grd, kiwoko-grd, zippy-grd)

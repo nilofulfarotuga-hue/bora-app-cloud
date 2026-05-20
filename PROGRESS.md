@@ -56,7 +56,7 @@
 | Loja | Produtos | Com foto | Com preço | Cobertura vs Glovo | Status |
 |---|---:|---:|---:|---:|---|
 | Wells | 476 | 100% | 100% | parcial vs Glovo | ✅ funcional |
-| Worten | 0 | — | — | — | ⚠️ Glovo address-gated, ver STATUS |
-| Leroy Merlin | 0 | — | — | — | ⚠️ Glovo address-gated, ver STATUS |
-| Kiwoko | 0 | — | — | — | ⚠️ Glovo address-gated, ver STATUS |
-| Zippy | 0 | — | — | — | ⚠️ Glovo address-gated, ver STATUS |
+| Worten | 3 | 100% | 100% | CDP first-run | ⚠️ poucos — intercept walker precisa fix |
+| Leroy Merlin | 0 | — | — | — | ⚠️ intercept retorna 0 (JSON format diferente) |
+| Kiwoko | 36 | 100% | 100% | CDP first-run | ✅ funcional (catálogo pequeno) |
+| Zippy | 0 | — | — | — | ⚠️ intercept retorna 0 (mesmo problema) |

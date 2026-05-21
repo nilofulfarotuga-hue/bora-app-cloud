@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -201,22 +202,36 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
     );
   }
 
+  /// Sessão 2026-05-21 — upload via Edge Function `upload-driver-document`
+  /// (service_role bypassa RLS). Devolve a signed URL pronta a guardar nas
+  /// colunas registration_selfie_url / document_photo_url / vehicle_photo_url.
+  /// Antes era uploadBinary directo → 403 quando o JWT do estafeta estava
+  /// stale ou quando o driver ainda não tinha row em `drivers`.
+  ///
+  /// [userId] ignorado — Edge Function usa auth.uid() server-side.
+  /// [tag] deve ser 'selfie' | 'document' | 'vehicle' (mapeia 1:1 ao
+  /// parâmetro `kind` do endpoint).
   Future<String?> _uploadPhoto(XFile file, String userId, String tag) async {
     final bytes = await file.readAsBytes();
     final ext = file.path.contains('.')
         ? file.path.split('.').last.toLowerCase()
         : 'jpg';
-    final path = '$userId/$tag.$ext';
-    final storage = Supabase.instance.client.storage;
-    await storage.from('driver-documents').uploadBinary(
-          path,
-          bytes,
-          fileOptions: const FileOptions(upsert: true),
-        );
-    return storage.from('driver-documents').createSignedUrl(
-          path,
-          60 * 60 * 24 * 365, // 1 year
-        );
+    final response = await Supabase.instance.client.functions.invoke(
+      'upload-driver-document',
+      body: {
+        'kind': tag,
+        'fileBase64': base64Encode(bytes),
+        'contentType': 'image/$ext',
+      },
+    );
+    if (response.status != 200 || response.data is! Map) {
+      throw Exception('upload-driver-document HTTP ${response.status}: ${response.data}');
+    }
+    final data = Map<String, dynamic>.from(response.data as Map);
+    if (data['success'] != true) {
+      throw Exception('Upload falhou: ${data['error'] ?? 'unknown'}');
+    }
+    return data['signed_url'] as String?;
   }
 
   Future<void> _submit() async {

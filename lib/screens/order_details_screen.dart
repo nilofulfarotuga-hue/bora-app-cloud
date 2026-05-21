@@ -276,7 +276,9 @@ class _CancelOrderButton extends StatelessWidget {
   /// Cents do reembolso esperado por tier.
   /// before_dispatch=€1 fee, after_accept=€2.50 fee, after_pickup=100% fee.
   double _refundableEur() {
-    final total = order.total + order.bagFee;
+    // finalTotal é autoritativo da DB e já inclui bag_fee para storeShopping.
+    // Somar bagFee ao total duplicava o saco (bug 2026-05-22).
+    final total = order.finalTotal ?? order.total;
     switch (order.status) {
       case OrderStatus.created:
       case OrderStatus.preparing:
@@ -300,7 +302,7 @@ class _CancelOrderButton extends StatelessWidget {
   /// Cents da taxa de cancelamento (total - refundable). Para cash o cliente
   /// não pagou nada à frente — esta taxa é debitada à wallet (saldo devedor).
   double _cancelFeeEur() {
-    final total = order.total + order.bagFee;
+    final total = order.finalTotal ?? order.total;
     return (total - _refundableEur()).clamp(0, double.infinity);
   }
 
@@ -690,7 +692,8 @@ class _OrderInfoCard extends StatelessWidget {
           _Row(label: 'Serviço', value: order.serviceType.label),
           _Row(
               label: 'Total',
-              value: '€${(order.total + order.bagFee).toStringAsFixed(2)}',
+              value:
+                  '€${(order.finalTotal ?? order.total).toStringAsFixed(2)}',
               bold: true),
           _Row(
               label: 'Taxa de entrega',

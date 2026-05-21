@@ -28,9 +28,9 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
   bool get _isMultiSelectMode => _selectedIds.isNotEmpty;
 
   static const _columns =
-      'id, name, phone, email, vehicle_type, photo_url, document_type, '
-      'document_number, document_photo_url, vehicle_photo_url, iban, '
-      'approval_status, rejection_reason, created_at';
+      'id, name, phone, email, vehicle_type, license_plate, photo_url, '
+      'document_type, document_number, document_photo_url, vehicle_photo_url, '
+      'iban, approval_status, rejection_reason, created_at';
 
   @override
   void initState() {
@@ -142,7 +142,10 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
 
   List<String> _missingDocs(Map<String, dynamic> driver) {
     final missing = <String>[];
-    final photo = driver['photo_url'] as String?;
+    // Aceita photo_url OU registration_selfie_url (novo fluxo: foto fica em
+    // registration_selfie_url até aprovação; só copia para photo_url ao aprovar).
+    final photo = (driver['photo_url'] as String?) ??
+        (driver['registration_selfie_url'] as String?);
     if (photo == null || photo.isEmpty) missing.add('Foto pessoal');
     final docPhoto = driver['document_photo_url'] as String?;
     if (docPhoto == null || docPhoto.isEmpty) {
@@ -155,6 +158,12 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
     if (vt != 'bicycle' && (vPhoto == null || vPhoto.isEmpty)) {
       missing.add('Foto do veículo');
     }
+    if (vt != 'bicycle') {
+      final plate = driver['license_plate'] as String?;
+      if (plate == null || plate.isEmpty) missing.add('Matrícula');
+    }
+    final iban = driver['iban'] as String?;
+    if (iban == null || iban.isEmpty) missing.add('IBAN');
     return missing;
   }
 
@@ -669,7 +678,9 @@ class _DriverDetailSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final photoUrl = driver['photo_url'] as String?;
+    // Pending: foto ainda está em registration_selfie_url. Aprovados: photo_url.
+    final photoUrl = (driver['photo_url'] as String?) ??
+        (driver['registration_selfie_url'] as String?);
     final docPhotoUrl = driver['document_photo_url'] as String?;
     final vehiclePhotoUrl = driver['vehicle_photo_url'] as String?;
     final rejectionReason = driver['rejection_reason'] as String?;
@@ -731,6 +742,11 @@ class _DriverDetailSheet extends StatelessWidget {
               label: 'Nº documento',
               value: driver['document_number'] as String?),
           _InfoRow(label: 'Veículo', value: driver['vehicle_type'] as String?),
+          _InfoRow(
+              label: 'Matrícula',
+              value: (driver['license_plate'] as String?)?.isEmpty == false
+                  ? driver['license_plate'] as String
+                  : null),
           _InfoRow(label: 'IBAN', value: driver['iban'] as String?),
           if (rejectionReason != null && rejectionReason.isNotEmpty) ...[
             const SizedBox(height: 8),

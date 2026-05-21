@@ -194,6 +194,11 @@ class _PartnerEarningsScreenState extends State<PartnerEarningsScreen> {
               ),
               const SizedBox(height: Spacing.xl),
             ],
+            // 2026-05-21 — A6: Top produtos vendidos + horário de pico.
+            _TopProductsSection(orders: periodOrders),
+            const SizedBox(height: Spacing.xl),
+            _PeakHoursSection(orders: periodOrders),
+            const SizedBox(height: Spacing.xl),
             Row(
               children: [
                 const Icon(Icons.receipt_long_outlined,
@@ -726,6 +731,232 @@ class _Row extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// 2026-05-21 — A6: Top 5 produtos mais vendidos no período.
+// Agrega CartItem.name (case-insensitive) por quantidade somada.
+class _TopProductsSection extends StatelessWidget {
+  const _TopProductsSection({required this.orders});
+
+  final List<OrderModel> orders;
+
+  List<MapEntry<String, int>> _aggregate() {
+    final tally = <String, int>{};
+    final displayName = <String, String>{};
+    for (final o in orders) {
+      for (final item in o.items) {
+        final key = item.name.trim().toLowerCase();
+        if (key.isEmpty) continue;
+        tally[key] = (tally[key] ?? 0) + item.quantity;
+        displayName.putIfAbsent(key, () => item.name.trim());
+      }
+    }
+    final entries = tally.entries
+        .map((e) => MapEntry(displayName[e.key] ?? e.key, e.value))
+        .toList();
+    entries.sort((a, b) => b.value.compareTo(a.value));
+    return entries.take(5).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final top = _aggregate();
+    return Container(
+      padding: const EdgeInsets.all(Spacing.lg),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: const [
+              Icon(Icons.trending_up, size: 20, color: AppColors.textPrimary),
+              SizedBox(width: 8),
+              Text(
+                'Produtos mais vendidos',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: Spacing.md),
+          if (top.isEmpty)
+            const Text(
+              'Sem vendas neste período.',
+              style: TextStyle(color: AppColors.textSecondary),
+            )
+          else
+            ...top.asMap().entries.map((entry) {
+              final idx = entry.key + 1;
+              final name = entry.value.key;
+              final qty = entry.value.value;
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 11,
+                      backgroundColor: idx == 1
+                          ? Colors.amber.shade700
+                          : Colors.grey.shade400,
+                      child: Text(
+                        '$idx',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        name,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      '$qty un.',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+        ],
+      ),
+    );
+  }
+}
+
+// 2026-05-21 — A6: Horário de pico — pedidos por hora do dia (0–23).
+class _PeakHoursSection extends StatelessWidget {
+  const _PeakHoursSection({required this.orders});
+
+  final List<OrderModel> orders;
+
+  List<int> _hourlyCounts() {
+    final counts = List<int>.filled(24, 0);
+    for (final o in orders) {
+      final h = o.createdAt.toLocal().hour;
+      counts[h] += 1;
+    }
+    return counts;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final counts = _hourlyCounts();
+    final maxCount = counts.fold<int>(0, (a, b) => b > a ? b : a);
+    final peakHour =
+        counts.indexOf(maxCount).clamp(0, 23);
+
+    return Container(
+      padding: const EdgeInsets.all(Spacing.lg),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: const [
+              Icon(Icons.access_time, size: 20, color: AppColors.textPrimary),
+              SizedBox(width: 8),
+              Text(
+                'Horário de pico',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            maxCount == 0
+                ? 'Sem pedidos neste período.'
+                : 'Hora mais movimentada: ${peakHour.toString().padLeft(2, '0')}:00 — $maxCount pedido${maxCount == 1 ? '' : 's'}',
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: Spacing.md),
+          SizedBox(
+            height: 90,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: List.generate(24, (h) {
+                final c = counts[h];
+                final ratio = maxCount == 0 ? 0.0 : c / maxCount;
+                final isPeak = c == maxCount && c > 0;
+                return Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 1),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Container(
+                          height: (60 * ratio).clamp(2.0, 60.0),
+                          decoration: BoxDecoration(
+                            color: isPeak
+                                ? Colors.orange.shade700
+                                : Colors.green.shade600.withValues(alpha: 0.6),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        if (h % 4 == 0)
+                          Text(
+                            '${h.toString().padLeft(2, '0')}h',
+                            style: const TextStyle(
+                              fontSize: 9,
+                              color: AppColors.textSecondary,
+                            ),
+                          )
+                        else
+                          const SizedBox(height: 9),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

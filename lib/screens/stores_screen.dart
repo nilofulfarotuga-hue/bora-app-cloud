@@ -190,6 +190,18 @@ class StoresScreen extends StatelessWidget {
   }
 
   Future<void> _openStore(BuildContext context, _StoreEntry entry) async {
+    // 2026-05-21 — fecho automático fora do horário.
+    // Parceiros com business_hours configurado: bloqueia entrada.
+    // Não-parceiros sem horário: isOpenNow() retorna true (default).
+    if (!entry.business.isOpenNow()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(entry.business.statusLabel()),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
     // BUG #6 (2026-05-13) — se há carrinho activo de OUTRA loja, pedir
     // confirmação antes de descartar.  configureSession() ainda tem o
     // silent-clear como defesa em profundidade.

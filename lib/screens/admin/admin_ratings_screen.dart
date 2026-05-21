@@ -24,6 +24,10 @@ class _AdminRatingsScreenState extends State<AdminRatingsScreen> {
   bool _onlyPrivate = false;
   final _searchController = TextEditingController();
 
+  // 2026-05-21 — cache nome para evitar mostrar IDs crus.
+  // chave: 'partner:<id>' | 'driver:<id>' | 'rater:<order_id>'
+  final Map<String, String> _names = {};
+
   @override
   void initState() {
     super.initState();
@@ -37,6 +41,7 @@ class _AdminRatingsScreenState extends State<AdminRatingsScreen> {
   }
 
   Future<List<Map<String, dynamic>>> _load() async {
+    List<Map<String, dynamic>> list;
     try {
       final res = await Supabase.instance.client.rpc(
         'admin_list_ratings',
@@ -52,15 +57,113 @@ class _AdminRatingsScreenState extends State<AdminRatingsScreen> {
           'p_offset': 0,
         },
       );
-      return (res as List).cast<Map<String, dynamic>>();
+      list = (res as List).cast<Map<String, dynamic>>();
     } catch (_) {
       final rows = await Supabase.instance.client
           .from('ratings')
           .select()
           .order('created_at', ascending: false)
           .limit(200);
-      return (rows as List).cast<Map<String, dynamic>>();
+      list = (rows as List).cast<Map<String, dynamic>>();
     }
+    await _enrichNames(list);
+    return list;
+  }
+
+  // 2026-05-21 — resolve subject_id e rater_user_id em nomes legíveis.
+  // partner → restaurants.name · driver → drivers.name
+  // rater (cliente) → orders.customer_name via order_id (auth.users não é
+  // queryable directo do client).
+  Future<void> _enrichNames(List<Map<String, dynamic>> ratings) async {
+    final partnerIds = <String>{};
+    final driverIds = <String>{};
+    final orderIds = <String>{};
+    for (final r in ratings) {
+      final st = r['subject_type']?.toString();
+      final sid = r['subject_id']?.toString();
+      final oid = r['order_id']?.toString();
+      if (sid != null && sid.isNotEmpty) {
+        if (st == 'partner' && !_names.containsKey('partner:$sid')) {
+          partnerIds.add(sid);
+        } else if (st == 'driver' && !_names.containsKey('driver:$sid')) {
+          driverIds.add(sid);
+        }
+      }
+      if (oid != null && oid.isNotEmpty && !_names.containsKey('rater:$oid')) {
+        orderIds.add(oid);
+      }
+    }
+    final futures = <Future<void>>[];
+    if (partnerIds.isNotEmpty) {
+      futures.add(() async {
+        try {
+          final rows = await Supabase.instance.client
+              .from('restaurants')
+              .select('id, name')
+              .inFilter('id', partnerIds.toList());
+          for (final row in (rows as List)) {
+            final id = row['id']?.toString();
+            final name = row['name']?.toString();
+            if (id != null && name != null && name.isNotEmpty) {
+              _names['partner:$id'] = name;
+            }
+          }
+        } catch (_) {/* silent */}
+      }());
+    }
+    if (driverIds.isNotEmpty) {
+      futures.add(() async {
+        try {
+          final rows = await Supabase.instance.client
+              .from('drivers')
+              .select('id, name')
+              .inFilter('id', driverIds.toList());
+          for (final row in (rows as List)) {
+            final id = row['id']?.toString();
+            final name = row['name']?.toString();
+            if (id != null && name != null && name.isNotEmpty) {
+              _names['driver:$id'] = name;
+            }
+          }
+        } catch (_) {/* silent */}
+      }());
+    }
+    if (orderIds.isNotEmpty) {
+      futures.add(() async {
+        try {
+          final rows = await Supabase.instance.client
+              .from('orders')
+              .select('id, customer_name')
+              .inFilter('id', orderIds.toList());
+          for (final row in (rows as List)) {
+            final id = row['id']?.toString();
+            final name = row['customer_name']?.toString();
+            if (id != null && name != null && name.isNotEmpty) {
+              _names['rater:$id'] = name;
+            }
+          }
+        } catch (_) {/* silent */}
+      }());
+    }
+    await Future.wait(futures);
+  }
+
+  String _subjectDisplay(Map<String, dynamic> r) {
+    final st = r['subject_type']?.toString();
+    final sid = r['subject_id']?.toString() ?? '';
+    final cached = _names['$st:$sid'];
+    if (cached != null && cached.isNotEmpty) return cached;
+    if (sid.isEmpty) return '?';
+    return sid.length > 8 ? '#${sid.substring(0, 8)}' : sid;
+  }
+
+  String _raterDisplay(Map<String, dynamic> r) {
+    final oid = r['order_id']?.toString() ?? '';
+    final cached = _names['rater:$oid'];
+    if (cached != null && cached.isNotEmpty) return cached;
+    final rid = r['rater_user_id']?.toString() ?? '';
+    if (rid.isEmpty) return '?';
+    return rid.length > 8 ? '#${rid.substring(0, 8)}' : rid;
   }
 
   Future<void> _refresh() async {
@@ -90,7 +193,7 @@ class _AdminRatingsScreenState extends State<AdminRatingsScreen> {
                         .map((r) => ListTile(
                               dense: true,
                               title: Text(
-                                  '${r['subject_type']} · ${r['subject_id']}'),
+                                  '${_subjectLabel(r['subject_type'] as String?)} · ${_subjectDisplay(r)}'),
                               subtitle: Text(
                                   'média ${r['avg_stars']} · ${r['rating_count']} avaliações'),
                               trailing: const Icon(Icons.warning,
@@ -186,9 +289,8 @@ class _AdminRatingsScreenState extends State<AdminRatingsScreen> {
               children: [
                 _kv('ID', rating['id']?.toString() ?? '?'),
                 _kv('Sujeito',
-                    '${_subjectLabel(rating['subject_type'] as String?)} · ${rating['subject_id'] ?? '?'}'),
-                _kv('Avaliador (uid)',
-                    rating['rater_user_id']?.toString() ?? '?'),
+                    '${_subjectLabel(rating['subject_type'] as String?)} · ${_subjectDisplay(rating)}'),
+                _kv('Avaliador', _raterDisplay(rating)),
                 _kv('Pedido', rating['order_id']?.toString() ?? '—'),
                 _kv('Data', rating['created_at']?.toString() ?? '—'),
                 _kv('Privada', isPrivate ? 'Sim' : 'Não'),
@@ -471,16 +573,18 @@ class _AdminRatingsScreenState extends State<AdminRatingsScreen> {
                                 }),
                               ),
                               const SizedBox(width: 6),
-                              Chip(
-                                label: Text(
-                                  _subjectLabel(
-                                      r['subject_type'] as String?),
-                                  style: const TextStyle(fontSize: 10),
+                              Flexible(
+                                child: Chip(
+                                  label: Text(
+                                    '${_subjectLabel(r['subject_type'] as String?)}: ${_subjectDisplay(r)}',
+                                    style: const TextStyle(fontSize: 10),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  materialTapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                  padding: EdgeInsets.zero,
+                                  visualDensity: VisualDensity.compact,
                                 ),
-                                materialTapTargetSize:
-                                    MaterialTapTargetSize.shrinkWrap,
-                                padding: EdgeInsets.zero,
-                                visualDensity: VisualDensity.compact,
                               ),
                               if (isPrivate) ...[
                                 const SizedBox(width: 4),
@@ -497,6 +601,16 @@ class _AdminRatingsScreenState extends State<AdminRatingsScreen> {
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Text(
+                                  'por ${_raterDisplay(r)}',
+                                  style: const TextStyle(
+                                      fontSize: 11,
+                                      fontStyle: FontStyle.italic,
+                                      color: Colors.black54),
+                                ),
+                              ),
                               if (comment.isNotEmpty)
                                 Padding(
                                   padding: const EdgeInsets.only(top: 4),

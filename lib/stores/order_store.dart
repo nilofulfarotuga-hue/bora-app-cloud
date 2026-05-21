@@ -17,6 +17,7 @@ import '../models/restaurant_model.dart';
 import '../services/distance_service.dart';
 import '../services/maps_service.dart';
 import '../services/notification_service.dart';
+import '../services/offline_status_queue.dart';
 import '../services/payment_service.dart';
 import '../services/pricing_service.dart';
 import 'driver_store.dart';
@@ -1153,8 +1154,17 @@ class OrderStore extends ChangeNotifier {
 
     if (!success) {
       debugPrint('[FLOW] _advanceStatus: DB UPDATE FAILED');
+      // 2026-05-21 — A8: enfileira transição do estafeta para retry quando
+      // rede voltar. OfflineStatusQueue filtra apenas pickedUp/onTheWay/delivered.
+      unawaited(OfflineStatusQueue.enqueue(
+        orderId: order.id,
+        targetStatusName: targetStatus.name,
+      ));
       return false;
     }
+
+    // 2026-05-21 — A8: rede voltou → drena fila pendente sem aguardar.
+    unawaited(_drainOfflineStatusQueue());
 
     order.status = targetStatus;
     notifyListeners();
@@ -1175,6 +1185,59 @@ class OrderStore extends ChangeNotifier {
       unawaited(_invokeDispatch(order.id));
     }
     return true;
+  }
+
+  // 2026-05-21 — A8: drena fila offline de transições do estafeta.
+  // Chamado após uma transição bem-sucedida (indicador de rede OK).
+  Future<void> _drainOfflineStatusQueue() async {
+    try {
+      final pending = await OfflineStatusQueue.peek();
+      if (pending.isEmpty) return;
+      debugPrint('[OfflineQueue] draining ${pending.length} pending');
+      for (final entry in pending) {
+        OrderModel? order;
+        for (final o in _orders) {
+          if (o.id == entry.orderId) {
+            order = o;
+            break;
+          }
+        }
+        if (order == null) {
+          // Ordem já não está em memória — descarta (não bloqueia fila).
+          await OfflineStatusQueue.remove(
+            orderId: entry.orderId,
+            targetStatusName: entry.targetStatusName,
+          );
+          continue;
+        }
+        final target = OrderStatus.values.firstWhere(
+          (s) => s.name == entry.targetStatusName,
+          orElse: () => OrderStatus.created,
+        );
+        if (target == order.status) {
+          // Já foi para esse estado (provavelmente via realtime) — limpa.
+          await OfflineStatusQueue.remove(
+            orderId: entry.orderId,
+            targetStatusName: entry.targetStatusName,
+          );
+          continue;
+        }
+        final ok = await _updateOrderStatusInDatabase(order, target);
+        if (ok) {
+          order.status = target;
+          notifyListeners();
+          await OfflineStatusQueue.remove(
+            orderId: entry.orderId,
+            targetStatusName: entry.targetStatusName,
+          );
+        } else {
+          // Ainda offline — pára aqui, mantém fila.
+          break;
+        }
+      }
+    } catch (e) {
+      debugPrint('[OfflineQueue] drain error: $e');
+    }
   }
 
   /// Fire-and-forget: sends a status-specific push to the client.
@@ -2167,6 +2230,8 @@ class OrderStore extends ChangeNotifier {
     }
     debugPrint(
         '[OrderStore] general subscription started (isClient=$isClient uid=${uid ?? "n/a"})');
+    // 2026-05-21 — A8: ao (re)subscrever stream a rede está OK → drena fila offline.
+    unawaited(_drainOfflineStatusQueue());
     _ordersSubscription = (isClient
             ? supabase
                 .from('orders')

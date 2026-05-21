@@ -160,6 +160,10 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
       /// Upload logo se o utilizador tirou/escolheu foto
       if (_logoFile != null) {
         try {
+          // Sessão 2026-05-21 — refreshSession antes do upload para evitar
+          // 403 com JWT stale (mesmo padrão que register_client_screen
+          // linha 381 e admin_partner_detail_screen linhas 153/267).
+          try { await Supabase.instance.client.auth.refreshSession(); } catch (_) {}
           final bytes = await _logoFile!.readAsBytes();
           final ext = _logoFile!.path.contains('.')
               ? _logoFile!.path.split('.').last.toLowerCase()

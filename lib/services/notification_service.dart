@@ -7,6 +7,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+// Alias para evitar colisão de `NotificationVisibility` com flutter_local_notifications.
+import 'package:flutter_overlay_window/flutter_overlay_window.dart' as fow;
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -115,6 +117,50 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     details,
     payload: jsonEncode(data),
   );
+
+  // Sessão 2026-05-21 — Overlay system_alert_window por cima de outras apps.
+  // Estilo Uber/Glovo: o estafeta vê o card mesmo se estiver noutra app.
+  // Som contínuo + vibração ficam na local notification acima (que toca em
+  // paralelo). Aqui é apenas a UI visual com botões aceitar/rejeitar.
+  try {
+    final granted = await fow.FlutterOverlayWindow.isPermissionGranted();
+    if (!granted) return;
+    final alreadyActive = await fow.FlutterOverlayWindow.isActive();
+    if (alreadyActive) {
+      // Já há um overlay aberto (oferta anterior em andamento) — apenas
+      // actualiza os dados em vez de duplicar.
+      await fow.FlutterOverlayWindow.shareData(<String, dynamic>{
+        'orderId': orderId,
+        'vendorName': data['vendorName'],
+        'total': data['total'],
+        'distanceKm': data['distanceKm'],
+        'driverEarnings': data['driverEarnings'],
+      });
+      return;
+    }
+    await fow.FlutterOverlayWindow.showOverlay(
+      enableDrag: false,
+      overlayTitle: 'Novo pedido!',
+      overlayContent: (data['vendorName'] ?? 'Pedido').toString(),
+      flag: fow.OverlayFlag.defaultFlag,
+      visibility: fow.NotificationVisibility.visibilityPublic,
+      positionGravity: fow.PositionGravity.auto,
+      height: 420,
+      width: fow.WindowSize.matchParent,
+    );
+    // Pequeno delay para garantir que o isolate da overlay arrancou + se
+    // subscreveu ao stream antes de enviarmos os dados.
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    await fow.FlutterOverlayWindow.shareData(<String, dynamic>{
+      'orderId': orderId,
+      'vendorName': data['vendorName'],
+      'total': data['total'],
+      'distanceKm': data['distanceKm'],
+      'driverEarnings': data['driverEarnings'],
+    });
+  } catch (e) {
+    debugPrint('[NotificationService BG] overlay show error: $e');
+  }
 }
 
 /// Cancela a notificação persistente de uma oferta quando:
@@ -288,8 +334,49 @@ class NotificationService {
           '[NotificationService initial] ${initial.notification?.title}');
     }
 
+    // Sessão 2026-05-21 — overlay system_alert_window: o isolate da overlay
+    // envia `{action: accept|reject|expired, orderId: ...}` quando o estafeta
+    // decide. O som contínuo + ofertas reais são tratados pela local
+    // notification + realtime channel; aqui apenas logamos a decisão.
+    fow.FlutterOverlayWindow.overlayListener.listen((dynamic d) {
+      if (d is! Map) return;
+      final action = d['action']?.toString();
+      final orderId = d['orderId']?.toString();
+      if (action == null) return;
+      debugPrint(
+          '[NotificationService] overlay action=$action order=$orderId');
+    });
+
     _initialized = true;
     debugPrint('[NotificationService] initialized.');
+  }
+
+  // ── Overlay (system_alert_window) helpers ─────────────────────────────────
+
+  /// Sessão 2026-05-21 — pede permissão ao Android para desenhar por cima de
+  /// outras apps. Idempotente: devolve true se já estiver garantida. Quando
+  /// abre o picker do sistema, devolve o estado actual sem esperar pelo
+  /// resultado (o utilizador pode cancelar — chama de novo da próxima vez).
+  Future<bool> ensureOverlayPermission() async {
+    if (kIsWeb) return false;
+    try {
+      final granted = await fow.FlutterOverlayWindow.isPermissionGranted();
+      if (granted) return true;
+      await fow.FlutterOverlayWindow.requestPermission();
+      return await fow.FlutterOverlayWindow.isPermissionGranted();
+    } catch (e) {
+      debugPrint('[NotificationService] ensureOverlayPermission error: $e');
+      return false;
+    }
+  }
+
+  /// Fecha o overlay activo (estafeta abriu o app e está a tratar da oferta
+  /// pelo card normal, ou backend revogou a oferta). Idempotente.
+  Future<void> closeOverlayIfActive() async {
+    try {
+      final active = await fow.FlutterOverlayWindow.isActive();
+      if (active) await fow.FlutterOverlayWindow.closeOverlay();
+    } catch (_) {/* silent */}
   }
 
   // ── Token persistence ─────────────────────────────────────────────────────

@@ -12,6 +12,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'services/floating_bubble_service.dart';
 import 'services/foreground_service.dart';
 import 'services/notification_service.dart';
+// Sessão 2026-05-21 — overlay system_alert_window. O import garante que o
+// `@pragma('vm:entry-point') void overlayMain()` ali declarado fica vivo no
+// build e o flutter_overlay_window consegue arrancar o isolate da overlay
+// quando NotificationService dispara showOverlay() em background.
+// ignore: unused_import
+import 'widgets/driver_order_overlay.dart';
 import 'auth/auth_store.dart';
 import 'dispatch/dispatch_engine.dart';
 import 'screens/admin/admin_crosstalk_screen.dart';

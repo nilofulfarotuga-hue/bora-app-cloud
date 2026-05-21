@@ -68,6 +68,14 @@ dependencies:
   # ao foreground built-in. v1.0.5 publicado Dez/2025, minSdk 21 (compatível).
   floating_bubble_overlay: ^1.0.5
 
+  # SYSTEM ALERT OVERLAY (Sessão 2026-05-21) — janela sobreposta com card de
+  # oferta de pedido novo por cima de qualquer outra app (estilo Uber/Glovo).
+  # Resolve: quando estafeta está com app em background, FCM dispara local
+  # notification (som/vibração) MAS o card visual fica escondido até abrir o
+  # Bora. flutter_overlay_window mostra um Material widget acima de outras
+  # apps. Android-only (iOS não suporta system overlays).
+  flutter_overlay_window: ^0.4.5
+
 
 
 

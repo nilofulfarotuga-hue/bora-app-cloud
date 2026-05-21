@@ -105,6 +105,15 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
         PushTokenService.registerForRole('driver');
       });
 
+      // Sessão 2026-05-21 — system_alert_window: pede permissão ao Android
+      // para o overlay de novo pedido (estilo Uber/Glovo) aparecer por cima
+      // de outras apps. Idempotente — se já estiver concedida, é no-op.
+      // Não bloqueia o resto da inicialização.
+      Future<void>.delayed(const Duration(seconds: 2), () async {
+        if (!mounted) return;
+        await _maybeRequestOverlayPermission();
+      });
+
       // FASE 1: arranca heartbeat se driver já está online (re-abertura
       // do app, restore session). Toggle handlers tratam transições.
       Future<void>.delayed(const Duration(milliseconds: 500), () {
@@ -155,6 +164,54 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
     // a chegar ao Supabase. Parar aqui causava mark-stale-drivers-offline
     // (>90s sem ping) → estafeta ficava offline em background e perdia ofertas.
     // Stop legítimo só via toggle Offline, logout ou dispose() do screen.
+  }
+
+  /// Sessão 2026-05-21 — solicita permissão SYSTEM_ALERT_WINDOW para o
+  /// overlay de novo pedido aparecer por cima de outras apps (estilo
+  /// Uber/Glovo). Mostra dialog explicativo antes de abrir o picker do
+  /// Android (que sai da app por uns segundos). Idempotente: se já estiver
+  /// concedida, é no-op silencioso.
+  bool _overlayPromptShown = false;
+  Future<void> _maybeRequestOverlayPermission() async {
+    if (_overlayPromptShown) return;
+    final svc = NotificationService.instance;
+    // Optimistic check primeiro — se já estiver concedida, não chateia.
+    try {
+      final already = await svc.ensureOverlayPermission();
+      if (already) {
+        _overlayPromptShown = true;
+        return;
+      }
+    } catch (_) {/* segue para dialog */}
+
+    if (!mounted) return;
+    _overlayPromptShown = true;
+    final go = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Mostrar pedidos por cima de outras apps'),
+        content: const Text(
+          'Para receber novos pedidos mesmo quando estás noutra app '
+          '(como o Uber faz), o Bora precisa de permissão para desenhar '
+          'por cima de outras apps.\n\n'
+          'Vais ser levado às definições — activa "Permitir mostrar por '
+          'cima de outras apps".',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Agora não'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Abrir definições'),
+          ),
+        ],
+      ),
+    );
+    if (go != true) return;
+    await svc.ensureOverlayPermission();
   }
 
   /// Calls `driver_effective_status(auth.uid())` and, if the driver is no

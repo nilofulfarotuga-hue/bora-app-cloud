@@ -37,6 +37,9 @@
 <!-- Draw over other apps: necessário para flutter_foreground_task mostrar
      overlay estilo Uber/Glovo por cima de outras apps. -->
 <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
+<!-- Sessão 2026-05-21 — flutter_overlay_window: card de oferta de pedido
+     novo por cima de outras apps. Em Android 14+ requer specialUse FGS. -->
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
 <!-- Camera: profile photo, sendPackage photo, carryGroceries photo (BR §7.5/§7.6), partner product photo -->
 <uses-permission android:name="android.permission.CAMERA"/>
 <!-- Gallery access for partner product photo: Android 13+ uses READ_MEDIA_IMAGES, older uses READ_EXTERNAL_STORAGE -->
@@ -92,6 +95,19 @@
             android:exported="false"
             android:stopWithTask="false"
             android:foregroundServiceType="dataSync"/>
+
+        <!-- flutter_overlay_window — Sessão 2026-05-21. Serviço que desenha o
+             card da oferta por cima de outras apps quando FCM new_order_offer
+             chega com app em background. Android 14+ requer specialUse FGS
+             + property com descrição user-facing. -->
+        <service
+            android:name="flutter.overlay.window.flutter_overlay_window.OverlayService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Mostra card de novo pedido ao estafeta quando o app está em background"/>
+        </service>
 
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

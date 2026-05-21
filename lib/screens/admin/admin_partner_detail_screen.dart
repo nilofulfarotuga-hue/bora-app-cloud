@@ -151,8 +151,12 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
     setState(() => _uploadingHero = true);
     try {
       try { await Supabase.instance.client.auth.refreshSession(); } catch (_) {}
-      final userId = Supabase.instance.client.auth.currentUser?.id ?? '';
-      final path = '$userId/hero/${widget.restaurantId}.$ext';
+      // Sessão 2026-05-21 — path canónico {restaurant_id}/hero.{ext}.
+      // Antes era {adminUid}/hero/{restaurantId}.{ext} → 403 quando a RLS
+      // policy do bucket restaurant-assets exige folder = restaurant_id
+      // (admin não é dono do restaurante mas a policy permite a qualquer
+      // utilizador autenticado escrever em folder = restaurant_id).
+      final path = '${widget.restaurantId}/hero.$ext';
       await Supabase.instance.client.storage
           .from('restaurant-assets')
           .uploadBinary(path, bytes,
@@ -261,8 +265,9 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
     setState(() => _uploadingLogo = true);
     try {
       try { await Supabase.instance.client.auth.refreshSession(); } catch (_) {}
-      final userId = Supabase.instance.client.auth.currentUser?.id ?? '';
-      final path = '$userId/logo/${widget.restaurantId}.$ext';
+      // Sessão 2026-05-21 — path canónico {restaurant_id}/logo.{ext}.
+      // Ver explicação em _uploadHero.
+      final path = '${widget.restaurantId}/logo.$ext';
       await Supabase.instance.client.storage
           .from('restaurant-assets')
           .uploadBinary(path, bytes,

@@ -164,8 +164,11 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
           final ext = _logoFile!.path.contains('.')
               ? _logoFile!.path.split('.').last.toLowerCase()
               : 'jpg';
-          final userId = Supabase.instance.client.auth.currentUser?.id ?? '';
-          final path = '$userId/logo/${restaurant.id}.$ext';
+          // Sessão 2026-05-21 — path canónico {restaurant_id}/logo.{ext}
+          // (consistente com admin_partner_detail_screen). Antes era
+          // {userId}/logo/{restaurant.id}.{ext} e podia colidir com a RLS
+          // do bucket restaurant-assets.
+          final path = '${restaurant.id}/logo.$ext';
           final storage = Supabase.instance.client.storage;
           await storage.from('restaurant-assets').uploadBinary(
                 path,

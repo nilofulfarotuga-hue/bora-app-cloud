@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:connectycube_flutter_call_kit/connectycube_flutter_call_kit.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -118,6 +119,33 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     payload: jsonEncode(data),
   );
 
+  // Sessão 2026-05-21 — Lockscreen CallKit (estilo chamada Uber/Glovo).
+  // Quando o ecrã está bloqueado, flutter_overlay_window não atravessa o
+  // lockscreen. CallKit usa CallActivity nativa (showWhenLocked + turnScreenOn)
+  // que aparece estilo chamada entrante sobre o lockscreen. Aceitar abre o
+  // app; rejeitar dispara onCallRejected → driver_reject_offer RPC.
+  try {
+    final vendorName = (data['vendorName'] ?? 'Pedido novo').toString();
+    final callEvent = CallEvent(
+      sessionId: orderId,
+      callType: 1, // 1 = VIDEO (ecrã maior — mais visibilidade no lockscreen)
+      callerId: 1,
+      callerName: vendorName,
+      opponentsIds: const <int>{1},
+      callPhoto: '',
+      userInfo: <String, String>{
+        'order_id': orderId,
+        'vendor_name': vendorName,
+        'total': (data['total'] ?? '').toString(),
+        'distance_km': (data['distanceKm'] ?? '').toString(),
+        'driver_earnings': (data['driverEarnings'] ?? '').toString(),
+      },
+    );
+    await ConnectycubeFlutterCallKit.showCallNotification(callEvent);
+  } catch (e) {
+    debugPrint('[NotificationService BG] callkit show error: $e');
+  }
+
   // Sessão 2026-05-21 — Overlay system_alert_window por cima de outras apps.
   // Estilo Uber/Glovo: o estafeta vê o card mesmo se estiver noutra app.
   // Som contínuo + vibração ficam na local notification acima (que toca em
@@ -178,6 +206,18 @@ Future<void> cancelDriverOfferNotification(String orderId) async {
   } catch (e) {
     debugPrint('[NotificationService] cancel error: $e');
   }
+  // 2026-05-21 — fecha também o ecrã CallKit (lockscreen) se ainda estiver
+  // aberto. Idempotente: ConnectyCube ignora sessions inexistentes.
+  try {
+    await ConnectycubeFlutterCallKit.reportCallEnded(sessionId: orderId);
+  } catch (e) {
+    debugPrint('[NotificationService] callkit end error: $e');
+  }
+  // Também fecha o overlay system_alert_window (sessão 2026-05-21).
+  try {
+    final active = await fow.FlutterOverlayWindow.isActive();
+    if (active) await fow.FlutterOverlayWindow.closeOverlay();
+  } catch (_) {/* silent */}
 }
 
 /// Wraps Firebase Cloud Messaging for BORA APP.

@@ -1,3 +1,4 @@
+import 'package:connectycube_flutter_call_kit/connectycube_flutter_call_kit.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -57,6 +58,45 @@ const String _supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
 // (refresh do badge contador propostas pendentes).
 final RouteObserver<PageRoute<dynamic>> routeObserver =
     RouteObserver<PageRoute<dynamic>>();
+
+/// Sessão 2026-05-21 — Lockscreen CallKit handlers (top-level functions
+/// para sobreviver ao isolate de background).
+///
+/// onCallAccepted: estafeta tocou ✅ no ecrã de chamada do lockscreen — o
+/// sistema acorda a app e o realtime channel encarrega-se do aceitar real
+/// (driver_home_screen escuta `current_driver_offer_id`).
+///
+/// onCallRejected: dispara `driver_reject_offer` RPC para libertar a oferta
+/// imediatamente — sem esperar pelo timeout de 40s no dispatch-engine.
+@pragma('vm:entry-point')
+Future<void> _onBoraCallAccepted(CallEvent callEvent) async {
+  debugPrint('[CallKit] accepted session=${callEvent.sessionId}');
+  // No-op: a UI/realtime trata do aceitar quando o app sobe ao foreground.
+}
+
+@pragma('vm:entry-point')
+Future<void> _onBoraCallRejected(CallEvent callEvent) async {
+  final orderId = callEvent.userInfo?['order_id']?.toString();
+  debugPrint('[CallKit] rejected session=${callEvent.sessionId} order=$orderId');
+  if (orderId == null || orderId.isEmpty) return;
+  try {
+    // Supabase pode não estar inicializado neste isolate em background.
+    try {
+      Supabase.instance.client;
+    } catch (_) {
+      await Supabase.initialize(
+        url: const String.fromEnvironment('SUPABASE_URL'),
+        anonKey: const String.fromEnvironment('SUPABASE_ANON_KEY'),
+      );
+    }
+    await Supabase.instance.client.rpc(
+      'driver_reject_offer',
+      params: <String, dynamic>{'p_order_id': orderId},
+    );
+  } catch (e) {
+    debugPrint('[CallKit] reject RPC error: $e');
+  }
+}
 
 /// Sessão 2026-05-17 — Foreground service: regista os canais Android de alta
 /// prioridade para que FCM consiga acordar a app com som + vibração mesmo
@@ -138,6 +178,25 @@ Future<void> main() async {
       // Sessão 2026-05-17 — foreground service config + canal urgente Android.
       _setupForegroundAndUrgentChannel(),
     ]);
+
+    // Sessão 2026-05-21 — Lockscreen CallKit (connectycube_flutter_call_kit).
+    // Tem de correr DEPOIS de Firebase.initializeApp() para o background
+    // isolate ter acesso ao Supabase quando driver_reject_offer for chamado.
+    try {
+      ConnectycubeFlutterCallKit.instance.init(
+        onCallAccepted: _onBoraCallAccepted,
+        onCallRejected: _onBoraCallRejected,
+      );
+      // Android 14+ pediu permissão explícita para fullScreenIntent (já
+      // declarada no manifest, mas precisa de consent runtime).
+      final canFullScreen =
+          await ConnectycubeFlutterCallKit.canUseFullScreenIntent();
+      if (!canFullScreen) {
+        ConnectycubeFlutterCallKit.provideFullScreenIntentAccess();
+      }
+    } catch (e) {
+      debugPrint('[main] CallKit init error: $e');
+    }
   }
 
   // 2026-05-14 perf: SessionStore.load + ConsentStore.load em paralelo.

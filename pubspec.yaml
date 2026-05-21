@@ -76,6 +76,14 @@ dependencies:
   # apps. Android-only (iOS não suporta system overlays).
   flutter_overlay_window: ^0.4.5
 
+  # LOCKSCREEN CALLKIT (Sessão 2026-05-21) — quando o ecrã está bloqueado,
+  # flutter_overlay_window não passa pelo lockscreen. Tratamos a oferta como
+  # "chamada entrante": connectycube_flutter_call_kit usa a CallActivity
+  # nativa (showWhenLocked+turnScreenOn) que aparece estilo chamada Uber/Glovo
+  # sobre o lockscreen. Foreground = overlay; background+ecrã ligado = local
+  # notification fullScreenIntent; ecrã bloqueado = CallKit.
+  connectycube_flutter_call_kit: ^2.8.2
+
 
 
 

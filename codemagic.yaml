@@ -75,7 +75,6 @@ workflows:
         credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
         track: internal
         submit_as_draft: false
-        rollout_fraction: 1.0
         in_app_update_priority: 0
         changes_not_sent_for_review: false
   android-debug:

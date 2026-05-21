@@ -1,6 +1,7 @@
 // T3 — Admin partner detail with tabs: Dados / Horários / Estado / Datas Especiais.
 // Requires partner_hours_system migration (T4 of sessão nocturna 2026-04-29).
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -150,21 +151,27 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
     }
     setState(() => _uploadingHero = true);
     try {
-      try { await Supabase.instance.client.auth.refreshSession(); } catch (_) {}
-      // Sessão 2026-05-21 — path canónico {restaurant_id}/hero.{ext}.
-      // Antes era {adminUid}/hero/{restaurantId}.{ext} → 403 quando a RLS
-      // policy do bucket restaurant-assets exige folder = restaurant_id
-      // (admin não é dono do restaurante mas a policy permite a qualquer
-      // utilizador autenticado escrever em folder = restaurant_id).
-      final path = '${widget.restaurantId}/hero.$ext';
-      await Supabase.instance.client.storage
-          .from('restaurant-assets')
-          .uploadBinary(path, bytes,
-              fileOptions: FileOptions(
-                  upsert: true, contentType: 'image/$ext'));
-      final publicUrl = Supabase.instance.client.storage
-          .from('restaurant-assets')
-          .getPublicUrl(path);
+      // Sessão 2026-05-21 — upload via Edge Function `upload-restaurant-asset`
+      // (service_role bypassa RLS). Padrão idêntico a upload-avatar que já
+      // funciona em produção. Antes era uploadBinary directo + RLS strict
+      // ainda devolvia 403 mesmo com refreshSession+upsert presentes.
+      final response = await Supabase.instance.client.functions.invoke(
+        'upload-restaurant-asset',
+        body: {
+          'restaurantId': widget.restaurantId,
+          'kind': 'hero',
+          'fileBase64': base64Encode(bytes),
+          'contentType': 'image/$ext',
+        },
+      );
+      if (response.status != 200 || response.data is! Map) {
+        throw Exception('upload-restaurant-asset HTTP ${response.status}: ${response.data}');
+      }
+      final data = Map<String, dynamic>.from(response.data as Map);
+      if (data['success'] != true) {
+        throw Exception('Upload falhou: ${data['error'] ?? 'unknown'}');
+      }
+      final publicUrl = data['public_url'] as String;
       await Supabase.instance.client
           .from('restaurants')
           .update({'hero_image_url': publicUrl})
@@ -264,18 +271,24 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
     }
     setState(() => _uploadingLogo = true);
     try {
-      try { await Supabase.instance.client.auth.refreshSession(); } catch (_) {}
-      // Sessão 2026-05-21 — path canónico {restaurant_id}/logo.{ext}.
-      // Ver explicação em _uploadHero.
-      final path = '${widget.restaurantId}/logo.$ext';
-      await Supabase.instance.client.storage
-          .from('restaurant-assets')
-          .uploadBinary(path, bytes,
-              fileOptions:
-                  FileOptions(upsert: true, contentType: 'image/$ext'));
-      final publicUrl = Supabase.instance.client.storage
-          .from('restaurant-assets')
-          .getPublicUrl(path);
+      // Sessão 2026-05-21 — upload via Edge Function (ver _uploadHero).
+      final response = await Supabase.instance.client.functions.invoke(
+        'upload-restaurant-asset',
+        body: {
+          'restaurantId': widget.restaurantId,
+          'kind': 'logo',
+          'fileBase64': base64Encode(bytes),
+          'contentType': 'image/$ext',
+        },
+      );
+      if (response.status != 200 || response.data is! Map) {
+        throw Exception('upload-restaurant-asset HTTP ${response.status}: ${response.data}');
+      }
+      final data = Map<String, dynamic>.from(response.data as Map);
+      if (data['success'] != true) {
+        throw Exception('Upload falhou: ${data['error'] ?? 'unknown'}');
+      }
+      final publicUrl = data['public_url'] as String;
       await Supabase.instance.client
           .from('restaurants')
           .update({'photo_url': publicUrl})

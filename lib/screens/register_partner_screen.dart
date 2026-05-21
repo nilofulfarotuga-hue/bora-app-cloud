@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -160,27 +161,30 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
       /// Upload logo se o utilizador tirou/escolheu foto
       if (_logoFile != null) {
         try {
-          // Sessão 2026-05-21 — refreshSession antes do upload para evitar
-          // 403 com JWT stale (mesmo padrão que register_client_screen
-          // linha 381 e admin_partner_detail_screen linhas 153/267).
-          try { await Supabase.instance.client.auth.refreshSession(); } catch (_) {}
           final bytes = await _logoFile!.readAsBytes();
           final ext = _logoFile!.path.contains('.')
               ? _logoFile!.path.split('.').last.toLowerCase()
               : 'jpg';
-          // Sessão 2026-05-21 — path canónico {restaurant_id}/logo.{ext}
-          // (consistente com admin_partner_detail_screen). Antes era
-          // {userId}/logo/{restaurant.id}.{ext} e podia colidir com a RLS
-          // do bucket restaurant-assets.
-          final path = '${restaurant.id}/logo.$ext';
-          final storage = Supabase.instance.client.storage;
-          await storage.from('restaurant-assets').uploadBinary(
-                path,
-                bytes,
-                fileOptions:
-                    FileOptions(upsert: true, contentType: 'image/$ext'),
-              );
-          final url = storage.from('restaurant-assets').getPublicUrl(path);
+          // Sessão 2026-05-21 — upload via Edge Function
+          // `upload-restaurant-asset` (service_role bypassa RLS).
+          // Antes era uploadBinary directo → 403 com JWT stale.
+          final response = await Supabase.instance.client.functions.invoke(
+            'upload-restaurant-asset',
+            body: {
+              'restaurantId': restaurant.id,
+              'kind': 'logo',
+              'fileBase64': base64Encode(bytes),
+              'contentType': 'image/$ext',
+            },
+          );
+          if (response.status != 200 || response.data is! Map) {
+            throw Exception('upload-restaurant-asset HTTP ${response.status}: ${response.data}');
+          }
+          final data = Map<String, dynamic>.from(response.data as Map);
+          if (data['success'] != true) {
+            throw Exception('Upload falhou: ${data['error'] ?? 'unknown'}');
+          }
+          final url = data['public_url'] as String;
           await Supabase.instance.client
               .from('restaurants')
               .update({'photo_url': url})

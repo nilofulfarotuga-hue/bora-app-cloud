@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../services/admin/admin_driver_service.dart';
+import '../../widgets/private_bucket_image.dart';
 
 /// Full-screen admin detail for an approved driver. Pushed from
 /// `admin_drivers_screen` and from the "Aprovados" tab of
@@ -674,42 +675,35 @@ class _ZoomableImage extends StatelessWidget {
   const _ZoomableImage({required this.url});
   final String url;
 
+  Future<void> _openFullscreen(BuildContext context) async {
+    final resolved = await resolveSignedUrlIfPrivate(url) ?? url;
+    if (!context.mounted) return;
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => Scaffold(
+        backgroundColor: Colors.black,
+        appBar: AppBar(backgroundColor: Colors.black),
+        body: Center(
+          child: InteractiveViewer(
+            child: Image.network(resolved,
+                errorBuilder: (_, __, ___) => const Icon(
+                    Icons.broken_image,
+                    color: Colors.white54,
+                    size: 64)),
+          ),
+        ),
+      ),
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () {
-        Navigator.of(context).push(MaterialPageRoute(
-          builder: (_) => Scaffold(
-            backgroundColor: Colors.black,
-            appBar: AppBar(backgroundColor: Colors.black),
-            body: Center(
-              child: InteractiveViewer(
-                child: Image.network(url,
-                    errorBuilder: (_, __, ___) => const Icon(
-                        Icons.broken_image,
-                        color: Colors.white54,
-                        size: 64)),
-              ),
-            ),
-          ),
-        ));
-      },
-      child: ClipRRect(
+      onTap: () => _openFullscreen(context),
+      child: PrivateBucketImage(
+        urlOrPath: url,
+        height: 160,
+        width: double.infinity,
         borderRadius: BorderRadius.circular(10),
-        child: Image.network(
-          url,
-          height: 160,
-          width: double.infinity,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => Container(
-            height: 160,
-            color: AppColors.divider.withValues(alpha: 0.3),
-            child: const Center(
-              child: Icon(Icons.broken_image,
-                  color: AppColors.textSecondary, size: 48),
-            ),
-          ),
-        ),
       ),
     );
   }

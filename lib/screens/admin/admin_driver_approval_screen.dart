@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../config/app_colors.dart';
+import '../../widgets/private_bucket_image.dart';
 import '_admin_rpc_errors.dart';
 import 'admin_driver_detail_screen.dart';
 
@@ -703,12 +704,12 @@ class _DriverDetailSheet extends StatelessWidget {
             ),
           ),
 
-          // Selfie
+          // Selfie — re-sign quando vier de bucket privado (driver-documents).
           if (photoUrl != null)
             Center(
-              child: CircleAvatar(
+              child: PrivateBucketCircleAvatar(
+                urlOrPath: photoUrl,
                 radius: 50,
-                backgroundImage: NetworkImage(photoUrl),
               ),
             ),
           const SizedBox(height: 12),
@@ -773,33 +774,35 @@ class _DriverDetailSheet extends StatelessWidget {
           ],
           const SizedBox(height: 16),
 
-          // Foto documento
+          // Foto documento — bucket privado driver-documents.
           if (docPhotoUrl != null) ...[
             const Text('Foto do documento',
                 style: TextStyle(fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
             GestureDetector(
               onTap: () => _showFullscreen(context, docPhotoUrl),
-              child: ClipRRect(
+              child: PrivateBucketImage(
+                urlOrPath: docPhotoUrl,
+                height: 160,
+                width: double.infinity,
                 borderRadius: BorderRadius.circular(10),
-                child: Image.network(docPhotoUrl,
-                    height: 160, width: double.infinity, fit: BoxFit.cover),
               ),
             ),
             const SizedBox(height: 12),
           ],
 
-          // Foto veículo
+          // Foto veículo — bucket privado driver-documents.
           if (vehiclePhotoUrl != null) ...[
             const Text('Foto do veículo',
                 style: TextStyle(fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
             GestureDetector(
               onTap: () => _showFullscreen(context, vehiclePhotoUrl),
-              child: ClipRRect(
+              child: PrivateBucketImage(
+                urlOrPath: vehiclePhotoUrl,
+                height: 160,
+                width: double.infinity,
                 borderRadius: BorderRadius.circular(10),
-                child: Image.network(vehiclePhotoUrl,
-                    height: 160, width: double.infinity, fit: BoxFit.cover),
               ),
             ),
           ],
@@ -808,7 +811,9 @@ class _DriverDetailSheet extends StatelessWidget {
     );
   }
 
-  void _showFullscreen(BuildContext context, String url) {
+  Future<void> _showFullscreen(BuildContext context, String url) async {
+    final resolved = await resolveSignedUrlIfPrivate(url) ?? url;
+    if (!context.mounted) return;
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -817,7 +822,7 @@ class _DriverDetailSheet extends StatelessWidget {
           appBar: AppBar(backgroundColor: Colors.black),
           body: Center(
             child: InteractiveViewer(
-              child: Image.network(url),
+              child: Image.network(resolved),
             ),
           ),
         ),

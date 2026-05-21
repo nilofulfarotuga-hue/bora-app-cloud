@@ -71,6 +71,12 @@ Deno.serve(async (req) => {
   const supabase = createClient(supabaseUrl, serviceKey)
 
   // ── Fetch FCM token for the driver ────────────────────────────────────────
+  // Lookup ordem:
+  //   1. drivers.fcm_token (legacy single-device)
+  //   2. driver_push_tokens (5G multi-device) — fallback quando a UPDATE em
+  //      drivers falha silenciosamente por RLS strict em drivers não-aprovados.
+  //      driver_push_tokens.user_id = auth.users.id, e drivers.id == auth.users.id
+  //      desde o signup defensivo (registo estafeta 2026-05-22).
   const { data: driver, error: driverErr } = await supabase
     .from('drivers')
     .select('fcm_token, name')
@@ -85,15 +91,37 @@ Deno.serve(async (req) => {
     )
   }
 
-  if (!driver?.fcm_token) {
-    console.log(`[notify-driver] No FCM token for driver ${driverId} — skipping`)
+  let fcmToken: string | null = driver?.fcm_token ?? null
+  let fallbackTokenId: string | null = null
+
+  if (!fcmToken) {
+    const { data: pushRows, error: pushErr } = await supabase
+      .from('driver_push_tokens')
+      .select('id, fcm_token')
+      .eq('user_id', driverId)
+      .eq('active', true)
+      .order('last_used_at', { ascending: false })
+      .limit(1)
+
+    if (pushErr) {
+      console.warn('[notify-driver] driver_push_tokens lookup error:', JSON.stringify(pushErr))
+    } else if (pushRows && pushRows.length > 0) {
+      fcmToken = pushRows[0].fcm_token as string
+      fallbackTokenId = pushRows[0].id as string
+      console.log(`[notify-driver] Using fallback token from driver_push_tokens for ${driverId}`)
+    }
+  }
+
+  if (!fcmToken) {
+    console.log(`[notify-driver] No FCM token for driver ${driverId} (drivers.fcm_token + driver_push_tokens both empty) — skipping`)
     return new Response(
       JSON.stringify({ ok: false, reason: 'no_fcm_token' }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     )
   }
 
-  console.log(`[notify-driver] Sending push to driver=${driverId} (${driver.name}) order=${orderId}`)
+  const tokenSource = fallbackTokenId ? 'driver_push_tokens' : 'drivers.fcm_token'
+  console.log(`[notify-driver] Sending push to driver=${driverId} (${driver?.name ?? '?'}) order=${orderId} source=${tokenSource}`)
 
   // ── Fetch order distance_km for the offer card ────────────────────────────
   // Sessão 2026-05-20 — sem distância, o estafeta não decide sem abrir o app.
@@ -140,7 +168,7 @@ Deno.serve(async (req) => {
   // chama o background handler → sem som, sem overlay, sem timer.
   const message = {
     message: {
-      token: driver.fcm_token,
+      token: fcmToken,
       data: {
         orderId:    String(orderId),
         type:       'new_order_offer',
@@ -186,11 +214,19 @@ Deno.serve(async (req) => {
   if (!fcmRes.ok) {
     console.error(`[notify-driver] FCM error ${fcmRes.status}:`, JSON.stringify(fcmBody))
 
-    // If the token is invalid/stale, clear it from the DB so we don't retry forever.
+    // If the token is invalid/stale, clear it from the right source so we don't retry forever.
     const errorCode = fcmBody?.error?.details?.[0]?.errorCode ?? ''
     if (errorCode === 'UNREGISTERED' || errorCode === 'INVALID_ARGUMENT') {
-      console.log(`[notify-driver] Clearing stale FCM token for driver ${driverId}`)
-      await supabase.from('drivers').update({ fcm_token: null }).eq('id', driverId)
+      if (fallbackTokenId) {
+        console.log(`[notify-driver] Deactivating stale driver_push_tokens row ${fallbackTokenId}`)
+        await supabase
+          .from('driver_push_tokens')
+          .update({ active: false })
+          .eq('id', fallbackTokenId)
+      } else {
+        console.log(`[notify-driver] Clearing stale drivers.fcm_token for driver ${driverId}`)
+        await supabase.from('drivers').update({ fcm_token: null }).eq('id', driverId)
+      }
     }
 
     return new Response(

@@ -92,6 +92,11 @@ Deno.serve(async (req) => {
   const supabase = createClient(supabaseUrl, serviceKey)
 
   // ── Fetch FCM token for the restaurant ───────────────────────────────────
+  // Lookup ordem:
+  //   1. restaurants.fcm_token (legacy single-device)
+  //   2. partner_push_tokens (multi-device) via RPC
+  //      get_partner_fcm_tokens_for_restaurant — resolve restaurantId →
+  //      auth.users.email match → tokens activos. Service_role bypass.
   const { data: restaurant, error: restaurantErr } = await supabase
     .from('restaurants')
     .select('fcm_token, name')
@@ -106,15 +111,32 @@ Deno.serve(async (req) => {
     )
   }
 
-  if (!restaurant?.fcm_token) {
-    console.log(`[notify-partner] No FCM token for restaurant ${restaurantId} — skipping`)
+  let fcmToken: string | null = restaurant?.fcm_token ?? null
+  let fallbackTokenId: string | null = null
+
+  if (!fcmToken) {
+    const { data: pushRows, error: pushErr } = await supabase
+      .rpc('get_partner_fcm_tokens_for_restaurant', { p_restaurant_id: restaurantId })
+
+    if (pushErr) {
+      console.warn('[notify-partner] partner_push_tokens RPC error:', JSON.stringify(pushErr))
+    } else if (pushRows && pushRows.length > 0) {
+      fcmToken = pushRows[0].fcm_token as string
+      fallbackTokenId = pushRows[0].token_id as string
+      console.log(`[notify-partner] Using fallback token from partner_push_tokens for ${restaurantId}`)
+    }
+  }
+
+  if (!fcmToken) {
+    console.log(`[notify-partner] No FCM token for restaurant ${restaurantId} (restaurants.fcm_token + partner_push_tokens both empty) — skipping`)
     return new Response(
       JSON.stringify({ ok: false, reason: 'no_fcm_token' }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     )
   }
 
-  console.log(`[notify-partner] Sending push to restaurant=${restaurantId} (${restaurant.name}) order=${orderId} kind=${kind ?? 'new_order'}`)
+  const tokenSource = fallbackTokenId ? 'partner_push_tokens' : 'restaurants.fcm_token'
+  console.log(`[notify-partner] Sending push to restaurant=${restaurantId} (${restaurant?.name ?? '?'}) order=${orderId} kind=${kind ?? 'new_order'} source=${tokenSource}`)
 
   // ── Build notification title + body ───────────────────────────────────────
   // customTitle/customBody override, else fall back to legacy "novo pedido" composition.
@@ -149,7 +171,7 @@ Deno.serve(async (req) => {
 
   const message = {
     message: {
-      token: restaurant.fcm_token,
+      token: fcmToken,
       notification: {
         title,
         body: bodyText,
@@ -200,11 +222,19 @@ Deno.serve(async (req) => {
   if (!fcmRes.ok) {
     console.error(`[notify-partner] FCM error ${fcmRes.status}:`, JSON.stringify(fcmBody))
 
-    // Clear stale token so we don't retry forever.
+    // Clear stale token from the right source so we don't retry forever.
     const errorCode = fcmBody?.error?.details?.[0]?.errorCode ?? ''
     if (errorCode === 'UNREGISTERED' || errorCode === 'INVALID_ARGUMENT') {
-      console.log(`[notify-partner] Clearing stale FCM token for restaurant ${restaurantId}`)
-      await supabase.from('restaurants').update({ fcm_token: null }).eq('id', restaurantId)
+      if (fallbackTokenId) {
+        console.log(`[notify-partner] Deactivating stale partner_push_tokens row ${fallbackTokenId}`)
+        await supabase
+          .from('partner_push_tokens')
+          .update({ active: false })
+          .eq('id', fallbackTokenId)
+      } else {
+        console.log(`[notify-partner] Clearing stale restaurants.fcm_token for ${restaurantId}`)
+        await supabase.from('restaurants').update({ fcm_token: null }).eq('id', restaurantId)
+      }
     }
 
     return new Response(

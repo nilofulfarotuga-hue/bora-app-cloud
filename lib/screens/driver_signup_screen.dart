@@ -10,7 +10,6 @@ import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
 import '../models/driver_model.dart';
-import '../utils/constants.dart';
 import '../widgets/bora/bora_primary_button.dart';
 import '../widgets/terms_link_text.dart';
 import 'driver_pending_screen.dart';
@@ -291,70 +290,49 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
         vehicleUrl = await _uploadPhoto(_vehiclePhotoFile!, userId, 'vehicle');
       }
 
-      // 3. Upsert row na tabela drivers com todos os campos.
-      // Notas:
-      //  - `photo_url` é deixado NULL no registo. A selfie fica em
-      //    `registration_selfie_url` até o admin aprovar — só aí é copiada
-      //    para `photo_url` e usada no perfil do estafeta. Enquanto pending
-      //    o estafeta vê apenas a inicial do nome.
-      //  - Após o upsert, fazemos UPDATE explícito como fallback para o caso
-      //    de algum trigger DB ter criado a row antes (ON auth.users insert)
-      //    com policies restritivas que silenciam campos no upsert.
-      final driverRow = <String, dynamic>{
-        'id': userId,
-        'user_id': userId,
-        'name': name,
-        'email': email,
-        'phone': phone,
-        'vehicle_type': _vehicleType.name,
-        'license_plate': licensePlate,
-        'is_online': false,
-        'lat': kGuardaLat,
-        'lng': kGuardaLng,
-        'consent_accepted_at': consentAcceptedAt.toIso8601String(),
-        'consent_version': AuthStore.currentConsentVersion,
-        'registration_selfie_url': selfieUrl,
-        'document_type': _documentType,
-        'document_number': _documentNumberController.text.trim(),
-        'document_photo_url': docUrl,
-        if (vehicleUrl != null) 'vehicle_photo_url': vehicleUrl,
-        'iban': iban,
-        'approval_status': 'pending',
-      };
+      // 3. Registo via RPC `driver_register_or_update` (ON CONFLICT user_id).
+      //  - A RPC trata UPSERT atómico — nunca duplica rows nem perde campos.
+      //  - A selfie vai para `registration_selfie_url` (NÃO photo_url):
+      //    enquanto pending o estafeta fica sem foto no perfil; o admin
+      //    copia para photo_url ao aprovar.
+      final rpcRes = await supabase.rpc(
+        'driver_register_or_update',
+        params: {
+          'p_name': name,
+          'p_phone': phone,
+          'p_vehicle_type': _vehicleType.name,
+          'p_license_plate': licensePlate.isEmpty ? null : licensePlate,
+          'p_document_type': _documentType,
+          'p_document_number': _documentNumberController.text.trim().isEmpty
+              ? null
+              : _documentNumberController.text.trim(),
+          'p_document_photo_url': docUrl,
+          'p_vehicle_photo_url': vehicleUrl,
+          'p_registration_selfie_url': selfieUrl,
+          'p_iban': iban.isEmpty ? null : iban,
+          'p_nif': null,
+        },
+      );
 
-      await supabase.from('drivers').upsert(driverRow);
-
-      // Verifica que os campos críticos chegaram. Se não, tenta UPDATE
-      // explícito (alguns triggers DB podem ter criado uma row pré-upsert
-      // com campos limitados; RLS pode aceitar UPDATE mas não merge no upsert).
-      try {
-        final check = await supabase
-            .from('drivers')
-            .select(
-                'license_plate, document_number, document_photo_url, vehicle_photo_url, iban, registration_selfie_url')
-            .eq('id', userId)
-            .maybeSingle();
-        bool missing(String key) {
-          final v = check?[key];
-          return v == null || (v is String && v.isEmpty);
-        }
-
-        if (check == null ||
-            missing('license_plate') && licensePlate.isNotEmpty ||
-            missing('document_number') ||
-            missing('document_photo_url') ||
-            missing('iban') ||
-            missing('registration_selfie_url')) {
-          final fallback = Map<String, dynamic>.from(driverRow)
-            ..remove('id')
-            ..remove('user_id');
-          await supabase
-              .from('drivers')
-              .update(fallback)
-              .eq('id', userId);
-        }
-      } catch (e) {
-        debugPrint('[driver_signup] verify/update fallback failed: $e');
+      final rpcMap =
+          rpcRes is Map ? rpcRes.cast<String, dynamic>() : <String, dynamic>{};
+      final ok = (rpcMap['success'] as bool?) ?? false;
+      if (!ok) {
+        final reason = (rpcMap['reason'] as String?) ?? 'unknown';
+        final friendly = switch (reason) {
+          'unauthenticated' =>
+            'Sessão não encontrada. Faz login e tenta de novo.',
+          'missing_required_fields' =>
+            'Faltam dados obrigatórios. Preenche tudo e tenta de novo.',
+          'invalid_vehicle_type' => 'Tipo de veículo inválido.',
+          _ => 'Não foi possível concluir o registo: $reason',
+        };
+        if (!mounted) return;
+        setState(() => _isProcessing = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(friendly)),
+        );
+        return;
       }
 
       if (!mounted) return;

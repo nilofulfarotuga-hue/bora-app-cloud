@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -7,9 +8,11 @@ import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
 import '../config/maps_config.dart';
+import '../models/client_address.dart';
 import '../models/order_model.dart';
 import '../models/rating_model.dart';
 import '../models/restaurant_model.dart';
+import '../services/client_address_service.dart';
 import '../services/location_service.dart';
 import '../stores/cart_store.dart';
 import '../stores/order_store.dart';
@@ -20,6 +23,7 @@ import '../widgets/bora/bora.dart';
 import '../widgets/bora_support_fab.dart';
 import '../widgets/notification_bell.dart';
 import 'carry_groceries_screen.dart';
+import 'client_addresses_screen.dart';
 import 'rating_screen.dart';
 import 'restaurants_screen.dart';
 import 'send_package_form_screen.dart';
@@ -216,12 +220,33 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
   }
 
   /// Pre-fills the CartStore delivery address on startup.
-  /// Priority: 1) existing address from prefs  2) Casa  3) GPS
+  /// Priority: 1) cart já preenchido  2) client_addresses default
+  ///           3) Casa (SessionStore legacy)  4) GPS
   Future<void> _detectLocation() async {
     if (!mounted) return;
     final cartStore = context.read<CartStore>();
 
     if (cartStore.dropoffStreet.isNotEmpty) return;
+
+    // 2) endereço default em client_addresses (padrão Uber/Glovo).
+    try {
+      final list = await ClientAddressService.instance.list();
+      if (!mounted) return;
+      if (cartStore.dropoffStreet.isNotEmpty) return;
+      final defaultAddr = list.where((a) => a.isDefault).cast<ClientAddress?>()
+          .firstWhere((_) => true, orElse: () => null);
+      if (defaultAddr != null) {
+        cartStore.updateDeliveryAddress(
+          street: defaultAddr.address,
+          city: defaultAddr.city ?? '',
+          postalCode: defaultAddr.postalCode ?? '',
+          location: (defaultAddr.lat != null && defaultAddr.lng != null)
+              ? LatLng(defaultAddr.lat!, defaultAddr.lng!)
+              : null,
+        );
+        return;
+      }
+    } catch (_) {/* sem rede ou sem auth — cai para Casa/GPS */}
 
     final sessionStore = context.read<SessionStore>();
     if (sessionStore.hasHomeAddress) {
@@ -523,6 +548,91 @@ class _AddressPickerScreen extends StatefulWidget {
 class _AddressPickerScreenState extends State<_AddressPickerScreen> {
   final _ctrl = TextEditingController();
   bool _loadingGps = false;
+  List<ClientAddress> _savedAddresses = const [];
+  bool _loadingSaved = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedAddresses();
+  }
+
+  Future<void> _loadSavedAddresses() async {
+    try {
+      final list = await ClientAddressService.instance.list();
+      if (mounted) {
+        setState(() {
+          _savedAddresses = list;
+          _loadingSaved = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loadingSaved = false);
+    }
+  }
+
+  void _useSaved(ClientAddress a) {
+    final LatLng? loc = (a.lat != null && a.lng != null)
+        ? LatLng(a.lat!, a.lng!)
+        : null;
+    context.read<CartStore>().updateDeliveryAddress(
+          street: a.address,
+          city: a.city ?? '',
+          postalCode: a.postalCode ?? '',
+          location: loc,
+        );
+    Navigator.of(context).pop();
+  }
+
+  Future<void> _openManageAddresses() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const ClientAddressesScreen()),
+    );
+    // Reload after returning — utilizador pode ter adicionado/editado.
+    await _loadSavedAddresses();
+  }
+
+  Widget _savedAddressTile(ThemeData theme, ClientAddress a) {
+    final icon = switch (a.label.toLowerCase()) {
+      'casa' || 'home' => Icons.home_rounded,
+      'trabalho' || 'work' => Icons.work_rounded,
+      _ => Icons.place_rounded,
+    };
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      child: ListTile(
+        leading: Icon(icon, color: theme.colorScheme.primary),
+        title: Row(
+          children: [
+            Flexible(
+              child: Text(a.label,
+                  style: const TextStyle(fontWeight: FontWeight.w700)),
+            ),
+            if (a.isDefault) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text('Predefinido',
+                    style: TextStyle(fontSize: 10, color: Colors.green)),
+              ),
+            ],
+          ],
+        ),
+        subtitle: Text(
+          a.address,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => _useSaved(a),
+      ),
+    );
+  }
 
   @override
   void dispose() {
@@ -635,6 +745,39 @@ class _AddressPickerScreenState extends State<_AddressPickerScreen> {
       body: ListView(
         padding: const EdgeInsets.all(Spacing.lg),
         children: [
+          // ── Endereços guardados (client_addresses) ─────────────────────
+          if (_loadingSaved)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Center(
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            )
+          else if (_savedAddresses.isNotEmpty) ...[
+            Padding(
+              padding: const EdgeInsets.only(left: 4, bottom: 4),
+              child: Text(
+                'Os meus endereços',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            for (final a in _savedAddresses) _savedAddressTile(theme, a),
+            const SizedBox(height: 8),
+          ],
+          ListTile(
+            leading: const Icon(Icons.edit_location_alt_outlined),
+            title: const Text('Gerir endereços'),
+            subtitle: const Text('Adicionar, editar ou eliminar'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: _openManageAddresses,
+          ),
+          const Divider(height: Spacing.xl),
           ListTile(
             leading: const Icon(Icons.my_location_rounded),
             title: const Text('Localização actual'),
@@ -648,25 +791,29 @@ class _AddressPickerScreenState extends State<_AddressPickerScreen> {
                 : const Icon(Icons.chevron_right),
             onTap: _loadingGps ? null : _useGps,
           ),
-          ListTile(
-            leading: Icon(
-              Icons.home_rounded,
-              color: session.hasHomeAddress ? theme.colorScheme.primary : null,
+          // "Casa" legacy (SessionStore) — escondido se já há endereços
+          // guardados em client_addresses (cliente migrou para o novo).
+          if (_savedAddresses.isEmpty)
+            ListTile(
+              leading: Icon(
+                Icons.home_rounded,
+                color: session.hasHomeAddress ? theme.colorScheme.primary : null,
+              ),
+              title: Text(
+                session.hasHomeAddress ? session.homeStreet! : 'Casa',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              subtitle: Text(
+                session.hasHomeAddress
+                    ? 'Endereço guardado'
+                    : 'Nenhum endereço guardado',
+              ),
+              trailing: session.hasHomeAddress
+                  ? const Icon(Icons.chevron_right)
+                  : null,
+              onTap: session.hasHomeAddress ? _useHome : null,
             ),
-            title: Text(
-              session.hasHomeAddress ? session.homeStreet! : 'Casa',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: Text(
-              session.hasHomeAddress
-                  ? 'Endereço guardado'
-                  : 'Nenhum endereço guardado',
-            ),
-            trailing:
-                session.hasHomeAddress ? const Icon(Icons.chevron_right) : null,
-            onTap: session.hasHomeAddress ? _useHome : null,
-          ),
           const Divider(height: Spacing.xxxl),
           AddressAutocompleteField(
             controller: _ctrl,

@@ -71,12 +71,6 @@ workflows:
         notify:
           success: true
           failure: true
-      google_play:
-        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
-        track: internal
-        submit_as_draft: false
-        in_app_update_priority: 0
-        changes_not_sent_for_review: false
   android-debug:
     name: Bora App - Android Debug APK (faster, side-loadable)
     instance_type: mac_mini_m2

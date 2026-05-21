@@ -2000,6 +2000,10 @@ class OrderStore extends ChangeNotifier {
       distanceKm: resolvedDistanceKm,
       isPartnerStore: true,
       apartmentDelivery: false,
+      // Parceiro chama estafeta por conta própria (cliente comprou direto).
+      // Comissão 15% (sem markup escondido) + cliente paga o pacote completo
+      // em dinheiro ao estafeta. Ver business_rules.md §2.4.1.
+      isPartnerSelfDispatch: true,
     );
 
     final orderNotes = _composePartnerOrderNotes(items: items, notes: notes);

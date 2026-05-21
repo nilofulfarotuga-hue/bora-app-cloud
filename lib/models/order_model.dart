@@ -6,7 +6,13 @@ import 'package:uuid/uuid.dart';
 import 'cart_item.dart';
 import 'order_service_type.dart';
 
-const double _platformCommissionRate = 0.20;
+// 10% = comissão VISÍVEL paga pelo parceiro (alinhado com
+// platform_settings.partner_visible_commission_pct). Usado APENAS como
+// fallback defensivo quando orders.platform_commission ainda não foi
+// populado pela RPC. NÃO é os 20% totais (10 visível + 5 hidden markup +
+// 5 service fee) — esses 20% misturam 3 camadas que não devem aparecer
+// como um único valor no settlement do parceiro.
+const double _partnerVisibleCommissionFallbackRate = 0.10;
 
 enum OrderStatus {
   created,
@@ -579,14 +585,34 @@ extension OrderModelX on OrderModel {
 }
 
 extension OrderFinancials on OrderModel {
+  /// Valor da comissão VISÍVEL paga pelo parceiro à Bora.
+  /// Prioriza o valor calculado server-side (orders.platform_commission).
+  /// Fallback defensivo: 10% do subtotal (não do total). Antes era 20% do total,
+  /// que inflava o cálculo porque misturava as 3 camadas (10% visível + 5%
+  /// markup escondido + 5% taxa serviço) num só valor — só os 10% são pagos
+  /// pelo parceiro.
   double get platformCommissionAmount {
     if (platformCommission > 0) {
       return platformCommission;
     }
-    return total * _platformCommissionRate;
+    final base = subtotal > 0 ? subtotal : total;
+    return base * _partnerVisibleCommissionFallbackRate;
   }
 
   double get restaurantEarningsAmount => total - platformCommissionAmount;
+
+  /// True quando o pedido foi criado pelo fluxo "parceiro chama estafeta por
+  /// conta própria" (botão "chamar estafeta" no painel do parceiro). Cliente
+  /// comprou direto com o parceiro (telefone/WhatsApp) — não há userId real
+  /// porque não passou pela app cliente. Comissão = 15% (10% visível + 5%
+  /// taxa serviço, sem markup escondido). Cliente paga TUDO em dinheiro ao
+  /// estafeta. Ver business_rules.md §2.4.1.
+  bool get isPartnerSelfDispatch {
+    if (!isPartnerStore) return false;
+    if (orderType != OrderType.partnerRestaurant) return false;
+    final uid = userId;
+    return uid == null || uid.isEmpty;
+  }
 }
 
 extension OrderStatusLabel on OrderStatus {

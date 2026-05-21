@@ -1400,9 +1400,20 @@ class _BottomPanelState extends State<_BottomPanel> {
 
                 const SizedBox(height: 16),
 
+                // Banner NOVO — só fluxo "parceiro chama estafeta". Antes de
+                // recolher, estafeta tem de PAGAR o valor total ao parceiro em
+                // dinheiro (cliente paga depois o mesmo ao estafeta → empate).
+                if (focusOrder.isPartnerSelfDispatch &&
+                    focusOrder.paymentMethod == PaymentMethod.cash &&
+                    (focusOrder.status == OrderStatus.callingDriver ||
+                        focusOrder.status == OrderStatus.driverAccepted)) ...[
+                  _PartnerSelfDispatchPickupBanner(order: focusOrder),
+                  const SizedBox(height: 16),
+                ],
+
                 // BUG 9 (2026-05-15) — banner "RECEBER €X" para pedidos cash
                 // a partir de pickedUp (estafeta já recolheu, está a caminho).
-                // Texto diferenciado parceiro/não-parceiro dentro do widget.
+                // Texto diferenciado parceiro/não-parceiro/self-dispatch.
                 if (focusOrder.paymentMethod == PaymentMethod.cash &&
                     (focusOrder.status == OrderStatus.pickedUp ||
                         focusOrder.status == OrderStatus.onTheWay)) ...[
@@ -2127,9 +2138,18 @@ class _CashCollectBanner extends StatelessWidget {
     final hasDebt = order.hasCashDebt;
     final debtEur = order.debtCollectedCents / 100.0;
     final isPartner = order.isPartnerStore;
-    final mainText = isPartner
-        ? 'RECEBER €${amount.toStringAsFixed(2)} — entregar ao parceiro'
-        : 'RECEBER €${amount.toStringAsFixed(2)} EM DINHEIRO';
+    final isPartnerSelfDispatch = order.isPartnerSelfDispatch;
+    final String mainText;
+    if (isPartnerSelfDispatch) {
+      // Fluxo "parceiro chama estafeta": o estafeta JÁ pagou o mesmo valor
+      // ao parceiro na recolha — agora recebe-o do cliente. Empate.
+      mainText =
+          'RECEBER €${amount.toStringAsFixed(2)} DO CLIENTE EM DINHEIRO';
+    } else if (isPartner) {
+      mainText = 'RECEBER €${amount.toStringAsFixed(2)} — entregar ao parceiro';
+    } else {
+      mainText = 'RECEBER €${amount.toStringAsFixed(2)} EM DINHEIRO';
+    }
 
     return Container(
       width: double.infinity,
@@ -2174,6 +2194,71 @@ class _CashCollectBanner extends StatelessWidget {
                     ),
                   ),
                 ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Banner mostrado ao estafeta antes da recolha em pedidos do fluxo
+/// "parceiro chama estafeta por conta própria" (ver business_rules.md §2.4.1).
+/// O cliente comprou direto com o parceiro; o estafeta paga o valor total ao
+/// parceiro na recolha e cobra esse MESMO valor ao cliente na entrega →
+/// empate financeiro do estafeta. A Bora paga apenas a corrida (€3,80 + km)
+/// no acerto semanal.
+class _PartnerSelfDispatchPickupBanner extends StatelessWidget {
+  const _PartnerSelfDispatchPickupBanner({required this.order});
+
+  final OrderModel order;
+
+  @override
+  Widget build(BuildContext context) {
+    final amount = order.totalToCollectCash;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1B5E20),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x33000000),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          const Text('🏪', style: TextStyle(fontSize: 28)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'PAGAR €${amount.toStringAsFixed(2)} AO ESTABELECIMENTO',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 20,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'O cliente paga-te depois o mesmo valor em dinheiro. '
+                  'Ficas empatado — a Bora paga a tua corrida no fecho semanal.',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 13,
+                  ),
+                ),
               ],
             ),
           ),

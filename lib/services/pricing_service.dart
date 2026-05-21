@@ -19,7 +19,17 @@ class OrderPricingBreakdown {
   /// Only populated for partner orders. For reporting/settlement purposes.
   final double partnerMarkupHidden;
 
-  double get customerTotal => subtotal + serviceFee + deliveryFee + bagFee;
+  /// True when partner called the driver directly (cliente comprou direto com o
+  /// parceiro). Comissão total = 15% (10% visível + 5% taxa serviço, sem markup
+  /// escondido). O cliente paga TUDO em dinheiro ao estafeta: subtotal +
+  /// comissão + taxa + entrega. O estafeta entrega o valor total ao parceiro;
+  /// a Bora cobra a sua parte no acerto semanal do parceiro.
+  final bool isPartnerSelfDispatch;
+
+  double get customerTotal {
+    final base = subtotal + serviceFee + deliveryFee + bagFee;
+    return isPartnerSelfDispatch ? base + platformCommission : base;
+  }
 
   const OrderPricingBreakdown({
     required this.distanceKm,
@@ -32,6 +42,7 @@ class OrderPricingBreakdown {
     this.apartmentDelivery = false,
     this.bagFee = 0,
     this.partnerMarkupHidden = 0,
+    this.isPartnerSelfDispatch = false,
   });
 }
 
@@ -108,6 +119,10 @@ class PricingService {
     bool apartmentDelivery = false,
     /// Set to true when this is the 2nd stacked partner order — adds €3 driver bonus.
     bool isStackedPartnerBonus = false,
+    /// Set to true for "partner-calls-driver" flow (parceiro chama estafeta
+    /// por conta própria — cliente comprou direto). Sem markup escondido
+    /// (cliente já sabe o preço real). Comissão total = 15% em vez de 20%.
+    bool isPartnerSelfDispatch = false,
   }) {
     final normalizedDistance = _sanitizeDistance(distanceKm);
     final normalizedSubtotal = _sanitizeAmount(subtotal);
@@ -211,6 +226,12 @@ class PricingService {
         serviceType == OrderServiceType.restaurant ? _restaurantBagFee : 0.0;
 
     final bool isPartner = isPartnerRestaurant || isPartnerRetail;
+    // Partner-calls-driver: SEM markup escondido. Cliente comprou direto com
+    // o parceiro e já conhece o preço real, portanto a Bora não pode embutir
+    // 5% no preço do produto neste fluxo.
+    final double computedMarkupHidden = (isPartner && !isPartnerSelfDispatch)
+        ? _roundCurrency(normalizedSubtotal * _partnerMarkupHiddenRate)
+        : 0.0;
     return OrderPricingBreakdown(
       distanceKm: normalizedDistance,
       subtotal: normalizedSubtotal,
@@ -221,9 +242,8 @@ class PricingService {
       apartmentSurcharge: _roundCurrency(apartmentSurcharge),
       apartmentDelivery: apartmentDelivery,
       bagFee: bagFee,
-      partnerMarkupHidden: isPartner
-          ? _roundCurrency(normalizedSubtotal * _partnerMarkupHiddenRate)
-          : 0.0,
+      partnerMarkupHidden: computedMarkupHidden,
+      isPartnerSelfDispatch: isPartnerSelfDispatch && isPartner,
     );
   }
 

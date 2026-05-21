@@ -3,8 +3,10 @@ import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
 import '../config/app_colors.dart';
+import '../models/order_service_type.dart';
 import '../models/partner_product.dart';
 import '../models/restaurant_model.dart';
+import '../services/pricing_service.dart';
 import '../stores/order_store.dart';
 import '../stores/partner_product_store.dart';
 import '../widgets/address_autocomplete_field.dart';
@@ -125,18 +127,24 @@ class _PartnerCallDriverScreenState extends State<PartnerCallDriverScreen> {
         .productsForRestaurant(widget.restaurant.id)
         .where((product) => product.isAvailable)
         .toList();
-    const commissionRate = 0.20;
-    const deliveryFee = 2.5;
     final subtotal = _calculateSubtotal(products);
-    final commission = subtotal * commissionRate;
-    final total = subtotal + deliveryFee;
+    // Estimativa preview-only. Os valores definitivos são calculados de novo
+    // dentro de createPartnerDeliveryRequest com a distância real do mapa.
+    // Distance default (1 km) é aceitável aqui — a entrega base é fixa até 4 km.
+    final pricing = PricingService.calculateBreakdown(
+      serviceType: OrderServiceType.restaurant,
+      subtotal: subtotal,
+      distanceKm: PricingService.defaultDistanceKm,
+      isPartnerStore: true,
+      isPartnerSelfDispatch: true,
+    );
     final canSubmit = !_isSubmitting && subtotal > 0 && products.isNotEmpty;
 
     return Scaffold(
       backgroundColor: AppColors.surface,
       appBar: AppBar(
         title: const Text(
-          'Call Driver',
+          'Chamar estafeta',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.transparent,
@@ -160,7 +168,9 @@ class _PartnerCallDriverScreenState extends State<PartnerCallDriverScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Submit a delivery request to call a driver. Delivery fee (€2.50) and platform commission (20%) will be charged to your restaurant.',
+                  'Submeta um pedido de entrega para chamar um estafeta. '
+                  'É cobrada uma comissão de 10% sobre o valor dos produtos ao parceiro. '
+                  'A taxa de serviço (5%) e a taxa de entrega são pagas pelo cliente em dinheiro ao estafeta.',
                   style: theme.textTheme.bodyMedium
                       ?.copyWith(color: Colors.grey.shade700),
                 ),
@@ -169,12 +179,12 @@ class _PartnerCallDriverScreenState extends State<PartnerCallDriverScreen> {
                   controller: _customerNameController,
                   textCapitalization: TextCapitalization.words,
                   decoration: const InputDecoration(
-                    labelText: 'Customer name',
+                    labelText: 'Nome do cliente',
                     prefixIcon: Icon(Icons.person_outline),
                   ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return 'Enter the customer name';
+                      return 'Indique o nome do cliente';
                     }
                     return null;
                   },
@@ -184,12 +194,12 @@ class _PartnerCallDriverScreenState extends State<PartnerCallDriverScreen> {
                   controller: _phoneController,
                   keyboardType: TextInputType.phone,
                   decoration: const InputDecoration(
-                    labelText: 'Customer phone',
+                    labelText: 'Telefone do cliente',
                     prefixIcon: Icon(Icons.phone_outlined),
                   ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return 'Enter the customer phone number';
+                      return 'Indique o telefone do cliente';
                     }
                     return null;
                   },
@@ -197,7 +207,7 @@ class _PartnerCallDriverScreenState extends State<PartnerCallDriverScreen> {
                 const SizedBox(height: 16),
                 AddressAutocompleteField(
                   controller: _addressController,
-                  labelText: 'Delivery address',
+                  labelText: 'Morada de entrega',
                   prefixIcon: const Icon(Icons.location_on_outlined),
                   onSelected: (address, coords) {
                     debugPrint(
@@ -220,7 +230,7 @@ class _PartnerCallDriverScreenState extends State<PartnerCallDriverScreen> {
                   Padding(
                     padding: const EdgeInsets.only(top: 4, left: 12),
                     child: Text(
-                      'Select a suggestion to confirm the address.',
+                      'Selecione uma sugestão para confirmar a morada.',
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.error,
                         fontSize: 12,
@@ -276,12 +286,7 @@ class _PartnerCallDriverScreenState extends State<PartnerCallDriverScreen> {
                   maxLines: 4,
                 ),
                 const SizedBox(height: 24),
-                _OrderSummaryCard(
-                  subtotal: subtotal,
-                  commission: commission,
-                  deliveryFee: deliveryFee,
-                  total: total,
-                ),
+                _OrderSummaryCard(pricing: pricing),
                 if (!canSubmit && products.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   Text(
@@ -331,7 +336,7 @@ class _PartnerCallDriverScreenState extends State<PartnerCallDriverScreen> {
 
     if (_addressController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter the delivery address.')),
+        const SnackBar(content: Text('Indique a morada de entrega.')),
       );
       return;
     }
@@ -339,7 +344,7 @@ class _PartnerCallDriverScreenState extends State<PartnerCallDriverScreen> {
     if (!_addressSuggestionSelected) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Select an address from the suggestions list.'),
+          content: Text('Escolha uma morada da lista de sugestões.'),
         ),
       );
       return;
@@ -470,24 +475,20 @@ class _ProductSelectionTile extends StatelessWidget {
 }
 
 class _OrderSummaryCard extends StatelessWidget {
-  const _OrderSummaryCard({
-    required this.subtotal,
-    required this.commission,
-    required this.deliveryFee,
-    required this.total,
-  });
+  const _OrderSummaryCard({required this.pricing});
 
-  final double subtotal;
-  final double commission;
-  final double deliveryFee;
-  final double total;
+  final OrderPricingBreakdown pricing;
 
   String _format(double value) => '€${value.toStringAsFixed(2)}';
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final partnerEarnings = subtotal - commission;
+    // Neste fluxo (parceiro chama estafeta): o cliente paga TUDO em dinheiro
+    // ao estafeta — subtotal + comissão + taxa serviço + entrega. O parceiro
+    // recebe o valor total das mãos do estafeta e depois acerta a comissão
+    // (10% sobre o subtotal) com a Bora no acerto semanal.
+    final partnerNetEarnings = pricing.subtotal - pricing.platformCommission;
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
@@ -496,30 +497,42 @@ class _OrderSummaryCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Resumo financeiro',
+              'Resumo financeiro (estimativa)',
               style: theme.textTheme.titleMedium,
             ),
             const SizedBox(height: 12),
             _SummaryRow(
-                label: 'Subtotal dos produtos', value: _format(subtotal)),
+                label: 'Subtotal dos produtos',
+                value: _format(pricing.subtotal)),
             _SummaryRow(
-              label: 'Comissão da plataforma (20%)',
-              value: _format(commission),
+              label: 'Comissão Bora (10%) — paga pelo parceiro',
+              value: _format(pricing.platformCommission),
             ),
             _SummaryRow(
-              label: 'Taxa de entrega',
-              value: _format(deliveryFee),
+              label: 'Taxa de serviço (5%) — paga pelo cliente',
+              value: _format(pricing.serviceFee),
+            ),
+            _SummaryRow(
+              label: 'Taxa de entrega — paga pelo cliente',
+              value: _format(pricing.deliveryFee),
             ),
             const Divider(height: 24),
             _SummaryRow(
-              label: 'Total a cobrar ao cliente',
-              value: _format(total),
+              label: 'Total a cobrar ao cliente em dinheiro',
+              value: _format(pricing.customerTotal),
               emphasize: true,
             ),
             _SummaryRow(
-              label: 'Receita do parceiro',
-              value: _format(partnerEarnings),
+              label: 'Receita líquida do parceiro',
+              value: _format(partnerNetEarnings),
               emphasize: true,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'O estafeta cobra o total em dinheiro ao cliente e entrega esse '
+              'mesmo valor ao parceiro. A Bora acerta a comissão no fecho semanal.',
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: Colors.grey.shade700),
             ),
           ],
         ),

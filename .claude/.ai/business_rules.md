@@ -74,6 +74,63 @@
 
 **Não-Parceiro:** 15% sobre o preço (invisível, lucro da Bora)
 
+### 2.4.1 Fluxo: Parceiro chama estafeta por conta própria (IMPLEMENTADO 2026-05-21)
+
+Aplica-se quando o parceiro usa o botão **"chamar estafeta"** no seu painel
+(cliente comprou direto com o parceiro por telefone/WhatsApp). Implementação
+em `OrderStore.createPartnerDeliveryRequest` ([lib/stores/order_store.dart](lib/stores/order_store.dart)).
+
+**Comissão Bora: 15% (NÃO 20%)**
+- 10% comissão visível (parceiro paga no acerto semanal)
+- 5% taxa de serviço (cliente paga em dinheiro ao estafeta)
+- 0% markup escondido (NÃO se aplica — cliente já sabe o preço real do parceiro;
+  a Bora não controla o preço mostrado, não dá para esconder 5%)
+
+**Fluxo do dinheiro (sempre pagamento em dinheiro):**
+
+1. Parceiro coloca produto (ex. €10) e chama estafeta
+2. Estafeta vê banner verde antes da recolha: `PAGAR €13 AO ESTABELECIMENTO`
+3. Estafeta paga ao restaurante o **VALOR TOTAL** = subtotal + 10% comissão + 5% taxa + entrega
+4. Estafeta entrega ao cliente e vê banner laranja: `RECEBER €13 DO CLIENTE EM DINHEIRO`
+5. Estafeta cobra o **MESMO valor total** ao cliente → **EMPATE** (estafeta não fica com nada nesta transação)
+6. **Acerto semanal estafeta:** Bora paga só a corrida (€3,80 + €0,20/km). Sem descontos, sem adiantamentos.
+7. **Acerto semanal parceiro:** parceiro fica só com o preço do produto (€10).
+   Os €3 (comissão 10% + taxa 5% + entrega) são repassados/descontados à Bora.
+
+**O que o estafeta GANHA não muda:** €3,80 + €0,20/km (igual ao fluxo normal parceiro).
+
+**Marker técnico:**
+- Sem coluna DB dedicada — detecção via heurística no getter
+  `OrderModel.isPartnerSelfDispatch`:
+  `isPartnerStore && orderType == OrderType.partnerRestaurant && userId vazio`
+- `userId` é vazio porque o cliente NÃO está autenticado na app — comprou direto
+- Fluxo cliente normal sempre tem `userId` (auth user)
+
+**Flag no PricingService:**
+- `PricingService.calculateBreakdown(isPartnerSelfDispatch: true, ...)`
+  retorna `partnerMarkupHidden = 0` e `customerTotal` inclui `platformCommission`
+  (porque o cliente paga TUDO em dinheiro, ao contrário do fluxo normal onde a
+  comissão é descontada do settlement do parceiro)
+
+**Texto do parceiro ao chamar estafeta** (`partner_call_driver_screen.dart`):
+> "Submeta um pedido de entrega para chamar um estafeta. É cobrada uma comissão
+> de 10% sobre o valor dos produtos ao parceiro. A taxa de serviço (5%) e a
+> taxa de entrega são pagas pelo cliente em dinheiro ao estafeta."
+
+**Avisos UI ao estafeta** (`driver_map_screen.dart`):
+- Antes da recolha (`callingDriver`/`driverAccepted`):
+  banner verde `_PartnerSelfDispatchPickupBanner` →
+  `PAGAR €X AO ESTABELECIMENTO`
+- Após recolha (`pickedUp`/`onTheWay`):
+  banner laranja `_CashCollectBanner` →
+  `RECEBER €X DO CLIENTE EM DINHEIRO`
+
+**Fallback `OrderModel.platformCommissionAmount`:**
+Antes usava `total × 0.20` quando `platform_commission` estava a 0 — inflava
+relatórios do parceiro misturando as 3 camadas (10% visível + 5% hidden + 5%
+serviço). Agora usa `subtotal × 0.10` (só a comissão visível paga pelo parceiro),
+alinhado com `platform_settings.partner_visible_commission_pct`.
+
 ### 2.5 Sacos de Transporte (Sessão 3 · 2026-05-04)
 
 | Cenário | Quem cobra | Quando | Valor |

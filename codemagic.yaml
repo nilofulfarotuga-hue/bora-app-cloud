@@ -58,6 +58,7 @@ workflows:
       - name: Build AAB release (signed, Play Store)
         script: |
           flutter build appbundle --release \
+            --build-number=$(($BUILD_NUMBER + 100)) \
             --dart-define-from-file=.dart_defines \
             --no-tree-shake-icons
     artifacts:
@@ -70,6 +71,13 @@ workflows:
         notify:
           success: true
           failure: true
+      google_play:
+        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        track: internal
+        submit_as_draft: false
+        rollout_fraction: 1.0
+        in_app_update_priority: 0
+        changes_not_sent_for_review: false
   android-debug:
     name: Bora App - Android Debug APK (faster, side-loadable)
     instance_type: mac_mini_m2

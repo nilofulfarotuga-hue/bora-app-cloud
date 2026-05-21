@@ -393,18 +393,10 @@ class CartStore extends ChangeNotifier {
   }
 
   void addItem(CartItem item) {
-    // Apply the 15% non-partner markup once, at the point of adding to cart.
-    // PricingService.calculateBreakdown will NOT add it again.
-    final effectivePrice =
-        PricingService.applyMarkup(item.price, _isPartnerStore);
-    final cartItem = effectivePrice != item.price
-        ? CartItem(
-            productId: item.productId, // Bug-B fix 2026-04-30 (preserve UUID)
-            name: item.name,
-            price: effectivePrice,
-            quantity: item.quantity,
-          )
-        : item;
+    // Preços na DB já incluem o markup non-partner — NÃO aplicar mais
+    // PricingService.applyMarkup aqui (confirmado 2026-05-21: site auchan.pt
+    // Água 1.5l €0.28 vs DB €0.32 = €0.28×1.15). Preço usado directo.
+    final cartItem = item;
 
     final index = _items.indexWhere((i) => i.name == cartItem.name);
 

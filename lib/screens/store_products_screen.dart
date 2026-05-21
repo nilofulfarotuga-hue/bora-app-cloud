@@ -8,7 +8,6 @@ import '../config/app_colors.dart';
 import '../models/cart_item.dart';
 import '../models/partner_product.dart';
 import '../models/product_variant.dart';
-import '../services/pricing_service.dart';
 import '../stores/cart_store.dart';
 import '../stores/favorite_store.dart';
 import '../stores/restaurant_store.dart';
@@ -857,8 +856,8 @@ class _BoraProductCardTile extends StatelessWidget {
 
     return BoraProductCard(
       product: product,
-      displayPrice:
-          PricingService.applyMarkup(product.price, isPartnerStore),
+      // Preço na DB já inclui markup non-partner (2026-05-21).
+      displayPrice: product.price,
       isFavorite: isFav,
       onFavoriteToggle: () => favoriteStore.toggle(product.id),
       onTap: () => Navigator.push(
@@ -1048,7 +1047,7 @@ class _ProductCardState extends State<_ProductCard>
                     children: [
                       Text(
                         widget.product.price > 0
-                            ? '€${PricingService.applyMarkup(widget.product.price, widget.isPartnerStore).toStringAsFixed(2)}'
+                            ? '€${widget.product.price.toStringAsFixed(2)}'
                             : 'Preço indisponível',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
@@ -1178,8 +1177,8 @@ class _VariantMiniCard extends StatelessWidget {
     final qty = cartStore.items
         .where((i) => i.productId == _variantKey)
         .fold<int>(0, (sum, i) => sum + i.quantity);
-    final markedPrice =
-        PricingService.applyMarkup(variant.price, isPartnerStore);
+    // Preço na DB já inclui markup non-partner (2026-05-21).
+    final markedPrice = variant.price;
     final priceLabel = showPerKg
         ? '€${markedPrice.toStringAsFixed(2)}/kg'
         : '€${markedPrice.toStringAsFixed(2)}';
@@ -1588,7 +1587,7 @@ class _SuggestionsPanel extends StatelessWidget {
                     style: const TextStyle(
                         fontSize: 13, fontWeight: FontWeight.w600)),
                 subtitle: Text(
-                    '€${PricingService.applyMarkup(p.price, isPartnerStore).toStringAsFixed(2)}',
+                    '€${p.price.toStringAsFixed(2)}',
                     style: const TextStyle(fontSize: 12)),
                 onTap: () => onPickProduct(p),
               );
@@ -1617,7 +1616,7 @@ class _SuggestionsPanel extends StatelessWidget {
                     style: const TextStyle(
                         fontSize: 13, fontWeight: FontWeight.w600)),
                 subtitle: Text(
-                    '€${PricingService.applyMarkup(p.price, isPartnerStore).toStringAsFixed(2)}',
+                    '€${p.price.toStringAsFixed(2)}',
                     style: const TextStyle(fontSize: 12)),
                 onTap: () => onPickProduct(p),
               ),

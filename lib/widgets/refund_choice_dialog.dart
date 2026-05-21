@@ -62,7 +62,7 @@ class _RefundChoiceDialogState extends State<_RefundChoiceDialog> {
 
   // Split preview (lê platform_settings.wallet_split_free_pct)
   double _splitFreePct = 0.80;
-  int _tokenValueCentsX100 = 5;
+  int _tokenValueCentsX100 = 50; // 1 token = €0.005 (100 tokens = €0.50)
 
   @override
   void initState() {
@@ -82,7 +82,7 @@ class _RefundChoiceDialogState extends State<_RefundChoiceDialog> {
       if (!mounted) return;
       setState(() {
         if (pct != null) _splitFreePct = double.tryParse(pct.toString()) ?? 0.80;
-        if (tv != null) _tokenValueCentsX100 = int.tryParse(tv.toString()) ?? 5;
+        if (tv != null) _tokenValueCentsX100 = int.tryParse(tv.toString()) ?? 50;
       });
     } catch (_) {/* keeps defaults */}
   }

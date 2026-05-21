@@ -23,6 +23,8 @@ import '../stores/session_store.dart';
 import 'client/reservation/my_reservation_lists_screen.dart';
 import 'client_reservations_screen.dart';
 import 'orders_screen.dart';
+import 'client_addresses_screen.dart';
+import 'client_promo_code_screen.dart';
 import 'referral_screen.dart';
 import 'support_screen.dart';
 import 'wallet_history_screen.dart';
@@ -577,10 +579,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ),
                   ListTile(
+                    leading: const Icon(Icons.location_on_outlined,
+                        color: AppTheme.primary),
+                    title: const Text('Os meus endereços'),
+                    subtitle: const Text('Casa, Trabalho e outros'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const ClientAddressesScreen()),
+                    ),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.redeem_outlined,
+                        color: AppTheme.primary),
+                    title: const Text('Tenho um código'),
+                    subtitle: const Text('Resgata tokens com um código promocional'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const ClientPromoCodeScreen()),
+                    ),
+                  ),
+                  ListTile(
                     leading: const Icon(Icons.card_giftcard_outlined,
                         color: AppTheme.primary),
                     title: const Text('Convidar amigos'),
-                    subtitle: const Text('€5 para ti + €5 para o teu amigo'),
+                    subtitle: const Text('1000 tokens (≈€5) para ti + para o teu amigo'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.push(
                       context,

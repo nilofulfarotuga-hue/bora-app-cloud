@@ -172,7 +172,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
                 _step(1, 'Partilha o teu código com amigos.'),
                 _step(2, 'Eles registam-se na app com o teu código.'),
                 _step(3,
-                    'Quando fizerem o 1º pedido (≥€20) entregue, vocês recebem €5 cada um em saldo livre.'),
+                    'Quando fizerem o 1º pedido (≥€20) entregue, vocês recebem 1000 Bora Tokens cada (≈€5).'),
               ],
             ),
           ),

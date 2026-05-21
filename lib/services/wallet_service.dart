@@ -169,7 +169,9 @@ class WalletBalance {
         userId: j['user_id'] as String,
         freeCents: (j['free_cents'] as num?)?.toInt() ?? 0,
         tokensBalance: (j['tokens_balance'] as num?)?.toInt() ?? 0,
-        tokenValueCentsX100: (j['token_value_cents_x100'] as num?)?.toInt() ?? 5,
+        // Default 50 = 0.5 cents = €0.005 per token (100 tokens = €0.50).
+        // Source of truth: platform_settings.token_value_cents_x100 (DB).
+        tokenValueCentsX100: (j['token_value_cents_x100'] as num?)?.toInt() ?? 50,
         lastTransactions: ((j['last_transactions'] as List?) ?? const [])
             .map((e) => WalletTx.fromJson((e as Map).cast<String, dynamic>()))
             .toList(),

@@ -1718,6 +1718,11 @@ class OrderStore extends ChangeNotifier {
         final newPaymentStatusName = response['payment_status'] as String?;
 
         order.finalTotal = finalCents / 100.0;
+        // RPC corrigida (2026-05-22): cash_total_due passa a espelhar final_total.
+        // Limpar localmente força o getter totalToCollectCash a cair em finalTotal
+        // (autoritativo da RPC), evitando que um cashTotalDue antigo herdado de
+        // fromSupabase (pré-fix RPC) sobreviva e mostre "RECEBER €X" errado ao estafeta.
+        order.cashTotalDue = null;
         order.refundAmount = refundCents > 0 ? refundCents / 100.0 : null;
         order.extraChargeAmount = extraCents > 0 ? extraCents / 100.0 : null;
         order.isPurchaseFinalized = true;
@@ -1838,6 +1843,11 @@ class OrderStore extends ChangeNotifier {
       order.isPurchaseFinalized = true;
       order.bagCount = bagCount;
       order.bagFee = bagCount * 0.10;
+      // RPC v2 corrigida (2026-05-22): cash_total_due = final_total. Limpar
+      // localmente força totalToCollectCash a usar finalTotal autoritativo
+      // que chega via realtime, evitando que cashTotalDue antigo de
+      // fromSupabase mostre "RECEBER €X" errado ao estafeta.
+      order.cashTotalDue = null;
       // status onTheWay vem via realtime; não força aqui.
       notifyListeners();
 

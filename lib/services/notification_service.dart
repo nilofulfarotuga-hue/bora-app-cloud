@@ -8,7 +8,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
+// Prefix `fln` para evitar colisão com flutter_foreground_task (também exporta
+// NotificationVisibility). Usado só para AndroidNotificationDetails e enums.
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart'
+    as fln;
 // Alias para evitar colisão de `NotificationVisibility` com flutter_local_notifications.
 import 'package:flutter_overlay_window/flutter_overlay_window.dart' as fow;
 import 'package:http/http.dart' as http;
@@ -23,19 +27,22 @@ import 'sound_service.dart';
 
 /// Background message handler — must be a top-level function (not a closure).
 ///
-/// Sessão 2026-05-22 — heads-up: a notificação sistema é mostrada pelo
-/// Android FCM SDK a partir do bloco `notification` da mensagem (canal
-/// bora_orders_urgent_v2) ANTES deste handler arrancar.
+/// Sessão 2026-05-22 (fullScreenIntent definitivo) — cadeia tripla de
+/// redundância para garantir que o estafeta vê o pedido em qualquer estado:
 ///
-/// Sessão 2026-05-22 (bridge): adicionalmente, quando `type == new_order_offer`
-/// e o foreground service está a correr, enviamos os dados para o TaskHandler
-/// via `sendDataToTask`. O TaskHandler reencaminha para o main isolate (vivo
-/// graças ao FGS), onde `showDriverOfferOverlay()` consegue desenhar — o que
-/// é IMPOSSÍVEL fazer a partir deste isolate de background (Android 14+).
+///   1. Local notification com `fullScreenIntent: true` no canal
+///      bora_orders_urgent_v2 (IMPORTANCE_MAX). Em Android <14, abre a
+///      MainActivity (que tem showWhenLocked + turnScreenOn) por cima de
+///      qualquer outra app/lockscreen. Em Android 14+ requer perm explícita
+///      USE_FULL_SCREEN_INTENT — sem ela, downgraded para heads-up.
+///   2. Ponte FCM→FGS→main isolate via `sendDataToTask` — quando o foreground
+///      service está vivo, o main isolate pode chamar `showDriverOfferOverlay`
+///      (SYSTEM_ALERT_WINDOW) por cima de outras apps com ecrã desbloqueado.
+///   3. Heads-up automático pelo FCM SDK (bloco `notification` da msg) —
+///      último fallback visual quando 1 e 2 falham.
 ///
-/// Esta ponte resolve o problema do Realtime cair em background (Supabase
-/// termina o websocket "Tenant has no connected users"), porque o FCM passa
-/// a ser o trigger principal da overlay quando a app não está em foreground.
+/// Importa criar o canal aqui também: o BG isolate NÃO partilha estado com o
+/// main, e Android exige que o canal exista no momento do show().
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   try {
@@ -50,17 +57,80 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
   if (data['type'] != 'new_order_offer') return;
 
+  final orderId = data['orderId']?.toString() ?? '';
+  final vendorName = data['vendorName']?.toString() ?? 'Novo pedido';
+  final total = data['total']?.toString() ?? '0.00';
+  final distanceKm = data['distanceKm']?.toString() ?? '0';
+  final driverEarnings = data['driverEarnings']?.toString() ?? '0.00';
+
+  // ── 1) Local notification com fullScreenIntent ─────────────────────────
+  // Em Android <14 abre MainActivity por cima de tudo (showWhenLocked +
+  // turnScreenOn no manifest). Em Android 14+ requer USE_FULL_SCREEN_INTENT
+  // concedida pelo utilizador — sem ela, heads-up.
+  try {
+    final plugin = FlutterLocalNotificationsPlugin();
+    final androidImpl = plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    // Idempotente — Android dedup por canal id; criar de novo é safe.
+    await androidImpl?.createNotificationChannel(
+      const AndroidNotificationChannel(
+        'bora_orders_urgent_v2',
+        'Bora — Pedidos urgentes',
+        description: 'Notificação prioritária com som para novos pedidos',
+        importance: Importance.max,
+        playSound: true,
+        sound: RawResourceAndroidNotificationSound('bora_alert'),
+        enableVibration: true,
+      ),
+    );
+    const androidDetails = AndroidNotificationDetails(
+      'bora_orders_urgent_v2',
+      'Bora — Pedidos urgentes',
+      channelDescription:
+          'Notificação prioritária com som para novos pedidos',
+      importance: Importance.max,
+      priority: Priority.max,
+      category: AndroidNotificationCategory.call,
+      fullScreenIntent: true,
+      playSound: true,
+      sound: RawResourceAndroidNotificationSound('bora_alert'),
+      enableVibration: true,
+      visibility: fln.NotificationVisibility.public,
+      autoCancel: true,
+      ongoing: false,
+      ticker: 'Novo pedido Bora',
+    );
+    await plugin.show(
+      orderId.hashCode,
+      '🛵 Novo pedido!',
+      '$vendorName • €$total • ${distanceKm}km • €$driverEarnings',
+      const NotificationDetails(android: androidDetails),
+      payload: jsonEncode({
+        'type': 'new_order_offer',
+        'orderId': orderId,
+        'vendorName': vendorName,
+        'total': total,
+        'distanceKm': distanceKm,
+        'driverEarnings': driverEarnings,
+      }),
+    );
+    debugPrint('[FCM BG] fullScreenIntent notif shown order=$orderId');
+  } catch (e) {
+    debugPrint('[FCM BG] local notif error: $e');
+  }
+
+  // ── 2) Ponte FCM→FGS→main para overlay SYSTEM_ALERT_WINDOW ─────────────
   try {
     if (await FlutterForegroundTask.isRunningService) {
       FlutterForegroundTask.sendDataToTask(<String, String>{
         'type': 'new_order_offer',
-        'orderId': data['orderId']?.toString() ?? '',
-        'vendorName': data['vendorName']?.toString() ?? 'Novo pedido',
-        'total': data['total']?.toString() ?? '0.00',
-        'distanceKm': data['distanceKm']?.toString() ?? '0',
-        'driverEarnings': data['driverEarnings']?.toString() ?? '0.00',
+        'orderId': orderId,
+        'vendorName': vendorName,
+        'total': total,
+        'distanceKm': distanceKm,
+        'driverEarnings': driverEarnings,
       });
-      debugPrint('[FCM BG] forwarded to FGS task (order=${data['orderId']})');
+      debugPrint('[FCM BG] forwarded to FGS task (order=$orderId)');
     } else {
       debugPrint('[FCM BG] FGS not running — overlay bridge skipped');
     }

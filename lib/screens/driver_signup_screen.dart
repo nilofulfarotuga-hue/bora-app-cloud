@@ -231,7 +231,7 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
     if (data['success'] != true) {
       throw Exception('Upload falhou: ${data['error'] ?? 'unknown'}');
     }
-    return data['signed_url'] as String?;
+    return (data['signed_url'] ?? data['url'] ?? data['path']) as String?;
   }
 
   Future<void> _submit() async {
@@ -298,11 +298,20 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
 
       // 2. Upload das fotos
       final selfieUrl = await _uploadPhoto(_selfieFile!, userId, 'selfie');
+      if (selfieUrl == null) {
+        throw Exception('Upload da selfie falhou: URL não devolvida. Tenta de novo.');
+      }
       final docUrl =
           await _uploadPhoto(_documentPhotoFile!, userId, 'document');
+      if (docUrl == null) {
+        throw Exception('Upload do documento falhou: URL não devolvida. Tenta de novo.');
+      }
       String? vehicleUrl;
       if (_vehiclePhotoFile != null) {
         vehicleUrl = await _uploadPhoto(_vehiclePhotoFile!, userId, 'vehicle');
+        if (vehicleUrl == null) {
+          throw Exception('Upload do veículo falhou: URL não devolvida. Tenta de novo.');
+        }
       }
 
       // 3. Registo via RPC `driver_register_or_update` (ON CONFLICT user_id).

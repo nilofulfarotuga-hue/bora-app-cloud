@@ -22,11 +22,34 @@ class _AdminTokensScreenState extends State<AdminTokensScreen>
   bool _loading = false;
   Map<String, dynamic>? _data;
   List<Map<String, dynamic>> _searchResults = [];
+  List<Map<String, dynamic>> _allGrants = [];
+  bool _allGrantsLoading = false;
 
   @override
   void initState() {
     super.initState();
     _tab = TabController(length: 2, vsync: this);
+    _loadAllGrants('client');
+  }
+
+  Future<void> _loadAllGrants(String role) async {
+    setState(() => _allGrantsLoading = true);
+    try {
+      final data = await Supabase.instance.client
+          .from('bora_tokens')
+          .select('id, user_id, role, amount, is_active, created_at, expires_at, source_order_id, reason')
+          .eq('role', role)
+          .order('created_at', ascending: false)
+          .limit(50);
+      if (mounted) {
+        setState(() {
+          _allGrants = List<Map<String, dynamic>>.from(data);
+          _allGrantsLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _allGrantsLoading = false);
+    }
   }
 
   @override
@@ -166,12 +189,13 @@ class _AdminTokensScreenState extends State<AdminTokensScreen>
         title: const Text('Tokens'),
         backgroundColor: AppColors.primary,
         bottom: TabBar(controller: _tab, tabs: const [Tab(text: 'Clientes'), Tab(text: 'Entregadores')],
-            onTap: (_) {
+            onTap: (index) {
               setState(() {
                 _selectedUserId = null;
                 _data = null;
                 _searchResults = [];
               });
+              _loadAllGrants(index == 0 ? 'client' : 'driver');
             }),
       ),
       body: Column(children: [
@@ -204,7 +228,9 @@ class _AdminTokensScreenState extends State<AdminTokensScreen>
             ),
           ),
         if (_selectedUserId != null && _data != null)
-          Expanded(child: _buildSelectedUserView()),
+          Expanded(child: _buildSelectedUserView())
+        else if (_searchResults.isEmpty)
+          Expanded(child: _buildAllGrantsList()),
       ]),
       floatingActionButton: _selectedUserId == null
           ? null
@@ -213,6 +239,50 @@ class _AdminTokensScreenState extends State<AdminTokensScreen>
               icon: const Icon(Icons.add),
               label: const Text('Atribuir'),
             ),
+    );
+  }
+
+  Widget _buildAllGrantsList() {
+    if (_allGrantsLoading) return const Center(child: CircularProgressIndicator());
+    if (_allGrants.isEmpty) {
+      return Center(
+        child: Text('Sem tokens neste filtro.',
+            style: TextStyle(color: AppColors.textSecondary)),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: () => _loadAllGrants(_tab.index == 0 ? 'client' : 'driver'),
+      child: ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        itemCount: _allGrants.length,
+        itemBuilder: (ctx, i) {
+          final g = _allGrants[i];
+          final active = g['is_active'] == true;
+          final userId = (g['user_id'] as String?) ?? '—';
+          final shortId = userId.length > 8 ? userId.substring(0, 8) : userId;
+          final amount = g['amount'] ?? 0;
+          final createdAt = (g['created_at'] as String?)?.substring(0, 10) ?? '?';
+          final expiresAt = (g['expires_at'] as String?)?.substring(0, 10) ?? '?';
+          final isManual = g['source_order_id'] == null;
+          return Card(
+            margin: const EdgeInsets.symmetric(vertical: 3),
+            child: ListTile(
+              dense: true,
+              leading: Icon(
+                active ? Icons.check_circle : Icons.cancel,
+                color: active ? Colors.green : Colors.grey,
+                size: 22,
+              ),
+              title: Text('$amount tokens${isManual ? " · MANUAL" : ""}'),
+              subtitle: Text('$shortId… · criado $createdAt · expira $expiresAt'),
+              trailing: active
+                  ? const Icon(Icons.circle, size: 8, color: Colors.green)
+                  : null,
+            ),
+          );
+        },
+      ),
     );
   }
 

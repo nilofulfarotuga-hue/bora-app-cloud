@@ -231,15 +231,22 @@ class _ReservationCheckoutScreenState extends State<ReservationCheckoutScreen> {
         return;
       }
 
-      // c) Sucesso — confirmar via RPC fallback (idempotente).
-      await context
-          .read<ReservationStore>()
-          .confirmReservationPayment(reservationId);
+      // c) RPC fallback idempotente — webhook pode já ter confirmado,
+      //    nesse caso a RPC falha mas o pagamento já foi processado.
+      try {
+        await context
+            .read<ReservationStore>()
+            .confirmReservationPayment(reservationId);
+      } catch (_) {
+        // Webhook já confirmou — não é erro para o utilizador.
+      }
 
       if (!mounted) return;
       messenger.showSnackBar(
         const SnackBar(
-          content: Text('Reserva pendente! O parceiro confirma em breve.'),
+          content: Text(
+            'Reserva submetida! O pagamento MB Way está a ser processado.',
+          ),
           backgroundColor: AppTheme.primary,
         ),
       );

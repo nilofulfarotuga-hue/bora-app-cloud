@@ -31,6 +31,7 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
   static const _columns =
       'id, name, phone, email, vehicle_type, license_plate, photo_url, '
       'document_type, document_number, document_photo_url, vehicle_photo_url, '
+      'registration_selfie_url, nif, '
       'iban, approval_status, rejection_reason, created_at';
 
   @override
@@ -682,6 +683,7 @@ class _DriverDetailSheet extends StatelessWidget {
     // Pending: foto ainda está em registration_selfie_url. Aprovados: photo_url.
     final photoUrl = (driver['photo_url'] as String?) ??
         (driver['registration_selfie_url'] as String?);
+    final selfieUrl = driver['registration_selfie_url'] as String?;
     final docPhotoUrl = driver['document_photo_url'] as String?;
     final vehiclePhotoUrl = driver['vehicle_photo_url'] as String?;
     final rejectionReason = driver['rejection_reason'] as String?;
@@ -742,6 +744,7 @@ class _DriverDetailSheet extends StatelessWidget {
           _InfoRow(
               label: 'Nº documento',
               value: driver['document_number'] as String?),
+          _InfoRow(label: 'NIF', value: driver['nif'] as String?),
           _InfoRow(label: 'Veículo', value: driver['vehicle_type'] as String?),
           _InfoRow(
               label: 'Matrícula',
@@ -800,6 +803,23 @@ class _DriverDetailSheet extends StatelessWidget {
               onTap: () => _showFullscreen(context, vehiclePhotoUrl),
               child: PrivateBucketImage(
                 urlOrPath: vehiclePhotoUrl,
+                height: 160,
+                width: double.infinity,
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+
+          // Selfie de registo — guardada em registration_selfie_url.
+          if (selfieUrl != null) ...[
+            const Text('Selfie de registo',
+                style: TextStyle(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            GestureDetector(
+              onTap: () => _showFullscreen(context, selfieUrl),
+              child: PrivateBucketImage(
+                urlOrPath: selfieUrl,
                 height: 160,
                 width: double.infinity,
                 borderRadius: BorderRadius.circular(10),

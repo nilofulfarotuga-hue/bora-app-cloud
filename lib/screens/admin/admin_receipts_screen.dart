@@ -441,27 +441,34 @@ class _ReceiptCard extends StatefulWidget {
 
 class _ReceiptCardState extends State<_ReceiptCard> {
   bool _busy = false;
-  String? _signedPhotoUrl;
+  late final Future<String?> _photoFuture;
   String? _driverMbway;
   String? _driverName;
 
   @override
   void initState() {
     super.initState();
+    final rawUrl = (widget.row['photo_url'] as String?) ?? '';
+    _photoFuture =
+        rawUrl.isNotEmpty ? _getReceiptSignedUrl(rawUrl) : Future.value(null);
     _loadExtras();
+  }
+
+  Future<String?> _getReceiptSignedUrl(String photoUrl) async {
+    try {
+      if (photoUrl.startsWith('http')) return photoUrl;
+      final clean = photoUrl.replaceFirst(RegExp(r'^receipts/'), '');
+      return await Supabase.instance.client.storage
+          .from('receipts')
+          .createSignedUrl(clean, 3600);
+    } catch (e) {
+      debugPrint('[AdminReceipts] signed URL error: $e');
+      return null;
+    }
   }
 
   Future<void> _loadExtras() async {
     try {
-      // Signed URL para foto
-      final path = (widget.row['photo_url'] as String?) ?? '';
-      if (path.isNotEmpty) {
-        final clean = path.replaceFirst(RegExp(r'^receipts/'), '');
-        final signed = await Supabase.instance.client.storage
-            .from('receipts')
-            .createSignedUrl(clean, 3600);
-        if (mounted) setState(() => _signedPhotoUrl = signed);
-      }
       // Driver MBWay phone
       final orderId = widget.row['order_id'] as String;
       final ord = await Supabase.instance.client
@@ -630,50 +637,57 @@ class _ReceiptCardState extends State<_ReceiptCard> {
               ],
             ),
             const SizedBox(height: 8),
-            if (_signedPhotoUrl != null)
-              GestureDetector(
-                onTap: () => _showPhotoFullscreen(context),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: Image.network(
-                    _signedPhotoUrl!,
-                    height: 140,
+            FutureBuilder<String?>(
+              future: _photoFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Container(
+                    height: 40,
                     width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) =>
-                        const Icon(Icons.broken_image, size: 40),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Center(
+                      child: SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                  );
+                }
+                final signedUrl = snapshot.data;
+                if (signedUrl != null) {
+                  return GestureDetector(
+                    onTap: () => _showPhotoFullscreen(context, signedUrl),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: Image.network(
+                        signedUrl,
+                        height: 140,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) =>
+                            const Icon(Icons.broken_image, size: 40),
+                      ),
+                    ),
+                  );
+                }
+                return Container(
+                  height: 40,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(6),
                   ),
-                ),
-              )
-            else if ((widget.row['photo_url'] as String?)?.isNotEmpty == true)
-              Container(
-                height: 40,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: const Center(
-                  child: SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                  child: Center(
+                    child: Text('Sem foto',
+                        style: TextStyle(color: AppColors.textSecondary)),
                   ),
-                ),
-              )
-            else
-              Container(
-                height: 40,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Center(
-                  child: Text('Sem foto',
-                      style: TextStyle(color: AppColors.textSecondary)),
-                ),
-              ),
+                );
+              },
+            ),
             const SizedBox(height: 8),
             Row(
               children: [
@@ -794,13 +808,12 @@ class _ReceiptCardState extends State<_ReceiptCard> {
     );
   }
 
-  void _showPhotoFullscreen(BuildContext context) {
-    if (_signedPhotoUrl == null) return;
+  void _showPhotoFullscreen(BuildContext context, String signedUrl) {
     showDialog(
       context: context,
       builder: (_) => Dialog(
         child: InteractiveViewer(
-          child: Image.network(_signedPhotoUrl!),
+          child: Image.network(signedUrl),
         ),
       ),
     );

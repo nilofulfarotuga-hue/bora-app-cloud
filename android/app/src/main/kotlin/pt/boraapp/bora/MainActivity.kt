@@ -11,6 +11,7 @@ class MainActivity : FlutterFragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         registerReservationsChannel()
+        createDriverOfferChannel()
     }
 
     private fun registerReservationsChannel() {
@@ -29,6 +30,24 @@ class MainActivity : FlutterFragmentActivity() {
             // Heads-up garantido (IMPORTANCE_HIGH já cobre); notificação
             // permanece até parceiro descartar (sem timeout automático).
             setShowBadge(true)
+        }
+        manager.createNotificationChannel(channel)
+    }
+
+    private fun createDriverOfferChannel() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val channel = NotificationChannel(
+            "bora_orders_urgent_v2",
+            "Pedidos de entrega",
+            NotificationManager.IMPORTANCE_HIGH,
+        ).apply {
+            description = "Notificacoes de novos pedidos para estafetas (v2)."
+            enableVibration(true)
+            vibrationPattern = longArrayOf(0L, 500L, 200L, 500L)
+            enableLights(true)
+            setShowBadge(true)
+            lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
         }
         manager.createNotificationChannel(channel)
     }

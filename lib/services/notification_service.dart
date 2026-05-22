@@ -54,7 +54,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // que abrem o app no card da oferta. Auto-cancel acontece quando o
   // realtime detecta `current_driver_offer_id` revogado (ver OrderStore).
   final androidDetails = AndroidNotificationDetails(
-    'bora_orders_urgent',
+    'bora_orders_urgent_v2',
     'Bora — Pedidos urgentes',
     channelDescription:
         'Notificações de novos pedidos (alta prioridade + som contínuo).',
@@ -99,7 +99,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
           AndroidFlutterLocalNotificationsPlugin>()
       ?.createNotificationChannel(
         const AndroidNotificationChannel(
-          'bora_orders_urgent',
+          'bora_orders_urgent_v2',
           'Bora — Pedidos urgentes',
           description:
               'Notificações de novos pedidos (alta prioridade + som).',

@@ -150,7 +150,7 @@ Deno.serve(async (req) => {
   // (main.dart::_setupForegroundAndUrgentChannel); outros tipos (reservas,
   // waitlist, etc) continuam no canal `bora_orders` para backward compat.
   const isUrgent  = kind == null || kind === 'new_order'
-  const channelId = isUrgent ? 'bora_orders_urgent' : kind
+  const channelId = isUrgent ? 'bora_orders_urgent_v2' : kind
   const dataType  = kind ?? 'new_order'
 
   // ── Obtain Firebase OAuth2 access token ──────────────────────────────────

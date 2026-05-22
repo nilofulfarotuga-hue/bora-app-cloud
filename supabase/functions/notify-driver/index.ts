@@ -159,16 +159,19 @@ Deno.serve(async (req) => {
   // ── Send FCM v1 push notification ─────────────────────────────────────────
   const fcmUrl = `https://fcm.googleapis.com/v1/projects/${firebaseProjectId}/messages:send`
 
-  // Sessão 2026-05-18 — DATA-ONLY MESSAGE (estilo Uber/Glovo).
-  // Removido o campo `notification` (top-level + android.notification) para
-  // forçar o Android a entregar ao _firebaseMessagingBackgroundHandler do
-  // Flutter mesmo com a app fechada/background. O handler dispara depois a
-  // notificação local com fullScreenIntent + som bora_alert + vibração.
-  // Se houver `notification`, o Android trata como "display message" e NÃO
-  // chama o background handler → sem som, sem overlay, sem timer.
+  // Sessão 2026-05-22 — DATA + NOTIFICATION FALLBACK (Android heads-up garantido).
+  // Adicionado bloco `notification` top-level como fallback: quando o Doze
+  // do Android throttle o background handler, o sistema mostra pelo menos
+  // a notificação com som via canal bora_orders_urgent_v2.
+  // O campo `data` continua disponível para o _firebaseMessagingBackgroundHandler
+  // (overlay + som loop + CallKit) quando o handler consegue correr.
   const message = {
     message: {
       token: fcmToken,
+      notification: {
+        title: '🛵 Novo pedido disponível',
+        body: 'Toca para ver os detalhes',
+      },
       data: {
         orderId:    String(orderId),
         type:       'new_order_offer',
@@ -182,7 +185,14 @@ Deno.serve(async (req) => {
       },
       android: {
         priority: 'high',
-        // SEM bloco `notification` — data-only.
+        ttl: '60s',
+        notification: {
+          channel_id: 'bora_orders_urgent_v2',
+          priority: 'max',
+          default_sound: true,
+          default_vibrate_timings: true,
+          visibility: 'PUBLIC',
+        },
       },
       apns: {
         headers: {

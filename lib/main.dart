@@ -107,12 +107,12 @@ Future<void> _setupForegroundAndUrgentChannel() async {
     // 1) Canal de alta prioridade para pedidos novos (Importance.max).
     //    Sem isto registado no Android Oreo+, FCM com priority=high é
     //    silenciado. notify-driver/notify-partner usam channel_id
-    //    'bora_orders_urgent'.
-    // Sessão 2026-05-18 — sound bora_alert + RawResource para o canal urgente.
-    // O FCM data-only message dispara o background handler que usa este canal
-    // para mostrar a notificação com fullScreenIntent + som personalizado.
+    //    'bora_orders_urgent_v2'.
+    // Sessão 2026-05-22 — canal renomeado para v2 (forçar recriação em
+    // devices com canal antigo mal configurado). Notification+data FCM
+    // usa este channel_id para heads-up fallback quando handler é throttled.
     const urgentChannel = AndroidNotificationChannel(
-      'bora_orders_urgent',
+      'bora_orders_urgent_v2',
       'Bora — Pedidos urgentes',
       description: 'Notificações de novos pedidos (alta prioridade + som).',
       importance: Importance.max,

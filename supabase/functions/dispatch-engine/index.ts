@@ -693,10 +693,13 @@ async function assignDriver(
 
   console.log(`[dispatch] ✓ SUCCESS — order=${orderId} → driver=${driverId}`)
 
-  // Fire-and-forget: notify driver via FCM (no await — don't block dispatch).
-  notifyDriver(driverId, orderId).catch((e) =>
-    console.warn(`[dispatch] notify-driver failed silently: ${e}`)
-  )
+  // await notifyDriver — Supabase Edge Runtime shuts down immediately after
+  // return; fire-and-forget never completes before worker shutdown.
+  try {
+    await notifyDriver(driverId, orderId)
+  } catch (e) {
+    console.warn(`[dispatch] notify-driver failed: ${e}`)
+  }
 
   return true
 }

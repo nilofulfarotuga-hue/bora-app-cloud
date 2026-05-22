@@ -21,174 +21,31 @@ import 'push_token_service.dart';
 import 'sound_service.dart';
 
 /// Background message handler — must be a top-level function (not a closure).
-/// Called by FCM when a DATA-ONLY message arrives (sem campo `notification`)
-/// e a app está em background OU terminada/fechada.
 ///
-/// Sessão 2026-05-18 — estilo Uber/Glovo: a Edge Function notify-driver envia
-/// apenas `data` para forçar este handler a correr. Aqui disparamos uma
-/// notificação local com fullScreenIntent (acorda o ecrã), som bora_alert e
-/// vibração agressiva — exactamente como Uber/Glovo fazem para que o estafeta
-/// nunca perca uma oferta com o telemóvel bloqueado.
+/// Sessão 2026-05-22 — refactor: handler simplificado para apenas log + Firebase
+/// init. A heads-up notification é mostrada AUTOMATICAMENTE pelo Android FCM
+/// SDK a partir do bloco `notification` da mensagem (hybrid payload) ANTES do
+/// Dart isolate sequer arrancar. Tentar mostrar overlay/CallKit/local
+/// notification daqui:
+///   1) duplica a notificação já mostrada pelo sistema
+///   2) Android 14+ bloqueia draw-overlay a partir de background isolate
+///   3) crashes do isolate atrasam/bloqueiam a entrega da notificação sistema
+///
+/// Em foreground, OrderStore realtime detecta `current_driver_offer_id` e
+/// dispara overlay+CallKit+som via UI thread (onde funcionam).
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  // Firebase pode não estar inicializado neste isolate em background.
   try {
     await Firebase.initializeApp();
   } catch (_) {
     // already initialized
   }
-
-  final data = message.data;
-  final type = data['type'];
-
-  debugPrint('[NotificationService BG] data=$data');
-
-  if (type != 'new_order_offer') return;
-
-  final orderId = (data['orderId'] ?? '').toString();
-  final title = (data['title'] ?? '🔔 Novo pedido!').toString();
-  final body = (data['body'] ?? 'Novo pedido disponível').toString();
-
-  // 2026-05-20 — estilo chamada (Uber/Glovo): notificação não dispensável,
-  // som contínuo via FLAG_INSISTENT (=4), action buttons aceitar/rejeitar
-  // que abrem o app no card da oferta. Auto-cancel acontece quando o
-  // realtime detecta `current_driver_offer_id` revogado (ver OrderStore).
-  final androidDetails = AndroidNotificationDetails(
-    'bora_orders_urgent_v2',
-    'Bora — Pedidos urgentes',
-    channelDescription:
-        'Notificações de novos pedidos (alta prioridade + som contínuo).',
-    importance: Importance.max,
-    priority: Priority.max,
-    fullScreenIntent: true,
-    playSound: true,
-    sound: const RawResourceAndroidNotificationSound('bora_alert'),
-    enableVibration: true,
-    vibrationPattern: Int64List.fromList(<int>[0, 500, 200, 500, 200, 500]),
-    category: AndroidNotificationCategory.call,
-    visibility: NotificationVisibility.public,
-    ticker: 'Novo pedido!',
-    ongoing: true, // não dispensável por swipe (estilo chamada)
-    autoCancel: true, // tap (body ou action) silencia + abre o app
-    // FLAG_INSISTENT (=4) — Android toca o som em loop até o utilizador
-    // interagir. É o que diferencia uma oferta de uma notificação normal.
-    additionalFlags: Int32List.fromList(<int>[4]),
-    actions: <AndroidNotificationAction>[
-      const AndroidNotificationAction(
-        'bora_offer_accept',
-        '✅ Aceitar',
-        showsUserInterface: true,
-        cancelNotification: true,
-      ),
-      const AndroidNotificationAction(
-        'bora_offer_reject',
-        '❌ Rejeitar',
-        showsUserInterface: true,
-        cancelNotification: true,
-      ),
-    ],
-  );
-
-  final details = NotificationDetails(android: androidDetails);
-
-  final plugin = FlutterLocalNotificationsPlugin();
-
-  // Garante canal criado neste isolate (caso o handler corra antes do main).
-  await plugin
-      .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>()
-      ?.createNotificationChannel(
-        const AndroidNotificationChannel(
-          'bora_orders_urgent_v2',
-          'Bora — Pedidos urgentes',
-          description:
-              'Notificações de novos pedidos (alta prioridade + som).',
-          importance: Importance.max,
-          playSound: true,
-          sound: RawResourceAndroidNotificationSound('bora_alert'),
-          enableVibration: true,
-          showBadge: true,
-        ),
-      );
-
-  await plugin.show(
-    orderId.hashCode,
-    title,
-    body,
-    details,
-    payload: jsonEncode(data),
-  );
-
-  // Sessão 2026-05-21 — Lockscreen CallKit (estilo chamada Uber/Glovo).
-  // Quando o ecrã está bloqueado, flutter_overlay_window não atravessa o
-  // lockscreen. CallKit usa CallActivity nativa (showWhenLocked + turnScreenOn)
-  // que aparece estilo chamada entrante sobre o lockscreen. Aceitar abre o
-  // app; rejeitar dispara onCallRejected → driver_reject_offer RPC.
-  try {
-    final vendorName = (data['vendorName'] ?? 'Pedido novo').toString();
-    final callEvent = CallEvent(
-      sessionId: orderId,
-      callType: 1, // 1 = VIDEO (ecrã maior — mais visibilidade no lockscreen)
-      callerId: 1,
-      callerName: vendorName,
-      opponentsIds: const <int>{1},
-      callPhoto: '',
-      userInfo: <String, String>{
-        'order_id': orderId,
-        'vendor_name': vendorName,
-        'total': (data['total'] ?? '').toString(),
-        'distance_km': (data['distanceKm'] ?? '').toString(),
-        'driver_earnings': (data['driverEarnings'] ?? '').toString(),
-      },
-    );
-    await ConnectycubeFlutterCallKit.showCallNotification(callEvent);
-  } catch (e) {
-    debugPrint('[NotificationService BG] callkit show error: $e');
-  }
-
-  // Sessão 2026-05-21 — Overlay system_alert_window por cima de outras apps.
-  // Estilo Uber/Glovo: o estafeta vê o card mesmo se estiver noutra app.
-  // Som contínuo + vibração ficam na local notification acima (que toca em
-  // paralelo). Aqui é apenas a UI visual com botões aceitar/rejeitar.
-  try {
-    final granted = await fow.FlutterOverlayWindow.isPermissionGranted();
-    if (!granted) return;
-    final alreadyActive = await fow.FlutterOverlayWindow.isActive();
-    if (alreadyActive) {
-      // Já há um overlay aberto (oferta anterior em andamento) — apenas
-      // actualiza os dados em vez de duplicar.
-      await fow.FlutterOverlayWindow.shareData(<String, dynamic>{
-        'orderId': orderId,
-        'vendorName': data['vendorName'],
-        'total': data['total'],
-        'distanceKm': data['distanceKm'],
-        'driverEarnings': data['driverEarnings'],
-      });
-      return;
-    }
-    await fow.FlutterOverlayWindow.showOverlay(
-      enableDrag: false,
-      overlayTitle: 'Novo pedido!',
-      overlayContent: (data['vendorName'] ?? 'Pedido').toString(),
-      flag: fow.OverlayFlag.defaultFlag,
-      visibility: fow.NotificationVisibility.visibilityPublic,
-      positionGravity: fow.PositionGravity.auto,
-      height: 420,
-      width: fow.WindowSize.matchParent,
-    );
-    // Pequeno delay para garantir que o isolate da overlay arrancou + se
-    // subscreveu ao stream antes de enviarmos os dados.
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-    await fow.FlutterOverlayWindow.shareData(<String, dynamic>{
-      'orderId': orderId,
-      'vendorName': data['vendorName'],
-      'total': data['total'],
-      'distanceKm': data['distanceKm'],
-      'driverEarnings': data['driverEarnings'],
-    });
-  } catch (e) {
-    debugPrint('[NotificationService BG] overlay show error: $e');
-  }
+  debugPrint('[FCM BG] received: type=${message.data['type']} '
+      'orderId=${message.data['orderId']} '
+      'notif=${message.notification?.title}');
+  // NÃO mostrar nada aqui — Android já mostra heads-up via canal
+  // bora_orders_urgent_v2 (default_notification_channel_id em AndroidManifest).
+  // O tap na notificação abre o app → onMessageOpenedApp → realtime → UI.
 }
 
 /// Cancela a notificação persistente de uma oferta quando:

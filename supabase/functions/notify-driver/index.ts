@@ -170,12 +170,16 @@ Deno.serve(async (req) => {
   // a notificação com som via canal bora_orders_urgent_v2.
   // O campo `data` continua disponível para o _firebaseMessagingBackgroundHandler
   // (overlay + som loop + CallKit) quando o handler consegue correr.
+  const headsUpBody = distanceKm !== '0'
+    ? `${vendorName} • €${total.toFixed(2)} • ${distanceKm}km`
+    : `${vendorName} • €${total.toFixed(2)}`
+
   const message = {
     message: {
       token: fcmToken,
       notification: {
-        title: '🛵 Novo pedido disponível',
-        body: 'Toca para ver os detalhes',
+        title: '🛵 Novo pedido!',
+        body: headsUpBody,
       },
       data: {
         orderId:    String(orderId),

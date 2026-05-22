@@ -65,6 +65,15 @@
             android:name="com.google.android.gms.wallet.api.enabled"
             android:value="true" />
 
+        <!-- 2026-05-22: FCM default channel id. Critico para heads-up em background:
+             sem este meta-data, quando o FCM SDK recebe a mensagem com app fora
+             do foreground, cai no canal default (IMPORTANCE_DEFAULT) e a
+             notificacao NAO aparece como heads-up. Tem de bater certo com o
+             channel_id criado em MainActivity.kt + main.dart + payload FCM. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="bora_orders_urgent_v2"/>
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

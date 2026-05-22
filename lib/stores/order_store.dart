@@ -2389,6 +2389,18 @@ class OrderStore extends ChangeNotifier {
                   debugPrint(
                       '[OrderStore] onPostgresChanges: offer→$driverId order=$orderId');
                   _mergeDriverRows([rec], _driverOfferIds);
+                  // Mostrar overlay a partir do main isolate (foreground service
+                  // mantém o Flutter engine activo quando driver está noutra app).
+                  // Não disparar se a oferta já foi rejeitada nesta sessão.
+                  if (!_dismissedOrderIds.contains(orderId)) {
+                    NotificationService.instance.showDriverOfferOverlay(
+                      orderId: orderId,
+                      vendorName: (rec['restaurant_name'] as String?) ?? 'Pedido novo',
+                      total: (rec['total'] as num?)?.toStringAsFixed(2) ?? '0.00',
+                      distanceKm: (rec['distance_km'] as num?)?.toStringAsFixed(1) ?? '0',
+                      driverEarnings: (rec['driver_earnings'] as num?)?.toStringAsFixed(2) ?? '0.00',
+                    ).ignore();
+                  }
                 } else if (_driverOfferIds.contains(orderId)) {
                   // Offer revoked — remove only this order, not all pending offers.
                   debugPrint(

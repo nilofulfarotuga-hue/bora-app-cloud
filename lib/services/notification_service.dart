@@ -276,6 +276,55 @@ class NotificationService {
     } catch (_) {/* silent */}
   }
 
+  /// Mostra o overlay de oferta de pedido por cima de outras apps.
+  /// Chamado pelo main isolate (via OrderStore realtime) — funciona em
+  /// background porque o foreground service mantém o Flutter engine activo
+  /// e os platform channels acessíveis. (O FCM background isolate não tem
+  /// acesso aos platform channels do main engine, por isso não funciona a
+  /// partir daí.)
+  Future<void> showDriverOfferOverlay({
+    required String orderId,
+    String vendorName = 'Novo pedido',
+    String total = '0.00',
+    String distanceKm = '0',
+    String driverEarnings = '0.00',
+  }) async {
+    if (kIsWeb) return;
+    try {
+      final granted = await fow.FlutterOverlayWindow.isPermissionGranted();
+      if (!granted) {
+        debugPrint('[NotificationService] showDriverOfferOverlay: sem permissão SYSTEM_ALERT_WINDOW');
+        return;
+      }
+      final alreadyActive = await fow.FlutterOverlayWindow.isActive();
+      if (alreadyActive) {
+        await fow.FlutterOverlayWindow.shareData(<String, dynamic>{
+          'orderId': orderId, 'vendorName': vendorName,
+          'total': total, 'distanceKm': distanceKm, 'driverEarnings': driverEarnings,
+        });
+        return;
+      }
+      await fow.FlutterOverlayWindow.showOverlay(
+        enableDrag: false,
+        overlayTitle: 'Novo pedido!',
+        overlayContent: vendorName,
+        flag: fow.OverlayFlag.defaultFlag,
+        visibility: fow.NotificationVisibility.visibilityPublic,
+        positionGravity: fow.PositionGravity.auto,
+        height: 420,
+        width: fow.WindowSize.matchParent,
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      await fow.FlutterOverlayWindow.shareData(<String, dynamic>{
+        'orderId': orderId, 'vendorName': vendorName,
+        'total': total, 'distanceKm': distanceKm, 'driverEarnings': driverEarnings,
+      });
+      debugPrint('[NotificationService] showDriverOfferOverlay: shown order=$orderId');
+    } catch (e) {
+      debugPrint('[NotificationService] showDriverOfferOverlay error: $e');
+    }
+  }
+
   // ── Token persistence ─────────────────────────────────────────────────────
 
   /// Saves the FCM token to `drivers.fcm_token` for the given [driverId].

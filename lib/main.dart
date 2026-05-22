@@ -138,6 +138,10 @@ Future<void> _setupForegroundAndUrgentChannel() async {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Inicializa o ReceivePort do main isolate para comunicação com o FGS task.
+  // OBRIGATÓRIO antes de runApp() — sem isto receivePort é null e
+  // sendDataToMain() do task isolate nunca chega ao main isolate.
+  FlutterForegroundTask.initCommunicationPort();
 
   await Supabase.initialize(
     url: _supabaseUrl,

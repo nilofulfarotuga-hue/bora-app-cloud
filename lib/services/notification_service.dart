@@ -335,12 +335,27 @@ class NotificationService {
           '[NotificationService] overlay action=$action order=$orderId');
     });
 
-    // addTaskDataCallback removido — substituído por receivePort?.listen() em
-    // main.dart (após initCommunicationPort()). Usar os dois em simultâneo
-    // causava double-call a showDriverOfferOverlay().
+    // Bridge FCM→FGS→main: recebe payload new_order_offer que o
+    // _BoraTaskHandler reencaminhou via sendDataToMain.
+    FlutterForegroundTask.addTaskDataCallback(_onForegroundTaskData);
 
     _initialized = true;
     debugPrint('[NotificationService] initialized.');
+  }
+
+  void _onForegroundTaskData(Object data) {
+    if (data is! Map) return;
+    final type = data['type']?.toString();
+    if (type != 'new_order_offer') return;
+    final orderId = data['orderId']?.toString() ?? '';
+    if (orderId.isEmpty) return;
+    showDriverOfferOverlay(
+      orderId: orderId,
+      vendorName: data['vendorName']?.toString() ?? 'Novo pedido',
+      total: data['total']?.toString() ?? '0.00',
+      distanceKm: data['distanceKm']?.toString() ?? '0',
+      driverEarnings: data['driverEarnings']?.toString() ?? '0.00',
+    ).ignore();
   }
 
   // ── Overlay (system_alert_window) helpers ─────────────────────────────────

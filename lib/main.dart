@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 // BUG #12 (2026-05-13) — delegates Material/Widgets/Cupertino + Locale PT-PT
 // para o showDatePicker e outros widgets localizados funcionarem fora EN.
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:provider/provider.dart';
@@ -179,24 +178,6 @@ Future<void> main() async {
       // Sessão 2026-05-17 — foreground service config + canal urgente Android.
       _setupForegroundAndUrgentChannel(),
     ]);
-
-    // initCommunicationPort DEPOIS de BoraForegroundService.init() (Future.wait).
-    // Algumas versões do plugin requerem que init() esteja completo primeiro.
-    // receivePort?.listen() é o único mecanismo de callback — addTaskDataCallback
-    // foi removido de NotificationService.init() para evitar double-call.
-    FlutterForegroundTask.initCommunicationPort();
-    FlutterForegroundTask.receivePort?.listen((dynamic data) {
-      if (data is! Map) return;
-      final type = data['type']?.toString();
-      if (type != 'new_order_offer') return;
-      NotificationService.instance.showDriverOfferOverlay(
-        orderId:        data['orderId']?.toString() ?? '',
-        vendorName:     data['vendorName']?.toString() ?? 'Pedido',
-        total:          data['total']?.toString() ?? '0',
-        distanceKm:     data['distanceKm']?.toString() ?? '0',
-        driverEarnings: data['driverEarnings']?.toString() ?? '0',
-      );
-    });
 
     // Sessão 2026-05-21 — Lockscreen CallKit (connectycube_flutter_call_kit).
     // Tem de correr DEPOIS de Firebase.initializeApp() para o background

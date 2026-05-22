@@ -276,12 +276,46 @@ class NotificationService {
     } catch (_) {/* silent */}
   }
 
+  /// Pre-inicializa o overlay em standby quando driver vai Online.
+  /// Chamado em FOREGROUND para que showOverlay() funcione sem restrições.
+  /// O overlay fica activo mas invisível (flag=clickThrough) até que
+  /// showDriverOfferOverlay() actualize o flag para defaultFlag.
+  /// Quando chega a próxima oferta, shareData() é suficiente — sem
+  /// necessidade de outro showOverlay() (que pode falhar em background).
+  Future<void> initDriverStandbyOverlay() async {
+    if (kIsWeb) return;
+    try {
+      final granted = await fow.FlutterOverlayWindow.isPermissionGranted();
+      if (!granted) {
+        debugPrint('[NotificationService] initDriverStandbyOverlay: sem permissão');
+        return;
+      }
+      final alreadyActive = await fow.FlutterOverlayWindow.isActive();
+      if (alreadyActive) {
+        // Já activo — garantir que está em standby (click-through).
+        await fow.FlutterOverlayWindow.updateFlag(fow.OverlayFlag.clickThrough);
+        return;
+      }
+      await fow.FlutterOverlayWindow.showOverlay(
+        enableDrag: false,
+        overlayTitle: '',
+        overlayContent: '',
+        flag: fow.OverlayFlag.clickThrough,
+        visibility: fow.NotificationVisibility.visibilityPublic,
+        positionGravity: fow.PositionGravity.auto,
+        height: 420,
+        width: fow.WindowSize.matchParent,
+      );
+      debugPrint('[NotificationService] initDriverStandbyOverlay: standby ready');
+    } catch (e) {
+      debugPrint('[NotificationService] initDriverStandbyOverlay error: $e');
+    }
+  }
+
   /// Mostra o overlay de oferta de pedido por cima de outras apps.
-  /// Chamado pelo main isolate (via OrderStore realtime) — funciona em
-  /// background porque o foreground service mantém o Flutter engine activo
-  /// e os platform channels acessíveis. (O FCM background isolate não tem
-  /// acesso aos platform channels do main engine, por isso não funciona a
-  /// partir daí.)
+  /// Quando o overlay já está em standby (initDriverStandbyOverlay chamado
+  /// ao ir Online), usa updateFlag + shareData — funciona em background
+  /// porque comunicar com um service já activo não requer foreground.
   Future<void> showDriverOfferOverlay({
     required String orderId,
     String vendorName = 'Novo pedido',
@@ -290,6 +324,10 @@ class NotificationService {
     String driverEarnings = '0.00',
   }) async {
     if (kIsWeb) return;
+    final payload = <String, dynamic>{
+      'orderId': orderId, 'vendorName': vendorName,
+      'total': total, 'distanceKm': distanceKm, 'driverEarnings': driverEarnings,
+    };
     try {
       final granted = await fow.FlutterOverlayWindow.isPermissionGranted();
       if (!granted) {
@@ -298,12 +336,14 @@ class NotificationService {
       }
       final alreadyActive = await fow.FlutterOverlayWindow.isActive();
       if (alreadyActive) {
-        await fow.FlutterOverlayWindow.shareData(<String, dynamic>{
-          'orderId': orderId, 'vendorName': vendorName,
-          'total': total, 'distanceKm': distanceKm, 'driverEarnings': driverEarnings,
-        });
+        // Overlay em standby — activar (remover click-through) + enviar dados.
+        await fow.FlutterOverlayWindow.updateFlag(fow.OverlayFlag.defaultFlag);
+        await fow.FlutterOverlayWindow.shareData(payload);
+        debugPrint('[NotificationService] showDriverOfferOverlay: standby→active order=$orderId');
         return;
       }
+      // Fallback: overlay não está activo (p.ex. driver foi online sem
+      // initDriverStandbyOverlay ter sido chamado). Tenta showOverlay().
       await fow.FlutterOverlayWindow.showOverlay(
         enableDrag: false,
         overlayTitle: 'Novo pedido!',
@@ -315,11 +355,8 @@ class NotificationService {
         width: fow.WindowSize.matchParent,
       );
       await Future<void>.delayed(const Duration(milliseconds: 300));
-      await fow.FlutterOverlayWindow.shareData(<String, dynamic>{
-        'orderId': orderId, 'vendorName': vendorName,
-        'total': total, 'distanceKm': distanceKm, 'driverEarnings': driverEarnings,
-      });
-      debugPrint('[NotificationService] showDriverOfferOverlay: shown order=$orderId');
+      await fow.FlutterOverlayWindow.shareData(payload);
+      debugPrint('[NotificationService] showDriverOfferOverlay: fallback shown order=$orderId');
     } catch (e) {
       debugPrint('[NotificationService] showDriverOfferOverlay error: $e');
     }

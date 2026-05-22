@@ -145,13 +145,16 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
         );
       });
 
-      // FASE 1: arranca heartbeat se driver já está online (re-abertura
-      // do app, restore session). Toggle handlers tratam transições.
+      // FASE 1: arranca heartbeat + overlay standby se driver já está online
+      // (re-abertura do app, restore session). Toggle handlers tratam transições.
       Future<void>.delayed(const Duration(milliseconds: 500), () {
         if (!mounted) return;
         final driver = context.read<DriverStore>().currentDriver;
         if (driver?.isOnline == true) {
           unawaited(_heartbeatService.start());
+          // Pre-inicializar overlay em foreground — o driver pode sair da app
+          // imediatamente após abrir e receber ofertas em background.
+          NotificationService.instance.initDriverStandbyOverlay().ignore();
         }
       });
 
@@ -223,6 +226,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
         return;
       }
       unawaited(_heartbeatService.stop());
+      // Fechar overlay de standby — driver já não vai receber pedidos.
+      unawaited(NotificationService.instance.closeOverlayIfActive());
       return;
     }
     // Going ONLINE: gate Uber/Glovo (3 permissões obrigatórias).
@@ -243,6 +248,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
     final success = orderStore.toggleDriverAvailability(true);
     if (!success || !mounted) return;
     unawaited(_heartbeatService.start());
+    // Pre-inicializar overlay em foreground (standby/click-through).
+    // Quando chegar oferta, shareData() basta — sem showOverlay() em background.
+    NotificationService.instance.initDriverStandbyOverlay().ignore();
   }
 
   /// Sessão 2026-05-21 — solicita permissão SYSTEM_ALERT_WINDOW para o

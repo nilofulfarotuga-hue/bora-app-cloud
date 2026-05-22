@@ -76,22 +76,42 @@ class _DriverOrderOverlayState extends State<_DriverOrderOverlay> {
   void initState() {
     super.initState();
     _sub = FlutterOverlayWindow.overlayListener.listen(_onData);
-    _startCountdown();
+    // NÃO iniciar countdown aqui — aguardar dados via shareData.
+    // O overlay arranca em standby (invisível, click-through) quando
+    // o driver vai Online; o countdown começa quando chega um orderId.
   }
 
   void _onData(dynamic data) {
     if (data is! Map) return;
-    setState(() {
-      _orderId = data['orderId']?.toString();
-      _vendorName = (data['vendorName']?.toString() ?? _vendorName).isEmpty
-          ? _vendorName
-          : data['vendorName'].toString();
-      _total = double.tryParse(data['total']?.toString() ?? '') ?? _total;
-      _distanceKm = data['distanceKm']?.toString() ?? _distanceKm;
-      _driverEarnings =
-          double.tryParse(data['driverEarnings']?.toString() ?? '') ??
-              _driverEarnings;
-    });
+    final newOrderId = data['orderId']?.toString();
+    final action = data['action']?.toString();
+
+    // Comando explícito de fecho (driver foi Offline).
+    if (action == 'close') {
+      _timer?.cancel();
+      FlutterOverlayWindow.closeOverlay().ignore();
+      return;
+    }
+
+    if (newOrderId != null && newOrderId.isNotEmpty) {
+      _timer?.cancel();
+      setState(() {
+        _orderId = newOrderId;
+        _vendorName = (data['vendorName']?.toString() ?? _vendorName).isEmpty
+            ? _vendorName
+            : data['vendorName'].toString();
+        _total = double.tryParse(data['total']?.toString() ?? '') ?? _total;
+        _distanceKm = data['distanceKm']?.toString() ?? _distanceKm;
+        _driverEarnings =
+            double.tryParse(data['driverEarnings']?.toString() ?? '') ??
+                _driverEarnings;
+        _remaining = _kOfferTimeoutSeconds;
+        _decided = false;
+      });
+      // Mudar flag para defaultFlag para capturar toques em Aceitar/Rejeitar.
+      FlutterOverlayWindow.updateFlag(OverlayFlag.defaultFlag).ignore();
+      _startCountdown();
+    }
   }
 
   void _startCountdown() {
@@ -120,8 +140,15 @@ class _DriverOrderOverlayState extends State<_DriverOrderOverlay> {
         'orderId': _orderId,
       });
     } catch (_) {}
+    // Voltar para standby (invisível, click-through) em vez de fechar.
+    // Assim o overlay está pronto para a próxima oferta sem showOverlay().
+    setState(() {
+      _orderId = null;
+      _decided = false;
+      _remaining = _kOfferTimeoutSeconds;
+    });
     try {
-      await FlutterOverlayWindow.closeOverlay();
+      await FlutterOverlayWindow.updateFlag(OverlayFlag.clickThrough);
     } catch (_) {}
   }
 
@@ -134,6 +161,10 @@ class _DriverOrderOverlayState extends State<_DriverOrderOverlay> {
 
   @override
   Widget build(BuildContext context) {
+    // Standby: overlay activo mas invisível (click-through configurado pelo
+    // initDriverStandbyOverlay). Quando orderId chega via shareData(), o flag
+    // muda para defaultFlag e o card é mostrado.
+    if (_orderId == null) return const SizedBox.shrink();
     final progress = _remaining / _kOfferTimeoutSeconds;
     return SafeArea(
       child: Padding(

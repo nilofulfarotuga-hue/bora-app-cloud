@@ -74,7 +74,7 @@ workflows:
       google_play:
         credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
         track: internal
-        submit_as_draft: true
+        submit_as_draft: false
   android-debug:
     name: Bora App - Android Debug APK (faster, side-loadable)
     instance_type: mac_mini_m2

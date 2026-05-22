@@ -7,6 +7,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 // Alias para evitar colisão de `NotificationVisibility` com flutter_local_notifications.
 import 'package:flutter_overlay_window/flutter_overlay_window.dart' as fow;
@@ -22,17 +23,19 @@ import 'sound_service.dart';
 
 /// Background message handler — must be a top-level function (not a closure).
 ///
-/// Sessão 2026-05-22 — refactor: handler simplificado para apenas log + Firebase
-/// init. A heads-up notification é mostrada AUTOMATICAMENTE pelo Android FCM
-/// SDK a partir do bloco `notification` da mensagem (hybrid payload) ANTES do
-/// Dart isolate sequer arrancar. Tentar mostrar overlay/CallKit/local
-/// notification daqui:
-///   1) duplica a notificação já mostrada pelo sistema
-///   2) Android 14+ bloqueia draw-overlay a partir de background isolate
-///   3) crashes do isolate atrasam/bloqueiam a entrega da notificação sistema
+/// Sessão 2026-05-22 — heads-up: a notificação sistema é mostrada pelo
+/// Android FCM SDK a partir do bloco `notification` da mensagem (canal
+/// bora_orders_urgent_v2) ANTES deste handler arrancar.
 ///
-/// Em foreground, OrderStore realtime detecta `current_driver_offer_id` e
-/// dispara overlay+CallKit+som via UI thread (onde funcionam).
+/// Sessão 2026-05-22 (bridge): adicionalmente, quando `type == new_order_offer`
+/// e o foreground service está a correr, enviamos os dados para o TaskHandler
+/// via `sendDataToTask`. O TaskHandler reencaminha para o main isolate (vivo
+/// graças ao FGS), onde `showDriverOfferOverlay()` consegue desenhar — o que
+/// é IMPOSSÍVEL fazer a partir deste isolate de background (Android 14+).
+///
+/// Esta ponte resolve o problema do Realtime cair em background (Supabase
+/// termina o websocket "Tenant has no connected users"), porque o FCM passa
+/// a ser o trigger principal da overlay quando a app não está em foreground.
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   try {
@@ -40,12 +43,30 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   } catch (_) {
     // already initialized
   }
-  debugPrint('[FCM BG] received: type=${message.data['type']} '
-      'orderId=${message.data['orderId']} '
+  final data = message.data;
+  debugPrint('[FCM BG] received: type=${data['type']} '
+      'orderId=${data['orderId']} '
       'notif=${message.notification?.title}');
-  // NÃO mostrar nada aqui — Android já mostra heads-up via canal
-  // bora_orders_urgent_v2 (default_notification_channel_id em AndroidManifest).
-  // O tap na notificação abre o app → onMessageOpenedApp → realtime → UI.
+
+  if (data['type'] != 'new_order_offer') return;
+
+  try {
+    if (await FlutterForegroundTask.isRunningService) {
+      FlutterForegroundTask.sendDataToTask(<String, String>{
+        'type': 'new_order_offer',
+        'orderId': data['orderId']?.toString() ?? '',
+        'vendorName': data['vendorName']?.toString() ?? 'Novo pedido',
+        'total': data['total']?.toString() ?? '0.00',
+        'distanceKm': data['distanceKm']?.toString() ?? '0',
+        'driverEarnings': data['driverEarnings']?.toString() ?? '0.00',
+      });
+      debugPrint('[FCM BG] forwarded to FGS task (order=${data['orderId']})');
+    } else {
+      debugPrint('[FCM BG] FGS not running — overlay bridge skipped');
+    }
+  } catch (e) {
+    debugPrint('[FCM BG] bridge error: $e');
+  }
 }
 
 /// Cancela a notificação persistente de uma oferta quando:
@@ -244,8 +265,48 @@ class NotificationService {
           '[NotificationService] overlay action=$action order=$orderId');
     });
 
+    // Sessão 2026-05-22 (bridge FCM→FGS→main): recebe os dados de oferta que
+    // o `_firebaseMessagingBackgroundHandler` enviou ao FGS via
+    // `sendDataToTask`, e que o `_BoraTaskHandler.onReceiveData` reencaminhou
+    // ao main isolate via `sendDataToMain`. Aqui, no main isolate, conseguimos
+    // chamar `showDriverOfferOverlay()` mesmo com a app em background — porque
+    // o FGS mantém o processo principal vivo (sem o cap dos background
+    // isolates do Android 14+).
+    FlutterForegroundTask.addTaskDataCallback(_onForegroundTaskData);
+
     _initialized = true;
     debugPrint('[NotificationService] initialized.');
+  }
+
+  /// Sessão 2026-05-22 (bridge FCM→FGS→main): callback invocado quando
+  /// `_BoraTaskHandler.onReceiveData` faz `sendDataToMain(...)` com um payload
+  /// `new_order_offer`. Aqui ainda estamos no main isolate (FGS mantém-no
+  /// vivo), pelo que `showDriverOfferOverlay()` consegue desenhar a janela
+  /// SYSTEM_ALERT_WINDOW mesmo com o utilizador noutra app.
+  ///
+  /// Idempotente: o overlay já em standby (initDriverStandbyOverlay) é apenas
+  /// reactivado via updateFlag + shareData — não causa flicker.
+  void _onForegroundTaskData(Object data) {
+    if (data is! Map) {
+      debugPrint('[NotificationService] task data ignored (not Map): $data');
+      return;
+    }
+    final type = data['type']?.toString();
+    if (type != 'new_order_offer') return;
+    final orderId = data['orderId']?.toString() ?? '';
+    if (orderId.isEmpty) {
+      debugPrint('[NotificationService] task data missing orderId');
+      return;
+    }
+    debugPrint(
+        '[NotificationService] task→main bridge: showing overlay order=$orderId');
+    showDriverOfferOverlay(
+      orderId: orderId,
+      vendorName: data['vendorName']?.toString() ?? 'Novo pedido',
+      total: data['total']?.toString() ?? '0.00',
+      distanceKm: data['distanceKm']?.toString() ?? '0',
+      driverEarnings: data['driverEarnings']?.toString() ?? '0.00',
+    ).ignore();
   }
 
   // ── Overlay (system_alert_window) helpers ─────────────────────────────────

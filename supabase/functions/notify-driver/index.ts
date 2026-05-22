@@ -128,24 +128,30 @@ Deno.serve(async (req) => {
   const tokenSource = fallbackTokenId ? 'driver_push_tokens' : 'drivers.fcm_token'
   console.log(`[notify-driver] Sending push to driver=${driverId} (${driver?.name ?? '?'}) order=${orderId} source=${tokenSource}`)
 
-  // ── Fetch order distance_km for the offer card ────────────────────────────
+  // ── Fetch order distance_km + driver_earnings for the offer card ──────────
   // Sessão 2026-05-20 — sem distância, o estafeta não decide sem abrir o app.
-  // Fonte: orders.distance_km (FLOAT8 NOT NULL DEFAULT 0). Fallback '0' se row
-  // já foi limpa ou DEFAULT nunca foi sobreposto pela criação do pedido.
+  // Sessão 2026-05-22 — também buscamos driver_earnings (FLOAT8) porque o
+  // overlay (bridge FCM→FGS→main) precisa mostrar o ganho na decisão rápida
+  // do estafeta. Falback '0.00' se a coluna ainda não foi populada.
   let distanceKm = '0'
+  let driverEarnings = '0.00'
   try {
     const { data: order } = await supabase
       .from('orders')
-      .select('distance_km')
+      .select('distance_km, driver_earnings')
       .eq('id', orderId)
       .maybeSingle()
     const km = Number(order?.distance_km ?? 0)
     if (Number.isFinite(km) && km > 0) {
       distanceKm = km.toFixed(1)
     }
+    const earnings = Number(order?.driver_earnings ?? 0)
+    if (Number.isFinite(earnings) && earnings > 0) {
+      driverEarnings = earnings.toFixed(2)
+    }
   } catch (e) {
-    console.warn('[notify-driver] failed to fetch distance_km:', e)
-    // Mantém fallback '0' — não bloqueia o push.
+    console.warn('[notify-driver] failed to fetch order metrics:', e)
+    // Mantém fallbacks — não bloqueia o push.
   }
 
   // ── Obtain Firebase OAuth2 access token ───────────────────────────────────
@@ -182,13 +188,14 @@ Deno.serve(async (req) => {
         body: headsUpBody,
       },
       data: {
-        orderId:    String(orderId),
-        type:       'new_order_offer',
-        vendorName: vendorName,
-        total:      total.toFixed(2),
-        distanceKm: distanceKm,
-        title:      '🔔 Novo pedido!',
-        body:       distanceKm !== '0'
+        orderId:        String(orderId),
+        type:           'new_order_offer',
+        vendorName:     vendorName,
+        total:          total.toFixed(2),
+        distanceKm:     distanceKm,
+        driverEarnings: driverEarnings,
+        title:          '🔔 Novo pedido!',
+        body:           distanceKm !== '0'
           ? `${vendorName} • €${total.toFixed(2)} • ${distanceKm}km`
           : `${vendorName} • €${total.toFixed(2)}`,
       },

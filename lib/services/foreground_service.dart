@@ -174,8 +174,17 @@ class _BoraTaskHandler extends TaskHandler {
     debugPrint('[BoraTaskHandler] onDestroy @ $timestamp');
   }
 
+  /// Sessão 2026-05-22 (bridge FCM→FGS→main): o
+  /// `_firebaseMessagingBackgroundHandler` envia aqui o payload de
+  /// `new_order_offer` via `sendDataToTask`. Reencaminhamos imediatamente ao
+  /// main isolate via `sendDataToMain`, onde `NotificationService` consegue
+  /// desenhar o overlay (impossível a partir deste isolate de service em
+  /// Android 14+).
   @override
-  void onReceiveData(Object data) {}
+  void onReceiveData(Object data) {
+    debugPrint('[BoraTaskHandler] onReceiveData → forwarding to main: $data');
+    FlutterForegroundTask.sendDataToMain(data);
+  }
 
   @override
   void onNotificationButtonPressed(String id) {}

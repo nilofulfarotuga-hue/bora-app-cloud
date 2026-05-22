@@ -425,17 +425,19 @@ class NotificationService {
   /// Call this after a driver successfully logs in.
   Future<void> saveTokenForDriver(String driverId) async {
     if (!_consentGranted) return;
-    final token = _fcmToken;
-    if (token == null) {
-      debugPrint('[NotificationService] saveTokenForDriver: no FCM token yet');
-      return;
-    }
+    // Bind ANTES do null check: onTokenRefresh precisa do _boundRole/_boundId
+    // mesmo que o token ainda não esteja disponível agora.
     _boundRole = 'driver';
     _boundId = driverId;
-
-    // BUG 2 fix — multi-device PRIMEIRO (independente de drivers.update,
-    // que pode falhar por RLS strict em drivers não-aprovados).
+    // PushTokenService tem retry próprio (1s/3s/9s) — chamar mesmo se
+    // _fcmToken ainda é null; ele vai buscar o token por conta própria.
     PushTokenService.registerForRole('driver').ignore();
+
+    final token = _fcmToken;
+    if (token == null) {
+      debugPrint('[NotificationService] saveTokenForDriver: FCM token null — PushTokenService will retry');
+      return;
+    }
 
     try {
       await Supabase.instance.client

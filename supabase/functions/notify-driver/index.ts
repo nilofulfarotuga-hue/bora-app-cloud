@@ -34,6 +34,9 @@ Deno.serve(async (req) => {
   const supabaseUrl          = Deno.env.get('SUPABASE_URL')!
   const serviceKey           = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
+  // ── Entry-point log — confirms the function was actually invoked ──────────
+  console.log('[notify-driver] ── INVOKED ── (Firebase configured:', !!firebaseProjectId, ')')
+
   // ── Graceful no-op when Firebase is not configured ────────────────────────
   if (!firebaseProjectId || !firebaseServiceAcct) {
     console.warn('[notify-driver] Firebase env vars not set — skipping push (set FIREBASE_PROJECT_ID + FIREBASE_SERVICE_ACCOUNT)')
@@ -67,6 +70,8 @@ Deno.serve(async (req) => {
       { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     )
   }
+
+  console.log(`[notify-driver] driverId=${driverId} orderId=${orderId} vendor="${vendorName}" total=${total}`)
 
   const supabase = createClient(supabaseUrl, serviceKey)
 

@@ -10,6 +10,7 @@ import '../models/driver_model.dart';
 import '../models/order_model.dart';
 import '../services/floating_bubble_service.dart';
 import '../services/foreground_service.dart';
+import '../services/push_token_service.dart';
 import '../utils/constants.dart';
 
 class DriverStore extends ChangeNotifier {
@@ -86,17 +87,22 @@ class DriverStore extends ChangeNotifier {
       final settings = await messaging.requestPermission();
       if (settings.authorizationStatus == AuthorizationStatus.denied) return;
 
+      // Fallback multi-device: garante driver_push_tokens mesmo que o UPDATE
+      // em drivers.fcm_token falhe por RLS (driver não aprovado).
+      PushTokenService.registerForRole('driver').ignore();
+
       final token = await messaging.getToken();
       if (token != null) {
         await _client
             .from('drivers')
             .update({'fcm_token': token}).eq('id', driverId);
-        debugPrint('[DriverStore] FCM token saved for driver=$driverId');
+        debugPrint('[DriverStore] FCM token saved for driver=$driverId: ${token.substring(0, 20)}...');
       }
 
       _fcmTokenRefreshSubscription?.cancel();
       _fcmTokenRefreshSubscription =
           messaging.onTokenRefresh.listen((newToken) async {
+        PushTokenService.registerForRole('driver').ignore();
         await _client
             .from('drivers')
             .update({'fcm_token': newToken}).eq('id', _primaryDriverId);

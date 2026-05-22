@@ -1302,22 +1302,20 @@ class OrderStore extends ChangeNotifier {
     if (driverId.isEmpty) return;
     if (order.assignedDriverId != null) return;
     try {
-      // Clear the offer atomically — only acts if this driver still holds it.
-      await supabase
-          .from('orders')
-          .update({
-            'current_driver_offer_id': null,
-            'driver_offer_expires_at': null,
-          })
-          .eq('id', order.id)
-          .eq('current_driver_offer_id', driverId);
-
-      // Immediately wake the dispatch engine to assign the next driver.
-      await _invokeDispatch(order.id);
-      debugPrint(
-          '[OrderStore] _rejectOrderInBackend: offer cleared, dispatch invoked for order=${order.id}');
+      // Sessão 2026-05-22 — usar RPC driver_reject_offer (SECURITY DEFINER) que:
+      //   1) limpa current_driver_offer_id + expires_at atomicamente
+      //   2) ADICIONA o driver a tried_driver_ids (sem isto, dispatch-engine
+      //      cycle-reset não dispara e o pedido fica preso no estafeta antigo
+      //      por 40s até timeout)
+      //   3) invoca dispatch-engine via invoke_dispatch_engine RPC
+      // CallKit reject (main.dart) também usa esta RPC.
+      final res = await supabase.rpc(
+        'driver_reject_offer',
+        params: {'p_order_id': order.id},
+      );
+      debugPrint('[OrderStore] _rejectOrderInBackend: RPC result=$res for order=${order.id}');
     } catch (e) {
-      debugPrint('[OrderStore] _rejectOrderInBackend error: $e');
+      debugPrint('[OrderStore] _rejectOrderInBackend RPC error: $e');
     }
   }
 

@@ -232,7 +232,17 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                         if (pricing.serviceFee > 0)
                           _SummaryRow(
                               label: 'Taxas', value: pricing.serviceFee),
-                        _SummaryRow(label: 'Entrega', value: baseDeliveryFee),
+                        _SummaryRow(
+                          label: 'Entrega',
+                          value: baseDeliveryFee,
+                          subtitle: () {
+                            final d = pricing.distanceKm;
+                            if (d <= 4.0) return null;
+                            final extra = d - 4.0;
+                            final extraCharge = baseDeliveryFee - 2.50;
+                            return '€2.50 base + €${extraCharge.toStringAsFixed(2)} por ${extra.toStringAsFixed(1)}km extra';
+                          }(),
+                        ),
                         if (pricing.apartmentSurcharge > 0)
                           _SummaryRow(
                             label: 'Entrega em apartamento',
@@ -981,12 +991,14 @@ class _SummaryRow extends StatelessWidget {
     required this.value,
     this.isStrong = false,
     this.isDiscount = false,
+    this.subtitle,
   });
 
   final String label;
   final double value;
   final bool isStrong;
   final bool isDiscount;
+  final String? subtitle;
 
   @override
   Widget build(BuildContext context) {
@@ -1005,8 +1017,23 @@ class _SummaryRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: textStyle),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: textStyle),
+                if (subtitle != null)
+                  Text(
+                    subtitle!,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.grey.shade600,
+                        ),
+                  ),
+              ],
+            ),
+          ),
           Text(valueText, style: textStyle),
         ],
       ),

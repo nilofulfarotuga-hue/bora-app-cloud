@@ -335,6 +335,14 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
             _SummaryRow(
               label: cartStore.isTakeaway ? 'Entrega (takeaway)' : 'Entrega',
               value: cartStore.isTakeaway ? 0.0 : baseDeliveryFee,
+              subtitle: () {
+                if (cartStore.isTakeaway) return null;
+                final d = pricing.distanceKm;
+                if (d <= 4.0) return null;
+                final extra = d - 4.0;
+                final extraCharge = baseDeliveryFee - 2.50;
+                return '€2.50 base + €${extraCharge.toStringAsFixed(2)} por ${extra.toStringAsFixed(1)}km extra';
+              }(),
             ),
             if (pricing.apartmentSurcharge > 0)
               _SummaryRow(
@@ -531,12 +539,14 @@ class _SummaryRow extends StatelessWidget {
     required this.value,
     this.isStrong = false,
     this.accent = false,
+    this.subtitle,
   });
 
   final String label;
   final double value;
   final bool isStrong;
   final bool accent;
+  final String? subtitle;
 
   @override
   Widget build(BuildContext context) {
@@ -553,8 +563,24 @@ class _SummaryRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: Spacing.xs),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: style),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: style),
+                if (subtitle != null)
+                  Text(
+                    subtitle!,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+              ],
+            ),
+          ),
           Text('€${value.toStringAsFixed(2)}', style: style),
         ],
       ),

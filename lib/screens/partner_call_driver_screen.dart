@@ -484,10 +484,9 @@ class _OrderSummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    // Neste fluxo (parceiro chama estafeta): o cliente paga TUDO em dinheiro
-    // ao estafeta — subtotal + comissão + taxa serviço + entrega. O parceiro
-    // recebe o valor total das mãos do estafeta e depois acerta a comissão
-    // (10% sobre o subtotal) com a Bora no acerto semanal.
+    // Neste fluxo (parceiro chama estafeta): o cliente paga subtotal +
+    // taxa serviço (5%) + taxa entrega. A comissão (10%) é descontada da
+    // receita do parceiro no acerto semanal — nunca cobrada ao cliente.
     final partnerNetEarnings = pricing.subtotal - pricing.platformCommission;
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

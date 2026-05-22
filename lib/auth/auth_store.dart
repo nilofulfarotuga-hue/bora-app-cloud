@@ -929,7 +929,7 @@ class AuthStore extends ChangeNotifier {
   /// version (registerPartner) races Supabase and can leave a partner logged-in
   /// locally with no real account in the DB.
   ///
-  /// [photoUrl] is required — pass a non-empty URL or return an error.
+  /// [photoUrl] is optional — pass empty string to register without photo.
   /// Returns null on success, human-readable error message on failure.
   Future<String?> registerPartnerAsync({
     required String restaurantName,
@@ -946,9 +946,6 @@ class AuthStore extends ChangeNotifier {
         normalizedEmail.isEmpty ||
         password.isEmpty) {
       return 'Preencha todos os campos obrigatórios.';
-    }
-    if (photoUrl.trim().isEmpty) {
-      return 'Adicione uma foto do restaurante.';
     }
     if (_partnersByEmail.containsKey(normalizedEmail)) {
       return 'Já existe um parceiro registado com este email.';

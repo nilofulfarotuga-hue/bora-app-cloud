@@ -20,15 +20,13 @@ class OrderPricingBreakdown {
   final double partnerMarkupHidden;
 
   /// True when partner called the driver directly (cliente comprou direto com o
-  /// parceiro). Comissão total = 15% (10% visível + 5% taxa serviço, sem markup
-  /// escondido). O cliente paga TUDO em dinheiro ao estafeta: subtotal +
-  /// comissão + taxa + entrega. O estafeta entrega o valor total ao parceiro;
-  /// a Bora cobra a sua parte no acerto semanal do parceiro.
+  /// parceiro). Comissão (10%) é descontada da receita do parceiro no acerto
+  /// semanal — nunca cobrada ao cliente. O cliente paga apenas subtotal +
+  /// taxa serviço (5%) + taxa entrega.
   final bool isPartnerSelfDispatch;
 
   double get customerTotal {
-    final base = subtotal + serviceFee + deliveryFee + bagFee;
-    return isPartnerSelfDispatch ? base + platformCommission : base;
+    return subtotal + serviceFee + deliveryFee + bagFee;
   }
 
   const OrderPricingBreakdown({

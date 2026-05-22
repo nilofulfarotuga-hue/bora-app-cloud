@@ -40,6 +40,11 @@
 <!-- Sessão 2026-05-21 — flutter_overlay_window: card de oferta de pedido
      novo por cima de outras apps. Em Android 14+ requer specialUse FGS. -->
 <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
+<!-- Sessão 2026-05-22 — Android 12+ FCM data-only com fullScreenIntent +
+     background overlay exige FOREGROUND_SERVICE_REMOTE_MESSAGING. Sem isto
+     Android 14+ mata o foreground service ao acordar pelo FCM de background
+     e o overlay nunca chega a ser desenhado quando driver está noutra app. -->
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE_REMOTE_MESSAGING"/>
 <!-- Camera: profile photo, sendPackage photo, carryGroceries photo (BR §7.5/§7.6), partner product photo -->
 <uses-permission android:name="android.permission.CAMERA"/>
 <!-- Gallery access for partner product photo: Android 13+ uses READ_MEDIA_IMAGES, older uses READ_EXTERNAL_STORAGE -->
@@ -94,7 +99,7 @@
             android:name="com.foregroundtask.FlutterForegroundTaskService"
             android:exported="false"
             android:stopWithTask="false"
-            android:foregroundServiceType="dataSync"/>
+            android:foregroundServiceType="dataSync|remoteMessaging"/>
 
         <!-- flutter_overlay_window — Sessão 2026-05-21. Serviço que desenha o
              card da oferta por cima de outras apps quando FCM new_order_offer

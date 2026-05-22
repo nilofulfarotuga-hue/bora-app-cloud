@@ -26,6 +26,7 @@ import '../services/driver_location_ping_service.dart';
 import '../services/navigation_service.dart';
 import '../services/heartbeat_service.dart';
 import '../services/notification_service.dart';
+import '../services/permission_gate_service.dart';
 import '../services/push_token_service.dart';
 import '../services/sound_service.dart';
 import '../widgets/notification_bell.dart';
@@ -114,6 +115,36 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
         await _maybeRequestOverlayPermission();
       });
 
+      // Sessão 2026-05-22 — se driver já está Online (re-abertura da app)
+      // verificar silenciosamente as 3 permissões críticas. Se utilizador
+      // revogou alguma nas Definições enquanto a app esteve fechada, mostrar
+      // banner accionável a abrir o gate completo.
+      Future<void>.delayed(const Duration(seconds: 3), () async {
+        if (!mounted) return;
+        final driver = context.read<DriverStore>().currentDriver;
+        if (driver?.isOnline != true) return;
+        final ok = await PermissionGateService.areAllGranted();
+        if (ok || !mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            duration: const Duration(seconds: 8),
+            backgroundColor: Colors.orange.shade800,
+            content: const Text(
+              '⚠️ Faltam permissões para receber pedidos em background.',
+            ),
+            action: SnackBarAction(
+              label: 'CORRIGIR',
+              textColor: Colors.white,
+              onPressed: () async {
+                if (!mounted) return;
+                await PermissionGateService.ensureDriverOnlinePermissions(
+                    context);
+              },
+            ),
+          ),
+        );
+      });
+
       // FASE 1: arranca heartbeat se driver já está online (re-abertura
       // do app, restore session). Toggle handlers tratam transições.
       Future<void>.delayed(const Duration(milliseconds: 500), () {
@@ -164,6 +195,54 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
     // a chegar ao Supabase. Parar aqui causava mark-stale-drivers-offline
     // (>90s sem ping) → estafeta ficava offline em background e perdia ofertas.
     // Stop legítimo só via toggle Offline, logout ou dispose() do screen.
+  }
+
+  /// Sessão 2026-05-22 — Gate Uber/Glovo: força concessão das 3 permissões
+  /// críticas (notif + overlay + battery) ANTES de deixar o estafeta ficar
+  /// Online. Sem isto, o overlay de novo pedido nunca aparece em background
+  /// e o utilizador perde pedidos sem perceber porquê.
+  ///
+  /// Going OFFLINE: sem gate (mantém comportamento simples + snackbar para
+  /// activeAssignments). Going ONLINE: gate primeiro; se algo falhar,
+  /// snackbar e mantém Switch em offline.
+  Future<void> _handleOnlineToggle(bool value) async {
+    final orderStore = context.read<OrderStore>();
+    // Going OFFLINE: comportamento legacy (sem gate de permissões).
+    if (!value) {
+      final success = orderStore.toggleDriverAvailability(false);
+      if (!mounted) return;
+      if (!success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Tens pedidos activos. Conclui-os antes de ficar offline.',
+            ),
+            duration: Duration(seconds: 3),
+          ),
+        );
+        return;
+      }
+      unawaited(_heartbeatService.stop());
+      return;
+    }
+    // Going ONLINE: gate Uber/Glovo (3 permissões obrigatórias).
+    final allOk =
+        await PermissionGateService.ensureDriverOnlinePermissions(context);
+    if (!mounted) return;
+    if (!allOk) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Concede todas as permissões para ficar Online e receber pedidos em background.',
+          ),
+          duration: Duration(seconds: 4),
+        ),
+      );
+      return;
+    }
+    final success = orderStore.toggleDriverAvailability(true);
+    if (!success || !mounted) return;
+    unawaited(_heartbeatService.start());
   }
 
   /// Sessão 2026-05-21 — solicita permissão SYSTEM_ALERT_WINDOW para o
@@ -628,30 +707,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
               ),
               Switch(
                 value: isAvailable,
-                onChanged: (value) {
-                  // BUG #5 (2026-05-13) — capturar success do toggle. Se
-                  // o driver tenta ficar offline com pedidos genuinamente
-                  // activos, mostrar snackbar em vez de falhar silencioso.
-                  final success =
-                      orderStore.toggleDriverAvailability(value);
-                  if (!success && !value) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Tens pedidos activos. Conclui-os antes de ficar offline.',
-                        ),
-                        duration: Duration(seconds: 3),
-                      ),
-                    );
-                    return;
-                  }
-                  // FASE 1: start/stop heartbeat conforme toggle.
-                  if (value) {
-                    unawaited(_heartbeatService.start());
-                  } else {
-                    unawaited(_heartbeatService.stop());
-                  }
-                },
+                // Sessão 2026-05-22 — gate Uber/Glovo (3 perms) antes de
+                // ficar Online; legacy snackbar + heartbeat stop no offline.
+                onChanged: (value) => _handleOnlineToggle(value),
               ),
             ],
           ),
@@ -1034,27 +1092,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                   ),
                   Switch(
                     value: isAvailable,
-                    onChanged: (v) {
-                      // BUG #5 (2026-05-13) — idem ao callsite no app bar.
-                      final success =
-                          orderStore.toggleDriverAvailability(v);
-                      if (!success && !v) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Tens pedidos activos. Conclui-os antes de ficar offline.',
-                            ),
-                            duration: Duration(seconds: 3),
-                          ),
-                        );
-                        return;
-                      }
-                      if (v) {
-                        unawaited(_heartbeatService.start());
-                      } else {
-                        unawaited(_heartbeatService.stop());
-                      }
-                    },
+                    // Sessão 2026-05-22 — idem ao callsite no app bar.
+                    onChanged: (v) => _handleOnlineToggle(v),
                     activeColor: Colors.green.shade600,
                     activeTrackColor: Colors.green.shade200,
                   ),

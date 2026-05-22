@@ -335,48 +335,12 @@ class NotificationService {
           '[NotificationService] overlay action=$action order=$orderId');
     });
 
-    // Sessão 2026-05-22 (bridge FCM→FGS→main): recebe os dados de oferta que
-    // o `_firebaseMessagingBackgroundHandler` enviou ao FGS via
-    // `sendDataToTask`, e que o `_BoraTaskHandler.onReceiveData` reencaminhou
-    // ao main isolate via `sendDataToMain`. Aqui, no main isolate, conseguimos
-    // chamar `showDriverOfferOverlay()` mesmo com a app em background — porque
-    // o FGS mantém o processo principal vivo (sem o cap dos background
-    // isolates do Android 14+).
-    FlutterForegroundTask.addTaskDataCallback(_onForegroundTaskData);
+    // addTaskDataCallback removido — substituído por receivePort?.listen() em
+    // main.dart (após initCommunicationPort()). Usar os dois em simultâneo
+    // causava double-call a showDriverOfferOverlay().
 
     _initialized = true;
     debugPrint('[NotificationService] initialized.');
-  }
-
-  /// Sessão 2026-05-22 (bridge FCM→FGS→main): callback invocado quando
-  /// `_BoraTaskHandler.onReceiveData` faz `sendDataToMain(...)` com um payload
-  /// `new_order_offer`. Aqui ainda estamos no main isolate (FGS mantém-no
-  /// vivo), pelo que `showDriverOfferOverlay()` consegue desenhar a janela
-  /// SYSTEM_ALERT_WINDOW mesmo com o utilizador noutra app.
-  ///
-  /// Idempotente: o overlay já em standby (initDriverStandbyOverlay) é apenas
-  /// reactivado via updateFlag + shareData — não causa flicker.
-  void _onForegroundTaskData(Object data) {
-    if (data is! Map) {
-      debugPrint('[NotificationService] task data ignored (not Map): $data');
-      return;
-    }
-    final type = data['type']?.toString();
-    if (type != 'new_order_offer') return;
-    final orderId = data['orderId']?.toString() ?? '';
-    if (orderId.isEmpty) {
-      debugPrint('[NotificationService] task data missing orderId');
-      return;
-    }
-    debugPrint(
-        '[NotificationService] task→main bridge: showing overlay order=$orderId');
-    showDriverOfferOverlay(
-      orderId: orderId,
-      vendorName: data['vendorName']?.toString() ?? 'Novo pedido',
-      total: data['total']?.toString() ?? '0.00',
-      distanceKm: data['distanceKm']?.toString() ?? '0',
-      driverEarnings: data['driverEarnings']?.toString() ?? '0.00',
-    ).ignore();
   }
 
   // ── Overlay (system_alert_window) helpers ─────────────────────────────────

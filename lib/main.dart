@@ -138,10 +138,6 @@ Future<void> _setupForegroundAndUrgentChannel() async {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Inicializa o ReceivePort do main isolate para comunicação com o FGS task.
-  // OBRIGATÓRIO antes de runApp() — sem isto receivePort é null e
-  // sendDataToMain() do task isolate nunca chega ao main isolate.
-  FlutterForegroundTask.initCommunicationPort();
 
   await Supabase.initialize(
     url: _supabaseUrl,
@@ -184,9 +180,11 @@ Future<void> main() async {
       _setupForegroundAndUrgentChannel(),
     ]);
 
-    // receivePort funciona mesmo com Flutter engine em "paused", ao contrário
-    // de addTaskDataCallback que falha nesse estado. Deve ser registado depois
-    // de BoraForegroundService.init() (já garantido pelo Future.wait acima).
+    // initCommunicationPort DEPOIS de BoraForegroundService.init() (Future.wait).
+    // Algumas versões do plugin requerem que init() esteja completo primeiro.
+    // receivePort?.listen() é o único mecanismo de callback — addTaskDataCallback
+    // foi removido de NotificationService.init() para evitar double-call.
+    FlutterForegroundTask.initCommunicationPort();
     FlutterForegroundTask.receivePort?.listen((dynamic data) {
       if (data is! Map) return;
       final type = data['type']?.toString();

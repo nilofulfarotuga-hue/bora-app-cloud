@@ -41,6 +41,11 @@ class BoraForegroundService {
     if (initKey.isNotEmpty) {
       await FlutterForegroundTask.saveData(key: 'fgs_supabase_key', value: initKey);
     }
+    // Guarda também em SharedPreferences standard — o handler de acção de
+    // notificação em background não tem acesso ao FlutterForegroundTask.
+    final prefs = await SharedPreferences.getInstance();
+    if (initUrl.isNotEmpty) await prefs.setString('bora_supabase_url', initUrl);
+    if (initKey.isNotEmpty) await prefs.setString('bora_supabase_anon_key', initKey);
     FlutterForegroundTask.init(
       androidNotificationOptions: AndroidNotificationOptions(
         channelId: _channelId,

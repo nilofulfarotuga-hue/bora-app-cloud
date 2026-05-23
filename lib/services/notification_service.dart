@@ -87,12 +87,19 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         enableVibration: true,
         autoCancel: true,
         visibility: fln.NotificationVisibility.public,
+        actions: <AndroidNotificationAction>[
+          AndroidNotificationAction('accept_partner_order', '✅ Aceitar',
+              showsUserInterface: false, cancelNotification: true),
+          AndroidNotificationAction('reject_partner_order', '❌ Rejeitar',
+              showsUserInterface: false, cancelNotification: true),
+        ],
       );
       await plugin.show(
         orderId.isNotEmpty ? orderId.hashCode : 9999,
         '🔔 Novo pedido!',
         '$items • €$total',
         const NotificationDetails(android: androidDetails),
+        payload: jsonEncode({'orderId': orderId, 'type': 'new_order'}),
       );
       debugPrint('[FCM BG] partner new_order notif shown order=$orderId');
     } catch (e) {
@@ -145,6 +152,12 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       autoCancel: false,
       ongoing: true,
       ticker: 'Novo pedido Bora',
+      actions: <AndroidNotificationAction>[
+        AndroidNotificationAction('accept_order', '✅ Aceitar',
+            showsUserInterface: false, cancelNotification: true),
+        AndroidNotificationAction('reject_order', '❌ Rejeitar',
+            showsUserInterface: false, cancelNotification: true),
+      ],
     );
     await plugin.show(
       orderId.hashCode,
@@ -211,10 +224,98 @@ void _onLocalNotifTap(NotificationResponse response) {
   FlutterForegroundTask.launchApp('/');
 }
 
-/// Tap na notificação local quando a app estava terminada.
-/// Android inicia a app normalmente via MainActivity — sem handling especial.
+/// Acção nos botões da notificação quando app em background/terminada.
+/// Executa aceitar/rejeitar sem abrir a app (raw HTTP — sem Supabase client).
 @pragma('vm:entry-point')
-void _onLocalNotifBackgroundTap(NotificationResponse response) {}
+Future<void> onBackgroundNotificationAction(NotificationResponse response) async {
+  final actionId = response.actionId;
+  final payload = response.payload;
+  if (actionId == null || payload == null) return;
+  try {
+    final data = jsonDecode(payload) as Map<String, dynamic>;
+    final orderId = data['orderId']?.toString() ?? '';
+    if (orderId.isEmpty) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final accessToken = prefs.getString('bora_access_token') ?? '';
+    if (accessToken.isEmpty) {
+      debugPrint('[NOTIF ACTION] bora_access_token vazio — ação ignorada');
+      return;
+    }
+
+    var supabaseUrl = const String.fromEnvironment('SUPABASE_URL');
+    var anonKey = const String.fromEnvironment('SUPABASE_ANON_KEY');
+    if (supabaseUrl.isEmpty) {
+      supabaseUrl = prefs.getString('bora_supabase_url') ?? '';
+      anonKey = prefs.getString('bora_supabase_anon_key') ?? '';
+    }
+    if (supabaseUrl.isEmpty) {
+      debugPrint('[NOTIF ACTION] supabaseUrl vazio — ação ignorada');
+      return;
+    }
+
+    final headers = <String, String>{
+      'apikey': anonKey,
+      'Authorization': 'Bearer $accessToken',
+      'Content-Type': 'application/json',
+      'Prefer': 'return=minimal',
+    };
+
+    if (actionId == 'accept_order') {
+      final driverId = prefs.getString('bora_driver_id') ?? '';
+      if (driverId.isEmpty) {
+        debugPrint('[NOTIF ACTION] bora_driver_id vazio — accept ignorado');
+        return;
+      }
+      await http
+          .patch(
+            Uri.parse('$supabaseUrl/rest/v1/orders'
+                '?id=eq.$orderId'
+                '&current_driver_offer_id=eq.$driverId'),
+            headers: headers,
+            body: jsonEncode({
+              'status': 'driverAccepted',
+              'assigned_driver_id': driverId,
+              'current_driver_offer_id': null,
+              'driver_offer_expires_at': null,
+            }),
+          )
+          .timeout(const Duration(seconds: 5));
+      await prefs.remove('pending_offer');
+      debugPrint('[NOTIF ACTION] accept_order OK order=$orderId driver=$driverId');
+    } else if (actionId == 'reject_order') {
+      await http
+          .post(
+            Uri.parse('$supabaseUrl/rest/v1/rpc/driver_reject_offer'),
+            headers: headers,
+            body: jsonEncode({'p_order_id': orderId}),
+          )
+          .timeout(const Duration(seconds: 5));
+      await prefs.remove('pending_offer');
+      debugPrint('[NOTIF ACTION] reject_order OK order=$orderId');
+    } else if (actionId == 'accept_partner_order') {
+      await http
+          .patch(
+            Uri.parse('$supabaseUrl/rest/v1/orders?id=eq.$orderId'),
+            headers: headers,
+            body: jsonEncode({'status': 'preparing'}),
+          )
+          .timeout(const Duration(seconds: 5));
+      debugPrint('[NOTIF ACTION] accept_partner_order OK order=$orderId');
+    } else if (actionId == 'reject_partner_order') {
+      await http
+          .patch(
+            Uri.parse('$supabaseUrl/rest/v1/orders?id=eq.$orderId'),
+            headers: headers,
+            body: jsonEncode({'status': 'rejected'}),
+          )
+          .timeout(const Duration(seconds: 5));
+      debugPrint('[NOTIF ACTION] reject_partner_order OK order=$orderId');
+    }
+  } catch (e) {
+    debugPrint('[NOTIF ACTION] error: $e');
+  }
+}
 
 /// Cancela a notificação persistente de uma oferta quando:
 ///   • o estafeta aceitou via UI
@@ -341,8 +442,21 @@ class NotificationService {
         android: AndroidInitializationSettings('@mipmap/ic_launcher'),
       ),
       onDidReceiveNotificationResponse: _onLocalNotifTap,
-      onDidReceiveBackgroundNotificationResponse: _onLocalNotifBackgroundTap,
+      onDidReceiveBackgroundNotificationResponse: onBackgroundNotificationAction,
     );
+
+    // Persiste access token sempre que a sessão Supabase muda — o background
+    // notification action handler precisa dele para fazer HTTP autenticado.
+    try {
+      Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+        final token = data.session?.accessToken;
+        if (token != null && token.isNotEmpty) {
+          SharedPreferences.getInstance().then(
+            (prefs) => prefs.setString('bora_access_token', token),
+          );
+        }
+      });
+    } catch (_) {}
 
     // Register background handler BEFORE any other FCM call.
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);

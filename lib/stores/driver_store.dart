@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../dispatch/driver_capacity_service.dart';
@@ -306,6 +307,11 @@ class DriverStore extends ChangeNotifier {
         // já encontre o ID disponível via getData (evita early return por null).
         await BoraForegroundService.saveDriverId(resolvedId);
         debugPrint('[DriverStore] FGS saveDriverId OK: $resolvedId');
+        // Persiste também para SharedPreferences padrão — usado pelo handler de
+        // acção de notificação em background (sem acesso ao FGS).
+        SharedPreferences.getInstance().then(
+          (prefs) => prefs.setString('bora_driver_id', resolvedId),
+        );
         await BoraForegroundService.startDriver();
         // Bolinha estilo Uber/Glovo — pede SYSTEM_ALERT_WINDOW se ainda não
         // concedido. Se utilizador recusar, foreground service continua a

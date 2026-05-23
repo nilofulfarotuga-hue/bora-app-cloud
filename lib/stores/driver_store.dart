@@ -274,14 +274,14 @@ class DriverStore extends ChangeNotifier {
     unawaited(updateDriverOnlineStatus(driverId, value));
     // Sessão 2026-05-17 — foreground service: notificação persistente +
     // processo activo enquanto driver está Online (padrão Glovo/Uber).
-    unawaited(_syncForegroundService(value));
+    unawaited(_syncForegroundService(value, driverId));
     return true;
   }
 
   /// Liga o foreground service quando driver vai Online; pára quando offline.
   /// Pede POST_NOTIFICATIONS (Android 13+) se ainda não concedido.
   /// Sessão 2026-05-19 — também activa a floating bubble (Sistema B).
-  Future<void> _syncForegroundService(bool online) async {
+  Future<void> _syncForegroundService(bool online, String driverId) async {
     try {
       if (online) {
         final granted =
@@ -292,12 +292,14 @@ class DriverStore extends ChangeNotifier {
           return;
         }
         await BoraForegroundService.startDriver();
+        await BoraForegroundService.saveDriverId(driverId);
         // Bolinha estilo Uber/Glovo — pede SYSTEM_ALERT_WINDOW se ainda não
         // concedido. Se utilizador recusar, foreground service continua a
         // funcionar; só a bolinha não aparece.
         unawaited(BoraBubbleService.ensureOverlayPermission()
             .then((_) => BoraBubbleService.setDriverOnline(true)));
       } else {
+        await BoraForegroundService.clearDriverId();
         await BoraForegroundService.stop();
         await BoraBubbleService.setDriverOnline(false);
       }

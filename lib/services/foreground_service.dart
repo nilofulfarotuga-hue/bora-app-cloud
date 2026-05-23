@@ -1,5 +1,8 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
+import 'package:http/http.dart' as http;
 
 /// Foreground service wrapper para manter driver/parceiro sempre activos
 /// em background com notificação persistente (padrão Glovo/Uber Eats).
@@ -40,11 +43,11 @@ class BoraForegroundService {
         playSound: false,
       ),
       foregroundTaskOptions: ForegroundTaskOptions(
-        eventAction: ForegroundTaskEventAction.repeat(60000),
-        autoRunOnBoot: false,
-        autoRunOnMyPackageReplaced: false,
+        eventAction: ForegroundTaskEventAction.repeat(5000),
+        autoRunOnBoot: true,
+        autoRunOnMyPackageReplaced: true,
         allowWakeLock: true,
-        allowWifiLock: false,
+        allowWifiLock: true,
       ),
     );
     _initialized = true;
@@ -76,6 +79,16 @@ class BoraForegroundService {
       debugPrint('[BoraForegroundService] permission error: $e');
       return false;
     }
+  }
+
+  /// Persiste o driverId para o FGS task poder fazer polling.
+  static Future<void> saveDriverId(String driverId) async {
+    await FlutterForegroundTask.saveData(key: 'driverId', value: driverId);
+  }
+
+  /// Limpa o driverId quando driver fica offline (polling pára).
+  static Future<void> clearDriverId() async {
+    await FlutterForegroundTask.removeData(key: 'driverId');
   }
 
   /// Inicia o serviço com a notificação "🟢 Bora — Online".
@@ -157,6 +170,13 @@ void boraForegroundCallback() {
 }
 
 class _BoraTaskHandler extends TaskHandler {
+  // Compile-time constants — disponíveis em todos os isolates.
+  static const _supabaseUrl = String.fromEnvironment('SUPABASE_URL');
+  static const _anonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
+
+  bool _isPolling = false;
+  String? _lastOfferedOrderId;
+
   @override
   Future<void> onStart(DateTime timestamp, TaskStarter starter) async {
     debugPrint('[BoraTaskHandler] onStart @ $timestamp (starter=$starter)');
@@ -164,9 +184,59 @@ class _BoraTaskHandler extends TaskHandler {
 
   @override
   void onRepeatEvent(DateTime timestamp) {
-    // No-op: heartbeat efectivo corre no main isolate via HeartbeatService.
-    // Este callback existe apenas para manter o foreground service vivo —
-    // Android mantém o processo principal activo enquanto isto correr.
+    if (_isPolling) return;
+    _isPolling = true;
+    _poll().whenComplete(() => _isPolling = false);
+  }
+
+  Future<void> _poll() async {
+    try {
+      final driverId = await FlutterForegroundTask.getData<String>(key: 'driverId');
+      if (driverId == null || driverId.isEmpty) return;
+      if (_supabaseUrl.isEmpty || _anonKey.isEmpty) return;
+
+      final uri = Uri.parse(
+        '$_supabaseUrl/rest/v1/orders'
+        '?status=eq.callingDriver'
+        '&current_driver_offer_id=eq.$driverId'
+        '&assigned_driver_id=is.null'
+        '&select=id,vendor_name,price,distance_km,driver_earnings,driver_offer_expires_at'
+        '&limit=1',
+      );
+      final response = await http.get(uri, headers: {
+        'apikey': _anonKey,
+        'Authorization': 'Bearer $_anonKey',
+      }).timeout(const Duration(seconds: 4));
+
+      if (response.statusCode != 200) return;
+      final List<dynamic> orders = jsonDecode(response.body) as List<dynamic>;
+      if (orders.isEmpty) {
+        _lastOfferedOrderId = null; // sem oferta activa — reset dedup
+        return;
+      }
+      final order = orders[0] as Map<String, dynamic>;
+      final orderId = order['id']?.toString() ?? '';
+      if (orderId.isEmpty || orderId == _lastOfferedOrderId) return;
+
+      // Verificar se oferta não expirou
+      final expiresAt = order['driver_offer_expires_at'] as String?;
+      if (expiresAt != null) {
+        if (DateTime.now().isAfter(DateTime.parse(expiresAt))) return;
+      }
+
+      _lastOfferedOrderId = orderId;
+      FlutterForegroundTask.sendDataToMain(<String, dynamic>{
+        'type': 'new_order_offer',
+        'orderId': orderId,
+        'vendorName': order['vendor_name']?.toString() ?? 'Pedido',
+        'total': (order['price'] ?? 0).toString(),
+        'distanceKm': (order['distance_km'] ?? 0).toString(),
+        'driverEarnings': (order['driver_earnings'] ?? 0).toString(),
+      });
+      debugPrint('[BoraTaskHandler] offer found order=$orderId → sendDataToMain');
+    } catch (e) {
+      debugPrint('[BoraTaskHandler] poll error: $e');
+    }
   }
 
   @override

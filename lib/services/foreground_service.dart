@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Foreground service wrapper para manter driver/parceiro sempre activos
 /// em background com notificação persistente (padrão Glovo/Uber Eats).
@@ -203,6 +204,27 @@ class _BoraTaskHandler extends TaskHandler {
 
   Future<void> _poll() async {
     try {
+      // ── Bridge SharedPreferences → main ──────────────────────────────────
+      // O FCM background handler escreve 'pending_offer' em SharedPreferences
+      // (não pode chamar MethodChannels directamente). O FGS lê aqui e
+      // reencaminha via sendDataToMain → showDriverOfferOverlay no main isolate.
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final pending = prefs.getString('pending_offer');
+        if (pending != null && pending.isNotEmpty) {
+          final data = jsonDecode(pending) as Map<String, dynamic>;
+          final offerId = data['orderId']?.toString() ?? '';
+          if (offerId.isNotEmpty && offerId != _lastOfferedOrderId) {
+            _lastOfferedOrderId = offerId;
+            FlutterForegroundTask.sendDataToMain(data);
+            debugPrint('[FGS_POLL] pending_offer → sendDataToMain order=$offerId');
+          }
+          await prefs.remove('pending_offer');
+        }
+      } catch (e) {
+        debugPrint('[FGS_POLL] pending_offer bridge error: $e');
+      }
+
       final driverId = await FlutterForegroundTask.getData<String>(key: 'driverId');
       debugPrint('[FGS_POLL] fired — driverId=${driverId ?? "NULL"}');
       if (driverId == null || driverId.isEmpty) {

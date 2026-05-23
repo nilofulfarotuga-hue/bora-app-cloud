@@ -16,6 +16,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart'
 // Alias para evitar colisão de `NotificationVisibility` com flutter_local_notifications.
 import 'package:flutter_overlay_window/flutter_overlay_window.dart' as fow;
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/chat_message.dart';
@@ -119,6 +120,25 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     debugPrint('[FCM BG] local notif error: $e');
   }
 
+  // ── 1.5) Bridge SharedPreferences → FGS onRepeatEvent ────────────────────
+  // O BG handler NÃO pode chamar MethodChannels (overlay), mas PODE escrever
+  // em SharedPreferences. O FGS onRepeatEvent lê este valor e chama
+  // sendDataToMain, que dispara showDriverOfferOverlay no main isolate.
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('pending_offer', jsonEncode({
+      'type': 'new_order_offer',
+      'orderId': orderId,
+      'vendorName': vendorName,
+      'total': total,
+      'distanceKm': distanceKm,
+      'driverEarnings': driverEarnings,
+    }));
+    debugPrint('[FCM BG] pending_offer saved SharedPrefs order=$orderId');
+  } catch (e) {
+    debugPrint('[FCM BG] SharedPrefs bridge error: $e');
+  }
+
   // ── 2) Ponte FCM→FGS→main para overlay SYSTEM_ALERT_WINDOW ─────────────
   try {
     if (await FlutterForegroundTask.isRunningService) {
@@ -166,6 +186,11 @@ Future<void> cancelDriverOfferNotification(String orderId) async {
   } catch (e) {
     debugPrint('[NotificationService] cancel error: $e');
   }
+  // Limpar bridge SharedPreferences para o FGS não re-enviar oferta cancelada.
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('pending_offer');
+  } catch (_) {}
   // 2026-05-21 — fecha também o ecrã CallKit (lockscreen) se ainda estiver
   // aberto. Idempotente: ConnectyCube ignora sessions inexistentes.
   try {

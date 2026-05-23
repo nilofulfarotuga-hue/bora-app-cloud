@@ -115,6 +115,10 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   final total = data['total']?.toString() ?? '0.00';
   final distanceKm = data['distanceKm']?.toString() ?? '0';
   final driverEarnings = data['driverEarnings']?.toString() ?? '0.00';
+  final dropoffAddress = data['dropoffAddress']?.toString() ?? '';
+  final notifBody = dropoffAddress.isNotEmpty
+      ? '$vendorName • €$total • ${distanceKm}km • €$driverEarnings\n📍 $dropoffAddress'
+      : '$vendorName • €$total • ${distanceKm}km • €$driverEarnings';
 
   // ── 1) Local notification com fullScreenIntent ─────────────────────────
   // Em Android <14 abre MainActivity por cima de tudo (showWhenLocked +
@@ -162,7 +166,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     await plugin.show(
       orderId.hashCode,
       '🛵 Novo pedido!',
-      '$vendorName • €$total • ${distanceKm}km • €$driverEarnings',
+      notifBody,
       const NotificationDetails(android: androidDetails),
       payload: jsonEncode({
         'type': 'new_order_offer',

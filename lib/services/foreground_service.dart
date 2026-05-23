@@ -1,9 +1,5 @@
-import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
-
-import 'notification_service.dart';
 
 /// Foreground service wrapper para manter driver/parceiro sempre activos
 /// em background com notificação persistente (padrão Glovo/Uber Eats).
@@ -25,7 +21,6 @@ class BoraForegroundService {
       'Mantém a app activa para receber pedidos em background.';
 
   static bool _initialized = false;
-  static StreamSubscription<Object?>? _portSubscription;
 
   /// Configura o canal Android + opções iOS. Idempotente.
   /// Chamar uma única vez durante o boot da app (ver `main.dart`).
@@ -100,29 +95,6 @@ class BoraForegroundService {
     );
   }
 
-  /// Regista o listener do ReceivePort apenas uma vez por sessão de app.
-  /// initCommunicationPort() cria o port; listen() reencaminha dados do FGS
-  /// task para showDriverOfferOverlay() no main isolate.
-  static void _registerPortListener() {
-    if (_portSubscription != null) return;
-    FlutterForegroundTask.initCommunicationPort();
-    final port = FlutterForegroundTask.receivePort;
-    if (port == null) return;
-    _portSubscription = port.listen((dynamic data) {
-      if (data is! Map) return;
-      final type = data['type']?.toString();
-      if (type != 'new_order_offer') return;
-      NotificationService.instance.showDriverOfferOverlay(
-        orderId:        data['orderId']?.toString() ?? '',
-        vendorName:     data['vendorName']?.toString() ?? 'Pedido',
-        total:          data['total']?.toString() ?? '0',
-        distanceKm:     data['distanceKm']?.toString() ?? '0',
-        driverEarnings: data['driverEarnings']?.toString() ?? '0',
-      );
-    });
-    debugPrint('[BoraForegroundService] receivePort listener registered');
-  }
-
   static Future<bool> _start({
     required String title,
     required String text,
@@ -134,7 +106,6 @@ class BoraForegroundService {
           notificationTitle: title,
           notificationText: text,
         );
-        _registerPortListener();
         return true;
       }
       final result = await FlutterForegroundTask.startService(
@@ -145,7 +116,6 @@ class BoraForegroundService {
       );
       final ok = _resultIsSuccess(result);
       debugPrint('[BoraForegroundService] startService($title) => $ok');
-      if (ok) _registerPortListener();
       return ok;
     } catch (e) {
       debugPrint('[BoraForegroundService] start error: $e');

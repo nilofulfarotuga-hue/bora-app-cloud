@@ -84,6 +84,7 @@ workflows:
       java: 17
       groups:
         - bora_dart_defines
+        - bora_keystore
     triggering:
       events:
         - push
@@ -96,10 +97,16 @@ workflows:
       - name: Set up local properties
         script: |
           echo "flutter.sdk=$HOME/programs/flutter" > "$CM_BUILD_DIR/android/local.properties"
-      - name: Materialise .dart_defines from secret
+      - name: Materialise secret files from env vars
         script: |
           if [ -n "$DART_DEFINES_FILE_B64" ]; then
             echo "$DART_DEFINES_FILE_B64" | base64 -d > "$CM_BUILD_DIR/.dart_defines"
+          fi
+          if [ -n "$GOOGLE_SERVICES_JSON_B64" ]; then
+            echo "$GOOGLE_SERVICES_JSON_B64" | base64 -d > "$CM_BUILD_DIR/android/app/google-services.json"
+            echo "google-services.json created"
+          else
+            echo "WARNING: GOOGLE_SERVICES_JSON_B64 not set — Firebase push disabled in this build"
           fi
       - name: Get Flutter packages
         script: flutter pub get

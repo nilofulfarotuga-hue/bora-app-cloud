@@ -291,9 +291,21 @@ class DriverStore extends ChangeNotifier {
               '[DriverStore] foreground notif perm denied — service não iniciado');
           return;
         }
+        // Resolver ID: 'driver-main' é um placeholder inválido para polling.
+        // Usar sempre o auth UID como source-of-truth; se ainda não disponível,
+        // abortar (o driver não devia estar a ir Online sem sessão auth válida).
+        final authId = _client.auth.currentUser?.id ?? '';
+        final resolvedId =
+            (driverId.isEmpty || driverId == 'driver-main') ? authId : driverId;
+        if (resolvedId.isEmpty || resolvedId == 'driver-main') {
+          debugPrint(
+              '[DriverStore] FGS abortado — driverId não resolvido (raw=$driverId authId=$authId)');
+          return;
+        }
         // Salvar driverId ANTES de startDriver para que o primeiro onRepeatEvent
         // já encontre o ID disponível via getData (evita early return por null).
-        await BoraForegroundService.saveDriverId(driverId);
+        await BoraForegroundService.saveDriverId(resolvedId);
+        debugPrint('[DriverStore] FGS saveDriverId OK: $resolvedId');
         await BoraForegroundService.startDriver();
         // Bolinha estilo Uber/Glovo — pede SYSTEM_ALERT_WINDOW se ainda não
         // concedido. Se utilizador recusar, foreground service continua a

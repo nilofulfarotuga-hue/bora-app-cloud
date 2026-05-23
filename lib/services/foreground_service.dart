@@ -195,6 +195,7 @@ class _BoraTaskHandler extends TaskHandler {
 
   @override
   void onRepeatEvent(DateTime timestamp) {
+    debugPrint('[FGS_POLL] onRepeatEvent tick — isPolling=$_isPolling ts=$timestamp');
     if (_isPolling) return;
     _isPolling = true;
     _poll().whenComplete(() => _isPolling = false);

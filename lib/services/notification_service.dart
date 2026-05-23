@@ -96,8 +96,8 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       sound: RawResourceAndroidNotificationSound('bora_alert'),
       enableVibration: true,
       visibility: fln.NotificationVisibility.public,
-      autoCancel: true,
-      ongoing: false,
+      autoCancel: false,
+      ongoing: true,
       ticker: 'Novo pedido Bora',
     );
     await plugin.show(
@@ -329,10 +329,14 @@ class NotificationService {
     fow.FlutterOverlayWindow.overlayListener.listen((dynamic d) {
       if (d is! Map) return;
       final action = d['action']?.toString();
-      final orderId = d['orderId']?.toString();
+      final orderId = d['orderId']?.toString() ?? '';
       if (action == null) return;
       debugPrint(
           '[NotificationService] overlay action=$action order=$orderId');
+      // Cancelar notificação persistente após decisão do driver.
+      if (action == 'accept' || action == 'reject' || action == 'expired') {
+        cancelDriverOfferNotification(orderId).ignore();
+      }
     });
 
     // Bridge FCM→FGS→main: recebe payload new_order_offer que o

@@ -56,6 +56,51 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       'orderId=${data['orderId']} '
       'notif=${message.notification?.title}');
 
+  // ── Parceiro: novo pedido em background ─────────────────────────────────
+  if (data['type'] == 'new_order') {
+    final orderId = data['orderId']?.toString() ?? '';
+    final items = data['items']?.toString() ?? 'Novo pedido';
+    final total = data['total']?.toString() ?? '0.00';
+    try {
+      final plugin = FlutterLocalNotificationsPlugin();
+      final androidImpl = plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      await androidImpl?.createNotificationChannel(
+        const AndroidNotificationChannel(
+          'bora_partner_orders',
+          'Bora — Pedidos parceiro',
+          description: 'Notificações de novos pedidos para parceiros',
+          importance: Importance.max,
+          playSound: true,
+          sound: RawResourceAndroidNotificationSound('bora_alert'),
+          enableVibration: true,
+        ),
+      );
+      const androidDetails = AndroidNotificationDetails(
+        'bora_partner_orders',
+        'Bora — Pedidos parceiro',
+        channelDescription: 'Notificações de novos pedidos para parceiros',
+        importance: Importance.max,
+        priority: Priority.max,
+        playSound: true,
+        sound: RawResourceAndroidNotificationSound('bora_alert'),
+        enableVibration: true,
+        autoCancel: true,
+        visibility: fln.NotificationVisibility.public,
+      );
+      await plugin.show(
+        orderId.isNotEmpty ? orderId.hashCode : 9999,
+        '🔔 Novo pedido!',
+        '$items • €$total',
+        const NotificationDetails(android: androidDetails),
+      );
+      debugPrint('[FCM BG] partner new_order notif shown order=$orderId');
+    } catch (e) {
+      debugPrint('[FCM BG] partner notif error: $e');
+    }
+    return;
+  }
+
   if (data['type'] != 'new_order_offer') return;
 
   final orderId = data['orderId']?.toString() ?? '';

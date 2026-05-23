@@ -30,8 +30,8 @@ workflows:
             echo "ERROR: DART_DEFINES_FILE_B64 not set"; exit 1
           fi
           if [ -n "$GOOGLE_SERVICES_JSON_B64" ]; then
-            echo "$GOOGLE_SERVICES_JSON_B64" | base64 -d > "$CM_BUILD_DIR/android/app/google-services.json"
-            echo "google-services.json created"
+            echo "$GOOGLE_SERVICES_JSON_B64" | base64 --decode | sed '1s/^\xEF\xBB\xBF//' > "$CM_BUILD_DIR/android/app/google-services.json"
+            python3 -c "import json; json.load(open('$CM_BUILD_DIR/android/app/google-services.json')); print('google-services.json OK')"
           else
             echo "ERROR: GOOGLE_SERVICES_JSON_B64 not set"; exit 1
           fi
@@ -103,8 +103,8 @@ workflows:
             echo "$DART_DEFINES_FILE_B64" | base64 -d > "$CM_BUILD_DIR/.dart_defines"
           fi
           if [ -n "$GOOGLE_SERVICES_JSON_B64" ]; then
-            echo "$GOOGLE_SERVICES_JSON_B64" | base64 -d > "$CM_BUILD_DIR/android/app/google-services.json"
-            echo "google-services.json created"
+            echo "$GOOGLE_SERVICES_JSON_B64" | base64 --decode | sed '1s/^\xEF\xBB\xBF//' > "$CM_BUILD_DIR/android/app/google-services.json"
+            python3 -c "import json; json.load(open('$CM_BUILD_DIR/android/app/google-services.json')); print('google-services.json OK')"
           else
             echo "WARNING: GOOGLE_SERVICES_JSON_B64 not set — Firebase push disabled in this build"
           fi

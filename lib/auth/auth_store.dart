@@ -340,6 +340,7 @@ class AuthStore extends ChangeNotifier {
           email: email,
           phone: meta[_kPhone] as String? ?? '',
           password: '',
+          photoUrl: meta[_kPhotoUrl] as String? ?? '',
         );
         _clientsByEmail[email] = account;
         _currentClient = account;
@@ -624,6 +625,7 @@ class AuthStore extends ChangeNotifier {
             email: normalizedEmail,
             phone: meta[_kPhone] as String? ?? '',
             password: password,
+            photoUrl: meta[_kPhotoUrl] as String? ?? '',
           );
       _currentClient = account;
       _currentDriver = null;

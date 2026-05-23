@@ -139,6 +139,18 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   }
 }
 
+/// Tap na notificação local enquanto app em foreground ou background.
+/// Traz a app para o primeiro plano — driver home screen já mostra o card
+/// de aceitar/rejeitar via Realtime.
+void _onLocalNotifTap(NotificationResponse response) {
+  FlutterForegroundTask.launchApp('/');
+}
+
+/// Tap na notificação local quando a app estava terminada.
+/// Android inicia a app normalmente via MainActivity — sem handling especial.
+@pragma('vm:entry-point')
+void _onLocalNotifBackgroundTap(NotificationResponse response) {}
+
 /// Cancela a notificação persistente de uma oferta quando:
 ///   • o estafeta aceitou via UI
 ///   • o backend revogou (timeout / outro driver aceitou / cliente cancelou)
@@ -250,6 +262,17 @@ class NotificationService {
       debugPrint('[NotificationService] init skipped — notifications consent not granted');
       return;
     }
+
+    // Inicializar flutter_local_notifications para registar o callback de tap.
+    // Sem este initialize(), onDidReceiveNotificationResponse nunca é chamado
+    // e tocar na notificação persistente não abre o ecrã de aceitar/rejeitar.
+    await FlutterLocalNotificationsPlugin().initialize(
+      const InitializationSettings(
+        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+      ),
+      onDidReceiveNotificationResponse: _onLocalNotifTap,
+      onDidReceiveBackgroundNotificationResponse: _onLocalNotifBackgroundTap,
+    );
 
     // Register background handler BEFORE any other FCM call.
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);

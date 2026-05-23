@@ -1314,6 +1314,8 @@ class OrderStore extends ChangeNotifier {
         params: {'p_order_id': order.id},
       );
       debugPrint('[OrderStore] _rejectOrderInBackend: RPC result=$res for order=${order.id}');
+      // Cancelar notificação persistente de oferta após rejeitar.
+      unawaited(cancelDriverOfferNotification(order.id));
     } catch (e) {
       debugPrint('[OrderStore] _rejectOrderInBackend RPC error: $e');
     }
@@ -1478,6 +1480,8 @@ class OrderStore extends ChangeNotifier {
       driverPhone: driver?.phone,
     );
     if (!success) return false;
+    // Cancelar notificação persistente de oferta após aceitar com sucesso.
+    unawaited(cancelDriverOfferNotification(order.id));
 
     order.status = OrderStatus.driverAccepted;
     order.assignedDriverId = _currentDriverId;

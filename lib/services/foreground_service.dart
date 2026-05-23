@@ -29,6 +29,17 @@ class BoraForegroundService {
   /// Chamar uma única vez durante o boot da app (ver `main.dart`).
   static Future<void> init() async {
     if (_initialized) return;
+    // Persistir credenciais no SharedPreferences para o FGS isolate usar como
+    // fallback via getData — necessário porque String.fromEnvironment pode ficar
+    // vazio no isolate separado dependendo do build runner.
+    const initUrl = String.fromEnvironment('SUPABASE_URL');
+    const initKey = String.fromEnvironment('SUPABASE_ANON_KEY');
+    if (initUrl.isNotEmpty) {
+      await FlutterForegroundTask.saveData(key: 'fgs_supabase_url', value: initUrl);
+    }
+    if (initKey.isNotEmpty) {
+      await FlutterForegroundTask.saveData(key: 'fgs_supabase_key', value: initKey);
+    }
     FlutterForegroundTask.init(
       androidNotificationOptions: AndroidNotificationOptions(
         channelId: _channelId,
@@ -192,20 +203,38 @@ class _BoraTaskHandler extends TaskHandler {
   Future<void> _poll() async {
     try {
       final driverId = await FlutterForegroundTask.getData<String>(key: 'driverId');
-      if (driverId == null || driverId.isEmpty) return;
-      if (_supabaseUrl.isEmpty || _anonKey.isEmpty) return;
+      debugPrint('[FGS_POLL] fired — driverId=${driverId ?? "NULL"}');
+      if (driverId == null || driverId.isEmpty) {
+        debugPrint('[FGS_POLL] driverId vazio — skipping');
+        return;
+      }
+
+      // Fallback: se dart-defines não resolveram no isolate FGS, usar os
+      // valores guardados no init() via saveData.
+      var url = _supabaseUrl;
+      var apiKey = _anonKey;
+      if (url.isEmpty) {
+        url = await FlutterForegroundTask.getData<String>(key: 'fgs_supabase_url') ?? '';
+        apiKey = await FlutterForegroundTask.getData<String>(key: 'fgs_supabase_key') ?? '';
+        debugPrint('[FGS_POLL] dart-define vazio, fallback getData: url=${url.isEmpty ? "VAZIO!" : "OK"} key=${apiKey.isEmpty ? "VAZIO!" : "OK"}');
+      }
+      if (url.isEmpty || apiKey.isEmpty) {
+        debugPrint('[FGS_POLL] credenciais vazias — skipping');
+        return;
+      }
 
       final uri = Uri.parse(
-        '$_supabaseUrl/rest/v1/orders'
+        '$url/rest/v1/orders'
         '?status=eq.callingDriver'
         '&current_driver_offer_id=eq.$driverId'
         '&assigned_driver_id=is.null'
         '&select=id,vendor_name,price,distance_km,driver_earnings,driver_offer_expires_at'
         '&limit=1',
       );
+      debugPrint('[FGS_POLL] GET $url/rest/v1/orders?driverId=$driverId');
       final response = await http.get(uri, headers: {
-        'apikey': _anonKey,
-        'Authorization': 'Bearer $_anonKey',
+        'apikey': apiKey,
+        'Authorization': 'Bearer $apiKey',
       }).timeout(const Duration(seconds: 4));
 
       if (response.statusCode != 200) return;

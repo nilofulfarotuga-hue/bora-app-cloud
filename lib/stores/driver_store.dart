@@ -291,8 +291,10 @@ class DriverStore extends ChangeNotifier {
               '[DriverStore] foreground notif perm denied — service não iniciado');
           return;
         }
-        await BoraForegroundService.startDriver();
+        // Salvar driverId ANTES de startDriver para que o primeiro onRepeatEvent
+        // já encontre o ID disponível via getData (evita early return por null).
         await BoraForegroundService.saveDriverId(driverId);
+        await BoraForegroundService.startDriver();
         // Bolinha estilo Uber/Glovo — pede SYSTEM_ALERT_WINDOW se ainda não
         // concedido. Se utilizador recusar, foreground service continua a
         // funcionar; só a bolinha não aparece.

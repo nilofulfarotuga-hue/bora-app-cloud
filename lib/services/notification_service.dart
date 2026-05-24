@@ -110,6 +110,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   }
 
   if (data['type'] != 'new_order_offer') return;
+  debugPrint('[BORA-OFFER] FCM BG handler RECEIVED new_order_offer payload=${jsonEncode(data)}');
 
   final orderId = data['orderId']?.toString() ?? '';
   final vendorName = data['vendorName']?.toString() ?? 'Novo pedido';
@@ -203,6 +204,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       'driverEarnings': driverEarnings,
     }));
     debugPrint('[FCM BG] pending_offer saved SharedPrefs order=$orderId');
+    debugPrint('[BORA-OFFER] pending_offer SAVED order=$orderId (rehydrate vai consumir quando navigator montar)');
   } catch (e) {
     debugPrint('[FCM BG] SharedPrefs bridge error: $e');
   }
@@ -599,17 +601,23 @@ class NotificationService {
     // _BoraTaskHandler reencaminhou via sendDataToMain.
     FlutterForegroundTask.addTaskDataCallback(_onForegroundTaskData);
 
+    // Exec4 (2026-05-24): rehydrate pending_offer (caso app morta arrancada
+    // por fullScreenIntent — realtime perdeu o UPDATE que aconteceu antes).
+    _startRehydrateLoop();
+
     _initialized = true;
     debugPrint('[NotificationService] initialized.');
   }
 
   void _onForegroundTaskData(Object data) {
+    debugPrint('[BORA-OFFER] _onForegroundTaskData received: $data');
     if (data is! Map) return;
     final type = data['type']?.toString();
     if (type != 'new_order_offer') return;
     final orderId = data['orderId']?.toString() ?? '';
     if (orderId.isEmpty) return;
     // Exec3 PIVOT (2026-05-24): full-screen dialog em vez de overlay system_alert.
+    debugPrint('[BORA-OFFER] _onForegroundTaskData → showFullScreenOfferDialog order=$orderId');
     showFullScreenOfferDialog(
       orderId: orderId,
       vendorName: data['vendorName']?.toString() ?? 'Novo pedido',
@@ -703,39 +711,120 @@ class NotificationService {
     String driverEarnings = '0.00',
     String dropoffAddress = '',
   }) async {
-    if (kIsWeb || orderId.isEmpty) return;
+    debugPrint('[BORA-OFFER] showFullScreenOfferDialog called order=$orderId vendor=$vendorName');
+    if (kIsWeb || orderId.isEmpty) {
+      debugPrint('[BORA-OFFER] EARLY RETURN web=$kIsWeb empty=${orderId.isEmpty}');
+      return;
+    }
     // Dedup cross-path — janela 10s.
     final now = DateTime.now();
     if (_lastShownOfferId == orderId &&
         _lastShownOfferAt != null &&
         now.difference(_lastShownOfferAt!) < _offerDedupWindow) {
-      debugPrint(
-          '[NotificationService] showFullScreenOfferDialog: dedup HIT order=$orderId');
+      debugPrint('[BORA-OFFER] DEDUP HIT order=$orderId');
       return;
     }
     _lastShownOfferId = orderId;
     _lastShownOfferAt = now;
+
+    // Persistir como pending_offer para rehydrate caso navigatorKey ainda
+    // não tenha state (app a arrancar pelo fullScreenIntent). _rehydratePendingOffer
+    // limpa o pending após sucesso.
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('pending_offer', jsonEncode({
+        'type': 'new_order_offer',
+        'orderId': orderId,
+        'vendorName': vendorName,
+        'total': total,
+        'distanceKm': distanceKm,
+        'driverEarnings': driverEarnings,
+        'dropoffAddress': dropoffAddress,
+        'ts': now.millisecondsSinceEpoch,
+      }));
+    } catch (_) {}
+
     final nav = navigatorKey.currentState;
     if (nav == null) {
-      debugPrint(
-          '[NotificationService] navigatorKey sem state — Flutter engine ainda a subir? order=$orderId');
+      debugPrint('[BORA-OFFER] navigatorKey.currentState == NULL — Flutter engine a subir. _rehydratePendingOffer vai retomar quando o navigator montar.');
       return;
     }
-    // Push full-screen route. PopScope no widget impede dismiss por back —
-    // só ACEITAR/REJEITAR/expirar fecham.
-    await nav.push(
-      MaterialPageRoute<void>(
-        fullscreenDialog: true,
-        builder: (_) => DriverFullScreenOfferDialog(
-          orderId: orderId,
-          vendorName: vendorName,
-          total: total,
-          distanceKm: distanceKm,
-          driverEarnings: driverEarnings,
-          dropoffAddress: dropoffAddress,
+    debugPrint('[BORA-OFFER] navigatorKey OK → push dialog order=$orderId');
+    try {
+      await nav.push(
+        MaterialPageRoute<void>(
+          fullscreenDialog: true,
+          builder: (_) => DriverFullScreenOfferDialog(
+            orderId: orderId,
+            vendorName: vendorName,
+            total: total,
+            distanceKm: distanceKm,
+            driverEarnings: driverEarnings,
+            dropoffAddress: dropoffAddress,
+          ),
         ),
-      ),
-    );
+      );
+      debugPrint('[BORA-OFFER] dialog popped (action/expired) order=$orderId');
+    } catch (e) {
+      debugPrint('[BORA-OFFER] push threw: $e');
+    }
+  }
+
+  // ── Rehydrate pending offer (Exec4, 2026-05-24) ─────────────────────────
+  //
+  // Caso típico: app morta → FCM chega → bg handler escreve `pending_offer`
+  // em SharedPreferences + mostra notif fullScreenIntent → Android lança
+  // MainActivity → Flutter boota. Quando o NotificationService.init() corre,
+  // o navigatorKey ainda não tem state (MaterialApp ainda não montou).
+  // Este loop espera pelo navigator e empurra o dialog assim que existe.
+  // Janela 60s (oferta tem TTL 40s).
+  void _startRehydrateLoop() {
+    Timer.periodic(const Duration(milliseconds: 600), (t) async {
+      try {
+        if (t.tick > 100) {
+          // 60s cap — desiste para não vazar Timer.
+          t.cancel();
+          return;
+        }
+        if (navigatorKey.currentState == null) return;
+        final prefs = await SharedPreferences.getInstance();
+        final pending = prefs.getString('pending_offer');
+        if (pending == null || pending.isEmpty) {
+          // Sem oferta pendente — espera mais um pouco. Não cancelar:
+          // o utilizador pode receber uma oferta dentro da janela.
+          return;
+        }
+        final data = jsonDecode(pending) as Map<String, dynamic>;
+        final ts = data['ts'];
+        if (ts is int) {
+          final age = DateTime.now().millisecondsSinceEpoch - ts;
+          if (age > 45000) {
+            debugPrint('[BORA-OFFER] rehydrate skip — oferta expirada (age=${age}ms)');
+            await prefs.remove('pending_offer');
+            return;
+          }
+        }
+        final orderId = data['orderId']?.toString() ?? '';
+        if (orderId.isEmpty) {
+          await prefs.remove('pending_offer');
+          return;
+        }
+        debugPrint('[BORA-OFFER] REHYDRATE pending_offer order=$orderId — push dialog');
+        await prefs.remove('pending_offer');
+        // Reset dedup para não cair na guarda interna (a oferta veio do bg).
+        resetOfferDedup();
+        await showFullScreenOfferDialog(
+          orderId: orderId,
+          vendorName: data['vendorName']?.toString() ?? 'Novo pedido',
+          total: data['total']?.toString() ?? '0.00',
+          distanceKm: data['distanceKm']?.toString() ?? '0',
+          driverEarnings: data['driverEarnings']?.toString() ?? '0.00',
+          dropoffAddress: data['dropoffAddress']?.toString() ?? '',
+        );
+      } catch (e) {
+        debugPrint('[BORA-OFFER] rehydrate error: $e');
+      }
+    });
   }
 
   // ── Accept/Reject RPCs (Fix D, 2026-05-24) ──────────────────────────────

@@ -2396,6 +2396,7 @@ class OrderStore extends ChangeNotifier {
                   // Exec3 PIVOT (2026-05-24): full-screen dialog em vez de overlay
                   // system_alert (bloqueado por Android 14+/16 em bg). FGS mantém
                   // o Flutter engine activo; navigatorKey empurra o dialog em <500ms.
+                  debugPrint('[BORA-OFFER] order_store realtime UPDATE → offer for me order=$orderId');
                   if (!_dismissedOrderIds.contains(orderId)) {
                     NotificationService.instance.showFullScreenOfferDialog(
                       orderId: orderId,

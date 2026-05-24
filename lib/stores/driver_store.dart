@@ -368,6 +368,7 @@ class DriverStore extends ChangeNotifier {
               if (orderId.isEmpty) return;
               debugPrint(
                   '[Realtime] driver-offer broadcast order=$orderId');
+              debugPrint('[BORA-OFFER] driver_store realtime BROADCAST → showFullScreenOfferDialog order=$orderId');
               // Exec3 PIVOT (2026-05-24): full-screen dialog em vez de overlay.
               NotificationService.instance.showFullScreenOfferDialog(
                 orderId: orderId,

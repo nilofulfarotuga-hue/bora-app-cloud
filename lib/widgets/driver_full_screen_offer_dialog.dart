@@ -62,6 +62,8 @@ class _DriverFullScreenOfferDialogState
   @override
   void initState() {
     super.initState();
+    // ignore: avoid_print
+    print('[BORA-OFFER] DriverFullScreenOfferDialog initState order=${widget.orderId} vendor=${widget.vendorName}');
     _timer = Timer.periodic(const Duration(seconds: 1), (t) {
       if (!mounted) {
         t.cancel();

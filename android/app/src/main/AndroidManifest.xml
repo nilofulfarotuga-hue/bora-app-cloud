@@ -70,9 +70,14 @@
              do foreground, cai no canal default (IMPORTANCE_DEFAULT) e a
              notificacao NAO aparece como heads-up. Tem de bater certo com o
              channel_id criado em MainActivity.kt + main.dart + payload FCM. -->
+        <!-- Sessão 2026-05-24 (exec2 FIX A): canal v3 com som EXPLÍCITO
+             bora_alert (v2 nasceu sem setSound — Android trancou-o em default).
+             MainActivity.kt cria este canal com AudioAttributes ringtone +
+             FLAG_AUDIBILITY_ENFORCED. Tem de bater certo com o channel ID
+             usado em notification_service.dart. -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
-            android:value="bora_orders_urgent_v2"/>
+            android:value="bora_orders_urgent_v3"/>
 
         <activity
             android:name=".MainActivity"

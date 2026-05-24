@@ -128,12 +128,17 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     final plugin = FlutterLocalNotificationsPlugin();
     final androidImpl = plugin.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
-    // Idempotente — Android dedup por canal id; criar de novo é safe.
+    // Sessão 2026-05-24 (exec2 FIX A) — canal v3 com som EXPLÍCITO.
+    // MainActivity.kt cria o mesmo ID em Kotlin com setSound() correcto
+    // (AudioAttributes USAGE_NOTIFICATION_RINGTONE). Criamos aqui também
+    // para o caso de o BG handler correr antes de o utilizador abrir
+    // alguma vez a MainActivity. Idempotente — se o canal já existe,
+    // Android ignora; mas o som FICA o que foi posto na 1ª criação.
     await androidImpl?.createNotificationChannel(
       const AndroidNotificationChannel(
-        'bora_orders_urgent_v2',
-        'Bora — Pedidos urgentes',
-        description: 'Notificação prioritária com som para novos pedidos',
+        'bora_orders_urgent_v3',
+        'Bora — Novos pedidos',
+        description: 'Som contínuo + vibração para novos pedidos urgentes.',
         importance: Importance.max,
         playSound: true,
         sound: RawResourceAndroidNotificationSound('bora_alert'),
@@ -141,7 +146,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       ),
     );
     const androidDetails = AndroidNotificationDetails(
-      'bora_orders_urgent_v2',
+      'bora_orders_urgent_v3',
       'Bora — Pedidos urgentes',
       channelDescription:
           'Notificação prioritária com som para novos pedidos',
@@ -219,6 +224,34 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   } catch (e) {
     debugPrint('[FCM BG] bridge error: $e');
   }
+
+  // ── 3) FALLBACK rápido: shareData directo ao OverlayService (Fix B) ────
+  // Em Android 14+/16 o BG isolate NÃO pode iniciar um novo overlay, MAS
+  // pode falar com um service já em foreground. Se driver_order_overlay
+  // estiver em standby (initDriverStandbyOverlay chamado ao ir Online),
+  // basta updateFlag + shareData. Funciona MESMO sem FGS principal vivo,
+  // porque o OverlayService é um FGS própio (specialUse) gerido pelo
+  // plugin flutter_overlay_window.
+  try {
+    final overlayPerm = await fow.FlutterOverlayWindow.isPermissionGranted();
+    if (overlayPerm && await fow.FlutterOverlayWindow.isActive()) {
+      await fow.FlutterOverlayWindow.updateFlag(fow.OverlayFlag.defaultFlag);
+      await fow.FlutterOverlayWindow.shareData(<String, dynamic>{
+        'orderId': orderId,
+        'vendorName': vendorName,
+        'total': total,
+        'distanceKm': distanceKm,
+        'driverEarnings': driverEarnings,
+      });
+      debugPrint('[FCM BG] overlay shareData direct OK order=$orderId');
+    } else {
+      debugPrint(
+          '[FCM BG] overlay not active OR no perm — perm=$overlayPerm '
+          '(depende do main isolate via FGS bridge)');
+    }
+  } catch (e) {
+    debugPrint('[FCM BG] direct overlay shareData error: $e');
+  }
 }
 
 /// Tap na notificação local enquanto app em foreground ou background.
@@ -266,27 +299,46 @@ Future<void> onBackgroundNotificationAction(NotificationResponse response) async
     };
 
     if (actionId == 'accept_order') {
-      final driverId = prefs.getString('bora_driver_id') ?? '';
-      if (driverId.isEmpty) {
-        debugPrint('[NOTIF ACTION] bora_driver_id vazio — accept ignorado');
-        return;
-      }
-      await http
-          .patch(
-            Uri.parse('$supabaseUrl/rest/v1/orders'
-                '?id=eq.$orderId'
-                '&current_driver_offer_id=eq.$driverId'),
-            headers: headers,
-            body: jsonEncode({
-              'status': 'driverAccepted',
-              'assigned_driver_id': driverId,
-              'current_driver_offer_id': null,
-              'driver_offer_expires_at': null,
-            }),
+      // Sessão 2026-05-24 (exec2 FIX D) — usar RPC atómica em vez de PATCH
+      // raw. A RPC valida `current_driver_offer_id = auth.uid()` ATÓMICAMENTE
+      // e devolve {ok:false, error:'offer_expired_or_taken'} se já tiver
+      // expirado/sido tomada — em vez de PATCH bloqueado em silêncio pela RLS.
+      final res = await http
+          .post(
+            Uri.parse('$supabaseUrl/rest/v1/rpc/driver_accept_offer'),
+            headers: {
+              ...headers,
+              'Prefer': 'return=representation',
+            },
+            body: jsonEncode({'p_order_id': orderId}),
           )
           .timeout(const Duration(seconds: 5));
+      // Parse defensivo: a RPC devolve jsonb. Se 4xx/5xx, status já reflecte.
+      String? rpcError;
+      try {
+        final body = res.body;
+        if (body.isNotEmpty) {
+          final parsed = jsonDecode(body);
+          if (parsed is Map && parsed['ok'] == false) {
+            rpcError = parsed['error']?.toString();
+          }
+        }
+      } catch (_) {}
       await prefs.remove('pending_offer');
-      debugPrint('[NOTIF ACTION] accept_order OK order=$orderId driver=$driverId');
+      if (rpcError == 'offer_expired_or_taken') {
+        debugPrint(
+            '[NOTIF ACTION] accept_order EXPIRED order=$orderId — closing notif');
+        // Limpa notif e overlay; main isolate (se vivo) verá via realtime
+        // que current_driver_offer_id mudou. Não há snackbar no bg isolate.
+        try {
+          await FlutterLocalNotificationsPlugin().cancel(orderId.hashCode);
+        } catch (_) {}
+      } else if (res.statusCode >= 400) {
+        debugPrint(
+            '[NOTIF ACTION] accept_order HTTP ${res.statusCode} order=$orderId body=${res.body}');
+      } else {
+        debugPrint('[NOTIF ACTION] accept_order OK order=$orderId');
+      }
     } else if (actionId == 'reject_order') {
       await http
           .post(
@@ -551,6 +603,15 @@ class NotificationService {
         // futura do mesmo orderId (cycle reset do dispatch-engine).
         resetOfferDedup();
       }
+      // Sessão 2026-05-24 (exec2 FIX D) — overlay isolate NÃO tem Supabase;
+      // o accept/reject só era cancelar a notif, NÃO chamava as RPCs ⇒
+      // pedido ficava preso. Agora o main isolate (que tem Supabase) chama
+      // a RPC quando recebe a acção do overlay.
+      if (action == 'accept' && orderId.isNotEmpty) {
+        _invokeAcceptOffer(orderId);
+      } else if (action == 'reject' && orderId.isNotEmpty) {
+        _invokeRejectOffer(orderId);
+      }
     });
 
     // Bridge FCM→FGS→main: recebe payload new_order_offer que o
@@ -637,6 +698,49 @@ class NotificationService {
       debugPrint('[NotificationService] initDriverStandbyOverlay: standby ready');
     } catch (e) {
       debugPrint('[NotificationService] initDriverStandbyOverlay error: $e');
+    }
+  }
+
+  // ── Accept/Reject RPCs (Fix D, 2026-05-24) ──────────────────────────────
+  //
+  // Chamadas a partir do overlayListener (acção vinda do overlay isolate),
+  // do _onForegroundTaskData (ponte FGS→main) e directamente pelo card
+  // in-app do estafeta. Centraliza tratamento de offer_expired_or_taken
+  // para nunca deixar o pedido preso em silêncio.
+
+  Future<void> _invokeAcceptOffer(String orderId) async {
+    try {
+      final res = await Supabase.instance.client
+          .rpc('driver_accept_offer', params: {'p_order_id': orderId});
+      // RPC devolve jsonb {ok:bool, ...}
+      if (res is Map && res['ok'] == false) {
+        final err = res['error']?.toString() ?? 'unknown';
+        debugPrint(
+            '[NotificationService] accept_offer FAILED order=$orderId error=$err');
+        if (err == 'offer_expired_or_taken') {
+          _sound.stop();
+          cancelDriverOfferNotification(orderId).ignore();
+          await closeOverlayIfActive();
+        }
+        return;
+      }
+      debugPrint('[NotificationService] accept_offer OK order=$orderId');
+      _sound.stop();
+      await closeOverlayIfActive();
+    } catch (e) {
+      debugPrint('[NotificationService] _invokeAcceptOffer error: $e');
+    }
+  }
+
+  Future<void> _invokeRejectOffer(String orderId) async {
+    try {
+      await Supabase.instance.client
+          .rpc('driver_reject_offer', params: {'p_order_id': orderId});
+      debugPrint('[NotificationService] reject_offer OK order=$orderId');
+      _sound.stop();
+      await closeOverlayIfActive();
+    } catch (e) {
+      debugPrint('[NotificationService] _invokeRejectOffer error: $e');
     }
   }
 

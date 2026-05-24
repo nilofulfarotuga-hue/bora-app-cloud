@@ -368,13 +368,15 @@ class DriverStore extends ChangeNotifier {
               if (orderId.isEmpty) return;
               debugPrint(
                   '[Realtime] driver-offer broadcast order=$orderId');
-              NotificationService.instance.showDriverOfferOverlay(
+              // Exec3 PIVOT (2026-05-24): full-screen dialog em vez de overlay.
+              NotificationService.instance.showFullScreenOfferDialog(
                 orderId: orderId,
                 vendorName: inner['vendorName']?.toString() ?? 'Novo pedido',
                 total: inner['total']?.toString() ?? '0.00',
                 distanceKm: inner['distanceKm']?.toString() ?? '0',
                 driverEarnings:
                     inner['driverEarnings']?.toString() ?? '0.00',
+                dropoffAddress: inner['dropoffAddress']?.toString() ?? '',
               );
             } catch (e) {
               debugPrint('[Realtime] broadcast callback error: $e');

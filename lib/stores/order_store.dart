@@ -2393,16 +2393,17 @@ class OrderStore extends ChangeNotifier {
                   debugPrint(
                       '[OrderStore] onPostgresChanges: offer→$driverId order=$orderId');
                   _mergeDriverRows([rec], _driverOfferIds);
-                  // Mostrar overlay a partir do main isolate (foreground service
-                  // mantém o Flutter engine activo quando driver está noutra app).
-                  // Não disparar se a oferta já foi rejeitada nesta sessão.
+                  // Exec3 PIVOT (2026-05-24): full-screen dialog em vez de overlay
+                  // system_alert (bloqueado por Android 14+/16 em bg). FGS mantém
+                  // o Flutter engine activo; navigatorKey empurra o dialog em <500ms.
                   if (!_dismissedOrderIds.contains(orderId)) {
-                    NotificationService.instance.showDriverOfferOverlay(
+                    NotificationService.instance.showFullScreenOfferDialog(
                       orderId: orderId,
                       vendorName: (rec['restaurant_name'] as String?) ?? 'Pedido novo',
                       total: (rec['total'] as num?)?.toStringAsFixed(2) ?? '0.00',
                       distanceKm: (rec['distance_km'] as num?)?.toStringAsFixed(1) ?? '0',
                       driverEarnings: (rec['driver_earnings'] as num?)?.toStringAsFixed(2) ?? '0.00',
+                      dropoffAddress: (rec['dropoff_address'] as String?) ?? '',
                     ).ignore();
                   }
                 } else if (_driverOfferIds.contains(orderId)) {

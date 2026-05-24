@@ -23,6 +23,7 @@ import '../models/chat_message.dart';
 import '../models/order_model.dart';
 import '../screens/chat_screen.dart';
 import '../screens/notifications_screen.dart';
+import '../widgets/driver_full_screen_offer_dialog.dart';
 import 'push_token_service.dart';
 import 'sound_service.dart';
 
@@ -225,33 +226,13 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     debugPrint('[FCM BG] bridge error: $e');
   }
 
-  // ── 3) FALLBACK rápido: shareData directo ao OverlayService (Fix B) ────
-  // Em Android 14+/16 o BG isolate NÃO pode iniciar um novo overlay, MAS
-  // pode falar com um service já em foreground. Se driver_order_overlay
-  // estiver em standby (initDriverStandbyOverlay chamado ao ir Online),
-  // basta updateFlag + shareData. Funciona MESMO sem FGS principal vivo,
-  // porque o OverlayService é um FGS própio (specialUse) gerido pelo
-  // plugin flutter_overlay_window.
-  try {
-    final overlayPerm = await fow.FlutterOverlayWindow.isPermissionGranted();
-    if (overlayPerm && await fow.FlutterOverlayWindow.isActive()) {
-      await fow.FlutterOverlayWindow.updateFlag(fow.OverlayFlag.defaultFlag);
-      await fow.FlutterOverlayWindow.shareData(<String, dynamic>{
-        'orderId': orderId,
-        'vendorName': vendorName,
-        'total': total,
-        'distanceKm': distanceKm,
-        'driverEarnings': driverEarnings,
-      });
-      debugPrint('[FCM BG] overlay shareData direct OK order=$orderId');
-    } else {
-      debugPrint(
-          '[FCM BG] overlay not active OR no perm — perm=$overlayPerm '
-          '(depende do main isolate via FGS bridge)');
-    }
-  } catch (e) {
-    debugPrint('[FCM BG] direct overlay shareData error: $e');
-  }
+  // Exec3 PIVOT (2026-05-24): removido fast-path `fow.FlutterOverlayWindow
+  // .shareData` daqui. O overlay-por-cima foi DEMOVIDO do fluxo de background
+  // — Android 14+/16 bloqueia draw a partir do bg isolate quando MainActivity
+  // invisível. A notif local fullScreenIntent acima (canal v3) acorda o ecrã
+  // + lança MainActivity (showWhenLocked); o realtime entrega a oferta ao
+  // OrderStore que empurra o `DriverFullScreenOfferDialog`. Som: SOLE source
+  // = canal da notif (bora_alert), evitando duplicação com SoundService.
 }
 
 /// Tap na notificação local enquanto app em foreground ou background.
@@ -628,12 +609,14 @@ class NotificationService {
     if (type != 'new_order_offer') return;
     final orderId = data['orderId']?.toString() ?? '';
     if (orderId.isEmpty) return;
-    showDriverOfferOverlay(
+    // Exec3 PIVOT (2026-05-24): full-screen dialog em vez de overlay system_alert.
+    showFullScreenOfferDialog(
       orderId: orderId,
       vendorName: data['vendorName']?.toString() ?? 'Novo pedido',
       total: data['total']?.toString() ?? '0.00',
       distanceKm: data['distanceKm']?.toString() ?? '0',
       driverEarnings: data['driverEarnings']?.toString() ?? '0.00',
+      dropoffAddress: data['dropoffAddress']?.toString() ?? '',
     ).ignore();
   }
 
@@ -699,6 +682,60 @@ class NotificationService {
     } catch (e) {
       debugPrint('[NotificationService] initDriverStandbyOverlay error: $e');
     }
+  }
+
+  // ── Full-screen offer dialog (exec3 PIVOT, 2026-05-24) ─────────────────
+  //
+  // PIVOT: abandonámos overlay-por-cima-das-apps como caminho principal —
+  // o Android 14+/16 bloqueia draw do bg isolate quando MainActivity
+  // invisível. Adoptámos o modelo REAL do Uber/Glovo: a notif local com
+  // fullScreenIntent acorda o ecrã + lança MainActivity (showWhenLocked +
+  // turnScreenOn já no manifest). Quando o Flutter sobe, OrderStore vê o
+  // realtime e empurra ESTE dialog full-screen.
+  //
+  // Dedup cross-path (FCM, realtime broadcast, FGS bridge) garantido pelo
+  // mesmo `_lastShownOfferId` + janela 10s.
+  Future<void> showFullScreenOfferDialog({
+    required String orderId,
+    String vendorName = 'Novo pedido',
+    String total = '0.00',
+    String distanceKm = '0',
+    String driverEarnings = '0.00',
+    String dropoffAddress = '',
+  }) async {
+    if (kIsWeb || orderId.isEmpty) return;
+    // Dedup cross-path — janela 10s.
+    final now = DateTime.now();
+    if (_lastShownOfferId == orderId &&
+        _lastShownOfferAt != null &&
+        now.difference(_lastShownOfferAt!) < _offerDedupWindow) {
+      debugPrint(
+          '[NotificationService] showFullScreenOfferDialog: dedup HIT order=$orderId');
+      return;
+    }
+    _lastShownOfferId = orderId;
+    _lastShownOfferAt = now;
+    final nav = navigatorKey.currentState;
+    if (nav == null) {
+      debugPrint(
+          '[NotificationService] navigatorKey sem state — Flutter engine ainda a subir? order=$orderId');
+      return;
+    }
+    // Push full-screen route. PopScope no widget impede dismiss por back —
+    // só ACEITAR/REJEITAR/expirar fecham.
+    await nav.push(
+      MaterialPageRoute<void>(
+        fullscreenDialog: true,
+        builder: (_) => DriverFullScreenOfferDialog(
+          orderId: orderId,
+          vendorName: vendorName,
+          total: total,
+          distanceKm: distanceKm,
+          driverEarnings: driverEarnings,
+          dropoffAddress: dropoffAddress,
+        ),
+      ),
+    );
   }
 
   // ── Accept/Reject RPCs (Fix D, 2026-05-24) ──────────────────────────────

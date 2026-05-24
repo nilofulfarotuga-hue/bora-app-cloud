@@ -1916,7 +1916,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
           !_alreadyAlertedOrderIds.contains(next.id)) {
         _alreadyAlertedOrderIds.add(next.id);
         unawaited(_triggerNewOrderFeedback(next));
-        unawaited(_soundService.playLoop());
+        // Exec3 PIVOT (2026-05-24) — removido _soundService.playLoop() aqui.
+        // SOLE source de som = canal notif bora_orders_urgent_v3 (setSound
+        // bora_alert via MainActivity.kt). Evita som DUPLICADO reportado
+        // pelo dono em testes Android 16.
       }
 
       if (!_isShowingDialog && _currentShowingOrderId == null) {
@@ -1952,11 +1955,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
     // (covers: order accepted, order expired, driver rejected last order).
     if (visibleOrders.isEmpty) {
       unawaited(_soundService.stop());
-    } else if (!_soundService.isPlaying) {
-      // Orders present but sound not playing — audio was interrupted externally
-      // (phone call, background, audio focus lost). Restart the alert.
-      unawaited(_soundService.playLoop());
     }
+    // Exec3 PIVOT (2026-05-24) — removido restart de playLoop. Canal notif
+    // bora_orders_urgent_v3 + FLAG_INSISTENT cuida de manter o alerta audível
+    // enquanto há oferta. Evita duplicação com canal notif.
   }
 
   Future<void> _triggerNewOrderFeedback(OrderModel order) async {

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Mantém `drivers.last_heartbeat_at` actualizado a cada 30s enquanto o
@@ -11,6 +12,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 ///   - start() ao toggle Online ou se já online no initState
 ///   - stop()  ao toggle Offline, logout, dispose, app paused
 ///   - app resumed → start() se ainda online localmente
+///
+/// Sessão 2026-05-24 (Fix #1): este serviço passa a ser FALLBACK de
+/// foreground. Quando o FGS está a correr (driver Online), o heartbeat
+/// efectivo bate no task isolate dentro do `_BoraTaskHandler._poll()` —
+/// que sobrevive a Doze/background, ao contrário deste Timer no main
+/// isolate. Para evitar duplo POST, `_tick` saltam quando o FGS está vivo.
 class HeartbeatService {
   HeartbeatService({Duration interval = const Duration(seconds: 30)})
       : _interval = interval;
@@ -37,6 +44,12 @@ class HeartbeatService {
 
   Future<void> _tick() async {
     try {
+      // Sessão 2026-05-24 (Fix #1) — se o FGS task isolate está vivo, é ele
+      // que bate (com auth.uid()=NULL ⇒ usa driver_heartbeat_by_id). Evita
+      // duplo POST e mantém este serviço como fallback de foreground puro.
+      if (await FlutterForegroundTask.isRunningService) {
+        return;
+      }
       await Supabase.instance.client.rpc('driver_heartbeat');
     } catch (e) {
       // Swallow: se o app perde rede, próximo tick recupera. Não cancelar

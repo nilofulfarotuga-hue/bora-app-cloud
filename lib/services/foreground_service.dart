@@ -60,7 +60,11 @@ class BoraForegroundService {
         playSound: false,
       ),
       foregroundTaskOptions: ForegroundTaskOptions(
-        eventAction: ForegroundTaskEventAction.repeat(5000),
+        // Sessão 2026-05-24 — alinhado com cron mark_stale_drivers_offline (90s).
+        // Heartbeat bate dentro de _poll() todos os ticks ⇒ frescura ≤30s.
+        // Fallback polling REST de ofertas mantém-se cá, mas a primeira linha
+        // é o realtime broadcast (driver_store) + FCM data-only — ambos <5s.
+        eventAction: ForegroundTaskEventAction.repeat(30000),
         autoRunOnBoot: true,
         autoRunOnMyPackageReplaced: true,
         allowWakeLock: true,
@@ -249,6 +253,32 @@ class _BoraTaskHandler extends TaskHandler {
       if (url.isEmpty || apiKey.isEmpty) {
         debugPrint('[FGS_POLL] credenciais vazias — skipping');
         return;
+      }
+
+      // ── HEARTBEAT (Sessão 2026-05-24, Fix #1) ──────────────────────────────
+      // O `HeartbeatService` corre no MAIN isolate via Timer.periodic — esse
+      // Timer pode ser pausado em Doze/background. O task isolate do
+      // flutter_foreground_task é o único garantidamente vivo enquanto o FGS
+      // existe. Bater aqui resolve o sintoma "driver fica preso online mas
+      // last_heartbeat_at envelhece > 90s e cron mark_stale_drivers_offline
+      // marca offline por engano". Usa `driver_heartbeat_by_id` (recebe id
+      // explícito) porque `driver_heartbeat()` usa auth.uid() que é NULL
+      // neste isolate (sem sessão).
+      try {
+        final hbUri = Uri.parse('$url/rest/v1/rpc/driver_heartbeat_by_id');
+        await http.post(
+          hbUri,
+          headers: {
+            'apikey': apiKey,
+            'Authorization': 'Bearer $apiKey',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode({'p_driver_id': driverId}),
+        ).timeout(const Duration(seconds: 4));
+        debugPrint('[FGS_POLL] heartbeat OK driver=$driverId');
+      } catch (e) {
+        // Swallow — próximo tick (30s) recupera. Nunca crashar o serviço.
+        debugPrint('[FGS_POLL] heartbeat error: $e');
       }
 
       final uri = Uri.parse(

@@ -11,6 +11,7 @@ import '../models/driver_model.dart';
 import '../models/order_model.dart';
 import '../services/floating_bubble_service.dart';
 import '../services/foreground_service.dart';
+import '../services/notification_service.dart';
 import '../services/push_token_service.dart';
 import '../utils/constants.dart';
 
@@ -38,6 +39,11 @@ class DriverStore extends ChangeNotifier {
   Timer? _trackingTimer;
   String? _trackedOrderId;
   RealtimeChannel? _driverLocationChannel;
+  // Sessão 2026-05-24 (Fix #2 — híbrido Uber): canal realtime que ouve o
+  // broadcast `driver-offer:{driverId}` emitido pelo notify-driver v29.
+  // Caminho mais rápido do híbrido (<1s) — vence quase sempre o FCM (1-5s).
+  // Dedup cross-path em NotificationService.showDriverOfferOverlay.
+  RealtimeChannel? _driverOfferChannel;
   final Map<String, Timer> _locationAnimations = <String, Timer>{};
   StreamSubscription<AuthState>? _authSubscription;
   StreamSubscription<String>? _fcmTokenRefreshSubscription;
@@ -318,13 +324,82 @@ class DriverStore extends ChangeNotifier {
         // funcionar; só a bolinha não aparece.
         unawaited(BoraBubbleService.ensureOverlayPermission()
             .then((_) => BoraBubbleService.setDriverOnline(true)));
+        // Fix #2 (2026-05-24) — Híbrido Uber completo: ouvir broadcast
+        // realtime `driver-offer:{driverId}` que o notify-driver v29 emite
+        // em paralelo com o FCM data-only. Caminho mais rápido (<1s).
+        _subscribeDriverOfferChannel(resolvedId);
       } else {
         await BoraForegroundService.clearDriverId();
         await BoraForegroundService.stop();
         await BoraBubbleService.setDriverOnline(false);
+        await _unsubscribeDriverOfferChannel();
       }
     } catch (e) {
       debugPrint('[DriverStore] _syncForegroundService error: $e');
+    }
+  }
+
+  // ── Realtime driver-offer broadcast (Fix #2, 2026-05-24) ────────────────
+  //
+  // O notify-driver v29 publica em `driver-offer:{driverId}` o evento
+  // `new_order_offer` em paralelo com o FCM data-only. Como o broadcast
+  // chega ao app em <1s (vs 1-5s do FCM) é normalmente o primeiro a
+  // disparar o overlay. Dedup cross-path em
+  // NotificationService.showDriverOfferOverlay garante zero duplicação.
+  //
+  // Sobrevive a navegação entre ecrãs (DriverStore é singleton via Provider)
+  // mas NÃO sobrevive a app em background — para isso continuamos a
+  // depender do FCM + FGS bridge. É exactamente o desenho do Uber:
+  // realtime ganha em foreground, push ganha em background.
+  void _subscribeDriverOfferChannel(String driverId) {
+    // Idempotente: se já existe canal, manter (pode ser o mesmo driverId).
+    if (_driverOfferChannel != null) return;
+    try {
+      final ch = _client.channel('driver-offer:$driverId')
+        ..onBroadcast(
+          event: 'new_order_offer',
+          callback: (Map<String, dynamic> payload) {
+            try {
+              // Supabase wrappa o payload do server dentro de 'payload'.
+              final inner = (payload['payload'] is Map)
+                  ? Map<String, dynamic>.from(payload['payload'] as Map)
+                  : payload;
+              final orderId = inner['orderId']?.toString() ?? '';
+              if (orderId.isEmpty) return;
+              debugPrint(
+                  '[Realtime] driver-offer broadcast order=$orderId');
+              NotificationService.instance.showDriverOfferOverlay(
+                orderId: orderId,
+                vendorName: inner['vendorName']?.toString() ?? 'Novo pedido',
+                total: inner['total']?.toString() ?? '0.00',
+                distanceKm: inner['distanceKm']?.toString() ?? '0',
+                driverEarnings:
+                    inner['driverEarnings']?.toString() ?? '0.00',
+              );
+            } catch (e) {
+              debugPrint('[Realtime] broadcast callback error: $e');
+            }
+          },
+        );
+      ch.subscribe();
+      _driverOfferChannel = ch;
+      debugPrint(
+          '[DriverStore] subscribed realtime driver-offer:$driverId');
+    } catch (e) {
+      debugPrint('[DriverStore] _subscribeDriverOfferChannel error: $e');
+    }
+  }
+
+  Future<void> _unsubscribeDriverOfferChannel() async {
+    final ch = _driverOfferChannel;
+    if (ch == null) return;
+    try {
+      await _client.removeChannel(ch);
+      debugPrint('[DriverStore] unsubscribed realtime driver-offer');
+    } catch (e) {
+      debugPrint('[DriverStore] _unsubscribeDriverOfferChannel error: $e');
+    } finally {
+      _driverOfferChannel = null;
     }
   }
 

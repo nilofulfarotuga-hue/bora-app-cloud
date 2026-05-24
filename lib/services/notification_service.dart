@@ -547,6 +547,9 @@ class NotificationService {
       // Cancelar notificação persistente após decisão do driver.
       if (action == 'accept' || action == 'reject' || action == 'expired') {
         cancelDriverOfferNotification(orderId).ignore();
+        // Fix #2 (2026-05-24) — libertar dedup para permitir re-oferta
+        // futura do mesmo orderId (cycle reset do dispatch-engine).
+        resetOfferDedup();
       }
     });
 
@@ -637,6 +640,25 @@ class NotificationService {
     }
   }
 
+  /// Sessão 2026-05-24 (Fix #2) — dedup cross-path. Os 3 caminhos do híbrido
+  /// (FCM data-only BG, realtime broadcast `driver-offer:{driverId}`, FGS REST
+  /// polling fallback) podem disparar quase ao mesmo tempo para o MESMO
+  /// orderId. Sem esta guarda, o overlay reabriria + som tocaria 2-3x.
+  /// Janela 10s cobre a corrida; após isso, mesma orderId pode reentrar
+  /// (cenário cycle-reset do dispatch-engine v56 que re-oferece o mesmo
+  /// pedido ao mesmo estafeta).
+  static String? _lastShownOfferId;
+  static DateTime? _lastShownOfferAt;
+  static const Duration _offerDedupWindow = Duration(seconds: 10);
+
+  /// Reset manual da janela de dedup. Chamar quando o overlay reporta uma
+  /// acção (accept/reject/expired) — assim um eventual re-oferta posterior
+  /// não é silenciada por engano.
+  void resetOfferDedup() {
+    _lastShownOfferId = null;
+    _lastShownOfferAt = null;
+  }
+
   /// Mostra o overlay de oferta de pedido por cima de outras apps.
   /// Quando o overlay já está em standby (initDriverStandbyOverlay chamado
   /// ao ir Online), usa updateFlag + shareData — funciona em background
@@ -649,6 +671,17 @@ class NotificationService {
     String driverEarnings = '0.00',
   }) async {
     if (kIsWeb) return;
+    // Dedup cross-path (FCM ↔ realtime ↔ FGS polling) — janela 10s.
+    final now = DateTime.now();
+    if (_lastShownOfferId == orderId &&
+        _lastShownOfferAt != null &&
+        now.difference(_lastShownOfferAt!) < _offerDedupWindow) {
+      debugPrint(
+          '[NotificationService] showDriverOfferOverlay: dedup HIT order=$orderId');
+      return;
+    }
+    _lastShownOfferId = orderId;
+    _lastShownOfferAt = now;
     final payload = <String, dynamic>{
       'orderId': orderId, 'vendorName': vendorName,
       'total': total, 'distanceKm': distanceKm, 'driverEarnings': driverEarnings,

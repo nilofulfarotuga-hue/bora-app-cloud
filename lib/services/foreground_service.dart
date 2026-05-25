@@ -5,6 +5,8 @@ import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'notification_service.dart' show postWakeActivityNotification;
+
 /// Foreground service wrapper para manter driver/parceiro sempre activos
 /// em background com notificação persistente (padrão Glovo/Uber Eats).
 ///
@@ -60,11 +62,11 @@ class BoraForegroundService {
         playSound: false,
       ),
       foregroundTaskOptions: ForegroundTaskOptions(
-        // Sessão 2026-05-24 — alinhado com cron mark_stale_drivers_offline (90s).
-        // Heartbeat bate dentro de _poll() todos os ticks ⇒ frescura ≤30s.
-        // Fallback polling REST de ofertas mantém-se cá, mas a primeira linha
-        // é o realtime broadcast (driver_store) + FCM data-only — ambos <5s.
-        eventAction: ForegroundTaskEventAction.repeat(30000),
+        // Exec6.16 (2026-05-25) CAMADA 3 — polling cada 10s (era 30s).
+        // Rede de segurança quando realtime WebSocket morre em BG longo.
+        // Camada 2 (moveTaskToBack) mantém main isolate vivo para casos
+        // rápidos; este polling cobre Doze mode + swipe-away.
+        eventAction: ForegroundTaskEventAction.repeat(10000),
         autoRunOnBoot: true,
         autoRunOnMyPackageReplaced: true,
         allowWakeLock: true,
@@ -312,17 +314,54 @@ class _BoraTaskHandler extends TaskHandler {
       }
 
       _lastOfferedOrderId = orderId;
-      FlutterForegroundTask.sendDataToMain(<String, dynamic>{
+      final payload = <String, dynamic>{
         'type': 'new_order_offer',
         'orderId': orderId,
         'vendorName': order['vendor_name']?.toString() ?? 'Pedido',
         'total': (order['price'] ?? 0).toString(),
         'distanceKm': (order['distance_km'] ?? 0).toString(),
         'driverEarnings': (order['driver_earnings'] ?? 0).toString(),
-      });
+      };
+      FlutterForegroundTask.sendDataToMain(payload);
       debugPrint('[BoraTaskHandler] offer found order=$orderId → sendDataToMain');
+      // Exec6.16 (2026-05-25) CAMADA 3 auto-revive: se main isolate morto,
+      // dispara fullScreenIntent local notif para acordar Activity. Quando
+      // MainActivity sobe, rehydrate pending_offer SP → gate.present → overlay.
+      await _wakeActivityIfMainDead(payload);
     } catch (e) {
       debugPrint('[BoraTaskHandler] poll error: $e');
+    }
+  }
+
+  /// Verifica bora_main_alive_ts SP. Se age > 5s → main isolate morto →
+  /// dispara postWakeActivityNotification (fullScreenIntent acorda Activity).
+  /// Threshold 5s pq main isolate escreve a cada 3s; 5s = 1 batida + 2s grace.
+  Future<void> _wakeActivityIfMainDead(Map<String, dynamic> payload) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.reload();
+      final mainAliveTs = prefs.getInt('bora_main_alive_ts') ?? 0;
+      final age = DateTime.now().millisecondsSinceEpoch - mainAliveTs;
+      debugPrint('[FGS_AUTO_REVIVE] main_alive_age=${age}ms');
+      if (age <= 5000) {
+        debugPrint('[FGS_AUTO_REVIVE] main isolate vivo (age=${age}ms) — skip wake');
+        return;
+      }
+      // Persist pending_offer para rehydrate consumir quando Activity sobe.
+      await prefs.setString('pending_offer', jsonEncode({
+        ...payload,
+        'ts': DateTime.now().millisecondsSinceEpoch,
+      }));
+      debugPrint('[FGS_AUTO_REVIVE] main isolate MORTO (age=${age}ms) — postWakeActivity');
+      await postWakeActivityNotification(
+        orderId: payload['orderId']?.toString() ?? '',
+        vendorName: payload['vendorName']?.toString() ?? 'Novo pedido',
+        total: payload['total']?.toString() ?? '0.00',
+        distanceKm: payload['distanceKm']?.toString() ?? '0',
+        driverEarnings: payload['driverEarnings']?.toString() ?? '0.00',
+      );
+    } catch (e) {
+      debugPrint('[FGS_AUTO_REVIVE] error: $e');
     }
   }
 
@@ -339,8 +378,19 @@ class _BoraTaskHandler extends TaskHandler {
   /// Android 14+).
   @override
   void onReceiveData(Object data) {
-    debugPrint('[BoraTaskHandler] onReceiveData → forwarding to main: $data');
-    FlutterForegroundTask.sendDataToMain(data);
+    debugPrint('[FGS_BRIDGE] [BoraTaskHandler.onReceiveData] ENTRY data=$data');
+    try {
+      FlutterForegroundTask.sendDataToMain(data);
+      debugPrint('[FGS_BRIDGE] [BoraTaskHandler.onReceiveData] sendDataToMain OK');
+    } catch (e, st) {
+      debugPrint('[FGS_BRIDGE] [BoraTaskHandler.onReceiveData] sendDataToMain EXCEPTION: $e');
+      debugPrint('[FGS_BRIDGE] stack: ${st.toString().split("\n").take(3).join(" | ")}');
+    }
+    // Exec6.16 CAMADA 3 auto-revive — async fire-and-forget.
+    if (data is Map) {
+      final asString = Map<String, dynamic>.from(data);
+      _wakeActivityIfMainDead(asString);
+    }
   }
 
   @override

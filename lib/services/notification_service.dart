@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:connectycube_flutter_call_kit/connectycube_flutter_call_kit.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -23,7 +22,6 @@ import '../models/chat_message.dart';
 import '../models/order_model.dart';
 import '../screens/chat_screen.dart';
 import '../screens/notifications_screen.dart';
-import '../widgets/driver_full_screen_offer_dialog.dart';
 import 'offer_presentation_gate.dart';
 import 'push_token_service.dart';
 import 'sound_service.dart';
@@ -172,22 +170,61 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     }
   } catch (_) {}
 
-  // Gate central: a partir do BG isolate assume lockedOrDead → CallKit
-  // (Samsung respeita CallStyle + showWhenLocked + ringtone nativo).
-  await OfferPresentationGate.present(
-    orderId: orderId,
-    vendorName: vendorName,
-    total: total,
-    distanceKm: distanceKm,
-    driverEarnings: driverEarnings,
-    dropoffAddress: dropoffAddress,
-    fromBgIsolate: true,
-  );
-
-  // FGS bridge: se serviço estiver vivo, envia data para o task isolate que
-  // reencaminha ao main (que então chama o gate de novo — dedup cobre).
+  // Exec6.11 (2026-05-25) — FG heartbeat check.
+  // OfferPresentationGate escreve 'bora_fg_heartbeat' a cada 30s enquanto
+  // app está em foreground resumed; escreve 0 ao fazer pause.
+  // Se age < 45s → app estava activa em FG → skip (main isolate trata via
+  // realtime subscription → cartão laranja). Sem CallKit duplicado.
+  // Se age ≥ 45s → app morta ou bloqueada → continuar para CallKit.
   try {
-    if (await FlutterForegroundTask.isRunningService) {
+    final prefs = await SharedPreferences.getInstance();
+    final int hb = prefs.getInt('bora_fg_heartbeat') ?? 0;
+    final int hbAge = DateTime.now().millisecondsSinceEpoch - hb;
+    debugPrint('[BORA-OFFER] FCM BG heartbeat_age=${hbAge}ms');
+    if (hbAge < 45000) {
+      debugPrint('[BORA-OFFER] FG activo (age=${hbAge}ms) → skip CallKit, main isolate trata');
+      return;
+    }
+  } catch (e) {
+    debugPrint('[BORA-OFFER] FCM BG heartbeat read error: $e — continua para CallKit');
+  }
+
+  // Exec6.16 (2026-05-25) — bg handler NÃO chama gate.present nem mostra
+  // CallKit/CallStyle. Apenas:
+  //   1. Persistiu pending_offer (rehydrate consome quando app sobe).
+  //   2. Forward via FGS bridge (sendDataToTask) — main isolate ou FGS task
+  //      tratam de showOverlay quando vivos.
+  // ConnectyCube REMOVIDO (exec6.16). Sem CallStyle local notif aqui (FGS
+  // task isolate detecta main morto e dispara postWakeActivityNotification
+  // quando necessário — CAMADA 3 auto-revive).
+
+  // 800ms delay + dedup overlay activa (caso main isolate já tenha tratado).
+  await Future<void>.delayed(const Duration(milliseconds: 800));
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.reload();
+    if (prefs.getString('bora_overlay_active_orderid') == orderId) {
+      debugPrint('[FCM BG] SKIP — overlay window activa para order=$orderId (main isolate tratou)');
+      return;
+    }
+    final handledList =
+        prefs.getStringList('gate_handled_orderids') ?? const <String>[];
+    if (handledList.contains(orderId)) {
+      debugPrint('[FCM BG] post-delay SKIP — main isolate já tratou order=$orderId');
+      return;
+    }
+  } catch (_) {}
+
+  // FGS bridge — forward para o task isolate que reencaminha ao main isolate
+  // (via sendDataToMain → _onForegroundTaskData → gate.present → overlay).
+  // Se main isolate morto, o FGS task detecta via bora_main_alive_ts e
+  // dispara postWakeActivityNotification (fullScreenIntent acorda Activity).
+  debugPrint('[FGS_BRIDGE] BG handler reached FGS forward block');
+  try {
+    final isRunning = await FlutterForegroundTask.isRunningService;
+    debugPrint('[FGS_BRIDGE] isRunningService=$isRunning');
+    if (isRunning) {
+      debugPrint('[FGS_BRIDGE] about to call sendDataToTask order=$orderId');
       FlutterForegroundTask.sendDataToTask(<String, String>{
         'type': 'new_order_offer',
         'orderId': orderId,
@@ -197,10 +234,13 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         'driverEarnings': driverEarnings,
         'dropoffAddress': dropoffAddress,
       });
-      debugPrint('[FCM BG] forwarded to FGS task');
+      debugPrint('[FGS_BRIDGE] sendDataToTask returned (sync) order=$orderId');
+    } else {
+      debugPrint('[FGS_BRIDGE] SKIP — FGS service not running');
     }
-  } catch (e) {
-    debugPrint('[FCM BG] FGS bridge error: $e');
+  } catch (e, st) {
+    debugPrint('[FGS_BRIDGE] FGS bridge EXCEPTION: $e');
+    debugPrint('[FGS_BRIDGE] stack: ${st.toString().split("\n").take(5).join(" | ")}');
   }
 }
 
@@ -343,18 +383,85 @@ Future<void> cancelDriverOfferNotification(String orderId) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('pending_offer');
   } catch (_) {}
-  // 2026-05-21 — fecha também o ecrã CallKit (lockscreen) se ainda estiver
-  // aberto. Idempotente: ConnectyCube ignora sessions inexistentes.
-  try {
-    await ConnectycubeFlutterCallKit.reportCallEnded(sessionId: orderId);
-  } catch (e) {
-    debugPrint('[NotificationService] callkit end error: $e');
-  }
-  // Também fecha o overlay system_alert_window (sessão 2026-05-21).
+  // Fecha o overlay system_alert_window (sessão 2026-05-21).
   try {
     final active = await fow.FlutterOverlayWindow.isActive();
     if (active) await fow.FlutterOverlayWindow.closeOverlay();
   } catch (_) {/* silent */}
+}
+
+/// Exec6.16 (2026-05-25) — Wake Activity via fullScreenIntent local notif.
+/// Usado pelo FGS task isolate quando detecta oferta E o main isolate não
+/// responde (bora_main_alive_ts stale). A notificação tem fullScreenIntent:true
+/// + category: call → Android acorda o ecrã e lança MainActivity, que ao
+/// resumir consome pending_offer SP via rehydrate → gate.present → overlay.
+///
+/// IMPORTANTE: isto NÃO é CallStyle visual (sem layout Atender/Decline).
+/// É só o mecanismo Android para acordar ecrã + lançar Activity. O utilizador
+/// vê é o overlay (SOBREPOSIÇÃO) depois da Activity boot.
+///
+/// Top-level: callable de MAIN, BG e FGS isolates (flutter_local_notifications
+/// está registado em todos). Reusa canal v3 (IMPORTANCE_HIGH + sound bora_alert
+/// + bypass DND). Acções 'accept_order' / 'reject_order' têm handler em
+/// onBackgroundNotificationAction.
+@pragma('vm:entry-point')
+Future<void> postWakeActivityNotification({
+  required String orderId,
+  required String vendorName,
+  required String total,
+  required String distanceKm,
+  required String driverEarnings,
+}) async {
+  try {
+    final plugin = FlutterLocalNotificationsPlugin();
+    final androidImpl = plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    await androidImpl?.createNotificationChannel(
+      const AndroidNotificationChannel(
+        'bora_orders_urgent_v3',
+        'Bora — Novos pedidos',
+        description: 'Som contínuo + vibração para novos pedidos urgentes.',
+        importance: Importance.max,
+        playSound: true,
+        sound: RawResourceAndroidNotificationSound('bora_alert'),
+        enableVibration: true,
+        showBadge: true,
+      ),
+    );
+    final androidDetails = AndroidNotificationDetails(
+      'bora_orders_urgent_v3',
+      'Bora — Novos pedidos',
+      channelDescription: 'Wake Activity para mostrar SOBREPOSIÇÃO.',
+      importance: Importance.max,
+      priority: Priority.max,
+      playSound: true,
+      sound: const RawResourceAndroidNotificationSound('bora_alert'),
+      enableVibration: true,
+      // fullScreenIntent: acorda ecrã + lança MainActivity (não é CallStyle).
+      category: AndroidNotificationCategory.call,
+      fullScreenIntent: true,
+      ongoing: true,
+      autoCancel: false,
+      visibility: fln.NotificationVisibility.public,
+      ticker: 'Novo pedido — €$driverEarnings',
+      actions: const <AndroidNotificationAction>[
+        AndroidNotificationAction('accept_order', '✅ Aceitar',
+            showsUserInterface: true, cancelNotification: true),
+        AndroidNotificationAction('reject_order', '❌ Rejeitar',
+            showsUserInterface: false, cancelNotification: true),
+      ],
+    );
+    await plugin.show(
+      orderId.hashCode,
+      '🛵 Novo pedido — €$driverEarnings',
+      '$vendorName • €$total • ${distanceKm}km',
+      NotificationDetails(android: androidDetails),
+      payload: jsonEncode({'orderId': orderId, 'type': 'new_order_offer'}),
+    );
+    debugPrint('[BORA-OFFER] postWakeActivityNotification posted order=$orderId');
+  } catch (e) {
+    debugPrint('[BORA-OFFER] postWakeActivityNotification error: $e');
+  }
 }
 
 /// Wraps Firebase Cloud Messaging for BORA APP.
@@ -552,6 +659,9 @@ class NotificationService {
         // Fix #2 (2026-05-24) — libertar dedup para permitir re-oferta
         // futura do mesmo orderId (cycle reset do dispatch-engine).
         resetOfferDedup();
+        // Exec6.12 (2026-05-25) — liberta o gate central. Sem isto,
+        // próximo pedido fica HANDLED forever e overlay não re-dispara.
+        OfferPresentationGate.markActionCompleted(orderId);
       }
       // Sessão 2026-05-24 (exec2 FIX D) — overlay isolate NÃO tem Supabase;
       // o accept/reject só era cancelar a notif, NÃO chamava as RPCs ⇒
@@ -577,14 +687,24 @@ class NotificationService {
   }
 
   void _onForegroundTaskData(Object data) {
-    debugPrint('[BORA-OFFER] _onForegroundTaskData received: $data');
-    if (data is! Map) return;
+    // Exec6.15 FASE 1 DIAGNÓSTICO.
+    debugPrint('[FGS_BRIDGE] [_onForegroundTaskData] ENTRY (main isolate) data=$data');
+    if (data is! Map) {
+      debugPrint('[FGS_BRIDGE] [_onForegroundTaskData] SKIP — não é Map');
+      return;
+    }
     final type = data['type']?.toString();
-    if (type != 'new_order_offer') return;
+    if (type != 'new_order_offer') {
+      debugPrint('[FGS_BRIDGE] [_onForegroundTaskData] SKIP — type=$type');
+      return;
+    }
     final orderId = data['orderId']?.toString() ?? '';
-    if (orderId.isEmpty) return;
+    if (orderId.isEmpty) {
+      debugPrint('[FGS_BRIDGE] [_onForegroundTaskData] SKIP — orderId vazio');
+      return;
+    }
     // Exec6 GATE (2026-05-25) — gate central decide UI por estado.
-    debugPrint('[BORA-OFFER] _onForegroundTaskData → gate.present order=$orderId');
+    debugPrint('[FGS_BRIDGE] [_onForegroundTaskData] → gate.present order=$orderId');
     OfferPresentationGate.present(
       orderId: orderId,
       vendorName: data['vendorName']?.toString() ?? 'Novo pedido',
@@ -640,7 +760,12 @@ class NotificationService {
       final alreadyActive = await fow.FlutterOverlayWindow.isActive();
       if (alreadyActive) {
         // Já activo — garantir que está em standby (click-through).
-        await fow.FlutterOverlayWindow.updateFlag(fow.OverlayFlag.clickThrough);
+        // Exec6.13 — updateFlag pode falhar em v0.4.5; capturar silenciosamente.
+        try {
+          await fow.FlutterOverlayWindow.updateFlag(fow.OverlayFlag.clickThrough);
+        } catch (e) {
+          debugPrint('[NotificationService] updateFlag(clickThrough) falhou no plugin v0.4.5: $e');
+        }
         return;
       }
       await fow.FlutterOverlayWindow.showOverlay(
@@ -656,109 +781,6 @@ class NotificationService {
       debugPrint('[NotificationService] initDriverStandbyOverlay: standby ready');
     } catch (e) {
       debugPrint('[NotificationService] initDriverStandbyOverlay error: $e');
-    }
-  }
-
-  // ── Full-screen offer dialog (exec3 PIVOT, 2026-05-24) ─────────────────
-  //
-  // PIVOT: abandonámos overlay-por-cima-das-apps como caminho principal —
-  // o Android 14+/16 bloqueia draw do bg isolate quando MainActivity
-  // invisível. Adoptámos o modelo REAL do Uber/Glovo: a notif local com
-  // fullScreenIntent acorda o ecrã + lança MainActivity (showWhenLocked +
-  // turnScreenOn já no manifest). Quando o Flutter sobe, OrderStore vê o
-  // realtime e empurra ESTE dialog full-screen.
-  //
-  // Dedup cross-path (FCM, realtime broadcast, FGS bridge) garantido pelo
-  // mesmo `_lastShownOfferId` + janela 10s.
-  // Exec6 (2026-05-25) — guard de re-entrada: enquanto um dialog para este
-  // orderId estiver activo no Navigator stack, BLOQUEIA qualquer novo push
-  // (mesmo de paths diferentes — FCM/realtime/rehydrate). Sem isto o
-  // rehydrate-loop empilha dialogs a cada 600ms e o Aceitar não responde
-  // porque o dialog é reconstruído antes da RPC completar.
-  static String? _currentlyShowingOrderId;
-
-  Future<void> showFullScreenOfferDialog({
-    required String orderId,
-    String vendorName = 'Novo pedido',
-    String total = '0.00',
-    String distanceKm = '0',
-    String driverEarnings = '0.00',
-    String dropoffAddress = '',
-  }) async {
-    debugPrint('[BORA-OFFER] showFullScreenOfferDialog called order=$orderId vendor=$vendorName');
-    if (kIsWeb || orderId.isEmpty) {
-      debugPrint('[BORA-OFFER] EARLY RETURN web=$kIsWeb empty=${orderId.isEmpty}');
-      return;
-    }
-    // Guard forte: já há dialog activo para esta order? Não empilhar.
-    if (_currentlyShowingOrderId == orderId) {
-      debugPrint('[BORA-OFFER] GUARD HIT — dialog já visível p/ order=$orderId');
-      return;
-    }
-    // Dedup cross-path — janela 10s.
-    final now = DateTime.now();
-    if (_lastShownOfferId == orderId &&
-        _lastShownOfferAt != null &&
-        now.difference(_lastShownOfferAt!) < _offerDedupWindow) {
-      debugPrint('[BORA-OFFER] DEDUP HIT order=$orderId');
-      return;
-    }
-    _lastShownOfferId = orderId;
-    _lastShownOfferAt = now;
-
-    final nav = navigatorKey.currentState;
-    if (nav == null) {
-      // SÓ persistir pending_offer SE não conseguimos empurrar agora.
-      // (Antes persistíamos sempre → rehydrate em loop infinito porque
-      //  reescrevíamos o que ele acabou de consumir.)
-      debugPrint('[BORA-OFFER] navigatorKey.currentState == NULL — persisting pending_offer para rehydrate consumir.');
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('pending_offer', jsonEncode({
-          'type': 'new_order_offer',
-          'orderId': orderId,
-          'vendorName': vendorName,
-          'total': total,
-          'distanceKm': distanceKm,
-          'driverEarnings': driverEarnings,
-          'dropoffAddress': dropoffAddress,
-          'ts': now.millisecondsSinceEpoch,
-        }));
-      } catch (_) {}
-      return;
-    }
-    // Exec6 (2026-05-25) — força MainActivity ao topo via nativo ANTES do push.
-    // Samsung Android 16 downgrade fullScreenIntent → MainActivity fica Paused
-    // → Flutter buildOwner pausado → push enfileira widget mas builder não corre.
-    // Bring-to-foreground via Intent NEW_TASK+REORDER_TO_FRONT acorda Flutter.
-    try {
-      const ch = MethodChannel('pt.boraapp.bora/native');
-      await ch.invokeMethod<bool>('bringToForeground');
-      debugPrint('[BORA-OFFER] bringToForeground requested');
-    } catch (e) {
-      debugPrint('[BORA-OFFER] bringToForeground error: $e');
-    }
-    debugPrint('[BORA-OFFER] navigatorKey OK → push dialog order=$orderId');
-    _currentlyShowingOrderId = orderId;
-    try {
-      await nav.push(
-        MaterialPageRoute<void>(
-          fullscreenDialog: true,
-          builder: (_) => DriverFullScreenOfferDialog(
-            orderId: orderId,
-            vendorName: vendorName,
-            total: total,
-            distanceKm: distanceKm,
-            driverEarnings: driverEarnings,
-            dropoffAddress: dropoffAddress,
-          ),
-        ),
-      );
-      debugPrint('[BORA-OFFER] dialog popped (action/expired) order=$orderId');
-    } catch (e) {
-      debugPrint('[BORA-OFFER] push threw: $e');
-    } finally {
-      _currentlyShowingOrderId = null;
     }
   }
 
@@ -917,7 +939,13 @@ class NotificationService {
       final alreadyActive = await fow.FlutterOverlayWindow.isActive();
       if (alreadyActive) {
         // Overlay em standby — activar (remover click-through) + enviar dados.
-        await fow.FlutterOverlayWindow.updateFlag(fow.OverlayFlag.defaultFlag);
+        // Exec6.13 (2026-05-25) — updateFlag pode lançar MissingPluginException
+        // em flutter_overlay_window v0.4.5; capturado p/ não bloquear shareData.
+        try {
+          await fow.FlutterOverlayWindow.updateFlag(fow.OverlayFlag.defaultFlag);
+        } catch (e) {
+          debugPrint('[NotificationService] updateFlag(defaultFlag) falhou no plugin v0.4.5: $e — continuando para shareData');
+        }
         await fow.FlutterOverlayWindow.shareData(payload);
         debugPrint('[NotificationService] showDriverOfferOverlay: standby→active order=$orderId');
         return;

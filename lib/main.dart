@@ -1,7 +1,7 @@
-import 'package:connectycube_flutter_call_kit/connectycube_flutter_call_kit.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 // BUG #12 (2026-05-13) — delegates Material/Widgets/Cupertino + Locale PT-PT
 // para o showDatePicker e outros widgets localizados funcionarem fora EN.
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -60,84 +60,6 @@ const String _supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
 final RouteObserver<PageRoute<dynamic>> routeObserver =
     RouteObserver<PageRoute<dynamic>>();
 
-/// Sessão 2026-05-21 — Lockscreen CallKit handlers (top-level functions
-/// para sobreviver ao isolate de background).
-///
-/// onCallAccepted: estafeta tocou ✅ no ecrã de chamada do lockscreen — o
-/// sistema acorda a app e o realtime channel encarrega-se do aceitar real
-/// (driver_home_screen escuta `current_driver_offer_id`).
-///
-/// onCallRejected: dispara `driver_reject_offer` RPC para libertar a oferta
-/// imediatamente — sem esperar pelo timeout de 40s no dispatch-engine.
-@pragma('vm:entry-point')
-Future<void> _onBoraCallAccepted(CallEvent callEvent) async {
-  // Exec6 (2026-05-25) — Samsung Android 16 mostra CallActivity por cima
-  // do nosso dialog full-screen. Quando dono toca Aceitar, tap vai para
-  // CallActivity (não para o nosso dialog) → este handler corre.
-  // Solução: chamar driver_accept_offer RPC DIRECTAMENTE aqui.
-  final orderId = callEvent.sessionId;
-  debugPrint('[BORA-OFFER] CallKit ACCEPTED session=$orderId — calling RPC');
-  if (orderId.isEmpty) return;
-  try {
-    // Garantir Supabase inicializado (este isolate pode ser BG).
-    try {
-      Supabase.instance.client;
-    } catch (_) {
-      await Supabase.initialize(
-        url: const String.fromEnvironment('SUPABASE_URL'),
-        anonKey: const String.fromEnvironment('SUPABASE_ANON_KEY'),
-      );
-    }
-    final res = await Supabase.instance.client.rpc(
-      'driver_accept_offer',
-      params: <String, dynamic>{'p_order_id': orderId},
-    );
-    debugPrint('[BORA-OFFER] CallKit accept RPC result: $res');
-  } catch (e) {
-    debugPrint('[BORA-OFFER] CallKit accept RPC error: $e');
-  }
-  // Encerra a sessão CallKit (libera ecrã e CallActivity dismissa).
-  try {
-    await ConnectycubeFlutterCallKit.reportCallEnded(sessionId: orderId);
-  } catch (_) {}
-  // Liberta o gate para permitir próximo pedido.
-  OfferPresentationGate.markActionCompleted(orderId);
-}
-
-@pragma('vm:entry-point')
-Future<void> _onBoraCallRejected(CallEvent callEvent) async {
-  // Exec6.6 (2026-05-25) — print diagnóstico para confirmar se userInfo
-  // chega completo. Suspeita: CallKit Samsung pode entregar callEvent
-  // com userInfo NULL ou sem chave 'order_id', causando early return
-  // silencioso e "rejeito mas não re-oferece, fica preso".
-  // ignore: avoid_print
-  print('[BORA-OFFER] CallKit REJECTED diag: sessionId=${callEvent.sessionId} '
-      'userInfo=${callEvent.userInfo} '
-      'userInfo_type=${callEvent.userInfo.runtimeType}');
-  final orderId = callEvent.userInfo?['order_id']?.toString();
-  debugPrint('[CallKit] rejected session=${callEvent.sessionId} order=$orderId');
-  if (orderId == null || orderId.isEmpty) return;
-  try {
-    // Supabase pode não estar inicializado neste isolate em background.
-    try {
-      Supabase.instance.client;
-    } catch (_) {
-      await Supabase.initialize(
-        url: const String.fromEnvironment('SUPABASE_URL'),
-        anonKey: const String.fromEnvironment('SUPABASE_ANON_KEY'),
-      );
-    }
-    await Supabase.instance.client.rpc(
-      'driver_reject_offer',
-      params: <String, dynamic>{'p_order_id': orderId},
-    );
-  } catch (e) {
-    debugPrint('[CallKit] reject RPC error: $e');
-  }
-  // Liberta o gate.
-  OfferPresentationGate.markActionCompleted(orderId);
-}
-
 /// Sessão 2026-05-17 — Foreground service: regista os canais Android de alta
 /// prioridade para que FCM consiga acordar a app com som + vibração mesmo
 /// quando minimizada/fechada. Também inicializa o flutter_foreground_task.
@@ -145,16 +67,14 @@ Future<void> _setupForegroundAndUrgentChannel() async {
   if (kIsWeb) return;
   try {
     // 1) Canal de alta prioridade para pedidos novos (Importance.max).
-    //    Sem isto registado no Android Oreo+, FCM com priority=high é
-    //    silenciado. notify-driver/notify-partner usam channel_id
-    //    'bora_orders_urgent_v2'.
-    // Sessão 2026-05-22 — canal renomeado para v2 (forçar recriação em
-    // devices com canal antigo mal configurado). Notification+data FCM
-    // usa este channel_id para heads-up fallback quando handler é throttled.
+    //    Sessão 2026-05-25 (exec6.16) — alinhado com canal v3 que MainActivity
+    //    cria nativamente (com setSound bora_alert + bypass DND). Edge Fn
+    //    notify-driver usa 'bora_orders_urgent_v3'. Re-registar do Dart é
+    //    idempotente — não sobrescreve setSound nativo.
     const urgentChannel = AndroidNotificationChannel(
-      'bora_orders_urgent_v2',
-      'Bora — Pedidos urgentes',
-      description: 'Notificações de novos pedidos (alta prioridade + som).',
+      'bora_orders_urgent_v3',
+      'Bora — Novos pedidos',
+      description: 'Som contínuo + vibração para novos pedidos urgentes.',
       importance: Importance.max,
       playSound: true,
       sound: RawResourceAndroidNotificationSound('bora_alert'),
@@ -219,24 +139,10 @@ Future<void> main() async {
       _setupForegroundAndUrgentChannel(),
     ]);
 
-    // Sessão 2026-05-21 — Lockscreen CallKit (connectycube_flutter_call_kit).
-    // Tem de correr DEPOIS de Firebase.initializeApp() para o background
-    // isolate ter acesso ao Supabase quando driver_reject_offer for chamado.
-    try {
-      ConnectycubeFlutterCallKit.instance.init(
-        onCallAccepted: _onBoraCallAccepted,
-        onCallRejected: _onBoraCallRejected,
-      );
-      // Android 14+ pediu permissão explícita para fullScreenIntent (já
-      // declarada no manifest, mas precisa de consent runtime).
-      final canFullScreen =
-          await ConnectycubeFlutterCallKit.canUseFullScreenIntent();
-      if (!canFullScreen) {
-        ConnectycubeFlutterCallKit.provideFullScreenIntentAccess();
-      }
-    } catch (e) {
-      debugPrint('[main] CallKit init error: $e');
-    }
+    // Exec6.16 (2026-05-25) — CAMADA 3 support: main isolate alive heartbeat
+    // (escreve bora_main_alive_ts a cada 3s). FGS task isolate lê para saber
+    // se main está vivo. Stale > 5s → FGS dispara postWakeActivityNotification.
+    OfferPresentationGate.bootstrapMainAlive();
   }
 
   // 2026-05-14 perf: SessionStore.load + ConsentStore.load em paralelo.
@@ -286,13 +192,12 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _supportSettings.load();
+      // Exec6.16 CAMADA 4 — força re-subscribe do WebSocket Supabase
+      // (Samsung pode tê-lo morto em BG).
+      DriverStore.instance?.forceResubscribeIfStale();
     }
-    // Sessão 2026-05-19 — floating bubble: mostra/esconde consoante app
-    // está em background/foreground. Sem-op em iOS.
     BoraBubbleService.onAppLifecycleChange(state);
-    // Exec6 GATE (2026-05-25) — alimenta o gate central de oferta com
-    // o estado actual para decidir qual UI mostrar (laranja vs full-screen
-    // vs CallKit).
+    // Exec6 GATE — alimenta o gate com lifecycle (FG heartbeat).
     OfferPresentationGate.updateLifecycle(state);
   }
 
@@ -437,8 +342,37 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           }
           return null;
         },
-        home: const ConsentBanner(child: _RootNavigator()),
+        home: const ConsentBanner(child: _BackToBackgroundWrapper(child: _RootNavigator())),
       ),
+    );
+  }
+}
+
+/// CAMADA 2 (Stuart pattern, exec6.16 2026-05-25) — back button intercept.
+/// Em vez de destruir MainActivity (default), chama moveTaskToBack(true) via
+/// MethodChannel nativo. Resultado: app vai a background (igual ao HOME)
+/// MAS Activity sobrevive → main isolate + WebSocket Supabase continuam vivos.
+/// Sem isto, BACK no driver_home → MaterialApp pop → Activity finish → main
+/// isolate morre → realtime morre → ofertas perdidas.
+class _BackToBackgroundWrapper extends StatelessWidget {
+  const _BackToBackgroundWrapper({required this.child});
+  final Widget child;
+
+  static const _native = MethodChannel('pt.boraapp.bora/native');
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        try {
+          await _native.invokeMethod<bool>('moveTaskToBack');
+        } catch (e) {
+          debugPrint('[BackToBackground] moveTaskToBack error: $e');
+        }
+      },
+      child: child,
     );
   }
 }

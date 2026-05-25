@@ -11,7 +11,6 @@ import '../models/driver_model.dart';
 import '../models/order_model.dart';
 import '../services/floating_bubble_service.dart';
 import '../services/foreground_service.dart';
-import '../services/notification_service.dart';
 import '../services/offer_presentation_gate.dart';
 import '../services/push_token_service.dart';
 import '../utils/constants.dart';
@@ -22,8 +21,14 @@ class DriverStore extends ChangeNotifier {
   static const Duration _locationAnimationStepDuration =
       Duration(milliseconds: 80);
 
+  /// Exec6.16 CAMADA 4 — referência singleton para o lifecycle observer
+  /// em main.dart chamar forceResubscribeIfStale() on resumed sem precisar
+  /// de context (Provider). Provider já garante única instância via app tree.
+  static DriverStore? instance;
+
   DriverStore({DriverCapacityService? capacityService})
       : _capacityService = capacityService ?? DriverCapacityService() {
+    instance = this;
     _initialiseRealtimeDriverTracking();
     _listenAuthChanges();
   }
@@ -352,25 +357,34 @@ class DriverStore extends ChangeNotifier {
   // mas NÃO sobrevive a app em background — para isso continuamos a
   // depender do FCM + FGS bridge. É exactamente o desenho do Uber:
   // realtime ganha em foreground, push ganha em background.
+  // Exec6.16 (2026-05-25) CAMADA 4 — reconnect agressivo p/ WebSocket Samsung.
+  // Driver id sticky para forceResubscribe sem precisar de re-call do callsite.
+  String? _lastSubscribedDriverId;
+  Timer? _reconnectTimer;
+  int _reconnectAttempt = 0;
+  static const _maxReconnectDelaySeconds = 30;
+
   void _subscribeDriverOfferChannel(String driverId) {
-    // Idempotente: se já existe canal, manter (pode ser o mesmo driverId).
     if (_driverOfferChannel != null) return;
+    _lastSubscribedDriverId = driverId;
+    _reconnectAttempt = 0;
+    _attachOfferChannel(driverId);
+  }
+
+  void _attachOfferChannel(String driverId) {
     try {
       final ch = _client.channel('driver-offer:$driverId')
         ..onBroadcast(
           event: 'new_order_offer',
           callback: (Map<String, dynamic> payload) {
             try {
-              // Supabase wrappa o payload do server dentro de 'payload'.
               final inner = (payload['payload'] is Map)
                   ? Map<String, dynamic>.from(payload['payload'] as Map)
                   : payload;
               final orderId = inner['orderId']?.toString() ?? '';
               if (orderId.isEmpty) return;
-              debugPrint(
-                  '[Realtime] driver-offer broadcast order=$orderId');
+              debugPrint('[Realtime] driver-offer broadcast order=$orderId');
               debugPrint('[BORA-OFFER] driver_store realtime BROADCAST → gate.present order=$orderId');
-              // Exec6 GATE (2026-05-25) — gate central decide qual UI.
               OfferPresentationGate.present(
                 orderId: orderId,
                 vendorName: inner['vendorName']?.toString() ?? 'Novo pedido',
@@ -385,13 +399,49 @@ class DriverStore extends ChangeNotifier {
             }
           },
         );
-      ch.subscribe();
+      // CAMADA 4 — subscribe com onError → backoff reconnect.
+      ch.subscribe((status, error) {
+        debugPrint('[DriverStore] driver-offer status=$status err=$error');
+        if (status == RealtimeSubscribeStatus.subscribed) {
+          _reconnectAttempt = 0; // reset
+        } else if (status == RealtimeSubscribeStatus.channelError ||
+            status == RealtimeSubscribeStatus.closed ||
+            status == RealtimeSubscribeStatus.timedOut) {
+          _scheduleReconnect();
+        }
+      });
       _driverOfferChannel = ch;
-      debugPrint(
-          '[DriverStore] subscribed realtime driver-offer:$driverId');
+      debugPrint('[DriverStore] subscribed realtime driver-offer:$driverId');
     } catch (e) {
-      debugPrint('[DriverStore] _subscribeDriverOfferChannel error: $e');
+      debugPrint('[DriverStore] _attachOfferChannel error: $e');
+      _scheduleReconnect();
     }
+  }
+
+  void _scheduleReconnect() {
+    final id = _lastSubscribedDriverId;
+    if (id == null || id.isEmpty) return;
+    _reconnectAttempt++;
+    final delay =
+        (_reconnectAttempt * 3).clamp(3, _maxReconnectDelaySeconds);
+    debugPrint(
+        '[DriverStore] CAMADA 4 reconnect agendado em ${delay}s (attempt=$_reconnectAttempt)');
+    _reconnectTimer?.cancel();
+    _reconnectTimer = Timer(Duration(seconds: delay), () async {
+      await _unsubscribeDriverOfferChannel();
+      _attachOfferChannel(id);
+    });
+  }
+
+  /// Chamado pelo lifecycle observer no resumed — força re-subscribe se canal
+  /// estiver fechado/com erro (WebSocket Samsung pode ter morrido em BG).
+  Future<void> forceResubscribeIfStale() async {
+    final id = _lastSubscribedDriverId;
+    if (id == null || id.isEmpty) return;
+    debugPrint('[DriverStore] CAMADA 4 forceResubscribeIfStale driverId=$id');
+    await _unsubscribeDriverOfferChannel();
+    _reconnectAttempt = 0;
+    _attachOfferChannel(id);
   }
 
   Future<void> _unsubscribeDriverOfferChannel() async {

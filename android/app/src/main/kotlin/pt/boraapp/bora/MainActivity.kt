@@ -1,6 +1,5 @@
 package pt.boraapp.bora
 
-import android.app.KeyguardManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
@@ -32,23 +31,16 @@ class MainActivity : FlutterFragmentActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        // Sessão 2026-05-24 (exec2 FIX C-prep) — bridge nativo para Flutter.
-        // Permite ao bg/main isolate consultar estado do dispositivo sem
-        // depender de plugins externos. Por agora expõe isDeviceLocked().
+        // Exec6.16 (2026-05-25) — MethodChannel limpa, sem isDeviceLocked
+        // (gate já não usa) nem KeyguardManager bridge (substituído pelo
+        // heartbeat bora_main_alive_ts no main isolate).
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, NATIVE_BRIDGE)
             .setMethodCallHandler { call, result ->
                 when (call.method) {
-                    "isDeviceLocked" -> {
-                        val km = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
-                        result.success(km?.isDeviceLocked ?: false)
-                    }
                     "moveTaskToBack" -> {
-                        // Exec6.5 (2026-05-25) — quando dono rejeita/expira a
-                        // tela bonita full-screen, NÃO queremos a app a ficar
-                        // visível por trás (mostrando laranja). Minimizar a
-                        // app inteira devolve o controlo ao sistema (home /
-                        // app anterior do dono). Equivalente ao back button
-                        // até sair, mas sem matar a app.
+                        // CAMADA 2 (Stuart pattern) — back button intercept.
+                        // Manda app para background sem destruir MainActivity →
+                        // main isolate + WebSocket sobrevivem → realtime continua.
                         try {
                             moveTaskToBack(true)
                             result.success(true)
@@ -57,10 +49,8 @@ class MainActivity : FlutterFragmentActivity() {
                         }
                     }
                     "bringToForeground" -> {
-                        // Exec6 (2026-05-25) — força MainActivity ao topo quando
-                        // Samsung downgrade fullScreenIntent para só heads-up.
-                        // Sem isto, Navigator.push do dialog full-screen funciona
-                        // mas o widget builder não corre (Flutter paused com app em BG).
+                        // Usado pelo overlay flow quando precisa de main isolate
+                        // event loop activo (ex: rehydrate após fullScreenIntent).
                         try {
                             val intent = packageManager.getLaunchIntentForPackage(packageName)
                             intent?.addFlags(
@@ -89,11 +79,8 @@ class MainActivity : FlutterFragmentActivity() {
         ).apply {
             description = "Notificações de novas reservas para o parceiro."
             enableVibration(true)
-            // BUG B — vibração dupla (500ms ON, 200ms OFF, 500ms ON).
             vibrationPattern = longArrayOf(0L, 500L, 200L, 500L)
             enableLights(true)
-            // Heads-up garantido (IMPORTANCE_HIGH já cobre); notificação
-            // permanece até parceiro descartar (sem timeout automático).
             setShowBadge(true)
         }
         manager.createNotificationChannel(channel)
@@ -108,10 +95,10 @@ class MainActivity : FlutterFragmentActivity() {
         try { manager.deleteNotificationChannel("bora_orders_urgent_v2") } catch (_: Exception) {}
     }
 
-    /// FIX A: canal v3 com som EXPLÍCITO bora_alert (raw resource) e
+    /// Canal v3 com som EXPLÍCITO bora_alert (raw resource) e
     /// AudioAttributes USAGE_NOTIFICATION_RINGTONE — tom de chamada estilo
-    /// Uber/Glovo. CONTENT_TYPE_SONIFICATION + FLAG_AUDIBILITY_ENFORCED
-    /// reforça que toca alto, mesmo em perfis silenciosos.
+    /// Uber/Glovo. CONTENT_TYPE_SONIFICATION + bypass DND reforça que toca
+    /// alto, mesmo em perfis silenciosos. Edge Fn notify-driver usa este id.
     private fun createDriverOfferChannelV3() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager

@@ -173,7 +173,7 @@ Deno.serve(async (req) => {
   // Sessão 2026-05-22 — DATA + NOTIFICATION FALLBACK (Android heads-up garantido).
   // Adicionado bloco `notification` top-level como fallback: quando o Doze
   // do Android throttle o background handler, o sistema mostra pelo menos
-  // a notificação com som via canal bora_orders_urgent_v2.
+  // a notificação com som via canal bora_orders_urgent_v3.
   // O campo `data` continua disponível para o _firebaseMessagingBackgroundHandler
   // (overlay + som loop + CallKit) quando o handler consegue correr.
   const headsUpBody = distanceKm !== '0'
@@ -203,7 +203,7 @@ Deno.serve(async (req) => {
         priority: 'high',
         ttl: '60s',
         notification: {
-          channel_id: 'bora_orders_urgent_v2',
+          channel_id: 'bora_orders_urgent_v3',
           priority: 'max',
           default_sound: true,
           default_vibrate_timings: true,

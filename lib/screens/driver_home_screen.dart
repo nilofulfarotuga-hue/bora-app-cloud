@@ -8,6 +8,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart' hide LatLng;
 import 'package:vibration/vibration.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show Supabase;
 
 import '../auth/auth_store.dart';
@@ -1933,12 +1934,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
           !_alreadyAlertedOrderIds.contains(next.id)) {
         _alreadyAlertedOrderIds.add(next.id);
         unawaited(_triggerNewOrderFeedback(next));
-        // Exec6.5 (2026-05-25) — RE-ATIVADO som na tela laranja FG.
-        // O gate central (OfferPresentationGate) garante 1 só UI por estado:
-        // em FG o CallKit nem sequer dispara → som único OK. Loop pára em
-        // accept/reject/expire via _soundService.stop() chamado de
-        // _showNewOrderDialog / rejectAvailableOrder paths.
-        unawaited(_soundService.playLoop());
+        // Exec6.9 (2026-05-25) — som da laranja SÓ se a bonita full-screen
+        // NÃO está activa para este orderId (gate marca SP em BG-unlocked).
+        // Evita som DUPLICADO (bonita + in-app) reportado pelo dono.
+        unawaited(_playSoundIfNotFullScreen(next.id));
       }
 
       if (!_isShowingDialog && _currentShowingOrderId == null) {
@@ -1984,6 +1983,22 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
     // Exec3 PIVOT (2026-05-24) — removido restart de playLoop. Canal notif
     // bora_orders_urgent_v3 + FLAG_INSISTENT cuida de manter o alerta audível
     // enquanto há oferta. Evita duplicação com canal notif.
+  }
+
+  /// Exec6.9 (2026-05-25) — toca o som in-app SÓ se a bonita full-screen
+  /// NÃO está activa para este orderId. Evita som duplicado (laranja +
+  /// bonita ao mesmo tempo quando ambas aparecem brevemente em transição
+  /// BG→FG).
+  Future<void> _playSoundIfNotFullScreen(String orderId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final fullScreenOrderId = prefs.getString('gate_fullscreen_orderid');
+      if (fullScreenOrderId == orderId) {
+        debugPrint('[BORA-OFFER] in-app sound SKIP — bonita full-screen activa p/ order=$orderId');
+        return;
+      }
+    } catch (_) {}
+    unawaited(_soundService.playLoop());
   }
 
   Future<void> _triggerNewOrderFeedback(OrderModel order) async {
@@ -2546,24 +2561,27 @@ class _DriverOrderAlertCardState extends State<_DriverOrderAlertCard>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
-                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
                           Icons.notifications_active,
                           color: Colors.orange.shade800,
                         ),
                         const SizedBox(width: 8),
-                        Text(
-                          "Novo pedido disponível",
-                          style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.orange.shade900,
-                              ) ??
-                              TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.orange.shade900,
-                              ),
+                        Flexible(
+                          child: Text(
+                            "Novo pedido disponível",
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.orange.shade900,
+                                ) ??
+                                TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.orange.shade900,
+                                ),
+                          ),
                         ),
                       ],
                     ),

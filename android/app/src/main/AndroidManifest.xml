@@ -128,28 +128,6 @@
                 android:value="Mostra card de novo pedido ao estafeta quando o app está em background"/>
         </service>
 
-        <!-- connectycube_flutter_call_kit — Sessão 2026-05-21. Lockscreen
-             CallKit: quando ecrã bloqueado, flutter_overlay_window não passa
-             pelo lockscreen. CallActivity nativa aparece estilo chamada
-             entrante (Uber/Glovo) com showWhenLocked + turnScreenOn por cima
-             do lockscreen. Receiver + Service tratam dos botões aceitar/
-             rejeitar nas notificações antes do utilizador desbloquear. -->
-        <activity
-            android:name="com.connectycube.flutter.connectycube_flutter_call_kit.CallActivity"
-            android:exported="true"
-            android:showWhenLocked="true"
-            android:turnScreenOn="true"
-            android:launchMode="singleInstance"
-            android:theme="@style/Theme.AppCompat.NoActionBar"/>
-
-        <receiver
-            android:name="com.connectycube.flutter.connectycube_flutter_call_kit.CallNotificationReceiver"
-            android:exported="false"/>
-
-        <service
-            android:name="com.connectycube.flutter.connectycube_flutter_call_kit.CallNotificationService"
-            android:exported="false"/>
-
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

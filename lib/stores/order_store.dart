@@ -17,6 +17,7 @@ import '../models/restaurant_model.dart';
 import '../services/distance_service.dart';
 import '../services/maps_service.dart';
 import '../services/notification_service.dart';
+import '../services/offer_presentation_gate.dart';
 import '../services/offline_status_queue.dart';
 import '../services/payment_service.dart';
 import '../services/pricing_service.dart';
@@ -2396,9 +2397,10 @@ class OrderStore extends ChangeNotifier {
                   // Exec3 PIVOT (2026-05-24): full-screen dialog em vez de overlay
                   // system_alert (bloqueado por Android 14+/16 em bg). FGS mantém
                   // o Flutter engine activo; navigatorKey empurra o dialog em <500ms.
-                  debugPrint('[BORA-OFFER] order_store realtime UPDATE → offer for me order=$orderId');
+                  debugPrint('[BORA-OFFER] order_store realtime UPDATE → gate.present order=$orderId');
                   if (!_dismissedOrderIds.contains(orderId)) {
-                    NotificationService.instance.showFullScreenOfferDialog(
+                    // Exec6 GATE (2026-05-25) — gate central decide qual UI.
+                    OfferPresentationGate.present(
                       orderId: orderId,
                       vendorName: (rec['restaurant_name'] as String?) ?? 'Pedido novo',
                       total: (rec['total'] as num?)?.toStringAsFixed(2) ?? '0.00',

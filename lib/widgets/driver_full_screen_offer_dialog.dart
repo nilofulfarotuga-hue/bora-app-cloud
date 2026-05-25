@@ -23,6 +23,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../services/notification_service.dart';
+import '../services/offer_presentation_gate.dart';
 
 const Color _kBoraGreen = Color(0xFF2E7D32);
 const Color _kBoraOrange = Color(0xFFE65100);
@@ -91,6 +92,8 @@ class _DriverFullScreenOfferDialogState
     // cancela a notif persistente + limpa pending_offer + fecha CallKit +
     // fecha overlay (idempotente em tudo).
     cancelDriverOfferNotification(widget.orderId).ignore();
+    // Exec6 GATE (2026-05-25) — liberta o gate para o próximo pedido.
+    OfferPresentationGate.markActionCompleted(widget.orderId);
     if (mounted && Navigator.canPop(context)) {
       Navigator.of(context, rootNavigator: true).pop();
     }

@@ -13,6 +13,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'services/floating_bubble_service.dart';
 import 'services/foreground_service.dart';
 import 'services/notification_service.dart';
+import 'services/offer_presentation_gate.dart';
 // Sessão 2026-05-21 — overlay system_alert_window. O import garante que o
 // `@pragma('vm:entry-point') void overlayMain()` ali declarado fica vivo no
 // build e o flutter_overlay_window consegue arrancar o isolate da overlay
@@ -70,8 +71,37 @@ final RouteObserver<PageRoute<dynamic>> routeObserver =
 /// imediatamente — sem esperar pelo timeout de 40s no dispatch-engine.
 @pragma('vm:entry-point')
 Future<void> _onBoraCallAccepted(CallEvent callEvent) async {
-  debugPrint('[CallKit] accepted session=${callEvent.sessionId}');
-  // No-op: a UI/realtime trata do aceitar quando o app sobe ao foreground.
+  // Exec6 (2026-05-25) — Samsung Android 16 mostra CallActivity por cima
+  // do nosso dialog full-screen. Quando dono toca Aceitar, tap vai para
+  // CallActivity (não para o nosso dialog) → este handler corre.
+  // Solução: chamar driver_accept_offer RPC DIRECTAMENTE aqui.
+  final orderId = callEvent.sessionId;
+  debugPrint('[BORA-OFFER] CallKit ACCEPTED session=$orderId — calling RPC');
+  if (orderId.isEmpty) return;
+  try {
+    // Garantir Supabase inicializado (este isolate pode ser BG).
+    try {
+      Supabase.instance.client;
+    } catch (_) {
+      await Supabase.initialize(
+        url: const String.fromEnvironment('SUPABASE_URL'),
+        anonKey: const String.fromEnvironment('SUPABASE_ANON_KEY'),
+      );
+    }
+    final res = await Supabase.instance.client.rpc(
+      'driver_accept_offer',
+      params: <String, dynamic>{'p_order_id': orderId},
+    );
+    debugPrint('[BORA-OFFER] CallKit accept RPC result: $res');
+  } catch (e) {
+    debugPrint('[BORA-OFFER] CallKit accept RPC error: $e');
+  }
+  // Encerra a sessão CallKit (libera ecrã e CallActivity dismissa).
+  try {
+    await ConnectycubeFlutterCallKit.reportCallEnded(sessionId: orderId);
+  } catch (_) {}
+  // Liberta o gate para permitir próximo pedido.
+  OfferPresentationGate.markActionCompleted(orderId);
 }
 
 @pragma('vm:entry-point')
@@ -96,6 +126,8 @@ Future<void> _onBoraCallRejected(CallEvent callEvent) async {
   } catch (e) {
     debugPrint('[CallKit] reject RPC error: $e');
   }
+  // Liberta o gate.
+  OfferPresentationGate.markActionCompleted(orderId);
 }
 
 /// Sessão 2026-05-17 — Foreground service: regista os canais Android de alta
@@ -250,6 +282,10 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     // Sessão 2026-05-19 — floating bubble: mostra/esconde consoante app
     // está em background/foreground. Sem-op em iOS.
     BoraBubbleService.onAppLifecycleChange(state);
+    // Exec6 GATE (2026-05-25) — alimenta o gate central de oferta com
+    // o estado actual para decidir qual UI mostrar (laranja vs full-screen
+    // vs CallKit).
+    OfferPresentationGate.updateLifecycle(state);
   }
 
   SessionStore get sessionStore => widget.sessionStore;

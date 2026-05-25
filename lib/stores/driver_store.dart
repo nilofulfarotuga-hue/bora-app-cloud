@@ -12,6 +12,7 @@ import '../models/order_model.dart';
 import '../services/floating_bubble_service.dart';
 import '../services/foreground_service.dart';
 import '../services/notification_service.dart';
+import '../services/offer_presentation_gate.dart';
 import '../services/push_token_service.dart';
 import '../utils/constants.dart';
 
@@ -368,9 +369,9 @@ class DriverStore extends ChangeNotifier {
               if (orderId.isEmpty) return;
               debugPrint(
                   '[Realtime] driver-offer broadcast order=$orderId');
-              debugPrint('[BORA-OFFER] driver_store realtime BROADCAST → showFullScreenOfferDialog order=$orderId');
-              // Exec3 PIVOT (2026-05-24): full-screen dialog em vez de overlay.
-              NotificationService.instance.showFullScreenOfferDialog(
+              debugPrint('[BORA-OFFER] driver_store realtime BROADCAST → gate.present order=$orderId');
+              // Exec6 GATE (2026-05-25) — gate central decide qual UI.
+              OfferPresentationGate.present(
                 orderId: orderId,
                 vendorName: inner['vendorName']?.toString() ?? 'Novo pedido',
                 total: inner['total']?.toString() ?? '0.00',

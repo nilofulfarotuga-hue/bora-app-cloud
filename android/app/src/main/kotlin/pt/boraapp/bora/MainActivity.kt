@@ -42,6 +42,24 @@ class MainActivity : FlutterFragmentActivity() {
                         val km = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
                         result.success(km?.isDeviceLocked ?: false)
                     }
+                    "bringToForeground" -> {
+                        // Exec6 (2026-05-25) — força MainActivity ao topo quando
+                        // Samsung downgrade fullScreenIntent para só heads-up.
+                        // Sem isto, Navigator.push do dialog full-screen funciona
+                        // mas o widget builder não corre (Flutter paused com app em BG).
+                        try {
+                            val intent = packageManager.getLaunchIntentForPackage(packageName)
+                            intent?.addFlags(
+                                android.content.Intent.FLAG_ACTIVITY_NEW_TASK or
+                                android.content.Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or
+                                android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP
+                            )
+                            if (intent != null) startActivity(intent)
+                            result.success(true)
+                        } catch (e: Exception) {
+                            result.success(false)
+                        }
+                    }
                     else -> result.notImplemented()
                 }
             }

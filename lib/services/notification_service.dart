@@ -24,6 +24,7 @@ import '../models/order_model.dart';
 import '../screens/chat_screen.dart';
 import '../screens/notifications_screen.dart';
 import '../widgets/driver_full_screen_offer_dialog.dart';
+import 'offer_presentation_gate.dart';
 import 'push_token_service.dart';
 import 'sound_service.dart';
 
@@ -118,81 +119,17 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   final distanceKm = data['distanceKm']?.toString() ?? '0';
   final driverEarnings = data['driverEarnings']?.toString() ?? '0.00';
   final dropoffAddress = data['dropoffAddress']?.toString() ?? '';
-  final notifBody = dropoffAddress.isNotEmpty
-      ? '$vendorName • €$total • ${distanceKm}km • €$driverEarnings\n📍 $dropoffAddress'
-      : '$vendorName • €$total • ${distanceKm}km • €$driverEarnings';
 
-  // ── 1) Local notification com fullScreenIntent ─────────────────────────
-  // Em Android <14 abre MainActivity por cima de tudo (showWhenLocked +
-  // turnScreenOn no manifest). Em Android 14+ requer USE_FULL_SCREEN_INTENT
-  // concedida pelo utilizador — sem ela, heads-up.
-  try {
-    final plugin = FlutterLocalNotificationsPlugin();
-    final androidImpl = plugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
-    // Sessão 2026-05-24 (exec2 FIX A) — canal v3 com som EXPLÍCITO.
-    // MainActivity.kt cria o mesmo ID em Kotlin com setSound() correcto
-    // (AudioAttributes USAGE_NOTIFICATION_RINGTONE). Criamos aqui também
-    // para o caso de o BG handler correr antes de o utilizador abrir
-    // alguma vez a MainActivity. Idempotente — se o canal já existe,
-    // Android ignora; mas o som FICA o que foi posto na 1ª criação.
-    await androidImpl?.createNotificationChannel(
-      const AndroidNotificationChannel(
-        'bora_orders_urgent_v3',
-        'Bora — Novos pedidos',
-        description: 'Som contínuo + vibração para novos pedidos urgentes.',
-        importance: Importance.max,
-        playSound: true,
-        sound: RawResourceAndroidNotificationSound('bora_alert'),
-        enableVibration: true,
-      ),
-    );
-    const androidDetails = AndroidNotificationDetails(
-      'bora_orders_urgent_v3',
-      'Bora — Pedidos urgentes',
-      channelDescription:
-          'Notificação prioritária com som para novos pedidos',
-      importance: Importance.max,
-      priority: Priority.max,
-      category: AndroidNotificationCategory.call,
-      fullScreenIntent: true,
-      playSound: true,
-      sound: RawResourceAndroidNotificationSound('bora_alert'),
-      enableVibration: true,
-      visibility: fln.NotificationVisibility.public,
-      autoCancel: false,
-      ongoing: true,
-      ticker: 'Novo pedido Bora',
-      actions: <AndroidNotificationAction>[
-        AndroidNotificationAction('accept_order', '✅ Aceitar',
-            showsUserInterface: false, cancelNotification: true),
-        AndroidNotificationAction('reject_order', '❌ Rejeitar',
-            showsUserInterface: false, cancelNotification: true),
-      ],
-    );
-    await plugin.show(
-      orderId.hashCode,
-      '🛵 Novo pedido!',
-      notifBody,
-      const NotificationDetails(android: androidDetails),
-      payload: jsonEncode({
-        'type': 'new_order_offer',
-        'orderId': orderId,
-        'vendorName': vendorName,
-        'total': total,
-        'distanceKm': distanceKm,
-        'driverEarnings': driverEarnings,
-      }),
-    );
-    debugPrint('[FCM BG] fullScreenIntent notif shown order=$orderId');
-  } catch (e) {
-    debugPrint('[FCM BG] local notif error: $e');
-  }
-
-  // ── 1.5) Bridge SharedPreferences → FGS onRepeatEvent ────────────────────
-  // O BG handler NÃO pode chamar MethodChannels (overlay), mas PODE escrever
-  // em SharedPreferences. O FGS onRepeatEvent lê este valor e chama
-  // sendDataToMain, que dispara showDriverOfferOverlay no main isolate.
+  // ── Exec6 GATE (2026-05-25) ─────────────────────────────────────────────
+  // ANTIGO: bg handler disparava 3 UIs em paralelo (local notif fullScreenIntent
+  // + CallKit + shareData overlay) → empilhamento, som duplicado, "Aceitar não
+  // responde". REMOVIDO. Agora um SÓ gate central decide qual UI mostrar.
+  //
+  // 1) Persistir pending_offer (rehydrate consome quando app sobe ao FG).
+  // 2) Chamar gate.present(fromBgIsolate=true) — gate decide CallKit
+  //    (locked/dead, caminho seguro a partir do BG isolate).
+  // 3) FGS bridge mantém-se como backup para garantir que main isolate
+  //    é avisado quando estiver vivo.
   try {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('pending_offer', jsonEncode({
@@ -202,14 +139,45 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       'total': total,
       'distanceKm': distanceKm,
       'driverEarnings': driverEarnings,
+      'dropoffAddress': dropoffAddress,
+      'ts': DateTime.now().millisecondsSinceEpoch,
     }));
-    debugPrint('[FCM BG] pending_offer saved SharedPrefs order=$orderId');
-    debugPrint('[BORA-OFFER] pending_offer SAVED order=$orderId (rehydrate vai consumir quando navigator montar)');
+    debugPrint('[BORA-OFFER] pending_offer SAVED order=$orderId');
   } catch (e) {
-    debugPrint('[FCM BG] SharedPrefs bridge error: $e');
+    debugPrint('[FCM BG] SharedPrefs error: $e');
   }
 
-  // ── 2) Ponte FCM→FGS→main para overlay SYSTEM_ALERT_WINDOW ─────────────
+  // EXEC6 FIX (07:01): se FG handler já tratou este orderId nos últimos 8s,
+  // SKIP CallKit (Samsung entrega data-only a ambos os caminhos em FG —
+  // realtime broadcast + bg handler — sem isto, CallKit competia com laranja).
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final fgOrder = prefs.getString('gate_fg_handled_orderId');
+    final fgTs = prefs.getInt('gate_fg_handled_ts') ?? 0;
+    if (fgOrder == orderId) {
+      final age = DateTime.now().millisecondsSinceEpoch - fgTs;
+      if (age < 8000) {
+        debugPrint(
+            '[FCM BG] FG-handled SKIP order=$orderId age=${age}ms');
+        return;
+      }
+    }
+  } catch (_) {}
+
+  // Gate central: a partir do BG isolate assume lockedOrDead → CallKit
+  // (Samsung respeita CallStyle + showWhenLocked + ringtone nativo).
+  await OfferPresentationGate.present(
+    orderId: orderId,
+    vendorName: vendorName,
+    total: total,
+    distanceKm: distanceKm,
+    driverEarnings: driverEarnings,
+    dropoffAddress: dropoffAddress,
+    fromBgIsolate: true,
+  );
+
+  // FGS bridge: se serviço estiver vivo, envia data para o task isolate que
+  // reencaminha ao main (que então chama o gate de novo — dedup cobre).
   try {
     if (await FlutterForegroundTask.isRunningService) {
       FlutterForegroundTask.sendDataToTask(<String, String>{
@@ -219,22 +187,13 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         'total': total,
         'distanceKm': distanceKm,
         'driverEarnings': driverEarnings,
+        'dropoffAddress': dropoffAddress,
       });
-      debugPrint('[FCM BG] forwarded to FGS task (order=$orderId)');
-    } else {
-      debugPrint('[FCM BG] FGS not running — overlay bridge skipped');
+      debugPrint('[FCM BG] forwarded to FGS task');
     }
   } catch (e) {
-    debugPrint('[FCM BG] bridge error: $e');
+    debugPrint('[FCM BG] FGS bridge error: $e');
   }
-
-  // Exec3 PIVOT (2026-05-24): removido fast-path `fow.FlutterOverlayWindow
-  // .shareData` daqui. O overlay-por-cima foi DEMOVIDO do fluxo de background
-  // — Android 14+/16 bloqueia draw a partir do bg isolate quando MainActivity
-  // invisível. A notif local fullScreenIntent acima (canal v3) acorda o ecrã
-  // + lança MainActivity (showWhenLocked); o realtime entrega a oferta ao
-  // OrderStore que empurra o `DriverFullScreenOfferDialog`. Som: SOLE source
-  // = canal da notif (bora_alert), evitando duplicação com SoundService.
 }
 
 /// Tap na notificação local enquanto app em foreground ou background.
@@ -616,16 +575,16 @@ class NotificationService {
     if (type != 'new_order_offer') return;
     final orderId = data['orderId']?.toString() ?? '';
     if (orderId.isEmpty) return;
-    // Exec3 PIVOT (2026-05-24): full-screen dialog em vez de overlay system_alert.
-    debugPrint('[BORA-OFFER] _onForegroundTaskData → showFullScreenOfferDialog order=$orderId');
-    showFullScreenOfferDialog(
+    // Exec6 GATE (2026-05-25) — gate central decide UI por estado.
+    debugPrint('[BORA-OFFER] _onForegroundTaskData → gate.present order=$orderId');
+    OfferPresentationGate.present(
       orderId: orderId,
       vendorName: data['vendorName']?.toString() ?? 'Novo pedido',
       total: data['total']?.toString() ?? '0.00',
       distanceKm: data['distanceKm']?.toString() ?? '0',
       driverEarnings: data['driverEarnings']?.toString() ?? '0.00',
       dropoffAddress: data['dropoffAddress']?.toString() ?? '',
-    ).ignore();
+    );
   }
 
   // ── Overlay (system_alert_window) helpers ─────────────────────────────────
@@ -703,6 +662,13 @@ class NotificationService {
   //
   // Dedup cross-path (FCM, realtime broadcast, FGS bridge) garantido pelo
   // mesmo `_lastShownOfferId` + janela 10s.
+  // Exec6 (2026-05-25) — guard de re-entrada: enquanto um dialog para este
+  // orderId estiver activo no Navigator stack, BLOQUEIA qualquer novo push
+  // (mesmo de paths diferentes — FCM/realtime/rehydrate). Sem isto o
+  // rehydrate-loop empilha dialogs a cada 600ms e o Aceitar não responde
+  // porque o dialog é reconstruído antes da RPC completar.
+  static String? _currentlyShowingOrderId;
+
   Future<void> showFullScreenOfferDialog({
     required String orderId,
     String vendorName = 'Novo pedido',
@@ -716,6 +682,11 @@ class NotificationService {
       debugPrint('[BORA-OFFER] EARLY RETURN web=$kIsWeb empty=${orderId.isEmpty}');
       return;
     }
+    // Guard forte: já há dialog activo para esta order? Não empilhar.
+    if (_currentlyShowingOrderId == orderId) {
+      debugPrint('[BORA-OFFER] GUARD HIT — dialog já visível p/ order=$orderId');
+      return;
+    }
     // Dedup cross-path — janela 10s.
     final now = DateTime.now();
     if (_lastShownOfferId == orderId &&
@@ -727,29 +698,40 @@ class NotificationService {
     _lastShownOfferId = orderId;
     _lastShownOfferAt = now;
 
-    // Persistir como pending_offer para rehydrate caso navigatorKey ainda
-    // não tenha state (app a arrancar pelo fullScreenIntent). _rehydratePendingOffer
-    // limpa o pending após sucesso.
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('pending_offer', jsonEncode({
-        'type': 'new_order_offer',
-        'orderId': orderId,
-        'vendorName': vendorName,
-        'total': total,
-        'distanceKm': distanceKm,
-        'driverEarnings': driverEarnings,
-        'dropoffAddress': dropoffAddress,
-        'ts': now.millisecondsSinceEpoch,
-      }));
-    } catch (_) {}
-
     final nav = navigatorKey.currentState;
     if (nav == null) {
-      debugPrint('[BORA-OFFER] navigatorKey.currentState == NULL — Flutter engine a subir. _rehydratePendingOffer vai retomar quando o navigator montar.');
+      // SÓ persistir pending_offer SE não conseguimos empurrar agora.
+      // (Antes persistíamos sempre → rehydrate em loop infinito porque
+      //  reescrevíamos o que ele acabou de consumir.)
+      debugPrint('[BORA-OFFER] navigatorKey.currentState == NULL — persisting pending_offer para rehydrate consumir.');
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('pending_offer', jsonEncode({
+          'type': 'new_order_offer',
+          'orderId': orderId,
+          'vendorName': vendorName,
+          'total': total,
+          'distanceKm': distanceKm,
+          'driverEarnings': driverEarnings,
+          'dropoffAddress': dropoffAddress,
+          'ts': now.millisecondsSinceEpoch,
+        }));
+      } catch (_) {}
       return;
     }
+    // Exec6 (2026-05-25) — força MainActivity ao topo via nativo ANTES do push.
+    // Samsung Android 16 downgrade fullScreenIntent → MainActivity fica Paused
+    // → Flutter buildOwner pausado → push enfileira widget mas builder não corre.
+    // Bring-to-foreground via Intent NEW_TASK+REORDER_TO_FRONT acorda Flutter.
+    try {
+      const ch = MethodChannel('pt.boraapp.bora/native');
+      await ch.invokeMethod<bool>('bringToForeground');
+      debugPrint('[BORA-OFFER] bringToForeground requested');
+    } catch (e) {
+      debugPrint('[BORA-OFFER] bringToForeground error: $e');
+    }
     debugPrint('[BORA-OFFER] navigatorKey OK → push dialog order=$orderId');
+    _currentlyShowingOrderId = orderId;
     try {
       await nav.push(
         MaterialPageRoute<void>(
@@ -767,6 +749,8 @@ class NotificationService {
       debugPrint('[BORA-OFFER] dialog popped (action/expired) order=$orderId');
     } catch (e) {
       debugPrint('[BORA-OFFER] push threw: $e');
+    } finally {
+      _currentlyShowingOrderId = null;
     }
   }
 
@@ -809,11 +793,11 @@ class NotificationService {
           await prefs.remove('pending_offer');
           return;
         }
-        debugPrint('[BORA-OFFER] REHYDRATE pending_offer order=$orderId — push dialog');
+        debugPrint('[BORA-OFFER] REHYDRATE pending_offer order=$orderId → gate.present');
         await prefs.remove('pending_offer');
-        // Reset dedup para não cair na guarda interna (a oferta veio do bg).
-        resetOfferDedup();
-        await showFullScreenOfferDialog(
+        // Exec6 GATE (2026-05-25) — empurra para o gate. Não passa fromBgIsolate=true
+        // porque rehydrate corre no main isolate (já depois de Flutter resumed).
+        await OfferPresentationGate.present(
           orderId: orderId,
           vendorName: data['vendorName']?.toString() ?? 'Novo pedido',
           total: data['total']?.toString() ?? '0.00',

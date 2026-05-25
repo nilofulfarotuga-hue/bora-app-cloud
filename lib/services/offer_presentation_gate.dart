@@ -47,6 +47,28 @@ class OfferPresentationGate {
   /// Dedup global. Libertado em markActionCompleted ou expirado.
   static String? _activeGateOrderId;
 
+  /// Exec6.5 (2026-05-25) — orderIds que JÁ FORAM tratados (rejeitados,
+  /// aceites, expirados, ou oferta revogada pelo backend). Bloqueia
+  /// re-trigger do mesmo orderId em qualquer UI/path. Limite 50 entries
+  /// (FIFO) para não vazar memória ao longo do dia.
+  static final List<String> _handledOrderIds = <String>[];
+  static const int _handledMaxSize = 50;
+
+  static void _addHandled(String orderId) {
+    if (orderId.isEmpty) return;
+    _handledOrderIds.remove(orderId); // re-add no fim p/ refresh ordem
+    _handledOrderIds.add(orderId);
+    while (_handledOrderIds.length > _handledMaxSize) {
+      _handledOrderIds.removeAt(0);
+    }
+  }
+
+  /// Para casos onde re-oferta legítima do dispatch precisa de re-disparar
+  /// (ex: cycle reset). Limpa o orderId da lista handled.
+  static void clearHandled(String orderId) {
+    _handledOrderIds.remove(orderId);
+  }
+
   /// MethodChannel nativo (criado em exec2). `isDeviceLocked` devolve bool.
   static const _nativeBridge = MethodChannel('pt.boraapp.bora/native');
 
@@ -59,12 +81,32 @@ class OfferPresentationGate {
   /// Liberta o dedup quando a UI da oferta termina (accept/reject/expired).
   /// Chamado pelo DriverFullScreenOfferDialog.dispose, pelo _onBoraCallAccepted,
   /// pelo _onBoraCallRejected, pelo cancelDriverOfferNotification, e pelos
-  /// helpers RPC.
+  /// helpers RPC. Exec6.5: também marca como "handled" para bloquear
+  /// re-trigger do mesmo orderId noutra UI (laranja → bonita "salto").
   static void markActionCompleted(String orderId) {
     if (_activeGateOrderId == orderId) {
       debugPrint('[GATE] release order=$orderId');
       _activeGateOrderId = null;
     }
+    _addHandled(orderId);
+    debugPrint('[GATE] handled+=$orderId (size=${_handledOrderIds.length})');
+    // Exec6.5 — persistir em SP para o BG isolate (FCM bg handler) ver
+    // que orderId já foi tratado, evitando disparar CallKit depois do
+    // dono rejeitar/aceitar a bonita.
+    _persistHandledToSp(orderId);
+  }
+
+  static Future<void> _persistHandledToSp(String orderId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = prefs.getStringList('gate_handled_orderids') ?? <String>[];
+      list.remove(orderId);
+      list.add(orderId);
+      while (list.length > _handledMaxSize) {
+        list.removeAt(0);
+      }
+      await prefs.setStringList('gate_handled_orderids', list);
+    } catch (_) {}
   }
 
   /// Entrada única. TODOS os triggers (FCM bg, realtime UPDATE, realtime
@@ -87,6 +129,13 @@ class OfferPresentationGate {
     // Dedup forte por orderId.
     if (_activeGateOrderId == orderId) {
       debugPrint('[GATE] DEDUP — order=$orderId já tem UI activa');
+      return;
+    }
+
+    // Exec6.5 — bloquear re-trigger se já foi tratado (rejeitado/aceite/
+    // expirado/revogado). Impede o "salto" entre UIs (laranja → bonita).
+    if (_handledOrderIds.contains(orderId)) {
+      debugPrint('[GATE] HANDLED — order=$orderId já foi tratado, skip');
       return;
     }
 

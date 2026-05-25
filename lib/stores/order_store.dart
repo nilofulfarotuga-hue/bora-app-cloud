@@ -1291,6 +1291,9 @@ class OrderStore extends ChangeNotifier {
   bool rejectAvailableOrder(OrderModel order) {
     if (order.status != OrderStatus.callingDriver) return false;
     _dismissedOrderIds.add(order.id);
+    // Exec6.5 — marca handled no gate para impedir re-trigger noutra UI
+    // (laranja rejeitada → bonita NÃO pode aparecer para o mesmo pedido).
+    OfferPresentationGate.markActionCompleted(order.id);
     notifyListeners();
     // Notify backend immediately so the next driver is dispatched without
     // waiting for the 40-second offer timeout to expire.
@@ -1483,6 +1486,9 @@ class OrderStore extends ChangeNotifier {
     if (!success) return false;
     // Cancelar notificação persistente de oferta após aceitar com sucesso.
     unawaited(cancelDriverOfferNotification(order.id));
+    // Exec6.5 — marca handled no gate (impede CallKit/dialog de reaparecer
+    // para o mesmo orderId depois de aceite).
+    OfferPresentationGate.markActionCompleted(order.id);
 
     order.status = OrderStatus.driverAccepted;
     order.assignedDriverId = _currentDriverId;
@@ -2418,6 +2424,9 @@ class OrderStore extends ChangeNotifier {
                   // 2026-05-20 — cancela a notificação persistente estilo chamada
                   // (FLAG_INSISTENT em loop) assim que a oferta expira/é revogada.
                   unawaited(cancelDriverOfferNotification(orderId));
+                  // Exec6.5 — marca handled no gate para impedir re-trigger
+                  // (ex: novo evento realtime do mesmo orderId que ressuscite UI).
+                  OfferPresentationGate.markActionCompleted(orderId);
                   notifyListeners();
                 }
               },

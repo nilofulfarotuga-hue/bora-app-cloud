@@ -106,6 +106,14 @@ Future<void> _onBoraCallAccepted(CallEvent callEvent) async {
 
 @pragma('vm:entry-point')
 Future<void> _onBoraCallRejected(CallEvent callEvent) async {
+  // Exec6.6 (2026-05-25) — print diagnóstico para confirmar se userInfo
+  // chega completo. Suspeita: CallKit Samsung pode entregar callEvent
+  // com userInfo NULL ou sem chave 'order_id', causando early return
+  // silencioso e "rejeito mas não re-oferece, fica preso".
+  // ignore: avoid_print
+  print('[BORA-OFFER] CallKit REJECTED diag: sessionId=${callEvent.sessionId} '
+      'userInfo=${callEvent.userInfo} '
+      'userInfo_type=${callEvent.userInfo.runtimeType}');
   final orderId = callEvent.userInfo?['order_id']?.toString();
   debugPrint('[CallKit] rejected session=${callEvent.sessionId} order=$orderId');
   if (orderId == null || orderId.isEmpty) return;

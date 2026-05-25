@@ -20,10 +20,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../services/notification_service.dart';
 import '../services/offer_presentation_gate.dart';
+import '../services/sound_service.dart';
 
 const Color _kBoraGreen = Color(0xFF2E7D32);
 const Color _kBoraOrange = Color(0xFFE65100);
@@ -59,12 +61,16 @@ class _DriverFullScreenOfferDialogState
   int _remaining = _kOfferTimeoutSeconds;
   bool _busy = false;
   bool _closed = false;
+  // Exec6.5 (2026-05-25) — som persistente até accept/reject/expire.
+  // BG-unlocked não tem CallKit ringtone, precisa de fonte própria.
+  final SoundService _sound = SoundService();
 
   @override
   void initState() {
     super.initState();
     // ignore: avoid_print
     print('[BORA-OFFER] DriverFullScreenOfferDialog initState order=${widget.orderId} vendor=${widget.vendorName}');
+    unawaited(_sound.playLoop());
     _timer = Timer.periodic(const Duration(seconds: 1), (t) {
       if (!mounted) {
         t.cancel();
@@ -82,6 +88,8 @@ class _DriverFullScreenOfferDialogState
   @override
   void dispose() {
     _timer?.cancel();
+    _sound.stop();
+    _sound.dispose();
     super.dispose();
   }
 
@@ -133,10 +141,23 @@ class _DriverFullScreenOfferDialogState
       // Mesmo se falhar, fechamos — o backend reoferece via watchdog 40s.
     }
     _closeDialog();
+    // Exec6.5 (2026-05-25) — rejeitar a bonita devolve o controlo ao
+    // sistema (home / app anterior do dono). Sem isto, a MainActivity
+    // ficaria visível por trás a mostrar a tela laranja, o que é errado:
+    // o dono estava noutra app e queremos respeitar isso.
+    _minimizeApp();
   }
 
   void _expire() {
     _closeDialog();
+    _minimizeApp();
+  }
+
+  void _minimizeApp() {
+    try {
+      const ch = MethodChannel('pt.boraapp.bora/native');
+      ch.invokeMethod<bool>('moveTaskToBack').ignore();
+    } catch (_) {}
   }
 
   void _showSnack(String msg) {

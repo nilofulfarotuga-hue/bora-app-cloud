@@ -1933,10 +1933,12 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
           !_alreadyAlertedOrderIds.contains(next.id)) {
         _alreadyAlertedOrderIds.add(next.id);
         unawaited(_triggerNewOrderFeedback(next));
-        // Exec3 PIVOT (2026-05-24) — removido _soundService.playLoop() aqui.
-        // SOLE source de som = canal notif bora_orders_urgent_v3 (setSound
-        // bora_alert via MainActivity.kt). Evita som DUPLICADO reportado
-        // pelo dono em testes Android 16.
+        // Exec6.5 (2026-05-25) — RE-ATIVADO som na tela laranja FG.
+        // O gate central (OfferPresentationGate) garante 1 só UI por estado:
+        // em FG o CallKit nem sequer dispara → som único OK. Loop pára em
+        // accept/reject/expire via _soundService.stop() chamado de
+        // _showNewOrderDialog / rejectAvailableOrder paths.
+        unawaited(_soundService.playLoop());
       }
 
       if (!_isShowingDialog && _currentShowingOrderId == null) {
@@ -2625,10 +2627,14 @@ class _DriverOrderAlertCardState extends State<_DriverOrderAlertCard>
                         Icon(Icons.account_balance_wallet,
                             size: 16, color: Colors.orange.shade800),
                         const SizedBox(width: 6),
-                        Text(
-                          'Pagamento: ${order.paymentMethod.label}',
-                          style: theme.textTheme.bodyMedium
-                              ?.copyWith(fontWeight: FontWeight.w600),
+                        Flexible(
+                          child: Text(
+                            'Pagamento: ${order.paymentMethod.label}',
+                            style: theme.textTheme.bodyMedium
+                                ?.copyWith(fontWeight: FontWeight.w600),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ],
                     ),
@@ -2668,34 +2674,44 @@ class _DriverOrderAlertCardState extends State<_DriverOrderAlertCard>
                 ),
               ),
               const SizedBox(width: 16),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    "+€${order.driverEarnings.toStringAsFixed(2)}",
-                    style: theme.textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.orange.shade900,
-                        ) ??
-                        TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.orange.shade900,
-                        ),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
+              // Exec6.5 (2026-05-25) — Flexible evita overflow "RIGHT
+              // OVERFLOWED BY xx PIXELS" quando legs+earnings juntos
+              // ultrapassam o espaço lateral.
+              Flexible(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        "+€${order.driverEarnings.toStringAsFixed(2)}",
+                        style: theme.textTheme.headlineMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.orange.shade900,
+                            ) ??
+                            TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.orange.shade900,
+                            ),
+                      ),
                     ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.9),
-                      borderRadius: BorderRadius.circular(12),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: _offerLegsRow(order, widget.driverLocation),
                     ),
-                    child: _offerLegsRow(order, widget.driverLocation),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ],
           ),

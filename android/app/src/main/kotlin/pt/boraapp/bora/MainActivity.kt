@@ -42,6 +42,20 @@ class MainActivity : FlutterFragmentActivity() {
                         val km = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
                         result.success(km?.isDeviceLocked ?: false)
                     }
+                    "moveTaskToBack" -> {
+                        // Exec6.5 (2026-05-25) — quando dono rejeita/expira a
+                        // tela bonita full-screen, NÃO queremos a app a ficar
+                        // visível por trás (mostrando laranja). Minimizar a
+                        // app inteira devolve o controlo ao sistema (home /
+                        // app anterior do dono). Equivalente ao back button
+                        // até sair, mas sem matar a app.
+                        try {
+                            moveTaskToBack(true)
+                            result.success(true)
+                        } catch (e: Exception) {
+                            result.success(false)
+                        }
+                    }
                     "bringToForeground" -> {
                         // Exec6 (2026-05-25) — força MainActivity ao topo quando
                         // Samsung downgrade fullScreenIntent para só heads-up.

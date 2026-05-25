@@ -150,6 +150,8 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // EXEC6 FIX (07:01): se FG handler já tratou este orderId nos últimos 8s,
   // SKIP CallKit (Samsung entrega data-only a ambos os caminhos em FG —
   // realtime broadcast + bg handler — sem isto, CallKit competia com laranja).
+  // EXEC6.5: também verificar lista persistida de handled orderIds (cobre
+  // BG-unlocked rejeitado/aceite — sem isto CallKit tocava após pop da bonita).
   try {
     final prefs = await SharedPreferences.getInstance();
     final fgOrder = prefs.getString('gate_fg_handled_orderId');
@@ -161,6 +163,12 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
             '[FCM BG] FG-handled SKIP order=$orderId age=${age}ms');
         return;
       }
+    }
+    final handledList =
+        prefs.getStringList('gate_handled_orderids') ?? const <String>[];
+    if (handledList.contains(orderId)) {
+      debugPrint('[FCM BG] HANDLED SKIP (SP persistent list) order=$orderId');
+      return;
     }
   } catch (_) {}
 

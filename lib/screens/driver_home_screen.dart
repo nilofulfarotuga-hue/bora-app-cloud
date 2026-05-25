@@ -1896,6 +1896,14 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       highlightCandidate = null;
     }
 
+    // Exec6.4 (2026-05-25) — debug markers para identificar bug "laranja não aparece em FG".
+    // ignore: avoid_print
+    print('[BORA-OFFER-HOME] tick visibleOrders=${visibleOrders.length} '
+        'callingDriver_count=${visibleOrders.where((o) => o.status == OrderStatus.callingDriver).length} '
+        'processingOrderIds=${_processingOrderIds.length} '
+        'lastOfferedOrderId=$_lastOfferedOrderId currentShowingOrderId=$_currentShowingOrderId '
+        'isShowingDialog=$_isShowingDialog');
+
     // FIFO candidate selection — oldest eligible offer is shown first.
     // Excludes in-flight and duplicate dialogs so only ONE offer is surfaced
     // at any time.
@@ -1908,9 +1916,18 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
         .toList()
       ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
 
+    // ignore: avoid_print
+    print('[BORA-OFFER-HOME] candidates=${candidates.length} '
+        'ids=${candidates.map((o) => o.id).take(3).toList()}');
+
     if (candidates.isNotEmpty) {
       final next = candidates.first;
       highlightCandidate = next.id;
+      // ignore: avoid_print
+      print('[BORA-OFFER-HOME] next=${next.id} '
+          'isNew=${newIds.contains(next.id)} '
+          'alreadyAlerted=${_alreadyAlertedOrderIds.contains(next.id)} '
+          'isShowingDialog=$_isShowingDialog currentShowing=$_currentShowingOrderId');
 
       if (newIds.contains(next.id) &&
           !_alreadyAlertedOrderIds.contains(next.id)) {
@@ -1923,9 +1940,15 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       }
 
       if (!_isShowingDialog && _currentShowingOrderId == null) {
+        // ignore: avoid_print
+        print('[BORA-OFFER-HOME] → schedule _showNewOrderDialog(${next.id}) via postFrameCallback');
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _showNewOrderDialog(next, store);
         });
+      } else {
+        // ignore: avoid_print
+        print('[BORA-OFFER-HOME] GUARD BLOCK — dialog NOT scheduled '
+            '(isShowingDialog=$_isShowingDialog currentShowing=$_currentShowingOrderId)');
       }
     } else if (highlightCandidate == null && visibleOrders.isNotEmpty) {
       highlightCandidate = visibleOrders.first.id;

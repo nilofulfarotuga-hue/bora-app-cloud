@@ -1,8 +1,6 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../auth/auth_store.dart';
@@ -12,7 +10,14 @@ import '../stores/session_store.dart';
 import '../widgets/bora/bora_primary_button.dart';
 import '../widgets/terms_link_text.dart';
 import 'client_login_screen.dart';
+import 'welcome_address_screen.dart';
 
+/// Sessão 2026-05-26 — refactor signup cliente alinhado com Uber/Glovo:
+/// - Foto opcional REMOVIDA (causa de Activity recreation crash em Samsung A36).
+///   Foto pode ser adicionada depois em ProfileScreen.
+/// - Draft persistence (SharedPreferences) — sobrevive a kill do processo.
+/// - Apple/Google Sign-In skeleton atrás de feature flag SOCIAL_AUTH_ENABLED.
+/// - Após signup OK → navega para WelcomeAddressScreen (morada opcional).
 class RegisterClientScreen extends StatefulWidget {
   const RegisterClientScreen({super.key});
 
@@ -33,20 +38,19 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
   bool _acceptedTerms = false;
-  String _avatarLetter = '';
 
-  final _imagePicker = ImagePicker();
-  XFile? _avatarFile;
+  static const _kDraftKey = 'bora_app.signup_draft.client';
+
+  /// Feature flag — quando true, mostra botões "Continuar com Google/Apple".
+  /// Activação requer config externa (Apple Developer + Google Cloud +
+  /// Supabase Auth providers). Ver docs/SIGNUP_SOCIAL_SETUP.md.
+  static const bool _socialAuthEnabled =
+      bool.fromEnvironment('SOCIAL_AUTH_ENABLED');
 
   @override
   void initState() {
     super.initState();
-    _nameController.addListener(() {
-      final letter = _nameController.text.trim().isEmpty
-          ? ''
-          : _nameController.text.trim()[0].toUpperCase();
-      if (letter != _avatarLetter) setState(() => _avatarLetter = letter);
-    });
+    _restoreDraft();
   }
 
   @override
@@ -58,6 +62,41 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
     _confirmPasswordController.dispose();
     _referralCodeController.dispose();
     super.dispose();
+  }
+
+  void _saveDraft() {
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.setString('$_kDraftKey.name', _nameController.text);
+      prefs.setString('$_kDraftKey.email', _emailController.text);
+      prefs.setString('$_kDraftKey.phone', _phoneController.text);
+      prefs.setString('$_kDraftKey.referral', _referralCodeController.text);
+    });
+  }
+
+  Future<void> _restoreDraft() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    final name = prefs.getString('$_kDraftKey.name') ?? '';
+    final email = prefs.getString('$_kDraftKey.email') ?? '';
+    final phone = prefs.getString('$_kDraftKey.phone') ?? '';
+    final referral = prefs.getString('$_kDraftKey.referral') ?? '';
+    if (name.isEmpty && email.isEmpty && phone.isEmpty && referral.isEmpty) {
+      return;
+    }
+    setState(() {
+      if (name.isNotEmpty) _nameController.text = name;
+      if (email.isNotEmpty) _emailController.text = email;
+      if (phone.isNotEmpty) _phoneController.text = phone;
+      if (referral.isNotEmpty) _referralCodeController.text = referral;
+    });
+  }
+
+  void _clearDraft() {
+    SharedPreferences.getInstance().then((prefs) {
+      for (final key in ['name', 'email', 'phone', 'referral']) {
+        prefs.remove('$_kDraftKey.$key');
+      }
+    });
   }
 
   @override
@@ -76,263 +115,231 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
       ),
       body: SafeArea(
         child: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(
-            Spacing.xxl,
-            Spacing.sm,
-            Spacing.xxl,
-            Spacing.xxxl,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // ── Logo ────────────────────────────────────────────────────
-              Text(
-                'BORA',
-                style: theme.textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.w900,
-                  color: AppColors.accent,
-                  letterSpacing: 2,
+          key: _formKey,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(
+              Spacing.xxl,
+              Spacing.sm,
+              Spacing.xxl,
+              Spacing.xxxl,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(
+                  'BORA',
+                  style: theme.textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.accent,
+                    letterSpacing: 2,
+                  ),
                 ),
-              ),
-              const SizedBox(height: Spacing.xs),
-              Text(
-                'A tua app de entregas',
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: Colors.grey.shade500),
-              ),
-              const SizedBox(height: 24),
-              // ── Avatar ──────────────────────────────────────────────────
-              GestureDetector(
-                onTap: _isSubmitting ? null : _showPhotoOptions,
-                child: Stack(
-                  children: [
-                    CircleAvatar(
-                      radius: 44,
-                      backgroundColor:
-                          AppColors.accent.withValues(alpha: 0.12),
-                      backgroundImage: _avatarFile != null
-                          ? FileImage(File(_avatarFile!.path))
-                          : null,
-                      child: _avatarFile != null
-                          ? null
-                          : (_avatarLetter.isEmpty
-                              ? Icon(Icons.person_outline,
-                                  size: 44, color: Colors.grey.shade400)
-                              : Text(
-                                  _avatarLetter,
-                                  style: const TextStyle(
-                                    fontSize: 40,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFFE65100),
-                                  ),
-                                )),
-                    ),
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: Container(
-                        width: 28,
-                        height: 28,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFE65100),
-                          shape: BoxShape.circle,
+                const SizedBox(height: Spacing.xs),
+                Text(
+                  'A tua app de entregas',
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: Colors.grey.shade500),
+                ),
+                const SizedBox(height: 24),
+
+                if (_socialAuthEnabled) ...[
+                  _SocialAuthButton(
+                    icon: Icons.apple,
+                    label: 'Continuar com Apple',
+                    onPressed: _isSubmitting ? null : _signInWithApple,
+                  ),
+                  const SizedBox(height: 12),
+                  _SocialAuthButton(
+                    icon: Icons.g_mobiledata_rounded,
+                    label: 'Continuar com Google',
+                    onPressed: _isSubmitting ? null : _signInWithGoogle,
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Divider(color: Colors.grey.shade300),
+                      ),
+                      Padding(
+                        padding:
+                            const EdgeInsets.symmetric(horizontal: Spacing.md),
+                        child: Text(
+                          'ou regista-te por email',
+                          style: TextStyle(color: Colors.grey.shade500),
                         ),
-                        child: const Icon(Icons.camera_alt,
-                            size: 16, color: Colors.white),
+                      ),
+                      Expanded(
+                        child: Divider(color: Colors.grey.shade300),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                ],
+
+                TextFormField(
+                  controller: _nameController,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(
+                    labelText: 'Nome completo',
+                    prefixIcon: Icon(Icons.person_outline),
+                  ),
+                  onChanged: (_) => _saveDraft(),
+                  validator: (v) => (v == null || v.trim().isEmpty)
+                      ? 'Informe o seu nome.'
+                      : null,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(
+                    labelText: 'Email',
+                    prefixIcon: Icon(Icons.email_outlined),
+                  ),
+                  onChanged: (_) => _saveDraft(),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) {
+                      return 'Informe o seu email.';
+                    }
+                    if (!v.contains('@')) return 'Email inválido.';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _phoneController,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(
+                    labelText: 'Telemóvel',
+                    prefixIcon: Icon(Icons.phone_rounded),
+                  ),
+                  onChanged: (_) => _saveDraft(),
+                  validator: (v) => (v == null || v.trim().isEmpty)
+                      ? 'Informe o seu telemóvel.'
+                      : null,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _passwordController,
+                  obscureText: _obscurePassword,
+                  decoration: InputDecoration(
+                    labelText: 'Palavra-passe',
+                    prefixIcon: const Icon(Icons.lock_outline),
+                    suffixIcon: IconButton(
+                      icon: Icon(_obscurePassword
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined),
+                      onPressed: () =>
+                          setState(() => _obscurePassword = !_obscurePassword),
+                    ),
+                  ),
+                  validator: (v) => (v == null || v.length < 6)
+                      ? 'Mínimo 6 caracteres.'
+                      : null,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _confirmPasswordController,
+                  obscureText: _obscureConfirm,
+                  decoration: InputDecoration(
+                    labelText: 'Confirmar palavra-passe',
+                    prefixIcon: const Icon(Icons.lock_outline),
+                    suffixIcon: IconButton(
+                      icon: Icon(_obscureConfirm
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined),
+                      onPressed: () =>
+                          setState(() => _obscureConfirm = !_obscureConfirm),
+                    ),
+                  ),
+                  validator: (v) {
+                    if (v != _passwordController.text) {
+                      return 'As palavras-passe não coincidem.';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _referralCodeController,
+                  textCapitalization: TextCapitalization.characters,
+                  decoration: const InputDecoration(
+                    labelText: 'Código de convite (opcional)',
+                    hintText: 'Ex: BORA-ABC-1234',
+                    prefixIcon: Icon(Icons.card_giftcard_outlined),
+                  ),
+                  onChanged: (_) => _saveDraft(),
+                ),
+                const SizedBox(height: 16),
+                CheckboxListTile(
+                  value: _acceptedTerms,
+                  onChanged: _isSubmitting
+                      ? null
+                      : (v) => setState(() => _acceptedTerms = v ?? false),
+                  controlAffinity: ListTileControlAffinity.leading,
+                  contentPadding: EdgeInsets.zero,
+                  activeColor: AppColors.accent,
+                  title: const TermsLinkText(),
+                ),
+                const SizedBox(height: 16),
+                BoraPrimaryButton(
+                  label: 'Criar conta',
+                  loading: _isSubmitting,
+                  color: AppColors.primary,
+                  onPressed: _acceptedTerms ? _submit : null,
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text('Já tenho conta?',
+                        style: TextStyle(color: Colors.grey.shade600)),
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pushReplacement(
+                        MaterialPageRoute(
+                          builder: (_) => const ClientLoginScreen(),
+                        ),
+                      ),
+                      child: const Text(
+                        'Iniciar sessão',
+                        style: TextStyle(
+                            color: Color(0xFFE65100),
+                            fontWeight: FontWeight.bold),
                       ),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Foto de perfil (opcional)',
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: Colors.grey.shade400),
-              ),
-              const SizedBox(height: 24),
-              TextFormField(
-                controller: _nameController,
-                textCapitalization: TextCapitalization.words,
-                decoration: const InputDecoration(
-                  labelText: 'Nome completo',
-                  prefixIcon: Icon(Icons.person_outline),
-                ),
-                validator: (v) => (v == null || v.trim().isEmpty)
-                    ? 'Informe o seu nome.'
-                    : null,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  prefixIcon: Icon(Icons.email_outlined),
-                ),
-                validator: (v) {
-                  if (v == null || v.trim().isEmpty) {
-                    return 'Informe o seu email.';
-                  }
-                  if (!v.contains('@')) return 'Email inválido.';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _phoneController,
-                keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(
-                  labelText: 'Telemóvel',
-                  prefixIcon: Icon(Icons.phone_rounded),
-                ),
-                validator: (v) => (v == null || v.trim().isEmpty)
-                    ? 'Informe o seu telemóvel.'
-                    : null,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _passwordController,
-                obscureText: _obscurePassword,
-                decoration: InputDecoration(
-                  labelText: 'Palavra-passe',
-                  prefixIcon: const Icon(Icons.lock_outline),
-                  suffixIcon: IconButton(
-                    icon: Icon(_obscurePassword
-                        ? Icons.visibility_outlined
-                        : Icons.visibility_off_outlined),
-                    onPressed: () =>
-                        setState(() => _obscurePassword = !_obscurePassword),
-                  ),
-                ),
-                validator: (v) =>
-                    (v == null || v.length < 6) ? 'Mínimo 6 caracteres.' : null,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _confirmPasswordController,
-                obscureText: _obscureConfirm,
-                decoration: InputDecoration(
-                  labelText: 'Confirmar palavra-passe',
-                  prefixIcon: const Icon(Icons.lock_outline),
-                  suffixIcon: IconButton(
-                    icon: Icon(_obscureConfirm
-                        ? Icons.visibility_outlined
-                        : Icons.visibility_off_outlined),
-                    onPressed: () =>
-                        setState(() => _obscureConfirm = !_obscureConfirm),
-                  ),
-                ),
-                validator: (v) {
-                  if (v != _passwordController.text) {
-                    return 'As palavras-passe não coincidem.';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _referralCodeController,
-                textCapitalization: TextCapitalization.characters,
-                decoration: const InputDecoration(
-                  labelText: 'Código de convite (opcional)',
-                  hintText: 'Ex: BORA-ABC-1234',
-                  prefixIcon: Icon(Icons.card_giftcard_outlined),
-                ),
-              ),
-              const SizedBox(height: 16),
-              CheckboxListTile(
-                value: _acceptedTerms,
-                onChanged: _isSubmitting
-                    ? null
-                    : (v) => setState(() => _acceptedTerms = v ?? false),
-                controlAffinity: ListTileControlAffinity.leading,
-                contentPadding: EdgeInsets.zero,
-                activeColor: AppColors.accent,
-                title: const TermsLinkText(),
-              ),
-              const SizedBox(height: 16),
-              BoraPrimaryButton(
-                label: 'Criar conta',
-                loading: _isSubmitting,
-                color: AppColors.primary,
-                onPressed: _acceptedTerms ? _submit : null,
-              ),
-              const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text('Já tenho conta?',
-                      style: TextStyle(color: Colors.grey.shade600)),
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(
-                          builder: (_) => const ClientLoginScreen()),
-                    ),
-                    child: const Text(
-                      'Iniciar sessão',
-                      style: TextStyle(
-                          color: Color(0xFFE65100),
-                          fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+              ],
+            ),
           ),
         ),
-      ),
       ),
     );
   }
 
-  Future<void> _pickPhoto(ImageSource source) async {
-    try {
-      final picked = await _imagePicker.pickImage(
-        source: source,
-        maxWidth: 1200,
-        imageQuality: 85,
-      );
-      if (picked != null && mounted) {
-        setState(() => _avatarFile = picked);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao seleccionar imagem: $e')),
-        );
-      }
-    }
+  Future<void> _signInWithApple() async {
+    // TODO(activate): Apple Sign-In requer:
+    //  1. Apple Developer: Sign In with Apple capability enabled
+    //  2. Service ID + Key + Domain registado
+    //  3. Supabase Auth → Apple provider configurado com client_id + secret JWT
+    //  4. iOS: adicionar Sign In with Apple ao Runner.entitlements
+    //  5. Android: deeplink redirect URI configurado
+    //  Ver docs/SIGNUP_SOCIAL_SETUP.md
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Apple Sign-In — em configuração.')),
+    );
   }
 
-  void _showPhotoOptions() {
-    showModalBottomSheet(
-      context: context,
-      builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.photo_camera),
-              title: const Text('Tirar foto'),
-              onTap: () {
-                Navigator.pop(context);
-                _pickPhoto(ImageSource.camera);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.photo_library),
-              title: const Text('Escolher da galeria'),
-              onTap: () {
-                Navigator.pop(context);
-                _pickPhoto(ImageSource.gallery);
-              },
-            ),
-          ],
-        ),
-      ),
+  Future<void> _signInWithGoogle() async {
+    // TODO(activate): Google Sign-In requer:
+    //  1. Google Cloud: OAuth 2.0 Client IDs (Android + iOS + Web)
+    //  2. SHA-1 fingerprint do keystore release (já existe — ver project_keystore_release_2026_05_20)
+    //  3. Supabase Auth → Google provider configurado com client_id + secret
+    //  4. Adicionar package google_sign_in: ^6.x ao pubspec.yaml
+    //  5. iOS: GIDClientID em Info.plist
+    //  Ver docs/SIGNUP_SOCIAL_SETUP.md
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Google Sign-In — em configuração.')),
     );
   }
 
@@ -350,10 +357,6 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
     final authStore = context.read<AuthStore>();
     final sessionStore = context.read<SessionStore>();
 
-    // ── FIX: Call registerClientAsync which does Supabase signUp FIRST,
-    // then creates the local account only after Supabase confirms.
-    // The old code had an empty try block and called the sync
-    // registerClient() which fired signUp as fire-and-forget.
     final error = await authStore.registerClientAsync(
       name: name,
       email: email,
@@ -373,42 +376,7 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
       return;
     }
 
-    // ── Upload avatar foto (se escolhida) — não bloqueia em caso de falha ──
-    if (_avatarFile != null) {
-      try {
-        final supabase = Supabase.instance.client;
-        // T1 FIX: refresh session before upload (stale JWT → 403).
-        try { await supabase.auth.refreshSession(); } catch (_) {}
-        final uid = supabase.auth.currentUser?.id;
-        if (uid != null) {
-          final bytes = await _avatarFile!.readAsBytes();
-          final path = '$uid/avatar.jpg';
-          await supabase.storage.from('avatars').uploadBinary(
-                path,
-                bytes,
-                fileOptions: const FileOptions(
-                  upsert: true,
-                  contentType: 'image/jpeg',
-                ),
-              );
-          final publicUrl = supabase.storage.from('avatars').getPublicUrl(path);
-          await supabase.auth.updateUser(
-            UserAttributes(data: {'bora_photo_url': publicUrl}),
-          );
-          // UPSERT em public.users — sem trigger automático auth→public,
-          // a row pode não existir ainda. Cria com id+photo_url.
-          await supabase
-              .from('users')
-              .upsert({'id': uid, 'photo_url': publicUrl});
-        }
-      } catch (e) {
-        debugPrint('RegisterClientScreen: avatar upload failed => $e');
-      }
-    }
-
-    // ── Código de convite (opcional) ───────────────────────────────────────
-    // Se o utilizador colou um código no formulário, regista-o via RPC.
-    // Falhas não bloqueiam o registo — o utilizador já tem conta válida.
+    // Código de convite (opcional). Falha não bloqueia signup.
     final referralCode = _referralCodeController.text.trim().toUpperCase();
     if (referralCode.isNotEmpty) {
       try {
@@ -421,8 +389,8 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content:
-                  Text('Código de convite inválido ou expirado — conta criada à mesma.'),
+              content: Text(
+                  'Código de convite inválido ou expirado — conta criada à mesma.'),
             ),
           );
         }
@@ -430,14 +398,54 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
     }
 
     await sessionStore.setRole(UserRole.client);
+    _clearDraft();
 
     if (!mounted) return;
     setState(() => _isSubmitting = false);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Conta criada com sucesso!')),
+    // Navega para WelcomeAddressScreen — morada opcional + onboarding tooltip.
+    // Após WelcomeAddressScreen, _RootNavigator detecta currentClient != null
+    // e renderiza ClientMainScreen.
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const WelcomeAddressScreen()),
     );
+  }
+}
 
-    Navigator.of(context).popUntil((route) => route.isFirst);
+class _SocialAuthButton extends StatelessWidget {
+  const _SocialAuthButton({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 50,
+      child: OutlinedButton.icon(
+        icon: Icon(icon, color: Colors.black87),
+        label: Text(
+          label,
+          style: const TextStyle(
+            color: Colors.black87,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        style: OutlinedButton.styleFrom(
+          backgroundColor: Colors.white,
+          side: BorderSide(color: Colors.grey.shade300),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+        onPressed: onPressed,
+      ),
+    );
   }
 }

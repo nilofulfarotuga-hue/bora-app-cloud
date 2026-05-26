@@ -572,10 +572,10 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
                           return Card(
                             margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                             child: ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: banned ? Colors.red : AppColors.primary,
-                                child: Text(_initialFor(c),
-                                    style: const TextStyle(color: Colors.white)),
+                              leading: _ClientAvatar(
+                                photoUrl: c['photo_url']?.toString(),
+                                initials: _initialFor(c),
+                                banned: banned,
                               ),
                               title: Row(
                                 children: [
@@ -654,6 +654,43 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
                   ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Avatar do cliente no admin panel — mostra foto se existir,
+/// senão iniciais. Border vermelha quando banido.
+class _ClientAvatar extends StatelessWidget {
+  const _ClientAvatar({
+    required this.photoUrl,
+    required this.initials,
+    required this.banned,
+  });
+
+  final String? photoUrl;
+  final String initials;
+  final bool banned;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasPhoto = photoUrl != null && photoUrl!.trim().isNotEmpty;
+    final bg = banned ? Colors.red : AppColors.primary;
+    return Container(
+      decoration: banned
+          ? BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.red, width: 2),
+            )
+          : null,
+      child: CircleAvatar(
+        backgroundColor: bg,
+        backgroundImage: hasPhoto ? NetworkImage(photoUrl!) : null,
+        onBackgroundImageError:
+            hasPhoto ? (_, __) {/* fallback to initials */} : null,
+        child: hasPhoto
+            ? null
+            : Text(initials, style: const TextStyle(color: Colors.white)),
       ),
     );
   }

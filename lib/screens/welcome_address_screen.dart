@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart' as ll;
 
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
 import '../services/client_address_service.dart';
+import '../widgets/address_autocomplete_field.dart';
 import '../widgets/bora/bora_primary_button.dart';
 
 /// Welcome step apresentado APÓS signup cliente bem-sucedido.
@@ -19,6 +21,7 @@ class WelcomeAddressScreen extends StatefulWidget {
 class _WelcomeAddressScreenState extends State<WelcomeAddressScreen> {
   final _addressController = TextEditingController();
   bool _isSaving = false;
+  ll.LatLng? _selectedCoords;
 
   @override
   void dispose() {
@@ -38,6 +41,8 @@ class _WelcomeAddressScreenState extends State<WelcomeAddressScreen> {
       await ClientAddressService.instance.create(
         label: 'Casa',
         address: address,
+        lat: _selectedCoords?.latitude,
+        lng: _selectedCoords?.longitude,
         isDefault: true,
       );
     } catch (e) {
@@ -55,9 +60,6 @@ class _WelcomeAddressScreenState extends State<WelcomeAddressScreen> {
   }
 
   void _goHome() {
-    // popUntil first removes WelcomeAddressScreen + RegisterClientScreen
-    // from the stack. _RootNavigator then renders ClientMainScreen because
-    // session.role == client && auth.currentClient != null.
     Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
@@ -66,6 +68,7 @@ class _WelcomeAddressScreenState extends State<WelcomeAddressScreen> {
     final theme = Theme.of(context);
     return Scaffold(
       backgroundColor: AppColors.surface,
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.transparent,
@@ -77,12 +80,12 @@ class _WelcomeAddressScreenState extends State<WelcomeAddressScreen> {
         automaticallyImplyLeading: false,
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
+        child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(
             Spacing.xxl,
             Spacing.lg,
             Spacing.xxl,
-            Spacing.xxl,
+            MediaQuery.of(context).viewInsets.bottom + Spacing.xxl,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -109,16 +112,18 @@ class _WelcomeAddressScreenState extends State<WelcomeAddressScreen> {
                     ?.copyWith(color: Colors.grey.shade600),
               ),
               const SizedBox(height: Spacing.xxl),
-              TextField(
+              AddressAutocompleteField(
                 controller: _addressController,
-                textCapitalization: TextCapitalization.sentences,
-                decoration: const InputDecoration(
-                  labelText: 'Morada (opcional)',
-                  hintText: 'Rua, número, código postal',
-                  prefixIcon: Icon(Icons.home_outlined),
-                ),
-                maxLines: 2,
-                minLines: 1,
+                labelText: 'Morada (opcional)',
+                prefixIcon: const Icon(Icons.home_outlined),
+                onSelected: (address, coords) {
+                  _selectedCoords = coords;
+                },
+                onChanged: (_) {
+                  // user re-edited the field — invalidate previously
+                  // selected coords (must pick a suggestion again).
+                  _selectedCoords = null;
+                },
               ),
               const SizedBox(height: Spacing.xl),
               BoraPrimaryButton(

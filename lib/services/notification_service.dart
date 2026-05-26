@@ -189,14 +189,80 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     debugPrint('[BORA-OFFER] FCM BG heartbeat read error: $e — continua para CallKit');
   }
 
-  // Exec6.16 (2026-05-25) — bg handler NÃO chama gate.present nem mostra
-  // CallKit/CallStyle. Apenas:
-  //   1. Persistiu pending_offer (rehydrate consome quando app sobe).
-  //   2. Forward via FGS bridge (sendDataToTask) — main isolate ou FGS task
-  //      tratam de showOverlay quando vivos.
-  // ConnectyCube REMOVIDO (exec6.16). Sem CallStyle local notif aqui (FGS
-  // task isolate detecta main morto e dispara postWakeActivityNotification
-  // quando necessário — CAMADA 3 auto-revive).
+  // Exec6.20 (2026-05-26) S4 — overlay v0.4.5 não renderiza visualmente (bug
+  // do plugin; shareData/listener silent). Pivot: a notificação É o cartão.
+  // Rich notif com BigText + actions Aceitar/Rejeitar. User actua direct do
+  // banner sem precisar de overlay. fullScreenIntent acorda ecrã também.
+  try {
+    final plugin = FlutterLocalNotificationsPlugin();
+    final androidImpl = plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    await androidImpl?.createNotificationChannel(
+      const AndroidNotificationChannel(
+        'bora_orders_urgent_v3',
+        'Bora — Novos pedidos',
+        description: 'Som contínuo + vibração para novos pedidos urgentes.',
+        importance: Importance.max,
+        playSound: true,
+        sound: RawResourceAndroidNotificationSound('bora_alert'),
+        enableVibration: true,
+        showBadge: true,
+      ),
+    );
+    final androidDetails = AndroidNotificationDetails(
+      'bora_orders_urgent_v3',
+      'Bora — Novos pedidos',
+      channelDescription: 'Pedido novo — tap Aceitar ou Rejeitar.',
+      importance: Importance.max,
+      priority: Priority.max,
+      playSound: true,
+      sound: const RawResourceAndroidNotificationSound('bora_alert'),
+      enableVibration: true,
+      category: AndroidNotificationCategory.call,
+      fullScreenIntent: true,
+      ongoing: true,
+      autoCancel: false,
+      // exec6.21 — Anti-swipe + sempre expandido + alarm-style
+      onlyAlertOnce: false,
+      timeoutAfter: null,
+      ticker: '🛵 Novo pedido — €$driverEarnings',
+      visibility: fln.NotificationVisibility.public,
+      colorized: true,
+      color: const Color(0xFFE65100),
+      indeterminate: false,
+      // FLAG_INSISTENT (Android Notification flag 0x4) → som toca EM LOOP
+      // até user dismisses ou age na notif. Padrão Glovo/Uber.
+      additionalFlags: Int32List.fromList(<int>[4]),
+      styleInformation: BigTextStyleInformation(
+        '$vendorName\n💰 €$total  •  📍 ${distanceKm}km\n✅ Ganho: €$driverEarnings',
+        contentTitle: '🛵 Novo pedido!',
+        summaryText: 'Bora',
+      ),
+      actions: const <AndroidNotificationAction>[
+        // showsUserInterface: false → handler BG corre direto sem abrir app
+        AndroidNotificationAction('accept_order', '✅ Aceitar',
+            showsUserInterface: false, cancelNotification: true),
+        AndroidNotificationAction('reject_order', '❌ Rejeitar',
+            showsUserInterface: false, cancelNotification: true),
+      ],
+    );
+    await plugin.show(
+      orderId.hashCode,
+      '🛵 Novo pedido — €$driverEarnings',
+      '$vendorName • €$total • ${distanceKm}km',
+      NotificationDetails(android: androidDetails),
+      payload: jsonEncode({'orderId': orderId, 'type': 'new_order_offer'}),
+    );
+    debugPrint('[BORA-OFFER] rich offer notif posted order=$orderId');
+  } catch (e) {
+    debugPrint('[BORA-OFFER] rich offer notif error: $e');
+  }
+
+  // Exec6.18b — RESTRIÇÃO: shareData NÃO funciona no bg FCM isolate
+  // (MethodChannel x-slayer/overlay não está registado → await trava).
+  // Conclusão: este caminho está REMOVIDO daqui. Único caminho fiável é
+  // via main isolate (rehydrate loop OU realtime broadcast OU FGS task
+  // que envia sendDataToMain). Bg handler só persiste pending_offer.
 
   // 800ms delay + dedup overlay activa (caso main isolate já tenha tratado).
   await Future<void>.delayed(const Duration(milliseconds: 800));
@@ -248,6 +314,13 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 /// Traz a app para o primeiro plano — driver home screen já mostra o card
 /// de aceitar/rejeitar via Realtime.
 void _onLocalNotifTap(NotificationResponse response) {
+  // ignore: avoid_print
+  print('[NOTIF TAP] FG actionId=${response.actionId} payload=${response.payload} type=${response.notificationResponseType}');
+  // Se foi action button, delegar ao handler de BG (mesma lógica RPC).
+  if (response.actionId == 'accept_order' || response.actionId == 'reject_order') {
+    onBackgroundNotificationAction(response);
+    return;
+  }
   FlutterForegroundTask.launchApp('/');
 }
 
@@ -255,9 +328,15 @@ void _onLocalNotifTap(NotificationResponse response) {
 /// Executa aceitar/rejeitar sem abrir a app (raw HTTP — sem Supabase client).
 @pragma('vm:entry-point')
 Future<void> onBackgroundNotificationAction(NotificationResponse response) async {
+  // ignore: avoid_print
+  print('[NOTIF ACTION] ENTRY actionId=${response.actionId} payload=${response.payload} input=${response.input} notificationResponseType=${response.notificationResponseType}');
   final actionId = response.actionId;
   final payload = response.payload;
-  if (actionId == null || payload == null) return;
+  if (actionId == null || payload == null) {
+    // ignore: avoid_print
+    print('[NOTIF ACTION] SKIP — actionId or payload null');
+    return;
+  }
   try {
     final data = jsonDecode(payload) as Map<String, dynamic>;
     final orderId = data['orderId']?.toString() ?? '';
@@ -445,8 +524,9 @@ Future<void> postWakeActivityNotification({
       visibility: fln.NotificationVisibility.public,
       ticker: 'Novo pedido — €$driverEarnings',
       actions: const <AndroidNotificationAction>[
+        // showsUserInterface: false → handler BG corre direto sem abrir app
         AndroidNotificationAction('accept_order', '✅ Aceitar',
-            showsUserInterface: true, cancelNotification: true),
+            showsUserInterface: false, cancelNotification: true),
         AndroidNotificationAction('reject_order', '❌ Rejeitar',
             showsUserInterface: false, cancelNotification: true),
       ],
@@ -795,13 +875,19 @@ class NotificationService {
   void _startRehydrateLoop() {
     Timer.periodic(const Duration(milliseconds: 600), (t) async {
       try {
-        if (t.tick > 100) {
-          // 60s cap — desiste para não vazar Timer.
-          t.cancel();
-          return;
-        }
-        if (navigatorKey.currentState == null) return;
+        // Exec6.17 (2026-05-25) — REMOVIDO cap de 60s. O rehydrate loop é o
+        // único caminho fiável para consumir pending_offer escrito pelo FCM bg
+        // handler ou FGS task isolate. Sempre vivo. Custo: 1 SP read a cada 600ms.
+        // Exec6.18 (2026-05-25) — REMOVIDO guard `navigatorKey.currentState == null`:
+        // em BG o navigator pode parecer null mas FlutterOverlayWindow.showOverlay
+        // (caminho do _showOverlay) NÃO precisa de navigator — só do plugin
+        // registado no main isolate. Guard estava a bloquear consume em BG.
         final prefs = await SharedPreferences.getInstance();
+        // Exec6.18c — CRÍTICO: reload força refresh do cache. bg isolate
+        // escreve pending_offer mas main isolate tem cache stale → sem
+        // reload() este loop NUNCA via o write. Causa-raiz do "rehydrate
+        // não consome" em todos os testes anteriores.
+        await prefs.reload();
         final pending = prefs.getString('pending_offer');
         if (pending == null || pending.isEmpty) {
           // Sem oferta pendente — espera mais um pouco. Não cancelar:
@@ -936,35 +1022,49 @@ class NotificationService {
         debugPrint('[NotificationService] showDriverOfferOverlay: sem permissão SYSTEM_ALERT_WINDOW');
         return;
       }
+      // Exec6.19 (2026-05-26) — ABANDONADO o caminho "standby + shareData".
+      // shareData estava a chegar ao plugin nativo mas o widget overlay não
+      // recebia (listener silencioso, sem [OVERLAY] _onData logs). Causa
+      // provável: widget unmounted após ciclo anterior, isActive=true mas
+      // sem listener vivo. Solução: close + showOverlay fresh sempre.
       final alreadyActive = await fow.FlutterOverlayWindow.isActive();
-      if (alreadyActive) {
-        // Overlay em standby — activar (remover click-through) + enviar dados.
-        // Exec6.13 (2026-05-25) — updateFlag pode lançar MissingPluginException
-        // em flutter_overlay_window v0.4.5; capturado p/ não bloquear shareData.
+      debugPrint('[OVERLAY-MAIN] isActive=$alreadyActive');
+      // CRITICAL exec6.19d (2026-05-26): NÃO fazer close+reopen quando isActive.
+      // Close DESTRÓI o widget + listener mounted (initDriverStandbyOverlay).
+      // Reabrir cria isolate fresco mas shareData chega ANTES do listener
+      // resubscrever → evento perdido → overlay nunca renderiza.
+      // Solução: se isActive, REUTILIZAR overlay existente (listener já vivo)
+      // + shareData fire-and-forget direto.
+      if (!alreadyActive) {
+        debugPrint('[OVERLAY-MAIN] not active → showOverlay() to create');
         try {
-          await fow.FlutterOverlayWindow.updateFlag(fow.OverlayFlag.defaultFlag);
+          await fow.FlutterOverlayWindow.showOverlay(
+            enableDrag: false,
+            overlayTitle: 'Novo pedido!',
+            overlayContent: vendorName,
+            flag: fow.OverlayFlag.defaultFlag,
+            visibility: fow.NotificationVisibility.visibilityPublic,
+            positionGravity: fow.PositionGravity.auto,
+            height: 420,
+            width: fow.WindowSize.matchParent,
+          );
+          debugPrint('[OVERLAY-MAIN] showOverlay returned OK');
         } catch (e) {
-          debugPrint('[NotificationService] updateFlag(defaultFlag) falhou no plugin v0.4.5: $e — continuando para shareData');
+          debugPrint('[OVERLAY-MAIN] showOverlay EXCEPTION: $e');
+          rethrow;
         }
-        await fow.FlutterOverlayWindow.shareData(payload);
-        debugPrint('[NotificationService] showDriverOfferOverlay: standby→active order=$orderId');
-        return;
+        // Wait widget mount + listener subscribe (overlayListener stream).
+        await Future<void>.delayed(const Duration(milliseconds: 1200));
+      } else {
+        debugPrint('[OVERLAY-MAIN] already active → reusing existing widget+listener');
       }
-      // Fallback: overlay não está activo (p.ex. driver foi online sem
-      // initDriverStandbyOverlay ter sido chamado). Tenta showOverlay().
-      await fow.FlutterOverlayWindow.showOverlay(
-        enableDrag: false,
-        overlayTitle: 'Novo pedido!',
-        overlayContent: vendorName,
-        flag: fow.OverlayFlag.defaultFlag,
-        visibility: fow.NotificationVisibility.visibilityPublic,
-        positionGravity: fow.PositionGravity.auto,
-        height: 420,
-        width: fow.WindowSize.matchParent,
-      );
-      await Future<void>.delayed(const Duration(milliseconds: 300));
-      await fow.FlutterOverlayWindow.shareData(payload);
-      debugPrint('[NotificationService] showDriverOfferOverlay: fallback shown order=$orderId');
+      debugPrint('[OVERLAY-MAIN] about to call shareData (fire-and-forget)');
+      fow.FlutterOverlayWindow.shareData(payload).then((res) {
+        debugPrint('[OVERLAY-MAIN] shareData completed (async): $res');
+      }).catchError((e) {
+        debugPrint('[OVERLAY-MAIN] shareData EXCEPTION (async): $e');
+      });
+      debugPrint('[OVERLAY-MAIN] shareData fired (não await)');
     } catch (e) {
       debugPrint('[NotificationService] showDriverOfferOverlay error: $e');
     }

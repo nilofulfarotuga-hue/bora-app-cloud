@@ -104,13 +104,16 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
-        <!-- flutter_foreground_task v8.x — serviço necessário para foreground
-             service real (driver online + parceiro loja aberta). Sem esta
-             declaração startService() falha silenciosamente em Android 8+.
-             foregroundServiceType=dataSync corresponde à permissão
-             FOREGROUND_SERVICE_DATA_SYNC já declarada acima. -->
+        <!-- flutter_foreground_task v8.17 — service DEVE ser declarado manualmente
+             aqui (o próprio package SÓ declara receivers — RebootReceiver,
+             RestartReceiver — confirmado em pub cache).
+             Exec6.17 BUGFIX (2026-05-25): nome anterior 'com.foregroundtask.
+             FlutterForegroundTaskService' era do v6/v7 e apontava para classe
+             inexistente em v8 → startService retornava true mas service NUNCA
+             arrancava (isRunningService=false em todos os testes).
+             Nome correcto v8: com.pravera.flutter_foreground_task.service.ForegroundService -->
         <service
-            android:name="com.foregroundtask.FlutterForegroundTaskService"
+            android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
             android:exported="false"
             android:stopWithTask="false"
             android:foregroundServiceType="dataSync|remoteMessaging"/>

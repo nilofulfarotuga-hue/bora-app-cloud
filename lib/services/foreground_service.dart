@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter_overlay_window/flutter_overlay_window.dart' as fow;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'notification_service.dart' show postWakeActivityNotification;
@@ -383,13 +384,41 @@ class _BoraTaskHandler extends TaskHandler {
       FlutterForegroundTask.sendDataToMain(data);
       debugPrint('[FGS_BRIDGE] [BoraTaskHandler.onReceiveData] sendDataToMain OK');
     } catch (e, st) {
-      debugPrint('[FGS_BRIDGE] [BoraTaskHandler.onReceiveData] sendDataToMain EXCEPTION: $e');
+      debugPrint('[FGS_BRIDGE] sendDataToMain EXCEPTION: $e');
       debugPrint('[FGS_BRIDGE] stack: ${st.toString().split("\n").take(3).join(" | ")}');
     }
-    // Exec6.16 CAMADA 3 auto-revive — async fire-and-forget.
+    // Exec6.18 S2 — tentar shareData directamente do FGS task isolate.
+    // Overlay já em standby (driver_home_screen initDriverStandbyOverlay).
+    // Se plugin registado neste isolate, overlay aparece sem depender do main.
     if (data is Map) {
-      final asString = Map<String, dynamic>.from(data);
-      _wakeActivityIfMainDead(asString);
+      final m = Map<String, dynamic>.from(data);
+      _tryShareDataToOverlay(m);
+      _wakeActivityIfMainDead(m);
+    }
+  }
+
+  Future<void> _tryShareDataToOverlay(Map<String, dynamic> payload) async {
+    try {
+      final granted = await fow.FlutterOverlayWindow.isPermissionGranted();
+      if (!granted) {
+        debugPrint('[FGS_OVERLAY] sem permissão SYSTEM_ALERT_WINDOW');
+        return;
+      }
+      final active = await fow.FlutterOverlayWindow.isActive();
+      if (!active) {
+        debugPrint('[FGS_OVERLAY] overlay NOT active — standby ausente');
+        return;
+      }
+      await fow.FlutterOverlayWindow.shareData(<String, dynamic>{
+        'orderId': payload['orderId']?.toString() ?? '',
+        'vendorName': payload['vendorName']?.toString() ?? 'Novo pedido',
+        'total': payload['total']?.toString() ?? '0.00',
+        'distanceKm': payload['distanceKm']?.toString() ?? '0',
+        'driverEarnings': payload['driverEarnings']?.toString() ?? '0.00',
+      });
+      debugPrint('[FGS_OVERLAY] shareData OK order=${payload['orderId']}');
+    } catch (e) {
+      debugPrint('[FGS_OVERLAY] shareData FAILED: $e');
     }
   }
 

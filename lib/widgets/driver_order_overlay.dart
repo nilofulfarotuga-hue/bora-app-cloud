@@ -35,6 +35,7 @@ const _kBoraOrange = Color(0xFFE65100);
 @pragma('vm:entry-point')
 void overlayMain() {
   WidgetsFlutterBinding.ensureInitialized();
+  debugPrint('[OVERLAY] overlayMain() ENTRY — overlay isolate ARRANCOU');
   runApp(const _DriverOrderOverlayApp());
 }
 
@@ -75,14 +76,20 @@ class _DriverOrderOverlayState extends State<_DriverOrderOverlay> {
   @override
   void initState() {
     super.initState();
+    debugPrint('[OVERLAY] _DriverOrderOverlayState.initState — subscribing to overlayListener');
     _sub = FlutterOverlayWindow.overlayListener.listen(_onData);
+    debugPrint('[OVERLAY] listener subscribed — waiting for shareData');
     // NÃO iniciar countdown aqui — aguardar dados via shareData.
     // O overlay arranca em standby (invisível, click-through) quando
     // o driver vai Online; o countdown começa quando chega um orderId.
   }
 
   void _onData(dynamic data) {
-    if (data is! Map) return;
+    debugPrint('[OVERLAY] _onData received: $data');
+    if (data is! Map) {
+      debugPrint('[OVERLAY] _onData SKIP — não é Map');
+      return;
+    }
     final newOrderId = data['orderId']?.toString();
     final action = data['action']?.toString();
 
@@ -94,6 +101,7 @@ class _DriverOrderOverlayState extends State<_DriverOrderOverlay> {
     }
 
     if (newOrderId != null && newOrderId.isNotEmpty) {
+      debugPrint('[OVERLAY] orderId=$newOrderId → setState + updateFlag(defaultFlag) + startCountdown');
       _timer?.cancel();
       setState(() {
         _orderId = newOrderId;

@@ -367,7 +367,7 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
         setState(() => _isSubmitting = false);
         debugPrint('[RegisterPartnerScreen] registerPartnerWithDocumentsAsync returned null');
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Erro ao criar restaurante (auth ou EF falhou). Verifica logs.')),
+          SnackBar(content: Text('Erro: Verifica email/password ou contacta support. Detalhes nos logs.')),
         );
         return;
       }

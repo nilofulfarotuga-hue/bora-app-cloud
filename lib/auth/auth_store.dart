@@ -1045,6 +1045,7 @@ class AuthStore extends ChangeNotifier {
     );
 
     if (authError != null) {
+      debugPrint('[AuthStore] registerPartnerWithDocumentsAsync: registerPartnerAsync failed => $authError');
       return null; // Erro já foi retornado ao caller
     }
 

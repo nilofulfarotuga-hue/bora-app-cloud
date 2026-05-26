@@ -365,8 +365,9 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
       if (result == null) {
         if (!mounted) return;
         setState(() => _isSubmitting = false);
+        debugPrint('[RegisterPartnerScreen] registerPartnerWithDocumentsAsync returned null');
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Erro ao criar restaurante. Tente novamente.')),
+          const SnackBar(content: Text('Erro ao criar restaurante (auth ou EF falhou). Verifica logs.')),
         );
         return;
       }
@@ -424,9 +425,10 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
         ),
       ),
       body: SafeArea(
-        child: Stepper(
-          currentStep: _currentStep,
-          onStepContinue: () {
+        child: SingleChildScrollView(
+          child: Stepper(
+            currentStep: _currentStep,
+            onStepContinue: () {
             if (_currentStep == 0 && !_validateStep1()) return;
             if (_currentStep == 2 && !_validateStep3()) return;
             if (_currentStep < 3) {
@@ -744,6 +746,7 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
               ),
             ),
           ],
+          ),
         ),
       ),
     );

@@ -33,8 +33,8 @@ function validateNif(nif: string): boolean {
 
 function validateIban(iban: string): boolean {
   if (!iban) return false;
-  // Simple IBAN format check: PT + 24 chars
-  return /^PT\d{22}$/.test(iban.toUpperCase().replace(/\s/g, ""));
+  // Portuguese IBAN: PT + 21 digits (23 chars total)
+  return /^PT\d{21}$/.test(iban.toUpperCase().replace(/\s/g, ""));
 }
 
 Deno.serve(async (req: Request) => {
@@ -91,7 +91,7 @@ Deno.serve(async (req: Request) => {
     if (body.iban && !validateIban(body.iban)) {
       return new Response(
         JSON.stringify({
-          error: "IBAN formato inválido (PT + 22 dígitos)",
+          error: "IBAN formato inválido (PT + 21 dígitos)",
         }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );

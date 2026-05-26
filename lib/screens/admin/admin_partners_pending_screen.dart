@@ -190,6 +190,30 @@ class _AdminPartnersPendingScreenState
                   const SizedBox(height: 12),
                 ],
 
+                // Logo
+                if ((r['photo_url'] as String?)?.isNotEmpty ?? false) ...[
+                  const Text('Logo do Restaurante:',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Container(
+                    height: 150,
+                    width: double.maxFinite,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Image.network(
+                      r['photo_url'] as String,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => Center(
+                        child: Text('Não conseguiu carregar a imagem',
+                            style: TextStyle(color: Colors.red.shade700)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+
                 // Owner Document
                 if ((r['owner_doc_url'] as String?)?.isNotEmpty ?? false) ...[
                   const Text('Documento Proprietário:',

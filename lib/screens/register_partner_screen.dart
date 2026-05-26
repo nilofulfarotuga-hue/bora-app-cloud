@@ -14,7 +14,6 @@ import '../config/app_spacing.dart';
 import '../models/restaurant_model.dart';
 import '../stores/partner_product_store.dart';
 import '../stores/restaurant_store.dart';
-import '../stores/session_store.dart';
 import '../widgets/address_autocomplete_field.dart';
 import '../widgets/bora/bora_primary_button.dart';
 import '../widgets/terms_link_text.dart';
@@ -388,14 +387,11 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
         }
       }
 
-      // Set role após signup sucesso (igual a RegisterClientScreen)
-      final sessionStore = context.read<SessionStore>();
-      await sessionStore.setRole(UserRole.partner);
-
       if (!mounted) return;
       setState(() => _isSubmitting = false);
 
-      // Navega para PendingApprovalScreen
+      // Navega para PendingApprovalScreen (não muda role aqui — PendingApprovalScreen
+      // oferece opção de "Gerir a Minha Loja" que chama setRole quando necessário)
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (_) => const PendingApprovalScreen(),

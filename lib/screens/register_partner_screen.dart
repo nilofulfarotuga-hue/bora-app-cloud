@@ -388,6 +388,10 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
         }
       }
 
+      // Set role após signup sucesso (igual a RegisterClientScreen)
+      final sessionStore = context.read<SessionStore>();
+      await sessionStore.setRole(UserRole.partner);
+
       if (!mounted) return;
       setState(() => _isSubmitting = false);
 

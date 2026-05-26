@@ -43,15 +43,29 @@ class _AdminPartnersPendingScreenState
       _error = null;
     });
     try {
-      final r = await Supabase.instance.client.rpc(
-        'list_partners_by_status',
-        params: {'p_status': _filter},
-      );
-      if (!mounted) return;
-      setState(() {
-        _rows = List<Map<String, dynamic>>.from(r as List);
-        _loading = false;
-      });
+      // Tenta admin_list_partners_detailed (novo); fallback para list_partners_by_status (compatibilidade)
+      try {
+        final r = await Supabase.instance.client.rpc(
+          'admin_list_partners_detailed',
+          params: {'p_status': _filter},
+        );
+        if (!mounted) return;
+        setState(() {
+          _rows = List<Map<String, dynamic>>.from(r as List);
+          _loading = false;
+        });
+      } catch (e) {
+        debugPrint('admin_list_partners_detailed não existe, usando fallback: $e');
+        final r = await Supabase.instance.client.rpc(
+          'list_partners_by_status',
+          params: {'p_status': _filter},
+        );
+        if (!mounted) return;
+        setState(() {
+          _rows = List<Map<String, dynamic>>.from(r as List);
+          _loading = false;
+        });
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -148,6 +162,100 @@ class _AdminPartnersPendingScreenState
         SnackBar(content: Text('Erro: $e')),
       );
     }
+  }
+
+  void _showDocumentsDialog(Map<String, dynamic> r) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Documentos — ${r['name']}'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // NIF e IBAN
+                if ((r['nif'] as String?)?.isNotEmpty ?? false) ...[
+                  const Text('NIF:',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text(r['nif'] as String),
+                  const SizedBox(height: 12),
+                ],
+                if ((r['iban'] as String?)?.isNotEmpty ?? false) ...[
+                  const Text('IBAN:',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text(r['iban'] as String),
+                  const SizedBox(height: 12),
+                ],
+
+                // Owner Document
+                if ((r['owner_doc_url'] as String?)?.isNotEmpty ?? false) ...[
+                  const Text('Documento Proprietário:',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Container(
+                    height: 150,
+                    width: double.maxFinite,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Image.network(
+                      r['owner_doc_url'] as String,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => Center(
+                        child: Text('Não conseguiu carregar a imagem',
+                            style: TextStyle(color: Colors.red.shade700)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+
+                // Activity Document
+                if ((r['activity_doc_url'] as String?)?.isNotEmpty ?? false) ...[
+                  const Text('Documento Atividade:',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Container(
+                    height: 150,
+                    width: double.maxFinite,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Image.network(
+                      r['activity_doc_url'] as String,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => Center(
+                        child: Text('Não conseguiu carregar a imagem',
+                            style: TextStyle(color: Colors.red.shade700)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+
+                if (((r['nif'] as String?)?.isEmpty ?? true) &&
+                    ((r['iban'] as String?)?.isEmpty ?? true) &&
+                    ((r['owner_doc_url'] as String?)?.isEmpty ?? true) &&
+                    ((r['activity_doc_url'] as String?)?.isEmpty ?? true))
+                  const Text('Nenhum documento fornecido.',
+                      style: TextStyle(color: Colors.grey)),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Fechar'),
+          ),
+        ],
+      ),
+    );
   }
 
   Color _statusColor(String? s) => switch (s) {
@@ -367,6 +475,14 @@ class _AdminPartnersPendingScreenState
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.description, size: 18),
+                  label: const Text('Ver Docs'),
+                  style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.blue.shade700),
+                  onPressed: () => _showDocumentsDialog(r),
+                ),
+                const SizedBox(width: 8),
                 if (status != 'approved')
                   OutlinedButton.icon(
                     icon: const Icon(Icons.check_circle, size: 18),

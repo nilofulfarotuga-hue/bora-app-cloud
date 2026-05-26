@@ -1011,6 +1011,80 @@ class AuthStore extends ChangeNotifier {
     }
   }
 
+  /// Novo: registra parceiro com documentos (NIF, IBAN, owner_doc_url, activity_doc_url).
+  /// Documentos são OPCIONAIS — validação de formato só se preenchidos.
+  /// Workflow: 1) registerPartnerAsync (cria auth user) → 2) invocar Edge Function
+  /// register-partner (insere restaurants com approval_status='pending').
+  /// Retorna { restaurantId, approvalStatus } ou erro.
+  Future<Map<String, dynamic>?> registerPartnerWithDocumentsAsync({
+    required String restaurantName,
+    required String address,
+    required String phone,
+    required String email,
+    required String password,
+    required String cuisineType,
+    required String category,
+    double? lat,
+    double? lng,
+    String? nif,
+    String? iban,
+    String? ownerDocUrl,
+    String? activityDocUrl,
+    DateTime? consentAcceptedAt,
+  }) async {
+    // Step 1: Cria auth user via registerPartnerAsync
+    final authError = await registerPartnerAsync(
+      restaurantName: restaurantName,
+      address: address,
+      phone: phone,
+      email: email,
+      password: password,
+      photoUrl: '',
+      cuisineType: cuisineType,
+      consentAcceptedAt: consentAcceptedAt,
+    );
+
+    if (authError != null) {
+      return null; // Erro já foi retornado ao caller
+    }
+
+    // Step 2: Invoca Edge Function register-partner c/ service_role
+    try {
+      final response = await _supabase.functions.invoke(
+        'register-partner',
+        body: {
+          'restaurantName': restaurantName,
+          'address': address,
+          'phone': phone,
+          'email': email,
+          'cuisineType': cuisineType,
+          'category': category,
+          'lat': lat,
+          'lng': lng,
+          'nif': nif,
+          'iban': iban,
+          'ownerDocUrl': ownerDocUrl,
+          'activityDocUrl': activityDocUrl,
+        },
+      );
+
+      if (response.status != 201) {
+        debugPrint('[AuthStore] register-partner EF returned ${response.status}: ${response.data}');
+        return null;
+      }
+
+      final data = Map<String, dynamic>.from(response.data as Map);
+      return {
+        'restaurant_id': data['restaurant_id'],
+        'approval_status': data['status'],
+        'message': data['message'],
+      };
+    } catch (e) {
+      debugPrint('[AuthStore] registerPartnerWithDocumentsAsync: register-partner EF failed => $e');
+      return null;
+    }
+  }
+
   bool loginPartner(String email, String password) {
     final account = _partnersByEmail[email.trim().toLowerCase()];
     if (account == null || account.password != password) return false;

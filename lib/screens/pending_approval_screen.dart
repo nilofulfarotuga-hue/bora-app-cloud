@@ -111,9 +111,11 @@ class PendingApprovalScreen extends StatelessWidget {
               BoraPrimaryButton(
                 label: 'Gerir a Minha Loja',
                 color: AppColors.primary,
-                onPressed: () {
-                  sessionStore.setRole(UserRole.partner);
-                  Navigator.of(context).popUntil((route) => route.isFirst);
+                onPressed: () async {
+                  await sessionStore.setRole(UserRole.partner);
+                  if (context.mounted) {
+                    Navigator.of(context).popUntil((route) => route.isFirst);
+                  }
                 },
               ),
               const SizedBox(height: Spacing.md),

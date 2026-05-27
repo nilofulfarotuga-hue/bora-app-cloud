@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../auth/auth_store.dart';
@@ -31,6 +32,23 @@ class _DriverLoginScreenState extends State<DriverLoginScreen> {
   );
   bool _isProcessing = false;
   bool _obscurePassword = true;
+  bool _hasPendingDraft = false;
+
+  static const _kDraftKey = 'bora_app.signup_draft.driver';
+
+  @override
+  void initState() {
+    super.initState();
+    _checkPendingDraft();
+  }
+
+  Future<void> _checkPendingDraft() async {
+    final prefs = await SharedPreferences.getInstance();
+    final name = prefs.getString('$_kDraftKey.name') ?? '';
+    if (name.isNotEmpty && mounted) {
+      setState(() => _hasPendingDraft = true);
+    }
+  }
 
   @override
   void dispose() {
@@ -54,6 +72,37 @@ class _DriverLoginScreenState extends State<DriverLoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                if (_hasPendingDraft)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: Material(
+                      color: AppColors.accent.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: _goToSignup,
+                        child: const Padding(
+                          padding: EdgeInsets.all(14),
+                          child: Row(
+                            children: [
+                              Icon(Icons.edit_note, color: AppColors.accent),
+                              SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  'Tens uma candidatura em progresso. Continuar?',
+                                  style: TextStyle(
+                                    color: AppColors.accent,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              Icon(Icons.arrow_forward_ios, size: 16, color: AppColors.accent),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 const SizedBox(height: 32),
 
                 // ── Logo ──────────────────────────────────────────────

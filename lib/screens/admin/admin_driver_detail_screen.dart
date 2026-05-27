@@ -66,6 +66,7 @@ class _AdminDriverDetailScreenState extends State<AdminDriverDetailScreen>
 
   static const _extendedDriverCols = '$_baseDriverCols, '
       'document_type, document_number, document_photo_url, vehicle_photo_url, '
+      'vehicle_doc_url, address, submitted_at, reviewed_at, '
       'mbway_phone, rejection_reason, last_heartbeat_at, rating, total_deliveries';
 
   Future<void> _refresh() async {
@@ -574,12 +575,24 @@ class _InfoCard extends StatelessWidget {
           _row(Icons.two_wheeler, 'Veículo',
               '${driver['vehicle_type'] ?? '—'}'
               '${driver['license_plate'] != null && (driver['license_plate'] as String).isNotEmpty ? " · ${driver['license_plate']}" : ""}'),
+          _row(Icons.location_on_outlined, 'Morada', driver['address'] ?? '—'),
           _row(Icons.account_balance, 'IBAN', driver['iban'] ?? '—'),
           _row(Icons.phone_android, 'MBWay', driver['mbway_phone'] ?? '—'),
           _row(Icons.badge_outlined, 'NIF', driver['nif'] ?? '—'),
+          if (driver['submitted_at'] != null)
+            _row(Icons.send, 'Submetido', _formatTs(driver['submitted_at'])),
+          if (driver['reviewed_at'] != null)
+            _row(Icons.check_circle_outline, 'Revisto', _formatTs(driver['reviewed_at'])),
         ]),
       ),
     );
+  }
+
+  String _formatTs(dynamic ts) {
+    if (ts == null) return '—';
+    final dt = DateTime.tryParse(ts.toString());
+    if (dt == null) return ts.toString();
+    return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
   }
 
   Widget _row(IconData icon, String label, dynamic value) {
@@ -608,11 +621,13 @@ class _DocumentsCard extends StatelessWidget {
     final docType = driver['document_type'] as String?;
     final docNumber = driver['document_number'] as String?;
     final docPhoto = driver['document_photo_url'] as String?;
+    final vehicleDocPhoto = driver['vehicle_doc_url'] as String?;
     final vehiclePhoto = driver['vehicle_photo_url'] as String?;
 
     final hasAny = (docType != null && docType.isNotEmpty) ||
         (docNumber != null && docNumber.isNotEmpty) ||
         (docPhoto != null && docPhoto.isNotEmpty) ||
+        (vehicleDocPhoto != null && vehicleDocPhoto.isNotEmpty) ||
         (vehiclePhoto != null && vehiclePhoto.isNotEmpty);
     if (!hasAny) return const SizedBox.shrink();
 
@@ -638,6 +653,16 @@ class _DocumentsCard extends StatelessWidget {
                       fontSize: 12)),
               const SizedBox(height: 6),
               _ZoomableImage(url: docPhoto),
+            ],
+            if (vehicleDocPhoto != null && vehicleDocPhoto.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              const Text('Documento do veículo',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textSecondary,
+                      fontSize: 12)),
+              const SizedBox(height: 6),
+              _ZoomableImage(url: vehicleDocPhoto),
             ],
             if (vehiclePhoto != null && vehiclePhoto.isNotEmpty) ...[
               const SizedBox(height: 12),

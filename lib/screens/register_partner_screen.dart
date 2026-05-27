@@ -63,7 +63,24 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
   @override
   void initState() {
     super.initState();
+    _recoverLostImage();
     _restoreDraft();
+  }
+
+  Future<void> _recoverLostImage() async {
+    final lost = await _imagePicker.retrieveLostData();
+    if (lost.isEmpty || !mounted) return;
+    final file = lost.file;
+    if (file == null) return;
+    setState(() {
+      if (_ownerDocFile == null) {
+        _ownerDocFile = file;
+      } else if (_activityDocFile == null) {
+        _activityDocFile = file;
+      } else {
+        _logoFile = file;
+      }
+    });
   }
 
   @override

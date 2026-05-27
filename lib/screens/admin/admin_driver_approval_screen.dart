@@ -31,8 +31,9 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
   static const _columns =
       'id, name, phone, email, vehicle_type, license_plate, photo_url, '
       'document_type, document_number, document_photo_url, vehicle_photo_url, '
-      'registration_selfie_url, nif, '
-      'iban, approval_status, rejection_reason, created_at';
+      'vehicle_doc_url, registration_selfie_url, nif, '
+      'iban, mbway_phone, address, approval_status, rejection_reason, '
+      'submitted_at, reviewed_at, created_at';
 
   @override
   void initState() {

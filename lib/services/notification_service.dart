@@ -56,38 +56,124 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       'orderId=${data['orderId']} '
       'notif=${message.notification?.title}');
 
-  // ── Parceiro: novo pedido em background ─────────────────────────────────
-  if (data['type'] == 'new_order') {
-    final orderId = data['orderId']?.toString() ?? '';
-    final items = data['items']?.toString() ?? 'Novo pedido';
-    final total = data['total']?.toString() ?? '0.00';
+  // ── Chat: nova mensagem em background (exec6.23) ───────────────────────
+  // Antes: caía no default sound-only sem notificação visual → user perdia
+  // mensagens. Agora rich notif c/ BigText + Responder + canal v3 + som.
+  if (data['type'] == 'chat' || data['type'] == 'chat_message') {
+    final orderId = data['order_id']?.toString() ?? data['orderId']?.toString() ?? '';
+    final messageId = data['message_id']?.toString() ?? '';
+    final senderType = data['sender_type']?.toString() ?? '';
+    final senderName = data['sender_name']?.toString() ?? data['senderName']?.toString() ?? '';
+    final bodyMsg = data['body']?.toString() ?? data['message']?.toString() ?? 'Nova mensagem';
+    final title = data['title']?.toString() ?? '💬 Nova mensagem';
     try {
       final plugin = FlutterLocalNotificationsPlugin();
       final androidImpl = plugin.resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>();
       await androidImpl?.createNotificationChannel(
         const AndroidNotificationChannel(
-          'bora_partner_orders',
-          'Bora — Pedidos parceiro',
-          description: 'Notificações de novos pedidos para parceiros',
+          'bora_orders_urgent_v3',
+          'Bora — Novos pedidos',
+          description: 'Som contínuo + vibração para novos pedidos e mensagens.',
           importance: Importance.max,
           playSound: true,
           sound: RawResourceAndroidNotificationSound('bora_alert'),
           enableVibration: true,
+          showBadge: true,
         ),
       );
-      const androidDetails = AndroidNotificationDetails(
-        'bora_partner_orders',
-        'Bora — Pedidos parceiro',
-        channelDescription: 'Notificações de novos pedidos para parceiros',
+      final androidDetails = AndroidNotificationDetails(
+        'bora_orders_urgent_v3',
+        'Bora — Novos pedidos',
+        channelDescription: 'Mensagem nova — tap para responder.',
         importance: Importance.max,
         priority: Priority.max,
         playSound: true,
-        sound: RawResourceAndroidNotificationSound('bora_alert'),
+        sound: const RawResourceAndroidNotificationSound('bora_alert'),
         enableVibration: true,
+        category: AndroidNotificationCategory.message,
+        fullScreenIntent: false,
+        ongoing: false,
         autoCancel: true,
+        onlyAlertOnce: false,
+        ticker: 'Mensagem de ${senderName.isNotEmpty ? senderName : "alguém"}',
         visibility: fln.NotificationVisibility.public,
-        actions: <AndroidNotificationAction>[
+        styleInformation: BigTextStyleInformation(
+          bodyMsg,
+          contentTitle: senderName.isNotEmpty ? '💬 $senderName' : title,
+          summaryText: 'Bora chat',
+        ),
+      );
+      await plugin.show(
+        messageId.isNotEmpty ? messageId.hashCode : orderId.hashCode,
+        senderName.isNotEmpty ? '💬 $senderName' : title,
+        bodyMsg,
+        NotificationDetails(android: androidDetails),
+        payload: jsonEncode({
+          'orderId': orderId,
+          'type': 'chat',
+          'sender_type': senderType,
+          'message_id': messageId,
+        }),
+      );
+      debugPrint('[FCM BG] chat rich notif posted msg=$messageId order=$orderId');
+    } catch (e) {
+      debugPrint('[FCM BG] chat notif error: $e');
+    }
+    return;
+  }
+
+  // ── Parceiro: novo pedido em background ─────────────────────────────────
+  if (data['type'] == 'new_order') {
+    final orderId = data['orderId']?.toString() ?? '';
+    final items = data['items']?.toString() ?? 'Novo pedido';
+    final total = data['total']?.toString() ?? '0.00';
+    final customer = data['customerName']?.toString() ?? '';
+    try {
+      final plugin = FlutterLocalNotificationsPlugin();
+      final androidImpl = plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      // Exec6.22 (2026-05-26) — partner alinhado com canal v3 unificado
+      // (mesmo do driver). Notif PERSISTENTE c/ FLAG_INSISTENT (som loop) +
+      // BigText (items + cliente + total) + actions Aceitar/Rejeitar via
+      // RPCs partner_accept_order / partner_reject_order. Padrão Uber.
+      await androidImpl?.createNotificationChannel(
+        const AndroidNotificationChannel(
+          'bora_orders_urgent_v3',
+          'Bora — Novos pedidos',
+          description: 'Som contínuo + vibração para novos pedidos urgentes.',
+          importance: Importance.max,
+          playSound: true,
+          sound: RawResourceAndroidNotificationSound('bora_alert'),
+          enableVibration: true,
+          showBadge: true,
+        ),
+      );
+      final androidDetails = AndroidNotificationDetails(
+        'bora_orders_urgent_v3',
+        'Bora — Novos pedidos',
+        channelDescription: 'Pedido novo — tap Aceitar ou Rejeitar.',
+        importance: Importance.max,
+        priority: Priority.max,
+        playSound: true,
+        sound: const RawResourceAndroidNotificationSound('bora_alert'),
+        enableVibration: true,
+        category: AndroidNotificationCategory.call,
+        fullScreenIntent: true,
+        ongoing: true,
+        autoCancel: false,
+        onlyAlertOnce: false,
+        ticker: '🔔 Novo pedido — €$total',
+        visibility: fln.NotificationVisibility.public,
+        colorized: true,
+        color: const Color(0xFF2E7D32),
+        styleInformation: BigTextStyleInformation(
+          '$items${customer.isNotEmpty ? "\n👤 $customer" : ""}\n💰 Total: €$total',
+          contentTitle: '🔔 Novo pedido!',
+          summaryText: 'Bora — Loja',
+        ),
+        additionalFlags: Int32List.fromList(<int>[4]),
+        actions: const <AndroidNotificationAction>[
           AndroidNotificationAction('accept_partner_order', '✅ Aceitar',
               showsUserInterface: false, cancelNotification: true),
           AndroidNotificationAction('reject_partner_order', '❌ Rejeitar',
@@ -96,12 +182,12 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       );
       await plugin.show(
         orderId.isNotEmpty ? orderId.hashCode : 9999,
-        '🔔 Novo pedido!',
-        '$items • €$total',
-        const NotificationDetails(android: androidDetails),
+        '🔔 Novo pedido — €$total',
+        '$items${customer.isNotEmpty ? " • $customer" : ""}',
+        NotificationDetails(android: androidDetails),
         payload: jsonEncode({'orderId': orderId, 'type': 'new_order'}),
       );
-      debugPrint('[FCM BG] partner new_order notif shown order=$orderId');
+      debugPrint('[FCM BG] partner rich notif posted order=$orderId');
     } catch (e) {
       debugPrint('[FCM BG] partner notif error: $e');
     }
@@ -419,23 +505,25 @@ Future<void> onBackgroundNotificationAction(NotificationResponse response) async
       await prefs.remove('pending_offer');
       debugPrint('[NOTIF ACTION] reject_order OK order=$orderId');
     } else if (actionId == 'accept_partner_order') {
-      await http
-          .patch(
-            Uri.parse('$supabaseUrl/rest/v1/orders?id=eq.$orderId'),
-            headers: headers,
-            body: jsonEncode({'status': 'preparing'}),
+      // Exec6.22 — RPC partner_accept_order (SECURITY DEFINER, atomic).
+      // Valida status='created' antes de transitar p/ 'preparing'.
+      final res = await http
+          .post(
+            Uri.parse('$supabaseUrl/rest/v1/rpc/partner_accept_order'),
+            headers: {...headers, 'Prefer': 'return=representation'},
+            body: jsonEncode({'p_order_id': orderId}),
           )
           .timeout(const Duration(seconds: 5));
-      debugPrint('[NOTIF ACTION] accept_partner_order OK order=$orderId');
+      debugPrint('[NOTIF ACTION] partner_accept_order ${res.statusCode} body=${res.body}');
     } else if (actionId == 'reject_partner_order') {
-      await http
-          .patch(
-            Uri.parse('$supabaseUrl/rest/v1/orders?id=eq.$orderId'),
-            headers: headers,
-            body: jsonEncode({'status': 'rejected'}),
+      final res = await http
+          .post(
+            Uri.parse('$supabaseUrl/rest/v1/rpc/partner_reject_order'),
+            headers: {...headers, 'Prefer': 'return=representation'},
+            body: jsonEncode({'p_order_id': orderId}),
           )
           .timeout(const Duration(seconds: 5));
-      debugPrint('[NOTIF ACTION] reject_partner_order OK order=$orderId');
+      debugPrint('[NOTIF ACTION] partner_reject_order ${res.statusCode} body=${res.body}');
     }
   } catch (e) {
     debugPrint('[NOTIF ACTION] error: $e');

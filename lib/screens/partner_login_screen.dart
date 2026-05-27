@@ -8,6 +8,7 @@ import '../stores/restaurant_store.dart';
 import '../services/notification_service.dart';
 import '../stores/session_store.dart';
 import '../widgets/bora/bora_primary_button.dart';
+import 'register_partner_screen.dart';
 
 class PartnerLoginScreen extends StatefulWidget {
   const PartnerLoginScreen({super.key});
@@ -115,9 +116,28 @@ class _PartnerLoginScreenState extends State<PartnerLoginScreen> {
                   child: const Text('Esqueceu a palavra-passe?'),
                 ),
               ),
+              const SizedBox(height: Spacing.md),
+              Center(
+                child: TextButton(
+                  onPressed: _isProcessing ? null : _createAccount,
+                  child: const Text(
+                    'Não tens conta? Criar conta de parceiro',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  void _createAccount() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const RegisterPartnerScreen(),
       ),
     );
   }

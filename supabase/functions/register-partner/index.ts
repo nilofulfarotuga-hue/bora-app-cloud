@@ -56,6 +56,40 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    // Extract user_id from Authorization header JWT
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return new Response(
+        JSON.stringify({ error: "Authorization header obrigatório" }),
+        { status: 401, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    const token = authHeader.substring(7);
+    const parts = token.split(".");
+    if (parts.length !== 3) {
+      return new Response(
+        JSON.stringify({ error: "Token JWT inválido" }),
+        { status: 401, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    const payload = JSON.parse(
+      new TextDecoder().decode(
+        Uint8Array.from(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")), (c) =>
+          c.charCodeAt(0)
+        )
+      )
+    );
+
+    const userId = payload.sub; // sub = user.id em Supabase JWT
+    if (!userId) {
+      return new Response(
+        JSON.stringify({ error: "user_id não encontrado no token" }),
+        { status: 401, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
     const body = (await req.json()) as RegisterPartnerRequest;
 
     // Validações de entrada
@@ -101,10 +135,12 @@ Deno.serve(async (req: Request) => {
     const restaurantId = crypto.randomUUID();
 
     // INSERT em restaurants com approval_status='pending'
+    // BUG-2 FIX: define user_id para permitir RLS em products
     const { data: restaurantData, error: insertError } = await supabase
       .from("restaurants")
       .insert({
         id: restaurantId,
+        user_id: userId,
         name: body.restaurantName,
         address: body.address,
         phone: body.phone,

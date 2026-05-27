@@ -258,6 +258,20 @@ class _AdminCatalogProductsScreenState extends State<_AdminCatalogProductsScreen
     }
   }
 
+  Widget _buildProductImage(Map<String, dynamic> product) {
+    final photoUrl = product['photo_url'] as String?;
+    if (photoUrl == null || photoUrl.isEmpty) {
+      return CircleAvatar(
+        backgroundColor: Colors.grey[300],
+        child: const Icon(Icons.image_outlined, color: Colors.grey),
+      );
+    }
+    return CircleAvatar(
+      backgroundImage: NetworkImage(photoUrl),
+      onBackgroundImageError: (_, __) {},
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -296,6 +310,7 @@ class _AdminCatalogProductsScreenState extends State<_AdminCatalogProductsScreen
                     return Card(
                       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                       child: ListTile(
+                        leading: _buildProductImage(p),
                         title: Text(p['name'] ?? '—',
                             style: TextStyle(
                                 color: available ? null : Colors.grey,

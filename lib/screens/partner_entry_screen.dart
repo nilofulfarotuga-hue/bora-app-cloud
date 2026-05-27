@@ -41,10 +41,6 @@ class PartnerEntryScreen extends StatelessWidget {
       return const RegisterPartnerScreen();
     }
 
-    if (authStore.hasPartnerAccounts) {
-      return const PartnerLoginScreen();
-    }
-
-    return const RegisterPartnerScreen();
+    return const PartnerLoginScreen();
   }
 }

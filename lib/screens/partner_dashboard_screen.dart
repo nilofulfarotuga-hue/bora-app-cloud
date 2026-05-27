@@ -698,6 +698,7 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                   onAccept: (order) async {
                     final accepted =
                         await orderStore.restaurantAcceptOrder(order);
+                    cancelPartnerOrderNotification(order.id);
                     if (!context.mounted) return;
                     // BUG F (2026-05-13) — incluir ultimos 4 chars do order id
                     // para o parceiro identificar QUAL pedido em situacoes
@@ -715,6 +716,7 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                   onReject: (order) async {
                     final rejected =
                         await orderStore.restaurantRejectOrder(order);
+                    cancelPartnerOrderNotification(order.id);
                     if (!context.mounted) return;
                     final shortId = order.id.length >= 4
                         ? order.id.substring(order.id.length - 4).toUpperCase()

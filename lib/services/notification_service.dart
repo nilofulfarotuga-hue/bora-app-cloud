@@ -515,6 +515,7 @@ Future<void> onBackgroundNotificationAction(NotificationResponse response) async
           )
           .timeout(const Duration(seconds: 5));
       debugPrint('[NOTIF ACTION] partner_accept_order ${res.statusCode} body=${res.body}');
+      try { await FlutterLocalNotificationsPlugin().cancel(orderId.hashCode); } catch (_) {}
     } else if (actionId == 'reject_partner_order') {
       final res = await http
           .post(
@@ -524,6 +525,7 @@ Future<void> onBackgroundNotificationAction(NotificationResponse response) async
           )
           .timeout(const Duration(seconds: 5));
       debugPrint('[NOTIF ACTION] partner_reject_order ${res.statusCode} body=${res.body}');
+      try { await FlutterLocalNotificationsPlugin().cancel(orderId.hashCode); } catch (_) {}
     }
   } catch (e) {
     debugPrint('[NOTIF ACTION] error: $e');
@@ -555,6 +557,16 @@ Future<void> cancelDriverOfferNotification(String orderId) async {
     final active = await fow.FlutterOverlayWindow.isActive();
     if (active) await fow.FlutterOverlayWindow.closeOverlay();
   } catch (_) {/* silent */}
+}
+
+Future<void> cancelPartnerOrderNotification(String orderId) async {
+  if (orderId.isEmpty) return;
+  try {
+    await FlutterLocalNotificationsPlugin().cancel(orderId.hashCode);
+    debugPrint('[NotificationService] cancelled partner notif order=$orderId');
+  } catch (e) {
+    debugPrint('[NotificationService] cancel partner error: $e');
+  }
 }
 
 /// Exec6.16 (2026-05-25) — Wake Activity via fullScreenIntent local notif.

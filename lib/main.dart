@@ -31,6 +31,7 @@ import 'screens/client_login_screen.dart';
 import 'screens/client_main_screen.dart';
 import 'screens/driver_home_screen.dart';
 import 'screens/driver_login_screen.dart';
+import 'screens/driver_signup_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/partner_entry_screen.dart';
 import 'screens/role_screen.dart';
@@ -405,7 +406,10 @@ class _RootNavigator extends StatelessWidget {
         return const ClientLoginScreen();
 
       case UserRole.driver:
-        if (driver != null) return const DriverHomeScreen();
+        if (driver != null) {
+          if (session.hasDriverSignupDraft) return const DriverSignupScreen();
+          return const DriverHomeScreen();
+        }
         return const DriverLoginScreen();
 
       case UserRole.partner:

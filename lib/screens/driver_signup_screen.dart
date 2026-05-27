@@ -10,6 +10,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
 import '../models/driver_model.dart';
+import '../stores/session_store.dart';
 import '../widgets/address_autocomplete_field.dart';
 import '../widgets/bora/bora_primary_button.dart';
 import '../widgets/terms_link_text.dart';
@@ -31,29 +32,30 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
   final _addressController = TextEditingController();
   final _nifController = TextEditingController();
 
-  // Step 2: Documentos
-  String _documentType = 'Cartão Cidadão';
-  final _documentNumberController = TextEditingController();
-
-  // Step 3: Conta + Pagamento
+  // Step 2: Conta
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
-  VehicleType _vehicleType = VehicleType.motorcycle;
-  final _licensePlateController = TextEditingController();
-  final _ibanController = TextEditingController();
-  final _mbwayPhoneController = TextEditingController();
+  bool _obscurePassword = true;
+  bool _obscureConfirm = true;
+  bool _acceptedTerms = false;
+  bool _accountCreated = false;
 
-  // Fotos
+  // Step 3: Documentos
+  String _documentType = 'Cartão Cidadão';
+  final _documentNumberController = TextEditingController();
   XFile? _selfieFile;
   XFile? _documentPhotoFile;
   XFile? _vehicleDocFile;
   XFile? _vehiclePhotoFile;
 
+  // Step 4: Veículo + Pagamento
+  VehicleType _vehicleType = VehicleType.motorcycle;
+  final _licensePlateController = TextEditingController();
+  final _ibanController = TextEditingController();
+  final _mbwayPhoneController = TextEditingController();
+
   bool _isProcessing = false;
-  bool _obscurePassword = true;
-  bool _obscureConfirm = true;
-  bool _acceptedTerms = false;
   int _currentStep = 0;
 
   final _imagePicker = ImagePicker();
@@ -70,15 +72,15 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
   @override
   void dispose() {
     _nameController.dispose();
-    _emailController.dispose();
     _phoneController.dispose();
+    _addressController.dispose();
+    _nifController.dispose();
+    _emailController.dispose();
     _passwordController.dispose();
     _confirmController.dispose();
     _documentNumberController.dispose();
     _licensePlateController.dispose();
     _ibanController.dispose();
-    _addressController.dispose();
-    _nifController.dispose();
     _mbwayPhoneController.dispose();
     super.dispose();
   }
@@ -114,6 +116,8 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
       prefs.setString('$_kDraftKey.plate', _licensePlateController.text);
       prefs.setString('$_kDraftKey.iban', _ibanController.text);
       prefs.setString('$_kDraftKey.mbway', _mbwayPhoneController.text);
+      prefs.setString('$_kDraftKey.step', _currentStep.toString());
+      prefs.setBool('$_kDraftKey.accountCreated', _accountCreated);
     });
   }
 
@@ -148,6 +152,9 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
       if (iban.isNotEmpty) _ibanController.text = iban;
       final mbway = prefs.getString('$_kDraftKey.mbway') ?? '';
       if (mbway.isNotEmpty) _mbwayPhoneController.text = mbway;
+      _accountCreated = prefs.getBool('$_kDraftKey.accountCreated') ?? false;
+      final step = int.tryParse(prefs.getString('$_kDraftKey.step') ?? '');
+      if (step != null && step >= 0 && step <= 3) _currentStep = step;
     });
   }
 
@@ -156,11 +163,15 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
       for (final key in [
         'name', 'email', 'phone', 'address', 'nif',
         'docType', 'docNumber', 'vehicleType', 'plate', 'iban', 'mbway',
+        'step', 'accountCreated',
       ]) {
         prefs.remove('$_kDraftKey.$key');
       }
     });
+    context.read<SessionStore>().clearDriverSignupDraft();
   }
+
+  // ── Photo helpers ──────────────────────────────────────────────────────────
 
   Future<void> _pickPhoto({
     required ImageSource source,
@@ -236,9 +247,10 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
     return (data['signed_url'] ?? data['url'] ?? data['path']) as String?;
   }
 
-  Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+  // ── Step 2: Create account ─────────────────────────────────────────────────
 
+  Future<void> _createAccount() async {
+    if (!_formKey.currentState!.validate()) return;
     if (!_acceptedTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Aceita os termos para continuar.')),
@@ -255,16 +267,8 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
       final password = _passwordController.text;
       final name = _nameController.text.trim();
       final phone = _phoneController.text.trim();
-      final address = _addressController.text.trim();
-      final nif = _nifController.text.trim();
-      final iban = _ibanController.text.replaceAll(' ', '').toUpperCase();
-      final mbwayPhone = _mbwayPhoneController.text.trim();
-      final licensePlate = _vehicleType != VehicleType.bicycle
-          ? _licensePlateController.text.trim().toUpperCase()
-          : '';
       final consentAcceptedAt = DateTime.now().toUtc();
 
-      // 1. Criar conta Supabase Auth
       final res = await supabase.auth.signUp(
         email: email,
         password: password,
@@ -272,8 +276,6 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
           'bora_role': 'driver',
           'bora_name': name,
           'bora_phone': phone,
-          'bora_vehicle_type': _vehicleType.name,
-          'bora_license_plate': licensePlate,
           'bora_consent_accepted_at': consentAcceptedAt.toIso8601String(),
           'bora_consent_version': AuthStore.currentConsentVersion,
         },
@@ -287,82 +289,40 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
             .signInWithPassword(email: email, password: password);
       }
 
-      final userId = user.id;
+      // RPC with basic data to create driver row (approval_status=pending)
+      final address = _addressController.text.trim();
+      final nif = _nifController.text.trim();
+      await supabase.rpc('driver_register_or_update', params: {
+        'p_name': name,
+        'p_phone': phone,
+        'p_vehicle_type': 'motorcycle',
+        'p_address': address.isEmpty ? null : address,
+        'p_nif': nif.isEmpty ? null : nif,
+      });
 
-      // 2. Upload das fotos (apenas as que foram preenchidas)
-      String? selfieUrl;
-      if (_selfieFile != null) {
-        selfieUrl = await _uploadPhoto(_selfieFile!, userId, 'selfie');
-      }
-      String? docUrl;
-      if (_documentPhotoFile != null) {
-        docUrl = await _uploadPhoto(_documentPhotoFile!, userId, 'document');
-      }
-      String? vehicleDocUrl;
-      if (_vehicleDocFile != null) {
-        vehicleDocUrl =
-            await _uploadPhoto(_vehicleDocFile!, userId, 'vehicle_doc');
-      }
-      String? vehicleUrl;
-      if (_vehiclePhotoFile != null) {
-        vehicleUrl = await _uploadPhoto(_vehiclePhotoFile!, userId, 'vehicle');
-      }
+      // Persist driver in AuthStore so _RootNavigator sees driver != null
+      final authStore = context.read<AuthStore>();
+      authStore.persistDriverFromSignup(DriverAccount(
+        name: name,
+        email: email,
+        phone: phone,
+        vehicleType: VehicleType.motorcycle,
+        licensePlate: '',
+        password: password,
+      ));
 
-      // 3. Registo via RPC driver_register_or_update (ON CONFLICT user_id).
-      final rpcRes = await supabase.rpc(
-        'driver_register_or_update',
-        params: {
-          'p_name': name,
-          'p_phone': phone,
-          'p_vehicle_type': _vehicleType.name,
-          'p_license_plate': licensePlate.isEmpty ? null : licensePlate,
-          'p_document_type': _documentType,
-          'p_document_number': _documentNumberController.text.trim().isEmpty
-              ? null
-              : _documentNumberController.text.trim(),
-          'p_document_photo_url': docUrl,
-          'p_vehicle_photo_url': vehicleUrl,
-          'p_vehicle_doc_url': vehicleDocUrl,
-          'p_registration_selfie_url': selfieUrl,
-          'p_iban': iban.isEmpty ? null : iban,
-          'p_nif': nif.isEmpty ? null : nif,
-          'p_mbway_phone': mbwayPhone.isEmpty ? null : mbwayPhone,
-          'p_address': address.isEmpty ? null : address,
-        },
-      );
+      setState(() {
+        _accountCreated = true;
+        _isProcessing = false;
+        _currentStep = 2;
+      });
+      _saveDraft();
 
-      final rpcMap =
-          rpcRes is Map ? rpcRes.cast<String, dynamic>() : <String, dynamic>{};
-      final ok = (rpcMap['success'] as bool?) ?? false;
-      if (!ok) {
-        final reason = (rpcMap['reason'] as String?) ?? 'unknown';
-        final friendly = switch (reason) {
-          'unauthenticated' =>
-            'Sessão não encontrada. Faz login e tenta de novo.',
-          'missing_required_fields' =>
-            'Faltam dados obrigatórios. Preenche tudo e tenta de novo.',
-          'invalid_vehicle_type' => 'Tipo de veículo inválido.',
-          _ => 'Não foi possível concluir o registo: $reason',
-        };
-        if (!mounted) return;
-        setState(() => _isProcessing = false);
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(friendly)),
+          const SnackBar(content: Text('Conta criada! Podes adicionar fotos e dados.')),
         );
-        return;
       }
-
-      if (!mounted) return;
-
-      // 4. Limpar sessão auth
-      context.read<AuthStore>().logout();
-      _clearDraft();
-
-      // 5. Ir para ecrã pendente
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const DriverPendingScreen()),
-      );
     } on AuthException catch (e) {
       if (!mounted) return;
       setState(() => _isProcessing = false);
@@ -382,20 +342,98 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
     }
   }
 
-  // ── Step validation (non-blocking — just guides the user) ───────────────
-  bool _validateStep1() {
-    return _nameController.text.trim().isNotEmpty;
+  // ── Step 4: Final submit ───────────────────────────────────────────────────
+
+  Future<void> _submitFinal() async {
+    setState(() => _isProcessing = true);
+    FocusScope.of(context).unfocus();
+
+    try {
+      final supabase = Supabase.instance.client;
+      final userId = supabase.auth.currentUser?.id ?? '';
+
+      // Upload photos
+      String? selfieUrl;
+      if (_selfieFile != null) {
+        selfieUrl = await _uploadPhoto(_selfieFile!, userId, 'selfie');
+      }
+      String? docUrl;
+      if (_documentPhotoFile != null) {
+        docUrl = await _uploadPhoto(_documentPhotoFile!, userId, 'document');
+      }
+      String? vehicleDocUrl;
+      if (_vehicleDocFile != null) {
+        vehicleDocUrl =
+            await _uploadPhoto(_vehicleDocFile!, userId, 'vehicle_doc');
+      }
+      String? vehicleUrl;
+      if (_vehiclePhotoFile != null) {
+        vehicleUrl = await _uploadPhoto(_vehiclePhotoFile!, userId, 'vehicle');
+      }
+
+      final iban = _ibanController.text.replaceAll(' ', '').toUpperCase();
+      final mbwayPhone = _mbwayPhoneController.text.trim();
+      final licensePlate = _vehicleType != VehicleType.bicycle
+          ? _licensePlateController.text.trim().toUpperCase()
+          : '';
+
+      // RPC update with all remaining data
+      final rpcRes = await supabase.rpc('driver_register_or_update', params: {
+        'p_name': _nameController.text.trim(),
+        'p_phone': _phoneController.text.trim(),
+        'p_vehicle_type': _vehicleType.name,
+        'p_license_plate': licensePlate.isEmpty ? null : licensePlate,
+        'p_document_type': _documentType,
+        'p_document_number': _documentNumberController.text.trim().isEmpty
+            ? null
+            : _documentNumberController.text.trim(),
+        'p_document_photo_url': docUrl,
+        'p_vehicle_photo_url': vehicleUrl,
+        'p_vehicle_doc_url': vehicleDocUrl,
+        'p_registration_selfie_url': selfieUrl,
+        'p_iban': iban.isEmpty ? null : iban,
+        'p_nif': _nifController.text.trim().isEmpty
+            ? null
+            : _nifController.text.trim(),
+        'p_mbway_phone': mbwayPhone.isEmpty ? null : mbwayPhone,
+        'p_address': _addressController.text.trim().isEmpty
+            ? null
+            : _addressController.text.trim(),
+      });
+
+      final rpcMap =
+          rpcRes is Map ? rpcRes.cast<String, dynamic>() : <String, dynamic>{};
+      final ok = (rpcMap['success'] as bool?) ?? false;
+      if (!ok) {
+        final reason = (rpcMap['reason'] as String?) ?? 'unknown';
+        if (!mounted) return;
+        setState(() => _isProcessing = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro no registo: $reason')),
+        );
+        return;
+      }
+
+      if (!mounted) return;
+
+      // Clear draft + logout → DriverPendingScreen
+      context.read<AuthStore>().logout();
+      _clearDraft();
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const DriverPendingScreen()),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isProcessing = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro: $e')),
+      );
+    }
   }
 
-  bool _validateStep3() {
-    final email = _emailController.text.trim();
-    final pw = _passwordController.text;
-    final confirm = _confirmController.text;
-    if (email.isEmpty || pw.isEmpty) return false;
-    if (pw.length < 6) return false;
-    if (pw != confirm) return false;
-    return true;
-  }
+  // ── Build ──────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -417,29 +455,54 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
         child: Stepper(
           currentStep: _currentStep,
           onStepContinue: () {
-            if (_currentStep == 0 && !_validateStep1()) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('O nome é obrigatório.')),
-              );
+            if (_currentStep == 0) {
+              if (_nameController.text.trim().isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('O nome é obrigatório.')),
+                );
+                return;
+              }
+              setState(() => _currentStep = 1);
               return;
             }
-            if (_currentStep == 2 && !_validateStep3()) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                    content: Text(
-                        'Email, password (mín. 6 chars) e confirmação são obrigatórios.')),
-              );
+            if (_currentStep == 1) {
+              if (!_accountCreated) {
+                _createAccount();
+              } else {
+                setState(() => _currentStep = 2);
+              }
               return;
             }
             if (_currentStep < 3) {
               setState(() => _currentStep++);
+              _saveDraft();
             }
           },
           onStepCancel: () {
-            if (_currentStep > 0) setState(() => _currentStep--);
+            if (_currentStep > 0) {
+              // Don't go back to step 1 (account) if already created
+              if (_currentStep == 2 && _accountCreated) {
+                // Can still go back to step 1 for viewing, just skip step 2
+              }
+              setState(() => _currentStep--);
+            }
           },
-          onStepTapped: (step) => setState(() => _currentStep = step),
+          onStepTapped: (step) {
+            // Allow tapping any step (no restrictions)
+            setState(() => _currentStep = step);
+          },
           controlsBuilder: (context, details) {
+            if (_currentStep == 1 && !_accountCreated) {
+              return Padding(
+                padding: const EdgeInsets.only(top: 16),
+                child: BoraPrimaryButton(
+                  label: 'Criar Conta',
+                  loading: _isProcessing,
+                  color: AppColors.primary,
+                  onPressed: _acceptedTerms ? _createAccount : null,
+                ),
+              );
+            }
             if (_currentStep == 3) {
               return Padding(
                 padding: const EdgeInsets.only(top: 16),
@@ -447,7 +510,7 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
                   label: 'Enviar Candidatura',
                   loading: _isProcessing,
                   color: AppColors.primary,
-                  onPressed: _acceptedTerms ? _submit : null,
+                  onPressed: _submitFinal,
                 ),
               );
             }
@@ -482,7 +545,164 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
               state: _currentStep > 0 ? StepState.complete : StepState.indexed,
               content: Column(
                 children: [
-                  // Selfie circular
+                  TextFormField(
+                    controller: _nameController,
+                    onChanged: (_) => _saveDraft(),
+                    textCapitalization: TextCapitalization.words,
+                    decoration: const InputDecoration(
+                      labelText: 'Nome completo *',
+                      prefixIcon: Icon(Icons.person_outline),
+                    ),
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _phoneController,
+                    onChanged: (_) => _saveDraft(),
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(
+                      labelText: 'Telefone (opcional)',
+                      prefixIcon: Icon(Icons.phone_outlined),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _nifController,
+                    onChanged: (_) => _saveDraft(),
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'NIF (opcional)',
+                      prefixIcon: Icon(Icons.badge_outlined),
+                      helperText: '9 dígitos sem espaços',
+                    ),
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) return null;
+                      if (!RegExp(r'^\d{9}$').hasMatch(v.trim())) {
+                        return 'NIF deve ter 9 dígitos';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  AddressAutocompleteField(
+                    controller: _addressController,
+                    onSelected: (_, __) => _saveDraft(),
+                    onChanged: (_) => _saveDraft(),
+                    labelText: 'Morada (opcional)',
+                    prefixIcon: const Icon(Icons.location_on_outlined),
+                  ),
+                ],
+              ),
+            ),
+
+            // ── STEP 2: Conta de Acesso ─────────────────────────────
+            Step(
+              title: const Text('Conta de Acesso'),
+              subtitle: _accountCreated
+                  ? const Text('Conta criada ✓')
+                  : null,
+              isActive: _currentStep >= 1,
+              state: _accountCreated ? StepState.complete : StepState.indexed,
+              content: _accountCreated
+                  ? const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: Row(
+                        children: [
+                          Icon(Icons.check_circle, color: AppColors.primary),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Conta criada com sucesso. Podes continuar a preencher os restantes dados.',
+                              style: TextStyle(color: AppColors.textSecondary),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : Column(
+                      children: [
+                        TextFormField(
+                          controller: _emailController,
+                          onChanged: (_) => _saveDraft(),
+                          keyboardType: TextInputType.emailAddress,
+                          autocorrect: false,
+                          decoration: const InputDecoration(
+                            labelText: 'Email *',
+                            prefixIcon: Icon(Icons.email_outlined),
+                          ),
+                          validator: (v) {
+                            if (v == null || v.trim().isEmpty) {
+                              return 'Obrigatório';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _passwordController,
+                          obscureText: _obscurePassword,
+                          decoration: InputDecoration(
+                            labelText: 'Palavra-passe *',
+                            prefixIcon: const Icon(Icons.lock_outline),
+                            suffixIcon: IconButton(
+                              icon: Icon(_obscurePassword
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined),
+                              onPressed: () => setState(
+                                  () => _obscurePassword = !_obscurePassword),
+                            ),
+                          ),
+                          validator: (v) {
+                            if (v == null || v.isEmpty) return 'Obrigatório';
+                            if (v.length < 6) return 'Mínimo 6 caracteres';
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _confirmController,
+                          obscureText: _obscureConfirm,
+                          decoration: InputDecoration(
+                            labelText: 'Confirmar palavra-passe *',
+                            prefixIcon: const Icon(Icons.lock_outline),
+                            suffixIcon: IconButton(
+                              icon: Icon(_obscureConfirm
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined),
+                              onPressed: () => setState(
+                                  () => _obscureConfirm = !_obscureConfirm),
+                            ),
+                          ),
+                          validator: (v) => v != _passwordController.text
+                              ? 'Palavras-passe não coincidem'
+                              : null,
+                        ),
+                        const SizedBox(height: 12),
+                        CheckboxListTile(
+                          value: _acceptedTerms,
+                          onChanged: _isProcessing
+                              ? null
+                              : (v) =>
+                                  setState(() => _acceptedTerms = v ?? false),
+                          controlAffinity: ListTileControlAffinity.leading,
+                          contentPadding: EdgeInsets.zero,
+                          activeColor: AppColors.accent,
+                          title: const TermsLinkText(),
+                        ),
+                      ],
+                    ),
+            ),
+
+            // ── STEP 3: Documentos (todos opcionais) ────────────────
+            Step(
+              title: const Text('Documentos & Fotos'),
+              subtitle: const Text('Todos opcionais'),
+              isActive: _currentStep >= 2,
+              state: _currentStep > 2 ? StepState.complete : StepState.indexed,
+              content: Column(
+                children: [
+                  // Selfie
                   Center(
                     child: GestureDetector(
                       onTap: () => _showPhotoOptions((f) => _selfieFile = f),
@@ -514,9 +734,9 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
                                   Icon(Icons.camera_alt,
                                       size: 32, color: AppColors.accent),
                                   SizedBox(height: 4),
-                                  Text('Selfie',
+                                  Text('Selfie (opcional)',
                                       style: TextStyle(
-                                          fontSize: 12,
+                                          fontSize: 11,
                                           color: AppColors.textSecondary)),
                                 ],
                               ),
@@ -524,76 +744,17 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _nameController,
-                    onChanged: (_) => _saveDraft(),
-                    textCapitalization: TextCapitalization.words,
-                    decoration: const InputDecoration(
-                      labelText: 'Nome completo *',
-                      prefixIcon: Icon(Icons.person_outline),
-                    ),
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _phoneController,
-                    onChanged: (_) => _saveDraft(),
-                    keyboardType: TextInputType.phone,
-                    decoration: const InputDecoration(
-                      labelText: 'Telefone',
-                      prefixIcon: Icon(Icons.phone_outlined),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  AddressAutocompleteField(
-                    controller: _addressController,
-                    onSelected: (_, __) => _saveDraft(),
-                    onChanged: (_) => _saveDraft(),
-                    labelText: 'Morada',
-                    prefixIcon: const Icon(Icons.location_on_outlined),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _nifController,
-                    onChanged: (_) => _saveDraft(),
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'NIF (opcional)',
-                      prefixIcon: Icon(Icons.badge_outlined),
-                      hintText: '123456789',
-                    ),
-                    validator: (v) {
-                      if (v == null || v.trim().isEmpty) return null;
-                      if (!RegExp(r'^\d{9}$').hasMatch(v.trim())) {
-                        return 'NIF deve ter 9 dígitos';
-                      }
-                      return null;
-                    },
-                  ),
-                ],
-              ),
-            ),
-
-            // ── STEP 2: Documentos (todos opcionais) ────────────────
-            Step(
-              title: const Text('Documentos'),
-              subtitle: const Text('Todos opcionais'),
-              isActive: _currentStep >= 1,
-              state: _currentStep > 1 ? StepState.complete : StepState.indexed,
-              content: Column(
-                children: [
                   DropdownButtonFormField<String>(
                     value: _documentType,
                     decoration: const InputDecoration(
-                      labelText: 'Tipo de documento',
+                      labelText: 'Tipo de documento de identificação',
                       prefixIcon: Icon(Icons.badge_outlined),
                     ),
                     items: const [
                       'Cartão Cidadão',
                       'Bilhete de Identidade',
-                      'Passaporte',
                       'Título de Residência',
+                      'Passaporte',
                     ]
                         .map((t) => DropdownMenuItem(value: t, child: Text(t)))
                         .toList(),
@@ -607,26 +768,29 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
                     controller: _documentNumberController,
                     onChanged: (_) => _saveDraft(),
                     decoration: const InputDecoration(
-                      labelText: 'Número do documento',
+                      labelText: 'Número do documento (opcional)',
                       prefixIcon: Icon(Icons.numbers),
+                      helperText: 'Número do CC ou BI sem espaços',
                     ),
                   ),
                   const SizedBox(height: 12),
                   _PhotoPicker(
-                    label: 'Foto do CC / BI',
+                    label: 'Foto do Cartão de Cidadão (frente) — opcional',
                     file: _documentPhotoFile,
                     onTap: () =>
                         _showPhotoOptions((f) => _documentPhotoFile = f),
                   ),
                   const SizedBox(height: 12),
                   _PhotoPicker(
-                    label: 'Documento do veículo',
+                    label:
+                        'Foto do documento do veículo (carta de condução ou livrete) — opcional',
                     file: _vehicleDocFile,
                     onTap: () => _showPhotoOptions((f) => _vehicleDocFile = f),
                   ),
                   const SizedBox(height: 12),
                   _PhotoPicker(
-                    label: 'Foto do veículo',
+                    label:
+                        'Foto do veículo (mota, bicicleta ou carro) — opcional',
                     file: _vehiclePhotoFile,
                     onTap: () =>
                         _showPhotoOptions((f) => _vehiclePhotoFile = f),
@@ -635,68 +799,12 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
               ),
             ),
 
-            // ── STEP 3: Conta + Pagamento ───────────────────────────
+            // ── STEP 4: Veículo + Pagamento + Submeter ──────────────
             Step(
-              title: const Text('Conta & Pagamento'),
-              isActive: _currentStep >= 2,
-              state: _currentStep > 2 ? StepState.complete : StepState.indexed,
+              title: const Text('Veículo & Pagamento'),
+              isActive: _currentStep >= 3,
               content: Column(
                 children: [
-                  TextFormField(
-                    controller: _emailController,
-                    onChanged: (_) => _saveDraft(),
-                    keyboardType: TextInputType.emailAddress,
-                    autocorrect: false,
-                    decoration: const InputDecoration(
-                      labelText: 'Email *',
-                      prefixIcon: Icon(Icons.email_outlined),
-                    ),
-                    validator: (v) {
-                      if (v == null || v.trim().isEmpty) return 'Obrigatório';
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _passwordController,
-                    obscureText: _obscurePassword,
-                    decoration: InputDecoration(
-                      labelText: 'Palavra-passe *',
-                      prefixIcon: const Icon(Icons.lock_outline),
-                      suffixIcon: IconButton(
-                        icon: Icon(_obscurePassword
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined),
-                        onPressed: () => setState(
-                            () => _obscurePassword = !_obscurePassword),
-                      ),
-                    ),
-                    validator: (v) {
-                      if (v == null || v.isEmpty) return 'Obrigatório';
-                      if (v.length < 6) return 'Mínimo 6 caracteres';
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _confirmController,
-                    obscureText: _obscureConfirm,
-                    decoration: InputDecoration(
-                      labelText: 'Confirmar palavra-passe *',
-                      prefixIcon: const Icon(Icons.lock_outline),
-                      suffixIcon: IconButton(
-                        icon: Icon(_obscureConfirm
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined),
-                        onPressed: () =>
-                            setState(() => _obscureConfirm = !_obscureConfirm),
-                      ),
-                    ),
-                    validator: (v) => v != _passwordController.text
-                        ? 'Palavras-passe não coincidem'
-                        : null,
-                  ),
-                  const SizedBox(height: 16),
                   SegmentedButton<VehicleType>(
                     segments: const [
                       ButtonSegment(
@@ -733,7 +841,7 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
                       onChanged: (_) => _saveDraft(),
                       textCapitalization: TextCapitalization.characters,
                       decoration: const InputDecoration(
-                        labelText: 'Matrícula',
+                        labelText: 'Matrícula (opcional)',
                         prefixIcon: Icon(Icons.confirmation_number_outlined),
                       ),
                     ),
@@ -748,6 +856,7 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
                       labelText: 'IBAN (opcional)',
                       prefixIcon: Icon(Icons.account_balance_outlined),
                       hintText: 'PT50...',
+                      helperText: 'IBAN português para receber pagamentos',
                     ),
                     validator: (v) {
                       if (v == null || v.trim().isEmpty) return null;
@@ -764,93 +873,24 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
                     onChanged: (_) => _saveDraft(),
                     keyboardType: TextInputType.phone,
                     decoration: const InputDecoration(
-                      labelText: 'Telemóvel MBWay (opcional)',
+                      labelText: 'Número MBWay para receber pagamentos (opcional)',
                       prefixIcon: Icon(Icons.phone_android),
                       hintText: '+351 9XX XXX XXX',
                     ),
-                  ),
-                ],
-              ),
-            ),
-
-            // ── STEP 4: Termos & Submeter ───────────────────────────
-            Step(
-              title: const Text('Submeter'),
-              isActive: _currentStep >= 3,
-              state: _currentStep == 3 ? StepState.indexed : StepState.indexed,
-              content: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Resumo
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(14),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('Resumo da candidatura',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.bold, fontSize: 15)),
-                          const Divider(),
-                          _summaryRow('Nome', _nameController.text),
-                          _summaryRow('Telefone', _phoneController.text),
-                          _summaryRow('Morada', _addressController.text),
-                          _summaryRow('Email', _emailController.text),
-                          _summaryRow('Veículo', _vehicleType.name),
-                          if (_licensePlateController.text.isNotEmpty)
-                            _summaryRow(
-                                'Matrícula', _licensePlateController.text),
-                          _summaryRow(
-                            'Fotos',
-                            [
-                              if (_selfieFile != null) 'Selfie',
-                              if (_documentPhotoFile != null) 'CC/BI',
-                              if (_vehicleDocFile != null) 'Doc. veículo',
-                              if (_vehiclePhotoFile != null) 'Veículo',
-                            ].join(', ').ifEmpty('Nenhuma'),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  CheckboxListTile(
-                    value: _acceptedTerms,
-                    onChanged: _isProcessing
-                        ? null
-                        : (v) => setState(() => _acceptedTerms = v ?? false),
-                    controlAffinity: ListTileControlAffinity.leading,
-                    contentPadding: EdgeInsets.zero,
-                    activeColor: AppColors.accent,
-                    title: const TermsLinkText(),
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) return null;
+                      final clean = v.trim().replaceAll(' ', '');
+                      if (!RegExp(r'^\+?[0-9]{9,15}$').hasMatch(clean)) {
+                        return 'Número de telemóvel inválido';
+                      }
+                      return null;
+                    },
                   ),
                 ],
               ),
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _summaryRow(String label, String value) {
-    if (value.isEmpty) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 90,
-            child: Text(label,
-                style: const TextStyle(
-                    color: AppColors.textSecondary, fontSize: 13)),
-          ),
-          Expanded(
-            child:
-                Text(value, style: const TextStyle(fontWeight: FontWeight.w500)),
-          ),
-        ],
       ),
     );
   }
@@ -893,15 +933,14 @@ class _PhotoPicker extends StatelessWidget {
                   const Icon(Icons.add_photo_alternate_outlined,
                       color: AppColors.accent, size: 28),
                   const SizedBox(width: 8),
-                  Text(label,
-                      style: const TextStyle(color: AppColors.textSecondary)),
+                  Flexible(
+                    child: Text(label,
+                        style: const TextStyle(
+                            color: AppColors.textSecondary, fontSize: 13)),
+                  ),
                 ],
               ),
       ),
     );
   }
-}
-
-extension _StringEmpty on String {
-  String ifEmpty(String fallback) => isEmpty ? fallback : this;
 }

@@ -1390,6 +1390,14 @@ class AuthStore extends ChangeNotifier {
     });
   }
 
+  void persistDriverFromSignup(DriverAccount account) {
+    _currentDriver = account;
+    _driversByEmail[account.email] = account;
+    if (account.phone.isNotEmpty) _driversByPhone[account.phone] = account;
+    _persistDriver(account);
+    notifyListeners();
+  }
+
   void _persistDriver(DriverAccount account) {
     SharedPreferences.getInstance().then((prefs) {
       prefs.setString(

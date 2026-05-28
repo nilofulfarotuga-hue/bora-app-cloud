@@ -4,10 +4,13 @@ import uuid
 BASE_URL = "https://ojykpzwqrtusfeakzrna.supabase.co"
 REGISTER_PARTNER_ENDPOINT = "/functions/v1/register-partner"
 TIMEOUT = 30
+ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qeWtwendxcnR1c2ZlYWt6cm5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwMDA3MjgsImV4cCI6MjA4ODU3NjcyOH0.-yrhHFZV4bfjBagI5W-c1AvmP8Xkzs1kf2xuxPwdBh4"
 
 def test_post_functions_v1_register_partner_validates_iban_and_creates_account():
     headers = {
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "apikey": ANON_KEY,
+        "Authorization": f"Bearer {ANON_KEY}"
     }
 
     # Valid partner registration payload with PT IBAN

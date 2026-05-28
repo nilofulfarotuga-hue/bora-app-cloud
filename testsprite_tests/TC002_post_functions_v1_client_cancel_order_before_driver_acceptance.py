@@ -2,9 +2,9 @@ import requests
 import json
 
 BASE_URL = "https://ojykpzwqrtusfeakzrna.supabase.co"
-CLIENT_EMAIL = "cliente@bora.app"
-CLIENT_PASSWORD = "123456"
-API_KEY = "YOUR_SUPABASE_ANON_OR_SERVICE_ROLE_KEY"
+CLIENT_EMAIL = "test-client@bora.app"
+CLIENT_PASSWORD = "TestBora2026!"
+API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qeWtwendxcnR1c2ZlYWt6cm5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwMDA3MjgsImV4cCI6MjA4ODU3NjcyOH0.-yrhHFZV4bfjBagI5W-c1AvmP8Xkzs1kf2xuxPwdBh4"
 TIMEOUT = 30
 
 def test_post_functions_v1_client_cancel_order_before_driver_acceptance():

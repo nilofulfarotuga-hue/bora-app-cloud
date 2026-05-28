@@ -4,10 +4,11 @@ import time
 BASE_URL = "https://ojykpzwqrtusfeakzrna.supabase.co"
 TIMEOUT = 30
 
-# Demo client and driver credentials
-CLIENT_EMAIL = "cliente@bora.app"
-CLIENT_PASSWORD = "123456"
+# Test client credentials (provisioned in auth.users)
+CLIENT_EMAIL = "test-client@bora.app"
+CLIENT_PASSWORD = "TestBora2026!"
 DRIVER_ID = "910000000"  # demo driver id
+ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qeWtwendxcnR1c2ZlYWt6cm5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwMDA3MjgsImV4cCI6MjA4ODU3NjcyOH0.-yrhHFZV4bfjBagI5W-c1AvmP8Xkzs1kf2xuxPwdBh4"
 
 def supabase_auth_login(email: str, password: str):
     url = f"{BASE_URL}/auth/v1/token?grant_type=password"
@@ -15,7 +16,7 @@ def supabase_auth_login(email: str, password: str):
         "email": email,
         "password": password
     }
-    headers = {"Content-Type": "application/json"}
+    headers = {"Content-Type": "application/json", "apikey": ANON_KEY}
     resp = requests.post(url, json=payload, headers=headers, timeout=TIMEOUT)
     resp.raise_for_status()
     return resp.json()["access_token"]
@@ -24,7 +25,7 @@ def create_order(client_jwt: str):
     url = f"{BASE_URL}/rest/v1/orders"
     headers = {
         "Authorization": f"Bearer {client_jwt}",
-        "apikey": client_jwt,
+        "apikey": ANON_KEY,
         "Content-Type": "application/json",
         "Prefer": "return=representation"
     }
@@ -55,7 +56,8 @@ def dispatch_order(client_jwt: str, order_id: str):
     url = f"{BASE_URL}/functions/v1/dispatch-engine"
     headers = {
         "Authorization": f"Bearer {client_jwt}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "apikey": ANON_KEY
     }
     payload = {"order_id": order_id}
     resp = requests.post(url, headers=headers, json=payload, timeout=TIMEOUT)
@@ -66,7 +68,7 @@ def get_order_status(client_jwt: str, order_id: str):
     url = f"{BASE_URL}/rest/v1/orders?id=eq.{order_id}"
     headers = {
         "Authorization": f"Bearer {client_jwt}",
-        "apikey": client_jwt,
+        "apikey": ANON_KEY,
         "Content-Type": "application/json"
     }
     resp = requests.get(url, headers=headers, timeout=TIMEOUT)
@@ -81,7 +83,7 @@ def accept_offer(client_jwt: str, order_id: str, driver_id: str):
     headers = {
         "Authorization": f"Bearer {client_jwt}",
         "Content-Type": "application/json",
-        "apikey": client_jwt
+        "apikey": ANON_KEY
     }
     payload = {
         "p_order_id": order_id,
@@ -95,7 +97,7 @@ def delete_order(client_jwt: str, order_id: str):
     url = f"{BASE_URL}/rest/v1/orders?id=eq.{order_id}"
     headers = {
         "Authorization": f"Bearer {client_jwt}",
-        "apikey": client_jwt
+        "apikey": ANON_KEY
     }
     resp = requests.delete(url, headers=headers, timeout=TIMEOUT)
     if resp.status_code not in (200, 204):

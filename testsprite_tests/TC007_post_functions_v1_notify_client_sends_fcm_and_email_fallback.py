@@ -2,8 +2,8 @@ import requests
 import time
 
 BASE_URL = "https://ojykpzwqrtusfeakzrna.supabase.co"
-SERVICE_ROLE_JWT = "<your_service_role_jwt_here>"  # Replace with valid service_role JWT
-ANON_API_KEY = "<your_anon_public_api_key_here>"  # Replace with valid anon public API key
+SERVICE_ROLE_JWT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qeWtwendxcnR1c2ZlYWt6cm5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwMDA3MjgsImV4cCI6MjA4ODU3NjcyOH0.-yrhHFZV4bfjBagI5W-c1AvmP8Xkzs1kf2xuxPwdBh4"  # NB: using anon key; real service_role not provided — test expected to fail on auth
+ANON_API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qeWtwendxcnR1c2ZlYWt6cm5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwMDA3MjgsImV4cCI6MjA4ODU3NjcyOH0.-yrhHFZV4bfjBagI5W-c1AvmP8Xkzs1kf2xuxPwdBh4"
 TIMEOUT = 30
 
 def test_post_functions_v1_notify_client_fcm_email_fallback():

@@ -4,12 +4,12 @@ BASE_URL = "https://ojykpzwqrtusfeakzrna.supabase.co"
 AUTH_URL = f"{BASE_URL}/auth/v1/token?grant_type=password"
 WALLET_BALANCE_RPC = f"{BASE_URL}/rest/v1/rpc/wallet_get_balance"
 
-CLIENT_EMAIL = "cliente@bora.app"
-CLIENT_PASSWORD = "123456"
+CLIENT_EMAIL = "test-client@bora.app"
+CLIENT_PASSWORD = "TestBora2026!"
 TIMEOUT = 30
 
-# Replace with your Supabase anon/public API key
-API_KEY = "your-anon-key"
+# Supabase anon public key (real, for ojykpzwqrtusfeakzrna)
+API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qeWtwendxcnR1c2ZlYWt6cm5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwMDA3MjgsImV4cCI6MjA4ODU3NjcyOH0.-yrhHFZV4bfjBagI5W-c1AvmP8Xkzs1kf2xuxPwdBh4"
 
 def test_post_rest_v1_rpc_wallet_get_balance_authenticated():
     # Authenticate to get JWT token
@@ -37,7 +37,8 @@ def test_post_rest_v1_rpc_wallet_get_balance_authenticated():
     headers_auth = {
         "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/json",
-        "Accept": "application/json"
+        "Accept": "application/json",
+        "apikey": API_KEY
     }
 
     # Successful wallet_get_balance call with valid auth

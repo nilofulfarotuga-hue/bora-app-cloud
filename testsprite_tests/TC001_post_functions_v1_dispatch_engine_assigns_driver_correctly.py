@@ -2,23 +2,23 @@ import requests
 
 BASE_URL = "https://ojykpzwqrtusfeakzrna.supabase.co"
 
-# Client demo credentials
-CLIENT_EMAIL = "cliente@bora.app"
-CLIENT_PASSWORD = "123456"
+# Client test credentials (provisioned in auth.users 2026-05-28)
+CLIENT_EMAIL = "test-client@bora.app"
+CLIENT_PASSWORD = "TestBora2026!"
 
-# Supabase anon/public key (placeholder, must be replaced with valid key for tests)
-SUPABASE_API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.examplekey"
+# Supabase anon public key (real, for ojykpzwqrtusfeakzrna)
+SUPABASE_API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qeWtwendxcnR1c2ZlYWt6cm5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwMDA3MjgsImV4cCI6MjA4ODU3NjcyOH0.-yrhHFZV4bfjBagI5W-c1AvmP8Xkzs1kf2xuxPwdBh4"
 
 def test_post_functions_v1_dispatch_engine_assigns_driver_correctly():
     session = requests.Session()
     timeout = 30
 
     try:
-        # 1. Authenticate client to get JWT
-        # Remove apikey for auth endpoint
+        # 1. Authenticate client to get JWT (apikey required on Supabase Auth)
         auth_resp = session.post(
             f"{BASE_URL}/auth/v1/token?grant_type=password",
             json={"email": CLIENT_EMAIL, "password": CLIENT_PASSWORD},
+            headers={"apikey": SUPABASE_API_KEY, "Content-Type": "application/json"},
             timeout=timeout
         )
         assert auth_resp.status_code == 200, f"Auth failed: {auth_resp.text}"

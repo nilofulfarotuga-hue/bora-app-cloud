@@ -4,8 +4,9 @@ import uuid
 BASE_URL = "https://ojykpzwqrtusfeakzrna.supabase.co"
 TIMEOUT = 30
 
-CLIENT_EMAIL = "cliente@bora.app"
-CLIENT_PASSWORD = "123456"
+CLIENT_EMAIL = "test-client@bora.app"
+CLIENT_PASSWORD = "TestBora2026!"
+ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qeWtwendxcnR1c2ZlYWt6cm5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwMDA3MjgsImV4cCI6MjA4ODU3NjcyOH0.-yrhHFZV4bfjBagI5W-c1AvmP8Xkzs1kf2xuxPwdBh4"
 
 def login_get_jwt(email: str, password: str) -> str:
     url = f"{BASE_URL}/auth/v1/token?grant_type=password"
@@ -13,7 +14,7 @@ def login_get_jwt(email: str, password: str) -> str:
         "email": email,
         "password": password
     }
-    headers = {"Content-Type": "application/json"}
+    headers = {"Content-Type": "application/json", "apikey": ANON_KEY}
     resp = requests.post(url, json=payload, headers=headers, timeout=TIMEOUT)
     resp.raise_for_status()
     return resp.json().get("access_token")
@@ -30,7 +31,8 @@ def create_order(jwt_token: str) -> dict:
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {jwt_token}",
-        "Accept": "application/json"
+        "Accept": "application/json",
+        "apikey": ANON_KEY
     }
     resp = requests.post(url, json=order_payload, headers=headers, timeout=TIMEOUT)
     resp.raise_for_status()
@@ -39,7 +41,8 @@ def create_order(jwt_token: str) -> dict:
 def delete_order(jwt_token: str, order_id: str):
     url = f"{BASE_URL}/rest/v1/orders?id=eq.{order_id}"
     headers = {
-        "Authorization": f"Bearer {jwt_token}"
+        "Authorization": f"Bearer {jwt_token}",
+        "apikey": ANON_KEY
     }
     resp = requests.delete(url, headers=headers, timeout=TIMEOUT)
     # deletion might return 204 or 200 with json, ignore errors here
@@ -63,6 +66,7 @@ def test_get_orders_rls_client_only():
         headers = {
             "Authorization": f"Bearer {client_jwt}",
             "Accept": "application/json",
+            "apikey": ANON_KEY
         }
         resp = requests.get(url, headers=headers, timeout=TIMEOUT)
         resp.raise_for_status()

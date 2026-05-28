@@ -4,13 +4,14 @@ import uuid
 BASE_URL = "https://ojykpzwqrtusfeakzrna.supabase.co"
 TIMEOUT = 30
 
-# Demo client credentials for authentication
-CLIENT_EMAIL = "cliente@bora.app"
-CLIENT_PASSWORD = "123456"
+# Test client credentials (provisioned in auth.users)
+CLIENT_EMAIL = "test-client@bora.app"
+CLIENT_PASSWORD = "TestBora2026!"
+ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qeWtwendxcnR1c2ZlYWt6cm5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwMDA3MjgsImV4cCI6MjA4ODU3NjcyOH0.-yrhHFZV4bfjBagI5W-c1AvmP8Xkzs1kf2xuxPwdBh4"
 
 def authenticate_client(email, password):
     url = f"{BASE_URL}/auth/v1/token?grant_type=password"
-    headers = {"Content-Type": "application/json"}
+    headers = {"Content-Type": "application/json", "apikey": ANON_KEY}
     payload = {"email": email, "password": password}
     resp = requests.post(url, json=payload, headers=headers, timeout=TIMEOUT)
     resp.raise_for_status()
@@ -21,7 +22,7 @@ def create_order(auth_token, amount_cents=1000, currency="eur"):
     headers = {
         "Authorization": f"Bearer {auth_token}",
         "Content-Type": "application/json",
-        "apikey": auth_token,  # Supabase usually requires apikey header equal to anon or service role key, but here we rely on auth token for RLS
+        "apikey": ANON_KEY,
         "Prefer": "return=representation"
     }
     # Create a minimal valid order payload
@@ -42,7 +43,7 @@ def delete_order(auth_token, order_id):
     url = f"{BASE_URL}/rest/v1/orders?id=eq.{order_id}"
     headers = {
         "Authorization": f"Bearer {auth_token}",
-        "apikey": auth_token
+        "apikey": ANON_KEY
     }
     resp = requests.delete(url, headers=headers, timeout=TIMEOUT)
     resp.raise_for_status()
@@ -57,7 +58,9 @@ def test_TC003_post_functions_v1_create_payment_intent_validates_amount_and_retu
     try:
         url = f"{BASE_URL}/functions/v1/create-payment-intent"
         headers = {
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "apikey": ANON_KEY,
+            "Authorization": f"Bearer {token}"
         }
 
         # Test valid amount within allowed buffer (amount in cents, min 50 cents, buffer ±5%)

@@ -102,6 +102,7 @@ flutter:
   assets:
     - assets/sounds/bora_alert.wav
     - assets/categories/
+    - assets/branding/
     - assets/fonts/
   fonts:
     - family: Inter

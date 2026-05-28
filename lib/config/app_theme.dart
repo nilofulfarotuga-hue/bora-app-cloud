@@ -12,7 +12,7 @@ class AppTheme {
   static const Color secondaryDark = Color(0xFFEA580C); // laranja hover/pressed
   static const Color secondaryLight = Color(0xFFFB923C); // legacy compat
   static const Color background = Color(0xFFF0F2EF); // fundo geral verde-acinzentado
-  static const Color surface = Color(0xFFF5F5F5); // legacy compat
+  static const Color surface = Color(0xFFFFFFFF); // cards/sheets
   static const Color surface2 = Color(0xFFF7F8F6); // superfície alternativa
   static const Color textPrimary = Color(0xFF111111);
   static const Color textSecondary = Color(0xFF6B7280);
@@ -87,7 +87,7 @@ class AppTheme {
           minimumSize: const Size(88, 52),
           side: const BorderSide(color: primaryColor, width: 1.5),
           shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(12)),
+            borderRadius: BorderRadius.all(Radius.circular(14)),
           ),
           textStyle: const TextStyle(
             fontSize: 16,
@@ -102,7 +102,7 @@ class AppTheme {
       ),
       inputDecorationTheme: const InputDecorationTheme(
         filled: true,
-        fillColor: Color(0xFFF5F5F5),
+        fillColor: Color(0xFFFFFFFF),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.all(Radius.circular(12)),
           borderSide: BorderSide(color: Color(0xFFE0E0E0)),

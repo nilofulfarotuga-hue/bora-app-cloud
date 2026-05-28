@@ -54,7 +54,7 @@ class BoraProductCard extends StatelessWidget {
 
     return Material(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(16),
       elevation: 1,
       shadowColor: Colors.black.withValues(alpha: 0.08),
       clipBehavior: Clip.antiAlias,
@@ -152,6 +152,9 @@ class BoraProductCard extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w800,
+                              fontFeatures: const [
+                                FontFeature.tabularFigures(),
+                              ],
                               color: hasPrice
                                   ? AppColors.primary
                                   : Colors.grey.shade500,

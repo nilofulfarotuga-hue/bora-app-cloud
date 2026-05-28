@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../config/app_theme.dart';
+import '../../config/app_colors.dart';
 import '../../models/reservation_model.dart';
 
 /// Card de reserva (Reservas PRO F3.A).
@@ -51,7 +51,7 @@ class ReservationCard extends StatelessWidget {
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
-                          color: AppTheme.textPrimary,
+                          color: AppColors.textPrimary,
                         ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
@@ -61,7 +61,7 @@ class ReservationCard extends StatelessWidget {
                         _formatDateTimePt(r.reservedFor.toLocal()),
                         style: const TextStyle(
                           fontSize: 13,
-                          color: AppTheme.textSecondary,
+                          color: AppColors.textSecondary,
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -69,7 +69,7 @@ class ReservationCard extends StatelessWidget {
                         _peopleLabel(r.people),
                         style: const TextStyle(
                           fontSize: 13,
-                          color: AppTheme.textSecondary,
+                          color: AppColors.textSecondary,
                         ),
                       ),
                     ],
@@ -84,14 +84,14 @@ class ReservationCard extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                 decoration: BoxDecoration(
-                  color: AppTheme.surface,
+                  color: AppColors.surface,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   'Pedido: ${r.specialRequests}',
                   style: const TextStyle(
                     fontSize: 12,
-                    color: AppTheme.textSecondary,
+                    color: AppColors.textSecondary,
                   ),
                 ),
               ),
@@ -207,11 +207,11 @@ class _ThumbFallback extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: AppTheme.surface,
+      color: AppColors.surface,
       alignment: Alignment.center,
       child: const Icon(
         Icons.restaurant_outlined,
-        color: AppTheme.primary,
+        color: AppColors.primary,
         size: 28,
       ),
     );
@@ -244,26 +244,26 @@ class _StatusBadge extends StatelessWidget {
 
   static (String, Color) _resolve(ReservationModel r) {
     if (r.isFinished) {
-      return ('Concluída', AppTheme.primary);
+      return ('Concluída', AppColors.primary);
     }
     if (r.isNoShow) {
       return ('Não compareceu', Colors.red);
     }
     if (r.isArrived) {
-      return ('Chegou', AppTheme.primary);
+      return ('Chegou', AppColors.primary);
     }
     if (r.status == ReservationStatus.seated) {
-      return ('Sentado', AppTheme.primary);
+      return ('Sentado', AppColors.primary);
     }
     if (r.isApproved) {
-      return ('Confirmada', AppTheme.primary);
+      return ('Confirmada', AppColors.primary);
     }
     if (r.isPending) {
       return (
         r.status == ReservationStatus.pendingPayment
             ? 'Aguarda pagamento'
             : 'Pendente',
-        AppTheme.secondary,
+        AppColors.accent,
       );
     }
     if (r.isCancelled) {

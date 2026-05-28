@@ -4,9 +4,13 @@ import '../../config/app_colors.dart';
 
 /// CTA destaque laranja BORA.
 ///
-/// Regra do design system: **1 elemento laranja por ecrã**. Usar este botão
-/// APENAS na acção principal de cada ecrã. Restantes botões usam o tema
-/// global (verde). Substitui o antigo default laranja do `ElevatedButton`.
+/// Regra do design system: **1 elemento laranja por ecrã**. Usar APENAS na
+/// acção principal de cada ecrã. Restantes botões usam o tema global (verde).
+///
+/// Estados visuais (alinhados com tokens 3.1A):
+/// - default:           AppColors.accent     (#F97316)
+/// - pressed/focused:   AppColors.accentDark (#EA580C)
+/// - disabled:          bg 50% alpha + fg 70% alpha
 class BoraAccentButton extends StatelessWidget {
   final String label;
   final VoidCallback? onPressed;
@@ -47,21 +51,33 @@ class BoraAccentButton extends StatelessWidget {
           );
 
     final button = ElevatedButton(
-      style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.accent,
-        foregroundColor: Colors.white,
-        disabledBackgroundColor: AppColors.accent.withValues(alpha: 0.5),
-        disabledForegroundColor: Colors.white,
-        minimumSize: const Size(88, 52),
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(12)),
-        ),
-        textStyle: const TextStyle(
+      style: ButtonStyle(
+        backgroundColor: WidgetStateProperty.resolveWith<Color>((states) {
+          if (states.contains(WidgetState.disabled)) {
+            return AppColors.accent.withValues(alpha: 0.5);
+          }
+          if (states.contains(WidgetState.pressed) ||
+              states.contains(WidgetState.focused)) {
+            return AppColors.accentDark;
+          }
+          return AppColors.accent;
+        }),
+        foregroundColor: WidgetStateProperty.resolveWith<Color>((states) {
+          if (states.contains(WidgetState.disabled)) {
+            return Colors.white.withValues(alpha: 0.7);
+          }
+          return Colors.white;
+        }),
+        minimumSize: WidgetStateProperty.all(const Size(88, 52)),
+        shape: WidgetStateProperty.all(const RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(14)),
+        )),
+        textStyle: WidgetStateProperty.all(const TextStyle(
           fontSize: 16,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w700,
           letterSpacing: 0.3,
-        ),
-        elevation: 2,
+        )),
+        elevation: WidgetStateProperty.all<double>(0),
       ),
       onPressed: (loading || onPressed == null) ? null : onPressed,
       child: child,

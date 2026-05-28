@@ -4,6 +4,7 @@
 /// a todos os primitives num único import.
 library;
 
+export 'bora_accent_button.dart';
 export 'bora_address_bar.dart';
 export 'bora_app_bar.dart';
 export 'bora_bottom_nav.dart';

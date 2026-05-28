@@ -101,3 +101,8 @@ flutter:
   uses-material-design: true
   assets:
     - assets/sounds/bora_alert.wav
+    - assets/fonts/
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-VariableFont.ttf

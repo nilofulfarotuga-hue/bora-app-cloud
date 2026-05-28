@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  // Paleta oficial Bora (BR cabeçalho + design reference 2026-04-18).
-  static const Color primary = Color(0xFF1B5E20); // verde principal
-  static const Color primaryDark = Color(0xFF0F3D14);
-  static const Color primaryLight = Color(0xFF2E7D32);
-  static const Color secondary = Color(0xFFE65100); // laranja/vermelho
-  static const Color secondaryLight = Color(0xFFF57C00);
+  // Paleta oficial Bora (design system 2026-05-28).
+  static const Color primary = Color(0xFF16A34A); // verde principal
+  static const Color primaryDark = Color(0xFF065F46);
+  static const Color primaryLight = Color(0xFF15803D);
+  static const Color secondary = Color(0xFFF97316); // laranja acento
+  static const Color secondaryLight = Color(0xFFFB923C);
   static const Color background = Color(0xFFFFFFFF);
   static const Color surface = Color(0xFFF5F5F5);
   static const Color textPrimary = Color(0xFF1A1A1A);
@@ -32,6 +32,7 @@ class AppTheme {
 
     return ThemeData(
       useMaterial3: false,
+      fontFamily: 'Inter',
       primaryColor: primaryColor,
       scaffoldBackgroundColor: background,
       colorScheme: const ColorScheme.light(
@@ -58,7 +59,7 @@ class AppTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: secondaryColor,
+          backgroundColor: primaryColor,
           foregroundColor: Colors.white,
           minimumSize: const Size(88, 52),
           shape: const RoundedRectangleBorder(
@@ -88,7 +89,7 @@ class AppTheme {
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: secondaryColor,
+          foregroundColor: primaryColor,
         ),
       ),
       inputDecorationTheme: const InputDecorationTheme(

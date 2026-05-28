@@ -27,13 +27,13 @@ class AppColors {
   static const Color textOnPrimary = Colors.white;
 
   // Semânticos (status, mapas)
-  static const Color success = Color(0xFF1B5E20); // verde Bora
-  static const Color warning = Color(0xFFE65100); // laranja Bora
+  static const Color success = Color(0xFF16A34A); // verde Bora
+  static const Color warning = Color(0xFFF97316); // laranja Bora
   static const Color error = Color(0xFFC62828);
   static const Color info = Color(0xFF1A73E8);
 
   // Marcadores de mapa (BR §7 — driver flow)
-  static const Color mapPickup = Color(0xFFF57C00); // laranja
+  static const Color mapPickup = Color(0xFFF97316); // laranja
   static const Color mapDropoff = Color(0xFF1C6EF2); // azul
 
   // Gradientes (delegam para AppTheme)
@@ -42,12 +42,12 @@ class AppColors {
 
   // Categorias (tile cards) — paleta alinhada à referência visual.
   static const LinearGradient tileRestaurants = LinearGradient(
-    colors: [Color(0xFFE65100), Color(0xFFF57C00)],
+    colors: [Color(0xFFF97316), Color(0xFFFB923C)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
   static const LinearGradient tileSupermarkets = LinearGradient(
-    colors: [Color(0xFF2E7D32), Color(0xFF43A047)],
+    colors: [Color(0xFF16A34A), Color(0xFF22C55E)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
@@ -57,12 +57,12 @@ class AppColors {
     end: Alignment.bottomRight,
   );
   static const LinearGradient tileSendPackage = LinearGradient(
-    colors: [Color(0xFFE65100), Color(0xFFFF9800)],
+    colors: [Color(0xFFF97316), Color(0xFFFB923C)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
   static const LinearGradient tileCarryGroceries = LinearGradient(
-    colors: [Color(0xFF2E7D32), Color(0xFF66BB6A)],
+    colors: [Color(0xFF16A34A), Color(0xFF4ADE80)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );

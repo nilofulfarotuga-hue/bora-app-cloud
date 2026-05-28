@@ -1,0 +1,17 @@
+{
+  "status": "init",
+  "scope": "codebase",
+  "type": "backend",
+  "localEndpoint": "https://ojykpzwqrtusfeakzrna.supabase.co",
+  "serverPort": 64616,
+  "executionArgs": {
+    "projectName": "bora_app",
+    "projectPath": "C:/Users/danil/Desktop/projetosflutter/bora_app",
+    "testIds": [],
+    "additionalInstruction": "Backend Supabase cloud at https://ojykpzwqrtusfeakzrna.supabase.co. Test against /functions/v1/* and /rest/v1/*. Use Stripe test card 4242424242424242 for payments. Demo accounts: client cliente@bora.app/123456, driver 910000000/123456. Focus: RLS, cancellation, payments, wallet, refund.",
+    "serverMode": "production",
+    "envs": {
+      "API_KEY": "sk-user-FY_4h6rjvHwlVRDUyafygGh-vz4IvDn85zv4FMDBE2mrNqtycgJl0IzG3ndHchlSsqqewStROyMr51JtUdmIpP0Df9IoqeJOJmVMjgo2SubWDYJpPF0PLtDXDL2yK663l0Q"
+    }
+  }
+}

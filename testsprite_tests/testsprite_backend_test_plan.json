@@ -1,0 +1,42 @@
+[
+  {
+    "id": "TC001",
+    "title": "post functions v1 dispatch engine assigns driver correctly",
+    "description": "Verify that POST /functions/v1/dispatch-engine with a valid order_id and authenticated user assigns a driver according to FIFO and 200m batching rules, returning dispatched:true and optionally driver_offered_id."
+  },
+  {
+    "id": "TC002",
+    "title": "post functions v1 client cancel order before driver acceptance",
+    "description": "Verify that a client can cancel an order before driver acceptance by POST /functions/v1/client-cancel-order with order_id, receiving cancelled:true and refund details."
+  },
+  {
+    "id": "TC003",
+    "title": "post functions v1 create payment intent validates amount and returns client secret",
+    "description": "Verify that POST /functions/v1/create-payment-intent with valid order_id, amount within allowed buffer, and currency returns 200 with client_secret and payment_intent_id; invalid amounts return 400 validation error."
+  },
+  {
+    "id": "TC004",
+    "title": "post rest v1 rpc wallet get balance returns wallet details for authenticated user",
+    "description": "Verify that POST /rest/v1/rpc/wallet_get_balance with valid authenticated user and p_user_id returns free_cents, tokens_balance, and last_transactions; unauthenticated requests return 401."
+  },
+  {
+    "id": "TC005",
+    "title": "post rest v1 rpc accept offer atomically assigns first eligible driver",
+    "description": "Verify that POST /rest/v1/rpc/accept_offer with p_order_id and p_driver_id from first eligible driver returns accepted:true and moves order to driverAccepted status, preventing other drivers from claiming the offer."
+  },
+  {
+    "id": "TC006",
+    "title": "post functions v1 register partner validates iban and creates account",
+    "description": "Verify that POST /functions/v1/register-partner with valid email, password, restaurant details, and PT IBAN creates partner account with approval pending; invalid IBAN or missing fields return 400 validation error."
+  },
+  {
+    "id": "TC007",
+    "title": "post functions v1 notify client sends fcm and email fallback",
+    "description": "Verify that POST /functions/v1/notify-client with authenticated service_role JWT, user_id, title, and body returns 200 acknowledgment and sends FCM notification with email fallback if needed; unauthorized requests return 401/403."
+  },
+  {
+    "id": "TC008",
+    "title": "get rest v1 orders returns only client orders due to rls",
+    "description": "Verify that GET /rest/v1/orders with valid client JWT returns only orders belonging to that client; orders of other users are not returned; unauthenticated requests return 401."
+  }
+]

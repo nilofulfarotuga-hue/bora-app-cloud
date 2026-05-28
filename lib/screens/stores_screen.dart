@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../config/app_colors.dart';
 import '../models/business_view_models.dart';
 import '../models/order_service_type.dart';
 import '../models/restaurant_model.dart';
@@ -284,7 +285,7 @@ class _StoreTile extends StatelessWidget {
       case BusinessCategory.supermarket:
         return const Color(0xFF1A73E8);
       case BusinessCategory.pharmacy:
-        return const Color(0xFF2E7D32);
+        return AppColors.primaryLight;
       case BusinessCategory.store:
         return const Color(0xFF6A1B9A);
       default:

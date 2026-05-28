@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../config/app_colors.dart';
 import '../models/restaurant_model.dart';
 import 'client/reservation/reservation_mbway_waiting_dialog.dart';
 import 'client/reservation/reservation_payment_method_sheet.dart';
@@ -381,7 +382,7 @@ class _ReservationFlowScreenState extends State<ReservationFlowScreen> {
                     const Row(
                       children: [
                         Icon(Icons.info_outline,
-                            size: 16, color: Color(0xFFE65100)),
+                            size: 16, color: AppColors.accent),
                         SizedBox(width: 6),
                         Text(
                           'Pré-pagamento €3 (anti-no-show)',
@@ -426,7 +427,7 @@ class _ReservationFlowScreenState extends State<ReservationFlowScreen> {
                 child: ElevatedButton(
                   onPressed: _submitting ? null : _submit,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFE65100),
+                    backgroundColor: AppColors.accent,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14)),

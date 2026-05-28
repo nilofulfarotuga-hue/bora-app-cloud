@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../config/app_colors.dart';
 import '../config/app_theme.dart';
 import '../models/chat_message.dart';
 import '../models/order_model.dart';
@@ -1351,7 +1352,7 @@ class _PurchaseV2CardState extends State<_PurchaseV2Card> {
       case 'purchased':
         return (
           Icons.check_circle,
-          const Color(0xFF1B5E20),
+          AppColors.primary,
           'COMPRADO',
           '${qty}× · €$originalEur',
         );
@@ -1374,7 +1375,7 @@ class _PurchaseV2CardState extends State<_PurchaseV2Card> {
       case 'added':
         return (
           Icons.add_circle,
-          const Color(0xFFE65100),
+          AppColors.accent,
           'ADICIONADO',
           'Adicionado pelo estafeta · €${actualEur ?? "?"}',
         );

@@ -11,6 +11,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../config/app_colors.dart';
+
 class AdminPendingActionsScreen extends StatefulWidget {
   const AdminPendingActionsScreen({super.key});
 
@@ -21,8 +23,8 @@ class AdminPendingActionsScreen extends StatefulWidget {
 
 class _AdminPendingActionsScreenState
     extends State<AdminPendingActionsScreen> {
-  static const _boraGreen = Color(0xFF1B5E20);
-  static const _boraOrange = Color(0xFFE65100);
+  static const _boraGreen = AppColors.primary;
+  static const _boraOrange = AppColors.accent;
 
   final _supabase = Supabase.instance.client;
   String _statusFilter = 'pending';

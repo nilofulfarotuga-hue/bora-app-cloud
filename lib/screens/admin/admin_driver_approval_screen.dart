@@ -495,7 +495,7 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
       ),
       floatingActionButton: _isMultiSelectMode
           ? FloatingActionButton.extended(
-              backgroundColor: const Color(0xFF1B5E20),
+              backgroundColor: AppColors.primary,
               onPressed: _bulkApprove,
               icon: const Icon(Icons.check_circle),
               label: Text('Aprovar (${_selectedIds.length})'),
@@ -614,7 +614,7 @@ class _DriverList extends StatelessWidget {
           shape: isSelected
               ? RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
-                  side: const BorderSide(color: Color(0xFF1B5E20), width: 2),
+                  side: const BorderSide(color: AppColors.primary, width: 2),
                 )
               : null,
           child: InkWell(

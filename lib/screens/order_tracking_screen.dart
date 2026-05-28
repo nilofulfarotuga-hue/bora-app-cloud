@@ -367,7 +367,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
               button: true,
               child: FloatingActionButton.small(
                 heroTag: 'map_recenter_btn_client',
-                backgroundColor: const Color(0xFF1B5E20),
+                backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
                 onPressed: _onRecenter,
                 child: const Icon(Icons.my_location),

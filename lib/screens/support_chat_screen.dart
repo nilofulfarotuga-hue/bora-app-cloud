@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../config/app_colors.dart';
 import '../providers/support_settings_provider.dart';
 import '../widgets/bora_support_sheet.dart';
 
@@ -309,7 +310,7 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             child: Text(
               _statusBarText(provider),
-              style: const TextStyle(fontSize: 11, color: Color(0xFFE65100)),
+              style: const TextStyle(fontSize: 11, color: AppColors.accent),
             ),
           ),
         ),
@@ -432,7 +433,7 @@ class _MessageBubble extends StatelessWidget {
         margin: const EdgeInsets.symmetric(vertical: 4),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: isUser ? const Color(0xFFE65100) : Colors.grey.shade100,
+          color: isUser ? AppColors.accent : Colors.grey.shade100,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(16),
             topRight: const Radius.circular(16),
@@ -498,7 +499,7 @@ class _Composer extends StatelessWidget {
                   )
                 : IconButton(
                     icon: const Icon(Icons.send,
-                        color: Color(0xFFE65100)),
+                        color: AppColors.accent),
                     onPressed: onSend,
                   ),
           ],

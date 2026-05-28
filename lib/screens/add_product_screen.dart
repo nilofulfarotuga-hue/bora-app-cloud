@@ -328,7 +328,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                 icon: const Icon(Icons.camera_alt),
                 label: const Text('Tirar foto'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1B5E20),
+                  backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                 ),
               ),
@@ -340,7 +340,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                 icon: const Icon(Icons.photo_library),
                 label: const Text('Galeria'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1B5E20),
+                  backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                 ),
               ),

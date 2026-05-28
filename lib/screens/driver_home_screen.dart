@@ -1402,7 +1402,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                             child: Text(
                               '↳ inclui €${(order.debtCollectedCents / 100).toStringAsFixed(2)} de dívida anterior',
                               style: const TextStyle(
-                                color: Color(0xFFE65100),
+                                color: AppColors.accent,
                                 fontSize: 12,
                                 fontStyle: FontStyle.italic,
                               ),

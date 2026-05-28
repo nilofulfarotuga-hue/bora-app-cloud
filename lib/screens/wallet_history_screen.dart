@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../config/app_colors.dart';
 import '../services/wallet_service.dart';
 import '../widgets/bora_support_fab.dart';
 import '../widgets/pay_debt_modal.dart';
@@ -111,7 +112,7 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
                 icon: const Icon(Icons.payment),
                 label: Text('Pagar dívida agora (€${(b.debtCents / 100).toStringAsFixed(2)})'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1B5E20),
+                  backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),

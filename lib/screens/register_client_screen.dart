@@ -303,7 +303,7 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
                       child: const Text(
                         'Iniciar sessão',
                         style: TextStyle(
-                            color: Color(0xFFE65100),
+                            color: AppColors.accent,
                             fontWeight: FontWeight.bold),
                       ),
                     ),

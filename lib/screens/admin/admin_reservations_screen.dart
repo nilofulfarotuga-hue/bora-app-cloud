@@ -185,7 +185,7 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
                   width: double.infinity,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1B5E20),
+                      backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
                     ),
                     onPressed: submitting
@@ -230,7 +230,7 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
                                 const SnackBar(
                                   content:
                                       Text('Reserva criada com sucesso.'),
-                                  backgroundColor: Color(0xFF1B5E20),
+                                  backgroundColor: AppColors.primary,
                                 ),
                               );
                               setState(() => _future = _load());
@@ -345,7 +345,7 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
                             ScaffoldMessenger.of(outerContext).showSnackBar(
                               const SnackBar(
                                 content: Text('Reserva cancelada em nome.'),
-                                backgroundColor: Color(0xFF1B5E20),
+                                backgroundColor: AppColors.primary,
                               ),
                             );
                             setState(() => _future = _load());

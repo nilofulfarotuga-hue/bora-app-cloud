@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../config/app_colors.dart';
 import '../providers/support_settings_provider.dart';
 
 class SupportEmailFormScreen extends StatefulWidget {
@@ -97,7 +98,7 @@ class _SupportEmailFormScreenState extends State<SupportEmailFormScreen> {
                   ),
                   child: Text(
                     'Sobre pedido #${widget.orderId}',
-                    style: const TextStyle(color: Color(0xFFE65100)),
+                    style: const TextStyle(color: AppColors.accent),
                   ),
                 ),
               TextFormField(
@@ -134,7 +135,7 @@ class _SupportEmailFormScreenState extends State<SupportEmailFormScreen> {
               ElevatedButton(
                 onPressed: _submitting ? null : _submit,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFE65100),
+                  backgroundColor: AppColors.accent,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),

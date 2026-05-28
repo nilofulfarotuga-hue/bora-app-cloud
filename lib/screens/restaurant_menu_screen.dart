@@ -165,8 +165,8 @@ class RestaurantMenuScreen extends StatelessWidget {
                   icon: const Icon(Icons.event_seat_outlined),
                   label: const Text('Reservar mesa'),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF1B5E20),
-                    side: const BorderSide(color: Color(0xFF1B5E20)),
+                    foregroundColor: AppColors.primary,
+                    side: const BorderSide(color: AppColors.primary),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),

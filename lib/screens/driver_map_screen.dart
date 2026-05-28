@@ -17,6 +17,7 @@ import 'package:latlong2/latlong.dart' as ll;
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../config/app_colors.dart';
 import '../config/business_rules.dart' show BRBags, BRDriver;
 import '../models/cart_item.dart';
 import '../models/chat_message.dart';
@@ -174,7 +175,7 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
     const size = 56.0;
-    final paint = Paint()..color = const Color(0xFF1B5E20); // Bora deep green
+    final paint = Paint()..color = AppColors.primary; // Bora deep green
     final path = Path()
       ..moveTo(size / 2, 0) // top point
       ..lineTo(size, size) // bottom-right
@@ -856,7 +857,7 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
               button: true,
               child: FloatingActionButton.small(
                 heroTag: 'map_recenter_btn_driver',
-                backgroundColor: const Color(0xFF1B5E20),
+                backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
                 onPressed: _onRecenter,
                 child: const Icon(Icons.my_location),
@@ -2155,7 +2156,7 @@ class _CashCollectBanner extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       decoration: BoxDecoration(
-        color: const Color(0xFFE65100),
+        color: AppColors.accent,
         borderRadius: BorderRadius.circular(12),
         boxShadow: const [
           BoxShadow(
@@ -2221,7 +2222,7 @@ class _PartnerSelfDispatchPickupBanner extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1B5E20),
+        color: AppColors.primary,
         borderRadius: BorderRadius.circular(12),
         boxShadow: const [
           BoxShadow(

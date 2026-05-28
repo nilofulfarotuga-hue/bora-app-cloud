@@ -231,7 +231,7 @@ class _AdminRatingsScreenState extends State<AdminRatingsScreen> {
           content: Text(currentlyFlagged
               ? 'Sinal removido.'
               : 'Avaliação sinalizada como inapropriada.'),
-          backgroundColor: const Color(0xFF1B5E20),
+          backgroundColor: AppColors.primary,
         ),
       );
       await _refresh();

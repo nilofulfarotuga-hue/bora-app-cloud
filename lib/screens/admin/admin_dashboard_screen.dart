@@ -659,7 +659,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                   icon: Icons.fact_check_outlined,
                   title: 'Propostas IA',
                   subtitle: 'Aprovar/rejeitar acções WRITE do robô',
-                  color: const Color(0xFFE65100),
+                  color: AppColors.accent,
                   onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -687,7 +687,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                   icon: Icons.forum_outlined,
                   title: 'Comunicação A↔B',
                   subtitle: 'Perguntas do robô A ao robô B + respostas RAG',
-                  color: const Color(0xFF1B5E20),
+                  color: AppColors.primary,
                   onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -757,7 +757,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                   icon: Icons.receipt,
                   title: 'Reembolsos estafetas',
                   subtitle: 'StoreShopping V2 · talões + reembolso MBWay',
-                  color: const Color(0xFFE65100),
+                  color: AppColors.accent,
                   onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(

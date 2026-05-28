@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../config/app_colors.dart';
 import '../providers/support_settings_provider.dart';
 import '../screens/support_chat_screen.dart';
 import '../screens/support_email_form_screen.dart';
@@ -61,7 +62,7 @@ class BoraSupportSheet extends StatelessWidget {
             if (showAgentCard && provider.shouldShowAiCard)
               _ContactCard(
                 icon: Icons.smart_toy_outlined,
-                color: const Color(0xFFE65100),
+                color: AppColors.accent,
                 title: 'Falar com Bora IA',
                 subtitle: 'Resposta imediata · 24/7',
                 onTap: () {

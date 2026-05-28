@@ -24,11 +24,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 
+import '../config/app_colors.dart';
+
 const _kOfferTimeoutSeconds = 40; // matches dispatch_engine TTL backend
 
-const _kBoraGreen = Color(0xFF2E7D32);
-const _kBoraGreenDark = Color(0xFF1B5E20);
-const _kBoraOrange = Color(0xFFE65100);
+const _kBoraGreen = AppColors.primaryLight;
+const _kBoraGreenDark = AppColors.primary;
+const _kBoraOrange = AppColors.accent;
 
 /// Entry point invocado pelo plugin flutter_overlay_window quando
 /// `FlutterOverlayWindow.showOverlay()` arranca o isolate.

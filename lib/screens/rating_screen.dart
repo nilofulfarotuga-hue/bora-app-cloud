@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../config/app_colors.dart';
 import '../models/order_model.dart';
 import '../models/rating_model.dart';
 import '../widgets/tip_selector.dart';
@@ -206,7 +207,7 @@ class _RatingScreenState extends State<RatingScreen> {
                   style: TextStyle(fontSize: 12),
                 ),
                 contentPadding: EdgeInsets.zero,
-                activeThumbColor: const Color(0xFF1B5E20),
+                activeThumbColor: AppColors.primary,
               ),
               const SizedBox(height: 12),
               SizedBox(
@@ -215,7 +216,7 @@ class _RatingScreenState extends State<RatingScreen> {
                 child: ElevatedButton(
                   onPressed: _canSubmit ? _submit : null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFE65100),
+                    backgroundColor: AppColors.accent,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14)),

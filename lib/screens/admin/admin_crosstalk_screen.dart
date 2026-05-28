@@ -9,6 +9,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../config/app_colors.dart';
+
 class AdminCrosstalkScreen extends StatefulWidget {
   const AdminCrosstalkScreen({super.key});
 
@@ -17,8 +19,8 @@ class AdminCrosstalkScreen extends StatefulWidget {
 }
 
 class _AdminCrosstalkScreenState extends State<AdminCrosstalkScreen> {
-  static const _boraGreen = Color(0xFF1B5E20);
-  static const _boraOrange = Color(0xFFE65100);
+  static const _boraGreen = AppColors.primary;
+  static const _boraOrange = AppColors.accent;
   static const _amber = Color(0xFFFF8F00);
   static const _critical = Color(0xFFD32F2F); // 5F-α: vermelho críticas
   static const _criticalBg = Color(0xFFFFEBEE);
@@ -784,7 +786,7 @@ class _AdminCrosstalkScreenState extends State<AdminCrosstalkScreen> {
                   style: const TextStyle(
                       fontStyle: FontStyle.italic,
                       fontSize: 12,
-                      color: Color(0xFF1B5E20)),
+                      color: AppColors.primary),
                 ),
               ),
               if (ct['answered_at'] != null) ...[

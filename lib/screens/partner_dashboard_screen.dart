@@ -1594,7 +1594,7 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
                 : const Icon(Icons.notifications_active),
             label: Text(busy ? 'A marcar...' : 'Marcar como Pronto'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFE65100),
+              backgroundColor: AppColors.accent,
               foregroundColor: Colors.white,
               minimumSize: const Size(double.infinity, 48),
             ),
@@ -1619,7 +1619,7 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
                 ? 'A confirmar...'
                 : 'Cliente apareceu — Confirmar levantamento'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1B5E20),
+              backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
               minimumSize: const Size(double.infinity, 48),
             ),
@@ -1633,7 +1633,7 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
             icon: const Icon(Icons.check_circle),
             label: const Text('Levantado ✓'),
             style: ElevatedButton.styleFrom(
-              disabledBackgroundColor: const Color(0xFF1B5E20),
+              disabledBackgroundColor: AppColors.primary,
               disabledForegroundColor: Colors.white,
               minimumSize: const Size(double.infinity, 48),
             ),
@@ -1684,7 +1684,7 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
                 : const Icon(Icons.delivery_dining),
             label: Text(busy ? 'A chamar...' : 'Chamar estafeta'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFE65100),
+              backgroundColor: AppColors.accent,
               foregroundColor: Colors.white,
               minimumSize: const Size(double.infinity, 48),
             ),
@@ -1738,7 +1738,7 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
             icon: const Icon(Icons.check_circle),
             label: const Text('Entregue ✓'),
             style: ElevatedButton.styleFrom(
-              disabledBackgroundColor: const Color(0xFF1B5E20),
+              disabledBackgroundColor: AppColors.primary,
               disabledForegroundColor: Colors.white,
               minimumSize: const Size(double.infinity, 48),
             ),
@@ -2228,7 +2228,7 @@ class _ReservationsToggleCard extends StatelessWidget {
               : 'Desligado — reservas ocultas aos clientes. (BR §14.10)',
           style: const TextStyle(fontSize: 12),
         ),
-        activeColor: const Color(0xFF1B5E20),
+        activeColor: AppColors.primary,
       ),
     );
   }
@@ -2324,7 +2324,7 @@ class _TakeawayToggleCardState extends State<_TakeawayToggleCard> {
                   : 'Desligado — só entrega. (BR §14.9)',
               style: const TextStyle(fontSize: 12),
             ),
-            activeColor: const Color(0xFF1B5E20),
+            activeColor: AppColors.primary,
           ),
           if (takeawayEnabled) ...[
             const Divider(height: 1),
@@ -2343,7 +2343,7 @@ class _TakeawayToggleCardState extends State<_TakeawayToggleCard> {
                     : 'Apenas levantamento ao balcão.',
                 style: const TextStyle(fontSize: 12),
               ),
-              activeColor: const Color(0xFFE65100),
+              activeColor: AppColors.accent,
             ),
             const Divider(height: 1),
             Padding(

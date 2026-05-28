@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../config/app_colors.dart';
 import '../services/payment_service.dart';
 
 /// PayDebtModal — modal para liquidar dívida wallet (BUG #1 frontend / §54).
@@ -97,7 +98,7 @@ class _PayDebtModalState extends State<PayDebtModal> {
           ? 'Dívida paga! Tens €${(surplusCents / 100).toStringAsFixed(2)} em saldo.'
           : 'Dívida paga!';
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(msg), backgroundColor: const Color(0xFF1B5E20)),
+        SnackBar(content: Text(msg), backgroundColor: AppColors.primary),
       );
       Navigator.of(context).pop(true);
     } catch (e) {
@@ -200,7 +201,7 @@ class _PayDebtModalState extends State<PayDebtModal> {
         ElevatedButton(
           onPressed: _isLoading ? null : _confirm,
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF1B5E20),
+            backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,
           ),
           child: _isLoading

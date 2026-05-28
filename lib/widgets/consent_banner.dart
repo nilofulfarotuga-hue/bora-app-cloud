@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../config/app_colors.dart';
 import '../stores/consent_store.dart';
 
 /// Wraps the whole app with a first-open privacy/cookies banner (BR §20.3).
@@ -80,7 +81,7 @@ class _BannerSheet extends StatelessWidget {
             child: ElevatedButton(
               onPressed: store.acceptAll,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFE65100),
+                backgroundColor: AppColors.accent,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(

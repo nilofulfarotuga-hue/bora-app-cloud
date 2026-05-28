@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../config/app_colors.dart';
+
 /// Lista pública de avaliações de um restaurante (BR §44).
 ///
 /// Chama get_restaurant_ratings_summary(p_restaurant_id) — devolve avg, count,
@@ -382,7 +384,7 @@ class _RatingCard extends StatelessWidget {
                   color: const Color(0xFFE8F5E9),
                   borderRadius: BorderRadius.circular(8),
                   border: const Border(
-                    left: BorderSide(color: Color(0xFF1B5E20), width: 3),
+                    left: BorderSide(color: AppColors.primary, width: 3),
                   ),
                 ),
                 child: Column(
@@ -393,7 +395,7 @@ class _RatingCard extends StatelessWidget {
                       style: TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 12,
-                        color: Color(0xFF1B5E20),
+                        color: AppColors.primary,
                       ),
                     ),
                     const SizedBox(height: 4),

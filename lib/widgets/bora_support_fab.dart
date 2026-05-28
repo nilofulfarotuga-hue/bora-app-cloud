@@ -8,6 +8,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../config/app_colors.dart';
 import '../providers/support_settings_provider.dart';
 import '../screens/support_chat_screen.dart';
 import 'bora_support_sheet.dart';
@@ -30,7 +31,7 @@ class BoraSupportFab extends StatelessWidget {
   Widget build(BuildContext context) {
     return FloatingActionButton(
       heroTag: heroTag,
-      backgroundColor: const Color(0xFFE65100),
+      backgroundColor: AppColors.accent,
       foregroundColor: Colors.white,
       tooltip: 'Suporte Bora',
       onPressed: () => _open(context),

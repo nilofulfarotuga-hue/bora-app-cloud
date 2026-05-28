@@ -18,6 +18,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../config/app_colors.dart';
 import '../models/chat_message.dart';
 import '../models/order_model.dart';
 import '../screens/chat_screen.dart';
@@ -166,7 +167,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         ticker: '🔔 Novo pedido — €$total',
         visibility: fln.NotificationVisibility.public,
         colorized: true,
-        color: const Color(0xFF2E7D32),
+        color: AppColors.primaryLight,
         styleInformation: BigTextStyleInformation(
           '$items${customer.isNotEmpty ? "\n👤 $customer" : ""}\n💰 Total: €$total',
           contentTitle: '🔔 Novo pedido!',
@@ -314,7 +315,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       ticker: '🛵 Novo pedido — €$driverEarnings',
       visibility: fln.NotificationVisibility.public,
       colorized: true,
-      color: const Color(0xFFE65100),
+      color: AppColors.accent,
       indeterminate: false,
       // FLAG_INSISTENT (Android Notification flag 0x4) → som toca EM LOOP
       // até user dismisses ou age na notif. Padrão Glovo/Uber.
@@ -1610,7 +1611,7 @@ class _ChatBannerWidgetState extends State<_ChatBannerWidget>
                 child: Row(
                   children: [
                     const Icon(Icons.chat_bubble_rounded,
-                        color: Color(0xFF2E7D32), size: 26),
+                        color: AppColors.primaryLight, size: 26),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(

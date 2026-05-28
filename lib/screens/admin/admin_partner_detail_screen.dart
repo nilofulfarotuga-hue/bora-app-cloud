@@ -1596,7 +1596,7 @@ class _AdminTakeawayConfigCardState extends State<_AdminTakeawayConfigCard> {
               'Permite pedidos para levantamento (cliente vê botão "Ir buscar").',
               style: TextStyle(fontSize: 12),
             ),
-            activeColor: const Color(0xFF1B5E20),
+            activeColor: AppColors.primary,
           ),
           if (widget.takeawayEnabled) ...[
             const Divider(height: 1),
@@ -1613,7 +1613,7 @@ class _AdminTakeawayConfigCardState extends State<_AdminTakeawayConfigCard> {
                 'Atendimento no carro (cliente informa matrícula).',
                 style: TextStyle(fontSize: 12),
               ),
-              activeColor: const Color(0xFFE65100),
+              activeColor: AppColors.accent,
             ),
             const Divider(height: 1),
             Padding(

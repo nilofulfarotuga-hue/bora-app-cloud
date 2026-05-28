@@ -10,6 +10,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../config/app_colors.dart';
+
 class AdminSkillSuggestionsScreen extends StatefulWidget {
   const AdminSkillSuggestionsScreen({super.key});
 
@@ -20,8 +22,8 @@ class AdminSkillSuggestionsScreen extends StatefulWidget {
 
 class _AdminSkillSuggestionsScreenState
     extends State<AdminSkillSuggestionsScreen> {
-  static const _boraGreen = Color(0xFF1B5E20);
-  static const _boraOrange = Color(0xFFE65100);
+  static const _boraGreen = AppColors.primary;
+  static const _boraOrange = AppColors.accent;
   static const _amber = Color(0xFFFF8F00);
   static const _critical = Color(0xFFC62828);
 
@@ -1538,7 +1540,7 @@ class _AdminSkillSuggestionsScreenState
                     style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1B5E20))),
+                        color: AppColors.primary)),
                 const SizedBox(height: 4),
                 ...newLines.map((line) => Container(
                       width: double.infinity,

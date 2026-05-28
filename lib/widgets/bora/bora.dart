@@ -8,6 +8,7 @@ export 'bora_accent_button.dart';
 export 'bora_address_bar.dart';
 export 'bora_app_bar.dart';
 export 'bora_bottom_nav.dart';
+export 'bora_bottom_nav_v2.dart';
 export 'bora_primary_button.dart';
 export 'bora_product_card.dart';
 export 'bora_promo_banner.dart';

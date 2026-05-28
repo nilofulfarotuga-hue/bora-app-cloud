@@ -6,6 +6,8 @@ import '../../config/app_colors.dart';
 ///
 /// Ícone activo verde Bora, inactivo cinzento. Fundo branco com sombra topo.
 /// Para apps com mais tabs, usar `BottomNavigationBar` do ThemeData.
+@Deprecated(
+    'Use BoraBottomNavV2 (4 tabs: home/delivery/reservation/profile). Migração planeada na Fase 4.')
 class BoraBottomNav extends StatelessWidget {
   const BoraBottomNav({
     super.key,

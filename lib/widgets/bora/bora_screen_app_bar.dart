@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../../config/app_colors.dart';
 
-/// AppBar padronizado Bora para ecrãs de fluxo cliente.
+/// AppBar padronizado Bora para ecrãs internos (back + título + actions).
 ///
 /// - Fundo: gradiente verde Bora (`AppColors.headerGradient`).
-/// - Seta voltar e título: cor laranja (`AppColors.accent`).
+/// - Seta voltar, título e ícones de acção: **brancos** (regra de ouro do
+///   laranja — só 1 elemento laranja por ecrã, nunca no header).
 /// - Usar no slot `appBar:` do Scaffold.
 ///
 /// Exemplo:
@@ -33,12 +34,13 @@ class BoraScreenAppBar extends StatelessWidget implements PreferredSizeWidget {
     return AppBar(
       backgroundColor: Colors.transparent,
       elevation: 0,
-      iconTheme: const IconThemeData(color: AppColors.accent),
+      iconTheme: const IconThemeData(color: Colors.white),
+      actionsIconTheme: const IconThemeData(color: Colors.white),
       title: Text(
         title,
         style: const TextStyle(
-          color: AppColors.accent,
-          fontWeight: FontWeight.w800,
+          color: Colors.white,
+          fontWeight: FontWeight.w600,
         ),
       ),
       flexibleSpace: const DecoratedBox(

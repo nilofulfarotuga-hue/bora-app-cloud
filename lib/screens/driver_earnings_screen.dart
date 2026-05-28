@@ -475,14 +475,14 @@ class _PrioritySection extends StatelessWidget {
         color: Colors.green.shade50,
         borderRadius: BorderRadius.circular(12),
         border:
-            Border.all(color: AppColors.primaryLight.withValues(alpha: 0.3)),
+            Border.all(color: AppColors.primaryMid.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Row(
             children: [
-              Icon(Icons.flash_on, color: AppColors.primaryLight, size: 22),
+              Icon(Icons.flash_on, color: AppColors.primaryMid, size: 22),
               SizedBox(width: 8),
               Text(
                 'Activar Prioridade',
@@ -495,7 +495,7 @@ class _PrioritySection extends StatelessWidget {
             Text(
               'Prioridade activa: ${_fmt(priorityRemaining!)} restantes',
               style: const TextStyle(
-                color: AppColors.primaryLight,
+                color: AppColors.primaryMid,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -515,7 +515,7 @@ class _PrioritySection extends StatelessWidget {
                     ? () => onBuy(opt.key, opt.minutes, opt.cost)
                     : null,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryLight,
+                  backgroundColor: AppColors.primaryMid,
                   foregroundColor: Colors.white,
                   disabledBackgroundColor: Colors.grey.shade300,
                   disabledForegroundColor: Colors.grey.shade600,

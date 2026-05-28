@@ -285,7 +285,7 @@ class _StoreTile extends StatelessWidget {
       case BusinessCategory.supermarket:
         return const Color(0xFF1A73E8);
       case BusinessCategory.pharmacy:
-        return AppColors.primaryLight;
+        return AppColors.primaryMid;
       case BusinessCategory.store:
         return const Color(0xFF6A1B9A);
       default:

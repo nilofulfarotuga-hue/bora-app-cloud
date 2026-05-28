@@ -28,7 +28,7 @@ import '../config/app_colors.dart';
 
 const _kOfferTimeoutSeconds = 40; // matches dispatch_engine TTL backend
 
-const _kBoraGreen = AppColors.primaryLight;
+const _kBoraGreen = AppColors.primaryMid;
 const _kBoraGreenDark = AppColors.primary;
 const _kBoraOrange = AppColors.accent;
 

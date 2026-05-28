@@ -167,7 +167,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         ticker: '🔔 Novo pedido — €$total',
         visibility: fln.NotificationVisibility.public,
         colorized: true,
-        color: AppColors.primaryLight,
+        color: AppColors.primaryMid,
         styleInformation: BigTextStyleInformation(
           '$items${customer.isNotEmpty ? "\n👤 $customer" : ""}\n💰 Total: €$total',
           contentTitle: '🔔 Novo pedido!',
@@ -1611,7 +1611,7 @@ class _ChatBannerWidgetState extends State<_ChatBannerWidget>
                 child: Row(
                   children: [
                     const Icon(Icons.chat_bubble_rounded,
-                        color: AppColors.primaryLight, size: 26),
+                        color: AppColors.primaryMid, size: 26),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(

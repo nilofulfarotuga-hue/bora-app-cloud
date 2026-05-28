@@ -1,29 +1,37 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  // Paleta oficial Bora (design system 2026-05-28).
+  // Paleta oficial Bora (design system handoff 2026-05-28).
   static const Color primary = Color(0xFF16A34A); // verde principal
-  static const Color primaryDark = Color(0xFF065F46);
-  static const Color primaryLight = Color(0xFF15803D);
+  static const Color primaryDark = Color(0xFF065F46); // hover/gradient
+  static const Color primaryDeep = Color(0xFF053D28); // extremo gradient
+  static const Color primaryMid = Color(0xFF15803D); // verde médio (era primaryLight pré-3.1A)
+  static const Color primaryLight = Color(0xFFDCFCE7); // tint suave (NOVA semântica)
+  static const Color primaryWash = Color(0xFFF0FDF4); // tint+ ultra leve
   static const Color secondary = Color(0xFFF97316); // laranja acento
-  static const Color secondaryLight = Color(0xFFFB923C);
-  static const Color background = Color(0xFFFFFFFF);
-  static const Color surface = Color(0xFFF5F5F5);
-  static const Color textPrimary = Color(0xFF1A1A1A);
-  static const Color textSecondary = Color(0xFF757575);
+  static const Color secondaryDark = Color(0xFFEA580C); // laranja hover/pressed
+  static const Color secondaryLight = Color(0xFFFB923C); // legacy compat
+  static const Color background = Color(0xFFF0F2EF); // fundo geral verde-acinzentado
+  static const Color surface = Color(0xFFF5F5F5); // legacy compat
+  static const Color surface2 = Color(0xFFF7F8F6); // superfície alternativa
+  static const Color textPrimary = Color(0xFF111111);
+  static const Color textSecondary = Color(0xFF6B7280);
+  static const Color textSubtle = Color(0xFF9CA3AF); // placeholder/ícones inactivos
   static const Color cardBg = Color(0xFFFFFFFF);
-  static const Color divider = Color(0xFFE0E0E0);
+  static const Color divider = Color(0xFFE5E7EB);
+  static const Color dividerStrong = Color(0xFFD1D5DB);
 
-  // Gradientes reutilizáveis (design reference 2026-04-18).
+  // Gradientes oficiais (design system handoff 2026-05-28).
   static const LinearGradient headerGradient = LinearGradient(
-    colors: [primary, primaryLight],
-    begin: Alignment.topCenter,
-    end: Alignment.bottomCenter,
+    colors: [primaryDeep, primaryDark, primary],
+    stops: [0.0, 0.45, 1.0],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
   );
   static const LinearGradient promoGradient = LinearGradient(
-    colors: [secondary, secondaryLight],
-    begin: Alignment.centerLeft,
-    end: Alignment.centerRight,
+    colors: [secondary, secondaryDark],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
   );
 
   static ThemeData get lightTheme {
@@ -63,7 +71,7 @@ class AppTheme {
           foregroundColor: Colors.white,
           minimumSize: const Size(88, 52),
           shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(12)),
+            borderRadius: BorderRadius.all(Radius.circular(14)),
           ),
           textStyle: const TextStyle(
             fontSize: 16,
@@ -122,7 +130,7 @@ class AppTheme {
       cardTheme: const CardThemeData(
         elevation: 2,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(14)),
+          borderRadius: BorderRadius.all(Radius.circular(16)),
         ),
         color: cardBg,
         margin: EdgeInsets.zero,

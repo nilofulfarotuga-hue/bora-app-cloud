@@ -1,0 +1,12 @@
+# Vocabulário controlado de motivos de rejeição de parceiro.
+# decide.py: --reason-code <chave> → texto em restaurants.rejection_reason (TEXT livre).
+codes:
+  docs_invalidos: "Documentos inválidos ou incompletos (alvará/documento do titular)."
+  nif_invalido: "NIF inválido."
+  iban_invalido: "IBAN inválido (formato PT)."
+  horario_invalido: "Horário de funcionamento inválido ou incompleto."
+  localizacao_invalida: "Localização fora da área de cobertura (Guarda/continente)."
+  assets_em_falta: "Logótipo ou imagem de capa em falta/ilegível."
+  licenca_em_falta: "Licença obrigatória em falta (ex.: INFARMED para farmácia)."
+  categoria_invalida: "Categoria inválida."
+  outro: "Outro motivo (ver detalhe)."

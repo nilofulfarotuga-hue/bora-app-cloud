@@ -4,6 +4,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config/app_colors.dart';
 import '../models/order_model.dart';
 import '../models/rating_model.dart';
+import '../widgets/bora/bora_accent_button.dart';
+import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/tip_selector.dart';
 
 /// Rating screen shown to the client after an order is delivered (BR §13).
@@ -119,7 +121,7 @@ class _RatingScreenState extends State<RatingScreen> {
   Widget build(BuildContext context) {
     final tagsToShow = _suggestedTags;
     return Scaffold(
-      appBar: AppBar(title: const Text('Avaliar')),
+      appBar: const BoraScreenAppBar(title: 'Avaliar'),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
@@ -142,7 +144,7 @@ class _RatingScreenState extends State<RatingScreen> {
                         : () => setState(() => _stars = i + 1),
                     icon: Icon(
                       filled ? Icons.star : Icons.star_border,
-                      color: Colors.amber,
+                      color: AppColors.warning,
                     ),
                   );
                 }),
@@ -210,26 +212,10 @@ class _RatingScreenState extends State<RatingScreen> {
                 activeThumbColor: AppColors.primary,
               ),
               const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: _canSubmit ? _submit : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.accent,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14)),
-                  ),
-                  child: _submitting
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Text('Enviar avaliação'),
-                ),
+              BoraAccentButton(
+                label: 'Enviar avaliação',
+                loading: _submitting,
+                onPressed: _canSubmit ? _submit : null,
               ),
               const SizedBox(height: 8),
               TextButton(

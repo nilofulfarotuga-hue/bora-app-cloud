@@ -14,7 +14,7 @@ import '../widgets/bora_support_fab.dart';
 import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
-import '../config/app_theme.dart';
+import '../widgets/bora/bora_screen_app_bar.dart';
 import '../models/driver_model.dart';
 import '../services/auth_admin_service.dart';
 import '../services/wallet_service.dart';
@@ -374,20 +374,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final initial = displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U';
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: AppColors.background,
       floatingActionButton: const BoraSupportFab(),
-      appBar: AppBar(
-        title: const Text(
-          'Perfil',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        flexibleSpace: const DecoratedBox(
-          decoration: BoxDecoration(gradient: AppColors.headerGradient),
-        ),
-      ),
+      appBar: const BoraScreenAppBar(title: 'Perfil'),
       body: SingleChildScrollView(
         padding: const EdgeInsets.only(bottom: Spacing.xxxl),
         child: Column(
@@ -535,7 +524,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 children: [
                   ListTile(
                     leading: const Icon(Icons.receipt_long_outlined,
-                        color: AppTheme.primary),
+                        color: AppColors.primary),
                     title: const Text('Histórico de pedidos'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.push(
@@ -545,7 +534,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   ListTile(
                     leading: const Icon(Icons.calendar_today_outlined,
-                        color: AppTheme.primary),
+                        color: AppColors.primary),
                     title: const Text('Minhas Reservas'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.push(
@@ -556,7 +545,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   ListTile(
                     leading: const Icon(Icons.format_list_bulleted,
-                        color: AppTheme.primary),
+                        color: AppColors.primary),
                     title: const Text('Minhas Listas'),
                     subtitle: const Text('Fila de espera e avisos'),
                     trailing: const Icon(Icons.chevron_right),
@@ -568,7 +557,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   ListTile(
                     leading: const Icon(Icons.account_balance_wallet_outlined,
-                        color: AppTheme.primary),
+                        color: AppColors.primary),
                     title: const Text('Saldo Bora'),
                     subtitle: const Text('Saldo livre + tokens + histórico'),
                     trailing: const Icon(Icons.chevron_right),
@@ -580,7 +569,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   ListTile(
                     leading: const Icon(Icons.location_on_outlined,
-                        color: AppTheme.primary),
+                        color: AppColors.primary),
                     title: const Text('Os meus endereços'),
                     subtitle: const Text('Casa, Trabalho e outros'),
                     trailing: const Icon(Icons.chevron_right),
@@ -592,7 +581,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   ListTile(
                     leading: const Icon(Icons.redeem_outlined,
-                        color: AppTheme.primary),
+                        color: AppColors.primary),
                     title: const Text('Tenho um código'),
                     subtitle: const Text('Resgata tokens com um código promocional'),
                     trailing: const Icon(Icons.chevron_right),
@@ -604,7 +593,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   ListTile(
                     leading: const Icon(Icons.card_giftcard_outlined,
-                        color: AppTheme.primary),
+                        color: AppColors.primary),
                     title: const Text('Convidar amigos'),
                     subtitle: const Text('1000 tokens (≈€5) para ti + para o teu amigo'),
                     trailing: const Icon(Icons.chevron_right),
@@ -615,7 +604,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   ListTile(
                     leading: const Icon(Icons.support_agent_outlined,
-                        color: AppTheme.primary),
+                        color: AppColors.primary),
                     title: const Text('Suporte'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.push(
@@ -800,7 +789,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: const Icon(
                 Icons.camera_alt,
                 size: 16,
-                color: AppTheme.primary,
+                color: AppColors.primary,
               ),
             ),
           ),
@@ -954,13 +943,7 @@ class _SectionCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          boxShadow: AppColors.shadowCard,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1002,7 +985,7 @@ class _InfoTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: Icon(icon, color: AppTheme.primary, size: 22),
+      leading: Icon(icon, color: AppColors.primary, size: 22),
       title: Text(
         label,
         style: const TextStyle(fontSize: 12, color: Colors.black54),

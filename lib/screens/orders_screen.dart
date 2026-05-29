@@ -9,6 +9,7 @@ import '../config/app_spacing.dart';
 import '../models/order_model.dart';
 import '../services/wallet_service.dart';
 import '../stores/order_store.dart';
+import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora_support_fab.dart';
 import 'order_details_screen.dart';
 import 'restaurants_screen.dart';
@@ -76,20 +77,9 @@ class _OrdersScreenState extends State<OrdersScreen> {
     final showInitialLoader = store.isLoading && orders.isEmpty;
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: AppColors.background,
       floatingActionButton: const BoraSupportFab(),
-      appBar: AppBar(
-        title: const Text(
-          'Pedidos',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        flexibleSpace: const DecoratedBox(
-          decoration: BoxDecoration(gradient: AppColors.headerGradient),
-        ),
-      ),
+      appBar: const BoraScreenAppBar(title: 'Pedidos'),
       body: showInitialLoader
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
@@ -219,7 +209,7 @@ class _OrderCard extends StatelessWidget {
               horizontal: Spacing.lg, vertical: Spacing.md),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(Radii.lg),
-            border: Border.all(color: AppColors.divider),
+            boxShadow: AppColors.shadowCard,
           ),
           child: Row(
             children: [

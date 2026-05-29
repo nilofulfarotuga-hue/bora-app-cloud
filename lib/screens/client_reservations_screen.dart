@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../config/app_colors.dart';
 import '../models/reservation_model.dart';
 import '../stores/reservation_store.dart';
 import '../widgets/bora/bora.dart';
@@ -137,6 +138,12 @@ class _ClientReservationsScreenState extends State<ClientReservationsScreen>
       floatingActionButton: const BoraSupportFab(),
       appBar: AppBar(
         title: const Text('As minhas reservas'),
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        flexibleSpace: const DecoratedBox(
+          decoration: BoxDecoration(gradient: AppColors.headerGradient),
+        ),
         bottom: TabBar(
           controller: _tabController,
           labelColor: Colors.white,
@@ -239,14 +246,14 @@ class _ReservationList extends StatelessWidget {
                         Icon(
                           emptyIcon,
                           size: 56,
-                          color: Colors.black26,
+                          color: AppColors.textSubtle,
                         ),
                         const SizedBox(height: 16),
                         Text(
                           emptyText,
                           textAlign: TextAlign.center,
                           style: const TextStyle(
-                            color: Colors.black54,
+                            color: AppColors.textSecondary,
                             fontSize: 15,
                           ),
                         ),

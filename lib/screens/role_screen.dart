@@ -5,6 +5,7 @@ import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
 import '../stores/session_store.dart';
+import '../widgets/bora/bora_mascot.dart';
 import '../widgets/bora/bora_primary_button.dart';
 
 class RoleScreen extends StatelessWidget {
@@ -23,29 +24,10 @@ class RoleScreen extends StatelessWidget {
               const Spacer(flex: 2),
 
               // ── Logo ──────────────────────────────────────────────────
-              RichText(
-                text: const TextSpan(
-                  children: [
-                    TextSpan(
-                      text: 'BO',
-                      style: TextStyle(
-                        fontSize: 60,
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.primary,
-                        letterSpacing: 3,
-                      ),
-                    ),
-                    TextSpan(
-                      text: 'RA',
-                      style: TextStyle(
-                        fontSize: 60,
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.accent,
-                        letterSpacing: 3,
-                      ),
-                    ),
-                  ],
-                ),
+              const BoraMascot(
+                variant: BoraMascotVariant.logo,
+                size: 88,
+                semanticLabel: 'BORA',
               ),
               const SizedBox(height: Spacing.md),
               Container(

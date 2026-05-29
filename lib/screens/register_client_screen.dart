@@ -7,6 +7,7 @@ import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
 import '../stores/session_store.dart';
+import '../widgets/bora/bora_mascot.dart';
 import '../widgets/bora/bora_primary_button.dart';
 import '../widgets/terms_link_text.dart';
 import 'client_login_screen.dart';
@@ -126,19 +127,16 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Text(
-                  'BORA',
-                  style: theme.textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.accent,
-                    letterSpacing: 2,
-                  ),
+                const BoraMascot(
+                  variant: BoraMascotVariant.logo,
+                  size: 56,
+                  semanticLabel: 'BORA',
                 ),
                 const SizedBox(height: Spacing.xs),
                 Text(
                   'A tua app de entregas',
                   style: theme.textTheme.bodySmall
-                      ?.copyWith(color: Colors.grey.shade500),
+                      ?.copyWith(color: AppColors.textSubtle),
                 ),
                 const SizedBox(height: 24),
 

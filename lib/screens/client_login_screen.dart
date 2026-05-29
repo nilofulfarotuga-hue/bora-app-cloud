@@ -9,6 +9,7 @@ import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
 import '../services/notification_service.dart';
 import '../stores/session_store.dart';
+import '../widgets/bora/bora_mascot.dart';
 import '../widgets/bora/bora_primary_button.dart';
 import 'register_client_screen.dart';
 
@@ -52,33 +53,14 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: Spacing.xxxl),
+                const SizedBox(height: 56),
 
                 // ── Logo ──────────────────────────────────────────────
-                Center(
-                  child: RichText(
-                    text: const TextSpan(
-                      children: [
-                        TextSpan(
-                          text: 'BO',
-                          style: TextStyle(
-                            fontSize: 44,
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.primary,
-                            letterSpacing: 2,
-                          ),
-                        ),
-                        TextSpan(
-                          text: 'RA',
-                          style: TextStyle(
-                            fontSize: 44,
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.accent,
-                            letterSpacing: 2,
-                          ),
-                        ),
-                      ],
-                    ),
+                const Center(
+                  child: BoraMascot(
+                    variant: BoraMascotVariant.logo,
+                    size: 72,
+                    semanticLabel: 'BORA',
                   ),
                 ),
                 const SizedBox(height: Spacing.sm),

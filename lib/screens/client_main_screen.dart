@@ -10,10 +10,10 @@ import 'order_tracking_screen.dart';
 import 'orders_screen.dart';
 import 'profile_screen.dart';
 
-/// Host dos 3 tabs do cliente: Início · Pedidos · Perfil.
+/// Host dos 4 tabs do cliente: Início · Entrega · Reserva · Perfil.
 ///
 /// Cada tab tem a sua própria `BoraAppBar` — este widget só gere o
-/// `IndexedStack` e a `BoraBottomNav`. Eventos globais (e.g. pedido aceite
+/// `IndexedStack` e a `BoraBottomNavV2`. Eventos globais (e.g. pedido aceite
 /// por estafeta → push tracking) são observados aqui porque sobrevivem às
 /// trocas de tab.
 class ClientMainScreen extends StatefulWidget {
@@ -24,7 +24,7 @@ class ClientMainScreen extends StatefulWidget {
 }
 
 class _ClientMainScreenState extends State<ClientMainScreen> {
-  int _selectedIndex = 0;
+  BoraNavTab _currentTab = BoraNavTab.home;
 
   /// Orders we have already pushed a tracking screen for.
   /// Prevents re-navigation on every rebuild after the user presses back.
@@ -70,32 +70,10 @@ class _ClientMainScreenState extends State<ClientMainScreen> {
     }
 
     return Scaffold(
-      body: IndexedStack(index: _selectedIndex, children: _screens),
-      bottomNavigationBar: BoraBottomNav(
-        currentIndex: _selectedIndex,
-        onTap: (index) => setState(() => _selectedIndex = index),
-        items: const [
-          BoraBottomNavItem(
-            icon: Icons.home_outlined,
-            activeIcon: Icons.home,
-            label: 'Início',
-          ),
-          BoraBottomNavItem(
-            icon: Icons.receipt_long_outlined,
-            activeIcon: Icons.receipt_long,
-            label: 'Pedidos',
-          ),
-          BoraBottomNavItem(
-            icon: Icons.event_available_outlined,
-            activeIcon: Icons.event_available,
-            label: 'Reservas',
-          ),
-          BoraBottomNavItem(
-            icon: Icons.person_outline,
-            activeIcon: Icons.person,
-            label: 'Perfil',
-          ),
-        ],
+      body: IndexedStack(index: _currentTab.index, children: _screens),
+      bottomNavigationBar: BoraBottomNavV2(
+        current: _currentTab,
+        onTabChanged: (tab) => setState(() => _currentTab = tab),
       ),
     );
   }

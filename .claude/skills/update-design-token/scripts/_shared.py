@@ -13,7 +13,7 @@ _spec.loader.exec_module(_mod)  # type: ignore
 
 Ctx = _mod.Ctx
 log = _mod.log
-REPO_ROOT = Path(__file__).resolve().parents[3]
+REPO_ROOT = Path(__file__).resolve().parents[4]  # …/skills/<skill>/scripts → bora_app
 
 
 def admin_identity():

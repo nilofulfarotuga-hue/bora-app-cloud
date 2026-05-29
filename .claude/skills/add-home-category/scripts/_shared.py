@@ -19,7 +19,7 @@ Ctx = _mod.Ctx
 log = _mod.log
 
 # Raiz do repo Flutter (……/bora_app)
-REPO_ROOT = Path(__file__).resolve().parents[3]
+REPO_ROOT = Path(__file__).resolve().parents[4]  # …/skills/<skill>/scripts → bora_app
 
 
 def admin_identity():

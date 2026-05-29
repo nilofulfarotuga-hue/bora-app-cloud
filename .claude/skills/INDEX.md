@@ -1,7 +1,7 @@
 # Índice de Skills — Bora App
 
 > Skills versionadas vivem em `bora_app/.claude/skills/` (este diretório).
-> Branch: `autonomous-night-2026-04-29`. Atualizado: 2026-05-29 (S4-B). **30 skills.**
+> Branch: `autonomous-night-2026-04-29`. Atualizado: 2026-05-29 (S4-C). **34 skills.**
 > Convenção: invocar via Skill quando o trigger corresponder; **ler `bora-knowledge`
 > antes de qualquer ação** (foundation).
 
@@ -37,6 +37,10 @@
 | **driver-earnings-validator** | finance | Validar `driver_earnings` de um pedido vs fórmula pricing_service; diagnosticar discrepância. |
 | **storeshopping-v2-debugger** | debug | Diagnosticar pedido storeShopping V2 não-parceiro (orders+items+receipts+wallet+audit). |
 | **storage-bucket-validator** | ops | Auditar bucket Supabase Storage + RLS (uploads a falhar 400/403, validar deploy RLS). |
+| **deploy-edge-function** | devops | Deploy seguro de Edge Fn com diff prévio (preserva verify_jwt); funções financeiras exigem --i-know-what-im-doing. Dry-run default. |
+| **seed-demo-data** | devops | Criar dados demo isolados (DEMO_/is_test_order, só cash) + cleanup reversível. Nunca Stripe. Dry-run default. |
+| **backup-restore-table** | devops | Backup read-only (JSON) + restore UPSERT; tabelas financeiras exigem --i-know-what-im-doing. Dry-run no restore. |
+| **generate-release-notes** | devops | git log desde último tag → RELEASE_NOTES_v{N}.md PT-PT (feat/fix/...) + secção testers. Read-only; sem tag/push. |
 
 ## Notas
 - **Onboarders** (`onboard-partner-*`) dependem de `bora-knowledge` e chamam as Edge Fns
@@ -61,4 +65,8 @@
   embedding via Edge Fn `reindex-knowledge` (Gemini 768d, admin-only); playbooks em `support_skills`
   (mode {read_only,write_shadow,escalate}); skills que tocam $/auth/Stripe/GDPR → write_shadow+handoff,
   active=false. QA é read-only (smoke via OPTIONS; audit vs baseline). **Admin UI** p/ editar FAQs/skills = pendência.
+- **DevOps S4-C** (`deploy-edge-function`, `seed-demo-data`, `backup-restore-table`,
+  `generate-release-notes`): Edge Fns financeiras protegidas no deploy; seed só cash + reversível
+  por `DEMO_`/`is_test_order`; restore de tabelas financeiras gated; release-notes read-only sobre git.
+  Backups em `bora_app/.claude/.ai/backups/`. Fix Windows: subprocess UTF-8 + log resistente a cp1252.
 - Logs de auditoria de sessões antigas movidos para `sistema/` (não são skills).

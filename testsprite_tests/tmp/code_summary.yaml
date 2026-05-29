@@ -2,149 +2,91 @@ version: "2"
 type: backend
 tech_stack:
   - Deno / TypeScript (Supabase Edge Functions)
-  - PostgreSQL (Supabase managed) + PostgREST
+  - PostgreSQL (Supabase managed) + PostgREST + RLS
   - Supabase Auth (JWT, email+password grant)
-  - Supabase Storage
 features:
   - name: Authentication
     description: >
-      Login via POST /auth/v1/token?grant_type=password with JSON body
-      {"email","password"}. apikey header is the Supabase anon key and is
-      MANDATORY on every request. Returns access_token (JWT).
-    files:
-      - supabase (auth.users)
+      POST /auth/v1/token?grant_type=password with JSON body {"email","password"}
+      and mandatory apikey header. Returns access_token. Wrong creds -> 400/401.
     endpoints:
       - method: POST
         path: /auth/v1/token?grant_type=password
-        description: >
-          Login test-client@bora.app / TestBora2026! → 200 with access_token.
-          Body MUST be JSON (NOT form-data). apikey header required.
+        description: Login (JSON, never form-data). apikey header required.
         auth_required: false
-        request_schema:
-          headers:
-            apikey: "<anon_key>"
-            Content-Type: application/json
-          body:
-            email: string
-            password: string
-        response_schema:
-          "200":
-            access_token: string
-            user: object
-          "400": invalid_credentials / bad_json
-    depends_on: []
-  - name: RLS Orders (SELECT isolation)
+  - name: RLS Orders
     description: >
-      orders table has RLS. Authenticated client sees ONLY rows where
-      user_id = auth.uid(). Other clients' orders are invisible.
-      Unauthenticated (no Bearer) request returns 401.
-    files:
-      - supabase/migrations (orders RLS policies)
+      orders RLS: SELECT/INSERT only where user_id = auth.uid(). Other clients'
+      rows invisible. Insert with foreign user_id -> 403. No JWT -> 401.
+      Real columns (NO currency/total_cents/amount): id TEXT default
+      gen_random_uuid(); user_id UUID; status TEXT; items JSONB NOT NULL;
+      payment_status TEXT default 'pending'; price/subtotal/total/customer_total
+      NUMERIC; vendor_name TEXT; restaurant_id TEXT; is_test_order BOOLEAN.
+      Minimal insert: {"user_id":"<auth.uid()>","status":"created","items":[],
+      "vendor_name":"Pizzaria Teste 27","is_test_order":true}.
     endpoints:
       - method: GET
-        path: /rest/v1/orders?select=id,user_id,status
-        description: >
-          With valid client JWT + apikey → 200, returns only that client's
-          orders. Without Authorization Bearer (apikey only) → 401 or empty
-          per RLS.
+        path: /rest/v1/orders?select=id,user_id,status,vendor_name
+        description: With JWT -> only own rows. No Authorization -> 401.
         auth_required: true
-        request_schema:
-          headers:
-            apikey: "<anon_key>"
-            Authorization: "Bearer <jwt>"
-        response_schema:
-          "200": "Order[] (only own rows)"
-          "401": unauthorized when no JWT
-    depends_on:
-      - Authentication
-  - name: Orders real schema (for any INSERT)
-    description: >
-      orders columns (REAL — there is NO 'currency', NO 'total_cents',
-      NO 'amount' column). id TEXT default gen_random_uuid(); user_id UUID
-      (must equal auth.uid() for RLS insert); status TEXT; items JSONB NOT
-      NULL default '[]'; payment_status TEXT NOT NULL default 'pending';
-      price/subtotal/total/customer_total NUMERIC; service_type TEXT;
-      order_type TEXT; is_test_order BOOLEAN default false.
-      Minimal valid insert payload:
-      {"user_id":"<auth.uid()>","status":"created","items":[],"is_test_order":true}
-    files:
-      - supabase (public.orders)
-    endpoints:
       - method: POST
         path: /rest/v1/orders
-        description: >
-          Insert order. RLS WITH CHECK requires user_id = auth.uid().
-          Set Prefer: return=representation to get the row back. Always set
-          is_test_order=true so test rows are identifiable. NEVER send a
-          'currency' field — column does not exist (PGRST204).
+        description: Insert own order (user_id must equal auth.uid()). Prefer return=representation.
         auth_required: true
-        request_schema:
-          headers:
-            apikey: "<anon_key>"
-            Authorization: "Bearer <jwt>"
-            Prefer: return=representation
-          body:
-            user_id: string
-            status: string
-            items: array
-            is_test_order: boolean
-        response_schema:
-          "201": Order
-          "400": PGRST204 if unknown column sent
-          "403": RLS violation if user_id != auth.uid()
-    depends_on:
-      - Authentication
-  - name: Wallet RPC
-    description: RPC wallet_get_balance returns wallet + tokens for the auth user.
-    files:
-      - supabase (rpc wallet_get_balance)
+  - name: Wallet and Tokens
+    description: >
+      wallet_get_balance RPC returns own wallet. bora_tokens table readable by
+      owner only. Reading another user's wallet/tokens returns empty/forbidden.
     endpoints:
       - method: POST
         path: /rest/v1/rpc/wallet_get_balance
-        description: >
-          With JWT + apikey and body {"p_user_id":"<auth.uid()>"} → 200 with
-          free_cents, tokens_balance, last_transactions. No auth → 401.
+        description: Body {"p_user_id":"<auth.uid()>"} with JWT -> 200 balance.
         auth_required: true
-        request_schema:
-          headers:
-            apikey: "<anon_key>"
-            Authorization: "Bearer <jwt>"
-          body:
-            p_user_id: string
-        response_schema:
-          "200":
-            free_cents: number
-            tokens_balance: number
-            last_transactions: array
-          "401": unauthorized
-    depends_on:
-      - Authentication
-  - name: Notifications Edge Function
-    description: notify-client Edge Function (requires authenticated JWT).
-    files:
-      - supabase/functions/notify-client/index.ts
+      - method: GET
+        path: /rest/v1/bora_tokens?select=id,amount,role
+        description: With JWT -> only own tokens.
+        auth_required: true
+  - name: Edge Functions
+    description: >
+      notify-client, notify-driver require authenticated JWT (assert not 401).
+      client-cancel-order with non-existent order -> controlled error (not 500).
+      create-payment-intent with authenticated client -> client_secret or
+      controlled error (not 500).
     endpoints:
       - method: POST
         path: /functions/v1/notify-client
-        description: >
-          With valid JWT + apikey + body {user_id,title,body} → should NOT
-          return 401 (auth accepted). May return 200 or a domain error, but
-          the test asserts it is not an auth rejection.
+        description: JWT + {user_id,title,body} -> not 401.
         auth_required: true
-        request_schema:
-          headers:
-            apikey: "<anon_key>"
-            Authorization: "Bearer <jwt>"
-          body:
-            user_id: string
-            title: string
-            body: string
-    depends_on:
-      - Authentication
+      - method: POST
+        path: /functions/v1/notify-driver
+        description: JWT + {driver_id,order_id,type} -> not 401.
+        auth_required: true
+      - method: POST
+        path: /functions/v1/client-cancel-order
+        description: JWT + {order_id:"nonexistent"} -> controlled 4xx, never 500.
+        auth_required: true
+      - method: POST
+        path: /functions/v1/create-payment-intent
+        description: JWT + {order_id,amount,...} -> client_secret or controlled error, never crash.
+        auth_required: false
+  - name: Security
+    description: >
+      SQL injection in search params rejected by PostgREST. Unknown column on
+      insert -> 400 PGRST204. ledger_entries with no JWT -> 401.
+      client_wallets not readable by a different role (driver) per RLS.
+    endpoints:
+      - method: GET
+        path: /rest/v1/ledger_entries
+        description: No Authorization -> 401.
+        auth_required: false
+      - method: GET
+        path: /rest/v1/client_wallets
+        description: Driver JWT reading another user's wallet -> empty/forbidden by RLS.
+        auth_required: true
 known_limitations:
-  - issue: Backend is Supabase cloud at https://ojykpzwqrtusfeakzrna.supabase.co — no localhost
+  - issue: Supabase cloud only (no localhost); apikey header mandatory everywhere
     location: all endpoints
-    impact: tests must target the cloud base URL, apikey header mandatory everywhere
-  - issue: demo accounts cliente@bora.app/123456 do NOT exist in auth.users
+    impact: target https://ojykpzwqrtusfeakzrna.supabase.co
+  - issue: only test-*@bora.app users exist; cliente@bora.app/123456 does NOT exist
     location: auth
-    impact: use ONLY test-client@bora.app / TestBora2026! and test-driver@bora.app / TestBora2026!
+    impact: use the 5 test-* accounts with password TestBora2026!

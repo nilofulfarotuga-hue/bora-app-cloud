@@ -1,37 +1,52 @@
 [
   {
     "id": "TC001",
-    "title": "post auth v1 token grant type password with valid credentials",
-    "description": "Test POST /auth/v1/token?grant_type=password with valid apikey and correct email and password in JSON body. Expect 200 response with access_token and user object for successful authentication."
+    "title": "post_auth_v1_token_password_valid_credentials",
+    "description": "Verify that POST /auth/v1/token?grant_type=password with valid email and password along with apikey header returns 200 with access_token, enabling authenticated access to protected resources."
   },
   {
     "id": "TC002",
-    "title": "get rest v1 orders select id user id status with valid jwt",
-    "description": "Test GET /rest/v1/orders?select=id,user_id,status with valid apikey and Bearer JWT. Verify response returns only orders belonging to the authenticated user and status 200."
+    "title": "get_rest_v1_orders_authorized_access",
+    "description": "Verify that GET /rest/v1/orders with valid Authorization Bearer token returns only the authenticated user's orders and that no other users' orders are visible."
   },
   {
     "id": "TC003",
-    "title": "post rest v1 orders insert valid order with correct user id",
-    "description": "Test POST /rest/v1/orders with apikey, Bearer JWT, Prefer:return=representation header, and valid order body where user_id equals auth.uid(). Expect 201 response with inserted order representation."
+    "title": "post_rest_v1_orders_insert_own_order",
+    "description": "Verify that POST /rest/v1/orders with JSON body containing user_id equal to auth.uid() creates an order successfully and returns 201 with the created order representation."
   },
   {
     "id": "TC004",
-    "title": "post rest v1 orders insert order with unknown field",
-    "description": "Test POST /rest/v1/orders with apikey, Bearer JWT, and body containing an unknown field such as currency. Expect 400 response with PGRST204 error and no order inserted."
+    "title": "post_rest_v1_orders_insert_foreign_userid_forbidden",
+    "description": "Verify that POST /rest/v1/orders with JSON body containing another user's user_id is rejected with 403 due to RLS enforcement."
   },
   {
     "id": "TC005",
-    "title": "post rest v1 orders insert order with mismatched user id",
-    "description": "Test POST /rest/v1/orders with apikey, Bearer JWT, but user_id in body not equal to auth.uid(). Expect 403 response due to RLS violation and insert rejected."
+    "title": "post_rest_v1_rpc_wallet_get_balance_own_user",
+    "description": "Verify that POST /rest/v1/rpc/wallet_get_balance with JSON body containing p_user_id equal to auth.uid() and valid JWT returns 200 with wallet balance and token information for the authenticated user only."
   },
   {
     "id": "TC006",
-    "title": "post rest v1 rpc wallet get balance with valid jwt and user id",
-    "description": "Test POST /rest/v1/rpc/wallet_get_balance with apikey, Bearer JWT, and body containing p_user_id equal to auth.uid(). Expect 200 response with free_cents, tokens_balance, and last_transactions data."
+    "title": "get_rest_v1_bora_tokens_own_user_only",
+    "description": "Verify that GET /rest/v1/bora_tokens with valid Authorization Bearer token returns only the tokens belonging to the authenticated user."
   },
   {
     "id": "TC007",
-    "title": "post functions v1 notify client with valid jwt and complete body",
-    "description": "Test POST /functions/v1/notify-client with apikey, Bearer JWT, and body containing user_id, title, and body fields. Verify request is accepted and does not return 401 unauthorized error."
+    "title": "post_functions_v1_notify_client_authenticated",
+    "description": "Verify that POST /functions/v1/notify-client with valid JWT and JSON body containing user_id, title, and body executes successfully without returning 401 unauthorized."
+  },
+  {
+    "id": "TC008",
+    "title": "post_functions_v1_client_cancel_order_controlled_error",
+    "description": "Verify that POST /functions/v1/client-cancel-order with valid JWT and JSON body containing a non-existent order_id returns a controlled 4xx error response and does not return a 500 server error."
+  },
+  {
+    "id": "TC009",
+    "title": "get_rest_v1_ledger_entries_unauthorized_rejected",
+    "description": "Verify that GET /rest/v1/ledger_entries without Authorization header returns 401 unauthorized and does not expose ledger data."
+  },
+  {
+    "id": "TC010",
+    "title": "get_rest_v1_client_wallets_rls_enforced",
+    "description": "Verify that GET /rest/v1/client_wallets with Authorization Bearer token of a different role/user returns empty or forbidden result due to RLS enforcement, preventing unauthorized wallet data access."
   }
 ]

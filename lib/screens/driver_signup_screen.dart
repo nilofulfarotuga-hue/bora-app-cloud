@@ -635,6 +635,11 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
                             if (v == null || v.trim().isEmpty) {
                               return 'Obrigatório';
                             }
+                            final t = v.trim();
+                            if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]{2,}$')
+                                .hasMatch(t)) {
+                              return 'Email inválido';
+                            }
                             return null;
                           },
                         ),

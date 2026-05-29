@@ -1,6 +1,59 @@
-# Autonomous Bug-Fix Report — Ciclo 2026-05-28
+# Autonomous Bug-Fix Report
 
-> Loop autónomo SONNET 4.6 (não Opus — o prompt pediu Opus 4.7 mas a sessão correu em Sonnet).
+> Branch: `autonomous-night-2026-04-29`.
+
+---
+
+## CICLO 2 — 2026-05-28 (Opus 4.8)
+
+### Resumo
+| Tarefa | Resultado | Commit |
+|---|---|---|
+| T3 — scan `getPublicUrl` em buckets privados | **0 fixes** — ambos os hits (`product-images`, `avatars`) são buckets PÚBLICOS; `getPublicUrl` é correcto | — |
+| T4 — scan `TextEditingController` sem dispose | **1 leak corrigido** + 1 falso positivo | `b3d681e` |
+| T5 — `flutter analyze lib` (errors) | **0 erros** no projecto inteiro | — |
+| T2 — 4 bugs partner do `TEST_4_BUGS.md` | **0 fixes** — 3 já corrigidos, 1 não-é-bug | — |
+| T6 — docs | report + bugs-zona-protegida + TEST_4_BUGS | `<este>` |
+
+### T4 — Controller leak (commit `b3d681e`)
+- **`order_details_screen.dart` `_showCashCancelDialog`**: criava `reasonCtrl` e
+  retornava `showDialog` directamente sem dispose → leak por abertura. Fix: função
+  passou a `async` com `try/finally { reasonCtrl.dispose(); }`.
+- **Falso positivo:** `partner_call_driver_screen.dart` `_addressController` — é
+  disposed via cascade `..dispose()` (linhas 115-117); o analyzer regex não apanhou
+  o cascade. Sem alteração.
+- Analyzer ad-hoc em `.claude/_ctrl_audit.py` (read-only) varreu ~40 ficheiros com
+  controllers; só estes 2 sinalizados.
+
+### T2 — 4 bugs partner: todos já fechados
+- **BUG-1** (botão "Criar conta de parceiro"): já presente em `partner_login_screen.dart:124`.
+- **BUG-2** (RLS products): correcto por design — escrita travada ao dono, SELECT
+  público intencional. Tech debt de policies duplicadas (`user_` vs `user_id`)
+  documentado em `docs/bugs-zona-protegida.md` OBS-RLS-001 (não alterado — Validation Gate).
+- **BUG-3** (preview foto preta): já corrigido — `Image.file` + `errorBuilder`.
+- **BUG-4** (admin catalog fotos): já corrigido — CircleAvatar + fallback icon.
+- `TEST_4_BUGS.md` actualizado com status verificado.
+
+### Correcção ao Ciclo 1
+O fix BUG-UI-002 (Ciclo 1) assumiu que o bucket `receipts` era privado. A DB live
+mostra `receipts.public = true`. O `createSignedUrl` aplicado funciona na mesma em
+buckets públicos (apenas adiciona token), logo a mudança é inofensiva — mas se o
+sintoma real de "talões sem foto" persistir, a causa está noutro sítio (ex.: upload
+falha, `photo_url` vazio), não no tipo de URL. Reabrir se reportado.
+
+### Zonas protegidas
+Nada alterado. Observação RLS registada em `docs/bugs-zona-protegida.md`.
+
+### Próximos candidatos
+- Consolidar policies RLS duplicadas de `products` (Validation Gate).
+- `admin_catalog_screen.dart:270` `NetworkImage` sem `errorBuilder` — fallback só
+  cobre URL vazio, não falha de carregamento (404). Melhoria menor, não bug.
+
+---
+
+## CICLO 1 — 2026-05-28 (Sonnet 4.6)
+
+> O prompt pediu Opus 4.7 mas o Ciclo 1 correu em Sonnet.
 > Branch: `autonomous-night-2026-04-29`.
 
 ---

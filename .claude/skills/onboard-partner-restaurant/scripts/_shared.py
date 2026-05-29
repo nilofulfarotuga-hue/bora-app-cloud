@@ -35,9 +35,32 @@ REQUIRED_KNOWLEDGE = [
 ]
 
 
+_EMOJI_ASCII = {
+    "✅": "[OK]", "⚠️": "[!]", "❌": "[X]", "🎯": "[*]", "🔒": "[#]",
+    "🚀": "[>>>]", "🟠": "[laranja]", "🟢": "[verde]", "ℹ️": "[i]",
+    "📸": "[foto]", "🖼️": "[img]", "📝": "[doc]", "🐛": "[bug]", "✨": "[novo]",
+    "🔧": "[fix]", "📦": "[pkg]", "👋": "[ola]", "🆕": "[novo]", "🛵": "",
+}
+
+
 def log(msg: str, level: str = "INFO") -> None:
-    """Log simples para stdout (relatórios em PT-BR, ok para o Danilo)."""
-    print(f"[{level}] {msg}")
+    """Log para stdout, resiliente a consolas cp1252 (Windows).
+
+    Em UTF-8 nativo preserva emojis; em cp1252 (que rebenta em emojis) degrada
+    elegantemente: substitui emojis conhecidos por equivalentes texto e usa
+    errors='replace' para o resto. Nunca crasha por UnicodeEncodeError.
+    """
+    line = f"[{level}] {msg}"
+    try:
+        print(line)
+        return
+    except UnicodeEncodeError:
+        pass
+    safe = line
+    for emo, rep in _EMOJI_ASCII.items():
+        safe = safe.replace(emo, rep)
+    enc = getattr(sys.stdout, "encoding", None) or "utf-8"
+    print(safe.encode(enc, "replace").decode(enc))
 
 
 def _load_dotenv() -> None:

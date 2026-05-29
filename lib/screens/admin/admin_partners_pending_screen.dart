@@ -115,36 +115,41 @@ class _AdminPartnersPendingScreenState
 
   Future<void> _reject(Map<String, dynamic> r) async {
     final ctrl = TextEditingController();
-    final reason = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Rejeitar ${r['name']}'),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          maxLines: 3,
-          decoration: const InputDecoration(
-            labelText: 'Motivo (obrigatório)',
-            hintText: 'Ex.: dados incompletos, foto inadequada…',
-            border: OutlineInputBorder(),
+    String? reason;
+    try {
+      reason = await showDialog<String>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text('Rejeitar ${r['name']}'),
+          content: TextField(
+            controller: ctrl,
+            autofocus: true,
+            maxLines: 3,
+            decoration: const InputDecoration(
+              labelText: 'Motivo (obrigatório)',
+              hintText: 'Ex.: dados incompletos, foto inadequada…',
+              border: OutlineInputBorder(),
+            ),
           ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancelar')),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () {
+                final txt = ctrl.text.trim();
+                if (txt.isEmpty) return;
+                Navigator.pop(ctx, txt);
+              },
+              child: const Text('Rejeitar'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancelar')),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () {
-              final txt = ctrl.text.trim();
-              if (txt.isEmpty) return;
-              Navigator.pop(ctx, txt);
-            },
-            child: const Text('Rejeitar'),
-          ),
-        ],
-      ),
-    );
+      );
+    } finally {
+      ctrl.dispose();
+    }
     if (reason == null || reason.isEmpty) return;
     try {
       await Supabase.instance.client.rpc(

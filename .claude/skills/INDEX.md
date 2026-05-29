@@ -1,7 +1,7 @@
 # Índice de Skills — Bora App
 
 > Skills versionadas vivem em `bora_app/.claude/skills/` (este diretório).
-> Branch: `autonomous-night-2026-04-29`. Atualizado: 2026-05-29 (S4-C). **34 skills.**
+> Branch: `autonomous-night-2026-04-29`. Atualizado: 2026-05-29 (S4-D). **38 skills.**
 > Convenção: invocar via Skill quando o trigger corresponder; **ler `bora-knowledge`
 > antes de qualquer ação** (foundation).
 
@@ -41,6 +41,10 @@
 | **seed-demo-data** | devops | Criar dados demo isolados (DEMO_/is_test_order, só cash) + cleanup reversível. Nunca Stripe. Dry-run default. |
 | **backup-restore-table** | devops | Backup read-only (JSON) + restore UPSERT; tabelas financeiras exigem --i-know-what-im-doing. Dry-run no restore. |
 | **generate-release-notes** | devops | git log desde último tag → RELEASE_NOTES_v{N}.md PT-PT (feat/fix/...) + secção testers. Read-only; sem tag/push. |
+| **audit-orange-rule** | design | Audita "1 laranja/ecrã" em lib/screens/ (dominante vs semântico); [OK]/[!]/[X]. Read-only. |
+| **migrate-screen-to-design** | design | MODO A: re-skin 1 ecrã (hex→AppColors tokens) com diff; --apply backup+flutter analyze. Não toca lógica. |
+| **run-weekly-payouts** | financeiro | Relatório de payouts (soma ledger_entries por driver/parceiro) + CSV. Read-only; nunca transfere. |
+| **audit-ledger-entries** | financeiro | Forensics read-only do ledger (órfãs/duplicados/sinais inesperados/pedidos incompletos). Só reporta. |
 
 ## Notas
 - **Onboarders** (`onboard-partner-*`) dependem de `bora-knowledge` e chamam as Edge Fns
@@ -69,4 +73,8 @@
   `generate-release-notes`): Edge Fns financeiras protegidas no deploy; seed só cash + reversível
   por `DEMO_`/`is_test_order`; restore de tabelas financeiras gated; release-notes read-only sobre git.
   Backups em `bora_app/.claude/.ai/backups/`. Fix Windows: subprocess UTF-8 + log resistente a cp1252.
+- **Design/Financeiro S4-D** (`audit-orange-rule`, `migrate-screen-to-design`, `run-weekly-payouts`,
+  `audit-ledger-entries`): design audita/migra (migrate em MODO A, só cores, nunca lógica);
+  financeiro é read-only (payouts soma ledger sem executar; audit-ledger só deteta). Fórmulas
+  lidas de `05-business-rules` (não recalculadas). `_shared.log` central agora resiliente a cp1252.
 - Logs de auditoria de sessões antigas movidos para `sistema/` (não são skills).

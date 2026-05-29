@@ -8,6 +8,7 @@ import '../config/app_spacing.dart';
 import '../models/order_model.dart';
 import '../models/restaurant_model.dart';
 import '../stores/order_store.dart';
+import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora_support_fab.dart';
 
 enum _Period { today, week, month }
@@ -142,20 +143,9 @@ class _PartnerEarningsScreenState extends State<PartnerEarningsScreen> {
         periodOrders.isEmpty ? 0.0 : totalEarnings / periodOrders.length;
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: AppColors.background,
       floatingActionButton: const BoraSupportFab(),
-      appBar: AppBar(
-        title: const Text(
-          'Ganhos',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        flexibleSpace: const DecoratedBox(
-          decoration: BoxDecoration(gradient: AppColors.headerGradient),
-        ),
-      ),
+      appBar: const BoraScreenAppBar(title: 'Ganhos'),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(Spacing.lg),
@@ -393,7 +383,7 @@ class _KpiRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppColors.divider),
       ),
       child: Column(
         children: [
@@ -454,7 +444,7 @@ class _EarningsChart extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppColors.divider),
       ),
       child: BarChart(
         BarChartData(
@@ -538,7 +528,7 @@ class _OrderTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppColors.divider),
       ),
       child: Row(
         children: [
@@ -768,13 +758,7 @@ class _TopProductsSection extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: AppColors.shadowCard,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -878,13 +862,7 @@ class _PeakHoursSection extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: AppColors.shadowCard,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

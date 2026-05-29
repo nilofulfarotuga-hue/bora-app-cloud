@@ -5,6 +5,7 @@ import '../config/app_colors.dart';
 import '../models/partner_product.dart';
 import '../models/restaurant_model.dart';
 import '../stores/partner_product_store.dart';
+import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora_support_fab.dart';
 import 'add_product_screen.dart';
 
@@ -66,19 +67,9 @@ class _PartnerProductsScreenState extends State<PartnerProductsScreen> {
     final products = productStore.productsForRestaurant(widget.restaurant.id);
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
-      appBar: AppBar(
-        title: Text(
-          'Produtos de ${widget.restaurant.name}',
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        flexibleSpace: const DecoratedBox(
-          decoration: BoxDecoration(gradient: AppColors.headerGradient),
-        ),
-      ),
+      backgroundColor: AppColors.background,
+      appBar: BoraScreenAppBar(
+          title: 'Produtos de ${widget.restaurant.name}'),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openAddProduct(),
         icon: const Icon(Icons.add),

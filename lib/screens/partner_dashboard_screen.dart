@@ -522,7 +522,7 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
 
     NotificationService.setupBroadcastDeepLink(context);
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: AppColors.background,
       floatingActionButton: const BoraSupportFab(),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
@@ -814,7 +814,7 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade400,
+                    color: AppColors.divider,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -1400,7 +1400,7 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
                 width: 36,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
+                  color: AppColors.divider,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),

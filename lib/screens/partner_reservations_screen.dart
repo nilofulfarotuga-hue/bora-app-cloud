@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/app_colors.dart';
 import '../models/reservation_model.dart';
+import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora_support_fab.dart';
 
 /// Partner dashboard — reservations section (BR §14.7).
@@ -80,20 +81,9 @@ class _PartnerReservationsScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: AppColors.background,
       floatingActionButton: const BoraSupportFab(),
-      appBar: AppBar(
-        title: const Text(
-          'Reservas',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        flexibleSpace: const DecoratedBox(
-          decoration: BoxDecoration(gradient: AppColors.headerGradient),
-        ),
-      ),
+      appBar: const BoraScreenAppBar(title: 'Reservas'),
       body: FutureBuilder<List<ReservationModel>>(
         future: _future,
         builder: (context, snap) {

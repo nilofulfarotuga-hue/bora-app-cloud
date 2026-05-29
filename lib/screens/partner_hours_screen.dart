@@ -6,6 +6,7 @@ import '../config/app_spacing.dart';
 import '../models/restaurant_model.dart';
 import '../stores/restaurant_store.dart';
 import '../widgets/bora/bora_primary_button.dart';
+import '../widgets/bora/bora_screen_app_bar.dart';
 
 class PartnerHoursScreen extends StatefulWidget {
   const PartnerHoursScreen({super.key, required this.restaurant});
@@ -95,19 +96,8 @@ class _PartnerHoursScreenState extends State<PartnerHoursScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surface,
-      appBar: AppBar(
-        title: const Text(
-          'Horários de funcionamento',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        flexibleSpace: const DecoratedBox(
-          decoration: BoxDecoration(gradient: AppColors.headerGradient),
-        ),
-      ),
+      backgroundColor: AppColors.background,
+      appBar: const BoraScreenAppBar(title: 'Horários de funcionamento'),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(Spacing.lg),
@@ -188,7 +178,7 @@ class _DayRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppColors.divider),
       ),
       child: Row(
         children: [

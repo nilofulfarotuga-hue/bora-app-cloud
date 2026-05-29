@@ -119,7 +119,7 @@ class RestaurantDashboardScreen extends StatelessWidget {
     }
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: AppColors.background,
       floatingActionButton: const BoraSupportFab(),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
@@ -338,7 +338,7 @@ class _OrderTileState extends State<_OrderTile> {
       margin: const EdgeInsets.only(top: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
+        color: AppColors.surface2,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(

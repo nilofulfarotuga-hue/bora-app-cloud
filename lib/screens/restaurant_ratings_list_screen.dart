@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/app_colors.dart';
+import '../widgets/bora/bora_screen_app_bar.dart';
 
 /// Lista pública de avaliações de um restaurante (BR §44).
 ///
@@ -51,9 +52,7 @@ class _RestaurantRatingsListScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Avaliações de ${widget.restaurantName}'),
-      ),
+      appBar: BoraScreenAppBar(title: 'Avaliações de ${widget.restaurantName}'),
       body: RefreshIndicator(
         onRefresh: _refresh,
         child: FutureBuilder<Map<String, dynamic>>(
@@ -148,9 +147,7 @@ class _DriverRatingsListScreenState extends State<DriverRatingsListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Avaliações de ${widget.driverName}'),
-      ),
+      appBar: BoraScreenAppBar(title: 'Avaliações de ${widget.driverName}'),
       body: RefreshIndicator(
         onRefresh: _refresh,
         child: FutureBuilder<Map<String, dynamic>>(
@@ -225,7 +222,7 @@ class _SummaryCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(Icons.star, color: Colors.amber, size: 36),
+                const Icon(Icons.star, color: AppColors.warning, size: 36),
                 const SizedBox(width: 12),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -288,7 +285,7 @@ class _DistBar extends StatelessWidget {
                 child: FractionallySizedBox(
                   alignment: Alignment.centerLeft,
                   widthFactor: pct,
-                  child: Container(color: Colors.amber),
+                  child: Container(color: AppColors.warning),
                 ),
               ),
             ),
@@ -343,7 +340,7 @@ class _RatingCard extends StatelessWidget {
                     return Icon(
                       i < stars ? Icons.star : Icons.star_border,
                       size: 16,
-                      color: Colors.amber,
+                      color: AppColors.warning,
                     );
                   }),
                 ),
@@ -381,7 +378,7 @@ class _RatingCard extends StatelessWidget {
                 width: double.infinity,
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE8F5E9),
+                  color: AppColors.primaryLight,
                   borderRadius: BorderRadius.circular(8),
                   border: const Border(
                     left: BorderSide(color: AppColors.primary, width: 3),

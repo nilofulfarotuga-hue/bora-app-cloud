@@ -28,14 +28,16 @@ defeito. Confirmar SEMPRE com Danilo antes de `--commit` (impacto em pricing/fee
 python scripts/show_setting.py --key reservation_prepayment_cents
 python scripts/update_setting.py --key reservation_prepayment_cents --value 400 --reason "Subida do prépagamento"          # dry-run
 python scripts/update_setting.py --key reservation_prepayment_cents --value 400 --reason "..." --commit
-# chave blindada:
-python scripts/update_setting.py --key delivery_per_km_cents --value 60 --reason "..." --i-know-what-im-doing --commit
+# chave blindada (contém 'fee_'):
+python scripts/update_setting.py --key delivery_base_fee_cents --value 300 --reason "..." --i-know-what-im-doing --commit
 ```
 
 ## 🔒 Chaves blindadas (proteção de fórmulas sagradas)
 Qualquer chave que contenha `stripe_`, `dispatch_`, `pricing_`, `commission_` ou `fee_`
 **exige `--i-know-what-im-doing`** (mesmo em dry-run avisa; em `--commit` bloqueia sem a flag).
-Ex.: `delivery_per_km_cents`, `partner_visible_commission_pct`, `dispatch_offer_timeout_seconds`.
+Ex.: `delivery_base_fee_cents`, `bag_fee_restaurant_cents`, `partner_visible_commission_pct`, `dispatch_offer_timeout_seconds`.
+> Nota: a regra é por **substring**. Chaves como `delivery_per_km_cents` NÃO contêm nenhum
+> dos substrings e por isso **não** são blindadas (embora sejam pricing) — rever caso a caso.
 
 ## Modos
 - **DEFAULT (dry-run)**: lê valor atual, mostra `old → new`, gera o **SQL**, lista **chaves

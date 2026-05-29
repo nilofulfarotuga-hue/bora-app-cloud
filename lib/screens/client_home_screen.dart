@@ -327,7 +327,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
     }();
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: AppColors.background,
       floatingActionButton: const BoraSupportFab(),
       body: Column(
         children: [
@@ -360,6 +360,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
                     label: 'Entrega em',
                     address: addressLine,
                     onTap: _openAddressPicker,
+                    onHeader: true,
                   ),
                   const SizedBox(height: Spacing.md),
                   BoraSearchField(
@@ -406,7 +407,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
       _TileData(
         label: 'Restaurantes',
         gradient: AppColors.tileRestaurants,
-        icon: Icons.restaurant_menu,
+        imageAsset: 'assets/categories/cat_restaurantes.png',
         onTap: () => _navigateWithAddressGuard(() {
           Navigator.push(
             context,
@@ -417,7 +418,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
       _TileData(
         label: 'Supermercados',
         gradient: AppColors.tileSupermarkets,
-        icon: Icons.shopping_cart,
+        imageAsset: 'assets/categories/cat_supermercados.png',
         onTap: () => _navigateWithAddressGuard(() {
           Navigator.push(
             context,
@@ -431,7 +432,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
       _TileData(
         label: 'Farmácia',
         gradient: AppColors.tilePharmacy,
-        icon: Icons.local_pharmacy,
+        imageAsset: 'assets/categories/cat_farmacia.png',
         onTap: () => _navigateWithAddressGuard(() {
           Navigator.push(
             context,
@@ -445,7 +446,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
       _TileData(
         label: 'Lojas',
         gradient: AppColors.tileStores,
-        icon: Icons.storefront,
+        imageAsset: 'assets/categories/cat_lojas.png',
         onTap: () => _navigateWithAddressGuard(() {
           Navigator.push(
             context,
@@ -459,7 +460,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
       _TileData(
         label: 'Enviar\nEncomenda',
         gradient: AppColors.tileSendPackage,
-        icon: Icons.local_shipping,
+        imageAsset: 'assets/categories/cat_encomenda.png',
         onTap: () => _navigateWithAddressGuard(() {
           Navigator.push(
             context,
@@ -470,7 +471,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
       _TileData(
         label: 'Levar\nCompras',
         gradient: AppColors.tileCarryGroceries,
-        icon: Icons.shopping_bag,
+        imageAsset: 'assets/categories/cat_compras.png',
         onTap: () => _navigateWithAddressGuard(() {
           Navigator.push(
             context,
@@ -481,7 +482,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
       _TileData(
         label: 'Reservar\nMesa',
         gradient: AppColors.tileReserveTable,
-        icon: Icons.event_seat_outlined,
+        imageAsset: 'assets/categories/cat_reservar_mesa.png',
         onTap: () => _navigateWithAddressGuard(() {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -509,10 +510,10 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
       mainAxisSpacing: Spacing.md,
       childAspectRatio: 0.95,
       children: tiles
-          .map((t) => BoraTileCard(
+          .map((t) => BoraTileCard.image(
                 label: t.label,
                 gradient: t.gradient,
-                iconData: t.icon,
+                imageAsset: t.imageAsset,
                 onTap: t.onTap,
               ))
           .toList(),
@@ -526,13 +527,13 @@ class _TileData {
   _TileData({
     required this.label,
     required this.gradient,
-    required this.icon,
+    required this.imageAsset,
     required this.onTap,
   });
 
   final String label;
   final Gradient gradient;
-  final IconData icon;
+  final String imageAsset;
   final VoidCallback onTap;
 }
 

@@ -41,7 +41,7 @@ class RestaurantsScreen extends StatelessWidget {
       });
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: AppColors.background,
       floatingActionButton: const BoraSupportFab(),
       appBar: BoraScreenAppBar(
         title: reservationsOnly ? 'Reservar Mesa' : 'Restaurantes',
@@ -255,13 +255,7 @@ class _RestaurantTile extends StatelessWidget {
           child: Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(Radii.lg),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+              boxShadow: AppColors.shadowCard,
             ),
             padding: const EdgeInsets.symmetric(
                 horizontal: Spacing.lg, vertical: Spacing.md),

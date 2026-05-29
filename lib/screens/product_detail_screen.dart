@@ -7,6 +7,7 @@ import '../models/partner_product.dart';
 import '../models/product_variant.dart';
 import '../stores/cart_store.dart';
 import '../stores/restaurant_store.dart';
+import '../widgets/bora/bora_accent_button.dart';
 import 'cart_screen.dart';
 
 class ProductDetailScreen extends StatefulWidget {
@@ -88,7 +89,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     final total = variants.length;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: AppColors.background,
       body: Column(
         children: [
           Expanded(
@@ -256,32 +257,18 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             SafeArea(
               top: false,
               minimum: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _selectedVariant != null
-                      ? () => _addToCart(context, _selectedVariant!)
-                      : widget.product.price > 0
-                          ? () => _addNoVariantToCart(context)
-                          : null,
-                  icon: const Icon(Icons.add_shopping_cart),
-                  label: Text(
-                    _selectedVariant != null
-                        ? 'Adicionar ao carrinho · €${_selectedVariant!.price.toStringAsFixed(2)}'
-                        : widget.product.price > 0
-                            ? 'Adicionar ao carrinho · €${widget.product.price.toStringAsFixed(2)}'
-                            : 'Preço indisponível',
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w700, fontSize: 16),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.accent,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14)),
-                  ),
-                ),
+              child: BoraAccentButton(
+                label: _selectedVariant != null
+                    ? 'Adicionar ao carrinho · €${_selectedVariant!.price.toStringAsFixed(2)}'
+                    : widget.product.price > 0
+                        ? 'Adicionar ao carrinho · €${widget.product.price.toStringAsFixed(2)}'
+                        : 'Preço indisponível',
+                icon: Icons.add_shopping_cart,
+                onPressed: _selectedVariant != null
+                    ? () => _addToCart(context, _selectedVariant!)
+                    : widget.product.price > 0
+                        ? () => _addNoVariantToCart(context)
+                        : null,
               ),
             ),
         ],

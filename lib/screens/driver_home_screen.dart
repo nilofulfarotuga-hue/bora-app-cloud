@@ -659,7 +659,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
 
     NotificationService.setupBroadcastDeepLink(context);
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: AppColors.background,
       floatingActionButton: const BoraSupportFab(),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
@@ -1125,14 +1125,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.divider),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: AppColors.shadowCard,
       ),
       child: Center(
         child: Text(

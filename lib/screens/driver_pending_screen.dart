@@ -5,6 +5,7 @@ import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
 import '../stores/session_store.dart';
+import '../widgets/bora/bora_mascot.dart';
 
 class DriverPendingScreen extends StatelessWidget {
   const DriverPendingScreen({super.key});
@@ -12,24 +13,17 @@ class DriverPendingScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: Spacing.xxxl),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Container(
-                padding: const EdgeInsets.all(Spacing.xxl),
-                decoration: BoxDecoration(
-                  color: AppColors.warning.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.hourglass_empty_rounded,
-                  size: 72,
-                  color: AppColors.warning,
-                ),
+              const BoraMascot(
+                variant: BoraMascotVariant.icon,
+                size: 96,
+                semanticLabel: 'BORA',
               ),
               const SizedBox(height: Spacing.xxxl),
               const Text(

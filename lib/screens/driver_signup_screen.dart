@@ -13,6 +13,7 @@ import '../models/driver_model.dart';
 import '../stores/session_store.dart';
 import '../widgets/address_autocomplete_field.dart';
 import '../widgets/bora/bora_primary_button.dart';
+import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/terms_link_text.dart';
 import 'driver_pending_screen.dart';
 
@@ -438,18 +439,7 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Candidatura de Estafeta',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        flexibleSpace: const DecoratedBox(
-          decoration: BoxDecoration(gradient: AppColors.headerGradient),
-        ),
-      ),
+      appBar: const BoraScreenAppBar(title: 'Candidatura de Estafeta'),
       body: Form(
         key: _formKey,
         child: Stepper(

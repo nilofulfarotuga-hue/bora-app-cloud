@@ -1305,13 +1305,7 @@ class _BottomPanelState extends State<_BottomPanel> {
           topLeft: Radius.circular(24),
           topRight: Radius.circular(24),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Color(0x26000000),
-            blurRadius: 16,
-            offset: Offset(0, -4),
-          ),
-        ],
+        boxShadow: AppColors.shadowNav,
       ),
       child: SafeArea(
         top: false,
@@ -1327,7 +1321,7 @@ class _BottomPanelState extends State<_BottomPanel> {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
+                    color: AppColors.divider,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -2547,7 +2541,7 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
+                    color: AppColors.divider,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),

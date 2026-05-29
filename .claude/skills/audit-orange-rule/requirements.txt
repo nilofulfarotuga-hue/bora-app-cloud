@@ -1,0 +1,1 @@
+# audit-orange-rule — sem dependências externas (stdlib + ficheiros locais)

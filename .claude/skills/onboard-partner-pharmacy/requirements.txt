@@ -1,0 +1,6 @@
+# onboard-partner-pharmacy — dependências Python (iguais a onboard-partner-restaurant)
+pyyaml>=6.0
+Pillow>=10.0
+rembg[cpu]>=2.0
+requests>=2.31
+python-dotenv>=1.0

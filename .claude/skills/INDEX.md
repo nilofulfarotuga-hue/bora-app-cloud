@@ -1,7 +1,7 @@
 # Índice de Skills — Bora App
 
 > Skills versionadas vivem em `bora_app/.claude/skills/` (este diretório).
-> Branch: `autonomous-night-2026-04-29`. Atualizado: 2026-05-29 (S4-D). **38 skills.**
+> Branch: `autonomous-night-2026-04-29`. Atualizado: 2026-05-29 (S4-E). **42 skills.**
 > Convenção: invocar via Skill quando o trigger corresponder; **ler `bora-knowledge`
 > antes de qualquer ação** (foundation).
 
@@ -45,6 +45,10 @@
 | **migrate-screen-to-design** | design | MODO A: re-skin 1 ecrã (hex→AppColors tokens) com diff; --apply backup+flutter analyze. Não toca lógica. |
 | **run-weekly-payouts** | financeiro | Relatório de payouts (soma ledger_entries por driver/parceiro) + CSV. Read-only; nunca transfere. |
 | **audit-ledger-entries** | financeiro | Forensics read-only do ledger (órfãs/duplicados/sinais inesperados/pedidos incompletos). Só reporta. |
+| **notify-broadcast** | operacoes | Push em massa segmentado (push_broadcasts→execute-broadcast). Dry-run; --commit exige --confirm. Audita. |
+| **manage-promo-codes** | operacoes | Criar/listar/desativar promos via RPCs admin (promo_codes). Dry-run; --commit chama RPC. Avisa margem. |
+| **refund-assistant** | financeiro | SHADOW: propõe refund (fee escalão + split 80/20) + audit; NUNCA executa (Stripe intocado). |
+| **reservation-ops** | operacoes | Listar reservas + marcar chegada via RPC partner_mark_arrival (€2 interno). no_show = guidance. Dry-run. |
 
 ## Notas
 - **Onboarders** (`onboard-partner-*`) dependem de `bora-knowledge` e chamam as Edge Fns
@@ -77,4 +81,9 @@
   `audit-ledger-entries`): design audita/migra (migrate em MODO A, só cores, nunca lógica);
   financeiro é read-only (payouts soma ledger sem executar; audit-ledger só deteta). Fórmulas
   lidas de `05-business-rules` (não recalculadas). `_shared.log` central agora resiliente a cp1252.
+- **Cliente/Operações S4-E** (`notify-broadcast`, `manage-promo-codes`, `refund-assistant`,
+  `reservation-ops`): usam infra existente (Edge Fn `execute-broadcast` via `push_broadcasts`;
+  RPCs `admin_*_promo_code`, `partner_mark_arrival`). **refund-assistant é SHADOW** (só propõe,
+  nunca executa — regra 5B). dry-run default; broadcast exige `--commit --confirm`. **Admin UI**
+  p/ promos e broadcast = pendência clara.
 - Logs de auditoria de sessões antigas movidos para `sistema/` (não são skills).

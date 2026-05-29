@@ -1,7 +1,7 @@
 # Índice de Skills — Bora App
 
 > Skills versionadas vivem em `bora_app/.claude/skills/` (este diretório).
-> Branch: `autonomous-night-2026-04-29`. Atualizado: 2026-05-29 (S2). **19 skills.**
+> Branch: `autonomous-night-2026-04-29`. Atualizado: 2026-05-29 (S3). **23 skills.**
 > Convenção: invocar via Skill quando o trigger corresponder; **ler `bora-knowledge`
 > antes de qualquer ação** (foundation).
 
@@ -18,6 +18,10 @@
 | **audit-partner-application** | auditor | Rever candidatura de parceiro (pending) — NIF/IBAN/horário/categoria/assets — aprovar/rejeitar. Dry-run default. |
 | **ban-or-reactivate-entity** | operator | Banir/reativar client (Auth) / driver (colunas) / partner (is_active_admin); bloqueia com pedidos em curso. Dry-run default. |
 | **force-driver-logout** | operator | Forçar logout de estafeta via Edge Fn admin-force-driver-logout. Preview; --confirm executa. |
+| **add-home-category** | codegen | Gerar diff (Modo A) p/ adicionar 8ª categoria à home (gradient+tile+rota). Não toca lib/ sem --apply. Audita 1-laranja. |
+| **update-design-token** | codegen | Gerar diff p/ alterar token de cor global + ecrãs afetados. Não toca lib/ sem --apply. Avisos primary/accent. |
+| **update-platform-setting** | config | Alterar 1 chave de platform_settings (dry-run SQL+impacto; --commit+auditoria+ADR). Chaves blindadas exigem --i-know-what-im-doing. |
+| **pre-launch-checklist** | auditor | Auditoria read-only de prontidão (pending, catálogo sem preço/imagem, settings críticos, audit recente). |
 | **market-data-sync** | data | Sincronizar catálogo de qualquer loja (Glovo/Uber → site oficial); UPDATE/INSERT sem duplicados. |
 | **market-data-cleaner** | data | Limpar catálogo por mercado (sem imagem/marca/preço; tradução ES→PT; soft-delete). |
 | **category-mapper-v2** | data | Reclassificar produtos em 22 categorias canónicas (keywords PT+ES+EN+FR, dry-run). |
@@ -37,4 +41,8 @@
   o motor S1 (`_shared`). dry-run é default; ações destrutivas exigem `--commit`/`--confirm`.
 - **Pendências de schema** (S2): `restaurants` e `users` sem colunas de ban (driver tem);
   `licenca_infarmed` ausente em `restaurants`. Ver `bora-knowledge/knowledge/12-recipes.md`.
+- **Codegen/config S3** (`add-home-category`, `update-design-token`, `update-platform-setting`,
+  `pre-launch-checklist`): **Modo A** — geram diff/SQL em `_preview/` para revisão; só tocam
+  `lib/`/DB com `--apply`/`--commit` (backup + `admin_audit_log` + nota ADR em `decisions/`).
+  `pre-launch-checklist` é read-only. `REPO_ROOT` = `parents[4]` (bora_app).
 - Logs de auditoria de sessões antigas movidos para `sistema/` (não são skills).

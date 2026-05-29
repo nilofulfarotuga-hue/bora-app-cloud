@@ -218,12 +218,12 @@ class RestaurantDashboardScreen extends StatelessWidget {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text(
-                                    'Delivery request submitted. Drivers have been notified.'),
+                                    'Pedido de entrega enviado. Estafetas notificados.'),
                               ),
                             );
                           },
                           icon: const Icon(Icons.local_shipping_outlined),
-                          label: const Text('Call Driver'),
+                          label: const Text('Chamar estafeta'),
                         ),
                         OutlinedButton.icon(
                           onPressed: () {
@@ -282,8 +282,8 @@ class _OrderTileState extends State<_OrderTile> {
       SnackBar(
         content: Text(
           success
-              ? 'Order accepted. Preparation started.'
-              : 'Unable to update the order.',
+              ? 'Pedido aceite. Preparação iniciada.'
+              : 'Não foi possível atualizar o pedido.',
         ),
       ),
     );
@@ -296,17 +296,17 @@ class _OrderTileState extends State<_OrderTile> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('Reject order?'),
+          title: const Text('Rejeitar pedido?'),
           content:
-              Text('Are you sure you want to reject order ${widget.order.id}?'),
+              Text('Tem a certeza que pretende rejeitar o pedido ${widget.order.id}?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('Cancel'),
+              child: const Text('Cancelar'),
             ),
             ElevatedButton(
               onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: const Text('Reject Order'),
+              child: const Text('Rejeitar pedido'),
             ),
           ],
         );
@@ -322,7 +322,7 @@ class _OrderTileState extends State<_OrderTile> {
     messenger.showSnackBar(
       SnackBar(
         content: Text(
-          success ? 'Order rejected.' : 'Unable to reject the order.',
+          success ? 'Pedido rejeitado.' : 'Não foi possível rejeitar o pedido.',
         ),
       ),
     );
@@ -374,12 +374,12 @@ class _OrderTileState extends State<_OrderTile> {
                 else ...[
                   ElevatedButton(
                     onPressed: _accept,
-                    child: const Text('Accept Order'),
+                    child: const Text('Aceitar pedido'),
                   ),
                   const SizedBox(width: 8),
                   OutlinedButton(
                     onPressed: _reject,
-                    child: const Text('Reject Order'),
+                    child: const Text('Rejeitar pedido'),
                   ),
                 ],
               ],
@@ -510,10 +510,10 @@ class _PartnerEarningsSection extends StatelessWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Earnings', style: theme.textTheme.titleMedium),
+          Text('Ganhos', style: theme.textTheme.titleMedium),
           const SizedBox(height: 8),
           const Text(
-              'No partner orders yet. Earnings will appear once orders are created.'),
+              'Ainda não há pedidos. Os ganhos aparecem assim que houver pedidos.'),
         ],
       );
     }
@@ -553,7 +553,7 @@ class _PartnerEarningsSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Earnings', style: theme.textTheme.titleMedium),
+        Text('Ganhos', style: theme.textTheme.titleMedium),
         const SizedBox(height: 8),
         Card(
           elevation: 0,
@@ -566,7 +566,7 @@ class _PartnerEarningsSection extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Per order',
+                  'Por pedido',
                   style: theme.textTheme.titleSmall
                       ?.copyWith(fontWeight: FontWeight.w600),
                 ),
@@ -579,7 +579,7 @@ class _PartnerEarningsSection extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
                     child: Text(
-                      'Showing latest ${latestOrders.length} of ${orders.length} orders.',
+                      'A mostrar os últimos ${latestOrders.length} de ${orders.length} pedidos.',
                       style: theme.textTheme.bodySmall
                           ?.copyWith(color: Colors.grey.shade600),
                     ),
@@ -600,23 +600,23 @@ class _PartnerEarningsSection extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Daily summary (today)',
+                  'Resumo diário (hoje)',
                   style: theme.textTheme.titleSmall
                       ?.copyWith(fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 12),
-                _buildSummaryRow(context, 'Orders', '$dailyCount',
+                _buildSummaryRow(context, 'Pedidos', '$dailyCount',
                     emphasize: true),
                 _buildSummaryRow(
-                    context, 'Total sold', _formatCurrency(dailyTotal)),
+                    context, 'Total vendido', _formatCurrency(dailyTotal)),
                 _buildSummaryRow(
                   context,
-                  'Platform commission (20%)',
+                  'Comissão da plataforma (20%)',
                   _formatCurrency(dailyCommission),
                 ),
                 _buildSummaryRow(
                   context,
-                  'Restaurant earnings (80%)',
+                  'Ganhos do restaurante (80%)',
                   _formatCurrency(dailyRestaurant),
                 ),
               ],
@@ -635,21 +635,21 @@ class _PartnerEarningsSection extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Weekly summary (last 7 days)',
+                  'Resumo semanal (últimos 7 dias)',
                   style: theme.textTheme.titleSmall
                       ?.copyWith(fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 12),
                 _buildSummaryRow(
-                    context, 'Total sold', _formatCurrency(weeklyTotal)),
+                    context, 'Total vendido', _formatCurrency(weeklyTotal)),
                 _buildSummaryRow(
                   context,
-                  'Platform commission',
+                  'Comissão da plataforma',
                   _formatCurrency(weeklyCommission),
                 ),
                 _buildSummaryRow(
                   context,
-                  'Amount to receive',
+                  'Valor a receber',
                   _formatCurrency(weeklyRestaurant),
                   emphasize: true,
                 ),
@@ -661,7 +661,7 @@ class _PartnerEarningsSection extends StatelessWidget {
         _LedgerRestaurantCard(restaurantId: restaurant.id),
         const SizedBox(height: 8),
         Text(
-          'Only non-rejected partner restaurant orders are counted towards earnings.',
+          'Apenas pedidos parceiros não rejeitados contam para os ganhos.',
           style:
               theme.textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
         ),
@@ -679,7 +679,7 @@ class _PartnerEarningsSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Order ${order.id}',
+          'Pedido ${order.id}',
           style:
               theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
         ),
@@ -690,11 +690,11 @@ class _PartnerEarningsSection extends StatelessWidget {
               theme.textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
         ),
         const SizedBox(height: 8),
-        _buildSummaryRow(context, 'Status', order.status.label),
+        _buildSummaryRow(context, 'Estado', order.status.label),
         if (order.customerName != null && order.customerName!.isNotEmpty)
-          _buildSummaryRow(context, 'Customer', order.customerName!),
+          _buildSummaryRow(context, 'Cliente', order.customerName!),
         if (order.clientPhone != null && order.clientPhone!.isNotEmpty)
-          _buildSummaryRow(context, 'Phone', order.clientPhone!),
+          _buildSummaryRow(context, 'Telefone', order.clientPhone!),
         if (order.dropoffAddress != null || order.destination != null)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 2),
@@ -702,7 +702,7 @@ class _PartnerEarningsSection extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                    child: Text('Delivery', style: theme.textTheme.bodyMedium)),
+                    child: Text('Entrega', style: theme.textTheme.bodyMedium)),
                 Flexible(
                   child: AddressText(
                     rawAddress: order.dropoffAddress,
@@ -714,16 +714,16 @@ class _PartnerEarningsSection extends StatelessWidget {
               ],
             ),
           ),
-        _buildSummaryRow(context, 'Order total', _formatCurrency(order.total),
+        _buildSummaryRow(context, 'Total do pedido', _formatCurrency(order.total),
             emphasize: true),
         _buildSummaryRow(
           context,
-          'Platform commission (20%)',
+          'Comissão da plataforma (20%)',
           _formatCurrency(commission),
         ),
         _buildSummaryRow(
           context,
-          'Restaurant earnings (80%)',
+          'Ganhos do restaurante (80%)',
           _formatCurrency(restaurantShare),
           emphasize: true,
         ),
@@ -731,7 +731,7 @@ class _PartnerEarningsSection extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(top: 4),
             child: Text(
-              'Rejected orders do not generate payouts.',
+              'Pedidos rejeitados não geram pagamento.',
               style:
                   theme.textTheme.bodySmall?.copyWith(color: Colors.redAccent),
             ),

@@ -1,7 +1,7 @@
 # Índice de Skills — Bora App
 
 > Skills versionadas vivem em `bora_app/.claude/skills/` (este diretório).
-> Branch: `autonomous-night-2026-04-29`. Atualizado: 2026-05-29 (S3). **23 skills.**
+> Branch: `autonomous-night-2026-04-29`. Atualizado: 2026-05-29 (S4-A). **26 skills.**
 > Convenção: invocar via Skill quando o trigger corresponder; **ler `bora-knowledge`
 > antes de qualquer ação** (foundation).
 
@@ -22,6 +22,9 @@
 | **update-design-token** | codegen | Gerar diff p/ alterar token de cor global + ecrãs afetados. Não toca lib/ sem --apply. Avisos primary/accent. |
 | **update-platform-setting** | config | Alterar 1 chave de platform_settings (dry-run SQL+impacto; --commit+auditoria+ADR). Chaves blindadas exigem --i-know-what-im-doing. |
 | **pre-launch-checklist** | auditor | Auditoria read-only de prontidão (pending, catálogo sem preço/imagem, settings críticos, audit recente). |
+| **sync-market-photos** | data | Dar foto a produtos de mercado (needs_photo) reutilizando fotos donor (Mercadona) por search_normalized. DB-interno, zero scraping/preço. |
+| **weekly-market-prices** | data | Orquestrar update semanal de preços; só Continente (Product-Show+JSON-LD, 3.5s/req). Nunca Uber/Glovo. Dry-run default. |
+| **dedupe-market-products** | data | Dedupe por search_normalized+loja; soft-delete (is_available=false) do menos completo. Backup CSV. Nunca hard delete/parceiros. |
 | **market-data-sync** | data | Sincronizar catálogo de qualquer loja (Glovo/Uber → site oficial); UPDATE/INSERT sem duplicados. |
 | **market-data-cleaner** | data | Limpar catálogo por mercado (sem imagem/marca/preço; tradução ES→PT; soft-delete). |
 | **category-mapper-v2** | data | Reclassificar produtos em 22 categorias canónicas (keywords PT+ES+EN+FR, dry-run). |
@@ -45,4 +48,8 @@
   `pre-launch-checklist`): **Modo A** — geram diff/SQL em `_preview/` para revisão; só tocam
   `lib/`/DB com `--apply`/`--commit` (backup + `admin_audit_log` + nota ADR em `decisions/`).
   `pre-launch-checklist` é read-only. `REPO_ROOT` = `parents[4]` (bora_app).
+- **Mercados S4-A** (`sync-market-photos`, `weekly-market-prices`, `dedupe-market-products`):
+  só lojas em `MARKET_STORES` (recusam parceiros/fast-food); **nunca preço de Uber/Glovo**;
+  soft-delete = `is_available=false` (products não tem `is_deleted/deleted_at` — pendência);
+  dry-run default. Preço por scraping só Continente (auchan/pingodoce bloqueados por robots.txt).
 - Logs de auditoria de sessões antigas movidos para `sistema/` (não são skills).

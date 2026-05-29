@@ -407,17 +407,22 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(12),
-              child: Material(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(50),
-                elevation: 4,
-                shadowColor: Colors.black26,
-                child: InkWell(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(50),
-                  onTap: () => Navigator.maybePop(context),
-                  child: const Padding(
-                    padding: EdgeInsets.all(10),
-                    child: Icon(Icons.arrow_back, size: 22),
+                  boxShadow: AppColors.shadowSm,
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(50),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(50),
+                    onTap: () => Navigator.maybePop(context),
+                    child: const Padding(
+                      padding: EdgeInsets.all(10),
+                      child: Icon(Icons.arrow_back, size: 22),
+                    ),
                   ),
                 ),
               ),
@@ -510,13 +515,7 @@ class _BottomCardState extends State<_BottomCard> {
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 20,
-            offset: Offset(0, -4),
-          ),
-        ],
+        boxShadow: AppColors.shadowNav,
       ),
       child: ListView(
         controller: scrollController,
@@ -606,6 +605,7 @@ class _BottomCardState extends State<_BottomCard> {
                       color: AppColors.surface,
                       borderRadius: BorderRadius.circular(Radii.lg),
                       border: Border.all(color: AppColors.divider),
+                      boxShadow: AppColors.shadowSm,
                     ),
                     child: Row(
                       children: [
@@ -870,7 +870,7 @@ class _BottomCardState extends State<_BottomCard> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
+                    color: AppColors.surface2,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Column(

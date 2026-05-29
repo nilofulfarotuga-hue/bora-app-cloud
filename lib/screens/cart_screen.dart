@@ -36,16 +36,8 @@ class CartScreen extends StatelessWidget {
         cartStore.tipEur;
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
-      appBar: AppBar(
-        title: const Text('Carrinho'),
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        flexibleSpace: const DecoratedBox(
-          decoration: BoxDecoration(gradient: AppColors.headerGradient),
-        ),
-      ),
+      backgroundColor: AppColors.background,
+      appBar: const BoraScreenAppBar(title: 'Carrinho'),
       body: Column(
         children: [
           Expanded(
@@ -139,8 +131,8 @@ class _CartItemTile extends StatelessWidget {
           Spacing.md, Spacing.sm, Spacing.xs, Spacing.sm),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(Radii.md),
-        border: Border.all(color: AppColors.divider),
+        borderRadius: BorderRadius.circular(Radii.lg),
+        boxShadow: AppColors.shadowSm,
       ),
       child: Row(
         children: [
@@ -272,17 +264,11 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
           Spacing.xl,
           Spacing.lg,
         ),
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           color: Colors.white,
           borderRadius:
-              const BorderRadius.vertical(top: Radius.circular(Radii.xl)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
-              blurRadius: 12,
-              offset: const Offset(0, -4),
-            ),
-          ],
+              BorderRadius.vertical(top: Radius.circular(Radii.xl)),
+          boxShadow: AppColors.shadowNav,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -450,10 +436,12 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
               ),
             ],
             const SizedBox(height: Spacing.lg),
-            BoraPrimaryButton(
+            BoraAccentButton(
               // BUG #1 (2026-05-13) — `isWalletBlocked` deixa de bloquear o
               // botão e o label. Cartão/MBWay liquidam a dívida no checkout;
               // só CASH é disabled em payment_method_screen.dart (BUG #1 §54).
+              // 4.1.D — CTA único laranja do ecrã (regra "1 elemento laranja
+              // por ecrã"): substituído de BoraPrimaryButton para BoraAccentButton.
               label: remainingToPay <= 0
                   ? 'Pagar com saldo Bora'
                   : 'Finalizar pedido',

@@ -377,11 +377,12 @@ class _CancelOrderButton extends StatelessWidget {
 
 /// Dialog informativo para cancelamento de pedido cash. Retorna o motivo
 /// (não-vazio) se o utilizador confirmou, ou null se cancelou.
-Future<String?> _showCashCancelDialog(BuildContext context, double feeEur) {
+Future<String?> _showCashCancelDialog(BuildContext context, double feeEur) async {
   final reasonCtrl = TextEditingController();
   String? error;
   bool submitting = false;
-  return showDialog<String>(
+  try {
+    return await showDialog<String>(
     context: context,
     builder: (ctx) => StatefulBuilder(
       builder: (ctx, setState) {
@@ -444,7 +445,10 @@ Future<String?> _showCashCancelDialog(BuildContext context, double feeEur) {
         );
       },
     ),
-  );
+    );
+  } finally {
+    reasonCtrl.dispose();
+  }
 }
 
 // ── Status card ───────────────────────────────────────────────────────────────

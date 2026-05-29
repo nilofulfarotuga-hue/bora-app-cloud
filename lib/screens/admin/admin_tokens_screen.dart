@@ -95,13 +95,15 @@ class _AdminTokensScreenState extends State<AdminTokensScreen>
       final res = await Supabase.instance.client.rpc('admin_get_user_tokens', params: {
         'p_user_id': userId, 'p_role': role, 'p_limit': 100,
       });
+      if (!mounted) return;
       setState(() {
-        _data = Map<String, dynamic>.from(res as Map);
+        _data = res is Map ? Map<String, dynamic>.from(res) : null;
         _loading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() => _loading = false);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
     }
   }
 
@@ -288,7 +290,10 @@ class _AdminTokensScreenState extends State<AdminTokensScreen>
 
   Widget _buildSelectedUserView() {
     if (_loading) return const Center(child: CircularProgressIndicator());
-    final balance = _data!['balance'];
+    if (_data == null) {
+      return const Center(child: Text('Sem dados — toca em recarregar.'));
+    }
+    final balance = _data!['balance'] ?? 0;
     final grants = List<Map<String, dynamic>>.from(_data!['grants'] as List? ?? []);
     return Column(children: [
       Card(

@@ -94,6 +94,24 @@ class _ReservationAvailabilityScreenState
   }
 
   Future<void> _searchAvailability() async {
+    if (_selectedTime != null) {
+      final picked = DateTime(
+        _selectedDate.year,
+        _selectedDate.month,
+        _selectedDate.day,
+        _selectedTime!.hour,
+        _selectedTime!.minute,
+      );
+      if (picked.isBefore(DateTime.now())) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('A hora escolhida já passou. Escolhe outra.'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+        return;
+      }
+    }
     setState(() {
       _searching = true;
       _availabilityResult = null;

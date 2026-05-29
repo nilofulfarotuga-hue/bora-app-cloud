@@ -1,0 +1,19 @@
+# info.yaml — loja parceira Bora. Copiar para a pasta de onboarding e preencher.
+# Idioma user-facing: PT-PT. Campos obrigatórios marcados (*).
+store:
+  name: "Worten Guarda"             # * nome da loja
+  cuisine_type: ""                  #   não aplicável a lojas (deixar vazio)
+  category: "loja"                  # * nesta skill: sempre 'loja'
+  is_partner: true
+  address: "Av. Cidade Safed 4, 6300-557 Guarda"   # * morada completa
+  phone: "+351271200000"            # * telefone PT
+  email: "guarda@worten.pt"         # * email (login do parceiro)
+  nif: "503453887"                  #   NIF 9 dígitos (mód-11)
+  iban: "PT50000700000012345678901" #   ⚠️ formato real: PT + 21 dígitos
+  lat: null                         #   geocode.py preenche
+  lng: null
+  takeaway_enabled: false           #   lojas: manter false
+  reservations_enabled: false       #   lojas: manter false
+  curbside_enabled: false
+  owner_name: "Responsável Loja"
+  owner_doc_url: ""

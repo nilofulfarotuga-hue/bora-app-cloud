@@ -5,144 +5,66 @@
 
 ## 1️⃣ Document Metadata
 - **Project Name:** bora_app
-- **Date:** 2026-05-28
+- **Date:** 2026-05-29
 - **Prepared by:** TestSprite AI Team
 
 ---
 
 ## 2️⃣ Requirement Validation Summary
 
-#### Test TC001 post functions v1 dispatch engine assigns driver correctly
-- **Test Code:** [TC001_post_functions_v1_dispatch_engine_assigns_driver_correctly.py](./TC001_post_functions_v1_dispatch_engine_assigns_driver_correctly.py)
-- **Test Error:** Traceback (most recent call last):
-  File "/var/task/handler.py", line 258, in run_with_retry
-    exec(code, exec_env)
-  File "<string>", line 71, in <module>
-  File "<string>", line 24, in test_post_functions_v1_dispatch_engine_assigns_driver_correctly
-AssertionError: Auth failed: {"message":"No API key found in request","hint":"No `apikey` request header or url param was found."}
-
-- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/0816ddfa-154a-493c-93ea-765c19774f60/6e3f2929-cd01-4076-a0d2-b03c358c2a96
-- **Status:** ❌ Failed
+#### Test TC001 post auth v1 token grant type password with valid credentials
+- **Test Code:** [TC001_post_auth_v1_token_grant_type_password_with_valid_credentials.py](./TC001_post_auth_v1_token_grant_type_password_with_valid_credentials.py)
+- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/cb0bb87b-b3b9-4638-9735-6a651f34549b/23ee1251-d9a5-4e64-895e-c114f2bc1da9
+- **Status:** ✅ Passed
 - **Analysis / Findings:** {{TODO:AI_ANALYSIS}}.
 ---
 
-#### Test TC002 post functions v1 client cancel order before driver acceptance
-- **Test Code:** [TC002_post_functions_v1_client_cancel_order_before_driver_acceptance.py](./TC002_post_functions_v1_client_cancel_order_before_driver_acceptance.py)
-- **Test Error:** Traceback (most recent call last):
-  File "/var/task/handler.py", line 258, in run_with_retry
-    exec(code, exec_env)
-  File "<string>", line 84, in <module>
-  File "<string>", line 20, in test_post_functions_v1_client_cancel_order_before_driver_acceptance
-AssertionError: Auth failed: {"message":"Invalid API key","hint":"Double check your Supabase `anon` or `service_role` API key."}
-
-- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/0816ddfa-154a-493c-93ea-765c19774f60/0d7dd963-36bf-4d77-87ac-ddb71c275f9e
-- **Status:** ❌ Failed
+#### Test TC002 get rest v1 orders select id user id status with valid jwt
+- **Test Code:** [TC002_get_rest_v1_orders_select_id_user_id_status_with_valid_jwt.py](./TC002_get_rest_v1_orders_select_id_user_id_status_with_valid_jwt.py)
+- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/cb0bb87b-b3b9-4638-9735-6a651f34549b/39f5a529-37fe-4b3d-b995-63f03d1b2dc4
+- **Status:** ✅ Passed
 - **Analysis / Findings:** {{TODO:AI_ANALYSIS}}.
 ---
 
-#### Test TC003 post functions v1 create payment intent validates amount and returns client secret
-- **Test Code:** [TC003_post_functions_v1_create_payment_intent_validates_amount_and_returns_client_secret.py](./TC003_post_functions_v1_create_payment_intent_validates_amount_and_returns_client_secret.py)
-- **Test Error:** Traceback (most recent call last):
-  File "/var/task/handler.py", line 258, in run_with_retry
-    exec(code, exec_env)
-  File "<string>", line 102, in <module>
-  File "<string>", line 52, in test_TC003_post_functions_v1_create_payment_intent_validates_amount_and_returns_client_secret
-  File "<string>", line 16, in authenticate_client
-  File "/var/lang/lib/python3.12/site-packages/requests/models.py", line 1024, in raise_for_status
-    raise HTTPError(http_error_msg, response=self)
-requests.exceptions.HTTPError: 401 Client Error: Unauthorized for url: https://ojykpzwqrtusfeakzrna.supabase.co/auth/v1/token?grant_type=password
-
-- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/0816ddfa-154a-493c-93ea-765c19774f60/23427aca-8f5e-4700-bda8-9243809f1aa3
-- **Status:** ❌ Failed
+#### Test TC003 post rest v1 orders insert valid order with correct user id
+- **Test Code:** [TC003_post_rest_v1_orders_insert_valid_order_with_correct_user_id.py](./TC003_post_rest_v1_orders_insert_valid_order_with_correct_user_id.py)
+- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/cb0bb87b-b3b9-4638-9735-6a651f34549b/b6149546-fe33-400b-a21a-5cb73bb92666
+- **Status:** ✅ Passed
 - **Analysis / Findings:** {{TODO:AI_ANALYSIS}}.
 ---
 
-#### Test TC004 post rest v1 rpc wallet get balance returns wallet details for authenticated user
-- **Test Code:** [TC004_post_rest_v1_rpc_wallet_get_balance_returns_wallet_details_for_authenticated_user.py](./TC004_post_rest_v1_rpc_wallet_get_balance_returns_wallet_details_for_authenticated_user.py)
-- **Test Error:** Traceback (most recent call last):
-  File "<string>", line 30, in test_post_rest_v1_rpc_wallet_get_balance_authenticated
-AssertionError: Auth failed: {"message":"Invalid API key","hint":"Double check your Supabase `anon` or `service_role` API key."}
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "/var/task/handler.py", line 258, in run_with_retry
-    exec(code, exec_env)
-  File "<string>", line 83, in <module>
-  File "<string>", line 35, in test_post_rest_v1_rpc_wallet_get_balance_authenticated
-AssertionError: Authentication request failed: Auth failed: {"message":"Invalid API key","hint":"Double check your Supabase `anon` or `service_role` API key."}
-
-- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/0816ddfa-154a-493c-93ea-765c19774f60/77848e63-3665-4e77-912e-6be06ee59fe1
-- **Status:** ❌ Failed
+#### Test TC004 post rest v1 orders insert order with unknown field
+- **Test Code:** [TC004_post_rest_v1_orders_insert_order_with_unknown_field.py](./TC004_post_rest_v1_orders_insert_order_with_unknown_field.py)
+- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/cb0bb87b-b3b9-4638-9735-6a651f34549b/0655211e-9731-4262-a8e6-fb7af034421f
+- **Status:** ✅ Passed
 - **Analysis / Findings:** {{TODO:AI_ANALYSIS}}.
 ---
 
-#### Test TC005 post rest v1 rpc accept offer atomically assigns first eligible driver
-- **Test Code:** [TC005_post_rest_v1_rpc_accept_offer_atomically_assigns_first_eligible_driver.py](./TC005_post_rest_v1_rpc_accept_offer_atomically_assigns_first_eligible_driver.py)
-- **Test Error:** Traceback (most recent call last):
-  File "/var/task/handler.py", line 258, in run_with_retry
-    exec(code, exec_env)
-  File "<string>", line 153, in <module>
-  File "<string>", line 105, in test_post_rest_v1_rpc_accept_offer_assigns_first_eligible_driver
-  File "<string>", line 20, in supabase_auth_login
-  File "/var/lang/lib/python3.12/site-packages/requests/models.py", line 1024, in raise_for_status
-    raise HTTPError(http_error_msg, response=self)
-requests.exceptions.HTTPError: 401 Client Error: Unauthorized for url: https://ojykpzwqrtusfeakzrna.supabase.co/auth/v1/token?grant_type=password
-
-- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/0816ddfa-154a-493c-93ea-765c19774f60/456878f2-65a0-448a-81dd-0ce5ad042cb8
-- **Status:** ❌ Failed
+#### Test TC005 post rest v1 orders insert order with mismatched user id
+- **Test Code:** [TC005_post_rest_v1_orders_insert_order_with_mismatched_user_id.py](./TC005_post_rest_v1_orders_insert_order_with_mismatched_user_id.py)
+- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/cb0bb87b-b3b9-4638-9735-6a651f34549b/23d66b08-223c-4c80-a517-c57764717453
+- **Status:** ✅ Passed
 - **Analysis / Findings:** {{TODO:AI_ANALYSIS}}.
 ---
 
-#### Test TC006 post functions v1 register partner validates iban and creates account
-- **Test Code:** [TC006_post_functions_v1_register_partner_validates_iban_and_creates_account.py](./TC006_post_functions_v1_register_partner_validates_iban_and_creates_account.py)
-- **Test Error:** Traceback (most recent call last):
-  File "/var/task/handler.py", line 258, in run_with_retry
-    exec(code, exec_env)
-  File "<string>", line 73, in <module>
-  File "<string>", line 46, in test_post_functions_v1_register_partner_validates_iban_and_creates_account
-AssertionError: Expected 200 or 201, got 401
-
-- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/0816ddfa-154a-493c-93ea-765c19774f60/c9fe99fb-d781-4e74-b0fe-02496309ac01
-- **Status:** ❌ Failed
+#### Test TC006 post rest v1 rpc wallet get balance with valid jwt and user id
+- **Test Code:** [TC006_post_rest_v1_rpc_wallet_get_balance_with_valid_jwt_and_user_id.py](./TC006_post_rest_v1_rpc_wallet_get_balance_with_valid_jwt_and_user_id.py)
+- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/cb0bb87b-b3b9-4638-9735-6a651f34549b/f281a990-056b-4174-a7c3-1257bda7d973
+- **Status:** ✅ Passed
 - **Analysis / Findings:** {{TODO:AI_ANALYSIS}}.
 ---
 
-#### Test TC007 post functions v1 notify client sends fcm and email fallback
-- **Test Code:** [TC007_post_functions_v1_notify_client_sends_fcm_and_email_fallback.py](./TC007_post_functions_v1_notify_client_sends_fcm_and_email_fallback.py)
-- **Test Error:** Traceback (most recent call last):
-  File "/var/task/handler.py", line 258, in run_with_retry
-    exec(code, exec_env)
-  File "<string>", line 86, in <module>
-  File "<string>", line 38, in test_post_functions_v1_notify_client_fcm_email_fallback
-AssertionError: Signup failed: 401 {"message":"Invalid API key","hint":"Double check your Supabase `anon` or `service_role` API key."}
-
-- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/0816ddfa-154a-493c-93ea-765c19774f60/1e9cfcd9-37da-4282-8587-3c7532f7fc44
-- **Status:** ❌ Failed
-- **Analysis / Findings:** {{TODO:AI_ANALYSIS}}.
----
-
-#### Test TC008 get rest v1 orders returns only client orders due to rls
-- **Test Code:** [TC008_get_rest_v1_orders_returns_only_client_orders_due_to_rls.py](./TC008_get_rest_v1_orders_returns_only_client_orders_due_to_rls.py)
-- **Test Error:** Traceback (most recent call last):
-  File "/var/task/handler.py", line 258, in run_with_retry
-    exec(code, exec_env)
-  File "<string>", line 97, in <module>
-  File "<string>", line 52, in test_get_orders_rls_client_only
-  File "<string>", line 18, in login_get_jwt
-  File "/var/lang/lib/python3.12/site-packages/requests/models.py", line 1024, in raise_for_status
-    raise HTTPError(http_error_msg, response=self)
-requests.exceptions.HTTPError: 401 Client Error: Unauthorized for url: https://ojykpzwqrtusfeakzrna.supabase.co/auth/v1/token?grant_type=password
-
-- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/0816ddfa-154a-493c-93ea-765c19774f60/3c398c8c-c8b8-41e1-9aa2-294171ad8461
-- **Status:** ❌ Failed
+#### Test TC007 post functions v1 notify client with valid jwt and complete body
+- **Test Code:** [TC007_post_functions_v1_notify_client_with_valid_jwt_and_complete_body.py](./TC007_post_functions_v1_notify_client_with_valid_jwt_and_complete_body.py)
+- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/cb0bb87b-b3b9-4638-9735-6a651f34549b/ee68e4f8-052c-4697-a7f1-7ba372a2e0c2
+- **Status:** ✅ Passed
 - **Analysis / Findings:** {{TODO:AI_ANALYSIS}}.
 ---
 
 
 ## 3️⃣ Coverage & Matching Metrics
 
-- **0.00** of tests passed
+- **100.00** of tests passed
 
 | Requirement        | Total Tests | ✅ Passed | ❌ Failed  |
 |--------------------|-------------|-----------|------------|

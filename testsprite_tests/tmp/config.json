@@ -3,12 +3,12 @@
   "scope": "codebase",
   "type": "backend",
   "localEndpoint": "https://ojykpzwqrtusfeakzrna.supabase.co",
-  "serverPort": 64616,
+  "serverPort": 50675,
   "executionArgs": {
     "projectName": "bora_app",
     "projectPath": "C:/Users/danil/Desktop/projetosflutter/bora_app",
     "testIds": [],
-    "additionalInstruction": "Backend Supabase cloud at https://ojykpzwqrtusfeakzrna.supabase.co. Test against /functions/v1/* and /rest/v1/*. Use Stripe test card 4242424242424242 for payments. Demo accounts: client cliente@bora.app/123456, driver 910000000/123456. Focus: RLS, cancellation, payments, wallet, refund.",
+    "additionalInstruction": "BASE_URL: https://ojykpzwqrtusfeakzrna.supabase.co\nHeaders obrigatorios em TODOS os requests: apikey=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qeWtwendxcnR1c2ZlYWt6cm5hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwMDA3MjgsImV4cCI6MjA4ODU3NjcyOH0.-yrhHFZV4bfjBagI5W-c1AvmP8Xkzs1kf2xuxPwdBh4\", Authorization=\"Bearer <JWT do login>\", Content-Type=\"application/json\".\nLogin: POST /auth/v1/token?grant_type=password com body JSON {\"email\":\"test-client@bora.app\",\"password\":\"TestBora2026!\"} e header apikey. NUNCA form-data, sempre JSON.\nTest client: test-client@bora.app / TestBora2026! (uid 95dcdebb-6fff-4abb-8f82-f9b7cef36c2a). Test driver: test-driver@bora.app / TestBora2026! (uid 323f97a9-4335-4ed7-adec-776c1e22467b).\norders NAO tem coluna currency nem total_cents nem amount. Insert minimo valido: {\"user_id\":\"<auth.uid()>\",\"status\":\"created\",\"items\":[],\"is_test_order\":true} com header Prefer: return=representation. RLS exige user_id = auth.uid().\nGerar APENAS estes 6 testes: (1) Auth login test-client devolve access_token; (2) RLS SELECT GET /rest/v1/orders com JWT devolve so orders do proprio; (3) RLS isolamento: cliente nao ve orders de outro user_id; (4) POST /rest/v1/rpc/wallet_get_balance com JWT devolve free_cents/tokens_balance/last_transactions; (5) POST /functions/v1/notify-client com JWT valido NAO devolve 401; (6) GET /rest/v1/orders sem Authorization devolve 401.\nLimpar sempre orders de teste criadas (DELETE) e usar is_test_order=true.",
     "serverMode": "production",
     "envs": {
       "API_KEY": "sk-user-FY_4h6rjvHwlVRDUyafygGh-vz4IvDn85zv4FMDBE2mrNqtycgJl0IzG3ndHchlSsqqewStROyMr51JtUdmIpP0Df9IoqeJOJmVMjgo2SubWDYJpPF0PLtDXDL2yK663l0Q"

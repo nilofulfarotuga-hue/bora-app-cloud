@@ -1,225 +1,150 @@
 version: "2"
 type: backend
 tech_stack:
-  - Dart / Flutter (mobile client)
   - Deno / TypeScript (Supabase Edge Functions)
-  - PostgreSQL (Supabase managed)
-  - Supabase Auth (JWT)
-  - Supabase Realtime (WebSocket)
+  - PostgreSQL (Supabase managed) + PostgREST
+  - Supabase Auth (JWT, email+password grant)
   - Supabase Storage
-  - Stripe (cartão + MB Way)
-  - Firebase Cloud Messaging
 features:
   - name: Authentication
-    description: Signup, login, password reset for client/driver/partner roles
+    description: >
+      Login via POST /auth/v1/token?grant_type=password with JSON body
+      {"email","password"}. apikey header is the Supabase anon key and is
+      MANDATORY on every request. Returns access_token (JWT).
     files:
-      - lib/auth/auth_store.dart
-      - supabase/functions/support-password-reset/index.ts
-      - supabase/functions/delete-account/index.ts
+      - supabase (auth.users)
     endpoints:
-      - method: POST
-        path: /auth/v1/signup
-        description: Supabase Auth signup (email+password)
-        auth_required: false
       - method: POST
         path: /auth/v1/token?grant_type=password
-        description: Login com email+password
-        auth_required: false
-      - method: POST
-        path: /functions/v1/support-password-reset
-        description: Envia link de reset por email (anti-enumeration)
-        auth_required: false
-      - method: POST
-        path: /functions/v1/delete-account
-        description: GDPR account deletion
-        auth_required: true
-    depends_on: []
-  - name: Order Lifecycle
-    description: Create, dispatch, cancel orders; status transitions enforced
-    files:
-      - supabase/functions/dispatch-engine/index.ts
-      - supabase/functions/client-cancel-order/index.ts
-      - supabase/functions/cancel-order-with-choice/index.ts
-      - supabase/functions/admin-cancel-order/index.ts
-      - supabase/functions/execute-cancellation/index.ts
-    endpoints:
-      - method: POST
-        path: /functions/v1/dispatch-engine
-        description: Assign drivers via FIFO + 200m batching rules
-        auth_required: true
-        request_schema:
-          body:
-            order_id: string
-      - method: POST
-        path: /functions/v1/client-cancel-order
-        description: Cliente cancela antes de dispatch (fee €1 se antes accept, €2.50 após accept, 100% após pickup)
-        auth_required: true
-        request_schema:
-          body:
-            order_id: string
-      - method: POST
-        path: /functions/v1/cancel-order-with-choice
-        description: Cancel com motivo (post driver-accept)
-        auth_required: true
-      - method: POST
-        path: /functions/v1/admin-cancel-order
-        description: Admin force-cancel
-        auth_required: true
-      - method: POST
-        path: /rest/v1/orders
-        description: Insert order (RLS user_id=auth.uid())
-        auth_required: true
-    depends_on:
-      - Authentication
-  - name: Payments
-    description: Stripe (card + MB Way) + cash settlement + refund
-    files:
-      - supabase/functions/create-payment-intent/index.ts
-      - supabase/functions/create-mbway-payment-intent/index.ts
-      - supabase/functions/refund/index.ts
-      - supabase/functions/charge-extra/index.ts
-      - supabase/functions/list-saved-cards/index.ts
-      - supabase/functions/pay-debt-standalone/index.ts
-      - supabase/functions/stripe-webhook/index.ts
-    endpoints:
-      - method: POST
-        path: /functions/v1/create-payment-intent
-        description: Cria Stripe PI (server-validates amount ±5% buffer; min €0.50)
+        description: >
+          Login test-client@bora.app / TestBora2026! → 200 with access_token.
+          Body MUST be JSON (NOT form-data). apikey header required.
         auth_required: false
         request_schema:
+          headers:
+            apikey: "<anon_key>"
+            Content-Type: application/json
           body:
-            order_id: string
-            amount: number
-            currency: string
+            email: string
+            password: string
         response_schema:
           "200":
-            client_secret: string
-            payment_intent_id: string
-          "400": Validation error (amount mismatch, below Stripe min)
-      - method: POST
-        path: /functions/v1/create-mbway-payment-intent
-        description: Cria PI MB Way (phone E.164 PT)
-        auth_required: false
-      - method: POST
-        path: /functions/v1/refund
-        description: Admin-only refund
-        auth_required: true
-      - method: POST
-        path: /functions/v1/charge-extra
-        description: Tip / surcharge
-        auth_required: true
-      - method: POST
-        path: /functions/v1/stripe-webhook
-        description: Stripe event handler (payment_intent.succeeded → paid + dispatch)
-        auth_required: false
-    depends_on:
-      - Order Lifecycle
-  - name: Wallet & Tokens
-    description: Client wallet (refund credit), bora_tokens (loyalty, 60-day expiry)
+            access_token: string
+            user: object
+          "400": invalid_credentials / bad_json
+    depends_on: []
+  - name: RLS Orders (SELECT isolation)
+    description: >
+      orders table has RLS. Authenticated client sees ONLY rows where
+      user_id = auth.uid(). Other clients' orders are invisible.
+      Unauthenticated (no Bearer) request returns 401.
     files:
-      - supabase/migrations/*tokens*.sql
-      - supabase/migrations/*wallet*.sql
+      - supabase/migrations (orders RLS policies)
+    endpoints:
+      - method: GET
+        path: /rest/v1/orders?select=id,user_id,status
+        description: >
+          With valid client JWT + apikey → 200, returns only that client's
+          orders. Without Authorization Bearer (apikey only) → 401 or empty
+          per RLS.
+        auth_required: true
+        request_schema:
+          headers:
+            apikey: "<anon_key>"
+            Authorization: "Bearer <jwt>"
+        response_schema:
+          "200": "Order[] (only own rows)"
+          "401": unauthorized when no JWT
+    depends_on:
+      - Authentication
+  - name: Orders real schema (for any INSERT)
+    description: >
+      orders columns (REAL — there is NO 'currency', NO 'total_cents',
+      NO 'amount' column). id TEXT default gen_random_uuid(); user_id UUID
+      (must equal auth.uid() for RLS insert); status TEXT; items JSONB NOT
+      NULL default '[]'; payment_status TEXT NOT NULL default 'pending';
+      price/subtotal/total/customer_total NUMERIC; service_type TEXT;
+      order_type TEXT; is_test_order BOOLEAN default false.
+      Minimal valid insert payload:
+      {"user_id":"<auth.uid()>","status":"created","items":[],"is_test_order":true}
+    files:
+      - supabase (public.orders)
+    endpoints:
+      - method: POST
+        path: /rest/v1/orders
+        description: >
+          Insert order. RLS WITH CHECK requires user_id = auth.uid().
+          Set Prefer: return=representation to get the row back. Always set
+          is_test_order=true so test rows are identifiable. NEVER send a
+          'currency' field — column does not exist (PGRST204).
+        auth_required: true
+        request_schema:
+          headers:
+            apikey: "<anon_key>"
+            Authorization: "Bearer <jwt>"
+            Prefer: return=representation
+          body:
+            user_id: string
+            status: string
+            items: array
+            is_test_order: boolean
+        response_schema:
+          "201": Order
+          "400": PGRST204 if unknown column sent
+          "403": RLS violation if user_id != auth.uid()
+    depends_on:
+      - Authentication
+  - name: Wallet RPC
+    description: RPC wallet_get_balance returns wallet + tokens for the auth user.
+    files:
+      - supabase (rpc wallet_get_balance)
     endpoints:
       - method: POST
         path: /rest/v1/rpc/wallet_get_balance
-        description: Retorna free_cents + tokens_balance + last_transactions
+        description: >
+          With JWT + apikey and body {"p_user_id":"<auth.uid()>"} → 200 with
+          free_cents, tokens_balance, last_transactions. No auth → 401.
         auth_required: true
         request_schema:
+          headers:
+            apikey: "<anon_key>"
+            Authorization: "Bearer <jwt>"
           body:
             p_user_id: string
-      - method: POST
-        path: /rest/v1/rpc/client_redeem_promo_tokens
-        description: Aplica promo code (debita tokens)
-        auth_required: true
-      - method: POST
-        path: /rest/v1/rpc/get_user_tokens
-        description: Soma tokens activos não-expirados
-        auth_required: true
+        response_schema:
+          "200":
+            free_cents: number
+            tokens_balance: number
+            last_transactions: array
+          "401": unauthorized
     depends_on:
       - Authentication
-  - name: Driver Operations
-    description: Accept/reject offers, heartbeat, earnings
-    files:
-      - supabase/functions/notify-driver/index.ts
-      - supabase/migrations/*driver*.sql
-    endpoints:
-      - method: POST
-        path: /rest/v1/rpc/accept_offer
-        description: Atomic accept (primeiro driver ganha)
-        auth_required: true
-      - method: POST
-        path: /rest/v1/rpc/driver_reject_offer
-        description: Rejeita oferta → dispatch tenta próximo
-        auth_required: true
-      - method: POST
-        path: /rest/v1/rpc/driver_heartbeat_by_id
-        description: GPS + battery update
-        auth_required: true
-    depends_on:
-      - Order Lifecycle
-  - name: Partner Management
-    description: Partner registration, approval, menu CRUD, low-rating alerts
-    files:
-      - supabase/functions/register-partner/index.ts
-      - supabase/functions/notify-partner/index.ts
-      - supabase/functions/notify-partner-low-rating/index.ts
-      - supabase/functions/upload-restaurant-asset/index.ts
-    endpoints:
-      - method: POST
-        path: /functions/v1/register-partner
-        description: Signup parceiro com IBAN PT+21 dígitos validation
-        auth_required: false
-      - method: POST
-        path: /functions/v1/upload-restaurant-asset
-        description: Upload hero/logo/docs ao bucket restaurants
-        auth_required: true
-    depends_on:
-      - Authentication
-  - name: Notifications
-    description: FCM push to client/driver/partner + chat
+  - name: Notifications Edge Function
+    description: notify-client Edge Function (requires authenticated JWT).
     files:
       - supabase/functions/notify-client/index.ts
-      - supabase/functions/notify-driver/index.ts
-      - supabase/functions/notify-partner/index.ts
-      - supabase/functions/notify-chat-message/index.ts
-      - supabase/functions/notify-admin-urgent/index.ts
     endpoints:
-      - method: POST
-        path: /functions/v1/notify-driver
-        description: FCM data-only + fullScreenIntent + canal bora_alert
-        auth_required: true
       - method: POST
         path: /functions/v1/notify-client
-        description: FCM + email fallback
+        description: >
+          With valid JWT + apikey + body {user_id,title,body} → should NOT
+          return 401 (auth accepted). May return 200 or a domain error, but
+          the test asserts it is not an auth rejection.
         auth_required: true
-    depends_on:
-      - Order Lifecycle
-  - name: RLS Security (PostgreSQL policies)
-    description: Row-Level Security em orders, profiles, products, bora_tokens, ledger_entries, messages
-    files:
-      - supabase/migrations/*rls*.sql
-    endpoints:
-      - method: GET
-        path: /rest/v1/orders
-        description: Cliente vê apenas próprias orders (auth.uid=user_id)
-        auth_required: true
-      - method: GET
-        path: /rest/v1/ledger_entries
-        description: Driver vê apenas próprias entries
-        auth_required: true
-      - method: PATCH
-        path: /rest/v1/profiles
-        description: Não pode mudar role; admin role imutável (trigger protect_admin_app_role)
-        auth_required: true
+        request_schema:
+          headers:
+            apikey: "<anon_key>"
+            Authorization: "Bearer <jwt>"
+          body:
+            user_id: string
+            title: string
+            body: string
     depends_on:
       - Authentication
 known_limitations:
-  - issue: Backend Bora App é Supabase cloud — não há servidor local em http://localhost:54321 (default Supabase CLI port)
-    location: supabase/functions/* (deployed only)
-    impact: Testes locais TestSprite só funcionam se `supabase functions serve` for arrancado OU se o endpoint apontar para https://<project>.supabase.co
-  - issue: BUG-MN-004 refund sem cap + sem idempotency key (launch blocker pendente)
-    location: supabase/functions/refund/index.ts
-    impact: Possível duplicate refund se webhook Stripe re-entregar
-  - issue: BUG-PT-006 parceiro sem som em novo pedido
-    location: lib/screens/partner_*/
-    impact: Operação parceiro inviável sem fix
+  - issue: Backend is Supabase cloud at https://ojykpzwqrtusfeakzrna.supabase.co — no localhost
+    location: all endpoints
+    impact: tests must target the cloud base URL, apikey header mandatory everywhere
+  - issue: demo accounts cliente@bora.app/123456 do NOT exist in auth.users
+    location: auth
+    impact: use ONLY test-client@bora.app / TestBora2026! and test-driver@bora.app / TestBora2026!

@@ -458,11 +458,11 @@ class _ReceiptCardState extends State<_ReceiptCard> {
     try {
       if (photoUrl.startsWith('http')) return photoUrl;
       final clean = photoUrl.replaceFirst(RegExp(r'^receipts/'), '');
-      return Supabase.instance.client.storage
+      return await Supabase.instance.client.storage
           .from('receipts')
-          .getPublicUrl(clean);
+          .createSignedUrl(clean, 3600);
     } catch (e) {
-      debugPrint('[AdminReceipts] public URL error: $e');
+      debugPrint('[AdminReceipts] signed URL error: $e');
       return null;
     }
   }

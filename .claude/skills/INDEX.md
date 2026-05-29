@@ -1,7 +1,7 @@
 # Índice de Skills — Bora App
 
 > Skills versionadas vivem em `bora_app/.claude/skills/` (este diretório).
-> Branch: `autonomous-night-2026-04-29`. Atualizado: 2026-05-29 (S4-A). **26 skills.**
+> Branch: `autonomous-night-2026-04-29`. Atualizado: 2026-05-29 (S4-B). **30 skills.**
 > Convenção: invocar via Skill quando o trigger corresponder; **ler `bora-knowledge`
 > antes de qualquer ação** (foundation).
 
@@ -29,6 +29,10 @@
 | **market-data-cleaner** | data | Limpar catálogo por mercado (sem imagem/marca/preço; tradução ES→PT; soft-delete). |
 | **category-mapper-v2** | data | Reclassificar produtos em 22 categorias canónicas (keywords PT+ES+EN+FR, dry-run). |
 | **taxonomy-mapper** | data | Classificar produtos em 18 secções canónicas Bora (popular `products.taxonomy_section`). |
+| **add-support-faq** | support | Acrescentar FAQ ao RAG do support-chatbot (support_knowledge_chunks) + reindex embedding. Bloqueia refund/cancelamento/$ (escalam). Dry-run default. |
+| **add-support-skill** | support | Scaffold playbook p/ agente de suporte (support_skills); toca $/auth/Stripe/GDPR → write_shadow+handoff; active=false. Dry-run default. |
+| **smoke-test-critical-paths** | qa | Health-check read-only (Edge Fns via OPTIONS, RPCs, tabelas-chave). Zero escrita/pagamentos/pedidos. Correr pré-build. |
+| **audit-protected-zones** | qa | Meta-skill read-only: sha256 ficheiros-chave + triggers + Edge Fns pagamento vs baseline. Deteta drift. Correr pré-build. |
 | **ask-knowledge-base** | support | Robô B: responder perguntas crosstalk (a_to_b/pending) via knowledge base RAG. |
 | **driver-earnings-validator** | finance | Validar `driver_earnings` de um pedido vs fórmula pricing_service; diagnosticar discrepância. |
 | **storeshopping-v2-debugger** | debug | Diagnosticar pedido storeShopping V2 não-parceiro (orders+items+receipts+wallet+audit). |
@@ -52,4 +56,9 @@
   só lojas em `MARKET_STORES` (recusam parceiros/fast-food); **nunca preço de Uber/Glovo**;
   soft-delete = `is_available=false` (products não tem `is_deleted/deleted_at` — pendência);
   dry-run default. Preço por scraping só Continente (auchan/pingodoce bloqueados por robots.txt).
+- **Suporte/QA S4-B** (`add-support-faq`, `add-support-skill`, `smoke-test-critical-paths`,
+  `audit-protected-zones`): FAQs vivem em `support_knowledge_chunks` (RAG; não há `support_faqs`),
+  embedding via Edge Fn `reindex-knowledge` (Gemini 768d, admin-only); playbooks em `support_skills`
+  (mode {read_only,write_shadow,escalate}); skills que tocam $/auth/Stripe/GDPR → write_shadow+handoff,
+  active=false. QA é read-only (smoke via OPTIONS; audit vs baseline). **Admin UI** p/ editar FAQs/skills = pendência.
 - Logs de auditoria de sessões antigas movidos para `sistema/` (não são skills).

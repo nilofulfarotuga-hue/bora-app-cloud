@@ -16,6 +16,7 @@ _spec.loader.exec_module(_mod)  # type: ignore
 
 log = _mod.log
 read_text = _mod.read_text
+parse_frontmatter = _mod.parse_frontmatter
 iter_skill_dirs = _mod.iter_skill_dirs
 SKILLS_ROOT: Path = _mod.SKILLS_ROOT
 

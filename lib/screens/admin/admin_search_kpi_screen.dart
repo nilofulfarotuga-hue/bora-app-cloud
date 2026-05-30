@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../config/app_colors.dart';
+import '../../widgets/bora/bora_screen_app_bar.dart';
+
 /// T2.2 — Admin KPI: top searches + parceiros mais favoritados.
 class AdminSearchKpiScreen extends StatefulWidget {
   const AdminSearchKpiScreen({super.key});
@@ -45,8 +48,9 @@ class _AdminSearchKpiScreenState extends State<AdminSearchKpiScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Personalização (cliente)'),
+      backgroundColor: AppColors.background,
+      appBar: BoraScreenAppBar(
+        title: 'Personalização (cliente)',
         actions: [
           IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
         ],
@@ -77,11 +81,11 @@ class _AdminSearchKpiScreenState extends State<AdminSearchKpiScreen> {
                       child: CircularProgressIndicator())),
             if (_error != null)
               Card(
-                color: Colors.red.shade50,
+                color: AppColors.error.withValues(alpha: 0.08),
                 child: Padding(
                   padding: const EdgeInsets.all(12),
                   child: Text(_error!,
-                      style: TextStyle(color: Colors.red.shade900)),
+                      style: const TextStyle(color: AppColors.error)),
                 ),
               ),
             if (_data != null) ..._sections(_data!),
@@ -113,7 +117,7 @@ class _AdminSearchKpiScreenState extends State<AdminSearchKpiScreen> {
         children: favs.map((e) {
           final m = (e as Map).cast<String, dynamic>();
           return ListTile(
-            leading: const Icon(Icons.star, color: Colors.amber),
+            leading: const Icon(Icons.star, color: AppColors.warning),
             title: Text(m['partner_id'] as String),
             trailing: Text('${m['fav_count']} ★'),
           );
@@ -143,7 +147,7 @@ class _Section extends StatelessWidget {
                     fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             if (children.isEmpty)
-              Text(empty, style: const TextStyle(color: Colors.black54))
+              Text(empty, style: const TextStyle(color: AppColors.textSubtle))
             else
               ...children,
           ],

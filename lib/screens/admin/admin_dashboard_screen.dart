@@ -4,9 +4,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../main.dart' show routeObserver;
 import '../../config/app_colors.dart';
+import '../../config/app_spacing.dart';
 import '../../services/admin_push_service.dart';
 import '../../services/auth_admin_service.dart';
 import '../../widgets/admin_realtime_metrics_card.dart';
+import '../../widgets/bora/bora_screen_app_bar.dart';
+import '../../widgets/bora/bora_primary_button.dart';
 import 'admin_advanced_kpis_screen.dart';
 import 'admin_audit_log_screen.dart';
 import 'admin_cancellation_requests_screen.dart';
@@ -166,7 +169,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   Widget build(BuildContext context) {
     if (!_isAuthorized) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Painel Admin')),
+        backgroundColor: AppColors.background,
+        appBar: const BoraScreenAppBar(title: 'Painel Admin'),
         body: const Center(
           child: Padding(
             padding: EdgeInsets.all(24),
@@ -180,8 +184,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Painel Admin'),
+      backgroundColor: AppColors.background,
+      appBar: BoraScreenAppBar(
+        title: 'Painel Admin',
         actions: [
           // BLOCO C (2026-05-18) — Pesquisa global cross-entity.
           IconButton(
@@ -199,7 +204,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             label: Text(_unreadNotificationsCount > 9
                 ? '9+'
                 : '$_unreadNotificationsCount'),
-            backgroundColor: Colors.red.shade700,
+            backgroundColor: AppColors.error,
             child: IconButton(
               icon: const Icon(Icons.notifications_outlined),
               tooltip: 'Notificações ($_unreadNotificationsCount não lidas)',
@@ -230,7 +235,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 padding: const EdgeInsets.all(16),
                 children: [
                   const SizedBox(height: 80),
-                  const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                  const Icon(Icons.error_outline, size: 48, color: AppColors.error),
                   const SizedBox(height: 12),
                   Text(
                     'Erro ao carregar métricas:\n${snapshot.error}',
@@ -238,10 +243,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                   ),
                   const SizedBox(height: 16),
                   Center(
-                    child: ElevatedButton.icon(
+                    child: BoraPrimaryButton(
                       onPressed: _refresh,
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Tentar de novo'),
+                      icon: Icons.refresh,
+                      label: 'Tentar de novo',
+                      expanded: false,
                     ),
                   ),
                 ],
@@ -714,7 +720,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     'Ferramentas',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w700,
-                          color: Colors.grey.shade800,
+                          color: AppColors.textPrimary,
                         ),
                   ),
                 ),
@@ -770,7 +776,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     style: Theme.of(context)
                         .textTheme
                         .bodySmall
-                        ?.copyWith(color: Colors.grey),
+                        ?.copyWith(color: AppColors.textSubtle),
                   ),
                 ),
               ],
@@ -805,7 +811,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     return Card(
       elevation: 2,
       margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Radii.lg)),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
         child: Column(
@@ -864,7 +870,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                           }
                           return Text(label,
                               style: const TextStyle(
-                                  fontSize: 9, color: Colors.grey));
+                                  fontSize: 9, color: AppColors.textSubtle));
                         },
                       ),
                     ),
@@ -925,7 +931,7 @@ class _MetricCard extends StatelessWidget {
     return Card(
       elevation: 2,
       margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Radii.lg)),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
@@ -943,7 +949,7 @@ class _MetricCard extends StatelessWidget {
                   Text(
                     title,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.grey.shade700,
+                          color: AppColors.textSecondary,
                         ),
                   ),
                   const SizedBox(height: 4),
@@ -990,7 +996,7 @@ class _NavCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Radii.lg)),
       child: ListTile(
         onTap: onTap,
         leading: Stack(
@@ -1008,7 +1014,7 @@ class _NavCard extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(
                       horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                    color: Colors.red.shade700,
+                    color: AppColors.error,
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: Colors.white, width: 1.5),
                   ),

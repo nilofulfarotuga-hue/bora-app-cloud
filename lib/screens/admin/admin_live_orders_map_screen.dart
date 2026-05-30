@@ -5,9 +5,12 @@ import 'package:google_maps_flutter/google_maps_flutter.dart' hide LatLng;
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmap;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../config/app_colors.dart';
+import '../../config/app_spacing.dart';
 import '../../services/admin/admin_order_service.dart';
 import '../../utils/constants.dart';
 import '../../widgets/admin/test_order_badge.dart';
+import '../../widgets/bora/bora_screen_app_bar.dart';
 import '_admin_cancel_order_dialog.dart';
 
 /// Admin Live Operations — Pedidos & Drivers em Tempo Real (B1).
@@ -233,8 +236,9 @@ class _AdminLiveOrdersMapScreenState extends State<AdminLiveOrdersMapScreen> {
     final onlineCount = _drivers.length;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Pedidos ao Vivo'),
+      backgroundColor: AppColors.background,
+      appBar: BoraScreenAppBar(
+        title: 'Pedidos ao Vivo',
         actions: [
           // 7-alpha-ADMIN-FILTER: switch para incluir pedidos de teste.
           Padding(
@@ -243,7 +247,7 @@ class _AdminLiveOrdersMapScreenState extends State<AdminLiveOrdersMapScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Text('Incluir testes',
-                    style: TextStyle(fontSize: 12)),
+                    style: TextStyle(fontSize: 12, color: Colors.white)),
                 Switch(
                   value: _incluirTeste,
                   activeThumbColor: Colors.orange.shade800,
@@ -280,14 +284,14 @@ class _AdminLiveOrdersMapScreenState extends State<AdminLiveOrdersMapScreen> {
         children: [
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            color: Colors.grey.shade100,
+            color: AppColors.surface2,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _stat('Pendentes', pendingCount, Colors.orange),
-                _stat('Ativos', activeCount, Colors.green),
-                _stat('Entregadores', onlineCount, Colors.blue),
-                _stat('Total', _orders.length, Colors.black87),
+                _stat('Pendentes', pendingCount, AppColors.warning),
+                _stat('Ativos', activeCount, AppColors.success),
+                _stat('Entregadores', onlineCount, AppColors.info),
+                _stat('Total', _orders.length, AppColors.textPrimary),
               ],
             ),
           ),
@@ -295,9 +299,9 @@ class _AdminLiveOrdersMapScreenState extends State<AdminLiveOrdersMapScreen> {
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(8),
-              color: Colors.red.shade100,
+              color: AppColors.error.withValues(alpha: 0.12),
               child: Text('Erro: $_error',
-                  style: TextStyle(color: Colors.red.shade900)),
+                  style: const TextStyle(color: AppColors.error)),
             ),
           Expanded(
             child: Stack(
@@ -417,7 +421,7 @@ class _SidePanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       elevation: 6,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(Radii.lg),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -460,13 +464,13 @@ class _SidePanel extends StatelessWidget {
                 width: double.infinity,
                 child: OutlinedButton.icon(
                   icon: const Icon(Icons.cancel_outlined,
-                      color: Colors.red, size: 18),
+                      color: AppColors.error, size: 18),
                   label: const Text(
                     'Cancelar pedido',
-                    style: TextStyle(color: Colors.red),
+                    style: TextStyle(color: AppColors.error),
                   ),
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Colors.red),
+                    side: const BorderSide(color: AppColors.error),
                   ),
                   onPressed: onCancelOrder,
                 ),
@@ -515,7 +519,7 @@ class _SidePanel extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 2),
         child: Row(
           children: [
-            Icon(icon, size: 16, color: Colors.black54),
+            Icon(icon, size: 16, color: AppColors.textSecondary),
             const SizedBox(width: 6),
             Expanded(child: Text(text, style: const TextStyle(fontSize: 13))),
           ],

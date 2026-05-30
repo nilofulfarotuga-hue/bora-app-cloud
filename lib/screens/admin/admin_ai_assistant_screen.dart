@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '../../widgets/bora/bora_screen_app_bar.dart';
 
 /// Chat IA do painel admin.
 /// Conversa com Edge Fn `admin-ai-assistant` que usa Claude com tool use
@@ -101,20 +102,17 @@ class _AdminAiAssistantScreenState extends State<AdminAiAssistantScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Assistente IA — Admin'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-      ),
+      backgroundColor: AppColors.background,
+      appBar: const BoraScreenAppBar(title: 'Assistente IA — Admin'),
       body: Column(
         children: [
           if (_error != null)
             Container(
               width: double.infinity,
-              color: Colors.red.shade50,
+              color: AppColors.error.withValues(alpha: 0.08),
               padding: const EdgeInsets.all(12),
               child: Text('Erro: $_error',
-                  style: TextStyle(color: Colors.red.shade900)),
+                  style: const TextStyle(color: AppColors.error)),
             ),
           Expanded(
             child: ListView.builder(
@@ -129,9 +127,9 @@ class _AdminAiAssistantScreenState extends State<AdminAiAssistantScreen> {
           ),
           if (_sending) const LinearProgressIndicator(minHeight: 2),
           Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border(top: BorderSide(color: Colors.grey.shade300)),
+            decoration: const BoxDecoration(
+              color: AppColors.surface,
+              border: Border(top: BorderSide(color: AppColors.divider)),
             ),
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
             child: SafeArea(
@@ -187,7 +185,7 @@ class _AdminAiAssistantScreenState extends State<AdminAiAssistantScreen> {
         constraints: BoxConstraints(
             maxWidth: MediaQuery.of(context).size.width * 0.82),
         decoration: BoxDecoration(
-          color: isUser ? AppColors.primary : Colors.grey.shade100,
+          color: isUser ? AppColors.primary : AppColors.surface2,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(14),
             topRight: const Radius.circular(14),

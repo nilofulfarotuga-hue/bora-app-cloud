@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '../../widgets/bora/bora_screen_app_bar.dart';
 
 class AdminAdvancedKpisScreen extends StatefulWidget {
   const AdminAdvancedKpisScreen({super.key});
@@ -52,9 +53,9 @@ class _AdminAdvancedKpisScreenState extends State<AdminAdvancedKpisScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('KPIs Avançado'),
-        backgroundColor: AppColors.primary,
+      backgroundColor: AppColors.background,
+      appBar: BoraScreenAppBar(
+        title: 'KPIs Avançado',
         actions: [IconButton(icon: const Icon(Icons.refresh), onPressed: _load)],
       ),
       body: _loading
@@ -123,7 +124,7 @@ class _AdminAdvancedKpisScreenState extends State<AdminAdvancedKpisScreen> {
           _kpiRow('Entregues', '${_conversion!['orders_delivered'] ?? 0}'),
           _kpiRow('Cancelados', '${_conversion!['orders_cancelled'] ?? 0}'),
           _kpiRow('Rejeitados', '${_conversion!['orders_rejected'] ?? 0}'),
-          const Divider(),
+          const Divider(color: AppColors.divider),
           _kpiRow('Taxa conversão',
               '${_conversion!['conversion_rate'] ?? 0}%',
               highlight: true),
@@ -143,7 +144,7 @@ class _AdminAdvancedKpisScreenState extends State<AdminAdvancedKpisScreen> {
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           const SizedBox(height: 4),
           const Text('Bucketize por (lat,lng) ~1.1km',
-              style: TextStyle(fontSize: 12, color: Colors.grey)),
+              style: TextStyle(fontSize: 12, color: AppColors.textSubtle)),
           const SizedBox(height: 8),
           if (_hotZones.isEmpty)
             const Text('Sem dados.')

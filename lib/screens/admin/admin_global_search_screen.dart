@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '../../widgets/bora/bora_primary_button.dart';
 import 'admin_clients_screen.dart';
 import 'admin_driver_detail_screen.dart';
 import 'admin_order_detail_screen.dart';
@@ -234,7 +235,7 @@ class _AdminGlobalSearchScreenState extends State<AdminGlobalSearchScreen> {
         _orders.isNotEmpty;
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
@@ -282,18 +283,18 @@ class _AdminGlobalSearchScreenState extends State<AdminGlobalSearchScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.search, size: 64, color: Colors.black26),
+              Icon(Icons.search, size: 64, color: AppColors.textSubtle),
               SizedBox(height: 12),
               Text(
                 'Digite 3 ou mais caracteres para buscar.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.black54),
+                style: TextStyle(color: AppColors.textSecondary),
               ),
               SizedBox(height: 6),
               Text(
                 'A busca cobre clientes, entregadores, parceiros e pedidos.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12, color: Colors.black45),
+                style: TextStyle(fontSize: 12, color: AppColors.textSubtle),
               ),
             ],
           ),
@@ -308,13 +309,14 @@ class _AdminGlobalSearchScreenState extends State<AdminGlobalSearchScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline, size: 48, color: Colors.red),
+              const Icon(Icons.error_outline, size: 48, color: AppColors.error),
               const SizedBox(height: 12),
               Text(_error!, textAlign: TextAlign.center),
               const SizedBox(height: 12),
-              ElevatedButton(
+              BoraPrimaryButton(
+                label: 'Tentar novamente',
+                expanded: false,
                 onPressed: () => _runSearch(_lastQuery),
-                child: const Text('Tentar novamente'),
               ),
             ],
           ),
@@ -328,12 +330,12 @@ class _AdminGlobalSearchScreenState extends State<AdminGlobalSearchScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.search_off, size: 48, color: Colors.black26),
+              const Icon(Icons.search_off, size: 48, color: AppColors.textSubtle),
               const SizedBox(height: 12),
               Text(
                 'Nenhum resultado para "$_lastQuery".',
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.black54),
+                style: const TextStyle(color: AppColors.textSecondary),
               ),
             ],
           ),
@@ -408,7 +410,7 @@ class _AdminGlobalSearchScreenState extends State<AdminGlobalSearchScreen> {
           ),
         ),
         ...rows.map(builder),
-        const Divider(height: 1),
+        const Divider(height: 1, color: AppColors.divider),
       ],
     );
   }

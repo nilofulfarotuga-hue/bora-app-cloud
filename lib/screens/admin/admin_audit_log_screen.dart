@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../config/app_colors.dart';
+import '../../widgets/bora/bora_screen_app_bar.dart';
+
 class AdminAuditLogScreen extends StatefulWidget {
   const AdminAuditLogScreen({super.key});
   @override
@@ -67,7 +70,8 @@ class _AdminAuditLogScreenState extends State<AdminAuditLogScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Histórico de Acções')),
+      backgroundColor: AppColors.background,
+      appBar: const BoraScreenAppBar(title: 'Histórico de Acções'),
       body: Column(
         children: [
           Padding(
@@ -123,7 +127,7 @@ class _AdminAuditLogScreenState extends State<AdminAuditLogScreen> {
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
                 : _error != null
-                    ? Center(child: Text(_error!, style: const TextStyle(color: Colors.red)))
+                    ? Center(child: Text(_error!, style: const TextStyle(color: AppColors.error)))
                     : RefreshIndicator(
                         onRefresh: _load,
                         child: _rows.isEmpty

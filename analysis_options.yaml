@@ -1,5 +1,11 @@
 include: package:flutter_lints/flutter.yaml
 
+analyzer:
+  exclude:
+    # Artefactos de design handoff (não compilam — importam google_fonts
+    # que não é dependência da app). Não versionado; ignorar no analyze local.
+    - design_handoff/**
+
 linter:
   rules:
     avoid_print: false

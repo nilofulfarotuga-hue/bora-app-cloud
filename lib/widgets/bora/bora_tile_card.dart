@@ -75,46 +75,59 @@ class BoraTileCard extends StatelessWidget {
     );
   }
 
-  /// Layout novo — Image.asset PNG em cima (~70%), label rodapé.
+  /// Layout novo — imagem full-bleed (BoxFit.cover) + overlay escuro no rodapé
+  /// para contraste, label sobreposto em baixo. Espelha comp_tile_card.html:
+  /// `object-fit: cover; opacity: 0.95` + gradient 180° transparente->preto 40%.
+  ///
+  /// Os assets em assets/categories/ são JPEG/WEBP opacos (sem alpha), por isso
+  /// preenchem o tile inteiro (cover) em vez de flutuar sobre o gradient — o
+  /// gradient passa a ser apenas moldura/fallback por trás da imagem.
   Widget _buildImageLayout() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Stack(
+      fit: StackFit.expand,
       children: [
-        Expanded(
-          flex: 70,
-          child: Padding(
-            padding: const EdgeInsets.all(Spacing.sm),
-            child: Image.asset(
-              imageAsset!,
-              fit: BoxFit.contain,
+        // Imagem full-bleed (tapa o seu próprio fundo e o gradient).
+        Opacity(
+          opacity: 0.95,
+          child: Image.asset(imageAsset!, fit: BoxFit.cover),
+        ),
+        // Escurecimento no rodapé só para contraste do label.
+        const DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.center,
+              end: Alignment.bottomCenter,
+              colors: [Color(0x00000000), Color(0x66000000)],
             ),
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            Spacing.md,
-            0,
-            Spacing.md,
-            Spacing.md,
-          ),
-          child: Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 14,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.2,
-              height: 1.1,
-              shadows: [
-                Shadow(
-                  color: Colors.black45,
-                  blurRadius: 4,
-                  offset: Offset(0, 1),
-                ),
-              ],
+        // Label: ocupa toda a largura; FittedBox encolhe palavras longas
+        // (ex.: "Restaurantes", "Supermercados") em vez de partir a meio.
+        Positioned(
+          left: 14,
+          right: 14,
+          bottom: 12,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.16,
+                height: 1.1,
+                shadows: [
+                  Shadow(
+                    color: Colors.black54,
+                    blurRadius: 4,
+                    offset: Offset(0, 1),
+                  ),
+                ],
+              ),
+              maxLines: 2,
             ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],

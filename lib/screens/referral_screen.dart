@@ -3,7 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../config/app_colors.dart';
+import '../config/app_spacing.dart';
 import '../widgets/bora_support_fab.dart';
+import '../widgets/bora/bora_primary_button.dart';
+import '../widgets/bora/bora_screen_app_bar.dart';
 
 /// Referral / Convite — Feature 10.
 /// Mostra código único do utilizador + botão Share + estatísticas.
@@ -87,7 +91,8 @@ class _ReferralScreenState extends State<ReferralScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Convidar amigos')),
+      backgroundColor: AppColors.background,
+      appBar: const BoraScreenAppBar(title: 'Convidar amigos'),
       floatingActionButton: const BoraSupportFab(),
       body: RefreshIndicator(
         onRefresh: _load,
@@ -97,7 +102,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
                 ? ListView(children: [
                     const SizedBox(height: 80),
                     Center(child: Text(_error!,
-                        style: const TextStyle(color: Colors.red))),
+                        style: const TextStyle(color: AppColors.error))),
                   ])
                 : _buildBody(),
       ),
@@ -114,82 +119,96 @@ class _ReferralScreenState extends State<ReferralScreen> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        Card(
-          color: Colors.green.shade50,
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              children: [
-                const Icon(Icons.card_giftcard, size: 48, color: Colors.green),
-                const SizedBox(height: 8),
-                const Text(
-                  'O teu código',
-                  style: TextStyle(fontSize: 14, color: Colors.black54),
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: AppColors.primaryLight,
+            borderRadius: BorderRadius.circular(Radii.lg),
+            boxShadow: AppColors.shadowCard,
+          ),
+          child: Column(
+            children: [
+              const Icon(Icons.card_giftcard,
+                  size: 48, color: AppColors.primary),
+              const SizedBox(height: 8),
+              const Text(
+                'O teu código',
+                style:
+                    TextStyle(fontSize: 14, color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                code,
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.5,
+                  color: AppColors.textPrimary,
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  code,
-                  style: const TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.5,
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: _copy,
+                    icon: const Icon(Icons.copy),
+                    label: const Text('Copiar'),
                   ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    OutlinedButton.icon(
-                      onPressed: _copy,
-                      icon: const Icon(Icons.copy),
-                      label: const Text('Copiar'),
-                    ),
-                    const SizedBox(width: 8),
-                    FilledButton.icon(
-                      onPressed: _share,
-                      icon: const Icon(Icons.share),
-                      label: const Text('Partilhar'),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+                  const SizedBox(width: 8),
+                  BoraPrimaryButton(
+                    label: 'Partilhar',
+                    icon: Icons.share,
+                    onPressed: _share,
+                    expanded: false,
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 12),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Como funciona',
-                  style:
-                      TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                _step(1, 'Partilha o teu código com amigos.'),
-                _step(2, 'Eles registam-se na app com o teu código.'),
-                _step(3,
-                    'Quando fizerem o 1º pedido (≥€20) entregue, vocês recebem 1000 Bora Tokens cada (≈€5).'),
-              ],
-            ),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(Radii.lg),
+            boxShadow: AppColors.shadowCard,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Como funciona',
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary),
+              ),
+              const SizedBox(height: 8),
+              _step(1, 'Partilha o teu código com amigos.'),
+              _step(2, 'Eles registam-se na app com o teu código.'),
+              _step(3,
+                  'Quando fizerem o 1º pedido (≥€20) entregue, vocês recebem 1000 Bora Tokens cada (≈€5).'),
+            ],
           ),
         ),
         const SizedBox(height: 12),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                _statRow('Convites enviados', '$invitesSent'),
-                _statRow('Amigos que pediram', '$invitesCompleted'),
-                _statRow('Total ganho',
-                    '€${(totalEarnedCents / 100).toStringAsFixed(2)}',
-                    bold: true),
-              ],
-            ),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(Radii.lg),
+            boxShadow: AppColors.shadowCard,
+          ),
+          child: Column(
+            children: [
+              _statRow('Convites enviados', '$invitesSent'),
+              _statRow('Amigos que pediram', '$invitesCompleted'),
+              _statRow('Total ganho',
+                  '€${(totalEarnedCents / 100).toStringAsFixed(2)}',
+                  bold: true),
+            ],
           ),
         ),
         const SizedBox(height: 12),
@@ -197,8 +216,10 @@ class _ReferralScreenState extends State<ReferralScreen> {
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             child: Text('Convites recentes',
-                style:
-                    TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary)),
           ),
           ..._invites.map(_inviteTile),
         ],
@@ -208,7 +229,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
           child: Text(
             'Convites expiram após 30 dias. Pedido mínimo €20.',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 11, color: Colors.black45),
+            style: TextStyle(fontSize: 11, color: AppColors.textSubtle),
           ),
         ),
       ],
@@ -222,12 +243,15 @@ class _ReferralScreenState extends State<ReferralScreen> {
           children: [
             CircleAvatar(
               radius: 12,
-              backgroundColor: Colors.green,
+              backgroundColor: AppColors.primary,
               child: Text('$n',
                   style: const TextStyle(color: Colors.white, fontSize: 12)),
             ),
             const SizedBox(width: 8),
-            Expanded(child: Text(text, style: const TextStyle(fontSize: 13))),
+            Expanded(
+                child: Text(text,
+                    style: const TextStyle(
+                        fontSize: 13, color: AppColors.textPrimary))),
           ],
         ),
       );
@@ -237,12 +261,14 @@ class _ReferralScreenState extends State<ReferralScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(label, style: const TextStyle(fontSize: 14)),
+            Text(label,
+                style: const TextStyle(
+                    fontSize: 14, color: AppColors.textSecondary)),
             Text(value,
                 style: TextStyle(
                     fontSize: bold ? 18 : 15,
                     fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
-                    color: bold ? Colors.green.shade700 : Colors.black87)),
+                    color: bold ? AppColors.primary : AppColors.textPrimary)),
           ],
         ),
       );
@@ -251,23 +277,29 @@ class _ReferralScreenState extends State<ReferralScreen> {
     final status = inv['status'] as String? ?? 'pending';
     final created = DateTime.parse(inv['created_at'] as String).toLocal();
     final color = status == 'first_order_done'
-        ? Colors.green
+        ? AppColors.success
         : status == 'signed_up'
-            ? Colors.orange
-            : Colors.grey;
+            ? AppColors.warning
+            : AppColors.textSubtle;
     final label = {
       'pending': 'Convite enviado',
       'signed_up': 'Registou-se',
       'first_order_done': 'Completou 1º pedido',
       'expired': 'Expirado',
     }[status]!;
-    return Card(
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(Radii.lg),
+        boxShadow: AppColors.shadowCard,
+      ),
       child: ListTile(
         leading: CircleAvatar(backgroundColor: color, child: const Icon(Icons.person, color: Colors.white)),
         title: Text(inv['invited_email'] as String? ?? 'Amigo'),
         subtitle: Text('$label · ${created.year}-${created.month.toString().padLeft(2, '0')}-${created.day.toString().padLeft(2, '0')}'),
         trailing: status == 'first_order_done'
-            ? const Icon(Icons.check_circle, color: Colors.green)
+            ? const Icon(Icons.check_circle, color: AppColors.success)
             : null,
       ),
     );

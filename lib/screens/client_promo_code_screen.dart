@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../config/app_colors.dart';
+import '../widgets/bora/bora_primary_button.dart';
+import '../widgets/bora/bora_screen_app_bar.dart';
+
 /// Ecrã para o cliente resgatar um código promocional → ganha tokens.
 /// Chama RPC `client_redeem_promo_tokens(p_code text)`.
 /// Retorno: jsonb
@@ -102,13 +106,14 @@ class _ClientPromoCodeScreenState extends State<ClientPromoCodeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Resgatar código')),
+      backgroundColor: AppColors.background,
+      appBar: const BoraScreenAppBar(title: 'Resgatar código'),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Icon(Icons.redeem, size: 64, color: Colors.green),
+            const Icon(Icons.redeem, size: 64, color: AppColors.primary),
             const SizedBox(height: 8),
             const Text(
               'Tens um código promocional?',
@@ -119,7 +124,7 @@ class _ClientPromoCodeScreenState extends State<ClientPromoCodeScreen> {
             const Text(
               'Introduz o código abaixo para receber Bora Tokens na tua conta.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: Colors.black54),
+              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 24),
             TextField(
@@ -138,18 +143,19 @@ class _ClientPromoCodeScreenState extends State<ClientPromoCodeScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.red.shade50,
+                  color: AppColors.error.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.red.shade200),
+                  border: Border.all(
+                      color: AppColors.error.withValues(alpha: 0.35)),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.error_outline,
-                        color: Colors.red.shade700, size: 18),
+                    const Icon(Icons.error_outline,
+                        color: AppColors.error, size: 18),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(_error!,
-                          style: TextStyle(color: Colors.red.shade700)),
+                          style: const TextStyle(color: AppColors.error)),
                     ),
                   ],
                 ),
@@ -160,19 +166,20 @@ class _ClientPromoCodeScreenState extends State<ClientPromoCodeScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.green.shade50,
+                  color: AppColors.success.withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.green.shade200),
+                  border: Border.all(
+                      color: AppColors.success.withValues(alpha: 0.35)),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.check_circle,
-                        color: Colors.green.shade700, size: 20),
+                    const Icon(Icons.check_circle,
+                        color: AppColors.success, size: 20),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(_successMessage!,
-                          style: TextStyle(
-                              color: Colors.green.shade800,
+                          style: const TextStyle(
+                              color: AppColors.success,
                               fontWeight: FontWeight.w600)),
                     ),
                   ],
@@ -180,21 +187,16 @@ class _ClientPromoCodeScreenState extends State<ClientPromoCodeScreen> {
               ),
             ],
             const SizedBox(height: 24),
-            FilledButton(
+            BoraPrimaryButton(
+              label: 'Resgatar',
               onPressed: _submitting ? null : _apply,
-              child: _submitting
-                  ? const SizedBox(
-                      height: 18,
-                      width: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Resgatar'),
+              loading: _submitting,
             ),
             const SizedBox(height: 12),
             const Text(
               'Os tokens são creditados na tua carteira Bora e podem ser usados como desconto até 50% no checkout.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: Colors.black45),
+              style: TextStyle(fontSize: 12, color: AppColors.textSubtle),
             ),
           ],
         ),

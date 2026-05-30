@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../config/app_theme.dart';
+import '../config/app_colors.dart';
+import '../widgets/bora/bora_screen_app_bar.dart';
 
 class SupportScreen extends StatefulWidget {
   const SupportScreen({super.key});
@@ -131,12 +132,9 @@ class _SupportScreenState extends State<SupportScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
-      appBar: AppBar(
-        title: const Text('Suporte'),
-        backgroundColor: AppTheme.primary,
-        foregroundColor: Colors.white,
-        elevation: 0,
+      backgroundColor: AppColors.background,
+      appBar: BoraScreenAppBar(
+        title: 'Suporte',
         actions: [
           IconButton(
             icon: const Icon(Icons.email_outlined),
@@ -156,7 +154,7 @@ class _SupportScreenState extends State<SupportScreen> {
           Container(
             color: Colors.white,
             child: ExpansionTile(
-              leading: const Icon(Icons.quiz_outlined, color: AppTheme.primary),
+              leading: const Icon(Icons.quiz_outlined, color: AppColors.primary),
               title: const Text(
                 'Perguntas frequentes',
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
@@ -170,7 +168,7 @@ class _SupportScreenState extends State<SupportScreen> {
                       title: Text(faq.question,
                           style: const TextStyle(fontSize: 13)),
                       trailing: const Icon(Icons.send,
-                          size: 16, color: AppTheme.primary),
+                          size: 16, color: AppColors.primary),
                       onTap: () {
                         setState(() => _faqExpanded = false);
                         _sendMessage(faq.question);
@@ -219,7 +217,7 @@ class _SupportScreenState extends State<SupportScreen> {
                   ),
                   const SizedBox(width: 8),
                   CircleAvatar(
-                    backgroundColor: AppTheme.primary,
+                    backgroundColor: AppColors.primary,
                     child: IconButton(
                       icon:
                           const Icon(Icons.send, color: Colors.white, size: 18),
@@ -269,25 +267,19 @@ class _MessageBubble extends StatelessWidget {
         ),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: isUser ? AppTheme.primary : Colors.white,
+          color: isUser ? AppColors.primary : AppColors.surface,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(18),
             topRight: const Radius.circular(18),
             bottomLeft: Radius.circular(isUser ? 18 : 4),
             bottomRight: Radius.circular(isUser ? 4 : 18),
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          boxShadow: AppColors.shadowCard,
         ),
         child: Text(
           msg.text,
           style: TextStyle(
-            color: isUser ? Colors.white : Colors.black87,
+            color: isUser ? Colors.white : AppColors.textPrimary,
             fontSize: 14,
             height: 1.4,
           ),

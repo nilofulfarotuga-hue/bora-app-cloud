@@ -293,8 +293,20 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
   Widget build(BuildContext context) {
     final provider = context.watch<SupportSettingsProvider>();
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Bora IA — assistente'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        foregroundColor: Colors.white,
+        iconTheme: const IconThemeData(color: Colors.white),
+        actionsIconTheme: const IconThemeData(color: Colors.white),
+        flexibleSpace: const DecoratedBox(
+          decoration: BoxDecoration(gradient: AppColors.headerGradient),
+        ),
+        title: const Text(
+          'Bora IA — assistente',
+          style: TextStyle(color: Colors.white),
+        ),
         actions: [
           IconButton(
             tooltip: 'Falar com humano',
@@ -369,7 +381,7 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
               child: TextButton(
                 style: TextButton.styleFrom(
-                  foregroundColor: Colors.grey.shade600,
+                  foregroundColor: AppColors.textSecondary,
                   textStyle: const TextStyle(fontSize: 12),
                 ),
                 onPressed: () {
@@ -433,7 +445,7 @@ class _MessageBubble extends StatelessWidget {
         margin: const EdgeInsets.symmetric(vertical: 4),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: isUser ? AppColors.accent : Colors.grey.shade100,
+          color: isUser ? AppColors.accent : AppColors.surface,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(16),
             topRight: const Radius.circular(16),
@@ -444,7 +456,7 @@ class _MessageBubble extends StatelessWidget {
         child: Text(
           msg.content,
           style: TextStyle(
-            color: isUser ? Colors.white : Colors.black87,
+            color: isUser ? Colors.white : AppColors.textPrimary,
             fontSize: 14,
           ),
         ),
@@ -469,9 +481,9 @@ class _Composer extends StatelessWidget {
     return SafeArea(
       child: Container(
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border(top: BorderSide(color: Colors.grey.shade200)),
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          border: Border(top: BorderSide(color: AppColors.divider)),
         ),
         child: Row(
           children: [

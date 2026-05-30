@@ -7,6 +7,8 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../auth/auth_store.dart';
+import '../config/app_colors.dart';
+import '../config/app_spacing.dart';
 import '../config/business_rules.dart' show BRTokens;
 import '../models/order_model.dart';
 import '../stores/cart_store.dart';
@@ -15,6 +17,8 @@ import 'package:flutter_stripe/flutter_stripe.dart' show StripeException, Failur
 
 import '../models/saved_card.dart';
 import '../services/payment_service.dart';
+import '../widgets/bora/bora_primary_button.dart';
+import '../widgets/bora/bora_screen_app_bar.dart';
 
 class PaymentMethodScreen extends StatefulWidget {
   const PaymentMethodScreen({super.key});
@@ -201,19 +205,19 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     ];
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Pagamento'),
-      ),
+      backgroundColor: AppColors.background,
+      appBar: const BoraScreenAppBar(title: 'Pagamento'),
       body: Column(
         children: [
           Expanded(
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                Card(
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.card,
+                    borderRadius: BorderRadius.circular(Radii.lg),
+                    boxShadow: AppColors.shadowCard,
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(16),
@@ -254,8 +258,8 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Icon(Icons.apartment,
-                                    color: Colors.orange.shade600, size: 20),
+                                const Icon(Icons.apartment,
+                                    color: AppColors.accent, size: 20),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
@@ -265,7 +269,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                                         .bodySmall
                                         ?.copyWith(
                                           fontWeight: FontWeight.w600,
-                                          color: Colors.orange.shade800,
+                                          color: AppColors.accentDark,
                                         ),
                                   ),
                                 ),
@@ -317,14 +321,14 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                             padding: const EdgeInsets.symmetric(vertical: 4),
                             child: Row(
                               children: [
-                                Icon(Icons.monetization_on,
-                                    size: 14, color: Colors.grey.shade400),
+                                const Icon(Icons.monetization_on,
+                                    size: 14, color: AppColors.textSubtle),
                                 const SizedBox(width: 6),
-                                Text(
+                                const Text(
                                   'Sem tokens disponíveis',
                                   style: TextStyle(
                                       fontSize: 12,
-                                      color: Colors.grey.shade500),
+                                      color: AppColors.textSubtle),
                                 ),
                               ],
                             ),
@@ -347,11 +351,11 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text('Dívida anterior',
-                                    style: TextStyle(color: Colors.red.shade700)),
+                                const Text('Dívida anterior',
+                                    style: TextStyle(color: AppColors.error)),
                                 Text('+€${debtEur.toStringAsFixed(2)}',
-                                    style: TextStyle(
-                                        color: Colors.red.shade700,
+                                    style: const TextStyle(
+                                        color: AppColors.error,
                                         fontWeight: FontWeight.w600)),
                               ],
                             ),
@@ -396,11 +400,11 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                 if (_selectedMethod == PaymentMethod.card &&
                     (_savedCards.isNotEmpty || _loadingCards)) ...[
                   const SizedBox(height: 12),
-                  Card(
-                    elevation: 1,
-                    margin: EdgeInsets.zero,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.card,
+                      borderRadius: BorderRadius.circular(Radii.lg),
+                      boxShadow: AppColors.shadowCard,
                     ),
                     child: Padding(
                       padding: const EdgeInsets.all(8),
@@ -462,11 +466,11 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                 ],
                 if (_selectedMethod == PaymentMethod.mbway) ...[
                   const SizedBox(height: 12),
-                  Card(
-                    elevation: 1,
-                    margin: EdgeInsets.zero,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.card,
+                      borderRadius: BorderRadius.circular(Radii.lg),
+                      boxShadow: AppColors.shadowCard,
                     ),
                     child: Padding(
                       padding: const EdgeInsets.all(16),
@@ -493,11 +497,11 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                             ),
                           ),
                           const SizedBox(height: 4),
-                          Text(
+                          const Text(
                             'Telemóvel português associado à tua conta MBWay (9 dígitos).',
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.grey.shade600,
+                              color: AppColors.textSecondary,
                             ),
                           ),
                         ],
@@ -511,24 +515,16 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
           SafeArea(
             top: false,
             minimum: const EdgeInsets.all(16),
-            child: SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _isProcessing
-                    ? null
-                    : () => _confirmPayment(
-                          context,
-                          finalPrice,
-                          tokensUsed: _useTokens ? tokensToUse : 0,
-                        ),
-                child: _isProcessing
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Confirmar pagamento'),
-              ),
+            child: BoraPrimaryButton(
+              label: 'Confirmar pagamento',
+              loading: _isProcessing,
+              onPressed: _isProcessing
+                  ? null
+                  : () => _confirmPayment(
+                        context,
+                        finalPrice,
+                        tokensUsed: _useTokens ? tokensToUse : 0,
+                      ),
             ),
           ),
         ],
@@ -959,7 +955,7 @@ class _PaymentOptionTile extends StatelessWidget {
           side: BorderSide(
             color: isSelected
                 ? Theme.of(context).colorScheme.primary
-                : Colors.grey.shade300,
+                : AppColors.divider,
             width: 1.2,
           ),
         ),
@@ -1002,7 +998,7 @@ class _SummaryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isDiscount ? Colors.green.shade700 : null;
+    final color = isDiscount ? AppColors.success : null;
     final textStyle = Theme.of(context).textTheme.bodyMedium?.copyWith(
           fontWeight: isStrong ? FontWeight.bold : FontWeight.normal,
           color: color,
@@ -1028,7 +1024,7 @@ class _SummaryRow extends StatelessWidget {
                   Text(
                     subtitle!,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.grey.shade600,
+                          color: AppColors.textSecondary,
                         ),
                   ),
               ],
@@ -1113,7 +1109,7 @@ class _MBWayWaitingDialogState extends State<_MBWayWaitingDialog> {
           const SizedBox(height: 12),
           Text(
             'A aguardar confirmação... $_secondsLeft s',
-            style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+            style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
           ),
         ],
       ),

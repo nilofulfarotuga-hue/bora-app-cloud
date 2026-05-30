@@ -3,12 +3,14 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../config/app_colors.dart';
 import '../models/chat_message.dart';
 import '../models/message_model.dart';
 import '../models/order_model.dart';
 import '../stores/chat_store.dart';
 import '../stores/order_store.dart';
 import '../stores/restaurant_store.dart';
+import '../widgets/bora/bora_screen_app_bar.dart';
 
 enum ChatTarget { client, driver }
 
@@ -162,8 +164,9 @@ class _ChatScreenState extends State<ChatScreen> {
     });
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_appBarTitle(liveOrder)),
+      backgroundColor: AppColors.background,
+      appBar: BoraScreenAppBar(
+        title: _appBarTitle(liveOrder),
         actions: [
           Builder(
             builder: (ctx) {
@@ -190,7 +193,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 ? const Center(
                     child: Text(
                       'Sem mensagens. Seja o primeiro a escrever!',
-                      style: TextStyle(color: Colors.grey),
+                      style: TextStyle(color: AppColors.textSecondary),
                     ),
                   )
                 : ListView.builder(
@@ -217,7 +220,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     },
                   ),
           ),
-          const Divider(height: 1),
+          const Divider(height: 1, color: AppColors.divider),
           SafeArea(
             top: false,
             minimum: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -344,9 +347,7 @@ class _TextBubble extends StatelessWidget {
         constraints:
             BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
         decoration: BoxDecoration(
-          color: isMine
-              ? Theme.of(context).colorScheme.primary
-              : Colors.grey.shade200,
+          color: isMine ? AppColors.primary : AppColors.surface,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(16),
             topRight: const Radius.circular(16),
@@ -362,14 +363,15 @@ class _TextBubble extends StatelessWidget {
             Text(
               message.content,
               style: TextStyle(
-                  color: isMine ? Colors.white : Colors.black87, fontSize: 14),
+                  color: isMine ? Colors.white : AppColors.textPrimary,
+                  fontSize: 14),
             ),
             const SizedBox(height: 4),
             Text(
               _fmt(message.createdAt),
               style: TextStyle(
                   fontSize: 11,
-                  color: isMine ? Colors.white70 : Colors.black45),
+                  color: isMine ? Colors.white70 : AppColors.textSecondary),
             ),
           ],
         ),
@@ -412,13 +414,10 @@ class _SubstitutionCard extends StatelessWidget {
         constraints:
             BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.88),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Colors.orange.shade200),
-          boxShadow: const [
-            BoxShadow(
-                color: Colors.black12, blurRadius: 4, offset: Offset(0, 2)),
-          ],
+          boxShadow: AppColors.shadowCard,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

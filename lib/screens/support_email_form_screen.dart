@@ -7,6 +7,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/app_colors.dart';
 import '../providers/support_settings_provider.dart';
+import '../widgets/bora/bora_primary_button.dart';
+import '../widgets/bora/bora_screen_app_bar.dart';
 
 class SupportEmailFormScreen extends StatefulWidget {
   const SupportEmailFormScreen({super.key, this.orderId});
@@ -81,7 +83,8 @@ class _SupportEmailFormScreenState extends State<SupportEmailFormScreen> {
   Widget build(BuildContext context) {
     final provider = context.watch<SupportSettingsProvider>();
     return Scaffold(
-      appBar: AppBar(title: const Text('Enviar email ao suporte')),
+      backgroundColor: AppColors.background,
+      appBar: const BoraScreenAppBar(title: 'Enviar email ao suporte'),
       body: SafeArea(
         child: Form(
           key: _formKey,
@@ -129,24 +132,14 @@ class _SupportEmailFormScreenState extends State<SupportEmailFormScreen> {
               const SizedBox(height: 16),
               Text(
                 'Resposta em até ${provider.slaHours}h em ${provider.supportEmail}',
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                style: const TextStyle(
+                    fontSize: 12, color: AppColors.textSecondary),
               ),
               const SizedBox(height: 16),
-              ElevatedButton(
+              BoraPrimaryButton(
+                label: 'Enviar',
+                loading: _submitting,
                 onPressed: _submitting ? null : _submit,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.accent,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-                child: _submitting
-                    ? const SizedBox(
-                        height: 20, width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white,
-                        ),
-                      )
-                    : const Text('Enviar'),
               ),
             ],
           ),

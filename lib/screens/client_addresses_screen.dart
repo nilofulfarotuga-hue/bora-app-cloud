@@ -2,10 +2,14 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../config/app_colors.dart';
+import '../config/app_spacing.dart';
 import '../config/maps_config.dart';
 import '../models/client_address.dart';
 import '../services/client_address_service.dart';
 import '../services/google_places_service.dart';
+import '../widgets/bora/bora_primary_button.dart';
+import '../widgets/bora/bora_screen_app_bar.dart';
 
 /// Ecrã de gestão de endereços do cliente.
 /// CRUD sobre `client_addresses` (RLS por user_id). Padrão Uber/Glovo:
@@ -102,10 +106,9 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.selectMode
-            ? 'Escolher endereço'
-            : 'Os meus endereços'),
+      backgroundColor: AppColors.background,
+      appBar: BoraScreenAppBar(
+        title: widget.selectMode ? 'Escolher endereço' : 'Os meus endereços',
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openForm(),
@@ -124,7 +127,7 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
                         padding: const EdgeInsets.all(16),
                         child: Text(_error!,
                             textAlign: TextAlign.center,
-                            style: const TextStyle(color: Colors.red)),
+                            style: const TextStyle(color: AppColors.error)),
                       ),
                     ),
                   ])
@@ -144,7 +147,7 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
         children: [
           const SizedBox(height: 120),
           const Icon(Icons.location_on_outlined,
-              size: 72, color: Colors.black26),
+              size: 72, color: AppColors.textSubtle),
           const SizedBox(height: 12),
           const Center(
             child: Text('Ainda não tens endereços guardados',
@@ -155,7 +158,7 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
             child: Text(
               'Adiciona Casa e Trabalho para escolheres mais rápido no checkout.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: Colors.black54),
+              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
             ),
           ),
         ],
@@ -167,10 +170,14 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
       'trabalho' || 'work' => Icons.work,
       _ => Icons.place,
     };
-    return Card(
-      margin: EdgeInsets.zero,
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(Radii.lg),
+        boxShadow: AppColors.shadowCard,
+      ),
       child: ListTile(
-        leading: Icon(icon, color: Colors.green.shade700),
+        leading: Icon(icon, color: AppColors.primary),
         title: Row(
           children: [
             Flexible(
@@ -183,11 +190,11 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: Colors.green.shade100,
+                  color: AppColors.primaryLight,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Text('Predefinido',
-                    style: TextStyle(fontSize: 10, color: Colors.green)),
+                    style: TextStyle(fontSize: 10, color: AppColors.primary)),
               ),
             ],
           ],
@@ -410,7 +417,7 @@ class _AddressFormSheetState extends State<_AddressFormSheet> {
                 Container(
                   margin: const EdgeInsets.only(top: 4),
                   decoration: BoxDecoration(
-                    border: Border.all(color: Colors.black12),
+                    border: Border.all(color: AppColors.divider),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Column(
@@ -438,18 +445,13 @@ class _AddressFormSheetState extends State<_AddressFormSheet> {
               ),
               if (_error != null) ...[
                 const SizedBox(height: 8),
-                Text(_error!, style: const TextStyle(color: Colors.red)),
+                Text(_error!, style: const TextStyle(color: AppColors.error)),
               ],
               const SizedBox(height: 16),
-              FilledButton(
+              BoraPrimaryButton(
+                label: 'Guardar',
                 onPressed: _saving ? null : _save,
-                child: _saving
-                    ? const SizedBox(
-                        height: 18,
-                        width: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Guardar'),
+                loading: _saving,
               ),
             ],
           ),

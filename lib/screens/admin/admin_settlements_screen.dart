@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '../../config/app_spacing.dart';
+import '../../widgets/bora/bora_screen_app_bar.dart';
 
 /// FASE 5 — Admin Settlements Screen
 /// Lista todos os drivers com entregas na semana indicada + saldo + status.
@@ -162,10 +164,9 @@ class _AdminSettlementsScreenState extends State<AdminSettlementsScreen> {
             const [];
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Fechamento Semanal — Estafetas'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
+      backgroundColor: AppColors.background,
+      appBar: BoraScreenAppBar(
+        title: 'Fechamento Semanal — Estafetas',
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -178,7 +179,7 @@ class _AdminSettlementsScreenState extends State<AdminSettlementsScreen> {
           // Week navigation
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            color: Colors.grey.shade100,
+            color: AppColors.surface,
             child: Row(
               children: [
                 IconButton(
@@ -202,8 +203,8 @@ class _AdminSettlementsScreenState extends State<AdminSettlementsScreen> {
                               fontWeight: FontWeight.w700, fontSize: 14),
                         ),
                         Text(_fmtRange(),
-                            style: TextStyle(
-                                fontSize: 12, color: Colors.grey.shade700)),
+                            style: const TextStyle(
+                                fontSize: 12, color: AppColors.textSecondary)),
                       ],
                     ),
                   ),
@@ -254,13 +255,18 @@ class _AdminSettlementsScreenState extends State<AdminSettlementsScreen> {
     final mbway = s['mbway_phone'] as String?;
     final hasMbway = mbway != null && mbway.isNotEmpty;
     final statusColor = switch (status) {
-      'paid' || 'received' => Colors.green.shade700,
-      'pending' => Colors.orange.shade700,
-      'disputed' => Colors.red.shade700,
-      _ => Colors.grey.shade700,
+      'paid' || 'received' => AppColors.success,
+      'pending' => AppColors.warning,
+      'disputed' => AppColors.error,
+      _ => AppColors.textSecondary,
     };
 
-    return Card(
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(Radii.lg),
+        boxShadow: AppColors.shadowCard,
+      ),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -298,27 +304,27 @@ class _AdminSettlementsScreenState extends State<AdminSettlementsScreen> {
               'Cash €${(s['total_cash_received'] as num?)?.toStringAsFixed(2) ?? "0.00"} · '
               'Earnings €${(s['total_earnings'] as num?)?.toStringAsFixed(2) ?? "0.00"}',
               style:
-                  TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                  const TextStyle(fontSize: 12, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 4),
             Row(
               children: [
-                Icon(Icons.account_balance_wallet_outlined,
-                    size: 14, color: Colors.grey.shade600),
+                const Icon(Icons.account_balance_wallet_outlined,
+                    size: 14, color: AppColors.textSecondary),
                 const SizedBox(width: 4),
                 Text(
                   hasMbway ? mbway : 'MBWay não configurado',
                   style: TextStyle(
                       fontSize: 11,
                       color: hasMbway
-                          ? Colors.grey.shade700
-                          : Colors.red.shade700,
+                          ? AppColors.textSecondary
+                          : AppColors.error,
                       fontWeight:
                           hasMbway ? FontWeight.w400 : FontWeight.w700),
                 ),
               ],
             ),
-            const Divider(),
+            const Divider(color: AppColors.divider),
             Row(
               children: [
                 Expanded(
@@ -391,8 +397,8 @@ class _AdminSettlementsScreenState extends State<AdminSettlementsScreen> {
                 padding: const EdgeInsets.only(top: 4),
                 child: Text(
                   'Notas: ${s['notes']}',
-                  style: TextStyle(
-                      fontSize: 11, color: Colors.grey.shade700),
+                  style: const TextStyle(
+                      fontSize: 11, color: AppColors.textSecondary),
                 ),
               ),
           ],

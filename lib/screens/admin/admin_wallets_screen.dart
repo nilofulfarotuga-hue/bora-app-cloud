@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../config/app_colors.dart';
 import '../../services/admin_export_service.dart';
 import '../../services/wallet_service.dart';
+import '../../widgets/bora/bora_screen_app_bar.dart';
 
 class AdminWalletsScreen extends StatefulWidget {
   const AdminWalletsScreen({super.key});
@@ -113,7 +115,8 @@ class _AdminWalletsScreenState extends State<AdminWalletsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Wallets')),
+      backgroundColor: AppColors.background,
+      appBar: const BoraScreenAppBar(title: 'Wallets'),
       body: Column(
         children: [
           Padding(
@@ -157,7 +160,7 @@ class _AdminWalletsScreenState extends State<AdminWalletsScreen> {
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
                 : _error != null
-                    ? Center(child: Text(_error!, style: const TextStyle(color: Colors.red)))
+                    ? Center(child: Text(_error!, style: const TextStyle(color: AppColors.error)))
                     : RefreshIndicator(
                         onRefresh: _load,
                         child: _rows.isEmpty
@@ -305,7 +308,7 @@ class _AdminWalletsScreenState extends State<AdminWalletsScreen> {
             const SizedBox(height: 8),
             const Text(
               'A wallet vai a 0. Esta acção é irreversível.',
-              style: TextStyle(fontSize: 12, color: Colors.black54),
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 8),
             TextField(
@@ -459,7 +462,7 @@ class _AdminWalletsScreenState extends State<AdminWalletsScreen> {
               Container(
                 width: 40, height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
+                  color: AppColors.divider,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),

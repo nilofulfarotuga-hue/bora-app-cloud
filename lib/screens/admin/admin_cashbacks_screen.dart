@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../config/app_colors.dart';
+import '../../config/app_spacing.dart';
+import '../../widgets/bora/bora_screen_app_bar.dart';
 import '../../services/admin_export_service.dart';
 import 'admin_platform_settings_screen.dart';
 
@@ -77,8 +80,9 @@ class _AdminCashbacksScreenState extends State<AdminCashbacksScreen> {
     final count = (_data?['count'] as num?)?.toInt() ?? 0;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Cashbacks'),
+      backgroundColor: AppColors.background,
+      appBar: BoraScreenAppBar(
+        title: 'Cashbacks',
         actions: [
           IconButton(
               icon: const Icon(Icons.tune),
@@ -117,7 +121,10 @@ class _AdminCashbacksScreenState extends State<AdminCashbacksScreen> {
                   ),
                   const SizedBox(height: 16),
                   Card(
-                    color: Colors.green.shade50,
+                    color: AppColors.primaryWash,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(Radii.lg),
+                    ),
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: Column(
@@ -144,15 +151,18 @@ class _AdminCashbacksScreenState extends State<AdminCashbacksScreen> {
                       padding: EdgeInsets.all(24),
                       child: Center(
                           child: Text('Sem cashbacks no período.',
-                              style: TextStyle(color: Colors.black54))),
+                              style: TextStyle(color: AppColors.textSecondary))),
                     ),
                   ...txs.map((e) {
                     final t = (e as Map).cast<String, dynamic>();
                     final cents = (t['amount_cents'] as num?)?.toInt() ?? 0;
                     return Card(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(Radii.lg),
+                      ),
                       child: ListTile(
                         leading: const Icon(Icons.celebration,
-                            color: Colors.green),
+                            color: AppColors.success),
                         title: Text(t['user_email'] as String? ?? '—'),
                         subtitle: Text(
                             '${t['created_at']?.toString().substring(0, 10) ?? ''} · order ${(t['order_id'] as String? ?? '').isNotEmpty ? (t['order_id'] as String).substring(0, 8) : '—'}'),
@@ -160,7 +170,7 @@ class _AdminCashbacksScreenState extends State<AdminCashbacksScreen> {
                             '€${(cents / 100).toStringAsFixed(2)}',
                             style: const TextStyle(
                                 fontWeight: FontWeight.bold,
-                                color: Colors.green)),
+                                color: AppColors.success)),
                       ),
                     );
                   }),

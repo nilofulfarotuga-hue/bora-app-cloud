@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '../../config/app_spacing.dart';
 import '../../services/auth_admin_service.dart';
+import '../../widgets/bora/bora_screen_app_bar.dart';
 
 /// Painel admin para órfãos de pagamento (BUG 1 / Fase 2 — 2026-04-30).
 ///
@@ -62,15 +64,17 @@ class _AdminOrphanPaymentsScreenState extends State<AdminOrphanPaymentsScreen> {
   @override
   Widget build(BuildContext context) {
     if (!AuthAdminService.isAdmin()) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Órfãos de pagamento')),
-        body: const Center(child: Text('Acesso negado.')),
+      return const Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: BoraScreenAppBar(title: 'Órfãos de pagamento'),
+        body: Center(child: Text('Acesso negado.')),
       );
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Órfãos de pagamento'),
+      backgroundColor: AppColors.background,
+      appBar: BoraScreenAppBar(
+        title: 'Órfãos de pagamento',
         actions: [
           IconButton(icon: const Icon(Icons.refresh), onPressed: _refresh),
         ],
@@ -139,12 +143,14 @@ class _OrphanCard extends StatelessWidget {
     final notes = row['notes'] as String? ?? '';
 
     final isDraft = kind == 'payment_draft';
-    final color = isDraft ? AppColors.warning : Colors.red.shade700;
+    final color = isDraft ? AppColors.warning : AppColors.error;
 
-    return Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: color, width: 1),
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(Radii.lg),
+        border: Border.all(color: color, width: 1),
+        boxShadow: AppColors.shadowCard,
       ),
       child: Padding(
         padding: const EdgeInsets.all(12),

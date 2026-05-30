@@ -10,6 +10,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../config/app_colors.dart';
+import '../../config/app_spacing.dart';
 
 class AdminReceiptsScreen extends StatefulWidget {
   const AdminReceiptsScreen({super.key});
@@ -40,13 +41,18 @@ class _AdminReceiptsScreenState extends State<AdminReceiptsScreen>
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Reembolsos / Talões'),
-        backgroundColor: AppColors.primary,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         foregroundColor: Colors.white,
+        iconTheme: const IconThemeData(color: Colors.white),
+        flexibleSpace: const DecoratedBox(
+          decoration: BoxDecoration(gradient: AppColors.headerGradient),
+        ),
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
           labelColor: Colors.white,
-          indicatorColor: AppColors.accent,
+          indicatorColor: Colors.white,
           tabs: const [
             Tab(icon: Icon(Icons.notifications_active), text: 'Pendentes'),
             Tab(icon: Icon(Icons.flag), text: 'OCR Flag'),
@@ -600,10 +606,12 @@ class _ReceiptCardState extends State<_ReceiptCard> {
       margin: const EdgeInsets.symmetric(vertical: 6),
       shape: flagged
           ? RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(Radii.lg),
               side: BorderSide(color: AppColors.error.withAlpha(100), width: 1.5),
             )
-          : null,
+          : RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(Radii.lg),
+            ),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -842,20 +850,20 @@ class _OcrRow extends StatelessWidget {
     // OCR ainda não correu
     if (ocrRanAt == null) {
       return Row(children: [
-        Icon(Icons.sync, size: 16, color: Colors.grey[500]),
+        const Icon(Icons.sync, size: 16, color: AppColors.textSubtle),
         const SizedBox(width: 6),
-        Text('OCR a processar...',
-            style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+        const Text('OCR a processar...',
+            style: TextStyle(color: AppColors.textSubtle, fontSize: 13)),
       ]);
     }
 
     // OCR correu mas não conseguiu ler valor
     if (ocrCents == null) {
       return Row(children: [
-        Icon(Icons.help_outline, size: 16, color: Colors.grey[500]),
+        const Icon(Icons.help_outline, size: 16, color: AppColors.textSubtle),
         const SizedBox(width: 6),
-        Text('OCR: não conseguiu ler',
-            style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+        const Text('OCR: não conseguiu ler',
+            style: TextStyle(color: AppColors.textSubtle, fontSize: 13)),
       ]);
     }
 
@@ -868,14 +876,14 @@ class _OcrRow extends StatelessWidget {
     // OCR flagged — diferença > 50 cents
     if (flagged) {
       return Row(children: [
-        const Icon(Icons.warning_amber_rounded, size: 16, color: Colors.red),
+        const Icon(Icons.warning_amber_rounded, size: 16, color: AppColors.error),
         const SizedBox(width: 6),
         Expanded(
           child: Text(
             'OCR: €$ocrEur  (digitado: €$typedEur'
             '${diffEur != null ? " — diferença: €$diffEur" : ""})',
             style: const TextStyle(
-                color: Colors.red, fontSize: 13, fontWeight: FontWeight.w600),
+                color: AppColors.error, fontSize: 13, fontWeight: FontWeight.w600),
           ),
         ),
       ]);
@@ -883,11 +891,11 @@ class _OcrRow extends StatelessWidget {
 
     // OCR OK
     return Row(children: [
-      const Icon(Icons.check_circle_outline, size: 16, color: Colors.green),
+      const Icon(Icons.check_circle_outline, size: 16, color: AppColors.success),
       const SizedBox(width: 6),
       Text('OCR: €$ocrEur ✓',
           style: const TextStyle(
-              color: Colors.green, fontSize: 13, fontWeight: FontWeight.w500)),
+              color: AppColors.success, fontSize: 13, fontWeight: FontWeight.w500)),
     ]);
   }
 }

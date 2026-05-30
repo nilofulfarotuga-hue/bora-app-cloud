@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '../../config/app_spacing.dart';
 
 class AdminTokensScreen extends StatefulWidget {
   const AdminTokensScreen({super.key});
@@ -162,7 +163,7 @@ class _AdminTokensScreenState extends State<AdminTokensScreen>
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Revogar'),
           ),
@@ -187,10 +188,22 @@ class _AdminTokensScreenState extends State<AdminTokensScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Tokens'),
-        backgroundColor: AppColors.primary,
-        bottom: TabBar(controller: _tab, tabs: const [Tab(text: 'Clientes'), Tab(text: 'Entregadores')],
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        foregroundColor: Colors.white,
+        iconTheme: const IconThemeData(color: Colors.white),
+        flexibleSpace: const DecoratedBox(
+          decoration: BoxDecoration(gradient: AppColors.headerGradient),
+        ),
+        bottom: TabBar(
+            controller: _tab,
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white70,
+            indicatorColor: Colors.white,
+            tabs: const [Tab(text: 'Clientes'), Tab(text: 'Entregadores')],
             onTap: (index) {
               setState(() {
                 _selectedUserId = null;
@@ -269,17 +282,20 @@ class _AdminTokensScreenState extends State<AdminTokensScreen>
           final isManual = g['source_order_id'] == null;
           return Card(
             margin: const EdgeInsets.symmetric(vertical: 3),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(Radii.lg),
+            ),
             child: ListTile(
               dense: true,
               leading: Icon(
                 active ? Icons.check_circle : Icons.cancel,
-                color: active ? Colors.green : Colors.grey,
+                color: active ? AppColors.success : AppColors.textSubtle,
                 size: 22,
               ),
               title: Text('$amount tokens${isManual ? " · MANUAL" : ""}'),
               subtitle: Text('$shortId… · criado $createdAt · expira $expiresAt'),
               trailing: active
-                  ? const Icon(Icons.circle, size: 8, color: Colors.green)
+                  ? const Icon(Icons.circle, size: 8, color: AppColors.success)
                   : null,
             ),
           );
@@ -298,6 +314,9 @@ class _AdminTokensScreenState extends State<AdminTokensScreen>
     return Column(children: [
       Card(
         margin: const EdgeInsets.all(12),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Radii.lg),
+        ),
         child: ListTile(
           leading: const Icon(Icons.account_balance_wallet, size: 40, color: AppColors.primary),
           title: Text(_selectedUserLabel ?? '—'),
@@ -315,10 +334,13 @@ class _AdminTokensScreenState extends State<AdminTokensScreen>
             final active = g['is_active'] == true;
             return Card(
               margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(Radii.lg),
+              ),
               child: ListTile(
                 leading: Icon(
                   active ? Icons.check_circle : Icons.cancel,
-                  color: active ? Colors.green : Colors.grey,
+                  color: active ? AppColors.success : AppColors.textSubtle,
                 ),
                 title: Text('${g['amount']} tokens (${g['role']})'),
                 subtitle: Text(
@@ -326,7 +348,7 @@ class _AdminTokensScreenState extends State<AdminTokensScreen>
                     '${g['source_order_id'] == null ? " · MANUAL" : ""}'),
                 trailing: active
                     ? IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red),
+                        icon: const Icon(Icons.delete, color: AppColors.error),
                         onPressed: () => _revokeGrant(g),
                       )
                     : const Text('usado', style: TextStyle(fontSize: 12)),

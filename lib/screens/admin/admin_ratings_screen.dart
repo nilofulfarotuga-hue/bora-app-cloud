@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '../../config/app_spacing.dart';
+import '../../widgets/bora/bora_screen_app_bar.dart';
 
 /// Admin de avaliações (BR §44.8).
 ///
@@ -197,7 +199,7 @@ class _AdminRatingsScreenState extends State<AdminRatingsScreen> {
                               subtitle: Text(
                                   'média ${r['avg_stars']} · ${r['rating_count']} avaliações'),
                               trailing: const Icon(Icons.warning,
-                                  color: Colors.red),
+                                  color: AppColors.error),
                             ))
                         .toList(),
                   ),
@@ -331,7 +333,7 @@ class _AdminRatingsScreenState extends State<AdminRatingsScreen> {
             TextButton.icon(
               icon: Icon(
                 isFlagged ? Icons.flag_outlined : Icons.flag,
-                color: isFlagged ? Colors.grey : Colors.red,
+                color: isFlagged ? AppColors.textSubtle : AppColors.error,
               ),
               label: Text(
                 isFlagged ? 'Remover sinal' : 'Sinalizar como inapropriado',
@@ -374,18 +376,9 @@ class _AdminRatingsScreenState extends State<AdminRatingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surface,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        flexibleSpace: const DecoratedBox(
-          decoration: BoxDecoration(gradient: AppColors.headerGradient),
-        ),
-        title: const Text(
-          'Avaliações',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
+      backgroundColor: AppColors.background,
+      appBar: BoraScreenAppBar(
+        title: 'Avaliações',
         actions: [
           IconButton(
             icon: const Icon(Icons.warning_amber, color: Colors.white),
@@ -556,7 +549,7 @@ class _AdminRatingsScreenState extends State<AdminRatingsScreen> {
                       return Card(
                         elevation: 1,
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10)),
+                            borderRadius: BorderRadius.circular(Radii.lg)),
                         child: ListTile(
                           onTap: () => _openDrillDown(r),
                           title: Row(
@@ -589,12 +582,12 @@ class _AdminRatingsScreenState extends State<AdminRatingsScreen> {
                               if (isPrivate) ...[
                                 const SizedBox(width: 4),
                                 const Icon(Icons.lock,
-                                    size: 13, color: Colors.grey),
+                                    size: 13, color: AppColors.textSubtle),
                               ],
                               if (isFlagged) ...[
                                 const SizedBox(width: 4),
                                 const Icon(Icons.flag,
-                                    size: 13, color: Colors.red),
+                                    size: 13, color: AppColors.error),
                               ],
                             ],
                           ),
@@ -608,7 +601,7 @@ class _AdminRatingsScreenState extends State<AdminRatingsScreen> {
                                   style: const TextStyle(
                                       fontSize: 11,
                                       fontStyle: FontStyle.italic,
-                                      color: Colors.black54),
+                                      color: AppColors.textSecondary),
                                 ),
                               ),
                               if (comment.isNotEmpty)
@@ -649,7 +642,7 @@ class _AdminRatingsScreenState extends State<AdminRatingsScreen> {
                                 : 'Sinalizar inapropriado',
                             icon: Icon(
                               isFlagged ? Icons.flag : Icons.flag_outlined,
-                              color: isFlagged ? Colors.red : Colors.grey,
+                              color: isFlagged ? AppColors.error : AppColors.textSubtle,
                             ),
                             onPressed: () => _toggleFlag(r),
                           ),

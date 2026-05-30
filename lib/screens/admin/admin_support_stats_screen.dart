@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '../../widgets/bora/bora_screen_app_bar.dart';
 
 class AdminSupportStatsScreen extends StatefulWidget {
   const AdminSupportStatsScreen({super.key});
@@ -78,8 +79,9 @@ class _AdminSupportStatsScreenState extends State<AdminSupportStatsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Estatísticas Suporte IA'),
+      backgroundColor: AppColors.background,
+      appBar: BoraScreenAppBar(
+        title: 'Estatísticas Suporte IA',
         actions: [
           IconButton(
             icon: const Icon(Icons.date_range),
@@ -107,7 +109,7 @@ class _AdminSupportStatsScreenState extends State<AdminSupportStatsScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline, size: 48, color: Colors.red),
+              const Icon(Icons.error_outline, size: 48, color: AppColors.error),
               const SizedBox(height: 12),
               Text('Erro: $_error', textAlign: TextAlign.center),
               const SizedBox(height: 16),
@@ -166,13 +168,13 @@ class _AdminSupportStatsScreenState extends State<AdminSupportStatsScreen> {
                 value: '$resolutionPct%',
                 subtitle: '$sessionsResolved resolvidas',
                 icon: Icons.check_circle_outline,
-                color: Colors.green,
+                color: AppColors.success,
               ),
               _StatCard(
                 title: 'Escaladas',
                 value: '$sessionsEscalated',
                 icon: Icons.flag_outlined,
-                color: Colors.orange,
+                color: AppColors.warning,
               ),
               _StatCard(
                 title: 'Custo Gemini',
@@ -341,7 +343,7 @@ class _SkillTile extends StatelessWidget {
       child: ListTile(
         leading: Icon(
           warning ? Icons.warning_amber_outlined : Icons.psychology_outlined,
-          color: warning ? Colors.orange : AppColors.primary,
+          color: warning ? AppColors.warning : AppColors.primary,
         ),
         title: Text(name, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: subtitle != null ? Text(subtitle!) : null,

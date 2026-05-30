@@ -5,6 +5,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../config/app_colors.dart';
+import '../../widgets/bora/bora_screen_app_bar.dart';
+
 class AdminSupportTicketsScreen extends StatefulWidget {
   const AdminSupportTicketsScreen({super.key});
 
@@ -106,8 +109,9 @@ class _AdminSupportTicketsScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Suporte — Tickets'),
+      backgroundColor: AppColors.background,
+      appBar: BoraScreenAppBar(
+        title: 'Suporte — Tickets',
         actions: [
           IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
         ],
@@ -164,10 +168,10 @@ class _AdminSupportTicketsScreenState
           ),
           if (_error != null)
             Container(
-              color: const Color(0xFFFFEBEE),
+              color: AppColors.error.withValues(alpha: 0.1),
               padding: const EdgeInsets.all(12),
               child: Text(_error!,
-                  style: const TextStyle(color: Color(0xFFC62828))),
+                  style: const TextStyle(color: AppColors.error)),
             ),
           Expanded(
             child: _loading
@@ -193,7 +197,7 @@ class _AdminSupportTicketsScreenState
                             ),
                             trailing: t['status'] == 'resolved'
                                 ? const Icon(Icons.check_circle,
-                                    color: Colors.green)
+                                    color: AppColors.success)
                                 : IconButton(
                                     icon: const Icon(Icons.task_alt),
                                     tooltip: 'Marcar resolvido',
@@ -228,7 +232,7 @@ class _AdminSupportTicketsScreenState
               _row('criado', t['created_at']?.toString() ?? '—'),
               if (t['resolved_at'] != null)
                 _row('resolvido', t['resolved_at'].toString()),
-              const Divider(),
+              const Divider(color: AppColors.divider),
               const Text('Pergunta/body:',
                   style: TextStyle(fontWeight: FontWeight.bold)),
               Text(t['question']?.toString() ?? '—'),

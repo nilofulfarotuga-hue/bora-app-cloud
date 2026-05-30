@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../config/app_colors.dart';
+import '../../widgets/bora/bora_screen_app_bar.dart';
+
 class AdminPromoCodesScreen extends StatefulWidget {
   const AdminPromoCodesScreen({super.key});
   @override
@@ -131,7 +134,8 @@ class _S extends State<AdminPromoCodesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Promo Codes')),
+      backgroundColor: AppColors.background,
+      appBar: const BoraScreenAppBar(title: 'Promo Codes'),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _create,
         icon: const Icon(Icons.add),
@@ -163,12 +167,13 @@ class _S extends State<AdminPromoCodesScreen> {
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
                 : _error != null
-                    ? Center(child: Text(_error!, style: const TextStyle(color: Colors.red)))
+                    ? Center(child: Text(_error!, style: const TextStyle(color: AppColors.error)))
                     : RefreshIndicator(
                         onRefresh: _load,
                         child: ListView.separated(
                           itemCount: _rows.length,
-                          separatorBuilder: (_, __) => const Divider(height: 1),
+                          separatorBuilder: (_, __) =>
+                              const Divider(height: 1, color: AppColors.divider),
                           itemBuilder: (_, i) {
                             final r = _rows[i];
                             final desc = r['type'] == 'percent_off'
@@ -183,7 +188,7 @@ class _S extends State<AdminPromoCodesScreen> {
                                   'min €${((r['min_order_cents'] as num) / 100).toStringAsFixed(2)}'),
                               trailing: r['is_active'] as bool
                                   ? IconButton(
-                                      icon: const Icon(Icons.block, color: Colors.red),
+                                      icon: const Icon(Icons.block, color: AppColors.error),
                                       onPressed: () => _deactivate(r['code']),
                                     )
                                   : const Chip(label: Text('Inativo')),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../config/app_colors.dart';
 import '../../services/admin_export_service.dart';
 
 /// T5.1 — Admin referrals: invites + stats + manual code.
@@ -130,10 +131,20 @@ class _AdminReferralsScreenState extends State<AdminReferralsScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        flexibleSpace: const DecoratedBox(
+          decoration: BoxDecoration(gradient: AppColors.headerGradient),
+        ),
         title: const Text('Referrals'),
         bottom: TabBar(
           controller: _tab,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          indicatorColor: Colors.white,
           tabs: const [
             Tab(text: 'Estatísticas'),
             Tab(text: 'Convites'),
@@ -284,13 +295,13 @@ class _AdminReferralsScreenState extends State<AdminReferralsScreen>
   Widget _statusIcon(String status) {
     switch (status) {
       case 'first_order_done':
-        return const Icon(Icons.check_circle, color: Colors.green);
+        return const Icon(Icons.check_circle, color: AppColors.success);
       case 'signed_up':
-        return const Icon(Icons.person_add, color: Colors.orange);
+        return const Icon(Icons.person_add, color: AppColors.warning);
       case 'expired':
-        return const Icon(Icons.timer_off, color: Colors.grey);
+        return const Icon(Icons.timer_off, color: AppColors.textSubtle);
       default:
-        return const Icon(Icons.schedule, color: Colors.blue);
+        return const Icon(Icons.schedule, color: AppColors.info);
     }
   }
 

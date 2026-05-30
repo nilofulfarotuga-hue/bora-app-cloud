@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '../../config/app_spacing.dart';
+import '../../widgets/bora/bora_screen_app_bar.dart';
 
 class AdminClientsScreen extends StatefulWidget {
   const AdminClientsScreen({super.key});
@@ -176,7 +178,7 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
             FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: Colors.red),
+              style: FilledButton.styleFrom(backgroundColor: AppColors.error),
               onPressed: () => Navigator.pop(ctx, true),
               child: const Text('BANIR'),
             ),
@@ -249,7 +251,7 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
     if (partners.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Sem parceiros disponíveis.'),
-          backgroundColor: Colors.orange));
+          backgroundColor: AppColors.warning));
       return;
     }
     final ok = await showDialog<bool>(
@@ -303,7 +305,7 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
                 onPressed: () => Navigator.pop(ctx, false),
                 child: const Text('Cancelar')),
             FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: Colors.orange.shade700),
+              style: FilledButton.styleFrom(backgroundColor: AppColors.warning),
               onPressed: (selectedPartnerId != null &&
                       reasonCtrl.text.trim().length >= 3)
                   ? () => Navigator.pop(ctx, true)
@@ -325,13 +327,13 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text(
                 'Cliente bloqueado de ${selectedPartnerName ?? selectedPartnerId}.'),
-            backgroundColor: Colors.orange.shade700));
+            backgroundColor: AppColors.warning));
         _load();
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red));
+            SnackBar(content: Text('Erro: $e'), backgroundColor: AppColors.error));
       }
     }
   }
@@ -354,7 +356,7 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red));
+            SnackBar(content: Text('Erro: $e'), backgroundColor: AppColors.error));
       }
       return;
     }
@@ -445,13 +447,13 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text('Desbloqueado.'),
-            backgroundColor: Colors.green));
+            backgroundColor: AppColors.success));
         _load();
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red));
+            SnackBar(content: Text('Erro: $e'), backgroundColor: AppColors.error));
       }
     }
   }
@@ -504,9 +506,9 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Clientes'),
-        backgroundColor: AppColors.primary,
+      backgroundColor: AppColors.background,
+      appBar: BoraScreenAppBar(
+        title: 'Clientes',
         actions: [
           IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
         ],
@@ -543,14 +545,14 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
           if (_error != null)
             Container(
               width: double.infinity,
-              color: Colors.red.shade50,
+              color: AppColors.error.withValues(alpha: 0.1),
               padding: const EdgeInsets.all(12),
               child: Row(
                 children: [
-                  const Icon(Icons.error_outline, color: Colors.red),
+                  const Icon(Icons.error_outline, color: AppColors.error),
                   const SizedBox(width: 8),
                   Expanded(child: Text('Erro: $_error',
-                      style: const TextStyle(color: Colors.red))),
+                      style: const TextStyle(color: AppColors.error))),
                 ],
               ),
             ),
@@ -571,6 +573,9 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
                           final blockCount = _blocksByClient[userId] ?? 0;
                           return Card(
                             margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(Radii.lg),
+                            ),
                             child: ListTile(
                               leading: _ClientAvatar(
                                 photoUrl: c['photo_url']?.toString(),
@@ -586,7 +591,7 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
                                       padding: const EdgeInsets.symmetric(
                                           horizontal: 6, vertical: 2),
                                       decoration: BoxDecoration(
-                                        color: Colors.red.shade700,
+                                        color: AppColors.error,
                                         borderRadius: BorderRadius.circular(4),
                                       ),
                                       child: const Text(
@@ -605,7 +610,7 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
                                       padding: const EdgeInsets.symmetric(
                                           horizontal: 6, vertical: 2),
                                       decoration: BoxDecoration(
-                                        color: Colors.orange.shade700,
+                                        color: AppColors.warning,
                                         borderRadius: BorderRadius.circular(4),
                                       ),
                                       child: Text(
@@ -675,12 +680,12 @@ class _ClientAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasPhoto = photoUrl != null && photoUrl!.trim().isNotEmpty;
-    final bg = banned ? Colors.red : AppColors.primary;
+    final bg = banned ? AppColors.error : AppColors.primary;
     return Container(
       decoration: banned
           ? BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(color: Colors.red, width: 2),
+              border: Border.all(color: AppColors.error, width: 2),
             )
           : null,
       child: CircleAvatar(

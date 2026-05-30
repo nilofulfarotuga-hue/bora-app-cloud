@@ -918,7 +918,13 @@ class _AdminSkillSuggestionsScreenState
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: hasSelection ? _boraOrange : _boraGreen,
+        backgroundColor: hasSelection ? _boraOrange : Colors.transparent,
+        elevation: 0,
+        flexibleSpace: hasSelection
+            ? null
+            : const DecoratedBox(
+                decoration: BoxDecoration(gradient: AppColors.headerGradient),
+              ),
         foregroundColor: Colors.white,
         leading: hasSelection
             ? IconButton(

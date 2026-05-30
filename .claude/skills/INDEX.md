@@ -51,7 +51,7 @@
 | **reservation-ops** | operacoes | Listar reservas + marcar chegada via RPC partner_mark_arrival (€2 interno). no_show = guidance. Dry-run. |
 | **skills-doctor** | meta | Valida todas as skills (frontmatter, name==pasta, depends_on, py_compile, README/req, dry-run). Read-only [OK]/[!]/[X]; exit=nº erros. |
 | **update-bora-knowledge** | meta | Deteta drift knowledge vs repo (Edge Fns vs 08; pastas vs INDEX). Read-only: propõe em _preview/, NUNCA edita docs (Knowledge Protocol). |
-| **generate-skills-index-readme** | meta | Gera SKILLS_README.md tabular do frontmatter. Dry-run → _preview/; --write grava. NÃO toca no INDEX.md curado. |
+| **generate-skills-readme** | meta | Gera README.md mestre agrupado por categoria, do frontmatter+corpo. Dry-run → _preview/; --write grava README.md. NÃO toca no INDEX.md curado. |
 
 ## Notas
 - **Onboarders** (`onboard-partner-*`) dependem de `bora-knowledge` e chamam as Edge Fns
@@ -89,14 +89,16 @@
   RPCs `admin_*_promo_code`, `partner_mark_arrival`). **refund-assistant é SHADOW** (só propõe,
   nunca executa — regra 5B). dry-run default; broadcast exige `--commit --confirm`. **Admin UI**
   p/ promos e broadcast = pendência clara.
-- **Consolidação S4-F** (`skills-doctor`, `update-bora-knowledge`, `generate-skills-index-readme`):
+- **Consolidação S4-F** (`skills-doctor`, `update-bora-knowledge`, `generate-skills-readme`):
   meta-skills read-only/preview, **stdlib-only**, todas reusam o `_shared.py` de `skills-doctor`
   (parser de frontmatter + descoberta de skills). `skills-doctor` valida tudo (exit code = nº de
-  erros); `update-bora-knowledge` **nunca** edita a knowledge — propõe em `_preview/` (Knowledge
-  Protocol); `generate-skills-index-readme` gera `SKILLS_README.md` sem tocar no `INDEX.md` curado.
-  **Achados S4-F a resolver (precisam aprovação — não auto-corrigidos):** (1) `prompt-blindado-validator`
-  sem frontmatter YAML (começa com `# SKILL:`) → `skills-doctor` marca `[X]`; (2) ~11 skills antigas
-  com avisos (sem README/`type`/`depends_on`); (3) Edge Fns: `confirm-mbway-payment` não documentada
-  em 08, e `execute-broadcast`/`admin-cancel-reservation`/`robot-b`/`gemini-diagnostic`/`restaurant-assets`/
-  `upload-driver-document`/`upload-order-photo` citadas no doc sem pasta (confirmar remota/renomeada/planeada).
+  erros); `update-bora-knowledge` **nunca** edita docs curados — `detect_drift` propõe em `_preview/`
+  e `apply_updates` (MODO A) só escreve o ficheiro auto-gerido `00-auto-facts.md` (Knowledge Protocol);
+  `generate-skills-readme` gera `README.md` mestre sem tocar no `INDEX.md` curado.
+  **Estado S4-F:** `skills-doctor` corre limpo — **0 `[X]`**, 34 `[OK]`, 11 `[!]` (skills antigas
+  sem README/`type`/`depends_on` — avisos aceitáveis, não bloqueiam). Corrigido: `prompt-blindado-validator`
+  ganhou frontmatter YAML + README (era o único `[X]`). **Pendência (precisa aprovação):** Edge Fns —
+  `confirm-mbway-payment` não documentada em 08, e `execute-broadcast`/`admin-cancel-reservation`/`robot-b`/
+  `gemini-diagnostic`/`restaurant-assets`/`upload-driver-document`/`upload-order-photo` citadas no doc sem
+  pasta (confirmar remota/renomeada/planeada — não auto-editado por ser doc curado).
 - Logs de auditoria de sessões antigas movidos para `sistema/` (não são skills).

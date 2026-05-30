@@ -1,7 +1,7 @@
 # Índice de Skills — Bora App
 
 > Skills versionadas vivem em `bora_app/.claude/skills/` (este diretório).
-> Branch: `autonomous-night-2026-04-29`. Atualizado: 2026-05-29 (S4-E). **42 skills.**
+> Branch: `autonomous-night-2026-04-29`. Atualizado: 2026-05-30 (S4-F). **45 skills.**
 > Convenção: invocar via Skill quando o trigger corresponder; **ler `bora-knowledge`
 > antes de qualquer ação** (foundation).
 
@@ -49,6 +49,9 @@
 | **manage-promo-codes** | operacoes | Criar/listar/desativar promos via RPCs admin (promo_codes). Dry-run; --commit chama RPC. Avisa margem. |
 | **refund-assistant** | financeiro | SHADOW: propõe refund (fee escalão + split 80/20) + audit; NUNCA executa (Stripe intocado). |
 | **reservation-ops** | operacoes | Listar reservas + marcar chegada via RPC partner_mark_arrival (€2 interno). no_show = guidance. Dry-run. |
+| **skills-doctor** | meta | Valida todas as skills (frontmatter, name==pasta, depends_on, py_compile, README/req, dry-run). Read-only [OK]/[!]/[X]; exit=nº erros. |
+| **update-bora-knowledge** | meta | Deteta drift knowledge vs repo (Edge Fns vs 08; pastas vs INDEX). Read-only: propõe em _preview/, NUNCA edita docs (Knowledge Protocol). |
+| **generate-skills-index-readme** | meta | Gera SKILLS_README.md tabular do frontmatter. Dry-run → _preview/; --write grava. NÃO toca no INDEX.md curado. |
 
 ## Notas
 - **Onboarders** (`onboard-partner-*`) dependem de `bora-knowledge` e chamam as Edge Fns
@@ -86,4 +89,14 @@
   RPCs `admin_*_promo_code`, `partner_mark_arrival`). **refund-assistant é SHADOW** (só propõe,
   nunca executa — regra 5B). dry-run default; broadcast exige `--commit --confirm`. **Admin UI**
   p/ promos e broadcast = pendência clara.
+- **Consolidação S4-F** (`skills-doctor`, `update-bora-knowledge`, `generate-skills-index-readme`):
+  meta-skills read-only/preview, **stdlib-only**, todas reusam o `_shared.py` de `skills-doctor`
+  (parser de frontmatter + descoberta de skills). `skills-doctor` valida tudo (exit code = nº de
+  erros); `update-bora-knowledge` **nunca** edita a knowledge — propõe em `_preview/` (Knowledge
+  Protocol); `generate-skills-index-readme` gera `SKILLS_README.md` sem tocar no `INDEX.md` curado.
+  **Achados S4-F a resolver (precisam aprovação — não auto-corrigidos):** (1) `prompt-blindado-validator`
+  sem frontmatter YAML (começa com `# SKILL:`) → `skills-doctor` marca `[X]`; (2) ~11 skills antigas
+  com avisos (sem README/`type`/`depends_on`); (3) Edge Fns: `confirm-mbway-payment` não documentada
+  em 08, e `execute-broadcast`/`admin-cancel-reservation`/`robot-b`/`gemini-diagnostic`/`restaurant-assets`/
+  `upload-driver-document`/`upload-order-photo` citadas no doc sem pasta (confirmar remota/renomeada/planeada).
 - Logs de auditoria de sessões antigas movidos para `sistema/` (não são skills).

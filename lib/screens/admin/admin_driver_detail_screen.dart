@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '../../config/app_spacing.dart';
 import '../../services/admin/admin_driver_service.dart';
 import '../../widgets/private_bucket_image.dart';
 
@@ -153,8 +154,17 @@ class _AdminDriverDetailScreenState extends State<AdminDriverDetailScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text(_driver?['name'] as String? ?? 'Entregador'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        foregroundColor: Colors.white,
+        iconTheme: const IconThemeData(color: Colors.white),
+        flexibleSpace: const DecoratedBox(
+          decoration: BoxDecoration(gradient: AppColors.headerGradient),
+        ),
+        title: Text(_driver?['name'] as String? ?? 'Entregador',
+            style: const TextStyle(color: Colors.white)),
         actions: [
           IconButton(icon: const Icon(Icons.refresh), onPressed: _refresh),
         ],
@@ -451,7 +461,12 @@ class _Header extends StatelessWidget {
     _AdminDriverDetailScreenContext.set(context);
     final photo = driver['photo_url'] as String?;
     final isOnline = driver['is_online'] == true;
-    return Card(
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(Radii.lg),
+        boxShadow: AppColors.shadowCard,
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -504,7 +519,7 @@ class _StatusBadge extends StatelessWidget {
       'active'    => ('Activo', AppColors.success),
       'suspended' => ('Suspenso', AppColors.warning),
       'banned'    => ('Banido', AppColors.error),
-      'deleted'   => ('Removido', Colors.black54),
+      'deleted'   => ('Removido', AppColors.textSecondary),
       'pending'   => ('Pendente', AppColors.info),
       'rejected'  => ('Rejeitado', AppColors.error),
       _           => (status, AppColors.textSecondary),
@@ -566,7 +581,12 @@ class _InfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(Radii.lg),
+        boxShadow: AppColors.shadowCard,
+      ),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(children: [
@@ -631,7 +651,12 @@ class _DocumentsCard extends StatelessWidget {
         (vehiclePhoto != null && vehiclePhoto.isNotEmpty);
     if (!hasAny) return const SizedBox.shrink();
 
-    return Card(
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(Radii.lg),
+        boxShadow: AppColors.shadowCard,
+      ),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -752,7 +777,12 @@ class _PerformanceCard extends StatelessWidget {
     final heartbeat =
         heartbeatRaw == null ? null : DateTime.tryParse(heartbeatRaw);
 
-    return Card(
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(Radii.lg),
+        boxShadow: AppColors.shadowCard,
+      ),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -832,8 +862,12 @@ class _StatusDetailsCard extends StatelessWidget {
 
     if (!isRejected && !isBanned) return const SizedBox.shrink();
 
-    return Card(
-      color: AppColors.error.withValues(alpha: 0.04),
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.error.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(Radii.lg),
+        boxShadow: AppColors.shadowCard,
+      ),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -917,10 +951,10 @@ class _ActionButton extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: ListTile(
-        leading: Icon(icon, color: enabled ? (color ?? AppColors.primary) : Colors.black26),
+        leading: Icon(icon, color: enabled ? (color ?? AppColors.primary) : AppColors.textSubtle),
         title: Text(label,
             style: TextStyle(
-                color: enabled ? AppColors.textPrimary : Colors.black38,
+                color: enabled ? AppColors.textPrimary : AppColors.textSubtle,
                 fontWeight: FontWeight.w600)),
         onTap: enabled ? onTap : null,
         shape: RoundedRectangleBorder(
@@ -1377,7 +1411,7 @@ class _OrdersTabState extends State<_OrdersTab> {
           child: ListView.separated(
             padding: const EdgeInsets.all(12),
             itemCount: orders.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
+            separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.divider),
             itemBuilder: (_, i) {
               final o = orders[i];
               final at = DateTime.tryParse((o['created_at'] as String?) ?? '');
@@ -1437,8 +1471,12 @@ class _TransactionsTabState extends State<_TransactionsTab> {
           child: ListView(
             padding: const EdgeInsets.all(12),
             children: [
-              Card(
-                color: AppColors.info.withValues(alpha: 0.05),
+              Container(
+                decoration: BoxDecoration(
+                  color: AppColors.info.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(Radii.lg),
+                  boxShadow: AppColors.shadowCard,
+                ),
                 child: Padding(
                   padding: const EdgeInsets.all(12),
                   child: Row(children: [
@@ -1459,7 +1497,13 @@ class _TransactionsTabState extends State<_TransactionsTab> {
                 ...txs.map((t) {
                   final at = DateTime.tryParse((t['created_at'] as String?) ?? '');
                   final amount = ((t['amount'] as num?) ?? 0).toDouble();
-                  return Card(
+                  return Container(
+                    margin: const EdgeInsets.symmetric(vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.card,
+                      borderRadius: BorderRadius.circular(Radii.lg),
+                      boxShadow: AppColors.shadowCard,
+                    ),
                     child: ListTile(
                       title: Text('€${amount.toStringAsFixed(2)} · ${t['type']}'),
                       subtitle: Text('${t['status']}'
@@ -1518,7 +1562,7 @@ class _AuditTabState extends State<_AuditTab> {
           child: ListView.separated(
             padding: const EdgeInsets.all(12),
             itemCount: entries.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
+            separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.divider),
             itemBuilder: (_, i) {
               final e = entries[i];
               final at = DateTime.tryParse((e['created_at'] as String?) ?? '');

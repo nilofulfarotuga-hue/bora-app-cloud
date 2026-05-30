@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '../../config/app_spacing.dart';
 import 'admin_driver_detail_screen.dart';
 
 class AdminDriversScreen extends StatefulWidget {
@@ -89,13 +90,13 @@ class _AdminDriversScreenState extends State<AdminDriversScreen>
   Color _statusColor(String status) {
     switch (status) {
       case 'approved':
-        return AppColors.primary;
+        return AppColors.success;
       case 'pending':
-        return Colors.orange;
+        return AppColors.warning;
       case 'rejected':
-        return Colors.red;
+        return AppColors.error;
       default:
-        return Colors.grey;
+        return AppColors.textSubtle;
     }
   }
 
@@ -150,6 +151,9 @@ class _AdminDriversScreenState extends State<AdminDriversScreen>
           final rating = (d['rating'] as num?)?.toDouble();
           final totalDeliveries = (d['total_deliveries'] as num?)?.toInt();
           return Card(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(Radii.lg),
+            ),
             child: ListTile(
               onTap: () => _openDetail(d),
               leading: Stack(
@@ -298,16 +302,24 @@ class _AdminDriversScreenState extends State<AdminDriversScreen>
     final allFiltered = _filtered(onlyOnline: false);
     final onlineFiltered = _filtered(onlyOnline: true);
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        foregroundColor: Colors.white,
+        iconTheme: const IconThemeData(color: Colors.white),
+        flexibleSpace: const DecoratedBox(
+          decoration: BoxDecoration(gradient: AppColors.headerGradient),
+        ),
         title: const Text('Gestão de Entregadores'),
         actions: [
           IconButton(icon: const Icon(Icons.refresh), onPressed: _load)
         ],
         bottom: TabBar(
           controller: _tab,
-          labelColor: AppColors.primary,
-          unselectedLabelColor: Colors.black54,
-          indicatorColor: AppColors.primary,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white60,
+          indicatorColor: Colors.white,
           tabs: [
             Tab(text: 'Todos (${allFiltered.length})'),
             Tab(text: 'Online (${onlineFiltered.length})'),

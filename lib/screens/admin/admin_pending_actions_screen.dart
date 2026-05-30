@@ -12,6 +12,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '../../config/app_spacing.dart';
+import '../../widgets/bora/bora_screen_app_bar.dart';
 
 class AdminPendingActionsScreen extends StatefulWidget {
   const AdminPendingActionsScreen({super.key});
@@ -429,15 +431,13 @@ class _AdminPendingActionsScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: _boraGreen,
-        foregroundColor: Colors.white,
-        title: Row(
-          children: [
-            const Text('Propostas IA'),
-            if (_pendingBadgeCount > 0) ...[
-              const SizedBox(width: 8),
-              Container(
+      backgroundColor: AppColors.background,
+      appBar: BoraScreenAppBar(
+        title: 'Propostas IA',
+        actions: [
+          if (_pendingBadgeCount > 0)
+            Center(
+              child: Container(
                 padding: const EdgeInsets.symmetric(
                     horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
@@ -447,13 +447,12 @@ class _AdminPendingActionsScreenState
                 child: Text(
                   '$_pendingBadgeCount',
                   style: const TextStyle(
-                      fontWeight: FontWeight.bold, fontSize: 13),
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13),
                 ),
               ),
-            ],
-          ],
-        ),
-        actions: [
+            ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.filter_list),
             tooltip: 'Filtrar status',
@@ -546,8 +545,13 @@ class _AdminPendingActionsScreenState
     final result = a['execution_result'];
     final rejectionReason = a['rejection_reason'] as String?;
 
-    return Card(
+    return Container(
       margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(Radii.lg),
+        boxShadow: AppColors.shadowCard,
+      ),
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(

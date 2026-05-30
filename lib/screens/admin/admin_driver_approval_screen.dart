@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../config/app_colors.dart';
+import '../../config/app_spacing.dart';
 import '../../widgets/private_bucket_image.dart';
 import '_admin_rpc_errors.dart';
 import 'admin_driver_detail_screen.dart';
@@ -100,7 +101,7 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
         title: 'Aprovar entregador?',
         body: 'Vais aprovar ${driver['name'] ?? 'este estafeta'}.',
         confirmLabel: 'Aprovar',
-        confirmColor: AppColors.primary,
+        confirmColor: AppColors.success,
       );
       if (ok != true) return;
     } else {
@@ -130,14 +131,14 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
             ? 'Entregador aprovado (override admin).'
             : 'Entregador aprovado.'),
         backgroundColor:
-            wasForced ? Colors.orange.shade700 : AppColors.primary,
+            wasForced ? AppColors.warning : AppColors.success,
       ));
       await _load();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(humanizeAdminRpcError(e)),
-        backgroundColor: Colors.red,
+        backgroundColor: AppColors.error,
         duration: const Duration(seconds: 5),
       ));
     }
@@ -228,7 +229,7 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
                               left: 8, top: 2, bottom: 2),
                           child: Text(
                             '• $m',
-                            style: const TextStyle(color: Colors.red),
+                            style: const TextStyle(color: AppColors.error),
                           ),
                         )),
                     const SizedBox(height: 12),
@@ -264,7 +265,7 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
               ),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange.shade800),
+                    backgroundColor: AppColors.warning),
                 onPressed: (acknowledged && justOk)
                     ? () => Navigator.pop(ctx, controller.text.trim())
                     : null,
@@ -304,7 +305,8 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
                 child: const Text('Cancelar'),
               ),
               ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                style:
+                    ElevatedButton.styleFrom(backgroundColor: AppColors.error),
                 onPressed: ok
                     ? () => Navigator.pop(ctx, controller.text.trim())
                     : null,
@@ -325,14 +327,14 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('Candidatura rejeitada.'),
-        backgroundColor: Colors.red,
+        backgroundColor: AppColors.error,
       ));
       await _load();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(humanizeAdminRpcError(e)),
-        backgroundColor: Colors.red,
+        backgroundColor: AppColors.error,
         duration: const Duration(seconds: 5),
       ));
     }
@@ -369,7 +371,7 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text('$approved aprovados, $skipped ignorados (docs incompletos)'),
-      backgroundColor: AppColors.primary,
+      backgroundColor: AppColors.success,
     ));
     await _load();
     setState(() => _selectedIds.clear());
@@ -399,7 +401,8 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
                 child: const Text('Cancelar'),
               ),
               ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                style:
+                    ElevatedButton.styleFrom(backgroundColor: AppColors.error),
                 onPressed: ok ? () => Navigator.pop(ctx, controller.text.trim()) : null,
                 child: const Text('Rejeitar todos'),
               ),
@@ -425,7 +428,7 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text('$rejected rejeitados'),
-      backgroundColor: Colors.red,
+      backgroundColor: AppColors.error,
     ));
     await _load();
     setState(() => _selectedIds.clear());
@@ -452,7 +455,15 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        foregroundColor: Colors.white,
+        iconTheme: const IconThemeData(color: Colors.white),
+        flexibleSpace: const DecoratedBox(
+          decoration: BoxDecoration(gradient: AppColors.headerGradient),
+        ),
         leading: _isMultiSelectMode
             ? IconButton(
                 icon: const Icon(Icons.close),
@@ -495,7 +506,7 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
       ),
       floatingActionButton: _isMultiSelectMode
           ? FloatingActionButton.extended(
-              backgroundColor: AppColors.primary,
+              backgroundColor: AppColors.success,
               onPressed: _bulkApprove,
               icon: const Icon(Icons.check_circle),
               label: Text('Aprovar (${_selectedIds.length})'),
@@ -535,12 +546,12 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
                       children: [
                         IconButton(
                           icon: const Icon(Icons.check_circle,
-                              color: AppColors.primary),
+                              color: AppColors.success),
                           tooltip: 'Aprovar',
                           onPressed: () => _approve(d['id'] as String),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.cancel, color: Colors.red),
+                          icon: const Icon(Icons.cancel, color: AppColors.error),
                           tooltip: 'Rejeitar',
                           onPressed: () => _reject(d['id'] as String),
                         ),
@@ -610,15 +621,15 @@ class _DriverList extends StatelessWidget {
         final id = d['id'] as String? ?? '';
         final isSelected = selectedIds?.contains(id) ?? false;
         return Card(
-          color: isSelected ? const Color(0xFFE8F5E9) : null,
-          shape: isSelected
-              ? RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  side: const BorderSide(color: AppColors.primary, width: 2),
-                )
-              : null,
+          color: isSelected ? AppColors.primaryWash : null,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(Radii.lg),
+            side: isSelected
+                ? const BorderSide(color: AppColors.primary, width: 2)
+                : BorderSide.none,
+          ),
           child: InkWell(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(Radii.lg),
             onTap: () => onTap(d),
             onLongPress: onLongPress != null ? () => onLongPress!(d) : null,
             child: Padding(

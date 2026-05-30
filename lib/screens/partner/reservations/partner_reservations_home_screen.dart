@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../../config/app_theme.dart';
+import '../../../config/app_colors.dart';
+import '../../../widgets/bora/bora_screen_app_bar.dart';
 import 'partner_client_profiles_screen.dart';
 import 'partner_floor_plan_editor_screen.dart';
 import 'partner_pacing_rules_screen.dart';
@@ -26,14 +27,13 @@ class PartnerReservationsHomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Reservas Pro'),
-      ),
+      backgroundColor: AppColors.background,
+      appBar: const BoraScreenAppBar(title: 'Reservas Pro'),
       body: ListView(
         children: [
           Container(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-            color: AppTheme.surface,
+            color: AppColors.surface,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -42,13 +42,13 @@ class PartnerReservationsHomeScreen extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
-                    color: AppTheme.textPrimary,
+                    color: AppColors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 4),
                 const Text(
                   'Gestão de reservas, mesas e clientes.',
-                  style: TextStyle(color: AppTheme.textSecondary),
+                  style: TextStyle(color: AppColors.textSecondary),
                 ),
               ],
             ),
@@ -137,14 +137,14 @@ class _Tile extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       leading: CircleAvatar(
-        backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
-        child: Icon(icon, color: AppTheme.primary),
+        backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+        child: Icon(icon, color: AppColors.primary),
       ),
       title: Text(
         title,
         style: const TextStyle(
           fontWeight: FontWeight.w700,
-          color: AppTheme.textPrimary,
+          color: AppColors.textPrimary,
         ),
       ),
       subtitle: Text(subtitle),

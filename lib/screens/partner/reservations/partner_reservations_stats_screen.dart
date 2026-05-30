@@ -2,8 +2,9 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../config/app_theme.dart';
+import '../../../config/app_colors.dart';
 import '../../../stores/partner_reservas_store.dart';
+import '../../../widgets/bora/bora_screen_app_bar.dart';
 
 /// Reservas PRO F4 — analytics partner.
 ///
@@ -48,7 +49,8 @@ class _PartnerReservationsStatsScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Estatísticas')),
+      backgroundColor: AppColors.background,
+      appBar: const BoraScreenAppBar(title: 'Estatísticas'),
       body: Column(
         children: [
           Padding(
@@ -138,9 +140,9 @@ class _PartnerReservationsStatsScreenState
 
     Color noShowColor;
     if (noShowRate < 5) {
-      noShowColor = AppTheme.primary;
+      noShowColor = AppColors.primary;
     } else if (noShowRate < 10) {
-      noShowColor = AppTheme.secondary;
+      noShowColor = AppColors.accent;
     } else {
       noShowColor = Colors.red;
     }
@@ -155,19 +157,19 @@ class _PartnerReservationsStatsScreenState
         childAspectRatio: 1.6,
         children: [
           _kpiCard('Total reservas', '$total', Icons.event_note,
-              AppTheme.primary),
+              AppColors.primary),
           _kpiCard('Cobertos servidos', '$totalCovers',
-              Icons.restaurant, AppTheme.primary),
+              Icons.restaurant, AppColors.primary),
           _kpiCard('Aprovação',
               '${approvalRate.toStringAsFixed(0)}%', Icons.check_circle,
-              AppTheme.primary),
+              AppColors.primary),
           _kpiCard('No-shows',
               '${noShowRate.toStringAsFixed(1)}%',
               Icons.person_off, noShowColor),
           _kpiCard('Walk-ins', '$walkIns', Icons.directions_walk,
-              AppTheme.secondary),
+              AppColors.accent),
           _kpiCard('Sentados', '$seated', Icons.event_seat,
-              AppTheme.primary),
+              AppColors.primary),
         ],
       ),
       const SizedBox(height: 24),
@@ -176,7 +178,7 @@ class _PartnerReservationsStatsScreenState
         style: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w800,
-          color: AppTheme.textPrimary,
+          color: AppColors.textPrimary,
         ),
       ),
       const SizedBox(height: 12),
@@ -186,7 +188,7 @@ class _PartnerReservationsStatsScreenState
           child: Center(
             child: Text(
               'Sem dados no período seleccionado.',
-              style: TextStyle(color: AppTheme.textSecondary),
+              style: TextStyle(color: AppColors.textSecondary),
             ),
           ),
         )
@@ -224,7 +226,7 @@ class _PartnerReservationsStatsScreenState
               label,
               style: const TextStyle(
                 fontSize: 12,
-                color: AppTheme.textSecondary,
+                color: AppColors.textSecondary,
               ),
             ),
           ],
@@ -238,10 +240,10 @@ class _PartnerReservationsStatsScreenState
     final values = <int>[approved, rejected, noShows, walkIns];
     final labels = <String>['Aprov', 'Rejeit', 'No-show', 'Walk-in'];
     final colors = <Color>[
-      AppTheme.primary,
+      AppColors.primary,
       Colors.red,
       Colors.orange,
-      AppTheme.secondary,
+      AppColors.accent,
     ];
     final maxY = (values.fold<int>(0, (a, b) => a > b ? a : b)).toDouble();
     return BarChartData(
@@ -298,10 +300,10 @@ class _PartnerReservationsStatsScreenState
       spacing: 12,
       runSpacing: 8,
       children: [
-        _LegendDot(color: AppTheme.primary, label: 'Aprovadas'),
+        _LegendDot(color: AppColors.primary, label: 'Aprovadas'),
         _LegendDot(color: Colors.red, label: 'Rejeitadas'),
         _LegendDot(color: Colors.orange, label: 'No-shows'),
-        _LegendDot(color: AppTheme.secondary, label: 'Walk-ins'),
+        _LegendDot(color: AppColors.accent, label: 'Walk-ins'),
       ],
     );
   }

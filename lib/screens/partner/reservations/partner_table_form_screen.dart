@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../config/app_theme.dart';
+import '../../../config/app_colors.dart';
 import '../../../models/restaurant_table.dart';
+import '../../../widgets/bora/bora_screen_app_bar.dart';
 import '../../../stores/partner_reservas_store.dart';
 
 /// Reservas PRO F4 — form add/edit mesa.
@@ -109,7 +110,7 @@ class _PartnerTableFormScreenState extends State<PartnerTableFormScreen> {
       messenger.showSnackBar(
         SnackBar(
           content: Text(widget.isEdit ? 'Mesa actualizada.' : 'Mesa criada.'),
-          backgroundColor: AppTheme.primary,
+          backgroundColor: AppColors.primary,
         ),
       );
       navigator.pop(true);
@@ -127,8 +128,9 @@ class _PartnerTableFormScreenState extends State<PartnerTableFormScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.isEdit ? 'Editar mesa' : 'Adicionar mesa'),
+      backgroundColor: AppColors.background,
+      appBar: BoraScreenAppBar(
+        title: widget.isEdit ? 'Editar mesa' : 'Adicionar mesa',
       ),
       body: SafeArea(
         child: Column(
@@ -160,7 +162,7 @@ class _PartnerTableFormScreenState extends State<PartnerTableFormScreen> {
                                 'Capacidade',
                                 style: TextStyle(
                                   fontWeight: FontWeight.w700,
-                                  color: AppTheme.textPrimary,
+                                  color: AppColors.textPrimary,
                                 ),
                               ),
                             ),
@@ -249,7 +251,7 @@ class _PartnerTableFormScreenState extends State<PartnerTableFormScreen> {
                 child: FilledButton.icon(
                   onPressed: _submitting ? null : _onSubmit,
                   style: FilledButton.styleFrom(
-                    backgroundColor: AppTheme.primary,
+                    backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),

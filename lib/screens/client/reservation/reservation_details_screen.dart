@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../../config/app_theme.dart';
+import '../../../config/app_colors.dart';
 import '../../../models/reservation_model.dart';
 import '../../../stores/reservation_store.dart';
+import '../../../widgets/bora/bora_screen_app_bar.dart';
 import 'reservation_checkout_screen.dart' show kOccasionOptions;
 
 /// Reservas PRO F3.B — detalhes completos de uma reserva.
@@ -116,7 +117,8 @@ class _ReservationDetailsScreenState extends State<ReservationDetailsScreen> {
     // valor; o getter _r faz o lookup com listen:false.
     context.watch<ReservationStore>();
     return Scaffold(
-      appBar: AppBar(title: const Text('Detalhes da reserva')),
+      backgroundColor: AppColors.background,
+      appBar: const BoraScreenAppBar(title: 'Detalhes da reserva'),
       body: SafeArea(
         child: Column(
           children: [
@@ -175,7 +177,7 @@ class _ReservationDetailsScreenState extends State<ReservationDetailsScreen> {
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
-                      color: AppTheme.textPrimary,
+                      color: AppColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -190,11 +192,11 @@ class _ReservationDetailsScreenState extends State<ReservationDetailsScreen> {
   }
 
   Widget _photoFallback() => Container(
-        color: AppTheme.surface,
+        color: AppColors.surface,
         alignment: Alignment.center,
         child: const Icon(
           Icons.restaurant_outlined,
-          color: AppTheme.primary,
+          color: AppColors.primary,
           size: 28,
         ),
       );
@@ -220,19 +222,19 @@ class _ReservationDetailsScreenState extends State<ReservationDetailsScreen> {
 
   (String, Color) _resolveStatus() {
     final r = _r;
-    if (r.isFinished) return ('Concluída', AppTheme.primary);
+    if (r.isFinished) return ('Concluída', AppColors.primary);
     if (r.isNoShow) return ('Não compareceu', Colors.red);
-    if (r.isArrived) return ('Chegou', AppTheme.primary);
+    if (r.isArrived) return ('Chegou', AppColors.primary);
     if (r.status == ReservationStatus.seated) {
-      return ('Sentado', AppTheme.primary);
+      return ('Sentado', AppColors.primary);
     }
-    if (r.isApproved) return ('Confirmada', AppTheme.primary);
+    if (r.isApproved) return ('Confirmada', AppColors.primary);
     if (r.isPending) {
       return (
         r.status == ReservationStatus.pendingPayment
             ? 'Aguarda pagamento'
             : 'Pendente',
-        AppTheme.secondary,
+        AppColors.accent,
       );
     }
     if (r.isCancelled) return (_labelForStatus(r.status), Colors.grey);
@@ -276,13 +278,13 @@ class _ReservationDetailsScreenState extends State<ReservationDetailsScreen> {
               style: const TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimary,
+                color: AppColors.textPrimary,
               ),
             ),
             const SizedBox(height: 4),
             Text(
               _r.people == 1 ? '1 pessoa' : '${_r.people} pessoas',
-              style: const TextStyle(color: AppTheme.textSecondary),
+              style: const TextStyle(color: AppColors.textSecondary),
             ),
           ],
         ),
@@ -328,17 +330,17 @@ class _ReservationDetailsScreenState extends State<ReservationDetailsScreen> {
     final eur = (_r.prepaymentCents / 100).toStringAsFixed(2);
     final status = _r.status;
     String label;
-    Color color = AppTheme.textSecondary;
+    Color color = AppColors.textSecondary;
     if (_r.isPending) {
       label = 'A processar';
-      color = AppTheme.secondary;
+      color = AppColors.accent;
     } else if (_r.isApproved || _r.isArrived || _r.isFinished) {
       label = 'Confirmado';
-      color = AppTheme.primary;
+      color = AppColors.primary;
     } else if (status == ReservationStatus.cancelledRefunded ||
         status == ReservationStatus.rejectedRefunded) {
       label = 'Reembolsado';
-      color = AppTheme.primary;
+      color = AppColors.primary;
     } else if (status == ReservationStatus.cancelledNoRefund || _r.isNoShow) {
       label = 'Não reembolsado';
       color = Colors.red;
@@ -365,7 +367,7 @@ class _ReservationDetailsScreenState extends State<ReservationDetailsScreen> {
                   '€$eur pré-pagamento',
                   style: const TextStyle(
                     fontWeight: FontWeight.w600,
-                    color: AppTheme.textPrimary,
+                    color: AppColors.textPrimary,
                   ),
                 ),
                 Text(
@@ -452,7 +454,7 @@ class _ReservationDetailsScreenState extends State<ReservationDetailsScreen> {
             child: FilledButton.icon(
               onPressed: _arriving ? null : _markArrived,
               style: FilledButton.styleFrom(
-                backgroundColor: AppTheme.primary,
+                backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 12),
               ),
@@ -557,13 +559,13 @@ class _SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 18, color: AppTheme.primary),
+        Icon(icon, size: 18, color: AppColors.primary),
         const SizedBox(width: 6),
         Text(
           text,
           style: const TextStyle(
             fontWeight: FontWeight.w700,
-            color: AppTheme.textPrimary,
+            color: AppColors.textPrimary,
           ),
         ),
       ],
@@ -587,14 +589,14 @@ class _DetailRow extends StatelessWidget {
             label,
             style: const TextStyle(
               fontSize: 12,
-              color: AppTheme.textSecondary,
+              color: AppColors.textSecondary,
               fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 2),
           Text(
             value,
-            style: const TextStyle(color: AppTheme.textPrimary),
+            style: const TextStyle(color: AppColors.textPrimary),
           ),
         ],
       ),

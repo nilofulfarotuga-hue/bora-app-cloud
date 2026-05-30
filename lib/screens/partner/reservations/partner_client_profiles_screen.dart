@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../config/app_theme.dart';
+import '../../../config/app_colors.dart';
 import '../../../models/client_restaurant_profile.dart';
 import '../../../stores/partner_reservas_store.dart';
 
@@ -104,11 +104,25 @@ class _PartnerClientProfilesScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Clientes'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+        actionsIconTheme: const IconThemeData(color: Colors.white),
+        flexibleSpace: const DecoratedBox(
+          decoration: BoxDecoration(gradient: AppColors.headerGradient),
+        ),
+        title: const Text(
+          'Clientes',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+        ),
         bottom: TabBar(
           controller: _tab,
           onTap: (_) => setState(() {}),
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          indicatorColor: Colors.white,
           tabs: const [
             Tab(text: 'Todos'),
             Tab(text: 'VIP'),
@@ -178,7 +192,7 @@ class _PartnerClientProfilesScreenState
                             child: Text(
                               'Sem perfis para mostrar.',
                               style:
-                                  TextStyle(color: AppTheme.textSecondary),
+                                  TextStyle(color: AppColors.textSecondary),
                             ),
                           ),
                         ),
@@ -202,14 +216,14 @@ class _PartnerClientProfilesScreenState
                           leading: CircleAvatar(
                             backgroundColor: p.isVip
                                 ? const Color(0xFFD4AF37)
-                                : AppTheme.primary
+                                : AppColors.primary
                                     .withValues(alpha: 0.1),
                             child: Icon(
                               p.isBlocked
                                   ? Icons.block
                                   : (p.isVip ? Icons.star : Icons.person),
                               color:
-                                  p.isVip ? Colors.white : AppTheme.primary,
+                                  p.isVip ? Colors.white : AppColors.primary,
                             ),
                           ),
                           title: Row(
@@ -253,7 +267,7 @@ class _PartnerClientProfilesScreenState
                                 _relativeLastVisit(p.lastVisitAt),
                                 style: const TextStyle(
                                   fontSize: 12,
-                                  color: AppTheme.textSecondary,
+                                  color: AppColors.textSecondary,
                                   fontStyle: FontStyle.italic,
                                 ),
                               ),
@@ -439,13 +453,13 @@ class _ProfileEditorSheetState extends State<_ProfileEditorSheet> {
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
-                color: AppTheme.textPrimary,
+                color: AppColors.textPrimary,
               ),
             ),
             if ((p.clientPhone ?? '').isNotEmpty)
               Text(
                 p.clientPhone!,
-                style: const TextStyle(color: AppTheme.textSecondary),
+                style: const TextStyle(color: AppColors.textSecondary),
               ),
             const SizedBox(height: 12),
             SwitchListTile(
@@ -489,7 +503,7 @@ class _ProfileEditorSheetState extends State<_ProfileEditorSheet> {
               child: FilledButton.icon(
                 onPressed: _saveNotes,
                 style: FilledButton.styleFrom(
-                  backgroundColor: AppTheme.primary,
+                  backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                 ),
                 icon: const Icon(Icons.save),

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../config/app_theme.dart';
+import '../../../config/app_colors.dart';
 import '../../../models/notify_entry.dart';
 import '../../../models/waitlist_entry.dart';
 import '../../../stores/reservation_store.dart';
@@ -122,9 +122,23 @@ class _MyReservationListsScreenState extends State<MyReservationListsScreen> {
     return DefaultTabController(
       length: 2,
       child: Scaffold(
+        backgroundColor: AppColors.background,
         appBar: AppBar(
-          title: const Text('Minhas Listas'),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          foregroundColor: Colors.white,
+          iconTheme: const IconThemeData(color: Colors.white),
+          flexibleSpace: const DecoratedBox(
+            decoration: BoxDecoration(gradient: AppColors.headerGradient),
+          ),
+          title: const Text(
+            'Minhas Listas',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+          ),
           bottom: const TabBar(
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white70,
+            indicatorColor: Colors.white,
             tabs: [
               Tab(text: 'Fila de espera'),
               Tab(text: 'Avisar se vagar'),
@@ -245,7 +259,7 @@ class _MyReservationListsScreenState extends State<MyReservationListsScreen> {
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
-                          color: AppTheme.textPrimary,
+                          color: AppColors.textPrimary,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -253,7 +267,7 @@ class _MyReservationListsScreenState extends State<MyReservationListsScreen> {
                         _formatDatePt(e.targetDate),
                         style: const TextStyle(
                           fontSize: 13,
-                          color: AppTheme.textSecondary,
+                          color: AppColors.textSecondary,
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -261,7 +275,7 @@ class _MyReservationListsScreenState extends State<MyReservationListsScreen> {
                         _waitlistTimeLabel(e),
                         style: const TextStyle(
                           fontSize: 13,
-                          color: AppTheme.textSecondary,
+                          color: AppColors.textSecondary,
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -269,7 +283,7 @@ class _MyReservationListsScreenState extends State<MyReservationListsScreen> {
                         e.people == 1 ? '1 pessoa' : '${e.people} pessoas',
                         style: const TextStyle(
                           fontSize: 13,
-                          color: AppTheme.textSecondary,
+                          color: AppColors.textSecondary,
                         ),
                       ),
                     ],
@@ -284,14 +298,14 @@ class _MyReservationListsScreenState extends State<MyReservationListsScreen> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                 decoration: BoxDecoration(
-                  color: AppTheme.surface,
+                  color: AppColors.surface,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   'Notas: ${e.notes}',
                   style: const TextStyle(
                     fontSize: 12,
-                    color: AppTheme.textSecondary,
+                    color: AppColors.textSecondary,
                   ),
                 ),
               ),
@@ -334,11 +348,11 @@ class _MyReservationListsScreenState extends State<MyReservationListsScreen> {
     switch (e.status) {
       case 'waiting':
         label = e.position != null ? 'Em espera #${e.position}' : 'Em espera';
-        color = AppTheme.primary;
+        color = AppColors.primary;
         break;
       case 'notified':
         label = 'Mesa pronta!';
-        color = AppTheme.secondary;
+        color = AppColors.accent;
         break;
       case 'seated':
         label = 'Sentado';
@@ -395,7 +409,7 @@ class _MyReservationListsScreenState extends State<MyReservationListsScreen> {
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
-                          color: AppTheme.textPrimary,
+                          color: AppColors.textPrimary,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -403,7 +417,7 @@ class _MyReservationListsScreenState extends State<MyReservationListsScreen> {
                         '${_formatDatePt(e.targetDate)} • ${e.targetTime.substring(0, 5)}',
                         style: const TextStyle(
                           fontSize: 13,
-                          color: AppTheme.textSecondary,
+                          color: AppColors.textSecondary,
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -411,7 +425,7 @@ class _MyReservationListsScreenState extends State<MyReservationListsScreen> {
                         'Flexibilidade: ${e.flexibilityMinutes} min',
                         style: const TextStyle(
                           fontSize: 13,
-                          color: AppTheme.textSecondary,
+                          color: AppColors.textSecondary,
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -419,7 +433,7 @@ class _MyReservationListsScreenState extends State<MyReservationListsScreen> {
                         e.people == 1 ? '1 pessoa' : '${e.people} pessoas',
                         style: const TextStyle(
                           fontSize: 13,
-                          color: AppTheme.textSecondary,
+                          color: AppColors.textSecondary,
                         ),
                       ),
                       if (e.isActive) ...[
@@ -428,7 +442,7 @@ class _MyReservationListsScreenState extends State<MyReservationListsScreen> {
                           _expiryLabel(e.expiresAt),
                           style: const TextStyle(
                             fontSize: 12,
-                            color: AppTheme.textSecondary,
+                            color: AppColors.textSecondary,
                             fontStyle: FontStyle.italic,
                           ),
                         ),
@@ -480,11 +494,11 @@ class _MyReservationListsScreenState extends State<MyReservationListsScreen> {
     switch (e.status) {
       case 'active':
         label = 'Activo';
-        color = AppTheme.primary;
+        color = AppColors.primary;
         break;
       case 'notified':
         label = 'Mesa vagou!';
-        color = AppTheme.secondary;
+        color = AppColors.accent;
         break;
       case 'converted':
         label = 'Convertido';
@@ -532,7 +546,7 @@ class _MyReservationListsScreenState extends State<MyReservationListsScreen> {
             style: const TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.w700,
-              color: AppTheme.textPrimary,
+              color: AppColors.textPrimary,
             ),
           ),
         ),
@@ -543,7 +557,7 @@ class _MyReservationListsScreenState extends State<MyReservationListsScreen> {
             child: Text(
               subtitle,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: AppTheme.textSecondary),
+              style: const TextStyle(color: AppColors.textSecondary),
             ),
           ),
         ),
@@ -552,7 +566,7 @@ class _MyReservationListsScreenState extends State<MyReservationListsScreen> {
           child: FilledButton.icon(
             onPressed: () => Navigator.pop(context),
             style: FilledButton.styleFrom(
-              backgroundColor: AppTheme.primary,
+              backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
             ),
             icon: const Icon(Icons.search),
@@ -625,11 +639,11 @@ class _ThumbFallback extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: AppTheme.surface,
+      color: AppColors.surface,
       alignment: Alignment.center,
       child: const Icon(
         Icons.restaurant_outlined,
-        color: AppTheme.primary,
+        color: AppColors.primary,
         size: 28,
       ),
     );

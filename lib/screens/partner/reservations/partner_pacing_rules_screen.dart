@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../config/app_theme.dart';
+import '../../../config/app_colors.dart';
 import '../../../stores/partner_reservas_store.dart';
 
 /// Reservas PRO F4 — configurações partner: turn times + pacing rules.
@@ -142,10 +142,24 @@ class _PartnerPacingRulesScreenState extends State<PartnerPacingRulesScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Configurações'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+        actionsIconTheme: const IconThemeData(color: Colors.white),
+        flexibleSpace: const DecoratedBox(
+          decoration: BoxDecoration(gradient: AppColors.headerGradient),
+        ),
+        title: const Text(
+          'Configurações',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+        ),
         bottom: TabBar(
           controller: _tab,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          indicatorColor: Colors.white,
           tabs: const [
             Tab(text: 'Tempos de mesa'),
             Tab(text: 'Pacing'),
@@ -160,7 +174,7 @@ class _PartnerPacingRulesScreenState extends State<PartnerPacingRulesScreen>
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: AppTheme.primary,
+        backgroundColor: AppColors.primary,
         onPressed: _tab.index == 0 ? _addTurnTime : _addPacingRule,
         child: const Icon(Icons.add, color: Colors.white),
       ),
@@ -196,7 +210,7 @@ class _PartnerPacingRulesScreenState extends State<PartnerPacingRulesScreen>
                     horizontal: 12, vertical: 6),
                 child: ListTile(
                   leading: const Icon(Icons.timer_outlined,
-                      color: AppTheme.primary),
+                      color: AppColors.primary),
                   title: Text(
                     'Pessoas ${r['party_size_min']}-${r['party_size_max']}'
                     ' • ${r['minutes']} min',
@@ -254,7 +268,7 @@ class _PartnerPacingRulesScreenState extends State<PartnerPacingRulesScreen>
                     horizontal: 12, vertical: 6),
                 child: ListTile(
                   leading: const Icon(Icons.schedule,
-                      color: AppTheme.primary),
+                      color: AppColors.primary),
                   title: Text(
                     '${_dayLabel(r['day_of_week'] as int?)}'
                     ' • ${start.substring(0, 5)}-${end.substring(0, 5)}',
@@ -306,7 +320,7 @@ class _PartnerPacingRulesScreenState extends State<PartnerPacingRulesScreen>
             Text(
               subtitle,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: AppTheme.textSecondary),
+              style: const TextStyle(color: AppColors.textSecondary),
             ),
           ],
         ),
@@ -343,7 +357,7 @@ class _TurnTimeDialogState extends State<_TurnTimeDialog> {
               min: 1,
               max: 20,
               divisions: 19,
-              activeColor: AppTheme.primary,
+              activeColor: AppColors.primary,
               labels: RangeLabels(
                 _range.start.toInt().toString(),
                 _range.end.toInt().toString(),
@@ -357,7 +371,7 @@ class _TurnTimeDialogState extends State<_TurnTimeDialog> {
               min: 30,
               max: 300,
               divisions: 18,
-              activeColor: AppTheme.primary,
+              activeColor: AppColors.primary,
               label: '$_minutes',
               onChanged: (v) => setState(() => _minutes = v.round()),
             ),
@@ -514,7 +528,7 @@ class _PacingRuleDialogState extends State<_PacingRuleDialog> {
               min: 0,
               max: 50,
               divisions: 10,
-              activeColor: AppTheme.primary,
+              activeColor: AppColors.primary,
               label: '$_walkInPct%',
               onChanged: (v) => setState(() => _walkInPct = v.round()),
             ),

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../auth/auth_store.dart';
-import '../../../config/app_theme.dart';
+import '../../../config/app_colors.dart';
 
 /// Métodos de pagamento aceites para pré-pagamento de reserva.
 /// CASH é deliberadamente excluído — reserva exige pré-pagamento online.
@@ -118,7 +118,7 @@ class _ReservationPaymentMethodSheetState
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
-                  color: AppTheme.textPrimary,
+                  color: AppColors.textPrimary,
                 ),
               ),
               const SizedBox(height: 4),
@@ -126,7 +126,7 @@ class _ReservationPaymentMethodSheetState
                 'Escolhe o método de pré-pagamento.',
                 style: TextStyle(
                   fontSize: 13,
-                  color: AppTheme.textSecondary,
+                  color: AppColors.textSecondary,
                 ),
               ),
               const SizedBox(height: 12),
@@ -170,7 +170,7 @@ class _ReservationPaymentMethodSheetState
                   'Telemóvel português associado à tua conta MBWay (9 dígitos).',
                   style: TextStyle(
                     fontSize: 12,
-                    color: AppTheme.textSecondary,
+                    color: AppColors.textSecondary,
                   ),
                 ),
               ],
@@ -180,7 +180,7 @@ class _ReservationPaymentMethodSheetState
                 child: FilledButton.icon(
                   onPressed: _onConfirm,
                   style: FilledButton.styleFrom(
-                    backgroundColor: AppTheme.primary,
+                    backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),

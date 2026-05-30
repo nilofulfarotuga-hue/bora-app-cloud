@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../config/app_theme.dart';
+import '../../../config/app_colors.dart';
 import '../../../models/restaurant_table.dart';
+import '../../../widgets/bora/bora_screen_app_bar.dart';
 import '../../../stores/partner_reservas_store.dart';
 
 /// Reservas PRO F4 — walk-in rápido (Toast TablesReady-like).
@@ -86,7 +87,7 @@ class _PartnerWalkInScreenState extends State<PartnerWalkInScreen> {
         SnackBar(
           content:
               Text('Sentado na mesa ${_selectedTable!.numero}.'),
-          backgroundColor: AppTheme.primary,
+          backgroundColor: AppColors.primary,
         ),
       );
       Navigator.pop(context);
@@ -104,7 +105,8 @@ class _PartnerWalkInScreenState extends State<PartnerWalkInScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Walk-in')),
+      backgroundColor: AppColors.background,
+      appBar: const BoraScreenAppBar(title: 'Walk-in'),
       body: SafeArea(
         child: FutureBuilder<List<RestaurantTable>>(
           future: _tablesFuture,
@@ -153,7 +155,7 @@ class _PartnerWalkInScreenState extends State<PartnerWalkInScreen> {
                                   'Pessoas',
                                   style: TextStyle(
                                     fontWeight: FontWeight.w700,
-                                    color: AppTheme.textPrimary,
+                                    color: AppColors.textPrimary,
                                   ),
                                 ),
                                 const SizedBox(height: 8),
@@ -165,11 +167,11 @@ class _PartnerWalkInScreenState extends State<PartnerWalkInScreen> {
                                       ChoiceChip(
                                         label: Text('$i'),
                                         selected: _party == i,
-                                        selectedColor: AppTheme.primary,
+                                        selectedColor: AppColors.primary,
                                         labelStyle: TextStyle(
                                           color: _party == i
                                               ? Colors.white
-                                              : AppTheme.textPrimary,
+                                              : AppColors.textPrimary,
                                           fontWeight: FontWeight.w600,
                                         ),
                                         onSelected: (_) =>
@@ -197,7 +199,7 @@ class _PartnerWalkInScreenState extends State<PartnerWalkInScreen> {
                                   'Mesa',
                                   style: TextStyle(
                                     fontWeight: FontWeight.w700,
-                                    color: AppTheme.textPrimary,
+                                    color: AppColors.textPrimary,
                                   ),
                                 ),
                                 const SizedBox(height: 8),
@@ -207,7 +209,7 @@ class _PartnerWalkInScreenState extends State<PartnerWalkInScreen> {
                                     child: Text(
                                       'Sem mesas com capacidade suficiente.',
                                       style: TextStyle(
-                                        color: AppTheme.textSecondary,
+                                        color: AppColors.textSecondary,
                                       ),
                                     ),
                                   )
@@ -221,11 +223,11 @@ class _PartnerWalkInScreenState extends State<PartnerWalkInScreen> {
                                           label: Text(
                                               'Mesa ${t.numero} (${t.capacity})'),
                                           selected: _selectedTable?.id == t.id,
-                                          selectedColor: AppTheme.primary,
+                                          selectedColor: AppColors.primary,
                                           labelStyle: TextStyle(
                                             color: _selectedTable?.id == t.id
                                                 ? Colors.white
-                                                : AppTheme.textPrimary,
+                                                : AppColors.textPrimary,
                                             fontWeight: FontWeight.w600,
                                           ),
                                           onSelected: (_) => setState(
@@ -249,7 +251,7 @@ class _PartnerWalkInScreenState extends State<PartnerWalkInScreen> {
                                   'Identificação (opcional)',
                                   style: TextStyle(
                                     fontWeight: FontWeight.w700,
-                                    color: AppTheme.textPrimary,
+                                    color: AppColors.textPrimary,
                                   ),
                                 ),
                                 const SizedBox(height: 8),
@@ -285,7 +287,7 @@ class _PartnerWalkInScreenState extends State<PartnerWalkInScreen> {
                     child: FilledButton.icon(
                       onPressed: _submitting ? null : _onSubmit,
                       style: FilledButton.styleFrom(
-                        backgroundColor: AppTheme.primary,
+                        backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
@@ -337,7 +339,7 @@ class _PartnerWalkInScreenState extends State<PartnerWalkInScreen> {
             SizedBox(height: 6),
             Text(
               'Configura primeiro a planta da sala.',
-              style: TextStyle(color: AppTheme.textSecondary),
+              style: TextStyle(color: AppColors.textSecondary),
             ),
           ],
         ),

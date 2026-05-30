@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../config/app_theme.dart';
+import '../../../config/app_colors.dart';
 import '../../../models/floor_plan.dart';
 import '../../../models/restaurant_table.dart';
 import '../../../stores/partner_reservas_store.dart';
+import '../../../widgets/bora/bora_screen_app_bar.dart';
 import 'partner_table_form_screen.dart';
 
 /// Reservas PRO F4 — editor visual planta de sala.
@@ -210,8 +211,9 @@ class _PartnerFloorPlanEditorScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Planta de sala'),
+      backgroundColor: AppColors.background,
+      appBar: BoraScreenAppBar(
+        title: 'Planta de sala',
         actions: [
           PopupMenuButton<String>(
             onSelected: (v) {
@@ -233,7 +235,7 @@ class _PartnerFloorPlanEditorScreenState
                     children: [
                       if (_selectedPlan?.id == p.id)
                         const Icon(Icons.check,
-                            size: 18, color: AppTheme.primary)
+                            size: 18, color: AppColors.primary)
                       else
                         const SizedBox(width: 18),
                       const SizedBox(width: 8),
@@ -259,7 +261,7 @@ class _PartnerFloorPlanEditorScreenState
       floatingActionButton: _selectedPlan == null
           ? null
           : FloatingActionButton(
-              backgroundColor: AppTheme.primary,
+              backgroundColor: AppColors.primary,
               onPressed: _addTable,
               child: const Icon(Icons.add, color: Colors.white),
             ),
@@ -291,13 +293,13 @@ class _PartnerFloorPlanEditorScreenState
             const Text(
               'Cria o primeiro plano para começar a configurar mesas.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: AppTheme.textSecondary),
+              style: TextStyle(color: AppColors.textSecondary),
             ),
             const SizedBox(height: 20),
             FilledButton.icon(
               onPressed: _createDefaultPlan,
               style: FilledButton.styleFrom(
-                backgroundColor: AppTheme.primary,
+                backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
               ),
               icon: const Icon(Icons.add),
@@ -336,7 +338,7 @@ class _PartnerFloorPlanEditorScreenState
                       'Plano vazio.\nUsa o + para adicionar mesas.',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: AppTheme.textSecondary,
+                        color: AppColors.textSecondary,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -423,9 +425,9 @@ class _PartnerFloorPlanEditorScreenState
       (40 + (capacity ~/ 4) * 8).clamp(40, 80).toDouble();
 
   static BoxDecoration _shapeDecoration(String shape, bool dragging) {
-    const color = AppTheme.primary;
+    const color = AppColors.primary;
     final border = dragging
-        ? Border.all(color: AppTheme.secondary, width: 3)
+        ? Border.all(color: AppColors.accent, width: 3)
         : Border.all(color: Colors.white.withValues(alpha: 0.3), width: 1);
     if (shape == 'circle') {
       return BoxDecoration(

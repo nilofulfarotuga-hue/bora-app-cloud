@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_stripe/flutter_stripe.dart' hide Card;
 import 'package:provider/provider.dart';
 
-import '../../../config/app_theme.dart';
+import '../../../config/app_colors.dart';
 import '../../../stores/reservation_store.dart';
+import '../../../widgets/bora/bora_screen_app_bar.dart';
 import 'reservation_mbway_waiting_dialog.dart';
 import 'reservation_payment_method_sheet.dart';
 
@@ -161,7 +162,7 @@ class _ReservationCheckoutScreenState extends State<ReservationCheckoutScreen> {
       messenger.showSnackBar(
         const SnackBar(
           content: Text('Reserva pendente! O parceiro confirma em breve.'),
-          backgroundColor: AppTheme.primary,
+          backgroundColor: AppColors.primary,
         ),
       );
       navigator.popUntil((route) => route.isFirst);
@@ -173,7 +174,7 @@ class _ReservationCheckoutScreenState extends State<ReservationCheckoutScreen> {
           content: Text(
             isCanceled ? 'Pagamento cancelado' : 'Erro no pagamento. Tenta de novo.',
           ),
-          backgroundColor: isCanceled ? AppTheme.secondary : Colors.red,
+          backgroundColor: isCanceled ? AppColors.accent : Colors.red,
         ),
       );
     } catch (e) {
@@ -247,7 +248,7 @@ class _ReservationCheckoutScreenState extends State<ReservationCheckoutScreen> {
           content: Text(
             'Reserva submetida! O pagamento MB Way está a ser processado.',
           ),
-          backgroundColor: AppTheme.primary,
+          backgroundColor: AppColors.primary,
         ),
       );
       navigator.popUntil((route) => route.isFirst);
@@ -263,7 +264,8 @@ class _ReservationCheckoutScreenState extends State<ReservationCheckoutScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Confirmar reserva')),
+      backgroundColor: AppColors.background,
+      appBar: const BoraScreenAppBar(title: 'Confirmar reserva'),
       body: SafeArea(
         child: Column(
           children: [
@@ -290,7 +292,7 @@ class _ReservationCheckoutScreenState extends State<ReservationCheckoutScreen> {
                 child: FilledButton.icon(
                   onPressed: _processing ? null : _onConfirmAndPay,
                   style: FilledButton.styleFrom(
-                    backgroundColor: AppTheme.primary,
+                    backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
@@ -355,7 +357,7 @@ class _ReservationCheckoutScreenState extends State<ReservationCheckoutScreen> {
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
-                      color: AppTheme.textPrimary,
+                      color: AppColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -363,7 +365,7 @@ class _ReservationCheckoutScreenState extends State<ReservationCheckoutScreen> {
                     _formatDateTimePt(widget.selectedDateTime),
                     style: const TextStyle(
                       fontSize: 13,
-                      color: AppTheme.textSecondary,
+                      color: AppColors.textSecondary,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -373,7 +375,7 @@ class _ReservationCheckoutScreenState extends State<ReservationCheckoutScreen> {
                         : '${widget.partySize} pessoas',
                     style: const TextStyle(
                       fontSize: 13,
-                      color: AppTheme.textSecondary,
+                      color: AppColors.textSecondary,
                     ),
                   ),
                 ],
@@ -386,11 +388,11 @@ class _ReservationCheckoutScreenState extends State<ReservationCheckoutScreen> {
   }
 
   Widget _photoFallback() => Container(
-        color: AppTheme.surface,
+        color: AppColors.surface,
         alignment: Alignment.center,
         child: const Icon(
           Icons.restaurant_outlined,
-          color: AppTheme.primary,
+          color: AppColors.primary,
           size: 28,
         ),
       );
@@ -407,7 +409,7 @@ class _ReservationCheckoutScreenState extends State<ReservationCheckoutScreen> {
               'Detalhes (opcionais)',
               style: TextStyle(
                 fontWeight: FontWeight.w700,
-                color: AppTheme.textPrimary,
+                color: AppColors.textPrimary,
               ),
             ),
             const SizedBox(height: 12),
@@ -454,7 +456,7 @@ class _ReservationCheckoutScreenState extends State<ReservationCheckoutScreen> {
   Widget _buildTermsCard() {
     return const Card(
       elevation: 0,
-      color: AppTheme.surface,
+      color: AppColors.surface,
       child: Padding(
         padding: EdgeInsets.all(14),
         child: Column(
@@ -464,7 +466,7 @@ class _ReservationCheckoutScreenState extends State<ReservationCheckoutScreen> {
               'Como funciona o pré-pagamento',
               style: TextStyle(
                 fontWeight: FontWeight.w700,
-                color: AppTheme.textPrimary,
+                color: AppColors.textPrimary,
               ),
             ),
             SizedBox(height: 8),
@@ -526,14 +528,14 @@ class _TermLine extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.check_circle, size: 16, color: AppTheme.primary),
+          const Icon(Icons.check_circle, size: 16, color: AppColors.primary),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               text,
               style: const TextStyle(
                 fontSize: 13,
-                color: AppTheme.textSecondary,
+                color: AppColors.textSecondary,
                 height: 1.4,
               ),
             ),

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../config/app_theme.dart';
+import '../../../config/app_colors.dart';
 import '../../../stores/reservation_store.dart';
+import '../../../widgets/bora/bora_screen_app_bar.dart';
 
 /// Reservas PRO F3.C — entrar na fila de espera de um restaurante.
 /// Form: data, pessoas, janela horária opcional, notas.
@@ -141,7 +142,7 @@ class _ReservationWaitlistJoinScreenState
                 ? 'Estás na fila! Posição #$position.'
                 : 'Estás na fila!',
           ),
-          backgroundColor: AppTheme.primary,
+          backgroundColor: AppColors.primary,
         ),
       );
       Navigator.pop(context);
@@ -159,7 +160,8 @@ class _ReservationWaitlistJoinScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Entrar na fila de espera')),
+      backgroundColor: AppColors.background,
+      appBar: const BoraScreenAppBar(title: 'Entrar na fila de espera'),
       body: SafeArea(
         child: Column(
           children: [
@@ -181,14 +183,14 @@ class _ReservationWaitlistJoinScreenState
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700,
-                                color: AppTheme.textPrimary,
+                                color: AppColors.textPrimary,
                               ),
                             ),
                             const SizedBox(height: 4),
                             const Text(
                               'Sem pré-pagamento. Esta opção é gratuita.',
                               style: TextStyle(
-                                color: AppTheme.textSecondary,
+                                color: AppColors.textSecondary,
                                 fontSize: 13,
                               ),
                             ),
@@ -212,7 +214,7 @@ class _ReservationWaitlistJoinScreenState
                 child: FilledButton.icon(
                   onPressed: _submitting ? null : _onSubmit,
                   style: FilledButton.styleFrom(
-                    backgroundColor: AppTheme.primary,
+                    backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
@@ -271,11 +273,11 @@ class _ReservationWaitlistJoinScreenState
                   ChoiceChip(
                     label: Text('$i'),
                     selected: _selectedPartySize == i,
-                    selectedColor: AppTheme.primary,
+                    selectedColor: AppColors.primary,
                     labelStyle: TextStyle(
                       color: _selectedPartySize == i
                           ? Colors.white
-                          : AppTheme.textPrimary,
+                          : AppColors.textPrimary,
                       fontWeight: FontWeight.w600,
                     ),
                     onSelected: (_) =>
@@ -294,7 +296,7 @@ class _ReservationWaitlistJoinScreenState
               child: Text(
                 'A que horas preferes? Se deixares vazio, ficas na fila '
                 'para o dia todo.',
-                style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
               ),
             ),
             Row(
@@ -351,7 +353,7 @@ class _ReservationWaitlistJoinScreenState
   Widget _buildExplainerCard() {
     return const Card(
       elevation: 0,
-      color: AppTheme.surface,
+      color: AppColors.surface,
       child: Padding(
         padding: EdgeInsets.all(14),
         child: Column(
@@ -361,7 +363,7 @@ class _ReservationWaitlistJoinScreenState
               'Como funciona a fila de espera',
               style: TextStyle(
                 fontWeight: FontWeight.w700,
-                color: AppTheme.textPrimary,
+                color: AppColors.textPrimary,
               ),
             ),
             SizedBox(height: 8),
@@ -420,7 +422,7 @@ class _SectionLabel extends StatelessWidget {
         text,
         style: const TextStyle(
           fontWeight: FontWeight.w700,
-          color: AppTheme.textPrimary,
+          color: AppColors.textPrimary,
         ),
       ),
     );
@@ -438,14 +440,14 @@ class _Bullet extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.check_circle, size: 16, color: AppTheme.primary),
+          const Icon(Icons.check_circle, size: 16, color: AppColors.primary),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               text,
               style: const TextStyle(
                 fontSize: 13,
-                color: AppTheme.textSecondary,
+                color: AppColors.textSecondary,
                 height: 1.4,
               ),
             ),

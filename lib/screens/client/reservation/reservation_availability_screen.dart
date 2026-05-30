@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../config/app_theme.dart';
+import '../../../config/app_colors.dart';
 import '../../../stores/reservation_store.dart';
+import '../../../widgets/bora/bora_screen_app_bar.dart';
 import 'reservation_checkout_screen.dart';
 import 'reservation_notify_join_screen.dart';
 import 'reservation_waitlist_join_screen.dart';
@@ -171,8 +172,9 @@ class _ReservationAvailabilityScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Reservar — ${widget.restaurantName}'),
+      backgroundColor: AppColors.background,
+      appBar: BoraScreenAppBar(
+        title: 'Reservar — ${widget.restaurantName}',
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -187,7 +189,7 @@ class _ReservationAvailabilityScreenState
                 child: FilledButton.icon(
                   onPressed: _searching ? null : _searchAvailability,
                   style: FilledButton.styleFrom(
-                    backgroundColor: AppTheme.primary,
+                    backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
@@ -237,7 +239,7 @@ class _ReservationAvailabilityScreenState
               'Data',
               style: TextStyle(
                 fontWeight: FontWeight.w700,
-                color: AppTheme.textPrimary,
+                color: AppColors.textPrimary,
               ),
             ),
             const SizedBox(height: 8),
@@ -256,7 +258,7 @@ class _ReservationAvailabilityScreenState
               'Pessoas',
               style: TextStyle(
                 fontWeight: FontWeight.w700,
-                color: AppTheme.textPrimary,
+                color: AppColors.textPrimary,
               ),
             ),
             const SizedBox(height: 8),
@@ -268,11 +270,11 @@ class _ReservationAvailabilityScreenState
                   ChoiceChip(
                     label: Text('$i'),
                     selected: _selectedPartySize == i,
-                    selectedColor: AppTheme.primary,
+                    selectedColor: AppColors.primary,
                     labelStyle: TextStyle(
                       color: _selectedPartySize == i
                           ? Colors.white
-                          : AppTheme.textPrimary,
+                          : AppColors.textPrimary,
                       fontWeight: FontWeight.w600,
                     ),
                     onSelected: (_) => setState(() => _selectedPartySize = i),
@@ -289,7 +291,7 @@ class _ReservationAvailabilityScreenState
               'Hora (opcional)',
               style: TextStyle(
                 fontWeight: FontWeight.w700,
-                color: AppTheme.textPrimary,
+                color: AppColors.textPrimary,
               ),
             ),
             const SizedBox(height: 8),
@@ -355,8 +357,8 @@ class _ReservationAvailabilityScreenState
                   OutlinedButton(
                     onPressed: () => _openCheckout(slot),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: AppTheme.primary,
-                      side: const BorderSide(color: AppTheme.primary),
+                      foregroundColor: AppColors.primary,
+                      side: const BorderSide(color: AppColors.primary),
                       padding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 10),
                     ),
@@ -399,14 +401,14 @@ class _ReservationAvailabilityScreenState
               style: const TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
-                color: AppTheme.textPrimary,
+                color: AppColors.textPrimary,
               ),
             ),
             const SizedBox(height: 6),
             const Text(
               'Tenta outra data ou junta-te à fila.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: AppTheme.textSecondary),
+              style: TextStyle(color: AppColors.textSecondary),
             ),
             const SizedBox(height: 16),
             OutlinedButton.icon(

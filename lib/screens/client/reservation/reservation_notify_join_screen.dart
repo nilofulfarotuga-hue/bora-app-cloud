@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../config/app_theme.dart';
+import '../../../config/app_colors.dart';
 import '../../../stores/reservation_store.dart';
+import '../../../widgets/bora/bora_screen_app_bar.dart';
 
 /// Reservas PRO F3.C — pedir aviso "se vagar mesa".
 /// Form: data, hora, pessoas, flexibilidade.
@@ -105,7 +106,7 @@ class _ReservationNotifyJoinScreenState
       messenger.showSnackBar(
         const SnackBar(
           content: Text('Aviso activado! Avisamos-te se vagar.'),
-          backgroundColor: AppTheme.primary,
+          backgroundColor: AppColors.primary,
         ),
       );
       Navigator.pop(context);
@@ -123,7 +124,8 @@ class _ReservationNotifyJoinScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Avisar-me se vagar')),
+      backgroundColor: AppColors.background,
+      appBar: const BoraScreenAppBar(title: 'Avisar-me se vagar'),
       body: SafeArea(
         child: Column(
           children: [
@@ -145,14 +147,14 @@ class _ReservationNotifyJoinScreenState
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700,
-                                color: AppTheme.textPrimary,
+                                color: AppColors.textPrimary,
                               ),
                             ),
                             const SizedBox(height: 4),
                             const Text(
                               'Avisamos-te se uma mesa ficar disponível.',
                               style: TextStyle(
-                                color: AppTheme.textSecondary,
+                                color: AppColors.textSecondary,
                                 fontSize: 13,
                               ),
                             ),
@@ -176,7 +178,7 @@ class _ReservationNotifyJoinScreenState
                 child: FilledButton.icon(
                   onPressed: _submitting ? null : _onSubmit,
                   style: FilledButton.styleFrom(
-                    backgroundColor: AppTheme.primary,
+                    backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
@@ -247,11 +249,11 @@ class _ReservationNotifyJoinScreenState
                   ChoiceChip(
                     label: Text('$i'),
                     selected: _selectedPartySize == i,
-                    selectedColor: AppTheme.primary,
+                    selectedColor: AppColors.primary,
                     labelStyle: TextStyle(
                       color: _selectedPartySize == i
                           ? Colors.white
-                          : AppTheme.textPrimary,
+                          : AppColors.textPrimary,
                       fontWeight: FontWeight.w600,
                     ),
                     onSelected: (_) =>
@@ -270,7 +272,7 @@ class _ReservationNotifyJoinScreenState
               min: 0,
               max: 180,
               divisions: 12,
-              activeColor: AppTheme.primary,
+              activeColor: AppColors.primary,
               label: '$_flexibilityMinutes min',
               onChanged: (v) =>
                   setState(() => _flexibilityMinutes = v.round()),
@@ -281,7 +283,7 @@ class _ReservationNotifyJoinScreenState
                   : 'Aceitas até $_flexibilityMinutes min antes ou depois.',
               style: const TextStyle(
                 fontSize: 12,
-                color: AppTheme.textSecondary,
+                color: AppColors.textSecondary,
               ),
             ),
           ],
@@ -293,7 +295,7 @@ class _ReservationNotifyJoinScreenState
   Widget _buildExplainerCard() {
     return const Card(
       elevation: 0,
-      color: AppTheme.surface,
+      color: AppColors.surface,
       child: Padding(
         padding: EdgeInsets.all(14),
         child: Column(
@@ -303,7 +305,7 @@ class _ReservationNotifyJoinScreenState
               'Como funciona "Avisar-me se vagar"',
               style: TextStyle(
                 fontWeight: FontWeight.w700,
-                color: AppTheme.textPrimary,
+                color: AppColors.textPrimary,
               ),
             ),
             SizedBox(height: 8),
@@ -362,7 +364,7 @@ class _SectionLabel extends StatelessWidget {
         text,
         style: const TextStyle(
           fontWeight: FontWeight.w700,
-          color: AppTheme.textPrimary,
+          color: AppColors.textPrimary,
         ),
       ),
     );
@@ -380,14 +382,14 @@ class _Bullet extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.check_circle, size: 16, color: AppTheme.primary),
+          const Icon(Icons.check_circle, size: 16, color: AppColors.primary),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               text,
               style: const TextStyle(
                 fontSize: 13,
-                color: AppTheme.textSecondary,
+                color: AppColors.textSecondary,
                 height: 1.4,
               ),
             ),

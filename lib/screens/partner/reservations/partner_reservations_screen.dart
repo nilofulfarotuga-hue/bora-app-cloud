@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../config/app_theme.dart';
+import '../../../config/app_colors.dart';
 import '../../../models/client_restaurant_profile.dart';
 import '../../../models/reservation_model.dart';
 import '../../../models/restaurant_table.dart';
@@ -97,7 +97,7 @@ class _PartnerReservationsScreenState extends State<PartnerReservationsScreen>
       messenger.showSnackBar(
         const SnackBar(
           content: Text('Reserva aceite. Cliente foi avisado.'),
-          backgroundColor: AppTheme.primary,
+          backgroundColor: AppColors.primary,
         ),
       );
       _refreshAll();
@@ -121,7 +121,7 @@ class _PartnerReservationsScreenState extends State<PartnerReservationsScreen>
           children: [
             const Text(
               'O pré-pagamento de €3 será reembolsado ao cliente.',
-              style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
             ),
             const SizedBox(height: 12),
             TextField(
@@ -182,7 +182,7 @@ class _PartnerReservationsScreenState extends State<PartnerReservationsScreen>
         builder: (ctx) => AlertDialog(
           title: const Row(
             children: [
-              Icon(Icons.check_circle, color: AppTheme.primary),
+              Icon(Icons.check_circle, color: AppColors.primary),
               SizedBox(width: 8),
               Text('Chegada marcada'),
             ],
@@ -199,7 +199,7 @@ class _PartnerReservationsScreenState extends State<PartnerReservationsScreen>
               Text(
                 'A Bora deve-te €${(payoutCents / 100).toStringAsFixed(2)} '
                 '(settlement semanal).',
-                style: const TextStyle(color: AppTheme.textSecondary),
+                style: const TextStyle(color: AppColors.textSecondary),
               ),
             ],
           ),
@@ -244,7 +244,7 @@ class _PartnerReservationsScreenState extends State<PartnerReservationsScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Sentado na mesa ${selected.numero}.'),
-          backgroundColor: AppTheme.primary,
+          backgroundColor: AppColors.primary,
         ),
       );
       _refreshAll();
@@ -271,7 +271,7 @@ class _PartnerReservationsScreenState extends State<PartnerReservationsScreen>
                 ? 'Mesa libertada (turn time $turnTime min).'
                 : 'Mesa libertada.',
           ),
-          backgroundColor: AppTheme.primary,
+          backgroundColor: AppColors.primary,
         ),
       );
       _refreshAll();
@@ -287,10 +287,24 @@ class _PartnerReservationsScreenState extends State<PartnerReservationsScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Reservas'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+        actionsIconTheme: const IconThemeData(color: Colors.white),
+        flexibleSpace: const DecoratedBox(
+          decoration: BoxDecoration(gradient: AppColors.headerGradient),
+        ),
+        title: const Text(
+          'Reservas',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+        ),
         bottom: TabBar(
           controller: _tabController,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          indicatorColor: Colors.white,
           tabs: const [
             Tab(text: 'Pendentes'),
             Tab(text: 'Hoje'),
@@ -353,7 +367,7 @@ class _PartnerReservationsScreenState extends State<PartnerReservationsScreen>
                 Center(
                   child: Text(
                     empty,
-                    style: const TextStyle(color: AppTheme.textSecondary),
+                    style: const TextStyle(color: AppColors.textSecondary),
                   ),
                 ),
               ],
@@ -424,7 +438,7 @@ class _PartnerReservationsScreenState extends State<PartnerReservationsScreen>
                 Center(
                   child: Text(
                     'Sem reservas futuras agendadas.',
-                    style: TextStyle(color: AppTheme.textSecondary),
+                    style: TextStyle(color: AppColors.textSecondary),
                   ),
                 ),
               ],
@@ -534,7 +548,7 @@ class _ReservationCardState extends State<_ReservationCard> {
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700,
-                                color: AppTheme.textPrimary,
+                                color: AppColors.textPrimary,
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -556,7 +570,7 @@ class _ReservationCardState extends State<_ReservationCard> {
                           clientPhone,
                           style: const TextStyle(
                             fontSize: 12,
-                            color: AppTheme.textSecondary,
+                            color: AppColors.textSecondary,
                           ),
                         ),
                       const SizedBox(height: 4),
@@ -564,14 +578,14 @@ class _ReservationCardState extends State<_ReservationCard> {
                         _formatDateTimePt(r.reservedFor.toLocal()),
                         style: const TextStyle(
                           fontSize: 13,
-                          color: AppTheme.textSecondary,
+                          color: AppColors.textSecondary,
                         ),
                       ),
                       Text(
                         r.people == 1 ? '1 pessoa' : '${r.people} pessoas',
                         style: const TextStyle(
                           fontSize: 13,
-                          color: AppTheme.textSecondary,
+                          color: AppColors.textSecondary,
                         ),
                       ),
                     ],
@@ -586,14 +600,14 @@ class _ReservationCardState extends State<_ReservationCard> {
                 padding: const EdgeInsets.symmetric(
                     horizontal: 8, vertical: 6),
                 decoration: BoxDecoration(
-                  color: AppTheme.surface,
+                  color: AppColors.surface,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   r.notes!,
                   style: const TextStyle(
                     fontSize: 12,
-                    color: AppTheme.textSecondary,
+                    color: AppColors.textSecondary,
                   ),
                 ),
               ),
@@ -628,7 +642,7 @@ class _ReservationCardState extends State<_ReservationCard> {
             child: FilledButton.icon(
               onPressed: () => _run(widget.onAccept),
               style: FilledButton.styleFrom(
-                backgroundColor: AppTheme.primary,
+                backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
               ),
               icon: const Icon(Icons.check, size: 18),
@@ -657,7 +671,7 @@ class _ReservationCardState extends State<_ReservationCard> {
             child: FilledButton.icon(
               onPressed: () => _run(widget.onMarkArrival),
               style: FilledButton.styleFrom(
-                backgroundColor: AppTheme.primary,
+                backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
               ),
               icon: const Icon(Icons.location_on, size: 18),
@@ -739,13 +753,13 @@ class _StatusBadge extends StatelessWidget {
     Color color;
     if (r.isFinished) {
       label = 'Concluída';
-      color = AppTheme.primary;
+      color = AppColors.primary;
     } else if (r.seatedAt != null) {
       label = 'Sentada';
-      color = AppTheme.primary;
+      color = AppColors.primary;
     } else if (r.arrivedAt != null) {
       label = 'Chegou';
-      color = AppTheme.primary;
+      color = AppColors.primary;
     } else if (r.isCancelled) {
       label = 'Cancelada';
       color = Colors.grey;
@@ -754,10 +768,10 @@ class _StatusBadge extends StatelessWidget {
       color = Colors.red;
     } else if (r.isApproved) {
       label = 'Confirmada';
-      color = AppTheme.primary;
+      color = AppColors.primary;
     } else if (r.isPending) {
       label = 'Pendente';
-      color = AppTheme.secondary;
+      color = AppColors.accent;
     } else {
       label = r.status;
       color = Colors.grey;
@@ -823,11 +837,11 @@ class _TablePickerSheet extends StatelessWidget {
                       return ListTile(
                         leading: CircleAvatar(
                           backgroundColor:
-                              AppTheme.primary.withValues(alpha: 0.1),
+                              AppColors.primary.withValues(alpha: 0.1),
                           child: Text(
                             t.numero,
                             style: const TextStyle(
-                              color: AppTheme.primary,
+                              color: AppColors.primary,
                               fontWeight: FontWeight.bold,
                               fontSize: 12,
                             ),
@@ -875,7 +889,7 @@ class _FutureDateHeader extends StatelessWidget {
         _formatDateHeaderPt(date),
         style: const TextStyle(
           fontWeight: FontWeight.w700,
-          color: AppTheme.textPrimary,
+          color: AppColors.textPrimary,
           fontSize: 14,
         ),
       ),

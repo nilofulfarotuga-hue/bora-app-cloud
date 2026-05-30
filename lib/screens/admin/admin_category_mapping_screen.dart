@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../config/app_colors.dart';
 import '../../services/admin_export_service.dart';
+import '../../widgets/bora/bora_screen_app_bar.dart';
 
 /// T1.E — Admin: rever 281 category_root → 23 taxonomy_section.
 class AdminCategoryMappingScreen extends StatefulWidget {
@@ -157,8 +159,9 @@ class _AdminCategoryMappingScreenState
   Widget build(BuildContext context) {
     final s = _stats;
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mapeamento de categorias'),
+      backgroundColor: AppColors.background,
+      appBar: BoraScreenAppBar(
+        title: 'Mapeamento de categorias',
         actions: [
           IconButton(
               icon: const Icon(Icons.download),
@@ -177,9 +180,9 @@ class _AdminCategoryMappingScreenState
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
                   _stat('Total', '${s['total']}', Colors.indigo),
-                  _stat('Revistos', '${s['reviewed']}', Colors.green),
-                  _stat('Por rever', '${s['unreviewed']}', Colors.orange),
-                  _stat('→ Outros', '${s['mapped_to_outros']}', Colors.grey),
+                  _stat('Revistos', '${s['reviewed']}', AppColors.success),
+                  _stat('Por rever', '${s['unreviewed']}', AppColors.warning),
+                  _stat('→ Outros', '${s['mapped_to_outros']}', AppColors.textSubtle),
                 ],
               ),
             ),
@@ -223,7 +226,7 @@ class _AdminCategoryMappingScreenState
               }).toList(),
             ),
           ),
-          const Divider(height: 1),
+          const Divider(height: 1, color: AppColors.divider),
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
@@ -258,8 +261,8 @@ class _AdminCategoryMappingScreenState
                                         ? Icons.verified
                                         : Icons.help_outline,
                                     color: reviewed
-                                        ? Colors.green
-                                        : Colors.orange,
+                                        ? AppColors.success
+                                        : AppColors.warning,
                                     size: 20,
                                   ),
                                   title: Text(r['category_root'] as String),

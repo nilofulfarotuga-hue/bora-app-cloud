@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '../../config/app_spacing.dart';
+import '../../widgets/bora/bora_screen_app_bar.dart';
 
 /// Acerto Semanal Parceiros — agregação por restaurante dos créditos €2
 /// usados (cliente já consumiu) e ainda por pagar pela Bora ao parceiro.
@@ -150,7 +152,7 @@ class _AdminPartnerSettlementsScreenState
       messenger.showSnackBar(
         SnackBar(
           content: Text(e.toString().replaceFirst('Exception: ', '')),
-          backgroundColor: Colors.red,
+          backgroundColor: AppColors.error,
         ),
       );
     }
@@ -170,15 +172,9 @@ class _AdminPartnerSettlementsScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surface,
-      appBar: AppBar(
-        title: const Text('Acerto Semanal Parceiros'),
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        flexibleSpace: const DecoratedBox(
-          decoration: BoxDecoration(gradient: AppColors.headerGradient),
-        ),
+      backgroundColor: AppColors.background,
+      appBar: BoraScreenAppBar(
+        title: 'Acerto Semanal Parceiros',
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -191,7 +187,7 @@ class _AdminPartnerSettlementsScreenState
         child: Column(
           children: [
             _buildWeekSelector(),
-            const Divider(height: 1),
+            const Divider(height: 1, color: AppColors.divider),
             Expanded(child: _buildBody()),
           ],
         ),
@@ -249,7 +245,7 @@ class _AdminPartnerSettlementsScreenState
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline, size: 48, color: Colors.red),
+              const Icon(Icons.error_outline, size: 48, color: AppColors.error),
               const SizedBox(height: 12),
               Text(_error!, textAlign: TextAlign.center),
               const SizedBox(height: 12),
@@ -313,8 +309,13 @@ class _AdminPartnerSettlementsScreenState
   }
 
   Widget _buildRow(_PartnerRow row) {
-    return Card(
+    return Container(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(Radii.lg),
+        boxShadow: AppColors.shadowCard,
+      ),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Row(

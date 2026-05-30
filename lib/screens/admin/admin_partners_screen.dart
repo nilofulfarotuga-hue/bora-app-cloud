@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '../../config/app_spacing.dart';
+import '../../widgets/bora/bora_screen_app_bar.dart';
 import '../../services/admin_audit_service.dart';
 import 'admin_partner_detail_screen.dart';
 
@@ -76,7 +78,7 @@ class _AdminPartnersScreenState extends State<AdminPartnersScreen> {
             ? 'Parceiro reactivado.'
             : 'Parceiro desactivado pelo admin.'),
         backgroundColor:
-            newActive ? AppColors.primary : Colors.orange.shade700,
+            newActive ? AppColors.success : AppColors.warning,
         duration: const Duration(seconds: 2),
       ));
       await _load();
@@ -84,7 +86,7 @@ class _AdminPartnersScreenState extends State<AdminPartnersScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Falhou actualizar parceiro: $e'),
-        backgroundColor: Colors.red,
+        backgroundColor: AppColors.error,
         duration: const Duration(seconds: 4),
       ));
     }
@@ -116,8 +118,9 @@ class _AdminPartnersScreenState extends State<AdminPartnersScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Parceiros / Restaurantes'),
+      backgroundColor: AppColors.background,
+      appBar: BoraScreenAppBar(
+        title: 'Parceiros / Restaurantes',
         actions: [
           IconButton(icon: const Icon(Icons.refresh), onPressed: _load)
         ],
@@ -141,6 +144,9 @@ class _AdminPartnersScreenState extends State<AdminPartnersScreen> {
                                 r['is_active_admin'] as bool? ?? true;
                             final category = r['category'] as String?;
                             return Card(
+                              shape: RoundedRectangleBorder(
+                                  borderRadius:
+                                      BorderRadius.circular(Radii.lg)),
                               child: ListTile(
                                 leading: CircleAvatar(
                                   backgroundColor:
@@ -166,7 +172,8 @@ class _AdminPartnersScreenState extends State<AdminPartnersScreen> {
                                       onChanged: (_) => _toggleActive(
                                           r['id'] as String, isActive),
                                     ),
-                                    const Icon(Icons.chevron_right, color: Colors.grey),
+                                    const Icon(Icons.chevron_right,
+                                        color: AppColors.textSecondary),
                                   ],
                                 ),
                                 onTap: () => Navigator.push(

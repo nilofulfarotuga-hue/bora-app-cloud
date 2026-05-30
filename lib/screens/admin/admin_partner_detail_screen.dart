@@ -10,8 +10,10 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '../../config/app_spacing.dart';
 import '../../models/restaurant_model.dart';
 import '../../stores/restaurant_store.dart';
+import '../../widgets/bora/bora_primary_button.dart';
 import '_admin_partner_edit_dialog.dart';
 
 class AdminPartnerDetailScreen extends StatefulWidget {
@@ -372,8 +374,8 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
           Card(
             elevation: 0,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(color: Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(Radii.lg),
+              side: const BorderSide(color: AppColors.divider),
             ),
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -433,11 +435,11 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
                       const SizedBox(width: 8),
                       OutlinedButton.icon(
                         onPressed: _uploadingHero ? null : _removeHero,
-                        icon: const Icon(Icons.delete_outline, color: Colors.red),
+                        icon: const Icon(Icons.delete_outline, color: AppColors.error),
                         label: const Text('Remover',
-                            style: TextStyle(color: Colors.red)),
+                            style: TextStyle(color: AppColors.error)),
                         style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Colors.red)),
+                            side: const BorderSide(color: AppColors.error)),
                       ),
                     ],
                   ]),
@@ -450,8 +452,8 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
           Card(
             elevation: 0,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(color: Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(Radii.lg),
+              side: const BorderSide(color: AppColors.divider),
             ),
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -531,7 +533,9 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
             ),
           ),
           const SizedBox(height: 16),
-          FilledButton.icon(
+          BoraPrimaryButton(
+            label: 'Editar dados',
+            icon: Icons.edit,
             onPressed: () async {
               final res = await showDialog<Map<String, dynamic>>(
                 context: context,
@@ -545,8 +549,6 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
               );
               if (res != null && res['success'] == true) _loadAll();
             },
-            icon: const Icon(Icons.edit),
-            label: const Text('Editar dados'),
           ),
         ],
       ),
@@ -668,13 +670,11 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
           );
         }),
         const SizedBox(height: 16),
-        FilledButton.icon(
+        BoraPrimaryButton(
+          label: 'Salvar horários',
+          icon: Icons.save,
+          loading: _savingHours,
           onPressed: _savingHours ? null : _saveHours,
-          icon: _savingHours
-              ? const SizedBox(width: 16, height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-              : const Icon(Icons.save),
-          label: const Text('Salvar horários'),
         ),
       ],
     );
@@ -696,11 +696,11 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
     IconData badgeIcon;
 
     if (overrideActive) {
-      badgeColor = isOpen ? Colors.green.shade700 : Colors.red.shade700;
+      badgeColor = isOpen ? AppColors.success : AppColors.error;
       badgeLabel = isOpen ? 'ABERTO (forçado)' : 'FECHADO (forçado)';
       badgeIcon = Icons.admin_panel_settings;
     } else {
-      badgeColor = isOpen ? Colors.green : Colors.orange;
+      badgeColor = isOpen ? AppColors.success : AppColors.warning;
       badgeLabel = isOpen ? 'ABERTO (horário)' : 'FECHADO (horário)';
       badgeIcon = isOpen ? Icons.check_circle : Icons.cancel;
     }
@@ -737,21 +737,21 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
           if (overrideActive)
             OutlinedButton.icon(
               onPressed: _clearOverride,
-              icon: const Icon(Icons.clear, color: Colors.orange),
+              icon: const Icon(Icons.clear, color: AppColors.warning),
               label: const Text('Limpar override → voltar a horário regular'),
-              style: OutlinedButton.styleFrom(foregroundColor: Colors.orange),
+              style: OutlinedButton.styleFrom(foregroundColor: AppColors.warning),
             )
           else ...[
             FilledButton.icon(
               onPressed: () => _setOverride('closed'),
-              style: FilledButton.styleFrom(backgroundColor: Colors.red),
+              style: FilledButton.styleFrom(backgroundColor: AppColors.error),
               icon: const Icon(Icons.lock),
               label: const Text('Forçar FECHAR'),
             ),
             const SizedBox(height: 8),
             FilledButton.icon(
               onPressed: () => _setOverride('open'),
-              style: FilledButton.styleFrom(backgroundColor: Colors.green),
+              style: FilledButton.styleFrom(backgroundColor: AppColors.success),
               icon: const Icon(Icons.lock_open),
               label: const Text('Forçar ABRIR'),
             ),
@@ -949,13 +949,13 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
               return Card(
                 child: ListTile(
                   leading: Icon(closed ? Icons.event_busy : Icons.event_available,
-                      color: closed ? Colors.red : Colors.green),
+                      color: closed ? AppColors.error : AppColors.success),
                   title: Text(d['date'] as String? ?? '—'),
                   subtitle: Text(closed
                       ? 'Fechado — ${d['reason'] ?? ''}'
                       : '${d['open'] ?? '?'} – ${d['close'] ?? '?'}'),
                   trailing: IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
+                    icon: const Icon(Icons.delete, color: AppColors.error),
                     onPressed: () => _removeSpecialDate(d['date'] as String),
                   ),
                 ),
@@ -1062,12 +1062,19 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: Text(
           _restaurant?['name'] as String? ?? widget.initialName,
           overflow: TextOverflow.ellipsis,
         ),
-        backgroundColor: AppColors.primary,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        foregroundColor: Colors.white,
+        iconTheme: const IconThemeData(color: Colors.white),
+        flexibleSpace: const DecoratedBox(
+          decoration: BoxDecoration(gradient: AppColors.headerGradient),
+        ),
         actions: [
           IconButton(icon: const Icon(Icons.refresh), onPressed: _loadAll),
         ],
@@ -1185,10 +1192,10 @@ class _PartnerSalesTabState extends State<_PartnerSalesTab> {
             ))
           else if (_error != null)
             Card(
-              color: Colors.red.shade50,
+              color: AppColors.error.withValues(alpha: 0.08),
               child: Padding(
                 padding: const EdgeInsets.all(16),
-                child: Text(_error!, style: TextStyle(color: Colors.red.shade900)),
+                child: Text(_error!, style: const TextStyle(color: AppColors.error)),
               ),
             )
           else if (_data != null) ..._buildSummary(_data!),
@@ -1229,7 +1236,7 @@ class _PartnerSalesTabState extends State<_PartnerSalesTab> {
                   '€${commTotal.toStringAsFixed(2)}', bold: true),
               _row('Líquido parceiro',
                   '€${partnerNet.toStringAsFixed(2)}',
-                  bold: true, color: Colors.green),
+                  bold: true, color: AppColors.success),
             ],
           ),
         ),
@@ -1432,7 +1439,7 @@ class _PartnerCatalogTabState extends State<_PartnerCatalogTab> {
                       padding: const EdgeInsets.all(16),
                       child: Text('Erro: $_error',
                           style:
-                              const TextStyle(color: Colors.red)),
+                              const TextStyle(color: AppColors.error)),
                     ),
                   ])
               : ListView.builder(
@@ -1564,8 +1571,8 @@ class _AdminTakeawayConfigCardState extends State<_AdminTakeawayConfigCard> {
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(Radii.lg),
+        side: const BorderSide(color: AppColors.divider),
       ),
       child: Column(
         children: [

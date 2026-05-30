@@ -3,6 +3,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../config/app_colors.dart';
+import '../../config/app_spacing.dart';
+import '../../widgets/bora/bora_screen_app_bar.dart';
 
 /// BUG 6d — Admin reviews partners awaiting approval and approves/rejects.
 ///
@@ -87,7 +89,7 @@ class _AdminPartnersPendingScreenState
               onPressed: () => Navigator.pop(ctx, false),
               child: const Text('Cancelar')),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.green),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.success),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Aprovar'),
           ),
@@ -136,7 +138,7 @@ class _AdminPartnersPendingScreenState
                 onPressed: () => Navigator.pop(ctx),
                 child: const Text('Cancelar')),
             FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: Colors.red),
+              style: FilledButton.styleFrom(backgroundColor: AppColors.error),
               onPressed: () {
                 final txt = ctrl.text.trim();
                 if (txt.isEmpty) return;
@@ -288,10 +290,10 @@ class _AdminPartnersPendingScreenState
   }
 
   Color _statusColor(String? s) => switch (s) {
-        'approved' => Colors.green.shade700,
-        'rejected' => Colors.red.shade700,
-        'pending' => Colors.orange.shade700,
-        _ => Colors.grey.shade700,
+        'approved' => AppColors.success,
+        'rejected' => AppColors.error,
+        'pending' => AppColors.warning,
+        _ => AppColors.textSecondary,
       };
 
   Widget _PartnerWarningChip(String label) => Container(
@@ -340,16 +342,9 @@ class _AdminPartnersPendingScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surface,
-      appBar: AppBar(
-        title: const Text('Aprovação de parceiros',
-            style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        flexibleSpace: const DecoratedBox(
-          decoration: BoxDecoration(gradient: AppColors.headerGradient),
-        ),
+      backgroundColor: AppColors.background,
+      appBar: BoraScreenAppBar(
+        title: 'Aprovação de parceiros',
         actions: [
           IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
         ],
@@ -429,6 +424,8 @@ class _AdminPartnersPendingScreenState
         DateTime.tryParse(r['created_at'] as String? ?? '')?.toLocal();
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 6),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Radii.lg)),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(

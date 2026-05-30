@@ -20,6 +20,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '../../config/app_spacing.dart';
+import '../../widgets/bora/bora_screen_app_bar.dart';
 import '../../services/admin_export_service.dart';
 
 class AdminPartnerPayoutsScreen extends StatefulWidget {
@@ -171,7 +173,7 @@ class _AdminPartnerPayoutsScreenState extends State<AdminPartnerPayoutsScreen> {
     if (countPending == 0) {
       _toast(
         'Não há repasses pendentes para este parceiro no período.',
-        Colors.orange,
+        AppColors.warning,
       );
       return;
     }
@@ -256,7 +258,7 @@ class _AdminPartnerPayoutsScreenState extends State<AdminPartnerPayoutsScreen> {
       );
       await _loadData();
     } catch (e) {
-      _toast('Erro ao marcar: $e', Colors.red);
+      _toast('Erro ao marcar: $e', AppColors.error);
     }
   }
 
@@ -353,7 +355,7 @@ class _AdminPartnerPayoutsScreenState extends State<AdminPartnerPayoutsScreen> {
       errorCount == 0
           ? '$successCount parceiro(s) marcado(s) como pagos'
           : '$successCount marcado(s), $errorCount com erro',
-      errorCount > 0 ? Colors.orange : AppColors.primary,
+      errorCount > 0 ? AppColors.warning : AppColors.primary,
     );
     setState(() => _selectedPartnerIds.clear());
     if (_selectedPartnerId != null) await _loadData();
@@ -363,7 +365,7 @@ class _AdminPartnerPayoutsScreenState extends State<AdminPartnerPayoutsScreen> {
 
   Future<void> _exportCsv() async {
     if (_rows.isEmpty) {
-      _toast('Nada para exportar.', Colors.orange);
+      _toast('Nada para exportar.', AppColors.warning);
       return;
     }
     final headers = [
@@ -520,15 +522,9 @@ class _AdminPartnerPayoutsScreenState extends State<AdminPartnerPayoutsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surface,
-      appBar: AppBar(
-        title: const Text('Fechamento Semanal — Parceiros'),
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        flexibleSpace: const DecoratedBox(
-          decoration: BoxDecoration(gradient: AppColors.headerGradient),
-        ),
+      backgroundColor: AppColors.background,
+      appBar: BoraScreenAppBar(
+        title: 'Fechamento Semanal — Parceiros',
         actions: [
           IconButton(
             icon: const Icon(Icons.file_download),
@@ -576,12 +572,12 @@ class _AdminPartnerPayoutsScreenState extends State<AdminPartnerPayoutsScreen> {
             const LinearProgressIndicator(minHeight: 2)
           else ...[
             const Text('Parceiros',
-                style: TextStyle(fontSize: 12, color: Colors.black54)),
+                style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
             const SizedBox(height: 4),
             Container(
               constraints: const BoxConstraints(maxHeight: 180),
               decoration: BoxDecoration(
-                border: Border.all(color: Colors.black26),
+                border: Border.all(color: AppColors.divider),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: ListView.builder(
@@ -640,7 +636,7 @@ class _AdminPartnerPayoutsScreenState extends State<AdminPartnerPayoutsScreen> {
                 child: Text(
                   '${_selectedPartnerIds.length} parceiros seleccionados — detalhes do último seleccionado abaixo',
                   style: const TextStyle(
-                      fontSize: 11, color: Colors.black45),
+                      fontSize: 11, color: AppColors.textSubtle),
                 ),
               ),
           ],
@@ -711,7 +707,7 @@ class _AdminPartnerPayoutsScreenState extends State<AdminPartnerPayoutsScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline, size: 48, color: Colors.red),
+              const Icon(Icons.error_outline, size: 48, color: AppColors.error),
               const SizedBox(height: 12),
               Text(_error!, textAlign: TextAlign.center),
               const SizedBox(height: 12),
@@ -747,6 +743,8 @@ class _AdminPartnerPayoutsScreenState extends State<AdminPartnerPayoutsScreen> {
 
     return Card(
       margin: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Radii.lg)),
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(
@@ -791,7 +789,7 @@ class _AdminPartnerPayoutsScreenState extends State<AdminPartnerPayoutsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label,
-              style: const TextStyle(fontSize: 11, color: Colors.black54)),
+              style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
           const SizedBox(height: 2),
           Text(v,
               style: TextStyle(
@@ -802,7 +800,7 @@ class _AdminPartnerPayoutsScreenState extends State<AdminPartnerPayoutsScreen> {
           if (sub != null)
             Text(sub,
                 style:
-                    const TextStyle(fontSize: 11, color: Colors.black45)),
+                    const TextStyle(fontSize: 11, color: AppColors.textSubtle)),
         ],
       );
 
@@ -835,6 +833,8 @@ class _AdminPartnerPayoutsScreenState extends State<AdminPartnerPayoutsScreen> {
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Radii.lg)),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
         child: Row(
@@ -889,7 +889,7 @@ class _AdminPartnerPayoutsScreenState extends State<AdminPartnerPayoutsScreen> {
                     'Criado ${_fmtDateTime(createdAt)}'
                     '${paidAt != null ? ' · Pago ${_fmtDateTime(paidAt)}' : ''}',
                     style: const TextStyle(
-                        fontSize: 11, color: Colors.black54),
+                        fontSize: 11, color: AppColors.textSecondary),
                   ),
                   if (orderId != null || reservationId != null)
                     Text(
@@ -897,7 +897,7 @@ class _AdminPartnerPayoutsScreenState extends State<AdminPartnerPayoutsScreen> {
                           ? 'Pedido: ${orderId.substring(0, min(8, orderId.length))}…'
                           : 'Reserva: ${reservationId!.substring(0, min(8, reservationId.length))}…',
                       style: const TextStyle(
-                          fontSize: 11, color: Colors.black45),
+                          fontSize: 11, color: AppColors.textSubtle),
                     ),
                 ],
               ),

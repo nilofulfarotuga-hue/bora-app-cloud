@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '../../config/app_spacing.dart';
+import '../../widgets/bora/bora_screen_app_bar.dart';
 
 class AdminCatalogScreen extends StatefulWidget {
   const AdminCatalogScreen({super.key});
@@ -58,9 +60,9 @@ class _AdminCatalogScreenState extends State<AdminCatalogScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Catálogo'),
-        backgroundColor: AppColors.primary,
+      backgroundColor: AppColors.background,
+      appBar: BoraScreenAppBar(
+        title: 'Catálogo',
         actions: [IconButton(icon: const Icon(Icons.refresh), onPressed: _load)],
       ),
       body: Column(children: [
@@ -75,7 +77,7 @@ class _AdminCatalogScreenState extends State<AdminCatalogScreen> {
         ),
         if (_error != null) Padding(
           padding: const EdgeInsets.all(16),
-          child: Text(_error!, style: const TextStyle(color: Colors.red)),
+          child: Text(_error!, style: const TextStyle(color: AppColors.error)),
         ),
         Expanded(
           child: _loading
@@ -87,8 +89,13 @@ class _AdminCatalogScreenState extends State<AdminCatalogScreen> {
                       itemCount: _partners.length,
                   itemBuilder: (ctx, i) {
                     final p = _partners[i];
-                    return Card(
+                    return Container(
                       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.card,
+                        borderRadius: BorderRadius.circular(Radii.lg),
+                        boxShadow: AppColors.shadowCard,
+                      ),
                       child: ListTile(
                         leading: CircleAvatar(
                           backgroundColor: AppColors.primary,
@@ -235,7 +242,7 @@ class _AdminCatalogProductsScreenState extends State<_AdminCatalogProductsScreen
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.orange.shade700),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.warning),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Resetar'),
           ),
@@ -275,9 +282,9 @@ class _AdminCatalogProductsScreenState extends State<_AdminCatalogProductsScreen
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.restaurantName, overflow: TextOverflow.ellipsis),
-        backgroundColor: AppColors.primary,
+      backgroundColor: AppColors.background,
+      appBar: BoraScreenAppBar(
+        title: widget.restaurantName,
       ),
       body: Column(children: [
         Padding(
@@ -307,8 +314,13 @@ class _AdminCatalogProductsScreenState extends State<_AdminCatalogProductsScreen
                   itemBuilder: (ctx, i) {
                     final p = _products[i];
                     final available = p['is_available'] == true;
-                    return Card(
+                    return Container(
                       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.card,
+                        borderRadius: BorderRadius.circular(Radii.lg),
+                        boxShadow: AppColors.shadowCard,
+                      ),
                       child: ListTile(
                         leading: _buildProductImage(p),
                         title: Text(p['name'] ?? '—',
@@ -320,7 +332,7 @@ class _AdminCatalogProductsScreenState extends State<_AdminCatalogProductsScreen
                         trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                           IconButton(
                             icon: Icon(available ? Icons.toggle_on : Icons.toggle_off,
-                                color: available ? Colors.green : Colors.grey),
+                                color: available ? AppColors.success : AppColors.textSubtle),
                             onPressed: () => _toggleAvailability(p),
                           ),
                           IconButton(
@@ -330,7 +342,7 @@ class _AdminCatalogProductsScreenState extends State<_AdminCatalogProductsScreen
                           IconButton(
                             tooltip: 'Resetar foto',
                             icon: const Icon(Icons.image_not_supported_outlined),
-                            color: Colors.orange.shade700,
+                            color: AppColors.warning,
                             onPressed: () => _resetPhoto(p),
                           ),
                         ]),

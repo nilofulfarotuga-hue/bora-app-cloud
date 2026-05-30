@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../models/reservation_model.dart';
+import '../../widgets/bora/bora_screen_app_bar.dart';
 
 /// Admin view: all table reservations across restaurants (BR §16.2).
 class AdminReservationsScreen extends StatefulWidget {
@@ -199,7 +200,7 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
                                 const SnackBar(
                                   content:
                                       Text('Preencha campos obrigatórios.'),
-                                  backgroundColor: Colors.red,
+                                  backgroundColor: AppColors.error,
                                 ),
                               );
                               return;
@@ -240,7 +241,7 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
                               ScaffoldMessenger.of(ctx).showSnackBar(
                                 SnackBar(
                                   content: Text('Erro: $e'),
-                                  backgroundColor: Colors.red,
+                                  backgroundColor: AppColors.error,
                                 ),
                               );
                             }
@@ -314,7 +315,7 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
                 width: double.infinity,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
+                    backgroundColor: AppColors.error,
                     foregroundColor: Colors.white,
                   ),
                   onPressed: submitting
@@ -326,7 +327,7 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
                               const SnackBar(
                                 content: Text(
                                     'Preencha os campos obrigatórios.'),
-                                backgroundColor: Colors.red,
+                                backgroundColor: AppColors.error,
                               ),
                             );
                             return;
@@ -355,7 +356,7 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
                             ScaffoldMessenger.of(ctx).showSnackBar(
                               SnackBar(
                                 content: Text('Erro: $e'),
-                                backgroundColor: Colors.red,
+                                backgroundColor: AppColors.error,
                               ),
                             );
                           }
@@ -416,7 +417,7 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
       } catch (e) {
         tables = const [];
         messenger.showSnackBar(SnackBar(
-          backgroundColor: Colors.red,
+          backgroundColor: AppColors.error,
           content: Text('Erro a carregar mesas: $e'),
         ));
       } finally {
@@ -583,7 +584,7 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
                                 if (!ctx.mounted) return;
                                 setSt(() => submitting = false);
                                 messenger.showSnackBar(SnackBar(
-                                  backgroundColor: Colors.red,
+                                  backgroundColor: AppColors.error,
                                   content: Text('Erro: $e'),
                                 ));
                               }
@@ -607,18 +608,9 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surface,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        flexibleSpace: const DecoratedBox(
-          decoration: BoxDecoration(gradient: AppColors.headerGradient),
-        ),
-        title: const Text(
-          'Reservas (admin)',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
+      backgroundColor: AppColors.background,
+      appBar: BoraScreenAppBar(
+        title: 'Reservas (admin)',
         actions: [
           IconButton(
             icon: const Icon(Icons.add_circle, color: Colors.greenAccent),
@@ -661,7 +653,8 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
                   child: ListView.separated(
                     padding: const EdgeInsets.all(12),
                     itemCount: list.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    separatorBuilder: (_, __) =>
+                        const Divider(height: 1, color: AppColors.divider),
                     itemBuilder: (context, i) {
                       final r = list[i];
                       final d = r.reservedFor.toLocal();

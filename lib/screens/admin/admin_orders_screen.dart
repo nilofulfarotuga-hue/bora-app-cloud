@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '../../config/app_spacing.dart';
+import '../../widgets/bora/bora_screen_app_bar.dart';
 import '../../services/admin_export_service.dart';
 import '../../widgets/admin/test_order_badge.dart';
 import '_admin_cancel_order_dialog.dart';
@@ -156,7 +158,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
             child: const Text('Voltar'),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Continuar',
                 style: TextStyle(color: Colors.white)),
@@ -217,7 +219,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
               child: const Text('Cancelar'),
             ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
               onPressed: () => Navigator.pop(ctx, true),
               child: Text('Cancelar ${_selectedIds.length} pedido(s)',
                   style: const TextStyle(color: Colors.white)),
@@ -257,7 +259,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
       content: Text(errors == 0
           ? '$success cancelado(s) com sucesso'
           : '$success cancelado(s), $errors com erro'),
-      backgroundColor: errors > 0 ? Colors.orange : Colors.green,
+      backgroundColor: errors > 0 ? AppColors.warning : AppColors.success,
     ));
     setState(() => _selectedIds.clear());
     await _load();
@@ -359,9 +361,10 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
       return _cancelableStatuses.contains(o['status'] as String? ?? '');
     });
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: _isMultiSelectMode
           ? AppBar(
-              backgroundColor: Colors.red.shade700,
+              backgroundColor: AppColors.error,
               foregroundColor: Colors.white,
               leading: IconButton(
                 icon: const Icon(Icons.close),
@@ -377,8 +380,8 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                 ),
               ],
             )
-          : AppBar(
-              title: const Text('Gestão de Pedidos'),
+          : BoraScreenAppBar(
+              title: 'Gestão de Pedidos',
               actions: [
                 IconButton(
                   icon: const Icon(Icons.download),
@@ -391,7 +394,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
             ),
       floatingActionButton: (_isMultiSelectMode && hasCancelableSelected)
           ? FloatingActionButton.extended(
-              backgroundColor: Colors.red,
+              backgroundColor: AppColors.error,
               foregroundColor: Colors.white,
               onPressed: _bulkCancel,
               icon: const Icon(Icons.cancel_outlined),
@@ -499,7 +502,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
               }).toList(),
             ),
           ),
-          const Divider(height: 1),
+          const Divider(height: 1, color: AppColors.divider),
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
@@ -525,8 +528,12 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                                 final isSelected = _selectedIds.contains(id);
                                 return Card(
                                   color: isSelected
-                                      ? Colors.red.withValues(alpha: 0.08)
+                                      ? AppColors.error.withValues(alpha: 0.08)
                                       : null,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius:
+                                        BorderRadius.circular(Radii.lg),
+                                  ),
                                   child: InkWell(
                                     onTap: _isMultiSelectMode && isCancelable
                                         ? () => setState(() {
@@ -541,7 +548,8 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                                         ? () => setState(
                                             () => _selectedIds.add(id))
                                         : null,
-                                    borderRadius: BorderRadius.circular(8),
+                                    borderRadius:
+                                        BorderRadius.circular(Radii.lg),
                                     child: Padding(
                                     padding: const EdgeInsets.all(14),
                                     child: Column(
@@ -630,10 +638,10 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                                               icon: const Icon(
                                                   Icons.cancel_outlined,
                                                   size: 16,
-                                                  color: Colors.red),
+                                                  color: AppColors.error),
                                               label: const Text('Cancelar',
                                                   style: TextStyle(
-                                                      color: Colors.red)),
+                                                      color: AppColors.error)),
                                             ),
                                           ),
                                         ],

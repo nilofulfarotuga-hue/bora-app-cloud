@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '../../config/app_spacing.dart';
 import '_admin_cancel_order_dialog.dart';
 
 /// Full-screen admin detail for an order. Pushed from `admin_orders_screen`
@@ -103,7 +104,15 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        foregroundColor: Colors.white,
+        iconTheme: const IconThemeData(color: Colors.white),
+        flexibleSpace: const DecoratedBox(
+          decoration: BoxDecoration(gradient: AppColors.headerGradient),
+        ),
         title: Text(_order != null
             ? 'Pedido #${(_order!['id'] as String).substring(0, 8)}'
             : 'Pedido'),
@@ -168,6 +177,9 @@ class _SummaryTab extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         children: [
           Card(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(Radii.lg),
+            ),
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -205,6 +217,9 @@ class _SummaryTab extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Card(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(Radii.lg),
+            ),
             child: Padding(
               padding: const EdgeInsets.all(12),
               child: Column(children: [
@@ -419,6 +434,9 @@ class _PaymentTab extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       children: [
         Card(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(Radii.lg),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(12),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -436,6 +454,9 @@ class _PaymentTab extends StatelessWidget {
           const SizedBox(height: 12),
           Card(
             color: Colors.green.shade50,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(Radii.lg),
+            ),
             child: Padding(
               padding: const EdgeInsets.all(12),
               child: Column(
@@ -478,6 +499,9 @@ class _PaymentTab extends StatelessWidget {
           const SizedBox(height: 12),
           Card(
             color: Colors.purple.withValues(alpha: 0.04),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(Radii.lg),
+            ),
             child: Padding(
               padding: const EdgeInsets.all(12),
               child: Column(
@@ -515,6 +539,9 @@ class _PaymentTab extends StatelessWidget {
               : refundStatus == 'succeeded'
                   ? AppColors.success.withValues(alpha: 0.05)
                   : null,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(Radii.lg),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(12),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -596,7 +623,8 @@ class _TimelineTabState extends State<_TimelineTab> {
           child: ListView.separated(
             padding: const EdgeInsets.all(12),
             itemCount: entries.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
+            separatorBuilder: (_, __) =>
+                const Divider(height: 1, color: AppColors.divider),
             itemBuilder: (_, i) {
               final e = entries[i];
               final at = DateTime.tryParse(e['created_at'] as String? ?? '');

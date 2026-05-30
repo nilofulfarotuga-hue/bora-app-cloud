@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '../../config/app_spacing.dart';
+import '../../widgets/bora/bora_screen_app_bar.dart';
 
 class AdminComplaintsScreen extends StatefulWidget {
   const AdminComplaintsScreen({super.key});
@@ -93,9 +95,9 @@ class _AdminComplaintsScreenState extends State<AdminComplaintsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Reclamações'),
-        backgroundColor: AppColors.primary,
+      backgroundColor: AppColors.background,
+      appBar: BoraScreenAppBar(
+        title: 'Reclamações',
         actions: [IconButton(icon: const Icon(Icons.refresh), onPressed: _load)],
       ),
       body: Column(children: [
@@ -138,8 +140,13 @@ class _AdminComplaintsScreenState extends State<AdminComplaintsScreen> {
                       itemBuilder: (ctx, i) {
                         final c = _items[i];
                         final status = c['status'] as String;
-                        return Card(
+                        return Container(
                           margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppColors.card,
+                            borderRadius: BorderRadius.circular(Radii.lg),
+                            boxShadow: AppColors.shadowCard,
+                          ),
                           child: ListTile(
                             leading: CircleAvatar(
                               backgroundColor: _statusColors[status],

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '../../config/app_spacing.dart';
 
 /// Reservas Pro F4 admin — métricas dedicadas (B4-light).
 ///
@@ -115,7 +116,7 @@ class _AdminReservationsMetricsScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
@@ -131,6 +132,8 @@ class _AdminReservationsMetricsScreenState
           controller: _tab,
           isScrollable: true,
           indicatorColor: Colors.white,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
           tabs: const [
             Tab(icon: Icon(Icons.calendar_view_day), text: 'Geral'),
             Tab(icon: Icon(Icons.storefront), text: 'Por parceiro'),
@@ -343,7 +346,7 @@ class _AdminReservationsMetricsScreenState
           padding: const EdgeInsets.all(24),
           child: Text(
             'Erro: ${snap.error}',
-            style: const TextStyle(color: Colors.red),
+            style: const TextStyle(color: AppColors.error),
             textAlign: TextAlign.center,
           ),
         ),
@@ -487,8 +490,12 @@ class _AdminReservationsMetricsScreenState
       );
 
   Widget _kpi(String label, String value, Color color) {
-    return Card(
-      elevation: 2,
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(Radii.lg),
+        boxShadow: AppColors.shadowCard,
+      ),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -497,7 +504,8 @@ class _AdminReservationsMetricsScreenState
           children: [
             Text(
               label,
-              style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+              style: const TextStyle(
+                  fontSize: 13, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 4),
             Text(

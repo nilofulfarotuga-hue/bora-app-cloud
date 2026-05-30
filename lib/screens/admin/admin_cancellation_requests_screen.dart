@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../config/app_colors.dart';
+import '../../widgets/bora/bora_screen_app_bar.dart';
+
 class AdminCancellationRequestsScreen extends StatefulWidget {
   const AdminCancellationRequestsScreen({super.key});
   @override
@@ -123,7 +126,8 @@ class _S extends State<AdminCancellationRequestsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Pedidos de Cancelamento')),
+      backgroundColor: AppColors.background,
+      appBar: const BoraScreenAppBar(title: 'Pedidos de Cancelamento'),
       body: Column(
         children: [
           SingleChildScrollView(
@@ -142,7 +146,7 @@ class _S extends State<AdminCancellationRequestsScreen> {
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
                 : _error != null
-                    ? Center(child: Text(_error!, style: const TextStyle(color: Colors.red)))
+                    ? Center(child: Text(_error!, style: const TextStyle(color: AppColors.error)))
                     : RefreshIndicator(
                         onRefresh: _load,
                         child: _rows.isEmpty
@@ -152,7 +156,8 @@ class _S extends State<AdminCancellationRequestsScreen> {
                               ])
                             : ListView.separated(
                                 itemCount: _rows.length,
-                                separatorBuilder: (_, __) => const Divider(height: 1),
+                                separatorBuilder: (_, __) =>
+                                    const Divider(height: 1, color: AppColors.divider),
                                 itemBuilder: (_, i) {
                                   final r = _rows[i];
                                   final created = DateTime.parse(r['created_at'] as String).toLocal();
@@ -161,7 +166,7 @@ class _S extends State<AdminCancellationRequestsScreen> {
                                       DateTime.now().difference(created).inMinutes > 30;
                                   return ListTile(
                                     leading: CircleAvatar(
-                                      backgroundColor: stale ? Colors.orange : Colors.grey.shade300,
+                                      backgroundColor: stale ? AppColors.warning : Colors.grey.shade300,
                                       child: Icon(
                                         pending ? Icons.access_time : Icons.check,
                                         color: stale ? Colors.white : Colors.black54,
@@ -175,11 +180,11 @@ class _S extends State<AdminCancellationRequestsScreen> {
                                     trailing: pending
                                         ? Wrap(spacing: 4, children: [
                                             IconButton(
-                                              icon: const Icon(Icons.check, color: Colors.green),
+                                              icon: const Icon(Icons.check, color: AppColors.success),
                                               onPressed: () => _approve(r),
                                             ),
                                             IconButton(
-                                              icon: const Icon(Icons.close, color: Colors.red),
+                                              icon: const Icon(Icons.close, color: AppColors.error),
                                               onPressed: () => _reject(r),
                                             ),
                                           ])

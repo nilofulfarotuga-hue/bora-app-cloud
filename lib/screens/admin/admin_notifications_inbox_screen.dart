@@ -225,7 +225,7 @@ class _AdminNotificationsInboxScreenState
   Widget build(BuildContext context) {
     final unreadCount = _rows.where((r) => r['read_at'] == null).length;
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
@@ -304,7 +304,7 @@ class _AdminNotificationsInboxScreenState
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline, size: 48, color: Colors.red),
+              const Icon(Icons.error_outline, size: 48, color: AppColors.error),
               const SizedBox(height: 12),
               Text(_error!, textAlign: TextAlign.center),
               const SizedBox(height: 12),

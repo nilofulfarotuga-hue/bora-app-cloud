@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '../../config/app_spacing.dart';
 
 class AdminSkillSuggestionsScreen extends StatefulWidget {
   const AdminSkillSuggestionsScreen({super.key});
@@ -24,8 +25,8 @@ class _AdminSkillSuggestionsScreenState
     extends State<AdminSkillSuggestionsScreen> {
   static const _boraGreen = AppColors.primary;
   static const _boraOrange = AppColors.accent;
-  static const _amber = Color(0xFFFF8F00);
-  static const _critical = Color(0xFFC62828);
+  static const _amber = AppColors.warning;
+  static const _critical = AppColors.error;
 
   final _supabase = Supabase.instance.client;
   String _statusFilter = 'pending';
@@ -248,12 +249,12 @@ class _AdminSkillSuggestionsScreenState
           : skipped > 0
               ? '$approved aprovada(s), $skipped ignorada(s) (não-safe ou não-pendente)'
               : '$approved aprovada(s) com sucesso';
-      _toast(msg, errors > 0 ? Colors.orange : _boraGreen);
+      _toast(msg, errors > 0 ? AppColors.warning : _boraGreen);
       if (mounted) setState(() => _selectedIds.clear());
       await _load();
       await _refreshBadge();
     } catch (e) {
-      _toast('Erro: $e', Colors.red);
+      _toast('Erro: $e', AppColors.error);
     }
   }
 
@@ -320,7 +321,7 @@ class _AdminSkillSuggestionsScreenState
       await _load();
       await _refreshBadge();
     } catch (e) {
-      _toast('Erro: $e', Colors.red);
+      _toast('Erro: $e', AppColors.error);
     }
   }
 
@@ -404,14 +405,14 @@ class _AdminSkillSuggestionsScreenState
       } else {
         final err = data?['error'] ?? data?['gemini_error'] ?? 'unknown';
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          backgroundColor: Colors.red,
+          backgroundColor: AppColors.error,
           content: Text('Falhou: $err'),
         ));
       }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        backgroundColor: Colors.red,
+        backgroundColor: AppColors.error,
         content: Text('Erro: $e'),
       ));
     } finally {
@@ -549,7 +550,7 @@ class _AdminSkillSuggestionsScreenState
       await _load();
       await _refreshBadge();
     } catch (e) {
-      _toast('Erro: $e', Colors.red);
+      _toast('Erro: $e', AppColors.error);
     }
   }
 
@@ -637,7 +638,7 @@ class _AdminSkillSuggestionsScreenState
       await _load();
       await _refreshBadge();
     } catch (e) {
-      _toast('Erro: $e', Colors.red);
+      _toast('Erro: $e', AppColors.error);
     }
   }
 
@@ -717,7 +718,7 @@ class _AdminSkillSuggestionsScreenState
       await _load();
       await _refreshBadge();
     } catch (e) {
-      _toast('Erro: $e', Colors.red);
+      _toast('Erro: $e', AppColors.error);
     }
   }
 
@@ -761,7 +762,7 @@ class _AdminSkillSuggestionsScreenState
       await _load();
       await _refreshBadge();
     } catch (e) {
-      _toast('Erro: $e', Colors.red);
+      _toast('Erro: $e', AppColors.error);
     }
   }
 
@@ -815,7 +816,7 @@ class _AdminSkillSuggestionsScreenState
       await _load();
       await _refreshBadge();
     } catch (e) {
-      _toast('Erro: $e', Colors.red);
+      _toast('Erro: $e', AppColors.error);
     }
   }
 
@@ -915,6 +916,7 @@ class _AdminSkillSuggestionsScreenState
   Widget build(BuildContext context) {
     final hasSelection = _selectedIds.isNotEmpty;
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: hasSelection ? _boraOrange : _boraGreen,
         foregroundColor: Colors.white,
@@ -1330,6 +1332,8 @@ class _AdminSkillSuggestionsScreenState
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       color: isSelected ? const Color(0xFFFFF3E0) : null,
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Radii.lg)),
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(

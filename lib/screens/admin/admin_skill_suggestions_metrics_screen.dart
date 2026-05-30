@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '../../widgets/bora/bora_screen_app_bar.dart';
 
 class AdminSkillSuggestionsMetricsScreen extends StatefulWidget {
   const AdminSkillSuggestionsMetricsScreen({super.key});
@@ -20,8 +21,8 @@ class _AdminSkillSuggestionsMetricsScreenState
     extends State<AdminSkillSuggestionsMetricsScreen> {
   static const _boraGreen = AppColors.primary;
   static const _boraOrange = AppColors.accent;
-  static const _grey = Color(0xFF757575);
-  static const _critical = Color(0xFFC62828);
+  static const _grey = AppColors.textSecondary;
+  static const _critical = AppColors.error;
 
   Map<String, dynamic>? _metrics;
   bool _loading = true;
@@ -59,11 +60,8 @@ class _AdminSkillSuggestionsMetricsScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: _boraGreen,
-        foregroundColor: Colors.white,
-        title: const Text('Métricas detalhadas'),
-      ),
+      backgroundColor: AppColors.background,
+      appBar: const BoraScreenAppBar(title: 'Métricas detalhadas'),
       body: _buildBody(),
     );
   }
@@ -79,7 +77,7 @@ class _AdminSkillSuggestionsMetricsScreenState
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.error_outline, color: Colors.red, size: 48),
+              const Icon(Icons.error_outline, color: AppColors.error, size: 48),
               const SizedBox(height: 12),
               const Text('Erro ao carregar métricas.',
                   style: TextStyle(fontWeight: FontWeight.bold)),

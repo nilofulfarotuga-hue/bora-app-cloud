@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../config/app_colors.dart';
+import '../../widgets/bora/bora_primary_button.dart';
+import '../../widgets/bora/bora_screen_app_bar.dart';
 import 'admin_broadcasts_history_screen.dart';
 
 /// T2.3 — Admin: envia notification manual (1 user) ou broadcast segment.
@@ -120,8 +123,9 @@ class _AdminSendNotificationScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Enviar notificação'),
+      backgroundColor: AppColors.background,
+      appBar: BoraScreenAppBar(
+        title: 'Enviar notificação',
         actions: [
           IconButton(
             tooltip: 'Histórico de broadcasts',
@@ -269,16 +273,11 @@ class _AdminSendNotificationScreenState
               maxLines: 3,
             ),
             const SizedBox(height: 24),
-            FilledButton.icon(
+            BoraPrimaryButton(
+              label: 'Enviar',
+              icon: Icons.send,
+              loading: _sending,
               onPressed: _sending ? null : _send,
-              icon: _sending
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white))
-                  : const Icon(Icons.send),
-              label: const Text('Enviar'),
             ),
           ]),
         ),

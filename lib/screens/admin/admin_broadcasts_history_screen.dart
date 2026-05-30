@@ -9,6 +9,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../config/app_colors.dart';
+import '../../widgets/bora/bora_screen_app_bar.dart';
+
 class AdminBroadcastsHistoryScreen extends StatefulWidget {
   const AdminBroadcastsHistoryScreen({super.key});
 
@@ -57,14 +60,14 @@ class _AdminBroadcastsHistoryScreenState
   Color _statusColor(String status) {
     switch (status) {
       case 'sent':
-        return Colors.green.shade700;
+        return AppColors.success;
       case 'failed':
-        return Colors.red.shade700;
+        return AppColors.error;
       case 'sending':
-        return Colors.amber.shade700;
+        return AppColors.warning;
       case 'pending':
       default:
-        return Colors.blueGrey;
+        return AppColors.textSecondary;
     }
   }
 
@@ -96,8 +99,9 @@ class _AdminBroadcastsHistoryScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Histórico de broadcasts'),
+      backgroundColor: AppColors.background,
+      appBar: BoraScreenAppBar(
+        title: 'Histórico de broadcasts',
         actions: [
           PopupMenuButton<int>(
             tooltip: 'Limite',
@@ -128,7 +132,7 @@ class _AdminBroadcastsHistoryScreenState
                     padding: const EdgeInsets.all(16),
                     child: Text(
                       'Erro a carregar: $_error',
-                      style: const TextStyle(color: Colors.red),
+                      style: const TextStyle(color: AppColors.error),
                     ),
                   ),
                 )
@@ -139,7 +143,8 @@ class _AdminBroadcastsHistoryScreenState
                       child: ListView.separated(
                         padding: const EdgeInsets.all(12),
                         itemCount: _rows.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        separatorBuilder: (_, __) =>
+                            const Divider(height: 1, color: AppColors.divider),
                         itemBuilder: (context, i) {
                           final r = _rows[i];
                           final status = (r['status'] as String?) ?? 'pending';
@@ -206,19 +211,20 @@ class _AdminBroadcastsHistoryScreenState
                                         '✓ $sentCount · ✗ $failedCount',
                                         style: const TextStyle(
                                             fontSize: 11,
-                                            color: Colors.black54),
+                                            color: AppColors.textSecondary),
                                       ),
                                     Text(
                                       'Agendado: ${_fmt(scheduledAt)}',
                                       style: const TextStyle(
-                                          fontSize: 11, color: Colors.black54),
+                                          fontSize: 11,
+                                          color: AppColors.textSecondary),
                                     ),
                                     if (completedAt != null)
                                       Text(
                                         'Concluído: ${_fmt(completedAt)}',
                                         style: const TextStyle(
                                             fontSize: 11,
-                                            color: Colors.black54),
+                                            color: AppColors.textSecondary),
                                       ),
                                   ],
                                 ),

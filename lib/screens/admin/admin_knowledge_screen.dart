@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '../../widgets/bora/bora_screen_app_bar.dart';
 
 class AdminKnowledgeScreen extends StatefulWidget {
   const AdminKnowledgeScreen({super.key});
@@ -138,10 +139,9 @@ class _AdminKnowledgeScreenState extends State<AdminKnowledgeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Knowledge Base'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
+      backgroundColor: AppColors.background,
+      appBar: BoraScreenAppBar(
+        title: 'Knowledge Base',
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -165,12 +165,12 @@ class _AdminKnowledgeScreenState extends State<AdminKnowledgeScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline, size: 48, color: Colors.red),
+              const Icon(Icons.error_outline, size: 48, color: AppColors.error),
               const SizedBox(height: 12),
               Text(
                 'Erro a carregar stats:\n$_error',
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.red),
+                style: const TextStyle(color: AppColors.error),
               ),
               const SizedBox(height: 16),
               ElevatedButton(
@@ -276,14 +276,14 @@ class _AdminKnowledgeScreenState extends State<AdminKnowledgeScreen> {
             label: 'Pendentes',
             value: '$pending',
             sub: 'Aguardam embedding (5C-β)',
-            color: pending > 0 ? AppColors.warning : Colors.grey,
+            color: pending > 0 ? AppColors.warning : AppColors.textSubtle,
           ),
           _StatCard(
             icon: Icons.schedule,
             label: 'Última Indexação',
             value: _fmtDate(lastIndexed),
             valueFontSize: 14,
-            color: Colors.deepPurple,
+            color: AppColors.info,
           ),
         ],
       ),
@@ -300,7 +300,7 @@ class _AdminKnowledgeScreenState extends State<AdminKnowledgeScreen> {
               ),
               const SizedBox(height: 12),
               if (bySrc.isEmpty)
-                const Text('—', style: TextStyle(color: Colors.grey))
+                const Text('—', style: TextStyle(color: AppColors.textSubtle))
               else
                 ...bySrc.entries.map(
                   (e) => Padding(
@@ -368,7 +368,7 @@ class _AdminKnowledgeScreenState extends State<AdminKnowledgeScreen> {
                 const Icon(
                   Icons.warning_amber_rounded,
                   size: 16,
-                  color: Colors.orange,
+                  color: AppColors.warning,
                 ),
                 const SizedBox(width: 4),
               ],
@@ -376,7 +376,7 @@ class _AdminKnowledgeScreenState extends State<AdminKnowledgeScreen> {
                 v,
                 style: TextStyle(
                   fontWeight: FontWeight.w600,
-                  color: warning ? Colors.orange : null,
+                  color: warning ? AppColors.warning : null,
                 ),
               ),
             ],
@@ -450,7 +450,7 @@ class _AdminKnowledgeScreenState extends State<AdminKnowledgeScreen> {
                     'Limite 100 chunks por chamada · rate-limited 1 req/s',
                     style: TextStyle(
                       fontSize: 11,
-                      color: Colors.grey.shade700,
+                      color: AppColors.textSubtle,
                     ),
                   ),
                 ),
@@ -509,7 +509,7 @@ class _AdminKnowledgeScreenState extends State<AdminKnowledgeScreen> {
               'Kill switch SQL: UPDATE support_settings SET rag_enabled=false WHERE id=1.',
               style: TextStyle(
                 fontSize: 12,
-                color: Colors.grey.shade700,
+                color: AppColors.textSubtle,
                 fontStyle: FontStyle.italic,
               ),
             ),
@@ -575,7 +575,7 @@ class _StatCard extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 sub!,
-                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                style: const TextStyle(fontSize: 11, color: AppColors.textSubtle),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),

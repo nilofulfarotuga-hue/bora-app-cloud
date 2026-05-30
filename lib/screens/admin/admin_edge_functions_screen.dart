@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../config/app_colors.dart';
+
 /// T5.5 — Admin Edge Functions monitor.
 /// Lista das 17 Edge Fns + erros recentes (mbway + edge_function_invocations).
 class AdminEdgeFunctionsScreen extends StatefulWidget {
@@ -50,10 +52,20 @@ class _AdminEdgeFunctionsScreenState extends State<AdminEdgeFunctionsScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        foregroundColor: Colors.white,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(gradient: AppColors.headerGradient),
+        ),
         title: const Text('Edge Functions'),
         bottom: TabBar(
           controller: _tab,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          indicatorColor: Colors.white,
           tabs: const [
             Tab(text: 'Funções'),
             Tab(text: 'Erros recentes'),
@@ -87,13 +99,13 @@ class _AdminEdgeFunctionsScreenState extends State<AdminEdgeFunctionsScreen>
             child: Text(
               'Lista das Edge Functions deployed.\n'
               'Para versão e ACTIVE/ERROR detalhado, ver Supabase Dashboard.',
-              style: TextStyle(fontSize: 12, color: Colors.black54),
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
             ),
           ),
           ...fns.map((slug) => Card(
                 child: ListTile(
                   dense: true,
-                  leading: const Icon(Icons.cloud_done, color: Colors.green),
+                  leading: const Icon(Icons.cloud_done, color: AppColors.success),
                   title: Text(slug as String,
                       style: const TextStyle(fontFamily: 'monospace')),
                 ),
@@ -116,9 +128,9 @@ class _AdminEdgeFunctionsScreenState extends State<AdminEdgeFunctionsScreen>
         itemBuilder: (_, i) {
           final e = (errors[i] as Map).cast<String, dynamic>();
           return Card(
-            color: Colors.red.shade50,
+            color: AppColors.error.withValues(alpha: 0.08),
             child: ListTile(
-              leading: const Icon(Icons.error, color: Colors.red),
+              leading: const Icon(Icons.error, color: AppColors.error),
               title: Text(e['fn_slug'] as String? ?? '?'),
               subtitle: Text(
                   '${e['error_message'] ?? ''}\n${e['created_at'] ?? ''}'),
@@ -145,9 +157,9 @@ class _AdminEdgeFunctionsScreenState extends State<AdminEdgeFunctionsScreen>
         itemBuilder: (_, i) {
           final e = (errs[i] as Map).cast<String, dynamic>();
           return Card(
-            color: Colors.orange.shade50,
+            color: AppColors.warning.withValues(alpha: 0.08),
             child: ListTile(
-              leading: const Icon(Icons.payment, color: Colors.orange),
+              leading: const Icon(Icons.payment, color: AppColors.warning),
               title: Text(e['error_message'] as String? ?? ''),
               subtitle: Text(
                   'order ${(e['order_id'] as String?)?.substring(0, 8) ?? ''} · ${e['stripe_mode'] ?? ''}\n${e['created_at'] ?? ''}'),

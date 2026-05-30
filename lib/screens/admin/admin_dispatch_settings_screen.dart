@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '../../config/app_spacing.dart';
+import '../../widgets/bora/bora_screen_app_bar.dart';
 
 /// Admin · Configurações de Despacho (PT-BR).
 ///
@@ -160,7 +162,7 @@ class _AdminDispatchSettingsScreenState
             const SizedBox(height: 12),
             const Text(
               '⚠️ Esta alteração propaga-se em tempo real para o backend.',
-              style: TextStyle(color: Colors.orange, fontSize: 12),
+              style: TextStyle(color: AppColors.warning, fontSize: 12),
             ),
           ],
         ),
@@ -184,7 +186,7 @@ class _AdminDispatchSettingsScreenState
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Valor inválido — insira apenas números inteiros.'),
-          backgroundColor: Colors.red,
+          backgroundColor: AppColors.error,
         ),
       );
       return;
@@ -196,7 +198,7 @@ class _AdminDispatchSettingsScreenState
           content: Text(
             'Fora do intervalo permitido (${spec.minValue}..${spec.maxValue}).',
           ),
-          backgroundColor: Colors.red,
+          backgroundColor: AppColors.error,
         ),
       );
       return;
@@ -209,7 +211,7 @@ class _AdminDispatchSettingsScreenState
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('${spec.label}: atualizado para $parsed ${spec.unit}.'),
-          backgroundColor: Colors.green,
+          backgroundColor: AppColors.success,
         ),
       );
       await _load();
@@ -218,7 +220,7 @@ class _AdminDispatchSettingsScreenState
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Erro ao atualizar: $e'),
-          backgroundColor: Colors.red,
+          backgroundColor: AppColors.error,
         ),
       );
     }
@@ -227,11 +229,8 @@ class _AdminDispatchSettingsScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Configurações de Despacho'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-      ),
+      backgroundColor: AppColors.background,
+      appBar: const BoraScreenAppBar(title: 'Configurações de Despacho'),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
@@ -242,11 +241,11 @@ class _AdminDispatchSettingsScreenState
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         const Icon(Icons.error_outline,
-                            size: 48, color: Colors.red),
+                            size: 48, color: AppColors.error),
                         const SizedBox(height: 12),
                         Text(_error!,
                             textAlign: TextAlign.center,
-                            style: const TextStyle(color: Colors.red)),
+                            style: const TextStyle(color: AppColors.error)),
                         const SizedBox(height: 16),
                         FilledButton.icon(
                           onPressed: _load,
@@ -268,15 +267,16 @@ class _AdminDispatchSettingsScreenState
                         final current =
                             _values[spec.key] ?? spec.defaultValue;
                         final isDefault = current == spec.defaultValue;
-                        return Card(
+                        return Container(
                           margin: const EdgeInsets.only(bottom: 12),
-                          elevation: 1,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                          decoration: BoxDecoration(
+                            color: AppColors.card,
+                            borderRadius: BorderRadius.circular(Radii.lg),
+                            boxShadow: AppColors.shadowCard,
                           ),
                           child: InkWell(
                             onTap: () => _editSetting(spec),
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(Radii.lg),
                             child: Padding(
                               padding: const EdgeInsets.all(14),
                               child: Row(

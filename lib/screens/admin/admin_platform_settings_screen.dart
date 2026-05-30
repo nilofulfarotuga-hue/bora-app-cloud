@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../config/app_colors.dart';
+import '../../widgets/bora/bora_screen_app_bar.dart';
+
 /// Admin Platform Settings — edit configurable parameters in `platform_settings`.
 /// HIGH-RISK: changes propagate live; use with care. All changes audited.
 class AdminPlatformSettingsScreen extends StatefulWidget {
@@ -66,7 +69,7 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
             const SizedBox(height: 8),
             const Text(
               '⚠️ Esta alteração propaga-se live. Tens a certeza?',
-              style: TextStyle(color: Colors.red, fontSize: 12),
+              style: TextStyle(color: AppColors.error, fontSize: 12),
             ),
           ],
         ),
@@ -105,11 +108,12 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Configurações')),
+      backgroundColor: AppColors.background,
+      appBar: const BoraScreenAppBar(title: 'Configurações'),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? Center(child: Text(_error!, style: const TextStyle(color: Colors.red)))
+              ? Center(child: Text(_error!, style: const TextStyle(color: AppColors.error)))
               : RefreshIndicator(
                   onRefresh: _load,
                   child: ListView(

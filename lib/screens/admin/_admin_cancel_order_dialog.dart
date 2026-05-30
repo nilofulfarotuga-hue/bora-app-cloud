@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../config/app_colors.dart';
+import '../../config/app_spacing.dart';
 import '../../services/admin/admin_order_service.dart';
 
 /// Modal para o admin cancelar um pedido. Recolhe `reason_code` (dropdown
@@ -101,7 +102,8 @@ class _AdminCancelOrderDialogState extends State<AdminCancelOrderDialog> {
     final reasonOk = _reason.text.trim().length >= _kReasonMinChars;
 
     return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Radii.lg)),
       title: const Text('Cancelar pedido'),
       content: SingleChildScrollView(
         child: Column(

@@ -90,6 +90,16 @@ scripts/rag/*.log
 # ── Deno cache lockfile (CLI-generated, per-machine) ─────────────────────────
 deno.lock
 
+# ── Repo hygiene (auditoria 2026-05-31) ──────────────────────────────────────
+# node_modules da raiz (Playwright/TestSprite) — nunca versionar
+/node_modules/
+# testes auto-gerados pelo TestSprite (dependem de node_modules)
+/testsprite_tests/
+# bytecode Python das skills + scratch
+**/__pycache__/
+# screenshots de device/ADB soltos (debug)
+device_screenshot_*.png
+
 # ── Claude Code local settings (per-machine, never commit) ───────────────────
 .claude/settings.local.json
 

@@ -79,7 +79,10 @@ class _MarketStoreScreenState extends State<MarketStoreScreen> {
             storeName: widget.storeName,
             isPartnerStore: widget.isPartnerStore,
           ),
-          const MarketReorderTab(),
+          MarketReorderTab(
+            storeName: widget.storeName,
+            isPartnerStore: widget.isPartnerStore,
+          ),
         ],
       ),
       bottomNavigationBar: Column(

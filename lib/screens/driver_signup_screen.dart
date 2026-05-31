@@ -353,23 +353,32 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
       final supabase = Supabase.instance.client;
       final userId = supabase.auth.currentUser?.id ?? '';
 
-      // Upload photos
+      // Upload photos — falha de upload NUNCA bloqueia o submit.
+      // Se falhar, o campo fica null e o Danilo valida/pede a foto depois.
       String? selfieUrl;
       if (_selfieFile != null) {
-        selfieUrl = await _uploadPhoto(_selfieFile!, userId, 'selfie');
+        try {
+          selfieUrl = await _uploadPhoto(_selfieFile!, userId, 'selfie');
+        } catch (_) {}
       }
       String? docUrl;
       if (_documentPhotoFile != null) {
-        docUrl = await _uploadPhoto(_documentPhotoFile!, userId, 'document');
+        try {
+          docUrl = await _uploadPhoto(_documentPhotoFile!, userId, 'document');
+        } catch (_) {}
       }
       String? vehicleDocUrl;
       if (_vehicleDocFile != null) {
-        vehicleDocUrl =
-            await _uploadPhoto(_vehicleDocFile!, userId, 'vehicle_doc');
+        try {
+          vehicleDocUrl =
+              await _uploadPhoto(_vehicleDocFile!, userId, 'vehicle_doc');
+        } catch (_) {}
       }
       String? vehicleUrl;
       if (_vehiclePhotoFile != null) {
-        vehicleUrl = await _uploadPhoto(_vehiclePhotoFile!, userId, 'vehicle');
+        try {
+          vehicleUrl = await _uploadPhoto(_vehiclePhotoFile!, userId, 'vehicle');
+        } catch (_) {}
       }
 
       final iban = _ibanController.text.replaceAll(' ', '').toUpperCase();
@@ -417,13 +426,15 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
 
       if (!mounted) return;
 
-      // Clear draft + logout → DriverPendingScreen
+      // Clear draft + logout → DriverPendingScreen (limpa a stack do signup
+      // para não voltar ao login nem ficar preso — estilo Glovo).
       context.read<AuthStore>().logout();
       _clearDraft();
 
-      Navigator.pushReplacement(
+      Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const DriverPendingScreen()),
+        (route) => false,
       );
     } catch (e) {
       if (!mounted) return;
@@ -446,12 +457,8 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
           currentStep: _currentStep,
           onStepContinue: () {
             if (_currentStep == 0) {
-              if (_nameController.text.trim().isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('O nome é obrigatório.')),
-                );
-                return;
-              }
+              // Nunca bloqueia — avança mesmo com campos vazios (Danilo valida
+              // manualmente depois). Ver regra "cadastro nunca bloqueia".
               setState(() => _currentStep = 1);
               return;
             }
@@ -540,11 +547,10 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
                     onChanged: (_) => _saveDraft(),
                     textCapitalization: TextCapitalization.words,
                     decoration: const InputDecoration(
-                      labelText: 'Nome completo *',
+                      labelText: 'Nome completo',
                       prefixIcon: Icon(Icons.person_outline),
                     ),
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Obrigatório' : null,
+                    // Sem validator bloqueante — cadastro nunca trava.
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
@@ -566,13 +572,7 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
                       prefixIcon: Icon(Icons.badge_outlined),
                       helperText: '9 dígitos sem espaços',
                     ),
-                    validator: (v) {
-                      if (v == null || v.trim().isEmpty) return null;
-                      if (!RegExp(r'^\d{9}$').hasMatch(v.trim())) {
-                        return 'NIF deve ter 9 dígitos';
-                      }
-                      return null;
-                    },
+                    // Aviso visual apenas (helperText) — nunca bloqueia o avanço.
                   ),
                   const SizedBox(height: 12),
                   AddressAutocompleteField(
@@ -853,14 +853,7 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
                       hintText: 'PT50...',
                       helperText: 'IBAN português para receber pagamentos',
                     ),
-                    validator: (v) {
-                      if (v == null || v.trim().isEmpty) return null;
-                      final clean = v.replaceAll(' ', '').toUpperCase();
-                      if (!RegExp(r'^PT\d{21}$').hasMatch(clean)) {
-                        return 'IBAN PT inválido (PT + 21 dígitos)';
-                      }
-                      return null;
-                    },
+                    // Sem validator bloqueante — Danilo confirma o IBAN depois.
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
@@ -872,14 +865,7 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
                       prefixIcon: Icon(Icons.phone_android),
                       hintText: '+351 9XX XXX XXX',
                     ),
-                    validator: (v) {
-                      if (v == null || v.trim().isEmpty) return null;
-                      final clean = v.trim().replaceAll(' ', '');
-                      if (!RegExp(r'^\+?[0-9]{9,15}$').hasMatch(clean)) {
-                        return 'Número de telemóvel inválido';
-                      }
-                      return null;
-                    },
+                    // Sem validator bloqueante — cadastro nunca trava.
                   ),
                 ],
               ),

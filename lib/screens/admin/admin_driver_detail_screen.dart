@@ -67,7 +67,7 @@ class _AdminDriverDetailScreenState extends State<AdminDriverDetailScreen>
 
   static const _extendedDriverCols = '$_baseDriverCols, '
       'document_type, document_number, document_photo_url, vehicle_photo_url, '
-      'vehicle_doc_url, address, submitted_at, reviewed_at, '
+      'vehicle_doc_url, registration_selfie_url, address, submitted_at, reviewed_at, '
       'mbway_phone, rejection_reason, last_heartbeat_at, rating, total_deliveries';
 
   Future<void> _refresh() async {
@@ -643,12 +643,14 @@ class _DocumentsCard extends StatelessWidget {
     final docPhoto = driver['document_photo_url'] as String?;
     final vehicleDocPhoto = driver['vehicle_doc_url'] as String?;
     final vehiclePhoto = driver['vehicle_photo_url'] as String?;
+    final selfiePhoto = driver['registration_selfie_url'] as String?;
 
     final hasAny = (docType != null && docType.isNotEmpty) ||
         (docNumber != null && docNumber.isNotEmpty) ||
         (docPhoto != null && docPhoto.isNotEmpty) ||
         (vehicleDocPhoto != null && vehicleDocPhoto.isNotEmpty) ||
-        (vehiclePhoto != null && vehiclePhoto.isNotEmpty);
+        (vehiclePhoto != null && vehiclePhoto.isNotEmpty) ||
+        (selfiePhoto != null && selfiePhoto.isNotEmpty);
     if (!hasAny) return const SizedBox.shrink();
 
     return Container(
@@ -698,6 +700,16 @@ class _DocumentsCard extends StatelessWidget {
                       fontSize: 12)),
               const SizedBox(height: 6),
               _ZoomableImage(url: vehiclePhoto),
+            ],
+            if (selfiePhoto != null && selfiePhoto.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              const Text('Selfie de verificação',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textSecondary,
+                      fontSize: 12)),
+              const SizedBox(height: 6),
+              _ZoomableImage(url: selfiePhoto),
             ],
           ],
         ),

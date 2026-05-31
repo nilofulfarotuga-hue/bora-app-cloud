@@ -270,11 +270,54 @@ class _CashbackBadge extends StatelessWidget {
 
 // ── Cancel order button + dialog (F1 + F3) ────────────────────────────────────
 
-class _CancelOrderButton extends StatelessWidget {
+class _CancelOrderButton extends StatefulWidget {
   const _CancelOrderButton({required this.order});
   final OrderModel order;
 
-  /// Cents do reembolso esperado por tier.
+  @override
+  State<_CancelOrderButton> createState() => _CancelOrderButtonState();
+}
+
+class _CancelOrderButtonState extends State<_CancelOrderButton> {
+  OrderModel get order => widget.order;
+
+  // Taxas de cancelamento — lidas de platform_settings via RPC get_setting
+  // (mesmo padrão do refund_choice_dialog). Os defaults espelham a DB
+  // (100c / 250c / ratio 1.0) e servem de fallback se a leitura falhar.
+  // Isto é APENAS a estimativa mostrada ao cliente — o débito real é
+  // calculado server-side pela Edge Fn cancel-order-with-choice.
+  double _feeBeforeDispatchEur = 1.00;
+  double _feeAfterAcceptEur = 2.50;
+  double _afterPickupRatio = 1.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCancelFees();
+  }
+
+  Future<void> _loadCancelFees() async {
+    try {
+      final supa = Supabase.instance.client;
+      final before = await supa
+          .rpc('get_setting', params: {'p_key': 'cancel_fee_before_dispatch_cents'});
+      final after = await supa
+          .rpc('get_setting', params: {'p_key': 'cancel_fee_after_accept_cents'});
+      final ratio = await supa
+          .rpc('get_setting', params: {'p_key': 'cancel_fee_after_pickup_ratio'});
+      if (!mounted) return;
+      setState(() {
+        final b = double.tryParse('${before ?? ''}');
+        final a = double.tryParse('${after ?? ''}');
+        final r = double.tryParse('${ratio ?? ''}');
+        if (b != null) _feeBeforeDispatchEur = b / 100.0;
+        if (a != null) _feeAfterAcceptEur = a / 100.0;
+        if (r != null) _afterPickupRatio = r;
+      });
+    } catch (_) {/* mantém defaults */}
+  }
+
+  /// Reembolso estimado por tier (lê platform_settings; fallback = DB).
   /// before_dispatch=€1 fee, after_accept=€2.50 fee, after_pickup=100% fee.
   double _refundableEur() {
     // finalTotal é autoritativo da DB e já inclui bag_fee para storeShopping.
@@ -284,12 +327,12 @@ class _CancelOrderButton extends StatelessWidget {
       case OrderStatus.created:
       case OrderStatus.preparing:
       case OrderStatus.callingDriver:
-        return (total - 1.00).clamp(0, double.infinity);
+        return (total - _feeBeforeDispatchEur).clamp(0, double.infinity);
       case OrderStatus.driverAccepted:
-        return (total - 2.50).clamp(0, double.infinity);
+        return (total - _feeAfterAcceptEur).clamp(0, double.infinity);
       case OrderStatus.pickedUp:
       case OrderStatus.onTheWay:
-        return 0; // 100% retido
+        return (total - total * _afterPickupRatio).clamp(0, double.infinity);
       default:
         return 0;
     }

@@ -611,12 +611,12 @@ class _PartnerEarningsSection extends StatelessWidget {
                     context, 'Total vendido', _formatCurrency(dailyTotal)),
                 _buildSummaryRow(
                   context,
-                  'Comissão da plataforma (20%)',
+                  'Comissão da plataforma (10%)',
                   _formatCurrency(dailyCommission),
                 ),
                 _buildSummaryRow(
                   context,
-                  'Ganhos do restaurante (80%)',
+                  'Ganhos do restaurante (90%)',
                   _formatCurrency(dailyRestaurant),
                 ),
               ],
@@ -718,12 +718,12 @@ class _PartnerEarningsSection extends StatelessWidget {
             emphasize: true),
         _buildSummaryRow(
           context,
-          'Comissão da plataforma (20%)',
+          'Comissão da plataforma (10%)',
           _formatCurrency(commission),
         ),
         _buildSummaryRow(
           context,
-          'Ganhos do restaurante (80%)',
+          'Ganhos do restaurante (90%)',
           _formatCurrency(restaurantShare),
           emphasize: true,
         ),

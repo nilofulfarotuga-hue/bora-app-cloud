@@ -19,6 +19,11 @@ import '../config/app_colors.dart';
 import '../models/cart_item.dart';
 import '../models/order_model.dart';
 
+@Deprecated(
+    'Ecrã órfão (0 callers). O fluxo storeShopping V2 real vive inline em '
+    'driver_map_screen.dart. Candidato a remoção — VALIDAR com Danilo antes de '
+    'apagar (auditoria 2026-05-31, Lote B2). NÃO religar sem rever a lógica '
+    '_allItemsResolved.')
 class StoreShoppingPurchaseScreen extends StatefulWidget {
   const StoreShoppingPurchaseScreen({super.key, required this.order});
   final OrderModel order;

@@ -99,6 +99,10 @@ deno.lock
 **/__pycache__/
 # screenshots de device/ADB soltos (debug)
 device_screenshot_*.png
+# scratch/outputs da skill taxonomy-mapper (dados de debug regeneraveis; .py preservados)
+.claude/skills/taxonomy-mapper/scripts/*.json
+.claude/skills/taxonomy-mapper/scripts/*.err
+.claude/skills/taxonomy-mapper/scripts/sql_batches/
 
 # ── Claude Code local settings (per-machine, never commit) ───────────────────
 .claude/settings.local.json

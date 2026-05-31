@@ -70,10 +70,13 @@ workflows:
         notify:
           success: true
           failure: true
-      google_play:
-        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
-        track: internal
-        submit_as_draft: false
+      # google_play DESATIVADO 2026-05-31 — a publicação no Play passa a ser feita
+      # SÓ pelo GitHub Actions (.github/workflows/build_android.yml). Isto evita o
+      # duplo-publish no mesmo track 'internal'. Reativar só se desligar o GH Actions.
+      # google_play:
+      #   credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+      #   track: internal
+      #   submit_as_draft: false
   android-debug:
     name: Bora App - Android Debug APK (faster, side-loadable)
     instance_type: mac_mini_m2

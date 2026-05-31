@@ -11,6 +11,7 @@ import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
 import '../config/business_rules.dart' show BRTokens;
 import '../models/order_model.dart';
+import '../services/pricing_service.dart';
 import '../stores/cart_store.dart';
 import '../stores/order_store.dart';
 import 'package:flutter_stripe/flutter_stripe.dart' show StripeException, FailureCode;
@@ -33,6 +34,9 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
 
   // MBWay phone input (Portuguese mobile, 9 digits — E.164 prefix added before send).
   final TextEditingController _mbwayPhoneController = TextEditingController();
+
+  // C1 (2026-05-31) — nota opcional do cliente para o estafeta (customerNotes).
+  final TextEditingController _notesController = TextEditingController();
 
   // ── Token discount state ───────────────────────────────────────────────────
   int _availableTokens = 0;
@@ -65,7 +69,14 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
   @override
   void dispose() {
     _mbwayPhoneController.dispose();
+    _notesController.dispose();
     super.dispose();
+  }
+
+  /// C1 — nota opcional do cliente para o estafeta (null se vazia).
+  String? get _orderNote {
+    final t = _notesController.text.trim();
+    return t.isEmpty ? null : t;
   }
 
   /// BUG #1 frontend (§54 / 2026-05-12) — busca debt_settle_cents do quote authoritative.
@@ -240,11 +251,40 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                           label: 'Entrega',
                           value: baseDeliveryFee,
                           subtitle: () {
-                            final d = pricing.distanceKm;
-                            if (d <= 4.0) return null;
-                            final extra = d - 4.0;
-                            final extraCharge = baseDeliveryFee - 2.50;
-                            return '€2.50 base + €${extraCharge.toStringAsFixed(2)} por ${extra.toStringAsFixed(1)}km extra';
+                            // Taxa base e €/km derivadas do PricingService (fonte
+                            // única de verdade) — não hardcodear 6/2.50/0.50.
+                            final st = cartStore.serviceType;
+                            final double baseFee =
+                                PricingService.calculateBreakdown(
+                              serviceType: st,
+                              subtotal: 0,
+                              distanceKm: 4,
+                            ).deliveryFee;
+                            final double perKm =
+                                PricingService.calculateBreakdown(
+                                      serviceType: st,
+                                      subtotal: 0,
+                                      distanceKm: 5,
+                                    ).deliveryFee -
+                                    baseFee;
+                            final double d = pricing.distanceKm;
+                            final double extra = d > 4.0 ? d - 4.0 : 0.0;
+                            final bool isPackage =
+                                st == OrderServiceType.sendPackage ||
+                                    st == OrderServiceType.carryGroceries;
+                            // Encomenda/Levar compras: mostra SEMPRE a composição
+                            // para o cliente perceber o acréscimo acima de 4 km.
+                            if (isPackage) {
+                              final base =
+                                  'Inclui €${baseFee.toStringAsFixed(2)} de taxa base (até 4 km)';
+                              if (extra > 0) {
+                                return '$base + €${perKm.toStringAsFixed(2)}/km acima de 4 km '
+                                    '(€${(perKm * extra).toStringAsFixed(2)} por ${extra.toStringAsFixed(1)} km extra).';
+                              }
+                              return '$base + €${perKm.toStringAsFixed(2)}/km acima de 4 km.';
+                            }
+                            if (extra <= 0) return null;
+                            return '€${baseFee.toStringAsFixed(2)} base + €${(perKm * extra).toStringAsFixed(2)} por ${extra.toStringAsFixed(1)}km extra';
                           }(),
                         ),
                         if (pricing.apartmentSurcharge > 0)
@@ -365,6 +405,42 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                           label: 'Total a pagar',
                           value: finalPrice,
                           isStrong: true,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                // C1 — nota opcional para o estafeta (liga ao customerNotes).
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.card,
+                    borderRadius: BorderRadius.circular(Radii.lg),
+                    boxShadow: AppColors.shadowCard,
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Nota para o estafeta (opcional)',
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: _notesController,
+                          maxLines: 2,
+                          maxLength: 200,
+                          textInputAction: TextInputAction.done,
+                          decoration: const InputDecoration(
+                            hintText:
+                                'Ex.: deixar na portaria, não tocar à campainha',
+                            border: OutlineInputBorder(),
+                          ),
                         ),
                       ],
                     ),
@@ -634,6 +710,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
           paymentStatus: PaymentStatus.paid, // RPC will mark paid (charge_total<=0)
           clientPhone: authStore.currentClient?.phone,
           customerName: authStore.currentClient?.name,
+          notes: _orderNote,
           tokensUsed: tokensUsed,
         );
         if (!mounted) return;
@@ -780,6 +857,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
           paymentStatus: PaymentStatus.pending,
           clientPhone: authStore.currentClient?.phone,
           customerName: authStore.currentClient?.name,
+          notes: _orderNote,
           tokensUsed: tokensUsed,
         );
         if (!mounted) return;
@@ -853,6 +931,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       paymentIntentId: paymentIntentId,
       clientPhone: authStore.currentClient?.phone,
       customerName: authStore.currentClient?.name,
+      notes: _orderNote,
       tokensUsed: tokensUsed,
     );
 

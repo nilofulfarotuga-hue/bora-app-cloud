@@ -1,7 +1,9 @@
 # 08 — Edge Functions
 
-> Snapshot via MCP `list_edge_functions` (projeto `ojykpzwqrtusfeakzrna`, 2026-05-29):
-> **44 funções ACTIVE**. As skills **chamam** estas funções — nunca as recriam.
+> Snapshot via MCP `list_edge_functions` (projeto `ojykpzwqrtusfeakzrna`, 2026-05-31):
+> **43 funções ACTIVE** (38 com fonte local em `supabase/functions`; 6 deployed sem fonte:
+> admin-cancel-reservation, execute-broadcast, gemini-diagnostic, robot-b, upload-driver-document,
+> upload-order-photo · 1 local sem deploy: confirm-mbway-payment). As skills **chamam** estas funções — nunca as recriam.
 > `verify_jwt` indicado entre parênteses.
 
 ## Pagamentos / financeiro

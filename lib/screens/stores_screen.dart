@@ -14,13 +14,30 @@ import '../widgets/bora_support_fab.dart';
 import 'store_categories_screen.dart';
 import 'store_products_screen.dart';
 
-class StoresScreen extends StatelessWidget {
+enum _StoreSort { name, rating }
+
+class StoresScreen extends StatefulWidget {
   const StoresScreen({super.key, this.initialCategory});
 
   final BusinessCategory? initialCategory;
 
+  @override
+  State<StoresScreen> createState() => _StoresScreenState();
+}
+
+class _StoresScreenState extends State<StoresScreen> {
+  final TextEditingController _searchCtrl = TextEditingController();
+  String _query = '';
+  _StoreSort _sort = _StoreSort.name;
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
   String get _title {
-    switch (initialCategory) {
+    switch (widget.initialCategory) {
       case BusinessCategory.supermarket:
         return 'Supermercados';
       case BusinessCategory.store:
@@ -30,6 +47,57 @@ class StoresScreen extends StatelessWidget {
       default:
         return 'Lojas e Farmácias';
     }
+  }
+
+  Widget _buildSearchSortBar(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          controller: _searchCtrl,
+          onChanged: (v) => setState(() => _query = v),
+          textInputAction: TextInputAction.search,
+          decoration: InputDecoration(
+            hintText: 'Pesquisar loja...',
+            prefixIcon: const Icon(Icons.search),
+            suffixIcon: _query.isEmpty
+                ? null
+                : IconButton(
+                    icon: const Icon(Icons.clear),
+                    onPressed: () {
+                      _searchCtrl.clear();
+                      setState(() => _query = '');
+                    },
+                  ),
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            const Text('Ordenar:', style: TextStyle(color: Colors.black54)),
+            const SizedBox(width: 8),
+            ChoiceChip(
+              label: const Text('Nome'),
+              selected: _sort == _StoreSort.name,
+              onSelected: (_) => setState(() => _sort = _StoreSort.name),
+            ),
+            const SizedBox(width: 8),
+            ChoiceChip(
+              label: const Text('Avaliação'),
+              selected: _sort == _StoreSort.rating,
+              onSelected: (_) => setState(() => _sort = _StoreSort.rating),
+            ),
+          ],
+        ),
+      ],
+    );
   }
 
   @override
@@ -60,12 +128,12 @@ class StoresScreen extends StatelessWidget {
       category: BusinessCategory.pharmacy,
     );
 
-    final showSupermarkets = initialCategory == null ||
-        initialCategory == BusinessCategory.supermarket;
-    final showStores =
-        initialCategory == null || initialCategory == BusinessCategory.store;
-    final showPharmacies =
-        initialCategory == null || initialCategory == BusinessCategory.pharmacy;
+    final showSupermarkets = widget.initialCategory == null ||
+        widget.initialCategory == BusinessCategory.supermarket;
+    final showStores = widget.initialCategory == null ||
+        widget.initialCategory == BusinessCategory.store;
+    final showPharmacies = widget.initialCategory == null ||
+        widget.initialCategory == BusinessCategory.pharmacy;
 
     final sections = <Widget>[];
     if (showSupermarkets) {
@@ -113,7 +181,11 @@ class StoresScreen extends StatelessWidget {
       appBar: BoraScreenAppBar(title: _title),
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-        children: sections,
+        children: [
+          _buildSearchSortBar(context),
+          const SizedBox(height: 16),
+          ...sections,
+        ],
       ),
     );
   }
@@ -124,7 +196,7 @@ class StoresScreen extends StatelessWidget {
     required List<_StoreEntry> entries,
   }) {
     if (entries.isEmpty) {
-      if (initialCategory != null) {
+      if (widget.initialCategory != null) {
         return [
           Padding(
             padding: const EdgeInsets.only(top: 8, bottom: 4),
@@ -187,7 +259,32 @@ class StoresScreen extends StatelessWidget {
       if (retailStore == null) continue;
       entries.add(_StoreEntry(business: business, store: retailStore));
     }
-    return entries;
+
+    // C2 — filtro de pesquisa por nome + ordenação (só sobre a lista já carregada).
+    final q = _query.trim().toLowerCase();
+    final filtered = q.isEmpty
+        ? entries
+        : entries
+            .where((e) => e.store.name.toLowerCase().contains(q))
+            .toList();
+    filtered.sort((a, b) {
+      switch (_sort) {
+        case _StoreSort.rating:
+          final ra = a.business.avgRating ?? -1;
+          final rb = b.business.avgRating ?? -1;
+          final byRating = rb.compareTo(ra); // maior avaliação primeiro
+          return byRating != 0
+              ? byRating
+              : a.store.name
+                  .toLowerCase()
+                  .compareTo(b.store.name.toLowerCase());
+        case _StoreSort.name:
+          return a.store.name
+              .toLowerCase()
+              .compareTo(b.store.name.toLowerCase());
+      }
+    });
+    return filtered;
   }
 
   Future<void> _openStore(BuildContext context, _StoreEntry entry) async {

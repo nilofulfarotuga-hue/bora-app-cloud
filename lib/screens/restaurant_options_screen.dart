@@ -82,29 +82,29 @@ class RestaurantOptionsScreen extends StatelessWidget {
           const SizedBox(height: Spacing.lg),
           // Cartão "Entrega" — sempre presente (todos os parceiros aceitam
           // delivery enquanto isPartner=true).
-          BoraTileCard(
+          BoraTileCard.image(
             label: 'Entrega',
             gradient: AppColors.tileRestaurants,
-            iconData: Icons.delivery_dining,
+            imageAsset: 'assets/categories/btn_entrega.png',
             onTap: () => _openMenu(context, OrderServiceType.restaurant),
           ),
           // D1 — "Ir buscar" só se restaurante aceita takeaway.
           if (business.takeawayEnabled) ...[
             const SizedBox(height: Spacing.md),
-            BoraTileCard(
+            BoraTileCard.image(
               label: 'Ir buscar',
               gradient: AppColors.tileCarryGroceries,
-              iconData: Icons.shopping_bag_outlined,
+              imageAsset: 'assets/categories/btn_buscar.png',
               onTap: () => _openMenu(context, OrderServiceType.takeaway),
             ),
           ],
           // D1 — "Reservar mesa" só se restaurante aceita reservas.
           if (business.reservationsEnabled) ...[
             const SizedBox(height: Spacing.md),
-            BoraTileCard(
+            BoraTileCard.image(
               label: 'Reservar mesa',
               gradient: AppColors.tileReserveTable,
-              iconData: Icons.event_seat_outlined,
+              imageAsset: 'assets/categories/btn_reservar.png',
               onTap: () => _openReservation(context),
             ),
           ],

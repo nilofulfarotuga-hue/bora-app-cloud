@@ -32,10 +32,15 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      # 3. Flutter (stable, versao mais recente)
+      # 3. Flutter — PIN 3.41.2 (mesma versao do Codemagic que produziu o build 239
+      #    funcional). Sem pin, 'stable' usava o Flutter mais recente, cujo parser de
+      #    --dart-define-from-file (.env com linha de comentario '#') NAO injetava as
+      #    chaves Supabase -> Supabase.initialize(url:'') -> login "credenciais invalidas"
+      #    instantaneo na build 240. NAO subir esta versao sem re-testar o login.
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
+          flutter-version: 3.41.2
           channel: stable
           cache: true
 

@@ -37,6 +37,28 @@ Instância de DB do projeto sobrecarregada/indisponível (free/micro tier): exau
 >
 > **DESFECHO (08:47 local):** dei ~3.5 min para replenish + health-check da query exacta do gotrue (`auth.users where email=test-client` — **passou instantânea**) e **mesmo assim** o login a seguir **falhou** (a operação de 6–16s apanhou novo flap). **6 tentativas de login, todas DB-timeout.** Parei o loop (regra "3 falhas iguais" largamente excedida; infra, não código). **PRIORIDADE 1 = BLOQUEADA por infra**, NÃO reprovada — a app/build/contas/código estão validados; só falta a DB aguentar. **Próximo: Danilo faz upgrade de compute (ou aguarda replenish) → re-corre este gate + login (form já preenchido no A36, basta `Entrar`).**
 
+---
+
+# ✅ RESOLVIDO 2026-06-02 09:4x — DB desbloqueada (era pg_cron, NÃO compute)
+
+**Causa REAL** (corrigida via MCP pelo Claude.ai, fora desta sessão): **pg_cron a saturar** a instância free — jobs a cada 1–2 min a empilharem-se e a roubar slots ao gotrue. Fix: espaçar para 5 min os jobs **25** (mark-stale-drivers-offline), **32** (reservas_pro_pending_alert), **39** (process-pending-broadcasts). Crons protegidos (22 dispatch, 2 payout, 26 settlements, Stripe) **intocados**. (O meu diagnóstico "throttling de compute" estava errado nessa parte — o `pg_stat_activity` que vi vazio foi entre execuções de cron.)
+
+**Gate de estabilidade:** passou **3/3 à 1ª** (`09:38:41`/`09:39:23`/`09:39:53`, conns=22).
+
+## 🔴 PRIORIDADE 1 — resultados (teste ADB no A36, build 244)
+- **Cliente — login:** ✅ **VERDE** — `pm clear` + login fresco `test-client` → **home** ("Olá!", 7 categorias). Confirma a app/build/contas/código + DB.
+- **Estafeta — cadastro novo + aprovação admin:** ✅ **VERDE (após corrigir BUG-1)** — cadastro no device (form 4 passos; gate email+password+termos) → conta auth `driver` criada → (após fix) **drivers row `pending`** → **Painel Admin (Cliente→Perfil→Painel Admin, conta nilofulfarotuga@gmail.com) → Aprovações de Entregadores → Aprovar** (dialog "faltam documentos": ✓ checkbox risco + nota → "Aprovar mesmo assim") → **approval_status=`approved`** (MCP-confirmado, approved_at 16:47).
+- **Parceiro — cadastro novo + aprovação admin:** ✅ **VERDE** — cadastro no device (form 4 passos: estabelecimento c/ **morada Google Places autocomplete** + categoria, conta de acesso, opcionais) → conta auth `partner` + **restaurante "Pizzaria Teste Noite" criado** (id uuid `34cddf37…`, `restaurants.id` JÁ tinha default → SEM o bug do estafeta) `pending` → **Painel Admin → Aprovação de parceiros → Aprovar** (confirma "ficará visível aos clientes") → **approval_status=`approved`** (MCP-confirmado, is_partner=true, linked=true). *Isto também resolve o gap antigo "test-partner sem restaurante" — agora há um parceiro de teste completo com restaurante.*
+- Cliente — cadastro novo: ⏳ em teste (próximo)
+- Verificar login estafeta/parceiro → painel pós-aprovação: ⏳ (próximo)
+
+## 🐛 BUG-1 (LAUNCH BLOCKER) — CORRIGIDO: cadastro de estafeta nunca criava a linha `drivers`
+- **Sintoma:** signup criava a conta auth mas a app mostrava "Conta criada!" SEM criar `drivers` row → estafeta nunca aparecia ao admin para aprovar (= ninguém se podia tornar estafeta).
+- **Causa-raiz:** a RPC `driver_register_or_update` faz `INSERT INTO drivers(user_id,...)` sem `id`, contando com um DEFAULT; mas **`drivers.id` (uuid PK NOT NULL) não tinha DEFAULT** → `null value in column "id" ... violates not-null`. A RPC apanha e devolve `{success:false}`, mas a app **não verifica o retorno** (falso "Conta criada!").
+- **Fix (cirúrgico, servidor — build 244 beneficia já):** migration `20260602000000_fix_drivers_id_default.sql` → `ALTER TABLE drivers ALTER COLUMN id SET DEFAULT gen_random_uuid();`. Aplicada via MCP + ficheiro no repo. Não altera linhas existentes. Verificado: RPC passa a devolver `{success:true}` e cria a row.
+- **Secundário (não-bloqueante, documentado p/ depois):** `driver_signup_screen.dart:296` ignora o retorno `{success:false}` da RPC e reporta sucesso — devia verificar `res['success']`. NÃO corrigido nesta sessão (exigiria rebuild; não bloqueia agora que a DB está fixada).
+- Zona proibida? NÃO — `drivers` não está na lista (dispatch/pricing/financeiro/Stripe/RLS orders·wallets·ledger). Crons intocados.
+
 > ⚠️ Como **nenhum login funciona enquanto a DB estiver assim**, os testes E2E de estafeta/parceiro/cadastro foram **bloqueados por esta falha** (não por bug da app). Parei de repetir o login após 3 falhas com a MESMA causa (regra do prompt).
 
 ---

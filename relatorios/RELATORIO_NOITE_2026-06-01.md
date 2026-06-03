@@ -51,6 +51,26 @@ Instância de DB do projeto sobrecarregada/indisponível (free/micro tier): exau
 - **Parceiro — cadastro novo + aprovação admin:** ✅ **VERDE** — cadastro no device (form 4 passos: estabelecimento c/ **morada Google Places autocomplete** + categoria, conta de acesso, opcionais) → conta auth `partner` + **restaurante "Pizzaria Teste Noite" criado** (id uuid `34cddf37…`, `restaurants.id` JÁ tinha default → SEM o bug do estafeta) `pending` → **Painel Admin → Aprovação de parceiros → Aprovar** (confirma "ficará visível aos clientes") → **approval_status=`approved`** (MCP-confirmado, is_partner=true, linked=true). *Isto também resolve o gap antigo "test-partner sem restaurante" — agora há um parceiro de teste completo com restaurante.*
 - Cliente — cadastro novo: ⏳ em teste (próximo)
 - Verificar login estafeta/parceiro → painel pós-aprovação: ⏳ (próximo)
+- **Cliente — cadastro novo:** ✅ **VERDE** — `cliente.teste0602@bora.app` criado (role=client, confirmed), navegou para WelcomeAddressScreen ("Conta criada!") → home "Olá, Cliente!". MCP confirma.
+
+## 🖼️ Imagens do cadastro no admin (Danilo question — 02/06 ~18h)
+**Conclusão: ZERO bug de render. Admin lê e renderiza TODAS as fotos do estafeta (5/5) e do parceiro (4/4).** O motivo de as fotos dos meus testes (Estafeta Teste Noite, Pizzaria Teste Noite) NÃO aparecerem é **porque eu saltei o upload** nos passos opcionais — não é problema da app.
+
+| Entidade | Campo | Onde renderiza | Widget |
+|---|---|---|---|
+| Estafeta | `photo_url` (avatar) | admin_driver_detail:479 | NetworkImage |
+| Estafeta | `registration_selfie_url` | admin_driver_detail:646 | PrivateBucketImage (signed) |
+| Estafeta | `document_photo_url` | admin_driver_detail:643 | PrivateBucketImage |
+| Estafeta | `vehicle_photo_url` | admin_driver_detail:645 | PrivateBucketImage |
+| Estafeta | `vehicle_doc_url` | admin_driver_detail:644 | PrivateBucketImage |
+| Parceiro | `photo_url` (logo) | partner_detail:451+pending:212 | Image.network |
+| Parceiro | `hero_image_url` | partner_detail:400 | Image.network |
+| Parceiro | `owner_doc_url` | partners_pending:236 | Image.network |
+| Parceiro | `activity_doc_url` | partners_pending:260 | Image.network |
+
+**Pendência (não-bloqueante):** ADB não consegue facilmente drivear o image_picker nativo (gallery/camera) → não pude testar visualmente o upload+render end-to-end no device. Reverificação manual recomendada: signup com foto real → confirmar que aparece no admin (todas as colunas suportadas em código).
+
+**Nota lateral:** Pizzaria Teste Noite ficou com `cuisine_type="509300100"` (eu enchi NIF no campo de cuisine por engano — Tipo de cozinha está no Passo 1 / NIF é Passo 2 opcional). **Não é bug do código** (`register_partner_screen.dart:496` confirma `_cuisineController`). Pode-se limpar via MCP se incomodar (`UPDATE restaurants SET cuisine_type='Pizzaria' WHERE id='34cddf37...'`).
 
 ## 🐛 BUG-1 (LAUNCH BLOCKER) — CORRIGIDO: cadastro de estafeta nunca criava a linha `drivers`
 - **Sintoma:** signup criava a conta auth mas a app mostrava "Conta criada!" SEM criar `drivers` row → estafeta nunca aparecia ao admin para aprovar (= ninguém se podia tornar estafeta).

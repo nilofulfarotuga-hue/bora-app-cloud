@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
+import '../../widgets/private_bucket_image.dart';
 
 /// BUG 6d — Admin reviews partners awaiting approval and approves/rejects.
 ///
@@ -221,50 +222,32 @@ class _AdminPartnersPendingScreenState
                   const SizedBox(height: 12),
                 ],
 
-                // Owner Document
+                // Owner Document — RGPD 2026-06-02: bucket privado
+                // restaurant-documents. PrivateBucketImage gera signed URL
+                // on-demand a partir do path guardado em DB.
                 if ((r['owner_doc_url'] as String?)?.isNotEmpty ?? false) ...[
                   const Text('Documento Proprietário:',
                       style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
-                  Container(
+                  PrivateBucketImage(
+                    urlOrPath: r['owner_doc_url'] as String,
                     height: 150,
-                    width: double.maxFinite,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Image.network(
-                      r['owner_doc_url'] as String,
-                      fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => Center(
-                        child: Text('Não conseguiu carregar a imagem',
-                            style: TextStyle(color: Colors.red.shade700)),
-                      ),
-                    ),
+                    width: double.infinity,
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   const SizedBox(height: 12),
                 ],
 
-                // Activity Document
+                // Activity Document — idem (bucket privado).
                 if ((r['activity_doc_url'] as String?)?.isNotEmpty ?? false) ...[
                   const Text('Documento Atividade:',
                       style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
-                  Container(
+                  PrivateBucketImage(
+                    urlOrPath: r['activity_doc_url'] as String,
                     height: 150,
-                    width: double.maxFinite,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Image.network(
-                      r['activity_doc_url'] as String,
-                      fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => Center(
-                        child: Text('Não conseguiu carregar a imagem',
-                            style: TextStyle(color: Colors.red.shade700)),
-                      ),
-                    ),
+                    width: double.infinity,
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   const SizedBox(height: 12),
                 ],

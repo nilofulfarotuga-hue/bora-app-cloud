@@ -14,6 +14,7 @@ import '../../config/app_spacing.dart';
 import '../../models/restaurant_model.dart';
 import '../../stores/restaurant_store.dart';
 import '../../widgets/bora/bora_primary_button.dart';
+import '../../widgets/private_bucket_image.dart';
 import '_admin_partner_edit_dialog.dart';
 
 class AdminPartnerDetailScreen extends StatefulWidget {
@@ -43,6 +44,10 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
   bool _uploadingHero = false;
   String? _logoImageUrl;
   bool _uploadingLogo = false;
+  // RGPD 2026-06-02: docs sensíveis do parceiro (bucket privado
+  // restaurant-documents). Guardamos só o path; render via PrivateBucketImage.
+  String? _ownerDocPath;
+  String? _activityDocPath;
 
   static const _days = <({int weekday, String label, String key})>[
     (weekday: DateTime.monday,    label: 'Segunda-feira', key: 'mon'),
@@ -74,7 +79,8 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
           .from('restaurants')
           .select(
               'id, name, category, address, phone, email, is_partner, is_online, is_active_admin, business_hours, '
-              'takeaway_enabled, curbside_enabled, takeaway_default_prep_minutes, hero_image_url, photo_url')
+              'takeaway_enabled, curbside_enabled, takeaway_default_prep_minutes, hero_image_url, photo_url, '
+              'owner_doc_url, activity_doc_url')
           .eq('id', widget.restaurantId)
           .single();
       final openData = await Supabase.instance.client.rpc('is_partner_open', params: {
@@ -90,6 +96,8 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
           _hours = bh;
           _heroImageUrl = r['hero_image_url'] as String?;
           _logoImageUrl = r['photo_url'] as String?;
+          _ownerDocPath = r['owner_doc_url'] as String?;
+          _activityDocPath = r['activity_doc_url'] as String?;
           _openStatus = results[1] is Map
               ? Map<String, dynamic>.from(results[1] as Map)
               : {'is_open': results[1]};
@@ -532,6 +540,57 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
               ),
             ),
           ),
+          const SizedBox(height: 16),
+          // ── Documentos da candidatura (RGPD bucket privado) ──────────────
+          // Mostra owner_doc_url + activity_doc_url via PrivateBucketImage
+          // (signed URL gerado on-demand). Tap → fullscreen InteractiveViewer.
+          // Disponível tanto durante pending como após aprovação — fecha o
+          // gap detectado na auditoria 2026-06-02.
+          if ((_ownerDocPath?.isNotEmpty ?? false) ||
+              (_activityDocPath?.isNotEmpty ?? false))
+            Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(Radii.lg),
+                side: const BorderSide(color: AppColors.divider),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(children: [
+                      Icon(Icons.description_outlined, size: 20),
+                      SizedBox(width: 8),
+                      Text('Documentos',
+                          style: TextStyle(
+                              fontWeight: FontWeight.w700, fontSize: 15)),
+                    ]),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Documentos enviados pelo parceiro durante o cadastro. Toque para ampliar.',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 12),
+                    if (_ownerDocPath?.isNotEmpty ?? false) ...[
+                      const Text('Documento do proprietário',
+                          style: TextStyle(
+                              fontSize: 13, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 6),
+                      _PartnerDocImage(urlOrPath: _ownerDocPath!),
+                      const SizedBox(height: 12),
+                    ],
+                    if (_activityDocPath?.isNotEmpty ?? false) ...[
+                      const Text('Documento de atividade',
+                          style: TextStyle(
+                              fontSize: 13, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 6),
+                      _PartnerDocImage(urlOrPath: _activityDocPath!),
+                    ],
+                  ],
+                ),
+              ),
+            ),
           const SizedBox(height: 16),
           BoraPrimaryButton(
             label: 'Editar dados',
@@ -1666,6 +1725,45 @@ class _AdminTakeawayConfigCardState extends State<_AdminTakeawayConfigCard> {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+// ── Partner doc viewer (RGPD bucket privado restaurant-documents) ───────────
+// Mesmo padrão do _ZoomableImage do admin_driver_detail: PrivateBucketImage
+// para thumbnail (signed URL on-demand) + InteractiveViewer fullscreen ao tap.
+class _PartnerDocImage extends StatelessWidget {
+  const _PartnerDocImage({required this.urlOrPath});
+  final String urlOrPath;
+
+  Future<void> _openFullscreen(BuildContext context) async {
+    final resolved = await resolveSignedUrlIfPrivate(urlOrPath) ?? urlOrPath;
+    if (!context.mounted) return;
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => Scaffold(
+        backgroundColor: Colors.black,
+        appBar: AppBar(backgroundColor: Colors.black),
+        body: Center(
+          child: InteractiveViewer(
+            child: Image.network(resolved,
+                errorBuilder: (_, __, ___) => const Icon(Icons.broken_image,
+                    color: Colors.white54, size: 64)),
+          ),
+        ),
+      ),
+    ));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => _openFullscreen(context),
+      child: PrivateBucketImage(
+        urlOrPath: urlOrPath,
+        height: 160,
+        width: double.infinity,
+        borderRadius: BorderRadius.circular(10),
       ),
     );
   }

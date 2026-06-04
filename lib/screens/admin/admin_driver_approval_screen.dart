@@ -698,6 +698,7 @@ class _DriverDetailSheet extends StatelessWidget {
     final selfieUrl = driver['registration_selfie_url'] as String?;
     final docPhotoUrl = driver['document_photo_url'] as String?;
     final vehiclePhotoUrl = driver['vehicle_photo_url'] as String?;
+    final vehicleDocUrl = driver['vehicle_doc_url'] as String?;
     final rejectionReason = driver['rejection_reason'] as String?;
 
     return Padding(
@@ -815,6 +816,25 @@ class _DriverDetailSheet extends StatelessWidget {
               onTap: () => _showFullscreen(context, vehiclePhotoUrl),
               child: PrivateBucketImage(
                 urlOrPath: vehiclePhotoUrl,
+                height: 160,
+                width: double.infinity,
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+
+          // Documento do veículo (livrete) — bucket privado driver-documents.
+          // Adicionado 2026-06-02 (auditoria fotos admin): admin precisa ver
+          // o livrete já durante a aprovação, não só no detail.
+          if (vehicleDocUrl != null) ...[
+            const Text('Documento do veículo (livrete)',
+                style: TextStyle(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            GestureDetector(
+              onTap: () => _showFullscreen(context, vehicleDocUrl),
+              child: PrivateBucketImage(
+                urlOrPath: vehicleDocUrl,
                 height: 160,
                 width: double.infinity,
                 borderRadius: BorderRadius.circular(10),

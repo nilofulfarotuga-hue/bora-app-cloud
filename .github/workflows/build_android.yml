@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - autonomous-night-2026-04-29
+  workflow_dispatch:
 
 # Evita corridas em paralelo da mesma ref (a 2ª espera/cancela a 1ª).
 concurrency:

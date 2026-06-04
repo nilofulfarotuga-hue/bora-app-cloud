@@ -52,9 +52,14 @@ Deno.serve(async (req: Request) => {
     const timestamp = Date.now();
     const filename = `${body.restaurantId}/${body.kind}-${timestamp}.${extension}`;
 
-    // Upload to Supabase Storage (restaurant-assets bucket - public)
+    // RGPD fix 2026-06-02: docs sensíveis (owner_doc, activity_doc) vão para
+    // bucket PRIVADO `restaurant-documents`. Logo/hero/outros continuam no
+    // bucket público `restaurant-assets`.
+    const isPrivateDoc = body.kind === 'owner_doc' || body.kind === 'activity_doc';
+    const bucket = isPrivateDoc ? 'restaurant-documents' : 'restaurant-assets';
+
     const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('restaurant-assets')
+      .from(bucket)
       .upload(filename, bytes, {
         contentType: body.contentType,
         upsert: false,
@@ -68,16 +73,22 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Get public URL
-    const { data: publicUrlData } = supabase.storage
-      .from('restaurant-assets')
-      .getPublicUrl(filename);
+    // Public URL só para bucket público; private bucket devolve path (admin
+    // gera signed URL no momento via PrivateBucketImage).
+    let publicUrl: string | null = null;
+    if (!isPrivateDoc) {
+      const { data: publicUrlData } = supabase.storage
+        .from(bucket)
+        .getPublicUrl(filename);
+      publicUrl = publicUrlData.publicUrl;
+    }
 
     return new Response(
       JSON.stringify({
         success: true,
-        public_url: publicUrlData.publicUrl,
+        public_url: publicUrl,
         path: filename,
+        bucket,
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );

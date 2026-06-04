@@ -327,7 +327,10 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
           if (response.status == 200 && response.data is Map) {
             final data = Map<String, dynamic>.from(response.data as Map);
             if (data['success'] == true) {
-              ownerDocUrl = data['public_url'] as String;
+              // RGPD: doc sensível vai para bucket privado restaurant-documents
+              // (decisão server-side). Guardamos só o path — admin renderiza
+              // via PrivateBucketImage com signed URL.
+              ownerDocUrl = data['path'] as String?;
             }
           }
         } catch (e) {
@@ -351,7 +354,8 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
           if (response.status == 200 && response.data is Map) {
             final data = Map<String, dynamic>.from(response.data as Map);
             if (data['success'] == true) {
-              activityDocUrl = data['public_url'] as String;
+              // RGPD: idem ao owner_doc — bucket privado, guarda só o path.
+              activityDocUrl = data['path'] as String?;
             }
           }
         } catch (e) {

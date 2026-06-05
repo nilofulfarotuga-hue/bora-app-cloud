@@ -38,8 +38,6 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
   late String _selectedCategory;
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
-  bool _showSuggestions = false;
-
   // RPC-backed search (robust to accents/case via server-side normalization).
   Timer? _rpcDebounce;
   List<Map<String, dynamic>> _rpcRows = const [];
@@ -191,7 +189,7 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
     final categories = _buildCategories(products);
     final filtered = _applyFilters(products);
     final suggestions =
-        _showSuggestions ? _getSuggestions(products) : <PartnerProduct>[];
+        _searchQuery.trim().length >= 2 ? _getSuggestions(products) : <PartnerProduct>[];
     final isFruit = _isFruitCategory(_selectedCategory);
     final grouped = _showSections ? _groupByCategory(filtered) : null;
 
@@ -220,13 +218,10 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
             child: TextField(
               controller: _searchController,
               onChanged: (v) {
-                setState(() {
-                  _searchQuery = v;
-                  _showSuggestions = v.isNotEmpty;
-                });
+                setState(() => _searchQuery = v);
                 _scheduleRpcSearch(v);
               },
-              onSubmitted: (_) => setState(() => _showSuggestions = false),
+              onSubmitted: (_) {},
               decoration: InputDecoration(
                 hintText: 'Buscar produtos...',
                 hintStyle: TextStyle(color: Colors.grey.shade400),
@@ -236,7 +231,11 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
                         icon: const Icon(Icons.clear),
                         onPressed: () {
                           _searchController.clear();
-                          setState(() => _searchQuery = '');
+                          setState(() {
+                            _searchQuery = '';
+                            _rpcRows = const [];
+                            _rpcLoading = false;
+                          });
                         },
                       )
                     : null,
@@ -251,89 +250,99 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
             ),
           ),
 
-          // ── Search suggestions ─────────────────────────────────────────────
-          if (_showSuggestions && _searchQuery.trim().length >= 2)
-            _SuggestionsPanel(
-              rpcRows: _rpcRows,
-              rpcLoading: _rpcLoading,
-              localFallback: suggestions,
-              loadedProducts: products,
-              isPartnerStore: widget.isPartnerStore,
-              onPickSection: (categoryRoot) {
-                _searchController.clear();
-                setState(() {
-                  _searchQuery = '';
-                  _showSuggestions = false;
-                  _rpcRows = const [];
-                  _selectedCategory = _capitalize(categoryRoot);
-                });
-              },
-              onPickProduct: (p) {
-                _searchController.text = p.name;
-                setState(() {
-                  _searchQuery = p.name;
-                  _showSuggestions = false;
-                });
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => ProductDetailScreen(product: p)),
-                );
-              },
+          // ── Search mode: RPC results fill screen / Browse mode: chips + grid ─
+          // 2026-06-05: antes os resultados RPC só apareciam num painel 360px
+          // que desaparecia ao pressionar Enter. A lista principal usava apenas
+          // filtro local (contains), falhando em queries fuzzy (ex: "aguas" →
+          // "Água"). Agora quando há query ≥ 2 chars, o painel RPC ocupa o
+          // Expanded completo — funciona para TODAS as lojas, mesmo sem produtos
+          // em memória (RPC sintetiza PartnerProduct do row DB directamente).
+          if (_searchQuery.trim().length >= 2) ...[
+            Expanded(
+              child: _SuggestionsPanel(
+                rpcRows: _rpcRows,
+                rpcLoading: _rpcLoading,
+                localFallback: suggestions,
+                loadedProducts: products,
+                isPartnerStore: widget.isPartnerStore,
+                onPickSection: (categoryRoot) {
+                  _searchController.clear();
+                  setState(() {
+                    _searchQuery = '';
+                    _rpcRows = const [];
+                    _rpcLoading = false;
+                    _selectedCategory = _capitalize(categoryRoot);
+                  });
+                },
+                onPickProduct: (p) {
+                  _searchController.clear();
+                  setState(() {
+                    _searchQuery = '';
+                    _rpcRows = const [];
+                    _rpcLoading = false;
+                  });
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => ProductDetailScreen(product: p)),
+                  );
+                },
+              ),
             ),
-
-          // ── Horizontal category chips ───────────────────────────────────────
-          Container(
-            color: Colors.white,
-            height: 50,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              itemCount: categories.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
-              itemBuilder: (_, i) {
-                final cat = categories[i];
-                final isSelected = cat == _selectedCategory;
-                return ChoiceChip(
-                  label: Text(cat),
-                  selected: isSelected,
-                  onSelected: (_) => setState(() => _selectedCategory = cat),
-                  selectedColor: Theme.of(context).colorScheme.primary,
-                  backgroundColor: const Color(0xFFF0F0F0),
-                  labelStyle: TextStyle(
-                    color: isSelected ? Colors.white : Colors.black87,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20)),
-                );
-              },
+          ] else ...[
+            // ── Browse mode: category chips + sectioned/flat grid ───────────
+            Container(
+              color: Colors.white,
+              height: 50,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                itemCount: categories.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (_, i) {
+                  final cat = categories[i];
+                  final isSelected = cat == _selectedCategory;
+                  return ChoiceChip(
+                    label: Text(cat),
+                    selected: isSelected,
+                    onSelected: (_) =>
+                        setState(() => _selectedCategory = cat),
+                    selectedColor: Theme.of(context).colorScheme.primary,
+                    backgroundColor: const Color(0xFFF0F0F0),
+                    labelStyle: TextStyle(
+                      color: isSelected ? Colors.white : Colors.black87,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20)),
+                  );
+                },
+              ),
             ),
-          ),
-          const SizedBox(height: 4),
-
-          // ── Content area ───────────────────────────────────────────────────
-          Expanded(
-            child: filtered.isEmpty
-                ? _EmptyState(
-                    hasSearch: _searchQuery.isNotEmpty,
-                    searchQuery: _searchQuery,
-                    onRefresh: () => setState(() {}),
-                  )
-                : _showSections
-                    ? _SectionedView(
-                        grouped: grouped!,
-                        isFruitCategory: _isFruitCategory,
-                        isPartnerStore: widget.isPartnerStore,
-                      )
-                    : _FlatGridView(
-                        products: filtered,
-                        showPerKg: isFruit,
-                        isPartnerStore: widget.isPartnerStore,
-                      ),
-          ),
+            const SizedBox(height: 4),
+            Expanded(
+              child: filtered.isEmpty
+                  ? _EmptyState(
+                      hasSearch: _searchQuery.isNotEmpty,
+                      searchQuery: _searchQuery,
+                      onRefresh: () => setState(() {}),
+                    )
+                  : _showSections
+                      ? _SectionedView(
+                          grouped: grouped!,
+                          isFruitCategory: _isFruitCategory,
+                          isPartnerStore: widget.isPartnerStore,
+                        )
+                      : _FlatGridView(
+                          products: filtered,
+                          showPerKg: isFruit,
+                          isPartnerStore: widget.isPartnerStore,
+                        ),
+            ),
+          ],
 
           // ── Fixed "Ver carrinho" button ────────────────────────────────────
           if (cartStore.items.isNotEmpty)
@@ -1541,9 +1550,7 @@ class _SuggestionsPanel extends StatelessWidget {
 
     return Container(
       color: Colors.white,
-      constraints: const BoxConstraints(maxHeight: 360),
       child: ListView(
-        shrinkWrap: true,
         padding: const EdgeInsets.symmetric(vertical: 4),
         children: [
           for (final s in sections)

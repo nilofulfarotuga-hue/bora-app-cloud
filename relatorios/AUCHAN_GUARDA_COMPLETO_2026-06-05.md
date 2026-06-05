@@ -51,5 +51,63 @@ Correr `market-data-sync` para `auchan-guarda` com **fonte = Glovo** (store 1249
 ## Regra admin
 A gestão de produtos por loja já existe no admin. Não foi identificada lacuna nova de painel.
 
+---
+
+# ADDENDUM — Add-on "FONTE = VERDADE" (mesma sessão, 2026-06-05)
+
+Confirmado que a fonte é **Auchan GUARDA** (Glovo `auchan-grd`, header "Guarda › Supermercados › Auchan"). A árvore de categorias do Glovo Auchan Guarda é **100% supermercado — zero categorias de eletrónica/tech**. Logo, produtos tech na DB vieram do scrape errado de auchan.pt e não são vendáveis pela loja física.
+
+## Produtos removidos por não estarem na fonte Guarda
+Modo **seguro**: `is_available=false` + nova coluna `removal_reason='not_in_source_glovo_guarda'` (migration `add_products_removal_reason`). **NÃO houve DELETE** — reversível e auditável. DELETE definitivo só após validação do Danilo.
+
+| Categoria original | Removidos |
+|---|---|
+| Tecnologia E Eletrodomésticos | 26 (estavam **ativos**: iPhone 16 €889, Galaxy S25 Ultra €934, portátil Asus €699, trotinete Segway €699, câmara Canon €509…) |
+| Som | 14 |
+| Smartphones | 11 |
+| Smartwatches E Smartbands | 10 |
+| Periféricos | 10 |
+| Informática | 8 |
+| Impressoras E Tinteiros | 4 |
+| Acessórios Telemóveis | 4 |
+| Gaming | 4 |
+| Câmaras / Domótica / Redes Wifi / Mobilidade Urbana | 2 cada |
+| Monitores / Armazenamento / Imagem E Som / Telemóveis E Wearables | 1 cada |
+| (sem categoria) Auscultadores Bluetooth | 1 |
+| **TOTAL** | **104** |
+
+> Apenas 26 estavam **ativos** (visíveis ao cliente) — o resto já estava `is_available=false`. Todos ficaram stampados com `removal_reason` para auditoria.
+
+### Anomalias >€100 não-tech — investigadas, MANTIDAS (não eram erros)
+- Presunto Inteiro Ibérico Cebo 50% Auchan Collection 24 meses — €219 (perna inteira premium, legítimo)
+- Patas Caranguejo Real Cozidas Congeladas/kg — €140 (preço/kg legítimo)
+- Carabineiro Moçambique 8/12 Congelado/kg — €120 (preço/kg legítimo)
+> O €219 em "Charcutaria & Queijos" referido no add-on **não é erro** — é uma perna de presunto inteira.
+
+## Categorias consolidadas (duplicados → canónico)
+| De (duplicado) | Para (canónico) |
+|---|---|
+| Fruta · Legumes · Frutas E Legumes Produtos Locais | **Frutas & Legumes** |
+| Padaria · Pastelaria | **Padaria & Pastelaria** |
+| Charcutaria · Queijaria | **Charcutaria & Queijos** |
+| Bebidas E Garrafeira · Vinhos & Espirituosas | **Bebidas** |
+| Laticínios | **Laticínios & Ovos** |
+
+Mantida a convenção "&" (consistente com as outras lojas Bora — não troquei por "e" para não dessincronizar o catálogo geral). Categorias **visíveis ao cliente: ~26 → 16**.
+
+> Não consolidei mapeamentos ambíguos (Higiene genérica, Alimentação/Gastronomia, Bio/Sem Glúten/Sem Lactose, Casa/Jardim/Papelaria) — exige ver produto a produto ou a fonte completa. Renomes cosméticos single-categoria (Bebé→"Bebé e Criança", Animais→"Animais de Estimação") deixados como estão (não são duplicados).
+
+## Métricas finais (pós add-on, MCP)
+```
+total=6342 · ativos=4186 · removidos_fonte=104 · categorias_visiveis=16
+ativos_sem_preco=0 ✅ · ativos_html_quebrado=0 ✅
+```
+STOP rule (<70% da fonte): não acionada — só 104 removidos (~1,6%); consolidação não desativou nada.
+
+## Pendente para o follow-up (scraper Glovo completo)
+- Remoção **product-level** de itens alimentares ausentes na fonte (precisa do catálogo Glovo completo — não dá só por categoria).
+- Fotos reais das ~2998 sem foto.
+- Ordem das categorias igual à fonte + eventuais renomes para nomes exactos do Glovo.
+
 ## Zonas protegidas
-Intactas. Apenas dados de catálogo da loja `auchan-guarda` foram tocados.
+Intactas. Apenas dados de catálogo (`products`) da loja `auchan-guarda` + 1 coluna aditiva `removal_reason`. Nenhuma alteração a dispatch/pricing/Stripe/triggers/RLS de orders·wallets·ledger.

@@ -1,6 +1,9 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
@@ -17,7 +20,7 @@ import 'cart_screen.dart';
 import 'client/reservation/reservation_availability_screen.dart';
 import 'product_detail_screen.dart';
 
-class RestaurantMenuScreen extends StatelessWidget {
+class RestaurantMenuScreen extends StatefulWidget {
   final Restaurant restaurant;
 
   /// Used to load products with categories and images from [RestaurantStore].
@@ -28,6 +31,9 @@ class RestaurantMenuScreen extends StatelessWidget {
     required this.restaurant,
     required this.restaurantId,
   });
+
+  @override
+  State<RestaurantMenuScreen> createState() => _RestaurantMenuScreenState();
 
   static const Map<String, String> _categoryEmoji = {
     'burgers': '🍔',
@@ -69,10 +75,10 @@ class RestaurantMenuScreen extends StatelessWidget {
     'ofertas': '🎁',
   };
 
-  String _emojiFor(String category) =>
+  static String _emojiFor(String category) =>
       _categoryEmoji[category.toLowerCase()] ?? '🍽️';
 
-  Map<String, List<PartnerProduct>> _groupByCategory(
+  static Map<String, List<PartnerProduct>> _groupByCategory(
       List<PartnerProduct> products) {
     final grouped = <String, List<PartnerProduct>>{};
     for (final p in products) {
@@ -84,6 +90,85 @@ class RestaurantMenuScreen extends StatelessWidget {
     );
   }
 
+}
+
+// ─── State ──────────────────────────────────────────────────────────────────────
+
+class _RestaurantMenuScreenState extends State<RestaurantMenuScreen> {
+  // ── Search state (2026-06-05 — RPC fuzzy igual ao padrão StoreProductsScreen)
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
+  Timer? _rpcDebounce;
+  List<Map<String, dynamic>> _rpcRows = const [];
+  bool _rpcLoading = false;
+
+  @override
+  void dispose() {
+    _rpcDebounce?.cancel();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _scheduleRpcSearch(String query) {
+    _rpcDebounce?.cancel();
+    final q = query.trim();
+    if (q.length < 2) {
+      if (_rpcRows.isNotEmpty || _rpcLoading) {
+        setState(() {
+          _rpcRows = const [];
+          _rpcLoading = false;
+        });
+      }
+      return;
+    }
+    _rpcDebounce = Timer(const Duration(milliseconds: 350), () {
+      _runRpcSearch(q);
+    });
+  }
+
+  Future<void> _runRpcSearch(String query) async {
+    if (!mounted) return;
+    setState(() => _rpcLoading = true);
+    try {
+      final rows = await Supabase.instance.client.rpc(
+        'search_products',
+        params: {
+          'query_text': query,
+          'p_restaurant_id': widget.restaurantId,
+          'max_results': 50,
+        },
+      );
+      if (!mounted) return;
+      setState(() {
+        _rpcRows = rows is List
+            ? List<Map<String, dynamic>>.from(
+                rows.whereType<Map<String, dynamic>>())
+            : const [];
+        _rpcLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _rpcRows = const [];
+        _rpcLoading = false;
+      });
+    }
+  }
+
+  PartnerProduct _resolveProduct(Map<String, dynamic> row) {
+    return PartnerProduct(
+      id: (row['id'] ?? '').toString(),
+      restaurantId: (row['restaurant_id'] ?? '').toString(),
+      name: (row['name'] ?? '').toString(),
+      description: (row['description'] ?? '').toString(),
+      price: (row['price'] as num?)?.toDouble() ?? 0.0,
+      photoUrl: (row['photo_url'] ?? '').toString(),
+      isAvailable: true,
+      category: (row['category'] ?? '').toString(),
+      categoryRoot: (row['category_root'] ?? '').toString(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final cart = context.watch<CartStore>();
@@ -91,17 +176,17 @@ class RestaurantMenuScreen extends StatelessWidget {
     final restaurantStore = context.watch<RestaurantStore>();
 
     final products = restaurantStore.partnerProductsForRestaurant(
-      restaurantId,
+      widget.restaurantId,
       onlyAvailable: true,
     );
-    final grouped = _groupByCategory(products);
+    final grouped = RestaurantMenuScreen._groupByCategory(products);
 
     return Scaffold(
       backgroundColor: AppColors.background,
       floatingActionButton: const BoraSupportFab(),
       appBar: AppBar(
         title: Text(
-          restaurant.name,
+          widget.restaurant.name,
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.transparent,
@@ -112,20 +197,22 @@ class RestaurantMenuScreen extends StatelessWidget {
         ),
         actions: [
           IconButton(
-            onPressed: () => favorites.toggle('restaurant_${restaurant.name}'),
+            onPressed: () =>
+                favorites.toggle('restaurant_${widget.restaurant.name}'),
             icon: AnimatedSwitcher(
               duration: const Duration(milliseconds: 200),
               transitionBuilder: (child, anim) =>
                   ScaleTransition(scale: anim, child: child),
               child: Icon(
-                favorites.isFavorite('restaurant_${restaurant.name}')
+                favorites.isFavorite('restaurant_${widget.restaurant.name}')
                     ? Icons.favorite
                     : Icons.favorite_border,
-                key: ValueKey(
-                    favorites.isFavorite('restaurant_${restaurant.name}')),
-                color: favorites.isFavorite('restaurant_${restaurant.name}')
-                    ? Colors.redAccent
-                    : Colors.white,
+                key: ValueKey(favorites
+                    .isFavorite('restaurant_${widget.restaurant.name}')),
+                color:
+                    favorites.isFavorite('restaurant_${widget.restaurant.name}')
+                        ? Colors.redAccent
+                        : Colors.white,
               ),
             ),
           ),
@@ -134,111 +221,217 @@ class RestaurantMenuScreen extends StatelessWidget {
       ),
       body: Column(
         children: [
-          // BR §14.10 — botão "Reservar mesa" só aparece quando o parceiro
-          // activa reservas no painel. Default: oculto.
-          // BUG fix pós-takeaway (2026-05-14): se cliente veio pelo fluxo
-          // takeaway (Ir buscar), esconder também — não faz sentido reservar
-          // mesa quando o pedido é para levantamento ao balcão.
-          Builder(builder: (context) {
-            final model = restaurantStore.restaurantById(restaurantId);
-            if (model == null || !model.reservationsEnabled) {
-              return const SizedBox.shrink();
-            }
-            if (cart.serviceType == OrderServiceType.takeaway) {
-              return const SizedBox.shrink();
-            }
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              child: SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ReservationAvailabilityScreen(
-                        restaurantId: model.id,
-                        restaurantName: model.name,
-                        restaurantPhotoUrl: model.photoUrl,
+          // ── Search bar (2026-06-05) ─────────────────────────────────────
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            child: TextField(
+              controller: _searchController,
+              onChanged: (v) {
+                setState(() => _searchQuery = v);
+                _scheduleRpcSearch(v);
+              },
+              decoration: InputDecoration(
+                hintText: 'Buscar no menu...',
+                hintStyle: TextStyle(color: Colors.grey.shade400),
+                prefixIcon: Icon(Icons.search, color: Colors.grey.shade400),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() {
+                            _searchQuery = '';
+                            _rpcRows = const [];
+                            _rpcLoading = false;
+                          });
+                        },
+                      )
+                    : null,
+                filled: true,
+                fillColor: const Color(0xFFF0F0F0),
+                contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+          ),
+
+          if (_searchQuery.trim().length >= 2) ...[
+            // ── Search mode: RPC results ────────────────────────────────
+            Expanded(
+              child: _rpcLoading && _rpcRows.isEmpty
+                  ? const Center(
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : _rpcRows
+                          .where((r) => (r['result_type'] ?? '') == 'product')
+                          .isEmpty
+                      ? Center(
+                          child: Text(
+                            'Sem resultados para "$_searchQuery"',
+                            style: TextStyle(color: Colors.grey.shade500),
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          itemCount: _rpcRows
+                              .where(
+                                  (r) => (r['result_type'] ?? '') == 'product')
+                              .length,
+                          itemBuilder: (context, index) {
+                            final productRows = _rpcRows
+                                .where(
+                                    (r) => (r['result_type'] ?? '') == 'product')
+                                .toList();
+                            final p = _resolveProduct(productRows[index]);
+                            return ListTile(
+                              leading: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: p.photoUrl.isNotEmpty
+                                    ? Image.network(p.photoUrl,
+                                        width: 48,
+                                        height: 48,
+                                        fit: BoxFit.cover)
+                                    : Container(
+                                        width: 48,
+                                        height: 48,
+                                        color: Colors.grey.shade200,
+                                        child: const Icon(
+                                            Icons.fastfood_outlined,
+                                            size: 22,
+                                            color: Colors.grey),
+                                      ),
+                              ),
+                              title: Text(p.name,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14)),
+                              subtitle: Text(
+                                  '€${p.price.toStringAsFixed(2)}',
+                                  style: const TextStyle(fontSize: 13)),
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) =>
+                                        ProductDetailScreen(product: p)),
+                              ),
+                            );
+                          },
+                        ),
+            ),
+          ] else ...[
+            // ── Browse mode: reservar mesa + normal menu ────────────────
+            // BR §14.10 — botão "Reservar mesa" só aparece quando o parceiro
+            // activa reservas no painel. Default: oculto.
+            // BUG fix pós-takeaway (2026-05-14): se cliente veio pelo fluxo
+            // takeaway (Ir buscar), esconder também.
+            Builder(builder: (context) {
+              final model =
+                  restaurantStore.restaurantById(widget.restaurantId);
+              if (model == null || !model.reservationsEnabled) {
+                return const SizedBox.shrink();
+              }
+              if (cart.serviceType == OrderServiceType.takeaway) {
+                return const SizedBox.shrink();
+              }
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ReservationAvailabilityScreen(
+                          restaurantId: model.id,
+                          restaurantName: model.name,
+                          restaurantPhotoUrl: model.photoUrl,
+                        ),
                       ),
                     ),
-                  ),
-                  icon: const Icon(Icons.event_seat_outlined),
-                  label: const Text('Reservar mesa'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.primary,
-                    side: const BorderSide(color: AppColors.primary),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                    icon: const Icon(Icons.event_seat_outlined),
+                    label: const Text('Reservar mesa'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                      side: const BorderSide(color: AppColors.primary),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            );
-          }),
-          Expanded(
-            child: grouped.isEmpty && restaurant.menu.isEmpty
-                ? _EmptyMenu()
-                : grouped.isEmpty
-                    // Fallback: flat MenuItem list (no Supabase products yet)
-                    ? ListView.builder(
-                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-                        itemCount: restaurant.menu.length,
-                        itemBuilder: (context, index) {
-                          final item = restaurant.menu[index];
-                          final favKey = 'menu_${restaurant.name}_${item.name}';
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: _LegacyMenuItemCard(
-                              item: item,
-                              isFavorite: favorites.isFavorite(favKey),
-                              primaryColor:
-                                  Theme.of(context).colorScheme.primary,
-                              onFavorite: () => favorites.toggle(favKey),
-                              onAdd: () {
-                                // Sessão 4C: remover fallback `?? item.name`.
-                                // BusinessMapper sempre passa product.id real
-                                // (Bug-B fix 2026-04-30). Se productId for null
-                                // aqui é bug a montante — falhar explicitamente.
-                                final productId = item.productId;
-                                if (productId == null || productId.isEmpty) {
-                                  throw StateError(
-                                      'MenuItem sem productId: ${item.name}');
-                                }
-                                context.read<CartStore>().addItem(CartItem(
-                                    productId: productId,
-                                    name: item.name,
-                                    price: item.price));
-                                ScaffoldMessenger.of(context)
-                                  ..hideCurrentSnackBar()
-                                  ..showSnackBar(SnackBar(
-                                    content: Text(
-                                        '${item.name} adicionado ao carrinho'),
-                                    duration:
-                                        const Duration(milliseconds: 1200),
-                                    behavior: SnackBarBehavior.floating,
-                                    margin: const EdgeInsets.only(
-                                        bottom: 80, left: 16, right: 16),
-                                    dismissDirection:
-                                        DismissDirection.horizontal,
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(10)),
-                                  ));
-                              },
-                            ),
-                          );
-                        },
-                      )
-                    // ── Section grid (Ecrã 1) ─────────────────────────────
-                    : _SectionGrid(
-                        grouped: grouped,
-                        emojiFor: _emojiFor,
-                        restaurant: restaurant,
-                      ),
-          ),
+              );
+            }),
+            Expanded(
+              child: grouped.isEmpty && widget.restaurant.menu.isEmpty
+                  ? _EmptyMenu()
+                  : grouped.isEmpty
+                      // Fallback: flat MenuItem list (no Supabase products yet)
+                      ? ListView.builder(
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                          itemCount: widget.restaurant.menu.length,
+                          itemBuilder: (context, index) {
+                            final item = widget.restaurant.menu[index];
+                            final favKey =
+                                'menu_${widget.restaurant.name}_${item.name}';
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 10),
+                              child: _LegacyMenuItemCard(
+                                item: item,
+                                isFavorite: favorites.isFavorite(favKey),
+                                primaryColor:
+                                    Theme.of(context).colorScheme.primary,
+                                onFavorite: () => favorites.toggle(favKey),
+                                onAdd: () {
+                                  // Sessão 4C: remover fallback `?? item.name`.
+                                  // BusinessMapper sempre passa product.id real
+                                  // (Bug-B fix 2026-04-30).
+                                  final productId = item.productId;
+                                  if (productId == null ||
+                                      productId.isEmpty) {
+                                    throw StateError(
+                                        'MenuItem sem productId: ${item.name}');
+                                  }
+                                  context
+                                      .read<CartStore>()
+                                      .addItem(CartItem(
+                                          productId: productId,
+                                          name: item.name,
+                                          price: item.price));
+                                  ScaffoldMessenger.of(context)
+                                    ..hideCurrentSnackBar()
+                                    ..showSnackBar(SnackBar(
+                                      content: Text(
+                                          '${item.name} adicionado ao carrinho'),
+                                      duration:
+                                          const Duration(milliseconds: 1200),
+                                      behavior: SnackBarBehavior.floating,
+                                      margin: const EdgeInsets.only(
+                                          bottom: 80, left: 16, right: 16),
+                                      dismissDirection:
+                                          DismissDirection.horizontal,
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(10)),
+                                    ));
+                                },
+                              ),
+                            );
+                          },
+                        )
+                      // ── Section grid (Ecrã 1) ───────────────────────
+                      : _SectionGrid(
+                          grouped: grouped,
+                          emojiFor: RestaurantMenuScreen._emojiFor,
+                          restaurant: widget.restaurant,
+                        ),
+            ),
+          ],
 
-          // ── Ver carrinho button ───────────────────────────────────────────
+          // ── Ver carrinho button ────────────────────────────────────────
           if (cart.items.isNotEmpty)
             SafeArea(
               top: false,

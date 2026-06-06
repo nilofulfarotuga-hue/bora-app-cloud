@@ -225,7 +225,11 @@ class RestaurantStore extends ChangeNotifier {
         final List<dynamic> page = await supabase
             .from('products')
             .select(projection)
-            .eq('is_available', true)
+            // Ordem de exibição: mercados usam sort_order (sequência da fonte,
+            // ex. Glovo); parceiros têm sort_order NULL -> caem no desempate por
+            // id (determinístico, paginação estável). 2026-06-06.
+            .order('sort_order', ascending: true, nullsFirst: false)
+            .order('id', ascending: true)
             .range(offset, offset + pageSize - 1);
         allRecords.addAll(page);
         if (page.length < pageSize) break;

@@ -37,13 +37,15 @@ function walk(o, prods, cols) {
   if (Array.isArray(o)) { for (const x of o) walk(x, prods, cols); return; }
   if (o.type === 'PRODUCT_TILE' && o.data && o.data.storeProductId) prods.push({ id: o.data.storeProductId, name: o.data.name, price: o.data.price, img: o.data.imageUrl || null });
   if (o.type === 'COLLECTION_TILE' && o.data && o.data.action && o.data.action.data && o.data.action.data.path) cols.push(o.data.action.data.path);
+  // FIX 2026-06-06: leaf categories lazy-load extra sections as CONTENT_PLACEHOLDER -> follow contentUri
+  if (o.type === 'CONTENT_PLACEHOLDER' && o.data && o.data.contentUri) cols.push(o.data.contentUri);
   for (const k of Object.keys(o)) walk(o[k], prods, cols);
 }
 (async () => {
   if (!SCIDS.length) { console.error('missing --sc (comma-separated category sc ids)'); process.exit(2); }
   const queue = SCIDS.map(id => `/v3/stores/${STORE}/addresses/${ADDR}/content?nodeUrl=` + encodeURIComponent('/collections/' + id));
   const seen = new Set(queue); const products = new Map(); let fetched = 0, errors = 0;
-  while (queue.length && fetched < 2000) {
+  while (queue.length && fetched < 6000) {
     const path = queue.shift(); let r, t = 0;
     do { r = await get(path); if (r.status === 200) break; t++; await sleep(4000 * t); } while (t < 3);
     fetched++;

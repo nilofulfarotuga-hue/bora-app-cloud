@@ -30,11 +30,28 @@ const STORE = 'a0fe1ff9-4042-55a3-9a28-ae1d84b93576';
 const OUT = (process.argv.indexOf('--out') > 0 ? process.argv[process.argv.indexOf('--out') + 1] : 'uber_intermarche.json');
 const cookie = 'uev2.loc=' + encodeURIComponent(JSON.stringify({ address: { title: 'Guarda', address1: 'Guarda' }, latitude: LAT, longitude: LNG, reference: PID, referenceType: 'google_places', type: 'google_places' }));
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+// Uber double-encoda byte-a-byte via CP1252 (bug de locale). Recuperação ao nível do byte:
+// cada byte original B foi -> utf8(cp1252_decode(B)); bytes indefinidos (0x81=Á,0x8D=Í) saem soltos.
+const E2MAP = { 0x9C: 0x93, 0x9D: 0x94, 0x98: 0x91, 0x99: 0x92, 0x93: 0x96, 0x94: 0x97, 0xA6: 0x85, 0xA2: 0x95, 0xB0: 0x89, 0xA0: 0x86, 0xA1: 0x87, 0xB9: 0x8B, 0xBA: 0x9B, 0xAC: 0x80 };
+function recoverMojibake(buf) {
+  const out = [];
+  for (let i = 0; i < buf.length;) {
+    const b = buf[i];
+    if (b < 0x80) { out.push(b); i++; }
+    else if (b === 0xC2 && i + 1 < buf.length) { out.push(buf[i + 1]); i += 2; }
+    else if (b === 0xC3 && i + 1 < buf.length) { out.push((buf[i + 1] & 0x3F) | 0x40); i += 2; }
+    else if (b === 0xE2 && buf[i + 1] === 0x80 && i + 2 < buf.length) { const m = E2MAP[buf[i + 2]]; out.push(m != null ? m : 0x3F); i += 3; }
+    else if (b === 0xC5 && i + 1 < buf.length) { const m = { 0x92: 0x8C, 0x93: 0x9C, 0xA0: 0x8A, 0xA1: 0x9A, 0xB8: 0x9F, 0xBD: 0x8E, 0xBE: 0x9E }[buf[i + 1]]; out.push(m != null ? m : 0x3F); i += 2; }
+    else if (b === 0xC6 && buf[i + 1] === 0x92) { out.push(0x83); i += 2; }
+    else { out.push(b); i++; } // lone byte (inclui indefinidos cp1252 0x81/0x8D...) -> literal
+  }
+  return Buffer.from(out).toString('utf8');
+}
 function call(path, body) {
   return new Promise(res => { const data = JSON.stringify(body);
     const r = https.request({ method: 'POST', hostname: 'www.ubereats.com', path, maxHeaderSize: 131072,
       headers: { 'content-type': 'application/json', accept: '*/*', 'content-length': Buffer.byteLength(data), 'user-agent': UA, 'x-csrf-token': 'x', origin: 'https://www.ubereats.com', 'x-uber-target-location-latitude': LAT, 'x-uber-target-location-longitude': LNG, 'x-uber-device-location-latitude': LAT, 'x-uber-device-location-longitude': LNG, cookie } },
-      resp => { let d = ''; resp.on('data', c => d += c); resp.on('end', () => res({ s: resp.statusCode, d })); });
+      resp => { const ch = []; resp.on('data', c => ch.push(c)); resp.on('end', () => res({ s: resp.statusCode, d: recoverMojibake(Buffer.concat(ch)) })); }); // recupera double-encode CP1252 da Uber
     r.on('error', e => res({ s: 0, d: '' + e.message })); r.write(data); r.end(); });
 }
 function extractItems(json, out) {

@@ -30,7 +30,9 @@ const OUT = arg('out', 'glovo_products.json');
 const SCIDS = (arg('sc', '') || '').split(',').filter(Boolean);
 
 // Categorias top Auchan Guarda (scId -> nome de exibição com acentos). Fallback: slug do deep-link.
-const NAMEMAP = { '23934462':'Frutas e Vegetais','23934516':'Talho e Peixaria','23934733':'Charcutaria e Queijos','23934670':'Padaria e Pastelaria','23934488':'Laticínios e Ovos','23934721':'Mercearia','23934603':'Mercearia Doce','23934758':'Refeições Frescas','23934610':'Gelados e Congelados','23934667':'Águas e Sumos','23935041':'Cervejas e Sidras','23934913':'Vinhos e Espumantes','23934612':'Bebidas Espirituosas','23935093':'Bio e Saudável','23935002':'Beleza e Higiene','23935219':'Saúde e Bem-Estar','23935223':'Limpeza','23935200':'Bebé e Criança','23934842':'Animais de Estimação','23935400':'Casa e Decoração','23935389':'Bricolage, Jardim e Auto' };
+let NAMEMAP = { '23934462':'Frutas e Vegetais','23934516':'Talho e Peixaria','23934733':'Charcutaria e Queijos','23934670':'Padaria e Pastelaria','23934488':'Laticínios e Ovos','23934721':'Mercearia','23934603':'Mercearia Doce','23934758':'Refeições Frescas','23934610':'Gelados e Congelados','23934667':'Águas e Sumos','23935041':'Cervejas e Sidras','23934913':'Vinhos e Espumantes','23934612':'Bebidas Espirituosas','23935093':'Bio e Saudável','23935002':'Beleza e Higiene','23935219':'Saúde e Bem-Estar','23935223':'Limpeza','23935200':'Bebé e Criança','23934842':'Animais de Estimação','23935400':'Casa e Decoração','23935389':'Bricolage, Jardim e Auto' };
+// --names <ficheiro.json> permite outra loja (ex.: Pingo Doce) com scId->nome próprios.
+if (arg('names', '')) { try { NAMEMAP = JSON.parse(fs.readFileSync(arg('names'), 'utf8')); } catch (e) { console.error('names load fail:', e.message); } }
 
 function get(path) {
   return new Promise(res => { https.get(BASE + path, { headers: H }, r => { let d = ''; r.on('data', c => d += c); r.on('end', () => res({ status: r.statusCode, body: d })); }).on('error', e => res({ status: 0, body: e.message })); });

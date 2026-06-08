@@ -522,6 +522,7 @@ class OrderStore extends ChangeNotifier {
             name: item.name,
             price: item.price,
             quantity: item.quantity,
+            selectedOptions: item.selectedOptions,
           ),
         )
         .toList();

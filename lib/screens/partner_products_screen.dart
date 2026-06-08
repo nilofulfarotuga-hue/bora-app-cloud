@@ -8,6 +8,7 @@ import '../stores/partner_product_store.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora_support_fab.dart';
 import 'add_product_screen.dart';
+import 'product_options_manage_screen.dart';
 
 class PartnerProductsScreen extends StatefulWidget {
   const PartnerProductsScreen({super.key, required this.restaurant});
@@ -180,6 +181,20 @@ class _ProductTile extends StatelessWidget {
                   ],
                 ),
               ],
+            ),
+            const SizedBox(height: 4),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        ProductOptionsManageScreen(product: product),
+                  ),
+                ),
+                icon: const Icon(Icons.tune, size: 18),
+                label: const Text('Gerir opções'),
+              ),
             ),
           ],
         ),

@@ -398,7 +398,7 @@ class CartStore extends ChangeNotifier {
     // Água 1.5l €0.28 vs DB €0.32 = €0.28×1.15). Preço usado directo.
     final cartItem = item;
 
-    final index = _items.indexWhere((i) => i.name == cartItem.name);
+    final index = _items.indexWhere((i) => i.lineKey == cartItem.lineKey);
 
     if (index >= 0) {
       _items[index].quantity++;
@@ -411,13 +411,13 @@ class CartStore extends ChangeNotifier {
   }
 
   void removeItem(CartItem item) {
-    _items.removeWhere((i) => i.name == item.name);
+    _items.removeWhere((i) => i.lineKey == item.lineKey);
     notifyListeners();
     _saveCart();
   }
 
   void increaseQuantity(CartItem item) {
-    final index = _items.indexWhere((i) => i.name == item.name);
+    final index = _items.indexWhere((i) => i.lineKey == item.lineKey);
     if (index >= 0) {
       _items[index].quantity++;
       notifyListeners();
@@ -426,7 +426,7 @@ class CartStore extends ChangeNotifier {
   }
 
   void decreaseQuantity(CartItem item) {
-    final index = _items.indexWhere((i) => i.name == item.name);
+    final index = _items.indexWhere((i) => i.lineKey == item.lineKey);
     if (index >= 0) {
       if (_items[index].quantity <= 1) {
         _items.removeAt(index);
@@ -498,6 +498,7 @@ class CartStore extends ChangeNotifier {
               name: item.name,
               price: item.price,
               quantity: item.quantity,
+              selectedOptions: item.selectedOptions,
             ),
           )
           .toList(),
@@ -585,6 +586,7 @@ class CartStore extends ChangeNotifier {
               name: item.name,
               price: item.price,
               quantity: item.quantity,
+              selectedOptions: item.selectedOptions,
             ),
           )
           .toList(),

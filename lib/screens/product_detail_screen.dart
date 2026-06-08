@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/app_colors.dart';
 import '../models/cart_item.dart';
 import '../models/partner_product.dart';
+import '../models/product_option.dart';
 import '../models/product_variant.dart';
 import '../stores/cart_store.dart';
 import '../stores/restaurant_store.dart';
 import '../widgets/bora/bora_accent_button.dart';
+import '../widgets/bora/bora_primary_button.dart';
 import 'cart_screen.dart';
 
 class ProductDetailScreen extends StatefulWidget {
@@ -23,6 +26,89 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   ProductVariant? _selectedVariant;
   int _quantity = 1;
 
+  // Option groups (modifiers) — fetched lazily for this product. Empty for
+  // products without modifiers (the vast majority). Selections keyed by group id.
+  List<ProductOptionGroup> _groups = const [];
+  final Map<String, Set<String>> _sel = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadGroups();
+  }
+
+  Future<void> _loadGroups() async {
+    try {
+      final res = await Supabase.instance.client
+          .from('product_option_groups')
+          .select(
+              'id,product_id,name,description,is_required,min_choices,max_choices,sort_order,product_option_items(id,name,price_add,is_available,sort_order)')
+          .eq('product_id', widget.product.id)
+          .order('sort_order');
+      final list = (res as List)
+          .map((e) => ProductOptionGroup.fromMap(e as Map<String, dynamic>))
+          .toList()
+        ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+      if (mounted) setState(() => _groups = list);
+    } catch (e) {
+      debugPrint('ProductDetail._loadGroups error: $e');
+    }
+  }
+
+  // ── Option-group helpers ───────────────────────────────────────────────────
+  int _selCount(ProductOptionGroup g) => _sel[g.id]?.length ?? 0;
+  bool get _requiredOk => _groups.every((g) => _selCount(g) >= g.minChoices);
+  double get _optionsPrice {
+    double sum = 0;
+    for (final g in _groups) {
+      final ids = _sel[g.id];
+      if (ids == null) continue;
+      for (final it in g.items) {
+        if (ids.contains(it.id)) sum += it.priceAdd;
+      }
+    }
+    return sum;
+  }
+
+  void _toggleOption(ProductOptionGroup g, ProductOptionItem it) {
+    if (!it.isAvailable) return;
+    final set = _sel.putIfAbsent(g.id, () => <String>{});
+    setState(() {
+      if (g.maxChoices <= 1) {
+        set
+          ..clear()
+          ..add(it.id);
+      } else if (set.contains(it.id)) {
+        set.remove(it.id);
+      } else if (set.length < g.maxChoices) {
+        set.add(it.id);
+      }
+    });
+  }
+
+  String _groupHint(ProductOptionGroup g) {
+    if (g.minChoices > 0 && g.minChoices == g.maxChoices) {
+      return 'Escolhe ${g.minChoices}';
+    }
+    if (g.minChoices > 0) return 'Escolhe ${g.minChoices} a ${g.maxChoices}';
+    return 'Escolhe até ${g.maxChoices}';
+  }
+
+  void _snack(String msg) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(msg),
+          duration: const Duration(milliseconds: 1200),
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16),
+          dismissDirection: DismissDirection.horizontal,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+  }
+
   // Sessão 4C: ProductVariant.id é UUID válido — usar directamente.
   // Embeber o nome do produto criava productId que falhava lookup na RPC.
   String _variantKey(ProductVariant v) => v.id;
@@ -34,19 +120,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           price: v.price,
           quantity: _quantity,
         ));
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text('${v.brandName} × $_quantity adicionado ao carrinho'),
-          duration: const Duration(milliseconds: 1200),
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16),
-          dismissDirection: DismissDirection.horizontal,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ),
-      );
+    _snack('${v.brandName} × $_quantity adicionado ao carrinho');
   }
 
   void _addNoVariantToCart(BuildContext context) {
@@ -56,20 +130,29 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           price: widget.product.price,
           quantity: _quantity,
         ));
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(
-              '${widget.product.name} × $_quantity adicionado ao carrinho'),
-          duration: const Duration(milliseconds: 1200),
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16),
-          dismissDirection: DismissDirection.horizontal,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ),
-      );
+    _snack('${widget.product.name} × $_quantity adicionado ao carrinho');
+  }
+
+  void _addWithOptions(BuildContext context) {
+    final selected = <SelectedOption>[];
+    for (final g in _groups) {
+      final ids = _sel[g.id];
+      if (ids == null || ids.isEmpty) continue;
+      final names =
+          g.items.where((it) => ids.contains(it.id)).map((it) => it.name).toList();
+      if (names.isNotEmpty) {
+        selected.add(SelectedOption(group: g.name, items: names));
+      }
+    }
+    final unit = widget.product.price + _optionsPrice;
+    context.read<CartStore>().addItem(CartItem(
+          productId: widget.product.id,
+          name: widget.product.name,
+          price: unit,
+          quantity: _quantity,
+          selectedOptions: selected,
+        ));
+    _snack('${widget.product.name} × $_quantity adicionado ao carrinho');
   }
 
   @override
@@ -87,6 +170,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
     final primaryColor = Theme.of(context).colorScheme.primary;
     final total = variants.length;
+    final hasGroups = variants.isEmpty && _groups.isNotEmpty;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -165,6 +249,18 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 ),
 
                 const SliverToBoxAdapter(child: SizedBox(height: 8)),
+
+                // ── Option groups (modifiers) ────────────────────────────────
+                if (hasGroups)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                      child: Column(
+                        children:
+                            _groups.map((g) => _buildGroupCard(g)).toList(),
+                      ),
+                    ),
+                  ),
 
                 // ── Variants section header ──────────────────────────────────
                 if (variants.isNotEmpty)
@@ -253,25 +349,164 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           ),
 
           // ── Fixed bottom button ──────────────────────────────────────────
-          if (_selectedVariant != null || variants.isEmpty)
-            SafeArea(
-              top: false,
-              minimum: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-              child: BoraAccentButton(
-                label: _selectedVariant != null
-                    ? 'Adicionar ao carrinho · €${_selectedVariant!.price.toStringAsFixed(2)}'
-                    : widget.product.price > 0
-                        ? 'Adicionar ao carrinho · €${widget.product.price.toStringAsFixed(2)}'
-                        : 'Preço indisponível',
-                icon: Icons.add_shopping_cart,
-                onPressed: _selectedVariant != null
-                    ? () => _addToCart(context, _selectedVariant!)
-                    : widget.product.price > 0
-                        ? () => _addNoVariantToCart(context)
-                        : null,
+          _buildBottomBar(context, variants, hasGroups),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomBar(
+      BuildContext context, List<ProductVariant> variants, bool hasGroups) {
+    Widget wrap(Widget child) => SafeArea(
+          top: false,
+          minimum: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          child: child,
+        );
+
+    if (variants.isNotEmpty) {
+      if (_selectedVariant == null) return const SizedBox.shrink();
+      return wrap(BoraAccentButton(
+        label:
+            'Adicionar ao carrinho · €${_selectedVariant!.price.toStringAsFixed(2)}',
+        icon: Icons.add_shopping_cart,
+        onPressed: () => _addToCart(context, _selectedVariant!),
+      ));
+    }
+
+    if (hasGroups) {
+      final unit = widget.product.price + _optionsPrice;
+      final ok = widget.product.price > 0 && _requiredOk;
+      // Green primary button keeps the single orange element = the required
+      // badge ("1 laranja por ecrã" — badge tem prioridade).
+      return wrap(BoraPrimaryButton(
+        label: ok
+            ? 'Adicionar ao carrinho · €${unit.toStringAsFixed(2)}'
+            : 'Completa as escolhas obrigatórias',
+        icon: Icons.add_shopping_cart,
+        onPressed: ok ? () => _addWithOptions(context) : null,
+      ));
+    }
+
+    return wrap(BoraAccentButton(
+      label: widget.product.price > 0
+          ? 'Adicionar ao carrinho · €${widget.product.price.toStringAsFixed(2)}'
+          : 'Preço indisponível',
+      icon: Icons.add_shopping_cart,
+      onPressed:
+          widget.product.price > 0 ? () => _addNoVariantToCart(context) : null,
+    ));
+  }
+
+  // ── Option-group card ──────────────────────────────────────────────────────
+  Widget _buildGroupCard(ProductOptionGroup g) {
+    final count = _selCount(g);
+    final satisfied = count >= g.minChoices;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: AppColors.shadowCard,
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  g.name,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              if (g.isRequired)
+                const _Badge(label: 'Obrigatório', color: AppColors.accent)
+              else
+                const _Badge(
+                    label: 'Opcional', color: AppColors.textSecondary),
+            ],
+          ),
+          const SizedBox(height: 2),
+          Row(
+            children: [
+              Text(
+                _groupHint(g),
+                style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondary),
+              ),
+              const Spacer(),
+              Text(
+                'Escolheste $count de ${g.maxChoices}',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: satisfied ? AppColors.primary : AppColors.textSubtle,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          ...g.items.map((it) => _buildOptionRow(g, it)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOptionRow(ProductOptionGroup g, ProductOptionItem it) {
+    final selected = _sel[g.id]?.contains(it.id) ?? false;
+    final atMax = g.maxChoices > 1 && _selCount(g) >= g.maxChoices;
+    final disabled = !it.isAvailable || (!selected && atMax);
+    final single = g.maxChoices <= 1;
+    final IconData icon = single
+        ? (selected
+            ? Icons.radio_button_checked
+            : Icons.radio_button_unchecked)
+        : (selected ? Icons.check_box : Icons.check_box_outline_blank);
+    return InkWell(
+      onTap: disabled ? null : () => _toggleOption(g, it),
+      borderRadius: BorderRadius.circular(10),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            Icon(icon,
+                size: 22,
+                color: selected
+                    ? AppColors.primary
+                    : (disabled ? AppColors.textSubtle : AppColors.textSecondary)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                it.name,
+                style: TextStyle(
+                  fontSize: 14.5,
+                  color: it.isAvailable
+                      ? AppColors.textPrimary
+                      : AppColors.textSubtle,
+                  decoration: it.isAvailable
+                      ? TextDecoration.none
+                      : TextDecoration.lineThrough,
+                ),
               ),
             ),
-        ],
+            if (it.priceAdd > 0)
+              Text(
+                '+€${it.priceAdd.toStringAsFixed(2)}',
+                style: const TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
+import '../stores/partner_appointments_store.dart';
 import '../stores/restaurant_store.dart';
 import '../services/notification_service.dart';
 import '../stores/session_store.dart';
@@ -177,6 +178,7 @@ class _PartnerLoginScreenState extends State<PartnerLoginScreen> {
     final authStore = context.read<AuthStore>();
     final restaurantStore = context.read<RestaurantStore>();
     final sessionStore = context.read<SessionStore>();
+    final appointmentsStore = context.read<PartnerAppointmentsStore>();
 
     final success = await authStore.loginPartnerAsync(
       _emailController.text,
@@ -194,22 +196,30 @@ class _PartnerLoginScreenState extends State<PartnerLoginScreen> {
     }
 
     final restaurant = restaurantStore.restaurantByEmail(_emailController.text);
-    if (restaurant == null) {
-      authStore.logout();
-      setState(() => _isProcessing = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content:
-              Text('Não encontramos o restaurante associado a este email.'),
-        ),
-      );
-      return;
+    if (restaurant != null) {
+      authStore.setPartnerRestaurant(restaurant);
+
+      // Persist FCM token for this partner device so push notifications work.
+      NotificationService.instance.saveTokenForPartner(restaurant.id).ignore();
+    } else {
+      // No `restaurants` row. A Serviços/Barbearias partner owns a
+      // `service_providers` record instead — let it through so _RootNavigator →
+      // PartnerEntryScreen routes to the marcações hub. Reject only when the
+      // account has neither a restaurant nor a service provider.
+      final hasServiceProvider = await _hasServiceProvider(appointmentsStore);
+      if (!mounted) return;
+      if (!hasServiceProvider) {
+        authStore.logout();
+        setState(() => _isProcessing = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content:
+                Text('Não encontramos o restaurante associado a este email.'),
+          ),
+        );
+        return;
+      }
     }
-
-    authStore.setPartnerRestaurant(restaurant);
-
-    // Persist FCM token for this partner device so push notifications work.
-    NotificationService.instance.saveTokenForPartner(restaurant.id).ignore();
 
     await sessionStore.setRole(UserRole.partner);
 
@@ -219,6 +229,17 @@ class _PartnerLoginScreenState extends State<PartnerLoginScreen> {
 
     if (Navigator.canPop(context)) {
       Navigator.of(context).popUntil((route) => route.isFirst);
+    }
+  }
+
+  /// True when the logged-in partner owns a `service_providers` record
+  /// (Serviços/Barbearias vertical). Lets service-only partners — who have no
+  /// `restaurants` row — into the app instead of rejecting login.
+  Future<bool> _hasServiceProvider(PartnerAppointmentsStore store) async {
+    try {
+      return (await store.loadMyProvider()) != null;
+    } catch (_) {
+      return false;
     }
   }
 }

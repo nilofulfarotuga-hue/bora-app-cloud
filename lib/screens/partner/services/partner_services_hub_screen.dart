@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../auth/auth_store.dart';
 import '../../../config/app_colors.dart';
 import '../../../models/service_provider_model.dart';
 import '../../../stores/partner_appointments_store.dart';
+import '../../../stores/session_store.dart';
 import '../../../widgets/bora/bora_screen_app_bar.dart';
 import 'partner_add_walk_in_screen.dart';
 import 'partner_agenda_screen.dart';
@@ -44,9 +46,24 @@ class _PartnerServicesHubScreenState extends State<PartnerServicesHubScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Service-only partners reach this hub as their home screen (no route to
+    // pop back to). Offer a logout action so they aren't stranded; when the hub
+    // is pushed from the partner dashboard, the back button is the exit instead.
+    final isHome = !Navigator.of(context).canPop();
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const BoraScreenAppBar(title: 'Marcações'),
+      appBar: BoraScreenAppBar(
+        title: 'Marcações',
+        actions: isHome
+            ? [
+                IconButton(
+                  icon: const Icon(Icons.logout),
+                  tooltip: 'Sair',
+                  onPressed: () => _logout(context),
+                ),
+              ]
+            : null,
+      ),
       body: FutureBuilder<ServiceProviderModel?>(
         future: _future,
         builder: (context, snap) {
@@ -134,6 +151,17 @@ class _PartnerServicesHubScreenState extends State<PartnerServicesHubScreen> {
 
   void _push(BuildContext context, Widget screen) {
     Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+  }
+
+  /// Logs the partner out and clears the role, so _RootNavigator rebuilds back
+  /// to the role chooser. Mirrors the partner dashboard logout flow.
+  Future<void> _logout(BuildContext context) async {
+    final navigator = Navigator.of(context);
+    final authStore = context.read<AuthStore>();
+    final sessionStore = context.read<SessionStore>();
+    authStore.logout();
+    await sessionStore.clearRole();
+    navigator.popUntil((route) => route.isFirst);
   }
 }
 

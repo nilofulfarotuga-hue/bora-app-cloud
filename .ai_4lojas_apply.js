@@ -35,8 +35,9 @@ const ROOT_ORDER = [...NAMES_TEXT.matchAll(/"\d+"\s*:\s*"([^"]+)"/g)].map(m => m
     if (!p.img) { droppedNoImg++; continue; } // enforce 0 sem_foto (criterion)
     glovoById.set(id, p.price);
     const price = Math.round((p.price / MARKUP) * 100) / 100;
-    raw.push({ _ri: rootIdx(p.root), _k: k, id, restaurant_id: RID, name: String(p.name).slice(0, 250), photo_url: p.img || null, price,
-      category_root: p.root || null, category: p.root || null, is_available: true, source: SOURCE, image_source: 'glovo_official', needs_photo: !p.img, last_updated: '2026-06-08' });
+    const root = (p.root || '').trim();
+    raw.push({ _ri: rootIdx(root), _k: k, id, restaurant_id: RID, name: String(p.name).slice(0, 250), photo_url: p.img || null, price,
+      category_root: root || null, category: root || null, is_available: true, source: SOURCE, image_source: 'glovo_official', needs_photo: !p.img, last_updated: '2026-06-08' });
   }
   raw.sort((a, b) => a._ri - b._ri || a._k - b._k);
   const rows = raw.map((r, i) => { const { _ri, _k, ...rest } = r; return { ...rest, sort_order: i }; });

@@ -1,0 +1,250 @@
+{
+  "kfc": {
+    "slug": "kfc-grd",
+    "store": "363080",
+    "addr": "538047",
+    "body": [
+      {
+        "type": "LIST",
+        "title": "Mais vendidos",
+        "nP": 0,
+        "nC": 0,
+        "collId": ""
+      },
+      {
+        "type": "LIST",
+        "title": "Combos Especiais Delivery",
+        "nP": 0,
+        "nC": 0,
+        "collId": ""
+      },
+      {
+        "type": "LIST",
+        "title": "Novidades - Tosta Mista & Ruffles",
+        "nP": 0,
+        "nC": 0,
+        "collId": ""
+      },
+      {
+        "type": "LIST",
+        "title": "Box Meal",
+        "nP": 0,
+        "nC": 0,
+        "collId": ""
+      },
+      {
+        "type": "LIST",
+        "title": "Arroz com Frango",
+        "nP": 0,
+        "nC": 0,
+        "collId": ""
+      },
+      {
+        "type": "LIST",
+        "title": "Tempo Limitado",
+        "nP": 0,
+        "nC": 0,
+        "collId": ""
+      },
+      {
+        "type": "LIST",
+        "title": "Menus Burgers",
+        "nP": 0,
+        "nC": 0,
+        "collId": ""
+      },
+      {
+        "type": "LIST",
+        "title": "Menus Wraps",
+        "nP": 0,
+        "nC": 0,
+        "collId": ""
+      },
+      {
+        "type": "LIST",
+        "title": "Menus Pedaços",
+        "nP": 0,
+        "nC": 0,
+        "collId": ""
+      },
+      {
+        "type": "LIST",
+        "title": "Menus Hotwings",
+        "nP": 0,
+        "nC": 0,
+        "collId": ""
+      },
+      {
+        "type": "LIST",
+        "title": "Menus Mix",
+        "nP": 0,
+        "nC": 0,
+        "collId": ""
+      },
+      {
+        "type": "LIST",
+        "title": "Menus Tenders",
+        "nP": 0,
+        "nC": 0,
+        "collId": ""
+      },
+      {
+        "type": "LIST",
+        "title": "Menus Infantis",
+        "nP": 0,
+        "nC": 0,
+        "collId": ""
+      },
+      {
+        "type": "LIST",
+        "title": "Bowls, Veggies e Saladas",
+        "nP": 0,
+        "nC": 0,
+        "collId": ""
+      },
+      {
+        "type": "LIST",
+        "title": "Super Chick & Share",
+        "nP": 0,
+        "nC": 0,
+        "collId": ""
+      },
+      {
+        "type": "LIST",
+        "title": "Complementos e Acompanhamentos",
+        "nP": 0,
+        "nC": 0,
+        "collId": ""
+      },
+      {
+        "type": "LIST",
+        "title": "Bebidas",
+        "nP": 0,
+        "nC": 0,
+        "collId": ""
+      },
+      {
+        "type": "LIST",
+        "title": "Sobremesas",
+        "nP": 0,
+        "nC": 0,
+        "collId": ""
+      },
+      {
+        "type": "LIST",
+        "title": "Burgers & Wraps",
+        "nP": 0,
+        "nC": 0,
+        "collId": ""
+      }
+    ]
+  },
+  "burger-king": {
+    "slug": "burger-king-grd",
+    "store": "279991",
+    "addr": "427202",
+    "body": [
+      {
+        "type": "LIST",
+        "title": "Promoções",
+        "nP": 0,
+        "nC": 0,
+        "collId": ""
+      },
+      {
+        "type": "LIST",
+        "title": "Mais vendidos",
+        "nP": 0,
+        "nC": 0,
+        "collId": ""
+      },
+      {
+        "type": "LIST",
+        "title": "Novidades",
+        "nP": 0,
+        "nC": 0,
+        "collId": ""
+      },
+      {
+        "type": "LIST",
+        "title": "Na grelha",
+        "nP": 0,
+        "nC": 0,
+        "collId": ""
+      },
+      {
+        "type": "LIST",
+        "title": "Frango e outros",
+        "nP": 0,
+        "nC": 0,
+        "collId": ""
+      },
+      {
+        "type": "LIST",
+        "title": "Menus Completos",
+        "nP": 0,
+        "nC": 0,
+        "collId": ""
+      },
+      {
+        "type": "LIST",
+        "title": "Entradas",
+        "nP": 0,
+        "nC": 0,
+        "collId": ""
+      },
+      {
+        "type": "LIST",
+        "title": "Hambúrgueres",
+        "nP": 0,
+        "nC": 0,
+        "collId": ""
+      },
+      {
+        "type": "LIST",
+        "title": "King JR",
+        "nP": 0,
+        "nC": 0,
+        "collId": ""
+      },
+      {
+        "type": "LIST",
+        "title": "Vegetal",
+        "nP": 0,
+        "nC": 0,
+        "collId": ""
+      },
+      {
+        "type": "LIST",
+        "title": "Sobremesas",
+        "nP": 0,
+        "nC": 0,
+        "collId": ""
+      },
+      {
+        "type": "LIST",
+        "title": "Molhos",
+        "nP": 0,
+        "nC": 0,
+        "collId": ""
+      },
+      {
+        "type": "LIST",
+        "title": "Bebidas",
+        "nP": 0,
+        "nC": 0,
+        "collId": ""
+      },
+      {
+        "type": "LIST",
+        "title": "Sem glúten",
+        "nP": 0,
+        "nC": 0,
+        "collId": ""
+      }
+    ]
+  },
+  "mcdonalds": {
+    "resolved": false
+  }
+}

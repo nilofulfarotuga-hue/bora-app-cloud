@@ -1,0 +1,927 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../../../config/app_colors.dart';
+import '../../../config/app_spacing.dart';
+import '../../../models/provider_service_model.dart';
+import '../../../models/service_provider_model.dart';
+import '../../../models/staff_member_model.dart';
+import '../../../stores/services_store.dart';
+import '../../../widgets/bora/bora_accent_button.dart';
+import '../../../widgets/bora/bora_primary_button.dart';
+import '../../../widgets/bora/bora_screen_app_bar.dart';
+import 'booking_success_screen.dart';
+
+/// Vertical Serviços — fluxo de marcação em 6 passos (PageView):
+/// 1) serviço  2) profissional (com "Qualquer disponível")  3) dia
+/// 4) hora (slots via get_available_slots)  5) confirmação + pagamento Stripe
+/// 6) sucesso (ecrã próprio).
+class BookingFlowScreen extends StatefulWidget {
+  const BookingFlowScreen({
+    super.key,
+    required this.provider,
+    this.preselectedService,
+  });
+
+  final ServiceProviderModel provider;
+  final ProviderServiceModel? preselectedService;
+
+  @override
+  State<BookingFlowScreen> createState() => _BookingFlowScreenState();
+}
+
+/// Sentinela para a opção "Qualquer profissional disponível".
+const String _kAnyStaffId = '__any__';
+
+/// Janela máxima de marcação (appointment_max_advance_days = 30).
+const int _kMaxAdvanceDays = 30;
+
+class _BookingFlowScreenState extends State<BookingFlowScreen> {
+  final _pageController = PageController();
+  int _step = 0;
+
+  // Catálogo carregado.
+  late Future<void> _loadFuture;
+  List<ProviderServiceModel> _services = const [];
+  List<StaffMemberModel> _staff = const [];
+
+  // Seleções.
+  ProviderServiceModel? _service;
+  String _staffId = _kAnyStaffId; // _kAnyStaffId = "qualquer"
+  DateTime? _day;
+  DateTime? _slot;
+  String? _resolvedStaffId; // staff concreto resolvido para o slot escolhido
+
+  // Estado do passo de horas.
+  bool _loadingSlots = false;
+  String? _slotsError;
+  List<_SlotOption> _slotOptions = const [];
+
+  bool _booking = false;
+
+  final _notesCtrl = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _service = widget.preselectedService;
+    _loadFuture = _loadCatalog();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    _notesCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadCatalog() async {
+    final store = context.read<ServicesStore>();
+    final results = await Future.wait([
+      store.fetchServices(widget.provider.id),
+      store.fetchStaff(widget.provider.id),
+    ]);
+    if (!mounted) return;
+    setState(() {
+      _services = results[0] as List<ProviderServiceModel>;
+      _staff = results[1] as List<StaffMemberModel>;
+      // Se o serviço pré-seleccionado não está na lista activa, ignora.
+      if (_service != null &&
+          !_services.any((s) => s.id == _service!.id)) {
+        _service = null;
+      }
+    });
+  }
+
+  // ─── Navegação entre passos ───────────────────────────────────────────────
+
+  void _goTo(int step) {
+    setState(() => _step = step);
+    _pageController.animateToPage(
+      step,
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  void _next() => _goTo(_step + 1);
+
+  Future<bool> _onWillPop() async {
+    if (_step == 0) return true;
+    _goTo(_step - 1);
+    return false;
+  }
+
+  static const _titles = [
+    'Escolher serviço',
+    'Escolher profissional',
+    'Escolher dia',
+    'Escolher hora',
+    'Confirmar e pagar',
+  ];
+
+  // ─── Passo 3 → 4: carregar slots ───────────────────────────────────────────
+
+  Future<void> _loadSlotsForDay(DateTime day) async {
+    setState(() {
+      _loadingSlots = true;
+      _slotsError = null;
+      _slotOptions = const [];
+      _slot = null;
+      _resolvedStaffId = null;
+    });
+    final store = context.read<ServicesStore>();
+    try {
+      // Para staff concreto: 1 chamada. Para "qualquer": uma chamada por
+      // profissional, e cada slot é atribuído ao 1º profissional disponível.
+      final staffToQuery = _staffId == _kAnyStaffId
+          ? _staff
+          : _staff.where((s) => s.id == _staffId).toList();
+
+      final Map<DateTime, String> firstStaffBySlot = {};
+      for (final s in staffToQuery) {
+        final slots = await store.getAvailableSlots(
+          staffId: s.id,
+          serviceId: _service!.id,
+          day: day,
+        );
+        for (final dt in slots) {
+          firstStaffBySlot.putIfAbsent(dt, () => s.id);
+        }
+      }
+      final options = firstStaffBySlot.entries
+          .map((e) => _SlotOption(start: e.key, staffId: e.value))
+          .toList()
+        ..sort((a, b) => a.start.compareTo(b.start));
+      if (!mounted) return;
+      setState(() => _slotOptions = options);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() =>
+          _slotsError = e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _loadingSlots = false);
+    }
+  }
+
+  // ─── Passo 5: marcar + pagar ────────────────────────────────────────────────
+
+  Future<void> _confirmAndPay() async {
+    if (_booking || _slot == null || _service == null) return;
+    final staffId = _resolvedStaffId;
+    if (staffId == null) return;
+
+    setState(() => _booking = true);
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    try {
+      final result = await context.read<ServicesStore>().bookAndPay(
+            serviceId: _service!.id,
+            staffId: staffId,
+            scheduledAt: _slot!,
+            notes: _notesCtrl.text.trim().isEmpty
+                ? null
+                : _notesCtrl.text.trim(),
+            context: context,
+          );
+      if (!mounted) return;
+      if (result.success) {
+        navigator.pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => BookingSuccessScreen(
+              providerName: widget.provider.name,
+              serviceName: _service!.name,
+              scheduledAt: _slot!,
+            ),
+          ),
+        );
+        return;
+      }
+      // Cancelamento ou erro → snackbar (mantém-se no passo).
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(result.errorMessage ?? 'Não foi possível concluir.'),
+          backgroundColor:
+              result.cancelled ? AppColors.accent : AppColors.error,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _booking = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: _step == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _onWillPop();
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: BoraScreenAppBar(title: _titles[_step]),
+        body: SafeArea(
+          child: FutureBuilder<void>(
+            future: _loadFuture,
+            builder: (context, snap) {
+              if (snap.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (snap.hasError) {
+                return _LoadError(
+                  message: snap.error.toString().replaceFirst('Exception: ', ''),
+                  onRetry: () => setState(() => _loadFuture = _loadCatalog()),
+                );
+              }
+              return Column(
+                children: [
+                  _StepIndicator(step: _step, total: _titles.length),
+                  Expanded(
+                    child: PageView(
+                      controller: _pageController,
+                      physics: const NeverScrollableScrollPhysics(),
+                      children: [
+                        _serviceStep(),
+                        _staffStep(),
+                        _dayStep(),
+                        _timeStep(),
+                        _confirmStep(),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ─── Passo 1: serviço ────────────────────────────────────────────────────
+
+  Widget _serviceStep() {
+    if (_services.isEmpty) {
+      return const _EmptyStep(
+        icon: Icons.content_cut,
+        text: 'Este prestador ainda não tem serviços.',
+      );
+    }
+    return ListView.separated(
+      padding: const EdgeInsets.all(Spacing.lg),
+      itemCount: _services.length,
+      separatorBuilder: (_, __) => const SizedBox(height: Spacing.sm),
+      itemBuilder: (_, i) {
+        final s = _services[i];
+        final selected = _service?.id == s.id;
+        return _SelectableCard(
+          selected: selected,
+          onTap: () {
+            setState(() => _service = s);
+            _next();
+          },
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      s.name,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: Spacing.xxs),
+                    Text(
+                      s.durationLabel,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSubtle,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                s.priceLabel,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primary,
+                  fontFeatures: [FontFeature.tabularFigures()],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // ─── Passo 2: profissional ─────────────────────────────────────────────────
+
+  Widget _staffStep() {
+    return ListView(
+      padding: const EdgeInsets.all(Spacing.lg),
+      children: [
+        _SelectableCard(
+          selected: _staffId == _kAnyStaffId,
+          onTap: () {
+            setState(() => _staffId = _kAnyStaffId);
+            _next();
+          },
+          child: const Row(
+            children: [
+              CircleAvatar(
+                radius: 22,
+                backgroundColor: AppColors.primaryLight,
+                child: Icon(Icons.groups_outlined, color: AppColors.primary),
+              ),
+              SizedBox(width: Spacing.md),
+              Expanded(
+                child: Text(
+                  'Qualquer disponível',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: Spacing.sm),
+        for (final st in _staff) ...[
+          _SelectableCard(
+            selected: _staffId == st.id,
+            onTap: () {
+              setState(() => _staffId = st.id);
+              _next();
+            },
+            child: Row(
+              children: [
+                _StaffAvatar(staff: st),
+                const SizedBox(width: Spacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        st.name,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      if (st.specialties.isNotEmpty) ...[
+                        const SizedBox(height: Spacing.xxs),
+                        Text(
+                          st.specialties.join(' · '),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: Spacing.sm),
+        ],
+      ],
+    );
+  }
+
+  // ─── Passo 3: dia ──────────────────────────────────────────────────────────
+
+  Widget _dayStep() {
+    final today = DateTime.now();
+    final days = List.generate(
+      _kMaxAdvanceDays,
+      (i) => DateTime(today.year, today.month, today.day).add(Duration(days: i)),
+    );
+    return Column(
+      children: [
+        Expanded(
+          child: GridView.builder(
+            padding: const EdgeInsets.all(Spacing.lg),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 4,
+              crossAxisSpacing: Spacing.sm,
+              mainAxisSpacing: Spacing.sm,
+              childAspectRatio: 0.82,
+            ),
+            itemCount: days.length,
+            itemBuilder: (_, i) {
+              final d = days[i];
+              final selected = _day != null &&
+                  d.year == _day!.year &&
+                  d.month == _day!.month &&
+                  d.day == _day!.day;
+              return _DayCell(
+                date: d,
+                selected: selected,
+                onTap: () {
+                  setState(() => _day = d);
+                  _next();
+                  _loadSlotsForDay(d);
+                },
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ─── Passo 4: hora ─────────────────────────────────────────────────────────
+
+  Widget _timeStep() {
+    if (_loadingSlots) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_slotsError != null) {
+      return _LoadError(
+        message: _slotsError!,
+        onRetry: () => _day == null ? null : _loadSlotsForDay(_day!),
+      );
+    }
+    if (_slotOptions.isEmpty) {
+      return _EmptyStep(
+        icon: Icons.event_busy,
+        text: 'Sem horários disponíveis neste dia.\nEscolhe outro dia.',
+        actionLabel: 'Mudar dia',
+        onAction: () => _goTo(2),
+      );
+    }
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(Spacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _formatDayLong(_day!),
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: Spacing.md),
+          Wrap(
+            spacing: Spacing.sm,
+            runSpacing: Spacing.sm,
+            children: [
+              for (final opt in _slotOptions)
+                _SlotChip(
+                  label: _formatTime(opt.start),
+                  selected: _slot == opt.start,
+                  onTap: () {
+                    setState(() {
+                      _slot = opt.start;
+                      _resolvedStaffId = opt.staffId;
+                    });
+                    _next();
+                  },
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Passo 5: confirmação + pagamento ────────────────────────────────────
+
+  Widget _confirmStep() {
+    final s = _service;
+    final slot = _slot;
+    if (s == null || slot == null) {
+      return const _EmptyStep(
+        icon: Icons.info_outline,
+        text: 'Faltam dados. Volta atrás e completa a marcação.',
+      );
+    }
+    final staffName = _staffId == _kAnyStaffId
+        ? 'Qualquer disponível'
+        : (_staff
+                .where((st) => st.id == _resolvedStaffId)
+                .map((st) => st.name)
+                .cast<String?>()
+                .firstWhere((_) => true, orElse: () => null) ??
+            'Profissional');
+
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(Spacing.lg),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _summaryCard(
+                  service: s.name,
+                  staff: staffName,
+                  slot: slot,
+                  price: s.priceLabel,
+                ),
+                const SizedBox(height: Spacing.lg),
+                TextField(
+                  controller: _notesCtrl,
+                  maxLines: 3,
+                  maxLength: 300,
+                  decoration: const InputDecoration(
+                    labelText: 'Notas (opcional)',
+                    hintText: 'Algo que o profissional deva saber...',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: Spacing.sm),
+                _depositCard(),
+              ],
+            ),
+          ),
+        ),
+        // CTA laranja único do ecrã.
+        SafeArea(
+          top: false,
+          minimum: const EdgeInsets.fromLTRB(
+              Spacing.lg, Spacing.sm, Spacing.lg, Spacing.lg),
+          child: BoraAccentButton(
+            label: 'Confirmar e Pagar',
+            icon: Icons.lock,
+            loading: _booking,
+            onPressed: _booking ? null : _confirmAndPay,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _summaryCard({
+    required String service,
+    required String staff,
+    required DateTime slot,
+    required String price,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(Spacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(Radii.lg),
+        boxShadow: AppColors.shadowCard,
+      ),
+      child: Column(
+        children: [
+          _summaryRow(Icons.content_cut, 'Serviço', service),
+          const Divider(height: Spacing.xl, color: AppColors.divider),
+          _summaryRow(Icons.person_outline, 'Profissional', staff),
+          const Divider(height: Spacing.xl, color: AppColors.divider),
+          _summaryRow(
+              Icons.event, 'Data', '${_formatDayLong(slot)} · ${_formatTime(slot)}'),
+          const Divider(height: Spacing.xl, color: AppColors.divider),
+          _summaryRow(Icons.euro, 'Preço', price, emphasize: true),
+        ],
+      ),
+    );
+  }
+
+  Widget _summaryRow(IconData icon, String label, String value,
+      {bool emphasize = false}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 18, color: AppColors.primary),
+        const SizedBox(width: Spacing.md),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+        ),
+        const Spacer(),
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            style: TextStyle(
+              fontSize: emphasize ? 16 : 14,
+              fontWeight: emphasize ? FontWeight.w800 : FontWeight.w600,
+              color: emphasize ? AppColors.primary : AppColors.textPrimary,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _depositCard() {
+    return Container(
+      padding: const EdgeInsets.all(Spacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(Radii.md),
+      ),
+      child: const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.info_outline, size: 18, color: AppColors.info),
+          SizedBox(width: Spacing.sm),
+          Expanded(
+            child: Text(
+              'Sinal de €3,00 agora — restante na barbearia.\n'
+              'Reembolso se cancelares com antecedência.',
+              style: TextStyle(
+                fontSize: 13,
+                height: 1.4,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Formatadores (PT-PT sem intl) ─────────────────────────────────────────
+
+  static String _formatTime(DateTime dt) =>
+      '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+
+  static String _formatDayLong(DateTime d) {
+    const weekdays = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+    const months = [
+      'jan', 'fev', 'mar', 'abr', 'mai', 'jun',
+      'jul', 'ago', 'set', 'out', 'nov', 'dez',
+    ];
+    final wd = weekdays[(d.weekday - 1).clamp(0, 6)];
+    final mo = months[(d.month - 1).clamp(0, 11)];
+    return '$wd, ${d.day} $mo';
+  }
+}
+
+/// Slot + o profissional concreto que o oferece.
+class _SlotOption {
+  _SlotOption({required this.start, required this.staffId});
+  final DateTime start;
+  final String staffId;
+}
+
+// ─── Widgets de apoio ────────────────────────────────────────────────────────
+
+class _StepIndicator extends StatelessWidget {
+  const _StepIndicator({required this.step, required this.total});
+  final int step;
+  final int total;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+          Spacing.lg, Spacing.md, Spacing.lg, Spacing.xs),
+      child: Row(
+        children: [
+          for (var i = 0; i < total; i++) ...[
+            Expanded(
+              child: Container(
+                height: 4,
+                decoration: BoxDecoration(
+                  color: i <= step ? AppColors.primary : AppColors.divider,
+                  borderRadius: BorderRadius.circular(Radii.pill),
+                ),
+              ),
+            ),
+            if (i != total - 1) const SizedBox(width: Spacing.xs),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _SelectableCard extends StatelessWidget {
+  const _SelectableCard({
+    required this.child,
+    required this.onTap,
+    required this.selected,
+  });
+  final Widget child;
+  final VoidCallback onTap;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(Radii.lg),
+      child: Container(
+        padding: const EdgeInsets.all(Spacing.md),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(Radii.lg),
+          boxShadow: AppColors.shadowCard,
+          border: selected
+              ? Border.all(color: AppColors.primary, width: 2)
+              : null,
+        ),
+        child: child,
+      ),
+    );
+  }
+}
+
+class _StaffAvatar extends StatelessWidget {
+  const _StaffAvatar({required this.staff});
+  final StaffMemberModel staff;
+
+  @override
+  Widget build(BuildContext context) {
+    final url = staff.photoUrl;
+    if (url != null && url.isNotEmpty) {
+      return CircleAvatar(radius: 22, backgroundImage: NetworkImage(url));
+    }
+    final initial = staff.name.isNotEmpty ? staff.name[0].toUpperCase() : '?';
+    return CircleAvatar(
+      radius: 22,
+      backgroundColor: AppColors.primaryLight,
+      child: Text(
+        initial,
+        style: const TextStyle(
+          color: AppColors.primary,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _DayCell extends StatelessWidget {
+  const _DayCell({
+    required this.date,
+    required this.selected,
+    required this.onTap,
+  });
+  final DateTime date;
+  final bool selected;
+  final VoidCallback onTap;
+
+  static const _weekdays = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+
+  @override
+  Widget build(BuildContext context) {
+    final wd = _weekdays[(date.weekday - 1).clamp(0, 6)];
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(Radii.md),
+      child: Container(
+        decoration: BoxDecoration(
+          color: selected ? AppColors.primary : AppColors.card,
+          borderRadius: BorderRadius.circular(Radii.md),
+          boxShadow: selected ? null : AppColors.shadowSm,
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              wd,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: selected ? Colors.white70 : AppColors.textSubtle,
+              ),
+            ),
+            const SizedBox(height: Spacing.xxs),
+            Text(
+              '${date.day}',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: selected ? Colors.white : AppColors.textPrimary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SlotChip extends StatelessWidget {
+  const _SlotChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(Radii.md),
+      child: Container(
+        padding:
+            const EdgeInsets.symmetric(horizontal: Spacing.lg, vertical: Spacing.md),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.primary : AppColors.card,
+          borderRadius: BorderRadius.circular(Radii.md),
+          border: Border.all(
+            color: selected ? AppColors.primary : AppColors.divider,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            color: selected ? Colors.white : AppColors.textPrimary,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyStep extends StatelessWidget {
+  const _EmptyStep({
+    required this.icon,
+    required this.text,
+    this.actionLabel,
+    this.onAction,
+  });
+  final IconData icon;
+  final String text;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(Spacing.xxxl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 56, color: AppColors.textSubtle),
+            const SizedBox(height: Spacing.lg),
+            Text(
+              text,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 15,
+              ),
+            ),
+            if (actionLabel != null && onAction != null) ...[
+              const SizedBox(height: Spacing.lg),
+              BoraPrimaryButton(
+                label: actionLabel!,
+                expanded: false,
+                onPressed: onAction,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LoadError extends StatelessWidget {
+  const _LoadError({required this.message, required this.onRetry});
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(Spacing.xxxl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline, size: 48, color: AppColors.error),
+            const SizedBox(height: Spacing.md),
+            Text(message, textAlign: TextAlign.center),
+            const SizedBox(height: Spacing.lg),
+            BoraPrimaryButton(
+              label: 'Tentar de novo',
+              expanded: false,
+              onPressed: onRetry,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

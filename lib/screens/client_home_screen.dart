@@ -23,6 +23,7 @@ import '../widgets/bora/bora.dart';
 import '../widgets/bora_support_fab.dart';
 import '../widgets/notification_bell.dart';
 import 'carry_groceries_screen.dart';
+import 'client/services/services_category_screen.dart';
 import 'client_addresses_screen.dart';
 import 'rating_screen.dart';
 import 'restaurants_screen.dart';
@@ -500,6 +501,18 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
           );
         }),
       ),
+      // TODO(design): adicionar asset assets/categories/cat_servicos.png (PNG 3D
+      // cartoon, como as outras 7 categorias) e migrar este tile para
+      // BoraTileCard.image(). Enquanto não existe, usa iconData (tesoura).
+      _TileData(
+        label: 'Serviços',
+        gradient: AppColors.tileServices,
+        iconData: Icons.content_cut,
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const ServicesCategoryScreen()),
+        ),
+      ),
     ];
 
     return GridView.count(
@@ -509,14 +522,24 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
       crossAxisSpacing: Spacing.md,
       mainAxisSpacing: Spacing.md,
       childAspectRatio: 0.95,
-      children: tiles
-          .map((t) => BoraTileCard.image(
-                label: t.label,
-                gradient: t.gradient,
-                imageAsset: t.imageAsset,
-                onTap: t.onTap,
-              ))
-          .toList(),
+      children: tiles.map((t) {
+        if (t.imageAsset != null) {
+          return BoraTileCard.image(
+            label: t.label,
+            gradient: t.gradient,
+            imageAsset: t.imageAsset!,
+            onTap: t.onTap,
+          );
+        }
+        // Fallback legacy (ainda sem PNG da categoria) — ver TODO no tile.
+        // ignore: deprecated_member_use_from_same_package
+        return BoraTileCard(
+          label: t.label,
+          gradient: t.gradient,
+          iconData: t.iconData,
+          onTap: t.onTap,
+        );
+      }).toList(),
     );
   }
 }
@@ -527,14 +550,21 @@ class _TileData {
   _TileData({
     required this.label,
     required this.gradient,
-    required this.imageAsset,
     required this.onTap,
-  });
+    this.imageAsset,
+    this.iconData,
+  }) : assert(imageAsset != null || iconData != null,
+            'tile precisa de imageAsset ou iconData');
 
   final String label;
   final Gradient gradient;
-  final String imageAsset;
   final VoidCallback onTap;
+
+  /// Asset PNG 3D (preferido). Quando ausente, usa [iconData] no tile legacy.
+  final String? imageAsset;
+
+  /// Fallback enquanto o asset PNG da categoria não existir (ex.: Serviços).
+  final IconData? iconData;
 }
 
 // ─── Address picker screen ─────────────────────────────────────────────────

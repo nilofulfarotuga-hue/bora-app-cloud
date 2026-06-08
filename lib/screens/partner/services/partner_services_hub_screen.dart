@@ -1,0 +1,231 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../../../config/app_colors.dart';
+import '../../../models/service_provider_model.dart';
+import '../../../stores/partner_appointments_store.dart';
+import '../../../widgets/bora/bora_screen_app_bar.dart';
+import 'partner_add_walk_in_screen.dart';
+import 'partner_agenda_screen.dart';
+import 'partner_appointments_finance_screen.dart';
+import 'partner_block_slot_screen.dart';
+import 'partner_manage_services_screen.dart';
+import 'partner_manage_staff_screen.dart';
+
+/// Hub central do painel de marcações (vertical Serviços / Barbearias).
+///
+/// Layout espelhado em `PartnerReservationsHomeScreen` (lista de tiles).
+/// Carrega o prestador do parceiro autenticado (service_providers.user_id =
+/// auth.uid()) e disponibiliza os 5 destinos do painel.
+class PartnerServicesHubScreen extends StatefulWidget {
+  const PartnerServicesHubScreen({super.key});
+
+  @override
+  State<PartnerServicesHubScreen> createState() =>
+      _PartnerServicesHubScreenState();
+}
+
+class _PartnerServicesHubScreenState extends State<PartnerServicesHubScreen> {
+  late Future<ServiceProviderModel?> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = context.read<PartnerAppointmentsStore>().loadMyProvider();
+  }
+
+  void _reload() {
+    setState(() {
+      _future = context
+          .read<PartnerAppointmentsStore>()
+          .loadMyProvider(force: true);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: const BoraScreenAppBar(title: 'Marcações'),
+      body: FutureBuilder<ServiceProviderModel?>(
+        future: _future,
+        builder: (context, snap) {
+          if (snap.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snap.hasError) {
+            return _ErrorState(
+              message: snap.error.toString().replaceFirst('Exception: ', ''),
+              onRetry: _reload,
+            );
+          }
+          final provider = snap.data;
+          if (provider == null) {
+            return const _EmptyState();
+          }
+          return ListView(
+            children: [
+              Container(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                color: AppColors.surface,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      provider.name,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Agenda, serviços, barbeiros e financeiro.',
+                      style: TextStyle(color: AppColors.textSecondary),
+                    ),
+                  ],
+                ),
+              ),
+              _Tile(
+                icon: Icons.calendar_month,
+                title: 'Agenda',
+                subtitle: 'Marcações de hoje e da semana',
+                onTap: () => _push(context, const PartnerAgendaScreen()),
+              ),
+              _Tile(
+                icon: Icons.add_circle_outline,
+                title: 'Adicionar marcação',
+                subtitle: 'Cliente sem marcação prévia',
+                onTap: () => _push(context, const PartnerAddWalkInScreen()),
+              ),
+              _Tile(
+                icon: Icons.block,
+                title: 'Bloquear horário',
+                subtitle: 'Pausas e folgas de um barbeiro',
+                onTap: () => _push(context, const PartnerBlockSlotScreen()),
+              ),
+              _Tile(
+                icon: Icons.content_cut,
+                title: 'Serviços',
+                subtitle: 'Preços e duração',
+                onTap: () =>
+                    _push(context, const PartnerManageServicesScreen()),
+              ),
+              _Tile(
+                icon: Icons.people_alt_outlined,
+                title: 'Barbeiros',
+                subtitle: 'Equipa e disponibilidade',
+                onTap: () => _push(context, const PartnerManageStaffScreen()),
+              ),
+              _Tile(
+                icon: Icons.bar_chart,
+                title: 'Financeiro',
+                subtitle: 'Receita e liquidações',
+                onTap: () =>
+                    _push(context, const PartnerAppointmentsFinanceScreen()),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  void _push(BuildContext context, Widget screen) {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+  }
+}
+
+class _Tile extends StatelessWidget {
+  const _Tile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: CircleAvatar(
+        backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+        child: Icon(icon, color: AppColors.primary),
+      ),
+      title: Text(
+        title,
+        style: const TextStyle(
+          fontWeight: FontWeight.w700,
+          color: AppColors.textPrimary,
+        ),
+      ),
+      subtitle: Text(subtitle),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: onTap,
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Padding(
+        padding: EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.storefront_outlined, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text(
+              'Sem negócio de serviços',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+            ),
+            SizedBox(height: 6),
+            Text(
+              'Esta conta não tem um negócio de marcações associado.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ErrorState extends StatelessWidget {
+  const _ErrorState({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline, size: 48, color: AppColors.error),
+            const SizedBox(height: 12),
+            Text(message, textAlign: TextAlign.center),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: onRetry,
+              child: const Text('Tentar de novo'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

@@ -11,6 +11,10 @@ import '../../widgets/admin_realtime_metrics_card.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import '../../widgets/bora/bora_primary_button.dart';
 import 'admin_advanced_kpis_screen.dart';
+import 'admin_appointments_metrics_screen.dart';
+import 'admin_appointments_payouts_screen.dart';
+import 'admin_appointments_screen.dart';
+import 'admin_service_providers_screen.dart';
 import 'admin_audit_log_screen.dart';
 import 'admin_cancellation_requests_screen.dart';
 import 'admin_catalog_screen.dart';
@@ -711,6 +715,64 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       MaterialPageRoute(
                           builder: (_) =>
                               const AdminCategoryMappingScreen())),
+                ),
+                const SizedBox(height: 18),
+                // ── Serviços / Barbearias (vertical de marcações) ──
+                Padding(
+                  padding: const EdgeInsets.only(left: 4, bottom: 8, top: 4),
+                  child: Text(
+                    'Serviços / Barbearias',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                  ),
+                ),
+                _NavCard(
+                  icon: Icons.content_cut,
+                  title: 'Barbearias',
+                  subtitle: 'Aprovar, rejeitar, activar/desactivar prestadores',
+                  color: Colors.indigo,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminServiceProvidersScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.event_available,
+                  title: 'Agenda de marcações',
+                  subtitle: 'Marcações em todas as barbearias · cancelar em nome',
+                  color: Colors.teal,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminAppointmentsScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.payments_outlined,
+                  title: 'Fechamento Semanal — Barbearias',
+                  subtitle: 'Repasses · marcar pagos · receita Bora',
+                  color: Colors.indigo,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminAppointmentsPayoutsScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.bar_chart,
+                  title: 'Métricas Barbearias',
+                  subtitle: 'KPIs marcações · no-show % · walk-ins',
+                  color: Colors.deepPurple,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminAppointmentsMetricsScreen())),
                 ),
                 const SizedBox(height: 18),
                 // ── Ferramentas (ecrãs anteriormente órfãos) ──

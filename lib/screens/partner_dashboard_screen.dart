@@ -22,6 +22,7 @@ import '../services/sound_service.dart';
 import '../stores/session_store.dart';
 import '../widgets/address_text.dart';
 import 'partner/reservations/partner_reservations_home_screen.dart';
+import 'partner/services/partner_services_hub_screen.dart';
 import 'partner_call_driver_screen.dart';
 import 'partner_earnings_screen.dart';
 import 'partner_hours_screen.dart';
@@ -47,6 +48,10 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
   int _pendingReservationsCount = 0;
   final Set<String> _seenPendingReservationIds = <String>{};
   RealtimeChannel? _reservationsChannel;
+
+  // Vertical Serviços / Barbearias — só mostra o atalho "Agenda de Marcações"
+  // quando esta conta tem um service_provider associado (user_id = auth.uid()).
+  bool _hasServiceProvider = false;
 
   // REGRA 5 — modal "Continuar +10 min / Cancelar" aparece quando
   // dispatch_online_attempt_seconds >= dispatch_max_total_seconds_with_drivers_online
@@ -80,7 +85,30 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
       NotificationService.instance
           .saveTokenForPartner(widget.restaurant.id)
           .ignore();
+      unawaited(_checkServiceProvider());
     });
+  }
+
+  /// Vertical Serviços — descobre se esta conta também é dona de um
+  /// service_provider (barbearia/serviços). Só nesse caso o atalho aparece.
+  /// Mudança aditiva e reversível — não afecta o fluxo do restaurante.
+  Future<void> _checkServiceProvider() async {
+    try {
+      final uid = Supabase.instance.client.auth.currentUser?.id;
+      if (uid == null) return;
+      final rows = await Supabase.instance.client
+          .from('service_providers')
+          .select('id')
+          .eq('user_id', uid)
+          .limit(1);
+      if (!mounted) return;
+      final has = (rows as List).isNotEmpty;
+      if (has != _hasServiceProvider) {
+        setState(() => _hasServiceProvider = has);
+      }
+    } catch (e) {
+      debugPrint('[PartnerDashboard] _checkServiceProvider error: $e');
+    }
   }
 
   Future<void> _loadPendingReservationsCount() async {
@@ -779,6 +807,24 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                     );
                   },
                 ),
+                // Vertical Serviços / Barbearias — atalho aditivo, só visível
+                // quando esta conta tem um service_provider associado.
+                if (_hasServiceProvider) ...[
+                  const SizedBox(height: 12),
+                  _ActionButton(
+                    icon: Icons.calendar_month,
+                    label: 'Agenda de Marcações',
+                    description:
+                        'Gerir marcações, serviços, barbeiros e financeiro do teu negócio de serviços.',
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const PartnerServicesHubScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ],
             ),
           ),

@@ -16,9 +16,30 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 function reqm(method, path, body, extra) { return new Promise(res => { const u = new URL(REST + path); const data = body ? JSON.stringify(body) : null; const headers = { apikey: KEY, authorization: 'Bearer ' + KEY, 'content-type': 'application/json', ...(data ? { 'content-length': Buffer.byteLength(data) } : {}), ...(extra || {}) }; const r = https.request({ hostname: u.hostname, path: u.pathname + u.search, method, headers }, resp => { let d = ''; resp.on('data', c => d += c); resp.on('end', () => res({ status: resp.statusCode, body: d })); }); r.on('error', e => res({ status: 0, body: e.message })); if (data) r.write(data); r.end(); }); }
 const post = (p, b, x) => reqm('POST', p, b, x); const del = p => reqm('DELETE', p, null, { Prefer: 'return=minimal' });
 const CAT_ORDER = ['Açaí', 'Doces', 'Bebidas', 'Embalagens', 'Mercearia Brasileira'];
-function priceFor(name, glovo) { const n = name.toLowerCase(); if (/copo mega/.test(n)) return 12.00; if (/copo m[eé]dio/.test(n)) return 5.00; if (/copo pequeno/.test(n)) return 3.50; return glovo; }
+function priceFor(name, glovo) { const n = name.toLowerCase(); if (/copo mega/.test(n)) return 12.00; if (/copo grande/.test(n)) return 8.00; if (/copo m[eé]dio/.test(n)) return 5.00; if (/copo pequeno/.test(n)) return 3.50; return glovo; }
 (async () => {
   const crawled = JSON.parse(fs.readFileSync('.ai_acai_products.json', 'utf8'));
+  // Copo Grande €8 — não existe na Glovo (só Mega/Médio/Pequeno); criado a pedido do dono.
+  // Clona os grupos do Mega com 4 acompanhamentos grátis (entre Médio=3 e Mega=5).
+  const _mega = crawled.find(p => /copo mega/i.test(p.name));
+  if (_mega && !crawled.some(p => /copo grande/i.test(p.name))) {
+    const gGroups = _mega.groups.map(g => ({
+      name: g.name,
+      min: /acompanhament/i.test(g.name) ? 4 : g.min,
+      max: /acompanhament/i.test(g.name) ? 4 : g.max,
+      multiple: g.multiple,
+      items: g.items.map(it => ({ name: it.name, priceAdd: it.priceAdd })),
+    }));
+    crawled.splice(crawled.indexOf(_mega) + 1, 0, {
+      id: randomUUID(),
+      name: 'Copo Grande',
+      description: 'Inclui 4 acompanhamentos à escolha.',
+      price: 8.0,
+      img: _mega.img,
+      root: 'Açaí',
+      groups: gGroups,
+    });
+  }
   const products = [], groups = [], items = [];
   // map products (preserve Glovo category order then by source order)
   const sorted = crawled.slice().sort((a, b) => (CAT_ORDER.indexOf(a.root) - CAT_ORDER.indexOf(b.root)));

@@ -842,7 +842,12 @@ class _SectionProductCard extends StatelessWidget {
                     color: Colors.transparent,
                     child: InkWell(
                       borderRadius: BorderRadius.circular(10),
-                      onTap: onAdd,
+                      // Se o produto tem grupos de opção obrigatórios (bebida,
+                      // tamanho, acompanhamento...), o "+" abre o detalhe para
+                      // o cliente escolher — não adiciona direto. Produtos sem
+                      // opções obrigatórias (mercados, bebidas avulsas) seguem
+                      // a adicionar direto.
+                      onTap: product.hasRequiredOptions ? onTap : onAdd,
                       child: const Padding(
                         padding: EdgeInsets.all(7),
                         child: Icon(Icons.add, size: 18, color: Colors.white),

@@ -2637,20 +2637,45 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                                       color: Colors.grey.shade400, size: 20),
                                 const SizedBox(width: 8),
                                 Expanded(
-                                  child: Text(
-                                    '${item.name} × ${item.quantity}',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w500,
-                                      decoration: isUnavailable
-                                          ? TextDecoration.lineThrough
-                                          : null,
-                                      color: isUnavailable
-                                          ? Colors.grey
-                                          : Colors.black87,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        '${item.name} × ${item.quantity}',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w500,
+                                          decoration: isUnavailable
+                                              ? TextDecoration.lineThrough
+                                              : null,
+                                          color: isUnavailable
+                                              ? Colors.grey
+                                              : Colors.black87,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      // Opções escolhidas pelo cliente (bebida,
+                                      // acompanhamento, molhos...) — o estafeta
+                                      // precisa de as ver para pedir certo.
+                                      if (item.selectedOptions.isNotEmpty)
+                                        Padding(
+                                          padding:
+                                              const EdgeInsets.only(top: 2),
+                                          child: Text(
+                                            item.selectedOptions
+                                                .map((o) =>
+                                                    '${o.group}: ${o.items.join(', ')}')
+                                                .join('\n'),
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              height: 1.3,
+                                              color: Colors.grey.shade600,
+                                            ),
+                                          ),
+                                        ),
+                                    ],
                                   ),
                                 ),
                                 Text(

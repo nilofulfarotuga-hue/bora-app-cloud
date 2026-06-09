@@ -1338,8 +1338,29 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
           ...order.items.map(
             (item) => Padding(
               padding: const EdgeInsets.symmetric(vertical: 2),
-              child: Text(
-                '• ${item.quantity} × ${item.name} — €${(item.price * item.quantity).toStringAsFixed(2)}',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '• ${item.quantity} × ${item.name} — €${(item.price * item.quantity).toStringAsFixed(2)}',
+                  ),
+                  // Opções escolhidas pelo cliente (acompanhamentos, extras,
+                  // toppings...) — o parceiro precisa de as ver para preparar.
+                  if (item.selectedOptions.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 14, top: 1),
+                      child: Text(
+                        item.selectedOptions
+                            .map((o) => '${o.group}: ${o.items.join(', ')}')
+                            .join('\n'),
+                        style: TextStyle(
+                          fontSize: 12,
+                          height: 1.3,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
           ),

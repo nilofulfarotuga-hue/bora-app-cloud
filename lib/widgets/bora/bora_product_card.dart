@@ -164,7 +164,12 @@ class BoraProductCard extends StatelessWidget {
                           ),
                         ),
                         InkWell(
-                          onTap: hasPrice ? onAdd : null,
+                          // Produtos com grupos de opção obrigatórios → "+"
+                          // abre o detalhe (escolher opções) em vez de adicionar
+                          // direto. Mercados/produtos sem opções: adicionar direto.
+                          onTap: hasPrice
+                              ? (product.hasRequiredOptions ? onTap : onAdd)
+                              : null,
                           borderRadius: BorderRadius.circular(10),
                           child: Container(
                             width: 34,

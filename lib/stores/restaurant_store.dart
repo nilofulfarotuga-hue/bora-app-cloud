@@ -42,6 +42,11 @@ class RestaurantStore extends ChangeNotifier {
   }
 
   final Map<String, List<PartnerProduct>> _productsByRestaurant = {};
+
+  /// product_ids that have at least one required option group. The listing
+  /// "+" opens the detail screen for these (to choose options) instead of
+  /// adding directly. Loaded lightweight (ids only) in loadProductsFromSupabase.
+  final Set<String> _requiredOptionProductIds = <String>{};
   final Map<String, List<ProductVariant>> _variantsByProduct = {};
 
   final Map<String, Map<String, OrderModel>> _ordersByRestaurant = {};
@@ -238,6 +243,31 @@ class RestaurantStore extends ChangeNotifier {
 
       _productsByRestaurant.clear();
 
+      // Which products have a required option group (is_required + min>=1).
+      // Lightweight: fetch only the product_ids (paginated). The option items
+      // themselves stay lazy-loaded by ProductDetailScreen. Drives the "+"
+      // button: required-option products open detail instead of adding direct.
+      _requiredOptionProductIds.clear();
+      try {
+        int reqOffset = 0;
+        while (true) {
+          final List<dynamic> reqPage = await supabase
+              .from('product_option_groups')
+              .select('product_id')
+              .eq('is_required', true)
+              .gte('min_choices', 1)
+              .range(reqOffset, reqOffset + pageSize - 1);
+          for (final r in reqPage) {
+            final pid = ((r as Map)['product_id'] ?? '').toString();
+            if (pid.isNotEmpty) _requiredOptionProductIds.add(pid);
+          }
+          if (reqPage.length < pageSize) break;
+          reqOffset += pageSize;
+        }
+      } catch (e) {
+        debugPrint('RestaurantStore: required-options flag load error => $e');
+      }
+
       for (final record in allRecords) {
         final data = record as Map<String, dynamic>;
 
@@ -274,6 +304,7 @@ class RestaurantStore extends ChangeNotifier {
           isOnSale: isOnSale,
           discountPrice: discountPrice,
           source: ProductSource.api,
+          hasRequiredOptions: _requiredOptionProductIds.contains(productId),
         );
 
         _productsByRestaurant
@@ -420,6 +451,7 @@ class RestaurantStore extends ChangeNotifier {
             categoryRoot:
                 (data['category_root'] ?? list[index].categoryRoot).toString(),
             source: list[index].source, // preserve original source on update
+            hasRequiredOptions: list[index].hasRequiredOptions,
           );
           notifyListeners();
         },

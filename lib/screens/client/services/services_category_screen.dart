@@ -124,7 +124,11 @@ class _ProviderCard extends StatelessWidget {
         ),
         clipBehavior: Clip.antiAlias,
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          // BUGFIX tela branca: CrossAxisAlignment.stretch num Row dentro de um
+          // ListView (eixo vertical ilimitado) esticava o card para a altura do
+          // viewport (~1910px) e empurrava o conteúdo para fora do ecrã —
+          // parecia tela branca. center mantém o card compacto (altura da foto).
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             SizedBox(
               width: 96,
@@ -145,6 +149,7 @@ class _ProviderCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       provider.name,

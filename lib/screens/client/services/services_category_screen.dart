@@ -21,6 +21,7 @@ class _ServicesCategoryScreenState extends State<ServicesCategoryScreen> {
   @override
   void initState() {
     super.initState();
+    debugPrint('[SERVICOS] initState mount (build 271)');
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context.read<ServicesStore>().fetchProviders();

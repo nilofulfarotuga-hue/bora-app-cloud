@@ -44,6 +44,8 @@ class _ServicesCategoryScreenState extends State<ServicesCategoryScreen> {
       body: SafeArea(
         child: Consumer<ServicesStore>(
           builder: (context, store, _) {
+            debugPrint('[SERVICOS] build providers=${store.providers.length} '
+                'loading=${store.loadingProviders} err=${store.providersError}');
             if (store.loadingProviders && store.providers.isEmpty) {
               return const Center(child: CircularProgressIndicator());
             }

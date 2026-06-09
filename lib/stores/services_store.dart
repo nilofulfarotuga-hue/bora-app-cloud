@@ -88,11 +88,21 @@ class ServicesStore extends ChangeNotifier {
           .eq('approval_status', 'approved')
           .order('avg_rating', ascending: false)
           .limit(100);
-      _providers = (response as List)
-          .map((r) => ServiceProviderModel.fromSupabase(
-                Map<String, dynamic>.from(r as Map),
-              ))
-          .toList();
+      final rows = response as List;
+      final parsed = <ServiceProviderModel>[];
+      for (final r in rows) {
+        try {
+          parsed.add(ServiceProviderModel.fromSupabase(
+            Map<String, dynamic>.from(r as Map),
+          ));
+        } catch (e) {
+          // Uma linha malformada NUNCA deve esvaziar a lista inteira.
+          debugPrint('[SERVICOS] linha ignorada (parse): $e');
+        }
+      }
+      _providers = parsed;
+      debugPrint(
+          '[SERVICOS] fetchProviders raw=${rows.length} parsed=${parsed.length}');
     } on PostgrestException catch (e) {
       _providersError = _mapErrorPtPt(e.code ?? e.message);
       debugPrint('[ServicesStore] fetchProviders Postgrest: ${e.code} ${e.message}');

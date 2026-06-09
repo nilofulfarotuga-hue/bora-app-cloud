@@ -42,7 +42,13 @@ class ServiceProviderModel {
   final int ratingsCount;
 
   factory ServiceProviderModel.fromSupabase(Map<String, dynamic> row) {
-    double? toD(Object? v) => v == null ? null : (v as num).toDouble();
+    // PostgREST serializa colunas `numeric` (ex.: avg_rating) como String para
+    // preservar precisão — `as num` rebentaria. Aceitar num OU String.
+    double? toD(Object? v) {
+      if (v == null) return null;
+      if (v is num) return v.toDouble();
+      return double.tryParse(v.toString());
+    }
     return ServiceProviderModel(
       id: row['id'] as String,
       name: (row['name'] as String?) ?? '',

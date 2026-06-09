@@ -46,6 +46,52 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
     }
   }
 
+  /// Whitelist operacional: só chaves de dispatch e operação de reservas são
+  /// editáveis aqui. Tudo o resto (fees, comissões, markup, tokens, wallet,
+  /// valores em cêntimos, Stripe) é READ-ONLY — alterar requer sessão dedicada.
+  /// Fail-safe: chave nova/desconhecida nasce protegida.
+  bool _isEditable(String key) {
+    if (key.startsWith('dispatch_')) return true;
+    if (key.startsWith('reservation_')) {
+      const financialMarkers = ['cents', 'payout', 'prepayment', 'bora_service', 'credit'];
+      return !financialMarkers.any(key.contains);
+    }
+    return false;
+  }
+
+  void _showProtectedInfo(_Setting s) {
+    showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Row(children: [
+          const Icon(Icons.lock, size: 20),
+          const SizedBox(width: 8),
+          Expanded(child: Text(s.key, style: const TextStyle(fontSize: 15))),
+        ]),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (s.description != null)
+              Text(s.description!, style: const TextStyle(fontSize: 12)),
+            const SizedBox(height: 8),
+            Text('Valor atual: ${s.value}',
+                style: const TextStyle(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 12),
+            const Text(
+              '🔒 Chave financeira/protegida — somente leitura.\n'
+              'Alterar requer sessão dedicada com validação de impacto.',
+              style: TextStyle(color: AppColors.error, fontSize: 12),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Fechar')),
+        ],
+      ),
+    );
+  }
+
   Future<void> _editSetting(_Setting s) async {
     final ctrl = TextEditingController(text: s.value.toString());
     final ok = await showDialog<bool>(
@@ -122,12 +168,19 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
                         title: Text(entry.key.toUpperCase(),
                             style: const TextStyle(fontWeight: FontWeight.bold)),
                         children: entry.value.map((s) {
+                          final editable = _isEditable(s.key);
                           return ListTile(
+                            leading: editable
+                                ? const Icon(Icons.edit_outlined,
+                                    size: 18, color: AppColors.textSecondary)
+                                : const Icon(Icons.lock_outline,
+                                    size: 18, color: AppColors.textSubtle),
                             title: Text(s.key, style: const TextStyle(fontFamily: 'monospace')),
                             subtitle: s.description != null ? Text(s.description!) : null,
                             trailing: Text(s.value.toString(),
                                 style: const TextStyle(fontWeight: FontWeight.w600)),
-                            onTap: () => _editSetting(s),
+                            onTap: () =>
+                                editable ? _editSetting(s) : _showProtectedInfo(s),
                           );
                         }).toList(),
                       );

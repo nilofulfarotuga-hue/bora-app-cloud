@@ -200,6 +200,8 @@ class _AdminNotificationsInboxScreenState
     switch (eventType) {
       case 'order_refund_high':
         return 'Reembolso alto';
+      case 'dispatch_ttl_auto_cancel':
+        return 'Cancelado por TTL de dispatch';
       case 'order_cancel_in_flight':
         return 'Cancelado em rota';
       case 'wallet_debt_high':

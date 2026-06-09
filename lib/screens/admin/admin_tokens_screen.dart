@@ -108,6 +108,29 @@ class _AdminTokensScreenState extends State<AdminTokensScreen>
     }
   }
 
+  /// Segundo passo de confirmação para ações manuais sobre tokens
+  /// (dinheiro real: 100 tokens = €0.50). Sempre regista no audit log.
+  Future<bool> _confirmFinal(String resumo) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirmação final'),
+        content: Text(
+          '$resumo\n\nEsta ação será registrada no log de auditoria. Confirmar?',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Voltar')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Confirmar'),
+          ),
+        ],
+      ),
+    );
+    return ok == true;
+  }
+
   Future<void> _grantTokens() async {
     if (_selectedUserId == null) return;
     final amountCtrl = TextEditingController(text: '100');
@@ -133,6 +156,17 @@ class _AdminTokensScreenState extends State<AdminTokensScreen>
       ),
     );
     if (ok != true || !mounted) return;
+    final amount = int.tryParse(amountCtrl.text) ?? 0;
+    if (amount <= 0 || reasonCtrl.text.trim().length < 3) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Quantidade > 0 e motivo (mín 3) são obrigatórios')));
+      return;
+    }
+    if (!await _confirmFinal(
+        'Atribuir $amount tokens a ${_selectedUserLabel ?? _selectedUserId}.')) {
+      return;
+    }
+    if (!mounted) return;
     try {
       await Supabase.instance.client.rpc('admin_grant_tokens', params: {
         'p_user_id': _selectedUserId,
@@ -170,7 +204,14 @@ class _AdminTokensScreenState extends State<AdminTokensScreen>
         ],
       ),
     );
-    if (ok != true || !mounted || reasonCtrl.text.trim().length < 3) return;
+    if (ok != true || !mounted) return;
+    if (reasonCtrl.text.trim().length < 3) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Motivo (mín 3 caracteres) é obrigatório')));
+      return;
+    }
+    if (!await _confirmFinal('Revogar grant de ${grant['amount']} tokens.')) return;
+    if (!mounted) return;
     try {
       await Supabase.instance.client.rpc('admin_revoke_token_grant', params: {
         'p_token_id': grant['id'],

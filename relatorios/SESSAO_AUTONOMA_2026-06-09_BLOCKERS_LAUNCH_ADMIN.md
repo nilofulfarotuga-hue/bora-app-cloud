@@ -215,3 +215,177 @@ confirmação + audit. Sem pendências de espelho.
 3. Colisões de crons ativos 2+20 e 24+42 (offsets).
 4. Zona vermelha: bulk catálogo, score estafetas (specs acima).
 5. Build CI: push desta sessão dispara build_android.yml (versionCode automático).
+
+---
+---
+
+# ADENDO 2026-06-10 — M6–M11 (screenshots do device + chat Glovo-level)
+
+> Commits: `c037bd7` (M6) · `3713a0a` (M7) · `bfd72ac` (M8) · `0de7260` (M9) ·
+> M10 só prod · `d80e0dd` (M11). flutter analyze pós-tudo: **0 errors**.
+> Sessão caiu 1× a meio do fecho — recuperação verificada (zero híbridos;
+> tudo recommitado; protocolo de commits frequentes adotado).
+
+## M6 ✅ Design: headers + logo
+
+- **`headerGradient` → VERDE SÓLIDO #16A34A** (1 edit em app_theme.dart) — afeta
+  TODOS os ecrãs que usam o gradient (cliente/parceiro/admin + BoraScreenAppBar).
+  Padrão Glovo: header colorido consistente, sem variações.
+- **Logo real na home**: o "quadrado verde com B" era o `_BoraLogo` do `BoraAppBar`
+  — *"fallback text (até existir asset dedicado)"* que nunca foi atualizado depois
+  de o asset chegar (Fase 3). Agora renderiza `assets/branding/bora_app_icon.png`
+  (com fallback defensivo).
+- **Varredura**: análise programática de todos os ecrãs cliente — ZERO casos de
+  branco-sobre-claro no código atual (todos têm gradient ou BoraScreenAppBar).
+  ⚠️ Os screenshots "Restaurantes"/"Serviços" ilegíveis não são reproduzíveis no
+  código HEAD → forte suspeita de **APK desatualizado** no A36 (padrão já visto a
+  2026-06-09). T12 reconfirma com o build novo.
+
+## M7 ✅ MB Way + cartão em Reservas E Serviços (zero dinheiro)
+
+- Reservas JÁ tinham sheet Cartão|MBWay (sem cash). Serviços só tinham PaymentSheet
+  (GPay+cartão) — `create-appointment-payment-intent` era card-only.
+- **2 Edge Functions novas (deployed)**: `create-mbway-appointment-payment-intent` v1
+  (PI `mb_way` confirm:true server-side → push à app MB Way; marcação já criada pela
+  RPC com validação de colisão) e `confirm-mbway-appointment-payment` v1 (endpoint de
+  polling que verifica o PI **no Stripe** e confirma via a mesma RPC do cartão).
+  O `stripe-webhook` NÃO foi tocado (zona protegida — não trata appointment_deposit;
+  nota: o fluxo card confirma client-side via RPC sem verificação Stripe — o caminho
+  MB Way novo é mais rigoroso; alinhar o card em sessão dedicada = sugestão).
+- Flutter: `ReservationPaymentMethodSheet` reutilizado (param `title` novo),
+  `AppointmentMBWayWaitingDialog` (poll 3s/timeout 120s), `ServicesStore.bookMbway`,
+  booking_flow com sheet antes de pagar; timeout/cancel → cancela a marcação órfã
+  (liberta o slot). **Paridade total; nunca dinheiro nos 2 fluxos.**
+- Conta Stripe: `mb_way` ATIVO confirmado (LIVE em orders+reservas desde 2026-04/05).
+
+## M8 ✅ Parceiro-serviços: Barbearia Nobre
+
+- **Login**: o routing JÁ estava correto (f6585e9: partner_entry_screen → hub se
+  service_providers existe; sem gate de restaurants). O bloqueio do Danilo era
+  **password** → password temporária definida via SQL admin (audit log SEM a senha);
+  credencial em `C:\Users\danil\Desktop\BORA-credenciais-barbearia-nobre.txt`
+  (FORA do git — apagar após trocar a password no 1º login).
+- **Gap audit do hub** (muito mais completo do que se pensava): agenda Hoje/Semana ✅,
+  **marcação manual walk-in ✅ (já existia: PartnerAddWalkInScreen + partner_add_walk_in)**,
+  bloquear horário ✅, serviços (preço/duração) ✅, staff + horários por profissional ✅,
+  financeiro ✅. Faltava e foi implementado:
+  - **Push FCM de nova marcação**: Edge `notify-service-provider` v1 (deployed —
+    multi-device via partner_push_tokens do owner; notify-partner era restaurant-centric)
+    + `_appt_notify_partner` v2 (in-app + FCM best-effort). Migration `20260610064237`.
+  - **Cancelar marcação pelo parceiro**: RPC `partner_cancel_appointment` (sinal pago →
+    cliente avisado do reembolso + alerta admin `appointment_partner_cancel_refund_due`)
+    + botão "Cancelar" na agenda com dialog de motivo.
+- **Espelho admin**: ver/cancelar marcações ✅ (já existia) + aprovar/rejeitar/ativar
+  providers ✅. 🔴 pendente (specado): gestão de staff no admin (~3h) e block-slot
+  admin (~2h) — mecanismo de emergência atual: toggle `is_active_admin`.
+- Decisão de desenho documentada: marcações são AUTO-CONFIRMADAS com o sinal pago
+  (padrão Fresha/Booksy) — "aceitar/recusar" manual não existe por design; o parceiro
+  tem agora cancelamento para imprevistos.
+
+## M9 ✅ Paridade Glovo: McDonald's, BK, KFC
+
+| Loja | Produtos vs fonte | Fotos | Grupos opções | Ordem secções |
+|---|---|---|---|---|
+| McDonald's | 111 = 138−27 colapsos "(Grande)" ✓ | 100% | 330 (88 produtos) ✓ | **CORRIGIDA** |
+| Burger King | 173/173 ✓ | 100% | 488 (127) ✓ | **CORRIGIDA** |
+| KFC | 176/176 ✓ | 100% | 705 (145) ✓ | **CORRIGIDA** |
+
+- **Fix principal**: `_groupByCategory` ordenava secções ALFABETICAMENTE — o McD
+  abria com "Acompanhamentos" em vez de "Sanduíches e McMenus". Os produtos já vêm
+  por `sort_order` (0..N = sequência Glovo, 100% populado) → preservar a ordem de
+  inserção resolve a paridade nas 3 lojas (e em qualquer loja Glovo futura). 1 edit.
+- Página de produto com extras/menus/stepper: ✅ já existia (4611e67).
+- Divergência menor de categorias McD (9 vs 10 do Glovo: sem "Items Individuais"/
+  "Saco de Transporte"; "McCafé"+"Menu Almoço" extra com 1 produto cada) — resultado
+  dos merges do insert; impacto baixo; correção fina = sessão de dados (~1h).
+- Preços: intocados (×0.8261 protegido).
+
+## M10 ✅ Limpeza pré-launch
+
+- 3 lojas de teste escondidas do cliente (`is_active_admin=false` — o feed filtra
+  por esta flag; admin continua a vê-las; DADOS INTACTOS) + audit log por loja:
+  ifxfixif, pizza danilo, Pizzaria Teste Noite.
+- 66 in_app_notifications de teste do user do Danilo (todas pré-2026-06-09, todas
+  por ler) apagadas → badge a zero. Verificado: 0 restantes.
+
+## M11 ✅ Chat nível Glovo/Uber
+
+**Parte A — ROOT CAUSE do push que nunca chegava: 5 ELOS QUEBRADOS**
+1. O trigger `_notify_chat_message_trigger` enviava só `{message_id}`; a Edge v9
+   exige `message_id+order_id+sender_id` → **400 em TODAS as invocações**.
+2. A Edge resolvia o estafeta por `orders.driver_id` — coluna quase nunca populada
+   (canónica: `assigned_driver_id`).
+3. Parceiro resolvido por `restaurants.user_` — divergente de `user_id` em 4 rows
+   → `COALESCE(user_id, user_)`.
+4. **O cliente NUNCA receberia push**: `client_push_tokens` nem era consultada.
+5. `partner_push_tokens` é keyed por `partner_id`; a v9 consultava `user_id`
+   (coluna inexistente nessa tabela).
+Fix: trigger v2 (payload completo — migration `20260610065143`) + Edge
+`notify-chat-message` **v10 deployed** (4 correções + log de diagnóstico).
+Foreground/background handlers no device JÁ tratavam `type=chat` (data-only +
+notif local com som bora_alert) — com o pipeline corrigido, passam a disparar.
+
+**Parte B — Bolha + badge (padrão Glovo)**
+- `ChatBubbleButton` novo: badge VERMELHO de não-lidas em realtime + preview de
+  1 linha (tracking). Integrado: CLIENTE tracking (2 acessos: Restaurante E
+  Estafeta — padrão Uber Eats), ESTAFETA (entrega ativa), PARCEIRO (2 botões
+  compact no detalhe do pedido).
+- Não-lidas: coluna `messages.read` (já existia) + RPC `chat_mark_read` (valida
+  participante por papel) — marca ao abrir o chat e quando chegam mensagens com o
+  ecrã aberto (throttled); badge zera via realtime.
+- `ChatTarget.partner` novo: cliente/estafeta escolhem destinatário explícito
+  (antes o destino era inferido do status — impossível ter 2 acessos).
+
+**Parte C — Polimento**
+- ✓ (enviada) / ✓✓ (lida) nas bolhas próprias; timestamps e auto-scroll já existiam.
+- Janela do chat: os entry points vivem nos ecrãs de pedido ATIVO (tracking/driver/
+  parceiro) — fecham naturalmente com a entrega (padrão Uber). Histórico: admin.
+- Som in-app: o handler de foreground existente posta notif local com som ao
+  receber `type=chat` (não suprimido).
+
+**Admin**: `AdminChatViewerScreen` (PT-BR, read-only) via RPC
+`admin_list_order_messages` (`_admin_op_guard` + **audit `chat_viewed` a cada
+acesso**) + botão "Ver conversa" no detalhe do pedido.
+
+## CHECKLIST DE TESTE MANUAL — NOVOS ITENS (T12+, build novo do CI)
+
+- **T12 (M6)** — Instalar o build novo: headers VERDES #16A34A com seta/título
+  brancos em "Restaurantes", "Serviços" e todos os ecrãs interiores; topo da home
+  mostra o LOGO real da Bora (não o "B").
+- **T13 (M7)** — Serviços → marcar corte → sheet mostra SÓ "Cartão" e "MBWay"
+  (sem dinheiro) → escolher MBWay, nº 9 dígitos → push MB Way chega → confirmar →
+  dialog fecha em ≤6s → ecrã de sucesso → barbeiro recebe push "Nova marcação".
+- **T14 (M7)** — Reservas: mesmo sheet com título "Reserva" (regressão zero).
+- **T15 (M8)** — Login barbearia.nobre@bora.app com a password do ficheiro no
+  Desktop → entra direto no hub Marcações → trocar a password e apagar o ficheiro.
+- **T16 (M8)** — Na agenda: cancelar uma marcação confirmada com motivo → cliente
+  recebe notificação (com menção a reembolso se o sinal foi pago) → sino do admin
+  mostra alerta "refund_due".
+- **T17 (M9)** — Abrir McDonald's: primeira secção = "Sanduíches e McMenus"
+  (não "Acompanhamentos"); BK e KFC também na ordem Glovo.
+- **T18 (M10)** — Cliente NÃO vê ifxfixif/pizza danilo/Pizzaria Teste Noite;
+  admin → Parceiros continua a vê-las; sino do cliente do Danilo a zero.
+- **T19 (M11)** — Com a app do estafeta FECHADA: cliente envia mensagem no chat →
+  push com som chega ao estafeta; abrir o push → conversa.
+- **T20 (M11)** — Tracking do cliente: 2 botões de chat (Restaurante + Estafeta
+  após aceitar); enviar msg do parceiro → badge vermelho incrementa no tracking
+  sem abrir o chat; abrir o chat → badge zera; remetente vê ✓ → ✓✓.
+- **T21 (M11)** — Admin → Pedidos → detalhe → "Ver conversa" → mensagens read-only
+  + entrada `chat_viewed` no Audit Log.
+
+## BUGS EXTRA (adendo)
+
+| Sev | Achado | Estado |
+|---|---|---|
+| ALTO | Edge `notify-chat-message` local estava em **v3** vs deployed v9 (drift grave) | ✅ resolvido — local=v10=deployed |
+| MÉDIO | Fluxo CARD de serviços confirma via RPC sem verificar o PI no Stripe (`client_confirm_appointment_payment` confia no client) — o MB Way novo verifica; alinhar card | pendente (~1h, sessão paga.) |
+| MÉDIO | `restaurants.user_` vs `user_id` divergentes (4 rows) — fonte de bugs recorrente (RLS 2026-05-20, chat hoje); consolidar numa coluna + dropar a outra | pendente (migração cuidadosa) |
+| MÉDIO | `orders.driver_id` quase nunca populada mas existe (confusão com assigned_driver_id) — dropar ou backfill | pendente |
+| BAIXO | Marcações `pending_payment` órfãs (MB Way/card abandonado) não têm cron de limpeza (reservas têm cancel_orphan) | pendente (~30min) |
+| BAIXO | `_appt_notify_client` não faz FCM (só in-app) — cliente não recebe push de confirmação/cancelamento de marcação no telemóvel | pendente (~30min, padrão vault igual ao M8) |
+
+## SUGESTÕES (adendo — Glovo/Uber fazem)
+
+11. Verificação Stripe server-side no fluxo card de serviços/reservas (paridade com o MB Way novo) — ~1h.
+12. Cron de limpeza de marcações pending_payment órfãs — ~30min.
+13. FCM no `_appt_notify_client` (cliente recebe push de marcação confirmada/cancelada/lembretes) — ~30min.

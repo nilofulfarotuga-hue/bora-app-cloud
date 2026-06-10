@@ -49,3 +49,35 @@
 
 - Executar restore_launch_mode.sql no launch + checklist T1-T11 do relatório.
 - Ativar Leaked password protection (dashboard Auth, 1 clique).
+
+---
+
+# ADENDO M6–M11 (2026-06-10, mesma sessão — screenshots device + chat)
+
+Commits: c037bd7 (M6 header verde sólido + logo real no _BoraLogo do BoraAppBar —
+era fallback Text('B') nunca atualizado) · 3713a0a (M7 MB Way em marcações: 2 Edges
+novas create/confirm-mbway-appointment-payment-intent, sheet reutilizado com title,
+waiting dialog com polling — webhook NÃO tocado) · bfd72ac (M8 notify-service-provider
+v1 FCM + _appt_notify_partner v2 + partner_cancel_appointment RPC+UI; password
+barbearia via SQL crypt, credencial no Desktop fora do git) · 0de7260 (M9 paridade:
+_groupByCategory preservava ordem alfabética → agora insertion order = sort_order
+Glovo; dados 3 lojas verificados OK) · M10 só prod (3 lojas teste escondidas
+is_active_admin=false + 66 notifs teste apagadas) · d80e0dd (M11 chat).
+
+**M11 chat — 5 elos quebrados no push** (nenhum push de chat saía DESDE SEMPRE):
+trigger só mandava message_id (Edge exige 3 campos → 400); orders.driver_id vs
+assigned_driver_id; restaurants.user_ vs user_id; client_push_tokens nem consultada;
+partner_push_tokens keyed por partner_id (v9 usava user_id). Trigger v2 + Edge v10.
+Badge/bolha: ChatBubbleButton (realtime unread via messages.read + chat_mark_read
+RPC), 2 acessos no tracking do cliente (ChatTarget.partner novo), ticks ✓/✓✓,
+AdminChatViewerScreen com audit chat_viewed.
+
+**Armadilhas novas**: (1) edge local notify-chat-message estava v3 vs deployed v9 —
+SEMPRE get_edge_function antes de raciocinar sobre uma edge; (2) restaurants.user_/
+user_id e orders.driver_id/assigned_driver_id são pares de colunas duplicadas
+divergentes — consolidar é pendência; (3) funções SQL novas pós-hardening nascem
+com EXECUTE p/ PUBLIC — TODA migration nova precisa de REVOKE/GRANT explícitos
+(padrão nas migrations 20260610*).
+
+Checklist T12–T21 no relatório. Pendências novas: card de serviços confirma sem
+verificar Stripe; cron órfãs pending_payment de marcações; FCM no _appt_notify_client.

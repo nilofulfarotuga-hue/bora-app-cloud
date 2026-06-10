@@ -24,6 +24,8 @@
 
 ## Sub-documentos relevantes (a serem criados conforme a app cresce)
 
+- `00_BORA_DNA.md` — **O CÉREBRO DA BORA** (filosofia de decisão do Danilo; injetado nos Robots A/B; business_rules.md vence nos números, DNA vence na filosofia; só Danilo altera) (2026-06-10)
+- `benchmarks/` — biblioteca do Robot B v4: delivery.md (Glovo/Uber/iFood), reservas.md (OpenTable/TheFork), servicos.md (Fresha/Booksy). Versão condensada vive no prompt da EF robot-b — manter em sincronia (2026-06-10)
 - `business-rules/wallet.md` — §17 Wallet 80/20 + Cashback + Referral + Promos (2026-04-30)
 - `from-obsidian/` — sync unidirecional do vault Obsidian (NÃO editar à mão).
 - `sessions/` — notas por sessão de trabalho.

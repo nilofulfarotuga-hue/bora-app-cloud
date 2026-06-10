@@ -208,6 +208,61 @@ class ServicesStore extends ChangeNotifier {
 
   // ─── Marcar + pagar (orquestra os 4 passos) ────────────────────────────────
 
+  /// Fluxo MBWay do sinal (M7 — paridade com reservas, sem PaymentSheet):
+  /// 1) rpc client_book_appointment → appointment_id
+  /// 2) invoke create-mbway-appointment-payment-intent {appointment_id, phone}
+  ///    → Stripe envia push à app MBWay do cliente.
+  /// A confirmação é feita pelo AppointmentMBWayWaitingDialog (polling à Edge
+  /// confirm-mbway-appointment-payment, que verifica o PI no Stripe).
+  Future<BookingResult> bookMbway({
+    required String serviceId,
+    required String staffId,
+    required DateTime scheduledAt,
+    required String mbwayPhone,
+    String? notes,
+  }) async {
+    try {
+      final booking = await _supabase.rpc('client_book_appointment', params: {
+        'p_service_id': serviceId,
+        'p_staff_id': staffId,
+        'p_scheduled_at': scheduledAt.toUtc().toIso8601String(),
+        'p_client_notes': notes,
+      });
+      final bookingMap = Map<String, dynamic>.from(booking as Map);
+      final appointmentId = bookingMap['appointment_id'] as String?;
+      if (appointmentId == null) {
+        throw Exception('Resposta inválida do servidor.');
+      }
+
+      final response = await _supabase.functions.invoke(
+        'create-mbway-appointment-payment-intent',
+        body: {'appointment_id': appointmentId, 'phone': mbwayPhone},
+      );
+      if (response.data == null) {
+        throw Exception('Resposta vazia do servidor.');
+      }
+      final data = Map<String, dynamic>.from(response.data as Map);
+      if (data.containsKey('error')) {
+        throw Exception(_mapErrorPtPt(data['error'].toString()));
+      }
+
+      await fetchMyAppointments();
+      return BookingResult(success: true, appointmentId: appointmentId);
+    } on PostgrestException catch (e) {
+      debugPrint('[ServicesStore] bookMbway Postgrest: ${e.code} ${e.message}');
+      return BookingResult(
+        success: false,
+        errorMessage: _mapErrorPtPt(e.code ?? e.message),
+      );
+    } catch (e) {
+      debugPrint('[ServicesStore] bookMbway error: $e');
+      return BookingResult(
+        success: false,
+        errorMessage: e.toString().replaceFirst('Exception: ', ''),
+      );
+    }
+  }
+
   /// Fluxo completo de marcação com pagamento por cartão (padrão Stripe
   /// canónico BORA APP — igual ao das reservas):
   /// 1) rpc client_book_appointment → appointment_id (+ deposit_cents)

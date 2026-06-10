@@ -36,9 +36,14 @@ class ReservationPaymentMethodSheet extends StatefulWidget {
   const ReservationPaymentMethodSheet({
     super.key,
     required this.amountEur,
+    this.title = 'Reserva',
   });
 
   final double amountEur;
+
+  /// Título do sheet — default mantém o texto das reservas; o fluxo de
+  /// marcações (M7) passa 'Sinal da marcação'.
+  final String title;
 
   @override
   State<ReservationPaymentMethodSheet> createState() =>
@@ -114,7 +119,7 @@ class _ReservationPaymentMethodSheetState
                 ),
               ),
               Text(
-                'Reserva — €${widget.amountEur.toStringAsFixed(2)}',
+                '${widget.title} — €${widget.amountEur.toStringAsFixed(2)}',
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,

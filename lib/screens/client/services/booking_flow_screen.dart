@@ -10,6 +10,8 @@ import '../../../stores/services_store.dart';
 import '../../../widgets/bora/bora_accent_button.dart';
 import '../../../widgets/bora/bora_primary_button.dart';
 import '../../../widgets/bora/bora_screen_app_bar.dart';
+import '../reservation/reservation_payment_method_sheet.dart';
+import 'appointment_mbway_waiting_dialog.dart';
 import 'booking_success_screen.dart';
 
 /// Vertical Serviços — fluxo de marcação em 6 passos (PageView):
@@ -166,15 +168,36 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
 
   // ─── Passo 5: marcar + pagar ────────────────────────────────────────────────
 
+  /// Valor do sinal mostrado no sheet (o servidor lê deposit_cents real).
+  static const double _kDepositEur = 3.0;
+
   Future<void> _confirmAndPay() async {
     if (_booking || _slot == null || _service == null) return;
     final staffId = _resolvedStaffId;
     if (staffId == null) return;
 
+    // M7: paridade com reservas — escolha Cartão | MBWay, NUNCA dinheiro.
+    final choice = await showModalBottomSheet<ReservationPaymentChoice>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => const ReservationPaymentMethodSheet(
+        amountEur: _kDepositEur,
+        title: 'Sinal da marcação',
+      ),
+    );
+    if (choice == null || !mounted) return;
+
     setState(() => _booking = true);
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
     try {
+      if (choice.method == ReservationPaymentMethod.mbway) {
+        await _payWithMbway(choice.mbwayPhone!, staffId, messenger, navigator);
+        return;
+      }
       final result = await context.read<ServicesStore>().bookAndPay(
             serviceId: _service!.id,
             staffId: staffId,
@@ -208,6 +231,70 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
     } finally {
       if (mounted) setState(() => _booking = false);
     }
+  }
+
+  /// Ramo MBWay (M7): cria a marcação + PI mb_way (push para o telemóvel) e
+  /// aguarda a confirmação no AppointmentMBWayWaitingDialog. Em timeout ou
+  /// cancelamento, cancela a marcação órfã (best-effort).
+  Future<void> _payWithMbway(
+    String mbwayPhone,
+    String staffId,
+    ScaffoldMessengerState messenger,
+    NavigatorState navigator,
+  ) async {
+    final store = context.read<ServicesStore>();
+    final result = await store.bookMbway(
+      serviceId: _service!.id,
+      staffId: staffId,
+      scheduledAt: _slot!,
+      mbwayPhone: mbwayPhone,
+      notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
+    );
+    if (!mounted) return;
+    if (!result.success || result.appointmentId == null) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(result.errorMessage ?? 'Não foi possível concluir.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AppointmentMBWayWaitingDialog(
+        appointmentId: result.appointmentId!,
+        amount: _kDepositEur,
+      ),
+    );
+    if (!mounted) return;
+
+    if (confirmed == true) {
+      navigator.pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => BookingSuccessScreen(
+            providerName: widget.provider.name,
+            serviceName: _service!.name,
+            scheduledAt: _slot!,
+          ),
+        ),
+      );
+      return;
+    }
+
+    // Timeout/cancelado — liberta o slot cancelando a marcação pendente.
+    try {
+      await store.cancelAppointment(result.appointmentId!,
+          reason: 'mbway_nao_confirmado');
+    } catch (_) {}
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text('Pagamento MBWay não confirmado ou expirou.'),
+        backgroundColor: AppColors.error,
+      ),
+    );
   }
 
   @override

@@ -29,6 +29,7 @@
 --   :14,:44          reservas reminders 24h (30 em 30)
 --   :16              reservas expire lists (hora a hora)
 --   :18              robot-b (hora a hora)
+--   Mon 08:18        robot-b-weekly-digest (semanal — digest sino admin)
 --   03:12            auto-archive-old-suggestions (diário)
 --   08:10            reservas morning summary (diário)
 --   09:09            wallet_overdue_alerts (diário)
@@ -115,6 +116,8 @@ SELECT cron.alter_job(32, schedule => '9-59/10 * * * *',  active => true); -- re
 SELECT cron.alter_job(33, schedule => '10 8 * * *',      active => true);  -- reservas_pro_morning_summary (era 0 8 * * *)
 SELECT cron.alter_job(34, schedule => '16 * * * *',      active => true);  -- reservas_pro_expire_lists (era 0 * * * *)
 SELECT cron.alter_job(35, schedule => '18 * * * *',      active => true);  -- robot-b-hourly (era 0 * * * *)
+SELECT cron.alter_job((SELECT jobid FROM cron.job WHERE jobname = 'robot-b-weekly-digest'),
+                      active => true);  -- robot-b digest semanal (Mon 08:18 UTC; criado 2026-06-10 Robot B v4)
 
 -- ────────────────────────────────────────────────────────────────────────────
 -- 3) RESTAURAR horários de funcionamento (18 restaurantes do backup 2026-06-05)

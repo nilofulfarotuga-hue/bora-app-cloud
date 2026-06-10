@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../services/client_personalization_service.dart';
+import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora_support_fab.dart';
 
 /// T2.2 — Cliente favorites screen. Lista parceiros marcados como favoritos.
@@ -64,7 +65,7 @@ class _ClientFavoritesScreenState extends State<ClientFavoritesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Favoritos')),
+      appBar: const BoraScreenAppBar(title: 'Favoritos'),
       floatingActionButton: const BoraSupportFab(),
       body: RefreshIndicator(
         onRefresh: _load,

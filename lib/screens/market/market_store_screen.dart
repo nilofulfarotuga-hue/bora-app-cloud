@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../config/app_colors.dart';
 import '../../stores/cart_store.dart';
+import '../../widgets/bora/bora_screen_app_bar.dart';
 import '../../stores/restaurant_store.dart';
 import '../../widgets/market/market_bottom_nav.dart';
 import '../../widgets/market/market_categories_tab.dart';
@@ -59,7 +60,7 @@ class _MarketStoreScreenState extends State<MarketStoreScreen> {
 
     if (restaurant == null) {
       return Scaffold(
-        appBar: AppBar(title: Text(widget.storeName)),
+        appBar: BoraScreenAppBar(title: widget.storeName),
         body: const Center(child: CircularProgressIndicator()),
       );
     }

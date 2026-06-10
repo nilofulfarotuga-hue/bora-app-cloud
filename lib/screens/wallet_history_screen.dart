@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../config/app_colors.dart';
 import '../services/wallet_service.dart';
+import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora_support_fab.dart';
 import '../widgets/pay_debt_modal.dart';
 
@@ -45,7 +46,7 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Saldo Bora')),
+      appBar: const BoraScreenAppBar(title: 'Saldo Bora'),
       floatingActionButton: const BoraSupportFab(),
       body: RefreshIndicator(
         onRefresh: _load,

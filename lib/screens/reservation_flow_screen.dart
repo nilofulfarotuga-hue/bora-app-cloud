@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/app_colors.dart';
 import '../models/restaurant_model.dart';
+import '../widgets/bora/bora_screen_app_bar.dart';
 import 'client/reservation/reservation_mbway_waiting_dialog.dart';
 import 'client/reservation/reservation_payment_method_sheet.dart';
 
@@ -292,7 +293,7 @@ class _ReservationFlowScreenState extends State<ReservationFlowScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Reservar — ${widget.restaurant.name}')),
+      appBar: BoraScreenAppBar(title: 'Reservar — ${widget.restaurant.name}'),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),

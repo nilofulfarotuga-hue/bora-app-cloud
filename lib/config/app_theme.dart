@@ -22,9 +22,10 @@ class AppTheme {
   static const Color dividerStrong = Color(0xFFD1D5DB);
 
   // Gradientes oficiais (design system handoff 2026-05-28).
+  // 2026-06-10 (Danilo, M6): header passa a VERDE SÓLIDO #16A34A em todos os
+  // ecrãs — padrão Glovo de cabeçalho colorido consistente, sem variações.
   static const LinearGradient headerGradient = LinearGradient(
-    colors: [primaryDeep, primaryDark, primary],
-    stops: [0.0, 0.45, 1.0],
+    colors: [primary, primary],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );

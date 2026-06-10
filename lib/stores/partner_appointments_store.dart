@@ -132,6 +132,27 @@ class PartnerAppointmentsStore extends ChangeNotifier {
     }
   }
 
+  /// M8: cancelamento pelo parceiro. Devolve {success, refund_due} — quando
+  /// refund_due, o cliente foi avisado do reembolso e o admin alertado.
+  Future<Map<String, dynamic>> partnerCancelAppointment(
+    String appointmentId, {
+    String? reason,
+  }) async {
+    try {
+      final res = await _supabase.rpc(
+        'partner_cancel_appointment',
+        params: {
+          'p_appointment_id': appointmentId,
+          'p_reason': reason,
+        },
+      );
+      return Map<String, dynamic>.from(res as Map);
+    } catch (e) {
+      debugPrint('[PartnerAppointmentsStore] partnerCancel: $e');
+      throw Exception(_mapErrorPtPt(e.toString()));
+    }
+  }
+
   /// Marcação sem reserva prévia (host stand). Devolve {appointment_id}.
   Future<Map<String, dynamic>> addWalkIn({
     required String serviceId,

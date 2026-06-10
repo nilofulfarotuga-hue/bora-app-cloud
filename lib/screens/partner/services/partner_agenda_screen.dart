@@ -92,6 +92,56 @@ class _PartnerAgendaScreenState extends State<PartnerAgendaScreen> {
     _runAction(a, () => store.markNoShow(a.id), 'Falta registada.');
   }
 
+  /// M8: cancelamento pelo parceiro (imprevisto). Sinal pago → o cliente é
+  /// avisado do reembolso e o admin recebe alerta para o processar.
+  Future<void> _cancel(AppointmentModel a) async {
+    final reasonCtrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cancelar marcação?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'O cliente será notificado. Se o sinal já foi pago, '
+              'será reembolsado.',
+              style: TextStyle(fontSize: 13),
+            ),
+            const SizedBox(height: Spacing.md),
+            TextField(
+              controller: reasonCtrl,
+              maxLines: 2,
+              decoration: const InputDecoration(
+                labelText: 'Motivo (opcional)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Voltar'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Cancelar marcação'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    final store = context.read<PartnerAppointmentsStore>();
+    _runAction(
+      a,
+      () => store.partnerCancelAppointment(a.id,
+          reason: reasonCtrl.text.trim().isEmpty ? null : reasonCtrl.text.trim()),
+      'Marcação cancelada.',
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -146,6 +196,7 @@ class _PartnerAgendaScreenState extends State<PartnerAgendaScreen> {
                                 _complete(items[i], 'on_site'),
                             onCompleteApp: () => _complete(items[i], 'app'),
                             onNoShow: () => _noShow(items[i]),
+                            onCancel: () => _cancel(items[i]),
                           ),
                         ),
                 );
@@ -186,6 +237,7 @@ class _AppointmentCard extends StatelessWidget {
     required this.onCompleteOnSite,
     required this.onCompleteApp,
     required this.onNoShow,
+    required this.onCancel,
   });
 
   final AppointmentModel appointment;
@@ -193,6 +245,7 @@ class _AppointmentCard extends StatelessWidget {
   final VoidCallback onCompleteOnSite;
   final VoidCallback onCompleteApp;
   final VoidCallback onNoShow;
+  final VoidCallback onCancel;
 
   String _two(int v) => v.toString().padLeft(2, '0');
 
@@ -314,6 +367,14 @@ class _AppointmentCard extends StatelessWidget {
                     ),
                     icon: const Icon(Icons.person_off, size: 18),
                     label: const Text('Faltou'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: onCancel,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.error,
+                    ),
+                    icon: const Icon(Icons.event_busy, size: 18),
+                    label: const Text('Cancelar'),
                   ),
                 ],
               ),

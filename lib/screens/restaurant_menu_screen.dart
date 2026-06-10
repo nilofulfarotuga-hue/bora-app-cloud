@@ -80,14 +80,16 @@ class RestaurantMenuScreen extends StatefulWidget {
 
   static Map<String, List<PartnerProduct>> _groupByCategory(
       List<PartnerProduct> products) {
+    // M9 (paridade Glovo): os produtos chegam ordenados por sort_order
+    // (sequência da fonte — ex. "Sanduíches e McMenus" primeiro no McDonald's).
+    // Preservar a ordem de inserção das categorias em vez de ordenar
+    // alfabeticamente, que punha "Acompanhamentos" antes dos menus.
     final grouped = <String, List<PartnerProduct>>{};
     for (final p in products) {
       final cat = p.category.isNotEmpty ? p.category : 'Outros';
       grouped.putIfAbsent(cat, () => []).add(p);
     }
-    return Map.fromEntries(
-      grouped.entries.toList()..sort((a, b) => a.key.compareTo(b.key)),
-    );
+    return grouped;
   }
 
 }

@@ -34,6 +34,7 @@ import '../widgets/notification_bell.dart';
 import '../stores/driver_store.dart';
 import '../stores/order_store.dart';
 import '../stores/session_store.dart';
+import '../widgets/chat_bubble_button.dart';
 import 'chat_screen.dart';
 import 'driver_earnings_screen.dart';
 import 'driver_map_screen.dart';
@@ -1656,35 +1657,20 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ChatScreen(
-                            order: order,
-                            senderType: ChatSenderType.driver,
-                            conversationType: resolveConversationType(
-                                ChatSenderType.driver, order.status, null),
-                          ),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.chat_bubble_outline),
-                    // BUG-UI (2026-05-20) — label curto + ellipsis: evita
-                    // overflow em ecrãs pequenos (consistente com driver_map).
-                    label: Flexible(
-                      child: Text(
-                        resolveConversationType(ChatSenderType.driver,
-                                    order.status, null) ==
-                                'driver_partner'
-                            ? 'Chat · Restaurante'
-                            : 'Chat · Cliente',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        softWrap: false,
-                      ),
-                    ),
+                  // M11: botão de chat com badge de não-lidas (ChatBubbleButton).
+                  child: ChatBubbleButton(
+                    order: order,
+                    senderType: ChatSenderType.driver,
+                    chatTarget: resolveConversationType(ChatSenderType.driver,
+                                order.status, null) ==
+                            'driver_partner'
+                        ? ChatTarget.partner
+                        : ChatTarget.client,
+                    label: resolveConversationType(ChatSenderType.driver,
+                                order.status, null) ==
+                            'driver_partner'
+                        ? 'Chat · Restaurante'
+                        : 'Chat · Cliente',
                   ),
                 ),
               ],

@@ -43,6 +43,7 @@ class MessageModel {
     required this.content,
     required this.createdAt,
     this.conversationType,
+    this.read = false,
   });
 
   final String id;
@@ -65,6 +66,10 @@ class MessageModel {
   /// Chat channel: 'client_partner', 'client_driver', or 'driver_partner'.
   /// Null for legacy messages — displayed in all channels.
   final String? conversationType;
+
+  /// True quando o destinatário já abriu o chat (coluna `read` — M11).
+  /// Alimenta o badge de não-lidas e o ✓✓ nas bolhas próprias.
+  final bool read;
 
   /// Parsed substitution data. Returns null for text messages or on
   /// malformed JSON.
@@ -143,6 +148,7 @@ class MessageModel {
           ? DateTime.tryParse(data['created_at'].toString()) ?? DateTime.now()
           : DateTime.now(),
       conversationType: data['conversation_type'] as String?,
+      read: data['read'] == true,
     );
   }
 

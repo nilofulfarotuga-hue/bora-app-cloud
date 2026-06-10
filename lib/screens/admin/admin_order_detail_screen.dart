@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '_admin_cancel_order_dialog.dart';
+import 'admin_chat_viewer_screen.dart';
 
 /// Full-screen admin detail for an order. Pushed from `admin_orders_screen`
 /// (FASE 4 BUG 3 F1.D). 4 tabs:
@@ -117,6 +118,17 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen>
             ? 'Pedido #${(_order!['id'] as String).substring(0, 8)}'
             : 'Pedido'),
         actions: [
+          // M11: viewer read-only da conversa do pedido (audit no acesso).
+          IconButton(
+            icon: const Icon(Icons.forum_outlined),
+            tooltip: 'Ver conversa',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => AdminChatViewerScreen(orderId: widget.orderId),
+              ),
+            ),
+          ),
           IconButton(icon: const Icon(Icons.refresh), onPressed: _refresh),
         ],
         bottom: TabBar(

@@ -12,6 +12,7 @@ import '../widgets/bora_support_fab.dart';
 import '../models/chat_message.dart';
 import '../models/order_model.dart';
 import '../models/restaurant_model.dart';
+import '../widgets/chat_bubble_button.dart';
 import 'chat_screen.dart';
 import '../stores/order_store.dart';
 import '../stores/partner_product_store.dart';
@@ -1225,22 +1226,13 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
                   }
                 },
               ),
-            // Chat — sempre visível (não precisa de telefone).
-            IconButton(
-              icon: const Icon(Icons.chat_bubble_outline, size: 20),
-              tooltip: 'Chat cliente',
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ChatScreen(
-                    order: order,
-                    senderType: ChatSenderType.partner,
-                    chatTarget: ChatTarget.client,
-                    conversationType: resolveConversationType(
-                        ChatSenderType.partner, order.status, ChatTarget.client),
-                  ),
-                ),
-              ),
+            // Chat — sempre visível (não precisa de telefone). M11: badge.
+            ChatBubbleButton(
+              order: order,
+              senderType: ChatSenderType.partner,
+              chatTarget: ChatTarget.client,
+              label: 'Chat cliente',
+              compact: true,
             ),
           ],
         ),
@@ -1280,22 +1272,13 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
                     }
                   },
                 ),
-              // Chat — sempre visível (não precisa de telefone).
-              IconButton(
-                icon: const Icon(Icons.chat_bubble_outline, size: 20),
-                tooltip: 'Chat estafeta',
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => ChatScreen(
-                      order: order,
-                      senderType: ChatSenderType.partner,
-                      chatTarget: ChatTarget.driver,
-                      conversationType: resolveConversationType(
-                          ChatSenderType.partner, order.status, ChatTarget.driver),
-                    ),
-                  ),
-                ),
+              // Chat — sempre visível (não precisa de telefone). M11: badge.
+              ChatBubbleButton(
+                order: order,
+                senderType: ChatSenderType.partner,
+                chatTarget: ChatTarget.driver,
+                label: 'Chat estafeta',
+                compact: true,
               ),
             ],
           ),

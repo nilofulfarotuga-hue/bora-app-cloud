@@ -1,387 +1,185 @@
 // @ts-nocheck
-// supabase/functions/notify-chat-message/index.ts
-//
-// v3 — Multi-recipient chat push notifications with conversation_type routing.
-//
-// Trigger: AFTER INSERT on `public.messages`.
-//
-// Routing (v3 — channel-aware):
-//   conversation_type='client_partner' → notify only client + partner (driver excluded)
-//   conversation_type='client_driver'  → notify only client + driver (partner excluded)
-//   conversation_type='driver_partner' → notify only driver + partner (client excluded)
-//   conversation_type=NULL (legacy)    → fallback: notify other 2 by sender_type
-//
-// Decisão A: multi-device — ALL active tokens per recipient.
-// Decisão B: fires even when app is open (foreground banner handled in Flutter).
-// Decisão C: FCM 4xx UNREGISTERED/INVALID_ARGUMENT → mark_token_failed.
-//
-// Partner token lookup: get_partner_fcm_tokens_for_restaurant(restaurant_id)
-// (joins partner_push_tokens ← auth.users ← restaurants via email).
-//
-// Required Supabase secrets:
-//   FIREBASE_PROJECT_ID
-//   FIREBASE_SERVICE_ACCOUNT (JSON of service account key)
-//
-// Auto-injected: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
-//
-// Returns 200 always — trigger must never block INSERT.
-
+// v10 (M11 2026-06-10) — ROOT CAUSE fixes na resolução do destinatário:
+//   • orders.driver_id quase nunca é populada → usar assigned_driver_id (canónica);
+//   • restaurants tem user_ E user_id divergentes → COALESCE(user_id, user_);
+//   • v9 não procurava client_push_tokens (cliente NUNCA recebia push de chat);
+//   • partner_push_tokens é keyed por partner_id (v9 usava user_id — coluna inexistente).
+// (O trigger _notify_chat_message_trigger v2 passou a enviar o payload completo
+//  — antes enviava só {message_id} e esta função devolvia 400 sempre.)
+// exec6.23 (2026-05-27) DATA-ONLY + canal v3 unificado.
+// Bg handler em notification_service.dart posta rich notif via
+// flutter_local_notifications (BigText + som bora_alert).
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
-
-// ── Types ────────────────────────────────────────────────────────────────────
-
-type StandardTable = 'client_push_tokens' | 'driver_push_tokens'
-
-interface StandardLookup {
-  kind: 'standard'
-  table: StandardTable
-  userId: string
-}
-
-interface PartnerLookup {
-  kind: 'partner'
-  restaurantId: string
-}
-
-type Lookup = StandardLookup | PartnerLookup
-
-// ── Handler ──────────────────────────────────────────────────────────────────
-
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
-
-  const firebaseProjectId   = Deno.env.get('FIREBASE_PROJECT_ID')
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+  const firebaseProjectId = Deno.env.get('FIREBASE_PROJECT_ID')
   const firebaseServiceAcct = Deno.env.get('FIREBASE_SERVICE_ACCOUNT')
-  const supabaseUrl         = Deno.env.get('SUPABASE_URL')!
-  const serviceKey          = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+  console.log('[notify-chat-message] v10 INVOKED data-only')
   if (!firebaseProjectId || !firebaseServiceAcct) {
-    console.warn('[notify-chat-message] Firebase env vars not set — skipping push')
-    return json({ ok: false, reason: 'firebase_not_configured' })
+    return new Response(JSON.stringify({ ok: false, reason: 'firebase_not_configured' }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   }
-
-  let messageId: string
+  let messageId, orderId, senderId, senderType, recipientType, body, conversationType
   try {
-    const body = await req.json()
-    messageId = String(body.message_id ?? '')
-  } catch {
-    return json({ ok: false, error: 'invalid_json' }, 400)
-  }
-
-  if (!messageId) {
-    return json({ ok: false, error: 'message_id required' }, 400)
-  }
-
-  const supabase = createClient(supabaseUrl, serviceKey)
-
-  // ── Fetch message ────────────────────────────────────────────────────────
-  const { data: msg, error: msgErr } = await supabase
-    .from('messages')
-    .select('id, order_id, sender_type, message, created_at, conversation_type')
-    .eq('id', messageId)
-    .maybeSingle()
-
-  if (msgErr) {
-    console.error('[notify-chat-message] message query error:', JSON.stringify(msgErr))
-    return json({ ok: false, reason: 'db_error' })
-  }
-  if (!msg) {
-    console.log(`[notify-chat-message] message ${messageId} not found`)
-    return json({ ok: false, reason: 'not_found' })
-  }
-  if (!msg.order_id) {
-    return json({ ok: false, reason: 'no_order_id' })
-  }
-
-  const senderType = String(msg.sender_type ?? '').toLowerCase()
-  if (!['client', 'driver', 'partner'].includes(senderType)) {
-    console.log(`[notify-chat-message] sender_type=${senderType} — unsupported`)
-    return json({ ok: false, reason: 'unsupported_sender_type' })
-  }
-
-  // ── Fetch order (include restaurant_id for partner lookup) ───────────────
-  const { data: order, error: orderErr } = await supabase
-    .from('orders')
-    .select('id, user_id, assigned_driver_id, vendor_name, restaurant_id')
-    .eq('id', String(msg.order_id))
-    .maybeSingle()
-
-  if (orderErr) {
-    console.error('[notify-chat-message] order query error:', JSON.stringify(orderErr))
-    return json({ ok: false, reason: 'db_error' })
-  }
-  if (!order) {
-    return json({ ok: false, reason: 'order_not_found' })
-  }
-
-  // ── Determine recipients (v3: channel-aware routing) ─────────────────────
-  const convType = (msg.conversation_type ?? null) as string | null
-  const lookups: Lookup[] = []
-
-  if (convType === 'client_partner') {
-    if (senderType === 'client' && order.restaurant_id)
-      lookups.push({ kind: 'partner', restaurantId: String(order.restaurant_id) })
-    else if (senderType === 'partner' && order.user_id)
-      lookups.push({ kind: 'standard', table: 'client_push_tokens', userId: String(order.user_id) })
-  } else if (convType === 'client_driver') {
-    if (senderType === 'client' && order.assigned_driver_id)
-      lookups.push({ kind: 'standard', table: 'driver_push_tokens', userId: String(order.assigned_driver_id) })
-    else if (senderType === 'driver' && order.user_id)
-      lookups.push({ kind: 'standard', table: 'client_push_tokens', userId: String(order.user_id) })
-  } else if (convType === 'driver_partner') {
-    if (senderType === 'driver' && order.restaurant_id)
-      lookups.push({ kind: 'partner', restaurantId: String(order.restaurant_id) })
-    else if (senderType === 'partner' && order.assigned_driver_id)
-      lookups.push({ kind: 'standard', table: 'driver_push_tokens', userId: String(order.assigned_driver_id) })
-  } else {
-    // Legacy (conversation_type = NULL): notify other 2 participants by sender_type
-    if (senderType === 'client') {
-      if (order.assigned_driver_id)
-        lookups.push({ kind: 'standard', table: 'driver_push_tokens', userId: String(order.assigned_driver_id) })
-      if (order.restaurant_id)
-        lookups.push({ kind: 'partner', restaurantId: String(order.restaurant_id) })
-    } else if (senderType === 'driver') {
-      if (order.user_id)
-        lookups.push({ kind: 'standard', table: 'client_push_tokens', userId: String(order.user_id) })
-      if (order.restaurant_id)
-        lookups.push({ kind: 'partner', restaurantId: String(order.restaurant_id) })
-    } else if (senderType === 'partner') {
-      if (order.user_id)
-        lookups.push({ kind: 'standard', table: 'client_push_tokens', userId: String(order.user_id) })
-      if (order.assigned_driver_id)
-        lookups.push({ kind: 'standard', table: 'driver_push_tokens', userId: String(order.assigned_driver_id) })
-    }
-  }
-
-  if (lookups.length === 0) {
-    console.log(`[notify-chat-message] no recipients for msg ${messageId}`)
-    return json({ ok: true, sent: 0, reason: 'no_recipients' })
-  }
-
-  // ── Firebase access token ────────────────────────────────────────────────
-  let accessToken: string
-  try {
-    const serviceAccount = JSON.parse(firebaseServiceAcct)
-    accessToken = await getFirebaseAccessToken(serviceAccount)
+    const reqBody = await req.json()
+    messageId = reqBody.message_id ?? reqBody.messageId
+    orderId = reqBody.order_id ?? reqBody.orderId
+    senderId = reqBody.sender_id ?? reqBody.senderId
+    senderType = reqBody.sender_type ?? reqBody.senderType ?? ''
+    recipientType = reqBody.recipient_type ?? reqBody.recipientType ?? ''
+    body = (reqBody.body ?? reqBody.message ?? '').toString().substring(0, 140)
+    conversationType = reqBody.conversation_type ?? reqBody.conversationType ?? ''
   } catch (e) {
-    console.error('[notify-chat-message] firebase auth error:', e)
-    return json({ ok: false, reason: 'firebase_auth_error' })
+    return new Response(JSON.stringify({ ok: false, error: 'Invalid JSON body' }),
+      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   }
-
-  // ── Build notification template ──────────────────────────────────────────
-  const senderLabel: Record<string, string> = {
-    client: 'Cliente',
-    driver: 'Estafeta',
-    partner: 'Restaurante',
+  if (!messageId || !orderId || !senderId) {
+    return new Response(JSON.stringify({ ok: false, error: 'message_id, order_id, sender_id required' }),
+      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   }
-  const vendorPart = order.vendor_name ? ` • ${order.vendor_name}` : ''
-  const title = `💬 ${senderLabel[senderType] ?? 'Utilizador'}${vendorPart}`
-  const body  = (msg.message ?? '').trim().slice(0, 140)
-
+  const supabase = createClient(supabaseUrl, serviceKey)
+  // Determine recipient user_id from order + conversation_type/sender_type.
+  const { data: order } = await supabase.from('orders')
+    .select('user_id, assigned_driver_id, restaurant_id, vendor_name')
+    .eq('id', orderId).maybeSingle()
+  if (!order) {
+    return new Response(JSON.stringify({ ok: false, reason: 'order_not_found' }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+  }
+  // Compute recipient based on sender_type vs conversation participants.
+  let recipientUserId: string | null = null
+  let senderName = senderType
+  if (senderType === 'client') {
+    if (recipientType === 'driver' || conversationType === 'client_driver') recipientUserId = order.assigned_driver_id
+    else if (recipientType === 'partner' || conversationType === 'client_partner') {
+      const { data: r } = await supabase.from('restaurants').select('user_, user_id').eq('id', order.restaurant_id).maybeSingle()
+      recipientUserId = (r?.user_id ?? r?.user_) ?? null
+      senderName = 'Cliente'
+    }
+  } else if (senderType === 'driver') {
+    if (recipientType === 'client' || conversationType === 'client_driver') recipientUserId = order.user_id
+    else if (recipientType === 'partner' || conversationType === 'driver_partner') {
+      const { data: r } = await supabase.from('restaurants').select('user_, user_id').eq('id', order.restaurant_id).maybeSingle()
+      recipientUserId = (r?.user_id ?? r?.user_) ?? null
+    }
+    senderName = 'Estafeta'
+  } else if (senderType === 'partner') {
+    if (recipientType === 'client' || conversationType === 'client_partner') recipientUserId = order.user_id
+    else if (recipientType === 'driver' || conversationType === 'driver_partner') recipientUserId = order.assigned_driver_id
+    senderName = order.vendor_name ?? 'Loja'
+  }
+  if (!recipientUserId) {
+    return new Response(JSON.stringify({ ok: false, reason: 'recipient_not_resolved' }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+  }
+  // Fetch all active tokens for recipient (multi-device).
+  const tokens: { id: string; fcm_token: string; source: string }[] = []
+  const { data: drvTokens } = await supabase.from('driver_push_tokens')
+    .select('id, fcm_token').eq('user_id', recipientUserId).eq('active', true)
+  if (drvTokens) drvTokens.forEach((t: any) => tokens.push({ id: t.id, fcm_token: t.fcm_token, source: 'driver_push_tokens' }))
+  const { data: prtTokens } = await supabase.from('partner_push_tokens')
+    .select('id, fcm_token').eq('partner_id', recipientUserId).eq('active', true)
+  if (prtTokens) prtTokens.forEach((t: any) => tokens.push({ id: t.id, fcm_token: t.fcm_token, source: 'partner_push_tokens' }))
+  const { data: cliTokens } = await supabase.from('client_push_tokens')
+    .select('id, fcm_token').eq('user_id', recipientUserId).eq('active', true)
+  if (cliTokens) cliTokens.forEach((t: any) => tokens.push({ id: t.id, fcm_token: t.fcm_token, source: 'client_push_tokens' }))
+  if (tokens.length === 0) {
+    // fallback drivers.fcm_token legacy
+    const { data: d } = await supabase.from('drivers').select('fcm_token').eq('id', recipientUserId).maybeSingle()
+    if (d?.fcm_token) tokens.push({ id: 'legacy', fcm_token: d.fcm_token, source: 'drivers' })
+  }
+  if (tokens.length === 0) {
+    return new Response(JSON.stringify({ ok: false, reason: 'no_fcm_token' }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+  }
+  let accessToken: string
+  try { accessToken = await getFirebaseAccessToken(JSON.parse(firebaseServiceAcct)) }
+  catch (e) {
+    return new Response(JSON.stringify({ ok: false, reason: 'firebase_auth_error' }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+  }
   const fcmUrl = `https://fcm.googleapis.com/v1/projects/${firebaseProjectId}/messages:send`
-
-  // ── Send helper ──────────────────────────────────────────────────────────
-  async function sendToTokens(
-    tokens: Array<{ fcm_token: string }>,
-    tableNameForFail: string,
-  ): Promise<{ sent: number; cleaned: number }> {
-    let sent = 0
-    let cleaned = 0
-    const results = await Promise.allSettled(
-      tokens.map(async (t) => {
-        const payload = {
-          message: {
-            token: t.fcm_token,
-            notification: { title, body: body.length > 0 ? body : '...' },
-            data: {
-              type:        'chat',
-              order_id:    String(msg.order_id),
-              message_id:  String(msg.id),
-              sender_type: senderType,
-            },
-            android: {
-              priority: 'high',
-              notification: {
-                channel_id: 'bora_chat',
-                sound: 'default',
-                priority: 'high',
-              },
-            },
-            apns: {
-              headers: { 'apns-priority': '10' },
-              payload: { aps: { sound: 'default', badge: 1 } },
-            },
-          },
-        }
-        const r = await fetch(fcmUrl, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type':  'application/json',
-          },
-          body: JSON.stringify(payload),
-        })
-        return { token: t.fcm_token, status: r.status, body: await r.json().catch(() => ({})) }
-      }),
-    )
-
-    for (const r of results) {
-      if (r.status !== 'fulfilled') continue
-      const { token, status, body: respBody } = r.value
-      if (status >= 200 && status < 300) {
-        sent++
-        continue
-      }
-      const errCode = respBody?.error?.details?.[0]?.errorCode ?? respBody?.error?.status ?? ''
-      if (errCode === 'UNREGISTERED' || errCode === 'INVALID_ARGUMENT' || errCode === 'NOT_FOUND') {
-        try {
-          await supabase.rpc('mark_token_failed', {
-            p_table:  tableNameForFail,
-            p_token:  token,
-            p_reason: `fcm_${errCode.toLowerCase()}`,
-          })
-          cleaned++
-        } catch (e) {
-          console.error('[notify-chat-message] mark_token_failed error:', e)
+  let sentCount = 0
+  for (const tok of tokens) {
+    const message = {
+      message: {
+        token: tok.fcm_token,
+        data: {
+          type: 'chat',
+          order_id: String(orderId),
+          message_id: String(messageId),
+          sender_id: String(senderId),
+          sender_type: String(senderType),
+          sender_name: String(senderName),
+          body: String(body),
+          conversation_type: String(conversationType),
+        },
+        android: { priority: 'high', ttl: '60s' },
+        apns: {
+          headers: { 'apns-priority': '10', 'apns-push-type': 'background' },
+          payload: { aps: { 'content-available': 1, sound: 'bora_alert.wav', 'interruption-level': 'time-sensitive' } },
+        },
+      },
+    }
+    const fcmRes = await fetch(fcmUrl, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(message),
+    })
+    const fcmBody = await fcmRes.json().catch(() => ({}))
+    if (fcmRes.ok) sentCount++
+    else {
+      const errorCode = fcmBody?.error?.details?.[0]?.errorCode ?? ''
+      if (errorCode === 'UNREGISTERED' || errorCode === 'INVALID_ARGUMENT') {
+        if (tok.source === 'driver_push_tokens' || tok.source === 'partner_push_tokens' || tok.source === 'client_push_tokens') {
+          await supabase.from(tok.source).update({ active: false }).eq('id', tok.id)
+        } else if (tok.source === 'drivers') {
+          await supabase.from('drivers').update({ fcm_token: null }).eq('id', recipientUserId)
         }
       }
     }
-    return { sent, cleaned }
   }
-
-  // ── Process each recipient group ─────────────────────────────────────────
-  let totalSent = 0
-  let totalCleaned = 0
-
-  for (const lookup of lookups) {
-    if (lookup.kind === 'standard') {
-      const { data: tokens, error: tokensErr } = await supabase
-        .from(lookup.table)
-        .select('fcm_token')
-        .eq('user_id', lookup.userId)
-        .eq('active', true)
-
-      if (tokensErr) {
-        console.error(`[notify-chat-message] tokens error (${lookup.table}):`, JSON.stringify(tokensErr))
-        continue
-      }
-
-      const list = tokens ?? []
-      if (list.length === 0) {
-        console.log(`[notify-chat-message] no active tokens in ${lookup.table} for user ${lookup.userId}`)
-        continue
-      }
-
-      const { sent, cleaned } = await sendToTokens(list, lookup.table)
-      totalSent += sent
-      totalCleaned += cleaned
-
-    } else {
-      // Partner lookup via RPC (restaurant_id → email → auth.users → partner_push_tokens)
-      const { data: partnerTokens, error: partnerErr } = await supabase
-        .rpc('get_partner_fcm_tokens_for_restaurant', { p_restaurant_id: lookup.restaurantId })
-
-      if (partnerErr) {
-        console.error('[notify-chat-message] partner tokens rpc error:', JSON.stringify(partnerErr))
-        continue
-      }
-
-      const list = (partnerTokens ?? []).map((r: any) => ({ fcm_token: r.fcm_token }))
-      if (list.length === 0) {
-        console.log(`[notify-chat-message] no active partner tokens for restaurant ${lookup.restaurantId}`)
-        continue
-      }
-
-      const { sent, cleaned } = await sendToTokens(list, 'partner_push_tokens')
-      totalSent += sent
-      totalCleaned += cleaned
-    }
-  }
-
-  console.log(`[notify-chat-message] msg=${messageId} conv=${convType ?? 'legacy'} sender=${senderType} sent=${totalSent} cleaned=${totalCleaned}`)
-  return json({ ok: true, sent: totalSent, cleaned: totalCleaned })
+  console.log(`[notify-chat-message] v10 order=${orderId} sender=${senderType} recipient=${recipientUserId} sent=${sentCount}/${tokens.length}`)
+  return new Response(JSON.stringify({ ok: true, sent: sentCount, total: tokens.length }),
+    { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
 })
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  })
-}
-
-// ── Firebase OAuth2 (same implementation as notify-driver / notify-admin-urgent) ──
-
 async function getFirebaseAccessToken(serviceAccount: any): Promise<string> {
   const now = Math.floor(Date.now() / 1000)
-  const header  = { alg: 'RS256', typ: 'JWT' }
+  const header = { alg: 'RS256', typ: 'JWT' }
   const payload = {
-    iss:   serviceAccount.client_email,
+    iss: serviceAccount.client_email,
     scope: 'https://www.googleapis.com/auth/firebase.messaging',
-    aud:   'https://oauth2.googleapis.com/token',
-    exp:   now + 3600,
-    iat:   now,
+    aud: 'https://oauth2.googleapis.com/token',
+    exp: now + 3600, iat: now,
   }
-  const encodedHeader  = b64url(JSON.stringify(header))
+  const encodedHeader = b64url(JSON.stringify(header))
   const encodedPayload = b64url(JSON.stringify(payload))
-  const signingInput   = `${encodedHeader}.${encodedPayload}`
-
-  const pem = serviceAccount.private_key.replace(/\\n/g, '\n')
-  const pkcs8 = pemToPkcs8(pem)
-  const cryptoKey = await crypto.subtle.importKey(
-    'pkcs8',
-    pkcs8,
-    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-    false,
-    ['sign'],
-  )
-  const sigBuffer = await crypto.subtle.sign(
-    'RSASSA-PKCS1-v1_5',
-    cryptoKey,
-    new TextEncoder().encode(signingInput),
-  )
+  const signingInput = `${encodedHeader}.${encodedPayload}`
+  const pemBody = serviceAccount.private_key.replace(/-----BEGIN PRIVATE KEY-----/g, '').replace(/-----END PRIVATE KEY-----/g, '').replace(/\s/g, '')
+  const keyBytes = Uint8Array.from(atob(pemBody), (c) => c.charCodeAt(0))
+  const cryptoKey = await crypto.subtle.importKey('pkcs8', keyBytes, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign'])
+  const sigBuffer = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', cryptoKey, new TextEncoder().encode(signingInput))
   const signature = b64urlBytes(new Uint8Array(sigBuffer))
   const jwt = `${signingInput}.${signature}`
-
   const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-      assertion:  jwt,
-    }),
+    body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion: jwt }),
   })
   const tokenData = await tokenRes.json()
-  if (!tokenData.access_token) {
-    throw new Error(`Google token exchange failed: ${JSON.stringify(tokenData)}`)
-  }
+  if (!tokenData.access_token) throw new Error(`Google token exchange failed: ${JSON.stringify(tokenData)}`)
   return tokenData.access_token
 }
-
-function pemToPkcs8(pem: string): Uint8Array {
-  const b64 = pem
-    .replace('-----BEGIN PRIVATE KEY-----', '')
-    .replace('-----END PRIVATE KEY-----', '')
-    .replace(/\s+/g, '')
-  const bin = atob(b64)
-  const bytes = new Uint8Array(bin.length)
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
-  return bytes
-}
-
 function b64url(str: string): string {
-  return btoa(unescape(encodeURIComponent(str)))
-    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
+  return btoa(unescape(encodeURIComponent(str))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
 }
-
 function b64urlBytes(bytes: Uint8Array): string {
-  return btoa(String.fromCharCode(...bytes))
-    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
+  return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
 }

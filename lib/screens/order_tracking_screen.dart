@@ -23,6 +23,7 @@ import '../utils/constants.dart';
 import '../utils/map_marker_helper.dart';
 import '../utils/map_utils.dart';
 import '../services/notification_service.dart';
+import '../widgets/chat_bubble_button.dart';
 import 'chat_screen.dart';
 import 'rating_screen.dart';
 
@@ -690,42 +691,27 @@ class _BottomCardState extends State<_BottomCard> {
 
                   const SizedBox(height: 14),
 
-                  if (_isActive)
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: AppColors.info,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                              vertical: Spacing.md),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(Radii.md + 2),
-                          ),
-                          textStyle: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        onPressed: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => ChatScreen(
-                              order: order,
-                              senderType: ChatSenderType.client,
-                              conversationType: resolveConversationType(
-                                  ChatSenderType.client, order.status, null),
-                            ),
-                          ),
-                        ),
-                        icon: const Icon(Icons.chat_bubble_outline, size: 18),
-                        label: Text(
-                          order.status == OrderStatus.preparing
-                              ? 'Falar com o Restaurante'
-                              : 'Falar com o Estafeta',
-                        ),
-                      ),
+                  // M11 (padrão Uber Eats): 2 acessos de chat com badge de
+                  // não-lidas + preview — restaurante E estafeta (após aceitar).
+                  if (_isActive) ...[
+                    ChatBubbleButton(
+                      order: order,
+                      senderType: ChatSenderType.client,
+                      chatTarget: ChatTarget.partner,
+                      label: 'Falar com o Restaurante',
+                      showPreview: true,
                     ),
+                    if (order.assignedDriverId != null) ...[
+                      const SizedBox(height: Spacing.sm),
+                      ChatBubbleButton(
+                        order: order,
+                        senderType: ChatSenderType.client,
+                        chatTarget: ChatTarget.driver,
+                        label: 'Falar com o Estafeta',
+                        showPreview: true,
+                      ),
+                    ],
+                  ],
 
                   // ── Cancel order (BR §8.3) ─────────────────────────────
                   if (_canCancel) ...[

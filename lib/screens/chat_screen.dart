@@ -12,32 +12,42 @@ import '../stores/order_store.dart';
 import '../stores/restaurant_store.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 
-enum ChatTarget { client, driver }
+enum ChatTarget { client, driver, partner }
 
 /// Returns the conversation channel for a ChatScreen invocation.
 /// Returns null when channel cannot be determined (legacy / all messages shown).
+/// M11: chatTarget explícito tem prioridade para TODOS os senders — permite os
+/// 2 acessos do padrão Uber Eats (cliente↔parceiro E cliente↔estafeta).
 String? resolveConversationType(
   ChatSenderType senderType,
   OrderStatus status,
   ChatTarget? chatTarget,
 ) {
   return switch (senderType) {
-    ChatSenderType.client => switch (status) {
-      OrderStatus.preparing          => 'client_partner',
-      OrderStatus.pickedUp ||
-      OrderStatus.onTheWay           => 'client_driver',
-      _                              => null,
+    ChatSenderType.client => switch (chatTarget) {
+      ChatTarget.partner => 'client_partner',
+      ChatTarget.driver  => 'client_driver',
+      _ => switch (status) {
+        OrderStatus.preparing          => 'client_partner',
+        OrderStatus.pickedUp ||
+        OrderStatus.onTheWay           => 'client_driver',
+        _                              => null,
+      },
     },
-    ChatSenderType.driver => switch (status) {
-      OrderStatus.driverAccepted     => 'driver_partner',
-      OrderStatus.pickedUp ||
-      OrderStatus.onTheWay           => 'client_driver',
-      _                              => null,
+    ChatSenderType.driver => switch (chatTarget) {
+      ChatTarget.partner => 'driver_partner',
+      ChatTarget.client  => 'client_driver',
+      _ => switch (status) {
+        OrderStatus.driverAccepted     => 'driver_partner',
+        OrderStatus.pickedUp ||
+        OrderStatus.onTheWay           => 'client_driver',
+        _                              => null,
+      },
     },
     ChatSenderType.partner => switch (chatTarget) {
       ChatTarget.client => 'client_partner',
       ChatTarget.driver => 'driver_partner',
-      null              => null,
+      _                 => null,
     },
   };
 }
@@ -83,12 +93,27 @@ class _ChatScreenState extends State<ChatScreen> {
     };
   }
 
+  DateTime _lastMarkRead = DateTime.fromMillisecondsSinceEpoch(0);
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ChatStore>().listen(widget.order.id);
+      _markRead();
     });
+  }
+
+  /// M11: marca as mensagens dos outros como lidas (badge zera). Throttled —
+  /// chamado ao abrir e sempre que chegam mensagens novas com o ecrã aberto.
+  void _markRead() {
+    final now = DateTime.now();
+    if (now.difference(_lastMarkRead).inSeconds < 2) return;
+    _lastMarkRead = now;
+    Supabase.instance.client.rpc('chat_mark_read', params: {
+      'p_order_id': widget.order.id,
+      'p_reader_type': _senderRole,
+    }).then((_) {}, onError: (_) {});
   }
 
   @override
@@ -119,7 +144,7 @@ class _ChatScreenState extends State<ChatScreen> {
       ChatSenderType.partner => switch (widget.chatTarget) {
         ChatTarget.client => o.clientPhone,
         ChatTarget.driver => o.driverPhone,
-        null              => null,
+        _                 => null,
       },
     };
   }
@@ -127,12 +152,16 @@ class _ChatScreenState extends State<ChatScreen> {
   String _appBarTitle(OrderModel o) {
     final vendor = o.vendorName ?? 'Pedido';
     return switch (widget.senderType) {
-      ChatSenderType.client  => 'Chat c/ Estafeta · $vendor',
-      ChatSenderType.driver  => 'Chat c/ Cliente · $vendor',
+      ChatSenderType.client  => widget.chatTarget == ChatTarget.partner
+          ? 'Chat c/ Restaurante · $vendor'
+          : 'Chat c/ Estafeta · $vendor',
+      ChatSenderType.driver  => widget.chatTarget == ChatTarget.partner
+          ? 'Chat c/ Restaurante · $vendor'
+          : 'Chat c/ Cliente · $vendor',
       ChatSenderType.partner => switch (widget.chatTarget) {
         ChatTarget.client => 'Chat c/ Cliente · $vendor',
         ChatTarget.driver => 'Chat c/ Estafeta · $vendor',
-        null              => 'Chat · $vendor',
+        _                 => 'Chat · $vendor',
       },
     };
   }
@@ -152,6 +181,12 @@ class _ChatScreenState extends State<ChatScreen> {
             m.conversationType == null ||
             m.conversationType == widget.conversationType)
         .toList();
+
+    // M11: mensagens novas dos outros enquanto o ecrã está aberto → marcar
+    // lidas (throttled em _markRead) para o badge dos outros ecrãs zerar.
+    if (messages.any((m) => m.senderRole != _senderRole && !m.read)) {
+      _markRead();
+    }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollCtrl.hasClients && messages.isNotEmpty) {
@@ -367,11 +402,25 @@ class _TextBubble extends StatelessWidget {
                   fontSize: 14),
             ),
             const SizedBox(height: 4),
-            Text(
-              _fmt(message.createdAt),
-              style: TextStyle(
-                  fontSize: 11,
-                  color: isMine ? Colors.white70 : AppColors.textSecondary),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _fmt(message.createdAt),
+                  style: TextStyle(
+                      fontSize: 11,
+                      color: isMine ? Colors.white70 : AppColors.textSecondary),
+                ),
+                // M11: ✓ enviada · ✓✓ lida (só nas bolhas próprias).
+                if (isMine) ...[
+                  const SizedBox(width: 4),
+                  Icon(
+                    message.read ? Icons.done_all : Icons.done,
+                    size: 13,
+                    color: Colors.white70,
+                  ),
+                ],
+              ],
             ),
           ],
         ),

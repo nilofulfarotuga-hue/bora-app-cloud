@@ -51,6 +51,7 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
   /// valores em cêntimos, Stripe) é READ-ONLY — alterar requer sessão dedicada.
   /// Fail-safe: chave nova/desconhecida nasce protegida.
   bool _isEditable(String key) {
+    if (key.startsWith('robot_b_')) return true; // kill switches Robot B v4
     if (key.startsWith('dispatch_')) return true;
     if (key.startsWith('reservation_')) {
       const financialMarkers = ['cents', 'payout', 'prepayment', 'bora_service', 'credit'];

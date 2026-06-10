@@ -41,6 +41,7 @@ import 'admin_support_stats_screen.dart';
 import 'admin_knowledge_screen.dart';
 import 'admin_pending_actions_screen.dart';
 import 'admin_skill_suggestions_screen.dart';
+import 'admin_robot_suggestions_screen.dart';
 import 'admin_support_tickets_screen.dart';
 import 'admin_orphan_payments_screen.dart';
 import 'admin_receipts_screen.dart';
@@ -690,6 +691,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       MaterialPageRoute(
                           builder: (_) =>
                               const AdminSkillSuggestionsScreen())),
+                ),
+                const SizedBox(height: 10),
+                // Robot B v4 — Motor de Perfeição Contínua (inbox de sugestões)
+                _NavCard(
+                  icon: Icons.smart_toy_outlined,
+                  title: '🤖 Sugestões do Robot',
+                  subtitle: 'Auto-melhoria: níveis 1/2/3, auto-fixes e métricas',
+                  color: AppColors.primary,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminRobotSuggestionsScreen())),
                 ),
                 const SizedBox(height: 10),
                 // Sessão 5F — Comunicação Robô A ↔ Robô B (crosstalk)

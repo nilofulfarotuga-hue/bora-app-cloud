@@ -2321,6 +2321,11 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
   late final List<CartItem> _items;
   late int _bagCount;
 
+  /// B3 (2026-06-11): fotos do catálogo por productId — o estafeta precisa de
+  /// VER o produto para comprar o certo. URLs já existentes em products
+  /// (zero storage extra); 1 query ao abrir o sheet, best-effort.
+  final Map<String, String> _photoUrls = <String, String>{};
+
   bool get _isRestaurant =>
       widget.order.serviceType == OrderServiceType.restaurant;
 
@@ -2342,6 +2347,87 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
     _bagCount = widget.order.bagCount > 0
         ? widget.order.bagCount
         : (_isRestaurant ? 1 : 1);
+    _loadProductPhotos();
+  }
+
+  Future<void> _loadProductPhotos() async {
+    final ids = _items
+        .map((i) => i.productId)
+        .where((id) => id.isNotEmpty && !id.contains(' '))
+        .toSet()
+        .toList();
+    if (ids.isEmpty) return;
+    try {
+      final rows = await Supabase.instance.client
+          .from('products')
+          .select('id, photo_url')
+          .inFilter('id', ids);
+      if (!mounted) return;
+      setState(() {
+        for (final r in rows as List) {
+          final m = Map<String, dynamic>.from(r as Map);
+          final url = (m['photo_url'] as String?) ?? '';
+          if (url.isNotEmpty) _photoUrls[m['id'] as String] = url;
+        }
+      });
+    } catch (e) {
+      // Best-effort: sem foto a lista continua funcional.
+      debugPrint('[ShoppingList] _loadProductPhotos: $e');
+    }
+  }
+
+  /// Amplia a foto (fullscreen com pinch-zoom) — tap fora fecha.
+  void _showPhotoZoom(String url, String name) {
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black87,
+      builder: (_) => Dialog.fullscreen(
+        backgroundColor: Colors.black,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: InteractiveViewer(
+                minScale: 0.5,
+                maxScale: 5,
+                child: Center(
+                  child: Image.network(
+                    url,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => const Icon(
+                      Icons.image_not_supported_outlined,
+                      color: Colors.white54,
+                      size: 64,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 24,
+              child: Text(
+                name,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Colors.white, fontSize: 14),
+              ),
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: SafeArea(
+                child: IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white, size: 28),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   // ── Add-product dialog ──────────────────────────────────────────────────
@@ -2636,6 +2722,36 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                                   Icon(Icons.radio_button_unchecked,
                                       color: Colors.grey.shade400, size: 20),
                                 const SizedBox(width: 8),
+                                // B3 (2026-06-11): thumbnail do catálogo —
+                                // tap amplia (o estafeta compara com a
+                                // prateleira para comprar o produto certo).
+                                Builder(builder: (_) {
+                                  final photoUrl =
+                                      _photoUrls[item.productId];
+                                  if (photoUrl == null) {
+                                    return const SizedBox.shrink();
+                                  }
+                                  return Padding(
+                                    padding:
+                                        const EdgeInsets.only(right: 8),
+                                    child: GestureDetector(
+                                      onTap: () => _showPhotoZoom(
+                                          photoUrl, item.name),
+                                      child: ClipRRect(
+                                        borderRadius:
+                                            BorderRadius.circular(8),
+                                        child: Image.network(
+                                          photoUrl,
+                                          width: 44,
+                                          height: 44,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (_, __, ___) =>
+                                              const SizedBox.shrink(),
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }),
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment:

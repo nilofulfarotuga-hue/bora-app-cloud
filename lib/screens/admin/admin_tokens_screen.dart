@@ -232,7 +232,7 @@ class _AdminTokensScreenState extends State<AdminTokensScreen>
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Tokens'),
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppColors.primary,
         elevation: 0,
         foregroundColor: Colors.white,
         iconTheme: const IconThemeData(color: Colors.white),

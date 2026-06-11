@@ -41,7 +41,7 @@ class _AdminReceiptsScreenState extends State<AdminReceiptsScreen>
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Reembolsos / Talões'),
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppColors.primary,
         elevation: 0,
         foregroundColor: Colors.white,
         iconTheme: const IconThemeData(color: Colors.white),

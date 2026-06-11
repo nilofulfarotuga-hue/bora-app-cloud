@@ -1127,7 +1127,7 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
           _restaurant?['name'] as String? ?? widget.initialName,
           overflow: TextOverflow.ellipsis,
         ),
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppColors.primary,
         elevation: 0,
         foregroundColor: Colors.white,
         iconTheme: const IconThemeData(color: Colors.white),

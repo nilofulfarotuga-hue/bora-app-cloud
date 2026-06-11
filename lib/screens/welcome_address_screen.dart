@@ -71,7 +71,7 @@ class _WelcomeAddressScreenState extends State<WelcomeAddressScreen> {
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         flexibleSpace: const DecoratedBox(
           decoration: BoxDecoration(gradient: AppColors.headerGradient),

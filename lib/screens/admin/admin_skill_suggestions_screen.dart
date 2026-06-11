@@ -918,7 +918,7 @@ class _AdminSkillSuggestionsScreenState
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: hasSelection ? _boraOrange : Colors.transparent,
+        backgroundColor: hasSelection ? _boraOrange : AppColors.primary,
         elevation: 0,
         flexibleSpace: hasSelection
             ? null

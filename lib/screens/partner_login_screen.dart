@@ -43,7 +43,7 @@ class _PartnerLoginScreenState extends State<PartnerLoginScreen> {
           'Aceder como parceiro',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         elevation: 0,
         flexibleSpace: const DecoratedBox(

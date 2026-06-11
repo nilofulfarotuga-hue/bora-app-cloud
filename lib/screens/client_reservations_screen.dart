@@ -138,7 +138,7 @@ class _ClientReservationsScreenState extends State<ClientReservationsScreen>
       floatingActionButton: const BoraSupportFab(),
       appBar: AppBar(
         title: const Text('As minhas reservas'),
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         elevation: 0,
         flexibleSpace: const DecoratedBox(

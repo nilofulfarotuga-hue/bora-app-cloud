@@ -438,7 +438,7 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
           'Criar conta de parceiro',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         elevation: 0,
         flexibleSpace: const DecoratedBox(

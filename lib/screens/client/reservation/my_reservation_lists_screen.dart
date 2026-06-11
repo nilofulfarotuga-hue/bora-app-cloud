@@ -124,7 +124,7 @@ class _MyReservationListsScreenState extends State<MyReservationListsScreen> {
       child: Scaffold(
         backgroundColor: AppColors.background,
         appBar: AppBar(
-          backgroundColor: Colors.transparent,
+          backgroundColor: AppColors.primary,
           elevation: 0,
           foregroundColor: Colors.white,
           iconTheme: const IconThemeData(color: Colors.white),

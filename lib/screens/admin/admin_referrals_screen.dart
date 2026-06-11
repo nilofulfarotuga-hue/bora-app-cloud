@@ -133,7 +133,7 @@ class _AdminReferralsScreenState extends State<AdminReferralsScreen>
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         elevation: 0,
         flexibleSpace: const DecoratedBox(

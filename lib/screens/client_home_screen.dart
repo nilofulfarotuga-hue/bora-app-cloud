@@ -766,7 +766,7 @@ class _AddressPickerScreenState extends State<_AddressPickerScreen> {
           'Endereço de entrega',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         elevation: 0,
         flexibleSpace: const DecoratedBox(

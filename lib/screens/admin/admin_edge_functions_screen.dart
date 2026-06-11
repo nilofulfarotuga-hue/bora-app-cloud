@@ -54,7 +54,7 @@ class _AdminEdgeFunctionsScreenState extends State<AdminEdgeFunctionsScreen>
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppColors.primary,
         elevation: 0,
         foregroundColor: Colors.white,
         flexibleSpace: Container(

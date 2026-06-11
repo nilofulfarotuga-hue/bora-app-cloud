@@ -147,7 +147,7 @@ class _PartnerCallDriverScreenState extends State<PartnerCallDriverScreen> {
           'Chamar estafeta',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         elevation: 0,
         flexibleSpace: const DecoratedBox(

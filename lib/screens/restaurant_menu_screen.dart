@@ -364,7 +364,7 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
           widget.restaurant.name,
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         elevation: 0,
         flexibleSpace: const DecoratedBox(
@@ -1205,7 +1205,7 @@ class _SectionProductsScreen extends StatelessWidget {
           categoryLabel,
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         elevation: 0,
         flexibleSpace: const DecoratedBox(

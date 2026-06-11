@@ -107,7 +107,7 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
       backgroundColor: AppColors.surface,
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         flexibleSpace: const DecoratedBox(
           decoration: BoxDecoration(gradient: AppColors.headerGradient),

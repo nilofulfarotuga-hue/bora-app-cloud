@@ -554,7 +554,7 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
       backgroundColor: AppColors.background,
       floatingActionButton: const BoraSupportFab(),
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         elevation: 0,
         flexibleSpace: const DecoratedBox(

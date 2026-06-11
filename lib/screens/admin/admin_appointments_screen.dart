@@ -32,6 +32,9 @@ class _AdminAppointmentsScreenState extends State<AdminAppointmentsScreen> {
   String? _statusFilter; // null = todos
   String? _providerFilter; // null = todas
   DateTime? _dayFilter; // null = qualquer dia
+  // Sessão 2026-06-11 — visão "por cliente" (nome/telefone contém).
+  String _clientQuery = '';
+  final _clientQueryController = TextEditingController();
 
   static const _statusOptions = <(String?, String)>[
     (null, 'Todos'),
@@ -48,6 +51,12 @@ class _AdminAppointmentsScreenState extends State<AdminAppointmentsScreen> {
     _future = _load();
   }
 
+  @override
+  void dispose() {
+    _clientQueryController.dispose();
+    super.dispose();
+  }
+
   Future<List<AppointmentModel>> _load() async {
     final rows = await Supabase.instance.client
         .from('appointments')
@@ -62,10 +71,16 @@ class _AdminAppointmentsScreenState extends State<AdminAppointmentsScreen> {
   }
 
   List<AppointmentModel> _applyFilters(List<AppointmentModel> all) {
+    final q = _clientQuery.trim().toLowerCase();
     return all.where((a) {
       if (_statusFilter != null && a.status != _statusFilter) return false;
       if (_providerFilter != null && a.providerId != _providerFilter) {
         return false;
+      }
+      if (q.isNotEmpty) {
+        final name = (a.clientName ?? '').toLowerCase();
+        final phone = (a.clientPhone ?? '').toLowerCase();
+        if (!name.contains(q) && !phone.contains(q)) return false;
       }
       if (_dayFilter != null) {
         final d = a.scheduledAt.toLocal();
@@ -384,6 +399,30 @@ class _AdminAppointmentsScreenState extends State<AdminAppointmentsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Sessão 2026-06-11 — busca por cliente (espelho admin da visão
+          // "Minhas marcações" do cliente).
+          TextField(
+            decoration: InputDecoration(
+              labelText: 'Buscar cliente (nome ou telefone)',
+              prefixIcon: const Icon(Icons.search, size: 20),
+              border: const OutlineInputBorder(),
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(
+                  horizontal: Spacing.sm, vertical: Spacing.sm),
+              suffixIcon: _clientQuery.isEmpty
+                  ? null
+                  : IconButton(
+                      icon: const Icon(Icons.clear, size: 18),
+                      onPressed: () {
+                        _clientQueryController.clear();
+                        setState(() => _clientQuery = '');
+                      },
+                    ),
+            ),
+            controller: _clientQueryController,
+            onChanged: (v) => setState(() => _clientQuery = v),
+          ),
+          const SizedBox(height: Spacing.sm),
           Row(
             children: [
               Expanded(

@@ -6,6 +6,7 @@ import '../../../config/app_spacing.dart';
 import '../../../models/service_provider_model.dart';
 import '../../../stores/services_store.dart';
 import '../../../widgets/bora/bora_screen_app_bar.dart';
+import 'my_appointments_screen.dart';
 import 'provider_detail_screen.dart';
 
 /// Vertical Serviços — lista de barbearias (prestadores aprovados + online).
@@ -41,7 +42,22 @@ class _ServicesCategoryScreenState extends State<ServicesCategoryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const BoraScreenAppBar(title: 'Serviços'),
+      appBar: BoraScreenAppBar(
+        title: 'Serviços',
+        actions: [
+          // Sessão 2026-06-11 — entrada para "As minhas marcações" (gap
+          // device: ecrã só era alcançável do booking_success).
+          IconButton(
+            icon: const Icon(Icons.event_note_outlined),
+            tooltip: 'As minhas marcações',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (_) => const MyAppointmentsScreen()),
+            ),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: Consumer<ServicesStore>(
           builder: (context, store, _) {

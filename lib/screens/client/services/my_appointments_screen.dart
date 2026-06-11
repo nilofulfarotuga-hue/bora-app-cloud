@@ -43,6 +43,27 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen>
   Future<void> _refresh() =>
       context.read<ServicesStore>().fetchMyAppointments();
 
+  /// Detalhe da marcação em bottom sheet (padrão Fresha/Booksy — tap no card).
+  void _showDetail(AppointmentModel a) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(Radii.lg)),
+      ),
+      builder: (_) => _AppointmentDetailSheet(
+        appointment: a,
+        onCancel: a.isUpcoming
+            ? () {
+                Navigator.pop(context);
+                _cancel(a);
+              }
+            : null,
+      ),
+    );
+  }
+
   /// Cancela marcação via RPC. Aviso especial se faltarem <24h.
   Future<void> _cancel(AppointmentModel a) async {
     final hoursUntil =
@@ -54,12 +75,16 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen>
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Cancelar marcação?'),
+        // Sessão 2026-06-11 — regra exata visível ANTES de confirmar
+        // (business_rules: >24h refund total; <24h sinal retido).
         content: Text(
           lessThan24h
-              ? 'Faltam apenas ${hoursUntil.toStringAsFixed(1)}h (<24h). '
-                  'O sinal de €$depositEur pode não ser reembolsado.'
-              : 'Faltam ${hoursUntil.toStringAsFixed(1)}h. '
-                  'Reembolso do sinal de €$depositEur em 5–10 dias.',
+              ? 'Faltam ${hoursUntil.toStringAsFixed(1)}h para a marcação '
+                  '(menos de 24 horas).\n\nRegra: o sinal de €$depositEur '
+                  'NÃO é reembolsado.'
+              : 'Faltam ${hoursUntil.toStringAsFixed(1)}h para a marcação '
+                  '(mais de 24 horas).\n\nRegra: reembolso TOTAL do sinal '
+                  'de €$depositEur (5–10 dias úteis no cartão).',
         ),
         actions: [
           TextButton(
@@ -148,6 +173,7 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen>
                           'Ainda não tens marcações\nExplora serviços e marca a tua!',
                       buildCard: (a) => _AppointmentCard(
                         appointment: a,
+                        onTap: () => _showDetail(a),
                         onCancel: () => _cancel(a),
                       ),
                     ),
@@ -156,14 +182,20 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen>
                       onRefresh: _refresh,
                       emptyIcon: Icons.history,
                       emptyText: 'Sem marcações anteriores',
-                      buildCard: (a) => _AppointmentCard(appointment: a),
+                      buildCard: (a) => _AppointmentCard(
+                        appointment: a,
+                        onTap: () => _showDetail(a),
+                      ),
                     ),
                     _AppointmentList(
                       appointments: store.cancelledAppointments,
                       onRefresh: _refresh,
                       emptyIcon: Icons.cancel_outlined,
                       emptyText: 'Nenhuma marcação cancelada',
-                      buildCard: (a) => _AppointmentCard(appointment: a),
+                      buildCard: (a) => _AppointmentCard(
+                        appointment: a,
+                        onTap: () => _showDetail(a),
+                      ),
                     ),
                   ],
                 );
@@ -233,9 +265,10 @@ class _AppointmentList extends StatelessWidget {
 }
 
 class _AppointmentCard extends StatelessWidget {
-  const _AppointmentCard({required this.appointment, this.onCancel});
+  const _AppointmentCard({required this.appointment, this.onTap, this.onCancel});
 
   final AppointmentModel appointment;
+  final VoidCallback? onTap;
   final VoidCallback? onCancel;
 
   @override
@@ -245,7 +278,10 @@ class _AppointmentCard extends StatelessWidget {
         (a.providerName != null && a.providerName!.isNotEmpty)
             ? a.providerName!
             : 'Barbearia';
-    return Container(
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(Radii.lg),
+      child: Container(
       margin: const EdgeInsets.symmetric(
           horizontal: Spacing.md, vertical: Spacing.xs),
       padding: const EdgeInsets.all(Spacing.md),
@@ -304,6 +340,16 @@ class _AppointmentCard extends StatelessWidget {
                         ),
                       ),
                     ],
+                    const SizedBox(height: Spacing.xxs),
+                    Text(
+                      '€${(a.servicePriceCents / 100).toStringAsFixed(2)}'
+                      ' • ${_depositLabel(a)}',
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -322,7 +368,8 @@ class _AppointmentCard extends StatelessWidget {
               ),
             ),
           ],
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -411,6 +458,195 @@ class _StatusBadge extends StatelessWidget {
     if (a.isConfirmed) return ('Confirmada', AppColors.success);
     if (a.isPendingPayment) return ('Aguarda pagamento', AppColors.accent);
     return (a.status, Colors.grey);
+  }
+}
+
+/// Estado do sinal em PT-PT (valores reais da coluna deposit_status).
+String _depositLabel(AppointmentModel a) {
+  final eur = (a.depositCents / 100).toStringAsFixed(2);
+  switch (a.depositStatus) {
+    case 'paid':
+      return 'Sinal €$eur pago';
+    case 'pending':
+      return 'Sinal €$eur pendente';
+    case 'refunded':
+      return 'Sinal €$eur reembolsado';
+    case 'retained':
+      return 'Sinal €$eur retido';
+    case 'waived':
+      return 'Sem sinal';
+    default:
+      return 'Sinal €$eur';
+  }
+}
+
+/// Sessão 2026-06-11 — detalhe da marcação ao tocar no card (padrão
+/// Fresha/Booksy). Cancelar disponível só em marcações futuras.
+class _AppointmentDetailSheet extends StatelessWidget {
+  const _AppointmentDetailSheet({required this.appointment, this.onCancel});
+
+  final AppointmentModel appointment;
+  final VoidCallback? onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    final a = appointment;
+    final providerName =
+        (a.providerName != null && a.providerName!.isNotEmpty)
+            ? a.providerName!
+            : 'Barbearia';
+    return SingleChildScrollView(
+      padding: EdgeInsets.only(
+        left: Spacing.lg,
+        right: Spacing.lg,
+        top: Spacing.md,
+        bottom: Spacing.lg + MediaQuery.of(context).padding.bottom,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.divider,
+                borderRadius: BorderRadius.circular(Radii.xl),
+              ),
+            ),
+          ),
+          const SizedBox(height: Spacing.md),
+          Row(
+            children: [
+              _ProviderThumb(photoUrl: a.providerPhotoUrl),
+              const SizedBox(width: Spacing.md),
+              Expanded(
+                child: Text(
+                  providerName,
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              _StatusBadge(appointment: a),
+            ],
+          ),
+          const SizedBox(height: Spacing.sm),
+          const Divider(),
+          _DetailRow(
+            icon: Icons.content_cut,
+            label: 'Serviço',
+            value: a.serviceName ?? '—',
+          ),
+          _DetailRow(
+            icon: Icons.person_outline,
+            label: 'Profissional',
+            value: a.staffName ?? 'Qualquer profissional',
+          ),
+          _DetailRow(
+            icon: Icons.schedule,
+            label: 'Data e hora',
+            value:
+                _AppointmentCard._formatDateTimePt(a.scheduledAt.toLocal()),
+          ),
+          _DetailRow(
+            icon: Icons.timer_outlined,
+            label: 'Duração',
+            value: '${a.durationMinutes} min',
+          ),
+          _DetailRow(
+            icon: Icons.payments_outlined,
+            label: 'Preço total',
+            value: '€${(a.servicePriceCents / 100).toStringAsFixed(2)}',
+          ),
+          _DetailRow(
+            icon: Icons.savings_outlined,
+            label: 'Sinal',
+            value: _depositLabel(a),
+          ),
+          if (a.clientNotes != null && a.clientNotes!.isNotEmpty)
+            _DetailRow(
+              icon: Icons.notes_outlined,
+              label: 'Notas',
+              value: a.clientNotes!,
+            ),
+          if (a.isCancelled &&
+              a.cancelReason != null &&
+              a.cancelReason!.isNotEmpty)
+            _DetailRow(
+              icon: Icons.cancel_outlined,
+              label: 'Cancelamento',
+              value: a.cancelReason!,
+            ),
+          if (onCancel != null) ...[
+            const SizedBox(height: Spacing.md),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: onCancel,
+                icon: const Icon(Icons.cancel_outlined, size: 18),
+                label: const Text('Cancelar marcação'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.error,
+                  side: const BorderSide(color: AppColors.error),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailRow extends StatelessWidget {
+  const _DetailRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: Spacing.xs),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18, color: AppColors.textSubtle),
+          const SizedBox(width: Spacing.sm),
+          SizedBox(
+            width: 104,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

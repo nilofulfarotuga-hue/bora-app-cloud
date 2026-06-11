@@ -21,6 +21,7 @@ import '../services/wallet_service.dart';
 import '../stores/driver_store.dart';
 import '../stores/session_store.dart';
 import 'client/reservation/my_reservation_lists_screen.dart';
+import 'client/services/my_appointments_screen.dart';
 import 'client_reservations_screen.dart';
 import 'orders_screen.dart';
 import 'client_addresses_screen.dart';
@@ -564,6 +565,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       context,
                       MaterialPageRoute(
                           builder: (_) => const ClientReservationsScreen()),
+                    ),
+                  ),
+                  // Sessão 2026-06-11 — gap device: o ecrã existia mas só era
+                  // alcançável do booking_success; cliente não tinha onde
+                  // rever as marcações pagas (padrão Fresha/Booksy).
+                  ListTile(
+                    leading: const Icon(Icons.content_cut,
+                        color: AppColors.primary),
+                    title: const Text('As minhas marcações'),
+                    subtitle: const Text('Barbearia e outros serviços'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const MyAppointmentsScreen()),
                     ),
                   ),
                   ListTile(

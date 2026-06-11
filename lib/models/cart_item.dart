@@ -25,6 +25,19 @@ class CartItem {
   /// orders.items JSONB as `selected_options`.
   final List<SelectedOption> selectedOptions;
 
+  /// T1 (2026-06-11): versão com preço das opções, gravada pelo SERVIDOR
+  /// (create_order) em orders.items como `selected_options_priced`
+  /// ({group, items:[{name, price_add}]}). Itens chegam aqui já formatados
+  /// "Nome (+€X,XX)" quando price_add > 0. Read-only do histórico — NUNCA
+  /// serializada em toJson (reorder tem de voltar aos nomes puros para o
+  /// match server-side por nome funcionar).
+  final List<SelectedOption> selectedOptionsPriced;
+
+  /// Opções para exibição: com preço quando o servidor as gravou (histórico
+  /// de pedidos), senão as escolhas locais (carrinho pré-checkout).
+  List<SelectedOption> get displayOptions =>
+      selectedOptionsPriced.isNotEmpty ? selectedOptionsPriced : selectedOptions;
+
   // Sessão 4C (2026-05-04): defesa run-time em release.
   // Asserts (4B5) STRIP em release → asserts são detectores dev. Validação
   // crítica usa `if-throw` no body do constructor (executa também em release).
@@ -40,6 +53,7 @@ class CartItem {
     this.actualPrice,
     this.basePrice,
     this.selectedOptions = const [],
+    this.selectedOptionsPriced = const [],
   })  : assert(productId.isNotEmpty, 'CartItem.productId vazio'),
         assert(!productId.contains(' '),
             'CartItem.productId com espaço — parece nome ($productId)'),
@@ -71,6 +85,7 @@ class CartItem {
     this.actualPrice,
     this.basePrice,
     this.selectedOptions = const [],
+    this.selectedOptionsPriced = const [],
   });
 
   /// Cart dedup key. Two lines with different option selections are distinct.
@@ -97,6 +112,7 @@ class CartItem {
     final rawId = json['productId'] as String?;
     final name = json['name'] as String;
     final rawOpts = json['selected_options'] as List?;
+    final rawPriced = json['selected_options_priced'] as List?;
     return CartItem._raw(
       productId: (rawId == null || rawId.isEmpty) ? name : rawId,
       name: name,
@@ -110,6 +126,27 @@ class CartItem {
           : rawOpts
               .map((e) => SelectedOption.fromJson(e as Map<String, dynamic>))
               .toList(),
+      selectedOptionsPriced:
+          rawPriced == null ? const [] : _parsePricedOptions(rawPriced),
     );
+  }
+
+  // T1 (2026-06-11): selected_options_priced vem do servidor como
+  // [{group, items:[{name, price_add}]}] — formata cada item como
+  // "Nome (+€X,XX)" quando pago, só "Nome" quando grátis.
+  static List<SelectedOption> _parsePricedOptions(List raw) {
+    return raw.map((e) {
+      final m = e as Map<String, dynamic>;
+      final items = ((m['items'] as List?) ?? const []).map((it) {
+        if (it is Map) {
+          final name = (it['name'] ?? '').toString();
+          final add = (it['price_add'] as num?)?.toDouble() ?? 0;
+          return add > 0 ? '$name (+€${add.toStringAsFixed(2)})' : name;
+        }
+        return it.toString();
+      }).toList();
+      return SelectedOption(
+          group: (m['group'] as String?) ?? '', items: items);
+    }).toList();
   }
 }

@@ -59,6 +59,11 @@ class CartScreen extends StatelessWidget {
                         name: item.name,
                         price: item.price,
                         quantity: item.quantity,
+                        // T1 (2026-06-11): cliente vê as opções escolhidas
+                        // (toppings) — o preço da linha já as inclui.
+                        options: item.selectedOptions
+                            .map((o) => '${o.group}: ${o.items.join(', ')}')
+                            .toList(),
                         onDecrease: () => cartStore.decreaseQuantity(item),
                         onIncrease: () => cartStore.increaseQuantity(item),
                         onRemove: () => cartStore.removeItem(item),
@@ -112,6 +117,7 @@ class _CartItemTile extends StatelessWidget {
     required this.name,
     required this.price,
     required this.quantity,
+    this.options = const [],
     required this.onDecrease,
     required this.onIncrease,
     required this.onRemove,
@@ -120,6 +126,7 @@ class _CartItemTile extends StatelessWidget {
   final String name;
   final double price;
   final int quantity;
+  final List<String> options;
   final VoidCallback onDecrease;
   final VoidCallback onIncrease;
   final VoidCallback onRemove;
@@ -148,6 +155,17 @@ class _CartItemTile extends StatelessWidget {
                     color: AppColors.textPrimary,
                   ),
                 ),
+                if (options.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    options.join('\n'),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      height: 1.3,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 2),
                 Text(
                   '€${price.toStringAsFixed(2)}',

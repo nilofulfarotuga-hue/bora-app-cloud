@@ -2775,12 +2775,14 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                                       // Opções escolhidas pelo cliente (bebida,
                                       // acompanhamento, molhos...) — o estafeta
                                       // precisa de as ver para pedir certo.
-                                      if (item.selectedOptions.isNotEmpty)
+                                      // T1: displayOptions inclui o preço
+                                      // cobrado por extra quando gravado.
+                                      if (item.displayOptions.isNotEmpty)
                                         Padding(
                                           padding:
                                               const EdgeInsets.only(top: 2),
                                           child: Text(
-                                            item.selectedOptions
+                                            item.displayOptions
                                                 .map((o) =>
                                                     '${o.group}: ${o.items.join(', ')}')
                                                 .join('\n'),

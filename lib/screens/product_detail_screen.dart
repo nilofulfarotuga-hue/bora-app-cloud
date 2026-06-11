@@ -158,12 +158,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         selected.add(SelectedOption(group: g.name, items: names));
       }
     }
-    // Opções (price_add) ficam SEM markup: o create_order de hoje não cobra
-    // opções (divergência reportada ao Danilo em 2026-06-11 — fix server
-    // pendente de aprovação). O produto base segue exibido = cobrado.
+    // T1 (2026-06-11): exibido = cobrado. O create_order soma o price_add das
+    // opções ao preço base ANTES do ×1.15 não-parceiro — (base + extras) ×1.15.
+    // O display aplica o mesmo markup a base + extras (parceiro: identidade).
     final unit = PricingService.applyMarkup(
-            widget.product.price, widget.isPartnerStore) +
-        _optionsPrice;
+        widget.product.price + _optionsPrice, widget.isPartnerStore);
     context.read<CartStore>().addItem(CartItem(
           productId: widget.product.id,
           name: widget.product.name,

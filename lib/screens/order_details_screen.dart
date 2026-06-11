@@ -976,17 +976,40 @@ class _ItemsCard extends StatelessWidget {
               child: Row(
                 children: [
                   Expanded(
-                    child: Text(
-                      '${item.quantity}× ${item.name}',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        decoration:
-                            isUnavailable ? TextDecoration.lineThrough : null,
-                        color: isUnavailable
-                            ? Colors.grey.shade400
-                            : Colors.black87,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${item.quantity}× ${item.name}',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            decoration: isUnavailable
+                                ? TextDecoration.lineThrough
+                                : null,
+                            color: isUnavailable
+                                ? Colors.grey.shade400
+                                : Colors.black87,
+                          ),
+                        ),
+                        // T1 (2026-06-11): opções escolhidas com preço cobrado
+                        // (selected_options_priced gravado pelo create_order).
+                        if (item.displayOptions.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Text(
+                              item.displayOptions
+                                  .map((o) =>
+                                      '${o.group}: ${o.items.join(', ')}')
+                                  .join('\n'),
+                              style: TextStyle(
+                                fontSize: 12,
+                                height: 1.3,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                   if (isUnavailable)

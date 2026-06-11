@@ -1329,11 +1329,12 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
                   ),
                   // Opções escolhidas pelo cliente (acompanhamentos, extras,
                   // toppings...) — o parceiro precisa de as ver para preparar.
-                  if (item.selectedOptions.isNotEmpty)
+                  // T1: displayOptions inclui o preço cobrado por extra.
+                  if (item.displayOptions.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(left: 14, top: 1),
                       child: Text(
-                        item.selectedOptions
+                        item.displayOptions
                             .map((o) => '${o.group}: ${o.items.join(', ')}')
                             .join('\n'),
                         style: TextStyle(

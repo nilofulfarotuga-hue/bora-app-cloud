@@ -54,6 +54,10 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
   @override
   void initState() {
     super.initState();
+    // M-E (2026-06-10): alinhar o "Total a pagar" com a cobrança real —
+    // atualiza a distância para a ROTA Google (a mesma que o create_order
+    // usa). O watch<CartStore> do build refaz o total quando chegar.
+    context.read<CartStore>().refreshRouteDistance();
     _loadTokens();
     _loadDebt();
     _loadSavedCards();
@@ -704,15 +708,26 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       if (cartTotalAfterWallet <= 0) {
         debugPrint('[Checkout] wallet covers full order — using legacy path');
         // Use old finishOrder flow (cash-like) since no card charge needed.
-        final ordered = await cartStore.finishOrder(
-          orderStore,
-          paymentMethod: PaymentMethod.card,
-          paymentStatus: PaymentStatus.paid, // RPC will mark paid (charge_total<=0)
-          clientPhone: authStore.currentClient?.phone,
-          customerName: authStore.currentClient?.name,
-          notes: _orderNote,
-          tokensUsed: tokensUsed,
-        );
+        final bool ordered;
+        try {
+          ordered = await cartStore.finishOrder(
+            orderStore,
+            paymentMethod: PaymentMethod.card,
+            paymentStatus: PaymentStatus.paid, // RPC will mark paid (charge_total<=0)
+            clientPhone: authStore.currentClient?.phone,
+            customerName: authStore.currentClient?.name,
+            notes: _orderNote,
+            tokensUsed: tokensUsed,
+          );
+        } catch (e) {
+          if (kDebugMode) debugPrint('[Checkout] wallet-only finishOrder error: $e');
+          if (!mounted) return;
+          setState(() => _isProcessing = false);
+          messenger.showSnackBar(const SnackBar(
+              content: Text('Erro ao criar o pedido. Verifica a ligação e tenta de novo.'),
+              backgroundColor: Colors.red));
+          return;
+        }
         if (!mounted) return;
         if (!ordered) {
           setState(() => _isProcessing = false);
@@ -727,12 +742,25 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       // Step 1: create draft + Stripe PI (no order yet).
       // 2026-05-14 — passa _selectedSavedPmId; Edge Fn v28 cria PI com
       // confirm:true off_session quando saved_pm_id presente.
-      final draft = await cartStore.startCardPaymentDraft(
-        orderStore,
-        clientPhone: authStore.currentClient?.phone,
-        customerName: authStore.currentClient?.name,
-        savedPmId: _selectedSavedPmId,
-      );
+      // 2026-06-04 — wrapped em try/catch: se Edge Fn create-payment-intent
+      // lançar (timeout/rede/JWT), _isProcessing ficava preso → spinner infinito.
+      final Map<String, dynamic>? draft;
+      try {
+        draft = await cartStore.startCardPaymentDraft(
+          orderStore,
+          clientPhone: authStore.currentClient?.phone,
+          customerName: authStore.currentClient?.name,
+          savedPmId: _selectedSavedPmId,
+        );
+      } catch (e) {
+        if (kDebugMode) debugPrint('[Checkout] startCardPaymentDraft error: $e');
+        if (!mounted) return;
+        setState(() => _isProcessing = false);
+        messenger.showSnackBar(const SnackBar(
+            content: Text('Erro ao iniciar pagamento. Verifica a ligação e tenta de novo.'),
+            backgroundColor: Colors.red));
+        return;
+      }
       if (!mounted) return;
       if (draft == null) {
         setState(() => _isProcessing = false);
@@ -907,6 +935,12 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
         await _consumeTokensAndNavigate(tokensUsed);
         return;
       case PaymentMethod.cash:
+        // 2026-06-04 — feedback visual imediato: cold-start RPC create_order +
+        // dispatch leva 3-5s. Sem mensagem, utilizador só vê spinner vazio.
+        messenger.showSnackBar(const SnackBar(
+          content: Text('A preparar o seu pedido…'),
+          duration: Duration(seconds: 3),
+        ));
         success = await paymentService.payWithCash(amount);
         break;
     }

@@ -215,6 +215,8 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
   @override
   void initState() {
     super.initState();
+    // M-E (2026-06-10): total do painel com distância de ROTA (= cobrança).
+    context.read<CartStore>().refreshRouteDistance();
     _loadWallet();
   }
 

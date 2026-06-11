@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/cart_item.dart';
 import '../models/order_model.dart';
 import '../config/business_rules.dart' show BRTokens;
+import '../services/maps_service.dart';
 import '../services/pricing_service.dart';
 import 'order_store.dart';
 
@@ -390,6 +391,33 @@ class CartStore extends ChangeNotifier {
       return;
     }
     _distanceKm = PricingService.defaultDistanceKm;
+  }
+
+  /// M-E (2026-06-10) — o resumo TEM de mostrar a MESMA distância que o
+  /// servidor cobra. createOrder/startCardPaymentDraft resolvem a distância
+  /// com a rota Google (MapsService.getDistanceKm) antes do create_order;
+  /// o fallback haversine de _recalculateDistance é linha reta e subestima
+  /// sempre → "Total €6.00 no resumo, €6.79 no Stripe" (carry/send).
+  /// Chamar ao entrar em qualquer ecrã de resumo (PaymentMethodScreen,
+  /// painel do CartScreen). Sem rota (offline/erro) mantém o haversine.
+  Future<void> refreshRouteDistance() async {
+    final pickup = _pickupLocation;
+    final destination = _deliveryLocation;
+    if (pickup == null || destination == null) return;
+    try {
+      final routeKm = await MapsService.getDistanceKm(pickup, destination);
+      if (routeKm != null &&
+          routeKm.isFinite &&
+          routeKm > 0 &&
+          (routeKm - _distanceKm).abs() > 0.01) {
+        _distanceKm = routeKm;
+        _quoteCache = null; // total mudou — quote server cacheado ficou stale
+        _quoteCacheTime = null;
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('[CartStore] refreshRouteDistance error: $e');
+    }
   }
 
   void addItem(CartItem item) {

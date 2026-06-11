@@ -326,11 +326,14 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         summaryText: 'Bora',
       ),
       actions: const <AndroidNotificationAction>[
-        // showsUserInterface: false → handler BG corre direto sem abrir app
+        // Decisão Danilo 2026-06-10: os botões ABREM a app no pedido
+        // (showsUserInterface: true) — nunca aceitar/recusar headless.
+        // cancelNotification: false → a notif (e o som em loop) só morre
+        // quando a oferta é tratada, via cancelDriverOfferNotification.
         AndroidNotificationAction('accept_order', '✅ Aceitar',
-            showsUserInterface: false, cancelNotification: true),
+            showsUserInterface: true, cancelNotification: false),
         AndroidNotificationAction('reject_order', '❌ Rejeitar',
-            showsUserInterface: false, cancelNotification: true),
+            showsUserInterface: true, cancelNotification: false),
       ],
     );
     await plugin.show(
@@ -403,11 +406,10 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 void _onLocalNotifTap(NotificationResponse response) {
   // ignore: avoid_print
   print('[NOTIF TAP] FG actionId=${response.actionId} payload=${response.payload} type=${response.notificationResponseType}');
-  // Se foi action button, delegar ao handler de BG (mesma lógica RPC).
-  if (response.actionId == 'accept_order' || response.actionId == 'reject_order') {
-    onBackgroundNotificationAction(response);
-    return;
-  }
+  // Decisão Danilo 2026-06-10: Aceitar/Recusar do estafeta NUNCA são
+  // headless — tal como o tap no corpo da notif, ABREM a app e a decisão
+  // acontece no cartão/ecrã da oferta (rehydrate + OrderStore). As actions
+  // do parceiro (showsUserInterface:false) nunca chegam a este callback.
   FlutterForegroundTask.launchApp('/');
 }
 
@@ -625,11 +627,14 @@ Future<void> postWakeActivityNotification({
       visibility: fln.NotificationVisibility.public,
       ticker: 'Novo pedido — €$driverEarnings',
       actions: const <AndroidNotificationAction>[
-        // showsUserInterface: false → handler BG corre direto sem abrir app
+        // Decisão Danilo 2026-06-10: os botões ABREM a app no pedido
+        // (showsUserInterface: true) — nunca aceitar/recusar headless.
+        // cancelNotification: false → a notif (e o som em loop) só morre
+        // quando a oferta é tratada, via cancelDriverOfferNotification.
         AndroidNotificationAction('accept_order', '✅ Aceitar',
-            showsUserInterface: false, cancelNotification: true),
+            showsUserInterface: true, cancelNotification: false),
         AndroidNotificationAction('reject_order', '❌ Rejeitar',
-            showsUserInterface: false, cancelNotification: true),
+            showsUserInterface: true, cancelNotification: false),
       ],
     );
     await plugin.show(

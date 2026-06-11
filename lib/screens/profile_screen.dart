@@ -25,6 +25,7 @@ import 'client_reservations_screen.dart';
 import 'orders_screen.dart';
 import 'client_addresses_screen.dart';
 import 'client_promo_code_screen.dart';
+import 'driver_permissions_screen.dart';
 import 'referral_screen.dart';
 import 'support_screen.dart';
 import 'wallet_history_screen.dart';
@@ -515,6 +516,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     )
                     .toList(),
+              ),
+              // Sessão 2026-06-11 — estado das permissões críticas de
+              // pedidos (FSI/notif/overlay/bateria) com correcção. A Play
+              // revoga USE_FULL_SCREEN_INTENT na instalação (Android 14+);
+              // sem este ecrã o estafeta não tinha onde ver o ❌.
+              _SectionCard(
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.phonelink_ring_outlined,
+                        color: AppColors.primary),
+                    title: const Text('Permissões de pedidos'),
+                    subtitle: const Text(
+                        'Ecrã bloqueado, notificações, bateria'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const DriverPermissionsScreen(),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
 

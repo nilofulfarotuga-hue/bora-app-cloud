@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart' as fow;
@@ -27,7 +28,32 @@ import 'foreground_service.dart';
 class PermissionGateService {
   PermissionGateService._();
 
-  /// Tenta garantir as 3 permissões para o driver ficar Online.
+  /// Bridge nativa registada em MainActivity.kt (NATIVE_BRIDGE).
+  static const MethodChannel _nativeBridge =
+      MethodChannel('pt.boraapp.bora/native');
+
+  /// Estado REAL de USE_FULL_SCREEN_INTENT via
+  /// NotificationManager.canUseFullScreenIntent() (API 34+).
+  ///
+  /// Sessão 2026-06-11 — root cause do "ecrã bloqueado não acorda": a Play
+  /// Store revoga esta permissão na instalação (Android 14+) para apps que
+  /// não são de chamadas/alarmes; o fullScreenIntent passa a ser ignorado
+  /// em silêncio. Devolve:
+  ///   true  → concedida (ou Android <14, auto via manifest)
+  ///   false → revogada/negada — notif de pedido NÃO acorda o ecrã
+  ///   null  → indeterminado (bridge indisponível; não-Android)
+  static Future<bool?> checkFullScreenIntentAllowed() async {
+    try {
+      final res =
+          await _nativeBridge.invokeMethod<bool>('canUseFullScreenIntent');
+      return res;
+    } catch (e) {
+      debugPrint('[BORA-FSI] checkFullScreenIntentAllowed indeterminado: $e');
+      return null;
+    }
+  }
+
+  /// Tenta garantir as 4 permissões para o driver ficar Online.
   /// Mostra diálogos explicativos antes de cada pedido nativo.
   /// Devolve true só quando todas concedidas — UI deve abortar caso false.
   static Future<bool> ensureDriverOnlinePermissions(BuildContext context) async {
@@ -121,30 +147,40 @@ class PermissionGateService {
   static Future<bool> _ensureFullScreenIntentPermission(
       BuildContext context) async {
     try {
+      // Sessão 2026-06-11 — verificar o estado REAL primeiro (a Play revoga
+      // esta permissão na instalação em Android 14+). Se já está concedida,
+      // não chatear o estafeta com diálogo nenhum.
+      final allowed = await checkFullScreenIntentAllowed();
+      debugPrint('[BORA-FSI] gate online: canUseFullScreenIntent=$allowed');
+      if (allowed == true) return true;
+
       final plugin = FlutterLocalNotificationsPlugin();
       final androidImpl = plugin.resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>();
       if (androidImpl == null) return true; // não-Android
-      // Nota: o getter específico de FSI só existe a partir de 18.x; em
-      // 17.x fazemos pedido directo — método é idempotente e devolve true
-      // se já estiver concedido (Android <14 devolve null = auto-granted).
       if (!context.mounted) return false;
       final go = await _showRationale(
         context,
-        title: '📱 Ecrã cheio para pedidos',
+        title: '📱 Pedidos com o ecrã bloqueado',
         body:
-            'No Android 14+ a Bora precisa de autorização para abrir a app '
-            'em ecrã cheio quando chega um pedido — caso contrário, o pedido '
-            'só aparece como notificação normal e podes perdê-lo enquanto '
-            'estás noutra app.\n\nVais ser levado às definições. Activa a '
-            'opção para a Bora.',
+            'Para a chamada de pedido acordar o teu telemóvel (mesmo '
+            'bloqueado ou com a Bora fechada), o Android 14+ exige uma '
+            'autorização especial que a Play Store desliga na instalação.\n\n'
+            'Vais ser levado às definições — activa a opção de ecrã '
+            'inteiro para a Bora. Sem isto, o pedido chega só como '
+            'notificação normal e podes perdê-lo.',
       );
       if (go != true) return false;
+      // Abre Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT e devolve o
+      // estado REAL no regresso (verificado no source do plugin 17.2.4:
+      // onActivityResult → canUseFullScreenIntent()).
       final granted = await androidImpl.requestFullScreenIntentPermission();
-      // null/true = OK (Android <14 devolve null porque é auto-granted)
-      return granted ?? true;
+      // Re-check defensivo pela bridge nativa — fonte de verdade única.
+      final after = await checkFullScreenIntentAllowed();
+      debugPrint('[BORA-FSI] pós-settings: plugin=$granted bridge=$after');
+      return after ?? granted ?? true;
     } catch (e) {
-      debugPrint('[PermissionGate] fullScreenIntent error: $e');
+      debugPrint('[BORA-FSI] gate error (não bloqueia Online): $e');
       // Falha do plugin não bloqueia o estafeta — fallback heads-up funciona.
       return true;
     }
@@ -178,9 +214,38 @@ class PermissionGateService {
 
   // ── Diagnóstico (sem prompts) ─────────────────────────────────────────────
 
-  /// Verifica silenciosamente o estado actual das 3 permissões.
+  /// Snapshot individual das 4 permissões — para o ecrã de estado do
+  /// estafeta (DriverPermissionsScreen). Nunca abre pickers nem diálogos.
+  static Future<DriverPermissionsSnapshot> snapshot() async {
+    bool notif = false;
+    bool overlay = false;
+    bool battery = false;
+    bool? fsi;
+    try {
+      notif = await FlutterForegroundTask.checkNotificationPermission() ==
+          NotificationPermission.granted;
+    } catch (_) {}
+    try {
+      overlay = await fow.FlutterOverlayWindow.isPermissionGranted();
+    } catch (_) {}
+    try {
+      battery = await FlutterForegroundTask.isIgnoringBatteryOptimizations;
+    } catch (_) {}
+    fsi = await checkFullScreenIntentAllowed();
+    debugPrint('[BORA-FSI] snapshot notif=$notif overlay=$overlay '
+        'battery=$battery fsi=$fsi');
+    return DriverPermissionsSnapshot(
+      notifications: notif,
+      overlay: overlay,
+      battery: battery,
+      fullScreenIntent: fsi,
+    );
+  }
+
+  /// Verifica silenciosamente o estado actual das 4 permissões.
   /// Usado no initState do driver_home para detectar revogações
-  /// (utilizador foi às definições e tirou uma perm enquanto online).
+  /// (utilizador foi às definições e tirou uma perm enquanto online,
+  /// ou a Play revogou USE_FULL_SCREEN_INTENT numa reinstalação).
   static Future<bool> areAllGranted() async {
     try {
       final notifStatus =
@@ -190,6 +255,12 @@ class PermissionGateService {
       if (!await FlutterForegroundTask.isIgnoringBatteryOptimizations) {
         return false;
       }
+      // Sessão 2026-06-11 — FSI fazia falta aqui: revogação pela Play era
+      // invisível e o estafeta perdia pedidos com o ecrã bloqueado sem
+      // qualquer aviso. null (indeterminado) não chumba o check.
+      final fsi = await checkFullScreenIntentAllowed();
+      debugPrint('[BORA-FSI] areAllGranted: canUseFullScreenIntent=$fsi');
+      if (fsi == false) return false;
       return true;
     } catch (e) {
       debugPrint('[PermissionGate] areAllGranted error: $e');
@@ -229,4 +300,24 @@ class PermissionGateService {
   /// terminar o init paralelo.
   static Future<void> ensureForegroundInitialized() =>
       BoraForegroundService.init();
+}
+
+/// Estado das 4 permissões críticas do estafeta num dado instante.
+/// [fullScreenIntent] é nullable: null = indeterminado (bridge nativa
+/// indisponível) — não deve ser tratado como falha.
+class DriverPermissionsSnapshot {
+  const DriverPermissionsSnapshot({
+    required this.notifications,
+    required this.overlay,
+    required this.battery,
+    required this.fullScreenIntent,
+  });
+
+  final bool notifications;
+  final bool overlay;
+  final bool battery;
+  final bool? fullScreenIntent;
+
+  bool get allOk =>
+      notifications && overlay && battery && fullScreenIntent != false;
 }

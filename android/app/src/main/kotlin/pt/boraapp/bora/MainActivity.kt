@@ -64,6 +64,24 @@ class MainActivity : FlutterFragmentActivity() {
                             result.success(false)
                         }
                     }
+                    "canUseFullScreenIntent" -> {
+                        // Sessão 2026-06-11 — Android 14+ trata USE_FULL_SCREEN_INTENT
+                        // como "special app access": a Play Store revoga-a na instalação
+                        // para apps que não são de chamadas/alarmes. Sem ela, o
+                        // fullScreenIntent é ignorado em silêncio (notif normal, ecrã
+                        // não acorda com telemóvel bloqueado). Em Android <14 é
+                        // concedida via manifest.
+                        try {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                                val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                                result.success(nm.canUseFullScreenIntent())
+                            } else {
+                                result.success(true)
+                            }
+                        } catch (e: Exception) {
+                            result.error("FSI_CHECK", e.message, null)
+                        }
+                    }
                     else -> result.notImplemented()
                 }
             }

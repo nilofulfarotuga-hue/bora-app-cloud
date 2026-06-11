@@ -1233,6 +1233,17 @@ class NotificationService {
   }
 
   /// Saves the FCM token for the given [restaurantId] partner.
+  /// B2 (2026-06-11): parceiro SÓ-serviços (barbearia) — não tem restaurante,
+  /// por isso não pode usar [saveTokenForPartner]. Regista apenas o token
+  /// multi-device em partner_push_tokens (RPC usa auth.uid() server-side);
+  /// é daí que a Edge notify-service-provider lê os destinos do push de
+  /// marcação nova. Refresh de token coberto pelo listener interno do
+  /// PushTokenService.
+  Future<void> savePushTokenForServicePartner() async {
+    if (!_consentGranted) return;
+    await PushTokenService.registerForRole('partner');
+  }
+
   /// Call this after a partner successfully logs in.
   ///
   /// Writes to both:

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../auth/auth_store.dart';
 import '../../../config/app_colors.dart';
 import '../../../models/service_provider_model.dart';
+import '../../../services/notification_service.dart';
 import '../../../stores/partner_appointments_store.dart';
 import '../../../stores/session_store.dart';
 import '../../../widgets/bora/bora_screen_app_bar.dart';
@@ -34,6 +35,10 @@ class _PartnerServicesHubScreenState extends State<PartnerServicesHubScreen> {
   void initState() {
     super.initState();
     _future = context.read<PartnerAppointmentsStore>().loadMyProvider();
+    // B2 (2026-06-11): registo defensivo do token FCM (espelha o padrão do
+    // partner_dashboard). Sem isto, o parceiro só-serviços nunca aparecia em
+    // partner_push_tokens e o push de marcação nova não tinha destino.
+    NotificationService.instance.savePushTokenForServicePartner().ignore();
   }
 
   void _reload() {

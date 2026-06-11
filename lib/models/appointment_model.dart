@@ -17,7 +17,7 @@ class AppointmentModel {
   AppointmentModel({
     required this.id,
     required this.providerId,
-    required this.serviceId,
+    this.serviceId,
     required this.scheduledAt,
     this.staffId,
     this.clientUserId,
@@ -50,7 +50,12 @@ class AppointmentModel {
 
   final String id;
   final String providerId;
-  final String serviceId;
+
+  /// null em slots bloqueados (partner_block_slot grava service_id NULL).
+  /// B2 (2026-06-11): era `String` não-nullable — o cast rebentava no parse
+  /// da agenda assim que o parceiro bloqueava um horário ("Não foi possível
+  /// carregar a agenda").
+  final String? serviceId;
   final DateTime scheduledAt;
   final String? staffId;
   final String? clientUserId;
@@ -108,7 +113,7 @@ class AppointmentModel {
     return AppointmentModel(
       id: row['id'] as String,
       providerId: row['provider_id'] as String,
-      serviceId: row['service_id'] as String,
+      serviceId: row['service_id'] as String?,
       scheduledAt: DateTime.parse(row['scheduled_at'] as String),
       staffId: row['staff_id'] as String?,
       clientUserId: row['client_user_id'] as String?,
@@ -142,7 +147,7 @@ class AppointmentModel {
   Map<String, dynamic> toMap() => {
         'id': id,
         'provider_id': providerId,
-        'service_id': serviceId,
+        if (serviceId != null) 'service_id': serviceId,
         'scheduled_at': scheduledAt.toUtc().toIso8601String(),
         if (staffId != null) 'staff_id': staffId,
         if (clientUserId != null) 'client_user_id': clientUserId,

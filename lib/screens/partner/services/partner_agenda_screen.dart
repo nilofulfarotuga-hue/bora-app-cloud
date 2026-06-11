@@ -18,8 +18,13 @@ class PartnerAgendaScreen extends StatefulWidget {
   State<PartnerAgendaScreen> createState() => _PartnerAgendaScreenState();
 }
 
+/// Janela temporal da agenda. B2 (2026-06-11): +Mês (30 dias) — a vista
+/// Semana (hoje+6) escondia marcações feitas com mais de uma semana de
+/// antecedência e o parceiro não tinha forma de as ver.
+enum _AgendaRange { today, week, month }
+
 class _PartnerAgendaScreenState extends State<PartnerAgendaScreen> {
-  bool _weekView = false;
+  _AgendaRange _range = _AgendaRange.today;
   late Future<List<AppointmentModel>> _future;
   final Set<String> _busy = <String>{};
 
@@ -31,22 +36,29 @@ class _PartnerAgendaScreenState extends State<PartnerAgendaScreen> {
 
   Future<List<AppointmentModel>> _load() {
     final store = context.read<PartnerAppointmentsStore>();
-    if (_weekView) {
-      final now = DateTime.now();
-      return store.fetchAgenda(
-        from: now,
-        to: now.add(const Duration(days: 6)),
-      );
+    final now = DateTime.now();
+    switch (_range) {
+      case _AgendaRange.today:
+        return store.fetchAgenda(day: now);
+      case _AgendaRange.week:
+        return store.fetchAgenda(
+          from: now,
+          to: now.add(const Duration(days: 6)),
+        );
+      case _AgendaRange.month:
+        return store.fetchAgenda(
+          from: now,
+          to: now.add(const Duration(days: 29)),
+        );
     }
-    return store.fetchAgenda(day: DateTime.now());
   }
 
   void _refresh() => setState(() => _future = _load());
 
-  void _setView(bool week) {
-    if (_weekView == week) return;
+  void _setView(_AgendaRange range) {
+    if (_range == range) return;
     setState(() {
-      _weekView = week;
+      _range = range;
       _future = _load();
     });
   }
@@ -156,12 +168,16 @@ class _PartnerAgendaScreenState extends State<PartnerAgendaScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.all(Spacing.lg),
-            child: SegmentedButton<bool>(
+            child: SegmentedButton<_AgendaRange>(
               segments: const [
-                ButtonSegment(value: false, label: Text('Hoje')),
-                ButtonSegment(value: true, label: Text('Semana')),
+                ButtonSegment(
+                    value: _AgendaRange.today, label: Text('Hoje')),
+                ButtonSegment(
+                    value: _AgendaRange.week, label: Text('Semana')),
+                ButtonSegment(
+                    value: _AgendaRange.month, label: Text('Mês')),
               ],
-              selected: {_weekView},
+              selected: {_range},
               onSelectionChanged: (s) => _setView(s.first),
             ),
           ),
@@ -191,6 +207,8 @@ class _PartnerAgendaScreenState extends State<PartnerAgendaScreen> {
                           itemCount: items.length,
                           itemBuilder: (_, i) => _AppointmentCard(
                             appointment: items[i],
+                            // Semana/Mês: mostrar também o dia (dd/MM).
+                            showDate: _range != _AgendaRange.today,
                             busy: _busy.contains(items[i].id),
                             onCompleteOnSite: () =>
                                 _complete(items[i], 'on_site'),
@@ -238,6 +256,7 @@ class _AppointmentCard extends StatelessWidget {
     required this.onCompleteApp,
     required this.onNoShow,
     required this.onCancel,
+    this.showDate = false,
   });
 
   final AppointmentModel appointment;
@@ -247,11 +266,16 @@ class _AppointmentCard extends StatelessWidget {
   final VoidCallback onNoShow;
   final VoidCallback onCancel;
 
+  /// true nas vistas Semana/Mês — prefixa o dia (dd/MM) à hora.
+  final bool showDate;
+
   String _two(int v) => v.toString().padLeft(2, '0');
 
   String get _timeLabel {
     final dt = appointment.scheduledAt.toLocal();
-    return '${_two(dt.hour)}:${_two(dt.minute)}';
+    final time = '${_two(dt.hour)}:${_two(dt.minute)}';
+    if (!showDate) return time;
+    return '${_two(dt.day)}/${_two(dt.month)} · $time';
   }
 
   @override

@@ -39,20 +39,26 @@ class PushTokenService {
     print('[PushTokenService] $msg');
   }
 
-  /// Registers the current device for the given [role] ('client' | 'driver').
+  /// Registers the current device for the given [role]
+  /// ('client' | 'driver' | 'partner').
   /// Idempotent: safe to call multiple times. Re-uses the FCM token from
   /// [NotificationService.instance.fcmToken] when available.
   ///
   /// BUG E — retry 3x com backoff (1s, 3s, 9s) quando getToken() retorna null
   /// ou RPC falha por race condition (auth não settled).
   ///
+  /// B2 (2026-06-11): 'partner' aceite — o RPC register_push_token sempre
+  /// suportou partner_push_tokens (partner_id = auth.uid()), mas este guard
+  /// rejeitava o role e a tabela ficava vazia → notify-service-provider
+  /// (push de marcação nova à barbearia) não tinha tokens para enviar.
+  ///
   /// Skips silently se:
   ///   • Not authenticated (após retries)
-  ///   • Role is not 'client' or 'driver'
+  ///   • Role is not 'client' / 'driver' / 'partner'
   ///   • No FCM token available após 3 retries
   static Future<void> registerForRole(String role) async {
     if (_registering) return;
-    if (role != 'client' && role != 'driver') {
+    if (role != 'client' && role != 'driver' && role != 'partner') {
       _log('skip — invalid role: $role');
       return;
     }

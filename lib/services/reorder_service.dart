@@ -3,6 +3,7 @@ import '../models/order_model.dart';
 import '../models/order_service_type.dart';
 import '../models/partner_product.dart';
 import '../models/restaurant_model.dart';
+import '../services/pricing_service.dart';
 import '../stores/cart_store.dart';
 import '../stores/partner_product_store.dart';
 import '../stores/restaurant_store.dart';
@@ -49,19 +50,35 @@ class ReorderService {
       }
     }
 
+    final isNonPartnerMarket = !order.isPartnerStore &&
+        order.serviceType == OrderServiceType.storeShopping;
+
     for (final it in order.items) {
       double currentPrice = it.price;
+      double? basePrice = it.basePrice;
       if (liveProducts != null) {
         final fresh = _findMatch(liveProducts, it);
         if (fresh != null && (fresh.price - it.price).abs() > 0.01) {
           changedPrices.add(it.name);
           currentPrice = fresh.price;
+          basePrice = fresh.price; // parceiro: preço do menu é o cobrado
         }
+      }
+      // B1 (2026-06-11): pedidos de mercado anteriores ao fix gravavam
+      // items[].price = preço BASE (sem markup) e sem basePrice. Reaplicar o
+      // markup de exibição para o carrinho voltar a bater com o cobrado.
+      // Restaurantes não-parceiro antigos já gravavam price com markup —
+      // nesses, ficar como está (basePrice null → unit_price = price, igual
+      // ao comportamento pré-fix).
+      if (isNonPartnerMarket && it.basePrice == null) {
+        basePrice = it.price;
+        currentPrice = PricingService.applyMarkup(it.price, false);
       }
       cart.addItem(CartItem(
         productId: it.productId,
         name: it.name,
         price: currentPrice,
+        basePrice: basePrice,
         quantity: it.quantity,
       ));
     }

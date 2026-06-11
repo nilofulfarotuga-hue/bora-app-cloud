@@ -8,6 +8,7 @@ import '../config/app_colors.dart';
 import '../models/cart_item.dart';
 import '../models/partner_product.dart';
 import '../models/product_variant.dart';
+import '../services/pricing_service.dart';
 import '../stores/cart_store.dart';
 import '../stores/favorite_store.dart';
 import '../stores/restaurant_store.dart';
@@ -278,7 +279,10 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (_) => ProductDetailScreen(product: p)),
+                        builder: (_) => ProductDetailScreen(
+                              product: p,
+                              isPartnerStore: widget.isPartnerStore,
+                            )),
                   );
                 },
               ),
@@ -859,14 +863,19 @@ class _BoraProductCardTile extends StatelessWidget {
 
     return BoraProductCard(
       product: product,
-      // Preço na DB já inclui markup non-partner (2026-05-21).
-      displayPrice: product.price,
+      // B1 (2026-06-11): preço exibido = preço cobrado. A DB tem o preço BASE
+      // do site oficial (a nota de 2026-05-21 estava errada — provado pelo
+      // pedido 80ba3a2e); o markup não-parceiro aplica-se em runtime.
+      displayPrice: PricingService.applyMarkup(product.price, isPartnerStore),
       isFavorite: isFav,
       onFavoriteToggle: () => favoriteStore.toggle(product.id),
       onTap: () => Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => ProductDetailScreen(product: product),
+          builder: (_) => ProductDetailScreen(
+            product: product,
+            isPartnerStore: isPartnerStore,
+          ),
         ),
       ),
       onAdd: () {
@@ -874,7 +883,8 @@ class _BoraProductCardTile extends StatelessWidget {
         context.read<CartStore>().addItem(CartItem(
               productId: product.id,
               name: product.name,
-              price: product.price,
+              price: PricingService.applyMarkup(product.price, isPartnerStore),
+              basePrice: product.price,
             ));
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
@@ -959,7 +969,10 @@ class _ProductCardState extends State<_ProductCard>
       onTap: () => Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => ProductDetailScreen(product: widget.product),
+          builder: (_) => ProductDetailScreen(
+            product: widget.product,
+            isPartnerStore: widget.isPartnerStore,
+          ),
         ),
       ),
       child: ScaleTransition(
@@ -1050,7 +1063,8 @@ class _ProductCardState extends State<_ProductCard>
                     children: [
                       Text(
                         widget.product.price > 0
-                            ? '€${widget.product.price.toStringAsFixed(2)}'
+                            // B1: exibido = cobrado (markup runtime não-parceiro).
+                            ? '€${PricingService.applyMarkup(widget.product.price, widget.isPartnerStore).toStringAsFixed(2)}'
                             : 'Preço indisponível',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
@@ -1068,7 +1082,10 @@ class _ProductCardState extends State<_ProductCard>
                           context.read<CartStore>().addItem(CartItem(
                                 productId: widget.product.id,
                                 name: widget.product.name,
-                                price: widget.product.price,
+                                price: PricingService.applyMarkup(
+                                    widget.product.price,
+                                    widget.isPartnerStore),
+                                basePrice: widget.product.price,
                               ));
                           ScaffoldMessenger.of(context)
                             ..hideCurrentSnackBar()
@@ -1150,10 +1167,13 @@ class _VariantMiniCard extends StatelessWidget {
   String get _variantKey => variant.id;
 
   void _addToCart(BuildContext context) {
+    // B1 (2026-06-11): variantes podem não existir em `products` — o servidor
+    // usa unit_price (basePrice) como fallback e aplica o markup à soma.
     context.read<CartStore>().addItem(CartItem(
           productId: _variantKey,
           name: '$productName (${variant.brandName})',
-          price: variant.price,
+          price: PricingService.applyMarkup(variant.price, isPartnerStore),
+          basePrice: variant.price,
         ));
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -1180,8 +1200,10 @@ class _VariantMiniCard extends StatelessWidget {
     final qty = cartStore.items
         .where((i) => i.productId == _variantKey)
         .fold<int>(0, (sum, i) => sum + i.quantity);
-    // Preço na DB já inclui markup non-partner (2026-05-21).
-    final markedPrice = variant.price;
+    // B1 (2026-06-11): exibido = cobrado. A DB tem preço BASE (a nota de
+    // 2026-05-21 estava errada); markup não-parceiro aplicado em runtime.
+    final markedPrice =
+        PricingService.applyMarkup(variant.price, isPartnerStore);
     final priceLabel = showPerKg
         ? '€${markedPrice.toStringAsFixed(2)}/kg'
         : '€${markedPrice.toStringAsFixed(2)}';
@@ -1588,7 +1610,8 @@ class _SuggestionsPanel extends StatelessWidget {
                     style: const TextStyle(
                         fontSize: 13, fontWeight: FontWeight.w600)),
                 subtitle: Text(
-                    '€${p.price.toStringAsFixed(2)}',
+                    // B1: exibido = cobrado (markup runtime não-parceiro).
+                    '€${PricingService.applyMarkup(p.price, isPartnerStore).toStringAsFixed(2)}',
                     style: const TextStyle(fontSize: 12)),
                 onTap: () => onPickProduct(p),
               );
@@ -1617,7 +1640,8 @@ class _SuggestionsPanel extends StatelessWidget {
                     style: const TextStyle(
                         fontSize: 13, fontWeight: FontWeight.w600)),
                 subtitle: Text(
-                    '€${p.price.toStringAsFixed(2)}',
+                    // B1: exibido = cobrado (markup runtime não-parceiro).
+                    '€${PricingService.applyMarkup(p.price, isPartnerStore).toStringAsFixed(2)}',
                     style: const TextStyle(fontSize: 12)),
                 onTap: () => onPickProduct(p),
               ),

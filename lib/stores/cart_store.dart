@@ -421,9 +421,13 @@ class CartStore extends ChangeNotifier {
   }
 
   void addItem(CartItem item) {
-    // Preços na DB já incluem o markup non-partner — NÃO aplicar mais
-    // PricingService.applyMarkup aqui (confirmado 2026-05-21: site auchan.pt
-    // Água 1.5l €0.28 vs DB €0.32 = €0.28×1.15). Preço usado directo.
+    // B1 (2026-06-11): a conclusão de 2026-05-21 ("preços na DB já incluem o
+    // markup") estava ERRADA — provado pelo pedido real 80ba3a2e (Continente
+    // cnt-4603911: DB €1,55 = preço BASE do site; backend cobrou 1,55×1,15).
+    // O markup de exibição não-parceiro é aplicado nos CALL SITES que criam o
+    // CartItem via PricingService.applyMarkup (price = exibido/cobrado;
+    // basePrice = puro de catálogo). addItem usa o preço tal como vem — itens
+    // de reorder/persistência já vêm finais e não podem ser re-marcados.
     final cartItem = item;
 
     final index = _items.indexWhere((i) => i.lineKey == cartItem.lineKey);
@@ -526,6 +530,7 @@ class CartStore extends ChangeNotifier {
               name: item.name,
               price: item.price,
               quantity: item.quantity,
+              basePrice: item.basePrice,
               selectedOptions: item.selectedOptions,
             ),
           )
@@ -614,6 +619,7 @@ class CartStore extends ChangeNotifier {
               name: item.name,
               price: item.price,
               quantity: item.quantity,
+              basePrice: item.basePrice,
               selectedOptions: item.selectedOptions,
             ),
           )

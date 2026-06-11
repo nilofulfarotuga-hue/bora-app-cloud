@@ -6,6 +6,7 @@ import '../../config/app_colors.dart';
 import '../../models/cart_item.dart';
 import '../../models/partner_product.dart';
 import '../../screens/product_detail_screen.dart';
+import '../../services/pricing_service.dart';
 import '../../stores/cart_store.dart';
 import '../../stores/restaurant_store.dart';
 
@@ -39,15 +40,21 @@ class MarketProductCard extends StatelessWidget {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => ProductDetailScreen(product: product),
+          builder: (_) => ProductDetailScreen(
+            product: product,
+            isPartnerStore: isPartnerStore,
+          ),
         ),
       );
       return;
     }
+    // B1 (2026-06-11): price = exibido/cobrado (markup não-parceiro);
+    // basePrice = puro de catálogo (vai em product_lines.unit_price).
     context.read<CartStore>().addItem(CartItem(
           productId: product.id,
           name: product.name,
-          price: product.price,
+          price: PricingService.applyMarkup(product.price, isPartnerStore),
+          basePrice: product.price,
           quantity: 1,
         ));
     ScaffoldMessenger.of(context)
@@ -65,7 +72,10 @@ class MarketProductCard extends StatelessWidget {
       onTap: () => Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => ProductDetailScreen(product: product),
+          builder: (_) => ProductDetailScreen(
+            product: product,
+            isPartnerStore: isPartnerStore,
+          ),
         ),
       ),
       child: SizedBox(
@@ -97,27 +107,19 @@ class MarketProductCard extends StatelessWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (product.isOnSale && product.discountPrice != null)
-                          Text(
-                            '€${product.price.toStringAsFixed(2)}',
-                            style: const TextStyle(
-                              fontSize: 10,
-                              color: AppColors.textSecondary,
-                              decoration: TextDecoration.lineThrough,
-                            ),
-                          ),
-                        Text(
-                          '€${(product.isOnSale && product.discountPrice != null ? product.discountPrice! : product.price).toStringAsFixed(2)}',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                      ],
+                    // B1 (2026-06-11): preço exibido = preço COBRADO =
+                    // products.price com markup runtime (applyMarkup;
+                    // parceiro = puro). O servidor NÃO honra discount_price
+                    // na cobrança — exibir o desconto riscado cobrando o
+                    // preço cheio era enganoso (14 produtos Lidl afetados;
+                    // decisão sobre honrar promoções reportada ao Danilo).
+                    Text(
+                      '€${PricingService.applyMarkup(product.price, isPartnerStore).toStringAsFixed(2)}',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      ),
                     ),
                     _AddButton(onTap: () => _handleAdd(context)),
                   ],

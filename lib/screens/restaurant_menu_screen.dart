@@ -248,15 +248,17 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
   }
 
   /// Mesma regra de preço do resto do ecrã: parceiro = preço puro;
-  /// não-parceiro = ×1.15 (markup runtime). Copiado de
-  /// _SectionProductsScreen.addToCart — não alterar sem aprovação.
+  /// não-parceiro = markup runtime. B1 (2026-06-11): unificado em
+  /// PricingService.applyMarkup SEM arredondar por unidade (o servidor
+  /// arredonda a soma no fim — round unitário divergia ±1 cêntimo com
+  /// quantidade > 1). basePrice = puro (product_lines.unit_price).
   void _addToCart(PartnerProduct product) {
     context.read<CartStore>().addItem(CartItem(
           productId: product.id,
           name: product.name,
-          price: widget.restaurant.isPartner
-              ? product.price
-              : double.parse((product.price * 1.15).toStringAsFixed(2)),
+          price: PricingService.applyMarkup(
+              product.price, widget.restaurant.isPartner),
+          basePrice: product.price,
         ));
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -482,13 +484,17 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
                                       fontWeight: FontWeight.w600,
                                       fontSize: 14)),
                               subtitle: Text(
-                                  '€${p.price.toStringAsFixed(2)}',
+                                  // B1: exibido = cobrado (markup runtime).
+                                  '€${PricingService.applyMarkup(p.price, widget.restaurant.isPartner).toStringAsFixed(2)}',
                                   style: const TextStyle(fontSize: 13)),
                               onTap: () => Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                    builder: (_) =>
-                                        ProductDetailScreen(product: p)),
+                                    builder: (_) => ProductDetailScreen(
+                                          product: p,
+                                          isPartnerStore:
+                                              widget.restaurant.isPartner,
+                                        )),
                               ),
                             );
                           },
@@ -568,12 +574,19 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
                                     throw StateError(
                                         'MenuItem sem productId: ${item.name}');
                                   }
+                                  // B1 (2026-06-11): caminho legacy não
+                                  // aplicava markup não-parceiro (BusinessMapper
+                                  // passa products.price puro) — display e
+                                  // carrinho ficavam abaixo do cobrado.
                                   context
                                       .read<CartStore>()
                                       .addItem(CartItem(
                                           productId: productId,
                                           name: item.name,
-                                          price: item.price));
+                                          price: PricingService.applyMarkup(
+                                              item.price,
+                                              widget.restaurant.isPartner),
+                                          basePrice: item.price));
                                   ScaffoldMessenger.of(context)
                                     ..hideCurrentSnackBar()
                                     ..showSnackBar(SnackBar(
@@ -1001,14 +1014,18 @@ class _GlovoProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Mesma regra de display do _SectionProductCard: não-parceiro ×1.15.
+    // Mesma regra de display do _SectionProductCard: exibido = cobrado
+    // (B1: fonte única PricingService.applyMarkup).
     final displayPrice =
-        isPartnerStore ? product.price : product.price * 1.15;
+        PricingService.applyMarkup(product.price, isPartnerStore);
 
     void openDetail() => Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => ProductDetailScreen(product: product),
+            builder: (_) => ProductDetailScreen(
+              product: product,
+              isPartnerStore: isPartnerStore,
+            ),
           ),
         );
 
@@ -1150,12 +1167,14 @@ class _SectionProductsScreen extends StatelessWidget {
     final primaryColor = Theme.of(context).colorScheme.primary;
 
     void addToCart(PartnerProduct product) {
+      // B1 (2026-06-11): fonte única applyMarkup (sem round unitário) +
+      // basePrice puro para product_lines.unit_price.
       context.read<CartStore>().addItem(CartItem(
             productId: product.id,
             name: product.name,
-            price: restaurant.isPartner
-                ? product.price
-                : double.parse((product.price * 1.15).toStringAsFixed(2)),
+            price: PricingService.applyMarkup(
+                product.price, restaurant.isPartner),
+            basePrice: product.price,
           ));
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
@@ -1214,7 +1233,10 @@ class _SectionProductsScreen extends StatelessWidget {
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => ProductDetailScreen(product: product),
+                        builder: (_) => ProductDetailScreen(
+                          product: product,
+                          isPartnerStore: restaurant.isPartner,
+                        ),
                       ),
                     ),
                   ),
@@ -1305,7 +1327,8 @@ class _SectionProductCard extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text(
                         product.price > 0
-                            ? '€${(isPartnerStore ? product.price : product.price * 1.15).toStringAsFixed(2)}'
+                            // B1: fonte única applyMarkup (exibido = cobrado).
+                            ? '€${PricingService.applyMarkup(product.price, isPartnerStore).toStringAsFixed(2)}'
                             : 'Preço indisponível',
                         style: TextStyle(
                           fontWeight: FontWeight.w600,

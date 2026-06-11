@@ -291,6 +291,13 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                             return '€${baseFee.toStringAsFixed(2)} base + €${(perKm * extra).toStringAsFixed(2)} por ${extra.toStringAsFixed(1)}km extra';
                           }(),
                         ),
+                        // B1 (2026-06-11): linha do saco visível também aqui
+                        // (€0,30 restaurante / €0,10×saco mercado) — era
+                        // cobrada pelo servidor mas ausente deste resumo.
+                        if (pricing.bagFee > 0)
+                          _SummaryRow(
+                              label: 'Saco para viagem',
+                              value: pricing.bagFee),
                         if (pricing.apartmentSurcharge > 0)
                           _SummaryRow(
                             label: 'Entrega em apartamento',

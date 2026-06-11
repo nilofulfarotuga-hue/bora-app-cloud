@@ -51,6 +51,11 @@ class PricingService {
 
   /// Charged automatically for all restaurant orders (takeaway bag).
   static const double _restaurantBagFee = 0.30;
+
+  /// Charged per bag for storeShopping orders. The checkout always sends
+  /// bag_count=1, and the server (`pricing_calculate`) charges
+  /// €0.10 × GREATEST(1, bag_count) — mirror it so the summary matches.
+  static const double _marketBagFeePerBag = 0.10;
   // ── Driver earnings — delivery (partner + non-partner) ───────────────────
   static const double _driverBasePay = 3.80;
   static const double _driverPerKmRate = 0.2;
@@ -103,10 +108,16 @@ class PricingService {
 
   /// Returns [basePrice] with the non-partner markup applied when [isPartner]
   /// is false. Partner prices are returned unchanged.
-  /// This is the single source of truth for markup — call only from CartStore.
+  ///
+  /// Single source of truth para o preço EXIBIDO/COBRADO por unidade — chamar
+  /// de todos os call sites que criam CartItem ou mostram preço de catálogo
+  /// (B1 2026-06-11). NÃO arredonda: o servidor (`create_order`) aplica o
+  /// markup à SOMA dos preços base e arredonda UMA vez no fim — arredondar
+  /// por unidade divergia ±1 cêntimo com quantidade > 1. Arredondar apenas
+  /// na formatação (`toStringAsFixed(2)`).
   static double applyMarkup(double basePrice, bool isPartner) {
     if (isPartner) return basePrice;
-    return _roundCurrency(basePrice * (1 + _nonPartnerMarkupRate));
+    return basePrice * (1 + _nonPartnerMarkupRate);
   }
 
   static OrderPricingBreakdown calculateBreakdown({
@@ -121,6 +132,9 @@ class PricingService {
     /// por conta própria — cliente comprou direto). Sem markup escondido
     /// (cliente já sabe o preço real). Comissão total = 15% em vez de 20%.
     bool isPartnerSelfDispatch = false,
+    /// Number of bags for storeShopping orders. Checkout charges min. 1 bag
+    /// (server: GREATEST(1, bag_count)) — keep default 1 to match.
+    int bagCount = 1,
   }) {
     final normalizedDistance = _sanitizeDistance(distanceKm);
     final normalizedSubtotal = _sanitizeAmount(subtotal);
@@ -220,8 +234,13 @@ class PricingService {
           apartmentDriverBonus);
     }
 
-    final double bagFee =
-        serviceType == OrderServiceType.restaurant ? _restaurantBagFee : 0.0;
+    // Mirror of server `pricing_calculate` (B1 2026-06-11): restaurant €0.30
+    // fixo; storeShopping €0.10 × GREATEST(1, bags) cobrado no checkout.
+    final double bagFee = serviceType == OrderServiceType.restaurant
+        ? _restaurantBagFee
+        : serviceType == OrderServiceType.storeShopping
+            ? _roundCurrency(_marketBagFeePerBag * math.max(1, bagCount))
+            : 0.0;
 
     final bool isPartner = isPartnerRestaurant || isPartnerRetail;
     // Partner-calls-driver: SEM markup escondido. Cliente comprou direto com

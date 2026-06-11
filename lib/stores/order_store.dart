@@ -522,6 +522,7 @@ class OrderStore extends ChangeNotifier {
             name: item.name,
             price: item.price,
             quantity: item.quantity,
+            basePrice: item.basePrice,
             selectedOptions: item.selectedOptions,
           ),
         )
@@ -575,7 +576,10 @@ class OrderStore extends ChangeNotifier {
             .map((i) => {
                   'product_id': i.productId,
                   'quantity': i.quantity,
-                  'unit_price': i.price,
+                  // B1 (2026-06-11): unit_price = preço PURO (fallback do
+                  // quote_order_pricing quando o id não existe em products;
+                  // o servidor aplica ×1.15 por cima — ver create_order).
+                  'unit_price': i.basePrice ?? i.price,
                   'name': i.name,
                 })
             .toList(),
@@ -768,6 +772,11 @@ class OrderStore extends ChangeNotifier {
             name: item.name,
             price: item.price,
             quantity: item.quantity,
+            // B1 (2026-06-11): preservar basePrice (unit_price puro nas
+            // product_lines) e selectedOptions (antes eram descartadas neste
+            // clone — orders.items do fluxo cash/MBWay perdia as opções).
+            basePrice: item.basePrice,
+            selectedOptions: item.selectedOptions,
           ),
         )
         .toList();
@@ -839,7 +848,11 @@ class OrderStore extends ChangeNotifier {
             .map((i) => {
                   'product_id': i.productId,
                   'quantity': i.quantity,
-                  'unit_price': i.price,
+                  // B1 (2026-06-11): unit_price = preço PURO de catálogo.
+                  // O servidor só o usa como fallback quando o product_id não
+                  // existe em `products` (ex. variantes) e aplica ×1.15 por
+                  // cima — enviar i.price (já com markup) duplicaria o markup.
+                  'unit_price': i.basePrice ?? i.price,
                   'name': i.name,
                 })
             .toList(),

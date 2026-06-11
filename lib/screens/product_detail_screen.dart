@@ -7,6 +7,7 @@ import '../models/cart_item.dart';
 import '../models/partner_product.dart';
 import '../models/product_option.dart';
 import '../models/product_variant.dart';
+import '../services/pricing_service.dart';
 import '../stores/cart_store.dart';
 import '../stores/restaurant_store.dart';
 import '../widgets/bora/bora_accent_button.dart';
@@ -14,9 +15,17 @@ import '../widgets/bora/bora_primary_button.dart';
 import 'cart_screen.dart';
 
 class ProductDetailScreen extends StatefulWidget {
-  const ProductDetailScreen({super.key, required this.product});
+  const ProductDetailScreen({
+    super.key,
+    required this.product,
+    required this.isPartnerStore,
+  });
 
   final PartnerProduct product;
+
+  /// B1 (2026-06-11): obrigatório para a regra de preço exibido = cobrado.
+  /// Não-parceiro: markup 15% runtime via PricingService.applyMarkup.
+  final bool isPartnerStore;
 
   @override
   State<ProductDetailScreen> createState() => _ProductDetailScreenState();
@@ -113,11 +122,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   // Embeber o nome do produto criava productId que falhava lookup na RPC.
   String _variantKey(ProductVariant v) => v.id;
 
+  // B1 (2026-06-11): price = exibido/cobrado (markup não-parceiro runtime);
+  // basePrice = puro de catálogo (product_lines.unit_price — fallback server).
   void _addToCart(BuildContext context, ProductVariant v) {
     context.read<CartStore>().addItem(CartItem(
           productId: _variantKey(v),
           name: '${widget.product.name} (${v.brandName})',
-          price: v.price,
+          price: PricingService.applyMarkup(v.price, widget.isPartnerStore),
+          basePrice: v.price,
           quantity: _quantity,
         ));
     _snack('${v.brandName} × $_quantity adicionado ao carrinho');
@@ -127,7 +139,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     context.read<CartStore>().addItem(CartItem(
           productId: widget.product.id,
           name: widget.product.name,
-          price: widget.product.price,
+          price: PricingService.applyMarkup(
+              widget.product.price, widget.isPartnerStore),
+          basePrice: widget.product.price,
           quantity: _quantity,
         ));
     _snack('${widget.product.name} × $_quantity adicionado ao carrinho');
@@ -144,11 +158,17 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         selected.add(SelectedOption(group: g.name, items: names));
       }
     }
-    final unit = widget.product.price + _optionsPrice;
+    // Opções (price_add) ficam SEM markup: o create_order de hoje não cobra
+    // opções (divergência reportada ao Danilo em 2026-06-11 — fix server
+    // pendente de aprovação). O produto base segue exibido = cobrado.
+    final unit = PricingService.applyMarkup(
+            widget.product.price, widget.isPartnerStore) +
+        _optionsPrice;
     context.read<CartStore>().addItem(CartItem(
           productId: widget.product.id,
           name: widget.product.name,
           price: unit,
+          basePrice: widget.product.price,
           quantity: _quantity,
           selectedOptions: selected,
         ));
@@ -296,6 +316,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           padding: const EdgeInsets.only(bottom: 12),
                           child: _VariantCard(
                             variant: v,
+                            displayPrice: PricingService.applyMarkup(
+                                v.price, widget.isPartnerStore),
                             isSelected: isSelected,
                             isCheapest: isCheapest,
                             isPremium: isPremium,
@@ -363,18 +385,22 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           child: child,
         );
 
+    // B1 (2026-06-11): botões exibem o preço COBRADO (markup runtime
+    // não-parceiro via applyMarkup; parceiro = preço puro do menu).
     if (variants.isNotEmpty) {
       if (_selectedVariant == null) return const SizedBox.shrink();
       return wrap(BoraAccentButton(
         label:
-            'Adicionar ao carrinho · €${_selectedVariant!.price.toStringAsFixed(2)}',
+            'Adicionar ao carrinho · €${PricingService.applyMarkup(_selectedVariant!.price, widget.isPartnerStore).toStringAsFixed(2)}',
         icon: Icons.add_shopping_cart,
         onPressed: () => _addToCart(context, _selectedVariant!),
       ));
     }
 
     if (hasGroups) {
-      final unit = widget.product.price + _optionsPrice;
+      final unit = PricingService.applyMarkup(
+              widget.product.price, widget.isPartnerStore) +
+          _optionsPrice;
       final ok = widget.product.price > 0 && _requiredOk;
       // Green primary button keeps the single orange element = the required
       // badge ("1 laranja por ecrã" — badge tem prioridade).
@@ -389,7 +415,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
     return wrap(BoraAccentButton(
       label: widget.product.price > 0
-          ? 'Adicionar ao carrinho · €${widget.product.price.toStringAsFixed(2)}'
+          ? 'Adicionar ao carrinho · €${PricingService.applyMarkup(widget.product.price, widget.isPartnerStore).toStringAsFixed(2)}'
           : 'Preço indisponível',
       icon: Icons.add_shopping_cart,
       onPressed:
@@ -550,6 +576,7 @@ class _HeroPlaceholder extends StatelessWidget {
 class _VariantCard extends StatelessWidget {
   const _VariantCard({
     required this.variant,
+    required this.displayPrice,
     required this.isSelected,
     required this.isCheapest,
     required this.isPremium,
@@ -559,6 +586,9 @@ class _VariantCard extends StatelessWidget {
   });
 
   final ProductVariant variant;
+
+  /// B1: preço exibido = cobrado (markup não-parceiro aplicado pelo caller).
+  final double displayPrice;
   final bool isSelected;
   final bool isCheapest;
   final bool isPremium;
@@ -632,7 +662,7 @@ class _VariantCard extends StatelessWidget {
                     _Badge(label: 'Premium', color: Colors.blue.shade600),
                   const SizedBox(height: 6),
                   Text(
-                    '€${variant.price.toStringAsFixed(2)}',
+                    '€${displayPrice.toStringAsFixed(2)}',
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w800,

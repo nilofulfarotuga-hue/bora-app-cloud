@@ -3,10 +3,22 @@ import 'product_option.dart';
 class CartItem {
   final String productId;
   final String name;
+
+  /// Preço EXIBIDO e COBRADO por unidade. Para lojas não-parceiro já inclui
+  /// o markup de 15% (PricingService.applyMarkup, sem arredondar); para
+  /// parceiros é o preço do menu. Gravado em orders.items como `price` para
+  /// o histórico do cliente bater com o Stripe (B1 2026-06-11).
   final double price;
   int quantity;
   String purchaseStatus; // 'pending', 'bought', 'unavailable'
   double? actualPrice; // real price if different from estimated (future use)
+
+  /// Preço PURO de catálogo (products.price, sem markup de exibição).
+  /// Enviado em product_lines.unit_price — o servidor usa-o como fallback
+  /// quando o product_id não existe em `products` (ex. variantes) e aplica
+  /// o ×1.15 por cima; enviar o preço com markup causaria duplo markup.
+  /// null em dados legados → tratar [price] como já-final.
+  final double? basePrice;
 
   /// Modifiers chosen for this line (e.g. açaí toppings). Empty for normal
   /// products. [price] already includes any paid extras. Persisted in
@@ -26,6 +38,7 @@ class CartItem {
     this.quantity = 1,
     this.purchaseStatus = 'pending',
     this.actualPrice,
+    this.basePrice,
     this.selectedOptions = const [],
   })  : assert(productId.isNotEmpty, 'CartItem.productId vazio'),
         assert(!productId.contains(' '),
@@ -56,6 +69,7 @@ class CartItem {
     this.quantity = 1,
     this.purchaseStatus = 'pending',
     this.actualPrice,
+    this.basePrice,
     this.selectedOptions = const [],
   });
 
@@ -73,6 +87,7 @@ class CartItem {
         'quantity': quantity,
         'purchaseStatus': purchaseStatus,
         if (actualPrice != null) 'actualPrice': actualPrice,
+        if (basePrice != null) 'basePrice': basePrice,
         if (selectedOptions.isNotEmpty)
           'selected_options':
               selectedOptions.map((o) => o.toJson()).toList(),
@@ -89,6 +104,7 @@ class CartItem {
       quantity: json['quantity'] as int? ?? 1,
       purchaseStatus: json['purchaseStatus'] as String? ?? 'pending',
       actualPrice: (json['actualPrice'] as num?)?.toDouble(),
+      basePrice: (json['basePrice'] as num?)?.toDouble(),
       selectedOptions: rawOpts == null
           ? const []
           : rawOpts

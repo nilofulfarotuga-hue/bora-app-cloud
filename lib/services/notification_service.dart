@@ -1491,6 +1491,7 @@ class NotificationService {
     final title = message.notification?.title ?? '💬 Nova mensagem';
     final body = message.notification?.body ?? '';
     final orderId = message.data['order_id'] as String?;
+    final conversationType = message.data['conversation_type'] as String?;
 
     late OverlayEntry entry;
     entry = OverlayEntry(
@@ -1499,7 +1500,7 @@ class NotificationService {
         body: body,
         onTap: () {
           entry.remove();
-          if (orderId != null) _openChat(orderId);
+          if (orderId != null) _openChat(orderId, conversationType);
         },
         onDismiss: () => entry.remove(),
       ),
@@ -1508,7 +1509,24 @@ class NotificationService {
     SystemSound.play(SystemSoundType.click);
   }
 
-  void _openChat(String orderId) async {
+  /// Devolve o interlocutor do [senderType] dentro do par [conversationType]
+  /// — abre o chat certo a partir do payload do push (threads separadas).
+  ChatTarget? _targetFor(ChatSenderType senderType, String? conversationType) {
+    return switch (conversationType) {
+      'client_driver' => senderType == ChatSenderType.client
+          ? ChatTarget.driver
+          : ChatTarget.client,
+      'client_partner' => senderType == ChatSenderType.client
+          ? ChatTarget.partner
+          : ChatTarget.client,
+      'driver_partner' => senderType == ChatSenderType.driver
+          ? ChatTarget.partner
+          : ChatTarget.driver,
+      _ => null,
+    };
+  }
+
+  void _openChat(String orderId, [String? conversationType]) async {
     final senderType = switch (_boundRole) {
       'client' => ChatSenderType.client,
       'driver' => ChatSenderType.driver,
@@ -1528,11 +1546,19 @@ class NotificationService {
           .maybeSingle();
       if (data == null || !ctx.mounted) return;
       final order = OrderModel.fromSupabase(data);
+      // Par explícito do payload; fallback: o push de chat vem sempre do
+      // interlocutor direto (cliente↔estafeta) — nunca adivinhar por status.
+      final target = _targetFor(senderType, conversationType) ??
+          (senderType == ChatSenderType.client
+              ? ChatTarget.driver
+              : ChatTarget.client);
       Navigator.of(ctx).push(MaterialPageRoute<void>(
         builder: (_) => ChatScreen(
           order: order,
           senderType: senderType,
-          conversationType: resolveConversationType(senderType, order.status, null),
+          chatTarget: target,
+          conversationType:
+              resolveConversationType(senderType, order.status, target),
         ),
       ));
     } catch (e) {

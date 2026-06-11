@@ -693,16 +693,19 @@ class _BottomCardState extends State<_BottomCard> {
 
                   // M11 (padrão Uber Eats): 2 acessos de chat com badge de
                   // não-lidas + preview — restaurante E estafeta (após aceitar).
+                  // Lojas NÃO-parceiras (mercados, Wells, Leroy...) não têm
+                  // ninguém do outro lado — chat com a loja só se parceiro.
                   if (_isActive) ...[
-                    ChatBubbleButton(
-                      order: order,
-                      senderType: ChatSenderType.client,
-                      chatTarget: ChatTarget.partner,
-                      label: 'Falar com o Restaurante',
-                      showPreview: true,
-                    ),
+                    if (order.isPartnerStore)
+                      ChatBubbleButton(
+                        order: order,
+                        senderType: ChatSenderType.client,
+                        chatTarget: ChatTarget.partner,
+                        label: 'Falar com o Restaurante',
+                        showPreview: true,
+                      ),
                     if (order.assignedDriverId != null) ...[
-                      const SizedBox(height: Spacing.sm),
+                      if (order.isPartnerStore) const SizedBox(height: Spacing.sm),
                       ChatBubbleButton(
                         order: order,
                         senderType: ChatSenderType.client,

@@ -33,6 +33,7 @@ import '../utils/constants.dart';
 import '../utils/map_marker_helper.dart';
 import '../utils/map_utils.dart';
 import '../widgets/address_text.dart';
+import '../widgets/driver_chat_fab.dart';
 import 'chat_screen.dart';
 import 'driver_order_action_helper.dart';
 
@@ -865,6 +866,16 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
             ),
           ),
 
+          // Parte C (2026-06-12): chat do pedido ativo SEMPRE visível como
+          // botão flutuante com badge de não-lidas — antes só existia dentro
+          // do bottom sheet e o estafeta não percebia mensagens novas.
+          if (focusOrder != null)
+            Positioned(
+              right: 16,
+              top: MediaQuery.of(context).size.height * 0.62 + 52,
+              child: DriverChatFab(order: focusOrder),
+            ),
+
           // Bottom info panel — draggable sheet: map fills most of the screen,
           // panel minimised by default, expands on drag.
           Positioned.fill(
@@ -1564,29 +1575,18 @@ class _BottomPanelState extends State<_BottomPanel> {
                 Row(
                   children: [
                     Expanded(
+                      // Parte C: seletor de destinatário — pedido parceiro
+                      // abre escolha Cliente/Restaurante; não-parceiro vai
+                      // direto ao cliente (a loja não tem interlocutor).
                       child: OutlinedButton.icon(
-                        onPressed: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => ChatScreen(
-                              order: focusOrder,
-                              senderType: ChatSenderType.driver,
-                              conversationType: resolveConversationType(
-                                  ChatSenderType.driver, focusOrder.status, null),
-                            ),
-                          ),
-                        ),
+                        onPressed: () => openDriverChat(context, focusOrder),
                         icon: const Icon(Icons.chat_bubble_outline),
                         // BUG-UI (2026-05-20) — label curto + ellipsis evita
                         // overflow em ecrãs pequenos (esp. multi-stop com
                         // Row partilhada com botão "Ligar").
-                        label: Flexible(
+                        label: const Flexible(
                           child: Text(
-                            resolveConversationType(ChatSenderType.driver,
-                                        focusOrder.status, null) ==
-                                    'driver_partner'
-                                ? 'Chat · Restaurante'
-                                : 'Chat · Cliente',
+                            'Chat',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             softWrap: false,

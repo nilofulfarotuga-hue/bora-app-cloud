@@ -65,11 +65,15 @@ class OrderDetailsScreen extends StatelessWidget {
               onChat: () => Navigator.push(
                 context,
                 MaterialPageRoute(
+                  // Card do estafeta → par cliente↔estafeta explícito (o
+                  // fallback por status caía em client_partner no preparing).
                   builder: (_) => ChatScreen(
                     order: liveOrder,
                     senderType: ChatSenderType.client,
+                    chatTarget: ChatTarget.driver,
                     conversationType: resolveConversationType(
-                        ChatSenderType.client, liveOrder.status, null),
+                        ChatSenderType.client, liveOrder.status,
+                        ChatTarget.driver),
                   ),
                 ),
               ),

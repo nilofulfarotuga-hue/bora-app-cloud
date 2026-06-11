@@ -106,6 +106,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
   /// M11: marca as mensagens dos outros como lidas (badge zera). Throttled —
   /// chamado ao abrir e sempre que chegam mensagens novas com o ecrã aberto.
+  /// Parte C: passa o par (conversation_type) — abrir o chat do estafeta não
+  /// pode zerar o badge do parceiro (threads separadas).
   void _markRead() {
     final now = DateTime.now();
     if (now.difference(_lastMarkRead).inSeconds < 2) return;
@@ -113,6 +115,7 @@ class _ChatScreenState extends State<ChatScreen> {
     Supabase.instance.client.rpc('chat_mark_read', params: {
       'p_order_id': widget.order.id,
       'p_reader_type': _senderRole,
+      'p_conversation_type': widget.conversationType,
     }).then((_) {}, onError: (_) {});
   }
 

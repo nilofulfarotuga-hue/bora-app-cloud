@@ -1658,23 +1658,26 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                 const SizedBox(width: 8),
                 Expanded(
                   // M11: botão de chat com badge de não-lidas (ChatBubbleButton).
+                  // Seletor de destinatário: Cliente sempre; Restaurante só em
+                  // pedido parceiro (loja não-parceira não tem interlocutor).
                   child: ChatBubbleButton(
                     order: order,
                     senderType: ChatSenderType.driver,
-                    chatTarget: resolveConversationType(ChatSenderType.driver,
-                                order.status, null) ==
-                            'driver_partner'
-                        ? ChatTarget.partner
-                        : ChatTarget.client,
-                    label: resolveConversationType(ChatSenderType.driver,
-                                order.status, null) ==
-                            'driver_partner'
-                        ? 'Chat · Restaurante'
-                        : 'Chat · Cliente',
+                    chatTarget: ChatTarget.client,
+                    label: 'Chat · Cliente',
                   ),
                 ),
               ],
             ),
+            if (order.isPartnerStore) ...[
+              const SizedBox(height: 4),
+              ChatBubbleButton(
+                order: order,
+                senderType: ChatSenderType.driver,
+                chatTarget: ChatTarget.partner,
+                label: 'Chat · Restaurante',
+              ),
+            ],
           ],
         ),
       ),

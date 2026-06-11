@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
@@ -698,7 +699,8 @@ class _StoreHeader extends StatelessWidget {
             distanceKm: distanceKm,
             isPartner: isPartner,
           );
-    final rating = model == null ? null : store.avgRatingFor(model.id);
+    // `model` é campo (não promove com o null-check) — bang seguro sob o guard.
+    final rating = model == null ? null : store.avgRatingFor(model!.id);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

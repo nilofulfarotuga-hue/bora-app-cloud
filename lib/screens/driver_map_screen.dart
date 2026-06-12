@@ -18,7 +18,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../config/app_colors.dart';
-import '../config/business_rules.dart' show BRBags, BRDriver;
+import '../config/business_rules.dart' show BRBags, BRBusiness, BRDriver;
 import '../models/cart_item.dart';
 import '../models/order_model.dart';
 import '../services/directions_service.dart';
@@ -2564,8 +2564,6 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
 
   bool _isExtraItem(CartItem i) => i.productId.startsWith('extra_');
 
-  static const double _markupPctDisplay = 0.15; // server is source of truth
-
   // ── Build ───────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
@@ -2584,18 +2582,31 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
     final pendingCount = totalCount - boughtCount - unavailableCount;
     final allDecided = pendingCount == 0;
 
+    // B4 (2026-06-12): o estafeta paga PREÇO BASE na caixa — lista e totais
+    // dele em base (basePrice ?? price; em pedidos pré-B1 o price já era
+    // base). Extras: o estafeta digitou o preço da prateleira → sem markup.
     final boughtTotal = canonicalItems
         .where((i) => i.purchaseStatus == 'bought')
-        .fold<double>(0, (s, i) => s + i.price * i.quantity);
+        .fold<double>(0, (s, i) => s + (i.basePrice ?? i.price) * i.quantity);
 
-    // Extra items: estafeta meteu o preço base; aplicamos +15% para display.
-    // Server faz o mesmo cálculo autoritativo.
-    final addedFinalTotal = extraItems.fold<double>(
-        0, (s, i) => s + (i.price * (1 + _markupPctDisplay) * i.quantity));
+    final addedFinalTotal =
+        extraItems.fold<double>(0, (s, i) => s + i.price * i.quantity);
+
+    // Valores do lado do CLIENTE (com markup) — só para a cobrança em
+    // dinheiro e para a diferença vs buffer. O servidor é a fonte
+    // autoritativa; aqui é preview com a MESMA constante das BR.
+    final clientBoughtTotal = canonicalItems
+        .where((i) => i.purchaseStatus == 'bought')
+        .fold<double>(0, (s, i) => s + i.price * i.quantity);
+    final clientAddedTotal = extraItems.fold<double>(
+        0,
+        (s, i) =>
+            s + (i.price * (1 + BRBusiness.NON_PARTNER_MARKUP_RATIO) * i.quantity));
+    final clientAdjustedTotal = clientBoughtTotal + _bagFee + clientAddedTotal;
 
     final origTotal = order.paymentBufferTotal;
     final adjustedTotal = boughtTotal + _bagFee + addedFinalTotal;
-    final diff = adjustedTotal - origTotal;
+    final diff = clientAdjustedTotal - origTotal;
     // BUG 16+17 — extraToCharge/refundDue retirados; agora exibimos
     // diff directo com texto explicativo distinto por payment_method.
 
@@ -2795,12 +2806,11 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                                   ),
                                 ),
                                 Text(
-                                  // BUG 38: items adicionados pelo estafeta
-                                  // mostram preço FINAL (com markup +15%) já
-                                  // aqui, para coincidir com o resumo lá em
-                                  // baixo. Items canónicos mostram price tal
-                                  // como vieram (cliente já pagou esse).
-                                  '€${(_isExtraItem(item) ? item.price * (1 + _markupPctDisplay) * item.quantity : item.price * item.quantity).toStringAsFixed(2)}',
+                                  // B4 (2026-06-12): o estafeta vê o preço
+                                  // que paga na CAIXA (base, sem +15%).
+                                  // Canónicos: basePrice (pré-B1: price já
+                                  // era base). Extras: preço digitado.
+                                  '€${((_isExtraItem(item) ? item.price : (item.basePrice ?? item.price)) * item.quantity).toStringAsFixed(2)}',
                                   style: TextStyle(
                                     fontWeight: FontWeight.w600,
                                     fontSize: 14,
@@ -3044,7 +3054,8 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
-                    'Total ajustado:',
+                    // B4: total que o estafeta paga na caixa (preços base).
+                    'Total na caixa:',
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 15,
@@ -3070,8 +3081,11 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                 _SummaryRow(label: 'Entrega', value: order.deliveryFee),
                 const Divider(height: 12),
                 Builder(builder: (_) {
-                  final cashTotal =
-                      adjustedTotal + order.serviceFee + order.deliveryFee;
+                  // B4: o cliente paga preços COM markup — usar o total do
+                  // lado do cliente, não o total de caixa do estafeta.
+                  final cashTotal = clientAdjustedTotal +
+                      order.serviceFee +
+                      order.deliveryFee;
                   return Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [

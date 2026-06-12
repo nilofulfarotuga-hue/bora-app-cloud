@@ -20,7 +20,6 @@ import 'package:url_launcher/url_launcher.dart';
 import '../config/app_colors.dart';
 import '../config/business_rules.dart' show BRBags, BRDriver;
 import '../models/cart_item.dart';
-import '../models/chat_message.dart';
 import '../models/order_model.dart';
 import '../services/directions_service.dart';
 import '../services/navigation_service.dart';
@@ -34,7 +33,6 @@ import '../utils/map_marker_helper.dart';
 import '../utils/map_utils.dart';
 import '../widgets/address_text.dart';
 import '../widgets/driver_chat_fab.dart';
-import 'chat_screen.dart';
 import 'driver_order_action_helper.dart';
 
 // BUG 29: Google sobrepunha o nome da rua mais próxima (ex: "Alexandre

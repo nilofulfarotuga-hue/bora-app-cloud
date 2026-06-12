@@ -32,12 +32,38 @@ class _PartnerEarningsScreenState extends State<PartnerEarningsScreen> {
   int _reservationPendingCents = 0;
   bool _reservationsLoading = false;
 
+  // F2 — fecho semanal do parceiro (read-only, transparência total).
+  Map<String, dynamic>? _weeklyCloseout;
+  bool _closeoutLoading = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _loadReservationCredits();
+      if (mounted) {
+        _loadReservationCredits();
+        _loadWeeklyCloseout();
+      }
     });
+  }
+
+  Future<void> _loadWeeklyCloseout() async {
+    if (!mounted) return;
+    setState(() => _closeoutLoading = true);
+    try {
+      final r = await Supabase.instance.client.rpc(
+        'partner_my_weekly_closeout',
+        params: {'p_restaurant_id': widget.restaurant.id},
+      );
+      if (!mounted) return;
+      setState(() {
+        _weeklyCloseout = r as Map<String, dynamic>?;
+        _closeoutLoading = false;
+      });
+    } catch (e) {
+      debugPrint('[PartnerEarnings] weekly closeout: $e');
+      if (mounted) setState(() => _closeoutLoading = false);
+    }
   }
 
   void _onPeriodChanged(_Period p) {
@@ -173,6 +199,12 @@ class _PartnerEarningsScreenState extends State<PartnerEarningsScreen> {
               pendingCount: _reservationPendingCount,
               pendingCents: _reservationPendingCents,
               periodLabel: _periodLabel(_period),
+            ),
+            const SizedBox(height: Spacing.xl),
+            // F2 — fecho semanal (espelho do que o admin vê; só leitura).
+            _WeeklyCloseoutSection(
+              loading: _closeoutLoading,
+              data: _weeklyCloseout,
             ),
             const SizedBox(height: Spacing.xl),
             if (_period != _Period.today) ...[
@@ -936,5 +968,150 @@ class _PeakHoursSection extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+// ── F2: Fecho semanal do parceiro (read-only) ────────────────────────────────
+// "Esta semana: X pedidos, €Y brutos, €Z a receber da Bora" + últimas semanas
+// com o estado marcado pelo admin (Aberto/Fechado/Pago). Transparência total.
+class _WeeklyCloseoutSection extends StatelessWidget {
+  const _WeeklyCloseoutSection({required this.loading, required this.data});
+
+  final bool loading;
+  final Map<String, dynamic>? data;
+
+  String _eur(num? v) => '€${(v ?? 0).toDouble().abs().toStringAsFixed(2)}';
+
+  String _statusLabel(String? s) => switch (s) {
+        'pending' => 'Aberto',
+        'closed' => 'Fechado',
+        'paid' => 'Pago',
+        'received' => 'Recebido',
+        'disputed' => 'Em análise',
+        _ => '—',
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final current = data?['current_week'] as Map<String, dynamic>?;
+    final history =
+        (data?['history'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: AppColors.shadowCard,
+      ),
+      padding: const EdgeInsets.all(Spacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.calendar_month_outlined,
+                  size: 20, color: AppColors.textPrimary),
+              SizedBox(width: 8),
+              Text(
+                'Fecho semanal',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: Spacing.sm),
+          if (loading)
+            const Center(
+                child: Padding(
+              padding: EdgeInsets.all(12),
+              child: CircularProgressIndicator(),
+            ))
+          else if (current == null)
+            const Text(
+              'Sem dados ainda — o fecho aparece aqui após as primeiras vendas.',
+              style:
+                  TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            )
+          else ...[
+            Text(
+              'Esta semana: ${current['total_orders'] ?? 0} pedidos · '
+              '${_eur(current['gross_sales'] as num?)} brutos',
+              style: const TextStyle(
+                  fontSize: 13, color: AppColors.textPrimary),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'Comissão Bora: ${_eur(current['commission_total'] as num?)}',
+              style: const TextStyle(
+                  fontSize: 12, color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              (current['direction'] == 'partner_pays_bora')
+                  ? 'A entregar à Bora: ${_eur(current['net_balance'] as num?)}'
+                  : 'A receber da Bora: ${_eur(current['net_balance'] as num?)}',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                color: (current['direction'] == 'partner_pays_bora')
+                    ? Colors.orange.shade800
+                    : AppColors.primary,
+              ),
+            ),
+            const SizedBox(height: 2),
+            const Text(
+              'A Bora fecha a semana todas as segundas e transfere após o fecho.',
+              style:
+                  TextStyle(fontSize: 11, color: AppColors.textSecondary),
+            ),
+            if (history.isNotEmpty) ...[
+              const Divider(height: 20, color: AppColors.divider),
+              const Text(
+                'Semanas anteriores',
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary),
+              ),
+              const SizedBox(height: 4),
+              for (final h in history.take(4))
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _weekLabel(h['week_start'] as String?),
+                          style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary),
+                        ),
+                      ),
+                      Text(
+                        '${_eur(h['net_balance'] as num?)} · ${_statusLabel(h['status'] as String?)}',
+                        style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+
+  String _weekLabel(String? iso) {
+    final d = DateTime.tryParse(iso ?? '')?.toLocal();
+    if (d == null) return '—';
+    String pad(int n) => n.toString().padLeft(2, '0');
+    final end = d.add(const Duration(days: 6));
+    return '${pad(d.day)}/${pad(d.month)} – ${pad(end.day)}/${pad(end.month)}';
   }
 }

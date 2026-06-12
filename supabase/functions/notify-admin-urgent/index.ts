@@ -1,13 +1,17 @@
 // @ts-nocheck
 // supabase/functions/notify-admin-urgent/index.ts
 //
+// v12 (F2 2026-06-12) — modo GENERIC: aceita {kind:'generic', title, body,
+// route, ref} para pushes admin não-crosstalk (ex.: fecho semanal pronto,
+// via run_weekly_closeout()). Sem kind => comportamento crosstalk INTACTO.
+// Email Resend continua exclusivo do caminho crosstalk.
+//
 // 5F-β — Sends FCM push (HTTP v1 OAuth2) + optional Resend email to all
 // registered admin devices when a `robot_crosstalk` row is inserted with
 // urgency='critical' and direction='a_to_b'.
 //
 // Auth: verify_jwt=true (5F-β-α-fix1). Platform valida signature do JWT;
-// função decoda payload e confirma role='service_role'. À prova de
-// rotação da SUPABASE_SERVICE_ROLE_KEY (não depende de string-match contra env).
+// função decoda payload e confirma role='service_role'.
 //
 // Required Supabase secrets:
 //   FIREBASE_PROJECT_ID         — for FCM v1 endpoint
@@ -15,11 +19,6 @@
 //   SUPABASE_URL                — auto-injected
 //   SUPABASE_SERVICE_ROLE_KEY   — auto-injected
 //   RESEND_API_KEY              — OPTIONAL; if missing, email is skipped
-//
-// Body (from trigger):
-//   { crosstalk_id: uuid, question: string, session_id?: uuid, context?: jsonb }
-//
-// Returns 200 with summary always (FCM/email failures are logged, not thrown).
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -66,26 +65,44 @@ Deno.serve(async (req) => {
   }
 
   // ─── Parse body ───────────────────────────────────────────────────────────
-  let crosstalkId: string
-  let question: string
+  let kind = 'crosstalk'
+  let crosstalkId = ''
+  let question = ''
   let sessionId: string | null = null
-  let context: unknown = null
+  let pushTitle = '🔴 URGENTE — Bora App'
+  let pushBody = ''
+  let pushData: Record<string, string> = {}
   try {
     const body = await req.json()
-    crosstalkId = String(body.crosstalk_id ?? '')
-    question    = String(body.question ?? '').trim()
-    sessionId   = body.session_id ? String(body.session_id) : null
-    context     = body.context ?? null
+    kind = String(body.kind ?? 'crosstalk')
+    if (kind === 'generic') {
+      pushTitle = String(body.title ?? '').trim()
+      pushBody  = String(body.body ?? '').trim()
+      const route = String(body.route ?? '/admin')
+      const ref   = String(body.ref ?? 'generic')
+      pushData = { type: 'admin_generic', ref, route }
+      if (!pushTitle || !pushBody) {
+        return new Response(
+          JSON.stringify({ ok: false, error: 'title and body required for kind=generic' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        )
+      }
+    } else {
+      crosstalkId = String(body.crosstalk_id ?? '')
+      question    = String(body.question ?? '').trim()
+      sessionId   = body.session_id ? String(body.session_id) : null
+      pushBody = question.length > 200 ? question.slice(0, 200) + '…' : question
+      pushData = { type: 'crosstalk_critical', crosstalk_id: crosstalkId, route: '/admin/crosstalk' }
+      if (!crosstalkId || !question) {
+        return new Response(
+          JSON.stringify({ ok: false, error: 'crosstalk_id and question required' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        )
+      }
+    }
   } catch (_e) {
     return new Response(
       JSON.stringify({ ok: false, error: 'invalid_json' }),
-      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-    )
-  }
-
-  if (!crosstalkId || !question) {
-    return new Response(
-      JSON.stringify({ ok: false, error: 'crosstalk_id and question required' }),
       { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     )
   }
@@ -103,7 +120,7 @@ Deno.serve(async (req) => {
   }
 
   const tokenList = tokens ?? []
-  console.log(`[notify-admin-urgent] crosstalk=${crosstalkId} tokens=${tokenList.length}`)
+  console.log(`[notify-admin-urgent] v12 kind=${kind} ref=${crosstalkId || pushData.ref} tokens=${tokenList.length}`)
 
   // ─── FCM push (parallel) ──────────────────────────────────────────────────
   const firebaseProjectId   = Deno.env.get('FIREBASE_PROJECT_ID')
@@ -128,7 +145,7 @@ Deno.serve(async (req) => {
 
       const results = await Promise.allSettled(
         tokenList.map((t) =>
-          sendFcmV1(fcmUrl, accessToken!, t.fcm_token, crosstalkId, question)
+          sendFcmV1(fcmUrl, accessToken!, t.fcm_token, pushTitle, pushBody, pushData)
             .then((res) => ({ token: t, res }))
         ),
       )
@@ -161,13 +178,12 @@ Deno.serve(async (req) => {
     console.warn('[notify-admin-urgent] Firebase env vars missing — push skipped')
   }
 
-  // ─── Email Resend (optional) ──────────────────────────────────────────────
+  // ─── Email Resend (optional — só crosstalk) ───────────────────────────────
   const resendKey = Deno.env.get('RESEND_API_KEY')
   let emailSent = false
-  if (resendKey) {
+  if (resendKey && kind === 'crosstalk') {
     try {
       const truncated = question.length > 500 ? question.slice(0, 500) + '…' : question
-      const dashboardLink = `${supabaseUrl.replace('.supabase.co', '.supabase.co').replace(/\/$/, '')}` // best-effort; admin uses app
       const emailRes = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
@@ -208,14 +224,15 @@ Deno.serve(async (req) => {
     } catch (e) {
       console.error('[notify-admin-urgent] resend exception:', e)
     }
-  } else {
+  } else if (!resendKey) {
     console.log('[notify-admin-urgent] RESEND_API_KEY missing — email skipped')
   }
 
   return new Response(
     JSON.stringify({
       ok:             true,
-      crosstalk_id:   crosstalkId,
+      kind,
+      ref:            crosstalkId || pushData.ref,
       push_attempted: pushAttempted,
       push_success:   pushSuccess,
       push_cleaned:   pushCleaned,
@@ -233,23 +250,18 @@ async function sendFcmV1(
   fcmUrl: string,
   accessToken: string,
   fcmToken: string,
-  crosstalkId: string,
-  question: string,
+  title: string,
+  bodyText: string,
+  data: Record<string, string>,
 ): Promise<{ ok: boolean; stale: boolean; status: number; body: any }> {
-  const truncated = question.length > 200 ? question.slice(0, 200) + '…' : question
-
   const message = {
     message: {
       token: fcmToken,
       notification: {
-        title: '🔴 URGENTE — Bora App',
-        body:  truncated,
+        title,
+        body: bodyText,
       },
-      data: {
-        type:         'crosstalk_critical',
-        crosstalk_id: crosstalkId,
-        route:        '/admin/crosstalk',
-      },
+      data,
       android: {
         priority: 'high',
         notification: {

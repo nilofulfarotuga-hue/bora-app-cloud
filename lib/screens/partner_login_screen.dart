@@ -7,9 +7,11 @@ import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
 import '../stores/partner_appointments_store.dart';
 import '../stores/restaurant_store.dart';
+import '../services/biometric_auth_service.dart';
 import '../services/login_prefs.dart';
 import '../services/notification_service.dart';
 import '../stores/session_store.dart';
+import '../widgets/biometric_enrollment_dialog.dart';
 import '../widgets/bora/bora_primary_button.dart';
 import 'register_partner_screen.dart';
 
@@ -30,10 +32,84 @@ class _PartnerLoginScreenState extends State<PartnerLoginScreen> {
   // L1 — true quando o email foi pré-preenchido com o último login.
   bool _prefilledFromMemory = false;
 
+  // L3 — true quando o aparelho tem biometria E há sessão guardada.
+  bool _biometricAvailable = false;
+
   @override
   void initState() {
     super.initState();
     _prefillLastEmail();
+    _checkBiometric();
+  }
+
+  /// L3 — mostra o botão "Entrar com biometria" se o aparelho suporta e o
+  /// login biométrico foi ativado neste papel.
+  Future<void> _checkBiometric() async {
+    final bio = BiometricAuthService.instance;
+    final available =
+        await bio.isDeviceCapable && await bio.isEnabledFor('partner');
+    if (mounted && available) {
+      setState(() => _biometricAvailable = true);
+    }
+  }
+
+  /// L3 — digital/rosto → restaura a sessão Supabase guardada → entra.
+  /// Fallback sempre disponível: os campos de palavra-passe continuam ali.
+  Future<void> _biometricLogin() async {
+    FocusScope.of(context).unfocus();
+    setState(() => _isProcessing = true);
+
+    final bio = BiometricAuthService.instance;
+    final authStore = context.read<AuthStore>();
+    final messenger = ScaffoldMessenger.of(context);
+
+    final ok =
+        await bio.authenticate('Entra na Bora com a tua digital ou rosto');
+    if (!mounted) return;
+    if (!ok) {
+      setState(() => _isProcessing = false);
+      return;
+    }
+
+    final token = await bio.readRefreshToken('partner');
+    if (token == null || token.isEmpty) {
+      if (!mounted) return;
+      setState(() {
+        _biometricAvailable = false;
+        _isProcessing = false;
+      });
+      return;
+    }
+
+    final error = await authStore.restoreSessionWithRefreshToken(
+      token,
+      expectedRole: 'partner',
+    );
+    if (!mounted) return;
+
+    if (error != null) {
+      if (error == 'invalid') {
+        await bio.disableFor('partner');
+      }
+      if (!mounted) return;
+      setState(() {
+        if (error == 'invalid') _biometricAvailable = false;
+        _isProcessing = false;
+      });
+      messenger.showSnackBar(SnackBar(
+        content: Text(error == 'invalid'
+            ? 'Sessão biométrica expirada. Entra com a palavra-passe.'
+            : 'Sem ligação. Tenta novamente.'),
+      ));
+      return;
+    }
+
+    final email = authStore.currentPartner?.email ?? '';
+    if (email.isEmpty) {
+      setState(() => _isProcessing = false);
+      return;
+    }
+    await _finishPartnerLogin(email);
   }
 
   /// L1 — pré-preenche o campo de email com o último login bem-sucedido.
@@ -154,6 +230,19 @@ class _PartnerLoginScreenState extends State<PartnerLoginScreen> {
                 loading: _isProcessing,
                 onPressed: _isProcessing ? null : _submit,
               ),
+              // ── L3 — biometria ──────────────────────────────────────
+              if (_biometricAvailable) ...[
+                const SizedBox(height: Spacing.sm),
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: OutlinedButton.icon(
+                    onPressed: _isProcessing ? null : _biometricLogin,
+                    icon: const Icon(Icons.fingerprint),
+                    label: const Text('Entrar com biometria'),
+                  ),
+                ),
+              ],
               const SizedBox(height: Spacing.xs),
               Center(
                 child: TextButton(
@@ -221,9 +310,6 @@ class _PartnerLoginScreenState extends State<PartnerLoginScreen> {
 
     setState(() => _isProcessing = true);
     final authStore = context.read<AuthStore>();
-    final restaurantStore = context.read<RestaurantStore>();
-    final sessionStore = context.read<SessionStore>();
-    final appointmentsStore = context.read<PartnerAppointmentsStore>();
 
     final success = await authStore.loginPartnerAsync(
       _emailController.text,
@@ -247,7 +333,18 @@ class _PartnerLoginScreenState extends State<PartnerLoginScreen> {
     // L1 — lembra o email para pré-preencher no próximo login.
     LoginPrefs.saveLastEmail('partner', _emailController.text).ignore();
 
-    final restaurant = restaurantStore.restaurantByEmail(_emailController.text);
+    await _finishPartnerLogin(_emailController.text);
+  }
+
+  /// Pós-login partilhado (palavra-passe + biometria): resolve restaurante /
+  /// service provider → FCM → opt-in biometria → setRole.
+  Future<void> _finishPartnerLogin(String email) async {
+    final authStore = context.read<AuthStore>();
+    final restaurantStore = context.read<RestaurantStore>();
+    final sessionStore = context.read<SessionStore>();
+    final appointmentsStore = context.read<PartnerAppointmentsStore>();
+
+    final restaurant = restaurantStore.restaurantByEmail(email);
     if (restaurant != null) {
       authStore.setPartnerRestaurant(restaurant);
 
@@ -261,7 +358,8 @@ class _PartnerLoginScreenState extends State<PartnerLoginScreen> {
       final hasServiceProvider = await _hasServiceProvider(appointmentsStore);
       if (!mounted) return;
       if (!hasServiceProvider) {
-        authStore.logout();
+        // L3 — bounce de validação, não "Sair": preserva biometria.
+        authStore.logout(wipeBiometrics: false);
         setState(() => _isProcessing = false);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -272,6 +370,11 @@ class _PartnerLoginScreenState extends State<PartnerLoginScreen> {
         return;
       }
     }
+
+    // L3 — oferece login biométrico (pergunta uma vez; antes do setRole
+    // porque o _RootNavigator troca o ecrã assim que o papel muda).
+    await maybeOfferBiometricEnrollment(context, 'partner');
+    if (!mounted) return;
 
     await sessionStore.setRole(UserRole.partner);
 

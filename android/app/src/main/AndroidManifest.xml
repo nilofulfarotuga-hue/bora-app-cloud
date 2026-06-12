@@ -50,6 +50,11 @@
 <!-- Gallery access for partner product photo: Android 13+ uses READ_MEDIA_IMAGES, older uses READ_EXTERNAL_STORAGE -->
 <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
 <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
+<!-- L3 (2026-06-12) — login com biometria (digital/rosto) via local_auth/
+     BiometricPrompt. USE_FINGERPRINT cobre Android <9 (deprecated mas
+     recomendado pelo plugin para compatibilidade). -->
+<uses-permission android:name="android.permission.USE_BIOMETRIC"/>
+<uses-permission android:name="android.permission.USE_FINGERPRINT"/>
         <application
         android:label="bora_app"
         android:name="${applicationName}"

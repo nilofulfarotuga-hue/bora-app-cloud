@@ -8,10 +8,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
+import '../services/biometric_auth_service.dart';
 import '../services/login_prefs.dart';
 import '../services/notification_service.dart';
 import '../stores/driver_store.dart';
 import '../stores/session_store.dart';
+import '../widgets/biometric_enrollment_dialog.dart';
 import '../widgets/bora/bora_primary_button.dart';
 import 'driver_pending_screen.dart';
 import 'driver_rejected_screen.dart';
@@ -40,11 +42,87 @@ class _DriverLoginScreenState extends State<DriverLoginScreen> {
 
   static const _kDraftKey = 'bora_app.signup_draft.driver';
 
+  // L3 — true quando o aparelho tem biometria E há sessão guardada.
+  bool _biometricAvailable = false;
+
   @override
   void initState() {
     super.initState();
     _checkPendingDraft();
     _prefillLastEmail();
+    _checkBiometric();
+  }
+
+  /// L3 — mostra o botão "Entrar com biometria" se o aparelho suporta e o
+  /// login biométrico foi ativado neste papel.
+  Future<void> _checkBiometric() async {
+    final bio = BiometricAuthService.instance;
+    final available =
+        await bio.isDeviceCapable && await bio.isEnabledFor('driver');
+    if (mounted && available) {
+      setState(() => _biometricAvailable = true);
+    }
+  }
+
+  /// L3 — digital/rosto → restaura a sessão Supabase guardada → entra.
+  /// Fallback sempre disponível: os campos de palavra-passe continuam ali.
+  Future<void> _biometricLogin() async {
+    FocusScope.of(context).unfocus();
+    setState(() => _isProcessing = true);
+
+    final bio = BiometricAuthService.instance;
+    final authStore = context.read<AuthStore>();
+    final messenger = ScaffoldMessenger.of(context);
+
+    final ok =
+        await bio.authenticate('Entra na Bora com a tua digital ou rosto');
+    if (!mounted) return;
+    if (!ok) {
+      setState(() => _isProcessing = false);
+      return;
+    }
+
+    final token = await bio.readRefreshToken('driver');
+    if (token == null || token.isEmpty) {
+      if (!mounted) return;
+      setState(() {
+        _biometricAvailable = false;
+        _isProcessing = false;
+      });
+      return;
+    }
+
+    final error = await authStore.restoreSessionWithRefreshToken(
+      token,
+      expectedRole: 'driver',
+    );
+    if (!mounted) return;
+
+    if (error != null) {
+      if (error == 'invalid') {
+        await bio.disableFor('driver');
+      }
+      if (!mounted) return;
+      setState(() {
+        if (error == 'invalid') _biometricAvailable = false;
+        _isProcessing = false;
+      });
+      messenger.showSnackBar(SnackBar(
+        content: Text(error == 'invalid'
+            ? 'Sessão biométrica expirada. Entra com a palavra-passe.'
+            : 'Sem ligação. Tenta novamente.'),
+      ));
+      return;
+    }
+
+    final authUser = Supabase.instance.client.auth.currentUser;
+    if (authUser == null) {
+      setState(() => _isProcessing = false);
+      return;
+    }
+
+    debugPrint('[DriverLogin] biometric restore OK uid=${authUser.id}');
+    await _finishDriverLogin(authUser);
   }
 
   /// L1 — pré-preenche o campo de email com o último login bem-sucedido.
@@ -264,6 +342,24 @@ class _DriverLoginScreenState extends State<DriverLoginScreen> {
                   color: AppColors.accent,
                   onPressed: _submit,
                 ),
+                // ── L3 — biometria ────────────────────────────────────
+                if (_biometricAvailable) ...[
+                  const SizedBox(height: Spacing.md),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: OutlinedButton.icon(
+                      onPressed: _isProcessing ? null : _biometricLogin,
+                      icon: const Icon(Icons.fingerprint),
+                      label: const Text('Entrar com biometria'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.accent,
+                        side: const BorderSide(
+                            color: AppColors.accent, width: 1.5),
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: Spacing.md),
 
                 // ── Create account ────────────────────────────────────
@@ -314,8 +410,6 @@ class _DriverLoginScreenState extends State<DriverLoginScreen> {
     setState(() => _isProcessing = true);
 
     final authStore = context.read<AuthStore>();
-    final driverStore = context.read<DriverStore>();
-    final sessionStore = context.read<SessionStore>();
 
     final success = await authStore.loginDriverAsync(
       _emailController.text,
@@ -362,6 +456,16 @@ class _DriverLoginScreenState extends State<DriverLoginScreen> {
 
     debugPrint('[DriverLogin] auth.currentUser.id=${authUser.id}');
 
+    await _finishDriverLogin(authUser);
+  }
+
+  /// Pós-login partilhado (palavra-passe + biometria): approval gate →
+  /// configura DriverStore → FCM → opt-in biometria → setRole.
+  Future<void> _finishDriverLogin(User authUser) async {
+    final authStore = context.read<AuthStore>();
+    final driverStore = context.read<DriverStore>();
+    final sessionStore = context.read<SessionStore>();
+
     // ── Verificar approval_status ────────────────────────────────────────
     Map<String, dynamic>? driverRow;
     try {
@@ -378,7 +482,8 @@ class _DriverLoginScreenState extends State<DriverLoginScreen> {
         driverRow?['approval_status'] as String? ?? 'approved';
 
     if (approvalStatus == 'pending') {
-      authStore.logout();
+      // L3 — bounce de aprovação, não "Sair": preserva biometria.
+      authStore.logout(wipeBiometrics: false);
       setState(() => _isProcessing = false);
       Navigator.push(
         context,
@@ -389,7 +494,8 @@ class _DriverLoginScreenState extends State<DriverLoginScreen> {
 
     if (approvalStatus == 'rejected') {
       final reason = driverRow?['rejection_reason'] as String? ?? '';
-      authStore.logout();
+      // L3 — bounce de aprovação, não "Sair": preserva biometria.
+      authStore.logout(wipeBiometrics: false);
       setState(() => _isProcessing = false);
       Navigator.push(
         context,
@@ -398,6 +504,13 @@ class _DriverLoginScreenState extends State<DriverLoginScreen> {
       return;
     }
     // ─────────────────────────────────────────────────────────────────────
+
+    // L3 — o restauro biométrico não passa por loginDriverAsync, por isso
+    // _currentDriverStatus ficaria no default 'pending' e o driver_home
+    // mostrava o ecrã de análise a um estafeta aprovado. Idempotente no
+    // caminho com palavra-passe.
+    await authStore.refreshApprovalStatus();
+    if (!mounted) return;
 
     final account = authStore.currentDriver;
     if (account != null) {
@@ -413,6 +526,11 @@ class _DriverLoginScreenState extends State<DriverLoginScreen> {
     // Persist FCM token so the dispatch engine can notify this driver via push.
     // Fire-and-forget: non-critical, must not block navigation.
     NotificationService.instance.saveTokenForDriver(authUser.id);
+
+    // L3 — oferece login biométrico (pergunta uma vez; antes do setRole
+    // porque o _RootNavigator troca o ecrã assim que o papel muda).
+    await maybeOfferBiometricEnrollment(context, 'driver');
+    if (!mounted) return;
 
     await sessionStore.setRole(UserRole.driver);
     if (!mounted) return;

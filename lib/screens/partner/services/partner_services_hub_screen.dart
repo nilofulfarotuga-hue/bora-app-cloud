@@ -7,6 +7,7 @@ import '../../../models/service_provider_model.dart';
 import '../../../services/notification_service.dart';
 import '../../../stores/partner_appointments_store.dart';
 import '../../../stores/session_store.dart';
+import '../../../widgets/biometric_login_tile.dart';
 import '../../../widgets/bora/bora_screen_app_bar.dart';
 import 'partner_add_walk_in_screen.dart';
 import 'partner_agenda_screen.dart';
@@ -147,6 +148,8 @@ class _PartnerServicesHubScreenState extends State<PartnerServicesHubScreen> {
                 onTap: () =>
                     _push(context, const PartnerAppointmentsFinanceScreen()),
               ),
+              // L3 — login com biometria (esconde-se sem biometria).
+              const BiometricLoginTile(role: 'partner'),
             ],
           );
         },

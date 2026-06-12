@@ -8,9 +8,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
+import '../services/biometric_auth_service.dart';
 import '../services/login_prefs.dart';
 import '../services/notification_service.dart';
 import '../stores/session_store.dart';
+import '../widgets/biometric_enrollment_dialog.dart';
 import '../widgets/bora/bora_mascot.dart';
 import '../widgets/bora/bora_primary_button.dart';
 import 'register_client_screen.dart';
@@ -34,11 +36,89 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
   bool _obscurePassword = true;
   // L1 — true quando o email foi pré-preenchido com o último login.
   bool _prefilledFromMemory = false;
+  // L3 — true quando o aparelho tem biometria E há sessão guardada.
+  bool _biometricAvailable = false;
 
   @override
   void initState() {
     super.initState();
     _prefillLastEmail();
+    _checkBiometric();
+  }
+
+  /// L3 — mostra o botão "Entrar com biometria" se o aparelho suporta e o
+  /// login biométrico foi ativado neste papel.
+  Future<void> _checkBiometric() async {
+    final bio = BiometricAuthService.instance;
+    final available =
+        await bio.isDeviceCapable && await bio.isEnabledFor('client');
+    if (mounted && available) {
+      setState(() => _biometricAvailable = true);
+    }
+  }
+
+  /// L3 — digital/rosto → restaura a sessão Supabase guardada → entra.
+  /// Fallback sempre disponível: os campos de palavra-passe continuam ali.
+  Future<void> _biometricLogin() async {
+    FocusScope.of(context).unfocus();
+    setState(() => _isProcessing = true);
+
+    final bio = BiometricAuthService.instance;
+    final authStore = context.read<AuthStore>();
+    final sessionStore = context.read<SessionStore>();
+    final messenger = ScaffoldMessenger.of(context);
+
+    final ok =
+        await bio.authenticate('Entra na Bora com a tua digital ou rosto');
+    if (!mounted) return;
+    if (!ok) {
+      setState(() => _isProcessing = false);
+      return;
+    }
+
+    final token = await bio.readRefreshToken('client');
+    if (token == null || token.isEmpty) {
+      if (!mounted) return;
+      setState(() {
+        _biometricAvailable = false;
+        _isProcessing = false;
+      });
+      return;
+    }
+
+    final error = await authStore.restoreSessionWithRefreshToken(
+      token,
+      expectedRole: 'client',
+    );
+    if (!mounted) return;
+
+    if (error != null) {
+      if (error == 'invalid') {
+        await bio.disableFor('client');
+      }
+      if (!mounted) return;
+      setState(() {
+        if (error == 'invalid') _biometricAvailable = false;
+        _isProcessing = false;
+      });
+      messenger.showSnackBar(SnackBar(
+        content: Text(error == 'invalid'
+            ? 'Sessão biométrica expirada. Entra com a palavra-passe.'
+            : 'Sem ligação. Tenta novamente.'),
+      ));
+      return;
+    }
+
+    // Mesmos passos pós-login do caminho com palavra-passe.
+    final authUser = Supabase.instance.client.auth.currentUser;
+    if (authUser != null) {
+      NotificationService.instance.saveTokenForClient(authUser.id).ignore();
+    }
+
+    await sessionStore.setRole(UserRole.client);
+    if (!mounted) return;
+    setState(() => _isProcessing = false);
+    // No Navigator call — RootNavigator reacts automatically.
   }
 
   /// L1 — pré-preenche o campo de email com o último login bem-sucedido.
@@ -190,6 +270,19 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
                   loading: _isProcessing,
                   onPressed: _submit,
                 ),
+                // ── L3 — biometria ────────────────────────────────────
+                if (_biometricAvailable) ...[
+                  const SizedBox(height: Spacing.sm),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: OutlinedButton.icon(
+                      onPressed: _isProcessing ? null : _biometricLogin,
+                      icon: const Icon(Icons.fingerprint),
+                      label: const Text('Entrar com biometria'),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: Spacing.xs),
 
                 // ── Forgot password ───────────────────────────────────
@@ -297,6 +390,11 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
     if (authUser != null) {
       NotificationService.instance.saveTokenForClient(authUser.id).ignore();
     }
+
+    // L3 — oferece login biométrico (pergunta uma vez; antes do setRole
+    // porque o _RootNavigator troca o ecrã assim que o papel muda).
+    await maybeOfferBiometricEnrollment(context, 'client');
+    if (!mounted) return;
 
     await sessionStore.setRole(UserRole.client);
     if (!mounted) return;

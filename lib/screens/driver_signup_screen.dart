@@ -428,7 +428,8 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
 
       // Clear draft + logout → DriverPendingScreen (limpa a stack do signup
       // para não voltar ao login nem ficar preso — estilo Glovo).
-      context.read<AuthStore>().logout();
+      // L3 — limpeza pós-registo, não "Sair": preserva biometria.
+      context.read<AuthStore>().logout(wipeBiometrics: false);
       _clearDraft();
 
       Navigator.pushAndRemoveUntil(

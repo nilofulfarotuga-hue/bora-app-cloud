@@ -22,6 +22,7 @@ import '../widgets/notification_bell.dart';
 import '../services/sound_service.dart';
 import '../stores/session_store.dart';
 import '../widgets/address_text.dart';
+import '../widgets/biometric_login_tile.dart';
 import 'partner/reservations/partner_reservations_home_screen.dart';
 import 'partner/services/partner_services_hub_screen.dart';
 import 'partner_call_driver_screen.dart';
@@ -430,7 +431,8 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
   Future<void> _handleTestMode() async {
     final authStore = context.read<AuthStore>();
     final sessionStore = context.read<SessionStore>();
-    authStore.logout();
+    // L3 — troca de modo, não "Sair": preserva biometria.
+    authStore.logout(wipeBiometrics: false);
     await sessionStore.clearRole();
     if (!mounted) return;
     Navigator.of(context).popUntil((route) => route.isFirst);
@@ -686,6 +688,12 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                   onPrepMinutesChanged: (minutes) =>
                       restaurantStore.setTakeawayDefaultPrepMinutes(
                           currentRestaurant.id, minutes),
+                ),
+                const SizedBox(height: 8),
+                // L3 — login com biometria (esconde-se sem biometria).
+                const BiometricLoginTile(
+                  role: 'partner',
+                  margin: EdgeInsets.zero,
                 ),
                 if (currentRestaurant.reservationsEnabled) ...[
                   const SizedBox(height: 8),

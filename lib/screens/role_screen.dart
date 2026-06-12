@@ -60,7 +60,8 @@ class RoleScreen extends StatelessWidget {
                 onPressed: () async {
                   final authStore = context.read<AuthStore>();
                   final sessionStore = context.read<SessionStore>();
-                  authStore.logout();
+                  // L3 — troca de papel, não "Sair": preserva biometria.
+                  authStore.logout(wipeBiometrics: false);
                   await sessionStore.setRole(UserRole.client);
                 },
               ),
@@ -72,7 +73,8 @@ class RoleScreen extends StatelessWidget {
                 onPressed: () async {
                   final authStore = context.read<AuthStore>();
                   final sessionStore = context.read<SessionStore>();
-                  authStore.logout();
+                  // L3 — troca de papel, não "Sair": preserva biometria.
+                  authStore.logout(wipeBiometrics: false);
                   await sessionStore.setRole(UserRole.driver);
                 },
               ),
@@ -84,7 +86,8 @@ class RoleScreen extends StatelessWidget {
                 onPressed: () async {
                   final authStore = context.read<AuthStore>();
                   final sessionStore = context.read<SessionStore>();
-                  authStore.logout();
+                  // L3 — troca de papel, não "Sair": preserva biometria.
+                  authStore.logout(wipeBiometrics: false);
                   await sessionStore.setRole(UserRole.partner);
                 },
               ),

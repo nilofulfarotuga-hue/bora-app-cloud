@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/driver_model.dart';
 import '../models/restaurant_model.dart';
+import '../services/biometric_auth_service.dart';
 import '../services/notification_service.dart';
 import '../utils/constants.dart';
 
@@ -323,12 +324,26 @@ class AuthStore extends ChangeNotifier {
       return;
     }
 
+    // L3 — o Supabase roda o refresh token a cada refresh; mantém o token
+    // biométrico guardado em dia (só para papéis com biometria ativa e
+    // email coincidente). Fire-and-forget.
+    if (state.event == AuthChangeEvent.tokenRefreshed ||
+        state.event == AuthChangeEvent.signedIn) {
+      BiometricAuthService.instance.syncRefreshedToken(session).ignore();
+    }
+
     if (_currentClient != null ||
         _currentDriver != null ||
         _currentPartner != null) {
       return;
     }
 
+    _hydrateAccountFromSession(session);
+  }
+
+  /// Constrói a conta em memória a partir dos metadados da sessão Supabase.
+  /// Usado pelo listener onAuthStateChange e pelo restauro biométrico (L3).
+  void _hydrateAccountFromSession(Session session) {
     final meta = session.user.userMetadata ?? {};
     final boraRole = meta[_kRole] as String?;
 
@@ -386,6 +401,54 @@ class AuthStore extends ChangeNotifier {
 
       default:
         break;
+    }
+  }
+
+  /// L3 — restaura a sessão Supabase a partir do refresh token guardado em
+  /// secure storage (login biométrico). Devolve null em sucesso, 'invalid'
+  /// quando o token foi revogado/expirou ou o papel não bate (o ecrã deve
+  /// apagar o token e cair para a palavra-passe), 'error' em falha de rede.
+  Future<String?> restoreSessionWithRefreshToken(
+    String refreshToken, {
+    required String expectedRole,
+  }) async {
+    try {
+      // Igual aos logins por palavra-passe: limpa sessão guest/obsoleta
+      // antes, para auth.currentUser nunca ficar com UID errado.
+      try {
+        await _supabase.auth.signOut();
+      } catch (_) {}
+
+      final res = await _supabase.auth.setSession(refreshToken);
+      final user = res.user;
+      final session = res.session;
+      if (user == null || session == null) return 'invalid';
+
+      final meta = user.userMetadata ?? {};
+      final role = meta[_kRole] as String?;
+      // Contas legadas/demo de cliente podem não ter role nos metadados —
+      // mesma tolerância do loginClientAsync.
+      final roleOk =
+          role == expectedRole || (expectedRole == 'client' && role == null);
+      if (!roleOk) {
+        debugPrint(
+            'AuthStore: restoreSession wrong role "$role" (expected "$expectedRole")');
+        try {
+          await _supabase.auth.signOut();
+        } catch (_) {}
+        return 'invalid';
+      }
+
+      _hydrateAccountFromSession(session);
+      debugPrint(
+          'AuthStore: biometric session restored — uid=${user.id} role=$expectedRole');
+      return null;
+    } on AuthException catch (e) {
+      debugPrint('AuthStore: restoreSession AuthException => ${e.message}');
+      return 'invalid';
+    } catch (e) {
+      debugPrint('AuthStore: restoreSession error => $e');
+      return 'error';
     }
   }
 
@@ -1161,11 +1224,18 @@ class AuthStore extends ChangeNotifier {
 
   // ─── Logout ───────────────────────────────────────────────────────────────
 
-  void logout() {
+  /// [wipeBiometrics]: true (default) em logout explícito ("Sair"/"Terminar
+  /// sessão") — apaga também os tokens biométricos (L3, regra de segurança).
+  /// Trocas de papel/modo (RoleScreen, "Mudar modo", gates de aprovação)
+  /// passam false para o login biométrico continuar disponível.
+  void logout({bool wipeBiometrics = true}) {
     // Clear FCM binding BEFORE wiping state so the previous user stops
     // receiving pushes on this device. Fire-and-forget — logout must not
     // block on network failure.
     NotificationService.instance.clearTokenForCurrentUser().ignore();
+    if (wipeBiometrics) {
+      BiometricAuthService.instance.disableAll().ignore();
+    }
     _currentClient = null;
     _currentDriver = null;
     _currentPartner = null;

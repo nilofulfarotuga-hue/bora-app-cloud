@@ -146,7 +146,8 @@ class RestaurantDashboardScreen extends StatelessWidget {
               final navigator = Navigator.of(context);
               final authStore = context.read<AuthStore>();
               final sessionStore = context.read<SessionStore>();
-              authStore.logout();
+              // L3 — "Mudar modo" é troca de papel: preserva biometria.
+              authStore.logout(wipeBiometrics: false);
               await sessionStore.clearRole();
               if (!navigator.mounted) return;
               navigator.pushNamedAndRemoveUntil('/', (route) => false);

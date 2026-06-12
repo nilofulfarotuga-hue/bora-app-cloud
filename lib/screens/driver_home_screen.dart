@@ -602,7 +602,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
   Future<void> _handleTestMode() async {
     final authStore = context.read<AuthStore>();
     final sessionStore = context.read<SessionStore>();
-    authStore.logout();
+    // L3 — troca de modo, não "Sair": preserva biometria.
+    authStore.logout(wipeBiometrics: false);
     await sessionStore.clearRole();
     if (!mounted) return;
     Navigator.of(context).popUntil((route) => route.isFirst);

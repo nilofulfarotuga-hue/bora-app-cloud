@@ -14,6 +14,7 @@ import '../widgets/bora_support_fab.dart';
 import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
+import '../widgets/biometric_login_tile.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../models/driver_model.dart';
 import '../services/auth_admin_service.dart';
@@ -488,6 +489,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
               ],
             ),
+
+            // ── L3 — Login com biometria (esconde-se sem biometria) ───────
+            BiometricLoginTile(
+              role: role == AuthRole.driver
+                  ? 'driver'
+                  : role == AuthRole.partner
+                      ? 'partner'
+                      : 'client',
+            ),
+            const SizedBox(height: 12),
 
             // ── Wallet (cliente: 2 cards saldo livre + tokens) ─────────────
             if (role == AuthRole.client) ...[

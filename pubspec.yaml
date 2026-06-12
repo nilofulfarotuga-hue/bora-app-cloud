@@ -76,6 +76,14 @@ dependencies:
   # apps. Android-only (iOS não suporta system overlays).
   flutter_overlay_window: ^0.4.5
 
+  # LOGIN FACILITADO L3 (Sessão 2026-06-12) — login com biometria (digital/
+  # rosto) estilo apps de banca. local_auth exige MainActivity =
+  # FlutterFragmentActivity (já é, desde a sessão CallKit 2026-05-21).
+  # flutter_secure_storage guarda o refresh token Supabase encriptado pelo
+  # Android Keystore — NUNCA em SharedPreferences.
+  local_auth: ^2.3.0
+  flutter_secure_storage: ^9.2.2
+
 
 
 

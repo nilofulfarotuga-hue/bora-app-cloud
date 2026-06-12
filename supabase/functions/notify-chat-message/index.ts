@@ -1,4 +1,7 @@
 // @ts-nocheck
+// v12 (2026-06-12, Claude.ai via MCP): sender_name='Cliente' em TODOS os ramos do
+//   cliente (antes só no ramo partner — banner do estafeta mostrava 'client').
+//   ⚠️ Sincronizar esta alteração na cópia do repo na próxima sessão Claude Code.
 // v11 (Parte C 2026-06-12):
 //   • FALLBACK quando conversation_type vem vazio (builds antigos mandavam
 //     NULL): o push de chat segue o par direto — client→driver,
@@ -8,9 +11,7 @@
 //     esconde esse chat; isto cobre builds antigos e dá diagnóstico claro).
 // v10 (M11 2026-06-10) — ROOT CAUSE fixes na resolução do destinatário:
 //   • orders.driver_id quase nunca é populada → usar assigned_driver_id (canónica);
-//   • restaurants tem user_ E user_id divergentes → COALESCE(user_id, user_);
-//   • v9 não procurava client_push_tokens (cliente NUNCA recebia push de chat);
-//   • partner_push_tokens é keyed por partner_id (v9 usava user_id — coluna inexistente).
+//   • restaurants tem user_ E user_id divergentes → COALESCE(user_id, user_).
 // (O trigger _notify_chat_message_trigger v2 passou a enviar o payload completo
 //  — antes enviava só {message_id} e esta função devolvia 400 sempre.)
 // exec6.23 (2026-05-27) DATA-ONLY + canal v3 unificado.
@@ -28,7 +29,7 @@ Deno.serve(async (req) => {
   const firebaseServiceAcct = Deno.env.get('FIREBASE_SERVICE_ACCOUNT')
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  console.log('[notify-chat-message] v11 INVOKED data-only')
+  console.log('[notify-chat-message] v12 INVOKED data-only')
   if (!firebaseProjectId || !firebaseServiceAcct) {
     return new Response(JSON.stringify({ ok: false, reason: 'firebase_not_configured' }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
@@ -70,10 +71,10 @@ Deno.serve(async (req) => {
     return (r?.user_id ?? r?.user_) ?? null
   }
   if (senderType === 'client') {
+    senderName = 'Cliente'
     if (recipientType === 'driver' || conversationType === 'client_driver') recipientUserId = order.assigned_driver_id
     else if (recipientType === 'partner' || conversationType === 'client_partner') {
       recipientUserId = await resolvePartner()
-      senderName = 'Cliente'
     }
     else recipientUserId = order.assigned_driver_id // v11 fallback: par direto
   } else if (senderType === 'driver') {
@@ -89,7 +90,7 @@ Deno.serve(async (req) => {
   }
   if (!recipientUserId) {
     const reason = partnerPairWithoutRestaurant ? 'no_partner_for_order' : 'recipient_not_resolved'
-    console.log(`[notify-chat-message] v11 order=${orderId} sender=${senderType} conv=${conversationType} → ${reason}`)
+    console.log(`[notify-chat-message] v12 order=${orderId} sender=${senderType} conv=${conversationType} → ${reason}`)
     return new Response(JSON.stringify({ ok: false, reason }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   }
@@ -110,7 +111,7 @@ Deno.serve(async (req) => {
     if (d?.fcm_token) tokens.push({ id: 'legacy', fcm_token: d.fcm_token, source: 'drivers' })
   }
   if (tokens.length === 0) {
-    console.log(`[notify-chat-message] v11 order=${orderId} recipient=${recipientUserId} → no_fcm_token`)
+    console.log(`[notify-chat-message] v12 order=${orderId} recipient=${recipientUserId} → no_fcm_token`)
     return new Response(JSON.stringify({ ok: false, reason: 'no_fcm_token' }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   }
@@ -161,7 +162,7 @@ Deno.serve(async (req) => {
       }
     }
   }
-  console.log(`[notify-chat-message] v11 order=${orderId} sender=${senderType} recipient=${recipientUserId} sent=${sentCount}/${tokens.length}`)
+  console.log(`[notify-chat-message] v12 order=${orderId} sender=${senderType} recipient=${recipientUserId} sent=${sentCount}/${tokens.length}`)
   return new Response(JSON.stringify({ ok: true, sent: sentCount, total: tokens.length }),
     { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
 })

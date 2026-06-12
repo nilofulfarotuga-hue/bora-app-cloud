@@ -43,6 +43,10 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
   bool _useTokens = false;
   bool _tokensLoaded = false;
 
+  // B3a (2026-06-12): pct máximo do pedido pagável em tokens — lido da DB
+  // (platform_settings.token_payment_max_pct) com fallback 50 (BR §4.3).
+  int _tokenMaxPct = 50;
+
   // BUG #1 frontend (§54 / 2026-05-12) — dívida wallet a cobrar neste checkout
   int _debtSettleCents = 0;
 
@@ -138,9 +142,26 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
         'get_user_tokens',
         params: {'p_user_id': userId},
       );
+      // B3a (2026-06-12): pct do cap de tokens vem da DB (não hardcode).
+      // get_setting devolve o jsonb cru (num) — fallback 50 se falhar.
+      int pct = _tokenMaxPct;
+      try {
+        final pctRes = await Supabase.instance.client.rpc(
+          'get_setting',
+          params: {'p_key': 'token_payment_max_pct'},
+        );
+        if (pctRes is num) {
+          pct = pctRes.toInt();
+        } else if (pctRes is String) {
+          pct = int.tryParse(pctRes) ?? pct;
+        }
+      } catch (e) {
+        debugPrint('[PaymentMethodScreen] token_payment_max_pct fallback: $e');
+      }
       if (mounted) {
         setState(() {
           _availableTokens = (response as num?)?.toInt() ?? 0;
+          _tokenMaxPct = pct;
           _tokensLoaded = true;
         });
       }
@@ -172,11 +193,11 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     }
 
     // ── Token discount calculation ─────────────────────────────────────────
-    // BR: TOKEN_MAX_DISCOUNT_RATIO = 0.50, TOKEN_VALUE_EUR = 0.005
-    // (100 tokens = €0.50 → 1 token = €0.005)
+    // B3a (2026-06-12): pct lido da DB (token_payment_max_pct, fallback 50)
+    // em vez do hardcode BRTokens.TOKEN_MAX_DISCOUNT_RATIO.
+    // TOKEN_VALUE_EUR = 0.005 (100 tokens = €0.50 → 1 token = €0.005)
     // BUG 2: maxDiscountEuro calculado sobre totalToPay já SEM wallet.
-    final double maxDiscountEuro =
-        totalToPay * BRTokens.TOKEN_MAX_DISCOUNT_RATIO;
+    final double maxDiscountEuro = totalToPay * (_tokenMaxPct / 100.0);
     final int maxTokensUsable =
         (maxDiscountEuro / BRTokens.TOKEN_VALUE_EUR).floor();
     final int tokensToUse = min(_availableTokens, maxTokensUsable);
@@ -358,8 +379,9 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                                     fontWeight: FontWeight.w600, fontSize: 14),
                               ),
                               subtitle: Text(
-                                '$tokensToUse tokens → -€${tokenDiscount.toStringAsFixed(2)} '
-                                '(máx. 50% do total)',
+                                '$tokensToUse tokens → -€${tokenDiscount.toStringAsFixed(2)}\n'
+                                'Máximo $_tokenMaxPct% em Bora Tokens '
+                                '(€${maxDiscountEuro.toStringAsFixed(2)})',
                                 style: TextStyle(
                                     fontSize: 12, color: Colors.amber.shade800),
                               ),
@@ -627,6 +649,11 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       final m = RegExp(r'>\s*(\d+(?:[.,]\d+)?)\s*km').firstMatch(err);
       final max = m?.group(1) ?? '15';
       return 'Entrega não disponível. Máximo $max km.';
+    }
+    // B3a (2026-06-12): cap server-side de tokens excedido.
+    if (err.contains('token_cap_exceeded')) {
+      return 'O desconto em Bora Tokens excede o máximo de '
+          '$_tokenMaxPct% do pedido.';
     }
     return 'Não foi possível criar o pedido. Tente novamente.';
   }

@@ -824,6 +824,12 @@ class OrderStore extends ChangeNotifier {
       // S1.4: Wallet debit happens atomically inside create_order RPC.
       // Pre-validates balance with FOR UPDATE lock; throws on insufficient.
       'wallet_applied_cents': walletAppliedCents,
+      // B3a (2026-06-12): desconto em tokens enviado para validação
+      // server-side do cap (token_payment_max_pct, 50%). O servidor valida e
+      // regista em tokens_applied_value_cents — NÃO altera charge/buffer:
+      // o desconto continua aplicado localmente no paymentBufferTotal.
+      if (tokenDiscountEur > 0)
+        'token_discount_cents': (tokenDiscountEur * 100).round(),
       if (pickupLocation != null) 'pickup_lat': pickupLocation.latitude,
       if (pickupLocation != null) 'pickup_lng': pickupLocation.longitude,
       'dropoff_lat': destination.latitude,

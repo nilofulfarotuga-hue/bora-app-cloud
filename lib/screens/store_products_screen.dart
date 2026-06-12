@@ -60,6 +60,14 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
   void initState() {
     super.initState();
     _selectedCategory = widget.initialCategory ?? 'Todos';
+    // B5 (2026-06-12): catálogo de mercado/loja é lazy — garante a 1ª página
+    // (30) ao abrir; o scroll infinito vai pedindo as seguintes.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context
+          .read<RestaurantStore>()
+          .ensureStoreProductsLoaded(widget.restaurantId);
+    });
   }
 
   @override
@@ -322,23 +330,39 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
             ),
             const SizedBox(height: 4),
             Expanded(
-              child: filtered.isEmpty
-                  ? _EmptyState(
-                      hasSearch: _searchQuery.isNotEmpty,
-                      searchQuery: _searchQuery,
-                      onRefresh: () => setState(() {}),
-                    )
-                  : _showSections
-                      ? _SectionedView(
-                          grouped: grouped!,
-                          isFruitCategory: _isFruitCategory,
-                          isPartnerStore: widget.isPartnerStore,
-                        )
-                      : _FlatGridView(
-                          products: filtered,
-                          showPerKg: isFruit,
-                          isPartnerStore: widget.isPartnerStore,
-                        ),
+              // B5 (2026-06-12): scroll infinito — perto do fim da lista pede
+              // a próxima página de 30 (loadMoreStoreProducts é reentrante e
+              // pára sozinho quando o catálogo esgota).
+              child: NotificationListener<ScrollNotification>(
+                onNotification: (n) {
+                  if (n.metrics.maxScrollExtent > 0 &&
+                      n.metrics.pixels >= n.metrics.maxScrollExtent - 400) {
+                    restaurantStore
+                        .loadMoreStoreProducts(widget.restaurantId);
+                  }
+                  return false;
+                },
+                child: filtered.isEmpty
+                    ? (restaurantStore
+                            .storeProductsLoading(widget.restaurantId)
+                        ? const Center(child: CircularProgressIndicator())
+                        : _EmptyState(
+                            hasSearch: _searchQuery.isNotEmpty,
+                            searchQuery: _searchQuery,
+                            onRefresh: () => setState(() {}),
+                          ))
+                    : _showSections
+                        ? _SectionedView(
+                            grouped: grouped!,
+                            isFruitCategory: _isFruitCategory,
+                            isPartnerStore: widget.isPartnerStore,
+                          )
+                        : _FlatGridView(
+                            products: filtered,
+                            showPerKg: isFruit,
+                            isPartnerStore: widget.isPartnerStore,
+                          ),
+              ),
             ),
           ],
 

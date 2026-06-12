@@ -26,7 +26,14 @@ class RestaurantStore extends ChangeNotifier {
       if (data.event == AuthChangeEvent.signedIn ||
           data.event == AuthChangeEvent.tokenRefreshed) {
         if (_restaurants.isEmpty) {
-          loadRestaurantsFromSupabase();
+          // B5 (2026-06-12): o load de produtos agora depende da lista de
+          // restaurantes (filtra parceiros+restaurantes) — recarregar em
+          // cadeia quando a 1ª tentativa correu sem sessão.
+          loadRestaurantsFromSupabase().then((_) {
+            if (_productsByRestaurant.isEmpty) {
+              loadProductsFromSupabase();
+            }
+          });
         }
       }
     });
@@ -68,6 +75,128 @@ class RestaurantStore extends ChangeNotifier {
     }
     return List.unmodifiable(
       products.where((product) => product.isAvailable),
+    );
+  }
+
+  // ─── B5 (2026-06-12): paginação lazy do catálogo de mercados/lojas ────────
+  // O arranque deixa de carregar os ~45k produtos: só parceiros e
+  // restaurantes (menus completos) ficam em memória. Mercados/lojas/farmácia
+  // carregam por páginas de 30 para o MESMO _productsByRestaurant — todos os
+  // ecrãs continuam a ler via partnerProductsForRestaurant sem alterações de
+  // modelo. Pesquisa continua na DB (RPC search_products).
+
+  static const int storePageSize = 30;
+  final Map<String, bool> _storeHasMore = {};
+  final Map<String, bool> _storeLoading = {};
+
+  bool storeHasMoreProducts(String restaurantId) =>
+      _storeHasMore[restaurantId] ?? true;
+
+  bool storeProductsLoading(String restaurantId) =>
+      _storeLoading[restaurantId] ?? false;
+
+  int storeLoadedCount(String restaurantId) =>
+      _productsByRestaurant[restaurantId]?.length ?? 0;
+
+  /// Garante que a loja tem pelo menos [minCount] produtos carregados
+  /// (ou que o catálogo está esgotado). Usado no initState dos ecrãs de
+  /// mercado/loja. Idempotente.
+  Future<void> ensureStoreProductsLoaded(
+    String restaurantId, {
+    int minCount = storePageSize,
+  }) async {
+    while (storeLoadedCount(restaurantId) < minCount) {
+      if (_storeHasMore[restaurantId] == false) break;
+      final more = await loadMoreStoreProducts(restaurantId);
+      if (!more) break;
+    }
+  }
+
+  /// Carrega a próxima página (30) de produtos disponíveis da loja.
+  /// Devolve true se ainda pode haver mais páginas. Reentrância guardada.
+  Future<bool> loadMoreStoreProducts(String restaurantId) async {
+    if (restaurantId.isEmpty) return false;
+    if (_storeLoading[restaurantId] == true) {
+      return storeHasMoreProducts(restaurantId);
+    }
+    if (_storeHasMore[restaurantId] == false) return false;
+    _storeLoading[restaurantId] = true;
+    try {
+      final offset = storeLoadedCount(restaurantId);
+      final List<dynamic> page = await supabase
+          .from('products')
+          .select(_productProjection)
+          .eq('restaurant_id', restaurantId)
+          .eq('is_available', true)
+          .order('sort_order', ascending: true, nullsFirst: false)
+          .order('id', ascending: true)
+          .range(offset, offset + storePageSize - 1);
+      final list = _productsByRestaurant.putIfAbsent(
+          restaurantId, () => <PartnerProduct>[]);
+      for (final record in page) {
+        final product = _productFromRow(record as Map<String, dynamic>);
+        if (product == null) continue;
+        // Dedupe vs eventos realtime que possam ter chegado entretanto.
+        if (list.any((e) => e.id == product.id)) continue;
+        list.add(product);
+      }
+      _storeHasMore[restaurantId] = page.length >= storePageSize;
+      notifyListeners();
+      return _storeHasMore[restaurantId]!;
+    } catch (e) {
+      debugPrint(
+          'RestaurantStore: loadMoreStoreProducts($restaurantId) error => $e');
+      return false;
+    } finally {
+      _storeLoading[restaurantId] = false;
+    }
+  }
+
+  // 2026-05-14 perf: projecção explícita evita transferir colunas grandes
+  // não usadas (search_normalized, taxonomy_*, needs_review, ...).
+  static const String _productProjection =
+      'id,restaurant_id,name,description,price,price_low,photo_url,'
+      'is_available,category,category_root,is_popular,is_on_sale,'
+      'discount_price,allergens';
+
+  /// B5 (2026-06-12): parse partilhado row→PartnerProduct (arranque +
+  /// páginas lazy). Devolve null para rows sem restaurant_id.
+  PartnerProduct? _productFromRow(Map<String, dynamic> data) {
+    final restaurantId = (data['restaurant_id'] ?? '').toString();
+    if (restaurantId.isEmpty) return null;
+
+    final productId = (data['id'] ?? '').toString();
+    // DB schema uses price_low/price_mid/price_premium; no single 'price'
+    // or 'is_available' column. Use price_low as the displayed price.
+    final price = double.tryParse(
+          data['price_low']?.toString() ?? '',
+        ) ??
+        double.tryParse(data['price']?.toString() ?? '') ??
+        0.0;
+    final discountPrice = data['discount_price'] != null
+        ? double.tryParse(data['discount_price'].toString())
+        : null;
+    // B6 (2026-06-12): alergénios UE 1169/2011 (text[] → List<String>).
+    final allergens = (data['allergens'] as List?)
+            ?.map((e) => e.toString())
+            .toList() ??
+        const <String>[];
+    return PartnerProduct(
+      id: productId,
+      restaurantId: restaurantId,
+      name: data['name'] ?? '',
+      description: (data['description'] ?? '').toString(),
+      price: price,
+      photoUrl: data['photo_url'] ?? '',
+      isAvailable: (data['is_available'] as bool?) ?? true,
+      category: (data['category'] ?? '').toString(),
+      categoryRoot: (data['category_root'] ?? '').toString(),
+      isPopular: (data['is_popular'] as bool?) ?? false,
+      isOnSale: (data['is_on_sale'] as bool?) ?? false,
+      discountPrice: discountPrice,
+      source: ProductSource.api,
+      hasRequiredOptions: _requiredOptionProductIds.contains(productId),
+      allergens: allergens,
     );
   }
 
@@ -218,19 +347,29 @@ class RestaurantStore extends ChangeNotifier {
       int offset = 0;
       final List<dynamic> allRecords = [];
 
-      // 2026-05-14 perf: .eq('is_available', true) usa o indice parcial
-      // idx_products_restaurant_id WHERE is_available=true (ja existe na DB)
-      // — reduz drasticamente as rows lidas (esp. mercados com >5k unavailable).
-      // Projeccao explicita evita transferir colunas grandes nao usadas
-      // (search_normalized, taxonomy_*, needs_review, ...).
-      const String projection =
-          'id,restaurant_id,name,description,price,price_low,photo_url,'
-          'is_available,category,category_root,is_popular,is_on_sale,'
-          'discount_price,allergens';
+      // B5 (2026-06-12): o arranque deixou de puxar os ~45k produtos dos
+      // mercados (45 requests + tudo em RAM). Aqui carregam-se APENAS os
+      // catálogos pequenos que os ecrãs precisam completos em memória:
+      // parceiros (gestão + menus) e restaurantes não-parceiros (menus
+      // fast-food). Mercados/lojas/farmácia não-parceiros carregam por
+      // páginas de 30 on-demand (loadMoreStoreProducts).
+      final includeIds = _restaurants
+          .where((r) =>
+              r.isPartner || r.category == BusinessCategory.restaurant)
+          .map((r) => r.id)
+          .toList();
+      if (includeIds.isEmpty) {
+        debugPrint(
+            'RestaurantStore: sem restaurantes carregados — produtos adiados');
+        _subscribeProductsRealtime();
+        return;
+      }
+
       while (true) {
         final List<dynamic> page = await supabase
             .from('products')
-            .select(projection)
+            .select(_productProjection)
+            .inFilter('restaurant_id', includeIds)
             // Ordem de exibição: mercados usam sort_order (sequência da fonte,
             // ex. Glovo); parceiros têm sort_order NULL -> caem no desempate por
             // id (determinístico, paginação estável). 2026-06-06.
@@ -243,6 +382,8 @@ class RestaurantStore extends ChangeNotifier {
       }
 
       _productsByRestaurant.clear();
+      _storeHasMore.clear();
+      _storeLoading.clear();
 
       // Which products have a required option group (is_required + min>=1).
       // Lightweight: fetch only the product_ids (paginated). The option items
@@ -270,52 +411,10 @@ class RestaurantStore extends ChangeNotifier {
       }
 
       for (final record in allRecords) {
-        final data = record as Map<String, dynamic>;
-
-        final restaurantId = (data['restaurant_id'] ?? '').toString();
-        if (restaurantId.isEmpty) continue;
-
-        final productId = (data['id'] ?? '').toString();
-        // DB schema uses price_low/price_mid/price_premium; no single 'price'
-        // or 'is_available' column. Use price_low as the displayed price.
-        final price = double.tryParse(
-              data['price_low']?.toString() ?? '',
-            ) ??
-            double.tryParse(data['price']?.toString() ?? '') ??
-            0.0;
-        final description = (data['description'] ?? '').toString();
-        final category = (data['category'] ?? '').toString();
-        final categoryRoot = (data['category_root'] ?? '').toString();
-        final isPopular = (data['is_popular'] as bool?) ?? false;
-        final isOnSale = (data['is_on_sale'] as bool?) ?? false;
-        final discountPrice = data['discount_price'] != null
-            ? double.tryParse(data['discount_price'].toString())
-            : null;
-        // B6 (2026-06-12): alergénios UE 1169/2011 (text[] → List<String>).
-        final allergens = (data['allergens'] as List?)
-                ?.map((e) => e.toString())
-                .toList() ??
-            const <String>[];
-        final product = PartnerProduct(
-          id: productId,
-          restaurantId: restaurantId,
-          name: data['name'] ?? '',
-          description: description,
-          price: price,
-          photoUrl: data['photo_url'] ?? '',
-          isAvailable: (data['is_available'] as bool?) ?? true,
-          category: category,
-          categoryRoot: categoryRoot,
-          isPopular: isPopular,
-          isOnSale: isOnSale,
-          discountPrice: discountPrice,
-          source: ProductSource.api,
-          hasRequiredOptions: _requiredOptionProductIds.contains(productId),
-          allergens: allergens,
-        );
-
+        final product = _productFromRow(record as Map<String, dynamic>);
+        if (product == null) continue;
         _productsByRestaurant
-            .putIfAbsent(restaurantId, () => <PartnerProduct>[])
+            .putIfAbsent(product.restaurantId, () => <PartnerProduct>[])
             .add(product);
       }
 

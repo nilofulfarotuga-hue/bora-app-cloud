@@ -58,6 +58,7 @@ import 'admin_reservations_metrics_screen.dart';
 import 'admin_reservations_screen.dart';
 import 'admin_tokens_screen.dart';
 import 'admin_wallets_screen.dart';
+import 'admin_weekly_settlements_screen.dart';
 
 /// In-app admin dashboard.
 ///
@@ -85,6 +86,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   late Future<Map<String, dynamic>> _metricsFuture;
   int _pendingSuggestionsCount = 0;
   int _unreadNotificationsCount = 0;
+  int _pendingSettlementsCount = 0;
 
   @override
   void initState() {
@@ -92,6 +94,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     _metricsFuture = _loadMetrics();
     _loadPendingSuggestionsCount();
     _loadUnreadNotificationsCount();
+    _loadPendingSettlementsCount();
     // 5F-β — registar FCM token admin + ouvir taps em pushes crosstalk_critical.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -120,6 +123,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   void didPopNext() {
     _loadPendingSuggestionsCount();
     _loadUnreadNotificationsCount();
+    _loadPendingSettlementsCount();
   }
 
   Future<Map<String, dynamic>> _loadMetrics() async {
@@ -166,6 +170,46 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     await _metricsFuture;
     await _loadPendingSuggestionsCount();
     await _loadUnreadNotificationsCount();
+    await _loadPendingSettlementsCount();
+  }
+
+  /// Fechos Semanais (2026-06-12) — badge com nº de fechos PENDENTES
+  /// (estafetas + parceiros) da semana atual + anterior. As tabelas de
+  /// settlements só têm RLS own-read, por isso o count vem das RPCs admin
+  /// (idempotentes; recomputam a semana pedida). Falha → badge 0, silencioso.
+  Future<void> _loadPendingSettlementsCount() async {
+    try {
+      final now = DateTime.now();
+      final monday = DateTime(now.year, now.month, now.day)
+          .subtract(Duration(days: now.weekday - 1));
+      final weeks = [
+        monday.add(const Duration(hours: 12)),
+        monday.subtract(const Duration(days: 7)).add(const Duration(hours: 12)),
+      ];
+      var pending = 0;
+      for (final w in weeks) {
+        final params = {'p_week_start': w.toUtc().toIso8601String()};
+        final results = await Future.wait([
+          Supabase.instance.client
+              .rpc('admin_list_settlements_for_week', params: params),
+          Supabase.instance.client
+              .rpc('admin_list_partner_settlements_for_week', params: params),
+        ]);
+        for (final res in results) {
+          final rows = (res is Map ? res['settlements'] : null);
+          if (rows is List) {
+            pending += rows
+                .where((r) =>
+                    r is Map &&
+                    r['status'] == 'pending' &&
+                    r['direction'] != 'zero')
+                .length;
+          }
+        }
+      }
+      if (!mounted) return;
+      setState(() => _pendingSettlementsCount = pending);
+    } catch (_) {/* silent */}
   }
 
   bool get _isAuthorized => AuthAdminService.isAdmin();
@@ -508,6 +552,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       context,
                       MaterialPageRoute(
                           builder: (_) => const AdminWalletsScreen())),
+                ),
+                const SizedBox(height: 10),
+                // Fechos Semanais (2026-06-12) — settlements estafetas+parceiros.
+                _NavCard(
+                  icon: Icons.payments_outlined,
+                  title: 'Fechos Semanais',
+                  subtitle: 'Quem paga quem esta semana · marcar pago/recebido',
+                  color: Colors.lightGreen,
+                  badgeCount: _pendingSettlementsCount,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminWeeklySettlementsScreen())),
                 ),
                 const SizedBox(height: 10),
                 _NavCard(

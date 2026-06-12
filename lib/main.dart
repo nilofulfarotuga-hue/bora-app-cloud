@@ -26,6 +26,7 @@ import 'screens/admin/admin_crosstalk_screen.dart';
 import 'screens/admin/admin_dashboard_screen.dart';
 import 'screens/admin/admin_ratings_screen.dart';
 import 'screens/admin/admin_skill_suggestions_metrics_screen.dart';
+import 'screens/admin/admin_weekly_settlements_screen.dart';
 import 'screens/restaurant_ratings_list_screen.dart';
 import 'screens/client_login_screen.dart';
 import 'screens/client_main_screen.dart';
@@ -314,6 +315,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
               const AdminSkillSuggestionsMetricsScreen(),
           // Sessão 6 §44 — Avaliações
           '/admin/ratings': (_) => const AdminRatingsScreen(),
+          // Fechos Semanais (2026-06-12) — deep link do push de 2ª-feira
+          // (run_weekly_closeout → notify-admin-urgent route '/admin/settlements').
+          '/admin/settlements': (_) => const AdminWeeklySettlementsScreen(),
         },
         onGenerateRoute: (settings) {
           // §44 — deep link da push low_rating: /partner/ratings precisa

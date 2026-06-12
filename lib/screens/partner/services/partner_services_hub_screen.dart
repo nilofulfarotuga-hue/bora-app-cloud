@@ -9,6 +9,7 @@ import '../../../stores/partner_appointments_store.dart';
 import '../../../stores/session_store.dart';
 import '../../../widgets/biometric_login_tile.dart';
 import '../../../widgets/bora/bora_screen_app_bar.dart';
+import '../../../widgets/partner_weekly_closeout_card.dart';
 import 'partner_add_walk_in_screen.dart';
 import 'partner_agenda_screen.dart';
 import 'partner_appointments_finance_screen.dart';
@@ -110,6 +111,8 @@ class _PartnerServicesHubScreenState extends State<PartnerServicesHubScreen> {
                   ],
                 ),
               ),
+              // M2 (2026-06-12) — fecho semanal read-only (transparência).
+              ProviderWeeklyPayoutCard(providerId: provider.id),
               _Tile(
                 icon: Icons.calendar_month,
                 title: 'Agenda',

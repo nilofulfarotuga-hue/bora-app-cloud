@@ -23,6 +23,7 @@ import '../services/sound_service.dart';
 import '../stores/session_store.dart';
 import '../widgets/address_text.dart';
 import '../widgets/biometric_login_tile.dart';
+import '../widgets/partner_weekly_closeout_card.dart';
 import 'partner/reservations/partner_reservations_home_screen.dart';
 import 'partner/services/partner_services_hub_screen.dart';
 import 'partner_call_driver_screen.dart';
@@ -652,6 +653,9 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                     label: const Text('Ver detalhe de ganhos'),
                   ),
                 ),
+                const SizedBox(height: 8),
+                // M2 (2026-06-12) — fecho semanal read-only (transparência).
+                PartnerWeeklyCloseoutCard(restaurantId: widget.restaurant.id),
                 const SizedBox(height: 8),
                 SizedBox(
                   width: double.infinity,

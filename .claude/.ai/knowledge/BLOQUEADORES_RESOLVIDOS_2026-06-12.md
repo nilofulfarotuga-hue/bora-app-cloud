@@ -43,6 +43,13 @@
 ### Stacking (contexto)
 `partner_driver_stacking_bonus_cents=300` já estava correto na DB — **não tocado** (instrução explícita).
 
+## Adenda (mesma data) — Verificação T1+T2: JÁ ESTAVAM FEITOS
+
+Prompt posterior pediu T1 (toppings não cobrados) + T2 (ecrã Minhas Marcações) com diagnóstico DESATUALIZADO — ambos implementados em 2026-06-11. Verificação de hoje (zero edits):
+- **T1 ✅** provado vivo: `order_line_options_extras` açaí+Mel+Banana → **€2,00**; KFC 2 grupos → 3,72; display cliente (order_details:1001) + estafeta (driver_map:2789) + parceiro (partner_dashboard:1345) via `selected_options_priced`.
+- **T2 ✅**: `client/services/my_appointments_screen.dart` (3 tabs Próximas/Passadas/Canceladas, sinal PT-PT, modal com regra antes de cancelar), atalhos Serviços+Perfil, crons `appt-reminders-24h`(10h)/`appt-reminders-2h`(*/30)/no-show/payout ativos, admin OK.
+- **⚠️ Decisão pendente Danilo:** prompt pedia janela **2h** p/ marcações; implementado = **24h** (`appointment_cancel_window_hours=24`, splits €0,50/€2,50) **alinhado com o DNA** — 2h é a regra de reservas de MESA. Não toquei (dinheiro). Detalhe: `relatorios/VERIFICACAO_T1_T2_JA_IMPLEMENTADOS_2026-06-12.md`.
+
 ## Pendente / follow-ups
 1. **Gap conhecido (pré-existente, não tocado):** desconto de tokens é subtraído ao buffer só localmente; `create-payment-intent` valida ±5% contra o buffer da DB → cartão+tokens com desconto >5% pode falhar. Decisão futura: subtrair `tokens_applied_value_cents` ao buffer server-side (zona Stripe — precisa aprovação Danilo).
 2. **B5 limitação v1:** chips de categoria e tab "Categorias" do mercado derivam dos produtos JÁ carregados (parciais até o utilizador paginar). Follow-up sugerido: RPC `store_product_categories(restaurant_id)` (distinct + count) para chips completos + paginação por categoria.

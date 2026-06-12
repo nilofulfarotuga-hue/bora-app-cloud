@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
+import '../services/login_prefs.dart';
 import '../services/notification_service.dart';
 import '../stores/session_store.dart';
 import '../widgets/bora/bora_mascot.dart';
@@ -31,6 +32,35 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
   );
   bool _isProcessing = false;
   bool _obscurePassword = true;
+  // L1 — true quando o email foi pré-preenchido com o último login.
+  bool _prefilledFromMemory = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _prefillLastEmail();
+  }
+
+  /// L1 — pré-preenche o campo de email com o último login bem-sucedido.
+  Future<void> _prefillLastEmail() async {
+    final remembered = await LoginPrefs.lastEmail('client');
+    if (remembered == null || !mounted) return;
+    setState(() {
+      _emailController.text = remembered;
+      _prefilledFromMemory = true;
+    });
+  }
+
+  /// L1 — "Entrar com outra conta": limpa campos + esquece o email guardado.
+  Future<void> _useAnotherAccount() async {
+    await LoginPrefs.clearLastEmail('client');
+    if (!mounted) return;
+    setState(() {
+      _prefilledFromMemory = false;
+      _emailController.clear();
+      _passwordController.clear();
+    });
+  }
 
   @override
   void dispose() {
@@ -115,6 +145,15 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
                     return null;
                   },
                 ),
+                if (_prefilledFromMemory)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed:
+                          _isProcessing ? null : _useAnotherAccount,
+                      child: const Text('Entrar com outra conta'),
+                    ),
+                  ),
                 const SizedBox(height: Spacing.lg),
 
                 // ── Password ──────────────────────────────────────────
@@ -249,6 +288,9 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
     // L2 — sinaliza ao Android que o login terminou: dispara o prompt
     // "Guardar palavra-passe?" do gestor de senhas.
     TextInput.finishAutofillContext();
+
+    // L1 — lembra o email para pré-preencher no próximo login.
+    LoginPrefs.saveLastEmail('client', _emailController.text).ignore();
 
     // Persist FCM token for this client device so push notifications work.
     final authUser = Supabase.instance.client.auth.currentUser;

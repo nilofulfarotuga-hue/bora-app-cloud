@@ -7,6 +7,7 @@ import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
 import '../stores/partner_appointments_store.dart';
 import '../stores/restaurant_store.dart';
+import '../services/login_prefs.dart';
 import '../services/notification_service.dart';
 import '../stores/session_store.dart';
 import '../widgets/bora/bora_primary_button.dart';
@@ -26,6 +27,35 @@ class _PartnerLoginScreenState extends State<PartnerLoginScreen> {
 
   bool _obscurePassword = true;
   bool _isProcessing = false;
+  // L1 — true quando o email foi pré-preenchido com o último login.
+  bool _prefilledFromMemory = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _prefillLastEmail();
+  }
+
+  /// L1 — pré-preenche o campo de email com o último login bem-sucedido.
+  Future<void> _prefillLastEmail() async {
+    final remembered = await LoginPrefs.lastEmail('partner');
+    if (remembered == null || !mounted) return;
+    setState(() {
+      _emailController.text = remembered;
+      _prefilledFromMemory = true;
+    });
+  }
+
+  /// L1 — "Entrar com outra conta": limpa campos + esquece o email guardado.
+  Future<void> _useAnotherAccount() async {
+    await LoginPrefs.clearLastEmail('partner');
+    if (!mounted) return;
+    setState(() {
+      _prefilledFromMemory = false;
+      _emailController.clear();
+      _passwordController.clear();
+    });
+  }
 
   @override
   void dispose() {
@@ -84,6 +114,14 @@ class _PartnerLoginScreenState extends State<PartnerLoginScreen> {
                   return null;
                 },
               ),
+              if (_prefilledFromMemory)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: _isProcessing ? null : _useAnotherAccount,
+                    child: const Text('Entrar com outra conta'),
+                  ),
+                ),
               const SizedBox(height: Spacing.lg),
               TextFormField(
                 controller: _passwordController,
@@ -205,6 +243,9 @@ class _PartnerLoginScreenState extends State<PartnerLoginScreen> {
     // L2 — sinaliza ao Android que o login terminou: dispara o prompt
     // "Guardar palavra-passe?" do gestor de senhas.
     TextInput.finishAutofillContext();
+
+    // L1 — lembra o email para pré-preencher no próximo login.
+    LoginPrefs.saveLastEmail('partner', _emailController.text).ignore();
 
     final restaurant = restaurantStore.restaurantByEmail(_emailController.text);
     if (restaurant != null) {

@@ -212,6 +212,11 @@ class OrderStore extends ChangeNotifier {
   String? _lastCreatedOrderId;
   String? get lastCreatedOrderId => _lastCreatedOrderId;
 
+  /// B1 (2026-06-12): último erro devolvido pela RPC create_order — permite
+  /// ao checkout mapear códigos conhecidos (ex. delivery_distance_exceeded)
+  /// para mensagens PT-PT em vez do fallback genérico.
+  String? lastCreateOrderError;
+
   String? _pendingClientSecret;
   String? consumePendingClientSecret() {
     final cs = _pendingClientSecret;
@@ -869,6 +874,7 @@ class OrderStore extends ChangeNotifier {
 
     debugPrint(
         '[FLOW] createOrder START → RPC create_order type=${serviceType.name}');
+    lastCreateOrderError = null;
 
     // serverOrder declared outside try so the catch block can roll back if
     // anything after the RPC (photos, push, simulate) throws.
@@ -1022,6 +1028,7 @@ class OrderStore extends ChangeNotifier {
       return true;
     } catch (e) {
       debugPrint('[FLOW] createOrder FAILED: $e');
+      lastCreateOrderError = e.toString();
       if (serverOrder != null) {
         // RPC committed the order to the server — do NOT roll back local state.
         // Ensure the order is visible in the UI and return success.

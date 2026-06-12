@@ -619,6 +619,18 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     );
   }
 
+  /// B1 (2026-06-12): traduz códigos de erro conhecidos da RPC create_order
+  /// para PT-PT. Fallback = mensagem genérica existente.
+  String _createOrderErrorMessage(OrderStore orderStore) {
+    final err = orderStore.lastCreateOrderError ?? '';
+    if (err.contains('delivery_distance_exceeded')) {
+      final m = RegExp(r'>\s*(\d+(?:[.,]\d+)?)\s*km').firstMatch(err);
+      final max = m?.group(1) ?? '15';
+      return 'Entrega não disponível. Máximo $max km.';
+    }
+    return 'Não foi possível criar o pedido. Tente novamente.';
+  }
+
   /// Forces exit from payment screen to home root after a post-createOrder
   /// failure. If [orderId] is provided, also calls `client-cancel-order` Edge
   /// Function to mark the orphan order as cancelled in DB (avoids stuck
@@ -738,8 +750,8 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
         if (!mounted) return;
         if (!ordered) {
           setState(() => _isProcessing = false);
-          messenger.showSnackBar(const SnackBar(
-              content: Text('Não foi possível criar o pedido. Tente novamente.')));
+          messenger.showSnackBar(SnackBar(
+              content: Text(_createOrderErrorMessage(orderStore))));
           return;
         }
         await _consumeTokensAndNavigate(tokensUsed);
@@ -898,8 +910,8 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
         if (!mounted) return;
         if (!mbwayOrdered) {
           setState(() => _isProcessing = false);
-          messenger.showSnackBar(const SnackBar(
-            content: Text('Não foi possível criar o pedido. Tente novamente.'),
+          messenger.showSnackBar(SnackBar(
+            content: Text(_createOrderErrorMessage(orderStore)),
           ));
           return;
         }
@@ -982,8 +994,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
 
     if (!ordered) {
       messenger.showSnackBar(
-        const SnackBar(
-            content: Text('Não foi possível criar o pedido. Tente novamente.')),
+        SnackBar(content: Text(_createOrderErrorMessage(orderStore))),
       );
       return;
     }

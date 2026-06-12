@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../auth/auth_store.dart';
@@ -52,7 +53,10 @@ class _PartnerLoginScreenState extends State<PartnerLoginScreen> {
       ),
       body: Form(
         key: _formKey,
-        child: SingleChildScrollView(
+        // L2 (2026-06-12) — AutofillGroup liga os campos ao gestor de
+        // senhas do Android (Google Password Manager / Samsung Pass).
+        child: AutofillGroup(
+          child: SingleChildScrollView(
           padding: const EdgeInsets.all(Spacing.xxl),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -65,6 +69,7 @@ class _PartnerLoginScreenState extends State<PartnerLoginScreen> {
               TextFormField(
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
+                autofillHints: const [AutofillHints.email],
                 decoration: const InputDecoration(
                   labelText: 'Email',
                   prefixIcon: Icon(Icons.email_outlined),
@@ -83,6 +88,7 @@ class _PartnerLoginScreenState extends State<PartnerLoginScreen> {
               TextFormField(
                 controller: _passwordController,
                 obscureText: _obscurePassword,
+                autofillHints: const [AutofillHints.password],
                 decoration: InputDecoration(
                   labelText: 'Palavra-passe',
                   prefixIcon: const Icon(Icons.lock_outline),
@@ -128,6 +134,7 @@ class _PartnerLoginScreenState extends State<PartnerLoginScreen> {
                 ),
               ),
             ],
+          ),
           ),
         ),
       ),
@@ -194,6 +201,10 @@ class _PartnerLoginScreenState extends State<PartnerLoginScreen> {
       );
       return;
     }
+
+    // L2 — sinaliza ao Android que o login terminou: dispara o prompt
+    // "Guardar palavra-passe?" do gestor de senhas.
+    TextInput.finishAutofillContext();
 
     final restaurant = restaurantStore.restaurantByEmail(_emailController.text);
     if (restaurant != null) {

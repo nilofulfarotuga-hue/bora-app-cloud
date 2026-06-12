@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -69,7 +70,10 @@ class _DriverLoginScreenState extends State<DriverLoginScreen> {
           ),
           child: Form(
             key: _formKey,
-            child: Column(
+            // L2 (2026-06-12) — AutofillGroup liga os campos ao gestor de
+            // senhas do Android (Google Password Manager / Samsung Pass).
+            child: AutofillGroup(
+              child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 if (_hasPendingDraft)
@@ -176,6 +180,7 @@ class _DriverLoginScreenState extends State<DriverLoginScreen> {
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                   autocorrect: false,
+                  autofillHints: const [AutofillHints.email],
                   decoration: const InputDecoration(
                     labelText: 'Email',
                     prefixIcon: Icon(Icons.email_outlined),
@@ -194,6 +199,7 @@ class _DriverLoginScreenState extends State<DriverLoginScreen> {
                 TextFormField(
                   controller: _passwordController,
                   obscureText: _obscurePassword,
+                  autofillHints: const [AutofillHints.password],
                   decoration: InputDecoration(
                     labelText: 'Palavra-passe',
                     prefixIcon: const Icon(Icons.lock_outline),
@@ -255,6 +261,7 @@ class _DriverLoginScreenState extends State<DriverLoginScreen> {
                   ),
                 ),
               ],
+              ),
             ),
           ),
         ),
@@ -290,6 +297,10 @@ class _DriverLoginScreenState extends State<DriverLoginScreen> {
       );
       return;
     }
+
+    // L2 — sinaliza ao Android que o login terminou: dispara o prompt
+    // "Guardar palavra-passe?" do gestor de senhas.
+    TextInput.finishAutofillContext();
 
     // Guard: confirm that Supabase session is the real driver, not a guest
     // fallback. loginDriverAsync always calls signInWithPassword, but this

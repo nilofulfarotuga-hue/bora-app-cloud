@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -50,7 +51,10 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
           ),
           child: Form(
             key: _formKey,
-            child: Column(
+            // L2 (2026-06-12) — AutofillGroup liga os campos ao gestor de
+            // senhas do Android (Google Password Manager / Samsung Pass).
+            child: AutofillGroup(
+              child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 56),
@@ -98,6 +102,7 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
+                  autofillHints: const [AutofillHints.email],
                   decoration: const InputDecoration(
                     labelText: 'Email',
                     prefixIcon: Icon(Icons.email_outlined),
@@ -116,6 +121,7 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
                 TextFormField(
                   controller: _passwordController,
                   obscureText: _obscurePassword,
+                  autofillHints: const [AutofillHints.password],
                   decoration: InputDecoration(
                     labelText: 'Palavra-passe',
                     prefixIcon: const Icon(Icons.lock_outline),
@@ -180,6 +186,7 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
                   ),
                 ),
               ],
+              ),
             ),
           ),
         ),
@@ -238,6 +245,10 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
       );
       return;
     }
+
+    // L2 — sinaliza ao Android que o login terminou: dispara o prompt
+    // "Guardar palavra-passe?" do gestor de senhas.
+    TextInput.finishAutofillContext();
 
     // Persist FCM token for this client device so push notifications work.
     final authUser = Supabase.instance.client.auth.currentUser;

@@ -115,6 +115,8 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
           'type': 'chat',
           'sender_type': senderType,
           'message_id': messageId,
+          // Par da conversa — o tap abre a thread certa (threads separadas).
+          'conversation_type': data['conversation_type']?.toString() ?? '',
         }),
       );
       debugPrint('[FCM BG] chat rich notif posted msg=$messageId order=$orderId');
@@ -411,6 +413,21 @@ void _onLocalNotifTap(NotificationResponse response) {
   // acontece no cartão/ecrã da oferta (rehydrate + OrderStore). As actions
   // do parceiro (showsUserInterface:false) nunca chegam a este callback.
   FlutterForegroundTask.launchApp('/');
+  // Chat: o tap tem de ABRIR A CONVERSA (padrão Glovo/Uber) — antes só
+  // trazia a app para a home e a mensagem ficava perdida.
+  try {
+    final payload = response.payload;
+    if (payload == null || payload.isEmpty) return;
+    final data = jsonDecode(payload) as Map<String, dynamic>;
+    if (data['type'] != 'chat') return;
+    final orderId = data['orderId']?.toString() ?? '';
+    if (orderId.isEmpty) return;
+    final conv = data['conversation_type']?.toString();
+    NotificationService.instance.openChatFromNotification(
+        orderId, (conv == null || conv.isEmpty) ? null : conv);
+  } catch (e) {
+    debugPrint('[NOTIF TAP] chat payload parse error: $e');
+  }
 }
 
 /// Acção nos botões da notificação quando app em background/terminada.
@@ -736,13 +753,40 @@ class NotificationService {
     // Inicializar flutter_local_notifications para registar o callback de tap.
     // Sem este initialize(), onDidReceiveNotificationResponse nunca é chamado
     // e tocar na notificação persistente não abre o ecrã de aceitar/rejeitar.
-    await FlutterLocalNotificationsPlugin().initialize(
+    final localPlugin = FlutterLocalNotificationsPlugin();
+    await localPlugin.initialize(
       const InitializationSettings(
         android: AndroidInitializationSettings('@mipmap/ic_launcher'),
       ),
       onDidReceiveNotificationResponse: _onLocalNotifTap,
       onDidReceiveBackgroundNotificationResponse: onBackgroundNotificationAction,
     );
+
+    // Cold start via notificação de CHAT: com a app terminada o callback de
+    // tap não dispara — o payload vem nos launch details. Abrir a conversa
+    // assim que role+navigator estiverem prontos (openChatFromNotification
+    // já faz os retries).
+    try {
+      final launch = await localPlugin.getNotificationAppLaunchDetails();
+      final payload = launch?.notificationResponse?.payload;
+      if ((launch?.didNotificationLaunchApp ?? false) &&
+          payload != null &&
+          payload.isNotEmpty) {
+        final data = jsonDecode(payload) as Map<String, dynamic>;
+        if (data['type'] == 'chat') {
+          final orderId = data['orderId']?.toString() ?? '';
+          final conv = data['conversation_type']?.toString();
+          if (orderId.isNotEmpty) {
+            debugPrint('[NotificationService] cold start de notif chat → '
+                'abrir conversa order=$orderId');
+            openChatFromNotification(
+                orderId, (conv == null || conv.isEmpty) ? null : conv);
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('[NotificationService] launch details error: $e');
+    }
 
     // Persiste access token sempre que a sessão Supabase muda — o background
     // notification action handler precisa dele para fazer HTTP autenticado.
@@ -1488,8 +1532,15 @@ class NotificationService {
     final overlayState = navigatorKey.currentState?.overlay;
     if (overlayState == null) return;
 
-    final title = message.notification?.title ?? '💬 Nova mensagem';
-    final body = message.notification?.body ?? '';
+    // O push de chat é DATA-ONLY (notify-chat-message v10+) — o conteúdo vem
+    // em data, não em notification (que chega null em foreground).
+    final senderName = (message.data['sender_name'] as String?) ?? '';
+    final title = senderName.isNotEmpty
+        ? '💬 $senderName'
+        : message.notification?.title ?? '💬 Nova mensagem';
+    final body = (message.data['body'] as String?) ??
+        message.notification?.body ??
+        '';
     final orderId = message.data['order_id'] as String?;
     final conversationType = message.data['conversation_type'] as String?;
 
@@ -1507,6 +1558,24 @@ class NotificationService {
     );
     overlayState.insert(entry);
     SystemSound.play(SystemSoundType.click);
+  }
+
+  /// Abre a conversa a partir do TAP numa notificação de chat (app em
+  /// background ou morta). Retries: ao voltar de background o navigator e o
+  /// _boundRole podem demorar a estar prontos; em cold start ainda mais.
+  Future<void> openChatFromNotification(
+      String orderId, String? conversationType) async {
+    for (var attempt = 0; attempt < 6; attempt++) {
+      if (_boundRole != null && navigatorKey.currentContext != null) {
+        debugPrint('[NotificationService] openChatFromNotification → '
+            'order=$orderId conv=$conversationType (attempt $attempt)');
+        _openChat(orderId, conversationType);
+        return;
+      }
+      await Future.delayed(const Duration(milliseconds: 900));
+    }
+    debugPrint('[NotificationService] openChatFromNotification DESISTIU — '
+        'role/navigator nunca ficaram prontos (order=$orderId)');
   }
 
   /// Devolve o interlocutor do [senderType] dentro do par [conversationType]

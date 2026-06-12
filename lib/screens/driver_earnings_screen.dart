@@ -143,7 +143,8 @@ class _DriverEarningsScreenState extends State<DriverEarningsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('Saldo atual: $_tokens tokens'),
-                Text('Máximo agora: $_maxConvertibleNow tokens (50% do saldo)'),
+                Text('Máximo: $_maxConvertibleNow tokens '
+                    '(50% do saldo, limite por semana)'),
                 const SizedBox(height: 12),
                 Slider(
                   value: amount.toDouble(),
@@ -196,59 +197,42 @@ class _DriverEarningsScreenState extends State<DriverEarningsScreen> {
     if (uid == null) return;
     try {
       final supabase = Supabase.instance.client;
-      final consumed = await supabase.rpc(
-            'consume_tokens',
-            params: {'p_user_id': uid, 'p_amount': tokensToConvert},
-          ) as bool? ??
-          false;
-
-      if (!consumed) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Tokens insuficientes.')),
-        );
-        return;
-      }
-
-      final valorEur = tokensToConvert * BRTokens.TOKEN_VALUE_EUR;
-
-      await supabase.from('driver_transactions').insert({
-        'driver_id': uid,
-        'amount': valorEur,
-        'type': 'token_conversion',
-        'status': 'completed',
-        'notes': '$tokensToConvert tokens convertidos',
-      });
-
-      final balRow = await supabase
-          .from('driver_balances')
-          .select('balance')
-          .eq('driver_id', uid)
-          .maybeSingle();
-      if (balRow != null) {
-        final current = (balRow['balance'] as num?)?.toDouble() ?? 0;
-        await supabase
-            .from('driver_balances')
-            .update({'balance': current + valorEur}).eq('driver_id', uid);
-      } else {
-        await supabase.from('driver_balances').insert({
-          'driver_id': uid,
-          'balance': valorEur,
-        });
-      }
+      // B3b (2026-06-12): conversão atómica server-side com cap SEMANAL
+      // (token_withdrawal_max_pct_weekly, 50% do saldo por semana).
+      // Substitui consume_tokens + inserts manuais — o fluxo antigo permitia
+      // sacar 50%+50%+50%… do saldo restante até esvaziar tudo na mesma
+      // semana. A RPC valida, consome, regista driver_transactions e credita
+      // driver_balances numa única transação.
+      final res = await supabase.rpc(
+        'driver_convert_tokens',
+        params: {'p_amount': tokensToConvert},
+      );
+      final amountEur =
+          ((res as Map)['amount_eur'] as num?)?.toDouble() ??
+              tokensToConvert * BRTokens.TOKEN_VALUE_EUR;
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-              'Convertidos $tokensToConvert tokens → €${valorEur.toStringAsFixed(2)}'),
+              'Convertidos $tokensToConvert tokens → €${amountEur.toStringAsFixed(2)}'),
         ),
       );
       _load();
     } catch (e) {
       if (!mounted) return;
+      final msg = e.toString();
+      final String friendly;
+      if (msg.contains('token_withdrawal_weekly_cap_exceeded')) {
+        friendly =
+            'Limite semanal atingido. Podes sacar mais na próxima semana.';
+      } else if (msg.contains('INSUFFICIENT_TOKENS')) {
+        friendly = 'Tokens insuficientes.';
+      } else {
+        friendly = 'Erro: $e';
+      }
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro: $e')),
+        SnackBar(content: Text(friendly)),
       );
     }
   }

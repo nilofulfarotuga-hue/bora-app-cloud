@@ -16,6 +16,7 @@ class PartnerProduct {
     this.discountPrice,
     this.source = ProductSource.api,
     this.hasRequiredOptions = false,
+    this.allergens = const [],
   });
 
   final String id;
@@ -38,6 +39,11 @@ class PartnerProduct {
   /// adding directly. Populated by RestaurantStore from product_option_groups.
   final bool hasRequiredOptions;
 
+  /// B6 (2026-06-12): slugs dos 14 alergénios UE 1169/2011 declarados pelo
+  /// parceiro (ver kAllergenLabels). Vazio = não preenchido → o detalhe do
+  /// produto mostra o disclaimer "consulte o estabelecimento".
+  final List<String> allergens;
+
   PartnerProduct copyWith({
     String? name,
     String? description,
@@ -51,6 +57,7 @@ class PartnerProduct {
     double? discountPrice,
     ProductSource? source,
     bool? hasRequiredOptions,
+    List<String>? allergens,
   }) {
     return PartnerProduct(
       id: id,
@@ -67,6 +74,7 @@ class PartnerProduct {
       discountPrice: discountPrice ?? this.discountPrice,
       source: source ?? this.source,
       hasRequiredOptions: hasRequiredOptions ?? this.hasRequiredOptions,
+      allergens: allergens ?? this.allergens,
     );
   }
 }

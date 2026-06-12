@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../config/allergens.dart';
 import '../config/app_colors.dart';
 import '../models/cart_item.dart';
 import '../models/partner_product.dart';
@@ -262,6 +263,48 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             ),
                           ),
                         ],
+                        // B6 (2026-06-12): alergénios (Reg. UE 1169/2011) —
+                        // chips quando declarados; disclaimer quando vazio.
+                        const SizedBox(height: 12),
+                        if (widget.product.allergens.isNotEmpty) ...[
+                          const Text(
+                            'Alergénios',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: [
+                              for (final slug in widget.product.allergens)
+                                Chip(
+                                  label: Text(
+                                    kAllergenLabels[slug] ?? slug,
+                                    style: const TextStyle(fontSize: 11),
+                                  ),
+                                  visualDensity: VisualDensity.compact,
+                                  materialTapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                  backgroundColor: Colors.amber.shade50,
+                                  side: BorderSide(
+                                      color: Colors.amber.shade200),
+                                ),
+                            ],
+                          ),
+                        ] else
+                          Text(
+                            'Consulte o estabelecimento para informações '
+                            'sobre alergénios.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade500,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
                       ],
                     ),
                   ),

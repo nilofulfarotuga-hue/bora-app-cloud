@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../config/allergens.dart';
 import '../config/app_colors.dart';
 import '../models/restaurant_model.dart';
 import '../stores/partner_product_store.dart';
@@ -25,6 +26,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
   late final TextEditingController _priceController;
   bool _isAvailable = true;
   bool _isSaving = false;
+
+  // B6 (2026-06-12): alergénios UE 1169/2011 selecionados pelo parceiro.
+  final Set<String> _selectedAllergens = {};
 
   File? _selectedImage;
   String? _existingImageUrl;
@@ -78,6 +82,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
             price: parsedPrice,
             photoUrl: imageUrl ?? '',
             isAvailable: _isAvailable,
+            allergens: _selectedAllergens.toList(),
           );
     } catch (error) {
       if (mounted) {
@@ -453,6 +458,41 @@ class _AddProductScreenState extends State<AddProductScreen> {
                       }
                       return null;
                     },
+                  ),
+                  const SizedBox(height: 16),
+                  // B6 (2026-06-12): alergénios UE 1169/2011 — declaração
+                  // pelo parceiro (opcional; vazio mostra disclaimer na app).
+                  Text(
+                    'Alergénios',
+                    style: theme.textTheme.bodyMedium
+                        ?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Seleciona os alergénios presentes neste produto '
+                    '(Reg. UE 1169/2011).',
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: AppColors.textSubtle),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      for (final entry in kAllergenLabels.entries)
+                        FilterChip(
+                          label: Text(entry.value,
+                              style: const TextStyle(fontSize: 12)),
+                          selected: _selectedAllergens.contains(entry.key),
+                          onSelected: (sel) => setState(() {
+                            if (sel) {
+                              _selectedAllergens.add(entry.key);
+                            } else {
+                              _selectedAllergens.remove(entry.key);
+                            }
+                          }),
+                        ),
+                    ],
                   ),
                   const SizedBox(height: 16),
                   _buildPhotoSection(),

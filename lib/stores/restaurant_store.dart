@@ -225,7 +225,8 @@ class RestaurantStore extends ChangeNotifier {
       // (search_normalized, taxonomy_*, needs_review, ...).
       const String projection =
           'id,restaurant_id,name,description,price,price_low,photo_url,'
-          'is_available,category,category_root,is_popular,is_on_sale,discount_price';
+          'is_available,category,category_root,is_popular,is_on_sale,'
+          'discount_price,allergens';
       while (true) {
         final List<dynamic> page = await supabase
             .from('products')
@@ -290,6 +291,11 @@ class RestaurantStore extends ChangeNotifier {
         final discountPrice = data['discount_price'] != null
             ? double.tryParse(data['discount_price'].toString())
             : null;
+        // B6 (2026-06-12): alergénios UE 1169/2011 (text[] → List<String>).
+        final allergens = (data['allergens'] as List?)
+                ?.map((e) => e.toString())
+                .toList() ??
+            const <String>[];
         final product = PartnerProduct(
           id: productId,
           restaurantId: restaurantId,
@@ -305,6 +311,7 @@ class RestaurantStore extends ChangeNotifier {
           discountPrice: discountPrice,
           source: ProductSource.api,
           hasRequiredOptions: _requiredOptionProductIds.contains(productId),
+          allergens: allergens,
         );
 
         _productsByRestaurant
@@ -566,6 +573,7 @@ class RestaurantStore extends ChangeNotifier {
     required double price,
     required String photoUrl,
     required bool isAvailable,
+    List<String> allergens = const [],
   }) async {
     final trimmedName = name.trim();
     final trimmedDescription = description.trim();
@@ -582,6 +590,7 @@ class RestaurantStore extends ChangeNotifier {
       photoUrl: normalizedPhoto,
       isAvailable: isAvailable,
       source: ProductSource.api,
+      allergens: allergens,
     );
 
     // Optimistic insert — UI reflects immediately.
@@ -599,6 +608,8 @@ class RestaurantStore extends ChangeNotifier {
         'price': product.price,
         'photo_url': product.photoUrl,
         'is_available': product.isAvailable,
+        // B6: alergénios UE 1169/2011 (vazio = não declarado).
+        'allergens': product.allergens,
       });
       debugPrint('RestaurantStore: product saved to Supabase');
     } catch (e) {
@@ -621,6 +632,7 @@ class RestaurantStore extends ChangeNotifier {
     double? price,
     String? photoUrl,
     bool? isAvailable,
+    List<String>? allergens,
   }) async {
     final list = _productsByRestaurant[restaurantId];
     if (list == null) return false;
@@ -641,6 +653,7 @@ class RestaurantStore extends ChangeNotifier {
           ? current.photoUrl
           : photoUrl?.trim(),
       isAvailable: isAvailable,
+      allergens: allergens,
     );
 
     // Optimistic update.
@@ -656,6 +669,7 @@ class RestaurantStore extends ChangeNotifier {
             'price': updated.price,
             'photo_url': updated.photoUrl,
             'is_available': updated.isAvailable,
+            'allergens': updated.allergens,
           })
           .eq('id', productId);
       debugPrint('RestaurantStore: product updated in Supabase');

@@ -9,6 +9,7 @@ import '../models/driver_model.dart';
 import '../models/restaurant_model.dart';
 import '../services/biometric_auth_service.dart';
 import '../services/notification_service.dart';
+import '../services/secure_credentials_store.dart';
 import '../utils/constants.dart';
 
 enum AuthRole { client, driver, partner }
@@ -1270,19 +1271,27 @@ class AuthStore extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
 
       // ── Restore local account objects ─────────────────────────────────
+      // SEC (2026-06-12) — a password vem do secure storage (Keystore);
+      // o campo 'password' no JSON é LEGADO (instalações antigas) e, quando
+      // presente, é migrado: re-persistimos a conta, o que grava a password
+      // no secure storage e regrava o JSON sem ela.
       final clientJson = prefs.getString(_kClientAccount);
       if (clientJson != null) {
         try {
           final map = jsonDecode(clientJson) as Map<String, dynamic>;
           final email = map['email'] as String? ?? '';
+          final legacyPassword = map['password'] as String? ?? '';
+          var password = await SecureCredentialsStore.read('client');
+          if (password.isEmpty) password = legacyPassword;
           final account = ClientAccount(
             name: map['name'] as String? ?? '',
             email: email,
             phone: map['phone'] as String? ?? '',
-            password: map['password'] as String? ?? '',
+            password: password,
             photoUrl: map['photoUrl'] as String? ?? '',
           );
           if (email.isNotEmpty) _clientsByEmail[email] = account;
+          if (legacyPassword.isNotEmpty) _persistClient(account);
         } catch (_) {}
       }
 
@@ -1291,6 +1300,9 @@ class AuthStore extends ChangeNotifier {
         final map = jsonDecode(driverJson) as Map<String, dynamic>;
         final phone = map['phone'] as String? ?? '';
         final email = map['email'] as String? ?? '';
+        final legacyPassword = map['password'] as String? ?? '';
+        var password = await SecureCredentialsStore.read('driver');
+        if (password.isEmpty) password = legacyPassword;
         final account = DriverAccount(
           name: map['name'] as String? ?? '',
           email: email,
@@ -1300,27 +1312,32 @@ class AuthStore extends ChangeNotifier {
             orElse: () => VehicleType.car,
           ),
           licensePlate: map['licensePlate'] as String? ?? '',
-          password: map['password'] as String? ?? '',
+          password: password,
           photoUrl: map['photoUrl'] as String? ?? '',
         );
         if (email.isNotEmpty) _driversByEmail[email] = account;
         if (phone.isNotEmpty) _driversByPhone[phone] = account;
+        if (legacyPassword.isNotEmpty) _persistDriver(account);
       }
 
       final partnerJson = prefs.getString(_kPartnerAccount);
       if (partnerJson != null) {
         final map = jsonDecode(partnerJson) as Map<String, dynamic>;
         final email = map['email'] as String;
+        final legacyPassword = map['password'] as String? ?? '';
+        var password = await SecureCredentialsStore.read('partner');
+        if (password.isEmpty) password = legacyPassword;
         final account = PartnerAccount(
           restaurantName: map['restaurantName'] as String,
           address: map['address'] as String,
           phone: map['phone'] as String,
           email: email,
-          password: map['password'] as String,
-          photoUrl: map['photoUrl'] as String,
-          cuisineType: map['cuisineType'] as String,
+          password: password,
+          photoUrl: map['photoUrl'] as String? ?? '',
+          cuisineType: map['cuisineType'] as String? ?? '',
         );
         _partnersByEmail[email] = account;
+        if (legacyPassword.isNotEmpty) _persistPartner(account);
       }
 
       // ── Restore active session ────────────────────────────────────────
@@ -1330,9 +1347,10 @@ class AuthStore extends ChangeNotifier {
       if (roleStr == 'driver' && driverJson != null) {
         final map = jsonDecode(driverJson) as Map<String, dynamic>;
         final email = map['email'] as String? ?? '';
-        final password = map['password'] as String? ?? '';
         final phone = map['phone'] as String? ?? '';
         _currentDriver = _driversByEmail[email] ?? _driversByPhone[phone];
+        // SEC — a conta já traz a password do secure storage (ou legada).
+        final password = _currentDriver?.password ?? '';
 
         if (_currentDriver != null && email.isNotEmpty && password.isNotEmpty) {
           // ── FIX CRITICAL: Re-authenticate with Supabase so that
@@ -1377,8 +1395,9 @@ class AuthStore extends ChangeNotifier {
         try {
           final map = jsonDecode(clientJson) as Map<String, dynamic>;
           final email = map['email'] as String? ?? '';
-          final password = map['password'] as String? ?? '';
           _currentClient = _clientsByEmail[email];
+          // SEC — a conta já traz a password do secure storage (ou legada).
+          final password = _currentClient?.password ?? '';
 
           if (_currentClient != null &&
               email.isNotEmpty &&
@@ -1400,8 +1419,9 @@ class AuthStore extends ChangeNotifier {
       } else if (roleStr == 'partner' && partnerJson != null) {
         final map = jsonDecode(partnerJson) as Map<String, dynamic>;
         final email = map['email'] as String;
-        final password = map['password'] as String? ?? '';
         _currentPartner = _partnersByEmail[email];
+        // SEC — a conta já traz a password do secure storage (ou legada).
+        final password = _currentPartner?.password ?? '';
 
         if (_currentPartner != null &&
             email.isNotEmpty &&
@@ -1446,6 +1466,8 @@ class AuthStore extends ChangeNotifier {
   }
 
   void _persistClient(ClientAccount account) {
+    // SEC — password no Keystore (write ignora vazias); JSON sem segredos.
+    SecureCredentialsStore.write('client', account.password).ignore();
     SharedPreferences.getInstance().then((prefs) {
       prefs.setString(
         _kClientAccount,
@@ -1453,7 +1475,6 @@ class AuthStore extends ChangeNotifier {
           'email': account.email,
           'phone': account.phone,
           'name': account.name,
-          'password': account.password,
           'photoUrl': account.photoUrl,
         }),
       );
@@ -1469,6 +1490,8 @@ class AuthStore extends ChangeNotifier {
   }
 
   void _persistDriver(DriverAccount account) {
+    // SEC — password no Keystore (write ignora vazias); JSON sem segredos.
+    SecureCredentialsStore.write('driver', account.password).ignore();
     SharedPreferences.getInstance().then((prefs) {
       prefs.setString(
         _kDriverAccount,
@@ -1478,7 +1501,6 @@ class AuthStore extends ChangeNotifier {
           'name': account.name,
           'vehicleType': account.vehicleType.name,
           'licensePlate': account.licensePlate,
-          'password': account.password,
           'photoUrl': account.photoUrl,
         }),
       );
@@ -1486,6 +1508,8 @@ class AuthStore extends ChangeNotifier {
   }
 
   void _persistPartner(PartnerAccount account) {
+    // SEC — password no Keystore (write ignora vazias); JSON sem segredos.
+    SecureCredentialsStore.write('partner', account.password).ignore();
     SharedPreferences.getInstance().then((prefs) {
       prefs.setString(
         _kPartnerAccount,
@@ -1496,13 +1520,14 @@ class AuthStore extends ChangeNotifier {
           'phone': account.phone,
           'photoUrl': account.photoUrl,
           'cuisineType': account.cuisineType,
-          'password': account.password,
         }),
       );
     });
   }
 
   void _clearPersistedAccounts() {
+    // SEC — limpa também as passwords no secure storage.
+    SecureCredentialsStore.clearAll().ignore();
     SharedPreferences.getInstance().then((prefs) {
       prefs.remove(_kClientAccount);
       prefs.remove(_kDriverAccount);

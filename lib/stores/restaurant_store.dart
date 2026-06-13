@@ -78,77 +78,83 @@ class RestaurantStore extends ChangeNotifier {
     );
   }
 
-  // ─── B5 (2026-06-12): paginação lazy do catálogo de mercados/lojas ────────
-  // O arranque deixa de carregar os ~45k produtos: só parceiros e
-  // restaurantes (menus completos) ficam em memória. Mercados/lojas/farmácia
-  // carregam por páginas de 30 para o MESMO _productsByRestaurant — todos os
-  // ecrãs continuam a ler via partnerProductsForRestaurant sem alterações de
-  // modelo. Pesquisa continua na DB (RPC search_products).
+  // ─── Catálogo de mercados/lojas: full-load on-demand (B5 + hotfix 2026-06-12)
+  // Arranque NÃO carrega os ~45k produtos (só parceiros + restaurantes). Ao
+  // ABRIR um mercado/loja/farmácia carrega-se a loja INTEIRA on-demand
+  // (1000/página) para `_productsByRestaurant` — assim os carrosséis por
+  // categoria, a tab Categorias e o filtro por categoria voltam a ver TODAS as
+  // categorias (modelo em-memória que sempre funcionou). Memória limitada: só
+  // 1 mercado fica carregado de cada vez (eviction dos outros). Pesquisa
+  // continua na DB (RPC search_products).
+  //
+  // Regressão corrigida: o B5 v1 paginava por 30 e os ecrãs agrupavam
+  // categorias em memória sobre esse conjunto parcial → só aparecia 1
+  // categoria e a tela de categoria ficava em branco (build 288). O full-load
+  // ao abrir resolve sem perder o ganho de arranque.
 
-  static const int storePageSize = 30;
-  final Map<String, bool> _storeHasMore = {};
+  static const int _storePageSize = 1000; // Supabase: máx 1000 rows/query.
   final Map<String, bool> _storeLoading = {};
-
-  bool storeHasMoreProducts(String restaurantId) =>
-      _storeHasMore[restaurantId] ?? true;
+  final Map<String, bool> _storeFullyLoaded = {};
 
   bool storeProductsLoading(String restaurantId) =>
       _storeLoading[restaurantId] ?? false;
 
+  bool storeFullyLoaded(String restaurantId) =>
+      _storeFullyLoaded[restaurantId] ?? false;
+
   int storeLoadedCount(String restaurantId) =>
       _productsByRestaurant[restaurantId]?.length ?? 0;
 
-  /// Garante que a loja tem pelo menos [minCount] produtos carregados
-  /// (ou que o catálogo está esgotado). Usado no initState dos ecrãs de
-  /// mercado/loja. Idempotente.
-  Future<void> ensureStoreProductsLoaded(
-    String restaurantId, {
-    int minCount = storePageSize,
-  }) async {
-    while (storeLoadedCount(restaurantId) < minCount) {
-      if (_storeHasMore[restaurantId] == false) break;
-      final more = await loadMoreStoreProducts(restaurantId);
-      if (!more) break;
-    }
-  }
+  /// Carrega TODOS os produtos disponíveis de uma loja de mercado on-demand.
+  /// Idempotente (flag _storeFullyLoaded). notifyListeners por página → os
+  /// carrosséis preenchem progressivamente. Limita memória: ao abrir um
+  /// mercado descarrega os outros mercados (parceiros/restaurantes do arranque
+  /// NUNCA entram em _storeFullyLoaded → ficam sempre intactos).
+  Future<void> loadFullStoreProducts(String restaurantId) async {
+    if (restaurantId.isEmpty) return;
+    if (_storeFullyLoaded[restaurantId] == true) return;
+    if (_storeLoading[restaurantId] == true) return;
 
-  /// Carrega a próxima página (30) de produtos disponíveis da loja.
-  /// Devolve true se ainda pode haver mais páginas. Reentrância guardada.
-  Future<bool> loadMoreStoreProducts(String restaurantId) async {
-    if (restaurantId.isEmpty) return false;
-    if (_storeLoading[restaurantId] == true) {
-      return storeHasMoreProducts(restaurantId);
+    // Eviction de outros mercados já carregados (mantém 1 loja de cada vez).
+    for (final otherId in _storeFullyLoaded.keys.toList()) {
+      if (otherId == restaurantId) continue;
+      _productsByRestaurant.remove(otherId);
+      _storeFullyLoaded.remove(otherId);
     }
-    if (_storeHasMore[restaurantId] == false) return false;
+
     _storeLoading[restaurantId] = true;
+    notifyListeners();
     try {
-      final offset = storeLoadedCount(restaurantId);
-      final List<dynamic> page = await supabase
-          .from('products')
-          .select(_productProjection)
-          .eq('restaurant_id', restaurantId)
-          .eq('is_available', true)
-          .order('sort_order', ascending: true, nullsFirst: false)
-          .order('id', ascending: true)
-          .range(offset, offset + storePageSize - 1);
       final list = _productsByRestaurant.putIfAbsent(
           restaurantId, () => <PartnerProduct>[]);
-      for (final record in page) {
-        final product = _productFromRow(record as Map<String, dynamic>);
-        if (product == null) continue;
-        // Dedupe vs eventos realtime que possam ter chegado entretanto.
-        if (list.any((e) => e.id == product.id)) continue;
-        list.add(product);
+      final seen = <String>{for (final e in list) e.id};
+      int offset = list.length;
+      while (true) {
+        final List<dynamic> page = await supabase
+            .from('products')
+            .select(_productProjection)
+            .eq('restaurant_id', restaurantId)
+            .eq('is_available', true)
+            .order('sort_order', ascending: true, nullsFirst: false)
+            .order('id', ascending: true)
+            .range(offset, offset + _storePageSize - 1);
+        for (final record in page) {
+          final product = _productFromRow(record as Map<String, dynamic>);
+          if (product == null) continue;
+          if (!seen.add(product.id)) continue; // dedupe O(1)
+          list.add(product);
+        }
+        notifyListeners(); // carrosséis preenchem à medida que chegam páginas
+        if (page.length < _storePageSize) break;
+        offset += _storePageSize;
       }
-      _storeHasMore[restaurantId] = page.length >= storePageSize;
-      notifyListeners();
-      return _storeHasMore[restaurantId]!;
+      _storeFullyLoaded[restaurantId] = true;
     } catch (e) {
       debugPrint(
-          'RestaurantStore: loadMoreStoreProducts($restaurantId) error => $e');
-      return false;
+          'RestaurantStore: loadFullStoreProducts($restaurantId) error => $e');
     } finally {
       _storeLoading[restaurantId] = false;
+      notifyListeners();
     }
   }
 
@@ -351,8 +357,8 @@ class RestaurantStore extends ChangeNotifier {
       // mercados (45 requests + tudo em RAM). Aqui carregam-se APENAS os
       // catálogos pequenos que os ecrãs precisam completos em memória:
       // parceiros (gestão + menus) e restaurantes não-parceiros (menus
-      // fast-food). Mercados/lojas/farmácia não-parceiros carregam por
-      // páginas de 30 on-demand (loadMoreStoreProducts).
+      // fast-food). Mercados/lojas/farmácia não-parceiros carregam a loja
+      // inteira on-demand ao abrir (loadFullStoreProducts).
       final includeIds = _restaurants
           .where((r) =>
               r.isPartner || r.category == BusinessCategory.restaurant)
@@ -382,7 +388,7 @@ class RestaurantStore extends ChangeNotifier {
       }
 
       _productsByRestaurant.clear();
-      _storeHasMore.clear();
+      _storeFullyLoaded.clear();
       _storeLoading.clear();
 
       // Which products have a required option group (is_required + min>=1).

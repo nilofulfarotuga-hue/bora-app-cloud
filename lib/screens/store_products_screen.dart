@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../config/app_colors.dart';
 import '../models/cart_item.dart';
 import '../models/partner_product.dart';
 import '../models/product_variant.dart';
@@ -60,13 +59,14 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
   void initState() {
     super.initState();
     _selectedCategory = widget.initialCategory ?? 'Todos';
-    // B5 (2026-06-12): catálogo de mercado/loja é lazy — garante a 1ª página
-    // (30) ao abrir; o scroll infinito vai pedindo as seguintes.
+    // Hotfix (2026-06-12): carrega a loja INTEIRA ao abrir (full-load
+    // on-demand). Necessário para o filtro/secções por categoria verem todas
+    // as categorias. Idempotente (não recarrega se já carregada).
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context
           .read<RestaurantStore>()
-          .ensureStoreProductsLoaded(widget.restaurantId);
+          .loadFullStoreProducts(widget.restaurantId);
     });
   }
 
@@ -330,39 +330,28 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
             ),
             const SizedBox(height: 4),
             Expanded(
-              // B5 (2026-06-12): scroll infinito — perto do fim da lista pede
-              // a próxima página de 30 (loadMoreStoreProducts é reentrante e
-              // pára sozinho quando o catálogo esgota).
-              child: NotificationListener<ScrollNotification>(
-                onNotification: (n) {
-                  if (n.metrics.maxScrollExtent > 0 &&
-                      n.metrics.pixels >= n.metrics.maxScrollExtent - 400) {
-                    restaurantStore
-                        .loadMoreStoreProducts(widget.restaurantId);
-                  }
-                  return false;
-                },
-                child: filtered.isEmpty
-                    ? (restaurantStore
-                            .storeProductsLoading(widget.restaurantId)
-                        ? const Center(child: CircularProgressIndicator())
-                        : _EmptyState(
-                            hasSearch: _searchQuery.isNotEmpty,
-                            searchQuery: _searchQuery,
-                            onRefresh: () => setState(() {}),
-                          ))
-                    : _showSections
-                        ? _SectionedView(
-                            grouped: grouped!,
-                            isFruitCategory: _isFruitCategory,
-                            isPartnerStore: widget.isPartnerStore,
-                          )
-                        : _FlatGridView(
-                            products: filtered,
-                            showPerKg: isFruit,
-                            isPartnerStore: widget.isPartnerStore,
-                          ),
-              ),
+              // Hotfix (2026-06-12): a loja é carregada inteira ao abrir
+              // (loadFullStoreProducts). Enquanto carrega e ainda não há
+              // produtos da categoria → spinner; vazio real → _EmptyState.
+              child: filtered.isEmpty
+                  ? (restaurantStore.storeProductsLoading(widget.restaurantId)
+                      ? const Center(child: CircularProgressIndicator())
+                      : _EmptyState(
+                          hasSearch: _searchQuery.isNotEmpty,
+                          searchQuery: _searchQuery,
+                          onRefresh: () => setState(() {}),
+                        ))
+                  : _showSections
+                      ? _SectionedView(
+                          grouped: grouped!,
+                          isFruitCategory: _isFruitCategory,
+                          isPartnerStore: widget.isPartnerStore,
+                        )
+                      : _FlatGridView(
+                          products: filtered,
+                          showPerKg: isFruit,
+                          isPartnerStore: widget.isPartnerStore,
+                        ),
             ),
           ],
 

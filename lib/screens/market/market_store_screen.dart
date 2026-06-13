@@ -45,14 +45,15 @@ class _MarketStoreScreenState extends State<MarketStoreScreen> {
   void initState() {
     super.initState();
     _selectedTab = widget.initialTab;
-    // B5 (2026-06-12): catálogo de mercado é lazy — carrega as primeiras
-    // páginas (120) para hero/secções/categorias sem trazer os ~45k para a
-    // memória. O grid completo pagina por 30 no StoreProductsScreen.
+    // Hotfix (2026-06-12): carrega a loja INTEIRA ao abrir (full-load
+    // on-demand, 1000/página). Os carrosséis por categoria e a tab Categorias
+    // precisam de todas as categorias — preenchem progressivamente à medida
+    // que as páginas chegam. Arranque continua sem carregar os 45k.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context
           .read<RestaurantStore>()
-          .ensureStoreProductsLoaded(widget.restaurantId, minCount: 120);
+          .loadFullStoreProducts(widget.restaurantId);
     });
   }
 

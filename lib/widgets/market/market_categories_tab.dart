@@ -79,6 +79,11 @@ class MarketCategoriesTab extends StatelessWidget {
       ..sort((a, b) => b.value.length.compareTo(a.value.length));
 
     if (categories.isEmpty) {
+      // Hotfix (2026-06-12): durante o full-load da loja, mostrar spinner em
+      // vez do falso "Sem categorias" (que piscava enquanto carregava).
+      if (restaurantStore.storeProductsLoading(restaurantId)) {
+        return const Center(child: CircularProgressIndicator());
+      }
       return const Center(
         child: Text(
           'Sem categorias disponíveis.',

@@ -20,6 +20,7 @@ import 'admin_cancellation_requests_screen.dart';
 import 'admin_catalog_screen.dart';
 import 'admin_clients_screen.dart';
 import 'admin_complaints_screen.dart';
+import 'admin_continente_prices_screen.dart';
 import 'admin_crosstalk_screen.dart';
 import 'admin_driver_approval_screen.dart';
 import 'admin_driver_payments_screen.dart';
@@ -358,6 +359,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       context,
                       MaterialPageRoute(
                           builder: (_) => const AdminOrdersScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.price_change,
+                  title: 'Preços Continente (PVPR)',
+                  subtitle: 'Revisar e aplicar preços oficiais do continente.pt',
+                  color: Colors.green,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminContinentePricesScreen())),
                 ),
                 const SizedBox(height: 10),
                 _NavCard(

@@ -19,10 +19,10 @@ import 'market_product_card.dart';
 ///   2. Identidade: nome + tag "Frescura garantida"
 ///   3. Stats row: rating (condicional) + ETA + taxa entrega
 ///   4. Search bar → StoreProductsScreen
-///   5. Grid "Comprar por categoria" (4 cols, max 8)
+///   5. Grid "Comprar por categoria" (4 cols, TODAS as categorias por sort_order)
 ///   6. Secção horizontal "Em promoção" (só se ≥3 produtos)
 ///   7. Secção horizontal "Mais vendidos" (só se ≥3 produtos)
-///   8. Secções horizontais por categoria (top 5 com mais produtos)
+///   8. Carrosséis por categoria — TODAS empilhadas por sort_order (SliverList lazy)
 class MarketStoreTab extends StatelessWidget {
   const MarketStoreTab({
     super.key,
@@ -37,9 +37,10 @@ class MarketStoreTab extends StatelessWidget {
 
   // TODO: ETA hardcoded 2.5min/km — mover para platform_settings ou RPC dedicado em sessão futura.
   static const double _etaMinPerKm = 2.5;
-  static const int _maxCategoryGridItems = 8;
+  // Gate só para "Em promoção" / "Mais vendidos" (rails de destaque no topo).
   static const int _minSectionProducts = 3;
-  static const int _maxCategorySections = 5;
+  // Produtos mostrados em cada carrossel de categoria (paridade Glovo: ~10-12).
+  static const int _maxCarouselProducts = 12;
 
   // ─── Helpers de dados ─────────────────────────────────────────────────────
 
@@ -52,55 +53,25 @@ class MarketStoreTab extends StatelessWidget {
   String _capitalize(String s) =>
       s.isEmpty ? s : s[0].toUpperCase() + s.substring(1).toLowerCase();
 
-  /// Top [_maxCategoryGridItems] categorias por contagem de produtos.
-  List<_CategoryEntry> _topCategories(List<PartnerProduct> products) {
-    final counts = <String, List<PartnerProduct>>{};
+  /// Todas as categorias na ordem de sort_order. O RestaurantStore devolve os
+  /// produtos já ordenados por sort_order (sequência da fonte, ex. Glovo) — por
+  /// isso a ordem de 1ª aparição de cada categoria === ordem de sort_order.
+  /// Map literal Dart = LinkedHashMap → preserva ordem de inserção.
+  List<MapEntry<String, List<PartnerProduct>>> _orderedCategories(
+      List<PartnerProduct> products) {
+    final map = <String, List<PartnerProduct>>{};
     for (final p in products) {
-      counts.putIfAbsent(_categoryOf(p), () => []).add(p);
+      map.putIfAbsent(_categoryOf(p), () => []).add(p);
     }
-    final sorted = counts.entries.toList()
-      ..sort((a, b) => b.value.length.compareTo(a.value.length));
-    return sorted
-        .take(_maxCategoryGridItems)
-        .map((e) => _CategoryEntry(
-              name: e.key,
-              photoUrl: _photoForCategory(e.value),
-            ))
-        .toList();
+    return map.entries.toList();
   }
 
-  /// Foto do 1º produto popular da categoria, ou 1º produto se nenhum popular.
+  /// Foto do 1º produto popular da categoria, ou 1º produto com foto.
   String? _photoForCategory(List<PartnerProduct> products) {
     final popular = products.where((p) => p.isPopular && p.photoUrl.isNotEmpty);
     if (popular.isNotEmpty) return popular.first.photoUrl;
     final withPhoto = products.where((p) => p.photoUrl.isNotEmpty);
     return withPhoto.isNotEmpty ? withPhoto.first.photoUrl : null;
-  }
-
-  /// Top [_maxCategorySections] categorias com mais produtos (para secções horizontais).
-  List<_CategoryEntry> _topCategorySections(List<PartnerProduct> products) {
-    final counts = <String, List<PartnerProduct>>{};
-    for (final p in products) {
-      counts.putIfAbsent(_categoryOf(p), () => []).add(p);
-    }
-    final sorted = counts.entries.toList()
-      ..sort((a, b) => b.value.length.compareTo(a.value.length));
-    return sorted
-        .take(_maxCategorySections)
-        .map((e) => _CategoryEntry(name: e.key, photoUrl: null))
-        .toList();
-  }
-
-  /// Top 8 produtos de uma categoria: populares primeiro, depois alfabético.
-  List<PartnerProduct> _productsForCategory(
-      List<PartnerProduct> all, String category) {
-    final filtered = all.where((p) => _categoryOf(p) == category).toList()
-      ..sort((a, b) {
-        if (a.isPopular && !b.isPopular) return -1;
-        if (!a.isPopular && b.isPopular) return 1;
-        return a.name.compareTo(b.name);
-      });
-    return filtered.take(8).toList();
   }
 
   String _etaText(double distanceKm) {
@@ -125,8 +96,8 @@ class MarketStoreTab extends StatelessWidget {
 
     final promoProducts = products.where((p) => p.isOnSale).toList();
     final popularProducts = products.where((p) => p.isPopular).toList();
-    final topCats = _topCategories(products);
-    final catSections = _topCategorySections(products);
+    // TODAS as categorias por sort_order — alimenta a grelha E os carrosséis.
+    final orderedCats = _orderedCategories(products);
 
     final favKey = 'restaurant_$storeName';
     final isFav = favoriteStore.isFavorite(favKey);
@@ -213,11 +184,16 @@ class MarketStoreTab extends StatelessWidget {
           ),
         ),
 
-        // ── 5. Grid "Comprar por categoria" ───────────────────────────────
-        if (topCats.isNotEmpty)
+        // ── 5. Grid "Comprar por categoria" (TODAS, por sort_order) ────────
+        if (orderedCats.isNotEmpty)
           SliverToBoxAdapter(
             child: _CategoryGrid(
-              categories: topCats,
+              categories: orderedCats
+                  .map((e) => _CategoryEntry(
+                        name: e.key,
+                        photoUrl: _photoForCategory(e.value),
+                      ))
+                  .toList(),
               restaurantId: restaurant.id,
               storeName: storeName,
               isPartnerStore: isPartnerStore,
@@ -250,26 +226,28 @@ class MarketStoreTab extends StatelessWidget {
             ),
           ),
 
-        // ── 8. Secções por categoria ──────────────────────────────────────
-        for (final cat in catSections)
-          Builder(
-            builder: (ctx) {
-              final catProducts = _productsForCategory(products, cat.name);
-              if (catProducts.length < _minSectionProducts) {
-                return const SliverToBoxAdapter(child: SizedBox.shrink());
-              }
-              return SliverToBoxAdapter(
-                child: _HorizontalSection(
-                  title: cat.name,
-                  products: catProducts,
-                  restaurantId: restaurant.id,
-                  storeName: storeName,
-                  isPartnerStore: isPartnerStore,
-                  onSeeAll: () => _openProducts(ctx, cat.name),
-                ),
+        // ── 8. Carrosséis por categoria — TODAS, por sort_order, lazy ──────
+        // SliverList constrói só os carrosséis visíveis (perf: até 38
+        // categorias no Continente). Cada carrossel mostra os 1ºs
+        // _maxCarouselProducts produtos; a seta "→" abre a categoria completa.
+        SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (ctx, i) {
+              final entry = orderedCats[i];
+              final catProducts =
+                  entry.value.take(_maxCarouselProducts).toList();
+              return _HorizontalSection(
+                title: entry.key,
+                products: catProducts,
+                restaurantId: restaurant.id,
+                storeName: storeName,
+                isPartnerStore: isPartnerStore,
+                onSeeAll: () => _openProducts(ctx, entry.key),
               );
             },
+            childCount: orderedCats.length,
           ),
+        ),
 
         // ── Rodapé ────────────────────────────────────────────────────────
         const SliverToBoxAdapter(child: _Footer()),

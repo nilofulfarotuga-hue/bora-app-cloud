@@ -97,7 +97,7 @@ def decide(http, final_url, html):
     if http != 200 or not html: return None, None, None, f"http_{http}"
     if "/produto/" not in final_url: return None, None, None, "redirect_home"
     sales = jsonld_price(html)
-    if sales is None: return None, None, None, "no_price"
+    if not sales or sales <= 0: return None, None, None, "no_price"
     pv = pvpr_values(html)
     if not pv:        return sales, False, sales, "ok_no_promo"
     if len(pv) == 1:
@@ -162,17 +162,29 @@ def main():
     ap.add_argument("--all", action="store_true")
     ap.add_argument("--out", required=True)
     ap.add_argument("--seed", type=int, default=42)
+    ap.add_argument("--shards", type=int, default=1)
+    ap.add_argument("--shard", type=int, default=0)
+    ap.add_argument("--sleep", type=float, default=4.5)
     args = ap.parse_args()
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    # Impede o Windows de suspender durante a corrida (reverte ao terminar o processo).
+    # ES_CONTINUOUS | ES_SYSTEM_REQUIRED — mantem o sistema acordado, deixa o ecra apagar.
+    try:
+        import ctypes
+        ctypes.windll.kernel32.SetThreadExecutionState(0x80000000 | 0x00000001)
+    except Exception:
+        pass
     out = args.out if os.path.isabs(args.out) else os.path.join(BASE, args.out)
 
     products = fetch_products()
     if args.sample:
         random.seed(args.seed)
         products = random.sample(products, min(args.sample, len(products)))
+    if args.shards > 1:
+        products = [p for i, p in enumerate(products) if i % args.shards == args.shard]
     total = len(products)
-    print(f"[run] alvo={total} produtos out={out}", flush=True)
+    print(f"[run] alvo={total} produtos (shard {args.shard}/{args.shards}) out={out}", flush=True)
 
     res = load_ckpt(out)
     if res:
@@ -202,7 +214,7 @@ def main():
             eta = (total - len(res)) * 5.5 / 60
             print(f"[{i}/{total}] ok={ok} last={status} ETA~{eta:.0f}min", flush=True)
         if i < total:
-            time.sleep(max(1.0, 4.5 + random.uniform(-1.0, 1.0)))
+            time.sleep(max(0.8, args.sleep + random.uniform(-1.0, 1.0)))
     save_ckpt(out, res, total, stopped)
     print(f"\nDONE processed={len(res)}/{total} stopped={stopped} elapsed={(time.time()-t0)/60:.1f}min", flush=True)
     summarize(res)

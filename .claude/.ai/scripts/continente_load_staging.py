@@ -5,12 +5,12 @@ Corre DEPOIS da corrida completa terminar.
 
   python continente_load_staging.py
 """
-import urllib.request, urllib.error, os, json, sys
+import urllib.request, urllib.error, os, json, sys, glob
 
 BASE = r"C:\Users\danil\Desktop\projetosflutter\bora_app\.claude\.ai"
 TMP = os.path.join(BASE, "tmp")
 ENV = r"C:\Users\danil\Desktop\projetosflutter\bora_app\scripts\scraper\.env"
-FULL_JSON = os.path.join(TMP, "continente_pvpr_full.json")
+# shards lidos dinamicamente por glob (continente_pvpr_s*.json) no main()
 SRC = "continente_pt_official_2026-06-14"
 OK = {"ok_no_promo", "ok_promo"}
 
@@ -40,9 +40,13 @@ def req(method, path, payload=None, prefer="return=minimal"):
 def main():
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    data = json.load(open(FULL_JSON, encoding="utf-8"))
-    results = data["results"]
-    print(f"[load] {len(results)} resultados em {FULL_JSON}")
+    shard_files = sorted(glob.glob(os.path.join(TMP, "continente_pvpr_s*.json")))
+    by_id = {}
+    for sf in shard_files:
+        for r in json.load(open(sf, encoding="utf-8")).get("results", []):
+            by_id[r["id"]] = r
+    results = list(by_id.values())
+    print(f"[load] {len(results)} resultados de {len(shard_files)} shard(s)")
 
     # limpa carga anterior NÃO aplicada (preserva linhas já aplicadas a products)
     req("DELETE", "/rest/v1/continente_price_staging?applied=eq.false")

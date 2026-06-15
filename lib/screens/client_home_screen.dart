@@ -502,13 +502,10 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
           );
         }),
       ),
-      // TODO(design): adicionar asset assets/categories/cat_servicos.png (PNG 3D
-      // cartoon, como as outras 7 categorias) e migrar este tile para
-      // BoraTileCard.image(). Enquanto não existe, usa iconData (tesoura).
       _TileData(
-        label: 'Serviços',
+        label: 'Beleza',
         gradient: AppColors.tileServices,
-        iconData: Icons.content_cut,
+        imageAsset: 'assets/categories/cat_beleza.png',
         onTap: () => Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => const ServicesCategoryScreen()),

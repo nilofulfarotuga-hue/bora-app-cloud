@@ -43,7 +43,7 @@ class _ServicesCategoryScreenState extends State<ServicesCategoryScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: BoraScreenAppBar(
-        title: 'Serviços',
+        title: 'Beleza',
         actions: [
           // Sessão 2026-06-11 — entrada para "As minhas marcações" (gap
           // device: ecrã só era alcançável do booking_success).

@@ -8,6 +8,7 @@ import '../services/location_service.dart';
 import '../stores/cart_store.dart';
 import '../widgets/address_autocomplete_field.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
+import '../widgets/quote_price_footer.dart';
 import 'payment_method_screen.dart';
 
 class CarryGroceriesFormScreen extends StatefulWidget {
@@ -121,6 +122,11 @@ class _CarryGroceriesFormScreenState extends State<CarryGroceriesFormScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: const BoraScreenAppBar(title: 'Levar Compras'),
+      bottomNavigationBar: QuotePriceFooter(
+        serviceType: OrderServiceType.carryGroceries,
+        pickup: _pickupLocation,
+        dropoff: _dropoffLocation,
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [

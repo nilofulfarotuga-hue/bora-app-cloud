@@ -15,6 +15,7 @@ import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
 import '../widgets/bora_support_fab.dart';
 import '../widgets/cancel_blocked_pickup_sheet.dart';
+import '../widgets/errand_execution_sheet.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../utils/constants.dart';
 import '../utils/map_utils.dart';
@@ -1581,6 +1582,21 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                         : Text(nextAction.label),
                   ),
                 ],
+                // Row 2.5: FAVORES — abrir execution sheet (recolha/compra/entrega)
+                if (order.serviceType == OrderServiceType.errand &&
+                    order.status != OrderStatus.delivered &&
+                    order.status != OrderStatus.cancelled) ...[
+                  const SizedBox(height: 8),
+                  ElevatedButton.icon(
+                    onPressed: () => ErrandExecutionSheet.show(context, order),
+                    icon: const Icon(Icons.task_alt),
+                    label: const Text('Tratar do favor'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF14B8A6),
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ],
                 // Row 3: cancel delivery — only while order is driverAccepted
                 if (order.status == OrderStatus.driverAccepted) ...[
                   const SizedBox(height: 8),
@@ -2059,7 +2075,14 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       return;
     }
 
-    final description = order.vendorName ?? order.serviceType.label;
+    // FAVORES (errand) — descrição própria do favor + badges FAVOR/EXPRESSO
+    final isErrand = order.serviceType == OrderServiceType.errand;
+    final isExpress = isErrand && (order.errandSpeed == 'express');
+    final description = isErrand
+        ? (order.errandDescription?.trim().isNotEmpty == true
+            ? order.errandDescription!
+            : 'Favor — ${order.errandLocation ?? "ver mapa"}')
+        : (order.vendorName ?? order.serviceType.label);
     final dropoffText = order.dropoffAddress ?? order.dropoffStreet ?? '';
     final paymentLabel = order.paymentMethod.label;
     final isCash = order.paymentMethod == PaymentMethod.cash;
@@ -2088,6 +2111,51 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (isErrand)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Wrap(spacing: 6, children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF14B8A6),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text('FAVOR',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800)),
+                      ),
+                      if (isExpress)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFD97706),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Text('EXPRESSO',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800)),
+                        ),
+                      if (order.errandHomeStop)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey.shade400),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Text('PARAR EM CASA',
+                              style: TextStyle(
+                                  fontSize: 11, fontWeight: FontWeight.w700)),
+                        ),
+                    ]),
+                  ),
                 Text(
                   description,
                   style: const TextStyle(fontWeight: FontWeight.bold),

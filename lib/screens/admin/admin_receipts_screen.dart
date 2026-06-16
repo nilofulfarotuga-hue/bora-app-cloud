@@ -112,7 +112,9 @@ class _ReceiptsListState extends State<_ReceiptsList> {
           .select('id, order_id, photo_url, driver_typed_total_cents, '
               'ocr_extracted_total_cents, ocr_diff_cents, ocr_flagged, '
               'ocr_ran_at, reimbursement_status, reimbursement_amount_cents, '
-              'reimbursement_admin_notes, created_at');
+              'reimbursement_admin_notes, created_at, '
+              // Fase 6 — campos OCR estruturados (gemini-2.5-flash)
+              'receipt_parsed, receipt_parsed_total_cents, receipt_parsed_store, receipt_match');
       switch (widget.filter) {
         case _ReceiptFilter.pendingAdmin:
           q = q.eq('reimbursement_status', 'pending_admin');
@@ -249,7 +251,9 @@ class _HistoricoTabState extends State<_HistoricoTab> {
           .select('id, order_id, photo_url, driver_typed_total_cents, '
               'ocr_extracted_total_cents, ocr_diff_cents, ocr_flagged, '
               'ocr_ran_at, reimbursement_status, reimbursement_amount_cents, '
-              'reimbursement_admin_notes, created_at');
+              'reimbursement_admin_notes, created_at, '
+              // Fase 6 — campos OCR estruturados (gemini-2.5-flash)
+              'receipt_parsed, receipt_parsed_total_cents, receipt_parsed_store, receipt_match');
 
       if (_statusFilter == 'todos') {
         q = q.inFilter('reimbursement_status',

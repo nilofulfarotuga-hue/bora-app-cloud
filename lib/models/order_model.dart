@@ -40,6 +40,9 @@ enum OrderType {
   takeaway,
   sendPackage,
   carryGroceries,
+  // FAVORES (2026-06-15) — gravado como 'errand' em orders.order_type (matches
+  // branch errand de create_order, que escreve order_type='errand').
+  errand,
 }
 
 enum PaymentMethod {
@@ -191,6 +194,25 @@ class OrderModel {
   /// Imutável pós payment_status='paid' (D6, UI-only guard).
   final String? takeawayCurbsideInfo;
 
+  /// FAVORES (errand) — campos do pedido de favor. Todos NULL/default para
+  /// service_types diferentes de errand. Backend valida no branch errand de
+  /// create_order. Ver business_rules §55.
+  final String? errandDescription;
+  final String? errandLocation;
+  final double? errandLocationLat;
+  final double? errandLocationLng;
+  final bool errandHomeStop;
+  /// 'receita' | 'cartao' | 'dinheiro' | 'outro'
+  final String? errandHomeStopReason;
+  /// Dinheiro recebido do cliente na paragem em casa (modo dinheiro). Estafeta
+  /// regista na recolha. Em cents. NULL se não aplicável.
+  final int? errandHomeStopCashCents;
+  /// 'normal' | 'express'
+  final String? errandSpeed;
+  final bool errandHasPurchase;
+  /// Estimativa do cliente em cents. 0 quando errandHasPurchase=false.
+  final int errandEstimatedPurchaseCents;
+
   String? assignedDriverId;
   String? currentDriverOfferId;
   String? driverPhone;
@@ -291,6 +313,17 @@ class OrderModel {
     this.takeawayPrepMinutes,
     this.takeawayIsCurbside = false,
     this.takeawayCurbsideInfo,
+    // FAVORES (errand) — defaults seguros para outros service_types
+    this.errandDescription,
+    this.errandLocation,
+    this.errandLocationLat,
+    this.errandLocationLng,
+    this.errandHomeStop = false,
+    this.errandHomeStopReason,
+    this.errandHomeStopCashCents,
+    this.errandSpeed,
+    this.errandHasPurchase = false,
+    this.errandEstimatedPurchaseCents = 0,
     Map<String, bool>? substitutionResponses,
   })  : estimatedTotal = estimatedTotal ?? total,
         paymentBufferTotal = paymentBufferTotal ?? total,
@@ -469,6 +502,18 @@ class OrderModel {
       takeawayPrepMinutes: (data['takeaway_prep_minutes'] as num?)?.toInt(),
       takeawayIsCurbside: data['takeaway_is_curbside'] as bool? ?? false,
       takeawayCurbsideInfo: data['takeaway_curbside_info'] as String?,
+      errandDescription: data['errand_description'] as String?,
+      errandLocation: data['errand_location'] as String?,
+      errandLocationLat: (data['errand_location_lat'] as num?)?.toDouble(),
+      errandLocationLng: (data['errand_location_lng'] as num?)?.toDouble(),
+      errandHomeStop: data['errand_home_stop'] as bool? ?? false,
+      errandHomeStopReason: data['errand_home_stop_reason'] as String?,
+      errandHomeStopCashCents:
+          (data['errand_home_stop_cash_cents'] as num?)?.toInt(),
+      errandSpeed: data['errand_speed'] as String?,
+      errandHasPurchase: data['errand_has_purchase'] as bool? ?? false,
+      errandEstimatedPurchaseCents:
+          (data['errand_estimated_purchase_cents'] as num?)?.toInt() ?? 0,
       // driver_lat / driver_lng intentionally NOT read — single source of
       // truth is DriverStore.currentDriver.location (drivers table realtime).
       items: parsedItems,
@@ -544,6 +589,21 @@ class OrderModel {
       if (takeawayIsCurbside) 'takeaway_is_curbside': true,
       if (takeawayCurbsideInfo != null && takeawayCurbsideInfo!.isNotEmpty)
         'takeaway_curbside_info': takeawayCurbsideInfo,
+      // FAVORES — só serializar quando aplicável (defaults seguros para outros tipos)
+      if (serviceType == OrderServiceType.errand) ...{
+        if (errandDescription != null) 'errand_description': errandDescription,
+        if (errandLocation != null) 'errand_location': errandLocation,
+        if (errandLocationLat != null) 'errand_location_lat': errandLocationLat,
+        if (errandLocationLng != null) 'errand_location_lng': errandLocationLng,
+        'errand_home_stop': errandHomeStop,
+        if (errandHomeStopReason != null) 'errand_home_stop_reason': errandHomeStopReason,
+        if (errandHomeStopCashCents != null)
+          'errand_home_stop_cash_cents': errandHomeStopCashCents,
+        if (errandSpeed != null) 'errand_speed': errandSpeed,
+        'errand_has_purchase': errandHasPurchase,
+        if (errandEstimatedPurchaseCents > 0)
+          'errand_estimated_purchase_cents': errandEstimatedPurchaseCents,
+      },
       if (paymentIntentId != null) 'payment_intent_id': paymentIntentId,
       if (finalPurchaseValue != null)
         'final_purchase_value': finalPurchaseValue,

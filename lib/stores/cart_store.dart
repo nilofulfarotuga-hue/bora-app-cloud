@@ -295,6 +295,56 @@ class CartStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// FAVORES (errand) — configura a sessão do carrinho para um favor.
+  /// Limpa items (favores não têm produtos, só descrição) e guarda os dados
+  /// do wizard. O quote vem de quote_order_pricing — não recalcula aqui.
+  void configureErrandSession({
+    required String description,
+    required String location,
+    required LatLng locationCoords,
+    required LatLng dropoff,
+    LatLng? home,
+    String? homeStopReason,
+    required String speed, // 'normal' | 'express'
+    required bool hasPurchase,
+    required int estimatedCents,
+    required Map<String, dynamic> quote,
+  }) {
+    if (_items.isNotEmpty) {
+      _items.clear();
+      _saveCart();
+    }
+    _serviceType = OrderServiceType.errand;
+    _isPartnerStore = false;
+    _requiresCar = false;
+    _vendorName = null;
+    _pickupLocation = home; // null se não houver paragem-casa
+    _deliveryLocation = dropoff;
+    _apartmentDelivery = false;
+    _errandSession = ErrandSession(
+      description: description,
+      location: location,
+      locationCoords: locationCoords,
+      home: home,
+      homeStopReason: homeStopReason,
+      speed: speed,
+      hasPurchase: hasPurchase,
+      estimatedCents: estimatedCents,
+      quote: quote,
+    );
+    // Distância: o quote já reflecte a soma dos segmentos casa→favor→entrega
+    final qDist = (quote['distance_km'] as num?)?.toDouble();
+    if (qDist != null && qDist > 0) {
+      _distanceKm = qDist;
+    } else {
+      _recalculateDistance();
+    }
+    notifyListeners();
+  }
+
+  ErrandSession? _errandSession;
+  ErrandSession? get errandSession => _errandSession;
+
   void configureSession({
     required OrderServiceType serviceType,
     bool isPartnerStore = true,
@@ -662,4 +712,33 @@ class CartStore extends ChangeNotifier {
     clearCart();
     return true;
   }
+}
+
+/// FAVORES (errand) — payload persistido entre o wizard cliente e o
+/// `OrderStore.createOrder`. Não atravessa serialização Supabase directamente
+/// (os campos vão um a um no toSupabase do OrderModel).
+class ErrandSession {
+  ErrandSession({
+    required this.description,
+    required this.location,
+    required this.locationCoords,
+    this.home,
+    this.homeStopReason,
+    required this.speed,
+    required this.hasPurchase,
+    required this.estimatedCents,
+    required this.quote,
+  });
+
+  final String description;
+  final String location;
+  final LatLng locationCoords;
+  final LatLng? home;
+  final String? homeStopReason;
+  final String speed; // 'normal' | 'express'
+  final bool hasPurchase;
+  final int estimatedCents;
+  final Map<String, dynamic> quote;
+
+  bool get hasHomeStop => home != null;
 }

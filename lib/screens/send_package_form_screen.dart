@@ -9,6 +9,7 @@ import '../stores/cart_store.dart';
 import '../widgets/address_autocomplete_field.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/mandatory_photo_picker.dart';
+import '../widgets/quote_price_footer.dart';
 import 'payment_method_screen.dart';
 
 class SendPackageFormScreen extends StatefulWidget {
@@ -136,6 +137,11 @@ class _SendPackageFormScreenState extends State<SendPackageFormScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: const BoraScreenAppBar(title: 'Enviar Encomenda'),
+      bottomNavigationBar: QuotePriceFooter(
+        serviceType: OrderServiceType.sendPackage,
+        pickup: _pickupLocation,
+        dropoff: _dropoffLocation,
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [

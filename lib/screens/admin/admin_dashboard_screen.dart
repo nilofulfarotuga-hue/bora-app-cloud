@@ -1,5 +1,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+
+import 'admin_errand_catalog_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../main.dart' show routeObserver;
@@ -359,6 +361,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       context,
                       MaterialPageRoute(
                           builder: (_) => const AdminOrdersScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.task_alt_outlined,
+                  title: 'Catálogo de Favores',
+                  subtitle: 'Aprovar produtos extraídos de talões (OCR)',
+                  color: const Color(0xFF14B8A6),
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminErrandCatalogScreen())),
                 ),
                 const SizedBox(height: 10),
                 _NavCard(

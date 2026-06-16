@@ -28,6 +28,7 @@ import 'client_addresses_screen.dart';
 import 'rating_screen.dart';
 import 'restaurants_screen.dart';
 import 'send_package_form_screen.dart';
+import 'errand_form_screen.dart';
 import 'stores_screen.dart';
 
 class ClientHomeScreen extends StatefulWidget {
@@ -478,6 +479,17 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
           Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const CarryGroceriesScreen()),
+          );
+        }),
+      ),
+      _TileData(
+        label: 'Favores',
+        gradient: AppColors.tileErrand,
+        imageAsset: 'assets/categories/cat_compras.png',
+        onTap: () => _navigateWithAddressGuard(() {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const ErrandFormScreen()),
           );
         }),
       ),

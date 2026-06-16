@@ -60,6 +60,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
     ('all', 'Todos'),
     ('delivery', 'Entrega'),
     ('takeaway', 'Takeaway'),
+    ('errand', 'Favores'),
   ];
 
   static const _testOptions = <(String, String)>[
@@ -108,8 +109,11 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
       // PROMPT C — filtro por tipo de serviço (PT-BR).
       if (_serviceTypeFilter == 'takeaway') {
         query = query.eq('service_type', 'takeaway');
+      } else if (_serviceTypeFilter == 'errand') {
+        query = query.eq('service_type', 'errand');
       } else if (_serviceTypeFilter == 'delivery') {
-        query = query.neq('service_type', 'takeaway');
+        // Delivery = nem takeaway nem favor (entrega clássica).
+        query = query.not('service_type', 'in', '(takeaway,errand)');
       }
       // 'all' = sem filtro is_test_order.
       final data =

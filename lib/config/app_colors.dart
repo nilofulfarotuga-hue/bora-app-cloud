@@ -104,4 +104,11 @@ class AppColors {
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
+  // Favores (errand) — teal (distinto das categorias acima; respeita regra
+  // "1 laranja/ecrã" — laranja já está em restaurants/sendPackage).
+  static const LinearGradient tileErrand = LinearGradient(
+    colors: [Color(0xFF14B8A6), Color(0xFF2DD4BF)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
 }

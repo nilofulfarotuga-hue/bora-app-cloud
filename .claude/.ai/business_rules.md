@@ -3887,7 +3887,112 @@ adicionado `cancel_fee_debit` (era 11 kinds em §52).
 
 ---
 
+## §55 — FAVORES (errand) — 2026-06-16
+
+Categoria nova de serviço: cliente pede um favor a um estafeta na Guarda
+("vai à farmácia X comprar Y", "leva isto a casa da minha mãe").
+`OrderServiceType.errand` · `orders.service_type='errand'` · `order_type='errand'`.
+
+### 55.1 — Tabela de preços (canónica, todas as chaves em `platform_settings`)
+| Componente | Cliente paga | Estafeta | Bora |
+|---|---|---|---|
+| Taxa Normal (até 3h) | €6,00 (`errand_fee_normal_cents=600`) | €5,00 (`errand_driver_normal_cents=500`) | €1,00 |
+| Taxa Expresso (45–60min) | €10,00 (`errand_fee_express_cents=1000`) | €8,00 (`errand_driver_express_cents=800`) | €2,00 |
+| Paragem na casa do cliente | +€2,00 (`errand_home_stop_fee_cents=200`) | +€1,00 (`errand_home_stop_driver_cents=100`) | +€1,00 |
+| Km extra (>4km percurso total) | +€0,50/km (`errand_per_km_cents=50`) | +€0,50/km (`errand_driver_per_km_cents=50`, 100%) | €0 |
+| Valor da compra (talão) | 1:1 sem markup | reembolso 1:1 | €0 |
+
+⚠️ **PROIBIDO** aplicar o ×1.15 (`non_partner_markup_pct`) dentro do favor.
+A fórmula errand não passa por `pricing_calculate` — usa `pricing_calculate_errand`.
+
+### 55.2 — Distância
+Soma de segmentos do percurso real: (casa cliente, se paragem) → local do favor → entrega.
+Cliente: `pricing_calculate_errand` calcula `max(0, distance−4)×0.50`.
+Server valida `distance_km ≥ haversine(segmentos)×0.8` (tolerância GPS/Routes, SEC-2).
+
+### 55.3 — Tokens
+- Cliente: **0** (excepção explícita em `fn_award_tokens_on_delivery`).
+- Estafeta: **+40** (não-partner default — errand `is_partner_store=false`).
+
+### 55.4 — Pagamentos & Compras
+- Toggle "este favor inclui uma compra?" — se sim, cliente indica estimativa.
+- **Adiantamento máximo do estafeta sem paragem-casa:** `errand_max_advance_cents=4000` (€40).
+  Estimativa >€40 → app força paragem em casa modo dinheiro (cliente entrega notas).
+- **Cash >€40** (`max_cash_amount_cents`): com compra adiantada cartão/MBWay = OK;
+  com compra em dinheiro = também força paragem-casa-dinheiro (D4).
+- **Foto do talão obrigatória** sempre que há compra (bucket `receipts` privado).
+- Talão entra 1:1 no total; estafeta digita valor exacto → fonte de verdade.
+- **Buffer cartão/MBWay:** `payment_buffer_total = fees_total + round(estimativa × errand_buffer_multiplier)` (`errand_buffer_multiplier=1.2`). NUNCA `×1.15` (C4).
+- **Charge-extra** se talão+fees > buffer → `finalize_errand_purchase` chama EF `charge-extra` via pg_net.
+
+### 55.5 — Medicamentos com receita
+**Permitido** — cliente activa paragem em casa motivo "receita" → estafeta recolhe a receita
+→ compra na farmácia → entrega. Disclaimer no Passo 1 do wizard
+(itens ilegais e armas proibidos; medicamentos com receita = paragem-casa).
+
+### 55.6 — Cancelamento
+Reusa `cancel_fee_*` global:
+- Antes de aceitar → reembolso total.
+- Após aceitar, antes da compra → €2,50 (`cancel_fee_after_accept_cents`).
+- Após compra efectuada → cliente paga tudo (taxas + talão).
+
+### 55.7 — Status (mapping para enum existente, sem novos status)
+- `created` → `callingDriver` (não passa por `preparing` — sem parceiro)
+- `driverAccepted` = "Estafeta a caminho da tua casa" (se paragem) ou "Estafeta a caminho do favor"
+- `pickedUp` = "Estafeta a tratar do teu favor" (saiu do local após recolha/compra)
+- `onTheWay` = "A caminho da entrega"
+- `delivered` = "Entregue"
+
+### 55.8 — Dispatch
+- `dispatch-engine` aceita errand sem allowlist nova.
+- `DriverCapacityService`: errand **não-batchable** (estafeta livre, mesma regra de logística).
+- `supportsService`: car + motorcycle (bicycle não).
+- Expresso = badge informativo + SLA (`errand_sla_express_minutes=60`). Sem priorização real no engine v1.
+
+### 55.9 — Disponibilidade
+Sem sistema de horário. Kill-switch `errand_available=true`. Disponibilidade real depende
+de haver estafeta online (dispatch já cuida).
+
+### 55.10 — Trava de segurança do dinheiro (S1)
+Quando estafeta regista `errand_home_stop_cash_cents` e motivo='dinheiro':
+se valor < `errand_estimated_purchase_cents` → **aviso (não bloqueia)** no execution sheet
+("Recebeste €X mas a compra estimada é ~€Y. Confirmas?").
+
+### 55.11 — Imutabilidade financeira
+`enforce_financial_immutability` bloqueia colunas financeiras após criação.
+`finalize_errand_purchase` activa GUC `app.financial_bypass='true'` para escrever
+`final_total`, `final_purchase_value`, `is_purchase_finalized` no UPDATE.
+
+### 55.12 — OCR estruturado (Gemini 2.5-flash)
+Edge Function `ocr-receipt` extrai `{store, total_cents, lines:[…], datetime}` e grava em
+`order_receipts_v2.receipt_parsed*`. Divergência: `|digitado − parsed| > receipt_divergence_alert_cents (100)`
+→ `receipt_match=false` + alerta admin (não bloqueia o estafeta).
+Kill-switch `receipt_ocr_enabled=true`. Armadilha: `thinkingConfig.thinkingBudget=0`.
+
+### 55.13 — Catálogo automático
+Trigger `fn_enqueue_errand_catalog` em `order_receipts_v2` enfileira lines em
+`errand_catalog_queue` quando receipt_parsed é gravado.
+Admin aprova/edita/rejeita via RPCs (`admin_list/approve/reject/edit_errand_item`).
+Aprovação **cria/usa loja non-partner OCULTA** (`is_partner=false`, `is_online=false`,
+padrão Wells/Worten) + produto `source='errand_auto'` com preço do talão.
+Loja activada manualmente pelo admin. Kill-switch `errand_catalog_queue_enabled=true`.
+
+### 55.14 — Fluxo execução estafeta (`ErrandExecutionSheet`)
+3 fases: (1) Recolha em casa (cash+S1), (2) Compra na loja (foto talão + valor → `finalize_errand_purchase`),
+(3) Entrega (mostra "cobrar X" / "devolver troco Y" / "nada a cobrar").
+
+### 55.15 — Chat cliente↔estafeta
+Genérico — sem allowlist por service_type. `chat_mark_read` aceita errand.
+Push `notify-chat-message` funciona em pedidos errand sem mudanças.
+
+### 55.16 — Fora de scope v1 (anotado)
+Multi-paragens, agendamento, refund automático SLA, aprovação formal de substituições,
+fotos automáticas de produtos, publicação automática de loja sem admin,
+priorização real Expresso no dispatch.
+
+---
+
 *Documento de regras de negócio — Bora App*
-*Última atualização: 2026-05-12 (§54 PROMPT 4a/4b refinado — lifecycle completo + driver UI debt_collected_cents)*
+*Última atualização: 2026-06-16 (§55 FAVORES — categoria errand completa)*
 *Atualizar sempre que houver mudanças nas regras de negócio*
 *Fonte de verdade usada por: todas as skills do sistema*

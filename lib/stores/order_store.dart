@@ -675,6 +675,9 @@ class OrderStore extends ChangeNotifier {
         // Confirmado via MCP: create_order RPC zera todas as fees para
         // takeaway (delivery=0, service=0, bag=0). Cliente só paga subtotal.
         return 0;
+      case OrderServiceType.errand:
+        // FAVORES — sem sacos. Backend branch errand grava bag_count=0.
+        return 0;
     }
   }
 
@@ -1999,6 +2002,9 @@ class OrderStore extends ChangeNotifier {
             : OrderType.nonPartnerPurchase;
       case OrderServiceType.storeShopping:
         return OrderType.nonPartnerPurchase;
+      case OrderServiceType.errand:
+        // FAVORES — order_type='errand' (matches branch de create_order).
+        return OrderType.errand;
     }
   }
 
@@ -2009,6 +2015,33 @@ class OrderStore extends ChangeNotifier {
     }
     if (order.status != OrderStatus.created) return false;
     return _advanceStatus(order, OrderStatus.preparing);
+  }
+
+  /// FAVORES — driverAccepted → pickedUp (estafeta saiu do local do favor
+  /// após recolha/compra). Mapeia semanticamente para "estafeta a tratar do
+  /// teu favor" no tracking do cliente.
+  Future<bool> markErrandArrivedAtErrand(OrderModel order) async {
+    if (order.serviceType != OrderServiceType.errand) return false;
+    if (order.status != OrderStatus.driverAccepted) return false;
+    return _advanceStatus(order, OrderStatus.pickedUp);
+  }
+
+  /// FAVORES — pickedUp → onTheWay (a caminho da entrega).
+  Future<bool> markErrandOnTheWay(OrderModel order) async {
+    if (order.serviceType != OrderServiceType.errand) return false;
+    if (order.status == OrderStatus.driverAccepted) {
+      // Atalho: sem compra+sem paragem-casa salta directo para onTheWay.
+      await _advanceStatus(order, OrderStatus.pickedUp);
+    }
+    if (order.status != OrderStatus.pickedUp) return false;
+    return _advanceStatus(order, OrderStatus.onTheWay);
+  }
+
+  /// FAVORES — onTheWay → delivered (entregue).
+  Future<bool> markErrandDelivered(OrderModel order) async {
+    if (order.serviceType != OrderServiceType.errand) return false;
+    if (order.status != OrderStatus.onTheWay) return false;
+    return _advanceStatus(order, OrderStatus.delivered);
   }
 
   Future<bool> restaurantRejectOrder(OrderModel order) async {

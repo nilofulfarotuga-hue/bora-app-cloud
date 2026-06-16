@@ -1193,6 +1193,7 @@ class _EtaBadge extends StatelessWidget {
     // BUG 3 — texto dinâmico por service_type (memory: sessão 17-bugs 2026-05-11).
     final vendor = (vendorName ?? '').trim();
     final isStore = serviceType == OrderServiceType.storeShopping;
+    final isErrand = serviceType == OrderServiceType.errand;
     final pickupLabel = isStore
         ? (vendor.isEmpty ? 'da loja' : 'do $vendor')
         : 'do restaurante';
@@ -1201,6 +1202,24 @@ class _EtaBadge extends StatelessWidget {
             ? 'A loja a preparar o pedido'
             : '$vendor a preparar o pedido')
         : 'Restaurante a preparar o pedido';
+    // FAVORES — textos próprios (NUNCA textos de restaurante)
+    if (isErrand) {
+      switch (s) {
+        case OrderStatus.created:
+        case OrderStatus.preparing:
+          return 'A organizar o teu favor';
+        case OrderStatus.callingDriver:
+          return 'À procura de estafeta';
+        case OrderStatus.driverAccepted:
+          return 'Estafeta a caminho da tua casa';
+        case OrderStatus.pickedUp:
+          return 'Estafeta a tratar do teu favor';
+        case OrderStatus.onTheWay:
+          return 'A caminho da entrega';
+        default:
+          return '';
+      }
+    }
     switch (s) {
       case OrderStatus.created:
       case OrderStatus.preparing:

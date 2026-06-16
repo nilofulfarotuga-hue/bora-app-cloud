@@ -7,6 +7,7 @@ import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
 import '../models/order_model.dart';
+import 'errand_form_screen.dart';
 import '../services/wallet_service.dart';
 import '../stores/order_store.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
@@ -106,7 +107,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                           const SizedBox(height: Spacing.sm),
                       itemBuilder: (context, index) {
                         final order = orders[index];
-                        return _OrderCard(
+                        final card = _OrderCard(
                           order: order,
                           walletTxs: _walletByOrder[order.id] ?? const [],
                           onTap: () => Navigator.push(
@@ -116,6 +117,39 @@ class _OrdersScreenState extends State<OrdersScreen> {
                                   OrderDetailsScreen(order: order),
                             ),
                           ),
+                        );
+                        // N3 — "Pedir de novo" para favores: pré-preenche o
+                        // wizard a partir dos campos errand_* do pedido.
+                        if (order.serviceType != OrderServiceType.errand) {
+                          return card;
+                        }
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            card,
+                            const SizedBox(height: 6),
+                            OutlinedButton.icon(
+                              onPressed: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => ErrandFormScreen(
+                                    prefill: ErrandPrefill(
+                                      description: order.errandDescription ?? '',
+                                      location: order.errandLocation ?? '',
+                                      hasPurchase: order.errandHasPurchase,
+                                      estimatedCents:
+                                          order.errandEstimatedPurchaseCents,
+                                      speed: order.errandSpeed ?? 'normal',
+                                      homeStop: order.errandHomeStop,
+                                      homeStopReason: order.errandHomeStopReason,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              icon: const Icon(Icons.refresh, size: 18),
+                              label: const Text('Pedir de novo'),
+                            ),
+                          ],
                         );
                       },
                     ),

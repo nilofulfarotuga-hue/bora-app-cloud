@@ -84,7 +84,9 @@ class DriverModel {
 
     return serviceType == OrderServiceType.restaurant ||
         serviceType == OrderServiceType.storeShopping ||
-        serviceType == OrderServiceType.sendPackage;
+        serviceType == OrderServiceType.sendPackage ||
+        // FAVORES — mota aceita errand (entregas/recolhas/compras leves).
+        serviceType == OrderServiceType.errand;
   }
 }
 

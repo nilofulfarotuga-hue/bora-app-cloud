@@ -122,6 +122,31 @@ class PaymentService {
     return id;
   }
 
+  /// Quote de preço sem criar pedido — RPC quote_order_pricing.
+  /// Devolve o mesmo breakdown que create_order devolveria (delivery_fee,
+  /// service_fee, customer_total, payment_buffer_total, …) sem inserir
+  /// nada na DB. Usado pelo rodapé live do form (carry/send/errand) para
+  /// mostrar o preço exacto antes do checkout.
+  ///
+  /// Para errand, [input] aceita campos errand_* (speed, home_stop,
+  /// has_purchase, estimated_purchase_cents, errand_location_lat/lng, etc.).
+  /// O backend força is_partner_store=false e valida distância vs haversine.
+  ///
+  /// Retorna null em erro (rede, validação, etc.) — o caller deve fallback
+  /// para "desde €6" e tentar novamente quando os inputs ficarem completos.
+  Future<Map<String, dynamic>?> quoteOrder(Map<String, dynamic> input) async {
+    try {
+      final data = await Supabase.instance.client
+          .rpc('quote_order_pricing', params: {'p_input': input});
+      if (data is Map) return Map<String, dynamic>.from(data);
+      debugPrint('[PaymentService] quoteOrder: unexpected type: ${data.runtimeType}');
+      return null;
+    } catch (e) {
+      debugPrint('[PaymentService] quoteOrder error: $e');
+      return null;
+    }
+  }
+
   // ─── Legacy convenience helpers (used by checkout screens) ───────────────
 
   /// Full card checkout: create intent → present sheet → return [paymentIntentId].

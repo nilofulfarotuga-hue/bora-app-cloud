@@ -394,14 +394,22 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
 
       _clearDraft();
 
-      // Se logo foi enviado após creation, atualiza foto do restaurant
+      // Se logo foi enviado após creation, atualiza foto do parceiro
       if (logoUrl != null) {
         try {
-          final restaurantId = result['restaurant_id'] as String;
-          await Supabase.instance.client
-              .from('restaurants')
-              .update({'photo_url': logoUrl})
-              .eq('id', restaurantId);
+          if (result.containsKey('provider_id') && result['provider_id'] != null) {
+            final providerId = result['provider_id'] as String;
+            await Supabase.instance.client
+                .from('service_providers')
+                .update({'photo_url': logoUrl})
+                .eq('id', providerId);
+          } else {
+            final restaurantId = result['restaurant_id'] as String;
+            await Supabase.instance.client
+                .from('restaurants')
+                .update({'photo_url': logoUrl})
+                .eq('id', restaurantId);
+          }
           await authStore.updateCurrentUserPhoto(logoUrl);
         } catch (e) {
           debugPrint('RegisterPartnerScreen: logo update post-creation => $e');
@@ -496,15 +504,17 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _cuisineController,
-                    onChanged: (_) => _saveDraft(),
-                    decoration: const InputDecoration(
-                      labelText: 'Tipo de cozinha',
-                      prefixIcon: Icon(Icons.restaurant_menu),
+                  if (_selectedCategory == BusinessCategory.restaurant) ...[
+                    TextFormField(
+                      controller: _cuisineController,
+                      onChanged: (_) => _saveDraft(),
+                      decoration: const InputDecoration(
+                        labelText: 'Tipo de cozinha',
+                        prefixIcon: Icon(Icons.restaurant_menu),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
+                    const SizedBox(height: 16),
+                  ],
                   DropdownButtonFormField<BusinessCategory>(
                     value: _selectedCategory,
                     decoration: const InputDecoration(

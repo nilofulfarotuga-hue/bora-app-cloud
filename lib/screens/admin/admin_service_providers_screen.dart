@@ -70,7 +70,7 @@ class _AdminServiceProvidersScreenState
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Aprovar barbearia'),
+        title: const Text('Aprovar prestador'),
         content: Text(
             '${r['name']} ficará imediatamente visível aos clientes. Confirmar?'),
         actions: [
@@ -307,7 +307,7 @@ class _AdminServiceProvidersScreenState
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: BoraScreenAppBar(
-        title: 'Barbearias',
+        title: 'Prestadores de Serviços',
         actions: [
           IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
         ],
@@ -358,7 +358,7 @@ class _AdminServiceProvidersScreenState
               child: Center(
                 child: Padding(
                   padding: EdgeInsets.all(Spacing.xxxl),
-                  child: Text('Nenhuma barbearia neste estado.'),
+                  child: Text('Nenhum prestador neste estado.'),
                 ),
               ),
             )

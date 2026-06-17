@@ -131,6 +131,43 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    // ── beauty / salão → service_providers ──────────────────────────────
+    if (body.category === "beauty") {
+      const providerId = crypto.randomUUID();
+      const { error: spError } = await supabase
+        .from("service_providers")
+        .insert({
+          id: providerId,
+          user_id: userId,
+          name: body.restaurantName,
+          category: "beauty",
+          address: body.address || null,
+          phone: body.phone || null,
+          lat: body.lat || null,
+          lng: body.lng || null,
+          nif: body.nif || null,
+          iban: body.iban || null,
+          approval_status: "pending",
+        });
+      if (spError) {
+        console.error("Register beauty provider insert error:", spError);
+        return new Response(
+          JSON.stringify({ error: `Erro ao inserir prestador: ${spError.message}` }),
+          { status: 500, headers: { "Content-Type": "application/json" } }
+        );
+      }
+      console.log(`[register-partner] New beauty provider submitted: ${providerId} (${body.email})`);
+      return new Response(
+        JSON.stringify({
+          success: true,
+          provider_id: providerId,
+          status: "pending",
+          message: "Registo submetido. Aguardando análise do admin (24-48h).",
+        }),
+        { status: 201, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
     // Gera UUID para restaurant.id
     const restaurantId = crypto.randomUUID();
 

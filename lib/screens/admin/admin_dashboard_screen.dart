@@ -820,7 +820,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 Padding(
                   padding: const EdgeInsets.only(left: 4, bottom: 8, top: 4),
                   child: Text(
-                    'Serviços / Barbearias',
+                    'Serviços / Barbearias & Beleza',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w700,
                           color: AppColors.textPrimary,
@@ -829,7 +829,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 ),
                 _NavCard(
                   icon: Icons.content_cut,
-                  title: 'Barbearias',
+                  title: 'Barbearias & Beleza',
                   subtitle: 'Aprovar, rejeitar, activar/desactivar prestadores',
                   color: Colors.indigo,
                   onTap: () => Navigator.push(

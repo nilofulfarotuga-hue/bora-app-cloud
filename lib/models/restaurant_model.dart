@@ -5,6 +5,7 @@ enum BusinessCategory {
   supermarket,
   store,
   pharmacy,
+  beauty,
 }
 
 extension BusinessCategoryLabel on BusinessCategory {
@@ -18,6 +19,8 @@ extension BusinessCategoryLabel on BusinessCategory {
         return 'Loja';
       case BusinessCategory.pharmacy:
         return 'Farmácia';
+      case BusinessCategory.beauty:
+        return 'Beleza';
     }
   }
 }

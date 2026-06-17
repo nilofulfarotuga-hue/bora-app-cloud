@@ -1141,6 +1141,7 @@ class AuthStore extends ChangeNotifier {
       final data = Map<String, dynamic>.from(response.data as Map);
       return {
         'restaurant_id': data['restaurant_id'],
+        'provider_id': data['provider_id'],
         'approval_status': data['status'],
         'message': data['message'],
       };

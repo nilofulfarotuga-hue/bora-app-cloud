@@ -58,6 +58,7 @@ class BusinessMapper {
       case BusinessCategory.restaurant:
       case BusinessCategory.supermarket:
       case BusinessCategory.store:
+      case BusinessCategory.beauty:
         return StoreCategory.market;
     }
   }

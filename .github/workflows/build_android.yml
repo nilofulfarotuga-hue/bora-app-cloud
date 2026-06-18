@@ -68,6 +68,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
+      # 3d. NDK 28.2.13676358 — instalar antes do build para evitar que o AGP
+      #     descarregue ~1.5 GB durante o bundleRelease (causava timeout 50-60 min).
+      - name: Install Android NDK
+        run: echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "ndk;28.2.13676358"
+
       # 4. google-services.json a partir do secret base64
       - name: Decode google-services.json
         env:

@@ -70,8 +70,11 @@ jobs:
 
       # 3d. NDK 28.2.13676358 — instalar antes do build para evitar que o AGP
       #     descarregue ~1.5 GB durante o bundleRelease (causava timeout 50-60 min).
+      #     yes| em vez de echo "y"| — sdkmanager aceita múltiplas licenças sem travar.
       - name: Install Android NDK
-        run: echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "ndk;28.2.13676358"
+        run: |
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
+            --sdk_root="$ANDROID_HOME" "ndk;28.2.13676358"
 
       # 4. google-services.json a partir do secret base64
       - name: Decode google-services.json
@@ -132,6 +135,8 @@ jobs:
 
       # 8. Commit + push do pubspec.yaml com o versionCode incrementado.
       #    [skip ci] evita disparar uma nova corrida em loop infinito.
+      #    pull --rebase antes do push — evita non-fast-forward se corridas concorrentes
+      #    já tiverem empurrado um bump entretanto.
       - name: Commit versionCode bump
         run: |
           git config user.name "github-actions[bot]"
@@ -139,6 +144,7 @@ jobs:
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/nilofulfarotuga-hue/bora-app-cloud.git
           git add pubspec.yaml
           git commit -m "ci: bump versionCode to ${{ steps.bump.outputs.new_code }} [skip ci]"
+          git pull --rebase origin autonomous-night-2026-04-29
           git push origin HEAD:autonomous-night-2026-04-29
 
       # 9. Dependencias

@@ -90,6 +90,9 @@ scripts/rag/*.log
 # ── Deno cache lockfile (CLI-generated, per-machine) ─────────────────────────
 deno.lock
 
+# ── Supabase CLI temp files (per-machine, regenerated on every CLI run) ───────
+supabase/.temp/
+
 # ── Repo hygiene (auditoria 2026-05-31) ──────────────────────────────────────
 # node_modules da raiz (Playwright/TestSprite) — nunca versionar
 /node_modules/

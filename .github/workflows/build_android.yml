@@ -153,6 +153,8 @@ jobs:
 
       # 10. Build do AAB assinado (com dart-defines injetados)
       - name: Build appbundle (release)
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=512m"
         run: flutter build appbundle --release --dart-define-from-file=.dart_defines --no-tree-shake-icons
 
       # 11. Upload para Google Play — Internal Testing

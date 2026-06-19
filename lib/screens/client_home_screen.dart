@@ -485,7 +485,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
       _TileData(
         label: 'Favores',
         gradient: AppColors.tileErrand,
-        imageAsset: 'assets/categories/cat_compras.png',
+        imageAsset: 'assets/categories/cat_favores.png',
         onTap: () => _navigateWithAddressGuard(() {
           Navigator.push(
             context,

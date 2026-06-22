@@ -11,6 +11,7 @@
 //   pickedUp       = saiu do local do favor (após compra/recolha)
 //   onTheWay       = a caminho da entrega
 //   delivered      = entregue (advance pelo botão final)
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -22,6 +23,7 @@ import '../config/app_colors.dart';
 import '../models/order_model.dart';
 import '../services/receipt_upload_service.dart';
 import '../stores/order_store.dart';
+import 'private_bucket_image.dart';
 
 enum _Phase { collect, purchase, deliver, done }
 
@@ -54,6 +56,11 @@ class _ErrandExecutionSheetState extends State<ErrandExecutionSheet> {
   bool _busy = false;
   String? _error;
 
+  // 8.2 — pedido de aumento de orçamento (timing A: pedir ANTES de comprar).
+  String? _budgetStatus; // null|pending|approved|rejected|disputed
+  bool _disputed = false; // retorno do finalize (talão acima do autorizado)
+  Timer? _budgetPoll;
+
   @override
   void initState() {
     super.initState();
@@ -61,10 +68,13 @@ class _ErrandExecutionSheetState extends State<ErrandExecutionSheet> {
     _phase = o.errandHomeStop
         ? _Phase.collect
         : (o.errandHasPurchase ? _Phase.purchase : _Phase.deliver);
+    _budgetStatus = o.errandBudgetStatus;
+    if (_budgetStatus == 'pending') _startBudgetPoll();
   }
 
   @override
   void dispose() {
+    _budgetPoll?.cancel();
     _cashReceivedCtrl.dispose();
     _talaoTotalCtrl.dispose();
     super.dispose();
@@ -90,6 +100,102 @@ class _ErrandExecutionSheetState extends State<ErrandExecutionSheet> {
     );
     if (x == null) return;
     setState(() => _receiptPhoto = File(x.path));
+  }
+
+  // 8.2 — limite de compra já autorizado (buffer = estimativa × 1.2).
+  int get _authorizedCents =>
+      (widget.order.errandEstimatedPurchaseCents * 1.2).round();
+
+  // 8.2 — estafeta pede aumento ANTES de comprar (timing A).
+  Future<void> _requestBudgetIncrease() async {
+    final ctrl = TextEditingController();
+    final cents = await showDialog<int>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Pedir aumento de orçamento'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Limite autorizado: ~€${(_authorizedCents / 100).toStringAsFixed(2)}. '
+              'Indica o novo total previsto da compra.',
+              style: const TextStyle(fontSize: 13),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: ctrl,
+              autofocus: true,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                labelText: 'Novo total previsto',
+                prefixText: '€ ',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancelar')),
+          ElevatedButton(
+            onPressed: () {
+              final v =
+                  double.tryParse(ctrl.text.trim().replaceAll(',', '.')) ?? 0;
+              Navigator.pop(ctx, (v * 100).round());
+            },
+            child: const Text('Pedir'),
+          ),
+        ],
+      ),
+    );
+    if (cents == null || cents <= 0) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await Supabase.instance.client.rpc(
+        'errand_request_budget_increase',
+        params: {'p_order_id': widget.order.id, 'p_new_total_cents': cents},
+      );
+      if (!mounted) return;
+      setState(() => _budgetStatus = 'pending');
+      _startBudgetPoll();
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text(
+            'Pedido enviado ao cliente. Aguarda a autorização antes de comprar.'),
+      ));
+    } catch (e) {
+      if (mounted) setState(() => _error = 'Erro ao pedir aumento: $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  // Poll leve enquanto pendente — reflete a resposta do cliente (push/refresh).
+  void _startBudgetPoll() {
+    _budgetPoll?.cancel();
+    _budgetPoll = Timer.periodic(const Duration(seconds: 4), (t) async {
+      if (!mounted || _budgetStatus != 'pending') {
+        t.cancel();
+        return;
+      }
+      try {
+        final row = await Supabase.instance.client
+            .from('orders')
+            .select('errand_budget_status')
+            .eq('id', widget.order.id)
+            .maybeSingle();
+        final s = row?['errand_budget_status'] as String?;
+        if (s != null && s != 'pending' && mounted) {
+          setState(() => _budgetStatus = s);
+          t.cancel();
+        }
+      } catch (_) {}
+    });
   }
 
   Future<void> _confirmCollect() async {
@@ -179,7 +285,7 @@ class _ErrandExecutionSheetState extends State<ErrandExecutionSheet> {
       );
       // Chama a RPC criada na Fase 2.C — escreve final_total/final_purchase
       // via GUC bypass, dispara ocr-receipt + charge-extra se buffer ultrapassado.
-      await Supabase.instance.client.rpc(
+      final res = await Supabase.instance.client.rpc(
         'finalize_errand_purchase',
         params: {
           'p_order_id': o.id,
@@ -187,9 +293,14 @@ class _ErrandExecutionSheetState extends State<ErrandExecutionSheet> {
           'p_receipt_photo_url': path,
         },
       );
+      // 8.2 — talão acima do autorizado sem consentimento → disputa admin.
+      final disputed = res is Map && res['dispute'] == true;
       if (!mounted) return;
       await context.read<OrderStore>().markErrandOnTheWay(o);
-      setState(() => _phase = _Phase.deliver);
+      setState(() {
+        _disputed = disputed;
+        _phase = _Phase.deliver;
+      });
     } catch (e) {
       setState(() => _error = 'Erro ao finalizar: $e');
     } finally {
@@ -265,7 +376,7 @@ class _ErrandExecutionSheetState extends State<ErrandExecutionSheet> {
               if (_phase == _Phase.deliver) _buildDeliver(o),
               if (_error != null) ...[
                 const SizedBox(height: 12),
-                Text(_error!, style: TextStyle(color: AppColors.error)),
+                Text(_error!, style: const TextStyle(color: AppColors.error)),
               ],
             ],
           ),
@@ -290,7 +401,7 @@ class _ErrandExecutionSheetState extends State<ErrandExecutionSheet> {
           Text(
             'Estimativa da compra: '
             '~€${(o.errandEstimatedPurchaseCents / 100).toStringAsFixed(2)}',
-            style: TextStyle(color: AppColors.textSecondary),
+            style: const TextStyle(color: AppColors.textSecondary),
           ),
           const SizedBox(height: 8),
           TextField(
@@ -322,8 +433,22 @@ class _ErrandExecutionSheetState extends State<ErrandExecutionSheet> {
             style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 4),
         Text(o.errandLocation ?? 'Local do favor',
-            style: TextStyle(color: AppColors.textSecondary)),
+            style: const TextStyle(color: AppColors.textSecondary)),
         const SizedBox(height: 12),
+        // 8.1 — foto que o cliente enviou do que comprar (opcional).
+        if (o.errandRequestPhotoUrl != null &&
+            o.errandRequestPhotoUrl!.isNotEmpty) ...[
+          const Text('Foto do cliente (o que comprar)',
+              style: TextStyle(
+                  fontSize: 13, color: AppColors.textSecondary)),
+          const SizedBox(height: 6),
+          PrivateBucketImage(
+            urlOrPath: o.errandRequestPhotoUrl!,
+            height: 160,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          const SizedBox(height: 12),
+        ],
         if (_receiptPhoto == null)
           OutlinedButton.icon(
             onPressed: _busy ? null : _pickReceipt,
@@ -353,6 +478,57 @@ class _ErrandExecutionSheetState extends State<ErrandExecutionSheet> {
             prefixText: '€ ',
           ),
         ),
+        const SizedBox(height: 12),
+        // 8.2 — timing A: pedir aumento ANTES de comprar se vai passar o limite.
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppColors.surface2,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Limite autorizado pelo cliente: ~€${(_authorizedCents / 100).toStringAsFixed(2)}',
+                style: const TextStyle(
+                    fontSize: 13, color: AppColors.textSecondary),
+              ),
+              if (_budgetStatus == 'pending') ...[
+                const SizedBox(height: 6),
+                const Text('À espera da autorização do cliente…',
+                    style:
+                        TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+              ] else if (_budgetStatus == 'approved') ...[
+                const SizedBox(height: 6),
+                const Text('Autorizado — podes comprar.',
+                    style: TextStyle(
+                        fontSize: 13,
+                        color: AppColors.success,
+                        fontWeight: FontWeight.w700)),
+              ] else if (_budgetStatus == 'rejected') ...[
+                const SizedBox(height: 6),
+                const Text('Recusado — não compres; cancela o favor.',
+                    style: TextStyle(
+                        fontSize: 13,
+                        color: AppColors.error,
+                        fontWeight: FontWeight.w700)),
+              ] else ...[
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: _busy ? null : _requestBudgetIncrease,
+                  icon: const Icon(Icons.trending_up),
+                  label: const Text('Pedir aumento de orçamento'),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                    'Só se o total vai passar o limite. Pede ANTES de pagar.',
+                    style: TextStyle(
+                        fontSize: 11, color: AppColors.textSecondary)),
+              ],
+            ],
+          ),
+        ),
         const SizedBox(height: 16),
         ElevatedButton(
           onPressed: _busy ? null : _finalizePurchase,
@@ -374,6 +550,23 @@ class _ErrandExecutionSheetState extends State<ErrandExecutionSheet> {
         Text('3. Entrega',
             style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 12),
+        // 8.2 — talão acima do autorizado: em revisão pelo suporte (não cobrar).
+        if (_disputed) ...[
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.warning.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.warning),
+            ),
+            child: const Text(
+              'Valor acima do autorizado — em revisão pelo suporte. '
+              'Não cobres o extra ao cliente.',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(

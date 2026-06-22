@@ -13,6 +13,7 @@ import '../models/order_model.dart';
 import '../models/rating_model.dart';
 import '../widgets/address_text.dart';
 import '../widgets/bora_support_fab.dart';
+import '../widgets/errand_budget_banner.dart';
 import '../widgets/takeaway/pickup_code_card.dart';
 import '../widgets/takeaway/preparing_countdown_banner.dart';
 import '../services/directions_service.dart';
@@ -540,6 +541,8 @@ class _BottomCardState extends State<_BottomCard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // ── 8.2 Banner de autorização de orçamento (errand) ──────
+                ErrandBudgetBanner(order: order),
                 // ── Order code + status ──────────────────────────────────
                 Row(
                   children: [

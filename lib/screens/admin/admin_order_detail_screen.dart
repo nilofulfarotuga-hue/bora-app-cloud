@@ -63,7 +63,11 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen>
               'wallet_applied_cents, tokens_applied_count, '
               'tokens_applied_value_cents, stripe_charge_cents, '
               // FASE 3 admin cash display
-              'driver_earnings, customer_total')
+              'driver_earnings, customer_total, '
+              // FAVORES (errand) — campos do favor + foto + valor real
+              'service_type, errand_description, errand_location, '
+              'errand_speed, errand_home_stop, errand_estimated_purchase_cents, '
+              'final_purchase_value, errand_request_photo_url')
           .eq('id', widget.orderId)
           .maybeSingle();
 
@@ -243,6 +247,34 @@ class _SummaryTab extends StatelessWidget {
                 _row(Icons.store_mall_directory, 'Recolha',
                     order['pickup_address'] ?? '—'),
                 _row(Icons.euro, 'Total', '€${_amount(order)}'),
+                // FAVORES (errand) — bloco específico do favor (PT-BR admin).
+                if (order['service_type'] == 'errand') ...[
+                  const Divider(),
+                  _row(Icons.assignment_outlined, 'Favor',
+                      order['errand_description'] ?? '—'),
+                  _row(Icons.place_outlined, 'Local',
+                      order['errand_location'] ?? '—'),
+                  _row(Icons.flash_on, 'Velocidade',
+                      order['errand_speed'] ?? '—'),
+                  if (order['errand_home_stop'] == true)
+                    _row(Icons.house_outlined, 'Parada em casa', 'Sim'),
+                  _row(
+                      Icons.shopping_bag_outlined,
+                      'Compra estimada',
+                      order['errand_estimated_purchase_cents'] != null
+                          ? '€${((order['errand_estimated_purchase_cents'] as num) / 100).toStringAsFixed(2)}'
+                          : '—'),
+                  _row(
+                      Icons.receipt_long,
+                      'Valor real (recibo)',
+                      order['final_purchase_value'] != null
+                          ? '€${(order['final_purchase_value'] as num).toStringAsFixed(2)}'
+                          : '—'),
+                  if (order['errand_request_photo_url'] != null &&
+                      (order['errand_request_photo_url'] as String).isNotEmpty)
+                    _row(Icons.photo_camera_outlined, 'Foto do cliente',
+                        'Sim (anexada)'),
+                ],
               ]),
             ),
           ),

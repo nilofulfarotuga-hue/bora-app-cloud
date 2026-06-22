@@ -183,8 +183,22 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     // Fix: descontar walletApplied a totalToPay para que tokens e Stripe
     // operem sobre o valor REAL após saldo.
     final double walletAppliedEur = cartStore.walletAppliedCents / 100.0;
+    // FAVORES (errand) — total e breakdown vêm do quote do favor (base_fee/
+    // home/km/compra), NÃO do pricingBreakdown genérico (entrega €2,50 + 15%).
+    final bool isErrand = cartStore.serviceType == OrderServiceType.errand;
+    final Map<String, dynamic>? errandQuote = cartStore.errandSession?.quote;
+    double errVal(String k) => (errandQuote?[k] as num?)?.toDouble() ?? 0.0;
+    final double errBase = errVal('base_fee');
+    final double errHome = errVal('home_stop_fee');
+    final double errKm = errVal('km_extra_fee');
+    final double errPurchase = errVal('purchase_estimate');
+    final double errandTotal =
+        (errandQuote?['customer_total'] as num?)?.toDouble() ??
+            pricing.customerTotal;
+    final double baseCustomerTotal =
+        isErrand ? errandTotal : pricing.customerTotal;
     final double totalAfterWallet =
-        (pricing.customerTotal - walletAppliedEur).clamp(0.0, double.infinity);
+        (baseCustomerTotal - walletAppliedEur).clamp(0.0, double.infinity);
     final totalToPay = totalAfterWallet;
     final hasApartmentDelivery = cartStore.apartmentDelivery;
     double baseDeliveryFee = pricing.deliveryFee - pricing.apartmentSurcharge;
@@ -200,7 +214,9 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     final double maxDiscountEuro = totalToPay * (_tokenMaxPct / 100.0);
     final int maxTokensUsable =
         (maxDiscountEuro / BRTokens.TOKEN_VALUE_EUR).floor();
-    final int tokensToUse = min(_availableTokens, maxTokensUsable);
+    // FAVORES (§55.3) — cliente não usa/ganha tokens em favores → 0.
+    final int tokensToUse =
+        isErrand ? 0 : min(_availableTokens, maxTokensUsable);
     final double tokenDiscount =
         _useTokens ? (tokensToUse * BRTokens.TOKEN_VALUE_EUR) : 0.0;
     final double debtEur = _debtSettleCents / 100.0;
@@ -268,11 +284,29 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                                   ),
                         ),
                         const SizedBox(height: 12),
-                        _SummaryRow(label: 'Subtotal', value: pricing.subtotal),
-                        if (pricing.serviceFee > 0)
+                        // FAVORES (errand) — breakdown do favor: SEM subtotal €0,
+                        // SEM entrega €2,50, SEM taxa de serviço/15%.
+                        if (isErrand) ...[
+                          _SummaryRow(label: 'Favor', value: errBase),
+                          if (errHome > 0)
+                            _SummaryRow(
+                                label: 'Paragem em casa', value: errHome),
+                          if (errKm > 0)
+                            _SummaryRow(
+                                label: 'Distância extra', value: errKm),
+                          if (errPurchase > 0)
+                            _SummaryRow(
+                                label: 'Compra estimada na loja',
+                                value: errPurchase),
+                        ],
+                        if (!isErrand)
+                          _SummaryRow(
+                              label: 'Subtotal', value: pricing.subtotal),
+                        if (!isErrand && pricing.serviceFee > 0)
                           _SummaryRow(
                               label: 'Taxas', value: pricing.serviceFee),
-                        _SummaryRow(
+                        if (!isErrand)
+                          _SummaryRow(
                           label: 'Entrega',
                           value: baseDeliveryFee,
                           subtitle: () {
@@ -506,6 +540,14 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                     );
                   }).toList(),
                 ),
+                // FAVORES (§55.4) — clareza cartão (garantia ×1,2) vs dinheiro.
+                if (isErrand && errPurchase > 0) ...[
+                  const SizedBox(height: 8),
+                  _ErrandPaymentHint(
+                    method: _selectedMethod,
+                    estimate: errPurchase,
+                  ),
+                ],
                 if (_selectedMethod == PaymentMethod.card &&
                     (_savedCards.isNotEmpty || _loadingCards)) ...[
                   const SizedBox(height: 12),
@@ -902,6 +944,18 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       }
 
       // Step 4: success — clear cart + consume tokens + navigate
+      // 8.1 — persistir a foto do favor (errand via cartão) antes de limpar.
+      final reqPhoto = cartStore.errandRequestPhotoUrl;
+      if (reqPhoto != null) {
+        try {
+          await Supabase.instance.client.rpc(
+            'client_set_errand_request_photo',
+            params: {'p_order_id': orderId, 'p_url': reqPhoto},
+          );
+        } catch (e) {
+          debugPrint('[Checkout] set errand photo failed (non-fatal): $e');
+        }
+      }
       cartStore.clearCart();
       await _consumeTokensAndNavigate(tokensUsed);
       return;
@@ -1189,6 +1243,42 @@ class _SummaryRow extends StatelessWidget {
             ),
           ),
           Text(valueText, style: textStyle),
+        ],
+      ),
+    );
+  }
+}
+
+/// FAVORES (§55.4) — explica garantia (cartão ×1,2) ou dinheiro a levar.
+class _ErrandPaymentHint extends StatelessWidget {
+  const _ErrandPaymentHint({required this.method, required this.estimate});
+  final PaymentMethod method;
+  final double estimate;
+
+  @override
+  Widget build(BuildContext context) {
+    final isCash = method == PaymentMethod.cash;
+    final guarantee = estimate * 1.2;
+    final text = isCash
+        ? 'Leva ~€${estimate.toStringAsFixed(2)} em dinheiro para a compra. '
+            'O estafeta confirma o valor exato no talão.'
+        : 'Para a compra, o cartão pode segurar ~€${guarantee.toStringAsFixed(2)} '
+            'como garantia (estimativa ×1,2). Pagas só o valor do talão — '
+            'o resto é libertado.';
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.primaryWash,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(isCash ? Icons.payments_outlined : Icons.credit_card,
+              size: 18, color: AppColors.primary),
+          const SizedBox(width: 8),
+          Expanded(child: Text(text, style: const TextStyle(fontSize: 12.5))),
         ],
       ),
     );

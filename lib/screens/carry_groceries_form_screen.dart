@@ -4,9 +4,10 @@ import 'package:provider/provider.dart';
 
 import '../config/maps_config.dart';
 import '../models/order_model.dart';
-import '../services/location_service.dart';
+import '../services/place_autocomplete_service.dart';
 import '../stores/cart_store.dart';
 import '../widgets/address_autocomplete_field.dart';
+import '../widgets/business_autocomplete_field.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/quote_price_footer.dart';
 import 'payment_method_screen.dart';
@@ -26,56 +27,36 @@ class _CarryGroceriesFormScreenState extends State<CarryGroceriesFormScreen> {
   LatLng? _pickupLocation;
   LatLng? _dropoffLocation;
 
-  bool _loadingLocation = false;
-
   // BUG #8 (2026-05-13) — BR §7.6 deprecated. Foto obrigatória removida em
   // carryGroceries por decisão do Danilo. Fluxo: loja + endereço + pagamento.
 
-  static const _fallbackAddress = 'Guarda, Portugal';
+  late final PlaceAutocompleteService _geocoder;
 
   @override
   void initState() {
     super.initState();
-    _prefillPickupFromGps();
+    _geocoder = createPlaceAutocompleteService(googleApiKey);
   }
 
   @override
   void dispose() {
     _pickupController.dispose();
     _dropoffController.dispose();
+    _geocoder.dispose();
     super.dispose();
   }
 
-  /// Obtém a localização atual via GPS e preenche o campo de recolha.
-  /// Se GPS ou reverse geocoding falharem, usa [_fallbackAddress].
-  /// Corre em background — não bloqueia a UI, nunca mostra erro.
-  Future<void> _prefillPickupFromGps() async {
-    setState(() => _loadingLocation = true);
+  Future<LatLng?> _geocodeOrNull(String text) async {
+    final t = text.trim();
+    if (t.isEmpty) return null;
     try {
-      final coords = await LocationService.getCurrentLocation();
-      if (!mounted) return;
-
-      if (coords != null) {
-        final address =
-            await LocationService.reverseGeocode(coords, googleApiKey);
-        if (!mounted) return;
-        setState(() {
-          _pickupLocation = coords;
-          _pickupController.text = (address != null && address.isNotEmpty)
-              ? address
-              : _fallbackAddress;
-        });
-      } else {
-        setState(() => _pickupController.text = _fallbackAddress);
-      }
+      return await _geocoder.geocodeAddress(t);
     } catch (_) {
-      if (mounted) setState(() => _pickupController.text = _fallbackAddress);
-    } finally {
-      if (mounted) setState(() => _loadingLocation = false);
+      return null;
     }
   }
 
-  void _goToPayment() {
+  Future<void> _goToPayment() async {
     final pickupAddress = _pickupController.text.trim();
     final dropoffAddress = _dropoffController.text.trim();
 
@@ -87,18 +68,23 @@ class _CarryGroceriesFormScreenState extends State<CarryGroceriesFormScreen> {
       return;
     }
 
+    // Fallback: texto livre sem seleção → geocodifica antes de submeter para
+    // garantir coordenadas (o servidor exige-as).
+    _pickupLocation ??= await _geocodeOrNull(pickupAddress);
+    _dropoffLocation ??= await _geocodeOrNull(dropoffAddress);
+    if (!mounted) return;
+
     if (_pickupLocation == null || _dropoffLocation == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text(
-                'Selecione um endereço válido nas sugestões para obter coordenadas.')),
+                'Não consegui localizar a loja ou a entrega. Escolhe uma sugestão da lista.')),
       );
       return;
     }
 
     // Configure CartStore so PaymentMethodScreen can show the breakdown
     // and call cartStore.finishOrder() — same flow as sendPackage.
-    // BUG #8 (2026-05-13) — foto BR §7.6 deprecated/removida.
     final cart = context.read<CartStore>();
     cart.configureSession(
       serviceType: OrderServiceType.carryGroceries,
@@ -135,27 +121,21 @@ class _CarryGroceriesFormScreenState extends State<CarryGroceriesFormScreen> {
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
           ),
           const SizedBox(height: 8),
-          Stack(
-            children: [
-              AddressAutocompleteField(
-                controller: _pickupController,
-                labelText: 'Pesquisar loja ou supermercado',
-                prefixIcon: const Icon(Icons.store_outlined),
-                onSelected: (address, coords) {
-                  setState(() => _pickupLocation = coords);
-                },
-              ),
-              if (_loadingLocation)
-                const Positioned(
-                  right: 12,
-                  top: 14,
-                  child: SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                ),
-            ],
+          // A.2 — campo da loja com pré-preenchimento por GPS: se o cliente
+          // estiver dentro/junto de uma loja (≤ 0,15 km) já aparece preenchida.
+          BusinessAutocompleteField(
+            controller: _pickupController,
+            labelText: 'Pesquisar loja ou supermercado',
+            prefixIcon: const Icon(Icons.store_outlined),
+            autofillNearestWithinKm: 0.15,
+            onSelected: (name, coords) {
+              setState(() => _pickupLocation = coords);
+            },
+            onChanged: (_) {
+              if (_pickupLocation != null) {
+                setState(() => _pickupLocation = null);
+              }
+            },
           ),
           const SizedBox(height: 24),
           const Text(
@@ -169,6 +149,11 @@ class _CarryGroceriesFormScreenState extends State<CarryGroceriesFormScreen> {
             prefixIcon: const Icon(Icons.location_on_outlined),
             onSelected: (address, coords) {
               setState(() => _dropoffLocation = coords);
+            },
+            onChanged: (_) {
+              if (_dropoffLocation != null) {
+                setState(() => _dropoffLocation = null);
+              }
             },
           ),
           const SizedBox(height: 24),

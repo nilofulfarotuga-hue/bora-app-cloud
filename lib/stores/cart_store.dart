@@ -295,6 +295,15 @@ class CartStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  // FAVORES (errand) — foto opcional "do que comprar" (8.1). Reutiliza o bucket
+  // privado de fotos de pedido. Limpa em finishOrder/clearCart.
+  String? _errandRequestPhotoUrl;
+  String? get errandRequestPhotoUrl => _errandRequestPhotoUrl;
+  void setErrandRequestPhotoUrl(String? url) {
+    _errandRequestPhotoUrl = url;
+    notifyListeners();
+  }
+
   /// FAVORES (errand) — configura a sessão do carrinho para um favor.
   /// Limpa items (favores não têm produtos, só descrição) e guarda os dados
   /// do wizard. O quote vem de quote_order_pricing — não recalcula aqui.
@@ -309,6 +318,10 @@ class CartStore extends ChangeNotifier {
     required bool hasPurchase,
     required int estimatedCents,
     required Map<String, dynamic> quote,
+    required double distanceKm,
+    String? dropoffStreet,
+    String? dropoffCity,
+    String? requestPhotoUrl,
   }) {
     if (_items.isNotEmpty) {
       _items.clear();
@@ -320,7 +333,16 @@ class CartStore extends ChangeNotifier {
     _vendorName = null;
     _pickupLocation = home; // null se não houver paragem-casa
     _deliveryLocation = dropoff;
+    // O servidor (e o finishOrder) exigem uma morada de entrega — o wizard
+    // captura-a via autocomplete de rua.
+    if (dropoffStreet != null && dropoffStreet.trim().isNotEmpty) {
+      _dropoffStreet = dropoffStreet.trim();
+    }
+    if (dropoffCity != null && dropoffCity.trim().isNotEmpty) {
+      _dropoffCity = dropoffCity.trim();
+    }
     _apartmentDelivery = false;
+    _errandRequestPhotoUrl = requestPhotoUrl;
     _errandSession = ErrandSession(
       description: description,
       location: location,
@@ -332,13 +354,10 @@ class CartStore extends ChangeNotifier {
       estimatedCents: estimatedCents,
       quote: quote,
     );
-    // Distância: o quote já reflecte a soma dos segmentos casa→favor→entrega
-    final qDist = (quote['distance_km'] as num?)?.toDouble();
-    if (qDist != null && qDist > 0) {
-      _distanceKm = qDist;
-    } else {
-      _recalculateDistance();
-    }
+    // Distância real (multi-segmento casa→favor→entrega) calculada no wizard
+    // — é a mesma que o servidor cobra; evita ERRAND_DISTANCE_TOO_LOW.
+    _distanceKm =
+        distanceKm > 0 ? distanceKm : PricingService.defaultDistanceKm;
     notifyListeners();
   }
 
@@ -535,6 +554,8 @@ class CartStore extends ChangeNotifier {
     _serviceTypeLockedByOptions = false;
     _packagePhotoUrl = null;
     _groceriesPhotoUrl = null;
+    _errandSession = null;
+    _errandRequestPhotoUrl = null;
     notifyListeners();
     _saveCart();
   }
@@ -558,11 +579,14 @@ class CartStore extends ChangeNotifier {
     final isShoppingOrder = _serviceType == OrderServiceType.restaurant ||
         _serviceType == OrderServiceType.storeShopping;
     if (isShoppingOrder && _items.isEmpty) return null;
-    if (_pickupLocation == null) {
+    final isErrand = _serviceType == OrderServiceType.errand;
+    // FAVORES — paragem em casa é opcional → pickup pode ser null; a morada de
+    // entrega é capturada via autocomplete (coords obrigatórias, street opcional).
+    if (!isErrand && _pickupLocation == null) {
       debugPrint('CartStore.startCardPaymentDraft: BLOCKED — pickupLocation null');
       return null;
     }
-    if (_deliveryLocation == null || _dropoffStreet.isEmpty) {
+    if (_deliveryLocation == null || (!isErrand && _dropoffStreet.isEmpty)) {
       debugPrint('CartStore.startCardPaymentDraft: BLOCKED — delivery missing');
       return null;
     }
@@ -603,6 +627,17 @@ class CartStore extends ChangeNotifier {
       customerName: customerName,
       apartmentDelivery: _apartmentDelivery,
       walletAppliedCents: _walletAppliedCents,
+      // FAVORES (errand)
+      errandDescription: _errandSession?.description,
+      errandLocation: _errandSession?.location,
+      errandLocationLat: _errandSession?.locationCoords.latitude,
+      errandLocationLng: _errandSession?.locationCoords.longitude,
+      errandHomeStop: _errandSession?.hasHomeStop ?? false,
+      errandHomeStopReason: _errandSession?.homeStopReason,
+      errandSpeed: _errandSession?.speed,
+      errandHasPurchase: _errandSession?.hasPurchase ?? false,
+      errandEstimatedPurchaseCents: _errandSession?.estimatedCents ?? 0,
+      errandRequestPhotoUrl: _errandRequestPhotoUrl,
       savedPmId: savedPmId,
     );
   }
@@ -624,6 +659,9 @@ class CartStore extends ChangeNotifier {
     final isShoppingOrder = _serviceType == OrderServiceType.restaurant ||
         _serviceType == OrderServiceType.storeShopping;
     if (isShoppingOrder && _items.isEmpty) return false;
+    // FAVORES — paragem em casa opcional (pickup pode ser null); a entrega é
+    // capturada via autocomplete (não exige _dropoffStreet pré-preenchido).
+    final isErrand = _serviceType == OrderServiceType.errand;
 
     // ── FIX: Block order creation when pickup coordinates are missing.
     // Previously, null pickupLocation silently passed through, causing:
@@ -632,7 +670,7 @@ class CartStore extends ChangeNotifier {
     //   - driver map showing two pins at the same location
     //   - incorrect pricing
     // Now we fail explicitly so the UI can show a clear error.
-    if (_pickupLocation == null) {
+    if (!isErrand && _pickupLocation == null) {
       debugPrint(
         'CartStore.finishOrder: BLOCKED — pickupLocation is null for '
         'vendor "$_vendorName". Cannot create order without pickup coords.',
@@ -648,7 +686,7 @@ class CartStore extends ChangeNotifier {
       return false;
     }
 
-    if (_dropoffStreet.isEmpty) {
+    if (!isErrand && _dropoffStreet.isEmpty) {
       debugPrint('CartStore.finishOrder: BLOCKED — dropoffStreet is empty.');
       return false;
     }
@@ -701,11 +739,37 @@ class CartStore extends ChangeNotifier {
       takeawayCurbsideInfo: _curbsideInfo,
       tipCents: _tipCents,
       walletAppliedCents: _walletAppliedCents,
+      // FAVORES (errand)
+      errandDescription: _errandSession?.description,
+      errandLocation: _errandSession?.location,
+      errandLocationLat: _errandSession?.locationCoords.latitude,
+      errandLocationLng: _errandSession?.locationCoords.longitude,
+      errandHomeStop: _errandSession?.hasHomeStop ?? false,
+      errandHomeStopReason: _errandSession?.homeStopReason,
+      errandSpeed: _errandSession?.speed,
+      errandHasPurchase: _errandSession?.hasPurchase ?? false,
+      errandEstimatedPurchaseCents: _errandSession?.estimatedCents ?? 0,
+      errandRequestPhotoUrl: _errandRequestPhotoUrl,
     );
 
     if (!success) return false;
+    // 8.1 — persistir a foto do favor SEM tocar create_order (RPC dedicada).
+    final reqPhoto = _errandRequestPhotoUrl;
+    final newOrderId = orderStore.lastCreatedOrderId;
+    if (reqPhoto != null && newOrderId != null) {
+      try {
+        await Supabase.instance.client.rpc(
+          'client_set_errand_request_photo',
+          params: {'p_order_id': newOrderId, 'p_url': reqPhoto},
+        );
+      } catch (e) {
+        debugPrint('CartStore.finishOrder: set errand photo failed (non-fatal): $e');
+      }
+    }
     _packagePhotoUrl = null;
     _groceriesPhotoUrl = null;
+    _errandSession = null;
+    _errandRequestPhotoUrl = null;
     // serviceType + curbside resetados em clearCart() abaixo.
     _tipCents = 0;
     _walletAppliedCents = 0;

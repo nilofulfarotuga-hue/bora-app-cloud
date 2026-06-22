@@ -4,13 +4,30 @@
 // "Ex.: Vai à Farmácia Holon…", mensagem amigável forçar >€40, breakdown
 // "ver detalhe", disclaimer receita-positiva (G1), resumo final com "~".
 // Meta: a avó consegue pedir sem ajuda.
+//
+// 2026-06-21 — coords REAIS via autocomplete (sem placeholders fixos):
+//   • Local do favor → BusinessAutocompleteField (RPC search_businesses)
+//   • Entrega / paragem em casa → AddressAutocompleteField (Google)
+//   • distância multi-segmento real (casa→favor→entrega) via MapsService
+//   • guard de submissão + geocode fallback (texto livre) antes de submeter
+//   • 8.4 atalhos de favores · 8.1 foto opcional "do que comprar"
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
 import '../config/app_colors.dart';
+import '../config/maps_config.dart';
+import '../services/location_service.dart';
+import '../services/maps_service.dart';
+import '../services/order_photo_upload_service.dart';
 import '../services/payment_service.dart';
+import '../services/place_autocomplete_service.dart';
 import '../stores/cart_store.dart';
+import '../widgets/address_autocomplete_field.dart';
+import '../widgets/business_autocomplete_field.dart';
 import 'payment_method_screen.dart';
 
 enum _ErrandStep { what, where, when }
@@ -49,18 +66,44 @@ class ErrandFormScreen extends StatefulWidget {
 class _ErrandFormScreenState extends State<ErrandFormScreen> {
   _ErrandStep _step = _ErrandStep.what;
   final _descCtrl = TextEditingController();
+  final _descFocus = FocusNode();
   final _estimateCtrl = TextEditingController();
   final _errandLocationCtrl = TextEditingController();
   final _dropoffCtrl = TextEditingController();
+  final _homeCtrl = TextEditingController();
 
   bool _hasPurchase = false;
   bool _homeStop = false;
   String _homeStopReason = 'cartao'; // receita | cartao | dinheiro | outro
   String _speed = 'normal'; // normal | express
 
+  // Coordenadas REAIS — preenchidas pelo autocomplete ou geocode. NUNCA fixas.
+  LatLng? _errandLocation;
+  LatLng? _dropoff;
+  LatLng? _home;
+
+  // Distância real do percurso (soma dos segmentos casa→favor→entrega).
+  double _routeDistanceKm = 0;
+
+  // 8.1 — foto opcional do que comprar.
+  File? _requestPhotoFile;
+  String? _requestPhotoUrl;
+  bool _uploadingPhoto = false;
+
+  Map<String, dynamic>? _quote;
+  bool _quoting = false;
+  String? _geoError;
+
+  final _payment = PaymentService();
+  late final PlaceAutocompleteService _geocoder;
+
+  static const _maxAdvanceCents = 4000; // €40 — força paragem-casa
+  static const _maxCashCents = 4000; // limite cash global
+
   @override
   void initState() {
     super.initState();
+    _geocoder = createPlaceAutocompleteService(googleApiKey);
     final p = widget.prefill;
     if (p != null) {
       _descCtrl.text = p.description;
@@ -75,25 +118,15 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
     }
   }
 
-  // Coordenadas (preenchidas via autocomplete — placeholders por agora).
-  LatLng? _errandLocation;
-  LatLng? _dropoff;
-  LatLng? _home;
-
-  Map<String, dynamic>? _quote;
-  bool _quoting = false;
-
-  final _payment = PaymentService();
-
-  static const _maxAdvanceCents = 4000; // €40 — força paragem-casa
-  static const _maxCashCents = 4000; // limite cash global
-
   @override
   void dispose() {
     _descCtrl.dispose();
+    _descFocus.dispose();
     _estimateCtrl.dispose();
     _errandLocationCtrl.dispose();
     _dropoffCtrl.dispose();
+    _homeCtrl.dispose();
+    _geocoder.dispose();
     super.dispose();
   }
 
@@ -106,32 +139,49 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
   bool get _forcedHomeStopByEstimate =>
       _hasPurchase && _estimatedCents > _maxAdvanceCents;
 
+  bool get _homeActive => _homeStop || _forcedHomeStopByEstimate;
+
+  // ── Distância multi-segmento + quote ────────────────────────────────────
+  Future<void> _computeRouteDistance() async {
+    final favor = _errandLocation;
+    final drop = _dropoff;
+    if (favor == null || drop == null) {
+      _routeDistanceKm = 0;
+      return;
+    }
+    final legs = <List<LatLng>>[];
+    if (_homeActive && _home != null) {
+      legs.add([_home!, favor]); // casa → local do favor
+    }
+    legs.add([favor, drop]); // local do favor → entrega
+    double total = 0;
+    for (final leg in legs) {
+      final km = await MapsService.getDistanceKm(leg[0], leg[1]) ??
+          const Distance().as(LengthUnit.Kilometer, leg[0], leg[1]);
+      total += km;
+    }
+    _routeDistanceKm = total;
+  }
+
   Future<void> _refreshQuote() async {
-    if (_errandLocation == null || _dropoff == null) {
+    if (_errandLocation == null || _dropoff == null || _routeDistanceKm <= 0) {
       setState(() => _quote = null);
       return;
     }
     setState(() => _quoting = true);
-
-    // Distância: aqui assumimos que o caller injeta um valor inicial via
-    // DirectionsService (Fase 2/UI maps); como placeholder usamos 1 km para
-    // que o backend ainda assim devolva um quote. A integração real do
-    // multi-waypoint é feita pelo CartStore.refreshMultiSegmentDistance.
     final input = <String, dynamic>{
       'service_type': 'errand',
-      'distance_km': 1.0,
+      'distance_km': _routeDistanceKm,
       'errand_speed': _speed,
-      'errand_home_stop': _homeStop || _forcedHomeStopByEstimate,
-      'errand_home_stop_reason': (_homeStop || _forcedHomeStopByEstimate)
-          ? _homeStopReason
-          : null,
+      'errand_home_stop': _homeActive,
+      'errand_home_stop_reason': _homeActive ? _homeStopReason : null,
       'errand_has_purchase': _hasPurchase,
       'errand_estimated_purchase_cents': _estimatedCents,
       'errand_location_lat': _errandLocation!.latitude,
       'errand_location_lng': _errandLocation!.longitude,
       'dropoff_lat': _dropoff!.latitude,
       'dropoff_lng': _dropoff!.longitude,
-      if (_home != null) ...{
+      if (_homeActive && _home != null) ...{
         'pickup_lat': _home!.latitude,
         'pickup_lng': _home!.longitude,
       },
@@ -144,12 +194,162 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
     });
   }
 
-  void _onChange() {
+  Future<void> _recomputeDistanceAndQuote() async {
+    await _computeRouteDistance();
+    await _refreshQuote();
+  }
+
+  /// Passo 1 — só o estimado/compra afeta o quote (distância inalterada).
+  void _onWhatChanged() {
     if (_forcedHomeStopByEstimate && !_homeStop) {
       _homeStop = true;
       _homeStopReason = 'dinheiro';
     }
-    _refreshQuote();
+    if (_errandLocation != null && _dropoff != null) _refreshQuote();
+  }
+
+  // ── Coords (autocomplete) ───────────────────────────────────────────────
+  void _onErrandLocationSelected(String name, LatLng coords) {
+    setState(() {
+      _errandLocation = coords;
+      _geoError = null;
+    });
+    _recomputeDistanceAndQuote();
+  }
+
+  void _onDropoffSelected(String address, LatLng? coords) {
+    if (coords == null) return;
+    setState(() {
+      _dropoff = coords;
+      _geoError = null;
+    });
+    _recomputeDistanceAndQuote();
+  }
+
+  void _onHomeSelected(String address, LatLng? coords) {
+    if (coords == null) return;
+    setState(() {
+      _home = coords;
+      _geoError = null;
+    });
+    _recomputeDistanceAndQuote();
+  }
+
+  Future<void> _useMyLocationForHome() async {
+    final loc = await LocationService.getCurrentLocation();
+    if (!mounted) return;
+    if (loc == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text(
+            'Não consegui obter a tua localização. Ativa o GPS ou escreve a morada.'),
+      ));
+      return;
+    }
+    setState(() {
+      _home = loc;
+      _homeCtrl.text = 'A obter morada…';
+      _geoError = null;
+    });
+    final addr = await LocationService.reverseGeocode(loc, googleApiKey);
+    if (!mounted) return;
+    setState(() => _homeCtrl.text = addr ?? 'A minha localização atual');
+    _recomputeDistanceAndQuote();
+  }
+
+  // ── Geocode fallback (texto livre) — guard de submissão ─────────────────
+  Future<bool> _ensureCoords() async {
+    setState(() => _geoError = null);
+    if (_errandLocation == null) {
+      final c = await _geocodeOrNull(_errandLocationCtrl.text);
+      if (c == null) return _failGeo('o local do favor');
+      _errandLocation = c;
+    }
+    if (_dropoff == null) {
+      final c = await _geocodeOrNull(_dropoffCtrl.text);
+      if (c == null) return _failGeo('a morada de entrega');
+      _dropoff = c;
+    }
+    if (_homeActive && _home == null) {
+      final c = await _geocodeOrNull(_homeCtrl.text);
+      if (c == null) return _failGeo('a morada da paragem em casa');
+      _home = c;
+    }
+    return true;
+  }
+
+  Future<LatLng?> _geocodeOrNull(String text) async {
+    final t = text.trim();
+    if (t.isEmpty) return null;
+    try {
+      return await _geocoder.geocodeAddress(t);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  bool _failGeo(String what) {
+    if (mounted) {
+      setState(() => _geoError =
+          'Não consegui localizar $what. Escolhe uma sugestão da lista.');
+    }
+    return false;
+  }
+
+  // ── 8.1 Foto opcional ───────────────────────────────────────────────────
+  Future<void> _pickRequestPhoto() async {
+    final src = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Wrap(children: [
+          ListTile(
+            leading: const Icon(Icons.photo_camera_outlined),
+            title: const Text('Tirar foto'),
+            onTap: () => Navigator.pop(context, ImageSource.camera),
+          ),
+          ListTile(
+            leading: const Icon(Icons.photo_library_outlined),
+            title: const Text('Escolher da galeria'),
+            onTap: () => Navigator.pop(context, ImageSource.gallery),
+          ),
+        ]),
+      ),
+    );
+    if (src == null) return;
+    final x =
+        await ImagePicker().pickImage(source: src, imageQuality: 70, maxWidth: 1200);
+    if (x == null) return;
+    final file = File(x.path);
+    setState(() {
+      _requestPhotoFile = file;
+      _uploadingPhoto = true;
+    });
+    try {
+      final url = await OrderPhotoUploadService.uploadOrderPhoto(
+        photoFile: file,
+        pathPrefix: 'errand_request',
+      );
+      if (!mounted) return;
+      setState(() {
+        _requestPhotoUrl = url;
+        _uploadingPhoto = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _uploadingPhoto = false;
+        _requestPhotoFile = null;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
+    }
+  }
+
+  void _removeRequestPhoto() {
+    setState(() {
+      _requestPhotoFile = null;
+      _requestPhotoUrl = null;
+    });
   }
 
   @override
@@ -177,7 +377,9 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
               estimateApprox: _hasPurchase,
               onNext: _canProceed() ? _next : null,
               onBack: _step == _ErrandStep.what ? null : _back,
-              nextLabel: _step == _ErrandStep.when ? 'Continuar para pagamento' : 'Próximo',
+              nextLabel: _step == _ErrandStep.when
+                  ? 'Continuar para pagamento'
+                  : 'Próximo',
             ),
           ],
         ),
@@ -189,9 +391,19 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
     switch (_step) {
       case _ErrandStep.what:
         return _descCtrl.text.trim().isNotEmpty &&
-            (!_hasPurchase || _estimatedCents > 0);
+            (!_hasPurchase || _estimatedCents > 0) &&
+            !_uploadingPhoto;
       case _ErrandStep.where:
-        return _errandLocation != null && _dropoff != null;
+        // Texto livre permitido — geocodificado em _next. Exige texto em cada
+        // campo obrigatório (e na paragem em casa, se ativa).
+        final favorOk = _errandLocation != null ||
+            _errandLocationCtrl.text.trim().isNotEmpty;
+        final dropOk =
+            _dropoff != null || _dropoffCtrl.text.trim().isNotEmpty;
+        final homeOk = !_homeActive ||
+            _home != null ||
+            _homeCtrl.text.trim().isNotEmpty;
+        return favorOk && dropOk && homeOk;
       case _ErrandStep.when:
         return _quote != null && !_quoting;
     }
@@ -201,11 +413,18 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
     if (_step == _ErrandStep.what) {
       setState(() => _step = _ErrandStep.where);
     } else if (_step == _ErrandStep.where) {
-      _refreshQuote();
-      setState(() => _step = _ErrandStep.when);
+      _advanceFromWhere();
     } else {
       _goToCheckout();
     }
+  }
+
+  Future<void> _advanceFromWhere() async {
+    final ok = await _ensureCoords();
+    if (!ok || !mounted) return;
+    await _recomputeDistanceAndQuote();
+    if (!mounted) return;
+    setState(() => _step = _ErrandStep.when);
   }
 
   void _back() {
@@ -219,6 +438,12 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
   Future<void> _goToCheckout() async {
     final quote = _quote;
     if (quote == null) return;
+    // Defensivo: coords já resolvidas no passo where→when, mas nunca submeter
+    // sem coords reais.
+    if (_errandLocation == null || _dropoff == null || (_homeActive && _home == null)) {
+      final ok = await _ensureCoords();
+      if (!ok || !mounted) return;
+    }
     // D4: cash > €40 com compra adiantada sem paragem-dinheiro = forçar paragem.
     final customerCents =
         ((quote['customer_total'] as num?)?.toDouble() ?? 0) * 100;
@@ -234,12 +459,15 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
       location: _errandLocationCtrl.text.trim(),
       locationCoords: _errandLocation!,
       dropoff: _dropoff!,
-      home: _homeStop ? _home : null,
-      homeStopReason: _homeStop ? _homeStopReason : null,
+      home: _homeActive ? _home : null,
+      homeStopReason: _homeActive ? _homeStopReason : null,
       speed: _speed,
       hasPurchase: _hasPurchase,
       estimatedCents: _estimatedCents,
       quote: quote,
+      distanceKm: _routeDistanceKm,
+      dropoffStreet: _dropoffCtrl.text.trim(),
+      requestPhotoUrl: _requestPhotoUrl,
     );
     if (!mounted) return;
     Navigator.push(
@@ -267,7 +495,7 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
                 _homeStopReason = 'dinheiro';
               });
               Navigator.pop(context);
-              _refreshQuote();
+              _recomputeDistanceAndQuote();
             },
             child: const Text('Ativar paragem em casa'),
           ),
@@ -281,53 +509,66 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
       case _ErrandStep.what:
         return _StepWhat(
           descCtrl: _descCtrl,
+          descFocus: _descFocus,
           estimateCtrl: _estimateCtrl,
           hasPurchase: _hasPurchase,
+          requestPhotoFile: _requestPhotoFile,
+          uploadingPhoto: _uploadingPhoto,
+          onShortcut: (text) {
+            setState(() {
+              _descCtrl.text = text;
+              _descCtrl.selection =
+                  TextSelection.collapsed(offset: text.length);
+            });
+            _descFocus.requestFocus();
+          },
+          onPickPhoto: _pickRequestPhoto,
+          onRemovePhoto: _removeRequestPhoto,
           onHasPurchaseChanged: (v) {
             setState(() => _hasPurchase = v);
-            _onChange();
+            _onWhatChanged();
           },
-          onChanged: _onChange,
+          onChanged: _onWhatChanged,
         );
       case _ErrandStep.where:
         return _StepWhere(
           errandLocationCtrl: _errandLocationCtrl,
           dropoffCtrl: _dropoffCtrl,
-          homeStop: _homeStop || _forcedHomeStopByEstimate,
+          homeCtrl: _homeCtrl,
+          homeStop: _homeActive,
           forced: _forcedHomeStopByEstimate,
           homeStopReason: _homeStopReason,
+          homeConfirmed: _home != null,
+          geoError: _geoError,
           onHomeStopChanged: (v) {
             if (_forcedHomeStopByEstimate) return;
             setState(() => _homeStop = v);
-            _onChange();
+            _recomputeDistanceAndQuote();
           },
           onReasonChanged: (r) {
             setState(() => _homeStopReason = r);
-            _onChange();
+            _refreshQuote();
           },
-          // Placeholders: integração real do autocomplete vem de
-          // PlaceAutocompleteService + map_screen. Aqui o user digita e
-          // assumimos lat/lng provisórias (centro Guarda) para o quote.
-          onErrandLocationPicked: () {
-            setState(() =>
-                _errandLocation = const LatLng(40.5374, -7.2667));
-            _onChange();
+          onErrandLocationSelected: _onErrandLocationSelected,
+          onErrandLocationCleared: () {
+            if (_errandLocation != null) setState(() => _errandLocation = null);
           },
-          onDropoffPicked: () {
-            setState(() => _dropoff = const LatLng(40.5395, -7.2700));
-            _onChange();
+          onDropoffSelected: _onDropoffSelected,
+          onDropoffCleared: () {
+            if (_dropoff != null) setState(() => _dropoff = null);
           },
-          onHomePicked: () {
-            setState(() => _home = const LatLng(40.5395, -7.2700));
-            _onChange();
+          onHomeSelected: _onHomeSelected,
+          onHomeCleared: () {
+            if (_home != null) setState(() => _home = null);
           },
+          onUseMyLocationForHome: _useMyLocationForHome,
         );
       case _ErrandStep.when:
         return _StepWhen(
           speed: _speed,
           quote: _quote,
           hasPurchase: _hasPurchase,
-          homeStop: _homeStop || _forcedHomeStopByEstimate,
+          homeStop: _homeActive,
           estimateCents: _estimatedCents,
           onSpeedChanged: (s) {
             setState(() => _speed = s);
@@ -342,17 +583,44 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
 class _StepWhat extends StatelessWidget {
   const _StepWhat({
     required this.descCtrl,
+    required this.descFocus,
     required this.estimateCtrl,
     required this.hasPurchase,
+    required this.requestPhotoFile,
+    required this.uploadingPhoto,
+    required this.onShortcut,
+    required this.onPickPhoto,
+    required this.onRemovePhoto,
     required this.onHasPurchaseChanged,
     required this.onChanged,
   });
 
   final TextEditingController descCtrl;
+  final FocusNode descFocus;
   final TextEditingController estimateCtrl;
   final bool hasPurchase;
+  final File? requestPhotoFile;
+  final bool uploadingPhoto;
+  final ValueChanged<String> onShortcut;
+  final VoidCallback onPickPhoto;
+  final VoidCallback onRemovePhoto;
   final ValueChanged<bool> onHasPurchaseChanged;
   final VoidCallback onChanged;
+
+  static const _shortcuts = <(String, IconData, String)>[
+    ('Farmácia', Icons.local_pharmacy_outlined, 'Vai à farmácia e compra '),
+    (
+      'Levantar encomenda',
+      Icons.inventory_2_outlined,
+      'Levanta a minha encomenda em '
+    ),
+    ('Pagar conta', Icons.receipt_long_outlined, 'Vai pagar esta conta: '),
+    (
+      'Buscar/entregar chaves',
+      Icons.vpn_key_outlined,
+      'Vai buscar/entregar as chaves em '
+    ),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -362,8 +630,22 @@ class _StepWhat extends StatelessWidget {
         Text('O que precisas?',
             style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 12),
+        // 8.4 — atalhos de favores comuns (pré-preenchem a descrição).
+        Wrap(
+          spacing: 8,
+          runSpacing: 4,
+          children: _shortcuts
+              .map((s) => ActionChip(
+                    avatar: Icon(s.$2, size: 18),
+                    label: Text(s.$1),
+                    onPressed: () => onShortcut(s.$3),
+                  ))
+              .toList(),
+        ),
+        const SizedBox(height: 12),
         TextField(
           controller: descCtrl,
+          focusNode: descFocus,
           maxLines: 4,
           maxLength: 500,
           onChanged: (_) => onChanged(),
@@ -373,6 +655,14 @@ class _StepWhat extends StatelessWidget {
                 'Ex.: Vai à Farmácia Holon na Sé e compra Ben-u-ron 1g',
             labelText: 'Descreve o favor',
           ),
+        ),
+        const SizedBox(height: 8),
+        // 8.1 — foto opcional do que comprar.
+        _RequestPhoto(
+          file: requestPhotoFile,
+          uploading: uploadingPhoto,
+          onPick: onPickPhoto,
+          onRemove: onRemovePhoto,
         ),
         const SizedBox(height: 16),
         // G5 — disclaimer + receita positiva (G1)
@@ -412,9 +702,63 @@ class _StepWhat extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          Text(
+          const Text(
             'É só uma estimativa — pagas o valor exato do talão.',
             style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _RequestPhoto extends StatelessWidget {
+  const _RequestPhoto({
+    required this.file,
+    required this.uploading,
+    required this.onPick,
+    required this.onRemove,
+  });
+
+  final File? file;
+  final bool uploading;
+  final VoidCallback onPick;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    if (file == null) {
+      return OutlinedButton.icon(
+        onPressed: uploading ? null : onPick,
+        icon: const Icon(Icons.photo_camera_outlined),
+        label: const Text('Adicionar foto do que comprar (opcional)'),
+      );
+    }
+    return Row(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: Image.file(file!, width: 64, height: 64, fit: BoxFit.cover),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            uploading ? 'A enviar foto…' : 'Foto adicionada ✓',
+            style: const TextStyle(color: AppColors.textSecondary),
+          ),
+        ),
+        if (uploading)
+          const SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          )
+        else ...[
+          TextButton(onPressed: onPick, child: const Text('Trocar')),
+          IconButton(
+            onPressed: onRemove,
+            icon: const Icon(Icons.close),
+            tooltip: 'Remover foto',
           ),
         ],
       ],
@@ -427,26 +771,40 @@ class _StepWhere extends StatelessWidget {
   const _StepWhere({
     required this.errandLocationCtrl,
     required this.dropoffCtrl,
+    required this.homeCtrl,
     required this.homeStop,
     required this.forced,
     required this.homeStopReason,
+    required this.homeConfirmed,
+    required this.geoError,
     required this.onHomeStopChanged,
     required this.onReasonChanged,
-    required this.onErrandLocationPicked,
-    required this.onDropoffPicked,
-    required this.onHomePicked,
+    required this.onErrandLocationSelected,
+    required this.onErrandLocationCleared,
+    required this.onDropoffSelected,
+    required this.onDropoffCleared,
+    required this.onHomeSelected,
+    required this.onHomeCleared,
+    required this.onUseMyLocationForHome,
   });
 
   final TextEditingController errandLocationCtrl;
   final TextEditingController dropoffCtrl;
+  final TextEditingController homeCtrl;
   final bool homeStop;
   final bool forced;
   final String homeStopReason;
+  final bool homeConfirmed;
+  final String? geoError;
   final ValueChanged<bool> onHomeStopChanged;
   final ValueChanged<String> onReasonChanged;
-  final VoidCallback onErrandLocationPicked;
-  final VoidCallback onDropoffPicked;
-  final VoidCallback onHomePicked;
+  final void Function(String, LatLng) onErrandLocationSelected;
+  final VoidCallback onErrandLocationCleared;
+  final void Function(String, LatLng?) onDropoffSelected;
+  final VoidCallback onDropoffCleared;
+  final void Function(String, LatLng?) onHomeSelected;
+  final VoidCallback onHomeCleared;
+  final VoidCallback onUseMyLocationForHome;
 
   @override
   Widget build(BuildContext context) {
@@ -456,26 +814,21 @@ class _StepWhere extends StatelessWidget {
         Text('Onde é o favor?',
             style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 12),
-        TextField(
+        BusinessAutocompleteField(
           controller: errandLocationCtrl,
-          onChanged: (_) => onErrandLocationPicked(),
-          decoration: const InputDecoration(
-            border: OutlineInputBorder(),
-            labelText: 'Local do favor',
-            hintText: 'Ex.: Farmácia Holon, Guarda',
-            prefixIcon: Icon(Icons.place_outlined),
-          ),
+          labelText: 'Local do favor',
+          hintText: 'Ex.: Farmácia Holon, Guarda',
+          prefixIcon: const Icon(Icons.place_outlined),
+          onSelected: onErrandLocationSelected,
+          onChanged: (_) => onErrandLocationCleared(),
         ),
         const SizedBox(height: 12),
-        TextField(
+        AddressAutocompleteField(
           controller: dropoffCtrl,
-          onChanged: (_) => onDropoffPicked(),
-          decoration: const InputDecoration(
-            border: OutlineInputBorder(),
-            labelText: 'Onde entregar',
-            hintText: 'Morada de entrega',
-            prefixIcon: Icon(Icons.home_outlined),
-          ),
+          labelText: 'Onde entregar',
+          prefixIcon: const Icon(Icons.home_outlined),
+          onSelected: onDropoffSelected,
+          onChanged: (_) => onDropoffCleared(),
         ),
         const SizedBox(height: 20),
         SwitchListTile(
@@ -491,7 +844,7 @@ class _StepWhere extends StatelessWidget {
         ),
         if (homeStop) ...[
           const SizedBox(height: 8),
-          Text('Motivo:', style: TextStyle(color: AppColors.textSecondary)),
+          const Text('Motivo:', style: TextStyle(color: AppColors.textSecondary)),
           const SizedBox(height: 4),
           Wrap(
             spacing: 8,
@@ -503,12 +856,35 @@ class _StepWhere extends StatelessWidget {
                     ))
                 .toList(),
           ),
-          const SizedBox(height: 8),
-          TextButton.icon(
-            onPressed: onHomePicked,
-            icon: const Icon(Icons.add_location_alt_outlined),
-            label: const Text('Confirmar morada da paragem em casa'),
+          const SizedBox(height: 12),
+          AddressAutocompleteField(
+            controller: homeCtrl,
+            labelText: 'Morada da paragem em casa',
+            prefixIcon: const Icon(Icons.house_outlined),
+            onSelected: onHomeSelected,
+            onChanged: (_) => onHomeCleared(),
           ),
+          const SizedBox(height: 4),
+          TextButton.icon(
+            onPressed: onUseMyLocationForHome,
+            icon: const Icon(Icons.my_location, size: 18),
+            label: const Text('Usar a minha localização atual'),
+          ),
+          if (homeConfirmed)
+            const Row(
+              children: [
+                Icon(Icons.check_circle,
+                    color: AppColors.primary, size: 18),
+                SizedBox(width: 6),
+                Text('Morada da paragem definida',
+                    style: TextStyle(
+                        fontSize: 12, color: AppColors.textSecondary)),
+              ],
+            ),
+        ],
+        if (geoError != null) ...[
+          const SizedBox(height: 12),
+          Text(geoError!, style: const TextStyle(color: AppColors.error)),
         ],
       ],
     );
@@ -621,10 +997,9 @@ class _SpeedCard extends StatelessWidget {
                       style: const TextStyle(
                           fontSize: 16, fontWeight: FontWeight.w700)),
                   Text(subtitle,
-                      style: TextStyle(color: AppColors.textSecondary)),
+                      style: const TextStyle(color: AppColors.textSecondary)),
                   const SizedBox(height: 4),
-                  Text(tagline,
-                      style: const TextStyle(fontSize: 12)),
+                  Text(tagline, style: const TextStyle(fontSize: 12)),
                 ],
               ),
             ),
@@ -670,7 +1045,7 @@ class _Breakdown extends StatelessWidget {
           ),
           if (hasPurchase) ...[
             const SizedBox(height: 4),
-            Text(
+            const Text(
               'O valor da compra ajusta-se ao talão real.',
               style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
             ),
@@ -759,7 +1134,7 @@ class _PriceFooter extends StatelessWidget {
         ? 'desde €6'
         : '${estimateApprox ? "~" : ""}€${total.toStringAsFixed(2)}';
     return Container(
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppColors.surface,
         boxShadow: AppColors.shadowNav,
       ),
@@ -770,7 +1145,7 @@ class _PriceFooter extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Total', style: TextStyle(color: AppColors.textSecondary)),
+              const Text('Total', style: TextStyle(color: AppColors.textSecondary)),
               Row(children: [
                 Text(priceLabel,
                     style: const TextStyle(

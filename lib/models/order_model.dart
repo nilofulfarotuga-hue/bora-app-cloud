@@ -213,6 +213,19 @@ class OrderModel {
   /// Estimativa do cliente em cents. 0 quando errandHasPurchase=false.
   final int errandEstimatedPurchaseCents;
 
+  /// 8.1 — foto opcional "do que comprar" enviada pelo cliente. O estafeta vê-a
+  /// no execution sheet. Persiste via RPC client_set_errand_request_photo
+  /// (create_order NÃO é tocado). NULL quando não há foto.
+  final String? errandRequestPhotoUrl;
+
+  /// 8.2 — estado do pedido de aumento de orçamento (errand com compra):
+  /// null|'pending'|'approved'|'rejected'|'disputed'. Escrito no backend
+  /// (finalize_errand_purchase + RPCs errand_request/client_respond).
+  final String? errandBudgetStatus;
+
+  /// 8.2 — total de compra (cents) que o estafeta pediu para o cliente autorizar.
+  final int? errandBudgetRequestedCents;
+
   String? assignedDriverId;
   String? currentDriverOfferId;
   String? driverPhone;
@@ -324,6 +337,9 @@ class OrderModel {
     this.errandSpeed,
     this.errandHasPurchase = false,
     this.errandEstimatedPurchaseCents = 0,
+    this.errandRequestPhotoUrl,
+    this.errandBudgetStatus,
+    this.errandBudgetRequestedCents,
     Map<String, bool>? substitutionResponses,
   })  : estimatedTotal = estimatedTotal ?? total,
         paymentBufferTotal = paymentBufferTotal ?? total,
@@ -514,6 +530,10 @@ class OrderModel {
       errandHasPurchase: data['errand_has_purchase'] as bool? ?? false,
       errandEstimatedPurchaseCents:
           (data['errand_estimated_purchase_cents'] as num?)?.toInt() ?? 0,
+      errandRequestPhotoUrl: data['errand_request_photo_url'] as String?,
+      errandBudgetStatus: data['errand_budget_status'] as String?,
+      errandBudgetRequestedCents:
+          (data['errand_budget_requested_cents'] as num?)?.toInt(),
       // driver_lat / driver_lng intentionally NOT read — single source of
       // truth is DriverStore.currentDriver.location (drivers table realtime).
       items: parsedItems,

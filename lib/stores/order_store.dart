@@ -497,6 +497,17 @@ class OrderStore extends ChangeNotifier {
     String? customerName,
     int walletAppliedCents = 0,
     String? savedPmId,
+    // FAVORES (errand) — campos do favor (null/default para outros tipos).
+    String? errandDescription,
+    String? errandLocation,
+    double? errandLocationLat,
+    double? errandLocationLng,
+    bool errandHomeStop = false,
+    String? errandHomeStopReason,
+    String? errandSpeed,
+    bool errandHasPurchase = false,
+    int errandEstimatedPurchaseCents = 0,
+    String? errandRequestPhotoUrl,
   }) async {
     final liveUserId = supabase.auth.currentUser?.id;
     if (liveUserId == null ||
@@ -506,8 +517,9 @@ class OrderStore extends ChangeNotifier {
       return null;
     }
 
+    // FAVORES — distância multi-segmento já resolvida no wizard (ver createOrder).
     double? googleDistance;
-    if (pickupLocation != null) {
+    if (pickupLocation != null && serviceType != OrderServiceType.errand) {
       try {
         googleDistance = await MapsService.getDistanceKm(pickupLocation, destination);
       } catch (e) {
@@ -570,6 +582,21 @@ class OrderStore extends ChangeNotifier {
       if (dropoffStreet != null) 'dropoff_street': dropoffStreet,
       if (dropoffCity != null) 'dropoff_city': dropoffCity,
       if (dropoffPostalCode != null) 'dropoff_postal_code': dropoffPostalCode,
+      // FAVORES (errand) — branch errand de create_order exige estes campos.
+      if (serviceType == OrderServiceType.errand) ...{
+        'errand_description': errandDescription,
+        'errand_location': errandLocation,
+        'errand_location_lat': errandLocationLat,
+        'errand_location_lng': errandLocationLng,
+        'errand_speed': errandSpeed,
+        'errand_home_stop': errandHomeStop,
+        if (errandHomeStopReason != null)
+          'errand_home_stop_reason': errandHomeStopReason,
+        'errand_has_purchase': errandHasPurchase,
+        'errand_estimated_purchase_cents': errandEstimatedPurchaseCents,
+        if (errandRequestPhotoUrl != null)
+          'errand_request_photo_url': errandRequestPhotoUrl,
+      },
       if (customerNotes != null) 'customer_notes': customerNotes,
       if (customerName != null) 'customer_name': customerName,
       if (clientPhone != null) 'client_phone': clientPhone,
@@ -716,6 +743,17 @@ class OrderStore extends ChangeNotifier {
     String? takeawayCurbsideInfo,
     int tipCents = 0,
     int walletAppliedCents = 0,
+    // FAVORES (errand) — campos do favor (null/default para outros tipos).
+    String? errandDescription,
+    String? errandLocation,
+    double? errandLocationLat,
+    double? errandLocationLng,
+    bool errandHomeStop = false,
+    String? errandHomeStopReason,
+    String? errandSpeed,
+    bool errandHasPurchase = false,
+    int errandEstimatedPurchaseCents = 0,
+    String? errandRequestPhotoUrl,
   }) async {
     // ── Authenticated-user guard ────────────────────────────────────────────
     // Read the user id directly from the live Supabase session (not from any
@@ -737,8 +775,11 @@ class OrderStore extends ChangeNotifier {
       return false;
     }
 
+    // FAVORES — a distância do favor é multi-segmento (casa→favor→entrega) e já
+    // vem resolvida do wizard; um recompute de 2 pontos (pickup→dropoff) perderia
+    // a perna do favor e poderia falhar o gate server `distance>=haversine×0.8`.
     double? googleDistance;
-    if (pickupLocation != null) {
+    if (pickupLocation != null && serviceType != OrderServiceType.errand) {
       try {
         googleDistance =
             await MapsService.getDistanceKm(pickupLocation, destination);
@@ -845,6 +886,21 @@ class OrderStore extends ChangeNotifier {
       if (dropoffStreet != null) 'dropoff_street': dropoffStreet,
       if (dropoffCity != null) 'dropoff_city': dropoffCity,
       if (dropoffPostalCode != null) 'dropoff_postal_code': dropoffPostalCode,
+      // FAVORES (errand) — branch errand de create_order exige estes campos.
+      if (serviceType == OrderServiceType.errand) ...{
+        'errand_description': errandDescription,
+        'errand_location': errandLocation,
+        'errand_location_lat': errandLocationLat,
+        'errand_location_lng': errandLocationLng,
+        'errand_speed': errandSpeed,
+        'errand_home_stop': errandHomeStop,
+        if (errandHomeStopReason != null)
+          'errand_home_stop_reason': errandHomeStopReason,
+        'errand_has_purchase': errandHasPurchase,
+        'errand_estimated_purchase_cents': errandEstimatedPurchaseCents,
+        if (errandRequestPhotoUrl != null)
+          'errand_request_photo_url': errandRequestPhotoUrl,
+      },
       if (customerNotes != null) 'customer_notes': customerNotes,
       if (customerName != null) 'customer_name': customerName,
       if (clientPhone != null) 'client_phone': clientPhone,

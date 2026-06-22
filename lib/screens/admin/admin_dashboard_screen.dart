@@ -19,6 +19,7 @@ import 'admin_appointments_screen.dart';
 import 'admin_service_providers_screen.dart';
 import 'admin_audit_log_screen.dart';
 import 'admin_cancellation_requests_screen.dart';
+import 'admin_businesses_screen.dart';
 import 'admin_catalog_screen.dart';
 import 'admin_clients_screen.dart';
 import 'admin_complaints_screen.dart';
@@ -361,6 +362,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       context,
                       MaterialPageRoute(
                           builder: (_) => const AdminOrdersScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.storefront,
+                  title: 'Comércios da Guarda',
+                  subtitle:
+                      'Lojas/comércios dos Favores — importar, editar, esconder',
+                  color: const Color(0xFF14B8A6),
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminBusinessesScreen())),
                 ),
                 const SizedBox(height: 10),
                 _NavCard(

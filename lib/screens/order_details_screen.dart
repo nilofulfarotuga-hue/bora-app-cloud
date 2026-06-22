@@ -12,6 +12,8 @@ import '../services/wallet_service.dart';
 import '../stores/driver_store.dart';
 import '../stores/order_store.dart';
 import '../widgets/bora_support_fab.dart';
+import '../widgets/errand_budget_banner.dart';
+import '../widgets/private_bucket_image.dart';
 import '../widgets/refund_choice_dialog.dart';
 import 'chat_screen.dart';
 import 'wallet_history_screen.dart';
@@ -50,6 +52,9 @@ class OrderDetailsScreen extends StatelessWidget {
 
           const SizedBox(height: 16),
 
+          // ── 8.2 Banner de autorização de orçamento (errand pending) ───
+          ErrandBudgetBanner(order: liveOrder),
+
           // ── Refund banner (F2 — clareza método de reembolso) ─────────
           if (liveOrder.status == OrderStatus.cancelled)
             _RefundBanner(order: liveOrder),
@@ -84,6 +89,13 @@ class OrderDetailsScreen extends StatelessWidget {
 
           // ── Order info card ───────────────────────────────────────────
           _OrderInfoCard(order: liveOrder),
+
+          // ── 8.3 Talão do favor (errand com compra) ───────────────────
+          if (liveOrder.serviceType == OrderServiceType.errand &&
+              liveOrder.errandHasPurchase) ...[
+            const SizedBox(height: 16),
+            _ErrandReceiptCard(order: liveOrder),
+          ],
 
           // ── Items card (only when order has items) ──────────────────
           // BUG #4 (2026-05-12) — esconder em storeShopping V2 porque
@@ -1137,6 +1149,107 @@ class _Row extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ── 8.3 — Talão do favor visível ao cliente (errand). Lê order_receipts_v2
+// (RLS owner-scoped) + foto via PrivateBucketImage (bucket privado receipts).
+class _ErrandReceiptCard extends StatefulWidget {
+  const _ErrandReceiptCard({required this.order});
+  final OrderModel order;
+  @override
+  State<_ErrandReceiptCard> createState() => _ErrandReceiptCardState();
+}
+
+class _ErrandReceiptCardState extends State<_ErrandReceiptCard> {
+  bool _loading = true;
+  String? _photoPath;
+  int? _typedCents;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final row = await Supabase.instance.client
+          .from('order_receipts_v2')
+          .select('photo_url, driver_typed_total_cents')
+          .eq('order_id', widget.order.id)
+          .maybeSingle();
+      if (!mounted) return;
+      setState(() {
+        _photoPath = row?['photo_url'] as String?;
+        _typedCents = (row?['driver_typed_total_cents'] as num?)?.toInt();
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final o = widget.order;
+    final estimated = o.errandEstimatedPurchaseCents / 100.0;
+    final real =
+        _typedCents != null ? _typedCents! / 100.0 : o.finalPurchaseValue;
+    final hasReceipt = _photoPath != null && _photoPath!.isNotEmpty;
+    final photo = !hasReceipt
+        ? null
+        : (_photoPath!.startsWith('http') || _photoPath!.contains('/')
+            ? _photoPath!
+            : 'receipts/${_photoPath!}');
+
+    return _Card(
+      title: 'TALÃO DA COMPRA',
+      child: _loading
+          ? const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Center(
+                child: SizedBox(
+                  height: 18,
+                  width: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (photo != null) ...[
+                  PrivateBucketImage(
+                    urlOrPath: photo,
+                    height: 200,
+                    width: double.infinity,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  const SizedBox(height: 12),
+                ] else
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      'Ainda sem talão. Aparece aqui quando o estafeta concluir a compra.',
+                      style:
+                          TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                    ),
+                  ),
+                if (estimated > 0)
+                  _Row(
+                      label: 'Orçado',
+                      value: '€${estimated.toStringAsFixed(2)}'),
+                if (real != null && real > 0)
+                  _Row(
+                    label: 'Valor do talão',
+                    value: '€${real.toStringAsFixed(2)}',
+                    bold: true,
+                  ),
+              ],
+            ),
     );
   }
 }

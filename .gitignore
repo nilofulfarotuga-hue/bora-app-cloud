@@ -142,3 +142,7 @@ android/key.properties
 # para SHA256 match com source, mas NAO commitado - contem .exe + caches)
 .obsidian-vault/.obsidian/.obsidian/
 .obsidian-vault/.obsidian/.smart-env/
+testsprite_tests\tmp\config.json
+
+# MCP config (contém API keys)
+.mcp.json

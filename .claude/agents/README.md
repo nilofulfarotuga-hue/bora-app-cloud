@@ -25,6 +25,10 @@
 | **design-system-applier** *(migrado)* | Aplica design system nos ecrãs Flutter | — | Não |
 | **e2e-test-builder** *(migrado)* | Testes E2E de fluxos críticos | — | Não |
 | **notifications-integrator** *(migrado)* | FCM push live + consent GDPR | — | Não |
+| **bi-analytics** *(Lote 2)* | Dashboards/relatórios read-only (vendas, churn, top estafetas/parceiros) | run-weekly-payouts, audit-ledger-entries | Sim — Robot B dispara relatório semanal |
+| **marketing-push** *(Lote 2)* | Push segmentado + promo codes + banners de campanha | notify-broadcast, manage-promo-codes (+nano-banana) | Não |
+| **crawler-mercados** *(Lote 2)* | Sync mercados NÃO-PARCEIRO (só categorias estáveis) | market-data-sync/cleaner, dedupe-market-products, weekly-market-prices, category-mapper-v2, taxonomy-mapper, sync-market-photos | Não |
+| **dispatch-ops** *(Lote 2)* | Monitor read-only do dispatch (presos, failed, cobertura) | smoke-test-critical-paths | Não |
 
 ## Zonas protegidas (todos os agentes)
 `dispatch_engine` · `pricing_service.dart` · triggers financeiros · Stripe webhook ·

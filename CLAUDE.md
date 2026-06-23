@@ -47,6 +47,10 @@
 | `design-system-applier` *(migrado)* | Aplica o design system (Verde `#16A34A` / Laranja `#F97316`) nos ecrãs. |
 | `e2e-test-builder` *(migrado)* | Testes E2E (Flutter `integration_test`) de fluxos críticos. |
 | `notifications-integrator` *(migrado)* | FCM push live + consent GDPR. |
+| `bi-analytics` *(Lote 2)* | Dashboards/relatórios **read-only** (vendas, churn, top estafetas/parceiros). Só `SELECT`. |
+| `marketing-push` *(Lote 2)* | Push segmentado + promo codes + banners (nano-banana). Aprovação > 50 utilizadores; máx 2 push/dia. |
+| `crawler-mercados` *(Lote 2)* | Sync mercados NÃO-PARCEIRO (só categorias estáveis; nunca markup na DB). |
+| `dispatch-ops` *(Lote 2)* | Monitor **read-only** do dispatch (presos, failed, cobertura). Nunca modifica o motor. |
 
 - **Edge Functions (contagem real):** **44 funções locais** em `supabase/functions/*/index.ts`
   (a skill CEO-AI ainda diz "43 deployed / 38 locais" — **stale**, confirmar deployed via MCP

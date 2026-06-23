@@ -7,15 +7,13 @@ migration_date: 2026-06-22
 tools: Bash, Read, Write, Edit, Grep, Glob
 ---
 
-> ⚠️ **Nota de migração (2026-06-22):** o corpo original abaixo refere a paleta antiga
-> (`#2E7D32` / `#E65100`). A paleta **ATUAL e canónica** é **Verde `#16A34A` + Laranja `#F97316`**,
+> ✅ **Hex corrigido (2026-06-23):** paleta canónica **Verde `#16A34A` + Laranja `#F97316`**,
 > tokens em `lib/theme/app_colors.dart` (`AppColors.*`). Regra "1 laranja por ecrã" obrigatória.
-> Corpo preservado intacto para histórico; usar sempre os hex atuais ao executar.
 
 # Sub-Agent Spec — `design-system-applier`
 
 ## Objetivo
-Garantir que todos os ecrãs Flutter respeitam o `AppTheme` Bora (Verde `#2E7D32` + Laranja `#E65100`, tipografia, spacings, border radius). Detectar e corrigir desvios.
+Garantir que todos os ecrãs Flutter respeitam o `AppTheme` Bora (Verde `#16A34A` + Laranja `#F97316`, tipografia, spacings, border radius). Detectar e corrigir desvios.
 
 ## Inputs esperados
 - Lista de ecrãs a auditar (ou "todos os ecrãs em `lib/screens/`")
@@ -38,8 +36,8 @@ Garantir que todos os ecrãs Flutter respeitam o `AppTheme` Bora (Verde `#2E7D32
 ## Exemplos
 
 ### Exemplo 1 — Color hardcoding
-- **Detecta:** `Color(0xFF2E7D32)` em 47 sítios
-- **Acção:** substitui por `AppTheme.primary`
+- **Detecta:** `Color(0xFF16A34A)` em 47 sítios
+- **Acção:** substitui por `AppColors.primary`
 - **Risco:** baixo (cor idêntica)
 
 ### Exemplo 2 — Padding inconsistente

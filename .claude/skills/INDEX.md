@@ -5,6 +5,17 @@
 > Convenção: invocar via Skill quando o trigger corresponder; **ler `bora-knowledge`
 > antes de qualquer ação** (foundation).
 
+## Skills vs Agentes (Lote 1 — 2026-06-22)
+
+- **Skill = ferramenta** especializada e determinística (este índice). Faz uma coisa bem.
+- **Agente = orquestrador** com identidade/memória que **chama skills** — vive em
+  `bora_app/.claude/agents/` (ver `agents/README.md`). Não duplica a lógica das skills.
+- **Quando existe um agente dono de um domínio, prefere o agente** (ele escolhe as skills).
+  Skills sem agente continuam a ser invocadas diretamente. **CEO-AI = dispatcher master.**
+- Agentes atuais: `obsidian-sync`, `catalogo-visual`, `db-migrations`, `admin-sync`,
+  `seguranca-rls` + migrados `checkout-fixer`, `design-system-applier`, `e2e-test-builder`,
+  `notifications-integrator`.
+
 | Skill | Tipo | Quando usar |
 |-------|------|-------------|
 | **bora-knowledge** | foundation | Referência viva do projeto (design, regras, DB, edge fns, widgets). Consulta obrigatória por todas as outras antes de agir. |

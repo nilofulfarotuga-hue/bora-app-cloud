@@ -25,6 +25,33 @@
 - When a task matches a skill, EXECUTE the skill immediately
 - Do not ask for clarification if skill context is sufficient
 - Combine skill + short context instead of large explanations
+
+## Sistema de Agentes
+
+- **Path:** `.claude/agents/` (no repo `bora_app/`). Ver `.claude/agents/README.md`.
+- **Princípio:** Agentes **orquestram** skills (ferramentas); nunca duplicam a lógica delas.
+  Quando existe um agente responsável por um domínio, usa o agente — ele chama as skills certas.
+  Skills sem agente dono continuam a ser invocadas diretamente (ver "Skill Usage Rule").
+  **O CEO-AI é o dispatcher master.** Todos os agentes leem `agent-memory.md` no arranque.
+- **Regra obrigatória:** cada agente tem secção **"Admin Panel Needed?"**. Toda feature nova →
+  invocar o agente `admin-sync` no final.
+
+| Agente | Propósito |
+|---|---|
+| `obsidian-sync` | Sync unidirecional vault Obsidian → `knowledge/from-obsidian/` (SHA256, idempotente). |
+| `catalogo-visual` | Catálogo de mercados (NÃO-PARCEIRO) + ícones/banners de categoria via nano-banana (Gemini). |
+| `db-migrations` | Migrações Supabase seguras (dry-run + backup + rollback; bloqueia zonas financeiras). |
+| `admin-sync` | Verifica se toda feature nova tem correspondência no admin panel (PT-BR). |
+| `seguranca-rls` | SEC-1 (RLS em falta) + SEC-2 (storage buckets) + hardening contínuo. |
+| `checkout-fixer` *(migrado)* | Diagnostica e corrige o checkout flow. |
+| `design-system-applier` *(migrado)* | Aplica o design system (Verde `#16A34A` / Laranja `#F97316`) nos ecrãs. |
+| `e2e-test-builder` *(migrado)* | Testes E2E (Flutter `integration_test`) de fluxos críticos. |
+| `notifications-integrator` *(migrado)* | FCM push live + consent GDPR. |
+
+- **Edge Functions (contagem real):** **44 funções locais** em `supabase/functions/*/index.ts`
+  (a skill CEO-AI ainda diz "43 deployed / 38 locais" — **stale**, confirmar deployed via MCP
+  `list_edge_functions` e atualizar `SKILL.md` com aprovação do Danilo).
+
 ## Validation Gate (MANDATORY)
 
 Before executing ANY task that touches:

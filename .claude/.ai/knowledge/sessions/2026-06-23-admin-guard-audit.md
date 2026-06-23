@@ -1,4 +1,7 @@
-# Auditoria guards admin_* — 2026-06-23 (read-only, nenhuma alteração na DB)
+# Auditoria guards admin_* — 2026-06-23
+
+**Estado:** auditoria read-only + 1 migration aplicada (Opção B, aprovada por Danilo) em
+`admin_run_write`. Ver detalhe no fim da secção de recomendação.
 
 **Contexto:** esta auditoria foi explicitamente deferida como "tarefa futura" na sessão
 [2026-06-23-bora-admin-role.md](2026-06-23-bora-admin-role.md) (mesmo dia, sessão anterior),
@@ -56,7 +59,15 @@ de `admin_run_select`. SQL sugerido fica em
      até haver um consumidor com guard próprio, reduzindo superfície de ataque a zero;
    - (c) Manter como está, documentando a decisão (arquitetura: confiança total na `service_role`
      key + nenhum endpoint atual a expô-la).
-3. Nenhuma alteração foi aplicada — apenas leitura + SQL sugerido (comentado, não executado).
+3. **Decisão do Danilo: Opção B.** Aprovada explicitamente ("b" → "sim" após Validation Gate)
+   e **aplicada em produção** via `apply_migration` (projeto `ojykpzwqrtusfeakzrna`,
+   migration `admin_run_write_require_valid_admin_id`). `admin_run_write` agora exige
+   `p_admin_id` válido (`auth.users.raw_app_meta_data->>'role' = 'admin'`) antes de qualquer
+   `EXECUTE`, levantando `admin_run_write: p_admin_id não corresponde a um admin válido`
+   (`ERRCODE 42501`) caso contrário. Verificado pós-aplicação via `execute_sql` (corpo da
+   função confirmado a conter o novo check). Opções A e C **não foram aplicadas** — A (audit
+   log em `admin_run_select`) fica disponível em [`admin-guard-missing.sql`](../security/admin-guard-missing.sql)
+   para decisão futura; C (REVOKE) foi descartada por ser a B a escolhida.
 
 ## Zonas protegidas — confirmação
 

@@ -31,11 +31,13 @@
 -- ============================================================
 -- OPÇÃO B (defesa em profundidade) — admin_run_write: validar p_admin_id
 -- explicitamente em vez de confiar só no GRANT a service_role.
--- Requer que o caller (Edge Function) passe sempre p_admin_id = auth.uid() do
--- utilizador validado a montante — confirmar isso antes de activar este check,
--- senão toda chamada legítima passa a falhar.
+--
+-- ✅ APLICADA EM PRODUÇÃO em 2026-06-23 — aprovação Danilo ("b" → "sim" após
+-- Validation Gate). Migration: admin_run_write_require_valid_admin_id
+-- (projeto ojykpzwqrtusfeakzrna, via apply_migration). Verificado pós-aplicação
+-- via execute_sql. Ver relatório: ../sessions/2026-06-23-admin-guard-audit.md
 -- ============================================================
--- Adicionar logo após a declaração das variáveis em admin_run_write:
+-- Bloco adicionado logo após a declaração das variáveis em admin_run_write:
 --
 --   IF p_admin_id IS NULL OR NOT EXISTS (
 --     SELECT 1 FROM auth.users
@@ -53,4 +55,4 @@
 -- ============================================================
 -- REVOKE EXECUTE ON FUNCTION public.admin_run_write(text, uuid) FROM service_role;
 
--- Nenhum destes comandos foi executado. Escolher A, B, C (ou nenhum) é decisão do Danilo.
+-- Estado: B foi aplicada (ver acima). A e C continuam por executar — decisão futura do Danilo.

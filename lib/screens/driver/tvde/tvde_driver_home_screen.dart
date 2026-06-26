@@ -39,6 +39,11 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
+      // Reflete admin approve/reject pós-login sem relogin (espelha o
+      // DriverHomeScreen de entrega: refreshApprovalStatus → notifyListeners →
+      // o gate em build() reage via context.watch<AuthStore>()).
+      await context.read<AuthStore>().refreshApprovalStatus();
+      if (!mounted) return;
       await context.read<TvdeDriverStore>().start();
       // Se o motorista já estava Online (re-abertura), retoma heartbeat+GPS.
       final isOnline =
@@ -56,6 +61,9 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
     // Tocar na notificação de oferta traz o app à frente → re-lê oferta/corrida
     // ativa (a par do realtime) para o ecrã de oferta aparecer.
     if (state == AppLifecycleState.resumed && mounted) {
+      // Apanha admin approve/reject enquanto o app esteve em background — o
+      // motorista volta ao app já aprovado e o gate atualiza sem relogin.
+      unawaited(context.read<AuthStore>().refreshApprovalStatus());
       final driverStore = context.read<DriverStore>();
       if (driverStore.currentDriver?.isOnline == true) {
         unawaited(_heartbeat.start());

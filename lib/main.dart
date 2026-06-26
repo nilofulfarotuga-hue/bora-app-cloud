@@ -33,6 +33,7 @@ import 'screens/restaurant_ratings_list_screen.dart';
 import 'screens/client_login_screen.dart';
 import 'screens/client_main_screen.dart';
 import 'screens/driver_home_screen.dart';
+import 'screens/driver/tvde/tvde_driver_home_screen.dart';
 import 'screens/driver_login_screen.dart';
 import 'screens/driver_signup_screen.dart';
 import 'screens/login_screen.dart';
@@ -48,6 +49,9 @@ import 'stores/partner_reservas_store.dart';
 import 'stores/reservation_store.dart';
 import 'stores/restaurant_store.dart';
 import 'stores/services_store.dart';
+import 'stores/tvde_store.dart';
+import 'stores/tvde_driver_store.dart';
+import 'models/driver_model.dart' show VehicleType;
 import 'stores/favorite_store.dart';
 import 'config/app_theme.dart';
 import 'providers/support_settings_provider.dart';
@@ -291,6 +295,12 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         ChangeNotifierProvider<ServicesStore>(
           create: (_) => ServicesStore(),
         ),
+        ChangeNotifierProvider<TvdeStore>(
+          create: (_) => TvdeStore(),
+        ),
+        ChangeNotifierProvider<TvdeDriverStore>(
+          create: (_) => TvdeDriverStore(),
+        ),
         ChangeNotifierProvider<PartnerReservasStore>(
           create: (_) => PartnerReservasStore(),
         ),
@@ -470,6 +480,11 @@ class _RootNavigator extends StatelessWidget {
       case UserRole.driver:
         if (driver != null) {
           if (session.hasDriverSignupDraft) return const DriverSignupScreen();
+          // TVDE — motorista de passageiros entra no modo passageiros (Plano §4).
+          // O próprio ecrã gateia pending/rejected, igual ao DriverHomeScreen.
+          if (driver.vehicleType == VehicleType.carPassengers) {
+            return const TvdeDriverHomeScreen();
+          }
           return const DriverHomeScreen();
         }
         return const DriverLoginScreen();

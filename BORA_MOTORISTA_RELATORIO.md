@@ -42,7 +42,8 @@ com `ROLLBACK`, zero resíduo): `final_fare_cents=700`, `driver_earn_cents=560`,
 - **ACESSO:** pedir acesso → admin aprovar (`tvde_access=true`). ✅
 - **CLIENTE:** solicitar corrida (10km, preço estimado €7) → auto-dispatch. ✅
 - **ESTAFETA:** ofertar → **recusar → rotação ao próximo** (fix Fase 2) → aceitar
-  → cheguei → iniciar → finalizar (tarifa correta). ✅
+  → cheguei → iniciar → finalizar (tarifa correta). ✅ (backend provado; e agora
+  **alcançável na app** — motorista `carro_passageiros` é roteado ao modo passageiros.)
 - **Bidirecional:** cliente avalia motorista + motorista avalia cliente. ✅
 - **BACKEND:** liquidação cash isolada (`tvde_driver_balances`); recusa→rotação;
   `sem_motorista` quando não há motorista elegível. ✅
@@ -54,12 +55,26 @@ com `ROLLBACK`, zero resíduo): `final_fare_cents=700`, `driver_earn_cents=560`,
   intencional `SECURITY DEFINER` + `REVOKE public/anon` + `GRANT authenticated`
   (igual a todas as ~300 RPCs do projeto). ✅
 
-### Bug apanhado e corrigido nesta fase
-`tvde_request_access()` notificava o admin com `severity='warning'`, mas
-`admin_notifications` só aceita `low|medium|high|critical` → o pedido de acesso
-**rebentava** com violação de CHECK. Corrigido para `'medium'` no ficheiro-fonte
-(`20260626100001`) **e** aplicado a prod via migration aditiva
-`20260626100006_tvde_fix_access_request_severity.sql`. Re-verificado: ciclo 100% verde.
+### Problemas apanhados e corrigidos nesta fase
+1. **Backend — severidade inválida:** `tvde_request_access()` notificava o admin com
+   `severity='warning'`, mas `admin_notifications` só aceita `low|medium|high|critical`
+   → o pedido de acesso **rebentava** com violação de CHECK. Corrigido para `'medium'`
+   no ficheiro-fonte (`20260626100001`) **e** aplicado a prod via migration aditiva
+   `20260626100006_tvde_fix_access_request_severity.sql`.
+2. **Regressão do CLIENTE:** uma sessão Claude Code **concorrente** (commit `64681cd`,
+   2026-06-26 20:00, no mesmo working tree) tinha removido de `main.dart` o
+   `ChangeNotifierProvider<TvdeStore>` (justificou-se com "ficheiros TVDE untracked
+   quebravam o CI"). Como `client_home_screen.dart` faz `context.watch<TvdeStore>()`
+   em todas as builds da home, **todos os clientes** crashariam. Provider + import
+   **restaurados** (os ficheiros TVDE estão agora commitados → o motivo da remoção desapareceu).
+3. **ESTAFETA não estava ligado à app:** `TvdeDriverStore` nunca tinha provider e os
+   ecrãs `tvde_driver_*` nunca eram navegados — o motorista de passageiros caía no fluxo
+   de entrega. **Ligado** (Plano §4): `ChangeNotifierProvider<TvdeDriverStore>` em
+   `main.dart` + routing no `_RootNavigator` (motorista `carro_passageiros` →
+   `TvdeDriverHomeScreen`, que gateia pending/rejected). Alimentado pelo
+   `VehicleTypeDb.fromDb` já existente no `auth_store`.
+
+Re-verificado após as 3 correções: `flutter analyze` 0 erros, build OK, ciclo backend 100% verde.
 
 ---
 

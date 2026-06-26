@@ -415,6 +415,18 @@ class OrderModel {
       pickupLocation =
           LatLng((pickupLat as num).toDouble(), (pickupLng as num).toDouble());
     }
+    // FAVORES (errand): para o estafeta, a "recolha" é o LOCAL DO FAVOR. O
+    // create_order grava-o em errand_location_*; quando pickup_* vem vazio,
+    // usamos o local do favor para que markers, rota e cartões de morada
+    // (que leem pickupLocation) funcionem — paridade com storeShopping.
+    if (pickupLocation == null && serviceType == OrderServiceType.errand) {
+      final eLat = data['errand_location_lat'];
+      final eLng = data['errand_location_lng'];
+      if (eLat != null && eLng != null) {
+        pickupLocation =
+            LatLng((eLat as num).toDouble(), (eLng as num).toDouble());
+      }
+    }
 
     LatLng? destination;
     final dropLat = data['dropoff_lat'];
@@ -465,7 +477,10 @@ class OrderModel {
       vendorName: data['vendor_name'] as String?,
       restaurantId: data['restaurant_id'] as String?,
       purchaseFlowVersion: (data['purchase_flow_version'] as num?)?.toInt() ?? 1,
-      pickupAddress: data['pickup_address'] as String?,
+      pickupAddress: data['pickup_address'] as String? ??
+          (serviceType == OrderServiceType.errand
+              ? data['errand_location'] as String?
+              : null),
       pickupStreet: data['pickup_street'] as String?,
       pickupCity: data['pickup_city'] as String?,
       pickupPostalCode: data['pickup_postal_code'] as String?,

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -46,6 +48,7 @@ import 'stores/partner_reservas_store.dart';
 import 'stores/reservation_store.dart';
 import 'stores/restaurant_store.dart';
 import 'stores/services_store.dart';
+import 'stores/tvde_store.dart';
 import 'stores/favorite_store.dart';
 import 'config/app_theme.dart';
 import 'providers/support_settings_provider.dart';
@@ -99,6 +102,23 @@ Future<void> _setupForegroundAndUrgentChannel() async {
   }
 }
 
+// TODO: remover após diagnóstico — grava crash na tabela debug_crash_logs.
+void _logCrashToSupabase(Object error, StackTrace stack, {String? screen}) {
+  try {
+    final supabase = Supabase.instance.client;
+    final msg = error.toString();
+    final st = stack.toString();
+    supabase.from('debug_crash_logs').insert({
+      'screen': screen,
+      'route': null,
+      'error_message': msg.length > 4000 ? msg.substring(0, 4000) : msg,
+      'stack_trace': st.length > 4000 ? st.substring(0, 4000) : st,
+      'platform': Platform.isAndroid ? 'android' : 'ios',
+      'app_version': null,
+    }).then((_) {}, onError: (_) {});
+  } catch (_) {}
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -106,6 +126,39 @@ Future<void> main() async {
     url: _supabaseUrl,
     anonKey: _supabaseAnonKey,
   );
+
+  // TODO: remover após diagnóstico — handlers globais de crash.
+  final originalOnError = FlutterError.onError;
+  FlutterError.onError = (FlutterErrorDetails details) {
+    originalOnError?.call(details);
+    _logCrashToSupabase(
+      details.exception,
+      details.stack ?? StackTrace.empty,
+      screen: details.context?.toDescription(),
+    );
+  };
+
+  PlatformDispatcher.instance.onError = (error, stack) {
+    _logCrashToSupabase(error, stack);
+    return false;
+  };
+
+  // TODO: remover após diagnóstico — mostra aviso em vez de tela branca.
+  ErrorWidget.builder = (FlutterErrorDetails details) {
+    return Material(
+      child: Container(
+        color: Colors.white,
+        padding: const EdgeInsets.all(16),
+        child: const Center(
+          child: Text(
+            'Ocorreu um erro nesta tela',
+            style: TextStyle(color: Colors.red, fontSize: 16),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ),
+    );
+  };
 
   if (!kIsWeb) {
     // BUG 13 — Stripe mode toggle. Default = live (safety).
@@ -240,6 +293,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         ),
         ChangeNotifierProvider<ServicesStore>(
           create: (_) => ServicesStore(),
+        ),
+        ChangeNotifierProvider<TvdeStore>(
+          create: (_) => TvdeStore(),
         ),
         ChangeNotifierProvider<PartnerReservasStore>(
           create: (_) => PartnerReservasStore(),

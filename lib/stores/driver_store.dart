@@ -182,9 +182,7 @@ class DriverStore extends ChangeNotifier {
           location: (lat != null && lng != null)
               ? LatLng(lat.toDouble(), lng.toDouble())
               : const LatLng(40.5321, -7.2671),
-          vehicleType: VehicleType.values.firstWhere(
-              (v) => v.name == (rawVehicle ?? ''),
-              orElse: () => VehicleType.motorcycle),
+          vehicleType: VehicleTypeDb.fromDb(rawVehicle),
           phone: row['phone'] as String? ?? '',
           isOnline: row['is_online'] as bool? ?? false,
           avgRating: (row['avg_rating'] as num?)?.toDouble(),
@@ -471,7 +469,7 @@ class DriverStore extends ChangeNotifier {
           'name': existing?.name ?? '',
           'phone': existing?.phone ?? '',
           'email': '',
-          'vehicle_type': existing?.vehicleType.name ?? 'motorcycle',
+          'vehicle_type': existing?.vehicleType.dbValue ?? 'motorcycle',
           'license_plate': '',
           'is_online': false,
           'lat': kGuardaLat,
@@ -714,9 +712,7 @@ class DriverStore extends ChangeNotifier {
             id: id,
             name: rawName is String && rawName.isNotEmpty ? rawName : id,
             location: location,
-            vehicleType: VehicleType.values.firstWhere(
-                (v) => v.name == (rawVehicle ?? ''),
-                orElse: () => VehicleType.motorcycle),
+            vehicleType: VehicleTypeDb.fromDb(rawVehicle as String?),
             phone: item['phone'] as String? ?? '',
             isOnline: item['is_online'] as bool? ?? false,
           );

@@ -6,6 +6,10 @@ enum VehicleType {
   motorcycle,
   car,
   bicycle,
+  // TVDE — Bora Motorista (transporte de passageiros). Valor canónico na DB:
+  // 'carro_passageiros' (ver VehicleTypeDb). O matching de corridas filtra
+  // SEMPRE pela coluna vehicle_type da DB, nunca por este enum.
+  carPassengers,
 }
 
 enum DriverStatus { pending, approved, rejected }
@@ -32,7 +36,28 @@ extension VehicleTypeLabel on VehicleType {
         return 'Carro';
       case VehicleType.bicycle:
         return 'Bicicleta';
+      case VehicleType.carPassengers:
+        return 'Carro — Passageiros';
     }
+  }
+}
+
+/// Mapeamento explícito enum ↔ coluna `drivers.vehicle_type` (TEXT).
+/// Os 3 tipos de delivery usam `.name`; `carPassengers` mapeia para o valor
+/// canónico 'carro_passageiros'. NÃO altera o fallback global (motorcycle)
+/// para não partir motoristas atuais — só garante reconhecimento nos 2 sentidos.
+extension VehicleTypeDb on VehicleType {
+  /// Valor a gravar na coluna `vehicle_type`.
+  String get dbValue =>
+      this == VehicleType.carPassengers ? 'carro_passageiros' : name;
+
+  /// Lê o valor da coluna `vehicle_type` para o enum.
+  static VehicleType fromDb(String? raw) {
+    if (raw == 'carro_passageiros') return VehicleType.carPassengers;
+    return VehicleType.values.firstWhere(
+      (v) => v != VehicleType.carPassengers && v.name == (raw ?? ''),
+      orElse: () => VehicleType.motorcycle,
+    );
   }
 }
 
@@ -70,6 +95,9 @@ class DriverModel {
 
   bool supportsService(OrderServiceType serviceType,
       {bool requiresCar = false}) {
+    // TVDE: carro de passageiros não faz delivery (vertical isolada).
+    if (vehicleType == VehicleType.carPassengers) return false;
+
     if (vehicleType == VehicleType.car) return true;
 
     if (vehicleType == VehicleType.bicycle) {

@@ -391,7 +391,9 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
       final rpcRes = await supabase.rpc('driver_register_or_update', params: {
         'p_name': _nameController.text.trim(),
         'p_phone': _phoneController.text.trim(),
-        'p_vehicle_type': _vehicleType.name,
+        // R1: usar o mapeamento canónico (carPassengers → 'carro_passageiros'),
+        // NUNCA o enum cru (.name daria 'carPassengers' e o dispatch falharia).
+        'p_vehicle_type': _vehicleType.dbValue,
         'p_license_plate': licensePlate.isEmpty ? null : licensePlate,
         'p_document_type': _documentType,
         'p_document_number': _documentNumberController.text.trim().isEmpty
@@ -817,6 +819,11 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
                         value: VehicleType.bicycle,
                         label: Text('Bicicleta'),
                         icon: Icon(Icons.pedal_bike),
+                      ),
+                      ButtonSegment(
+                        value: VehicleType.carPassengers,
+                        label: Text('Carro — Passageiros'),
+                        icon: Icon(Icons.local_taxi),
                       ),
                     ],
                     selected: {_vehicleType},

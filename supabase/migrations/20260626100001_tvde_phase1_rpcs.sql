@@ -38,7 +38,7 @@ BEGIN
     VALUES (v_uid) RETURNING * INTO v_row;
 
   PERFORM public.notify_admin_event(
-    'tvde_access_request', 'warning',
+    'tvde_access_request', 'medium',
     'Novo pedido de acesso Bora Motorista: ' || COALESCE(v_name, 'cliente'),
     'tvde_access_request', v_row.id::text,
     jsonb_build_object('client_id', v_uid, 'client_name', v_name),

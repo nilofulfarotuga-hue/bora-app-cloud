@@ -30,6 +30,9 @@ import 'restaurants_screen.dart';
 import 'send_package_form_screen.dart';
 import 'errand_form_screen.dart';
 import 'stores_screen.dart';
+import '../stores/tvde_store.dart';
+import 'client/tvde/tvde_unlock_screen.dart';
+import 'client/tvde/tvde_request_ride_screen.dart';
 
 class ClientHomeScreen extends StatefulWidget {
   const ClientHomeScreen({super.key});
@@ -61,6 +64,8 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context.read<RestaurantStore>().loadRestaurantsFromSupabase();
+      // TVDE — re-lê tvde_access para mostrar/esconder a categoria escondida.
+      context.read<TvdeStore>().refreshAccess();
       _detectLocation();
       // Sessão 6 §44 — abre RatingScreen se há pedido entregue ainda não avaliado.
       _checkUnratedOrders();
@@ -84,6 +89,8 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && mounted) {
       _checkUnratedOrders();
+      // TVDE — categoria escondida aparece/some reativamente após aprovação.
+      context.read<TvdeStore>().refreshAccess();
     }
   }
 
@@ -382,6 +389,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
                   ),
                   const SizedBox(height: Spacing.xl),
                   _buildCategoryGrid(context),
+                  _buildTvdeEntry(context),
                   const SizedBox(height: Spacing.xl),
                   BoraPromoBanner(
                     title: 'Entregas rápidas\ne seguras',
@@ -525,6 +533,24 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
       ),
     ];
 
+    // TVDE — categoria ESCONDIDA: só aparece quando o admin aprovou tvde_access.
+    if (context.watch<TvdeStore>().tvdeAccess) {
+      tiles.add(
+        _TileData(
+          label: 'Bora\nMotorista',
+          gradient: AppColors.tileServices,
+          imageAsset: 'assets/categories/cat_motorista.png',
+          onTap: () => _navigateWithAddressGuard(() {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (_) => const TvdeRequestRideScreen()),
+            );
+          }),
+        ),
+      );
+    }
+
     return GridView.count(
       crossAxisCount: 3,
       shrinkWrap: true,
@@ -550,6 +576,49 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
           onTap: t.onTap,
         );
       }).toList(),
+    );
+  }
+
+  /// TVDE — entrada DISCRETA para desbloquear a categoria escondida.
+  /// Só aparece enquanto o cliente ainda não tem acesso aprovado.
+  Widget _buildTvdeEntry(BuildContext context) {
+    final store = context.watch<TvdeStore>();
+    if (store.tvdeAccess) return const SizedBox.shrink();
+
+    final pending = store.accessRequestStatus == 'pendente';
+    return Padding(
+      padding: const EdgeInsets.only(top: Spacing.md),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(Radii.md),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const TvdeUnlockScreen()),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+              vertical: Spacing.sm, horizontal: Spacing.xs),
+          child: Row(
+            children: [
+              Icon(pending ? Icons.hourglass_top : Icons.lock_open,
+                  size: 18, color: AppColors.textSecondary),
+              const SizedBox(width: Spacing.sm),
+              Expanded(
+                child: Text(
+                  pending
+                      ? 'Pedido de categoria exclusiva em análise'
+                      : 'Quero desbloquear uma categoria exclusiva',
+                  style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500),
+                ),
+              ),
+              Icon(Icons.chevron_right,
+                  size: 18, color: AppColors.textSubtle),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

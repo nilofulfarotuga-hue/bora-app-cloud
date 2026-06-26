@@ -63,6 +63,10 @@ import 'admin_reservations_screen.dart';
 import 'admin_tokens_screen.dart';
 import 'admin_wallets_screen.dart';
 import 'admin_weekly_settlements_screen.dart';
+import 'admin_tvde_access_requests_screen.dart';
+import 'admin_tvde_rides_screen.dart';
+import 'admin_tvde_drivers_screen.dart';
+import 'admin_tvde_subscriptions_screen.dart';
 
 /// In-app admin dashboard.
 ///
@@ -885,6 +889,65 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       MaterialPageRoute(
                           builder: (_) =>
                               const AdminAppointmentsMetricsScreen())),
+                ),
+                const SizedBox(height: 18),
+                // ── Bora Motorista (TVDE — transporte de passageiros) ──
+                Padding(
+                  padding: const EdgeInsets.only(left: 4, bottom: 8, top: 4),
+                  child: Text(
+                    'Bora Motorista (Transporte de passageiros)',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                  ),
+                ),
+                _NavCard(
+                  icon: Icons.how_to_reg,
+                  title: 'Pedidos de acesso',
+                  subtitle:
+                      'Perfil completo do cliente · aprovar/recusar/revogar',
+                  color: const Color(0xFF0EA5E9),
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminTvdeAccessRequestsScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.local_taxi,
+                  title: 'Corridas',
+                  subtitle:
+                      'Ao vivo · histórico · financeiro motorista/Bora · CSV',
+                  color: Colors.teal,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminTvdeRidesScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.directions_car,
+                  title: 'Motoristas de passageiros',
+                  subtitle: 'Gerir e banir · saldo · avaliações',
+                  color: Colors.indigo,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminTvdeDriversScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.card_membership,
+                  title: 'Assinaturas',
+                  subtitle: 'Conceder assinatura a um cliente · ver ativas',
+                  color: Colors.deepPurple,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminTvdeSubscriptionsScreen())),
                 ),
                 const SizedBox(height: 18),
                 // ── Ferramentas (ecrãs anteriormente órfãos) ──

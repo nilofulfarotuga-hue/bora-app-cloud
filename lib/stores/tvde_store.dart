@@ -1,0 +1,320 @@
+import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../models/tvde_ride.dart';
+import '../models/tvde_subscription.dart';
+
+/// TVDE — Bora Motorista. Store reativo do cliente (passageiro).
+/// Camada read-only: todas as transições passam por RPC no backend.
+class TvdeStore extends ChangeNotifier {
+  SupabaseClient get _sb => Supabase.instance.client;
+  String? get _uid => _sb.auth.currentUser?.id;
+
+  // ── Acesso à categoria escondida ────────────────────────────────────────
+  bool _tvdeAccess = false;
+  bool get tvdeAccess => _tvdeAccess;
+
+  /// null | 'pendente' | 'aprovado' | 'recusado'
+  String? _accessRequestStatus;
+  String? get accessRequestStatus => _accessRequestStatus;
+
+  // ── Corrida ativa + histórico + assinatura ──────────────────────────────
+  TvdeRide? _activeRide;
+  TvdeRide? get activeRide => _activeRide;
+
+  List<TvdeRide> _history = const [];
+  List<TvdeRide> get history => _history;
+
+  TvdeSubscription? _subscription;
+  TvdeSubscription? get subscription => _subscription;
+
+  int _dailyUsed = 0;
+  int get dailyUsed => _dailyUsed;
+
+  bool _busy = false;
+  bool get busy => _busy;
+
+  RealtimeChannel? _channel;
+
+  // ════════════════════════════════════════════════════════════════════════
+  // ACESSO
+  // ════════════════════════════════════════════════════════════════════════
+
+  /// Re-lê tvde_access + estado do último pedido. Chamar no load/resume da home.
+  Future<void> refreshAccess() async {
+    final uid = _uid;
+    if (uid == null) return;
+    try {
+      final user = await _sb
+          .from('users')
+          .select('tvde_access')
+          .eq('id', uid)
+          .maybeSingle();
+      _tvdeAccess = (user?['tvde_access'] as bool?) ?? false;
+
+      final req = await _sb
+          .from('tvde_access_requests')
+          .select('status')
+          .eq('client_id', uid)
+          .order('requested_at', ascending: false)
+          .limit(1)
+          .maybeSingle();
+      _accessRequestStatus = req?['status'] as String?;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('TvdeStore.refreshAccess error => $e');
+    }
+  }
+
+  /// Cliente pede desbloqueio → cria tvde_access_requests (pendente) + notifica admin.
+  Future<void> requestAccess() async {
+    _setBusy(true);
+    try {
+      await _sb.rpc('tvde_request_access');
+      _accessRequestStatus = 'pendente';
+    } catch (e) {
+      debugPrint('TvdeStore.requestAccess error => $e');
+      rethrow;
+    } finally {
+      _setBusy(false);
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  // PREÇO ESTIMADO
+  // ════════════════════════════════════════════════════════════════════════
+
+  /// Preço estimado (cêntimos) via RPC tvde_calculate_fare. -1 em erro.
+  Future<int> estimateFareCents(double distanceKm) async {
+    try {
+      final res = await _sb.rpc('tvde_calculate_fare',
+          params: {'p_distance_km': distanceKm});
+      return (res as num?)?.toInt() ?? -1;
+    } catch (e) {
+      debugPrint('TvdeStore.estimateFareCents error => $e');
+      return -1;
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  // CORRIDA
+  // ════════════════════════════════════════════════════════════════════════
+
+  /// Solicita corrida. Devolve a corrida criada e começa a ouvi-la ao vivo.
+  Future<TvdeRide?> requestRide({
+    required double originLat,
+    required double originLng,
+    String? originLabel,
+    required double destLat,
+    required double destLng,
+    String? destLabel,
+    required double distanceKm,
+  }) async {
+    _setBusy(true);
+    try {
+      final res = await _sb.rpc('tvde_request_ride', params: {
+        'p_origin_lat': originLat,
+        'p_origin_lng': originLng,
+        'p_origin_label': originLabel,
+        'p_dest_lat': destLat,
+        'p_dest_lng': destLng,
+        'p_dest_label': destLabel,
+        'p_est_distance_km': distanceKm,
+      });
+      final ride = TvdeRide.fromMap(_asMap(res));
+      _activeRide = ride;
+      _subscribeRide(ride.id);
+      notifyListeners();
+      return ride;
+    } catch (e) {
+      debugPrint('TvdeStore.requestRide error => $e');
+      rethrow;
+    } finally {
+      _setBusy(false);
+    }
+  }
+
+  /// Carrega a corrida ativa (se existir) ao abrir a app.
+  Future<void> loadActiveRide() async {
+    final uid = _uid;
+    if (uid == null) return;
+    try {
+      final rows = await _sb
+          .from('tvde_rides')
+          .select()
+          .eq('client_id', uid)
+          .inFilter('status', const [
+            'solicitada',
+            'sem_motorista',
+            'motorista_atribuido',
+            'motorista_a_caminho',
+            'motorista_chegou',
+            'em_andamento',
+          ])
+          .order('created_at', ascending: false)
+          .limit(1);
+      if (rows.isNotEmpty) {
+        _activeRide = TvdeRide.fromMap(rows.first);
+        _subscribeRide(_activeRide!.id);
+      } else {
+        _activeRide = null;
+      }
+      notifyListeners();
+    } catch (e) {
+      debugPrint('TvdeStore.loadActiveRide error => $e');
+    }
+  }
+
+  void _subscribeRide(String rideId) {
+    _unsubscribe();
+    _channel = _sb.channel('tvde_ride_$rideId')
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.update,
+        schema: 'public',
+        table: 'tvde_rides',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'id',
+          value: rideId,
+        ),
+        callback: (payload) {
+          final m = payload.newRecord;
+          _activeRide = TvdeRide.fromMap(m);
+          notifyListeners();
+        },
+      )
+      ..subscribe();
+  }
+
+  /// Tentar de novo após sem_motorista (cria nova corrida com os mesmos pontos).
+  Future<TvdeRide?> retryRide() async {
+    final r = _activeRide;
+    if (r == null) return null;
+    return requestRide(
+      originLat: r.originLat,
+      originLng: r.originLng,
+      originLabel: r.originLabel,
+      destLat: r.destLat,
+      destLng: r.destLng,
+      destLabel: r.destLabel,
+      distanceKm: r.estDistanceKm,
+    );
+  }
+
+  Future<void> cancelRide(String rideId, {String? reason}) async {
+    _setBusy(true);
+    try {
+      await _sb.rpc('tvde_cancel_ride', params: {
+        'p_ride_id': rideId,
+        'p_actor': 'cliente',
+        'p_reason': reason,
+      });
+    } catch (e) {
+      debugPrint('TvdeStore.cancelRide error => $e');
+      rethrow;
+    } finally {
+      _setBusy(false);
+    }
+  }
+
+  Future<void> rateDriver(String rideId, int stars, {String? comment}) async {
+    _setBusy(true);
+    try {
+      await _sb.rpc('tvde_rate', params: {
+        'p_ride_id': rideId,
+        'p_stars': stars,
+        'p_comment': comment,
+      });
+    } catch (e) {
+      debugPrint('TvdeStore.rateDriver error => $e');
+      rethrow;
+    } finally {
+      _setBusy(false);
+    }
+  }
+
+  /// Limpa a corrida ativa do estado (após concluir/avaliar/cancelar).
+  void clearActiveRide() {
+    _unsubscribe();
+    _activeRide = null;
+    notifyListeners();
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  // HISTÓRICO + ASSINATURA
+  // ════════════════════════════════════════════════════════════════════════
+
+  Future<void> loadHistory() async {
+    final uid = _uid;
+    if (uid == null) return;
+    try {
+      final rows = await _sb
+          .from('tvde_rides')
+          .select()
+          .eq('client_id', uid)
+          .order('created_at', ascending: false)
+          .limit(50);
+      _history = rows.map<TvdeRide>((m) => TvdeRide.fromMap(m)).toList();
+      notifyListeners();
+    } catch (e) {
+      debugPrint('TvdeStore.loadHistory error => $e');
+    }
+  }
+
+  Future<void> loadSubscription() async {
+    final uid = _uid;
+    if (uid == null) return;
+    try {
+      final sub = await _sb
+          .from('tvde_subscriptions')
+          .select()
+          .eq('client_id', uid)
+          .eq('active', true)
+          .order('ends_at', ascending: false)
+          .limit(1)
+          .maybeSingle();
+      _subscription = sub == null ? null : TvdeSubscription.fromMap(sub);
+
+      final today = DateTime.now().toUtc();
+      final dayStr =
+          '${today.year.toString().padLeft(4, '0')}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+      final counter = await _sb
+          .from('tvde_ride_counters')
+          .select('rides_count')
+          .eq('client_id', uid)
+          .eq('day', dayStr)
+          .maybeSingle();
+      _dailyUsed = (counter?['rides_count'] as num?)?.toInt() ?? 0;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('TvdeStore.loadSubscription error => $e');
+    }
+  }
+
+  // ── infra ────────────────────────────────────────────────────────────────
+  Map<String, dynamic> _asMap(dynamic res) {
+    if (res is Map) return Map<String, dynamic>.from(res);
+    if (res is List && res.isNotEmpty) {
+      return Map<String, dynamic>.from(res.first as Map);
+    }
+    throw StateError('Resposta inesperada da RPC: $res');
+  }
+
+  void _setBusy(bool v) {
+    _busy = v;
+    notifyListeners();
+  }
+
+  void _unsubscribe() {
+    if (_channel != null) {
+      _sb.removeChannel(_channel!);
+      _channel = null;
+    }
+  }
+
+  @override
+  void dispose() {
+    _unsubscribe();
+    super.dispose();
+  }
+}

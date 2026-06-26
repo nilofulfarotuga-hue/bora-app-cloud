@@ -856,13 +856,18 @@ class AuthStore extends ChangeNotifier {
       final phone = meta[_kPhone] as String? ?? '';
       // Fetch driver status from DB to enforce approval gate.
       DriverStatus driverStatus = DriverStatus.approved;
+      // Fonte de verdade do tipo de veículo = coluna DB (canónica, p.ex.
+      // 'carro_passageiros'). Necessária para rotear o motorista TVDE para o
+      // modo passageiros. Fallback para o metadata se a coluna vier vazia.
+      String? vtDb;
       try {
         final row = await _supabase
             .from('drivers')
-            .select('approval_status')
+            .select('approval_status, vehicle_type')
             .eq('id', user.id)
             .maybeSingle();
         final statusStr = row?['approval_status'] as String? ?? 'approved';
+        vtDb = row?['vehicle_type'] as String?;
         driverStatus = DriverStatus.values.firstWhere(
           (s) => s.name == statusStr,
           orElse: () => DriverStatus.approved,
@@ -873,10 +878,12 @@ class AuthStore extends ChangeNotifier {
         name: meta[_kName] as String? ?? '',
         email: normalizedEmail,
         phone: phone,
-        vehicleType: VehicleType.values.firstWhere(
-          (v) => v.name == vtStr,
-          orElse: () => VehicleType.car,
-        ),
+        vehicleType: (vtDb != null && vtDb.isNotEmpty)
+            ? VehicleTypeDb.fromDb(vtDb)
+            : VehicleType.values.firstWhere(
+                (v) => v.name == vtStr,
+                orElse: () => VehicleType.car,
+              ),
         licensePlate: meta[_kLicensePlate] as String? ?? '',
         password: password,
       );

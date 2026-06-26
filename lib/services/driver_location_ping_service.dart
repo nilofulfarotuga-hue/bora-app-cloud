@@ -17,7 +17,8 @@ class DriverLocationPingService {
 
   DateTime? _lastPing;
   bool _inFlight = false;
-  static const int minIntervalSeconds = 10;
+  // 45s idle (was 10s): admin map freshness window is ~5min; 10s was 30× too eager.
+  static const int minIntervalSeconds = 45;
 
   /// Best-effort ping. Safe to call on every GPS tick — internally throttled.
   /// Set [isOnline] to false on logout / go-offline so the driver disappears
@@ -29,6 +30,7 @@ class DriverLocationPingService {
     double? speedKmh,
     bool isOnline = true,
   }) async {
+    if (!isOnline) return; // no ping when offline — goOffline() handles final update
     if (_inFlight) return;
     final now = DateTime.now();
     if (_lastPing != null &&

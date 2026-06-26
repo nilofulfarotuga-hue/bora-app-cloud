@@ -229,6 +229,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
         return;
       }
       unawaited(_heartbeatService.stop());
+      // Stop idle GPS — no location drain when offline.
+      await _positionSubscription?.cancel();
+      _positionSubscription = null;
       // Fechar overlay de standby — driver já não vai receber pedidos.
       unawaited(NotificationService.instance.closeOverlayIfActive());
       return;
@@ -251,6 +254,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
     final success = orderStore.toggleDriverAvailability(true);
     if (!success || !mounted) return;
     unawaited(_heartbeatService.start());
+    // Start idle GPS now that driver is online.
+    unawaited(_startIdleLocationTracking());
     // Pre-inicializar overlay em foreground (standby/click-through).
     // Quando chegar oferta, shareData() basta — sem showOverlay() em background.
     NotificationService.instance.initDriverStandbyOverlay().ignore();
@@ -478,9 +483,16 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
   }
 
   /// Keeps driver location in DriverStore fresh while on the home screen.
-  /// Low frequency (10 m filter) — the active-delivery map uses 5 m.
-  /// Includes GPS service + permission checks with user-facing guidance.
+  /// Only runs when driver is ONLINE (offline = no GPS drain).
+  /// Active delivery pauses this stream — DriverMapScreen takes over.
   Future<void> _startIdleLocationTracking() async {
+    // Gate: no GPS when offline. ONLINE toggle calls this explicitly.
+    final isOnline =
+        context.read<DriverStore>().currentDriver?.isOnline ?? false;
+    if (!isOnline) return;
+    // Cancel any stale subscription before opening a new one.
+    await _positionSubscription?.cancel();
+    _positionSubscription = null;
     // GPS service check.
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
@@ -535,32 +547,34 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
     // iOS: showBackgroundLocationIndicator + pauseLocationUpdatesAutomatically
     //   ensure the OS doesn't suspend updates during deliveries.
     final LocationSettings locationSettings;
+    // Idle (online, no active delivery): medium accuracy, 50 m filter, 20 s
+    // interval. No persistent wakelock — FGS type "location" keeps process
+    // alive. High accuracy resumes in DriverMapScreen during active delivery.
     if (defaultTargetPlatform == TargetPlatform.android) {
       locationSettings = AndroidSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 10,
-        intervalDuration: const Duration(seconds: 5),
+        accuracy: LocationAccuracy.medium,
+        distanceFilter: 50,
+        intervalDuration: const Duration(seconds: 20),
         foregroundNotificationConfig: const ForegroundNotificationConfig(
-          notificationTitle: 'Bora — entrega em curso',
-          notificationText:
-              'A actualizar a tua posição em segundo plano para os clientes verem o progresso.',
-          enableWakeLock: true,
+          notificationTitle: 'Bora — Online',
+          notificationText: 'À espera de pedidos.',
+          enableWakeLock: false,
           notificationIcon: AndroidResource(name: 'ic_launcher', defType: 'mipmap'),
         ),
       );
     } else if (defaultTargetPlatform == TargetPlatform.iOS) {
       locationSettings = AppleSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 10,
-        pauseLocationUpdatesAutomatically: false,
+        accuracy: LocationAccuracy.medium,
+        distanceFilter: 50,
+        pauseLocationUpdatesAutomatically: true,
         showBackgroundLocationIndicator: true,
-        activityType: ActivityType.automotiveNavigation,
+        activityType: ActivityType.other,
         allowBackgroundLocationUpdates: true,
       );
     } else {
       locationSettings = const LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 10,
+        accuracy: LocationAccuracy.medium,
+        distanceFilter: 50,
       );
     }
 

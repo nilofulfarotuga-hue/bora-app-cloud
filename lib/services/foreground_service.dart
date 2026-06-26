@@ -200,6 +200,9 @@ class _BoraTaskHandler extends TaskHandler {
 
   bool _isPolling = false;
   String? _lastOfferedOrderId;
+  // Heartbeat fires every 3rd tick (10s × 3 = 30s). FGS tick stays at 10s
+  // so offer detection remains fast; only the DB heartbeat POST is throttled.
+  int _heartbeatTickCount = 0;
 
   @override
   Future<void> onStart(DateTime timestamp, TaskStarter starter) async {
@@ -208,7 +211,8 @@ class _BoraTaskHandler extends TaskHandler {
 
   @override
   void onRepeatEvent(DateTime timestamp) {
-    debugPrint('[FGS_POLL] onRepeatEvent tick — isPolling=$_isPolling ts=$timestamp');
+    _heartbeatTickCount++;
+    debugPrint('[FGS_POLL] onRepeatEvent tick=$_heartbeatTickCount — isPolling=$_isPolling ts=$timestamp');
     if (_isPolling) return;
     _isPolling = true;
     _poll().whenComplete(() => _isPolling = false);
@@ -258,30 +262,25 @@ class _BoraTaskHandler extends TaskHandler {
         return;
       }
 
-      // ── HEARTBEAT (Sessão 2026-05-24, Fix #1) ──────────────────────────────
-      // O `HeartbeatService` corre no MAIN isolate via Timer.periodic — esse
-      // Timer pode ser pausado em Doze/background. O task isolate do
-      // flutter_foreground_task é o único garantidamente vivo enquanto o FGS
-      // existe. Bater aqui resolve o sintoma "driver fica preso online mas
-      // last_heartbeat_at envelhece > 90s e cron mark_stale_drivers_offline
-      // marca offline por engano". Usa `driver_heartbeat_by_id` (recebe id
-      // explícito) porque `driver_heartbeat()` usa auth.uid() que é NULL
-      // neste isolate (sem sessão).
-      try {
-        final hbUri = Uri.parse('$url/rest/v1/rpc/driver_heartbeat_by_id');
-        await http.post(
-          hbUri,
-          headers: {
-            'apikey': apiKey,
-            'Authorization': 'Bearer $apiKey',
-            'Content-Type': 'application/json',
-          },
-          body: jsonEncode({'p_driver_id': driverId}),
-        ).timeout(const Duration(seconds: 4));
-        debugPrint('[FGS_POLL] heartbeat OK driver=$driverId');
-      } catch (e) {
-        // Swallow — próximo tick (30s) recupera. Nunca crashar o serviço.
-        debugPrint('[FGS_POLL] heartbeat error: $e');
+      // ── HEARTBEAT (Sessão 2026-05-24, Fix #1 · 2026-06-26 throttle #1) ────
+      // Fires every 3rd FGS tick (10s × 3 = 30s). Cron marks stale after 90s
+      // → 30s gives 3× margin. FGS tick stays at 10s for fast offer detection.
+      if (_heartbeatTickCount % 3 == 0) {
+        try {
+          final hbUri = Uri.parse('$url/rest/v1/rpc/driver_heartbeat_by_id');
+          await http.post(
+            hbUri,
+            headers: {
+              'apikey': apiKey,
+              'Authorization': 'Bearer $apiKey',
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode({'p_driver_id': driverId}),
+          ).timeout(const Duration(seconds: 4));
+          debugPrint('[FGS_POLL] heartbeat OK driver=$driverId tick=$_heartbeatTickCount');
+        } catch (e) {
+          debugPrint('[FGS_POLL] heartbeat error: $e');
+        }
       }
 
       final uri = Uri.parse(

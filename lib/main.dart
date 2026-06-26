@@ -106,15 +106,13 @@ Future<void> _setupForegroundAndUrgentChannel() async {
 void _logCrashToSupabase(Object error, StackTrace stack, {String? screen}) {
   try {
     final supabase = Supabase.instance.client;
-    final msg = error.toString();
-    final st = stack.toString();
-    supabase.from('debug_crash_logs').insert({
-      'screen': screen,
-      'route': null,
-      'error_message': msg.length > 4000 ? msg.substring(0, 4000) : msg,
-      'stack_trace': st.length > 4000 ? st.substring(0, 4000) : st,
-      'platform': Platform.isAndroid ? 'android' : 'ios',
-      'app_version': null,
+    supabase.rpc('log_client_crash', params: {
+      'p_screen': screen,
+      'p_route': null,
+      'p_error_message': error.toString(),
+      'p_stack_trace': stack.toString(),
+      'p_platform': Platform.isAndroid ? 'android' : 'ios',
+      'p_app_version': null,
     }).then((_) {}, onError: (_) {});
   } catch (_) {}
 }

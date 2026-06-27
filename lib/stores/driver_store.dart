@@ -167,8 +167,11 @@ class DriverStore extends ChangeNotifier {
     }
 
     try {
+      // Chave correta = user_id (= auth.uid()). Nos motoristas reais id <> user_id;
+      // por id a query não achava a linha → currentDriver ficava null → o toggle
+      // online (getDriverById) era bloqueado e o GPS/ping nunca arrancava.
       final rows =
-          await _client.from('drivers').select().eq('id', uid).limit(1);
+          await _client.from('drivers').select().eq('user_id', uid).limit(1);
 
       if (rows.isNotEmpty) {
         final row = rows.first;

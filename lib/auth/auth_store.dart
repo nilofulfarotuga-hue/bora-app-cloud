@@ -219,7 +219,9 @@ class AuthStore extends ChangeNotifier {
       final row = await _supabase
           .from('drivers')
           .select('approval_status')
-          .eq('id', uid)
+          // Chave correta = user_id (= auth.uid()). Nos motoristas reais
+          // id <> user_id; filtrar por id devolvia NULL → gate preso "em análise".
+          .eq('user_id', uid)
           .maybeSingle();
       final statusStr = row?['approval_status'] as String? ?? 'pending';
       final fresh = DriverStatus.values.firstWhere(
@@ -864,7 +866,10 @@ class AuthStore extends ChangeNotifier {
         final row = await _supabase
             .from('drivers')
             .select('approval_status, vehicle_type')
-            .eq('id', user.id)
+            // Chave correta = user_id (= auth.uid()). Por id, no motorista TVDE
+            // (id <> user_id) vinha NULL → vehicle_type não detetado → não roteava
+            // para o modo passageiros.
+            .eq('user_id', user.id)
             .maybeSingle();
         final statusStr = row?['approval_status'] as String? ?? 'approved';
         vtDb = row?['vehicle_type'] as String?;

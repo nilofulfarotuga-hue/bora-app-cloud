@@ -4,11 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../auth/auth_store.dart';
 import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
 import '../../../models/driver_model.dart';
+import '../../../services/driver_location_ping_service.dart';
 import '../../../services/heartbeat_service.dart';
 import '../../../stores/driver_store.dart';
 import '../../../stores/tvde_driver_store.dart';
@@ -30,6 +32,7 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
     with WidgetsBindingObserver {
   final HeartbeatService _heartbeat = HeartbeatService();
   StreamSubscription<Position>? _gps;
+  Position? _lastPos;
   bool _offerOpen = false;
   bool _activeOpen = false;
 
@@ -124,6 +127,7 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
       unawaited(_heartbeat.stop());
       await _gps?.cancel();
       _gps = null;
+      await _goOfflinePing();
     }
   }
 
@@ -144,6 +148,20 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
         perm == LocationPermission.deniedForever) {
       return;
     }
+    // Ping imediato → aparece já uma linha fresca em driver_locations (fonte do
+    // matching TVDE) sem esperar o 1º fix do stream.
+    try {
+      final first = await Geolocator.getCurrentPosition();
+      _lastPos = first;
+      await DriverLocationPingService.instance.ping(
+        latitude: first.latitude,
+        longitude: first.longitude,
+        heading: first.heading.isFinite ? first.heading : null,
+        speedKmh: first.speed.isFinite ? first.speed * 3.6 : null,
+        isOnline: true,
+      );
+    } catch (_) {/* o stream cobre o ping seguinte */}
+
     await _gps?.cancel();
     _gps = Geolocator.getPositionStream(
       locationSettings: const LocationSettings(
@@ -152,15 +170,41 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
       ),
     ).listen((pos) {
       if (!mounted) return;
+      _lastPos = pos;
       final store = context.read<DriverStore>();
       store.updateDriverLocation(
           store.currentDriverId, LatLng(pos.latitude, pos.longitude));
+      // Alimenta driver_locations por user_id via RPC partilhada (throttle 45s).
+      // É a fonte que o tvde_offer_to_next lê para elegibilidade.
+      DriverLocationPingService.instance.ping(
+        latitude: pos.latitude,
+        longitude: pos.longitude,
+        heading: pos.heading.isFinite ? pos.heading : null,
+        speedKmh: pos.speed.isFinite ? pos.speed * 3.6 : null,
+        isOnline: true,
+      );
     });
+  }
+
+  /// Marca driver_locations.is_online=false (por user_id) ao ficar offline/logout
+  /// — sai do matching de imediato, sem esperar a janela de frescura. Reusa a RPC
+  /// partilhada driver_update_location (apenas CHAMADA, não alterada).
+  Future<void> _goOfflinePing() async {
+    final pos = _lastPos;
+    if (pos == null) return; // sem fix prévio: a frescura (janela) já exclui
+    try {
+      await Supabase.instance.client.rpc('driver_update_location', params: {
+        'p_latitude': pos.latitude,
+        'p_longitude': pos.longitude,
+        'p_is_online': false,
+      });
+    } catch (_) {/* best-effort */}
   }
 
   void _logout() {
     _heartbeat.stop();
     _gps?.cancel();
+    unawaited(_goOfflinePing());
     context.read<AuthStore>().logout();
   }
 

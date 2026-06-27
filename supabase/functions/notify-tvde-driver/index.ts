@@ -57,8 +57,10 @@ Deno.serve(async (req) => {
   const supabase = createClient(supabaseUrl, serviceKey)
 
   // ── FCM token (drivers.fcm_token → driver_push_tokens fallback) ─────────────
+  // driverId = tvde_rides.current_offer_driver_id = drivers.user_id (auth.uid).
+  // Nos motoristas reais id <> user_id, por isso resolve-se SEMPRE por user_id.
   const { data: driver } = await supabase
-    .from('drivers').select('fcm_token, name').eq('id', driverId).maybeSingle()
+    .from('drivers').select('fcm_token, name').eq('user_id', driverId).maybeSingle()
 
   let fcmToken: string | null = driver?.fcm_token ?? null
   let fallbackTokenId: string | null = null
@@ -152,7 +154,7 @@ Deno.serve(async (req) => {
       if (fallbackTokenId) {
         await supabase.from('driver_push_tokens').update({ active: false }).eq('id', fallbackTokenId)
       } else {
-        await supabase.from('drivers').update({ fcm_token: null }).eq('id', driverId)
+        await supabase.from('drivers').update({ fcm_token: null }).eq('user_id', driverId)
       }
     }
     return json({ ok: false, reason: 'fcm_error', detail: fcmBody }, 200)

@@ -236,21 +236,14 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       unawaited(NotificationService.instance.closeOverlayIfActive());
       return;
     }
-    // Going ONLINE: gate Uber/Glovo (3 permissões obrigatórias).
-    final allOk =
-        await PermissionGateService.ensureDriverOnlinePermissions(context);
+    // Going ONLINE: gate MÍNIMO estilo Uber/Glovo — NUNCA bloqueia em
+    // telemóveis fracos / Android antigo. Só garante notificações (best-effort
+    // para a notificação persistente do FGS); overlay / ecrã-inteiro / bateria
+    // passam a melhorias opcionais oferecidas depois, sem impedir a entrada.
+    // O streaming de localização corre via foreground service (while-in-use);
+    // o background "o tempo todo" nunca é exigido.
+    await PermissionGateService.ensureMinimumOnlinePermissions(context);
     if (!mounted) return;
-    if (!allOk) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Concede todas as permissões para ficar Online e receber pedidos em background.',
-          ),
-          duration: Duration(seconds: 4),
-        ),
-      );
-      return;
-    }
     final success = orderStore.toggleDriverAvailability(true);
     if (!success || !mounted) return;
     unawaited(_heartbeatService.start());
@@ -259,6 +252,36 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
     // Pre-inicializar overlay em foreground (standby/click-through).
     // Quando chegar oferta, shareData() basta — sem showOverlay() em background.
     NotificationService.instance.initDriverStandbyOverlay().ignore();
+    // Melhoria opcional (NÃO bloqueante): se faltarem permissões de
+    // fiabilidade (overlay/ecrã-inteiro/bateria), oferecer corrigir — sem
+    // impedir o estafeta de já estar online a receber pedidos.
+    unawaited(_offerReliabilityEnhancements());
+  }
+
+  /// Oferta NÃO bloqueante das permissões de fiabilidade (overlay / ecrã-
+  /// inteiro / bateria) depois de o estafeta já estar online. Estilo Uber:
+  /// online primeiro, melhorias depois. Recusar não impede receber pedidos —
+  /// o foreground service continua a transmitir localização e o FCM heads-up
+  /// continua a chegar.
+  Future<void> _offerReliabilityEnhancements() async {
+    final ok = await PermissionGateService.areAllGranted();
+    if (ok || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        duration: const Duration(seconds: 6),
+        content: const Text(
+          'Estás online. Para receberes pedidos de forma mais fiável '
+          '(ecrã bloqueado ou noutra app), podes activar permissões extra.',
+        ),
+        action: SnackBarAction(
+          label: 'MELHORAR',
+          onPressed: () async {
+            if (!mounted) return;
+            await PermissionGateService.ensureDriverOnlinePermissions(context);
+          },
+        ),
+      ),
+    );
   }
 
   /// Sessão 2026-05-21 — solicita permissão SYSTEM_ALERT_WINDOW para o

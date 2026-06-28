@@ -83,6 +83,31 @@ class PermissionGateService {
     return true;
   }
 
+  /// Padrão Uber/Glovo — gate MÍNIMO para ficar Online em telemóveis fracos /
+  /// Android antigo. Ao contrário de [ensureDriverOnlinePermissions], NUNCA
+  /// bloqueia o estafeta: pede a permissão de notificações em best-effort
+  /// (necessária para a notificação persistente do foreground service) e
+  /// deixa as restantes (overlay / ecrã-inteiro / bateria) como melhorias
+  /// opcionais, oferecidas à parte sem impedir a entrada online.
+  ///
+  /// A localização NÃO é pedida aqui — o ecrã pede while-in-use ao iniciar o
+  /// stream de GPS (graceful). O background ("o tempo todo") nunca é exigido:
+  /// o foreground service de localização dá acesso à GPS enquanto corre.
+  ///
+  /// Devolve sempre true (online permitido — degradação graciosa).
+  static Future<bool> ensureMinimumOnlinePermissions(
+      BuildContext context) async {
+    try {
+      final status = await FlutterForegroundTask.checkNotificationPermission();
+      if (status != NotificationPermission.granted) {
+        await FlutterForegroundTask.requestNotificationPermission();
+      }
+    } catch (e) {
+      debugPrint('[PermissionGate] minimum notif (não bloqueia): $e');
+    }
+    return true;
+  }
+
   // ── 1. Notifications ──────────────────────────────────────────────────────
 
   static Future<bool> _ensureNotificationPermission(

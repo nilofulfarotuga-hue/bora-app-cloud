@@ -100,6 +100,11 @@ class DriverModel {
 
     if (vehicleType == VehicleType.car) return true;
 
+    // carryGroceries (levar compras JÁ feitas) e caixas grandes exigem carro:
+    // o volume/peso não cabe de forma fiável em mota ou bicicleta. Carro já
+    // retornou true acima, por isso aqui só restam mota/bicicleta → false.
+    if (serviceType == OrderServiceType.carryGroceries) return false;
+
     if (vehicleType == VehicleType.bicycle) {
       return serviceType == OrderServiceType.restaurant ||
           serviceType == OrderServiceType.storeShopping;

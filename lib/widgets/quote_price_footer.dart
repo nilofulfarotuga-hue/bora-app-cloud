@@ -103,26 +103,38 @@ class _QuotePriceFooterState extends State<QuotePriceFooter> {
           16, 12, 16, 12 + MediaQuery.of(context).padding.bottom),
       child: Row(
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Total estimado',
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Total estimado',
+                    style: TextStyle(
+                        color: AppColors.textSecondary, fontSize: 12)),
+                Row(children: [
+                  Text(label,
+                      style: const TextStyle(
+                          fontSize: 20, fontWeight: FontWeight.w800)),
+                  if (_loading) ...[
+                    const SizedBox(width: 8),
+                    const SizedBox(
+                      width: 12,
+                      height: 12,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ],
+                ]),
+                // Transparência (Bloco 1): a base é 6 € até 4 km e acima disso
+                // acresce 0,50 €/km — mostrado sempre para evitar surpresa no
+                // checkout. Os valores reais vivem em platform_settings; este
+                // texto reflecte a configuração actual confirmada.
+                const SizedBox(height: 2),
+                const Text(
+                  '6 € até 4 km · +0,50 €/km acima',
                   style: TextStyle(
-                      color: AppColors.textSecondary, fontSize: 12)),
-              Row(children: [
-                Text(label,
-                    style: const TextStyle(
-                        fontSize: 20, fontWeight: FontWeight.w800)),
-                if (_loading) ...[
-                  const SizedBox(width: 8),
-                  const SizedBox(
-                    width: 12,
-                    height: 12,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                ],
-              ]),
-            ],
+                      color: AppColors.textSecondary, fontSize: 11),
+                ),
+              ],
+            ),
           ),
           const Spacer(),
           if (total != null)

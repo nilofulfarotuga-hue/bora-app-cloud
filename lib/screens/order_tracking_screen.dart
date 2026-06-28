@@ -9,6 +9,7 @@ import 'package:supabase_flutter/supabase_flutter.dart' show Supabase;
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
 import '../models/chat_message.dart';
+import '../models/driver_model.dart';
 import '../models/order_model.dart';
 import '../models/rating_model.dart';
 import '../widgets/address_text.dart';
@@ -52,6 +53,10 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   // do estafeta quando DriverStore.getDriverById retorna null (driver não
   // está carregado em memória mas existe em DB).
   String? _fetchedDriverName;
+  // BLOCO 3 — veículo + matrícula do estafeta para o cliente ver no tracking
+  // (padrão Uber/Glovo). Vêm do mesmo fetch best-effort do nome.
+  String? _fetchedVehicleType;
+  String? _fetchedLicensePlate;
   String? _fetchedFor;
 
   // ── Waze-style camera (BUG B) — client overview pose ────────────────────
@@ -70,21 +75,25 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     MapMarkerHelper.preload();
   }
 
-  /// BUG #3 — Best-effort fetch do nome do estafeta de drivers.name quando
-  /// DriverStore não tem o driver carregado. Idempotente (cache por driverId).
-  Future<void> _maybeFetchDriverName(String driverId) async {
+  /// BUG #3 + BLOCO 3 — Best-effort fetch de nome/veículo/matrícula do estafeta
+  /// quando DriverStore não tem o driver carregado. Idempotente (cache por
+  /// driverId). Silencioso: se falhar, cai nos defaults ('Estafeta', sem veículo).
+  Future<void> _maybeFetchDriverInfo(String driverId) async {
     if (_fetchedFor == driverId) return;
     _fetchedFor = driverId;
     try {
       final row = await Supabase.instance.client
           .from('drivers')
-          .select('name')
+          .select('name, vehicle_type, license_plate')
           .eq('id', driverId)
           .maybeSingle();
-      final name = row?['name'] as String?;
-      if (name != null && name.isNotEmpty && mounted) {
-        setState(() => _fetchedDriverName = name);
-      }
+      if (row == null || !mounted) return;
+      setState(() {
+        final name = row['name'] as String?;
+        if (name != null && name.isNotEmpty) _fetchedDriverName = name;
+        _fetchedVehicleType = row['vehicle_type'] as String?;
+        _fetchedLicensePlate = row['license_plate'] as String?;
+      });
     } catch (_) {/* silent — falls back to 'Estafeta' */}
   }
 
@@ -257,13 +266,23 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     final assignedId = order.assignedDriverId;
     final driver =
         assignedId != null ? driverStore.getDriverById(assignedId) : null;
-    // BUG #3 — se DriverStore não tem o driver carregado mas o pedido tem
-    // assigned_driver_id, faz fallback fetch ao nome via Supabase.
-    if (assignedId != null && (driver?.name == null || driver!.name.isEmpty)) {
+    // BUG #3 + BLOCO 3 — fetch best-effort de nome/veículo/matrícula via
+    // Supabase (o realtime channel não traz matrícula). Idempotente.
+    if (assignedId != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _maybeFetchDriverName(assignedId);
+        if (mounted) _maybeFetchDriverInfo(assignedId);
       });
     }
+    // Veículo + matrícula para o cliente ver. Prefere o fetch da DB; cai no
+    // DriverStore em memória como último recurso.
+    final vehicleRaw = _fetchedVehicleType ?? driver?.vehicleType.dbValue;
+    final driverVehicleLabel =
+        vehicleRaw != null ? VehicleTypeDb.fromDb(vehicleRaw).label : null;
+    final driverPlate = (_fetchedLicensePlate ?? driver?.licensePlate ?? '')
+            .trim()
+            .isNotEmpty
+        ? (_fetchedLicensePlate ?? driver?.licensePlate)!.trim()
+        : null;
     // Single source of truth: DriverStore.currentDriver.location, synced in
     // real time via the `drivers` table subscription. Scoped via select() so
     // that only changes to THIS driver's location trigger a rebuild.
@@ -442,6 +461,8 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
               scrollController: scrollController,
               order: order,
               driverName: driver?.name ?? _fetchedDriverName,
+              driverVehicleLabel: driverVehicleLabel,
+              driverPlate: driverPlate,
             ),
           ),
         ],
@@ -459,11 +480,15 @@ class _BottomCard extends StatefulWidget {
     required this.scrollController,
     required this.order,
     required this.driverName,
+    this.driverVehicleLabel,
+    this.driverPlate,
   });
 
   final ScrollController scrollController;
   final OrderModel order;
   final String? driverName;
+  final String? driverVehicleLabel;
+  final String? driverPlate;
 
   @override
   State<_BottomCard> createState() => _BottomCardState();
@@ -685,6 +710,36 @@ class _BottomCardState extends State<_BottomCard> {
                                   ),
                                 ),
                               ],
+                              // BLOCO 3 — veículo + matrícula do estafeta
+                              if (widget.driverVehicleLabel != null ||
+                                  (widget.driverPlate ?? '').isNotEmpty) ...[
+                                const SizedBox(height: 3),
+                                Row(
+                                  children: [
+                                    Icon(_vehicleIcon(widget.driverVehicleLabel),
+                                        size: 14,
+                                        color: AppColors.textSecondary),
+                                    const SizedBox(width: 4),
+                                    Flexible(
+                                      child: Text(
+                                        [
+                                          if (widget.driverVehicleLabel != null)
+                                            widget.driverVehicleLabel!,
+                                          if ((widget.driverPlate ?? '')
+                                              .isNotEmpty)
+                                            widget.driverPlate!,
+                                        ].join('  ·  '),
+                                        overflow: TextOverflow.ellipsis,
+                                        style:
+                                            theme.textTheme.bodySmall?.copyWith(
+                                          color: AppColors.textSecondary,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ],
                           ),
                         ),
@@ -904,6 +959,18 @@ class _BottomCardState extends State<_BottomCard> {
         ],
       ),
     );
+  }
+
+  IconData _vehicleIcon(String? label) {
+    switch (label) {
+      case 'Carro':
+      case 'Carro — Passageiros':
+        return Icons.directions_car_outlined;
+      case 'Bicicleta':
+        return Icons.pedal_bike_outlined;
+      default:
+        return Icons.two_wheeler_outlined;
+    }
   }
 
   Color _statusColor(OrderStatus status) {

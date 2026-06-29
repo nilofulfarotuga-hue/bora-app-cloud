@@ -46,11 +46,24 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
     }
   }
 
+  /// Bloco 4 — as 5 chaves de cancelamento são editáveis COM auditoria + motivo
+  /// obrigatório (via RPC admin_update_cancel_setting). As restantes chaves
+  /// financeiras continuam protegidas.
+  static const _cancelKeys = <String>{
+    'cancel_grace_seconds',
+    'cancel_fee_before_dispatch_cents',
+    'cancel_fee_after_accept_cents',
+    'cancel_fee_after_accept_driver_cents',
+    'cancel_fee_after_pickup_ratio',
+  };
+  bool _isCancelKey(String key) => _cancelKeys.contains(key);
+
   /// Whitelist operacional: só chaves de dispatch e operação de reservas são
   /// editáveis aqui. Tudo o resto (fees, comissões, markup, tokens, wallet,
   /// valores em cêntimos, Stripe) é READ-ONLY — alterar requer sessão dedicada.
   /// Fail-safe: chave nova/desconhecida nasce protegida.
   bool _isEditable(String key) {
+    if (_isCancelKey(key)) return true; // Bloco 4 — editável com auditoria
     if (key.startsWith('robot_b_')) return true; // kill switches Robot B v4
     if (key.startsWith('dispatch_')) return true;
     if (key.startsWith('reservation_')) {
@@ -152,10 +165,146 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
     }
   }
 
+  /// Bloco 4 — edição auditada de uma taxa de cancelamento (motivo obrigatório).
+  Future<void> _editCancelSetting(_Setting s) async {
+    final ctrl = TextEditingController(text: s.value.toString());
+    final reasonCtrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setD) => AlertDialog(
+          title: Text(s.key),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (s.description != null)
+                Text(s.description!, style: const TextStyle(fontSize: 12)),
+              const SizedBox(height: 8),
+              TextField(
+                controller: ctrl,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(
+                  labelText: 'Novo valor (número)',
+                  border: OutlineInputBorder(),
+                  hintText: 'ex: 180 (seg) · 250 (cêntimos) · 1.0 (rácio)',
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: reasonCtrl,
+                maxLines: 2,
+                decoration: const InputDecoration(
+                  labelText: 'Motivo (obrigatório)',
+                  border: OutlineInputBorder(),
+                ),
+                onChanged: (_) => setD(() {}),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                '⚠️ Taxa de cancelamento — propaga-se live e fica auditada.',
+                style: TextStyle(color: AppColors.error, fontSize: 12),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancelar')),
+            FilledButton(
+              onPressed: reasonCtrl.text.trim().length < 3
+                  ? null
+                  : () => Navigator.pop(ctx, true),
+              child: const Text('Atualizar'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (ok != true) return;
+    final value = num.tryParse(ctrl.text.trim());
+    if (value == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Valor inválido — usa um número.')));
+      }
+      return;
+    }
+    try {
+      await Supabase.instance.client.rpc('admin_update_cancel_setting', params: {
+        'p_key': s.key,
+        'p_new_value': value,
+        'p_reason': reasonCtrl.text.trim(),
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Taxa atualizada e auditada')));
+      }
+      await _load();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Erro: $e')));
+      }
+    }
+  }
+
+  /// Bloco 4 — histórico das alterações de taxas (admin_audit_log).
+  Future<void> _showCancelAudit() async {
+    List<dynamic> rows = const [];
+    try {
+      final res = await Supabase.instance.client
+          .rpc('admin_list_cancel_setting_audit');
+      rows = (res as List?) ?? const [];
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Erro: $e')));
+      }
+      return;
+    }
+    if (!mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => DraggableScrollableSheet(
+        expand: false,
+        builder: (_, controller) => ListView(
+          controller: controller,
+          padding: const EdgeInsets.all(16),
+          children: [
+            const Text('Auditoria de taxas de cancelamento',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: 8),
+            if (rows.isEmpty) const Text('Sem alterações registadas.'),
+            ...rows.map((r) {
+              final m = (r as Map).cast<String, dynamic>();
+              final d = (m['details'] as Map?)?.cast<String, dynamic>() ?? {};
+              return ListTile(
+                dense: true,
+                title: Text(
+                    '${m['entity_id_text']}: ${d['old_value']} → ${d['new_value']}'),
+                subtitle: Text(
+                    '${m['admin_email'] ?? ''} · ${d['reason'] ?? ''}\n${m['created_at'] ?? ''}'),
+                isThreeLine: true,
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _showCancelAudit,
+        icon: const Icon(Icons.history),
+        label: const Text('Auditoria taxas'),
+      ),
       appBar: const BoraScreenAppBar(title: 'Configurações'),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -180,8 +329,11 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
                             subtitle: s.description != null ? Text(s.description!) : null,
                             trailing: Text(s.value.toString(),
                                 style: const TextStyle(fontWeight: FontWeight.w600)),
-                            onTap: () =>
-                                editable ? _editSetting(s) : _showProtectedInfo(s),
+                            onTap: () => editable
+                                ? (_isCancelKey(s.key)
+                                    ? _editCancelSetting(s)
+                                    : _editSetting(s))
+                                : _showProtectedInfo(s),
                           );
                         }).toList(),
                       );

@@ -33,6 +33,7 @@ import 'admin_drivers_screen.dart';
 import 'admin_edge_functions_screen.dart';
 import 'admin_live_orders_map_screen.dart';
 import 'admin_orders_screen.dart';
+import 'admin_cancellations_screen.dart';
 import 'admin_global_search_screen.dart';
 import 'admin_notifications_inbox_screen.dart';
 import 'admin_partner_payouts_screen.dart';
@@ -366,6 +367,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       context,
                       MaterialPageRoute(
                           builder: (_) => const AdminOrdersScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.cancel_schedule_send_outlined,
+                  title: 'Cancelamentos',
+                  subtitle:
+                      'Histórico, estágios, taxas e reembolsos (reprocessar falhados)',
+                  color: AppColors.error,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminCancellationsScreen())),
                 ),
                 const SizedBox(height: 10),
                 _NavCard(

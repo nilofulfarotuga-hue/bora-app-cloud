@@ -1,5 +1,7 @@
 // ============================================================================
-// PROPOSTA (NÃO DEPLOYED) — client-cancel-order v25  · Bloco 4 Uber
+// PROPOSTA (NÃO DEPLOYED) — client-cancel-order v25.1  · Bloco 4 Uber
+// v25.1: #10 claim atómico (compare-and-swap) antes de mover dinheiro + refundFailed;
+//        #2 reembolso limitado ao valor realmente pago (paidCents).
 // Danilo: rever antes de fazer redeploy. Engine REAL do cancelamento do cliente.
 // Base: v24 live. Mudanças ADITIVAS (preserva Stripe + wallet_debit_cancel_fee):
 //   D1 grace 180s grátis SÓ enquanto não há estafeta atribuído.
@@ -104,10 +106,32 @@ Deno.serve(async (req: Request) => {
   const fees = await getCancelFees();
   const feeEur = tier === 'grace' ? 0
     : Number(computeCancelFeeEur(tier as any, totalEur, fees).toFixed(2));
-  const refundEur = Math.max(0, Number((totalEur - feeEur).toFixed(2)));
 
+  // CORREÇÃO #2 — base do reembolso = valor REALMENTE pago (nunca o total teórico).
+  // Cash → paidCents=0 → reembolso 0. Nunca devolve mais do que entrou.
   const paidCents = Number(order.stripe_charge_cents ?? 0) + Number(order.wallet_applied_cents ?? 0) + Number(order.tokens_applied_value_cents ?? 0);
   const nothingToRefund = paidCents === 0;
+  const refundEur = Math.max(0, Math.min(
+    Number((totalEur - feeEur).toFixed(2)),
+    paidCents / 100,
+  ));
+
+  const now = new Date().toISOString();
+
+  // CORREÇÃO #10 — claim ATÓMICO antes de mover qualquer dinheiro (compare-and-swap).
+  // A 1ª execução "ganha" o pedido; uma 2ª (retry/duplo-toque/concorrência) afeta
+  // 0 linhas → aborta sem creditar nem reembolsar (defesa contra crédito 2×).
+  const { data: claimed, error: claimErr } = await admin
+    .from('orders')
+    .update({ status: 'cancelled', cancel_reason: reason ?? null, cancelled_at: now,
+              cancel_fee: feeEur }) // taxa avaliada; reconciliada a 0 abaixo se cash não cobrar
+    .eq('id', orderId).eq('user_id', user.id)
+    .not('status', 'in', '("delivered","cancelled","rejected")')
+    .select('id');
+  if (claimErr) return jsonResponse({ error: 'db_claim_failed', details: claimErr.message }, 500);
+  if (!claimed || claimed.length === 0) {
+    return jsonResponse({ error: 'already_finalized', idempotent: true }, 409);
+  }
 
   let refundId: string | undefined;
   let refundExecuted = false;
@@ -115,6 +139,7 @@ Deno.serve(async (req: Request) => {
   let walletCredited = false;
   let cancelFeeDebited = false;
   let cancelFeeDebitResult: any = null;
+  let refundFailed = false; // passo de dinheiro falhou DEPOIS do claim → admin alerta + refund manual
   const isTechnicalFailure = reason === 'payment_failed';
 
   if (nothingToRefund) {
@@ -132,7 +157,8 @@ Deno.serve(async (req: Request) => {
       } else { cancelFeeDebited = true; cancelFeeDebitResult = debitRpc; }
     } else { chargeMissing = true; }
   } else if (refundEur > 0) {
-    // Há valor a devolver. Q1: cliente escolhe destino.
+    // Há valor a devolver. Q1: cliente escolhe destino. Pós-claim: falha NÃO faz
+    // early-return (deixaria o pedido cancelado sem reembolso) → marca refundFailed.
     if (refundTarget === 'wallet') {
       // Crédito na wallet; Bora retém o valor Stripe. grace=100% livre; resto=split 80/20.
       const rpcName = tier === 'grace' ? 'wallet_credit_refund_full' : 'wallet_credit_refund_split';
@@ -140,30 +166,38 @@ Deno.serve(async (req: Request) => {
         p_order_id: orderId, p_user_id: user.id, p_total_cents: Math.round(refundEur * 100),
         p_reason: `cancel_${tier}`,
       });
-      if (wErr) return jsonResponse({ error: 'wallet_credit_failed', details: wErr.message }, 502);
-      walletCredited = true;
+      if (wErr) { console.error('[client-cancel] wallet credit failed:', wErr); refundFailed = true; }
+      else walletCredited = true;
     } else if (order.payment_method === 'card' && order.payment_intent_id) {
       // Reembolso ao cartão via Stripe (idempotente).
       let piStatus: string | undefined; let piLatestCharge: string | null | undefined;
       try {
         const pi = await stripe.paymentIntents.retrieve(order.payment_intent_id);
         piStatus = pi.status; piLatestCharge = (pi.latest_charge as string | null) ?? null;
-      } catch (e) { return jsonResponse({ error: 'pi_retrieve_failed', details: String(e) }, 502); }
-      if (piStatus !== 'succeeded' || !piLatestCharge) { chargeMissing = true; }
-      else {
-        try {
-          const idempotencyKey = `refund-${order.payment_intent_id}-${Math.round(refundEur * 100)}`;
-          const refund = await stripe.refunds.create({ payment_intent: order.payment_intent_id, amount: Math.round(refundEur * 100) }, { idempotencyKey });
-          refundId = refund.id; refundExecuted = true;
-        } catch (e) { return jsonResponse({ error: 'refund_failed', details: String(e) }, 502); }
+      } catch (e) { console.error('[client-cancel] pi retrieve failed:', e); refundFailed = true; }
+      if (!refundFailed) {
+        if (piStatus !== 'succeeded' || !piLatestCharge) { chargeMissing = true; }
+        else {
+          try {
+            const idempotencyKey = `refund-${order.payment_intent_id}-${Math.round(refundEur * 100)}`;
+            const refund = await stripe.refunds.create({ payment_intent: order.payment_intent_id, amount: Math.round(refundEur * 100) }, { idempotencyKey });
+            refundId = refund.id; refundExecuted = true;
+          } catch (e) { console.error('[client-cancel] stripe refund failed:', e); refundFailed = true; }
+        }
       }
     } else {
       // pago com wallet/tokens → devolve sempre à wallet (não há cartão).
       const rpcName = tier === 'grace' ? 'wallet_credit_refund_full' : 'wallet_credit_refund_split';
       const { error: wErr } = await admin.rpc(rpcName, { p_order_id: orderId, p_user_id: user.id, p_total_cents: Math.round(refundEur * 100), p_reason: `cancel_${tier}` });
-      if (wErr) return jsonResponse({ error: 'wallet_credit_failed', details: wErr.message }, 502);
-      walletCredited = true;
+      if (wErr) { console.error('[client-cancel] wallet credit failed:', wErr); refundFailed = true; }
+      else walletCredited = true;
     }
+  }
+
+  // Passo de dinheiro falhou DEPOIS do claim → pedido fica cancelado, mas alerta o
+  // admin e marca refund pendente (o dinheiro do cliente nunca se perde).
+  if (refundFailed) {
+    try { await admin.functions.invoke('notify-admin-urgent', { body: { kind: 'cancel_refund_failed', order_id: orderId, user_id: user.id, refund_cents: Math.round(refundEur * 100), tier } }); } catch (_) {}
   }
 
   // D2 — pós-aceite: estafeta 1,50€ + Bora 1,00€ no ledger (taxa realmente cobrada).
@@ -188,29 +222,32 @@ Deno.serve(async (req: Request) => {
     } catch (e) { console.error('[client-cancel] ledger post failed:', e); /* não bloqueia */ }
   }
 
-  const now = new Date().toISOString();
+  // Estado/taxa/cancelled_at já gravados no claim atómico (CORREÇÃO #10). Aqui só os
+  // campos de pagamento/reembolso. refundFailed → reusa 'cancelled_no_charge' (valor
+  // já aceite na v24) + refund_status='failed' como sinal real para o admin.
   const newPaymentStatus = cancelFeeDebited ? 'cancelled_with_debt'
+    : refundFailed ? 'cancelled_no_charge'
     : walletCredited ? (feeEur > 0 ? 'partial_refund' : 'refunded')
     : chargeMissing ? 'cancelled_no_charge'
     : refundEur <= 0 ? 'refunded'
     : refundExecuted ? (feeEur > 0 ? 'partial_refund' : 'refunded')
     : 'cancelled_no_charge';
 
-  const updatePayload: Record<string, any> = {
-    status: 'cancelled', cancel_reason: reason ?? null,
-    cancel_fee: cancelFeeDebited ? feeEur : (nothingToRefund ? 0 : feeEur),
-    cancelled_at: now, payment_status: newPaymentStatus,
-  };
-  if (refundExecuted) { updatePayload.refund_amount = refundEur; updatePayload.refund_method = 'stripe'; updatePayload.refund_status = 'pending'; }
-  if (walletCredited) { updatePayload.refund_amount = refundEur; updatePayload.refund_method = 'wallet'; updatePayload.refund_status = 'completed'; }
+  const patch: Record<string, any> = { payment_status: newPaymentStatus };
+  if (refundExecuted) { patch.refund_amount = refundEur; patch.refund_method = 'stripe'; patch.refund_status = 'pending'; }
+  if (walletCredited) { patch.refund_amount = refundEur; patch.refund_method = 'wallet'; patch.refund_status = 'completed'; }
+  if (refundFailed) { patch.refund_amount = refundEur; patch.refund_status = 'failed'; }
+  // Cash cuja taxa não foi cobrada (floor excedido) → cancel_fee volta a 0 (igual v24).
+  if (chargeMissing && nothingToRefund) { patch.cancel_fee = 0; }
 
-  const { error: updateErr } = await admin.from('orders').update(updatePayload).eq('id', orderId).eq('user_id', user.id);
+  const { error: updateErr } = await admin.from('orders').update(patch).eq('id', orderId).eq('user_id', user.id);
   if (updateErr) return jsonResponse({ error: 'db_update_failed', details: updateErr.message }, 500);
 
   return jsonResponse({
     ok: true, tier, fee_eur: (cancelFeeDebited || !nothingToRefund) ? feeEur : 0,
     refund_eur: (refundExecuted || walletCredited) ? refundEur : 0,
     refund_target: walletCredited ? 'wallet' : (refundExecuted ? 'card' : 'none'),
+    refund_pending: refundFailed,
     refund_id: refundId ?? null, charge_missing: chargeMissing,
     nothing_to_refund: nothingToRefund, cancel_fee_debited: cancelFeeDebited, cancel_fee_debit: cancelFeeDebitResult,
   });

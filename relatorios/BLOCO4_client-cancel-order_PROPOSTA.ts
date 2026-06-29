@@ -127,6 +127,9 @@ Deno.serve(async (req: Request) => {
               cancel_fee: feeEur }) // taxa avaliada; reconciliada a 0 abaixo se cash não cobrar
     .eq('id', orderId).eq('user_id', user.id)
     .not('status', 'in', '("delivered","cancelled","rejected")')
+    // FASE 0.2 — race do favor: se for errand e a compra finalizar no mesmo instante,
+    // o claim afeta 0 linhas → 409 (protege o dinheiro do estafeta).
+    .or('service_type.neq.errand,is_purchase_finalized.is.false')
     .select('id');
   if (claimErr) return jsonResponse({ error: 'db_claim_failed', details: claimErr.message }, 500);
   if (!claimed || claimed.length === 0) {

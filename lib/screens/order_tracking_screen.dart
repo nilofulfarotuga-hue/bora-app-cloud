@@ -1025,7 +1025,26 @@ class _BottomCardState extends State<_BottomCard> {
     ];
     String? selectedReason;
     final otherReasonController = TextEditingController();
-    final feeLabel = _feeLabelForStatus(widget.order.status, widget.order.total);
+    // Bloco 4 — estágio de cancelamento ao vivo (o servidor é a fonte da verdade).
+    const graceSeconds = 180;
+    final ageSeconds =
+        DateTime.now().difference(widget.order.createdAt).inSeconds;
+    final isGrace =
+        widget.order.assignedDriverId == null && ageSeconds <= graceSeconds;
+    final graceLeft = (graceSeconds - ageSeconds).clamp(0, graceSeconds);
+    final isElectronic = widget.order.paymentMethod.name != 'cash';
+    const refundableStatuses = [
+      OrderStatus.created,
+      OrderStatus.preparing,
+      OrderStatus.callingDriver,
+      OrderStatus.driverAccepted,
+    ];
+    final canChooseRefund =
+        isElectronic && refundableStatuses.contains(widget.order.status);
+    String refundTarget = 'card';
+    final feeLabel = isGrace
+        ? 'Grátis'
+        : _feeLabelForStatus(widget.order.status, widget.order.total);
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -1041,7 +1060,37 @@ class _BottomCardState extends State<_BottomCard> {
                 style: const TextStyle(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 12),
-              const Text('Tens a certeza que queres cancelar este pedido?'),
+              if (isGrace)
+                Text(
+                  'Cancelamento grátis — ainda dentro do tempo de cortesia'
+                  '${graceLeft > 0 ? ' (${(graceLeft ~/ 60).toString().padLeft(2, '0')}:${(graceLeft % 60).toString().padLeft(2, '0')})' : ''}.',
+                  style: const TextStyle(
+                      color: AppColors.primary, fontWeight: FontWeight.w600),
+                )
+              else
+                const Text('Tens a certeza que queres cancelar este pedido?'),
+              if (canChooseRefund) ...[
+                const SizedBox(height: 12),
+                const Text('Como queres o reembolso?',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
+                RadioListTile<String>(
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  value: 'card',
+                  groupValue: refundTarget,
+                  onChanged: (v) => setDialogState(() => refundTarget = v!),
+                  title: const Text('De volta ao cartão (~5 dias úteis)'),
+                ),
+                RadioListTile<String>(
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  value: 'wallet',
+                  groupValue: refundTarget,
+                  onChanged: (v) => setDialogState(() => refundTarget = v!),
+                  title: const Text(
+                      'Na carteira, imediato (80% saldo + 20% pontos)'),
+                ),
+              ],
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 value: selectedReason,
@@ -1103,6 +1152,7 @@ class _BottomCardState extends State<_BottomCard> {
     final result = await orderStore.clientCancelOrder(
       widget.order,
       reason: finalReason,
+      refundTarget: refundTarget,
     );
 
     if (!context.mounted) return;
@@ -1110,16 +1160,21 @@ class _BottomCardState extends State<_BottomCard> {
     if (result.success) {
       messenger.showSnackBar(
         SnackBar(
-          content: Text(result.feeEur != null
+          content: Text(result.feeEur != null && result.feeEur! > 0
               ? 'Pedido cancelado. Taxa: €${result.feeEur!.toStringAsFixed(2)}.'
               : 'Pedido cancelado.'),
         ),
       );
       navigator.pop();
     } else {
-      messenger.showSnackBar(
-        SnackBar(content: Text(result.error ?? 'Falha ao cancelar.')),
-      );
+      // Bloco 4 — mensagens PT-PT para os bloqueios do servidor.
+      final raw = result.error ?? '';
+      final msg = raw.contains('errand_already_purchased')
+          ? 'A compra já foi feita pelo estafeta — a entrega vai continuar e não pode ser cancelada.'
+          : raw.contains('already_finalized')
+              ? 'Este pedido já não pode ser cancelado.'
+              : 'Falha ao cancelar. Tenta novamente.';
+      messenger.showSnackBar(SnackBar(content: Text(msg)));
     }
   }
 }

@@ -1525,12 +1525,14 @@ class OrderStore extends ChangeNotifier {
   Future<ClientCancelResult> clientCancelOrder(
     OrderModel order, {
     String? reason,
+    String refundTarget = 'card', // Bloco 4 Q1: 'card' | 'wallet'
   }) async {
     try {
       final response = await supabase.functions.invoke(
         'client-cancel-order',
         body: {
           'order_id': order.id,
+          'refund_target': refundTarget,
           if (reason != null && reason.trim().isNotEmpty)
             'reason': reason.trim(),
         },

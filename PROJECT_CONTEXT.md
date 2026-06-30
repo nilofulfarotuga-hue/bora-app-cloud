@@ -66,8 +66,8 @@ Não existem ficheiros `SKILL.md` no projeto. O conceito de "orquestrador" aplic
 |---|---|
 | Valor por token | €0.005 (100 tokens = €0.50) |
 | Desconto máximo por pedido | 50% do total |
-| Tokens por entrega — driver | 40 tokens (flat) |
-| Tokens por entrega — client | ROUND(preço × 3%) mín. 1 |
+| Tokens por entrega — driver | 50 se parceiro, senão 40 (`CASE WHEN is_partner_store THEN 50 ELSE 40`) |
+| Tokens por entrega — client | GREATEST(1, ROUND(preço × 3)) — preço × 3, mín. 1 (favores `errand` NÃO dão tokens ao cliente) |
 | Award trigger | Server-side (PostgreSQL trigger `fn_award_tokens_on_delivery`) |
 | Expiração | Configurável por linha na tabela `bora_tokens` |
 | Idempotência | UNIQUE(source_order_id, role) |
@@ -78,10 +78,11 @@ Não existem ficheiros `SKILL.md` no projeto. O conceito de "orquestrador" aplic
 | Delivery fee partner | €2.50 |
 | Driver base pay (delivery) | €3.80/entrega |
 | Driver rate per km | €0.20/km |
-| Comissão platform (partner) | 20% do subtotal |
+| Comissão partner (só restaurantes) | 10% visível + 5% markup oculto + 5% taxa serviço cliente (`partner_visible_commission_pct=0.10`, `partner_hidden_markup_pct=0.05`, `client_service_fee_pct=0.05`) |
 | Markup non-partner | 15% do subtotal |
 | Taxa compra non-partner | €2.50 |
-| Bónus shopping driver | €0.80 (store shopping: shopper+deliverer) |
+| Bónus shopping driver | €0.80 (store shopping: shopper+deliverer; `driver_surcharge_cents=80`) |
+| Estafeta non-partner — extra | + 30% do lucro líquido Bora (`driver_profit_share_pct=0.30`). Total non-partner: €3.80 base + €0.20/km + €0.80 + 30% lucro |
 | Package base fee | €6.00 (até 4 km) |
 | Package extra per km | €0.50/km |
 | Package platform share | €2.00 |

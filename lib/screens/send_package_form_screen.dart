@@ -10,6 +10,7 @@ import '../widgets/address_autocomplete_field.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/mandatory_photo_picker.dart';
 import '../widgets/quote_price_footer.dart';
+import '../main.dart' show logScreenBreadcrumb;
 import 'payment_method_screen.dart';
 
 class SendPackageFormScreen extends StatefulWidget {
@@ -36,10 +37,20 @@ class _SendPackageFormScreenState extends State<SendPackageFormScreen> {
   // Mandatory package photo (BR §7.5).
   String? _packagePhotoUrl;
 
+  // [C/adenda] breadcrumb único no 1º build — confirma que o body chegou a
+  // construir (vs. ficar branco).
+  bool _builtOnce = false;
+
   @override
   void initState() {
     super.initState();
-    _prefillPickupFromGps();
+    logScreenBreadcrumb('SendPackageForm',
+        'initState mapsKeyEmpty=${googleApiKey.isEmpty}');
+    // [C/adenda] _prefillPickupFromGps faz setState; chamá-lo SÍNCRONO no
+    // initState marcava build durante build. Diferido para depois do 1º frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _prefillPickupFromGps();
+    });
   }
 
   static const _fallbackAddress = 'Guarda, Portugal';
@@ -135,6 +146,10 @@ class _SendPackageFormScreenState extends State<SendPackageFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_builtOnce) {
+      _builtOnce = true;
+      logScreenBreadcrumb('SendPackageForm', 'build#1 body a construir');
+    }
     return Scaffold(
       appBar: const BoraScreenAppBar(title: 'Enviar Encomenda'),
       bottomNavigationBar: QuotePriceFooter(

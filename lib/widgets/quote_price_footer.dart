@@ -50,7 +50,13 @@ class _QuotePriceFooterState extends State<QuotePriceFooter> {
   @override
   void initState() {
     super.initState();
-    _refresh();
+    // [C/adenda 2026-06-30] _refresh faz setState síncrono no branch
+    // pickup/dropoff==null (estado ao ABRIR o form). Chamá-lo aqui marcava
+    // "setState durante build" no mount do bottomNavigationBar. Diferido para
+    // depois do 1º frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _refresh();
+    });
   }
 
   Future<void> _refresh() async {
@@ -64,7 +70,12 @@ class _QuotePriceFooterState extends State<QuotePriceFooter> {
     final svc = DirectionsService();
     double dist;
     try {
-      final route = await svc.fetchRoute(origin: p, destination: d);
+      // [C] 2026-06-30 — timeout: em rede lenta o spinner do preço ficava a
+      // girar sem fim. Em timeout caímos no fallback de 1 km (o quoteOrder
+      // a seguir tem o seu próprio timeout).
+      final route = await svc
+          .fetchRoute(origin: p, destination: d)
+          .timeout(const Duration(seconds: 12));
       dist = (route != null && route.distanceKm > 0) ? route.distanceKm : 1.0;
     } catch (_) {
       dist = 1.0;

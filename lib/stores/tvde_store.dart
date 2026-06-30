@@ -40,7 +40,19 @@ class TvdeStore extends ChangeNotifier {
   // ACESSO
   // ════════════════════════════════════════════════════════════════════════
 
+  // [D/adenda] guarda contra recursão no retry pós-falha de sessão.
+  bool _retriedAfterAuth = false;
+
   /// Re-lê tvde_access + estado do último pedido. Chamar no load/resume da home.
+  ///
+  /// [D/adenda 2026-06-30] Resiliência de sessão: nos logs há
+  /// `AuthApiException: Invalid Refresh Token`. Se a query falhasse (sessão
+  /// inválida) ou devolvesse null (RLS transitória), o tile "Bora Motorista"
+  /// desaparecia mesmo com tvde_access=TRUE. Agora:
+  ///   • só esconde se tvde_access vier EXPLICITAMENTE false;
+  ///   • em null (linha ausente) mantém o estado actual;
+  ///   • em erro de sessão refresca a sessão e re-busca UMA vez antes de
+  ///     desistir — e nunca esconde por erro transitório.
   Future<void> refreshAccess() async {
     final uid = _uid;
     if (uid == null) return;
@@ -50,7 +62,12 @@ class TvdeStore extends ChangeNotifier {
           .select('tvde_access')
           .eq('id', uid)
           .maybeSingle();
-      _tvdeAccess = (user?['tvde_access'] as bool?) ?? false;
+      if (user != null) {
+        _tvdeAccess = (user['tvde_access'] as bool?) ?? false;
+      } else {
+        debugPrint(
+            'TvdeStore.refreshAccess: users sem linha — mantém tvdeAccess=$_tvdeAccess');
+      }
 
       final req = await _sb
           .from('tvde_access_requests')
@@ -60,9 +77,21 @@ class TvdeStore extends ChangeNotifier {
           .limit(1)
           .maybeSingle();
       _accessRequestStatus = req?['status'] as String?;
+      _retriedAfterAuth = false; // sucesso — limpa o guard
       notifyListeners();
     } catch (e) {
+      // Falha de sessão (Invalid Refresh Token) NÃO pode esconder o tile.
+      // Refresca a sessão e re-busca uma vez; o estado fica inalterado se falhar.
       debugPrint('TvdeStore.refreshAccess error => $e');
+      if (!_retriedAfterAuth) {
+        _retriedAfterAuth = true;
+        try {
+          await _sb.auth.refreshSession();
+          await refreshAccess();
+        } catch (e2) {
+          debugPrint('TvdeStore.refreshAccess: refreshSession falhou => $e2');
+        }
+      }
     }
   }
 

@@ -70,6 +70,50 @@ const String _supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
 final RouteObserver<PageRoute<dynamic>> routeObserver =
     RouteObserver<PageRoute<dynamic>>();
 
+// [F] 2026-06-30 — observer leve que regista o nome da rota actual para o
+// logger de crash (debug_crash_logs.route). Complementa o `screen` vindo do
+// FlutterError context. Rotas push sem `settings.name` ficam null (melhor do
+// que o null fixo de antes).
+String? _currentRouteName;
+final NavigatorObserver crashRouteObserver = _CrashRouteObserver();
+
+class _CrashRouteObserver extends NavigatorObserver {
+  void _set(Route<dynamic>? route) {
+    final n = route?.settings.name;
+    if (n != null && n.isNotEmpty) _currentRouteName = n;
+  }
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) =>
+      _set(route);
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) =>
+      _set(previousRoute);
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) =>
+      _set(newRoute);
+}
+
+// [F] Diagnóstico de aparelho (app_version, modelo, versão Android) via a
+// bridge nativa já existente (pt.boraapp.bora/native) — sem dependências novas
+// (package_info_plus/device_info_plus arriscariam o build de release no CI).
+// Preenchido uma vez no arranque; usado pelo logger de crash.
+const MethodChannel _diagBridge = MethodChannel('pt.boraapp.bora/native');
+Map<String, String> _deviceDiag = const <String, String>{};
+Future<void> _loadDeviceDiagnostics() async {
+  if (kIsWeb) return;
+  try {
+    final res = await _diagBridge
+        .invokeMethod<Map<dynamic, dynamic>>('getDeviceDiagnostics');
+    if (res != null) {
+      _deviceDiag =
+          res.map((k, v) => MapEntry(k.toString(), v.toString()));
+    }
+  } catch (e) {
+    debugPrint('[main] getDeviceDiagnostics indisponível: $e');
+  }
+}
+
 /// Sessão 2026-05-17 — Foreground service: regista os canais Android de alta
 /// prioridade para que FCM consiga acordar a app com som + vibração mesmo
 /// quando minimizada/fechada. Também inicializa o flutter_foreground_task.
@@ -109,16 +153,32 @@ Future<void> _setupForegroundAndUrgentChannel() async {
 void _logCrashToSupabase(Object error, StackTrace stack, {String? screen}) {
   try {
     final supabase = Supabase.instance.client;
+    String? uid;
+    try {
+      uid = supabase.auth.currentUser?.id;
+    } catch (_) {/* sessão indisponível */}
     supabase.rpc('log_client_crash', params: {
       'p_screen': screen,
-      'p_route': null,
+      'p_route': _currentRouteName,
       'p_error_message': error.toString(),
       'p_stack_trace': stack.toString(),
       'p_platform': Platform.isAndroid ? 'android' : 'ios',
-      'p_app_version': null,
+      // [F] contexto real (antes: tudo null em debug_crash_logs).
+      'p_app_version': _deviceDiag['app_version'],
+      'p_device_model': _deviceDiag['device_model'],
+      'p_android_version': _deviceDiag['android_version'],
+      'p_gms_status': NotificationService.fcmHealth,
+      'p_user_id': uid,
     }).then((_) {}, onError: (_) {});
   } catch (_) {}
 }
+
+/// [C/adenda 2026-06-30] Breadcrumb leve (NÃO-crash) para diagnosticar telas
+/// brancas no device: regista entrada/build de um ecrã + estado relevante em
+/// debug_crash_logs, reutilizando o RPC enriquecido do [F] (device/versão/rota/
+/// gms/user). Permite ver o que está null/loading quando o body fica branco.
+void logScreenBreadcrumb(String screen, String info) =>
+    _logCrashToSupabase('BREADCRUMB: $info', StackTrace.empty, screen: screen);
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -146,6 +206,23 @@ Future<void> main() async {
 
   // TODO: remover após diagnóstico — mostra aviso em vez de tela branca.
   ErrorWidget.builder = (FlutterErrorDetails details) {
+    // [C/adenda 2026-06-30] Em DEBUG mostra o erro REAL no ecrã (em vez de
+    // branco) para apanhar excepções de build silenciosas que pintam o body em
+    // branco. Em release mantém a mensagem amigável.
+    if (kDebugMode) {
+      return Material(
+        color: Colors.white,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Text(
+            'ERRO DE BUILD NESTA TELA\n\n'
+            '${details.exceptionAsString()}\n\n'
+            '${details.stack ?? ''}',
+            style: const TextStyle(color: Colors.red, fontSize: 12),
+          ),
+        ),
+      );
+    }
     return Material(
       child: Container(
         color: Colors.white,
@@ -160,6 +237,10 @@ Future<void> main() async {
       ),
     );
   };
+
+  // [F] Carrega o diagnóstico de aparelho para o logger de crash. Não bloqueia
+  // o arranque (fire-and-forget); se a bridge falhar, os campos ficam null.
+  _loadDeviceDiagnostics();
 
   if (!kIsWeb) {
     // BUG 13 — Stripe mode toggle. Default = live (safety).
@@ -363,7 +444,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           Locale('en'),
         ],
         locale: const Locale('pt', 'PT'),
-        navigatorObservers: [routeObserver],
+        navigatorObservers: [routeObserver, crashRouteObserver],
         routes: {
           '/role': (_) => const RoleScreen(),
           '/login': (_) => const LoginScreen(),

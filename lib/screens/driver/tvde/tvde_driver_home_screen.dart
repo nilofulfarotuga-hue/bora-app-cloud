@@ -12,6 +12,7 @@ import '../../../config/app_spacing.dart';
 import '../../../models/driver_model.dart';
 import '../../../services/driver_location_ping_service.dart';
 import '../../../services/heartbeat_service.dart';
+import '../../../services/permission_gate_service.dart';
 import '../../../stores/driver_store.dart';
 import '../../../stores/tvde_driver_store.dart';
 import 'tvde_offer_screen.dart';
@@ -121,6 +122,13 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
       return;
     }
     if (value) {
+      // [A] 2026-06-30 — gate MÍNIMO partilhado com o estafeta. Antes o TVDE
+      // não tinha gate nenhum. Garante a notificação persistente (best-effort)
+      // e oferece o overlay no máximo uma vez. NUNCA bloqueia ir online — o
+      // toggleAvailability acima já passou; overlay é só um bónus.
+      await PermissionGateService.ensureMinimumOnlinePermissions(context);
+      if (!mounted) return;
+      unawaited(OverlayPermissionGate.maybeOfferOnce(context));
       unawaited(_heartbeat.start());
       await _startGps();
     } else {

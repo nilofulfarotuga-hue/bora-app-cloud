@@ -64,6 +64,30 @@ class MainActivity : FlutterFragmentActivity() {
                             result.success(false)
                         }
                     }
+                    "getDeviceDiagnostics" -> {
+                        // [F] 2026-06-30 — contexto para debug_crash_logs sem
+                        // dependências novas (package_info_plus/device_info_plus
+                        // arriscariam o build de release no CI). android.os.Build
+                        // e getPackageInfo são core do SDK.
+                        try {
+                            val pInfo = packageManager.getPackageInfo(packageName, 0)
+                            val versionName = pInfo.versionName ?: ""
+                            val versionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                                pInfo.longVersionCode.toString()
+                            } else {
+                                @Suppress("DEPRECATION")
+                                pInfo.versionCode.toString()
+                            }
+                            val map = hashMapOf(
+                                "app_version" to "$versionName+$versionCode",
+                                "device_model" to "${Build.MANUFACTURER} ${Build.MODEL}",
+                                "android_version" to "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})",
+                            )
+                            result.success(map)
+                        } catch (e: Exception) {
+                            result.error("DIAG", e.message, null)
+                        }
+                    }
                     "canUseFullScreenIntent" -> {
                         // Sessão 2026-06-11 — Android 14+ trata USE_FULL_SCREEN_INTENT
                         // como "special app access": a Play Store revoga-a na instalação

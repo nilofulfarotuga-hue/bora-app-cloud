@@ -200,11 +200,15 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
   }
 
   /// Passo 1 — só o estimado/compra afeta o quote (distância inalterada).
+  /// setState garante que o footer re-avalia `_canProceed()` a cada tecla
+  /// (descrição / valor estimado), sem depender de mexer no toggle.
   void _onWhatChanged() {
-    if (_forcedHomeStopByEstimate && !_homeStop) {
-      _homeStop = true;
-      _homeStopReason = 'dinheiro';
-    }
+    setState(() {
+      if (_forcedHomeStopByEstimate && !_homeStop) {
+        _homeStop = true;
+        _homeStopReason = 'dinheiro';
+      }
+    });
     if (_errandLocation != null && _dropoff != null) _refreshQuote();
   }
 
@@ -817,8 +821,9 @@ class _StepWhere extends StatelessWidget {
         BusinessAutocompleteField(
           controller: errandLocationCtrl,
           labelText: 'Local do favor',
-          hintText: 'Ex.: Farmácia Holon, Guarda',
+          hintText: 'Ex.: Farmácia Holon ou uma morada',
           prefixIcon: const Icon(Icons.place_outlined),
+          includeAddresses: true,
           onSelected: onErrandLocationSelected,
           onChanged: (_) => onErrandLocationCleared(),
         ),

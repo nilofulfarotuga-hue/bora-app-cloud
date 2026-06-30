@@ -5,7 +5,9 @@ import 'package:latlong2/latlong.dart' as ll;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/app_colors.dart';
+import '../config/maps_config.dart';
 import '../services/location_service.dart';
+import '../services/place_autocomplete_service.dart';
 
 /// Resultado da RPC `search_businesses` (lojas Bora + comércios OSM da Guarda).
 class BusinessPrediction {
@@ -30,6 +32,19 @@ class BusinessPrediction {
   bool get isBoraStore => source == 'bora';
 }
 
+/// Item da lista combinada: comércio (coords já prontas) OU morada livre do
+/// Google Places (placeId; coords resolvidas no tap). Só há moradas quando
+/// `includeAddresses` está ligado.
+class _Suggestion {
+  const _Suggestion.business(BusinessPrediction this.business) : place = null;
+  const _Suggestion.place(PlacePrediction this.place) : business = null;
+
+  final BusinessPrediction? business;
+  final PlacePrediction? place;
+
+  bool get isPlace => place != null;
+}
+
 /// Campo de pesquisa de comércio (loja do favor / loja onde está a compra).
 /// Chama a RPC `search_businesses(query, lat, lng, limit)` — NÃO o geocoder.
 ///
@@ -51,6 +66,7 @@ class BusinessAutocompleteField extends StatefulWidget {
     this.prefixIcon,
     this.validator,
     this.autofillNearestWithinKm,
+    this.includeAddresses = false,
   });
 
   final TextEditingController controller;
@@ -72,6 +88,12 @@ class BusinessAutocompleteField extends StatefulWidget {
   /// campo (editável) com nome + coords. Usado em "Leva a tua compra" (0,15).
   final double? autofillNearestWithinKm;
 
+  /// Se true, mostra também moradas livres (Google Places) ABAIXO dos
+  /// comércios — mesmo autocomplete do "Onde entregar". Usado no "Local do
+  /// favor" dos Favores. Default false mantém o comportamento só-comércios
+  /// (ex.: "Leva a tua compra", onde a loja tem de ser real).
+  final bool includeAddresses;
+
   @override
   State<BusinessAutocompleteField> createState() =>
       _BusinessAutocompleteFieldState();
@@ -85,11 +107,14 @@ class _BusinessAutocompleteFieldState extends State<BusinessAutocompleteField> {
   OverlayEntry? _overlayEntry;
   Timer? _debounce;
   Timer? _focusLossTimer;
-  List<BusinessPrediction> _predictions = const [];
+  List<_Suggestion> _predictions = const [];
   bool _loading = false;
   bool _isSelecting = false;
 
   ll.LatLng? _gps;
+
+  // Google Places — só instanciado quando `includeAddresses` está ligado.
+  PlaceAutocompleteService? _places;
 
   // Guards programáticos (iguais ao AddressAutocompleteField).
   bool _isProgrammaticChange = false;
@@ -98,6 +123,9 @@ class _BusinessAutocompleteFieldState extends State<BusinessAutocompleteField> {
   @override
   void initState() {
     super.initState();
+    if (widget.includeAddresses) {
+      _places = createPlaceAutocompleteService(googleApiKey);
+    }
     _focusNode.addListener(_onFocusChanged);
     _initGps();
   }
@@ -133,6 +161,7 @@ class _BusinessAutocompleteFieldState extends State<BusinessAutocompleteField> {
     _removeOverlay();
     _focusNode.removeListener(_onFocusChanged);
     _focusNode.dispose();
+    _places?.dispose();
     super.dispose();
   }
 
@@ -211,9 +240,26 @@ class _BusinessAutocompleteFieldState extends State<BusinessAutocompleteField> {
     }
   }
 
+  /// Moradas livres (Google Places). Só dispara com `includeAddresses` e
+  /// query >= 3 chars. Comércios aparecem sempre primeiro.
+  Future<List<PlacePrediction>> _searchPlaces(String query) async {
+    final svc = _places;
+    if (svc == null) return const [];
+    try {
+      return await svc.fetchPredictions(query);
+    } catch (e) {
+      debugPrint('BusinessAutocomplete: places error => $e');
+      return const [];
+    }
+  }
+
   Future<void> _runSearch(String query) async {
     setState(() => _loading = true);
-    final results = await _search(query);
+    final businesses = await _search(query);
+    List<PlacePrediction> places = const [];
+    if (widget.includeAddresses && query.trim().length >= 3) {
+      places = await _searchPlaces(query);
+    }
     if (!mounted) return;
     // Descartar resultado obsoleto se o texto mudou entretanto.
     if (widget.controller.text.trim() != query) {
@@ -221,10 +267,14 @@ class _BusinessAutocompleteFieldState extends State<BusinessAutocompleteField> {
       return;
     }
     setState(() => _loading = false);
-    _updatePredictions(results);
+    final combined = <_Suggestion>[
+      for (final b in businesses) _Suggestion.business(b),
+      for (final p in places) _Suggestion.place(p),
+    ];
+    _updatePredictions(combined);
   }
 
-  void _updatePredictions(List<BusinessPrediction> predictions) {
+  void _updatePredictions(List<_Suggestion> predictions) {
     setState(() => _predictions = predictions);
     if (predictions.isEmpty) {
       _removeOverlay();
@@ -279,7 +329,31 @@ class _BusinessAutocompleteFieldState extends State<BusinessAutocompleteField> {
     );
   }
 
-  Widget _buildTile(BusinessPrediction p) {
+  Widget _buildTile(_Suggestion s) =>
+      s.isPlace ? _buildPlaceTile(s.place!) : _buildBusinessTile(s.business!);
+
+  Widget _buildPlaceTile(PlacePrediction p) {
+    return ListTile(
+      dense: true,
+      leading: const Icon(Icons.location_on_outlined,
+          size: 20, color: AppColors.textSecondary),
+      title: Text(
+        p.primaryText ?? p.description,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      subtitle: p.secondaryText == null
+          ? null
+          : Text(
+              p.secondaryText!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+      onTap: () => _onSelectPlace(p),
+    );
+  }
+
+  Widget _buildBusinessTile(BusinessPrediction p) {
     final distance =
         p.distanceKm == null ? null : '${p.distanceKm!.toStringAsFixed(1)} km';
     final subtitleParts = <String>[
@@ -329,11 +403,53 @@ class _BusinessAutocompleteFieldState extends State<BusinessAutocompleteField> {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-      onTap: () => _onSelect(p),
+      onTap: () => _onSelectBusiness(p),
     );
   }
 
-  void _onSelect(BusinessPrediction prediction) {
+  /// Morada Google: resolve coords no tap (Place Details → geocode fallback).
+  /// Se falhar, deixa o texto livre e o pai geocodifica antes de submeter.
+  Future<void> _onSelectPlace(PlacePrediction prediction) async {
+    _isSelecting = true;
+    _focusLossTimer?.cancel();
+    _debounce?.cancel();
+    _removeOverlay();
+    setState(() {
+      _predictions = const [];
+      _loading = true;
+    });
+
+    _lastSelectedText = prediction.description;
+    _isProgrammaticChange = true;
+    widget.controller.text = prediction.description;
+    widget.controller.selection = TextSelection.fromPosition(
+      TextPosition(offset: prediction.description.length),
+    );
+    _isProgrammaticChange = false;
+
+    final svc = _places;
+    ll.LatLng? coords;
+    if (svc != null) {
+      try {
+        coords = await svc.resolvePlaceLocation(prediction.placeId);
+      } catch (_) {}
+      if (coords == null && prediction.description.isNotEmpty) {
+        try {
+          coords = await svc.geocodeAddress(prediction.description);
+        } catch (_) {}
+      }
+      svc.resetSession();
+    }
+
+    if (!mounted) return;
+    _focusNode.unfocus();
+    _isSelecting = false;
+    setState(() => _loading = false);
+    // onSelected exige coords reais; se nulas, o guard do pai geocodifica.
+    if (coords != null) widget.onSelected(prediction.description, coords);
+  }
+
+  void _onSelectBusiness(BusinessPrediction prediction) {
     _isSelecting = true;
     _focusLossTimer?.cancel();
     _debounce?.cancel();

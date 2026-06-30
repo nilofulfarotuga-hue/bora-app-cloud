@@ -700,6 +700,50 @@ class NotificationService {
 
   String? get fcmToken => _fcmToken;
 
+  /// [B] Saúde do GMS/FCM inferida da última tentativa de getToken.
+  /// 'unknown' | 'ok' | 'gms_unavailable' | 'error'. Consumido pelo logger de
+  /// crash ([F]) para tornar diagnosticáveis os bugs específicos de aparelho
+  /// (telemóveis fracos com Play Services degradado). NÃO usa a API nativa
+  /// GoogleApiAvailability de propósito — evita uma dependência Gradle nova
+  /// que arriscaria o build de release no CI; o sinal vem do erro do getToken.
+  static String _fcmHealth = 'unknown';
+  static String get fcmHealth => _fcmHealth;
+
+  /// getToken() resiliente: backoff curto→longo, NUNCA lança. Devolve o token
+  /// ou null. Em erro de GMS (MISSING_INSTANCEID_SERVICE / SERVICE_NOT_AVAILABLE)
+  /// pára cedo — não vale a pena martelar — e deixa o onTokenRefresh apanhar o
+  /// token quando o Play Services recuperar.
+  Future<String?> _fetchTokenResilient(FirebaseMessaging messaging) async {
+    const delays = [
+      Duration(seconds: 2),
+      Duration(seconds: 5),
+      Duration(seconds: 15),
+    ];
+    for (var attempt = 0; attempt <= delays.length; attempt++) {
+      try {
+        final token = await messaging.getToken();
+        if (token != null && token.isNotEmpty) {
+          _fcmHealth = 'ok';
+          return token;
+        }
+      } catch (e) {
+        final msg = e.toString();
+        final gmsDown = msg.contains('MISSING_INSTANCEID_SERVICE') ||
+            msg.contains('SERVICE_NOT_AVAILABLE') ||
+            msg.contains('PHONE_REGISTRATION_ERROR') ||
+            msg.contains('TOO_MANY_REGISTRATIONS');
+        _fcmHealth = gmsDown ? 'gms_unavailable' : 'error';
+        debugPrint('[NotificationService] getToken tentativa ${attempt + 1} '
+            'falhou (health=$_fcmHealth): $e');
+        if (gmsDown) return null; // GMS degradado — onTokenRefresh trata.
+      }
+      if (attempt < delays.length) {
+        await Future<void>.delayed(delays[attempt]);
+      }
+    }
+    return null;
+  }
+
   // ── Consent enforcement ───────────────────────────────────────────────────
 
   /// Called by [ConsentStore] whenever the user saves their GDPR preferences.
@@ -815,13 +859,22 @@ class NotificationService {
     debugPrint(
         '[NotificationService] permission: ${settings.authorizationStatus}');
 
-    // Fetch initial token. May return null on iOS simulators without APNS.
-    _fcmToken = await messaging.getToken();
-    debugPrint('[NotificationService] FCM token: $_fcmToken');
+    // [B] FCM resiliente (2026-06-30) — em GMS degradado (telemóveis fracos /
+    // Play Services antigo) getToken() lança MISSING_INSTANCEID_SERVICE. Antes
+    // esse throw abortava TODO o init() (o onTokenRefresh nunca era ligado e o
+    // erro repetia-se a cada arranque → ×61 em debug_crash_logs). Agora:
+    //   (1) onTokenRefresh é registado PRIMEIRO e independente — apanha o token
+    //       assim que o GMS recuperar;
+    //   (2) getToken corre com backoff curto→longo, em try/catch, e NUNCA
+    //       rebenta o init;
+    //   (3) sem token a app continua a funcionar (sem push) — nunca há hang.
+    // NÃO toca no envio/recepção do dispatch.
 
-    // Refresh token (device re-registers, app reinstall, etc.).
+    // (1) Refresh token (device re-registers, reinstall, recuperação do GMS).
+    //     Registado ANTES do getToken de propósito.
     messaging.onTokenRefresh.listen((token) {
       _fcmToken = token;
+      _fcmHealth = 'ok';
       debugPrint('[NotificationService] token refreshed: $token');
       // Re-persist for the currently bound user so DB stays in sync.
       final role = _boundRole;
@@ -840,6 +893,21 @@ class NotificationService {
         }
       }
     });
+
+    // (2) Fetch inicial resiliente em BACKGROUND — NÃO aguardar aqui. init() é
+    //     aguardado dentro de Future.wait ANTES do runApp (main.dart); se o
+    //     backoff fosse awaited, um aparelho com GMS lento atrasaria o arranque
+    //     /splash até ~22s. O token chega depois e o onTokenRefresh (registado
+    //     acima) persiste-o; o PushTokenService também volta a tentar.
+    unawaited(_fetchTokenResilient(messaging).then((t) {
+      if (t != null) {
+        _fcmToken = t;
+        debugPrint('[NotificationService] FCM token: $t');
+      } else {
+        debugPrint('[NotificationService] sem FCM token (health=$_fcmHealth) — '
+            'notificações degradadas; onTokenRefresh apanha ao recuperar.');
+      }
+    }));
 
     // Foreground messages: show in-app sound; UI already shows via Realtime.
     // new_order is handled by _handleNewOrders (realtime stream) — skip to

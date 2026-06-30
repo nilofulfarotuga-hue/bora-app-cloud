@@ -136,8 +136,12 @@ class PaymentService {
   /// para "desde €6" e tentar novamente quando os inputs ficarem completos.
   Future<Map<String, dynamic>?> quoteOrder(Map<String, dynamic> input) async {
     try {
+      // [C] 2026-06-30 — timeout: o rodapé de preço não pode girar o spinner
+      // para sempre se a rede/RPC pendurar. TimeoutException cai no catch
+      // abaixo → null → caller faz fallback para "desde €6".
       final data = await Supabase.instance.client
-          .rpc('quote_order_pricing', params: {'p_input': input});
+          .rpc('quote_order_pricing', params: {'p_input': input})
+          .timeout(const Duration(seconds: 12));
       if (data is Map) return Map<String, dynamic>.from(data);
       debugPrint('[PaymentService] quoteOrder: unexpected type: ${data.runtimeType}');
       return null;

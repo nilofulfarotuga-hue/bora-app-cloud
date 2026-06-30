@@ -10,6 +10,7 @@ import '../widgets/address_autocomplete_field.dart';
 import '../widgets/business_autocomplete_field.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/quote_price_footer.dart';
+import '../main.dart' show logScreenBreadcrumb;
 import 'payment_method_screen.dart';
 
 class CarryGroceriesFormScreen extends StatefulWidget {
@@ -32,9 +33,14 @@ class _CarryGroceriesFormScreenState extends State<CarryGroceriesFormScreen> {
 
   late final PlaceAutocompleteService _geocoder;
 
+  // [C/adenda] breadcrumb único no 1º build.
+  bool _builtOnce = false;
+
   @override
   void initState() {
     super.initState();
+    logScreenBreadcrumb('CarryGroceriesForm',
+        'initState mapsKeyEmpty=${googleApiKey.isEmpty}');
     _geocoder = createPlaceAutocompleteService(googleApiKey);
   }
 
@@ -106,6 +112,10 @@ class _CarryGroceriesFormScreenState extends State<CarryGroceriesFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_builtOnce) {
+      _builtOnce = true;
+      logScreenBreadcrumb('CarryGroceriesForm', 'build#1 body a construir');
+    }
     return Scaffold(
       appBar: const BoraScreenAppBar(title: 'Levar Compras'),
       bottomNavigationBar: QuotePriceFooter(

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart' as fow;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'foreground_service.dart';
 
@@ -325,6 +326,67 @@ class PermissionGateService {
   /// terminar o init paralelo.
   static Future<void> ensureForegroundInitialized() =>
       BoraForegroundService.init();
+}
+
+/// [A] (2026-06-30) Gate ÚNICO e NÃO-BLOQUEANTE para a permissão de overlay
+/// (SYSTEM_ALERT_WINDOW). Partilhado pelo estafeta (driver_home_screen) e pelo
+/// motorista TVDE (tvde_driver_home_screen) — antes o TVDE não tinha gate
+/// nenhum e o estafeta abria as Definições de overlay incondicionalmente.
+///
+/// Regras (padrão Uber/Glovo):
+///   • Overlay é SEMPRE opcional — ir online NUNCA depende dele.
+///   • O aviso suave aparece no máximo UMA vez na vida; a escolha é persistida
+///     e nunca mais se repete. Isto resolve o nag infinito em telemóveis fracos
+///     onde a definição surge greyed-out ("Recurso não disponível — desativado
+///     porque causa lentidão").
+///   • Nunca abre as Definições automaticamente — só após toque explícito.
+class OverlayPermissionGate {
+  OverlayPermissionGate._();
+
+  static const _prefKey = 'bora.overlay_offer_handled_v1';
+
+  /// Oferece a permissão de overlay no máximo uma vez. Fire-and-forget seguro:
+  /// nunca lança, nunca bloqueia o caller, nunca impede ir online.
+  static Future<void> maybeOfferOnce(BuildContext context) async {
+    try {
+      // Já concedida (capability presente + activa) → nada a fazer.
+      if (await fow.FlutterOverlayWindow.isPermissionGranted()) return;
+      final prefs = await SharedPreferences.getInstance();
+      if (prefs.getBool(_prefKey) ?? false) return; // já decidiu — não repetir
+      if (!context.mounted) return;
+      final go = await showDialog<bool>(
+        context: context,
+        barrierDismissible: true,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Mostrar pedidos por cima de outras apps'),
+          content: const Text(
+            'Opcional: para o card do pedido aparecer mesmo quando estás '
+            'noutra app (como o Uber faz), o Bora pode mostrar uma janela por '
+            'cima.\n\nNão é obrigatório — recebes os pedidos na mesma pela '
+            'notificação. Se o teu telemóvel não suportar, ignora este aviso.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Agora não'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Activar'),
+            ),
+          ],
+        ),
+      );
+      // Decisão tomada — nunca mais oferecer automaticamente (o ecrã de
+      // permissões do estafeta continua a permitir activar manualmente).
+      await prefs.setBool(_prefKey, true);
+      if (go == true) {
+        await fow.FlutterOverlayWindow.requestPermission();
+      }
+    } catch (e) {
+      debugPrint('[OverlayPermissionGate] maybeOfferOnce (não bloqueia): $e');
+    }
+  }
 }
 
 /// Estado das 4 permissões críticas do estafeta num dado instante.

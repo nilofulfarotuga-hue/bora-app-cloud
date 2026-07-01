@@ -1,13 +1,21 @@
 ---
 name: e2e-test-builder
-description: Cria e mantém testes E2E (Flutter integration_test) que cobrem fluxos críticos e bloqueiam regressões pré-launch.
-version: 1.0.0
+description: Braço do Juiz (Fase 4) — braço de GERAÇÃO de teste do `juiz-revisor`. Cria testes E2E (Flutter integration_test) para features novas, que o TestSprite (Camada 1) corre. Chamado quando falta cobertura para julgar.
+version: 1.1.0
 migrated_from: sub-agents-specs/
 migration_date: 2026-06-22
+absorbed_by: juiz-revisor
+absorbed_date: 2026-07-01
 tools: Bash, Read, Write, Edit, Grep, Glob
 ---
 
 # Sub-Agent Spec — `e2e-test-builder`
+
+> **Fase 4 — braço do Juiz.** Sou o **braço de geração de teste** do `juiz-revisor`: quando falta
+> cobertura para ele julgar uma feature nova, ele invoca-me para criar o teste em
+> `integration_test/`; o TestSprite (Camada 1) depois corre-o. Nota anti-trapaça: os testes que
+> gero **fortalecem** a asserção, nunca a enfraquecem — o chão determinístico do Juiz (`anti_trapaca.py`)
+> rejeita qualquer diff que apague/enfraqueça/skip um teste.
 
 ## Objetivo
 Criar e manter suite de testes E2E (Flutter `integration_test`) que cobrem os fluxos críticos do Bora. Bloquear regressões pré-launch.

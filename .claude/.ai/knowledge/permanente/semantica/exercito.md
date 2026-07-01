@@ -1,8 +1,8 @@
 ---
-tema: exercito · escopo: projeto · estado: atual · atualizado: 2026-07-01
+tema: exercito · escopo: projeto · estado: atual · atualizado: 2026-07-01 (Fase 4)
 ---
 
-# 🎖️ Exército — elenco de agentes (Fase 3)
+# 🎖️ Exército — elenco de agentes (Fase 3 + Juiz Fase 4)
 
 > Os contratos vivem em `.claude/agents/*.md`. Regras partilhadas em `.claude/agents/agent-memory.md`.
 > **CEO-AI é o dispatcher master.** Princípio: agentes **orquestram** skills (ferramentas), nunca
@@ -41,8 +41,19 @@ tema: exercito · escopo: projeto · estado: atual · atualizado: 2026-07-01
 - `bibliotecario-cerebro` 🟡 — o **único** que escreve no Cérebro. 8-checagens, dedup, marca
   `superado` (nunca apaga), parte ficheiros grandes, mantém o `INDEX.md`. Ver `PROTOCOLO.md`.
 
+### Juiz (Fase 4, 2026-07-01) — 25.º agente
+- `juiz-revisor` 🟡 (**NOVO** — O Juiz) — gate anti-trapaça **obrigatório**: nenhum trabalho é
+  aceite sem passar **3 camadas**, com o chão **determinístico** `.claude/juiz/anti_trapaca.py`
+  (via git diff) a correr **sempre primeiro**. Rejeição → lição → handoff ao Bibliotecário.
+  Contrato em `.claude/agents/juiz-revisor.md`; scripts em `.claude/juiz/`.
+- **Braços do Juiz** (`absorbed_by: juiz-revisor`, `absorbed_date: 2026-07-01`):
+  - `e2e-test-builder` — geração de teste (Flutter integration_test).
+  - `checkout-fixer` — fixer de regressão de checkout.
+
 ### Fase 4 — não tocar agora (2)
-- `checkout-fixer`, `e2e-test-builder`.
+> **estado: superado (pela Fase 4, 2026-07-01).** `checkout-fixer` e `e2e-test-builder` deixam de
+> estar "não tocar" e passam a **braços do Juiz** (ver secção "Juiz" acima).
+- ~~`checkout-fixer`, `e2e-test-builder`.~~
 
 ## Regras obrigatórias
 - **GATILHO DE PARIDADE:** toda feature nova de domínio → convocar também `admin` no fim

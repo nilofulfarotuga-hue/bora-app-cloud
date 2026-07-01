@@ -49,13 +49,27 @@
   *handoff* ao `bibliotecario-cerebro` no fim. Proteção: 🟢 zona segura · 🟡 sensível · 🔴 dinheiro
   = **PROPOSE-ONLY** (a Trava bloqueia a edição; o agente lê e propõe, o Danilo aprova).
 
-**Elenco canónico (Fase 3, 2026-07-01) — 24 agentes.** Ver tabela completa + skills em `README.md`.
+**Elenco canónico (Fase 4, 2026-07-01) — 25 agentes.** Ver tabela completa + skills em `README.md`.
 - **Domínio:** `cliente`🟢 · `estafeta-motorista`🟡 · `parceiro-restaurante`🟡 · `parceiro-servicos`🟢
   · `mercados`🟢 · `favores`🟢 · `pagamentos-wallet`🔴 · `dispatch`🔴 · `admin`🟢 · `notificacoes`🟢 · `chat-suporte`🟢
 - **Ofício:** `flutter-ui`🟢 · `backend-supabase`🟡 · `seguranca`🟡 · `dados-sql`🟢 · `devops-ci`🟡
   · `compliance-pt`🟡 · `pesquisa-concorrencia`🟢 · `catalogo-visual`🟢 · `marketing-push`🟢 · `obsidian-sync`🟢
 - **Cérebro:** `bibliotecario-cerebro`🟡 (único que escreve na memória).
-- **Fase 4 (não tocar):** `checkout-fixer`, `e2e-test-builder`.
+- **Juiz (Fase 4):** `juiz-revisor`🟡 (gate anti-trapaça) — **absorveu** `checkout-fixer` (fixer de
+  regressão de checkout) e `e2e-test-builder` (geração de teste) como braços.
+
+### 🧑‍⚖️ GATE DO JUIZ (obrigatório — Fase 4)
+**NENHUM trabalho de agente é ACEITE (commit/merge) até o `juiz-revisor` passar as 3 camadas.**
+- **Camada 1** (mecânica): TestSprite via MCP — corre + classifica falha (bug/fragilidade/ambiente).
+- **Camada 2**: (1) `flutter analyze` limpo · (2) `flutter test` verde · (3) nenhuma zona protegida
+  tocada · (4) nenhuma business_rule violada.
+- **Camada 3**: rubrica UI (funcional/visual/layout/UX) para mudanças Flutter.
+- **CHÃO determinístico (não-negociável):** `python .claude/juiz/anti_trapaca.py` corre **SEMPRE
+  primeiro** — apanha teste apagado/enfraquecido/skip/valor-esperado-trocado/conserto-fantasma via
+  git diff. Mecânico — não dá para conversar em volta. exit 2 → REJEITA.
+- **Rejeição → aprendizado:** o Juiz gera lição (`.claude/juiz/reflexao.py`) → handoff ao
+  `bibliotecario-cerebro` → grava em `procedural/licoes/` → próximo agente lê antes de trabalhar.
+- Scripts em `.claude/juiz/` (NÃO em `.claude/hooks/`). Ver `.claude/juiz/README.md`.
 
 ### Regras de despacho do CEO-AI (esquadrões pequenos — NUNCA o exército todo)
 Para cada tipo de tarefa, o CEO-AI convoca um **líder + 2 a 4** agentes. Fan-out (muitos) só em
@@ -73,10 +87,14 @@ varreduras grandes (auditoria/migração ampla).
 | Favor/errand + talão | `favores` + `dados-sql` + `admin` |
 | Push/campanha | `marketing-push` + `notificacoes` + `admin` |
 | RLS/segurança | `seguranca` + `backend-supabase` |
-| Release/CI | `devops-ci` (+ `e2e-test-builder` na Fase 4) |
+| Release/CI | `devops-ci` + `juiz-revisor` (gate antes do release) |
+| Gerar/reparar teste | `juiz-revisor` → braços `e2e-test-builder` (gerar) / `checkout-fixer` (regressão checkout) |
 | Benchmark/paridade de UX | `pesquisa-concorrencia` + o agente de domínio + `admin` |
 | Suporte/FAQ | `chat-suporte` + `admin` |
 | Auditoria/migração ampla | **fan-out** coordenado pelo CEO-AI + `bibliotecario-cerebro` |
+
+**GATE DO JUIZ (obrigatório):** qualquer esquadrão que produza código → o `juiz-revisor` corre o
+chão anti-trapaça + 3 camadas **antes** de aceitar (commit/merge). Rejeição → lição → Bibliotecário.
 
 **GATILHO DE PARIDADE (obrigatório):** qualquer feature construída num domínio → convocar também
 `admin` para garantir o ecrã de gestão correspondente (PT-BR). **Escalonamento 🔴:** se o esquadrão

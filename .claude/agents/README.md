@@ -51,11 +51,16 @@
 |---|---|---|
 | **bibliotecario-cerebro** | 🟡 | O **único** que escreve no Cérebro (8-checagens, dedup, marca superado). |
 
-### Fase 4 (não tocar agora — serão absorvidos/evoluídos)
-| Agente | Propósito |
+### O Juiz (Fase 4 — gate anti-trapaça)
+| Agente | 🛡️ | Propósito |
+|---|---|---|
+| **juiz-revisor** | 🟡 | **Gate obrigatório**: nenhum trabalho é aceite sem passar as 3 camadas, com o chão determinístico (`git diff`, `.claude/juiz/anti_trapaca.py`) a correr **sempre primeiro**. Rejeição → lição → Bibliotecário. Ver `.claude/juiz/README.md`. |
+
+**Braços do Juiz** (absorvidos da Fase 3 — já não são agentes soltos):
+| Agente | Papel sob o Juiz |
 |---|---|
-| **checkout-fixer** | Diagnostica/corrige o checkout flow. |
-| **e2e-test-builder** | Testes E2E (Flutter `integration_test`) de fluxos críticos. |
+| **e2e-test-builder** | Braço de **geração** de teste — cria `integration_test/` para features novas, que o TestSprite corre. |
+| **checkout-fixer** | **Fixer** especializado que o Juiz invoca em **regressão de checkout** (propõe patch; dinheiro espera "vai"). |
 
 ## Zonas protegidas (todos os agentes)
 `dispatch_engine` · `pricing_service.dart` · triggers financeiros · Stripe webhook ·

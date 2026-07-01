@@ -35,12 +35,20 @@ RLS em `orders` / `wallets` / `ledger_entries` / `bora_tokens`.
 - **Depois:** entregar um *handoff* ao agente `bibliotecario-cerebro` (o ÚNICO que escreve no
   Cérebro). Ver `.claude/.ai/knowledge/PROTOCOLO.md`. Aplicar só factos `estado: atual`.
 
-## Agentes registados (24 — elenco canónico Fase 3, 2026-07-01)
+## Agentes registados (25 — elenco canónico Fase 4, 2026-07-01)
 **Domínio:** `cliente`🟢, `estafeta-motorista`🟡, `parceiro-restaurante`🟡, `parceiro-servicos`🟢,
 `mercados`🟢, `favores`🟢, `pagamentos-wallet`🔴, `dispatch`🔴, `admin`🟢, `notificacoes`🟢, `chat-suporte`🟢.
 **Ofício:** `flutter-ui`🟢, `backend-supabase`🟡, `seguranca`🟡, `dados-sql`🟢, `devops-ci`🟡,
 `compliance-pt`🟡, `pesquisa-concorrencia`🟢, `catalogo-visual`🟢, `marketing-push`🟢, `obsidian-sync`🟢.
-**Cérebro:** `bibliotecario-cerebro`🟡. **Fase 4 (intocáveis):** `checkout-fixer`, `e2e-test-builder`.
+**Cérebro:** `bibliotecario-cerebro`🟡. **Juiz (Fase 4):** `juiz-revisor`🟡 — absorveu
+`checkout-fixer` e `e2e-test-builder` como braços.
+
+## 🧑‍⚖️ Gate do Juiz (Fase 4 — obrigatório para TODOS)
+- Nenhum trabalho é ACEITE (commit/merge) sem o `juiz-revisor` passar as **3 camadas**, com o
+  **chão determinístico** (`python .claude/juiz/anti_trapaca.py`, git diff) a correr **sempre primeiro**.
+- Nunca apagar/enfraquecer/skipar um teste para fingir "verde" — o chão apanha mecanicamente
+  (teste apagado, asserção enfraquecida, `expect(true)`, skip, valor esperado trocado, conserto-fantasma).
+- Rejeição → gerar lição (`reflexao.py`) → handoff ao `bibliotecario-cerebro` → `procedural/licoes/`.
 
 > Proteção: 🟢 zona segura · 🟡 sensível · 🔴 dinheiro = **PROPOSE-ONLY** (Trava bloqueia; lê+propõe).
 > Gaveta de memória por agente no Cérebro: `escopo: agente:<nome>` (escrita só pelo Bibliotecário).
@@ -73,3 +81,8 @@ RLS em `orders` / `wallets` / `ledger_entries` / `bora_tokens`.
   pagamentos-wallet🔴, dispatch🔴, devops-ci, compliance-pt, pesquisa-concorrencia) e 8 renames
   (ver acima). Níveis de proteção 🟢/🟡/🔴 + gaveta `agente:<nome>` + regras de despacho no CLAUDE.md
   (esquadrões pequenos + gatilho de paridade). Origem: Danilo (prompt Fase 3).
+- [2026-07-01] **Fase 4 (O Juiz + Aprendizado):** +1 agente `juiz-revisor` (25 total). Gate
+  anti-trapaça com chão determinístico (`.claude/juiz/*.py`, git diff — não é hook). Absorveu
+  `checkout-fixer` e `e2e-test-builder` como braços. Ciclo de aprendizado: rejeição → lição →
+  Bibliotecário → `procedural/licoes/`. Regra: NUNCA apagar/enfraquecer teste para fingir verde.
+  Origem: Danilo (prompt Fase 4).

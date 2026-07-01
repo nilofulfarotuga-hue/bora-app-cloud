@@ -56,6 +56,8 @@ knowledge/
 |---|---|---|
 | Convenções (ambiente, git, MCP, Windows) | `permanente/procedural/convencoes.md` | build/push/MCP/encoding |
 | Lições (cresce com o tempo) | `permanente/procedural/licoes/` | evitar repetir erros |
+| ↳ CRLF em scripts `.sh` (Windows) | `permanente/procedural/licoes/licao-crlf-sh-eol.md` | criar hooks/scripts bash |
+| ↳ Não enfraquecer asserções (Juiz) | `permanente/procedural/licoes/licao-asserts-weakened.md` | consertar teste/código sob teste |
 
 ---
 

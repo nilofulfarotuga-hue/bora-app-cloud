@@ -35,11 +35,18 @@ RLS em `orders` / `wallets` / `ledger_entries` / `bora_tokens`.
 - **Depois:** entregar um *handoff* ao agente `bibliotecario-cerebro` (o ÚNICO que escreve no
   Cérebro). Ver `.claude/.ai/knowledge/PROTOCOLO.md`. Aplicar só factos `estado: atual`.
 
-## Agentes registados (14)
-**Lote 1:** `obsidian-sync`, `catalogo-visual`, `db-migrations`, `admin-sync`, `seguranca-rls`
-+ migrados `checkout-fixer`, `design-system-applier`, `e2e-test-builder`, `notifications-integrator`.
-**Lote 2 (2026-06-23):** `bi-analytics`, `marketing-push`, `crawler-mercados`, `dispatch-ops`.
-**Fase 2 (2026-07-01):** `bibliotecario-cerebro` (guardião do Cérebro; único que escreve na memória).
+## Agentes registados (24 — elenco canónico Fase 3, 2026-07-01)
+**Domínio:** `cliente`🟢, `estafeta-motorista`🟡, `parceiro-restaurante`🟡, `parceiro-servicos`🟢,
+`mercados`🟢, `favores`🟢, `pagamentos-wallet`🔴, `dispatch`🔴, `admin`🟢, `notificacoes`🟢, `chat-suporte`🟢.
+**Ofício:** `flutter-ui`🟢, `backend-supabase`🟡, `seguranca`🟡, `dados-sql`🟢, `devops-ci`🟡,
+`compliance-pt`🟡, `pesquisa-concorrencia`🟢, `catalogo-visual`🟢, `marketing-push`🟢, `obsidian-sync`🟢.
+**Cérebro:** `bibliotecario-cerebro`🟡. **Fase 4 (intocáveis):** `checkout-fixer`, `e2e-test-builder`.
+
+> Proteção: 🟢 zona segura · 🟡 sensível · 🔴 dinheiro = **PROPOSE-ONLY** (Trava bloqueia; lê+propõe).
+> Gaveta de memória por agente no Cérebro: `escopo: agente:<nome>` (escrita só pelo Bibliotecário).
+> **Renames Fase 3:** admin-sync→admin, dispatch-ops→dispatch, db-migrations→backend-supabase,
+> seguranca-rls→seguranca, design-system-applier→flutter-ui, bi-analytics→dados-sql,
+> notifications-integrator→notificacoes, crawler-mercados→mercados.
 
 ## Lições técnicas (Lote 1/2 — 2026-06-23)
 > Aprendizagens de ambiente/processo. Não são regras de negócio.
@@ -61,3 +68,8 @@ RLS em `orders` / `wallets` / `ledger_entries` / `bora_tokens`.
 - [2026-06-23] Lote 2: +4 agentes (bi-analytics, marketing-push, crawler-mercados, dispatch-ops).
   SEC-1/SEC-2 dry-run (read-only) feito — ver `sessions/2026-06-23-sec1-sec2-dryrun.md`.
   Lições técnicas de ambiente registadas acima. Origem: Danilo (prompts Lote 1/2).
+- [2026-07-01] **Fase 3 (O Exército):** elenco canónico de 24 agentes. +10 novos (cliente,
+  estafeta-motorista, parceiro-restaurante, parceiro-servicos, favores, chat-suporte,
+  pagamentos-wallet🔴, dispatch🔴, devops-ci, compliance-pt, pesquisa-concorrencia) e 8 renames
+  (ver acima). Níveis de proteção 🟢/🟡/🔴 + gaveta `agente:<nome>` + regras de despacho no CLAUDE.md
+  (esquadrões pequenos + gatilho de paridade). Origem: Danilo (prompt Fase 3).

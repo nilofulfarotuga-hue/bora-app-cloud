@@ -61,4 +61,4 @@ NÃO-PARCEIRO**. Confundir parceiro com não-parceiro é erro grave (pricing dif
 
 ## Admin Panel Needed?
 **SIM** — `admin_catalog_screen` e `admin_category_mapping_screen` (existem → **actualizar** para
-mostrar a nova categoria e a imagem gerada). Invocar `admin-sync` no fim para confirmar cobertura.
+mostrar a nova categoria e a imagem gerada). Invocar `admin` no fim para confirmar cobertura.

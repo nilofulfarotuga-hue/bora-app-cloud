@@ -57,4 +57,4 @@ Estado: PREVIEW (aguarda aprovação) | ENVIADO [N]
 - **VERIFICAR/CRIAR** `lib/screens/admin/admin_marketing_screen.dart` (PT-BR) — compor push, escolher
   segmento, ver preview/alcance, gerir promo codes. Já existem `admin_send_notification_screen` e
   `admin_broadcasts_history_screen` (reutilizar/expandir em vez de duplicar). Prioridade **Média**.
-- Design pendente de aprovação do Danilo. Em dúvida, invocar `admin-sync`.
+- Design pendente de aprovação do Danilo. Em dúvida, invocar `admin`.

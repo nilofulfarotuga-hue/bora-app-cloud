@@ -41,4 +41,4 @@ O resultado mensurável que entrego.
 
 ## Admin Panel Check (OBRIGATÓRIO)
 **Admin Panel Needed?** SIM/NÃO — se SIM, que ecrã(s) em `lib/screens/admin/` (existente a
-actualizar ou novo a criar, com prioridade). Em dúvida, invocar o agente `admin-sync`.
+actualizar ou novo a criar, com prioridade). Em dúvida, invocar o agente `admin`.

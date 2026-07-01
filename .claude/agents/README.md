@@ -12,23 +12,50 @@
 > **Regra de ouro:** Agentes orquestram skills. O **CEO-AI é o dispatcher master** — escolhe que
 > agente responde a cada tarefa. Todos os agentes leem `agent-memory.md` no arranque.
 
-## Agentes disponíveis
+## Agentes disponíveis (elenco canónico — Fase 3, 2026-07-01)
 
-| Agente | Propósito | Skills que usa | Robot B aware? |
-|---|---|---|---|
-| **obsidian-sync** | Sync unidirecional vault Obsidian → knowledge (SHA256, idempotente) | — (Bash/Read/Write) | Sim — escreve knowledge que o Robot B lê; respeita kill switches |
-| **catalogo-visual** | Catálogo de mercados (não-parceiro) + imagens de categoria via nano-banana | category-mapper-v2, market-data-sync/cleaner, dedupe-market-products, weekly-market-prices, add-home-category, taxonomy-mapper, sync-market-photos | Não |
-| **db-migrations** | Migrações Supabase seguras (dry-run, backup, rollback, bloqueio financeiro) | backup-restore-table | Não |
-| **admin-sync** | Verifica cobertura no admin panel de toda feature nova (PT-BR) | — (Glob/Grep/Read) | Não |
-| **seguranca-rls** | SEC-1 (RLS em falta) + SEC-2 (storage buckets) + hardening | storage-bucket-validator, audit-protected-zones | Não |
-| **checkout-fixer** *(migrado)* | Diagnostica/corrige checkout flow | — | Não |
-| **design-system-applier** *(migrado)* | Aplica design system nos ecrãs Flutter | — | Não |
-| **e2e-test-builder** *(migrado)* | Testes E2E de fluxos críticos | — | Não |
-| **notifications-integrator** *(migrado)* | FCM push live + consent GDPR | — | Não |
-| **bi-analytics** *(Lote 2)* | Dashboards/relatórios read-only (vendas, churn, top estafetas/parceiros) | run-weekly-payouts, audit-ledger-entries | Sim — Robot B dispara relatório semanal |
-| **marketing-push** *(Lote 2)* | Push segmentado + promo codes + banners de campanha | notify-broadcast, manage-promo-codes (+nano-banana) | Não |
-| **crawler-mercados** *(Lote 2)* | Sync mercados NÃO-PARCEIRO (só categorias estáveis) | market-data-sync/cleaner, dedupe-market-products, weekly-market-prices, category-mapper-v2, taxonomy-mapper, sync-market-photos | Não |
-| **dispatch-ops** *(Lote 2)* | Monitor read-only do dispatch (presos, failed, cobertura) | smoke-test-critical-paths | Não |
+> Proteção: 🟢 zona segura · 🟡 sensível (cautela extra) · 🔴 dinheiro → **PROPOSE-ONLY** (a Trava
+> bloqueia a edição; o agente LÊ e PROPÕE, o Danilo aprova).
+
+### Domínio (conhecem uma fatia do produto)
+| Agente | 🛡️ | Propósito |
+|---|---|---|
+| **cliente** | 🟢 | Browse, carrinho, checkout (UI), rastreio, avaliações, tokens (UI). |
+| **estafeta-motorista** | 🟡 | App estafeta + TVDE: online gate, oferta/aceitar, PIN, docs, veículo. |
+| **parceiro-restaurante** | 🟡 | Menus, aceitar pedido, comissão 10+5+5% (leitura), falta de item, onboarding. |
+| **parceiro-servicos** | 🟢 | Barbearia/agendamentos + Reservas Pro; sinal €3, desconto chegada €2. |
+| **mercados** | 🟢 | Mercados NÃO-PARCEIRO, crawlers (só categorias estáveis), markup 15% runtime, storeShopping V2. |
+| **favores** | 🟢 | Errands: storeShopping/levar/enviar, OCR talão, orçamento €6/€10, consentimento over-budget. |
+| **pagamentos-wallet** | 🔴 | Stripe/MBWay/tokens/refund/split/wallet — **PROPOSE-ONLY**. |
+| **dispatch** | 🔴 | dispatch_engine, matching, stacking, TTL/claim — monitor + **PROPOSE-ONLY**. |
+| **admin** | 🟢 | Painel PT-BR, autoridade total + guardião da **paridade** (feature → ecrã admin). |
+| **notificacoes** | 🟢 | FCM cliente/estafeta/parceiro, heads-up/FGS/CallKit, consent GDPR. |
+| **chat-suporte** | 🟢 | Chatbot (Robot A), tickets, knowledge base RAG. Robot A/B intocáveis. |
+
+### Ofício (uma habilidade aplicada em tudo)
+| Agente | 🛡️ | Propósito |
+|---|---|---|
+| **flutter-ui** | 🟢 | Design system (Verde `#16A34A`/Laranja `#F97316`/Inter). Nunca altera foto real. |
+| **backend-supabase** | 🟡 | RPCs, migrations, RLS, Edge Functions (dry-run+backup+rollback; bloqueia $). |
+| **seguranca** | 🟡 | RLS, secrets, buckets, SECURITY DEFINER. SEC-1/SEC-2. Nunca RLS financeira. |
+| **dados-sql** | 🟢 | Queries, correção de preço/dados de produto, dashboards. Só SELECT em $. |
+| **devops-ci** | 🟡 | `build_android.yml`, versionCode (nunca manual), git push, keystore, Play Internal. |
+| **compliance-pt** | 🟡 | TVDE (IMT/DL 45/2018), KYC, GDPR. Cargo novo do buraco da auditoria 360°. |
+| **pesquisa-concorrencia** | 🟢 | Benchmark Glovo/Uber/Bolt/iFood. Copia o mercado, não inventa. |
+| **catalogo-visual** | 🟢 | Imagens de categoria de mercado (nano-banana). Coordena com `mercados`. |
+| **marketing-push** | 🟢 | Push de campanhas/promos + banners. Aprovação > 50 users; máx 2/dia. |
+| **obsidian-sync** | 🟢 | Espelho unidirecional do Cérebro no Obsidian (SHA256). |
+
+### Guardião do Cérebro (Fase 2)
+| Agente | 🛡️ | Propósito |
+|---|---|---|
+| **bibliotecario-cerebro** | 🟡 | O **único** que escreve no Cérebro (8-checagens, dedup, marca superado). |
+
+### Fase 4 (não tocar agora — serão absorvidos/evoluídos)
+| Agente | Propósito |
+|---|---|
+| **checkout-fixer** | Diagnostica/corrige o checkout flow. |
+| **e2e-test-builder** | Testes E2E (Flutter `integration_test`) de fluxos críticos. |
 
 ## Zonas protegidas (todos os agentes)
 `dispatch_engine` · `pricing_service.dart` · triggers financeiros · Stripe webhook ·

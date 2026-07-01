@@ -44,23 +44,43 @@
   Skills sem agente dono continuam a ser invocadas diretamente (ver "Skill Usage Rule").
   **O CEO-AI é o dispatcher master.** Todos os agentes leem `agent-memory.md` no arranque.
 - **Regra obrigatória:** cada agente tem secção **"Admin Panel Needed?"**. Toda feature nova →
-  invocar o agente `admin-sync` no final.
+  invocar o agente `admin` no final (gatilho de paridade).
+- **TODO agente lê `.claude/.ai/knowledge/INDEX.md` antes de trabalhar** (só o seu tema) e faz
+  *handoff* ao `bibliotecario-cerebro` no fim. Proteção: 🟢 zona segura · 🟡 sensível · 🔴 dinheiro
+  = **PROPOSE-ONLY** (a Trava bloqueia a edição; o agente lê e propõe, o Danilo aprova).
 
-| Agente | Propósito |
+**Elenco canónico (Fase 3, 2026-07-01) — 24 agentes.** Ver tabela completa + skills em `README.md`.
+- **Domínio:** `cliente`🟢 · `estafeta-motorista`🟡 · `parceiro-restaurante`🟡 · `parceiro-servicos`🟢
+  · `mercados`🟢 · `favores`🟢 · `pagamentos-wallet`🔴 · `dispatch`🔴 · `admin`🟢 · `notificacoes`🟢 · `chat-suporte`🟢
+- **Ofício:** `flutter-ui`🟢 · `backend-supabase`🟡 · `seguranca`🟡 · `dados-sql`🟢 · `devops-ci`🟡
+  · `compliance-pt`🟡 · `pesquisa-concorrencia`🟢 · `catalogo-visual`🟢 · `marketing-push`🟢 · `obsidian-sync`🟢
+- **Cérebro:** `bibliotecario-cerebro`🟡 (único que escreve na memória).
+- **Fase 4 (não tocar):** `checkout-fixer`, `e2e-test-builder`.
+
+### Regras de despacho do CEO-AI (esquadrões pequenos — NUNCA o exército todo)
+Para cada tipo de tarefa, o CEO-AI convoca um **líder + 2 a 4** agentes. Fan-out (muitos) só em
+varreduras grandes (auditoria/migração ampla).
+
+| Tarefa | Esquadrão (líder primeiro) |
 |---|---|
-| `obsidian-sync` | Sync unidirecional vault Obsidian → `knowledge/from-obsidian/` (SHA256, idempotente). |
-| `catalogo-visual` | Catálogo de mercados (NÃO-PARCEIRO) + ícones/banners de categoria via nano-banana (Gemini). |
-| `db-migrations` | Migrações Supabase seguras (dry-run + backup + rollback; bloqueia zonas financeiras). |
-| `admin-sync` | Verifica se toda feature nova tem correspondência no admin panel (PT-BR). |
-| `seguranca-rls` | SEC-1 (RLS em falta) + SEC-2 (storage buckets) + hardening contínuo. |
-| `checkout-fixer` *(migrado)* | Diagnostica e corrige o checkout flow. |
-| `design-system-applier` *(migrado)* | Aplica o design system (Verde `#16A34A` / Laranja `#F97316`) nos ecrãs. |
-| `e2e-test-builder` *(migrado)* | Testes E2E (Flutter `integration_test`) de fluxos críticos. |
-| `notifications-integrator` *(migrado)* | FCM push live + consent GDPR. |
-| `bi-analytics` *(Lote 2)* | Dashboards/relatórios **read-only** (vendas, churn, top estafetas/parceiros). Só `SELECT`. |
-| `marketing-push` *(Lote 2)* | Push segmentado + promo codes + banners (nano-banana). Aprovação > 50 utilizadores; máx 2 push/dia. |
-| `crawler-mercados` *(Lote 2)* | Sync mercados NÃO-PARCEIRO (só categorias estáveis; nunca markup na DB). |
-| `dispatch-ops` *(Lote 2)* | Monitor **read-only** do dispatch (presos, failed, cobertura). Nunca modifica o motor. |
+| Nova categoria de loja | `mercados` + `flutter-ui` + `catalogo-visual` + `admin` |
+| Bug de pagamento | `pagamentos-wallet`[propõe] + `backend-supabase` + `seguranca` |
+| Bug/afinação de dispatch | `dispatch`[propõe] + `backend-supabase` + `dados-sql` |
+| Ecrã novo do cliente | `cliente` + `flutter-ui` + `admin` |
+| Fluxo do estafeta / TVDE | `estafeta-motorista` + `compliance-pt` + `notificacoes` + `admin` |
+| Onboarding de parceiro | `parceiro-restaurante` + `backend-supabase` + `admin` |
+| Reserva/serviço | `parceiro-servicos` + `flutter-ui` + `admin` |
+| Favor/errand + talão | `favores` + `dados-sql` + `admin` |
+| Push/campanha | `marketing-push` + `notificacoes` + `admin` |
+| RLS/segurança | `seguranca` + `backend-supabase` |
+| Release/CI | `devops-ci` (+ `e2e-test-builder` na Fase 4) |
+| Benchmark/paridade de UX | `pesquisa-concorrencia` + o agente de domínio + `admin` |
+| Suporte/FAQ | `chat-suporte` + `admin` |
+| Auditoria/migração ampla | **fan-out** coordenado pelo CEO-AI + `bibliotecario-cerebro` |
+
+**GATILHO DE PARIDADE (obrigatório):** qualquer feature construída num domínio → convocar também
+`admin` para garantir o ecrã de gestão correspondente (PT-BR). **Escalonamento 🔴:** se o esquadrão
+tocar dinheiro real, `pagamentos-wallet` entra em modo PROPOSE-ONLY e a alteração final espera "vai".
 
 - **Edge Functions (contagem real):** **44 funções locais** em `supabase/functions/*/index.ts`
   (a skill CEO-AI ainda diz "43 deployed / 38 locais" — **stale**, confirmar deployed via MCP

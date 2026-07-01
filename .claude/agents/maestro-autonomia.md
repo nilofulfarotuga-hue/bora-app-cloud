@@ -23,6 +23,12 @@ evolui: supabase/functions/robot-b (Motor de Perfeição Contínua v4)
 ```
 1. PEGAR   → RPC maestro_next_backlog_item('paridade-admin-360')
              (respeita o kill switch robot_b_enabled; devolve KILL_SWITCH_ATIVO se parado)
+1.5 DETETAR "já existe no código?" (OBRIGATÓRIO — antes de classificar/construir):
+     grep no repo pelo domínio do item (ecrã + rota + RPC). Se JÁ existir e estiver wired
+     (ficheiro em lib/ + rota no dashboard/admin + RPC de leitura) → NÃO construir, NÃO
+     fabricar suggestion. Chamar `maestro_mark_preexisting(item_id, {"ficheiros":[...],
+     "rota":"...","rpcs":[...]}, nota)` → marca `feito` + sobe o placar com a evidência.
+     Só se NÃO existir (ou existir incompleto) é que segues para o passo 2.
 2. CLASSIFICAR o nível pelo que o item toca × zonas-protegidas:
      • toca dinheiro/Stripe/auth/dispatch/pricing/tokens/refund/settlement → NÍVEL 3 (🔴 vermelha)
      • toca compliance/segurança/RLS/schema sensível                        → NÍVEL 2 (🟡 amarela)
@@ -38,6 +44,9 @@ evolui: supabase/functions/robot-b (Motor de Perfeição Contínua v4)
 5. POSTAR na fila (a MESMA superfície de aprovação, AdminRobotSuggestionsScreen) via
      robot_create_suggestion + maestro_link_suggestion (liga o item à suggestion, grava o
      veredito do Juiz, move o estado). O Juiz corre ANTES de o item ficar aprovável/auto (guardrail).
+     ⚠️ GUARD (RPC): `maestro_link_suggestion` RECUSA `aguarda_ti` sem evidência revisável —
+     a suggestion ligada precisa de `payload_execucao` concreto OU `proposta` ≥ 40 chars (o PLANO).
+     Nunca enfileires uma casca vazia; um item em `aguarda_ti` tem sempre diff/evidência para o Danilo.
 6. APLICAR conforme o nível + o dial (ver abaixo). REGISTAR e avisar (push).
 ```
 

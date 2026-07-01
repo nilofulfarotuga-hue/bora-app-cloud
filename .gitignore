@@ -151,3 +151,6 @@ testsprite_tests\tmp\config.json
 # Checkpoints de tarefas são descartáveis; só o .gitkeep é versionado.
 .claude/.ai/knowledge/sessao/*
 !.claude/.ai/knowledge/sessao/.gitkeep
+
+# ── Backups descartáveis ─────────────────────────────────────────────────────
+*.bak

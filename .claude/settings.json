@@ -1,5 +1,54 @@
 {
   "permissions": {
+    "deny": [
+      "Edit(./lib/services/pricing_service.dart)",
+      "Write(./lib/services/pricing_service.dart)",
+      "MultiEdit(./lib/services/pricing_service.dart)",
+      "Edit(./lib/stores/order_store.dart)",
+      "Write(./lib/stores/order_store.dart)",
+      "MultiEdit(./lib/stores/order_store.dart)",
+      "Edit(./lib/widgets/errand_execution_sheet.dart)",
+      "Write(./lib/widgets/errand_execution_sheet.dart)",
+      "MultiEdit(./lib/widgets/errand_execution_sheet.dart)",
+      "Edit(./supabase/functions/dispatch-engine/**)",
+      "Write(./supabase/functions/dispatch-engine/**)",
+      "MultiEdit(./supabase/functions/dispatch-engine/**)",
+      "Edit(./supabase/functions/stripe-webhook/**)",
+      "Write(./supabase/functions/stripe-webhook/**)",
+      "MultiEdit(./supabase/functions/stripe-webhook/**)",
+      "Edit(./supabase/functions/finalize-order-from-intent/**)",
+      "Write(./supabase/functions/finalize-order-from-intent/**)",
+      "MultiEdit(./supabase/functions/finalize-order-from-intent/**)",
+      "Edit(./supabase/functions/create-payment-intent/**)",
+      "Write(./supabase/functions/create-payment-intent/**)",
+      "MultiEdit(./supabase/functions/create-payment-intent/**)",
+      "Edit(./supabase/functions/create-mbway-payment-intent/**)",
+      "Write(./supabase/functions/create-mbway-payment-intent/**)",
+      "MultiEdit(./supabase/functions/create-mbway-payment-intent/**)",
+      "Edit(./supabase/functions/refund/**)",
+      "Write(./supabase/functions/refund/**)",
+      "MultiEdit(./supabase/functions/refund/**)",
+      "Edit(./supabase/functions/reprocess-refund/**)",
+      "Write(./supabase/functions/reprocess-refund/**)",
+      "MultiEdit(./supabase/functions/reprocess-refund/**)",
+      "Edit(./supabase/functions/charge-extra/**)",
+      "Write(./supabase/functions/charge-extra/**)",
+      "MultiEdit(./supabase/functions/charge-extra/**)",
+      "Edit(./.claude/hooks/**)",
+      "Write(./.claude/hooks/**)",
+      "MultiEdit(./.claude/hooks/**)",
+      "Edit(./.claude/settings.json)",
+      "Write(./.claude/settings.json)",
+      "MultiEdit(./.claude/settings.json)",
+      "Edit(./.claude/settings.local.json)",
+      "Write(./.claude/settings.local.json)",
+      "MultiEdit(./.claude/settings.local.json)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git push --force-with-lease:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(supabase db reset:*)"
+    ],
     "allow": [
       "WebSearch",
       "Bash(claude plugin:*)",
@@ -49,6 +98,28 @@
       "Bash(supabase secrets set:*)",
       "Bash(supabase secrets list:*)",
       "Bash(curl:*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/protege-dinheiro.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|mcp__.*[Ss]upabase.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/protege-banco.sh"
+          }
+        ]
+      }
     ]
   },
   "enableAllProjectMcpServers": true,

@@ -30,10 +30,16 @@ RLS em `orders` / `wallets` / `ledger_entries` / `bora_tokens`.
 - **Intocáveis.** Nenhum agente cria loops autónomos paralelos ao Robot B nem desliga os seus
   kill switches. Crosstalk A↔B é tratado pela skill `ask-knowledge-base`, não por estes agentes.
 
-## Agentes registados (13)
+## 🧠 Cérebro (Fase 2 — 2026-07-01)
+- **Antes de trabalhar:** ler `.claude/.ai/knowledge/INDEX.md` e carregar só o teu tema.
+- **Depois:** entregar um *handoff* ao agente `bibliotecario-cerebro` (o ÚNICO que escreve no
+  Cérebro). Ver `.claude/.ai/knowledge/PROTOCOLO.md`. Aplicar só factos `estado: atual`.
+
+## Agentes registados (14)
 **Lote 1:** `obsidian-sync`, `catalogo-visual`, `db-migrations`, `admin-sync`, `seguranca-rls`
 + migrados `checkout-fixer`, `design-system-applier`, `e2e-test-builder`, `notifications-integrator`.
 **Lote 2 (2026-06-23):** `bi-analytics`, `marketing-push`, `crawler-mercados`, `dispatch-ops`.
+**Fase 2 (2026-07-01):** `bibliotecario-cerebro` (guardião do Cérebro; único que escreve na memória).
 
 ## Lições técnicas (Lote 1/2 — 2026-06-23)
 > Aprendizagens de ambiente/processo. Não são regras de negócio.

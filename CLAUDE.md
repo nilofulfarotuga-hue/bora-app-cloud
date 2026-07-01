@@ -19,6 +19,16 @@
 - OrderStore uses ID comparison (not reference)
 - Realtime replaces objects → never rely on object identity
 - DispatchEngine is memory-based with DB sync for offers
+## 🧠 Cérebro (memória estruturada) — LER ANTES DE TRABALHAR
+
+- **TODO agente lê `.claude/.ai/knowledge/INDEX.md` antes de trabalhar** e carrega **só** os
+  ficheiros do seu tema (nunca o Cérebro inteiro — foi o que rebentou o MEMORY.md de 45 KB).
+- **Só o agente `bibliotecario-cerebro` escreve no Cérebro.** Os outros entregam-lhe um *handoff*
+  no fim da tarefa (ver `.claude/.ai/knowledge/PROTOCOLO.md`). Escrita de memória é operação de
+  primeira classe, com gatilho explícito — não "o modelo decide sozinho o que lembrar".
+- **Frescura:** aplicar só factos `estado: atual`; um facto `superado` fica na história, não se aplica.
+- **Invariante:** índice e cada ficheiro carregam abaixo de ~24 KB. Passou → o Bibliotecário parte.
+
 ## Skill Usage Rule
 
 - ALWAYS prefer using skills instead of long prompts
@@ -56,19 +66,26 @@
   (a skill CEO-AI ainda diz "43 deployed / 38 locais" — **stale**, confirmar deployed via MCP
   `list_edge_functions` e atualizar `SKILL.md` com aprovação do Danilo).
 
-## Validation Gate (MANDATORY)
+## Validation Gate — SÓ DINHEIRO (revisto 2026-07-01)
 
-Before executing ANY task that touches:
-- Payments (Stripe, MBWay, cash flow)
-- Database (tables, triggers, migrations, seeds)
-- Security (RLS policies, auth, permissions)
-- OR has estimated effort > 1h
+Regra do Danilo: tarefas normais (bugs, ecrãs, features, infra, admin não-financeiro,
+DB/segurança não-financeira, pesquisa) → **DECIDE E EXECUTA ponta-a-ponta**, sem parar,
+sem menus de escolha, sem prompts em inglês. No fim, relatório do que foi feito.
 
-**STOP and output exactly this message first:**
+A ÚNICA travagem é **dinheiro real** — a 🔴 LISTA VERMELHA (ver `.claude/skills/ceo-ai/SKILL.md` §1.6):
+- Stripe / pagamentos / refund / MBWay / webhook + chaves Stripe
+- Preços / taxas / comissões (`pricing_service`, fees, markup, service_fee)
+- `finalizePurchase` e checkout que cobra
+- `bora_tokens` e triggers de tokens
+- `platform_settings` financeiros (`stripe_*`, `pricing_*`, `commission_*`, `fee_*`, `token_*`)
+- Migrations/UPDATE que alterem valores cobrados a clientes ou pagos a estafetas/parceiros
 
-⚠️ VALIDAÇÃO RECOMENDADA — Envia esta resposta ao Claude.ai para validação antes de aprovar.
+Para a Lista Vermelha: **faz todo o trabalho de preparação, mas NÃO aplica a alteração final.**
+Em vez de parar com pergunta em inglês, escreve no relatório, em português, bem claro:
 
-Do NOT proceed until the user explicitly approves.
+⚠️ ISTO MEXE EM PAGAMENTO/DINHEIRO. Está tudo pronto — confirma que eu aplico.
+
+Só aplica depois de o Danilo responder "vai". Tudo o resto executa sozinho.
 
 ## Execution Mode
 

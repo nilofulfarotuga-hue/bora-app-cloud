@@ -1,37 +1,73 @@
-# Bora App — Knowledge Index
+---
+tema: indice-cerebro · escopo: projeto · estado: atual · atualizado: 2026-07-01
+---
 
-> Entry point. CEO-AI lê este ficheiro **antes** de qualquer task significativa.
-> Apenas referência — conteúdo vive nos sub-documentos e ficheiros canónicos.
+# 🧠 CÉREBRO DO BORA — Índice
 
-## Fontes da verdade
+> **Entry point.** TODO agente lê este ficheiro **antes** de trabalhar e carrega **só** os
+> ficheiros do seu tema — nunca o Cérebro inteiro. Só o agente **`bibliotecario-cerebro`**
+> escreve aqui (ver `PROTOCOLO.md`).
+>
+> **Invariante:** este índice e cada ficheiro carregam **abaixo do limite de leitura (~24 KB)**.
+> Se um ficheiro crescer, o Bibliotecário parte-o por sub-tema.
 
-| Fonte | Ficheiro | Quando consultar |
+## Como está organizado
+
+```
+knowledge/
+  INDEX.md            ← estás aqui (índice minúsculo)
+  PROTOCOLO.md        ← como ler/escrever no Cérebro
+  permanente/         ← factos que valem no tempo
+    semantica/        ← regras & factos (o que É verdade)
+    episodica/        ← história (o que ACONTECEU)
+    procedural/       ← como-fazer & lições (como se FAZ)
+  sessao/             ← memória de trabalho efémera (gitignored)
+  _arquivo/           ← histórico bruto + mapas de migração (nunca apagar)
+```
+
+## Frescura & escopo (ler antes de confiar num facto)
+- **Escopo** por bloco: `escopo: projeto` (partilhado) ou `escopo: agente:<nome>`.
+- **Estado** por facto: `estado: atual` ou `estado: superado (por X, data)`.
+  Um facto `superado` fica na história para contexto — **não** o apliques; segue o `atual`.
+
+---
+
+## 📚 PERMANENTE
+
+### Semântica — regras & factos
+| Tema | Ficheiro | Quando ler |
 |---|---|---|
-| **Regras de negócio** | `bora_app/.claude/.ai/business_rules.md` | Decisões de pricing, tokens, dispatch, refund, fees, cancelamento |
-| **Schema declarativo** | `bora_app/supabase/schema.sql` | Estrutura canónica das tabelas core |
-| **Migrations aplicadas** | `bora_app/supabase/migrations/*.sql` | Histórico cronológico de alterações DB |
-| **Decisões arquitecturais** | `bora_app/.claude/.ai/decisions/` | Refactors planeados, drafts HIGH-RISK |
-| **Relatórios sessão** | `bora_app/.claude/.ai/reports/` | Estado pós-sessão, audits, validações |
-| **Skill CEO-AI** | `.claude/skills/ceo-ai/SKILL.md` | Identidade, prioridades, workflow |
+| Regras de negócio (ponteiro p/ canónico 192KB) | `permanente/semantica/business-rules.md` | pricing, tokens, fees, dispatch, refund, cancelamento |
+| Pricing / tokens / comissões (resumo) | `permanente/semantica/pricing.md` | qualquer cálculo de dinheiro (só leitura) |
+| DNA — filosofia de decisão do Danilo | `permanente/semantica/dna.md` | dúvida de "como o dono decidiria" |
+| 🔴 Zonas protegidas (a Trava, Fase 1) | `permanente/semantica/zonas-protegidas.md` | **antes de editar código/DB** |
+| Backend map (tabelas/RPCs/edge fns/triggers/RLS) | `permanente/semantica/backend-map.md` | mexer no Supabase; "o que existe" |
+| Exército (elenco de agentes) | `permanente/semantica/exercito.md` | escolher/delegar a um agente |
 
-## Convenções importantes
+### Episódica — história
+| Tema | Ficheiro | Quando ler |
+|---|---|---|
+| Bugs resolvidos (sagas + causa-raiz) | `permanente/episodica/bugs-resolvidos.md` | antes de "corrigir" algo já corrigido |
+| Decisões arquiteturais | `permanente/episodica/decisoes.md` | refactors, mudanças de estrutura |
+| Auditoria 360° (5 P0 + placar admin) | `permanente/episodica/auditoria-360.md` | prioridades de produto/gaps |
 
-- **`restaurants.id`, `products.id`, `orders.id` são TEXT** (legado). Migrations cast quando precisam UUID. Refactor planeado em `decisions/2026-04-29-restaurants-id-uuid-refactor.md`.
-- **`assigned_driver_id` é TEXT** intencional. NÃO tocar.
-- **`admin_audit_log.entity_id` é UUID**. Para entidades TEXT (restaurants, products) usar `entity_id_text`.
-- **Todos os RPCs admin usam `_admin_op_guard()`** + INSERT em `admin_audit_log`.
-- **Storage `avatars`** path é `{userId}/avatar.jpg`. RLS em 4 policies.
+### Procedural — como-fazer & lições
+| Tema | Ficheiro | Quando ler |
+|---|---|---|
+| Convenções (ambiente, git, MCP, Windows) | `permanente/procedural/convencoes.md` | build/push/MCP/encoding |
+| Lições (cresce com o tempo) | `permanente/procedural/licoes/` | evitar repetir erros |
 
-## Sub-documentos relevantes (a serem criados conforme a app cresce)
+---
 
-- `00_BORA_DNA.md` — **O CÉREBRO DA BORA** (filosofia de decisão do Danilo; injetado nos Robots A/B; business_rules.md vence nos números, DNA vence na filosofia; só Danilo altera) (2026-06-10)
-- `benchmarks/` — biblioteca do Robot B v4: delivery.md (Glovo/Uber/iFood), reservas.md (OpenTable/TheFork), servicos.md (Fresha/Booksy). Versão condensada vive no prompt da EF robot-b — manter em sincronia (2026-06-10)
-- `business-rules/wallet.md` — §17 Wallet 80/20 + Cashback + Referral + Promos (2026-04-30)
-- `from-obsidian/` — sync unidirecional do vault Obsidian (NÃO editar à mão).
-- `sessions/` — notas por sessão de trabalho.
+## 🗂️ Fontes canónicas (fora do Cérebro, referenciadas por ele)
+| Fonte | Ficheiro | Papel |
+|---|---|---|
+| Regras de negócio (verdade dos números) | `.claude/.ai/business_rules.md` (192 KB) | ler por secção, nunca inteiro |
+| Trava determinística (Fase 1) | `.claude/HOOKS.md` | o que está bloqueado e porquê |
+| Auditoria 360° (relatório completo) | `audits/AUDITORIA_PARIDADE_360_2026-07-01.md` | detalhe por superfície |
+| Memória partilhada dos agentes | `.claude/agents/agent-memory.md` | regras de comportamento dos agentes |
+| Skill CEO-AI (orquestrador) | `.claude/skills/ceo-ai/SKILL.md` | identidade, prioridades, workflow |
 
-## Roadmap conhecido (ler decisions/ correspondentes)
-
-- JWT vault cutover (`2026-04-29-jwt-vault-cutover.md`) — pos-aprovação Danilo
-- restaurants.id UUID refactor (`2026-04-29-restaurants-id-uuid-refactor.md`) — pos-launch
-- BR §6.7 dispatch+refund (`2026-04-29-dispatch-partner-open.md`) — depende BUG-MN-004
+## 🔗 Espelho Obsidian
+O vault (`C:\Users\danil\Desktop\Bora`) é espelhado pelo agente **`obsidian-sync`** (unidirecional,
+SHA256). **Não** construir sync nova aqui.

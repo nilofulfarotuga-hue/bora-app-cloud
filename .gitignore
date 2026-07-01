@@ -146,3 +146,8 @@ testsprite_tests\tmp\config.json
 
 # MCP config (contém API keys)
 .mcp.json
+
+# ── Cérebro: memória de trabalho efémera (Fase 2) ────────────────────────────
+# Checkpoints de tarefas são descartáveis; só o .gitkeep é versionado.
+.claude/.ai/knowledge/sessao/*
+!.claude/.ai/knowledge/sessao/.gitkeep

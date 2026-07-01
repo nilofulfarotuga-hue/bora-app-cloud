@@ -9,10 +9,13 @@
 //   - carry_groceries_form_screen.dart
 //
 // Para errand, o rodapé já existe inline no errand_form_screen.dart (3 segmentos).
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../config/app_colors.dart';
+import '../main.dart' show logScreenBreadcrumb;
 import '../models/order_model.dart';
 import '../services/directions_service.dart';
 import '../services/payment_service.dart';
@@ -40,10 +43,15 @@ class _QuotePriceFooterState extends State<QuotePriceFooter> {
   Map<String, dynamic>? _quote;
   bool _loading = false;
 
+  // [TELA BRANCA 2026-07-01] breadcrumb único no 1º build — regista os insets
+  // reais do device para confirmar o diagnóstico no próximo build.
+  bool _builtOnce = false;
+
   @override
   void didUpdateWidget(covariant QuotePriceFooter old) {
     super.didUpdateWidget(old);
-    final changed = old.pickup != widget.pickup || old.dropoff != widget.dropoff;
+    final changed =
+        old.pickup != widget.pickup || old.dropoff != widget.dropoff;
     if (changed) _refresh();
   }
 
@@ -101,17 +109,30 @@ class _QuotePriceFooterState extends State<QuotePriceFooter> {
 
   @override
   Widget build(BuildContext context) {
+    final mq = MediaQuery.of(context);
+    // [TELA BRANCA 2026-07-01] Android 16 (SM-A366B) pode reportar
+    // padding.bottom absurdo (edge-to-edge). Sem clamp, este Container
+    // (surface BRANCA) esticava até cobrir o corpo inteiro — via-se só o
+    // "Total estimado" no topo e branco puro por baixo. Inset real da barra
+    // de gestos nunca passa ~40 px lógicos.
+    final double bottomInset = math.min(mq.padding.bottom, 40.0);
+    if (!_builtOnce) {
+      _builtOnce = true;
+      logScreenBreadcrumb(
+          'QuotePriceFooter',
+          'build#1 padBottom=${mq.padding.bottom.toStringAsFixed(1)} '
+              'insetsBottom=${mq.viewInsets.bottom.toStringAsFixed(1)} '
+              'screenH=${mq.size.height.toStringAsFixed(0)}');
+    }
     final total = (_quote?['customer_total'] as num?)?.toDouble();
-    final label = total != null
-        ? '€${total.toStringAsFixed(2)}'
-        : widget.fallbackLabel;
+    final label =
+        total != null ? '€${total.toStringAsFixed(2)}' : widget.fallbackLabel;
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
         boxShadow: AppColors.shadowNav,
       ),
-      padding: EdgeInsets.fromLTRB(
-          16, 12, 16, 12 + MediaQuery.of(context).padding.bottom),
+      padding: EdgeInsets.fromLTRB(16, 12, 16, 12 + bottomInset),
       child: Row(
         children: [
           Flexible(
@@ -141,8 +162,8 @@ class _QuotePriceFooterState extends State<QuotePriceFooter> {
                 const SizedBox(height: 2),
                 const Text(
                   '6 € até 4 km · +0,50 €/km acima',
-                  style: TextStyle(
-                      color: AppColors.textSecondary, fontSize: 11),
+                  style:
+                      TextStyle(color: AppColors.textSecondary, fontSize: 11),
                 ),
               ],
             ),

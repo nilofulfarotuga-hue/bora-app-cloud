@@ -41,11 +41,14 @@ class _SendPackageFormScreenState extends State<SendPackageFormScreen> {
   // construir (vs. ficar branco).
   bool _builtOnce = false;
 
+  // [TELA BRANCA 2026-07-01] mede a altura real do body após o 1º frame.
+  final _bodyKey = GlobalKey();
+
   @override
   void initState() {
     super.initState();
-    logScreenBreadcrumb('SendPackageForm',
-        'initState mapsKeyEmpty=${googleApiKey.isEmpty}');
+    logScreenBreadcrumb(
+        'SendPackageForm', 'initState mapsKeyEmpty=${googleApiKey.isEmpty}');
     // [C/adenda] _prefillPickupFromGps faz setState; chamá-lo SÍNCRONO no
     // initState marcava build durante build. Diferido para depois do 1º frame.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -84,6 +87,9 @@ class _SendPackageFormScreenState extends State<SendPackageFormScreen> {
       if (mounted) setState(() => _pickupController.text = _fallbackAddress);
     } finally {
       if (mounted) setState(() => _loadingLocation = false);
+      // [TELA BRANCA 2026-07-01] confirma que o prefill GPS terminou.
+      logScreenBreadcrumb('SendPackageForm',
+          'gps prefill done coords=${_pickupLocation != null}');
     }
   }
 
@@ -111,8 +117,7 @@ class _SendPackageFormScreenState extends State<SendPackageFormScreen> {
     if (_packagePhotoUrl == null || _packagePhotoUrl!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text(
-                'Adiciona uma foto da encomenda — obrigatório.')),
+            content: Text('Adiciona uma foto da encomenda — obrigatório.')),
       );
       return;
     }
@@ -149,87 +154,111 @@ class _SendPackageFormScreenState extends State<SendPackageFormScreen> {
     if (!_builtOnce) {
       _builtOnce = true;
       logScreenBreadcrumb('SendPackageForm', 'build#1 body a construir');
+      // [TELA BRANCA 2026-07-01] geometria real do 1º frame — se bodyH≈0 a
+      // causa é o Scaffold a esmagar o corpo (insets), não o conteúdo.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final bodyH = _bodyKey.currentContext?.size?.height;
+        final mq = MediaQuery.of(context);
+        logScreenBreadcrumb(
+            'SendPackageForm',
+            'pós-frame#1 bodyH=${bodyH?.toStringAsFixed(0)} '
+                'padBottom=${mq.padding.bottom.toStringAsFixed(1)} '
+                'insetsBottom=${mq.viewInsets.bottom.toStringAsFixed(1)}');
+      });
     }
-    return Scaffold(
-      appBar: const BoraScreenAppBar(title: 'Enviar Encomenda'),
-      bottomNavigationBar: QuotePriceFooter(
-        serviceType: OrderServiceType.sendPackage,
-        pickup: _pickupLocation,
-        dropoff: _dropoffLocation,
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          const Text(
-            'Endereço de recolha',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-          ),
-          const SizedBox(height: 8),
-          // Mostra um indicador subtil enquanto o GPS resolve o endereço.
-          Stack(
-            children: [
-              AddressAutocompleteField(
-                controller: _pickupController,
-                labelText: 'Pesquisar endereço de recolha',
-                prefixIcon: const Icon(Icons.my_location_outlined),
-                onSelected: (address, coords) {
-                  setState(() => _pickupLocation = coords);
-                },
-              ),
-              if (_loadingLocation)
-                const Positioned(
-                  right: 12,
-                  top: 14,
-                  child: SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          const Text(
-            'Endereço de entrega',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-          ),
-          const SizedBox(height: 8),
-          AddressAutocompleteField(
-            controller: _dropoffController,
-            labelText: 'Pesquisar endereço de entrega',
-            prefixIcon: const Icon(Icons.location_on_outlined),
-            onSelected: (address, coords) {
-              setState(() => _dropoffLocation = coords);
-            },
-          ),
-          const SizedBox(height: 24),
-          const Divider(),
-          SwitchListTile(
-            title: const Text(
-                'Um motociclista consegue transportar esta encomenda?'),
-            subtitle: Text(
-              _motoCanCarry
-                  ? 'Sim — motos e carros elegíveis'
-                  : 'Não — apenas carros elegíveis',
+    // [TELA BRANCA 2026-07-01] blindagem: viewInsets absurdos (Android 16
+    // edge-to-edge) esmagam o body para altura ~0 → tela branca. Teclado real
+    // nunca passa ~60% do ecrã; acima disso é lixo do sistema → ignora-se.
+    final mq = MediaQuery.of(context);
+    final bogusInsets = mq.viewInsets.bottom > mq.size.height * 0.6;
+    final mqData = bogusInsets
+        ? mq.copyWith(viewInsets: mq.viewInsets.copyWith(bottom: 0))
+        : mq;
+    return MediaQuery(
+      data: mqData,
+      child: Scaffold(
+        appBar: const BoraScreenAppBar(title: 'Enviar Encomenda'),
+        bottomNavigationBar: QuotePriceFooter(
+          serviceType: OrderServiceType.sendPackage,
+          pickup: _pickupLocation,
+          dropoff: _dropoffLocation,
+        ),
+        body: ListView(
+          key: _bodyKey,
+          padding: const EdgeInsets.all(16),
+          children: [
+            const Text(
+              'Endereço de recolha',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
             ),
-            value: _motoCanCarry,
-            onChanged: (value) => setState(() => _motoCanCarry = value),
-          ),
-          const Divider(),
-          const SizedBox(height: 16),
-          MandatoryPhotoPicker(
-            label: 'Foto da encomenda (obrigatória)',
-            hint:
-                'O estafeta vê a foto antes de aceitar. Evita surpresas de tamanho/peso. (BR §7.5)',
-            pathPrefix: 'package',
-            onUploaded: (url) => setState(() => _packagePhotoUrl = url),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: _goToPayment,
-            child: const Text('Continuar para pagamento'),
-          ),
-        ],
+            const SizedBox(height: 8),
+            // Mostra um indicador subtil enquanto o GPS resolve o endereço.
+            Stack(
+              children: [
+                AddressAutocompleteField(
+                  controller: _pickupController,
+                  labelText: 'Pesquisar endereço de recolha',
+                  prefixIcon: const Icon(Icons.my_location_outlined),
+                  onSelected: (address, coords) {
+                    setState(() => _pickupLocation = coords);
+                  },
+                ),
+                if (_loadingLocation)
+                  const Positioned(
+                    right: 12,
+                    top: 14,
+                    child: SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Endereço de entrega',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+            ),
+            const SizedBox(height: 8),
+            AddressAutocompleteField(
+              controller: _dropoffController,
+              labelText: 'Pesquisar endereço de entrega',
+              prefixIcon: const Icon(Icons.location_on_outlined),
+              onSelected: (address, coords) {
+                setState(() => _dropoffLocation = coords);
+              },
+            ),
+            const SizedBox(height: 24),
+            const Divider(),
+            SwitchListTile(
+              title: const Text(
+                  'Um motociclista consegue transportar esta encomenda?'),
+              subtitle: Text(
+                _motoCanCarry
+                    ? 'Sim — motos e carros elegíveis'
+                    : 'Não — apenas carros elegíveis',
+              ),
+              value: _motoCanCarry,
+              onChanged: (value) => setState(() => _motoCanCarry = value),
+            ),
+            const Divider(),
+            const SizedBox(height: 16),
+            MandatoryPhotoPicker(
+              label: 'Foto da encomenda (obrigatória)',
+              hint:
+                  'O estafeta vê a foto antes de aceitar. Evita surpresas de tamanho/peso. (BR §7.5)',
+              pathPrefix: 'package',
+              onUploaded: (url) => setState(() => _packagePhotoUrl = url),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _goToPayment,
+              child: const Text('Continuar para pagamento'),
+            ),
+          ],
+        ),
       ),
     );
   }

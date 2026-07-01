@@ -36,11 +36,14 @@ class _CarryGroceriesFormScreenState extends State<CarryGroceriesFormScreen> {
   // [C/adenda] breadcrumb único no 1º build.
   bool _builtOnce = false;
 
+  // [TELA BRANCA 2026-07-01] mede a altura real do body após o 1º frame.
+  final _bodyKey = GlobalKey();
+
   @override
   void initState() {
     super.initState();
-    logScreenBreadcrumb('CarryGroceriesForm',
-        'initState mapsKeyEmpty=${googleApiKey.isEmpty}');
+    logScreenBreadcrumb(
+        'CarryGroceriesForm', 'initState mapsKeyEmpty=${googleApiKey.isEmpty}');
     _geocoder = createPlaceAutocompleteService(googleApiKey);
   }
 
@@ -115,63 +118,87 @@ class _CarryGroceriesFormScreenState extends State<CarryGroceriesFormScreen> {
     if (!_builtOnce) {
       _builtOnce = true;
       logScreenBreadcrumb('CarryGroceriesForm', 'build#1 body a construir');
+      // [TELA BRANCA 2026-07-01] geometria real do 1º frame — se bodyH≈0 a
+      // causa é o Scaffold a esmagar o corpo (insets), não o conteúdo.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final bodyH = _bodyKey.currentContext?.size?.height;
+        final mq = MediaQuery.of(context);
+        logScreenBreadcrumb(
+            'CarryGroceriesForm',
+            'pós-frame#1 bodyH=${bodyH?.toStringAsFixed(0)} '
+                'padBottom=${mq.padding.bottom.toStringAsFixed(1)} '
+                'insetsBottom=${mq.viewInsets.bottom.toStringAsFixed(1)}');
+      });
     }
-    return Scaffold(
-      appBar: const BoraScreenAppBar(title: 'Levar Compras'),
-      bottomNavigationBar: QuotePriceFooter(
-        serviceType: OrderServiceType.carryGroceries,
-        pickup: _pickupLocation,
-        dropoff: _dropoffLocation,
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          const Text(
-            'Local da loja',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-          ),
-          const SizedBox(height: 8),
-          // A.2 — campo da loja com pré-preenchimento por GPS: se o cliente
-          // estiver dentro/junto de uma loja (≤ 0,15 km) já aparece preenchida.
-          BusinessAutocompleteField(
-            controller: _pickupController,
-            labelText: 'Pesquisar loja ou supermercado',
-            prefixIcon: const Icon(Icons.store_outlined),
-            autofillNearestWithinKm: 0.15,
-            onSelected: (name, coords) {
-              setState(() => _pickupLocation = coords);
-            },
-            onChanged: (_) {
-              if (_pickupLocation != null) {
-                setState(() => _pickupLocation = null);
-              }
-            },
-          ),
-          const SizedBox(height: 24),
-          const Text(
-            'Endereço de entrega',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-          ),
-          const SizedBox(height: 8),
-          AddressAutocompleteField(
-            controller: _dropoffController,
-            labelText: 'Pesquisar endereço de entrega',
-            prefixIcon: const Icon(Icons.location_on_outlined),
-            onSelected: (address, coords) {
-              setState(() => _dropoffLocation = coords);
-            },
-            onChanged: (_) {
-              if (_dropoffLocation != null) {
-                setState(() => _dropoffLocation = null);
-              }
-            },
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: _goToPayment,
-            child: const Text('Continuar para pagamento'),
-          ),
-        ],
+    // [TELA BRANCA 2026-07-01] blindagem: viewInsets absurdos (Android 16
+    // edge-to-edge) esmagam o body para altura ~0 → tela branca. Teclado real
+    // nunca passa ~60% do ecrã; acima disso é lixo do sistema → ignora-se.
+    final mq = MediaQuery.of(context);
+    final bogusInsets = mq.viewInsets.bottom > mq.size.height * 0.6;
+    final mqData = bogusInsets
+        ? mq.copyWith(viewInsets: mq.viewInsets.copyWith(bottom: 0))
+        : mq;
+    return MediaQuery(
+      data: mqData,
+      child: Scaffold(
+        appBar: const BoraScreenAppBar(title: 'Levar Compras'),
+        bottomNavigationBar: QuotePriceFooter(
+          serviceType: OrderServiceType.carryGroceries,
+          pickup: _pickupLocation,
+          dropoff: _dropoffLocation,
+        ),
+        body: ListView(
+          key: _bodyKey,
+          padding: const EdgeInsets.all(16),
+          children: [
+            const Text(
+              'Local da loja',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+            ),
+            const SizedBox(height: 8),
+            // A.2 — campo da loja com pré-preenchimento por GPS: se o cliente
+            // estiver dentro/junto de uma loja (≤ 0,15 km) já aparece preenchida.
+            BusinessAutocompleteField(
+              controller: _pickupController,
+              labelText: 'Pesquisar loja ou supermercado',
+              prefixIcon: const Icon(Icons.store_outlined),
+              autofillNearestWithinKm: 0.15,
+              onSelected: (name, coords) {
+                setState(() => _pickupLocation = coords);
+              },
+              onChanged: (_) {
+                if (_pickupLocation != null) {
+                  setState(() => _pickupLocation = null);
+                }
+              },
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Endereço de entrega',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+            ),
+            const SizedBox(height: 8),
+            AddressAutocompleteField(
+              controller: _dropoffController,
+              labelText: 'Pesquisar endereço de entrega',
+              prefixIcon: const Icon(Icons.location_on_outlined),
+              onSelected: (address, coords) {
+                setState(() => _dropoffLocation = coords);
+              },
+              onChanged: (_) {
+                if (_dropoffLocation != null) {
+                  setState(() => _dropoffLocation = null);
+                }
+              },
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: _goToPayment,
+              child: const Text('Continuar para pagamento'),
+            ),
+          ],
+        ),
       ),
     );
   }

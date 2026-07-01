@@ -62,6 +62,11 @@
 | **e2e-test-builder** | Braço de **geração** de teste — cria `integration_test/` para features novas, que o TestSprite corre. |
 | **checkout-fixer** | **Fixer** especializado que o Juiz invoca em **regressão de checkout** (propõe patch; dinheiro espera "vai"). |
 
+### O Maestro (Fase 5 — o loop autónomo)
+| Agente | 🛡️ | Propósito |
+|---|---|---|
+| **maestro-autonomia** | 🟡 | Dono do **ciclo do loop** autónomo (paridade admin). Pega item do backlog → **classifica nível (1/2/3)** × zonas-protegidas → convoca esquadrão pequeno → **Juiz obrigatório** → posta na **Central** (`AdminRobotSuggestionsScreen` — superfície única). Evolui `robot-b`. Dial começa cauteloso; kill switch "PARAR TUDO". Ver `docs/fase5/ENVELOPE_SEGURANCA.md`. |
+
 ## Zonas protegidas (todos os agentes)
 `dispatch_engine` · `pricing_service.dart` · triggers financeiros · Stripe webhook ·
 RLS em `orders`/`wallets`/`ledger_entries`/`bora_tokens`. Robot A e Robot B são **intocáveis**.

@@ -1,8 +1,8 @@
 ---
-tema: exercito · escopo: projeto · estado: atual · atualizado: 2026-07-01 (Fase 4)
+tema: exercito · escopo: projeto · estado: atual · atualizado: 2026-07-01 (Fase 5)
 ---
 
-# 🎖️ Exército — elenco de agentes (Fase 3 + Juiz Fase 4)
+# 🎖️ Exército — elenco de agentes (Fase 3 + Juiz Fase 4 + Maestro Fase 5)
 
 > Os contratos vivem em `.claude/agents/*.md`. Regras partilhadas em `.claude/agents/agent-memory.md`.
 > **CEO-AI é o dispatcher master.** Princípio: agentes **orquestram** skills (ferramentas), nunca
@@ -10,7 +10,7 @@ tema: exercito · escopo: projeto · estado: atual · atualizado: 2026-07-01 (Fa
 > (a Trava bloqueia a edição; o agente lê e propõe, o Danilo aprova). Cada agente tem gaveta de
 > memória própria no Cérebro: `escopo: agente:<nome>`. Regras de despacho no `CLAUDE.md`.
 
-## Elenco canónico — 24 agentes
+## Elenco canónico — 26 agentes
 
 ### Domínio (11)
 - `cliente` 🟢 — ecrãs e fluxos do cliente.
@@ -49,6 +49,16 @@ tema: exercito · escopo: projeto · estado: atual · atualizado: 2026-07-01 (Fa
 - **Braços do Juiz** (`absorbed_by: juiz-revisor`, `absorbed_date: 2026-07-01`):
   - `e2e-test-builder` — geração de teste (Flutter integration_test).
   - `checkout-fixer` — fixer de regressão de checkout.
+
+### Central de Autonomia (Fase 5, 2026-07-01) — 26.º agente
+- `maestro-autonomia` 🟡 (**NOVO** — O Loop) — dono do ciclo autónomo apontado ao backlog de
+  **paridade admin** (auditoria 360°). Pega item → classifica nível (N1🟢/N2🟡/N3🔴) × zonas
+  protegidas → esquadrão pequeno → **Juiz obrigatório** → posta na Central. Evolui `robot-b`.
+  Arquitetura **híbrida**: `robot_suggestions` = a fila; `autonomy_goals` + `autonomy_backlog_items`
+  = camada de goals (o `/goal`, o placar, os tetos). Ecrã `AdminAutonomyCenterScreen`.
+  **Dial COMEÇA cauteloso** (`robot_b_auto_level1_enabled=false`); **kill switch** `robot_b_enabled`.
+  Envelope de 5 paredes: Trava · Juiz · Tetos · Humano-acima-do-L1 · Kill switch.
+  Contrato em `.claude/agents/maestro-autonomia.md`; detalhe em `episodica/decisoes.md` (Fase 5).
 
 ### Fase 4 — não tocar agora (2)
 > **estado: superado (pela Fase 4, 2026-07-01).** `checkout-fixer` e `e2e-test-builder` deixam de

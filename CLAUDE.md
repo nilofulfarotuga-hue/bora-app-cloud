@@ -49,7 +49,7 @@
   *handoff* ao `bibliotecario-cerebro` no fim. Proteção: 🟢 zona segura · 🟡 sensível · 🔴 dinheiro
   = **PROPOSE-ONLY** (a Trava bloqueia a edição; o agente lê e propõe, o Danilo aprova).
 
-**Elenco canónico (Fase 4, 2026-07-01) — 25 agentes.** Ver tabela completa + skills em `README.md`.
+**Elenco canónico (Fase 5, 2026-07-01) — 26 agentes** (Fase 5: +`maestro-autonomia`). Ver `README.md`.
 - **Domínio:** `cliente`🟢 · `estafeta-motorista`🟡 · `parceiro-restaurante`🟡 · `parceiro-servicos`🟢
   · `mercados`🟢 · `favores`🟢 · `pagamentos-wallet`🔴 · `dispatch`🔴 · `admin`🟢 · `notificacoes`🟢 · `chat-suporte`🟢
 - **Ofício:** `flutter-ui`🟢 · `backend-supabase`🟡 · `seguranca`🟡 · `dados-sql`🟢 · `devops-ci`🟡
@@ -70,6 +70,23 @@
 - **Rejeição → aprendizado:** o Juiz gera lição (`.claude/juiz/reflexao.py`) → handoff ao
   `bibliotecario-cerebro` → grava em `procedural/licoes/` → próximo agente lê antes de trabalhar.
 - Scripts em `.claude/juiz/` (NÃO em `.claude/hooks/`). Ver `.claude/juiz/README.md`.
+
+### 🎛️ CENTRAL DE AUTONOMIA + O LOOP (Fase 5, 2026-07-01)
+O **primeiro loop autónomo seguro**, apontado ao backlog de **paridade admin** (auditoria 360°).
+Híbrido: `robot_suggestions` = a fila de itens; `autonomy_goals` + `autonomy_backlog_items` = a
+camada de **goals** (o `/goal`, o placar, os tetos). **Superfície ÚNICA de aprovação:**
+`AdminRobotSuggestionsScreen` — o placar de paridade + kill switch + dial são o **cabeçalho** dessa
+mesma caixa (guardrail: `autonomy_goals` não é um segundo inbox).
+- **Maestro (26.º agente):** `.claude/agents/maestro-autonomia.md` 🟡 — dono do ciclo (pega →
+  classifica nível → esquadrão pequeno → **Juiz obrigatório** → posta na Central). Evolui `robot-b`.
+- **Os 3 níveis (× Trava × Juiz × dial):** **N1 🟢** auto reversível (só se o dial permitir) · **N2 🟡**
+  1 toque (fila + push) · **N3 🔴** dinheiro = **só propõe** (a Trava bloqueia aplicar; ato humano).
+- **Dial de confiança** (`platform_settings.robot_b_auto_level1_enabled`) — **COMEÇA CAUTELOSO**
+  (tudo passa por ti). **Kill switch "PARAR TUDO"** (`robot_b_enabled=false`) — suspende o loop já.
+- **Envelope de segurança (5 paredes):** Trava · Juiz · Tetos · Humano-acima-do-L1 · Kill switch.
+  Ver `docs/fase5/ENVELOPE_SEGURANCA.md` + `docs/fase5/GOAL_PARIDADE_ADMIN.md`.
+- **Push in-system (sem Hermes):** `notify-admin-urgent` modo `generic` quando itens ficam `aguarda_ti`.
+- **Aprendizado no loop:** rejeição do Juiz → lição → `bibliotecario-cerebro` → próximo ciclo já sabe.
 
 ### Regras de despacho do CEO-AI (esquadrões pequenos — NUNCA o exército todo)
 Para cada tipo de tarefa, o CEO-AI convoca um **líder + 2 a 4** agentes. Fan-out (muitos) só em
@@ -92,6 +109,7 @@ varreduras grandes (auditoria/migração ampla).
 | Benchmark/paridade de UX | `pesquisa-concorrencia` + o agente de domínio + `admin` |
 | Suporte/FAQ | `chat-suporte` + `admin` |
 | Auditoria/migração ampla | **fan-out** coordenado pelo CEO-AI + `bibliotecario-cerebro` |
+| Loop autónomo (paridade admin) | `maestro-autonomia` → esquadrão por item → `juiz-revisor` (gate) → Central |
 
 **GATE DO JUIZ (obrigatório):** qualquer esquadrão que produza código → o `juiz-revisor` corre o
 chão anti-trapaça + 3 camadas **antes** de aceitar (commit/merge). Rejeição → lição → Bibliotecário.

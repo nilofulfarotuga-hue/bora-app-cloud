@@ -808,11 +808,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                               const AdminSkillSuggestionsScreen())),
                 ),
                 const SizedBox(height: 10),
-                // Robot B v4 — Motor de Perfeição Contínua (inbox de sugestões)
+                // FASE 5 — Central de Autonomia (superfície ÚNICA: sugestões do Robot B v4
+                // + cabeçalho de progresso da paridade admin + kill switch + dial)
                 _NavCard(
-                  icon: Icons.smart_toy_outlined,
-                  title: '🤖 Sugestões do Robot',
-                  subtitle: 'Auto-melhoria: níveis 1/2/3, auto-fixes e métricas',
+                  icon: Icons.hub_outlined,
+                  title: '🎛️ Central de Autonomia',
+                  subtitle: 'Aprovar/rejeitar + placar de paridade, kill switch e dial',
                   color: AppColors.primary,
                   onTap: () => Navigator.push(
                       context,

@@ -117,6 +117,19 @@ tema: decisoes · escopo: projeto · estado: atual · atualizado: 2026-07-01
 - DNA em knowledge + Obsidian; EF robot-b v4 (cycle/digest/crosstalk); tabelas `robot_*` + guard + kill switches; ecrã admin inbox. ⚠️ **crons OFF até launch (T7)**. Armadilha: gemini-2.5-flash thinkingBudget=0.
 - **estado: atual** (crons desligados até lançamento).
 
+### Fase 5 — O Loop + Central de Autonomia (arquitetura HÍBRIDA)
+- **Decisão do Danilo:** NÃO duplicar a fila. Robot B v4 já entregava ~70% (`robot_suggestions` = fila com nível 1/2/3, `AdminRobotSuggestionsScreen` = inbox, kill switch `robot_b_enabled`, dial `robot_b_auto_level1_enabled`, caps duros no SQL, push `notify-admin-urgent` v12 modo generic). A Fase 5 acrescenta só a **camada de goals** por cima — não reescreve o Robot B.
+- **Delta (aplicado em prod ojykpzwqrtusfeakzrna, 2026-07-01):**
+  - Migrations `20260701170000_autonomy_goals_fase5.sql` + seed `20260701170100_autonomy_goal_paridade_admin_seed.sql`. Tabelas `autonomy_goals` (o `/goal` + placar de paridade + tetos: `itens_por_ciclo`/`teto_max_turns`/`teto_orcamento_tokens`/`cadencia_min`) e `autonomy_backlog_items` (os 20 domínios, aponta para `robot_suggestions` + guarda `juiz_veredito`). RLS fechado. RPCs SECURITY DEFINER: `admin_autonomy_dashboard`, `admin_list_autonomy_backlog`, `admin_autonomy_set_switch` (só `robot_b_*` — não-financeiro), `maestro_next_backlog_item`, `maestro_link_suggestion`. Seed: goal `paridade-admin-360`, placar 1/20 (6🟢/4🟡/9🔴 + Parceiros feito).
+  - Agente 26.º `maestro-autonomia` 🟡 (`.claude/agents/maestro-autonomia.md`) — dono do ciclo, evolui `robot-b`. Ver `exercito.md`.
+  - Flutter `lib/screens/admin/admin_autonomy_center_screen.dart` (Central: placar, kill switch "PARAR TUDO", dial cauteloso/auto, backlog) + card em `admin_dashboard_screen.dart`. `flutter analyze` limpo.
+  - Docs `docs/fase5/ENVELOPE_SEGURANCA.md` (5 paredes: Trava · Juiz · Tetos · Humano-acima-do-L1 · Kill switch) + `docs/fase5/GOAL_PARIDADE_ADMIN.md`. CLAUDE.md + agents/README (25→26 agentes).
+- **Os 3 níveis (× Trava × Juiz × dial):** N1 🟢 auto reversível (só se o dial permitir) · N2 🟡 1 toque (fila + push) · N3 🔴 dinheiro = **só propõe** (a Trava bloqueia aplicar; ato humano).
+- **Envelope de segurança (5 paredes):** Trava · Juiz obrigatório · Tetos · Humano-acima-do-L1 · Kill switch.
+- **Testes provados (teto baixo, sem tocar dinheiro):** (1) loop pega 🟢 "Visualizador de auditoria" → Juiz aprova → fila `aguarda_ti`; (2) 🔴 "Zonas de entrega" só propõe, suggestion fica `nova` nunca `aplicada`; (3) kill switch → `maestro_next` devolve `KILL_SWITCH_ATIVO`; (4) teto `max_turns` atingido → `PARA_E_AVISA`; (5) push wiring (`admin_push_tokens` + `notify-admin-urgent` generic) validado.
+- **Estado final seguro em prod:** `robot_b_enabled=true` (loop permitido), dial **cauteloso** (`robot_b_auto_level1_enabled=false`), placar 1/20. **Cron robot-b continua OFF até launch (T7)** — não contradiz a entrada Robot B v4 acima; a Fase 5 é a camada de goals, não liga crons.
+- **estado: atual** (Fase 5, 2026-07-01; ligações: Cérebro Fase 2, Trava Fase 1, Juiz Fase 4, Auditoria 360°).
+
 ### Agent-Reach
 - v1.5.0 no PC + Hermes VPS. Keyless 5/15: Web/YouTube/RSS/V2EX. ⚠️ YouTube bot-bloqueado intermitente no IP do VPS. Pendente Danilo: `gh auth login` (2 sítios) + Exa key opcional.
 - **estado: atual.**

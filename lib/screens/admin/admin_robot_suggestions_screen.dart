@@ -24,6 +24,7 @@ class _S extends State<AdminRobotSuggestionsScreen> {
   List<Map<String, dynamic>> _rows = const [];
   List<Map<String, dynamic>> _audit = const [];
   Map<String, dynamic> _metrics = const {};
+  Map<String, dynamic> _autonomy = const {};
   bool _loading = true;
   String? _error;
 
@@ -42,11 +43,13 @@ class _S extends State<AdminRobotSuggestionsScreen> {
         'p_limit': 200, 'p_offset': 0,
       });
       final metrics = await Supabase.instance.client.rpc('admin_robot_metrics');
+      final autonomy = await Supabase.instance.client.rpc('admin_autonomy_dashboard');
       if (mounted) {
         setState(() {
           _rows = ((sugs as List?) ?? []).map((e) => (e as Map).cast<String, dynamic>()).toList();
           _audit = ((audit as List?) ?? []).map((e) => (e as Map).cast<String, dynamic>()).toList();
           _metrics = ((metrics as Map?) ?? {}).cast<String, dynamic>();
+          _autonomy = ((autonomy as Map?) ?? {}).cast<String, dynamic>();
         });
       }
     } catch (e) {
@@ -135,6 +138,38 @@ class _S extends State<AdminRobotSuggestionsScreen> {
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
     }
+  }
+
+  // ── controlo da autonomia (kill switch + dial) — Fase 5 ──────────────────────
+  Future<void> _setSwitch(String key, bool enabled) async {
+    try {
+      await Supabase.instance.client.rpc('admin_autonomy_set_switch',
+          params: {'p_key': key, 'p_enabled': enabled});
+      if (mounted) await _load();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
+    }
+  }
+
+  Future<void> _confirmKill(bool parar) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(parar ? 'PARAR TUDO?' : 'Retomar o loop?'),
+        content: Text(parar
+            ? 'Suspende o loop autónomo já. Nenhum item novo é pego até retomares.'
+            : 'O loop volta a poder pegar itens (respeitando o dial e o Juiz).'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Voltar')),
+          FilledButton(
+            style: parar ? FilledButton.styleFrom(backgroundColor: AppColors.error) : null,
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(parar ? 'PARAR TUDO' : 'Retomar'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) await _setSwitch('robot_b_enabled', !parar);
   }
 
   // ── helpers visuais ─────────────────────────────────────────────────────────
@@ -343,6 +378,69 @@ class _S extends State<AdminRobotSuggestionsScreen> {
     );
   }
 
+  // ── cabeçalho de progresso da autonomia (Fase 5) ─────────────────────────────
+  // autonomy_goals = SÓ o cabeçalho (barra + placar + kill switch + dial).
+  // A aprovação continua a ser esta MESMA superfície (uma só caixa).
+  Widget _parityHeader() {
+    final goals = ((_autonomy['goals'] as List?) ?? [])
+        .map((e) => (e as Map).cast<String, dynamic>())
+        .toList();
+    if (goals.isEmpty) return const SizedBox.shrink();
+    final g = goals.first;
+    final alvo = (g['metrica_alvo'] as num?)?.toDouble() ?? 1;
+    final atual = (g['metrica_atual'] as num?)?.toDouble() ?? 0;
+    final pct = alvo > 0 ? (atual / alvo).clamp(0.0, 1.0) : 0.0;
+    final parado = _autonomy['kill_switch_parado'] == true;
+    final dialAuto = _autonomy['dial_auto_l1'] == true;
+    return Card(
+      margin: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            const Icon(Icons.hub_outlined, size: 18, color: AppColors.primary),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text('🎛️ ${g['titulo'] ?? 'Autonomia'}',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+            ),
+            Text('${atual.toInt()}/${alvo.toInt()}',
+                style: const TextStyle(fontWeight: FontWeight.bold)),
+          ]),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: LinearProgressIndicator(
+                value: pct, minHeight: 8, color: AppColors.primary),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                  foregroundColor: parado ? AppColors.primary : AppColors.error),
+              icon: Icon(parado ? Icons.play_arrow : Icons.stop_circle, size: 18),
+              label: Text(parado ? 'Retomar loop' : 'PARAR TUDO'),
+              onPressed: () => _confirmKill(!parado),
+            ),
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            value: dialAuto,
+            onChanged: (v) => _setSwitch('robot_b_auto_level1_enabled', v),
+            title: const Text('Dial de confiança', style: TextStyle(fontSize: 13)),
+            subtitle: Text(
+                dialAuto
+                    ? '🟢 Automático — L1 reversível aplica após o Juiz'
+                    : '🔒 Cauteloso — tudo passa por ti (1 toque)',
+                style: const TextStyle(fontSize: 11)),
+          ),
+        ]),
+      ),
+    );
+  }
+
   // ── build ───────────────────────────────────────────────────────────────────
 
   @override
@@ -377,6 +475,7 @@ class _S extends State<AdminRobotSuggestionsScreen> {
 
   Widget _suggestionsTab() {
     return Column(children: [
+      _parityHeader(),
       _metricsCard(),
       Padding(
         padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),

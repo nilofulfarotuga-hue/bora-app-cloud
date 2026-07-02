@@ -1,4 +1,10 @@
 // @ts-nocheck
+// dispatch-engine v58 — work_mode + dual-driver (AUTORIZADO Danilo 2026-07-02):
+//   • filtro work_mode: 'rides_only' fica fora do matching de entregas
+//     (padrão defensivo work_mode IS NULL OR <> 'rides_only'; default 'everything');
+//   • dual-driver: 'carro_passageiros' elegível para entregas (conta como carro
+//     nos serviços que exigem carro) MAS excluído enquanto tem corrida TVDE ativa.
+//   Nada mais mudou: ofertas, timeouts, rotação e pricing intactos.
 // dispatch-engine v57 — TTL honrado em TODOS os caminhos + claim anti-duplicação de cadeias.
 //
 // ROOT CAUSE do loop 5M+ invocações (corrigido aqui + bora_dispatch_maintenance v2):
@@ -87,7 +93,7 @@ Deno.serve(async (req) => {
   const supabase = createClient(supabaseUrl, serviceKey)
   let orderId: string | null = null
   try { const b = await req.json(); orderId = b?.orderId ?? null } catch (_) {}
-  console.log(`[dispatch-engine] v57 INVOKED orderId=${orderId ?? 'ALL'}`)
+  console.log(`[dispatch-engine] v58 INVOKED orderId=${orderId ?? 'ALL'}`)
   const settings = await loadDispatchSettings(supabase)
   console.log(`[dispatch-engine] settings: offerTimeout=${settings.offerTimeoutS}s retryNoDriver=${settings.retryNoDriverS}s maxTotal=${settings.maxTotalS}s safety=${settings.safetyS}s`)
   let redispatchPromise: Promise<void> | null = null
@@ -211,7 +217,8 @@ async function dispatchOrder(supabase: any, order: any, settings: DispatchSettin
   if (triedIds.length > 0) {
     const reqCar = order.requires_car === true || CAR_REQUIRED_SERVICES.includes(order.service_type)
     let q = supabase.from('drivers').select('id').eq('is_online', true)
-    if (reqCar) q = q.eq('vehicle_type', 'car')
+      .or('work_mode.is.null,work_mode.neq.rides_only')
+    if (reqCar) q = q.in('vehicle_type', ['car', 'carro_passageiros'])
     const { data: online } = await q
     if (online?.length > 0 && online.every((d: any) => triedIds.includes(d.id))) {
       console.log(`[dispatch] All ${online.length} drivers tried — cycle reset`)
@@ -231,13 +238,23 @@ async function dispatchOrder(supabase: any, order: any, settings: DispatchSettin
 }
 
 async function findNextDriver(supabase: any, order: any, excludeIds: string[]) {
-  let q = supabase.from('drivers').select('id,lat,lng,vehicle_type').eq('is_online', true)
+  // work_mode: 'rides_only' nunca recebe entregas (default 'everything' — zero regressão)
+  let q = supabase.from('drivers').select('id,user_id,lat,lng,vehicle_type').eq('is_online', true)
+    .or('work_mode.is.null,work_mode.neq.rides_only')
   if (excludeIds.length > 0) q = q.not('id', 'in', `(${excludeIds.join(',')})`)
   const { data: drivers } = await q
   console.log(`[dispatch] ${drivers?.length ?? 0} online drivers (excl ${excludeIds.length})`)
   if (!drivers?.length) return null
   const reqCar = order.requires_car === true || CAR_REQUIRED_SERVICES.includes(order.service_type)
-  let elig = reqCar ? drivers.filter((d: any) => d.vehicle_type === 'car') : drivers
+  // dual-driver: carro de passageiros conta como carro
+  let elig = reqCar ? drivers.filter((d: any) => d.vehicle_type === 'car' || d.vehicle_type === 'carro_passageiros') : drivers
+  if (!elig.length) return null
+  // dual-driver: corrida TVDE ativa → sem ofertas de entrega (tvde_rides.driver_id = user_id)
+  const { data: busyTvde } = await supabase.from('tvde_rides').select('driver_id')
+    .in('status', ['motorista_atribuido','motorista_a_caminho','motorista_chegou','em_andamento'])
+    .not('driver_id', 'is', null)
+  const busyUids = new Set((busyTvde ?? []).map((r: any) => r.driver_id))
+  elig = elig.filter((d: any) => !d.user_id || !busyUids.has(d.user_id))
   if (!elig.length) return null
   const { data: active } = await supabase.from('orders').select('assigned_driver_id').in('status', ['driverAccepted','pickedUp','onTheWay']).not('assigned_driver_id','is',null)
   const cnt: Record<string,number> = {}

@@ -24,6 +24,17 @@ class TvdeDriverStore extends ChangeNotifier {
   TvdeRide? _activeRide;
   TvdeRide? get activeRide => _activeRide;
 
+  /// Corrida EM FILA (back-to-back): aceite durante a viagem atual
+  /// ('motorista_atribuido' + is_queued). Máx 1; ativa-se no backend ao
+  /// finalizar/cancelar a viagem atual.
+  TvdeRide? _queuedRide;
+  TvdeRide? get queuedRide => _queuedRide;
+
+  /// Janela (minutos) de espera no pickup antes de habilitar
+  /// "Passageiro não apareceu" (platform_settings.tvde_noshow_wait_minutes).
+  int _noshowWaitMinutes = 5;
+  int get noshowWaitMinutes => _noshowWaitMinutes;
+
   bool _busy = false;
   bool get busy => _busy;
 
@@ -56,6 +67,22 @@ class TvdeDriverStore extends ChangeNotifier {
     await loadCurrent();
     await loadWorkMode();
     await loadTodayEarnings();
+    await loadNoshowWait();
+  }
+
+  /// Lê a janela de no-show (best-effort; default 5 min).
+  Future<void> loadNoshowWait() async {
+    try {
+      final v = await _sb
+          .rpc('get_setting', params: {'p_key': 'tvde_noshow_wait_minutes'});
+      final n = v is num ? v.toInt() : int.tryParse(v.toString());
+      if (n != null && n >= 0) {
+        _noshowWaitMinutes = n;
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('TvdeDriverStore.loadNoshowWait error => $e');
+    }
   }
 
   /// Soma os ganhos das corridas finalizadas hoje (por dia local).
@@ -121,13 +148,27 @@ class TvdeDriverStore extends ChangeNotifier {
           .from('tvde_rides')
           .select()
           .eq('driver_id', uid)
+          .eq('is_queued', false)
           .inFilter('status', _activeStatuses)
           .order('updated_at', ascending: false)
           .limit(1);
       _activeRide = active.isEmpty ? null : TvdeRide.fromMap(active.first);
 
-      // Só procuramos oferta se não há corrida ativa em curso.
-      if (_activeRide == null) {
+      // Corrida em fila (back-to-back), se existir.
+      final queued = await _sb
+          .from('tvde_rides')
+          .select()
+          .eq('driver_id', uid)
+          .eq('is_queued', true)
+          .eq('status', 'motorista_atribuido')
+          .limit(1);
+      _queuedRide = queued.isEmpty ? null : TvdeRide.fromMap(queued.first);
+
+      // Oferta: quando livre, OU em viagem 'em_andamento' sem fila (o backend
+      // só oferece nesse estado — tier 2 do tvde_offer_to_next).
+      final canReceiveOffer = _activeRide == null ||
+          (_activeRide!.isInProgress && _queuedRide == null);
+      if (canReceiveOffer) {
         final offer = await _sb
             .from('tvde_rides')
             .select()
@@ -166,13 +207,27 @@ class TvdeDriverStore extends ChangeNotifier {
 
     // Corrida ativa minha → atualiza/limpa.
     if (ride.driverId == uid) {
+      // Back-to-back: corrida em fila nunca substitui a ativa.
+      if (ride.isQueued && ride.status == 'motorista_atribuido') {
+        _queuedRide = ride;
+        _offeredRide = null;
+        notifyListeners();
+        return;
+      }
       if (_activeStatuses.contains(ride.status)) {
+        // Ativação da fila (a_caminho vinda da fila) ou update da ativa.
+        if (_queuedRide?.id == ride.id) _queuedRide = null;
         _activeRide = ride;
         _offeredRide = null;
-      } else if (ride.isTerminal && _activeRide?.id == ride.id) {
-        // finalizada/cancelada — a UI trata a transição; mantemos o objeto
-        // até o ecrã ativo o consumir (avaliação) e chamar clearActive().
-        _activeRide = ride;
+      } else if (ride.isTerminal) {
+        if (_queuedRide?.id == ride.id) {
+          // A corrida em fila caiu (passageiro cancelou) — limpa o indicador.
+          _queuedRide = null;
+        } else if (_activeRide?.id == ride.id) {
+          // finalizada/cancelada — a UI trata a transição; mantemos o objeto
+          // até o ecrã ativo o consumir (avaliação) e chamar clearActive().
+          _activeRide = ride;
+        }
       }
       notifyListeners();
       return;
@@ -194,14 +249,20 @@ class TvdeDriverStore extends ChangeNotifier {
   // AÇÕES DO MOTORISTA (RPCs Fase 1/2 — params exatos)
   // ════════════════════════════════════════════════════════════════════════
 
-  /// Aceita a oferta (atómico). Devolve a corrida ('motorista_a_caminho').
+  /// Aceita a oferta (atómico). Devolve a corrida ('motorista_a_caminho' —
+  /// ou 'motorista_atribuido' EM FILA se o motorista está em viagem).
   /// Lança em caso de corrida já reivindicada/expirada — a UI traduz.
   Future<TvdeRide> acceptOffer(String rideId) async {
     _setBusy(true);
     try {
       final res = await _sb.rpc('tvde_accept_ride', params: {'p_ride_id': rideId});
       final ride = TvdeRide.fromMap(_asMap(res));
-      _activeRide = ride;
+      if (ride.isQueued) {
+        // back-to-back: fica em fila; a viagem atual continua ativa.
+        _queuedRide = ride;
+      } else {
+        _activeRide = ride;
+      }
       _offeredRide = null;
       notifyListeners();
       return ride;
@@ -229,9 +290,28 @@ class TvdeDriverStore extends ChangeNotifier {
       _transition('tvde_start_ride', {'p_ride_id': rideId});
 
   /// Finaliza com a distância real → tarifa final + ganho motorista/Bora.
-  Future<TvdeRide> finishRide(String rideId, double finalDistanceKm) =>
-      _transition('tvde_finish_ride',
-          {'p_ride_id': rideId, 'p_final_distance_km': finalDistanceKm});
+  /// Back-to-back: se havia corrida em fila, o backend ativou-a — recarrega o
+  /// estado (a ativada passa a `activeRide`) e devolve a corrida FINALIZADA
+  /// (para o resumo do ganho). Sem fila, comporta-se como antes.
+  Future<TvdeRide> finishRide(String rideId, double finalDistanceKm) async {
+    _setBusy(true);
+    try {
+      final res = await _sb.rpc('tvde_finish_ride',
+          params: {'p_ride_id': rideId, 'p_final_distance_km': finalDistanceKm});
+      final finished = TvdeRide.fromMap(_asMap(res));
+      if (_queuedRide != null) {
+        _activeRide = null;
+        _offeredRide = null;
+        await loadCurrent(); // apanha a corrida ativada ('motorista_a_caminho')
+      } else {
+        _activeRide = finished;
+      }
+      notifyListeners();
+      return finished;
+    } finally {
+      _setBusy(false);
+    }
+  }
 
   /// Cancela a corrida. [noShow]=true quando o passageiro não compareceu.
   Future<TvdeRide> cancelRide(String rideId,
@@ -244,8 +324,15 @@ class TvdeDriverStore extends ChangeNotifier {
         'p_reason': reason,
       });
       final ride = TvdeRide.fromMap(_asMap(res));
-      _activeRide = ride;
-      _offeredRide = null;
+      if (_queuedRide != null && _activeRide?.id == rideId) {
+        // back-to-back: a ativa caiu → o backend ativou a corrida em fila.
+        _activeRide = null;
+        _offeredRide = null;
+        await loadCurrent();
+      } else {
+        _activeRide = ride;
+        _offeredRide = null;
+      }
       notifyListeners();
       return ride;
     } finally {

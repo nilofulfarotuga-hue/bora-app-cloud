@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -28,7 +29,11 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
   String? _driverName;
   double? _driverRating;
   Timer? _driverPoll;
+  Timer? _animTimer;
   bool _navigatedToRate = false;
+
+  /// C5 — mesma velocidade média do dispatch (30 km/h) para o ETA.
+  static const double _avgSpeedKmh = 30.0;
 
   @override
   void initState() {
@@ -39,13 +44,82 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
   @override
   void dispose() {
     _driverPoll?.cancel();
+    _animTimer?.cancel();
     _map?.dispose();
     super.dispose();
   }
 
+  /// C4 — animação suave do carro entre polls (12 passos × 80 ms, o mesmo
+  /// padrão do DriverStore no delivery). Sem saltos de marker.
+  void _setDriverPos(LatLng target) {
+    final from = _driverPos;
+    if (from == null) {
+      setState(() => _driverPos = target);
+      return;
+    }
+    if ((from.latitude - target.latitude).abs() < 1e-6 &&
+        (from.longitude - target.longitude).abs() < 1e-6) {
+      return;
+    }
+    _animTimer?.cancel();
+    var step = 0;
+    const steps = 12;
+    _animTimer = Timer.periodic(const Duration(milliseconds: 80), (t) {
+      step++;
+      if (!mounted) {
+        t.cancel();
+        return;
+      }
+      final f = step / steps;
+      setState(() => _driverPos = LatLng(
+            from.latitude + (target.latitude - from.latitude) * f,
+            from.longitude + (target.longitude - from.longitude) * f,
+          ));
+      if (step >= steps) t.cancel();
+    });
+  }
+
+  double _haversineKm(double lat1, double lng1, double lat2, double lng2) {
+    const r = 6371.0;
+    final dLat = (lat2 - lat1) * math.pi / 180;
+    final dLng = (lng2 - lng1) * math.pi / 180;
+    final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(lat1 * math.pi / 180) *
+            math.cos(lat2 * math.pi / 180) *
+            math.sin(dLng / 2) *
+            math.sin(dLng / 2);
+    return r * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+  }
+
+  /// C5 — ETA do motorista: até à recolha (antes de embarcar) ou até ao
+  /// destino (em viagem). Null quando não há posição do motorista.
+  int? _etaMinutes(TvdeRide ride) {
+    final pos = _driverPos;
+    if (pos == null) return null;
+    final double tLat;
+    final double tLng;
+    if (ride.isInProgress) {
+      tLat = ride.destLat;
+      tLng = ride.destLng;
+    } else if (ride.isAssigned) {
+      tLat = ride.originLat;
+      tLng = ride.originLng;
+    } else {
+      return null;
+    }
+    final km = _haversineKm(pos.latitude, pos.longitude, tLat, tLng);
+    final mins = (km / _avgSpeedKmh * 60).ceil();
+    return mins < 1 ? 1 : mins;
+  }
+
   Future<void> _pollDriver() async {
     final ride = context.read<TvdeStore>().activeRide;
-    if (ride == null || ride.driverId == null || !ride.isAssigned) return;
+    // Também em viagem (em_andamento): alimenta o ETA ao destino e a animação.
+    if (ride == null ||
+        ride.driverId == null ||
+        !(ride.isAssigned || ride.isInProgress)) {
+      return;
+    }
     try {
       // `driver_id` = auth uid do motorista → a linha resolve por user_id
       // (em motoristas reais drivers.id <> user_id; usar 'id' não encontrava
@@ -59,10 +133,11 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
       final lng = (row?['lng'] as num?)?.toDouble();
       if (mounted) {
         setState(() {
-          if (lat != null && lng != null) _driverPos = LatLng(lat, lng);
           _driverName = (row?['name'] as String?)?.trim();
           _driverRating = (row?['avg_rating'] as num?)?.toDouble();
         });
+        // C4 — anima em vez de saltar.
+        if (lat != null && lng != null) _setDriverPos(LatLng(lat, lng));
       }
     } catch (_) {}
   }
@@ -189,6 +264,7 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
               busy: store.busy,
               driverName: _driverName,
               driverRating: _driverRating,
+              etaMinutes: _etaMinutes(ride),
               onCancel: () => _cancel(ride),
               onRetry: () => store.retryRide(),
               onClose: () {
@@ -209,6 +285,7 @@ class _StatusPanel extends StatelessWidget {
     required this.busy,
     required this.driverName,
     required this.driverRating,
+    required this.etaMinutes,
     required this.onCancel,
     required this.onRetry,
     required this.onClose,
@@ -218,6 +295,9 @@ class _StatusPanel extends StatelessWidget {
   final bool busy;
   final String? driverName;
   final double? driverRating;
+
+  /// C5 — "chega em ~X min" (recolha) / "destino em ~X min" (em viagem).
+  final int? etaMinutes;
   final VoidCallback onCancel;
   final VoidCallback onRetry;
   final VoidCallback onClose;
@@ -267,6 +347,26 @@ class _StatusPanel extends StatelessWidget {
                 ],
               ],
             ),
+            // C5 — ETA do motorista (recolha ou destino).
+            if (etaMinutes != null && !ride.isQueued) ...[
+              const SizedBox(height: Spacing.xs),
+              Row(
+                children: [
+                  const Icon(Icons.schedule,
+                      size: 15, color: AppColors.primary),
+                  const SizedBox(width: 4),
+                  Text(
+                    ride.isInProgress
+                        ? 'Chegada ao destino em ~$etaMinutes min'
+                        : 'O motorista chega em ~$etaMinutes min',
+                    style: const TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700),
+                  ),
+                ],
+              ),
+            ],
             const Divider(height: Spacing.lg),
           ],
           Row(
@@ -298,6 +398,15 @@ class _StatusPanel extends StatelessWidget {
             '${ride.originLabel ?? 'Recolha'} → ${ride.destLabel ?? 'Destino'}',
             style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
           ),
+          // Back-to-back — passageiro em fila: contexto claro, sem spinner.
+          if (ride.isQueued && ride.isAssigned) ...[
+            const SizedBox(height: Spacing.sm),
+            Text(
+              'Serás o próximo: o motorista está a terminar uma viagem perto '
+              'de ti e segue logo para a tua recolha.',
+              style: TextStyle(color: AppColors.textSubtle, fontSize: 12),
+            ),
+          ],
           const SizedBox(height: Spacing.lg),
           if (ride.isNoDriver) ...[
             Text(

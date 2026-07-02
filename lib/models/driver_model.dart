@@ -78,6 +78,7 @@ class DriverModel {
     this.status = DriverStatus.approved,
     this.avgRating,
     this.ratingsCount = 0,
+    this.workMode = 'everything',
     List<DriverAssignmentInfo>? activeAssignments,
   }) : activeAssignments = activeAssignments ?? <DriverAssignmentInfo>[];
 
@@ -96,12 +97,20 @@ class DriverModel {
   /// BR §44 — número de avaliações públicas + não flagged.
   int ratingsCount;
 
+  /// Dual-driver: espelho de drivers.work_mode ('everything' | 'rides_only').
+  /// A fonte de verdade do matching é o backend (dispatch-engine v58); isto
+  /// gateia só a apresentação local de ofertas de entrega.
+  String workMode;
+
   final List<DriverAssignmentInfo> activeAssignments;
 
   bool supportsService(OrderServiceType serviceType,
       {bool requiresCar = false}) {
-    // TVDE: carro de passageiros não faz delivery (vertical isolada).
-    if (vehicleType == VehicleType.carPassengers) return false;
+    // TVDE dual-driver: carro de passageiros faz entregas quando work_mode
+    // = 'everything' (comporta-se como carro); 'rides_only' fica fora.
+    if (vehicleType == VehicleType.carPassengers) {
+      return workMode == 'everything';
+    }
 
     if (vehicleType == VehicleType.car) return true;
 

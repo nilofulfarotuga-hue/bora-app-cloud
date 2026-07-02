@@ -16,7 +16,10 @@ import '../../../services/heartbeat_service.dart';
 import '../../../services/notification_service.dart';
 import '../../../services/permission_gate_service.dart';
 import '../../../stores/driver_store.dart';
+import '../../../stores/order_store.dart';
 import '../../../stores/tvde_driver_store.dart';
+import '../../driver_home_screen.dart';
+import 'tvde_driver_earnings_screen.dart';
 import 'tvde_offer_screen.dart';
 import 'tvde_ride_active_screen.dart';
 
@@ -39,6 +42,7 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
   Timer? _offerPoll;
   bool _offerOpen = false;
   bool _activeOpen = false;
+  bool _deliveryOpen = false;
 
   gmaps.GoogleMapController? _mapController;
   gmaps.LatLng? _lastCameraTarget;
@@ -62,6 +66,11 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
       await context.read<AuthStore>().refreshApprovalStatus();
       if (!mounted) return;
       await context.read<TvdeDriverStore>().start();
+      if (!mounted) return;
+      // Dual-driver: espelha o work_mode carregado no modelo local do delivery
+      // (supportsService) — a fonte de verdade do matching é o backend.
+      context.read<DriverStore>().currentDriver?.workMode =
+          context.read<TvdeDriverStore>().workMode;
       // Se o motorista já estava Online (re-abertura), retoma heartbeat+GPS.
       final isOnline =
           context.read<DriverStore>().currentDriver?.isOnline ?? false;
@@ -124,7 +133,12 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
       final driverStore = context.read<DriverStore>();
       if (driverStore.currentDriver?.isOnline != true) return;
       final tvde = context.read<TvdeDriverStore>();
-      if (tvde.offeredRide != null || tvde.activeRide != null) return;
+      // Elegível para oferta: livre, OU em viagem 'em_andamento' sem fila
+      // (back-to-back — o tier 2 do matching só oferece nesse estado).
+      final canReceive = tvde.offeredRide == null &&
+          (tvde.activeRide == null ||
+              (tvde.activeRide!.isInProgress && tvde.queuedRide == null));
+      if (!canReceive) return;
       tvde.loadCurrent().then((_) {
         if (mounted) _syncNav();
       });
@@ -176,6 +190,36 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
               builder: (_) => TvdeOfferScreen(ride: offer)))
           .then((_) => _offerOpen = false);
     }
+  }
+
+  /// Dual-driver (work_mode='everything'): oferta/entrega de delivery abre o
+  /// fluxo de estafeta EXISTENTE (DriverHomeScreen) por cima desta home — zero
+  /// telas duplicadas. Ao terminar (back), o motorista volta ao modo corridas.
+  void _maybeOpenDeliveryFlow() {
+    if (!mounted || _deliveryOpen || _activeOpen || _offerOpen) return;
+    final tvde = context.read<TvdeDriverStore>();
+    if (tvde.ridesOnly ||
+        tvde.activeRide != null ||
+        tvde.queuedRide != null) {
+      return;
+    }
+    final orders = context.read<OrderStore>();
+    if (orders.availableOrders.isEmpty && orders.myOrders.isEmpty) return;
+    _openDeliveryFlow();
+  }
+
+  void _openDeliveryFlow() {
+    if (_deliveryOpen) return;
+    _deliveryOpen = true;
+    Navigator.of(context)
+        .push(MaterialPageRoute<void>(builder: (_) => const DriverHomeScreen()))
+        .then((_) => _deliveryOpen = false);
+  }
+
+  /// M12 — ecrã de ganhos (dia/semana) + histórico de corridas do motorista.
+  void _openEarnings() {
+    Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => const TvdeDriverEarningsScreen()));
   }
 
   // ── Online toggle (reuso DriverStore + heartbeat + GPS) ────────────────────
@@ -318,7 +362,7 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
               value: 'everything',
               groupValue: mode,
               activeColor: AppColors.primary,
-              title: const Text('Tudo'),
+              title: const Text('Corridas + entregas (tudo)'),
               subtitle: const Text(
                   'Corridas + entregas de restaurante, supermercado e favores.'),
               onChanged: (v) => _applyWorkMode(ctx, v!),
@@ -335,6 +379,9 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
     try {
       await context.read<TvdeDriverStore>().setWorkMode(mode);
       if (!mounted) return;
+      // Espelha no modelo local do delivery: supportsService() passa a aceitar
+      // entregas quando 'everything' (dual-driver). Fonte de verdade = backend.
+      context.read<DriverStore>().currentDriver?.workMode = mode;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(mode == 'rides_only'
               ? 'Preferência guardada: só corridas.'
@@ -350,7 +397,13 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
   Widget build(BuildContext context) {
     // Dispara a navegação reativa sempre que o store muda.
     context.watch<TvdeDriverStore>();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _syncNav());
+    // Dual-driver: ofertas/entregas de delivery (OrderStore) abrem o fluxo de
+    // estafeta existente quando work_mode='everything'.
+    context.watch<OrderStore>();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _syncNav();
+      _maybeOpenDeliveryFlow();
+    });
 
     final status = context.watch<AuthStore>().currentDriverStatus;
     if (status != DriverStatus.approved) {
@@ -374,6 +427,19 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
         foregroundColor: Colors.white,
         title: const Text('Bora Motorista'),
         actions: [
+          // Dual-driver: acesso manual ao fluxo de entregas (ex.: retomar uma
+          // entrega em curso depois de reabrir a app). Só com 'tudo'.
+          if (!context.watch<TvdeDriverStore>().ridesOnly)
+            IconButton(
+              tooltip: 'Entregas',
+              onPressed: _openDeliveryFlow,
+              icon: const Icon(Icons.delivery_dining),
+            ),
+          IconButton(
+            tooltip: 'Ganhos',
+            onPressed: _openEarnings,
+            icon: const Icon(Icons.bar_chart),
+          ),
           IconButton(
             tooltip: 'Preferências',
             onPressed: _openWorkModeSheet,

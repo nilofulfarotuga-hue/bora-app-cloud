@@ -23,6 +23,8 @@ class TvdeRide {
     this.currentOfferDriverId,
     this.offerExpiresAt,
     this.createdAt,
+    this.isQueued = false,
+    this.arrivedAt,
   });
 
   final String id;
@@ -55,6 +57,15 @@ class TvdeRide {
   final DateTime? offerExpiresAt;
   final DateTime? createdAt;
 
+  /// Back-to-back: corrida aceite EM FILA enquanto o motorista termina a
+  /// viagem atual (status 'motorista_atribuido' + is_queued=true). Ativa-se
+  /// no backend ao finalizar/cancelar a viagem atual.
+  final bool isQueued;
+
+  /// Quando o motorista marcou "cheguei" — alimenta o temporizador de espera
+  /// no pickup (no-show só habilita após a janela tvde_noshow_wait_minutes).
+  final DateTime? arrivedAt;
+
   factory TvdeRide.fromMap(Map<String, dynamic> m) {
     double d(dynamic v) => (v as num?)?.toDouble() ?? 0;
     return TvdeRide(
@@ -83,6 +94,10 @@ class TvdeRide {
       createdAt: m['created_at'] == null
           ? null
           : DateTime.tryParse(m['created_at'].toString()),
+      isQueued: m['is_queued'] as bool? ?? false,
+      arrivedAt: m['arrived_at'] == null
+          ? null
+          : DateTime.tryParse(m['arrived_at'].toString()),
     );
   }
 
@@ -119,7 +134,9 @@ class TvdeRide {
       case 'sem_motorista':
         return 'Sem motoristas disponíveis';
       case 'motorista_atribuido':
-        return 'Motorista atribuído';
+        return isQueued
+            ? 'O teu motorista está a terminar uma viagem próxima'
+            : 'Motorista atribuído';
       case 'motorista_a_caminho':
         return 'Motorista a caminho';
       case 'motorista_chegou':

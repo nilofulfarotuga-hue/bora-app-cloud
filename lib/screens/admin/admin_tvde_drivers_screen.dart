@@ -293,6 +293,9 @@ class _DriverCard extends StatelessWidget {
     final balance = (data['tvde_balance'] as num?)?.toDouble() ?? 0;
     final active = (data['active_rides'] as num?)?.toInt() ?? 0;
     final total = (data['total_rides'] as num?)?.toInt() ?? 0;
+    // Estado dual (dual-driver): corrida TVDE vs entrega de delivery + fila.
+    final queued = (data['queued_rides'] as num?)?.toInt() ?? 0;
+    final hasDelivery = data['has_active_delivery'] == true;
     final banReason = (data['ban_reason'] as String?)?.trim();
     final ridesOnly = data['work_mode'] == 'rides_only';
     // [TVDE P0 2026-07-02] telemetria de elegibilidade — diagnóstico rápido
@@ -350,6 +353,11 @@ class _DriverCard extends StatelessWidget {
                         ? 'Sem avaliação'
                         : '${rating.toStringAsFixed(1)} ($ratingsCount)'),
                 _Pill(icon: Icons.local_taxi, label: '$active em curso'),
+                if (queued > 0)
+                  _Pill(icon: Icons.queue, label: '$queued na fila'),
+                if (hasDelivery)
+                  _Pill(
+                      icon: Icons.delivery_dining, label: 'Entrega em curso'),
                 _Pill(icon: Icons.done_all, label: '$total concluídas'),
                 _Pill(
                   icon: Icons.account_balance_wallet,

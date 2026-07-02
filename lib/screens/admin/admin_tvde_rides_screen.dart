@@ -377,6 +377,8 @@ class _RideCard extends StatelessWidget {
     final cancelReason = (data['cancel_reason'] as String?)?.trim();
     final cancelFee = (data['cancel_fee_cents'] as num?)?.toInt() ?? 0;
     final locUpdated = data['driver_loc_updated_at'];
+    // Back-to-back: corrida aceita em fila enquanto o motorista termina outra.
+    final isQueued = data['is_queued'] == true;
 
     return Card(
       elevation: 2,
@@ -391,6 +393,22 @@ class _RideCard extends StatelessWidget {
             Row(
               children: [
                 _RideStatusChip(status: status),
+                if (isQueued && live) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AppColors.accent.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: const Text('Em fila (back-to-back)',
+                        style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.accent)),
+                  ),
+                ],
                 const Spacer(),
                 Text(
                   fareCents == null

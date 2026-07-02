@@ -7,6 +7,7 @@ import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import '../../services/admin_audit_service.dart';
+import '../../services/admin_export_service.dart';
 import 'admin_partner_detail_screen.dart';
 
 class AdminPartnersScreen extends StatefulWidget {
@@ -115,6 +116,31 @@ class _AdminPartnersScreenState extends State<AdminPartnersScreen> {
     return labels[cat] ?? (cat ?? '—');
   }
 
+  /// Item 20 (paridade-admin-360): exportar a lista visível para CSV.
+  Future<void> _exportCsv() async {
+    try {
+      final stamp = DateTime.now().toIso8601String().substring(0, 10);
+      await AdminExportService.instance.exportCsv(
+        filename: 'bora_parceiros_$stamp.csv',
+        headers: const ['id', 'nome', 'categoria', 'morada', 'ativo'],
+        rows: _restaurants
+            .map((r) => [
+                  r['id'] ?? '',
+                  r['name'] ?? '',
+                  r['category'] ?? '',
+                  r['address'] ?? '',
+                  (r['is_active_admin'] == false) ? 'não' : 'sim',
+                ])
+            .toList(),
+        subject: 'Parceiros Bora ($stamp)',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Erro ao exportar: $e')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -122,6 +148,11 @@ class _AdminPartnersScreenState extends State<AdminPartnersScreen> {
       appBar: BoraScreenAppBar(
         title: 'Parceiros / Restaurantes',
         actions: [
+          IconButton(
+            icon: const Icon(Icons.file_download_outlined),
+            tooltip: 'Exportar CSV',
+            onPressed: _restaurants.isEmpty ? null : _exportCsv,
+          ),
           IconButton(icon: const Icon(Icons.refresh), onPressed: _load)
         ],
       ),

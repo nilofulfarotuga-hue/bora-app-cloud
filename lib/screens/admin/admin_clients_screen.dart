@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
+import '../../services/admin_export_service.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 
 class AdminClientsScreen extends StatefulWidget {
@@ -503,6 +504,37 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
     }
   }
 
+  /// Item 20 (paridade-admin-360): exportar a lista visível para CSV.
+  Future<void> _exportCsv() async {
+    try {
+      final stamp = DateTime.now().toIso8601String().substring(0, 10);
+      await AdminExportService.instance.exportCsv(
+        filename: 'bora_clientes_$stamp.csv',
+        headers: const [
+          'email', 'nome', 'telefone', 'criado_em',
+          'pedidos', 'total_gasto', 'tokens', 'banido'
+        ],
+        rows: _clients
+            .map((c) => [
+                  c['email'] ?? '',
+                  c['bora_name'] ?? '',
+                  c['bora_phone'] ?? '',
+                  c['created_at'] ?? '',
+                  c['total_orders'] ?? 0,
+                  c['total_spent'] ?? 0,
+                  c['token_balance'] ?? 0,
+                  (c['is_banned'] == true) ? 'sim' : 'não',
+                ])
+            .toList(),
+        subject: 'Clientes Bora ($stamp)',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Erro ao exportar: $e')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -510,6 +542,11 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
       appBar: BoraScreenAppBar(
         title: 'Clientes',
         actions: [
+          IconButton(
+            icon: const Icon(Icons.file_download_outlined),
+            tooltip: 'Exportar CSV',
+            onPressed: _clients.isEmpty ? null : _exportCsv,
+          ),
           IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
         ],
       ),

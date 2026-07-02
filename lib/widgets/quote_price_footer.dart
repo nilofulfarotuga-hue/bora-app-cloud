@@ -136,7 +136,13 @@ class _QuotePriceFooterState extends State<QuotePriceFooter> {
       child: Row(
         children: [
           Flexible(
+            // [TELA BRANCA 2026-07-02] O Scaffold dá ao bottomNavigationBar
+            // constraints soltas com maxHeight = ecrã inteiro. Sem
+            // mainAxisSize.min esta Column expandia até ~768px → footer
+            // branco de ecrã inteiro → body com altura 0 (bodyH=0 nos
+            // breadcrumbs). Os insets estavam normais — a causa era esta.
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('Total estimado',

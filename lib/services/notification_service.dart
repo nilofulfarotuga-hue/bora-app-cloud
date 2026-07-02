@@ -925,6 +925,13 @@ class NotificationService {
         _showChatBanner(msg);
         return;
       }
+      // [TVDE P0 2026-07-02] Oferta de corrida em FOREGROUND: sem isto o push
+      // caía no som genérico curto e o motorista fora do ecrã TVDE não via
+      // nada. Notificação local heads-up com som contínuo (canal urgente).
+      if (type == 'new_tvde_ride_offer') {
+        unawaited(_showTvdeOfferNotification(msg));
+        return;
+      }
       _sound.playOnce();
     });
 
@@ -1595,6 +1602,62 @@ class NotificationService {
   }
 
   // ── Foreground chat banner ────────────────────────────────────────────────
+
+  /// [TVDE P0 2026-07-02] Heads-up local para oferta de corrida com o app em
+  /// foreground (o payload `notification` do FCM só é mostrado pelo sistema
+  /// em background). Mesmo canal urgente v3 dos pedidos (som bora_alert).
+  Future<void> _showTvdeOfferNotification(RemoteMessage message) async {
+    final data = message.data;
+    final rideId = data['rideId']?.toString() ?? '';
+    final title = data['title']?.toString() ?? '🚗 Nova corrida!';
+    final body = data['body']?.toString() ??
+        '${data['originLabel'] ?? 'Recolha'} → ${data['destLabel'] ?? 'Destino'}';
+    try {
+      final plugin = FlutterLocalNotificationsPlugin();
+      final androidImpl = plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      await androidImpl?.createNotificationChannel(
+        const AndroidNotificationChannel(
+          'bora_orders_urgent_v3',
+          'Bora — Novos pedidos',
+          description: 'Som contínuo + vibração para novos pedidos e mensagens.',
+          importance: Importance.max,
+          playSound: true,
+          sound: RawResourceAndroidNotificationSound('bora_alert'),
+          enableVibration: true,
+          showBadge: true,
+        ),
+      );
+      final androidDetails = AndroidNotificationDetails(
+        'bora_orders_urgent_v3',
+        'Bora — Novos pedidos',
+        channelDescription: 'Oferta de corrida — tap para abrir e aceitar.',
+        importance: Importance.max,
+        priority: Priority.max,
+        playSound: true,
+        sound: const RawResourceAndroidNotificationSound('bora_alert'),
+        enableVibration: true,
+        category: AndroidNotificationCategory.call,
+        fullScreenIntent: true,
+        autoCancel: true,
+        onlyAlertOnce: false,
+        ticker: title,
+        visibility: fln.NotificationVisibility.public,
+        styleInformation: BigTextStyleInformation(body, contentTitle: title),
+      );
+      await plugin.show(
+        rideId.isNotEmpty ? rideId.hashCode : title.hashCode,
+        title,
+        body,
+        NotificationDetails(android: androidDetails),
+        payload: jsonEncode({'type': 'new_tvde_ride_offer', 'rideId': rideId}),
+      );
+      debugPrint('[NotificationService FG] TVDE offer notif posted ride=$rideId');
+    } catch (e) {
+      debugPrint('[NotificationService FG] TVDE offer notif error: $e');
+      _sound.playOnce();
+    }
+  }
 
   void _showChatBanner(RemoteMessage message) {
     final overlayState = navigatorKey.currentState?.overlay;

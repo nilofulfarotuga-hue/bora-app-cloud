@@ -59,6 +59,42 @@ class _S extends State<AdminRobotSuggestionsScreen> {
     }
   }
 
+  // Tipos que a RPC robot_apply_suggestion sabe EXECUTAR (whitelist fechada
+  // no SQL). Payload sem um destes tipos é evidência — vai por
+  // robot_mark_suggestion_done, nunca por _apply.
+  static const _executablePayloadTypes = {
+    'update_setting',
+    'hide_store',
+    'disable_products',
+    'flag_products_review',
+  };
+
+  /// Traduz erros de RPC (PostgrestException cru) para PT-BR amigável.
+  String _friendlyError(Object e) {
+    final msg = e.toString();
+    if (msg.contains('payload_type_fora_da_whitelist') ||
+        msg.contains('sugestao_sem_payload_execucao')) {
+      return 'Esta sugestão não tem ação executável — usa "Marcar como feita".';
+    }
+    if (msg.contains('nivel_3_nao_executavel')) {
+      return 'Planos (nível 3) não se executam daqui — aprova o plano e implementa fora.';
+    }
+    if (msg.contains('sugestao_nao_esta_aberta') ||
+        msg.contains('sugestao_nao_encontrada_ou_fechada')) {
+      return 'Esta sugestão já foi tratada (aplicada, rejeitada ou expirada).';
+    }
+    if (msg.contains('sugestao_nao_encontrada')) {
+      return 'Sugestão não encontrada — atualiza a lista.';
+    }
+    if (msg.contains('setting_fora_da_whitelist_robot')) {
+      return 'Esta configuração é protegida — altera em Configurações da Plataforma.';
+    }
+    if (msg.contains('motivo_rejeicao_obrigatorio')) {
+      return 'Motivo obrigatório (mín. 3 caracteres).';
+    }
+    return 'Não foi possível concluir. Detalhe técnico: $msg';
+  }
+
   Future<void> _apply(Map<String, dynamic> s) async {
     final payload = s['payload_execucao'] as Map?;
     final ok = await showDialog<bool>(
@@ -85,7 +121,10 @@ class _S extends State<AdminRobotSuggestionsScreen> {
         await _load();
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(_friendlyError(e))));
+      }
     }
   }
 
@@ -126,7 +165,10 @@ class _S extends State<AdminRobotSuggestionsScreen> {
           params: {'p_suggestion_id': s['id'], 'p_motivo': ctrl.text.trim()});
       if (mounted) await _load();
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(_friendlyError(e))));
+      }
     }
   }
 
@@ -136,7 +178,30 @@ class _S extends State<AdminRobotSuggestionsScreen> {
           .rpc('robot_mark_suggestion_done', params: {'p_suggestion_id': s['id']});
       if (mounted) await _load();
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(_friendlyError(e))));
+      }
+    }
+  }
+
+  /// Nível 3 (plano): aprovar = aceitar o plano (status 'aprovada'), SEM
+  /// executar nada. A implementação acontece fora (Claude Code) e depois
+  /// marca-se como feita.
+  Future<void> _approvePlan(Map<String, dynamic> s) async {
+    try {
+      await Supabase.instance.client
+          .rpc('robot_approve_plan', params: {'p_suggestion_id': s['id']});
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Plano aprovado — implementação segue fora do app.')));
+        await _load();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(_friendlyError(e))));
+      }
     }
   }
 
@@ -219,6 +284,12 @@ class _S extends State<AdminRobotSuggestionsScreen> {
     final status = s['status']?.toString() ?? 'nova';
     final payload = s['payload_execucao'];
     final actionable = status == 'nova' || status == 'aprovada';
+    // Só payloads da whitelist executável vão para robot_apply_suggestion;
+    // payload de evidência (sem 'type' executável) fecha-se com "feita".
+    final payloadType = (payload is Map) ? payload['type']?.toString() : null;
+    final executable = nivel <= 2 &&
+        payloadType != null &&
+        _executablePayloadTypes.contains(payloadType);
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -294,13 +365,21 @@ class _S extends State<AdminRobotSuggestionsScreen> {
               ],
               const SizedBox(height: 20),
               if (actionable) ...[
-                if (nivel <= 2 && payload != null)
+                if (executable)
                   FilledButton.icon(
                     icon: const Icon(Icons.play_arrow),
                     label: const Text('Aprovar e aplicar'),
                     onPressed: () { Navigator.pop(ctx); _apply(s); },
                   ),
-                if (nivel == 3)
+                if (nivel == 3 && status == 'nova') ...[
+                  FilledButton.icon(
+                    icon: const Icon(Icons.thumb_up_alt_outlined),
+                    label: const Text('Aprovar plano (sem executar)'),
+                    onPressed: () { Navigator.pop(ctx); _approvePlan(s); },
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                if (!executable)
                   FilledButton.icon(
                     icon: const Icon(Icons.check),
                     label: const Text('Marcar como feita'),

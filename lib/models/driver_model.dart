@@ -52,8 +52,13 @@ extension VehicleTypeDb on VehicleType {
       this == VehicleType.carPassengers ? 'carro_passageiros' : name;
 
   /// Lê o valor da coluna `vehicle_type` para o enum.
+  /// Aceita também a grafia legada 'carPassengers' (metadata/prefs antigos
+  /// gravavam `.name`) — sem isto o TVDE caía no fallback motorcycle e a
+  /// aba de passageiros desaparecia (P0 2026-07-02).
   static VehicleType fromDb(String? raw) {
-    if (raw == 'carro_passageiros') return VehicleType.carPassengers;
+    if (raw == 'carro_passageiros' || raw == 'carPassengers') {
+      return VehicleType.carPassengers;
+    }
     return VehicleType.values.firstWhere(
       (v) => v != VehicleType.carPassengers && v.name == (raw ?? ''),
       orElse: () => VehicleType.motorcycle,

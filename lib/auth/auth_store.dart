@@ -373,10 +373,8 @@ class AuthStore extends ChangeNotifier {
           name: meta[_kName] as String? ?? '',
           email: email,
           phone: phone,
-          vehicleType: VehicleType.values.firstWhere(
-            (v) => v.name == vtStr,
-            orElse: () => VehicleType.car,
-          ),
+          // fromDb aceita nomes do enum E o canónico da DB ('carro_passageiros').
+          vehicleType: VehicleTypeDb.fromDb(vtStr),
           licensePlate: meta[_kLicensePlate] as String? ?? '',
           password: '',
         );
@@ -384,6 +382,11 @@ class AuthStore extends ChangeNotifier {
         if (phone.isNotEmpty) _driversByPhone[phone] = account;
         _currentDriver = account;
         notifyListeners();
+        // [TVDE P0 2026-07-02] Fonte de verdade = coluna DB. O metadata pode
+        // estar desatualizado (ex.: admin mudou para 'carro_passageiros') e
+        // sem isto a aba TVDE desaparecia ao reabrir o app (hydrate só lia o
+        // metadata). Fire-and-forget: corrige e notifica quando chegar.
+        unawaited(_refreshDriverVehicleTypeFromDb(session.user.id, email));
         break;
 
       case 'partner':
@@ -404,6 +407,42 @@ class AuthStore extends ChangeNotifier {
 
       default:
         break;
+    }
+  }
+
+  /// [TVDE P0 2026-07-02] Reconcilia o vehicleType do driver em memória com a
+  /// coluna `drivers.vehicle_type` (fonte de verdade, chave = user_id). O
+  /// hydrate por metadata podia devolver 'car'/'motorcycle' num motorista
+  /// 'carro_passageiros' → _RootNavigator não mostrava o modo TVDE.
+  Future<void> _refreshDriverVehicleTypeFromDb(
+      String userId, String email) async {
+    try {
+      final row = await _supabase
+          .from('drivers')
+          .select('vehicle_type')
+          .eq('user_id', userId)
+          .maybeSingle();
+      final vtDb = row?['vehicle_type'] as String?;
+      if (vtDb == null || vtDb.isEmpty) return;
+      final current = _currentDriver;
+      if (current == null || current.email != email) return;
+      final resolved = VehicleTypeDb.fromDb(vtDb);
+      if (resolved == current.vehicleType) return;
+      final account = DriverAccount(
+        name: current.name,
+        email: current.email,
+        phone: current.phone,
+        vehicleType: resolved,
+        licensePlate: current.licensePlate,
+        password: current.password,
+        photoUrl: current.photoUrl,
+      );
+      _driversByEmail[email] = account;
+      if (current.phone.isNotEmpty) _driversByPhone[current.phone] = account;
+      _currentDriver = account;
+      notifyListeners();
+    } catch (_) {
+      // Sem rede/na dúvida mantém o que o metadata deu — não bloqueia o login.
     }
   }
 
@@ -769,7 +808,9 @@ class AuthStore extends ChangeNotifier {
           'name': name.trim(),
           'phone': normalizedPhone,
           'email': normalizedEmail,
-          'vehicle_type': vehicleType.name,
+          // Canónico da DB (carPassengers → 'carro_passageiros'); .name daria
+          // uma 5.ª grafia e o dispatch/aba TVDE não reconheciam (P0 2026-07-02).
+          'vehicle_type': vehicleType.dbValue,
           'license_plate': licensePlate.trim(),
           'is_online': false,
           'lat': kGuardaLat,
@@ -885,10 +926,8 @@ class AuthStore extends ChangeNotifier {
         phone: phone,
         vehicleType: (vtDb != null && vtDb.isNotEmpty)
             ? VehicleTypeDb.fromDb(vtDb)
-            : VehicleType.values.firstWhere(
-                (v) => v.name == vtStr,
-                orElse: () => VehicleType.car,
-              ),
+            // fromDb aceita nomes do enum e grafias legadas ('carPassengers').
+            : VehicleTypeDb.fromDb(vtStr),
         licensePlate: meta[_kLicensePlate] as String? ?? '',
         password: password,
       );
@@ -1320,10 +1359,9 @@ class AuthStore extends ChangeNotifier {
           name: map['name'] as String? ?? '',
           email: email,
           phone: phone,
-          vehicleType: VehicleType.values.firstWhere(
-            (v) => v.name == (map['vehicleType'] as String? ?? 'car'),
-            orElse: () => VehicleType.car,
-          ),
+          // fromDb aceita nomes do enum e grafias legadas ('carPassengers').
+          vehicleType:
+              VehicleTypeDb.fromDb(map['vehicleType'] as String? ?? 'car'),
           licensePlate: map['licensePlate'] as String? ?? '',
           password: password,
           photoUrl: map['photoUrl'] as String? ?? '',

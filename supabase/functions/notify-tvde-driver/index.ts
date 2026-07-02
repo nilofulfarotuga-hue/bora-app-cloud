@@ -76,6 +76,7 @@ Deno.serve(async (req) => {
   }
   if (!fcmToken) {
     console.log(`[notify-tvde-driver] No FCM token for driver ${driverId} — skipping`)
+    await logPushEvent(supabase, rideId, false, { reason: 'no_fcm_token', driver_id: driverId })
     return json({ ok: false, reason: 'no_fcm_token' }, 200)
   }
 
@@ -102,6 +103,7 @@ Deno.serve(async (req) => {
     accessToken = await getFirebaseAccessToken(JSON.parse(firebaseServiceAcct))
   } catch (e) {
     console.error('[notify-tvde-driver] Firebase auth error:', e)
+    await logPushEvent(supabase, rideId, false, { reason: 'firebase_auth_error' })
     return json({ ok: false, reason: 'firebase_auth_error' }, 200)
   }
 
@@ -157,12 +159,49 @@ Deno.serve(async (req) => {
         await supabase.from('drivers').update({ fcm_token: null }).eq('user_id', driverId)
       }
     }
+    // P0 2026-07-02: o caller recebe SEMPRE 200 (fire-and-forget) — sem este
+    // evento, um push falhado era invisível ("200 mas o telemóvel não tocou").
+    await logPushEvent(supabase, rideId, false, { fcm_status: fcmRes.status, error_code: errorCode })
     return json({ ok: false, reason: 'fcm_error', detail: fcmBody }, 200)
   }
 
   console.log(`[notify-tvde-driver] ✓ Push sent to driver ${driverId} ride ${rideId}`)
+  await logPushEvent(supabase, rideId, true, { driver_id: driverId })
+
+  // P0 2026-07-02: o TTL da oferta (25s) contava desde a criação — o tempo do
+  // trigger + FCM comia o prazo do motorista. Reancora o relógio AGORA que o
+  // FCM aceitou a mensagem (só se a oferta ainda for deste motorista).
+  try {
+    const { data: ttlRow } = await supabase
+      .from('platform_settings').select('value').eq('key', 'tvde_offer_ttl_seconds').maybeSingle()
+    const ttl = Number(ttlRow?.value ?? 25)
+    if (Number.isFinite(ttl) && ttl > 0) {
+      await supabase.from('tvde_rides')
+        .update({ offer_expires_at: new Date(Date.now() + ttl * 1000).toISOString() })
+        .eq('id', rideId)
+        .eq('current_offer_driver_id', driverId)
+        .eq('status', 'solicitada')
+    }
+  } catch (e) {
+    console.warn('[notify-tvde-driver] offer_expires_at re-anchor failed:', e)
+  }
+
   return json({ ok: true }, 200)
 })
+
+// Auditoria do resultado FCM em tvde_ride_events (o HTTP 200 não prova entrega).
+async function logPushEvent(supabase: any, rideId: string, ok: boolean, meta: Record<string, unknown>) {
+  try {
+    await supabase.from('tvde_ride_events').insert({
+      ride_id: rideId,
+      status: ok ? 'push_enviado' : 'push_falhou',
+      actor: 'system',
+      meta,
+    })
+  } catch (e) {
+    console.warn('[notify-tvde-driver] logPushEvent failed:', e)
+  }
+}
 
 function json(obj: unknown, status: number): Response {
   return new Response(JSON.stringify(obj), {

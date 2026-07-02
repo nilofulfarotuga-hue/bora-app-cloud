@@ -1,5 +1,5 @@
 ---
-tema: bugs-resolvidos · escopo: projeto · estado: atual · atualizado: 2026-07-01
+tema: bugs-resolvidos · escopo: projeto · estado: atual · atualizado: 2026-07-02
 ---
 
 # Bugs Resolvidos — Saga Arquitetural do Bora
@@ -11,9 +11,9 @@ tema: bugs-resolvidos · escopo: projeto · estado: atual · atualizado: 2026-07
 ## 1. `vehicle_type` hard-coded 'motorcycle' no signup — TVDE partido
 - **Sintoma:** onboarding de motorista TVDE (carro) partido; toda a candidatura entra como mota.
 - **Causa-raiz:** `driver_signup` força `vehicle_type = 'motorcycle'` no registo — não há escolha moto×carro na entrada. A elegibilidade moto×carro (Bloco 3) foi feita e validada ao cêntimo via MCP, mas o signup continua a forçar mota.
-- **Fix:** ainda NÃO corrigido no signup — registado como P0 na Auditoria de Paridade 360° (2026-07-01).
-- **Origem:** `project_auditoria_paridade_360_2026_07_01.md`, `project_blocos1_4_verificacao_2026_06_29.md`, `project_bora_motorista_tvde.md`.
-- **estado: atual** (bug conhecido, aberto — P0 pré-launch).
+- **Fix (2026-07-02):** valor canónico definido — `vehicle_type ∈ {motorcycle, car, bicycle, carro_passageiros}` com CHECK `drivers_vehicle_type_canonico`; 4 grafias normalizadas (moto→motorcycle); `AuthStore.registerDriverAsync` grava `.dbValue`; `VehicleTypeDb.fromDb` aceita grafia legada 'carPassengers'; `admin_update_driver` aceita o canónico; migration `20260702091000`.
+- **Origem:** `project_auditoria_paridade_360_2026_07_01.md`, sessão TVDE P0 2026-07-02.
+- **estado: atual** (resolvido 2026-07-02).
 
 ## 2. Telas brancas = card stretch (Serviços/Barbearia)
 - **Sintoma:** ecrã Serviços em branco (build 272, Samsung A36); Barbearia não renderizava.
@@ -169,3 +169,22 @@ tema: bugs-resolvidos · escopo: projeto · estado: atual · atualizado: 2026-07
 - **Fix:** walk + MAX6000; commit 379022a.
 - **Origem:** `project_sessao_marketsync_noturno_2026_06_06.md`.
 - **estado: atual** (resolvido).
+
+## 22. Tela branca Favores (SendPackage/CarryGroceries) — Column max no footer
+- **Sintoma:** os 2 formulários brancos (corpo invisível); breadcrumbs build 344: `bodyH=0 padBottom=48 insetsBottom=0` — insets NORMAIS.
+- **Hipóteses anteriores — AMBAS estado: superado (2026-07-02):** (a) "build 340 stale nos aparelhos" e (b) "insets Android 16 esticam o footer" (fix 2c80205: clamp 40px + sanitizador viewInsets). O clamp/sanitizador ficam como blindagem, mas NÃO eram a causa.
+- **Causa-raiz REAL:** o Scaffold dá ao `bottomNavigationBar` constraints soltas com maxHeight = ecrã inteiro; a `Column` dentro do `QuotePriceFooter` não tinha `mainAxisSize: MainAxisSize.min` (default = max) → footer branco de ecrã inteiro → body = max(0, ecrã − appBar − footer) = **0**. Determinístico, Android 13 e 16. Mesma família do bug #2 (card stretch): **layout flex sem mainAxisSize.min em contexto de altura solta**.
+- **Fix:** `mainAxisSize: MainAxisSize.min` na Column do footer (1 linha). Breadcrumbs bodyH mantidos para a build de confirmação (esperar bodyH>0).
+- **estado: atual** (fix nesta sessão 2026-07-02; pendente confirmação device).
+
+## 23. Central de Autonomia — botão ✅ chamava a RPC errada + mojibake
+- **Sintoma:** aprovar item "FEITO" dava `PostgrestException: payload_type_fora_da_whitelist (P0001)`; títulos com âœ…/â€".
+- **Causa-raiz:** o ecrã chamava `robot_apply_suggestion` (que EXECUTA payloads whitelisted: update_setting/hide_store/disable_products/flag_products_review) para sugestões de evidência (payload sem 'type' executável) e mostrava o erro cru. Mojibake = SQL com acentos escrito via consola Windows cp1252.
+- **Fix:** roteamento no ecrã (executável→apply; evidência→mark_done; plano N3 nova→`robot_approve_plan` RPC nova sem execução); `_friendlyError` PT-BR; regra ENCODING no `maestro-autonomia.md` (escrita via MCP/ficheiro UTF-8, nunca SQL acentuado inline na consola).
+- **estado: atual** (resolvido 2026-07-02; a segurança da whitelist funcionou — o encaixe do botão é que estava errado).
+
+## 24. TVDE — cliente não acha motorista / telemóvel mudo (P0)
+- **Sintoma:** rides `sem_motorista` com `tried=[]` apesar de motorista online com heartbeat fresco; oferta das 22:47 expirou em ~25s sem o telemóvel tocar.
+- **Causa-raiz (3):** (1) `tvde_offer_to_next` exigia `driver_locations.last_updated` fresco — que só atualiza quando o GPS SE MOVE; motorista parado = invisível (drivers.updated_at congelado 22:46 = última chamada de driver_update_location). (2) Aba TVDE sumia: hydrate de sessão lia só o metadata (`firstWhere` por `.name`) → carPassengers caía para car/motorcycle. (3) `notify-tvde-driver` devolve 200 SEMPRE (fire-and-forget) — falha FCM invisível; TTL 25s contava desde a criação da oferta; sem handler foreground para `new_tvde_ride_offer`.
+- **Fix:** elegibilidade = `GREATEST(dl.last_updated, d.last_heartbeat_at)` fresco (heartbeat 30s = prova de vida, padrão Uber); hydrate usa `fromDb` + refresh da coluna DB por user_id; resultado FCM auditado em `tvde_ride_events` (`push_enviado`/`push_falhou`); TTL reancorado quando o FCM aceita; notificação local heads-up em foreground (canal `bora_orders_urgent_v3`); admin TVDE mostra heartbeat/GPS/token. EF `notify-tvde-driver` v3 deployed.
+- **estado: atual** (resolvido 2026-07-02; pendente teste 2 telemóveis).

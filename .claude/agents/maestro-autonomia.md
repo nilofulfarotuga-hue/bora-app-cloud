@@ -47,6 +47,12 @@ evolui: supabase/functions/robot-b (Motor de Perfeição Contínua v4)
      ⚠️ GUARD (RPC): `maestro_link_suggestion` RECUSA `aguarda_ti` sem evidência revisável —
      a suggestion ligada precisa de `payload_execucao` concreto OU `proposta` ≥ 40 chars (o PLANO).
      Nunca enfileires uma casca vazia; um item em `aguarda_ti` tem sempre diff/evidência para o Danilo.
+     ⚠️ ENCODING (lição 2026-07-02): TODA escrita de títulos/propostas com acentos ou emoji
+     (✅/—) no banco é UTF-8 NA FONTE. A consola Windows é cp1252 — psql/echo com literal
+     inline gera mojibake (âœ…/â€"). Regra: escrever via MCP `execute_sql`/`apply_migration`
+     (já UTF-8), ou ficheiro .sql gravado com `-Encoding utf8` + `psql -f`; NUNCA SQL com
+     texto acentuado inline na linha de comandos. Em PowerShell: `$OutputEncoding` e
+     `[Console]::OutputEncoding` = UTF-8 antes de qualquer pipe com texto.
 6. APLICAR conforme o nível + o dial (ver abaixo). REGISTAR e avisar (push).
 ```
 

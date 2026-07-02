@@ -252,6 +252,13 @@ class _DriverCard extends StatelessWidget {
     final active = (data['active_rides'] as num?)?.toInt() ?? 0;
     final total = (data['total_rides'] as num?)?.toInt() ?? 0;
     final banReason = (data['ban_reason'] as String?)?.trim();
+    // [TVDE P0 2026-07-02] telemetria de elegibilidade — diagnóstico rápido
+    // de "cliente não acha motorista" sem abrir o banco.
+    final heartbeatAt = DateTime.tryParse(
+        (data['last_heartbeat_at'] as String?) ?? '');
+    final locationAt = DateTime.tryParse(
+        (data['location_updated_at'] as String?) ?? '');
+    final hasToken = data['has_fcm_token'] == true;
 
     return Card(
       elevation: 2,
@@ -306,6 +313,23 @@ class _DriverCard extends StatelessWidget {
                   label: 'Deve ao Bora: €${balance.toStringAsFixed(2)}',
                   color: balance > 0 ? AppColors.accent : AppColors.primary,
                 ),
+                _Pill(
+                  icon: Icons.favorite,
+                  label: 'Heartbeat: ${_ago(heartbeatAt)}',
+                  color: _freshColor(heartbeatAt),
+                ),
+                _Pill(
+                  icon: Icons.gps_fixed,
+                  label: 'GPS: ${_ago(locationAt)}',
+                  color: _freshColor(locationAt),
+                ),
+                _Pill(
+                  icon: hasToken
+                      ? Icons.notifications_active
+                      : Icons.notifications_off,
+                  label: hasToken ? 'Push OK' : 'Sem token push',
+                  color: hasToken ? AppColors.primary : AppColors.error,
+                ),
               ],
             ),
             if (banned && banReason != null && banReason.isNotEmpty)
@@ -338,6 +362,25 @@ class _DriverCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// "agora" / "há Xmin" / "há Xh" / '—' quando nunca houve sinal.
+  static String _ago(DateTime? t) {
+    if (t == null) return '—';
+    final diff = DateTime.now().toUtc().difference(t.toUtc());
+    if (diff.inSeconds < 60) return 'agora';
+    if (diff.inMinutes < 60) return 'há ${diff.inMinutes}min';
+    if (diff.inHours < 48) return 'há ${diff.inHours}h';
+    return 'há ${diff.inDays}d';
+  }
+
+  /// Verde = fresco (elegível), laranja = a envelhecer, vermelho = morto.
+  static Color _freshColor(DateTime? t) {
+    if (t == null) return AppColors.error;
+    final diff = DateTime.now().toUtc().difference(t.toUtc());
+    if (diff.inSeconds <= 90) return AppColors.primary;
+    if (diff.inMinutes <= 10) return AppColors.warning;
+    return AppColors.error;
   }
 
   Widget _line(IconData icon, String text, {Color? color}) {

@@ -419,6 +419,12 @@ void _onLocalNotifTap(NotificationResponse response) {
     final payload = response.payload;
     if (payload == null || payload.isEmpty) return;
     final data = jsonDecode(payload) as Map<String, dynamic>;
+    // [TVDE P0] Tocar na oferta de corrida → recarrega o store → _syncNav abre
+    // o cartão de oferta (aceitar/recusar + countdown).
+    if (data['type'] == 'new_tvde_ride_offer') {
+      NotificationService.tvdeOfferReload?.call();
+      return;
+    }
     if (data['type'] != 'chat') return;
     final orderId = data['orderId']?.toString() ?? '';
     if (orderId.isEmpty) return;
@@ -688,6 +694,12 @@ class NotificationService {
 
   static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
+  /// [TVDE P0 2026-07-02] Hook registado pela TvdeDriverHomeScreen. Chamado
+  /// sempre que chega/toca uma oferta de corrida (`new_tvde_ride_offer`) para
+  /// forçar `TvdeDriverStore.loadCurrent()` — a tela de oferta aparece mesmo que
+  /// o realtime tenha caído. Belt-and-suspenders por cima do canal realtime.
+  static VoidCallback? tvdeOfferReload;
+
   final _sound = SoundService();
   bool _initialized = false;
   bool _consentGranted = true;
@@ -930,6 +942,9 @@ class NotificationService {
       // nada. Notificação local heads-up com som contínuo (canal urgente).
       if (type == 'new_tvde_ride_offer') {
         unawaited(_showTvdeOfferNotification(msg));
+        // Força o store a reler a oferta do servidor — não depende só do
+        // realtime; a tela de oferta abre via _syncNav mal offeredRide muda.
+        tvdeOfferReload?.call();
         return;
       }
       _sound.playOnce();
@@ -938,6 +953,7 @@ class NotificationService {
     // Notification tap while app was in background.
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage msg) {
       debugPrint('[NotificationService opened] ${msg.notification?.title}');
+      if (msg.data['type'] == 'new_tvde_ride_offer') tvdeOfferReload?.call();
     });
 
     // Notification tap while app was terminated.
@@ -945,6 +961,9 @@ class NotificationService {
     if (initial != null) {
       debugPrint(
           '[NotificationService initial] ${initial.notification?.title}');
+      if (initial.data['type'] == 'new_tvde_ride_offer') {
+        tvdeOfferReload?.call();
+      }
     }
 
     // Sessão 2026-05-21 — overlay system_alert_window: o isolate da overlay

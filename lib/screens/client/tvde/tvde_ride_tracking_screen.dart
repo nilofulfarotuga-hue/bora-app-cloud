@@ -25,6 +25,8 @@ class TvdeRideTrackingScreen extends StatefulWidget {
 class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
   GoogleMapController? _map;
   LatLng? _driverPos;
+  String? _driverName;
+  double? _driverRating;
   Timer? _driverPoll;
   bool _navigatedToRate = false;
 
@@ -45,15 +47,22 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
     final ride = context.read<TvdeStore>().activeRide;
     if (ride == null || ride.driverId == null || !ride.isAssigned) return;
     try {
+      // `driver_id` = auth uid do motorista → a linha resolve por user_id
+      // (em motoristas reais drivers.id <> user_id; usar 'id' não encontrava
+      // nada e o marker/cartão do motorista nunca aparecia).
       final row = await Supabase.instance.client
           .from('drivers')
-          .select('lat,lng')
-          .eq('id', ride.driverId!)
+          .select('name, avg_rating, lat, lng')
+          .eq('user_id', ride.driverId!)
           .maybeSingle();
       final lat = (row?['lat'] as num?)?.toDouble();
       final lng = (row?['lng'] as num?)?.toDouble();
-      if (lat != null && lng != null && mounted) {
-        setState(() => _driverPos = LatLng(lat, lng));
+      if (mounted) {
+        setState(() {
+          if (lat != null && lng != null) _driverPos = LatLng(lat, lng);
+          _driverName = (row?['name'] as String?)?.trim();
+          _driverRating = (row?['avg_rating'] as num?)?.toDouble();
+        });
       }
     } catch (_) {}
   }
@@ -116,6 +125,12 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
     if (ok != true || !mounted) return;
     try {
       await context.read<TvdeStore>().cancelRide(ride.id);
+      if (!mounted) return;
+      // P0-3: navegação determinística — limpa o estado e sai já, sem depender
+      // do realtime chegar para fechar o ecrã. Reabrir "Bora Motorista" mostra
+      // a tela de destino limpa (a corrida cancelada não é retomável).
+      context.read<TvdeStore>().clearActiveRide();
+      Navigator.pop(context);
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -172,6 +187,8 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
             child: _StatusPanel(
               ride: ride,
               busy: store.busy,
+              driverName: _driverName,
+              driverRating: _driverRating,
               onCancel: () => _cancel(ride),
               onRetry: () => store.retryRide(),
               onClose: () {
@@ -190,6 +207,8 @@ class _StatusPanel extends StatelessWidget {
   const _StatusPanel({
     required this.ride,
     required this.busy,
+    required this.driverName,
+    required this.driverRating,
     required this.onCancel,
     required this.onRetry,
     required this.onClose,
@@ -197,6 +216,8 @@ class _StatusPanel extends StatelessWidget {
 
   final TvdeRide ride;
   final bool busy;
+  final String? driverName;
+  final double? driverRating;
   final VoidCallback onCancel;
   final VoidCallback onRetry;
   final VoidCallback onClose;
@@ -218,6 +239,36 @@ class _StatusPanel extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (ride.isAssigned &&
+              driverName != null &&
+              driverName!.isNotEmpty) ...[
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 18,
+                  backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+                  child: const Icon(Icons.person, color: AppColors.primary),
+                ),
+                const SizedBox(width: Spacing.md),
+                Expanded(
+                  child: Text(driverName!,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                          color: AppColors.textPrimary)),
+                ),
+                if (driverRating != null && driverRating! > 0) ...[
+                  const Icon(Icons.star, size: 16, color: AppColors.accent),
+                  const SizedBox(width: 2),
+                  Text(driverRating!.toStringAsFixed(1),
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary)),
+                ],
+              ],
+            ),
+            const Divider(height: Spacing.lg),
+          ],
           Row(
             children: [
               if (ride.isSearching)

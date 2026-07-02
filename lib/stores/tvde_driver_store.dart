@@ -27,6 +27,16 @@ class TvdeDriverStore extends ChangeNotifier {
   bool _busy = false;
   bool get busy => _busy;
 
+  /// Preferência de trabalho: 'everything' (tudo) | 'rides_only' (só corridas).
+  String _workMode = 'everything';
+  String get workMode => _workMode;
+  bool get ridesOnly => _workMode == 'rides_only';
+
+  /// Ganhos do dia (cêntimos) — soma dos `driver_earn_cents` das corridas
+  /// finalizadas hoje. Mostrado na home (estilo Uber Driver).
+  int _todayEarnCents = 0;
+  int get todayEarnCents => _todayEarnCents;
+
   RealtimeChannel? _channel;
 
   static const _activeStatuses = <String>[
@@ -44,6 +54,61 @@ class TvdeDriverStore extends ChangeNotifier {
   Future<void> start() async {
     _subscribe();
     await loadCurrent();
+    await loadWorkMode();
+    await loadTodayEarnings();
+  }
+
+  /// Soma os ganhos das corridas finalizadas hoje (por dia local).
+  Future<void> loadTodayEarnings() async {
+    final uid = _uid;
+    if (uid == null) return;
+    try {
+      final now = DateTime.now();
+      final startLocalUtc = DateTime(now.year, now.month, now.day).toUtc();
+      final rows = await _sb
+          .from('tvde_rides')
+          .select('driver_earn_cents')
+          .eq('driver_id', uid)
+          .eq('status', 'finalizada')
+          .gte('updated_at', startLocalUtc.toIso8601String());
+      var sum = 0;
+      for (final r in rows) {
+        sum += (r['driver_earn_cents'] as num?)?.toInt() ?? 0;
+      }
+      _todayEarnCents = sum;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('TvdeDriverStore.loadTodayEarnings error => $e');
+    }
+  }
+
+  /// Lê a preferência de trabalho do motorista (drivers.work_mode).
+  Future<void> loadWorkMode() async {
+    final uid = _uid;
+    if (uid == null) return;
+    try {
+      final row = await _sb
+          .from('drivers')
+          .select('work_mode')
+          .eq('user_id', uid)
+          .maybeSingle();
+      _workMode = (row?['work_mode'] as String?) ?? 'everything';
+      notifyListeners();
+    } catch (e) {
+      debugPrint('TvdeDriverStore.loadWorkMode error => $e');
+    }
+  }
+
+  /// Grava a preferência ('everything' | 'rides_only') via RPC.
+  Future<void> setWorkMode(String mode) async {
+    _setBusy(true);
+    try {
+      await _sb.rpc('tvde_set_work_mode', params: {'p_mode': mode});
+      _workMode = mode;
+      notifyListeners();
+    } finally {
+      _setBusy(false);
+    }
   }
 
   /// Re-lê do servidor a oferta pendente e a corrida ativa deste motorista.

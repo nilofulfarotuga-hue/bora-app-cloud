@@ -145,6 +145,45 @@ class _AdminTvdeDriversScreenState extends State<AdminTvdeDriversScreen> {
     }
   }
 
+  /// A8 — vê/edita a preferência de trabalho do motorista (só corridas vs tudo).
+  Future<void> _setWorkMode(Map<String, dynamic> d) async {
+    final current = (d['work_mode'] as String?) ?? 'everything';
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: Text('Preferência de ${d['name'] ?? 'motorista'}'),
+        children: [
+          RadioListTile<String>(
+            value: 'rides_only',
+            groupValue: current,
+            title: const Text('Só corridas de passageiros'),
+            onChanged: (v) => Navigator.pop(ctx, v),
+          ),
+          RadioListTile<String>(
+            value: 'everything',
+            groupValue: current,
+            title: const Text('Tudo (corridas + entregas)'),
+            onChanged: (v) => Navigator.pop(ctx, v),
+          ),
+        ],
+      ),
+    );
+    if (choice == null || choice == current) return;
+    setState(() => _busy = true);
+    try {
+      await Supabase.instance.client.rpc('admin_set_driver_work_mode',
+          params: {'p_driver_id': d['id'], 'p_mode': choice});
+      if (!mounted) return;
+      _toast('Preferência atualizada.', AppColors.primary);
+      await _refresh();
+    } catch (e) {
+      if (!mounted) return;
+      _toast('Erro: $e', AppColors.error);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   void _toast(String msg, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(msg), backgroundColor: color),
@@ -214,6 +253,7 @@ class _AdminTvdeDriversScreenState extends State<AdminTvdeDriversScreen> {
                       busy: _busy,
                       onBan: _ban,
                       onReactivate: _reactivate,
+                      onSetWorkMode: _setWorkMode,
                     ),
                   );
                 },
@@ -232,12 +272,14 @@ class _DriverCard extends StatelessWidget {
     required this.busy,
     required this.onBan,
     required this.onReactivate,
+    required this.onSetWorkMode,
   });
 
   final Map<String, dynamic> data;
   final bool busy;
   final Future<void> Function(Map<String, dynamic>) onBan;
   final Future<void> Function(Map<String, dynamic>) onReactivate;
+  final Future<void> Function(Map<String, dynamic>) onSetWorkMode;
 
   @override
   Widget build(BuildContext context) {
@@ -252,6 +294,7 @@ class _DriverCard extends StatelessWidget {
     final active = (data['active_rides'] as num?)?.toInt() ?? 0;
     final total = (data['total_rides'] as num?)?.toInt() ?? 0;
     final banReason = (data['ban_reason'] as String?)?.trim();
+    final ridesOnly = data['work_mode'] == 'rides_only';
     // [TVDE P0 2026-07-02] telemetria de elegibilidade — diagnóstico rápido
     // de "cliente não acha motorista" sem abrir o banco.
     final heartbeatAt = DateTime.tryParse(
@@ -330,6 +373,11 @@ class _DriverCard extends StatelessWidget {
                   label: hasToken ? 'Push OK' : 'Sem token push',
                   color: hasToken ? AppColors.primary : AppColors.error,
                 ),
+                _Pill(
+                  icon: Icons.tune,
+                  label: ridesOnly ? 'Só corridas' : 'Aceita tudo',
+                  color: ridesOnly ? AppColors.accent : AppColors.primary,
+                ),
               ],
             ),
             if (banned && banReason != null && banReason.isNotEmpty)
@@ -340,23 +388,32 @@ class _DriverCard extends StatelessWidget {
                         fontSize: 12, color: AppColors.error)),
               ),
             const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerRight,
-              child: banned
-                  ? FilledButton.icon(
-                      style: FilledButton.styleFrom(
-                          backgroundColor: AppColors.primary),
-                      onPressed: busy ? null : () => onReactivate(data),
-                      icon: const Icon(Icons.lock_open, size: 18),
-                      label: const Text('Reativar'),
-                    )
-                  : OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.error),
-                      onPressed: busy ? null : () => onBan(data),
-                      icon: const Icon(Icons.block, size: 18),
-                      label: const Text('Banir'),
-                    ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton.icon(
+                  onPressed: busy ? null : () => onSetWorkMode(data),
+                  icon: const Icon(Icons.tune, size: 18),
+                  label: const Text('Preferência'),
+                ),
+                const SizedBox(width: 8),
+                if (banned)
+                  FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.primary),
+                    onPressed: busy ? null : () => onReactivate(data),
+                    icon: const Icon(Icons.lock_open, size: 18),
+                    label: const Text('Reativar'),
+                  )
+                else
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.error),
+                    onPressed: busy ? null : () => onBan(data),
+                    icon: const Icon(Icons.block, size: 18),
+                    label: const Text('Banir'),
+                  ),
+              ],
             ),
           ],
         ),

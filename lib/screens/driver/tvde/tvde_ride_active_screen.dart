@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
 import '../../../models/tvde_ride.dart';
+import '../../../services/navigation_service.dart';
 import '../../../stores/driver_store.dart';
 import '../../../stores/tvde_driver_store.dart';
 import '../../../widgets/bora/bora.dart';
@@ -64,6 +65,15 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     } catch (e) {
       _err(e);
     }
+  }
+
+  /// Abre a navegação externa (Google Maps/Waze). A caminho → até à recolha;
+  /// em viagem → até ao destino. Reusa o mesmo helper do delivery.
+  Future<void> _navigate(TvdeRide ride) async {
+    final target = ride.isInProgress
+        ? ll.LatLng(ride.destLat, ride.destLng)
+        : ll.LatLng(ride.originLat, ride.originLng);
+    await NavigationService.openNavigationOptions(context, target);
   }
 
   Future<void> _finish(TvdeRide ride) async {
@@ -258,6 +268,18 @@ class _ActionPanel extends StatelessWidget {
           Text('${ride.originLabel ?? 'Recolha'} → ${ride.destLabel ?? 'Destino'}',
               style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
           const SizedBox(height: Spacing.lg),
+          // Navegar (Google Maps/Waze) — estilo Uber Driver. Escondido quando a
+          // viagem terminou/processa.
+          if (ride.isOnTheWay || ride.hasArrived || ride.isInProgress) ...[
+            OutlinedButton.icon(
+              onPressed: () => actions._navigate(ride),
+              icon: const Icon(Icons.navigation),
+              label: Text(ride.isInProgress
+                  ? 'Navegar até ao destino'
+                  : 'Navegar até à recolha'),
+            ),
+            const SizedBox(height: Spacing.sm),
+          ],
           BoraAccentButton(
             label: label,
             icon: icon,

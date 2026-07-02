@@ -1,11 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
 import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
 import '../../../models/tvde_ride.dart';
+import '../../../stores/driver_store.dart';
 import '../../../stores/tvde_driver_store.dart';
 import '../../../widgets/bora/bora.dart';
 
@@ -92,6 +94,16 @@ class _TvdeOfferScreenState extends State<TvdeOfferScreen> {
     final fare = (ride.estFareCents / 100).toStringAsFixed(2);
     final km = ride.estDistanceKm.toStringAsFixed(1);
 
+    // M6 — distância do motorista até à recolha (estilo Uber Driver).
+    final myPos = context.select<DriverStore, LatLng?>(
+        (d) => d.currentDriver?.location);
+    String? toPickup;
+    if (myPos != null) {
+      final d = const Distance().as(
+          LengthUnit.Kilometer, myPos, LatLng(ride.originLat, ride.originLng));
+      toPickup = 'Recolha a ${d.toStringAsFixed(1)} km de ti';
+    }
+
     return PopScope(
       canPop: false, // decisão explícita: aceitar ou recusar
       child: Scaffold(
@@ -143,6 +155,16 @@ class _TvdeOfferScreenState extends State<TvdeOfferScreen> {
                             style: TextStyle(
                                 color: AppColors.textSecondary, fontSize: 13)),
                       ),
+                      if (toPickup != null) ...[
+                        const SizedBox(height: 2),
+                        Center(
+                          child: Text(toPickup,
+                              style: const TextStyle(
+                                  color: AppColors.primary,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600)),
+                        ),
+                      ],
                       const SizedBox(height: Spacing.lg),
                       _PointRow(
                         icon: Icons.my_location,

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -12,6 +13,7 @@ import '../../../config/app_spacing.dart';
 import '../../../models/driver_model.dart';
 import '../../../services/driver_location_ping_service.dart';
 import '../../../services/heartbeat_service.dart';
+import '../../../services/notification_service.dart';
 import '../../../services/permission_gate_service.dart';
 import '../../../stores/driver_store.dart';
 import '../../../stores/tvde_driver_store.dart';
@@ -34,13 +36,24 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
   final HeartbeatService _heartbeat = HeartbeatService();
   StreamSubscription<Position>? _gps;
   Position? _lastPos;
+  Timer? _offerPoll;
   bool _offerOpen = false;
   bool _activeOpen = false;
+
+  gmaps.GoogleMapController? _mapController;
+  gmaps.LatLng? _lastCameraTarget;
+
+  /// Centro por omissão (Guarda) enquanto não há 1º fix de GPS — garante que o
+  /// mapa nunca aparece vazio/branco: renderiza sempre com câmara válida.
+  static const gmaps.LatLng _guardaCenter = gmaps.LatLng(40.5373, -7.2657);
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // [TVDE P0] Push de oferta força reload do store → a tela de oferta aparece
+    // mesmo que o realtime tenha caído (fallback triplo: push → realtime → poll).
+    NotificationService.tvdeOfferReload = _reloadOffer;
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       // Reflete admin approve/reject pós-login sem relogin (espelha o
@@ -55,6 +68,7 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
       if (isOnline) {
         unawaited(_heartbeat.start());
         unawaited(_startGps());
+        _startOfferPoll();
       }
       _syncNav();
     });
@@ -81,9 +95,60 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    if (NotificationService.tvdeOfferReload == _reloadOffer) {
+      NotificationService.tvdeOfferReload = null;
+    }
     _heartbeat.stop();
     _gps?.cancel();
+    _offerPoll?.cancel();
+    _mapController?.dispose();
     super.dispose();
+  }
+
+  /// Recarrega a oferta/corrida do servidor e reavalia a navegação. Ligado ao
+  /// push `new_tvde_ride_offer` (chegada + tap) via NotificationService.
+  void _reloadOffer() {
+    if (!mounted) return;
+    context.read<TvdeDriverStore>().loadCurrent().then((_) {
+      if (mounted) _syncNav();
+    });
+  }
+
+  /// Rede de segurança: enquanto online e sem oferta/corrida, relê a cada 10s.
+  /// Garante a oferta mesmo que push E realtime falhem (Uber-grade). Barato —
+  /// só corre quando online e ocioso.
+  void _startOfferPoll() {
+    _offerPoll?.cancel();
+    _offerPoll = Timer.periodic(const Duration(seconds: 10), (_) {
+      if (!mounted) return;
+      final driverStore = context.read<DriverStore>();
+      if (driverStore.currentDriver?.isOnline != true) return;
+      final tvde = context.read<TvdeDriverStore>();
+      if (tvde.offeredRide != null || tvde.activeRide != null) return;
+      tvde.loadCurrent().then((_) {
+        if (mounted) _syncNav();
+      });
+    });
+  }
+
+  void _stopOfferPoll() {
+    _offerPoll?.cancel();
+    _offerPoll = null;
+  }
+
+  /// Segue a posição do motorista com a câmara (best-effort). Só anima quando o
+  /// alvo muda de facto — evita animações a cada rebuild.
+  void _followCamera(gmaps.LatLng target) {
+    final c = _mapController;
+    if (c == null) return;
+    final prev = _lastCameraTarget;
+    if (prev != null &&
+        (prev.latitude - target.latitude).abs() < 0.0002 &&
+        (prev.longitude - target.longitude).abs() < 0.0002) {
+      return;
+    }
+    _lastCameraTarget = target;
+    c.animateCamera(gmaps.CameraUpdate.newLatLng(target));
   }
 
   // ── Navegação reativa para oferta / corrida ativa ──────────────────────────
@@ -96,7 +161,11 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
       Navigator.of(context)
           .push(MaterialPageRoute<void>(
               builder: (_) => const TvdeRideActiveScreen()))
-          .then((_) => _activeOpen = false);
+          .then((_) {
+        _activeOpen = false;
+        // Corrida terminou → atualiza os ganhos do dia.
+        if (mounted) context.read<TvdeDriverStore>().loadTodayEarnings();
+      });
       return;
     }
     final offer = store.offeredRide;
@@ -131,10 +200,12 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
       unawaited(OverlayPermissionGate.maybeOfferOnce(context));
       unawaited(_heartbeat.start());
       await _startGps();
+      _startOfferPoll();
     } else {
       unawaited(_heartbeat.stop());
       await _gps?.cancel();
       _gps = null;
+      _stopOfferPoll();
       await _goOfflinePing();
     }
   }
@@ -216,6 +287,65 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
     context.read<AuthStore>().logout();
   }
 
+  // ── Preferências de trabalho (só corridas vs tudo) ─────────────────────────
+  void _openWorkModeSheet() {
+    final mode = context.read<TvdeDriverStore>().workMode;
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                  Spacing.lg, Spacing.lg, Spacing.lg, Spacing.sm),
+              child: Text('O que queres aceitar?',
+                  style: Theme.of(ctx)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w800)),
+            ),
+            RadioListTile<String>(
+              value: 'rides_only',
+              groupValue: mode,
+              activeColor: AppColors.primary,
+              title: const Text('Só corridas de passageiros'),
+              subtitle: const Text('Recebes apenas viagens Bora Motorista.'),
+              onChanged: (v) => _applyWorkMode(ctx, v!),
+            ),
+            RadioListTile<String>(
+              value: 'everything',
+              groupValue: mode,
+              activeColor: AppColors.primary,
+              title: const Text('Tudo'),
+              subtitle: const Text(
+                  'Corridas + entregas de restaurante, supermercado e favores.'),
+              onChanged: (v) => _applyWorkMode(ctx, v!),
+            ),
+            const SizedBox(height: Spacing.md),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _applyWorkMode(BuildContext sheetCtx, String mode) async {
+    Navigator.pop(sheetCtx);
+    try {
+      await context.read<TvdeDriverStore>().setWorkMode(mode);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(mode == 'rides_only'
+              ? 'Preferência guardada: só corridas.'
+              : 'Preferência guardada: tudo.')));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Não foi possível guardar a preferência.')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // Dispara a navegação reativa sempre que o store muda.
@@ -229,6 +359,13 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
 
     final isOnline =
         context.select<DriverStore, bool>((d) => d.currentDriver?.isOnline ?? false);
+    final LatLng? locLl =
+        context.select<DriverStore, LatLng?>((d) => d.currentDriver?.location);
+    final gmaps.LatLng? mePos =
+        locLl == null ? null : gmaps.LatLng(locLl.latitude, locLl.longitude);
+    if (mePos != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _followCamera(mePos));
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -238,66 +375,193 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
         title: const Text('Bora Motorista'),
         actions: [
           IconButton(
+            tooltip: 'Preferências',
+            onPressed: _openWorkModeSheet,
+            icon: const Icon(Icons.tune),
+          ),
+          IconButton(
             tooltip: 'Sair',
             onPressed: _logout,
             icon: const Icon(Icons.logout),
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(Spacing.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const SizedBox(height: Spacing.xl),
-            Icon(
-              isOnline ? Icons.local_taxi : Icons.local_taxi_outlined,
-              size: 88,
-              color: isOnline ? AppColors.primary : AppColors.textSubtle,
+      // Estilo Uber Driver: mapa em tela cheia com a posição própria + cartão de
+      // estado/toggle flutuante. O cartão vive num Stack por CIMA do mapa, logo
+      // renderiza SEMPRE (mesmo que a platform view do GoogleMap demore) — é o
+      // fallback defensivo contra tela sem controlo.
+      body: Stack(
+        children: [
+          gmaps.GoogleMap(
+            initialCameraPosition: gmaps.CameraPosition(
+              target: mePos ?? _guardaCenter,
+              zoom: 14.5,
             ),
-            const SizedBox(height: Spacing.lg),
-            Text(
-              isOnline ? 'Estás online' : 'Estás offline',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w800, color: AppColors.textPrimary),
-            ),
-            const SizedBox(height: Spacing.xs),
-            Text(
-              isOnline
-                  ? 'À espera de corridas de passageiros.'
-                  : 'Fica online para receber corridas.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
-            const Spacer(),
-            Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: Spacing.lg, vertical: Spacing.sm),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(Radii.lg),
-                border: Border.all(color: AppColors.divider),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(isOnline ? 'Online' : 'Offline',
-                        style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary)),
-                  ),
-                  Switch(
-                    value: isOnline,
-                    activeColor: AppColors.primary,
-                    onChanged: _toggleOnline,
-                  ),
-                ],
+            myLocationEnabled: true,
+            myLocationButtonEnabled: false,
+            zoomControlsEnabled: false,
+            compassEnabled: false,
+            mapToolbarEnabled: false,
+            onMapCreated: (c) {
+              _mapController = c;
+              if (mePos != null) {
+                _lastCameraTarget = mePos;
+                c.moveCamera(gmaps.CameraUpdate.newLatLng(mePos));
+              }
+            },
+            markers: mePos == null
+                ? <gmaps.Marker>{}
+                : {
+                    gmaps.Marker(
+                      markerId: const gmaps.MarkerId('me'),
+                      position: mePos,
+                      icon: gmaps.BitmapDescriptor.defaultMarkerWithHue(
+                          gmaps.BitmapDescriptor.hueAzure),
+                      infoWindow: const gmaps.InfoWindow(title: 'Tu'),
+                    ),
+                  },
+          ),
+          if (mePos == null) const _LocatingBanner(),
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: SafeArea(
+              child: _OnlinePanel(
+                isOnline: isOnline,
+                todayEarnCents:
+                    context.read<TvdeDriverStore>().todayEarnCents,
+                onChanged: _toggleOnline,
               ),
             ),
-            const SizedBox(height: Spacing.xl),
-          ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Cartão flutuante de estado + toggle online/offline (estilo Uber Driver).
+class _OnlinePanel extends StatelessWidget {
+  const _OnlinePanel({
+    required this.isOnline,
+    required this.todayEarnCents,
+    required this.onChanged,
+  });
+  final bool isOnline;
+  final int todayEarnCents;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.all(Spacing.md),
+      padding:
+          const EdgeInsets.symmetric(horizontal: Spacing.lg, vertical: Spacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(Radii.lg),
+        boxShadow: const [
+          BoxShadow(color: Color(0x1F000000), blurRadius: 16, offset: Offset(0, -2)),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(
+                horizontal: Spacing.md, vertical: Spacing.sm),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(Radii.md),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.account_balance_wallet,
+                    color: AppColors.primary, size: 20),
+                const SizedBox(width: Spacing.sm),
+                const Text('Ganhos de hoje',
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textSecondary)),
+                const Spacer(),
+                Text('€${(todayEarnCents / 100).toStringAsFixed(2)}',
+                    style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.primary)),
+              ],
+            ),
+          ),
+          const SizedBox(height: Spacing.md),
+          Row(
+            children: [
+          Icon(isOnline ? Icons.local_taxi : Icons.local_taxi_outlined,
+              size: 32,
+              color: isOnline ? AppColors.primary : AppColors.textSubtle),
+          const SizedBox(width: Spacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(isOnline ? 'Estás online' : 'Estás offline',
+                    style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary)),
+                Text(
+                  isOnline
+                      ? 'À espera de corridas de passageiros.'
+                      : 'Fica online para receber corridas.',
+                  style: TextStyle(color: AppColors.textSecondary, fontSize: 12.5),
+                ),
+              ],
+            ),
+          ),
+          Switch(
+            value: isOnline,
+            activeColor: AppColors.primary,
+            onChanged: onChanged,
+          ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Chip "a localizar" no topo enquanto não há 1º fix de GPS.
+class _LocatingBanner extends StatelessWidget {
+  const _LocatingBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: Container(
+          margin: const EdgeInsets.all(Spacing.md),
+          padding: const EdgeInsets.symmetric(
+              horizontal: Spacing.lg, vertical: Spacing.sm),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(999),
+            boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 8)],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2)),
+              const SizedBox(width: Spacing.sm),
+              Text('A obter a tua localização…',
+                  style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+            ],
+          ),
         ),
       ),
     );

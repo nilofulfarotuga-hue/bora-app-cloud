@@ -99,10 +99,15 @@ class TvdeRide {
   bool get isCancelled => status == 'cancelada_cliente' ||
       status == 'cancelada_motorista' ||
       status == 'no_show';
-  bool get isTerminal => isFinished || isCancelled;
+  /// Terminal para efeitos de RESUME: uma corrida sem motorista NÃO deve
+  /// reabrir o tracking antigo (P0-3 2026-07-02). Alinha com o guard do backend
+  /// `tvde_request_ride` (sem_motorista não conta como "em curso").
+  bool get isTerminal => isFinished || isCancelled || isNoDriver;
 
-  /// Estado "ativo" enquanto a corrida decorre (mostra ecrã de tracking).
-  bool get isLive => isSearching || isNoDriver || isAssigned || isInProgress;
+  /// Estado "ativo/retomável": corrida que ainda decorre e deve reabrir o
+  /// tracking ao voltar à app. Espelha EXATAMENTE o conjunto "em curso" do
+  /// backend — `sem_motorista` fica de fora (é terminal para o resume).
+  bool get isLive => isSearching || isAssigned || isInProgress;
 
   /// Valor a apresentar ao cliente (cêntimos): final se já houver, senão est.
   int get displayFareCents => finalFareCents ?? estFareCents;

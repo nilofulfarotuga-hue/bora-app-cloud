@@ -172,9 +172,11 @@ class TvdeStore extends ChangeNotifier {
           .from('tvde_rides')
           .select()
           .eq('client_id', uid)
+          // P0-3 2026-07-02: 'sem_motorista' é TERMINAL para o resume — não
+          // reabrir o tracking antigo (€/endereço velhos) ao voltar à app.
+          // Espelha o guard "em curso" do backend tvde_request_ride.
           .inFilter('status', const [
             'solicitada',
-            'sem_motorista',
             'motorista_atribuido',
             'motorista_a_caminho',
             'motorista_chegou',

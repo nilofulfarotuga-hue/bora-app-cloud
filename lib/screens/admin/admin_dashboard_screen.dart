@@ -19,6 +19,10 @@ import 'admin_appointments_screen.dart';
 import 'admin_service_providers_screen.dart';
 import 'admin_audit_log_screen.dart';
 import 'admin_cancellation_requests_screen.dart';
+import 'admin_discovery_filters_screen.dart';
+import 'admin_gdpr_screen.dart';
+import 'admin_reservations_config_screen.dart';
+import 'admin_tvde_docs_review_screen.dart';
 import 'admin_businesses_screen.dart';
 import 'admin_catalog_screen.dart';
 import 'admin_clients_screen.dart';
@@ -667,6 +671,51 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       context,
                       MaterialPageRoute(
                           builder: (_) => const AdminAuditLogScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.badge_outlined,
+                  title: 'Documentos TVDE',
+                  subtitle: 'Rever e aprovar docs IMT dos motoristas TVDE',
+                  color: const Color(0xFF6366F1),
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminTvdeDocsReviewScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.privacy_tip_outlined,
+                  title: 'Privacidade (RGPD)',
+                  subtitle: 'Exportar ou anonimizar dados de um cliente',
+                  color: const Color(0xFF0EA5E9),
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminGdprScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.tune,
+                  title: 'Filtros de Descoberta',
+                  subtitle: 'Config dos filtros do cliente (aberto agora, dieta)',
+                  color: const Color(0xFF8B5CF6),
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminDiscoveryFiltersScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.event_seat_outlined,
+                  title: 'Reservas Pro — Config',
+                  subtitle: 'Pacing, regras por restaurante e fila de espera',
+                  color: const Color(0xFF10B981),
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminReservationsConfigScreen())),
                 ),
                 const SizedBox(height: 10),
                 _NavCard(

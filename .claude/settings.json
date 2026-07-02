@@ -112,7 +112,7 @@
         ]
       },
       {
-        "matcher": "Bash|mcp__.*[Ss]upabase.*",
+        "matcher": "Bash|mcp__.*[Ss]upabase.*|mcp__.*__(execute_sql|apply_migration|deploy_edge_function)",
         "hooks": [
           {
             "type": "command",

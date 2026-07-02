@@ -293,11 +293,15 @@ class TvdeDriverStore extends ChangeNotifier {
   /// Back-to-back: se havia corrida em fila, o backend ativou-a — recarrega o
   /// estado (a ativada passa a `activeRide`) e devolve a corrida FINALIZADA
   /// (para o resumo do ganho). Sem fila, comporta-se como antes.
-  Future<TvdeRide> finishRide(String rideId, double finalDistanceKm) async {
+  Future<TvdeRide> finishRide(String rideId, double finalDistanceKm,
+      {String? distanceSource}) async {
     _setBusy(true);
     try {
-      final res = await _sb.rpc('tvde_finish_ride',
-          params: {'p_ride_id': rideId, 'p_final_distance_km': finalDistanceKm});
+      final res = await _sb.rpc('tvde_finish_ride', params: {
+        'p_ride_id': rideId,
+        'p_final_distance_km': finalDistanceKm,
+        if (distanceSource != null) 'p_distance_source': distanceSource,
+      });
       final finished = TvdeRide.fromMap(_asMap(res));
       if (_queuedRide != null) {
         _activeRide = null;

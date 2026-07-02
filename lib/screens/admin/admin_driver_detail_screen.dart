@@ -320,6 +320,8 @@ class _OverviewTab extends StatelessWidget {
         licensePlate: result.licensePlate,
         iban: result.iban,
         nif: result.nif,
+        vehicleColor: result.vehicleColor,
+        vehicleMakeModel: result.vehicleMakeModel,
       );
       final changed = (r['fields_changed'] as List?)?.join(', ') ?? '';
       toast('Actualizado: $changed');
@@ -989,9 +991,13 @@ class _EditResult {
     this.licensePlate,
     this.iban,
     this.nif,
+    this.vehicleColor,
+    this.vehicleMakeModel,
   });
   final String reason;
   final String? name, phone, vehicleType, licensePlate, iban, nif;
+  // TVDE — cor + marca/modelo do carro.
+  final String? vehicleColor, vehicleMakeModel;
 }
 
 class _EditDriverSheet extends StatefulWidget {
@@ -1005,6 +1011,8 @@ class _EditDriverSheetState extends State<_EditDriverSheet> {
   late final TextEditingController _name;
   late final TextEditingController _phone;
   late final TextEditingController _plate;
+  late final TextEditingController _color;
+  late final TextEditingController _makeModel;
   late final TextEditingController _iban;
   late final TextEditingController _nif;
   late final TextEditingController _reason;
@@ -1017,6 +1025,8 @@ class _EditDriverSheetState extends State<_EditDriverSheet> {
     _name  = TextEditingController(text: widget.driver['name'] as String? ?? '');
     _phone = TextEditingController(text: widget.driver['phone'] as String? ?? '');
     _plate = TextEditingController(text: widget.driver['license_plate'] as String? ?? '');
+    _color = TextEditingController(text: widget.driver['vehicle_color'] as String? ?? '');
+    _makeModel = TextEditingController(text: widget.driver['vehicle_make_model'] as String? ?? '');
     _iban  = TextEditingController(text: widget.driver['iban'] as String? ?? '');
     _nif   = TextEditingController(text: widget.driver['nif'] as String? ?? '');
     _reason = TextEditingController();
@@ -1025,7 +1035,7 @@ class _EditDriverSheetState extends State<_EditDriverSheet> {
 
   @override
   void dispose() {
-    for (final c in [_name, _phone, _plate, _iban, _nif, _reason]) {
+    for (final c in [_name, _phone, _plate, _color, _makeModel, _iban, _nif, _reason]) {
       c.dispose();
     }
     super.dispose();
@@ -1088,6 +1098,9 @@ class _EditDriverSheetState extends State<_EditDriverSheet> {
               onChanged: (v) => setState(() => _vt = v ?? 'motorcycle'),
             ),
             TextField(controller: _plate, decoration: const InputDecoration(labelText: 'Matrícula')),
+            // TVDE — carro visível ao passageiro no cartão.
+            TextField(controller: _makeModel, decoration: const InputDecoration(labelText: 'Marca e modelo (TVDE)')),
+            TextField(controller: _color, decoration: const InputDecoration(labelText: 'Cor do carro (TVDE)')),
             const SizedBox(height: 12),
             const Text('Dados sensíveis (audit redact)', style: TextStyle(color: AppColors.warning, fontSize: 12)),
             // BUG 1 fix: onChanged trigger setState para que sensitiveChanged
@@ -1158,6 +1171,8 @@ class _EditDriverSheetState extends State<_EditDriverSheet> {
                           phone:        _diff(_phone, widget.driver['phone'] as String?),
                           vehicleType:  _vt != (widget.driver['vehicle_type'] as String?) ? _vt : null,
                           licensePlate: _diff(_plate, widget.driver['license_plate'] as String?),
+                          vehicleColor: _diff(_color, widget.driver['vehicle_color'] as String?),
+                          vehicleMakeModel: _diff(_makeModel, widget.driver['vehicle_make_model'] as String?),
                           iban:         _diff(_iban, widget.driver['iban'] as String?),
                           nif:          _diff(_nif, widget.driver['nif'] as String?),
                         ));

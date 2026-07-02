@@ -292,6 +292,47 @@ class TvdeStore extends ChangeNotifier {
     }
   }
 
+  // ── Pedido de adesão a plano (C4) ──────────────────────────────────────
+  /// null | 'pendente' | 'aprovado' | 'recusado'
+  String? _planRequestStatus;
+  String? get planRequestStatus => _planRequestStatus;
+
+  /// Lê o estado do último pedido de plano do cliente (para a UI mostrar
+  /// "pedido enviado"). Best-effort.
+  Future<void> loadPlanRequest() async {
+    final uid = _uid;
+    if (uid == null) return;
+    try {
+      final req = await _sb
+          .from('tvde_plan_requests')
+          .select('status')
+          .eq('client_id', uid)
+          .order('requested_at', ascending: false)
+          .limit(1)
+          .maybeSingle();
+      _planRequestStatus = req?['status'] as String?;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('TvdeStore.loadPlanRequest error => $e');
+    }
+  }
+
+  /// Cliente pede adesão a um plano → tvde_plan_requests (pendente) + notifica
+  /// admin. O admin aprova/ativa num clique no painel.
+  Future<void> requestPlan(String plan, String planLabel) async {
+    _setBusy(true);
+    try {
+      await _sb.rpc('tvde_request_plan',
+          params: {'p_plan': plan, 'p_plan_label': planLabel});
+      _planRequestStatus = 'pendente';
+    } catch (e) {
+      debugPrint('TvdeStore.requestPlan error => $e');
+      rethrow;
+    } finally {
+      _setBusy(false);
+    }
+  }
+
   Future<void> loadSubscription() async {
     final uid = _uid;
     if (uid == null) return;

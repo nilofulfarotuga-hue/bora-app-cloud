@@ -298,6 +298,16 @@ class _DriverCard extends StatelessWidget {
     final hasDelivery = data['has_active_delivery'] == true;
     final banReason = (data['ban_reason'] as String?)?.trim();
     final ridesOnly = data['work_mode'] == 'rides_only';
+    // G — cartão do carro (visível no admin).
+    final photoUrl = (data['photo_url'] as String?)?.trim();
+    final carMakeModel = (data['vehicle_make_model'] as String?)?.trim();
+    final carColor = (data['vehicle_color'] as String?)?.trim();
+    final plate = (data['license_plate'] as String?)?.trim();
+    final carLine = [
+      if (carMakeModel != null && carMakeModel.isNotEmpty) carMakeModel,
+      if (carColor != null && carColor.isNotEmpty) carColor,
+      if (plate != null && plate.isNotEmpty) plate,
+    ].join(' · ');
     // [TVDE P0 2026-07-02] telemetria de elegibilidade — diagnóstico rápido
     // de "cliente não acha motorista" sem abrir o banco.
     final heartbeatAt = DateTime.tryParse(
@@ -318,12 +328,18 @@ class _DriverCard extends StatelessWidget {
           children: [
             Row(
               children: [
+                // G — foto do motorista (KYC/identificação no admin).
                 CircleAvatar(
-                  radius: 6,
-                  backgroundColor:
-                      online ? AppColors.primary : AppColors.textSubtle,
+                  radius: 20,
+                  backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+                  backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
+                      ? NetworkImage(photoUrl)
+                      : null,
+                  child: (photoUrl == null || photoUrl.isEmpty)
+                      ? const Icon(Icons.person, color: AppColors.primary)
+                      : null,
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     (name != null && name.isNotEmpty) ? name : '(sem nome)',
@@ -340,6 +356,8 @@ class _DriverCard extends StatelessWidget {
             const SizedBox(height: 8),
             if (phone != null && phone.isNotEmpty)
               _line(Icons.phone_outlined, phone),
+            // G — carro visível no admin (marca/modelo · cor · matrícula).
+            if (carLine.isNotEmpty) _line(Icons.directions_car_outlined, carLine),
             _line(Icons.circle, online ? 'Online agora' : 'Offline',
                 color: online ? AppColors.primary : AppColors.textSubtle),
             const SizedBox(height: 8),

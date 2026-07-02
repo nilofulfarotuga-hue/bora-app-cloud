@@ -72,6 +72,7 @@ import 'admin_tvde_access_requests_screen.dart';
 import 'admin_tvde_rides_screen.dart';
 import 'admin_tvde_drivers_screen.dart';
 import 'admin_tvde_subscriptions_screen.dart';
+import 'admin_tvde_plan_requests_screen.dart';
 
 /// In-app admin dashboard.
 ///
@@ -1011,6 +1012,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       MaterialPageRoute(
                           builder: (_) =>
                               const AdminTvdeSubscriptionsScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.assignment_turned_in,
+                  title: 'Pedidos de plano',
+                  subtitle: 'Aprovar/ativar adesões pedidas pelos clientes',
+                  color: Colors.purple,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminTvdePlanRequestsScreen())),
                 ),
                 const SizedBox(height: 18),
                 // ── Ferramentas (ecrãs anteriormente órfãos) ──

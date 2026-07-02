@@ -18,6 +18,7 @@ import '../../../services/permission_gate_service.dart';
 import '../../../stores/driver_store.dart';
 import '../../../stores/order_store.dart';
 import '../../../stores/tvde_driver_store.dart';
+import '../../../widgets/bora_support_sheet.dart';
 import '../../driver_home_screen.dart';
 import 'tvde_driver_earnings_screen.dart';
 import 'tvde_offer_screen.dart';
@@ -43,6 +44,11 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
   bool _offerOpen = false;
   bool _activeOpen = false;
   bool _deliveryOpen = false;
+
+  // F/M4 — tempo online desta sessão (relógio no cartão). Arranca ao ficar
+  // online, para ao ficar offline. (Agregação diária real = backend, follow-up.)
+  DateTime? _onlineSince;
+  Timer? _onlineTicker;
 
   gmaps.GoogleMapController? _mapController;
   gmaps.LatLng? _lastCameraTarget;
@@ -78,6 +84,7 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
         unawaited(_heartbeat.start());
         unawaited(_startGps());
         _startOfferPoll();
+        _startOnlineClock();
       }
       _syncNav();
     });
@@ -110,6 +117,7 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
     _heartbeat.stop();
     _gps?.cancel();
     _offerPoll?.cancel();
+    _onlineTicker?.cancel();
     _mapController?.dispose();
     super.dispose();
   }
@@ -222,6 +230,39 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
         builder: (_) => const TvdeDriverEarningsScreen()));
   }
 
+  /// F — suporte (reusa a folha de suporte do delivery: Bora IA + WhatsApp + Email).
+  void _openSupport() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const BoraSupportSheet(),
+    );
+  }
+
+  // F/M4 — relógio de tempo online (sessão).
+  void _startOnlineClock() {
+    _onlineSince ??= DateTime.now();
+    _onlineTicker ??= Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  void _stopOnlineClock() {
+    _onlineTicker?.cancel();
+    _onlineTicker = null;
+    _onlineSince = null;
+  }
+
+  String? _onlineElapsedLabel() {
+    final since = _onlineSince;
+    if (since == null) return null;
+    final d = DateTime.now().difference(since);
+    final h = d.inHours;
+    final m = d.inMinutes % 60;
+    return h > 0 ? '${h}h ${m}min' : '${m}min';
+  }
+
   // ── Online toggle (reuso DriverStore + heartbeat + GPS) ────────────────────
   Future<void> _toggleOnline(bool value) async {
     final driverStore = context.read<DriverStore>();
@@ -245,11 +286,13 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
       unawaited(_heartbeat.start());
       await _startGps();
       _startOfferPoll();
+      _startOnlineClock();
     } else {
       unawaited(_heartbeat.stop());
       await _gps?.cancel();
       _gps = null;
       _stopOfferPoll();
+      _stopOnlineClock();
       await _goOfflinePing();
     }
   }
@@ -446,6 +489,11 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
             icon: const Icon(Icons.tune),
           ),
           IconButton(
+            tooltip: 'Suporte',
+            onPressed: _openSupport,
+            icon: const Icon(Icons.help_outline),
+          ),
+          IconButton(
             tooltip: 'Sair',
             onPressed: _logout,
             icon: const Icon(Icons.logout),
@@ -495,6 +543,11 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
                 isOnline: isOnline,
                 todayEarnCents:
                     context.read<TvdeDriverStore>().todayEarnCents,
+                avgRating: context
+                    .select<DriverStore, double?>((d) => d.currentDriver?.avgRating),
+                ratingsCount: context.select<DriverStore, int>(
+                    (d) => d.currentDriver?.ratingsCount ?? 0),
+                onlineLabel: isOnline ? _onlineElapsedLabel() : null,
                 onChanged: _toggleOnline,
               ),
             ),
@@ -510,10 +563,16 @@ class _OnlinePanel extends StatelessWidget {
   const _OnlinePanel({
     required this.isOnline,
     required this.todayEarnCents,
+    required this.avgRating,
+    required this.ratingsCount,
+    required this.onlineLabel,
     required this.onChanged,
   });
   final bool isOnline;
   final int todayEarnCents;
+  final double? avgRating;
+  final int ratingsCount;
+  final String? onlineLabel;
   final ValueChanged<bool> onChanged;
 
   @override
@@ -558,6 +617,34 @@ class _OnlinePanel extends StatelessWidget {
                         color: AppColors.primary)),
               ],
             ),
+          ),
+          // F/M14 + M4 — avaliação média recebida + tempo online do dia (sessão).
+          const SizedBox(height: Spacing.sm),
+          Row(
+            children: [
+              const Icon(Icons.star, size: 16, color: AppColors.accent),
+              const SizedBox(width: 4),
+              Text(
+                (avgRating != null && avgRating! > 0)
+                    ? '${avgRating!.toStringAsFixed(1)} · $ratingsCount avaliações'
+                    : 'Sem avaliações ainda',
+                style: TextStyle(
+                    fontSize: 12.5,
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w600),
+              ),
+              const Spacer(),
+              if (onlineLabel != null) ...[
+                const Icon(Icons.timer_outlined,
+                    size: 16, color: AppColors.primary),
+                const SizedBox(width: 4),
+                Text('Online há $onlineLabel',
+                    style: const TextStyle(
+                        fontSize: 12.5,
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w700)),
+              ],
+            ],
           ),
           const SizedBox(height: Spacing.md),
           Row(

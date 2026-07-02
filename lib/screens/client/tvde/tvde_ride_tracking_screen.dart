@@ -6,6 +6,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:latlong2/latlong.dart' as ll;
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
@@ -14,6 +15,7 @@ import '../../../services/directions_service.dart';
 import '../../../stores/tvde_store.dart';
 import '../../../utils/map_utils.dart';
 import '../../../widgets/bora/bora.dart';
+import '../../shared/tvde_chat_screen.dart';
 import 'tvde_rate_screen.dart';
 
 /// TVDE — Mapa em tempo real do estado da corrida (reusa google_maps_flutter,
@@ -31,6 +33,12 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
   LatLng? _driverPos;
   String? _driverName;
   double? _driverRating;
+  // D1/D — cartão completo do motorista para o passageiro.
+  String? _driverPhotoUrl;
+  String? _driverCar; // marca/modelo
+  String? _driverCarColor;
+  String? _driverPlate;
+  String? _driverPhone; // E — botão ligar
   Timer? _driverPoll;
   Timer? _animTimer;
   bool _navigatedToRate = false;
@@ -169,7 +177,8 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
       // nada e o marker/cartão do motorista nunca aparecia).
       final row = await Supabase.instance.client
           .from('drivers')
-          .select('name, avg_rating, lat, lng')
+          .select(
+              'name, avg_rating, lat, lng, photo_url, vehicle_make_model, vehicle_color, license_plate, phone')
           .eq('user_id', ride.driverId!)
           .maybeSingle();
       final lat = (row?['lat'] as num?)?.toDouble();
@@ -178,6 +187,11 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
         setState(() {
           _driverName = (row?['name'] as String?)?.trim();
           _driverRating = (row?['avg_rating'] as num?)?.toDouble();
+          _driverPhotoUrl = (row?['photo_url'] as String?)?.trim();
+          _driverCar = (row?['vehicle_make_model'] as String?)?.trim();
+          _driverCarColor = (row?['vehicle_color'] as String?)?.trim();
+          _driverPlate = (row?['license_plate'] as String?)?.trim();
+          _driverPhone = (row?['phone'] as String?)?.trim();
         });
         // C4 — anima em vez de saltar.
         if (lat != null && lng != null) _setDriverPos(LatLng(lat, lng));
@@ -222,6 +236,31 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
       ));
     }
     return markers;
+  }
+
+  /// E — ligar ao motorista (tel:), se o número existir.
+  Future<void> _call() async {
+    final phone = _driverPhone;
+    if (phone == null || phone.isEmpty) return;
+    final uri = Uri.parse('tel:$phone');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  /// E — abre o chat com o motorista (scoped por corrida).
+  void _openChat(TvdeRide ride) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => TvdeChatScreen(
+          rideId: ride.id,
+          myRole: 'client',
+          title: _driverName ?? 'Motorista',
+          otherPhone: _driverPhone,
+        ),
+      ),
+    );
   }
 
   Future<void> _cancel(TvdeRide ride) async {
@@ -325,7 +364,14 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
               busy: store.busy,
               driverName: _driverName,
               driverRating: _driverRating,
+              driverPhotoUrl: _driverPhotoUrl,
+              driverCar: _driverCar,
+              driverCarColor: _driverCarColor,
+              driverPlate: _driverPlate,
+              hasPhone: _driverPhone != null && _driverPhone!.isNotEmpty,
               etaMinutes: _etaMinutes(ride),
+              onChat: () => _openChat(ride),
+              onCall: _call,
               onCancel: () => _cancel(ride),
               onRetry: () => store.retryRide(),
               onClose: () {
@@ -346,7 +392,13 @@ class _StatusPanel extends StatelessWidget {
     required this.busy,
     required this.driverName,
     required this.driverRating,
+    required this.driverPhotoUrl,
+    required this.driverCar,
+    required this.driverCarColor,
+    required this.driverPlate,
+    required this.hasPhone,
     required this.etaMinutes,
+    required this.onChat,
     required this.onCancel,
     required this.onRetry,
     required this.onClose,
@@ -356,12 +408,30 @@ class _StatusPanel extends StatelessWidget {
   final bool busy;
   final String? driverName;
   final double? driverRating;
+  // D1 — cartão completo do motorista.
+  final String? driverPhotoUrl;
+  final String? driverCar;
+  final String? driverCarColor;
+  final String? driverPlate;
+  final bool hasPhone;
 
   /// C5 — "chega em ~X min" (recolha) / "destino em ~X min" (em viagem).
   final int? etaMinutes;
+  final VoidCallback onChat;
+  final VoidCallback onCall;
   final VoidCallback onCancel;
   final VoidCallback onRetry;
   final VoidCallback onClose;
+
+  /// D1 — linha do carro: "Renault Clio · Cinzento · AA-00-BB".
+  String? _carLine() {
+    final parts = <String>[
+      if (driverCar != null && driverCar!.isNotEmpty) driverCar!,
+      if (driverCarColor != null && driverCarColor!.isNotEmpty) driverCarColor!,
+      if (driverPlate != null && driverPlate!.isNotEmpty) driverPlate!,
+    ];
+    return parts.isEmpty ? null : parts.join(' · ');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -386,17 +456,36 @@ class _StatusPanel extends StatelessWidget {
             Row(
               children: [
                 CircleAvatar(
-                  radius: 18,
+                  radius: 22,
                   backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-                  child: const Icon(Icons.person, color: AppColors.primary),
+                  backgroundImage:
+                      (driverPhotoUrl != null && driverPhotoUrl!.isNotEmpty)
+                          ? NetworkImage(driverPhotoUrl!)
+                          : null,
+                  child: (driverPhotoUrl == null || driverPhotoUrl!.isEmpty)
+                      ? const Icon(Icons.person, color: AppColors.primary)
+                      : null,
                 ),
                 const SizedBox(width: Spacing.md),
                 Expanded(
-                  child: Text(driverName!,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 15,
-                          color: AppColors.textPrimary)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(driverName!,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15,
+                              color: AppColors.textPrimary)),
+                      // D1 — carro: marca/modelo · cor · matrícula.
+                      if (_carLine() != null)
+                        Text(_carLine()!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                fontSize: 12.5,
+                                color: AppColors.textSecondary)),
+                    ],
+                  ),
                 ),
                 if (driverRating != null && driverRating! > 0) ...[
                   const Icon(Icons.star, size: 16, color: AppColors.accent),
@@ -405,6 +494,40 @@ class _StatusPanel extends StatelessWidget {
                       style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           color: AppColors.textPrimary)),
+                ],
+              ],
+            ),
+            // E — falar com o motorista (chat + ligar).
+            const SizedBox(height: Spacing.sm),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: onChat,
+                    icon: const Icon(Icons.chat_bubble_outline, size: 18),
+                    label: const Text('Mensagem'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                      side: const BorderSide(color: AppColors.primary),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(Radii.md)),
+                    ),
+                  ),
+                ),
+                if (hasPhone) ...[
+                  const SizedBox(width: Spacing.sm),
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: onCall,
+                      icon: const Icon(Icons.call, size: 18),
+                      label: const Text('Ligar'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(Radii.md)),
+                      ),
+                    ),
+                  ),
                 ],
               ],
             ),

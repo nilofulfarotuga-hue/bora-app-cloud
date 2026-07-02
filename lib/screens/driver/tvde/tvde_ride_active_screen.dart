@@ -5,6 +5,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:latlong2/latlong.dart' as ll;
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
@@ -15,6 +16,7 @@ import '../../../stores/driver_store.dart';
 import '../../../stores/tvde_driver_store.dart';
 import '../../../utils/map_utils.dart';
 import '../../../widgets/bora/bora.dart';
+import '../../shared/tvde_chat_screen.dart';
 import 'tvde_driver_rate_screen.dart';
 
 /// TVDE — Corrida ativa do motorista: a caminho → cheguei → iniciar →
@@ -34,9 +36,11 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   /// ativa a corrida em fila no MESMO ecrã), o estado por-corrida reinicia.
   String? _rideId;
 
-  /// M16 — nome do passageiro (RPC tvde_ride_passenger_name, só o motorista
-  /// da corrida consegue ler). Best-effort.
+  /// M16/D2 — cartão do passageiro (RPC tvde_ride_passenger_card, só o
+  /// motorista da corrida consegue ler). Best-effort.
   String? _passengerName;
+  String? _passengerPhotoUrl;
+  String? _passengerPhone;
 
   /// 4c — ticker de 1s enquanto 'motorista_chegou' para o temporizador de
   /// espera e para habilitar o no-show quando a janela passa.
@@ -115,19 +119,52 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     _rideId = ride.id;
     _navigatedToRate = false;
     _passengerName = null;
+    _passengerPhotoUrl = null;
+    _passengerPhone = null;
     _loadPassenger(ride);
   }
 
   Future<void> _loadPassenger(TvdeRide ride) async {
     try {
       final res = await Supabase.instance.client
-          .rpc('tvde_ride_passenger_name', params: {'p_ride_id': ride.id});
+          .rpc('tvde_ride_passenger_card', params: {'p_ride_id': ride.id});
       if (!mounted || _rideId != ride.id) return;
-      final name = (res as String?)?.trim();
-      if (name != null && name.isNotEmpty) {
-        setState(() => _passengerName = name);
+      final row = (res is List && res.isNotEmpty)
+          ? Map<String, dynamic>.from(res.first as Map)
+          : null;
+      if (row != null) {
+        setState(() {
+          _passengerName = (row['name'] as String?)?.trim();
+          _passengerPhotoUrl = (row['photo_url'] as String?)?.trim();
+          _passengerPhone = (row['phone'] as String?)?.trim();
+        });
       }
     } catch (_) {/* best-effort */}
+  }
+
+  /// E — ligar ao passageiro (tel:), se o número existir.
+  Future<void> _callPassenger() async {
+    final phone = _passengerPhone;
+    if (phone == null || phone.isEmpty) return;
+    final uri = Uri.parse('tel:$phone');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  /// E — abre o chat com o passageiro (scoped por corrida).
+  void _openChat(TvdeRide ride) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => TvdeChatScreen(
+          rideId: ride.id,
+          myRole: 'driver',
+          title: _passengerName ?? 'Passageiro',
+          otherPhone: _passengerPhone,
+        ),
+      ),
+    );
   }
 
   /// 4c — segundos desde o "cheguei". Null se ainda não chegou.
@@ -206,10 +243,26 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
 
   Future<void> _finish(TvdeRide ride) async {
     try {
-      // Sem odómetro: a distância real usada é a estimada origem→destino. É o
-      // seam para, no futuro, ligar a distância medida por GPS.
+      // B1 — distância REAL de ROTA recolha→destino (DirectionsService, mesma
+      // chave do estafeta). Fallback: estimativa guardada (haversine) se a rota
+      // falhar (offline/erro API). A fonte fica registada no ride.
       final store = context.read<TvdeDriverStore>();
-      final finished = await store.finishRide(ride.id, ride.estDistanceKm);
+      double km = ride.estDistanceKm;
+      String source = 'haversine';
+      try {
+        final route = await _directions.fetchRoute(
+          origin: ll.LatLng(ride.originLat, ride.originLng),
+          destination: ll.LatLng(ride.destLat, ride.destLng),
+        );
+        if (route != null && route.distanceKm > 0) {
+          km = double.parse(route.distanceKm.toStringAsFixed(2));
+          source = 'route';
+        }
+      } catch (_) {
+        // mantém a estimativa guardada
+      }
+      final finished =
+          await store.finishRide(ride.id, km, distanceSource: source);
       if (!mounted) return;
       // Back-to-back: se o backend ativou a corrida em fila, o ecrã transita
       // para ela (mesma tela) — mostra o ganho num aviso e NÃO vai à avaliação.
@@ -473,21 +526,48 @@ class _ActionPanel extends StatelessWidget {
               ],
             ),
           ],
-          // M16 — identidade do passageiro (best-effort, via RPC dedicada).
+          // M16/D2 — cartão do passageiro (foto + nome) + falar (chat/ligar).
           if (actions._passengerName != null) ...[
-            const SizedBox(height: Spacing.xs),
+            const SizedBox(height: Spacing.sm),
             Row(
               children: [
-                const Icon(Icons.person,
-                    size: 16, color: AppColors.textSecondary),
-                const SizedBox(width: 4),
+                CircleAvatar(
+                  radius: 18,
+                  backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+                  backgroundImage: (actions._passengerPhotoUrl != null &&
+                          actions._passengerPhotoUrl!.isNotEmpty)
+                      ? NetworkImage(actions._passengerPhotoUrl!)
+                      : null,
+                  child: (actions._passengerPhotoUrl == null ||
+                          actions._passengerPhotoUrl!.isEmpty)
+                      ? const Icon(Icons.person,
+                          size: 18, color: AppColors.primary)
+                      : null,
+                ),
+                const SizedBox(width: Spacing.sm),
                 Expanded(
-                  child: Text('Passageiro: ${actions._passengerName}',
+                  child: Text(actions._passengerName!,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          color: AppColors.textSecondary, fontSize: 13)),
+                      style: const TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700)),
                 ),
+                IconButton(
+                  onPressed: () => actions._openChat(ride),
+                  icon: const Icon(Icons.chat_bubble_outline),
+                  color: AppColors.primary,
+                  tooltip: 'Mensagem',
+                ),
+                if (actions._passengerPhone != null &&
+                    actions._passengerPhone!.isNotEmpty)
+                  IconButton(
+                    onPressed: actions._callPassenger,
+                    icon: const Icon(Icons.call),
+                    color: AppColors.primary,
+                    tooltip: 'Ligar',
+                  ),
               ],
             ),
           ],
@@ -534,6 +614,11 @@ class _ActionPanel extends StatelessWidget {
               label: Text(ride.isInProgress
                   ? 'Navegar até ao destino'
                   : 'Navegar até à recolha'),
+              // D3 — botão arredondado (radius do design system, paridade UI).
+              style: OutlinedButton.styleFrom(
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(Radii.md)),
+              ),
             ),
             const SizedBox(height: Spacing.sm),
           ],

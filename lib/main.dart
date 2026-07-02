@@ -51,6 +51,7 @@ import 'stores/restaurant_store.dart';
 import 'stores/services_store.dart';
 import 'stores/tvde_store.dart';
 import 'stores/tvde_driver_store.dart';
+import 'stores/tvde_chat_store.dart';
 import 'models/driver_model.dart' show VehicleType;
 import 'stores/favorite_store.dart';
 import 'config/app_theme.dart';
@@ -381,6 +382,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         ),
         ChangeNotifierProvider<TvdeDriverStore>(
           create: (_) => TvdeDriverStore(),
+        ),
+        ChangeNotifierProvider<TvdeChatStore>(
+          create: (_) => TvdeChatStore(),
         ),
         ChangeNotifierProvider<PartnerReservasStore>(
           create: (_) => PartnerReservasStore(),

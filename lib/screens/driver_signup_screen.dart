@@ -53,6 +53,9 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
   // Step 4: Veículo + Pagamento
   VehicleType _vehicleType = VehicleType.motorcycle;
   final _licensePlateController = TextEditingController();
+  // D1 (TVDE) — cor + marca/modelo do carro para o cartão do passageiro.
+  final _vehicleColorController = TextEditingController();
+  final _vehicleMakeModelController = TextEditingController();
   final _ibanController = TextEditingController();
   final _mbwayPhoneController = TextEditingController();
 
@@ -81,6 +84,8 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
     _confirmController.dispose();
     _documentNumberController.dispose();
     _licensePlateController.dispose();
+    _vehicleColorController.dispose();
+    _vehicleMakeModelController.dispose();
     _ibanController.dispose();
     _mbwayPhoneController.dispose();
     super.dispose();
@@ -115,6 +120,8 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
       prefs.setString('$_kDraftKey.docNumber', _documentNumberController.text);
       prefs.setString('$_kDraftKey.vehicleType', _vehicleType.name);
       prefs.setString('$_kDraftKey.plate', _licensePlateController.text);
+      prefs.setString('$_kDraftKey.vColor', _vehicleColorController.text);
+      prefs.setString('$_kDraftKey.vMakeModel', _vehicleMakeModelController.text);
       prefs.setString('$_kDraftKey.iban', _ibanController.text);
       prefs.setString('$_kDraftKey.mbway', _mbwayPhoneController.text);
       prefs.setString('$_kDraftKey.step', _currentStep.toString());
@@ -149,6 +156,12 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
       }
       final plate = prefs.getString('$_kDraftKey.plate') ?? '';
       if (plate.isNotEmpty) _licensePlateController.text = plate;
+      final vColor = prefs.getString('$_kDraftKey.vColor') ?? '';
+      if (vColor.isNotEmpty) _vehicleColorController.text = vColor;
+      final vMakeModel = prefs.getString('$_kDraftKey.vMakeModel') ?? '';
+      if (vMakeModel.isNotEmpty) {
+        _vehicleMakeModelController.text = vMakeModel;
+      }
       final iban = prefs.getString('$_kDraftKey.iban') ?? '';
       if (iban.isNotEmpty) _ibanController.text = iban;
       final mbway = prefs.getString('$_kDraftKey.mbway') ?? '';
@@ -411,6 +424,13 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
         'p_address': _addressController.text.trim().isEmpty
             ? null
             : _addressController.text.trim(),
+        // D1 (TVDE) — cor + marca/modelo do carro.
+        'p_vehicle_color': _vehicleColorController.text.trim().isEmpty
+            ? null
+            : _vehicleColorController.text.trim(),
+        'p_vehicle_make_model': _vehicleMakeModelController.text.trim().isEmpty
+            ? null
+            : _vehicleMakeModelController.text.trim(),
       });
 
       final rpcMap =
@@ -846,6 +866,27 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
                       decoration: const InputDecoration(
                         labelText: 'Matrícula (opcional)',
                         prefixIcon: Icon(Icons.confirmation_number_outlined),
+                      ),
+                    ),
+                    // D1 (TVDE) — carro visível ao passageiro no cartão.
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _vehicleMakeModelController,
+                      onChanged: (_) => _saveDraft(),
+                      textCapitalization: TextCapitalization.words,
+                      decoration: const InputDecoration(
+                        labelText: 'Marca e modelo (ex.: Renault Clio)',
+                        prefixIcon: Icon(Icons.directions_car_outlined),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _vehicleColorController,
+                      onChanged: (_) => _saveDraft(),
+                      textCapitalization: TextCapitalization.words,
+                      decoration: const InputDecoration(
+                        labelText: 'Cor do carro (ex.: Cinzento)',
+                        prefixIcon: Icon(Icons.palette_outlined),
                       ),
                     ),
                   ],

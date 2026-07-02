@@ -179,7 +179,7 @@ tvde_cancel_fee_cents=0   (placeholder — Danilo decide)
 - **B3:** `VehicleType` fallback silencioso para `motorcycle` (ver R1) — risco real de integração, tratado no plano.
 
 ## 8. ORDEM DE EXECUÇÃO
-Fase 1 (DB+RPCs+fare+settings+RLS) → Fase 2 (dispatch passageiros) → Fase 3 (cliente) → Fase 4 (estafeta) → Fase 5 (admin) → Fase 6 (verificação + checklist §9 + push). Gate por fase; máx 5 correções/item. Idiomas: app PT-PT, admin PT-BR.
+Fase 1 (DB+RPCs+fare+settings+RLS) → Fase 2 (dispatch passageiros) → Fase 3 (cliente) → Fase 4 (estafeta) → Fase 5 (admin) → Fase 6 (verificação + checklist de paridade canónico em `TVDE_PARIDADE_UBER.md` + push). Gate por fase; máx 5 correções/item. Idiomas: app PT-PT, admin PT-BR.
 
 ---
 **⛔ CHECKPOINT FASE 0 — aguarda OK do Claude.ai antes de executar Fase 1.**

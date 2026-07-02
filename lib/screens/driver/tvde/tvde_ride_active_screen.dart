@@ -9,9 +9,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
 import '../../../models/tvde_ride.dart';
+import '../../../services/directions_service.dart';
 import '../../../services/navigation_service.dart';
 import '../../../stores/driver_store.dart';
 import '../../../stores/tvde_driver_store.dart';
+import '../../../utils/map_utils.dart';
 import '../../../widgets/bora/bora.dart';
 import 'tvde_driver_rate_screen.dart';
 
@@ -40,10 +42,72 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   /// espera e para habilitar o no-show quando a janela passa.
   Timer? _waitTicker;
 
+  // ── B2/B6 — rota real + ETA (mesmo DirectionsService/chave do estafeta) ────
+  final DirectionsService _directions = DirectionsService();
+  GoogleMapController? _mapCtrl;
+  Set<Polyline> _routePolys = <Polyline>{};
+
+  /// ETA para o motorista (B6): até à recolha (a caminho) ou ao destino (viagem).
+  String? _etaText;
+
+  /// Assinatura (fase + posição grosseira) da última rota pedida — evita
+  /// refazer o pedido Directions a cada rebuild/movimento pequeno.
+  String? _routeKey;
+
   @override
   void dispose() {
     _waitTicker?.cancel();
+    _mapCtrl?.dispose();
+    _directions.dispose();
     super.dispose();
+  }
+
+  /// B5 — botão mira: recentra a câmara na posição do motorista.
+  Future<void> _recenter(LatLng? driverPos, LatLng fallback) async {
+    final c = _mapCtrl;
+    if (c == null) return;
+    await c.animateCamera(CameraUpdate.newLatLngZoom(driverPos ?? fallback, 15));
+  }
+
+  /// B2/B6 — pede a rota real (rua a rua) do troço atual e atualiza a polyline
+  /// grossa + o ETA. Troço: a caminho/chegou → motorista→recolha; em viagem →
+  /// motorista→destino. Idempotente por `_routeKey` (fase + posição ~100 m).
+  Future<void> _maybeFetchRoute(TvdeRide ride, LatLng? driverPos) async {
+    final target = ride.isInProgress
+        ? ll.LatLng(ride.destLat, ride.destLng)
+        : ll.LatLng(ride.originLat, ride.originLng);
+    final fromLl = driverPos != null
+        ? ll.LatLng(driverPos.latitude, driverPos.longitude)
+        : ll.LatLng(ride.originLat, ride.originLng);
+    // Chave grosseira: fase + origem arredondada a ~100 m + id da corrida.
+    final key = '${ride.id}|${ride.isInProgress}|'
+        '${fromLl.latitude.toStringAsFixed(3)},${fromLl.longitude.toStringAsFixed(3)}';
+    if (key == _routeKey) return;
+    _routeKey = key;
+    try {
+      final route =
+          await _directions.fetchRoute(origin: fromLl, destination: target);
+      if (!mounted || route == null || route.points.isEmpty) return;
+      setState(() {
+        _routePolys = {
+          Polyline(
+            polylineId: const PolylineId('tvde_route'),
+            points: route.points.toGMaps(),
+            color: AppColors.primary,
+            width: 12, // B2 — linha grossa (cobre quase a largura da rua)
+            startCap: Cap.roundCap,
+            endCap: Cap.roundCap,
+            jointType: JointType.round,
+          ),
+        };
+        final mins = route.durationMinutes.round();
+        _etaText = ride.isInProgress
+            ? 'Chegada ao destino em ~$mins min'
+            : 'Recolha em ~$mins min';
+      });
+    } catch (_) {
+      // Falha (offline/sem chave) → mantém o mapa sem rota; haversine é fallback.
+    }
   }
 
   void _onRideChanged(TvdeRide ride) {
@@ -96,8 +160,10 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     }
   }
 
-  Set<Marker> _markers(TvdeRide ride, LatLng? driverPos) {
-    final m = <Marker>{
+  /// B4 — só recolha (verde) + destino (laranja). A posição do motorista é a
+  /// BOLINHA azul nativa (myLocationEnabled), igual ao estafeta — sem pin extra.
+  Set<Marker> _markers(TvdeRide ride) {
+    return <Marker>{
       Marker(
         markerId: const MarkerId('origin'),
         position: LatLng(ride.originLat, ride.originLng),
@@ -111,15 +177,6 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
         infoWindow: InfoWindow(title: ride.destLabel ?? 'Destino'),
       ),
     };
-    if (driverPos != null) {
-      m.add(Marker(
-        markerId: const MarkerId('driver'),
-        position: driverPos,
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
-        infoWindow: const InfoWindow(title: 'Tu'),
-      ));
-    }
-    return m;
   }
 
   Future<void> _arrived(TvdeRide ride) async {
@@ -241,6 +298,9 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
 
     _onRideChanged(ride);
     _syncWaitTicker(ride);
+    // B2/B6 — mantém a rota real + ETA atualizados (idempotente por _routeKey).
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _maybeFetchRoute(ride, driverPos));
 
     // Finalizada → avaliar passageiro (sem fila; com fila o _finish transita).
     if (ride.isFinished) {
@@ -285,9 +345,26 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
         children: [
           GoogleMap(
             initialCameraPosition: CameraPosition(target: center, zoom: 13),
-            markers: _markers(ride, driverPos),
+            markers: _markers(ride),
+            polylines: _routePolys, // B2 — rota real grossa
+            myLocationEnabled: true, // B4 — bolinha azul nativa (sem pin extra)
             myLocationButtonEnabled: false,
             zoomControlsEnabled: false,
+            compassEnabled: false,
+            mapToolbarEnabled: false,
+            onMapCreated: (c) => _mapCtrl = c,
+          ),
+          // B5 — botão mira (recentra no motorista), igual ao estafeta.
+          Positioned(
+            right: Spacing.md,
+            bottom: 200,
+            child: FloatingActionButton.small(
+              heroTag: 'tvde_recenter',
+              backgroundColor: AppColors.surface,
+              foregroundColor: AppColors.primary,
+              onPressed: () => _recenter(driverPos, center),
+              child: const Icon(Icons.my_location),
+            ),
           ),
           // Back-to-back: oferta compacta DURANTE a viagem (nunca modal
           // full-screen com passageiro a bordo — segurança). Som vem do push.
@@ -378,6 +455,24 @@ class _ActionPanel extends StatelessWidget {
           const SizedBox(height: Spacing.sm),
           Text('${ride.originLabel ?? 'Recolha'} → ${ride.destLabel ?? 'Destino'}',
               style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+          // B6 — ETA para o motorista (rota real). Escondido quando a viagem
+          // terminou/processa ou a rota ainda não chegou.
+          if (actions._etaText != null &&
+              (ride.isOnTheWay || ride.hasArrived || ride.isInProgress)) ...[
+            const SizedBox(height: Spacing.xs),
+            Row(
+              children: [
+                const Icon(Icons.schedule,
+                    size: 16, color: AppColors.primary),
+                const SizedBox(width: 4),
+                Text(actions._etaText!,
+                    style: const TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700)),
+              ],
+            ),
+          ],
           // M16 — identidade do passageiro (best-effort, via RPC dedicada).
           if (actions._passengerName != null) ...[
             const SizedBox(height: Spacing.xs),

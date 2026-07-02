@@ -3,13 +3,16 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:latlong2/latlong.dart' as ll;
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
 import '../../../models/tvde_ride.dart';
+import '../../../services/directions_service.dart';
 import '../../../stores/tvde_store.dart';
+import '../../../utils/map_utils.dart';
 import '../../../widgets/bora/bora.dart';
 import 'tvde_rate_screen.dart';
 
@@ -35,6 +38,11 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
   /// C5 — mesma velocidade média do dispatch (30 km/h) para o ETA.
   static const double _avgSpeedKmh = 30.0;
 
+  // ── B2 — rota real grossa recolha→destino (mesmo DirectionsService/chave). ──
+  final DirectionsService _directions = DirectionsService();
+  Set<Polyline> _routePolys = <Polyline>{};
+  String? _routeKey;
+
   @override
   void initState() {
     super.initState();
@@ -46,7 +54,42 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
     _driverPoll?.cancel();
     _animTimer?.cancel();
     _map?.dispose();
+    _directions.dispose();
     super.dispose();
+  }
+
+  /// B2 — traça a rota real recolha→destino (grossa). Uma vez por corrida.
+  Future<void> _maybeFetchRoute(TvdeRide ride) async {
+    if (_routeKey == ride.id) return;
+    _routeKey = ride.id;
+    try {
+      final route = await _directions.fetchRoute(
+        origin: ll.LatLng(ride.originLat, ride.originLng),
+        destination: ll.LatLng(ride.destLat, ride.destLng),
+      );
+      if (!mounted || route == null || route.points.isEmpty) return;
+      setState(() {
+        _routePolys = {
+          Polyline(
+            polylineId: const PolylineId('tvde_route'),
+            points: route.points.toGMaps(),
+            color: AppColors.primary,
+            width: 12,
+            startCap: Cap.roundCap,
+            endCap: Cap.roundCap,
+            jointType: JointType.round,
+          ),
+        };
+      });
+    } catch (_) {/* sem rota → mapa mantém-se sem a linha (fallback) */}
+  }
+
+  /// B5 — botão mira: recentra na posição do motorista (ou no ponto de recolha).
+  Future<void> _recenter(TvdeRide ride) async {
+    final c = _map;
+    if (c == null) return;
+    final target = _driverPos ?? LatLng(ride.originLat, ride.originLng);
+    await c.animateCamera(CameraUpdate.newLatLngZoom(target, 15));
   }
 
   /// C4 — animação suave do carro entre polls (12 passos × 80 ms, o mesmo
@@ -245,6 +288,9 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
       (ride.originLat + ride.destLat) / 2,
       (ride.originLng + ride.destLng) / 2,
     );
+    // B2 — garante a rota real traçada (idempotente por corrida).
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _maybeFetchRoute(ride));
 
     return Scaffold(
       appBar: const BoraScreenAppBar(title: 'A tua corrida'),
@@ -253,9 +299,24 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
           GoogleMap(
             initialCameraPosition: CameraPosition(target: center, zoom: 13),
             markers: _markers(ride),
+            polylines: _routePolys, // B2 — rota grossa recolha→destino
             myLocationButtonEnabled: false,
             zoomControlsEnabled: false,
+            compassEnabled: false,
+            mapToolbarEnabled: false,
             onMapCreated: (c) => _map = c,
+          ),
+          // B5 — botão mira (recentra no motorista/recolha).
+          Positioned(
+            right: Spacing.md,
+            bottom: 200,
+            child: FloatingActionButton.small(
+              heroTag: 'tvde_client_recenter',
+              backgroundColor: AppColors.surface,
+              foregroundColor: AppColors.primary,
+              onPressed: () => _recenter(ride),
+              child: const Icon(Icons.my_location),
+            ),
           ),
           Align(
             alignment: Alignment.bottomCenter,

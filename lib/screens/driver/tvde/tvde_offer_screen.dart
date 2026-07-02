@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
 import '../../../models/tvde_ride.dart';
+import '../../../services/sound_service.dart';
 import '../../../stores/driver_store.dart';
 import '../../../stores/tvde_driver_store.dart';
 import '../../../widgets/bora/bora.dart';
@@ -25,8 +26,18 @@ class TvdeOfferScreen extends StatefulWidget {
 
 class _TvdeOfferScreenState extends State<TvdeOfferScreen> {
   Timer? _ticker;
-  int _secondsLeft = 25;
+  int _secondsLeft = 40;
   bool _closing = false;
+
+  /// Guarda local de ação (aceitar/recusar) — NÃO depende de `store.busy`
+  /// (partilhado): garante que Recusar nunca fica "morto" por um busy preso
+  /// de outra operação (bug do teste no device).
+  bool _acting = false;
+
+  /// Som CONTÍNUO da oferta (padrão Uber/estafeta) — mesmo `SoundService` +
+  /// `bora_alert.wav` que o fluxo de entrega usa em `playLoop`. Instância
+  /// própria (AudioPlayer isolado, ver doc do SoundService).
+  final SoundService _sound = SoundService();
 
   @override
   void initState() {
@@ -35,7 +46,9 @@ class _TvdeOfferScreenState extends State<TvdeOfferScreen> {
     if (exp != null) {
       _secondsLeft = exp.difference(DateTime.now()).inSeconds;
     }
-    if (_secondsLeft <= 0) _secondsLeft = 25;
+    if (_secondsLeft <= 0) _secondsLeft = 40;
+    // A1 — arranca o som contínuo até aceitar/recusar/expirar.
+    _sound.playLoop();
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
       setState(() => _secondsLeft -= 1);
@@ -46,6 +59,8 @@ class _TvdeOfferScreenState extends State<TvdeOfferScreen> {
   @override
   void dispose() {
     _ticker?.cancel();
+    _sound.stop();
+    _sound.dispose();
     super.dispose();
   }
 
@@ -53,13 +68,17 @@ class _TvdeOfferScreenState extends State<TvdeOfferScreen> {
     if (_closing) return;
     _closing = true;
     _ticker?.cancel();
+    _sound.stop();
     if (mounted) Navigator.of(context).maybePop();
   }
 
   Future<void> _accept() async {
+    if (_acting) return;
+    _acting = true;
     final store = context.read<TvdeDriverStore>();
     _closing = true; // guarda contra duplo-pop durante o rebuild reativo
     _ticker?.cancel();
+    _sound.stop();
     try {
       await store.acceptOffer(widget.ride.id);
       if (!mounted) return;
@@ -75,10 +94,13 @@ class _TvdeOfferScreenState extends State<TvdeOfferScreen> {
   }
 
   Future<void> _reject() async {
+    if (_acting) return;
+    _acting = true;
+    _sound.stop();
     final store = context.read<TvdeDriverStore>();
     try {
       await store.rejectOffer(widget.ride.id);
-    } catch (_) {/* best-effort */}
+    } catch (_) {/* best-effort — o dispatch trata a rotação/sem_motorista */}
     if (mounted) _autoClose();
   }
 
@@ -186,12 +208,15 @@ class _TvdeOfferScreenState extends State<TvdeOfferScreen> {
                 BoraAccentButton(
                   label: 'Aceitar',
                   icon: Icons.check,
-                  loading: store.busy,
+                  loading: store.busy && _acting,
                   onPressed: _accept,
                 ),
                 const SizedBox(height: Spacing.sm),
+                // Recusar é SEMPRE a saída garantida (bug do device: ficava
+                // "morto" por partilhar o `store.busy` do Aceitar). Agora só o
+                // guard local `_acting` o protege contra duplo-toque.
                 TextButton(
-                  onPressed: store.busy ? null : _reject,
+                  onPressed: _acting ? null : _reject,
                   child: const Text('Recusar',
                       style: TextStyle(color: Colors.white)),
                 ),

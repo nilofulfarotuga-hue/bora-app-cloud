@@ -399,6 +399,7 @@ class _StatusPanel extends StatelessWidget {
     required this.hasPhone,
     required this.etaMinutes,
     required this.onChat,
+    required this.onCall,
     required this.onCancel,
     required this.onRetry,
     required this.onClose,

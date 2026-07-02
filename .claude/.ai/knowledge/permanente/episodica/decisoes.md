@@ -106,6 +106,36 @@ tema: decisoes · escopo: projeto · estado: atual · atualizado: 2026-07-01
 
 ---
 
+## Robot B / Central de Autonomia (sessão O BANQUETE 2026-07-02)
+
+### Cap de sugestões abertas é configurável
+- Era 15 hard-coded em `robot_create_suggestion`; incoerente com `itens_por_ciclo=20` do goal. Agora lê `platform_settings.robot_b_max_open_suggestions` (default 15; definido **30**). Migration `20260702070000`.
+- **estado: atual.**
+
+### Bug conhecido: dedup do robot-b v3 falhava por dedup_key variável
+- Sugestões com o MESMO título nasciam com dedup_keys diferentes → 10 duplicados na fila (timeouts HTTP ×6, RLS backup ×5…). Higiene 2026-07-02 expirou duplicados mantendo 1 por título. Ao evoluir o robot-b: dedup_key deve derivar do TÍTULO normalizado, não de timestamp/ciclo.
+- **estado: atual** (corrigir na próxima evolução do robot-b).
+
+## Segurança / Storage
+
+### Buckets `receipts` + `order-photos` são PRIVADOS (fix P0 aplicado 2026-07-02)
+- Estavam públicos (auditoria 360°). Virados para privado + removidas 4 policies anon de escrita não-scoped. Leitura era já 100% por URLs assinados (`PrivateBucketImage` re-assina até URLs `public/` antigos); uploads via Edge Fns (service_role). Rollback: `UPDATE storage.buckets SET public=true …`. Migration `20260702071000`.
+- **estado: atual.**
+
+## TVDE / Compliance
+
+### Documentos TVDE têm tabela própria com revisão por documento
+- `tvde_driver_documents` (6 doc_types: carta_conducao, certificado_tvde_imt, dut, seguro, inspecao, registo_criminal) + RPCs `admin_list/review_tvde_document` + `AdminTvdeDocsReviewScreen`. Upload no lado do motorista = **follow-up pendente**. Migration `20260702072000`.
+- **estado: atual.**
+
+## GDPR
+
+### Anonimização preserva integridade fiscal
+- `admin_gdpr_anonymize` substitui campos pessoais (users, client_addresses apagados, orders sem moradas/nome) mas NUNCA apaga linhas financeiras. Exige confirmação textual "APAGAR DADOS" + razão. Conta Auth: desativação manual no dashboard. Export via `admin_gdpr_export` (auditado). Migration `20260702073000`.
+- **estado: atual.**
+
+---
+
 ## Comunicação / Automação (Hermes, Robôs, Agent-Reach)
 
 ### Ponte Hermes → PC → Claude Code (E2E fechada)

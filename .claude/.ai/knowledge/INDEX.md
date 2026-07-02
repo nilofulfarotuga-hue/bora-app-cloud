@@ -58,6 +58,7 @@ knowledge/
 | Lições (cresce com o tempo) | `permanente/procedural/licoes/` | evitar repetir erros |
 | ↳ CRLF em scripts `.sh` (Windows) | `permanente/procedural/licoes/licao-crlf-sh-eol.md` | criar hooks/scripts bash |
 | ↳ Não enfraquecer asserções (Juiz) | `permanente/procedural/licoes/licao-asserts-weakened.md` | consertar teste/código sob teste |
+| ↳ anti_trapaca em branch longa: usar `--base` da sessão | `permanente/procedural/licoes/licao-anti-trapaca-base-stale.md` | correr o Juiz nesta branch |
 
 ---
 

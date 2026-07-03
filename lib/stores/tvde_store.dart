@@ -263,6 +263,94 @@ class TvdeStore extends ChangeNotifier {
     }
   }
 
+  // ════════════════════════════════════════════════════════════════════════
+  // [CAMPO-02 · Feature 1] PARADAS ADICIONAIS
+  // ════════════════════════════════════════════════════════════════════════
+
+  /// Lê um int de platform_settings via get_setting; devolve [fallback] em erro.
+  /// (Não há cache central no app — cada call site lê direto, como o resto.)
+  Future<int> getSettingInt(String key, int fallback) async {
+    try {
+      final res = await _sb.rpc('get_setting', params: {'p_key': key});
+      if (res == null) return fallback;
+      return int.tryParse(res.toString()) ?? fallback;
+    } catch (e) {
+      debugPrint('TvdeStore.getSettingInt($key) error => $e');
+      return fallback;
+    }
+  }
+
+  /// Cliente adiciona uma parada no meio da corrida (2 EUR, até tvde_max_stops).
+  /// Devolve os totais atualizados ({extra_stops_count, extra_stops_fee_cents,…})
+  /// ou lança em erro (ex.: max_stops_reached). O realtime atualiza a corrida.
+  Future<Map<String, dynamic>> addStop(
+    String rideId, {
+    required double lat,
+    required double lng,
+    String? label,
+    double segmentKm = 0,
+  }) async {
+    _setBusy(true);
+    try {
+      final res = await _sb.rpc('tvde_add_stop', params: {
+        'p_ride_id': rideId,
+        'p_lat': lat,
+        'p_lng': lng,
+        'p_label': label,
+        'p_segment_km': segmentKm,
+      });
+      return res is Map ? Map<String, dynamic>.from(res) : const {};
+    } catch (e) {
+      debugPrint('TvdeStore.addStop error => $e');
+      rethrow;
+    } finally {
+      _setBusy(false);
+    }
+  }
+
+  /// Cliente remove uma parada (só antes de o motorista lá chegar).
+  Future<void> removeStop(String rideId, String stopId) async {
+    _setBusy(true);
+    try {
+      await _sb.rpc('tvde_remove_stop',
+          params: {'p_ride_id': rideId, 'p_stop_id': stopId});
+    } catch (e) {
+      debugPrint('TvdeStore.removeStop error => $e');
+      rethrow;
+    } finally {
+      _setBusy(false);
+    }
+  }
+
+  /// Motorista marca chegada à parada (arranca o timer informativo de espera).
+  Future<void> reachStop(String rideId, String stopId) async {
+    try {
+      await _sb.rpc('tvde_reach_stop',
+          params: {'p_ride_id': rideId, 'p_stop_id': stopId});
+    } catch (e) {
+      debugPrint('TvdeStore.reachStop error => $e');
+      rethrow;
+    }
+  }
+
+  /// Lista as paradas ativas (não removidas) de uma corrida, por ordem.
+  Future<List<TvdeRideStop>> fetchRideStops(String rideId) async {
+    try {
+      final rows = await _sb
+          .from('tvde_ride_stops')
+          .select()
+          .eq('ride_id', rideId)
+          .isFilter('removed_at', null)
+          .order('seq', ascending: true);
+      return rows
+          .map<TvdeRideStop>((m) => TvdeRideStop.fromMap(m))
+          .toList();
+    } catch (e) {
+      debugPrint('TvdeStore.fetchRideStops error => $e');
+      return const [];
+    }
+  }
+
   Future<void> rateDriver(String rideId, int stars, {String? comment}) async {
     _setBusy(true);
     try {

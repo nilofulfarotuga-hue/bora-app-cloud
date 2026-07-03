@@ -15,6 +15,7 @@ import '../../../services/directions_service.dart';
 import '../../../stores/tvde_chat_store.dart';
 import '../../../stores/tvde_store.dart';
 import '../../../utils/map_utils.dart';
+import '../../../widgets/address_autocomplete_field.dart';
 import '../../../widgets/bora/bora.dart';
 import '../../shared/tvde_chat_screen.dart';
 import 'tvde_rate_screen.dart';
@@ -56,20 +57,108 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
   Set<Polyline> _routePolys = <Polyline>{};
   String? _routeKey;
 
+  // ── [CAMPO-02 · Feature 1] Paradas adicionais ─────────────────────────────
+  List<TvdeRideStop> _stops = const [];
+  int _maxStops = 2; // fallback; sobrescrito por platform_settings
+  int _stopFeeCents = 200; // taxa cliente por parada (fallback)
+  int _stopTimerSeconds = 120; // espera gratuita informativa por parada
+  Timer? _stopsTicker; // 1s: repinta countdowns + recarrega paradas a cada 5s
+  int _stopsTick = 0;
+  bool _addingStop = false;
+
   @override
   void initState() {
     super.initState();
     _driverPoll = Timer.periodic(const Duration(seconds: 5), (_) => _pollDriver());
+    _stopsTicker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      _stopsTick++;
+      if (_stopsTick % 5 == 0) _loadStops();
+      // repinta os countdowns de espera (só quando há paradas alcançadas)
+      if (_stops.any((s) => s.reached)) setState(() {});
+    });
+    _loadStopSettings();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadStops());
   }
 
   @override
   void dispose() {
     _driverPoll?.cancel();
     _animTimer?.cancel();
+    _stopsTicker?.cancel();
     _map?.dispose();
     _directions.dispose();
     if (_chatRideId != null) _chatStore?.unlisten(_chatRideId!);
     super.dispose();
+  }
+
+  Future<void> _loadStopSettings() async {
+    final store = context.read<TvdeStore>();
+    final max = await store.getSettingInt('tvde_max_stops', 2);
+    final fee = await store.getSettingInt('tvde_stop_fee_cents', 200);
+    final timer = await store.getSettingInt('tvde_stop_timer_seconds', 120);
+    if (mounted) {
+      setState(() {
+        _maxStops = max;
+        _stopFeeCents = fee;
+        _stopTimerSeconds = timer;
+      });
+    }
+  }
+
+  Future<void> _loadStops() async {
+    final ride = context.read<TvdeStore>().activeRide;
+    if (ride == null) return;
+    final stops = await context.read<TvdeStore>().fetchRideStops(ride.id);
+    if (mounted) setState(() => _stops = stops);
+  }
+
+  /// Cliente adiciona uma parada no meio da corrida (abre pesquisa de morada).
+  Future<void> _addStop(TvdeRide ride) async {
+    if (_addingStop) return;
+    final picked = await showModalBottomSheet<_PickedStop>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => const _AddStopSheet(),
+    );
+    if (picked == null || !mounted) return;
+    setState(() => _addingStop = true);
+    try {
+      await context.read<TvdeStore>().addStop(
+            ride.id,
+            lat: picked.lat,
+            lng: picked.lng,
+            label: picked.label,
+          );
+      await _loadStops();
+    } catch (e) {
+      if (mounted) {
+        final msg = e.toString().contains('max_stops_reached')
+            ? 'Já atingiste o máximo de $_maxStops paradas.'
+            : 'Não foi possível adicionar a parada.';
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(msg)));
+      }
+    } finally {
+      if (mounted) setState(() => _addingStop = false);
+    }
+  }
+
+  Future<void> _removeStop(TvdeRide ride, TvdeRideStop stop) async {
+    try {
+      await context.read<TvdeStore>().removeStop(ride.id, stop.id);
+      await _loadStops();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Não foi possível remover a parada.')),
+        );
+      }
+    }
   }
 
   /// B2 — traça a rota real recolha→destino (grossa). Uma vez por corrida.
@@ -241,6 +330,15 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
       ));
     }
+    // [Feature 1] paradas adicionais numeradas.
+    for (final s in _stops) {
+      markers.add(Marker(
+        markerId: MarkerId('stop_${s.id}'),
+        position: LatLng(s.lat, s.lng),
+        infoWindow: InfoWindow(title: 'Parada ${s.seq}', snippet: s.label),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+      ));
+    }
     return markers;
   }
 
@@ -321,9 +419,9 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
     final ride = store.activeRide;
 
     if (ride == null) {
-      return Scaffold(
-        appBar: const BoraScreenAppBar(title: 'A tua corrida'),
-        body: const Center(child: Text('Sem corrida ativa.')),
+      return const Scaffold(
+        appBar: BoraScreenAppBar(title: 'A tua corrida'),
+        body: Center(child: Text('Sem corrida ativa.')),
       );
     }
 
@@ -391,6 +489,13 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
               etaMinutes: _etaMinutes(ride),
               unreadCount:
                   context.watch<TvdeChatStore>().unreadFor(ride.id, 'client'),
+              stops: _stops,
+              maxStops: _maxStops,
+              stopFeeCents: _stopFeeCents,
+              stopTimerSeconds: _stopTimerSeconds,
+              addingStop: _addingStop,
+              onAddStop: () => _addStop(ride),
+              onRemoveStop: (stop) => _removeStop(ride, stop),
               onChat: () => _openChat(ride),
               onCall: _call,
               onCancel: () => _cancel(ride),
@@ -420,6 +525,13 @@ class _StatusPanel extends StatelessWidget {
     required this.hasPhone,
     required this.etaMinutes,
     required this.unreadCount,
+    required this.stops,
+    required this.maxStops,
+    required this.stopFeeCents,
+    required this.stopTimerSeconds,
+    required this.addingStop,
+    required this.onAddStop,
+    required this.onRemoveStop,
     required this.onChat,
     required this.onCall,
     required this.onCancel,
@@ -442,6 +554,16 @@ class _StatusPanel extends StatelessWidget {
   final int? etaMinutes;
   /// [Item I] mensagens por ler (badge no botão Mensagem).
   final int unreadCount;
+
+  /// [Feature 1] paradas adicionais + config.
+  final List<TvdeRideStop> stops;
+  final int maxStops;
+  final int stopFeeCents;
+  final int stopTimerSeconds;
+  final bool addingStop;
+  final VoidCallback onAddStop;
+  final void Function(TvdeRideStop) onRemoveStop;
+
   final VoidCallback onChat;
   final VoidCallback onCall;
   final VoidCallback onCancel;
@@ -506,7 +628,7 @@ class _StatusPanel extends StatelessWidget {
                         Text(_carLine()!,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
+                            style: const TextStyle(
                                 fontSize: 12.5,
                                 color: AppColors.textSecondary)),
                     ],
@@ -633,20 +755,21 @@ class _StatusPanel extends StatelessWidget {
           const SizedBox(height: Spacing.sm),
           Text(
             '${ride.originLabel ?? 'Recolha'} → ${ride.destLabel ?? 'Destino'}',
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
           ),
           // Back-to-back — passageiro em fila: contexto claro, sem spinner.
           if (ride.isQueued && ride.isAssigned) ...[
             const SizedBox(height: Spacing.sm),
-            Text(
+            const Text(
               'Serás o próximo: o motorista está a terminar uma viagem perto '
               'de ti e segue logo para a tua recolha.',
               style: TextStyle(color: AppColors.textSubtle, fontSize: 12),
             ),
           ],
+          _buildStops(context),
           const SizedBox(height: Spacing.lg),
           if (ride.isNoDriver) ...[
-            Text(
+            const Text(
               'De momento não há motoristas disponíveis. Podes tentar novamente.',
               style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
             ),
@@ -660,7 +783,7 @@ class _StatusPanel extends StatelessWidget {
             const SizedBox(height: Spacing.sm),
             TextButton(onPressed: onClose, child: const Text('Fechar')),
           ] else if (ride.isInProgress) ...[
-            Text('Boa viagem! O valor final é calculado pela distância real.',
+            const Text('Boa viagem! O valor final é calculado pela distância real.',
                 style: TextStyle(color: AppColors.textSubtle, fontSize: 12)),
           ] else ...[
             OutlinedButton.icon(
@@ -679,6 +802,92 @@ class _StatusPanel extends StatelessWidget {
     if (ride.isOnTheWay) return Icons.directions_car;
     if (ride.isInProgress) return Icons.navigation;
     return Icons.local_taxi;
+  }
+
+  /// [Feature 1] Secção de paradas adicionais — só enquanto o motorista já vem
+  /// a caminho / chegou / em viagem (estados em que faz sentido "passa aqui").
+  Widget _buildStops(BuildContext context) {
+    final canManage = ride.isOnTheWay || ride.hasArrived || ride.isInProgress;
+    if (!canManage && stops.isEmpty) return const SizedBox.shrink();
+
+    final feePerStopEur =
+        (stops.isNotEmpty ? stops.first.feeCents : stopFeeCents) / 100;
+    final canAdd = canManage && stops.length < maxStops;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Divider(height: Spacing.lg),
+        Row(
+          children: [
+            const Icon(Icons.add_location_alt_outlined,
+                size: 18, color: AppColors.primary),
+            const SizedBox(width: Spacing.sm),
+            const Expanded(
+              child: Text('Paradas',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                      color: AppColors.textPrimary)),
+            ),
+            Text('${stops.length}/$maxStops',
+                style: const TextStyle(color: AppColors.textSecondary, fontSize: 12.5)),
+          ],
+        ),
+        const SizedBox(height: 2),
+        Text(
+          'Passa por outro sítio a caminho — €${feePerStopEur.toStringAsFixed(2)} por parada. '
+          'A parada não está incluída no plano.',
+          style: const TextStyle(color: AppColors.textSubtle, fontSize: 11.5),
+        ),
+        for (final s in stops) ...[
+          const SizedBox(height: Spacing.sm),
+          _StopRow(
+            stop: s,
+            timerSeconds: stopTimerSeconds,
+            onRemove: () => onRemoveStop(s),
+          ),
+        ],
+        const SizedBox(height: Spacing.sm),
+        if (canAdd)
+          OutlinedButton.icon(
+            onPressed: addingStop ? null : onAddStop,
+            icon: addingStop
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.add, size: 18),
+            label: Text(addingStop ? 'A adicionar…' : 'Adicionar parada'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              side: const BorderSide(color: AppColors.primary),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(Radii.md)),
+            ),
+          )
+        else if (stops.length >= maxStops)
+          Text('Máximo de $maxStops paradas atingido.',
+              style: const TextStyle(color: AppColors.textSubtle, fontSize: 12)),
+        if (stops.isNotEmpty) ...[
+          const SizedBox(height: Spacing.sm),
+          Row(
+            children: [
+              Expanded(
+                child: Text('Paradas (${stops.length} × €${feePerStopEur.toStringAsFixed(2)})',
+                    style: const TextStyle(
+                        color: AppColors.textSecondary, fontSize: 13)),
+              ),
+              Text('€${(ride.extraStopsFeeCents / 100).toStringAsFixed(2)}',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                      fontSize: 13)),
+            ],
+          ),
+        ],
+      ],
+    );
   }
 }
 
@@ -718,6 +927,170 @@ class _TerminalView extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// [Feature 1] Uma linha de parada no painel do cliente. Quando o motorista já
+/// chegou à parada mostra o countdown da espera gratuita (informativo).
+class _StopRow extends StatelessWidget {
+  const _StopRow({
+    required this.stop,
+    required this.timerSeconds,
+    required this.onRemove,
+  });
+
+  final TvdeRideStop stop;
+  final int timerSeconds;
+  final VoidCallback onRemove;
+
+  String? _countdown() {
+    final r = stop.reachedAt;
+    if (r == null) return null;
+    final end = r.add(Duration(seconds: timerSeconds));
+    final left = end.difference(DateTime.now());
+    if (left.isNegative) return null;
+    final m = left.inMinutes;
+    final s = left.inSeconds % 60;
+    return '$m:${s.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final reached = stop.reached;
+    final cd = _countdown();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(Radii.md),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 12,
+            backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+            child: Text('${stop.seq}',
+                style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primary)),
+          ),
+          const SizedBox(width: Spacing.sm),
+          Expanded(
+            child: Text(
+              stop.label ?? 'Parada ${stop.seq}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                  fontSize: 13, color: AppColors.textPrimary),
+            ),
+          ),
+          if (reached) ...[
+            Icon(cd != null ? Icons.timer_outlined : Icons.check_circle,
+                size: 15, color: AppColors.primary),
+            const SizedBox(width: 4),
+            Text(
+              cd != null ? 'Espera $cd' : 'Espera concluída',
+              style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary),
+            ),
+          ] else
+            IconButton(
+              visualDensity: VisualDensity.compact,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+              onPressed: onRemove,
+              icon: const Icon(Icons.close, size: 18, color: AppColors.textSecondary),
+              tooltip: 'Remover parada',
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Resultado da folha de pesquisa de parada.
+class _PickedStop {
+  const _PickedStop({required this.label, required this.lat, required this.lng});
+  final String label;
+  final double lat;
+  final double lng;
+}
+
+/// [Feature 1] Folha para o cliente escolher a morada da nova parada (reusa o
+/// mesmo AddressAutocompleteField do ecrã de pedido).
+class _AddStopSheet extends StatefulWidget {
+  const _AddStopSheet();
+
+  @override
+  State<_AddStopSheet> createState() => _AddStopSheetState();
+}
+
+class _AddStopSheetState extends State<_AddStopSheet> {
+  final TextEditingController _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    return Padding(
+      padding: EdgeInsets.only(
+        left: Spacing.lg,
+        right: Spacing.lg,
+        top: Spacing.lg,
+        bottom: Spacing.lg + bottomInset,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.add_location_alt_outlined,
+                  color: AppColors.primary),
+              const SizedBox(width: Spacing.sm),
+              const Expanded(
+                child: Text('Adicionar parada',
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary)),
+              ),
+              IconButton(
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.close),
+              ),
+            ],
+          ),
+          const SizedBox(height: Spacing.xs),
+          const Text('Escolhe onde o motorista deve passar a caminho do destino.',
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+          const SizedBox(height: Spacing.md),
+          AddressAutocompleteField(
+            controller: _controller,
+            labelText: 'Morada da parada',
+            onSelected: (address, coords) {
+              if (coords == null) return;
+              Navigator.pop(
+                context,
+                _PickedStop(
+                    label: address,
+                    lat: coords.latitude,
+                    lng: coords.longitude),
+              );
+            },
+          ),
+          const SizedBox(height: Spacing.sm),
+        ],
       ),
     );
   }

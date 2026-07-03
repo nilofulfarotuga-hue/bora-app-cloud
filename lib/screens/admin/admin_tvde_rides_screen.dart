@@ -379,6 +379,12 @@ class _RideCard extends StatelessWidget {
     final locUpdated = data['driver_loc_updated_at'];
     // Back-to-back: corrida aceita em fila enquanto o motorista termina outra.
     final isQueued = data['is_queued'] == true;
+    // Paradas adicionais (CAMPO-02). Lê direto do mapa da RPC; se a RPC ainda
+    // não trouxer estas colunas, ficam 0 e o bloco não aparece (sem crash).
+    final extraStopsCount = (data['extra_stops_count'] as num?)?.toInt() ?? 0;
+    final extraStopsFee = (data['extra_stops_fee_cents'] as num?)?.toInt() ?? 0;
+    final extraStopsDriver =
+        (data['extra_stops_driver_cents'] as num?)?.toInt() ?? 0;
 
     return Card(
       elevation: 2,
@@ -433,6 +439,16 @@ class _RideCard extends StatelessWidget {
             if (live && locUpdated != null)
               _kv(Icons.my_location, 'Posição',
                   'atualizada ${_fmtDateTime(locUpdated)} (via driver_locations)'),
+            if (extraStopsCount > 0)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: _StopsSummary(
+                  count: extraStopsCount,
+                  feeCents: extraStopsFee,
+                  driverCents: extraStopsDriver,
+                  rideId: data['id']?.toString(),
+                ),
+              ),
             if (!live && status == 'finalizada') ...[
               const Divider(height: 18),
               Row(
@@ -525,6 +541,219 @@ class _RideCard extends StatelessWidget {
             style: TextStyle(
                 fontWeight: FontWeight.w700, fontSize: 15, color: color)),
       ],
+    );
+  }
+}
+
+/// Resumo das paradas adicionais de uma corrida + botão que abre o detalhe
+/// (RPC `admin_tvde_ride_stops`). total = taxa do cliente por todas as paradas,
+/// motorista = ganho do motorista, Bora = total − motorista.
+class _StopsSummary extends StatelessWidget {
+  const _StopsSummary({
+    required this.count,
+    required this.feeCents,
+    required this.driverCents,
+    required this.rideId,
+  });
+  final int count;
+  final int feeCents;
+  final int driverCents;
+  final String? rideId;
+
+  @override
+  Widget build(BuildContext context) {
+    final boraCents = feeCents - driverCents;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.add_location_alt_outlined,
+              size: 18, color: AppColors.primary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Paradas: $count · ${_eur(feeCents)}',
+                    style: const TextStyle(
+                        fontSize: 12.5, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 1),
+                Text(
+                  'motorista ${_eur(driverCents)} · Bora ${_eur(boraCents)}',
+                  style: const TextStyle(
+                      fontSize: 11, color: AppColors.textSecondary),
+                ),
+              ],
+            ),
+          ),
+          if (rideId != null)
+            TextButton.icon(
+              onPressed: () => _showStops(context, rideId!),
+              icon: const Icon(Icons.list_alt, size: 16),
+              label: const Text('Ver paradas'),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchStops(String rideId) async {
+    final res = await Supabase.instance.client.rpc(
+      'admin_tvde_ride_stops',
+      params: {'p_ride_id': rideId},
+    );
+    final list = (res as List?) ?? const [];
+    return list
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+  }
+
+  void _showStops(BuildContext context, String rideId) {
+    showDialog<void>(
+      context: context,
+      builder: (_) => Dialog(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 520, maxWidth: 480),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.add_location_alt_outlined,
+                        size: 20, color: AppColors.primary),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text('Paradas da corrida',
+                          style: TextStyle(
+                              fontWeight: FontWeight.w700, fontSize: 16)),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context),
+                      tooltip: 'Fechar',
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Flexible(
+                  child: FutureBuilder<List<Map<String, dynamic>>>(
+                    future: _fetchStops(rideId),
+                    builder: (ctx, snap) {
+                      if (snap.connectionState != ConnectionState.done) {
+                        return const Padding(
+                          padding: EdgeInsets.all(28),
+                          child: Center(child: CircularProgressIndicator()),
+                        );
+                      }
+                      if (snap.hasError) {
+                        return Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Text('Erro ao carregar paradas:\n${snap.error}',
+                              style: const TextStyle(color: AppColors.error)),
+                        );
+                      }
+                      final stops = snap.data ?? const [];
+                      if (stops.isEmpty) {
+                        return const Padding(
+                          padding: EdgeInsets.all(24),
+                          child: Text('Sem paradas registadas.',
+                              style: TextStyle(color: AppColors.textSecondary)),
+                        );
+                      }
+                      return ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: stops.length,
+                        separatorBuilder: (_, __) => const Divider(height: 14),
+                        itemBuilder: (_, i) => _stopTile(stops[i]),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _stopTile(Map<String, dynamic> s) {
+    final seq = (s['seq'] as num?)?.toInt();
+    final label = (s['label'] as String?)?.trim();
+    final segKm = (s['segment_km'] as num?)?.toDouble();
+    final feeC = (s['fee_cents'] as num?)?.toInt() ?? 0;
+    final drvC = (s['driver_cents'] as num?)?.toInt() ?? 0;
+    final reached = s['reached_at'] != null;
+    final removed = s['removed_at'] != null;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        CircleAvatar(
+          radius: 13,
+          backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+          child: Text(seq?.toString() ?? '·',
+              style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary)),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                (label != null && label.isNotEmpty) ? label : 'Parada sem nome',
+                style: TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w600,
+                  decoration: removed ? TextDecoration.lineThrough : null,
+                  color: removed ? AppColors.textSubtle : AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                '${_eur(feeC)} · motorista ${_eur(drvC)}'
+                '${segKm != null ? ' · ${segKm.toStringAsFixed(1)} km' : ''}',
+                style: const TextStyle(
+                    fontSize: 11.5, color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 4),
+              Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: [
+                  _tag(reached ? 'Motorista chegou' : 'Não chegou',
+                      reached ? AppColors.primary : AppColors.warning),
+                  if (removed) _tag('Removida', AppColors.error),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _tag(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(text,
+          style: TextStyle(
+              fontSize: 10.5, fontWeight: FontWeight.w700, color: color)),
     );
   }
 }

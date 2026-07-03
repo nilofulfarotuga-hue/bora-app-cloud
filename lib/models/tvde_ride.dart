@@ -26,6 +26,9 @@ class TvdeRide {
     this.isQueued = false,
     this.arrivedAt,
     this.usedSubscriptionRide = false,
+    this.extraStopsCount = 0,
+    this.extraStopsFeeCents = 0,
+    this.extraStopsDriverCents = 0,
   });
 
   final String id;
@@ -71,6 +74,12 @@ class TvdeRide {
   /// request (preview) e reconfirmado no finish (consume).
   final bool usedSubscriptionRide;
 
+  /// [CAMPO-02 · Feature 1] Paradas adicionais no meio da corrida. A taxa
+  /// (2 EUR/parada) é cobrada SEMPRE, mesmo em corrida coberta pelo plano.
+  final int extraStopsCount;
+  final int extraStopsFeeCents;
+  final int extraStopsDriverCents;
+
   factory TvdeRide.fromMap(Map<String, dynamic> m) {
     double d(dynamic v) => (v as num?)?.toDouble() ?? 0;
     return TvdeRide(
@@ -104,6 +113,10 @@ class TvdeRide {
           ? null
           : DateTime.tryParse(m['arrived_at'].toString()),
       usedSubscriptionRide: m['used_subscription_ride'] as bool? ?? false,
+      extraStopsCount: (m['extra_stops_count'] as num?)?.toInt() ?? 0,
+      extraStopsFeeCents: (m['extra_stops_fee_cents'] as num?)?.toInt() ?? 0,
+      extraStopsDriverCents:
+          (m['extra_stops_driver_cents'] as num?)?.toInt() ?? 0,
     );
   }
 
@@ -133,6 +146,12 @@ class TvdeRide {
   /// Valor a apresentar ao cliente (cêntimos): final se já houver, senão est.
   int get displayFareCents => finalFareCents ?? estFareCents;
 
+  /// Total ao vivo (cêntimos) = final se existir, senão base estimada + paradas.
+  /// As paradas somam-se sempre (2 EUR cada, mesmo em corrida coberta pelo plano).
+  int get liveTotalCents => finalFareCents ?? (estFareCents + extraStopsFeeCents);
+
+  bool get hasExtraStops => extraStopsCount > 0;
+
   String get statusLabel {
     switch (status) {
       case 'solicitada':
@@ -161,4 +180,45 @@ class TvdeRide {
         return status;
     }
   }
+}
+
+/// [CAMPO-02 · Feature 1] Uma parada adicional de uma corrida TVDE.
+/// Espelha `public.tvde_ride_stops`. Read-only no app.
+class TvdeRideStop {
+  TvdeRideStop({
+    required this.id,
+    required this.seq,
+    this.label,
+    required this.lat,
+    required this.lng,
+    required this.feeCents,
+    required this.driverCents,
+    this.reachedAt,
+  });
+
+  final String id;
+  final int seq;
+  final String? label;
+  final double lat;
+  final double lng;
+  final int feeCents;
+  final int driverCents;
+
+  /// Quando o motorista marcou chegada à parada (arranca o timer informativo).
+  final DateTime? reachedAt;
+
+  bool get reached => reachedAt != null;
+
+  factory TvdeRideStop.fromMap(Map<String, dynamic> m) => TvdeRideStop(
+        id: m['id'] as String,
+        seq: (m['seq'] as num?)?.toInt() ?? 0,
+        label: m['label'] as String?,
+        lat: (m['lat'] as num?)?.toDouble() ?? 0,
+        lng: (m['lng'] as num?)?.toDouble() ?? 0,
+        feeCents: (m['fee_cents'] as num?)?.toInt() ?? 0,
+        driverCents: (m['driver_cents'] as num?)?.toInt() ?? 0,
+        reachedAt: m['reached_at'] == null
+            ? null
+            : DateTime.tryParse(m['reached_at'].toString()),
+      );
 }

@@ -19,6 +19,7 @@ import '../../../services/navigation_service.dart';
 import '../../../stores/driver_store.dart';
 import '../../../stores/tvde_chat_store.dart';
 import '../../../stores/tvde_driver_store.dart';
+import '../../../stores/tvde_store.dart';
 import '../../../utils/map_utils.dart';
 import '../../../widgets/bora/bora.dart';
 import '../../shared/tvde_chat_screen.dart';
@@ -56,6 +57,21 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   /// espera e para habilitar o no-show quando a janela passa.
   Timer? _waitTicker;
 
+  // ── [CAMPO-02 · F1] Paradas adicionais do cliente ─────────────────────────
+  /// Paradas ativas (read-only), ordenadas por seq. Vazia até carregar.
+  List<TvdeRideStop> _stops = const [];
+
+  /// Assinatura (id + nº de paradas) da última lista carregada — evita refetch
+  /// a cada rebuild; muda quando o cliente adiciona/remove parada (realtime).
+  String? _stopsKey;
+
+  /// Ticker 1s enquanto houver parada alcançada com contagem a decorrer.
+  Timer? _stopsTicker;
+
+  /// Duração da espera grátis por parada (platform_settings; só informativo).
+  int _stopTimerSeconds = 120;
+  bool _stopTimerLoaded = false;
+
   // ── B2/B6 — rota real + ETA (mesmo DirectionsService/chave do estafeta) ────
   final DirectionsService _directions = DirectionsService();
   GoogleMapController? _mapCtrl;
@@ -83,6 +99,7 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   @override
   void dispose() {
     _waitTicker?.cancel();
+    _stopsTicker?.cancel();
     _mapCtrl?.dispose();
     _directions.dispose();
     if (_chatRideId != null) _chatStore?.unlisten(_chatRideId!);
@@ -196,6 +213,10 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     _passengerName = null;
     _passengerPhotoUrl = null;
     _passengerPhone = null;
+    // [CAMPO-02 · F1] nova corrida → limpa paradas; o post-frame recarrega.
+    _stops = const [];
+    _stopsKey = null;
+    _ensureStopTimerLoaded();
     // [Item I] passa a ouvir o chat desta corrida (badge de nao-lidas).
     final chat = context.read<TvdeChatStore>();
     if (_chatRideId != null && _chatRideId != ride.id) {
@@ -279,6 +300,75 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     } else {
       _waitTicker?.cancel();
       _waitTicker = null;
+    }
+  }
+
+  // ── [CAMPO-02 · F1] Paradas adicionais ────────────────────────────────────
+
+  /// Lê a duração da espera grátis (platform_settings). Uma vez só; em erro
+  /// mantém o default (120 s). Nada de valores mágicos hardcoded na UI.
+  Future<void> _ensureStopTimerLoaded() async {
+    if (_stopTimerLoaded) return;
+    _stopTimerLoaded = true;
+    try {
+      final s = await context
+          .read<TvdeStore>()
+          .getSettingInt('tvde_stop_timer_seconds', 120);
+      if (mounted) setState(() => _stopTimerSeconds = s);
+    } catch (_) {/* mantém o default */}
+  }
+
+  /// Recarrega as paradas quando muda a corrida ou o nº de paradas (o cliente
+  /// adicionou/removeu — chega pelo realtime da corrida, mesmo gancho do build).
+  void _maybeReloadStops(TvdeRide ride) {
+    if (!ride.hasExtraStops) {
+      if (_stops.isNotEmpty && mounted) setState(() => _stops = const []);
+      _stopsKey = '${ride.id}|0';
+      return;
+    }
+    final key = '${ride.id}|${ride.extraStopsCount}';
+    if (key == _stopsKey) return;
+    _stopsKey = key;
+    _loadStops(ride);
+  }
+
+  Future<void> _loadStops(TvdeRide ride) async {
+    try {
+      final stops = await context.read<TvdeStore>().fetchRideStops(ride.id);
+      if (!mounted || _rideId != ride.id) return;
+      setState(() => _stops = stops);
+    } catch (_) {/* best-effort — UI fica sem lista, nunca crasha */}
+  }
+
+  /// Motorista marca chegada à parada → arranca o timer informativo. Recarrega
+  /// para obter o reached_at do servidor (a fonte da verdade do countdown).
+  Future<void> _reachStop(TvdeRide ride, TvdeRideStop stop) async {
+    try {
+      await context.read<TvdeStore>().reachStop(ride.id, stop.id);
+      await _loadStops(ride);
+    } catch (e) {
+      _err(e);
+    }
+  }
+
+  /// Segundos restantes da espera grátis de uma parada alcançada (0 = concluída).
+  int _stopRemaining(TvdeRideStop stop) {
+    final at = stop.reachedAt;
+    if (at == null) return _stopTimerSeconds;
+    final rem =
+        _stopTimerSeconds - DateTime.now().difference(at.toLocal()).inSeconds;
+    return rem > 0 ? rem : 0;
+  }
+
+  void _syncStopsTicker() {
+    final counting = _stops.any((s) => s.reached && _stopRemaining(s) > 0);
+    if (counting) {
+      _stopsTicker ??= Timer.periodic(const Duration(seconds: 1), (_) {
+        if (mounted) setState(() {});
+      });
+    } else {
+      _stopsTicker?.cancel();
+      _stopsTicker = null;
     }
   }
 
@@ -453,11 +543,14 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
 
     _onRideChanged(ride);
     _syncWaitTicker(ride);
+    _syncStopsTicker();
     // B2/B6 — mantém a rota real + ETA atualizados (idempotente por _routeKey).
     // [Item N] + atualiza o bearing da seta do motorista.
+    // [CAMPO-02 · F1] + recarrega as paradas se o cliente as mudou (realtime).
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _maybeFetchRoute(ride, driverPos);
       _updateBearing(driverPos);
+      _maybeReloadStops(ride);
     });
 
     // Finalizada → avaliar passageiro (sem fila; com fila o _finish transita).
@@ -647,6 +740,23 @@ class _ActionPanel extends StatelessWidget {
           const SizedBox(height: Spacing.sm),
           Text('${ride.originLabel ?? 'Recolha'} → ${ride.destLabel ?? 'Destino'}',
               style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+          // [CAMPO-02 · F1] ganho extra por paradas (some ao líquido do motorista).
+          if (ride.extraStopsDriverCents > 0) ...[
+            const SizedBox(height: Spacing.xs),
+            Row(
+              children: [
+                const Icon(Icons.add_location_alt,
+                    size: 15, color: AppColors.primary),
+                const SizedBox(width: 4),
+                Text(
+                    'Paradas: +€${(ride.extraStopsDriverCents / 100).toStringAsFixed(2)}',
+                    style: const TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700)),
+              ],
+            ),
+          ],
           // B6 — ETA para o motorista (rota real). Escondido quando a viagem
           // terminou/processa ou a rota ainda não chegou.
           if (actions._etaText != null &&
@@ -714,6 +824,15 @@ class _ActionPanel extends StatelessWidget {
               ],
             ),
           ],
+          // [CAMPO-02 · F1] Paradas do cliente — lista numerada, "Cheguei à
+          // parada" e countdown informativo de espera grátis. Só se houver.
+          if (ride.hasExtraStops)
+            _StopsSection(
+              stops: actions._stops,
+              timerSeconds: actions._stopTimerSeconds,
+              busy: busy,
+              onReach: (stop) => actions._reachStop(ride, stop),
+            ),
           // 4c — temporizador de espera no pickup (padrão Uber).
           if (ride.hasArrived) ...[
             const SizedBox(height: Spacing.sm),
@@ -771,6 +890,166 @@ class _ActionPanel extends StatelessWidget {
             loading: busy,
             onPressed: onPressed,
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// [CAMPO-02 · F1] Secção "Paradas do cliente" — lista numerada das paradas
+/// adicionais. Cada parada por alcançar tem "Cheguei à parada"; já alcançada
+/// mostra o countdown informativo de espera grátis (não cobra, não bloqueia).
+class _StopsSection extends StatelessWidget {
+  const _StopsSection({
+    required this.stops,
+    required this.timerSeconds,
+    required this.busy,
+    required this.onReach,
+  });
+
+  final List<TvdeRideStop> stops;
+  final int timerSeconds;
+  final bool busy;
+  final void Function(TvdeRideStop stop) onReach;
+
+  @override
+  Widget build(BuildContext context) {
+    // Ainda a carregar (ou lista vazia) → nada a mostrar, sem espaço morto.
+    if (stops.isEmpty) return const SizedBox.shrink();
+    return Container(
+      margin: const EdgeInsets.only(top: Spacing.sm),
+      padding: const EdgeInsets.all(Spacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(Radii.md),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.route, size: 16, color: AppColors.primary),
+              SizedBox(width: 6),
+              Text('Paradas do cliente',
+                  style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w800)),
+            ],
+          ),
+          const SizedBox(height: Spacing.sm),
+          for (final stop in stops)
+            _StopTile(
+              stop: stop,
+              remaining: _remaining(stop),
+              busy: busy,
+              onReach: () => onReach(stop),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// Segundos restantes da espera grátis (0 = concluída). Espelha o cálculo do
+  /// ticker no state; usa timerSeconds (das settings) e reachedAt do servidor.
+  int _remaining(TvdeRideStop stop) {
+    final at = stop.reachedAt;
+    if (at == null) return timerSeconds;
+    final rem = timerSeconds - DateTime.now().difference(at.toLocal()).inSeconds;
+    return rem > 0 ? rem : 0;
+  }
+}
+
+/// [CAMPO-02 · F1] Uma linha da lista de paradas: nº + label, e o estado —
+/// botão "Cheguei à parada" (por alcançar) ou countdown/"Espera concluída".
+class _StopTile extends StatelessWidget {
+  const _StopTile({
+    required this.stop,
+    required this.remaining,
+    required this.busy,
+    required this.onReach,
+  });
+
+  final TvdeRideStop stop;
+  final int remaining;
+  final bool busy;
+  final VoidCallback onReach;
+
+  @override
+  Widget build(BuildContext context) {
+    final mm = (remaining ~/ 60).toString().padLeft(2, '0');
+    final ss = (remaining % 60).toString().padLeft(2, '0');
+    final hasLabel = stop.label != null && stop.label!.trim().isNotEmpty;
+    final label = hasLabel ? stop.label!.trim() : 'Parada ${stop.seq}';
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Spacing.sm),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 22,
+                height: 22,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: stop.reached
+                      ? AppColors.primary
+                      : AppColors.primary.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Text('${stop.seq}',
+                    style: TextStyle(
+                        color: stop.reached ? Colors.white : AppColors.primary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800)),
+              ),
+              const SizedBox(width: Spacing.sm),
+              Expanded(
+                child: Text(label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600)),
+              ),
+              if (stop.reached)
+                const Icon(Icons.check_circle,
+                    size: 18, color: AppColors.primary),
+            ],
+          ),
+          if (!stop.reached) ...[
+            const SizedBox(height: 6),
+            OutlinedButton.icon(
+              onPressed: busy ? null : onReach,
+              icon: const Icon(Icons.where_to_vote, size: 18),
+              label: const Text('Cheguei à parada'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                side:
+                    BorderSide(color: AppColors.primary.withValues(alpha: 0.5)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(Radii.md)),
+              ),
+            ),
+          ] else ...[
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Icon(remaining > 0 ? Icons.timer : Icons.check,
+                    size: 14, color: AppColors.textSecondary),
+                const SizedBox(width: 4),
+                Text(
+                  remaining > 0 ? 'Espera grátis · $mm:$ss' : 'Espera concluída',
+                  style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );

@@ -70,6 +70,12 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
       const financialMarkers = ['cents', 'payout', 'prepayment', 'bora_service', 'credit'];
       return !financialMarkers.any(key.contains);
     }
+    // TVDE parada adicional (CAMPO-02): só as chaves OPERACIONAIS são editáveis
+    // aqui. As de dinheiro (tvde_stop_fee_cents = taxa do cliente,
+    // tvde_stop_driver_cents = ganho do motorista) ficam blindadas — alterá-las
+    // é ação 🔴 que escala a pagamentos-wallet.
+    const tvdeStopOperational = {'tvde_max_stops', 'tvde_stop_timer_seconds'};
+    if (tvdeStopOperational.contains(key)) return true;
     return false;
   }
 

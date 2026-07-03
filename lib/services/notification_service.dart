@@ -197,6 +197,74 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     return;
   }
 
+  // ── [Item K 2026-07-03] Oferta TVDE em BACKGROUND / ecrã bloqueado ────────
+  // Sem isto, o handler caía no `return` só-delivery abaixo → a corrida NÃO
+  // sobrepunha e o motorista perdia-a sem saber. O construtor full-screen do
+  // TVDE (_showTvdeOfferNotification) só corria em foreground; aqui replicamos
+  // a MESMA mecânica do estafeta (mesmo canal urgente v3, fullScreenIntent +
+  // category.call para acordar o ecrã por cima de tudo, som em loop). Tocar
+  // abre a app, que trata a oferta via realtime (ecrã de oferta).
+  if (data['type'] == 'new_tvde_ride_offer') {
+    final rideId = data['rideId']?.toString() ?? '';
+    final title = data['title']?.toString() ?? '🚗 Nova corrida!';
+    final origin = data['originLabel']?.toString() ?? 'Recolha';
+    final dest = data['destLabel']?.toString() ?? 'Destino';
+    final fare = data['fare']?.toString() ?? '0.00';
+    final distanceKm = data['distanceKm']?.toString() ?? '0';
+    final body = data['body']?.toString() ??
+        '$origin → $dest • €$fare${distanceKm != '0' ? ' • ${distanceKm}km' : ''}';
+    debugPrint('[BORA-TVDE] FCM BG RECEIVED new_tvde_ride_offer ride=$rideId');
+    try {
+      final plugin = FlutterLocalNotificationsPlugin();
+      final androidImpl = plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      await androidImpl?.createNotificationChannel(
+        const AndroidNotificationChannel(
+          'bora_orders_urgent_v3',
+          'Bora — Novos pedidos',
+          description: 'Som contínuo + vibração para novos pedidos urgentes.',
+          importance: Importance.max,
+          playSound: true,
+          sound: RawResourceAndroidNotificationSound('bora_alert'),
+          enableVibration: true,
+          showBadge: true,
+        ),
+      );
+      final androidDetails = AndroidNotificationDetails(
+        'bora_orders_urgent_v3',
+        'Bora — Novos pedidos',
+        channelDescription: 'Oferta de corrida — tap para abrir e aceitar.',
+        importance: Importance.max,
+        priority: Priority.max,
+        playSound: true,
+        sound: const RawResourceAndroidNotificationSound('bora_alert'),
+        enableVibration: true,
+        category: AndroidNotificationCategory.call,
+        fullScreenIntent: true,
+        autoCancel: true,
+        onlyAlertOnce: false,
+        ticker: title,
+        visibility: fln.NotificationVisibility.public,
+        // Como o delivery: som em loop (FLAG_INSISTENT) para não perder a
+        // corrida; timeoutAfter limpa a notif ~ao fim do TTL se for ignorada.
+        additionalFlags: Int32List.fromList(<int>[4]),
+        timeoutAfter: 45000,
+        styleInformation: BigTextStyleInformation(body, contentTitle: title),
+      );
+      await plugin.show(
+        rideId.isNotEmpty ? rideId.hashCode : title.hashCode,
+        title,
+        body,
+        NotificationDetails(android: androidDetails),
+        payload: jsonEncode({'type': 'new_tvde_ride_offer', 'rideId': rideId}),
+      );
+      debugPrint('[BORA-TVDE] BG full-screen offer notif posted ride=$rideId');
+    } catch (e) {
+      debugPrint('[BORA-TVDE] BG offer notif error: $e');
+    }
+    return;
+  }
+
   if (data['type'] != 'new_order_offer') return;
   debugPrint('[BORA-OFFER] FCM BG handler RECEIVED new_order_offer payload=${jsonEncode(data)}');
 

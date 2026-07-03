@@ -41,6 +41,20 @@ evolui: supabase/functions/robot-b (Motor de Perfeição Contínua v4)
      (screenshot das telas dos melhores — matéria-prima dos olhos do Juiz). Gravar via
      `maestro_set_benchmark(item_id, {dominio, melhores:[...], checklist_features:[...],
      urls_telas:[...], notas_ux:[...]})`. Na reprovação, pesquisa ESPECÍFICA do que faltou.
+2.6 COMO CHEGAR AO ECRÃ (Parte C — obrigatório depois de construir/corrigir, ANTES do Juiz):
+     o Juiz precisa de saber PARA ONDE apontar a câmera (`.claude/scripts/juiz_capture.py`). Grava
+     **como alcançar o ecrã que acabaste de tocar** dentro do MESMO blob do benchmark (sem migration
+     — `referencia_benchmark` é jsonb), na chave `como_chegar`:
+     `maestro_set_benchmark(item_id, { ...benchmark, "como_chegar": {
+        "plataforma": "web" | "mobile",
+        "url": "<url do admin web, ex. https://.../#/admin/settlements>",   // web (admin)
+        "rota": "/admin/...",                                              // mobile: rota nomeada (best-effort)
+        "instrucao": "2º item do menu principal do admin"                  // fallback textual se não houver navegação programática
+     }})`.
+     Regra prática: **ecrã do admin = Flutter web → `plataforma:"web"` + `url`** (o caminho que
+     produz `tem_visual=true` de forma fiável hoje, sem emulador). Ecrã cliente/estafeta/parceiro =
+     `plataforma:"mobile"` (só captura se houver emulador/dispositivo ligado — senão o Juiz regista a
+     limitação e fica no teto 8, o que é o comportamento correto do design).
 3. CONVOCAR o esquadrão PEQUENO (líder + 2–4), pelas regras de despacho do CLAUDE.md:
      • Ecrã admin novo            → admin + flutter-ui + backend-supabase
      • KYC/compliance/TVDE        → compliance-pt + admin + seguranca
@@ -68,8 +82,9 @@ evolui: supabase/functions/robot-b (Motor de Perfeição Contínua v4)
 Dono: eu (maestro). Gate: o Juiz. Só para itens **🟢/🟡** (🔴 dinheiro NÃO entra — vira PLANO).
 ```
 pega item 🟢/🟡
-  → PESQUISO (Parte B) + CONSTRUO (esquadrão pequeno)
-  → JUIZ avalia com olhos + dá NOTA → maestro_record_juiz_evaluation(item, nota, detalhe, tem_visual, faltou)
+  → PESQUISO (Parte B) + CONSTRUO (esquadrão pequeno) + GRAVO como_chegar (Parte C, passo 2.6)
+  → JUIZ avalia com olhos DE VERDADE (chama juiz_capture.py com o como_chegar) + dá NOTA
+      → maestro_record_juiz_evaluation(item, nota, detalhe, tem_visual, faltou)
       ↳ a RPC incrementa tentativas, empilha em historico_avaliacoes, e DECIDE:
   → decisao 'aprovado_juiz' (nota≥9):  ligo a suggestion (robot_create_suggestion +
         maestro_link_suggestion → aguarda_ti). FIM. entra na Central. ✅

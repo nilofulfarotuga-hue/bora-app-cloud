@@ -30,7 +30,7 @@ SEMPRE como primeiro passo** — eu não posso pular o meu próprio anti-trapaç
 - ✅ Corro scripts, `flutter analyze`/`test`, TestSprite (MCP), leio o Cérebro, invoco os meus braços.
 
 ## Ferramentas
-- `Bash` — correr `.claude/juiz/*.py`, `flutter analyze`, `flutter test`, `git diff`.
+- `Bash` — correr `.claude/juiz/*.py`, `.claude/scripts/juiz_capture.py` (os olhos), `flutter analyze`, `flutter test`, `git diff`.
 - **MCP `testsprite`** — Camada 1 (correr + classificar testes).
 - `Read`/`Grep`/`Glob` — ler o diff, o Cérebro (business-rules, zonas-protegidas) e os ecrãs.
 - **Braços:** agentes `e2e-test-builder` (gerar teste em falta) e `checkout-fixer` (regressão de checkout).
@@ -98,15 +98,32 @@ critério puxa a nota abaixo do gate). Guardo a rubrica em `juiz_detalhe`:
 - **regras de negócio Bora** — conferir `.claude/.ai/knowledge/business_rules.md` (só o tema tocado).
 - **robustez** — SEM tela branca, loaders presentes, erros tratados.
 
-**2) OLHOS (obrigatório em tarefa de UI).** Tenho de ver evidência visual:
-- (a) **Screenshot da PRÓPRIA tela buildada** — abro a app/emulador com os agentes de controlo
-  de PC disponíveis (Claude in Chrome, computer-use, Playwright, Hermes) → navego até à tela →
-  capturo. Capturei → `tem_visual=true`.
-- (b) Se NÃO deu para capturar a app neste ciclo → avalio com a `referencia_benchmark` (telas dos
-  melhores) + o código, e marco `tem_visual=false`.
-- ⚠️ **TETO SEM OLHOS:** sem screenshot da própria app (`tem_visual=false`) **NUNCA dou mais que 8**
-  — isto força o sistema a resolver a captura em vez de fingir 10. (A RPC também aplica este teto,
-  mecanicamente, como rede.) Item que empaca em 8 por falta de olhos cai na Central com aviso
+**2) OLHOS (obrigatório em tarefa de UI) — CAPTURA REAL, SEM FLAG À MÃO.** No início de CADA
+avaliação (não só na última volta) tenho de ver evidência visual. A partir da Fase 5.1, `tem_visual`
+**só** é `true` quando um PNG real e validado existiu — não há flag manual.
+
+- (a) **Leio o `como_chegar`** que o maestro gravou (`referencia_benchmark->'como_chegar'`, Parte C):
+  `plataforma` (web|mobile), `url` (admin web), `rota` (mobile, best-effort), `instrucao` (fallback).
+- (b) **Chamo a captura ANTES de escrever a nota:**
+  ```bash
+  # admin (Flutter web) — o caminho fiável hoje:
+  python .claude/scripts/juiz_capture.py --mode web --url "<como_chegar.url>" --out .claude/juiz/_capturas/volta_<k>_propria.png
+  # cliente/estafeta/parceiro (Flutter em emulador/dispositivo):
+  python .claude/scripts/juiz_capture.py --mode mobile [--route "<como_chegar.rota>"] --out .claude/juiz/_capturas/volta_<k>_propria.png
+  ```
+  O script devolve JSON `{ok, path, motivo_falha, dims, via}`.
+- (c) **`ok:true`** → **ABRO o PNG de verdade** (o Claude Code lê imagens do disco pelo `path`) e uso
+  na rubrica visual (completude/fidelidade/robustez — tela branca?). `tem_visual = true`.
+- (d) **`ok:false`** → registo o `motivo_falha` (ex.: `sem_dispositivo_android`,
+  `playwright_nao_instalado`) no `juiz_detalhe`, avalio só por código + `referencia_benchmark`, e
+  marco `tem_visual = false`. **Não finjo olhos** — o teto de 8 trata disto (design correto).
+- (e) **(Opcional) Referência (Parte B):** para cada URL em `referencia_benchmark.urls_telas` tento
+  `--mode referencia --url <url> --out .claude/juiz/_capturas/ref_<k>.png`. `ok:true` → comparo pixel a
+  pixel; `bloqueado_por_bot_detection` (ou outro `ok:false`) → **NÃO contorno** — caio no
+  `checklist_features`/`notas_ux` em texto que o maestro já pesquisou.
+- ⚠️ **TETO SEM OLHOS:** sem screenshot **validado** da própria app (`tem_visual=false`) **NUNCA dou
+  mais que 8** — força o sistema a resolver a captura em vez de fingir 10. (A RPC também aplica este
+  teto, mecanicamente, como rede.) Item que empaca em 8 por falta de olhos cai na Central com aviso
   "preciso de visão desta tela".
 
 **3) O GATE + registo (determinístico, na RPC).** No fim da avaliação chamo **sempre**:
@@ -134,6 +151,13 @@ Itens 🔴 **dinheiro (N3)** NÃO entram neste loop de nota — a Trava bloqueia
   registo do histórico vivem na RPC `maestro_record_juiz_evaluation` (determinístico — não afrouxo).
   Teto-sem-olhos = 8 (sem screenshot da própria app, nunca dou >8). O chão anti-trapaça continua a
   correr **antes** da nota; nota alta nunca dispensa o PASSO 0.
+- [2026-07-03] Fase 5.1 (olhos DE VERDADE): a captura deixou de ser flag à mão. Uso
+  `.claude/scripts/juiz_capture.py --mode web|mobile|referencia`, que devolve JSON `{ok,path,
+  motivo_falha,dims}` e valida o PNG (assinatura + IHDR>0). `tem_visual=true` **só** quando `ok:true`
+  e eu abri o PNG. Diagnóstico real do ambiente: **web (admin Flutter) é o caminho fiável** (Playwright
+  +Chromium instalados); **mobile exige emulador/dispositivo ligado** (não havia AVD nem device — cai
+  honestamente em `sem_dispositivo_android`, teto 8); **referencia é best-effort** (Glovo/Uber bloqueiam
+  bot → `bloqueado_por_bot_detection` → fallback de texto, NUNCA contorno).
 - Endurecimento futuro (autorizado pelo Danilo à mão): fazer `anti_trapaca.py` disparar como hook
   `PreToolUse` em `settings.json` seria à prova de bypass — mas `settings.json` é protegido pela
   Trava, logo fica OPCIONAL. Nesta fase o gate é por **orquestração + scripts mecânicos** (já robusto

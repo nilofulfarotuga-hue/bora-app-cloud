@@ -26,7 +26,6 @@ class TvdeOfferScreen extends StatefulWidget {
 
 class _TvdeOfferScreenState extends State<TvdeOfferScreen> {
   Timer? _ticker;
-  int _secondsLeft = 40;
   bool _closing = false;
 
   /// Guarda local de ação (aceitar/recusar) — NÃO depende de `store.busy`
@@ -42,17 +41,12 @@ class _TvdeOfferScreenState extends State<TvdeOfferScreen> {
   @override
   void initState() {
     super.initState();
-    final exp = widget.ride.offerExpiresAt;
-    if (exp != null) {
-      _secondsLeft = exp.difference(DateTime.now()).inSeconds;
-    }
-    if (_secondsLeft <= 0) _secondsLeft = 40;
     // A1 — arranca o som contínuo até aceitar/recusar/expirar.
     _sound.playLoop();
+    // A contagem é recalculada a cada segundo a partir da oferta VIVA (store)
+    // no build — assim um re-offer renova o tempo em vez de ficar preso em "0 s".
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted) return;
-      setState(() => _secondsLeft -= 1);
-      if (_secondsLeft <= 0) _autoClose();
+      if (mounted) setState(() {});
     });
   }
 
@@ -69,7 +63,10 @@ class _TvdeOfferScreenState extends State<TvdeOfferScreen> {
     _closing = true;
     _ticker?.cancel();
     _sound.stop();
-    if (mounted) Navigator.of(context).maybePop();
+    // pop() explícito (NÃO maybePop): o PopScope canPop:false BLOQUEIA o
+    // maybePop → era exatamente isto que prendia o ecrã em "0 s" e matava o
+    // Recusar. O pop() explícito não consulta o canPop e fecha mesmo.
+    if (mounted && Navigator.of(context).canPop()) Navigator.of(context).pop();
   }
 
   Future<void> _accept() async {
@@ -89,7 +86,7 @@ class _TvdeOfferScreenState extends State<TvdeOfferScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Esta corrida já não está disponível.')),
       );
-      Navigator.of(context).maybePop();
+      if (Navigator.of(context).canPop()) Navigator.of(context).pop();
     }
   }
 
@@ -107,12 +104,20 @@ class _TvdeOfferScreenState extends State<TvdeOfferScreen> {
   @override
   Widget build(BuildContext context) {
     final store = context.watch<TvdeDriverStore>();
-    // Se o realtime tirou a oferta (passou ao próximo), fecha.
+    // Oferta VIVA: a store atualiza-a no re-offer, por isso o ecrã reflete
+    // sempre a oferta atual — a contagem e os dados RENOVAM no re-offer.
+    final ride = store.offeredRide ?? widget.ride;
+    final exp = ride.offerExpiresAt;
+    final secs = exp == null ? 0 : exp.difference(DateTime.now()).inSeconds;
+    // Fecha SÓ quando o realtime tira a oferta (expirou/passou ao próximo/
+    // pausa). Não fechar por secs<=0 sozinho — o home re-empurraria e piscava
+    // até o servidor limpar. Enquanto a store ainda tem a oferta, mostramos
+    // "A reatribuir…" em vez de um "0 s" congelado.
     if (store.offeredRide == null && !_closing) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _autoClose());
     }
+    final countdownLabel = secs > 0 ? '$secs s' : 'A reatribuir…';
 
-    final ride = widget.ride;
     // [Item C] o motorista vê o SEU líquido (ganho), não o total do cliente.
     final net = ((ride.driverEarnCents ?? 0) / 100).toStringAsFixed(2);
     final km = ride.estDistanceKm.toStringAsFixed(1);
@@ -150,7 +155,7 @@ class _TvdeOfferScreenState extends State<TvdeOfferScreen> {
                 ),
                 const SizedBox(height: Spacing.xs),
                 Center(
-                  child: Text('$_secondsLeft s',
+                  child: Text(countdownLabel,
                       style: const TextStyle(
                           color: Colors.white70,
                           fontSize: 14,

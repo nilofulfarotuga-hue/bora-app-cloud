@@ -89,8 +89,14 @@ class _TvdeChatScreenState extends State<TvdeChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final messages =
-        context.watch<TvdeChatStore>().messagesForRide(widget.rideId);
+    final store = context.watch<TvdeChatStore>();
+    final messages = store.messagesForRide(widget.rideId);
+    // [Item I] com o chat aberto, marca lidas as mensagens recebidas do outro
+    // lado (na abertura e as que forem chegando) → o badge zera e mantém-se a 0.
+    if (store.unreadFor(widget.rideId, widget.myRole) > 0) {
+      WidgetsBinding.instance.addPostFrameCallback(
+          (_) => store.markRead(widget.rideId, widget.myRole));
+    }
 
     return Scaffold(
       appBar: BoraScreenAppBar(

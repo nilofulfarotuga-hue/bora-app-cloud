@@ -25,6 +25,7 @@ class TvdeRide {
     this.createdAt,
     this.isQueued = false,
     this.arrivedAt,
+    this.usedSubscriptionRide = false,
   });
 
   final String id;
@@ -66,6 +67,10 @@ class TvdeRide {
   /// no pickup (no-show só habilita após a janela tvde_noshow_wait_minutes).
   final DateTime? arrivedAt;
 
+  /// [Item B] A corrida está coberta pelo plano (cliente paga €0). Definido no
+  /// request (preview) e reconfirmado no finish (consume).
+  final bool usedSubscriptionRide;
+
   factory TvdeRide.fromMap(Map<String, dynamic> m) {
     double d(dynamic v) => (v as num?)?.toDouble() ?? 0;
     return TvdeRide(
@@ -98,6 +103,7 @@ class TvdeRide {
       arrivedAt: m['arrived_at'] == null
           ? null
           : DateTime.tryParse(m['arrived_at'].toString()),
+      usedSubscriptionRide: m['used_subscription_ride'] as bool? ?? false,
     );
   }
 

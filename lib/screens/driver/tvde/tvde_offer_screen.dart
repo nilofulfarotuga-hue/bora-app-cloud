@@ -113,7 +113,8 @@ class _TvdeOfferScreenState extends State<TvdeOfferScreen> {
     }
 
     final ride = widget.ride;
-    final fare = (ride.estFareCents / 100).toStringAsFixed(2);
+    // [Item C] o motorista vê o SEU líquido (ganho), não o total do cliente.
+    final net = ((ride.driverEarnCents ?? 0) / 100).toStringAsFixed(2);
     final km = ride.estDistanceKm.toStringAsFixed(1);
 
     // M6 — distância do motorista até à recolha (estilo Uber Driver).
@@ -166,14 +167,14 @@ class _TvdeOfferScreenState extends State<TvdeOfferScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Center(
-                        child: Text('€$fare',
+                        child: Text('€$net',
                             style: const TextStyle(
                                 fontSize: 40,
                                 fontWeight: FontWeight.w800,
                                 color: AppColors.primary)),
                       ),
                       Center(
-                        child: Text('$km km · pagamento em dinheiro',
+                        child: Text('O teu ganho · $km km',
                             style: TextStyle(
                                 color: AppColors.textSecondary, fontSize: 13)),
                       ),

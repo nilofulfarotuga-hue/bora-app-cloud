@@ -1,14 +1,18 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
 import '../../../models/tvde_subscription.dart';
+import '../../../services/payment_service.dart';
 import '../../../stores/tvde_store.dart';
 import '../../../widgets/bora/bora.dart';
 
-/// TVDE — Planos de assinatura + contador diário. Na fase de testes as
-/// assinaturas são concedidas pelo admin (sem compra Stripe).
+/// TVDE — Planos de assinatura + contador diário. [Item A] o cliente PAGA o
+/// plano por cartão (Stripe, Edge Function isolada tvde-plan-payment) e a
+/// subscrição ativa-se automaticamente. O admin também pode conceder
+/// (admin_grant_subscription) — os dois caminhos coexistem.
 class TvdePlansScreen extends StatefulWidget {
   const TvdePlansScreen({super.key});
 
@@ -26,36 +30,67 @@ class _TvdePlansScreenState extends State<TvdePlansScreen> {
     });
   }
 
-  /// C4 — cliente pede adesão a um plano. Confirma, cria o pedido e mostra
-  /// "pedido enviado" (o admin aprova/ativa num clique).
-  Future<void> _aderir(String plan, String label) async {
+  /// [Item A] Cliente adere pagando por cartão: cria PaymentIntent → folha
+  /// Stripe → ativa (a Edge Function verifica o PI na Stripe). Sem espera pelo
+  /// admin.
+  Future<void> _aderir(String plan, String label, String price) async {
+    if (kIsWeb) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('O pagamento por cartão está disponível na app móvel.')));
+      return;
+    }
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text('Aderir ao $label?'),
-        content: const Text(
-            'Enviamos o teu pedido à equipa Bora. Assim que for aprovado, o '
-            'plano fica ativo na tua conta.'),
+        content: Text(
+            'Vais pagar $price por cartão. Assim que o pagamento for confirmado, '
+            'o plano fica ativo na tua conta imediatamente.'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
               child: const Text('Voltar')),
           FilledButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Quero aderir')),
+              child: const Text('Pagar')),
         ],
       ),
     );
     if (confirmed != true) return;
+
+    final store = context.read<TvdeStore>();
+    final messenger = ScaffoldMessenger.of(context);
+
+    // 1) Cria o PaymentIntent do plano (Edge Function isolada).
+    final created = await store.createPlanPayment(plan);
+    if (!mounted) return;
+    if (created == null) {
+      messenger.showSnackBar(const SnackBar(
+          content: Text('Não foi possível iniciar o pagamento. Tenta de novo.')));
+      return;
+    }
+
+    // 2) Folha de pagamento Stripe (cartão). Lança em cancelamento/erro.
     try {
-      await context.read<TvdeStore>().requestPlan(plan, label);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Pedido enviado! A equipa Bora vai ativar o plano.')));
+      await PaymentService().processPayment(created['clientSecret'] as String);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Não foi possível enviar o pedido. Tenta de novo.')));
+      messenger.showSnackBar(const SnackBar(
+          content: Text('Pagamento não concluído.')));
+      return;
+    }
+
+    // 3) Ativa a subscrição — a Edge Function reverifica o PI na Stripe.
+    try {
+      await store.activatePlan(plan, created['paymentIntentId'] as String);
+      if (!mounted) return;
+      messenger.showSnackBar(const SnackBar(
+          content: Text('Plano ativo! Já podes usar as corridas incluídas.')));
+    } catch (_) {
+      if (!mounted) return;
+      messenger.showSnackBar(const SnackBar(
+          content: Text('O pagamento foi feito, mas a ativação falhou. Reabre '
+              'os Planos para confirmar, ou contacta o suporte.')));
     }
   }
 
@@ -84,8 +119,9 @@ class _TvdePlansScreenState extends State<TvdePlansScreen> {
             title: 'Plano Semanal',
             price: '€56 / semana',
             detail: '14 corridas · 2 incluídas por dia · €4 / corrida',
-            onAderir:
-                pending || store.busy ? null : () => _aderir('semanal', 'Plano Semanal'),
+            onAderir: pending || store.busy
+                ? null
+                : () => _aderir('semanal', 'Plano Semanal', '€56'),
           ),
           _PlanCard(
             title: 'Plano Quinzenal',
@@ -93,14 +129,15 @@ class _TvdePlansScreenState extends State<TvdePlansScreen> {
             detail: '30 corridas · 2 incluídas por dia · €3,50 / corrida',
             onAderir: pending || store.busy
                 ? null
-                : () => _aderir('quinzenal', 'Plano Quinzenal'),
+                : () => _aderir('quinzenal', 'Plano Quinzenal', '€105'),
           ),
           _PlanCard(
             title: 'Plano Mensal',
             price: '€180 / mês',
             detail: '60 corridas · 2 incluídas por dia · €3 / corrida',
-            onAderir:
-                pending || store.busy ? null : () => _aderir('mensal', 'Plano Mensal'),
+            onAderir: pending || store.busy
+                ? null
+                : () => _aderir('mensal', 'Plano Mensal', '€180'),
           ),
         ],
       ),

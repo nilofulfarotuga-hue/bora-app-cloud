@@ -46,6 +46,11 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
   double? _effectiveKm;
   String _distanceSource = 'route';
 
+  // [Item B] cobertura pelo plano (preview read-only): quando true, a corrida é
+  // grátis para o cliente (paga €0) e mostra-se o badge em vez do preço.
+  bool _covered = false;
+  String? _coverageLabel;
+
   @override
   void initState() {
     super.initState();
@@ -150,30 +155,47 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
       setState(() {
         _effectiveKm = null;
         _estimateCents = -1;
+        _covered = false;
+        _coverageLabel = null;
       });
       return;
     }
     setState(() => _estimating = true);
     double km = fallback;
     String source = 'haversine';
-    try {
-      final route = await _directions.fetchRoute(
-        origin: _pickup!,
-        destination: _dest!,
-      );
-      if (route != null && route.distanceKm > 0) {
-        km = double.parse(route.distanceKm.toStringAsFixed(2));
-        source = 'route';
+    // [Item D] a rota real é a FONTE do preço. O Directions falha às vezes de
+    // forma transitória (rede/limite de QPS) e, ao cair para haversine, o km e o
+    // preço ficam SUBESTIMADOS (linha reta << rota real). Uma 2ª tentativa
+    // recupera a rota real na esmagadora maioria desses casos.
+    for (var attempt = 0; attempt < 2 && source == 'haversine'; attempt++) {
+      try {
+        final route = await _directions.fetchRoute(
+          origin: _pickup!,
+          destination: _dest!,
+        );
+        if (route != null && route.distanceKm > 0) {
+          km = double.parse(route.distanceKm.toStringAsFixed(2));
+          source = 'route';
+        }
+      } catch (_) {
+        // mantém haversine; volta a tentar se ainda houver tentativa
       }
-    } catch (_) {
-      // mantém haversine
     }
     final cents = await context.read<TvdeStore>().estimateFareCents(km);
+    // [Item B] cobertura pelo plano (read-only, NÃO consome — só o finish consome).
+    final cov = await context.read<TvdeStore>().previewCoverage();
     if (!mounted) return;
+    final covered = cov['covered'] == true;
+    final used = (cov['daily_used'] as num?)?.toInt();
+    final incl = (cov['daily_included'] as num?)?.toInt();
     setState(() {
       _effectiveKm = km;
       _distanceSource = source;
       _estimateCents = cents;
+      _covered = covered;
+      _coverageLabel = (covered && used != null && incl != null)
+          ? 'Incluída no plano · ${used + 1}.ª de $incl hoje'
+          : (covered ? 'Incluída no plano' : null);
       _estimating = false;
     });
   }
@@ -314,6 +336,8 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
               cents: _estimateCents,
               km: _effectiveKm,
               loading: _estimating,
+              covered: _covered,
+              coverageLabel: _coverageLabel,
             ),
             const SizedBox(height: Spacing.xl),
             BoraAccentButton(
@@ -466,10 +490,16 @@ class _PlansTeaser extends StatelessWidget {
 
 class _EstimateCard extends StatelessWidget {
   const _EstimateCard(
-      {required this.cents, required this.km, required this.loading});
+      {required this.cents,
+      required this.km,
+      required this.loading,
+      this.covered = false,
+      this.coverageLabel});
   final int cents;
   final double? km;
   final bool loading;
+  final bool covered; // [Item B] corrida coberta pelo plano (cliente paga €0)
+  final String? coverageLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -497,6 +527,30 @@ class _EstimateCard extends StatelessWidget {
                       width: 20,
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: Colors.white))
+                else if (covered && km != null) ...[
+                  Text('Grátis  ·  ${km!.toStringAsFixed(1)} km',
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700)),
+                  if (coverageLabel != null) ...[
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        const Icon(Icons.check_circle,
+                            color: Colors.white, size: 14),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(coverageLabel!,
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w600)),
+                        ),
+                      ],
+                    ),
+                  ],
+                ]
                 else
                   Text(
                     hasEstimate

@@ -13,6 +13,7 @@ import '../../../models/tvde_ride.dart';
 import '../../../services/directions_service.dart';
 import '../../../services/navigation_service.dart';
 import '../../../stores/driver_store.dart';
+import '../../../stores/tvde_chat_store.dart';
 import '../../../stores/tvde_driver_store.dart';
 import '../../../utils/map_utils.dart';
 import '../../../widgets/bora/bora.dart';
@@ -35,6 +36,11 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   /// Corrida atualmente renderizada — quando muda (back-to-back: finalizar
   /// ativa a corrida em fila no MESMO ecrã), o estado por-corrida reinicia.
   String? _rideId;
+
+  /// [Item I] chat da corrida — ouvido para o badge de nao-lidas mesmo com o
+  /// chat fechado. Guardamos a store para poder dar unlisten no dispose.
+  TvdeChatStore? _chatStore;
+  String? _chatRideId;
 
   /// M16/D2 — cartão do passageiro (RPC tvde_ride_passenger_card, só o
   /// motorista da corrida consegue ler). Best-effort.
@@ -63,6 +69,7 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     _waitTicker?.cancel();
     _mapCtrl?.dispose();
     _directions.dispose();
+    if (_chatRideId != null) _chatStore?.unlisten(_chatRideId!);
     super.dispose();
   }
 
@@ -121,6 +128,14 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     _passengerName = null;
     _passengerPhotoUrl = null;
     _passengerPhone = null;
+    // [Item I] passa a ouvir o chat desta corrida (badge de nao-lidas).
+    final chat = context.read<TvdeChatStore>();
+    if (_chatRideId != null && _chatRideId != ride.id) {
+      chat.unlisten(_chatRideId!);
+    }
+    _chatStore = chat;
+    chat.listen(ride.id);
+    _chatRideId = ride.id;
     _loadPassenger(ride);
   }
 
@@ -154,6 +169,8 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
 
   /// E — abre o chat com o passageiro (scoped por corrida).
   void _openChat(TvdeRide ride) {
+    // [Item I] abrir a conversa marca as recebidas como lidas → badge zera.
+    context.read<TvdeChatStore>().markRead(ride.id, 'driver');
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -249,17 +266,22 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
       final store = context.read<TvdeDriverStore>();
       double km = ride.estDistanceKm;
       String source = 'haversine';
-      try {
-        final route = await _directions.fetchRoute(
-          origin: ll.LatLng(ride.originLat, ride.originLng),
-          destination: ll.LatLng(ride.destLat, ride.destLng),
-        );
-        if (route != null && route.distanceKm > 0) {
-          km = double.parse(route.distanceKm.toStringAsFixed(2));
-          source = 'route';
+      // [Item D] distância final = ROTA real (dirige o preço final). 2 tentativas
+      // porque o Directions falha às vezes de forma transitória; sem isto o
+      // fallback usa a estimativa (que ja pode ser linha reta) e subestima.
+      for (var attempt = 0; attempt < 2 && source == 'haversine'; attempt++) {
+        try {
+          final route = await _directions.fetchRoute(
+            origin: ll.LatLng(ride.originLat, ride.originLng),
+            destination: ll.LatLng(ride.destLat, ride.destLng),
+          );
+          if (route != null && route.distanceKm > 0) {
+            km = double.parse(route.distanceKm.toStringAsFixed(2));
+            source = 'route';
+          }
+        } catch (_) {
+          // mantém a estimativa guardada; volta a tentar se ainda houver tentativa
         }
-      } catch (_) {
-        // mantém a estimativa guardada
       }
       final finished =
           await store.finishRide(ride.id, km, distanceSource: source);
@@ -403,7 +425,7 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
             myLocationEnabled: true, // B4 — bolinha azul nativa (sem pin extra)
             myLocationButtonEnabled: false,
             zoomControlsEnabled: false,
-            compassEnabled: false,
+            compassEnabled: true, // [Item G] paridade com o mapa do estafeta
             mapToolbarEnabled: false,
             onMapCreated: (c) => _mapCtrl = c,
           ),
@@ -449,7 +471,10 @@ class _ActionPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fare = (ride.displayFareCents / 100).toStringAsFixed(2);
+    // [Item C] o motorista vê o SEU líquido (ganho), não o total do cliente.
+    final net = ((ride.driverEarnCents ?? 0) / 100).toStringAsFixed(2);
+    // [Item I] badge de mensagens por ler (lado do motorista).
+    final unread = context.watch<TvdeChatStore>().unreadFor(ride.id, 'driver');
 
     String label;
     IconData icon;
@@ -498,7 +523,7 @@ class _ActionPanel extends StatelessWidget {
                         fontWeight: FontWeight.w700,
                         color: AppColors.textPrimary)),
               ),
-              Text('€$fare',
+              Text('€$net',
                   style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
@@ -554,11 +579,15 @@ class _ActionPanel extends StatelessWidget {
                           fontSize: 14,
                           fontWeight: FontWeight.w700)),
                 ),
-                IconButton(
-                  onPressed: () => actions._openChat(ride),
-                  icon: const Icon(Icons.chat_bubble_outline),
-                  color: AppColors.primary,
-                  tooltip: 'Mensagem',
+                Badge(
+                  isLabelVisible: unread > 0,
+                  label: Text('$unread'),
+                  child: IconButton(
+                    onPressed: () => actions._openChat(ride),
+                    icon: const Icon(Icons.chat_bubble_outline),
+                    color: AppColors.primary,
+                    tooltip: 'Mensagem',
+                  ),
                 ),
                 if (actions._passengerPhone != null &&
                     actions._passengerPhone!.isNotEmpty)
@@ -748,7 +777,8 @@ class _QueuedOfferBannerState extends State<_QueuedOfferBanner> {
   @override
   Widget build(BuildContext context) {
     final offer = widget.offer;
-    final fare = (offer.estFareCents / 100).toStringAsFixed(2);
+    // [Item C] líquido do motorista (não o total do cliente) na oferta em fila.
+    final net = ((offer.driverEarnCents ?? 0) / 100).toStringAsFixed(2);
     // Expirada (sweep roda ao próximo) — o realtime limpa; não renderiza lixo.
     if (_secondsLeft <= 0) return const SizedBox.shrink();
     return Container(
@@ -786,7 +816,7 @@ class _QueuedOfferBannerState extends State<_QueuedOfferBanner> {
           ),
           const SizedBox(height: 6),
           Text(
-            '€$fare · ${offer.originLabel ?? 'Recolha próxima do destino'}',
+            '€$net · ${offer.originLabel ?? 'Recolha próxima do destino'}',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(color: Colors.white, fontSize: 13),

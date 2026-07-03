@@ -12,6 +12,7 @@ import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
 import '../../../models/tvde_ride.dart';
 import '../../../services/directions_service.dart';
+import '../../../stores/tvde_chat_store.dart';
 import '../../../stores/tvde_store.dart';
 import '../../../utils/map_utils.dart';
 import '../../../widgets/bora/bora.dart';
@@ -43,6 +44,10 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
   Timer? _animTimer;
   bool _navigatedToRate = false;
 
+  /// [Item I] chat da corrida — ouvido para o badge de nao-lidas (lado cliente).
+  TvdeChatStore? _chatStore;
+  String? _chatRideId;
+
   /// C5 — mesma velocidade média do dispatch (30 km/h) para o ETA.
   static const double _avgSpeedKmh = 30.0;
 
@@ -63,6 +68,7 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
     _animTimer?.cancel();
     _map?.dispose();
     _directions.dispose();
+    if (_chatRideId != null) _chatStore?.unlisten(_chatRideId!);
     super.dispose();
   }
 
@@ -248,8 +254,20 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
     }
   }
 
+  /// [Item I] garante subscricao ao chat desta corrida (badge de nao-lidas).
+  void _ensureChatListen(TvdeRide ride) {
+    if (_chatRideId == ride.id) return;
+    final chat = context.read<TvdeChatStore>();
+    if (_chatRideId != null) chat.unlisten(_chatRideId!);
+    _chatStore = chat;
+    chat.listen(ride.id);
+    _chatRideId = ride.id;
+  }
+
   /// E — abre o chat com o motorista (scoped por corrida).
   void _openChat(TvdeRide ride) {
+    // [Item I] abrir marca as recebidas como lidas → badge zera.
+    context.read<TvdeChatStore>().markRead(ride.id, 'client');
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -310,6 +328,7 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
     }
 
     _maybeGoToRate(ride);
+    _ensureChatListen(ride);
 
     if (ride.isCancelled) {
       return _TerminalView(
@@ -370,6 +389,8 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
               driverPlate: _driverPlate,
               hasPhone: _driverPhone != null && _driverPhone!.isNotEmpty,
               etaMinutes: _etaMinutes(ride),
+              unreadCount:
+                  context.watch<TvdeChatStore>().unreadFor(ride.id, 'client'),
               onChat: () => _openChat(ride),
               onCall: _call,
               onCancel: () => _cancel(ride),
@@ -398,6 +419,7 @@ class _StatusPanel extends StatelessWidget {
     required this.driverPlate,
     required this.hasPhone,
     required this.etaMinutes,
+    required this.unreadCount,
     required this.onChat,
     required this.onCall,
     required this.onCancel,
@@ -418,6 +440,8 @@ class _StatusPanel extends StatelessWidget {
 
   /// C5 — "chega em ~X min" (recolha) / "destino em ~X min" (em viagem).
   final int? etaMinutes;
+  /// [Item I] mensagens por ler (badge no botão Mensagem).
+  final int unreadCount;
   final VoidCallback onChat;
   final VoidCallback onCall;
   final VoidCallback onCancel;
@@ -503,15 +527,19 @@ class _StatusPanel extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: onChat,
-                    icon: const Icon(Icons.chat_bubble_outline, size: 18),
-                    label: const Text('Mensagem'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.primary,
-                      side: const BorderSide(color: AppColors.primary),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(Radii.md)),
+                  child: Badge(
+                    isLabelVisible: unreadCount > 0,
+                    label: Text('$unreadCount'),
+                    child: OutlinedButton.icon(
+                      onPressed: onChat,
+                      icon: const Icon(Icons.chat_bubble_outline, size: 18),
+                      label: const Text('Mensagem'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                        side: const BorderSide(color: AppColors.primary),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(Radii.md)),
+                      ),
                     ),
                   ),
                 ),
@@ -571,11 +599,35 @@ class _StatusPanel extends StatelessWidget {
                         fontWeight: FontWeight.w700,
                         color: AppColors.textPrimary)),
               ),
-              Text('€${(ride.displayFareCents / 100).toStringAsFixed(2)}',
-                  style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primary)),
+              if (ride.usedSubscriptionRide)
+                // [Item B] corrida coberta pelo plano → cliente paga €0.
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: Spacing.sm, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.check_circle,
+                          size: 14, color: AppColors.primary),
+                      SizedBox(width: 4),
+                      Text('Incluída no plano',
+                          style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primary)),
+                    ],
+                  ),
+                )
+              else
+                Text('€${(ride.displayFareCents / 100).toStringAsFixed(2)}',
+                    style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primary)),
             ],
           ),
           const SizedBox(height: Spacing.sm),

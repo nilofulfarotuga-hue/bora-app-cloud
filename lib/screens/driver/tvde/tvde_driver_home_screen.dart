@@ -1,5 +1,8 @@
 import 'dart:async';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
@@ -53,6 +56,12 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
   gmaps.GoogleMapController? _mapController;
   gmaps.LatLng? _lastCameraTarget;
 
+  // [Item G] Paridade com o mapa do estafeta: seta verde rotativa (bearing) em
+  // vez de pino grande; bússola + botão centralizar. Fallback à bolinha nativa
+  // enquanto o ícone não carrega (e sempre na Web, onde fromBytes não existe).
+  gmaps.BitmapDescriptor? _driverArrowIcon;
+  double _bearing = 0;
+
   /// Centro por omissão (Guarda) enquanto não há 1º fix de GPS — garante que o
   /// mapa nunca aparece vazio/branco: renderiza sempre com câmara válida.
   static const gmaps.LatLng _guardaCenter = gmaps.LatLng(40.5373, -7.2657);
@@ -61,6 +70,7 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _loadDriverArrowIcon();
     // [TVDE P0] Push de oferta força reload do store → a tela de oferta aparece
     // mesmo que o realtime tenha caído (fallback triplo: push → realtime → poll).
     NotificationService.tvdeOfferReload = _reloadOffer;
@@ -173,6 +183,43 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
     c.animateCamera(gmaps.CameraUpdate.newLatLng(target));
   }
 
+  /// [Item G] Constrói a seta verde do motorista (igual ao mapa do estafeta).
+  /// Off-Web apenas — BitmapDescriptor.bytes não existe na Web; aí cai na
+  /// bolinha azul nativa (myLocationEnabled).
+  Future<void> _loadDriverArrowIcon() async {
+    if (kIsWeb) return;
+    try {
+      final bytes = await _createArrowIcon();
+      if (!mounted) return;
+      setState(() => _driverArrowIcon = gmaps.BitmapDescriptor.bytes(bytes));
+    } catch (_) {
+      // Fallback silencioso — o marker fica null e usa-se a bolinha nativa.
+    }
+  }
+
+  Future<Uint8List> _createArrowIcon() async {
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    const size = 56.0;
+    final paint = Paint()..color = AppColors.primary; // verde Bora
+    final path = ui.Path()
+      ..moveTo(size / 2, 0)
+      ..lineTo(size, size)
+      ..lineTo(size / 2, size * 0.7)
+      ..lineTo(0, size)
+      ..close();
+    canvas.drawPath(path, paint);
+    final stroke = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3;
+    canvas.drawPath(path, stroke);
+    final picture = recorder.endRecording();
+    final img = await picture.toImage(size.toInt(), size.toInt());
+    final bytes = await img.toByteData(format: ui.ImageByteFormat.png);
+    return bytes!.buffer.asUint8List();
+  }
+
   // ── Navegação reativa para oferta / corrida ativa ──────────────────────────
   void _syncNav() {
     if (!mounted) return;
@@ -200,10 +247,11 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
     }
   }
 
-  /// Dual-driver (work_mode='everything'): oferta/entrega de delivery abre o
-  /// fluxo de estafeta EXISTENTE (DriverHomeScreen) por cima desta home — zero
-  /// telas duplicadas. Ao terminar (back), o motorista volta ao modo corridas.
-  void _maybeOpenDeliveryFlow() {
+  /// [Item F] Auto-abre o fluxo de estafeta APENAS para RETOMAR uma entrega já
+  /// ativa (myOrders) — ex.: reabrir a app a meio de uma entrega. As ofertas
+  /// NOVAS (availableOrders) já NÃO teleportam: aparecem como overlay sobre o
+  /// mapa TVDE (tela única). Ao terminar (back), volta ao modo corridas.
+  void _maybeResumeDeliveryFlow() {
     if (!mounted || _deliveryOpen || _activeOpen || _offerOpen) return;
     final tvde = context.read<TvdeDriverStore>();
     if (tvde.ridesOnly ||
@@ -211,8 +259,7 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
         tvde.queuedRide != null) {
       return;
     }
-    final orders = context.read<OrderStore>();
-    if (orders.availableOrders.isEmpty && orders.myOrders.isEmpty) return;
+    if (context.read<OrderStore>().myOrders.isEmpty) return;
     _openDeliveryFlow();
   }
 
@@ -336,7 +383,21 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
       ),
     ).listen((pos) {
       if (!mounted) return;
+      // [Item G] bearing (direção de marcha) a partir do delta de posição —
+      // roda a seta como no mapa do estafeta. Só quando andou o suficiente para
+      // não amplificar ruído de GPS em rotação.
+      final prev = _lastPos;
       _lastPos = pos;
+      if (prev != null) {
+        final moved = Geolocator.distanceBetween(
+            prev.latitude, prev.longitude, pos.latitude, pos.longitude);
+        if (moved >= 5) {
+          var b = Geolocator.bearingBetween(
+              prev.latitude, prev.longitude, pos.latitude, pos.longitude);
+          if (b < 0) b += 360;
+          _bearing = b;
+        }
+      }
       final store = context.read<DriverStore>();
       store.updateDriverLocation(
           store.currentDriverId, LatLng(pos.latitude, pos.longitude));
@@ -440,12 +501,12 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
   Widget build(BuildContext context) {
     // Dispara a navegação reativa sempre que o store muda.
     context.watch<TvdeDriverStore>();
-    // Dual-driver: ofertas/entregas de delivery (OrderStore) abrem o fluxo de
-    // estafeta existente quando work_mode='everything'.
-    context.watch<OrderStore>();
+    // [Item F] Ofertas de entrega/favor (OrderStore) aparecem como overlay SOBRE
+    // este mapa (tela única). O auto-open fica só para retomar entrega ativa.
+    final deliveryOffers = context.watch<OrderStore>().availableOrders;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _syncNav();
-      _maybeOpenDeliveryFlow();
+      _maybeResumeDeliveryFlow();
     });
 
     final status = context.watch<AuthStore>().currentDriverStatus;
@@ -470,14 +531,8 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
         foregroundColor: Colors.white,
         title: const Text('Bora Motorista'),
         actions: [
-          // Dual-driver: acesso manual ao fluxo de entregas (ex.: retomar uma
-          // entrega em curso depois de reabrir a app). Só com 'tudo'.
-          if (!context.watch<TvdeDriverStore>().ridesOnly)
-            IconButton(
-              tooltip: 'Entregas',
-              onPressed: _openDeliveryFlow,
-              icon: const Icon(Icons.delivery_dining),
-            ),
+          // [Item F] Removido o atalho separado de "Entregas" — as ofertas de
+          // entrega/favor agora aparecem como overlay no próprio mapa (tela única).
           IconButton(
             tooltip: 'Ganhos',
             onPressed: _openEarnings,
@@ -511,10 +566,10 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
               target: mePos ?? _guardaCenter,
               zoom: 14.5,
             ),
-            myLocationEnabled: true,
+            myLocationEnabled: _driverArrowIcon == null,
             myLocationButtonEnabled: false,
             zoomControlsEnabled: false,
-            compassEnabled: false,
+            compassEnabled: true,
             mapToolbarEnabled: false,
             onMapCreated: (c) {
               _mapController = c;
@@ -523,19 +578,43 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
                 c.moveCamera(gmaps.CameraUpdate.newLatLng(mePos));
               }
             },
-            markers: mePos == null
+            markers: (mePos == null || _driverArrowIcon == null)
                 ? <gmaps.Marker>{}
                 : {
+                    // [Item G] Seta verde rotativa (paridade com o estafeta) —
+                    // sem o pino azul grande. Enquanto o ícone não carrega, a
+                    // bolinha nativa (myLocationEnabled) marca a posição.
                     gmaps.Marker(
                       markerId: const gmaps.MarkerId('me'),
                       position: mePos,
-                      icon: gmaps.BitmapDescriptor.defaultMarkerWithHue(
-                          gmaps.BitmapDescriptor.hueAzure),
-                      infoWindow: const gmaps.InfoWindow(title: 'Tu'),
+                      rotation: _bearing,
+                      icon: _driverArrowIcon!,
+                      anchor: const Offset(0.5, 0.5),
+                      flat: true,
                     ),
                   },
           ),
           if (mePos == null) const _LocatingBanner(),
+          // [Item G] Botão centralizar (paridade com o estafeta) — recentra na
+          // posição do motorista e volta ao zoom de navegação.
+          if (mePos != null)
+            Positioned(
+              right: 16,
+              top: MediaQuery.of(context).size.height * 0.55,
+              child: FloatingActionButton.small(
+                heroTag: 'tvde_map_recenter',
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                onPressed: () {
+                  final c = _mapController;
+                  if (c == null) return;
+                  _lastCameraTarget = mePos;
+                  c.animateCamera(
+                      gmaps.CameraUpdate.newLatLngZoom(mePos, 15.5));
+                },
+                child: const Icon(Icons.my_location),
+              ),
+            ),
           Align(
             alignment: Alignment.bottomCenter,
             child: SafeArea(
@@ -552,6 +631,60 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
               ),
             ),
           ),
+          // [Item F] Ofertas de entrega/favor SOBRE o mapa TVDE (tela única) —
+          // sem ícone separado nem teleporte automático; toca para aceitar no
+          // fluxo de estafeta provado (com contagem + som).
+          if (deliveryOffers.isNotEmpty)
+            Positioned(
+              left: 16,
+              right: 16,
+              top: 12,
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: _openDeliveryFlow,
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: const [
+                        BoxShadow(
+                            color: Colors.black26,
+                            blurRadius: 8,
+                            offset: Offset(0, 2)),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.delivery_dining, color: Colors.white),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                deliveryOffers.length == 1
+                                    ? 'Nova oferta de entrega/favor'
+                                    : '${deliveryOffers.length} ofertas de entrega/favor',
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700),
+                              ),
+                              const Text('Toca para ver e aceitar',
+                                  style: TextStyle(
+                                      color: Colors.white70, fontSize: 12)),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.chevron_right, color: Colors.white),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );

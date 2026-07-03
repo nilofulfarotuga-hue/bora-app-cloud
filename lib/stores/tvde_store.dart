@@ -125,6 +125,21 @@ class TvdeStore extends ChangeNotifier {
     }
   }
 
+  /// [Item B] Cobertura pelo plano SEM consumir (RPC read-only). Devolve
+  /// {covered, daily_used, daily_included, rides_left, reason}. {} em erro.
+  Future<Map<String, dynamic>> previewCoverage() async {
+    final uid = _uid;
+    if (uid == null) return const {};
+    try {
+      final res =
+          await _sb.rpc('tvde_preview_coverage', params: {'p_client_id': uid});
+      return res is Map ? Map<String, dynamic>.from(res) : const {};
+    } catch (e) {
+      debugPrint('TvdeStore.previewCoverage error => $e');
+      return const {};
+    }
+  }
+
   // ════════════════════════════════════════════════════════════════════════
   // CORRIDA
   // ════════════════════════════════════════════════════════════════════════
@@ -361,6 +376,44 @@ class TvdeStore extends ChangeNotifier {
     } catch (e) {
       debugPrint('TvdeStore.loadSubscription error => $e');
     }
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  // [Item A] PAGAMENTO DO PLANO (Stripe, Edge Function isolada tvde-plan-payment)
+  // ════════════════════════════════════════════════════════════════════════
+
+  /// Cria o PaymentIntent do plano. Devolve {clientSecret, paymentIntentId,
+  /// amountCents} ou null em erro. O preço é calculado SERVER-SIDE.
+  Future<Map<String, dynamic>?> createPlanPayment(String plan) async {
+    try {
+      final res = await _sb.functions.invoke('tvde-plan-payment',
+          body: {'action': 'create', 'plan': plan});
+      final data = res.data;
+      if (data is Map && data['clientSecret'] != null) {
+        return Map<String, dynamic>.from(data);
+      }
+      debugPrint('TvdeStore.createPlanPayment bad response => $data');
+      return null;
+    } catch (e) {
+      debugPrint('TvdeStore.createPlanPayment error => $e');
+      return null;
+    }
+  }
+
+  /// Ativa a subscrição após o pagamento — a Edge Function verifica o PI na
+  /// Stripe (succeeded + dono + valor). Recarrega a subscrição. Lança em erro.
+  Future<void> activatePlan(String plan, String paymentIntentId) async {
+    final res = await _sb.functions.invoke('tvde-plan-payment', body: {
+      'action': 'activate',
+      'plan': plan,
+      'payment_intent_id': paymentIntentId,
+    });
+    final data = res.data;
+    if (data is Map && data['subscription'] != null) {
+      await loadSubscription();
+      return;
+    }
+    throw Exception('activate_failed: $data');
   }
 
   // ── infra ────────────────────────────────────────────────────────────────

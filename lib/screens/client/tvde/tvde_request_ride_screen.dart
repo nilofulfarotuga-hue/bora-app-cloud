@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart' hide LatLng;
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
@@ -44,6 +43,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
   // B1 — distância efetiva usada na estimativa/pedido: rota real (Directions,
   // mesma chave) com fallback haversine. `_distanceSource` regista qual foi.
   double? _effectiveKm;
+  // ignore: unused_field — [Item D] guardado para futura persistência no ride.
   String _distanceSource = 'route';
 
   // [Item B] cobertura pelo plano (preview read-only): quando true, a corrida é
@@ -348,8 +348,11 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
             ),
             const SizedBox(height: Spacing.md),
             Text(
-              'Pagamento em dinheiro ao motorista. O valor final é calculado '
-              'pela distância real da viagem.',
+              _covered
+                  ? 'Esta corrida está incluída no teu plano — não pagas nada ao '
+                      'motorista.'
+                  : 'Pagamento em dinheiro ao motorista. O valor final é calculado '
+                      'pela distância real da viagem.',
               textAlign: TextAlign.center,
               style: TextStyle(color: AppColors.textSubtle, fontSize: 12),
             ),

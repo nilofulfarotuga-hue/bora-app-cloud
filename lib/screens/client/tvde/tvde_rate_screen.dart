@@ -47,6 +47,7 @@ class _TvdeRateScreenState extends State<TvdeRateScreen> {
   @override
   Widget build(BuildContext context) {
     final store = context.watch<TvdeStore>();
+    final covered = widget.ride.usedSubscriptionRide;
     final fare = widget.ride.displayFareCents / 100;
 
     return Scaffold(
@@ -65,7 +66,10 @@ class _TvdeRateScreenState extends State<TvdeRateScreen> {
                     fontWeight: FontWeight.w700,
                     color: AppColors.textPrimary)),
             const SizedBox(height: Spacing.xs),
-            Text('Pagaste €${fare.toStringAsFixed(2)} em dinheiro.',
+            Text(
+                covered
+                    ? 'Corrida incluída no teu plano — não pagaste nada.'
+                    : 'Pagaste €${fare.toStringAsFixed(2)} em dinheiro.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: AppColors.textSecondary)),
             const SizedBox(height: Spacing.xl),

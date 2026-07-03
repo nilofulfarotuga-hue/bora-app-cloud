@@ -109,12 +109,18 @@ class _TvdeOfferScreenState extends State<TvdeOfferScreen> {
     final ride = store.offeredRide ?? widget.ride;
     final exp = ride.offerExpiresAt;
     final secs = exp == null ? 0 : exp.difference(DateTime.now()).inSeconds;
-    // Fecha SÓ quando o realtime tira a oferta (expirou/passou ao próximo/
-    // pausa). Não fechar por secs<=0 sozinho — o home re-empurraria e piscava
-    // até o servidor limpar. Enquanto a store ainda tem a oferta, mostramos
-    // "A reatribuir…" em vez de um "0 s" congelado.
-    if (store.offeredRide == null && !_closing) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _autoClose());
+    // [Item E/M] Fecha AUTOMATICAMENTE quando: (a) o realtime tira a oferta, OU
+    // (b) o TTL local esgota (offer_expires_at já passou). (b) é o caminho
+    // FIÁVEL: o evento de limpeza do servidor pode NÃO chegar a este motorista
+    // (a RLS esconde a linha de tvde_rides quando current_offer_driver_id deixa
+    // de ser ele), por isso a expiração LOCAL fecha o ecrã sem depender do
+    // realtime — e clearOffer() limpa a store para o home não reabrir a mesma.
+    final expiredLocally = exp != null && secs <= 0;
+    if (!_closing && (store.offeredRide == null || expiredLocally)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (expiredLocally) store.clearOffer();
+        _autoClose();
+      });
     }
     final countdownLabel = secs > 0 ? '$secs s' : 'A reatribuir…';
 

@@ -1,6 +1,10 @@
 import 'dart:async';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:latlong2/latlong.dart' as ll;
 import 'package:provider/provider.dart';
@@ -64,6 +68,18 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   /// refazer o pedido Directions a cada rebuild/movimento pequeno.
   String? _routeKey;
 
+  /// [Item N] Seta verde rotativa do motorista (paridade com a home). Fallback
+  /// à bolinha azul nativa enquanto não carrega e sempre na Web.
+  BitmapDescriptor? _driverArrowIcon;
+  double _bearing = 0;
+  LatLng? _lastArrowPos;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDriverArrowIcon();
+  }
+
   @override
   void dispose() {
     _waitTicker?.cancel();
@@ -80,6 +96,55 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     await c.animateCamera(CameraUpdate.newLatLngZoom(driverPos ?? fallback, 15));
   }
 
+  /// [Item N] Seta verde do motorista (igual à home). Off-Web apenas —
+  /// BitmapDescriptor.bytes não existe na Web (fallback: bolinha azul nativa).
+  Future<void> _loadDriverArrowIcon() async {
+    if (kIsWeb) return;
+    try {
+      final bytes = await _createArrowIcon();
+      if (!mounted) return;
+      setState(() => _driverArrowIcon = BitmapDescriptor.bytes(bytes));
+    } catch (_) {/* fallback: bolinha nativa */}
+  }
+
+  Future<Uint8List> _createArrowIcon() async {
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    const size = 56.0;
+    final paint = Paint()..color = AppColors.primary;
+    final path = ui.Path()
+      ..moveTo(size / 2, 0)
+      ..lineTo(size, size)
+      ..lineTo(size / 2, size * 0.7)
+      ..lineTo(0, size)
+      ..close();
+    canvas.drawPath(path, paint);
+    final stroke = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3;
+    canvas.drawPath(path, stroke);
+    final picture = recorder.endRecording();
+    final img = await picture.toImage(size.toInt(), size.toInt());
+    final bytes = await img.toByteData(format: ui.ImageByteFormat.png);
+    return bytes!.buffer.asUint8List();
+  }
+
+  /// [Item N] Atualiza o bearing da seta a partir de posições GPS consecutivas.
+  void _updateBearing(LatLng? driverPos) {
+    if (driverPos == null) return;
+    final prev = _lastArrowPos;
+    if (prev != null &&
+        ((prev.latitude - driverPos.latitude).abs() > 1e-6 ||
+            (prev.longitude - driverPos.longitude).abs() > 1e-6)) {
+      var b = Geolocator.bearingBetween(prev.latitude, prev.longitude,
+          driverPos.latitude, driverPos.longitude);
+      if (b < 0) b += 360;
+      if (mounted) setState(() => _bearing = b);
+    }
+    _lastArrowPos = driverPos;
+  }
+
   /// B2/B6 — pede a rota real (rua a rua) do troço atual e atualiza a polyline
   /// grossa + o ETA. Troço: a caminho/chegou → motorista→recolha; em viagem →
   /// motorista→destino. Idempotente por `_routeKey` (fase + posição ~100 m).
@@ -93,12 +158,15 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     // Chave grosseira: fase + origem arredondada a ~100 m + id da corrida.
     final key = '${ride.id}|${ride.isInProgress}|'
         '${fromLl.latitude.toStringAsFixed(3)},${fromLl.longitude.toStringAsFixed(3)}';
-    if (key == _routeKey) return;
-    _routeKey = key;
+    // [Item N] Só trava a chave DEPOIS de uma rota válida — antes, uma falha
+    // transitória do Directions prendia a chave e a rota NUNCA voltava a
+    // desenhar (o "sumiu depois do build"). Sem polyline ainda → retenta.
+    if (key == _routeKey && _routePolys.isNotEmpty) return;
     try {
       final route =
           await _directions.fetchRoute(origin: fromLl, destination: target);
       if (!mounted || route == null || route.points.isEmpty) return;
+      _routeKey = key;
       setState(() {
         _routePolys = {
           Polyline(
@@ -214,23 +282,35 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     }
   }
 
-  /// B4 — só recolha (verde) + destino (laranja). A posição do motorista é a
-  /// BOLINHA azul nativa (myLocationEnabled), igual ao estafeta — sem pin extra.
-  Set<Marker> _markers(TvdeRide ride) {
-    return <Marker>{
+  /// [Item N] Um só pino LARANJA no alvo atual (recolha até ao pickup, destino
+  /// em viagem) + a SETA verde do motorista (paridade com a home). Sem o pino
+  /// verde extra. Na Web (sem seta), a bolinha azul nativa marca o motorista.
+  Set<Marker> _markers(TvdeRide ride, LatLng? driverPos) {
+    final target = ride.isInProgress
+        ? LatLng(ride.destLat, ride.destLng)
+        : LatLng(ride.originLat, ride.originLng);
+    final label = ride.isInProgress
+        ? (ride.destLabel ?? 'Destino')
+        : (ride.originLabel ?? 'Recolha');
+    final markers = <Marker>{
       Marker(
-        markerId: const MarkerId('origin'),
-        position: LatLng(ride.originLat, ride.originLng),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
-        infoWindow: InfoWindow(title: ride.originLabel ?? 'Recolha'),
-      ),
-      Marker(
-        markerId: const MarkerId('dest'),
-        position: LatLng(ride.destLat, ride.destLng),
+        markerId: const MarkerId('target'),
+        position: target,
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
-        infoWindow: InfoWindow(title: ride.destLabel ?? 'Destino'),
+        infoWindow: InfoWindow(title: label),
       ),
     };
+    if (driverPos != null && _driverArrowIcon != null) {
+      markers.add(Marker(
+        markerId: const MarkerId('me'),
+        position: driverPos,
+        rotation: _bearing,
+        icon: _driverArrowIcon!,
+        anchor: const Offset(0.5, 0.5),
+        flat: true,
+      ));
+    }
+    return markers;
   }
 
   Future<void> _arrived(TvdeRide ride) async {
@@ -374,8 +454,11 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     _onRideChanged(ride);
     _syncWaitTicker(ride);
     // B2/B6 — mantém a rota real + ETA atualizados (idempotente por _routeKey).
-    WidgetsBinding.instance
-        .addPostFrameCallback((_) => _maybeFetchRoute(ride, driverPos));
+    // [Item N] + atualiza o bearing da seta do motorista.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _maybeFetchRoute(ride, driverPos);
+      _updateBearing(driverPos);
+    });
 
     // Finalizada → avaliar passageiro (sem fila; com fila o _finish transita).
     if (ride.isFinished) {
@@ -420,9 +503,9 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
         children: [
           GoogleMap(
             initialCameraPosition: CameraPosition(target: center, zoom: 13),
-            markers: _markers(ride),
+            markers: _markers(ride, driverPos),
             polylines: _routePolys, // B2 — rota real grossa
-            myLocationEnabled: true, // B4 — bolinha azul nativa (sem pin extra)
+            myLocationEnabled: _driverArrowIcon == null, // [Item N] seta ou bolinha
             myLocationButtonEnabled: false,
             zoomControlsEnabled: false,
             compassEnabled: true, // [Item G] paridade com o mapa do estafeta
@@ -453,9 +536,49 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
                 ),
               ),
             ),
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: _ActionPanel(ride: ride, busy: store.busy, actions: this),
+          // [Item N] Card arrastável (bottom sheet), igual ao delivery: puxar
+          // para baixo encolhe (mostra só o essencial e liberta o mapa), puxar
+          // para cima expande. O mapa (com a rota) ocupa o resto.
+          Positioned.fill(
+            child: DraggableScrollableSheet(
+              initialChildSize: 0.30,
+              minChildSize: 0.14,
+              maxChildSize: 0.52,
+              snap: true,
+              snapSizes: const [0.14, 0.30, 0.52],
+              builder: (ctx, scrollController) => Container(
+                decoration: const BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius:
+                      BorderRadius.vertical(top: Radius.circular(Radii.lg)),
+                  boxShadow: [
+                    BoxShadow(
+                        color: Color(0x1F000000),
+                        blurRadius: 16,
+                        offset: Offset(0, -2)),
+                  ],
+                ),
+                child: ListView(
+                  controller: scrollController,
+                  padding: EdgeInsets.zero,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        margin:
+                            const EdgeInsets.symmetric(vertical: Spacing.sm),
+                        decoration: BoxDecoration(
+                          color: AppColors.divider,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    _ActionPanel(ride: ride, busy: store.busy, actions: this),
+                  ],
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -497,17 +620,8 @@ class _ActionPanel extends StatelessWidget {
       onPressed = null;
     }
 
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.all(Spacing.md),
-      padding: const EdgeInsets.all(Spacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(Radii.lg),
-        boxShadow: const [
-          BoxShadow(color: Color(0x1F000000), blurRadius: 16, offset: Offset(0, -2)),
-        ],
-      ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(Spacing.lg, 0, Spacing.lg, Spacing.lg),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,

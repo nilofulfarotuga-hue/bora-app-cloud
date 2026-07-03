@@ -194,7 +194,15 @@ class TvdeDriverStore extends ChangeNotifier {
         event: PostgresChangeEvent.all,
         schema: 'public',
         table: 'tvde_rides',
-        callback: (payload) => _onRideChange(payload.newRecord),
+        callback: (payload) {
+          // [Item E] DELETE não traz newRecord → tratar à parte, senão uma
+          // oferta removida fica presa no ecrã (o "travou" do teste de campo).
+          if (payload.eventType == PostgresChangeEvent.delete) {
+            _onRideDeleted(payload.oldRecord);
+          } else {
+            _onRideChange(payload.newRecord);
+          }
+        },
       )
       ..subscribe();
   }
@@ -243,6 +251,29 @@ class TvdeDriverStore extends ChangeNotifier {
       _offeredRide = null;
       notifyListeners();
     }
+  }
+
+  /// [Item E] Corrida APAGADA (raro em produção — normalmente muda de estado via
+  /// UPDATE — mas defensivo): se era a oferta/fila/ativa atual, limpa para nunca
+  /// prender o ecrã de oferta. O DELETE só traz o oldRecord (PK).
+  void _onRideDeleted(Map<String, dynamic>? oldRecord) {
+    if (oldRecord == null || oldRecord.isEmpty) return;
+    final deletedId = oldRecord['id'] as String?;
+    if (deletedId == null) return;
+    var changed = false;
+    if (_offeredRide?.id == deletedId) {
+      _offeredRide = null;
+      changed = true;
+    }
+    if (_queuedRide?.id == deletedId) {
+      _queuedRide = null;
+      changed = true;
+    }
+    if (_activeRide?.id == deletedId) {
+      _activeRide = null;
+      changed = true;
+    }
+    if (changed) notifyListeners();
   }
 
   // ════════════════════════════════════════════════════════════════════════

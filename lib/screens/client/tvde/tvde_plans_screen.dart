@@ -8,6 +8,8 @@ import '../../../models/tvde_subscription.dart';
 import '../../../services/payment_service.dart';
 import '../../../stores/tvde_store.dart';
 import '../../../widgets/bora/bora.dart';
+import '../reservation/reservation_payment_method_sheet.dart';
+import 'plan_mbway_waiting_dialog.dart';
 
 /// TVDE — Planos de assinatura + contador diário. [Item A] o cliente PAGA o
 /// plano por cartão (Stripe, Edge Function isolada tvde-plan-payment) e a
@@ -30,37 +32,60 @@ class _TvdePlansScreenState extends State<TvdePlansScreen> {
     });
   }
 
-  /// [Item A] Cliente adere pagando por cartão: cria PaymentIntent → folha
-  /// Stripe → ativa (a Edge Function verifica o PI na Stripe). Sem espera pelo
-  /// admin.
-  Future<void> _aderir(String plan, String label, String price) async {
+  /// [Item A] Cliente adere pagando por **cartão OU MB Way** (dinheiro NÃO é
+  /// permitido no plano). Reaproveita o MESMO picker das Reservas/Serviços
+  /// (`ReservationPaymentMethodSheet`) e, no MB Way, o mesmo padrão server-confirm
+  /// + poll. A subscrição ativa-se automaticamente (a Edge Function isolada
+  /// `tvde-plan-payment` verifica o PI na Stripe — sem tocar no webhook).
+  Future<void> _aderir(String plan, String label, double priceEur) async {
     if (kIsWeb) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('O pagamento por cartão está disponível na app móvel.')));
+          content: Text('O pagamento do plano está disponível na app móvel.')));
       return;
     }
-    final confirmed = await showDialog<bool>(
+
+    // Picker cartão/MB Way (sem dinheiro) — reaproveitado das Reservas.
+    final choice = await showModalBottomSheet<ReservationPaymentChoice>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Aderir ao $label?'),
-        content: Text(
-            'Vais pagar $price por cartão. Assim que o pagamento for confirmado, '
-            'o plano fica ativo na tua conta imediatamente.'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Voltar')),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Pagar')),
-        ],
-      ),
+      isScrollControlled: true,
+      builder: (_) =>
+          ReservationPaymentMethodSheet(amountEur: priceEur, title: label),
     );
-    if (confirmed != true) return;
+    if (choice == null || !mounted) return;
 
     final store = context.read<TvdeStore>();
     final messenger = ScaffoldMessenger.of(context);
 
+    // ── MB Way ──────────────────────────────────────────────────────────────
+    if (choice.method == ReservationPaymentMethod.mbway) {
+      final created =
+          await store.createPlanPaymentMbway(plan, choice.mbwayPhone!);
+      if (!mounted) return;
+      if (created == null) {
+        messenger.showSnackBar(const SnackBar(
+            content: Text('Não foi possível iniciar o MBWay. Confirma o número '
+                'e tenta de novo.')));
+        return;
+      }
+      final ok = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => PlanMbwayWaitingDialog(
+          plan: plan,
+          paymentIntentId: created['paymentIntentId'] as String,
+          amount: priceEur,
+        ),
+      );
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(
+          content: Text(ok == true
+              ? 'Plano ativo! Já podes usar as corridas incluídas.'
+              : 'Não recebemos a confirmação MBWay. Se pagaste, reabre os '
+                  'Planos; senão tenta de novo.')));
+      return;
+    }
+
+    // ── Cartão (Stripe) ─────────────────────────────────────────────────────
     // 1) Cria o PaymentIntent do plano (Edge Function isolada).
     final created = await store.createPlanPayment(plan);
     if (!mounted) return;
@@ -121,7 +146,7 @@ class _TvdePlansScreenState extends State<TvdePlansScreen> {
             detail: '14 corridas · 2 incluídas por dia · €4 / corrida',
             onAderir: pending || store.busy
                 ? null
-                : () => _aderir('semanal', 'Plano Semanal', '€56'),
+                : () => _aderir('semanal', 'Plano Semanal', 56),
           ),
           _PlanCard(
             title: 'Plano Quinzenal',
@@ -129,7 +154,7 @@ class _TvdePlansScreenState extends State<TvdePlansScreen> {
             detail: '30 corridas · 2 incluídas por dia · €3,50 / corrida',
             onAderir: pending || store.busy
                 ? null
-                : () => _aderir('quinzenal', 'Plano Quinzenal', '€105'),
+                : () => _aderir('quinzenal', 'Plano Quinzenal', 105),
           ),
           _PlanCard(
             title: 'Plano Mensal',
@@ -137,7 +162,7 @@ class _TvdePlansScreenState extends State<TvdePlansScreen> {
             detail: '60 corridas · 2 incluídas por dia · €3 / corrida',
             onAderir: pending || store.busy
                 ? null
-                : () => _aderir('mensal', 'Plano Mensal', '€180'),
+                : () => _aderir('mensal', 'Plano Mensal', 180),
           ),
         ],
       ),

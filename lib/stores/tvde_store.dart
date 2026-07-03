@@ -416,6 +416,28 @@ class TvdeStore extends ChangeNotifier {
     throw Exception('activate_failed: $data');
   }
 
+  /// [Item A · MB Way] Cria + confirma o PaymentIntent MB Way do plano (a Stripe
+  /// envia o push para a app MB WAY na hora). Devolve {paymentIntentId, status,
+  /// amountCents} ou null. A ativação faz-se depois por poll a [activatePlan]
+  /// (retrieve do PI na Edge Fn isolada — sem webhook). Reaproveita o MESMO
+  /// método MB Way das Reservas/Serviços (server-confirm com billing phone E.164).
+  Future<Map<String, dynamic>?> createPlanPaymentMbway(
+      String plan, String phone) async {
+    try {
+      final res = await _sb.functions.invoke('tvde-plan-payment',
+          body: {'action': 'create_mbway', 'plan': plan, 'phone': phone});
+      final data = res.data;
+      if (data is Map && data['paymentIntentId'] != null) {
+        return Map<String, dynamic>.from(data);
+      }
+      debugPrint('TvdeStore.createPlanPaymentMbway bad response => $data');
+      return null;
+    } catch (e) {
+      debugPrint('TvdeStore.createPlanPaymentMbway error => $e');
+      return null;
+    }
+  }
+
   // ── infra ────────────────────────────────────────────────────────────────
   Map<String, dynamic> _asMap(dynamic res) {
     if (res is Map) return Map<String, dynamic>.from(res);

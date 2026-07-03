@@ -1,16 +1,20 @@
-// supabase/functions/tvde-plan-payment/index.ts — v1 (Item A · TVDE-CAMPO-01)
+// supabase/functions/tvde-plan-payment/index.ts — v2 (Item A · TVDE-CAMPO-01)
 //
-// Pagamento do PLANO TVDE por cartão (Stripe) + ativação automática, SEM tocar
-// no webhook Stripe existente. Função nova e ISOLADA (regra do Danilo).
+// Pagamento do PLANO TVDE por cartão OU MB Way (Stripe) + ativação automática,
+// SEM tocar no webhook Stripe existente. Função nova e ISOLADA (regra do Danilo).
 //
-// Fluxo (2 ações numa só função — nova e separada):
+// Fluxo (3 ações numa só função — nova e separada):
 //   { action: 'create',  plan }
 //     → valida plano, lê o preço SERVER-SIDE (tvde_plan_price_cents),
 //       cria PaymentIntent(amount=preço, eur) com metadata {kind,plan,user_id},
 //       devolve { clientSecret, paymentIntentId, amountCents }.
+//   { action: 'create_mbway', plan, phone }
+//     → igual, mas PaymentIntent MB Way confirmado server-side com o telefone
+//       (E.164) — envia o push MB WAY na hora; devolve { paymentIntentId, status }.
 //   { action: 'activate', plan, payment_intent_id }
 //     → RETRIEVE do PI na Stripe, confirma status='succeeded' + dono + valor,
 //       chama tvde_activate_paid_subscription (idempotente) → subscrição ATIVA.
+//       (Serve cartão E MB Way: o cliente faz poll até 'succeeded'.)
 //
 // verify_jwt = true (utilizador autenticado). O webhook Stripe NÃO é usado aqui:
 // a ativação é verificada por retrieve direto do PaymentIntent.
@@ -140,6 +144,60 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    // ── Ação CREATE_MBWAY: cria + confirma o PaymentIntent MB Way do plano ──
+    // Reaproveita o MESMO padrão de create-mbway-payment-intent (v21):
+    // payment_method_types:['mb_way'] + payment_method_data.billing_details.phone
+    // (E.164) + confirm:true → a Stripe envia o push para a app MB WAY na hora.
+    // A ativação NÃO usa o webhook: o cliente faz poll da ação 'activate', que
+    // faz retrieve do PI e ativa quando status='succeeded' (função isolada).
+    if (action === 'create_mbway') {
+      const rawPhone = typeof body?.phone === 'string' ? body.phone.trim() : '';
+      if (!rawPhone) return json({ error: 'phone_required' }, 400);
+      // Normaliza PT → E.164 (+351XXXXXXXXX), igual ao create-mbway-payment-intent.
+      const digits = rawPhone.replace(/[^\d+]/g, '');
+      const e164 = digits.startsWith('+') ? digits : `+351${digits.replace(/^0/, '')}`;
+
+      // Preço server-side (o cliente nunca envia o valor).
+      const { data: priceData, error: priceErr } =
+        await userClient.rpc('tvde_plan_price_cents', { p_plan: plan });
+      const amountCents = typeof priceData === 'number' ? priceData : Number(priceData);
+      if (priceErr || !amountCents || amountCents < 50) {
+        console.error('[tvde-plan-payment create_mbway] price failed:', priceErr?.message);
+        return json({ error: 'plan_price_unavailable', details: priceErr?.message }, 400);
+      }
+
+      const customerId = await getOrCreateCustomer(admin, user.id);
+
+      let paymentIntent: Stripe.PaymentIntent;
+      try {
+        paymentIntent = await stripe.paymentIntents.create({
+          amount: amountCents,
+          currency: 'eur',
+          ...(customerId ? { customer: customerId } : {}),
+          payment_method_types: ['mb_way'],
+          payment_method_data: {
+            type: 'mb_way',
+            billing_details: { phone: e164 },
+          },
+          confirm: true,
+          metadata: { kind: 'tvde_plan', plan, user_id: user.id },
+        });
+      } catch (e) {
+        const m = e instanceof Error ? e.message : String(e);
+        console.error('[tvde-plan-payment create_mbway] stripe error:', m);
+        return json({ error: 'mbway_create_failed', details: m }, 400);
+      }
+
+      console.log('[tvde-plan-payment create_mbway]', paymentIntent.id, `plan=${plan}`,
+        `amount=€${(amountCents / 100).toFixed(2)}`, `phone=${e164}`, `status=${paymentIntent.status}`);
+
+      return json({
+        paymentIntentId: paymentIntent.id,
+        status: paymentIntent.status,
+        amountCents,
+      });
+    }
+
     // ── Ação ACTIVATE: verifica o PI + cria a subscrição ───────────────────
     if (action === 'activate') {
       const piId = typeof body?.payment_intent_id === 'string'
@@ -183,7 +241,7 @@ Deno.serve(async (req: Request) => {
       return json({ subscription: sub });
     }
 
-    return json({ error: 'invalid_action', details: "use 'create' or 'activate'" }, 400);
+    return json({ error: 'invalid_action', details: "use 'create', 'create_mbway' or 'activate'" }, 400);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error('[tvde-plan-payment] error:', message);

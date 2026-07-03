@@ -526,6 +526,111 @@ class TvdeStore extends ChangeNotifier {
     }
   }
 
+  // ════════════════════════════════════════════════════════════════════════
+  // [CAMPO-02 · Feature 3] IDA-E-VOLTA "Garantir a volta"
+  // ════════════════════════════════════════════════════════════════════════
+
+  /// Cria o PaymentIntent do pacote ida-e-volta (cartão). Preço SERVER-SIDE
+  /// (tvde_roundtrip_price_cents). Reusa a Edge Fn tvde-plan-payment (item A).
+  Future<Map<String, dynamic>?> createRoundtripPayment() async {
+    try {
+      final res = await _sb.functions
+          .invoke('tvde-plan-payment', body: {'action': 'create_roundtrip'});
+      final data = res.data;
+      if (data is Map && data['clientSecret'] != null) {
+        return Map<String, dynamic>.from(data);
+      }
+      debugPrint('TvdeStore.createRoundtripPayment bad response => $data');
+      return null;
+    } catch (e) {
+      debugPrint('TvdeStore.createRoundtripPayment error => $e');
+      return null;
+    }
+  }
+
+  /// MB Way do pacote ida-e-volta (server-confirm com phone E.164).
+  Future<Map<String, dynamic>?> createRoundtripPaymentMbway(String phone) async {
+    try {
+      final res = await _sb.functions.invoke('tvde-plan-payment',
+          body: {'action': 'create_roundtrip_mbway', 'phone': phone});
+      final data = res.data;
+      if (data is Map && data['paymentIntentId'] != null) {
+        return Map<String, dynamic>.from(data);
+      }
+      return null;
+    } catch (e) {
+      debugPrint('TvdeStore.createRoundtripPaymentMbway error => $e');
+      return null;
+    }
+  }
+
+  /// Ativa o vale-volta após o pagamento: liga a corrida de ida ao vale.
+  Future<bool> activateRoundtrip(
+      String outboundRideId, String paymentIntentId) async {
+    try {
+      final res = await _sb.functions.invoke('tvde-plan-payment', body: {
+        'action': 'activate_roundtrip',
+        'outbound_ride_id': outboundRideId,
+        'payment_intent_id': paymentIntentId,
+      });
+      return res.data is Map && (res.data as Map)['credit'] != null;
+    } catch (e) {
+      debugPrint('TvdeStore.activateRoundtrip error => $e');
+      return false;
+    }
+  }
+
+  /// Lê o vale-volta ativo do cliente ({} se não houver). Para "Chamar a volta".
+  Future<Map<String, dynamic>?> activeRoundtripCredit() async {
+    try {
+      final res = await _sb.rpc('tvde_active_roundtrip_credit');
+      if (res is List && res.isNotEmpty) {
+        return Map<String, dynamic>.from(res.first as Map);
+      }
+      if (res is Map) return Map<String, dynamic>.from(res);
+      return null;
+    } catch (e) {
+      debugPrint('TvdeStore.activeRoundtripCredit error => $e');
+      return null;
+    }
+  }
+
+  /// Dispara a corrida de VOLTA usando o vale (desacoplada — corrida separada).
+  Future<TvdeRide?> requestReturnRide({
+    required String creditId,
+    required double originLat,
+    required double originLng,
+    String? originLabel,
+    required double destLat,
+    required double destLng,
+    String? destLabel,
+    required double distanceKm,
+  }) async {
+    _setBusy(true);
+    try {
+      final res = await _sb.rpc('tvde_request_return_ride', params: {
+        'p_credit_id': creditId,
+        'p_origin_lat': originLat,
+        'p_origin_lng': originLng,
+        'p_origin_label': originLabel,
+        'p_dest_lat': destLat,
+        'p_dest_lng': destLng,
+        'p_dest_label': destLabel,
+        'p_est_distance_km': distanceKm,
+      });
+      final ride = TvdeRide.fromMap(_asMap(res));
+      _activeRide = ride;
+      _subscribeRide(ride.id);
+      notifyListeners();
+      return ride;
+    } catch (e) {
+      debugPrint('TvdeStore.requestReturnRide error => $e');
+      rethrow;
+    } finally {
+      _setBusy(false);
+    }
+  }
+
   // ── infra ────────────────────────────────────────────────────────────────
   Map<String, dynamic> _asMap(dynamic res) {
     if (res is Map) return Map<String, dynamic>.from(res);

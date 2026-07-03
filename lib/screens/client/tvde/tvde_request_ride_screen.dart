@@ -6,8 +6,10 @@ import 'package:provider/provider.dart';
 import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
 import '../../../config/maps_config.dart';
+import '../../../models/tvde_ride.dart';
 import '../../../services/directions_service.dart';
 import '../../../services/location_service.dart';
+import '../../../services/payment_service.dart';
 import '../../../stores/tvde_store.dart';
 import '../../../utils/map_utils.dart';
 import '../../../widgets/address_autocomplete_field.dart';
@@ -51,6 +53,11 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
   bool _covered = false;
   String? _coverageLabel;
 
+  // [CAMPO-02 · Feature 3] "Garantir a volta": pacote ida+volta pago adiantado.
+  bool _roundtrip = false;
+  int _roundtripPriceCents = 800; // fallback; sobrescrito por platform_settings
+  Map<String, dynamic>? _activeCredit; // vale-volta ativo (mostra "Chamar a volta")
+
   @override
   void initState() {
     super.initState();
@@ -75,6 +82,15 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
       return;
     }
     await _detectPickup();
+    // [F3] preço do pacote ida-volta + vale ativo (para "Chamar a minha volta").
+    final price = await store.getSettingInt('tvde_roundtrip_price_cents', 800);
+    final credit = await store.activeRoundtripCredit();
+    if (mounted) {
+      setState(() {
+        _roundtripPriceCents = price;
+        _activeCredit = credit;
+      });
+    }
   }
 
   Future<void> _detectPickup() async {
@@ -226,6 +242,100 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     }
   }
 
+  /// [F3] Pedido "garantir a volta": paga €8 (cartão, mesmo PaymentService do
+  /// plano) → cria a corrida de IDA → liga-a ao vale-volta. A volta é disparada
+  /// depois pelo cliente (desacoplada). MB Way reusa a Edge Fn (create_roundtrip_mbway).
+  Future<void> _solicitarRoundtrip() async {
+    final store = context.read<TvdeStore>();
+    final km = _effectiveKm;
+    if (_pickup == null || _dest == null || km == null) return;
+    final messenger = ScaffoldMessenger.of(context);
+
+    final created = await store.createRoundtripPayment();
+    if (!mounted) return;
+    if (created == null || created['clientSecret'] == null) {
+      messenger.showSnackBar(const SnackBar(
+          content: Text('Não foi possível iniciar o pagamento da volta.')));
+      return;
+    }
+    try {
+      await PaymentService().processPayment(created['clientSecret'] as String);
+    } catch (_) {
+      if (!mounted) return;
+      messenger
+          .showSnackBar(const SnackBar(content: Text('Pagamento cancelado.')));
+      return;
+    }
+
+    TvdeRide? ida;
+    try {
+      ida = await store.requestRide(
+        originLat: _pickup!.latitude,
+        originLng: _pickup!.longitude,
+        originLabel: _pickupLabel,
+        destLat: _dest!.latitude,
+        destLng: _dest!.longitude,
+        destLabel: _destLabel,
+        distanceKm: km,
+      );
+    } catch (_) {}
+    if (!mounted) return;
+    if (ida == null) {
+      messenger.showSnackBar(const SnackBar(
+          content:
+              Text('Pago, mas falhou criar a corrida. Fala com o suporte.')));
+      return;
+    }
+    await store.activateRoundtrip(
+        ida.id, created['paymentIntentId'] as String);
+    if (!mounted) return;
+    _openTracking();
+  }
+
+  /// [F3] Dispara a corrida de VOLTA usando o vale ativo (pede o destino).
+  Future<void> _callReturn() async {
+    final credit = _activeCredit;
+    if (credit == null || _pickup == null) return;
+    final store = context.read<TvdeStore>();
+    final picked = await showModalBottomSheet<_ReturnDest>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => const _ReturnSheet(),
+    );
+    if (picked == null || !mounted) return;
+    // distância por rota real (fallback haversine) da recolha atual até ao destino.
+    double km = const Distance()
+        .as(LengthUnit.Kilometer, _pickup!, LatLng(picked.lat, picked.lng));
+    try {
+      final route = await _directions.fetchRoute(
+          origin: _pickup!, destination: LatLng(picked.lat, picked.lng));
+      if (route != null && route.distanceKm > 0) km = route.distanceKm;
+    } catch (_) {}
+    if (!mounted) return;
+    try {
+      await store.requestReturnRide(
+        creditId: credit['id'] as String,
+        originLat: _pickup!.latitude,
+        originLng: _pickup!.longitude,
+        originLabel: _pickupLabel,
+        destLat: picked.lat,
+        destLng: picked.lng,
+        destLabel: picked.label,
+        distanceKm: double.parse(km.toStringAsFixed(2)),
+      );
+      if (!mounted) return;
+      _openTracking();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Não foi possível chamar a volta.')));
+    }
+  }
+
   void _openTracking() {
     Navigator.pushReplacement(
       context,
@@ -266,6 +376,15 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // [F3] vale-volta ativo → "Chamar a minha volta".
+            if (_activeCredit != null) ...[
+              _ReturnCreditCard(
+                credit: _activeCredit!,
+                busy: store.busy,
+                onCall: _callReturn,
+              ),
+              const SizedBox(height: Spacing.md),
+            ],
             // C1 — mapa na tela inicial com o pin da recolha (arrastável).
             _PickupMap(
               pickup: _pickup,
@@ -339,12 +458,22 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
               covered: _covered,
               coverageLabel: _coverageLabel,
             ),
+            const SizedBox(height: Spacing.md),
+            // [F3] "Garantir a volta" — pacote ida+volta pago adiantado.
+            _RoundtripToggle(
+              value: _roundtrip,
+              priceCents: _roundtripPriceCents,
+              onChanged: (v) => setState(() => _roundtrip = v),
+            ),
             const SizedBox(height: Spacing.xl),
             BoraAccentButton(
-              label: 'Solicitar corrida',
-              icon: Icons.local_taxi,
+              label: _roundtrip
+                  ? 'Garantir ida e volta · €${(_roundtripPriceCents / 100).toStringAsFixed(2)}'
+                  : 'Solicitar corrida',
+              icon: _roundtrip ? Icons.sync_alt : Icons.local_taxi,
               loading: store.busy,
-              onPressed: canRequest ? _solicitar : null,
+              onPressed:
+                  canRequest ? (_roundtrip ? _solicitarRoundtrip : _solicitar) : null,
             ),
             const SizedBox(height: Spacing.md),
             Text(
@@ -354,7 +483,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
                   : 'Pagamento em dinheiro ao motorista. O valor final é calculado '
                       'pela distância real da viagem.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textSubtle, fontSize: 12),
+              style: const TextStyle(color: AppColors.textSubtle, fontSize: 12),
             ),
             const SizedBox(height: Spacing.lg),
             // C3 — planos visíveis na tela principal (card discreto, clicável).
@@ -464,26 +593,26 @@ class _PlansTeaser extends StatelessWidget {
           borderRadius: BorderRadius.circular(Radii.md + 2),
           border: Border.all(color: AppColors.divider),
         ),
-        child: Row(
+        child: const Row(
           children: [
-            const Icon(Icons.card_membership, color: AppColors.primary),
-            const SizedBox(width: Spacing.md),
+            Icon(Icons.card_membership, color: AppColors.primary),
+            SizedBox(width: Spacing.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Planos Bora Motorista',
+                  Text('Planos Bora Motorista',
                       style: TextStyle(
                           fontWeight: FontWeight.w700,
                           color: AppColors.textPrimary)),
-                  const SizedBox(height: 2),
+                  SizedBox(height: 2),
                   Text('Corridas incluídas por dia a partir de €3. Vê e adere.',
                       style: TextStyle(
                           fontSize: 12, color: AppColors.textSubtle)),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right, color: AppColors.textSubtle),
+            Icon(Icons.chevron_right, color: AppColors.textSubtle),
           ],
         ),
       ),
@@ -567,6 +696,187 @@ class _EstimateCard extends StatelessWidget {
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// [F3] Toggle "Garantir a volta" — pacote ida+volta pago adiantado.
+class _RoundtripToggle extends StatelessWidget {
+  const _RoundtripToggle(
+      {required this.value, required this.priceCents, required this.onChanged});
+  final bool value;
+  final int priceCents;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(Radii.md + 2),
+        border: Border.all(
+            color: value ? AppColors.primary : AppColors.divider),
+      ),
+      child: SwitchListTile(
+        value: value,
+        onChanged: onChanged,
+        activeColor: AppColors.primary,
+        contentPadding: const EdgeInsets.symmetric(horizontal: Spacing.md),
+        title: const Row(
+          children: [
+            Icon(Icons.sync_alt, size: 18, color: AppColors.primary),
+            SizedBox(width: Spacing.sm),
+            Text('Garantir a volta',
+                style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary)),
+          ],
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(
+            'Pacote ida + volta por €${(priceCents / 100).toStringAsFixed(2)}, pago já. '
+            'Chamas a volta quando quiseres, dentro do prazo.',
+            style: const TextStyle(fontSize: 12, color: AppColors.textSubtle),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// [F3] Card do vale-volta ativo (topo do ecrã) com "Chamar a volta".
+class _ReturnCreditCard extends StatelessWidget {
+  const _ReturnCreditCard(
+      {required this.credit, required this.busy, required this.onCall});
+  final Map<String, dynamic> credit;
+  final bool busy;
+  final VoidCallback onCall;
+
+  @override
+  Widget build(BuildContext context) {
+    final expStr = credit['expires_at']?.toString();
+    final exp = expStr == null ? null : DateTime.tryParse(expStr);
+    String prazo = '';
+    if (exp != null) {
+      final left = exp.difference(DateTime.now());
+      if (!left.isNegative) {
+        final h = left.inHours;
+        final m = left.inMinutes % 60;
+        prazo = h > 0
+            ? 'Válido mais ${h}h${m.toString().padLeft(2, '0')}'
+            : 'Válido mais ${left.inMinutes} min';
+      }
+    }
+    return Container(
+      padding: const EdgeInsets.all(Spacing.md),
+      decoration: BoxDecoration(
+        gradient: AppColors.headerGradient,
+        borderRadius: BorderRadius.circular(Radii.lg),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.sync_alt, color: Colors.white),
+          const SizedBox(width: Spacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Tens uma volta garantida',
+                    style: TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.w700)),
+                if (prazo.isNotEmpty)
+                  Text(prazo,
+                      style: const TextStyle(
+                          color: Colors.white70, fontSize: 12)),
+              ],
+            ),
+          ),
+          FilledButton(
+            onPressed: busy ? null : onCall,
+            style: FilledButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: AppColors.primary),
+            child: const Text('Chamar a volta'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Destino escolhido para a corrida de volta.
+class _ReturnDest {
+  const _ReturnDest({required this.label, required this.lat, required this.lng});
+  final String label;
+  final double lat;
+  final double lng;
+}
+
+/// [F3] Folha para escolher o destino da volta (reusa AddressAutocompleteField).
+class _ReturnSheet extends StatefulWidget {
+  const _ReturnSheet();
+  @override
+  State<_ReturnSheet> createState() => _ReturnSheetState();
+}
+
+class _ReturnSheetState extends State<_ReturnSheet> {
+  final TextEditingController _c = TextEditingController();
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final inset = MediaQuery.of(context).viewInsets.bottom;
+    return Padding(
+      padding: EdgeInsets.only(
+          left: Spacing.lg,
+          right: Spacing.lg,
+          top: Spacing.lg,
+          bottom: Spacing.lg + inset),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.sync_alt, color: AppColors.primary),
+              const SizedBox(width: Spacing.sm),
+              const Expanded(
+                child: Text('Chamar a minha volta',
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary)),
+              ),
+              IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close)),
+            ],
+          ),
+          const SizedBox(height: Spacing.xs),
+          const Text('Para onde vais agora? A recolha é a tua localização atual.',
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+          const SizedBox(height: Spacing.md),
+          AddressAutocompleteField(
+            controller: _c,
+            labelText: 'Destino da volta',
+            onSelected: (address, coords) {
+              if (coords == null) return;
+              Navigator.pop(
+                  context,
+                  _ReturnDest(
+                      label: address,
+                      lat: coords.latitude,
+                      lng: coords.longitude));
+            },
+          ),
+          const SizedBox(height: Spacing.sm),
         ],
       ),
     );

@@ -103,6 +103,87 @@ Deno.serve(async (req: Request) => {
     // deno-lint-ignore no-explicit-any
     const body = await req.json() as any;
     const action = typeof body?.action === 'string' ? body.action : null;
+
+    // ══════════════════════════════════════════════════════════════════════
+    // [CAMPO-02 · Feature 3] IDA-E-VOLTA — pacote pré-pago (8 EUR) que reusa
+    // ESTE checkout isolado. Sem plano; preço server-side (tvde_roundtrip_price_cents).
+    // ══════════════════════════════════════════════════════════════════════
+    if (action === 'create_roundtrip' || action === 'create_roundtrip_mbway' ||
+        action === 'activate_roundtrip') {
+      const rtAdmin = createClient(supabaseUrl, serviceKey);
+
+      // Ativação: verifica o PI + cria o vale (liga a corrida de ida).
+      if (action === 'activate_roundtrip') {
+        const piId = typeof body?.payment_intent_id === 'string' ? body.payment_intent_id : null;
+        const outboundRideId = typeof body?.outbound_ride_id === 'string' ? body.outbound_ride_id : null;
+        if (!piId) return json({ error: 'payment_intent_required' }, 400);
+        let pi: Stripe.PaymentIntent;
+        try { pi = await stripe.paymentIntents.retrieve(piId); }
+        catch (_) { return json({ error: 'payment_intent_not_found' }, 404); }
+        if (pi.status !== 'succeeded') return json({ error: 'payment_not_completed', status: pi.status }, 402);
+        if (pi.metadata?.user_id !== user.id) return json({ error: 'payment_owner_mismatch' }, 403);
+        if (pi.metadata?.kind !== 'tvde_roundtrip') return json({ error: 'payment_kind_mismatch' }, 400);
+        const paidCents = pi.amount_received || pi.amount;
+        const { data: credit, error: rpcErr } = await rtAdmin.rpc('tvde_create_roundtrip_credit', {
+          p_client_id: user.id,
+          p_outbound_ride_id: outboundRideId,
+          p_paid_cents: paidCents,
+          p_payment_intent_id: piId,
+        });
+        if (rpcErr) {
+          console.error('[tvde-plan-payment activate_roundtrip] rpc failed:', rpcErr.message);
+          return json({ error: 'roundtrip_activation_failed', details: rpcErr.message }, 500);
+        }
+        return json({ credit });
+      }
+
+      // Preço server-side do pacote (jsonb → número).
+      const { data: priceRow } = await rtAdmin
+        .from('platform_settings').select('value').eq('key', 'tvde_roundtrip_price_cents').maybeSingle();
+      const amountCents = Number(priceRow?.value ?? 800);
+      if (!amountCents || amountCents < 50) {
+        return json({ error: 'roundtrip_price_unavailable' }, 400);
+      }
+      const customerId = await getOrCreateCustomer(rtAdmin, user.id);
+
+      if (action === 'create_roundtrip') {
+        const paymentIntent = await stripe.paymentIntents.create({
+          amount: amountCents,
+          currency: 'eur',
+          ...(customerId ? { customer: customerId, setup_future_usage: 'off_session' as const } : {}),
+          automatic_payment_methods: { enabled: true },
+          metadata: { kind: 'tvde_roundtrip', user_id: user.id },
+        });
+        return json({
+          clientSecret: paymentIntent.client_secret,
+          paymentIntentId: paymentIntent.id,
+          amountCents,
+        });
+      }
+
+      // create_roundtrip_mbway
+      const rawPhone = typeof body?.phone === 'string' ? body.phone.trim() : '';
+      if (!rawPhone) return json({ error: 'phone_required' }, 400);
+      const digits = rawPhone.replace(/[^\d+]/g, '');
+      const e164 = digits.startsWith('+') ? digits : `+351${digits.replace(/^0/, '')}`;
+      let paymentIntent: Stripe.PaymentIntent;
+      try {
+        paymentIntent = await stripe.paymentIntents.create({
+          amount: amountCents,
+          currency: 'eur',
+          ...(customerId ? { customer: customerId } : {}),
+          payment_method_types: ['mb_way'],
+          payment_method_data: { type: 'mb_way', billing_details: { phone: e164 } },
+          confirm: true,
+          metadata: { kind: 'tvde_roundtrip', user_id: user.id },
+        });
+      } catch (e) {
+        const m = e instanceof Error ? e.message : String(e);
+        return json({ error: 'mbway_create_failed', details: m }, 400);
+      }
+      return json({ paymentIntentId: paymentIntent.id, status: paymentIntent.status, amountCents });
+    }
+
     const plan = typeof body?.plan === 'string' ? body.plan : null;
 
     if (!plan || !VALID_PLANS.includes(plan)) {

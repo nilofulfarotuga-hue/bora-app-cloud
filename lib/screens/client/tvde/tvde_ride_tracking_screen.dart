@@ -62,6 +62,7 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
   int _maxStops = 2; // fallback; sobrescrito por platform_settings
   int _stopFeeCents = 200; // taxa cliente por parada (fallback)
   int _stopTimerSeconds = 120; // espera gratuita informativa por parada
+  int _cancelGraceSeconds = 180; // [F2] janela grátis de cancelamento (fallback)
   Timer? _stopsTicker; // 1s: repinta countdowns + recarrega paradas a cada 5s
   int _stopsTick = 0;
   bool _addingStop = false;
@@ -97,11 +98,13 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
     final max = await store.getSettingInt('tvde_max_stops', 2);
     final fee = await store.getSettingInt('tvde_stop_fee_cents', 200);
     final timer = await store.getSettingInt('tvde_stop_timer_seconds', 120);
+    final grace = await store.getSettingInt('cancel_grace_seconds', 180);
     if (mounted) {
       setState(() {
         _maxStops = max;
         _stopFeeCents = fee;
         _stopTimerSeconds = timer;
+        _cancelGraceSeconds = grace;
       });
     }
   }
@@ -380,18 +383,69 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
   }
 
   Future<void> _cancel(TvdeRide ride) async {
+    // [F2] Preview da taxa por tempo (o backend é a fonte de verdade e respeita
+    // o kill-switch tvde_cancel_full_after_grace). Grátis dentro da janela; depois,
+    // antes do pickup, o cliente paga o valor TOTAL da corrida.
+    final created = ride.createdAt;
+    final elapsed =
+        created == null ? 0 : DateTime.now().difference(created).inSeconds;
+    final withinGrace = elapsed <= _cancelGraceSeconds;
+    final feeCents = withinGrace ? 0 : ride.estFareCents;
+    final graceMin = (_cancelGraceSeconds / 60).round();
+
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Cancelar corrida?'),
-        content: const Text('Tens a certeza que queres cancelar esta corrida?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (feeCents == 0)
+              Text(
+                  'Cancelamento grátis (dentro dos primeiros $graceMin min).',
+                  style: const TextStyle(color: AppColors.textSecondary))
+            else ...[
+              Text(
+                  'Já passaram mais de $graceMin min. Cancelar agora tem um custo:',
+                  style: const TextStyle(color: AppColors.textSecondary)),
+              const SizedBox(height: Spacing.md),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: Spacing.md, vertical: Spacing.sm),
+                decoration: BoxDecoration(
+                  color: AppColors.error.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(Radii.md),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.euro, size: 18, color: AppColors.error),
+                    const SizedBox(width: Spacing.sm),
+                    Expanded(
+                      child: Text(
+                        'Custo de cancelamento: €${(feeCents / 100).toStringAsFixed(2)}',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.error),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: Spacing.sm),
+              const Text('Corresponde ao valor total da corrida.',
+                  style:
+                      TextStyle(color: AppColors.textSubtle, fontSize: 12.5)),
+            ],
+          ],
+        ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Não')),
+              child: const Text('Voltar')),
           TextButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Sim, cancelar')),
+              child: Text(feeCents == 0 ? 'Sim, cancelar' : 'Cancelar e pagar')),
         ],
       ),
     );

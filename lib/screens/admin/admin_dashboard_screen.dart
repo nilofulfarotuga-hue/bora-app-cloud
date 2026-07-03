@@ -70,6 +70,7 @@ import 'admin_wallets_screen.dart';
 import 'admin_weekly_settlements_screen.dart';
 import 'admin_tvde_access_requests_screen.dart';
 import 'admin_tvde_rides_screen.dart';
+import 'admin_tvde_cancellations_screen.dart';
 import 'admin_tvde_drivers_screen.dart';
 import 'admin_tvde_subscriptions_screen.dart';
 import 'admin_tvde_plan_requests_screen.dart';
@@ -989,6 +990,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       context,
                       MaterialPageRoute(
                           builder: (_) => const AdminTvdeRidesScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.cancel_schedule_send,
+                  title: 'Cancelamentos',
+                  subtitle:
+                      'Corridas canceladas · cliente/motorista/no-show · taxa',
+                  color: Colors.redAccent,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminTvdeCancellationsScreen())),
                 ),
                 const SizedBox(height: 10),
                 _NavCard(

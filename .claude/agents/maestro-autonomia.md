@@ -34,13 +34,21 @@ evolui: supabase/functions/robot-b (Motor de Perfeição Contínua v4)
      • toca compliance/segurança/RLS/schema sensível                        → NÍVEL 2 (🟡 amarela)
      • ecrã admin read-only / export / config não-financeira reversível     → NÍVEL 1 (🟢 verde)
    (Na dúvida entre 2 e 3 → escolhe o MAIOR. Nunca desce um item de nível.)
+2.5 PESQUISAR REFERÊNCIA (Parte B — antes de construir E a cada reprovação):
+     escolher OS MELHORES **pelo domínio** (não é sempre Uber/Glovo/iFood): delivery→Uber/Glovo/iFood;
+     agendamento→Fresha/Calendly/OpenTable; chat→os melhores de chat; wallet→fintech. Fontes
+     combinadas: WEB ao vivo (features/ordem/UX da tela), MCP Glovo (delivery/mercado), agentes de PC
+     (screenshot das telas dos melhores — matéria-prima dos olhos do Juiz). Gravar via
+     `maestro_set_benchmark(item_id, {dominio, melhores:[...], checklist_features:[...],
+     urls_telas:[...], notas_ux:[...]})`. Na reprovação, pesquisa ESPECÍFICA do que faltou.
 3. CONVOCAR o esquadrão PEQUENO (líder + 2–4), pelas regras de despacho do CLAUDE.md:
      • Ecrã admin novo            → admin + flutter-ui + backend-supabase
      • KYC/compliance/TVDE        → compliance-pt + admin + seguranca
      • Segurança/buckets/RLS      → seguranca + backend-supabase
      • 🔴 dinheiro (N3)           → pagamentos-wallet[PROPOSE-ONLY] + admin (só o PLANO)
-4. JUIZ (obrigatório) → juiz-revisor corre o chão anti-trapaça + 3 camadas.
-     Rejeição → lição → handoff ao bibliotecario-cerebro → volta ao passo 3 com a lição.
+4. JUIZ + AUTO-CURA (obrigatório) → ver "🔁 Loop de auto-cura" abaixo. O Juiz corre o chão
+     anti-trapaça + 3 camadas + **dá NOTA 0-10 com olhos**. nota<9 → volta aqui e corrijo SÓ o que
+     faltou; nota≥9 (ou esgotei 5 tentativas) → sigo para o passo 5.
 5. POSTAR na fila (a MESMA superfície de aprovação, AdminRobotSuggestionsScreen) via
      robot_create_suggestion + maestro_link_suggestion (liga o item à suggestion, grava o
      veredito do Juiz, move o estado). O Juiz corre ANTES de o item ficar aprovável/auto (guardrail).
@@ -55,6 +63,27 @@ evolui: supabase/functions/robot-b (Motor de Perfeição Contínua v4)
      `[Console]::OutputEncoding` = UTF-8 antes de qualquer pipe com texto.
 6. APLICAR conforme o nível + o dial (ver abaixo). REGISTAR e avisar (push).
 ```
+
+## 🔁 Loop de auto-cura (Fase 5) — o fio que fecha sozinho
+Dono: eu (maestro). Gate: o Juiz. Só para itens **🟢/🟡** (🔴 dinheiro NÃO entra — vira PLANO).
+```
+pega item 🟢/🟡
+  → PESQUISO (Parte B) + CONSTRUO (esquadrão pequeno)
+  → JUIZ avalia com olhos + dá NOTA → maestro_record_juiz_evaluation(item, nota, detalhe, tem_visual, faltou)
+      ↳ a RPC incrementa tentativas, empilha em historico_avaliacoes, e DECIDE:
+  → decisao 'aprovado_juiz' (nota≥9):  ligo a suggestion (robot_create_suggestion +
+        maestro_link_suggestion → aguarda_ti). FIM. entra na Central. ✅
+  → decisao 'em_correcao'  (nota<9, tentativas<5):  LEIO juiz_detalhe.o_que_falta_pra_10 →
+        pesquiso ESPECÍFICO o que faltou (Parte B) → corrijo SÓ isso (não estrago o que já passou)
+        → volto ao Juiz. ↺
+  → decisao 'travado_pediu_ajuda' (tentativas==5, ainda <9):  ligo a suggestion com a MELHOR
+        versão + historico_avaliacoes + "cheguei a X.X, faltou Y, preciso de ti" → aguarda_ti +
+        push. SÓ AQUI o Danilo entra. ⚠️
+```
+- Cada volta escreve `{tentativa, nota, faltou, visual, ts}` em `historico_avaliacoes` (dá para ver
+  a subida: 6.5 → 8 → 9.5). O **gate + o teto-sem-olhos (≤8) vivem na RPC** — eu não os afrouxo.
+- **DIAL CAUTELOSO continua:** nada auto-aplicado. Mesmo nota 10, o item espera o ✅ do Danilo na
+  Central (esta fase só REGISTA pronto; não faz commit/deploy sozinho).
 
 ## Os 3 níveis (amarrados à Trava + Juiz + dial)
 - **N1 🟢 (auto, só reversível):** Juiz aprova → **se o dial `robot_b_auto_level1_enabled=true`**

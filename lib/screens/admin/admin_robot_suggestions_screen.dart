@@ -25,6 +25,7 @@ class _S extends State<AdminRobotSuggestionsScreen> {
   List<Map<String, dynamic>> _audit = const [];
   Map<String, dynamic> _metrics = const {};
   Map<String, dynamic> _autonomy = const {};
+  List<Map<String, dynamic>> _backlog = const [];
   bool _loading = true;
   String? _error;
 
@@ -44,12 +45,18 @@ class _S extends State<AdminRobotSuggestionsScreen> {
       });
       final metrics = await Supabase.instance.client.rpc('admin_robot_metrics');
       final autonomy = await Supabase.instance.client.rpc('admin_autonomy_dashboard');
+      // Backlog do loop autónomo — para a "Prova da auto-cura" (nota/olhos/histórico).
+      final backlog = await Supabase.instance.client.rpc('admin_list_autonomy_backlog', params: {
+        'p_goal_slug': 'paridade-admin-360',
+        'p_limit': 200, 'p_offset': 0,
+      });
       if (mounted) {
         setState(() {
           _rows = ((sugs as List?) ?? []).map((e) => (e as Map).cast<String, dynamic>()).toList();
           _audit = ((audit as List?) ?? []).map((e) => (e as Map).cast<String, dynamic>()).toList();
           _metrics = ((metrics as Map?) ?? {}).cast<String, dynamic>();
           _autonomy = ((autonomy as Map?) ?? {}).cast<String, dynamic>();
+          _backlog = ((backlog as List?) ?? []).map((e) => (e as Map).cast<String, dynamic>()).toList();
         });
       }
     } catch (e) {
@@ -520,6 +527,180 @@ class _S extends State<AdminRobotSuggestionsScreen> {
     );
   }
 
+  // ── prova da auto-cura (Fase 5) ──────────────────────────────────────────────
+  // Cada item mostra: nota do Juiz (badge grande), nº de tentativas, a linha do
+  // tempo das notas (a subida volta a volta), 👁 tem_visual e a referência usada.
+  Color _notaColor(double n) => n >= 9
+      ? AppColors.primary
+      : n >= 7
+          ? const Color(0xFFFF8F00)
+          : AppColors.error;
+
+  Widget _notaBadge(double n, {double size = 15}) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: _notaColor(n),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Text('${n.toStringAsFixed(1)}/10',
+            style: TextStyle(color: Colors.white, fontSize: size, fontWeight: FontWeight.bold)),
+      );
+
+  // "6.5 → 8.0 → 9.5" a partir de historico_avaliacoes.
+  Widget _notaTimeline(List hist) {
+    if (hist.isEmpty) return const SizedBox.shrink();
+    final spans = <InlineSpan>[];
+    for (var i = 0; i < hist.length; i++) {
+      final m = (hist[i] as Map);
+      final n = (m['nota'] as num?)?.toDouble() ?? 0;
+      final visual = m['visual'] == true;
+      if (i > 0) {
+        spans.add(const TextSpan(text: '  →  ',
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 12)));
+      }
+      spans.add(TextSpan(
+        text: '${n.toStringAsFixed(1)}${visual ? '👁' : ''}',
+        style: TextStyle(
+            color: _notaColor(n), fontWeight: FontWeight.bold, fontSize: 12),
+      ));
+    }
+    return Text.rich(TextSpan(children: spans));
+  }
+
+  void _showItemProof(Map<String, dynamic> b) {
+    final hist = (b['historico_avaliacoes'] as List?) ?? const [];
+    final ref = b['referencia_benchmark'];
+    final det = b['juiz_detalhe'];
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.7,
+        maxChildSize: 0.95,
+        builder: (_, scroll) => Padding(
+          padding: const EdgeInsets.all(16),
+          child: ListView(controller: scroll, children: [
+            Text(b['dominio']?.toString() ?? '',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Row(children: [
+              if (b['juiz_nota'] != null) _notaBadge((b['juiz_nota'] as num).toDouble()),
+              const SizedBox(width: 8),
+              Text('${b['tentativas'] ?? 0} tentativa(s)',
+                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+              const SizedBox(width: 8),
+              Icon(b['tem_visual'] == true ? Icons.visibility : Icons.visibility_off,
+                  size: 16, color: b['tem_visual'] == true ? AppColors.primary : Colors.grey),
+              Text(b['tem_visual'] == true ? ' com olhos' : ' sem olhos (teto 8)',
+                  style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+            ]),
+            const Divider(height: 22),
+            const Text('Evolução das notas (volta a volta)',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            const SizedBox(height: 6),
+            _notaTimeline(hist),
+            const SizedBox(height: 14),
+            const Text('O que faltou / rubrica do Juiz',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(top: 4),
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                  color: AppColors.surface2, borderRadius: BorderRadius.circular(8)),
+              child: Text(_pretty(det),
+                  style: const TextStyle(fontFamily: 'monospace', fontSize: 11)),
+            ),
+            const SizedBox(height: 14),
+            const Text('Referência dos melhores usada',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(top: 4),
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                  color: AppColors.surface2, borderRadius: BorderRadius.circular(8)),
+              child: Text(_pretty(ref),
+                  style: const TextStyle(fontFamily: 'monospace', fontSize: 11)),
+            ),
+            const SizedBox(height: 16),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  // Card só aparece quando há itens já avaliados pelo loop (nota != null).
+  Widget _proofSection() {
+    final avaliados = _backlog
+        .where((b) => b['juiz_nota'] != null || (b['tentativas'] as num?) != null && (b['tentativas'] as num) > 0)
+        .toList();
+    if (avaliados.isEmpty) return const SizedBox.shrink();
+    String estadoLabel(String e) => switch (e) {
+          'aguarda_ti' => 'na Central (aguarda ✅)',
+          'em_correcao' => 'em correção',
+          'travado_pediu_ajuda' => 'pediu ajuda',
+          'feito' => 'feito',
+          'a_correr' => 'a correr',
+          _ => e,
+        };
+    return Card(
+      margin: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Row(children: [
+            Icon(Icons.biotech_outlined, size: 18, color: AppColors.primary),
+            SizedBox(width: 6),
+            Text('🔬 Prova da auto-cura (Juiz ↔ maestro)',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+          ]),
+          const SizedBox(height: 4),
+          const Text('Nota do Juiz (0-10), quantas voltas levou, se teve olhos (👁 = viu a própria tela).',
+              style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+          const SizedBox(height: 8),
+          ...avaliados.take(6).map((b) {
+            final nota = (b['juiz_nota'] as num?)?.toDouble();
+            final hist = (b['historico_avaliacoes'] as List?) ?? const [];
+            final estado = b['estado']?.toString() ?? '';
+            return InkWell(
+              onTap: () => _showItemProof(b),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(children: [
+                  if (nota != null) _notaBadge(nota) else const SizedBox(width: 44),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(b['dominio']?.toString() ?? '',
+                          maxLines: 1, overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                      const SizedBox(height: 2),
+                      Row(children: [
+                        Text('${b['tentativas'] ?? 0}× · ${estadoLabel(estado)}',
+                            style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                        const SizedBox(width: 8),
+                        Icon(b['tem_visual'] == true ? Icons.visibility : Icons.visibility_off,
+                            size: 13,
+                            color: b['tem_visual'] == true ? AppColors.primary : Colors.grey),
+                      ]),
+                      if (hist.length > 1) ...[
+                        const SizedBox(height: 3),
+                        _notaTimeline(hist),
+                      ],
+                    ]),
+                  ),
+                  const Icon(Icons.chevron_right, size: 18, color: AppColors.textSecondary),
+                ]),
+              ),
+            );
+          }),
+        ]),
+      ),
+    );
+  }
+
   // ── build ───────────────────────────────────────────────────────────────────
 
   @override
@@ -555,6 +736,7 @@ class _S extends State<AdminRobotSuggestionsScreen> {
   Widget _suggestionsTab() {
     return Column(children: [
       _parityHeader(),
+      _proofSection(),
       _metricsCard(),
       Padding(
         padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),

@@ -79,6 +79,15 @@ Marca cada eixo ✅/⚠️/❌. Um ❌ → REJEITA; ⚠️ → olho humano.
   (cliente → pagamento → ordem). Diagnostica e propõe patch; o resultado volta ao Juiz para as 3
   camadas. Nota: checkout toca dinheiro → `checkout-fixer` propõe, a Trava/Lista Vermelha decide.
 
+## 🎛️ Fase 5 — nota 0-10 + olhos (loop de auto-cura)
+Ao julgar um item do loop autónomo (`autonomy_backlog_items`), o Juiz **dá nota 0-10** e regista
+tudo pela RPC determinística `maestro_record_juiz_evaluation` (gate `nota>=nota_minima_aceite`,
+empilha `historico_avaliacoes`, incrementa `tentativas`). **Teto-sem-olhos:** sem screenshot da
+própria app (`tem_visual=false`) a nota é limitada a **8** (na RPC, mecanicamente). nota<9 →
+`em_correcao` (volta ao maestro); 5 tentativas sem 9 → `travado_pediu_ajuda` (cai na Central). O
+chão anti-trapaça continua a correr **antes** — nota alta nunca dispensa o PASSO 0. Ver
+`.claude/agents/juiz-revisor.md` §AUTONOMIA e `.claude/agents/maestro-autonomia.md` §Loop de auto-cura.
+
 ## Ficheiros
 - `anti_trapaca.py` — chão determinístico (Parte C). **Corre primeiro, sempre.**
 - `zonas_diff.py` — Camada 2 (3): diff × zonas protegidas.

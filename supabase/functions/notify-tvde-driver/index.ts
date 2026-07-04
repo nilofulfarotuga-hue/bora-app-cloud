@@ -111,10 +111,19 @@ Deno.serve(async (req) => {
   const headsUpBody = `${originLabel} → ${destLabel} • €${fareEur}` +
     (distanceKm !== '0' ? ` • ${distanceKm}km` : '')
 
+  // ── A1 FIX (turno noite 2026-07-04): DATA-ONLY, idêntico a notify-driver ────
+  // ROOT CAUSE do "TVDE não toca/não sobrepõe em background": o bloco
+  // `notification` (title/body) fazia o FCM SDK mostrar a notificação SOZINHO
+  // quando a app estava em background / ecrã bloqueado / app morta → o handler
+  // Flutter `_firebaseMessagingBackgroundHandler` (que constrói o fullScreenIntent
+  // + FLAG_INSISTENT + som em loop no canal urgente v3) NUNCA corria; só corria
+  // ao TOCAR na notificação. O delivery funciona porque é DATA-ONLY: sem bloco
+  // `notification`, o handler corre SEMPRE (mesmo app morta) e desenha o overlay.
+  // Removidos os blocos `notification` e `android.notification`; o canal/som/
+  // fullScreenIntent passam a ser 100% responsabilidade do handler Flutter.
   const message = {
     message: {
       token: fcmToken,
-      notification: { title: '🚗 Nova corrida!', body: headsUpBody },
       data: {
         rideId:     String(rideId),
         type:       'new_tvde_ride_offer',
@@ -124,17 +133,7 @@ Deno.serve(async (req) => {
         title:      '🚗 Nova corrida!',
         body:       headsUpBody,
       },
-      android: {
-        priority: 'high',
-        ttl: '60s',
-        notification: {
-          channel_id: 'bora_orders_urgent_v3',
-          priority: 'max',
-          default_sound: true,
-          default_vibrate_timings: true,
-          visibility: 'PUBLIC',
-        },
-      },
+      android: { priority: 'high', ttl: '60s' },
       apns: {
         headers: { 'apns-priority': '10', 'apns-push-type': 'background' },
         payload: { aps: { 'content-available': 1, sound: 'bora_alert.wav', 'interruption-level': 'time-sensitive' } },

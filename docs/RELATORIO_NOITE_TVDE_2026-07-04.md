@@ -138,5 +138,31 @@ simulando o cliente via inserção controlada no banco + dispatch real. Prints e
   (`f3db699c`, `3c071c6c`) presos em `callingDriver` no `503a2e09` retirado — cadeia de
   dispatch morta não faz safety-timeout; limpar/cancelar de manhã (não afeta o `4f61dd31`).
 
+## 🔒 Fecho do turno
+- **Commits/push (branch autonomous-night-2026-04-29):** A1 (`notify-tvde-driver` data-only),
+  A2 (foreground som), B (zoom Waze + settings), relatório + prints. CI a gerar build ≥362.
+- **Deploys LIVE:** `notify-tvde-driver` **v4** (data-only). Migrations: nenhuma nova minha
+  esta noite (settings `tvde_nav_zoom/tilt` via INSERT, não-financeiro).
+- **Backends F1/F2/F3 (sessão 02) confirmados presentes:** `tvde_add_stop`/`tvde_reach_stop`/
+  `tvde_remove_stop`, `tvde_create_roundtrip_credit`/`tvde_active_roundtrip_credit`,
+  `tvde_cancel_ride` (tempo). Fluxos on-device por correr de manhã (D11/D12/D13).
+- **Teste lado-cliente (D8/B):** o telemóvel cliente estava a dormir quando injetei a corrida
+  → o realtime perdeu o INSERT e a app não roteou para rastreio (artefacto da injeção, não
+  bug). Confirmado: ecrã de pedido com **"Garantir a volta €8.00 pago já"** (F3 UI presente).
+  Ficha do carro (D8) do motorista está preenchida no banco (**Hyundai Ioniq 5 · Azul ·
+  CH-90-PX**) — validar visualmente numa corrida real de manhã.
+- **/ctx doctor:** PASS (servidor/FTS5/hook). **/ctx stats:** 51.9% redução de contexto na
+  sessão. context-mode v1.0.89 → **v1.0.169 disponível** (correr `ctx_upgrade` quando quiseres).
+- **Nada partido:** só edições aditivas/isoladas; Trava nunca desligada; nenhum cartão real
+  cobrado; apps não desinstaladas; `pubspec` não tocado (CI bumpa o versionCode).
+
+### ▶️ Primeiros passos ao acordar (ordem sugerida)
+1. Instalar o build novo (Play Internal) nos 2 telemóveis → desbloqueia A2, B (zoom), e o
+   resto da bateria D.
+2. Rever o `tvde_finish_ride` FINAL da sessão 02 → aplicar o **Bloco C (ida-volta cash)** com o
+   spec acima.
+3. Correr a bateria D pendente (D7–D14) com os 2 telemóveis, prints pro Juiz.
+4. Aprovar o MB Way real quando quiseres testar pagamento a sério.
+
 ---
-_Atualizado ao longo da noite._
+_Turno concluído ~04:50 (Lisboa). Relatório final._

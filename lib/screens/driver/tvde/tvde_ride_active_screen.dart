@@ -106,11 +106,25 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     super.dispose();
   }
 
-  /// B5 — botão mira: recentra a câmara na posição do motorista.
+  /// [Bloco B 2026-07-04] Câmara estilo Waze no modo corrida ativa: zoom
+  /// aproximado + tilt 45° (sensação 3D de seguir a rua). Este ecrã é SEMPRE
+  /// "em corrida", por isso aplica-se sempre aqui (a home mantém o seu zoom).
+  /// Valores em settings (tvde_nav_zoom / tvde_nav_tilt) para o Danilo afinar
+  /// sem build — leitura dinâmica pendente; por agora os defaults abaixo.
+  static const double _kNavZoom = 17.5; // faixa 17–18 (Waze usa 17)
+  static const double _kNavTilt = 45.0; // 3D following
+
+  /// B5 — botão mira: recentra a câmara na posição do motorista (zoom Waze).
   Future<void> _recenter(LatLng? driverPos, LatLng fallback) async {
     final c = _mapCtrl;
     if (c == null) return;
-    await c.animateCamera(CameraUpdate.newLatLngZoom(driverPos ?? fallback, 15));
+    await c.animateCamera(CameraUpdate.newCameraPosition(
+      CameraPosition(
+        target: driverPos ?? fallback,
+        zoom: _kNavZoom,
+        tilt: _kNavTilt,
+      ),
+    ));
   }
 
   /// [Item N] Seta verde do motorista (igual à home). Off-Web apenas —

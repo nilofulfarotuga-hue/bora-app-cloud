@@ -997,10 +997,19 @@ class NotificationService {
         '[NotificationService FG] data=${msg.data}',
       );
       final type = msg.data['type'];
-      // new_order / new_order_offer: o realtime channel já renderiza o card
-      // com countdown + dispara o som via UI. Skipar aqui evita double-sound.
+      // new_order: o realtime channel já renderiza o card + som via UI.
       if (type == 'new_order') return;
-      if (type == 'new_order_offer') return;
+      // [A2 2026-07-04] new_order_offer em FOREGROUND: antes era `return`
+      // silencioso porque "o card do delivery dispara o som via UI". Mas esse
+      // som só toca no ECRÃ do delivery — um motorista "everything" no mapa
+      // TVDE (ou noutro ecrã) recebia a oferta de ENTREGA em SILÊNCIO. Agora
+      // alerta sempre ao chegar (som curto), independente do ecrã. No ecrã do
+      // delivery pode sobrepor levemente o som do card (aceitável — o objetivo
+      // é NUNCA silêncio; um beep curto sobre o loop é imperceptível).
+      if (type == 'new_order_offer') {
+        _sound.playOnce();
+        return;
+      }
       if (type == 'chat') {
         _showChatBanner(msg);
         return;

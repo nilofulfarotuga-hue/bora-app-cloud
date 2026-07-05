@@ -21,6 +21,7 @@ import '../services/auth_admin_service.dart';
 import '../services/wallet_service.dart';
 import '../stores/driver_store.dart';
 import '../stores/session_store.dart';
+import 'cleaner/cleaner_home_screen.dart';
 import 'client/reservation/my_reservation_lists_screen.dart';
 import 'client/services/my_appointments_screen.dart';
 import 'client_reservations_screen.dart';
@@ -650,6 +651,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(builder: (_) => const ReferralScreen()),
+                    ),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.cleaning_services_outlined,
+                        color: AppColors.primary),
+                    title: const Text('Sou profissional de limpeza'),
+                    subtitle:
+                        const Text('Candidata-te e gere as tuas limpezas'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const CleanerHomeScreen()),
                     ),
                   ),
                   ListTile(

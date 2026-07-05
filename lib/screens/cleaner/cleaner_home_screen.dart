@@ -1,0 +1,706 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../../config/app_colors.dart';
+import '../../config/app_spacing.dart';
+import '../../models/cleaning_models.dart';
+import '../../stores/cleaner_store.dart';
+import '../../widgets/bora/bora.dart';
+import 'cleaner_apply_screen.dart';
+import 'cleaner_availability_screen.dart';
+import 'cleaner_earnings_screen.dart';
+
+/// LIMPEZA — painel da profissional. Router por estado da candidatura:
+/// sem registo → convite; pending → em análise; rejected → recandidatar;
+/// suspended → aviso; approved → painel (ofertas + agenda + atalhos).
+class CleanerHomeScreen extends StatefulWidget {
+  const CleanerHomeScreen({super.key});
+
+  @override
+  State<CleanerHomeScreen> createState() => _CleanerHomeScreenState();
+}
+
+class _CleanerHomeScreenState extends State<CleanerHomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) context.read<CleanerStore>().loadProfile();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final store = context.watch<CleanerStore>();
+    final profile = store.profile;
+
+    return Scaffold(
+      appBar: const BoraScreenAppBar(title: 'Limpezas — Profissional'),
+      body: !store.profileLoaded
+          ? const Center(child: CircularProgressIndicator())
+          : profile == null
+              ? _InviteView(onApply: _openApply)
+              : switch (profile.approvalStatus) {
+                  'approved' => _PanelView(store: store),
+                  'pending' => const _StatusView(
+                      icon: Icons.hourglass_top,
+                      color: AppColors.warning,
+                      title: 'Candidatura em análise',
+                      subtitle:
+                          'A equipa Bora está a rever os teus dados. '
+                          'Avisamos-te assim que estiver aprovada.',
+                    ),
+                  'suspended' => const _StatusView(
+                      icon: Icons.pause_circle_outline,
+                      color: AppColors.error,
+                      title: 'Conta suspensa para revisão',
+                      subtitle:
+                          'A tua conta está em revisão pela equipa Bora. '
+                          'Contacta o suporte para mais detalhes.',
+                    ),
+                  _ => _RejectedView(
+                      reason: profile.rejectionReason,
+                      onReapply: _openApply,
+                    ),
+                },
+    );
+  }
+
+  void _openApply() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const CleanerApplyScreen()),
+    ).then((_) {
+      if (mounted) context.read<CleanerStore>().loadProfile();
+    });
+  }
+}
+
+// ─── estados sem painel ──────────────────────────────────────────────────────
+
+class _InviteView extends StatelessWidget {
+  const _InviteView({required this.onApply});
+  final VoidCallback onApply;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(Spacing.xl),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Center(
+            child: Container(
+              width: 96,
+              height: 96,
+              decoration: const BoxDecoration(
+                color: AppColors.primaryWash,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.cleaning_services,
+                  size: 48, color: AppColors.primary),
+            ),
+          ),
+          const SizedBox(height: Spacing.lg),
+          Text(
+            'Ganha com limpezas',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+          ),
+          const SizedBox(height: Spacing.sm),
+          const Text(
+            'Recebe 85% de cada limpeza + o valor dos produtos quando os '
+            'levas. Tu escolhes os dias, as horas e a zona onde trabalhas.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.textSecondary, height: 1.4),
+          ),
+          const SizedBox(height: Spacing.xl),
+          BoraPrimaryButton(
+            label: 'Quero candidatar-me',
+            icon: Icons.arrow_forward,
+            onPressed: onApply,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatusView extends StatelessWidget {
+  const _StatusView({
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.subtitle,
+  });
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(Spacing.xl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 64, color: color),
+            const SizedBox(height: Spacing.lg),
+            Text(title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary)),
+            const SizedBox(height: Spacing.sm),
+            Text(subtitle,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                    color: AppColors.textSecondary, height: 1.4)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RejectedView extends StatelessWidget {
+  const _RejectedView({required this.reason, required this.onReapply});
+  final String? reason;
+  final VoidCallback onReapply;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(Spacing.xl),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Icon(Icons.cancel_outlined, size: 64, color: AppColors.error),
+          const SizedBox(height: Spacing.lg),
+          const Text('Candidatura recusada',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary)),
+          if (reason != null && reason!.isNotEmpty) ...[
+            const SizedBox(height: Spacing.sm),
+            Text('Motivo: $reason',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: AppColors.textSecondary)),
+          ],
+          const SizedBox(height: Spacing.xl),
+          BoraPrimaryButton(
+            label: 'Candidatar de novo',
+            icon: Icons.refresh,
+            onPressed: onReapply,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── painel aprovado ─────────────────────────────────────────────────────────
+
+class _PanelView extends StatelessWidget {
+  const _PanelView({required this.store});
+  final CleanerStore store;
+
+  @override
+  Widget build(BuildContext context) {
+    final profile = store.profile!;
+    return RefreshIndicator(
+      onRefresh: () async {
+        await store.loadWork();
+      },
+      child: ListView(
+        padding: const EdgeInsets.all(Spacing.lg),
+        children: [
+          // Disponibilidade geral (interruptor da própria)
+          Container(
+            padding: const EdgeInsets.all(Spacing.md),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(Radii.lg),
+              border: Border.all(color: AppColors.divider),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  profile.isActive
+                      ? Icons.check_circle
+                      : Icons.pause_circle_filled,
+                  color: profile.isActive
+                      ? AppColors.primary
+                      : AppColors.textSubtle,
+                ),
+                const SizedBox(width: Spacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        profile.isActive
+                            ? 'A receber novas limpezas'
+                            : 'Em pausa — sem novas ofertas',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary),
+                      ),
+                      if (profile.ratingsCount > 0)
+                        Text(
+                          '★ ${profile.ratingAvg.toStringAsFixed(1)} '
+                          '(${profile.ratingsCount}) · '
+                          '${profile.cleaningsDone} limpezas',
+                          style: const TextStyle(
+                              color: AppColors.textSecondary, fontSize: 12),
+                        ),
+                    ],
+                  ),
+                ),
+                Switch(
+                  value: profile.isActive,
+                  activeThumbColor: AppColors.primary,
+                  onChanged: store.busy
+                      ? null
+                      : (v) => store.setProfile(isActive: v),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: Spacing.lg),
+
+          // Atalhos
+          Row(
+            children: [
+              Expanded(
+                child: _ShortcutCard(
+                  icon: Icons.calendar_month,
+                  label: 'Agenda semanal',
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const CleanerAvailabilityScreen()),
+                  ),
+                ),
+              ),
+              const SizedBox(width: Spacing.md),
+              Expanded(
+                child: _ShortcutCard(
+                  icon: Icons.payments_outlined,
+                  label: 'Ganhos',
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const CleanerEarningsScreen()),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: Spacing.lg),
+
+          if (store.slots.isEmpty) ...[
+            Container(
+              padding: const EdgeInsets.all(Spacing.md),
+              decoration: BoxDecoration(
+                color: AppColors.warning.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(Radii.lg),
+                border:
+                    Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.info_outline, color: AppColors.warning),
+                  SizedBox(width: Spacing.md),
+                  Expanded(
+                    child: Text(
+                      'Ainda não definiste a tua agenda semanal — sem ela '
+                      'não recebes ofertas.',
+                      style: TextStyle(color: AppColors.textPrimary),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: Spacing.lg),
+          ],
+
+          // Ofertas pendentes
+          if (store.offers.isNotEmpty) ...[
+            const _SectionLabel('Novas ofertas'),
+            for (final b in store.offers)
+              _OfferCard(booking: b, store: store),
+            const SizedBox(height: Spacing.md),
+          ],
+
+          // Agenda ativa
+          const _SectionLabel('As minhas limpezas'),
+          if (store.agenda.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: Spacing.md),
+              child: Text(
+                'Sem limpezas marcadas. As novas ofertas aparecem aqui.',
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
+            )
+          else
+            for (final b in store.agenda) _AgendaCard(booking: b, store: store),
+          const SizedBox(height: Spacing.xl),
+        ],
+      ),
+    );
+  }
+}
+
+class _ShortcutCard extends StatelessWidget {
+  const _ShortcutCard({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(Radii.lg),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(Spacing.md),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(Radii.lg),
+          border: Border.all(color: AppColors.divider),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: AppColors.primary, size: 28),
+            const SizedBox(height: Spacing.xs),
+            Text(label,
+                style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    color: AppColors.textPrimary)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Spacing.sm),
+      child: Text(text,
+          style: const TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: 15,
+              color: AppColors.textPrimary)),
+    );
+  }
+}
+
+String _fmtWhen(DateTime d) {
+  String two(int n) => n.toString().padLeft(2, '0');
+  return '${two(d.day)}/${two(d.month)} às ${two(d.hour)}:${two(d.minute)}';
+}
+
+class _OfferCard extends StatelessWidget {
+  const _OfferCard({required this.booking, required this.store});
+  final CleaningBooking booking;
+  final CleanerStore store;
+
+  @override
+  Widget build(BuildContext context) {
+    final b = booking;
+    final minsLeft =
+        b.offerExpiresAt?.difference(DateTime.now()).inMinutes;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Spacing.sm),
+      child: Container(
+        padding: const EdgeInsets.all(Spacing.md),
+        decoration: BoxDecoration(
+          color: AppColors.primaryWash,
+          borderRadius: BorderRadius.circular(Radii.lg),
+          border: Border.all(color: AppColors.primary, width: 1.5),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('${b.typeLabel} · ${b.sizeLabel}',
+                style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary)),
+            const SizedBox(height: 2),
+            Text(
+              '${_fmtWhen(b.scheduledAt)} · ${b.addressCity}\n'
+              'Ganhas ${CleaningLabels.euro(b.cleanerEarningsCents)}'
+              '${b.productsBy == 'cleaner' ? ' (produtos incluídos)' : ''}'
+              '${b.isRecurring ? ' · ${b.recurrenceLabel}' : ''}',
+              style: const TextStyle(
+                  color: AppColors.textSecondary, height: 1.4),
+            ),
+            if (minsLeft != null && minsLeft >= 0)
+              Padding(
+                padding: const EdgeInsets.only(top: Spacing.xs),
+                child: Text('Expira em $minsLeft min',
+                    style: const TextStyle(
+                        color: AppColors.warning,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700)),
+              ),
+            const SizedBox(height: Spacing.sm),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: store.busy
+                        ? null
+                        : () => _run(context, () => store.rejectBooking(b.id),
+                            'Oferta recusada.'),
+                    child: const Text('Recusar'),
+                  ),
+                ),
+                const SizedBox(width: Spacing.md),
+                Expanded(
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.primary),
+                    onPressed: store.busy
+                        ? null
+                        : () => _run(context, () => store.acceptBooking(b.id),
+                            'Limpeza aceite! 🎉'),
+                    child: const Text('Aceitar'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _run(BuildContext context, Future<void> Function() action,
+      String successMsg) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await action();
+      messenger.showSnackBar(SnackBar(content: Text(successMsg)));
+    } catch (e) {
+      final expired = e.toString().contains('offer');
+      messenger.showSnackBar(SnackBar(
+          content: Text(expired
+              ? 'Esta oferta já não está disponível.'
+              : 'Não foi possível concluir. Tenta de novo.')));
+    }
+  }
+}
+
+class _AgendaCard extends StatelessWidget {
+  const _AgendaCard({required this.booking, required this.store});
+  final CleaningBooking booking;
+  final CleanerStore store;
+
+  @override
+  Widget build(BuildContext context) {
+    final b = booking;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Spacing.sm),
+      child: Container(
+        padding: const EdgeInsets.all(Spacing.md),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(Radii.lg),
+          border: Border.all(color: AppColors.divider),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text('${b.typeLabel} · ${b.sizeLabel}',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary)),
+                ),
+                Text(b.status.labelPt,
+                    style: const TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700)),
+              ],
+            ),
+            const SizedBox(height: 2),
+            Text(
+              '${_fmtWhen(b.scheduledAt)}\n'
+              '${b.addressStreet}, ${b.addressCity} ${b.addressPostal}'
+              '${b.notes.isNotEmpty ? '\nNota: ${b.notes}' : ''}\n'
+              'Ganhas ${CleaningLabels.euro(b.cleanerEarningsCents)} · '
+              '${b.paymentMethod == 'cash' ? 'Dinheiro no local' : 'Pago na app'}',
+              style: const TextStyle(
+                  color: AppColors.textSecondary, height: 1.4),
+            ),
+            const SizedBox(height: Spacing.sm),
+            _actionRow(context),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _actionRow(BuildContext context) {
+    final b = booking;
+    switch (b.status) {
+      case CleaningStatus.accepted:
+        return Row(
+          children: [
+            Expanded(
+              child: FilledButton.icon(
+                style:
+                    FilledButton.styleFrom(backgroundColor: AppColors.primary),
+                onPressed:
+                    store.busy ? null : () => _safe(context, () => store.markOnTheWay(b.id)),
+                icon: const Icon(Icons.directions_walk, size: 18),
+                label: const Text('A caminho'),
+              ),
+            ),
+            _menu(context),
+          ],
+        );
+      case CleaningStatus.onTheWay:
+        return Row(
+          children: [
+            Expanded(
+              child: FilledButton.icon(
+                style:
+                    FilledButton.styleFrom(backgroundColor: AppColors.primary),
+                onPressed:
+                    store.busy ? null : () => _safe(context, () => store.markStarted(b.id)),
+                icon: const Icon(Icons.play_arrow, size: 18),
+                label: const Text('Iniciar limpeza'),
+              ),
+            ),
+            _menu(context),
+          ],
+        );
+      case CleaningStatus.inProgress:
+        return FilledButton.icon(
+          style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
+          onPressed:
+              store.busy ? null : () => _safe(context, () => store.markDone(b.id)),
+          icon: const Icon(Icons.check, size: 18),
+          label: const Text('Concluir limpeza'),
+        );
+      case CleaningStatus.done:
+        return const Text(
+          'À espera da confirmação do cliente (automática em 24 h).',
+          style: TextStyle(color: AppColors.textSubtle, fontSize: 12),
+        );
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
+  /// Menu com cancelar / no-show (só quando aplicável).
+  Widget _menu(BuildContext context) {
+    final b = booking;
+    final canNoShow = DateTime.now().isAfter(b.scheduledAt);
+    return PopupMenuButton<String>(
+      icon: const Icon(Icons.more_vert, color: AppColors.textSecondary),
+      onSelected: (v) {
+        if (v == 'cancel') _confirmCancel(context);
+        if (v == 'no_show') _confirmNoShow(context);
+      },
+      itemBuilder: (_) => [
+        const PopupMenuItem(
+            value: 'cancel', child: Text('Cancelar esta limpeza')),
+        if (canNoShow)
+          const PopupMenuItem(
+              value: 'no_show', child: Text('Cliente não apareceu')),
+      ],
+    );
+  }
+
+  Future<void> _confirmCancel(BuildContext context) async {
+    final b = booking;
+    final hoursLeft =
+        b.scheduledAt.difference(DateTime.now()).inMinutes / 60.0;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cancelar esta limpeza?'),
+        content: Text(hoursLeft < 24
+            ? 'Faltam menos de 24 h — este cancelamento conta para o limite '
+                'de cancelamentos tardios (3 em 30 dias suspende a conta). '
+                'A reserva volta para as outras profissionais.'
+            : 'A reserva volta para as outras profissionais.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Manter')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Cancelar limpeza',
+                  style: TextStyle(color: AppColors.error))),
+        ],
+      ),
+    );
+    if (confirmed == true && context.mounted) {
+      await _safe(context, () => store.cancelBooking(b.id));
+    }
+  }
+
+  Future<void> _confirmNoShow(BuildContext context) async {
+    final b = booking;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cliente não apareceu?'),
+        content: const Text(
+            'Só marca não comparência se estás na morada à hora marcada e o '
+            'cliente não responde. É aplicada a taxa de 100% ao cliente.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Voltar')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Marcar não comparência',
+                  style: TextStyle(color: AppColors.error))),
+        ],
+      ),
+    );
+    if (confirmed == true && context.mounted) {
+      await _safe(context, () => store.cancelBooking(b.id, noShow: true));
+    }
+  }
+
+  Future<void> _safe(BuildContext context, Future<void> Function() fn) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await fn();
+    } catch (_) {
+      messenger.showSnackBar(const SnackBar(
+          content: Text('Não foi possível concluir. Tenta de novo.')));
+    }
+  }
+}

@@ -7,6 +7,7 @@ import '../../../config/app_spacing.dart';
 import '../../../models/cleaning_models.dart';
 import '../../../stores/cleaning_store.dart';
 import '../../../widgets/bora/bora.dart';
+import 'cleaning_payment_flow.dart';
 
 /// LIMPEZA — acompanhamento da reserva (realtime via CleaningStore.trackBooking).
 /// Timeline de estados + detalhes + ações do cliente (cancelar / confirmar /
@@ -51,8 +52,14 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
     super.dispose();
   }
 
+  // read (não watch): este getter é usado em callbacks; o build observa o
+  // store diretamente e rebuilda quando o realtime substitui a reserva.
   CleaningBooking get _booking =>
-      context.watch<CleaningStore>().tracked ?? widget.booking;
+      context.read<CleaningStore>().tracked ?? widget.booking;
+
+  /// Captura oportunista: auto-confirmação (cron) põe 'released' sem ninguém
+  /// capturar — ao reabrir o ecrã, o cliente dispara a captura (idempotente).
+  bool _captureAttempted = false;
 
   /// Perfil público da profissional atribuída (RPC própria — RLS não expõe
   /// a tabela cleaners a clientes).
@@ -109,6 +116,10 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
     if (confirmed != true || !mounted) return;
     try {
       await store.cancelBooking(b.id);
+      // Liberta a retenção do cartão / estorna MB Way (no-op sem PI).
+      if (b.paymentMethod != 'cash') {
+        store.reversePayment(b.id);
+      }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Limpeza cancelada.')),
@@ -118,6 +129,19 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Não foi possível cancelar.')),
       );
+    }
+  }
+
+  /// Retoma o pagamento pendente (cartão/MB Way) a partir do tracking.
+  Future<void> _payNow() async {
+    final store = context.read<CleaningStore>();
+    final ok = await CleaningPaymentFlow.pay(context, store, _booking);
+    if (!mounted) return;
+    if (ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pagamento confirmado. 💚')),
+      );
+      store.loadMyBookings();
     }
   }
 
@@ -163,8 +187,13 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
 
   Future<void> _confirmDone() async {
     final store = context.read<CleaningStore>();
+    final b = _booking;
     try {
-      await store.confirmCompleted(_booking.id);
+      await store.confirmCompleted(b.id);
+      // Confirmação põe 'released' — captura o cartão retido (MB Way no-op).
+      if (b.paymentMethod == 'card') {
+        store.capturePayment(b.id);
+      }
       if (!mounted) return;
       await _askRating();
     } catch (_) {
@@ -249,12 +278,21 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final b = _booking;
     final store = context.watch<CleaningStore>();
+    final b = store.tracked ?? widget.booking;
     // Recarrega o perfil quando a profissional é atribuída via realtime.
     if (b.cleanerId != null && _cleanerProfile == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _loadCleanerProfile();
+      });
+    }
+    // Captura oportunista pós auto-confirmação (idempotente na Edge Fn).
+    if (!_captureAttempted &&
+        b.paymentMethod == 'card' &&
+        b.paymentStatus == 'released') {
+      _captureAttempted = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) context.read<CleaningStore>().capturePayment(b.id);
       });
     }
 
@@ -272,6 +310,12 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
             else
               _StatusTimeline(status: b.status),
             const SizedBox(height: Spacing.lg),
+            if (!b.status.isCancelled &&
+                b.paymentMethod != 'cash' &&
+                b.paymentStatus == 'unpaid') ...[
+              _PaymentPendingBanner(busy: store.busy, onPay: _payNow),
+              const SizedBox(height: Spacing.lg),
+            ],
             if (b.cleanerId != null) ...[
               _CleanerCard(profile: _cleanerProfile),
               const SizedBox(height: Spacing.lg),
@@ -407,6 +451,42 @@ class _StatusTimeline extends StatelessWidget {
                 ),
               ],
             ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PaymentPendingBanner extends StatelessWidget {
+  const _PaymentPendingBanner({required this.busy, required this.onPay});
+  final bool busy;
+  final VoidCallback onPay;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(Spacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.warning.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(Radii.lg),
+        border: Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.hourglass_top, color: AppColors.warning),
+          const SizedBox(width: Spacing.md),
+          const Expanded(
+            child: Text(
+              'Pagamento pendente — conclui para garantires a tua limpeza.',
+              style: TextStyle(
+                  color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+            ),
+          ),
+          TextButton(
+            onPressed: busy ? null : onPay,
+            child: const Text('Pagar agora',
+                style: TextStyle(fontWeight: FontWeight.w700)),
+          ),
         ],
       ),
     );

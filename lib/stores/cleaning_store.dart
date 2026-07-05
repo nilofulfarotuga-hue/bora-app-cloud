@@ -299,6 +299,90 @@ class CleaningStore extends ChangeNotifier {
     }
   }
 
+  // ══════════════════════════════════════════════════════════════════════════
+  // PAGAMENTO — Edge Fn ISOLADA cleaning-checkout (Lista Vermelha; LIVE após
+  // "vai" 2026-07-05). Cartão = retenção manual até o cliente confirmar;
+  // MB Way = cobra na reserva + estorno automático no cancelamento.
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /// Cria o PaymentIntent do CARTÃO (capture manual). Devolve
+  /// {clientSecret, paymentIntentId, amountCents} ou null em erro.
+  Future<Map<String, dynamic>?> createCardPayment(String bookingId) async {
+    try {
+      final res = await _sb.functions.invoke('cleaning-checkout',
+          body: {'action': 'create', 'bookingId': bookingId});
+      final data = res.data;
+      if (data is Map && data['clientSecret'] != null) {
+        return Map<String, dynamic>.from(data);
+      }
+      debugPrint('CleaningStore.createCardPayment bad response => $data');
+      return null;
+    } catch (e) {
+      debugPrint('CleaningStore.createCardPayment error => $e');
+      return null;
+    }
+  }
+
+  /// Cria + confirma o PaymentIntent MB WAY (push para a app MB WAY).
+  /// Devolve {paymentIntentId, status, amountCents} ou null em erro.
+  Future<Map<String, dynamic>?> createMbwayPayment(
+      String bookingId, String phone) async {
+    try {
+      final res = await _sb.functions.invoke('cleaning-checkout', body: {
+        'action': 'create_mbway',
+        'bookingId': bookingId,
+        'phone': phone,
+      });
+      final data = res.data;
+      if (data is Map && data['paymentIntentId'] != null) {
+        return Map<String, dynamic>.from(data);
+      }
+      debugPrint('CleaningStore.createMbwayPayment bad response => $data');
+      return null;
+    } catch (e) {
+      debugPrint('CleaningStore.createMbwayPayment error => $e');
+      return null;
+    }
+  }
+
+  /// Valida o PI na Stripe e marca payment_status='held'. Devolve false
+  /// enquanto o pagamento não estiver confirmado (402) — usado no poll MB Way.
+  Future<bool> markPaymentHeld(String bookingId, String paymentIntentId) async {
+    try {
+      final res = await _sb.functions.invoke('cleaning-checkout', body: {
+        'action': 'mark_held',
+        'bookingId': bookingId,
+        'paymentIntentId': paymentIntentId,
+      });
+      return res.data is Map && (res.data as Map)['ok'] == true;
+    } catch (e) {
+      debugPrint('CleaningStore.markPaymentHeld pending/erro => $e');
+      return false;
+    }
+  }
+
+  /// Captura o cartão retido após o cliente confirmar (idempotente; MB Way
+  /// é no-op). Fire-and-forget: falha fica no log e o admin pode repetir.
+  Future<void> capturePayment(String bookingId) async {
+    try {
+      await _sb.functions.invoke('cleaning-checkout',
+          body: {'action': 'capture', 'bookingId': bookingId});
+    } catch (e) {
+      debugPrint('CleaningStore.capturePayment error => $e');
+    }
+  }
+
+  /// Cancelamento: liberta a retenção do cartão (ou captura só a taxa) /
+  /// estorna o excedente no MB Way. No-op se não houver PaymentIntent.
+  Future<void> reversePayment(String bookingId) async {
+    try {
+      await _sb.functions.invoke('cleaning-checkout',
+          body: {'action': 'reverse', 'bookingId': bookingId});
+    } catch (e) {
+      debugPrint('CleaningStore.reversePayment error => $e');
+    }
+  }
+
   // ── infra ────────────────────────────────────────────────────────────────
 
   void _applyUpdate(CleaningBooking updated) {

@@ -7,6 +7,7 @@ import '../../../models/cleaning_models.dart';
 import '../../../stores/cart_store.dart';
 import '../../../stores/cleaning_store.dart';
 import '../../../widgets/bora/bora.dart';
+import 'cleaning_payment_flow.dart';
 import 'cleaning_tracking_screen.dart';
 
 /// LIMPEZA — wizard de 3 passos (tipo Helpling/Oscar):
@@ -199,6 +200,19 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
         requestedCleanerId: _requestedCleanerId,
       );
       if (!mounted || booking == null) return;
+
+      // Pagamento online ("vai" 2026-07-05): cartão retém já; MB Way cobra já.
+      // Se falhar/abandonar, a reserva fica 'unpaid' e o tracking mostra o
+      // banner "Pagar agora" para retomar.
+      if (_paymentMethod != 'cash') {
+        final paid = await CleaningPaymentFlow.pay(context, store, booking);
+        if (!mounted) return;
+        if (!paid) {
+          _snack('Reserva criada — falta concluir o pagamento no ecrã da '
+              'reserva.');
+        }
+      }
+      if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(

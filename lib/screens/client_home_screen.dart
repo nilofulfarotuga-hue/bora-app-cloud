@@ -23,6 +23,7 @@ import '../widgets/bora/bora.dart';
 import '../widgets/bora_support_fab.dart';
 import '../widgets/notification_bell.dart';
 import 'carry_groceries_screen.dart';
+import 'client/cleaning/cleaning_bookings_screen.dart';
 import 'client/services/services_category_screen.dart';
 import 'client_addresses_screen.dart';
 import 'rating_screen.dart';
@@ -529,6 +530,15 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
         onTap: () => Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => const ServicesCategoryScreen()),
+        ),
+      ),
+      _TileData(
+        label: 'Limpeza',
+        gradient: AppColors.tileCleaning,
+        imageAsset: 'assets/categories/cat_limpeza.png',
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const CleaningBookingsScreen()),
         ),
       ),
     ];

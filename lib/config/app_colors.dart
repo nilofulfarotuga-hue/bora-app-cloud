@@ -111,4 +111,11 @@ class AppColors {
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
+  // Limpeza doméstica (2026-07-05) — azul-céu (balde + spray; distinto das
+  // categorias acima, sem laranja).
+  static const LinearGradient tileCleaning = LinearGradient(
+    colors: [Color(0xFF0284C7), Color(0xFF38BDF8)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
 }

@@ -68,6 +68,8 @@ import 'admin_reservations_screen.dart';
 import 'admin_tokens_screen.dart';
 import 'admin_wallets_screen.dart';
 import 'admin_weekly_settlements_screen.dart';
+import 'admin_cleaning_bookings_screen.dart';
+import 'admin_cleaning_cleaners_screen.dart';
 import 'admin_tvde_access_requests_screen.dart';
 import 'admin_tvde_rides_screen.dart';
 import 'admin_tvde_cancellations_screen.dart';
@@ -1038,6 +1040,43 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       MaterialPageRoute(
                           builder: (_) =>
                               const AdminTvdePlanRequestsScreen())),
+                ),
+                const SizedBox(height: 18),
+                // ── Limpeza doméstica (vertical LIMPEZA — Helpling/Oscar) ──
+                Padding(
+                  padding: const EdgeInsets.only(left: 4, bottom: 8, top: 4),
+                  child: Text(
+                    'Limpeza doméstica',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                  ),
+                ),
+                _NavCard(
+                  icon: Icons.cleaning_services,
+                  title: 'Limpezas',
+                  subtitle:
+                      'Reservas · filtros por estado · reagendar/cancelar',
+                  color: const Color(0xFF0284C7),
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminCleaningBookingsScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.badge,
+                  title: 'Profissionais de limpeza',
+                  subtitle:
+                      'Candidaturas · aprovar/suspender · acerto do caixa',
+                  color: const Color(0xFF38BDF8),
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminCleaningCleanersScreen())),
                 ),
                 const SizedBox(height: 18),
                 // ── Ferramentas (ecrãs anteriormente órfãos) ──

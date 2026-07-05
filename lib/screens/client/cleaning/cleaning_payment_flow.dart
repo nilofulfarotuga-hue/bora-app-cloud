@@ -10,8 +10,9 @@ import '../../../services/payment_service.dart';
 import '../../../stores/cleaning_store.dart';
 
 /// LIMPEZA — fluxo de pagamento partilhado (wizard + tracking).
-/// Cartão: PaymentIntent com retenção manual → PaymentSheet → mark_held.
+/// Cartão: PaymentIntent normal (COBRA na reserva) → PaymentSheet → mark_held.
 /// MB Way: create_mbway (push na app MB WAY) → poll mark_held até 120 s.
+/// Cancelamento estorna automaticamente o que exceder a taxa ('reverse').
 /// Tudo server-side na Edge Fn isolada cleaning-checkout (Lista Vermelha).
 class CleaningPaymentFlow {
   CleaningPaymentFlow._();

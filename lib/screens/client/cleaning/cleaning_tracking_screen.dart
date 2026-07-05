@@ -57,10 +57,6 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
   CleaningBooking get _booking =>
       context.read<CleaningStore>().tracked ?? widget.booking;
 
-  /// Captura oportunista: auto-confirmação (cron) põe 'released' sem ninguém
-  /// capturar — ao reabrir o ecrã, o cliente dispara a captura (idempotente).
-  bool _captureAttempted = false;
-
   /// Perfil público da profissional atribuída (RPC própria — RLS não expõe
   /// a tabela cleaners a clientes).
   Future<void> _loadCleanerProfile() async {
@@ -189,11 +185,9 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
     final store = context.read<CleaningStore>();
     final b = _booking;
     try {
+      // Cartão/MB Way já foram cobrados na reserva (2026-07-05) — confirmar
+      // só liberta os ganhos à profissional; não há captura Stripe.
       await store.confirmCompleted(b.id);
-      // Confirmação põe 'released' — captura o cartão retido (MB Way no-op).
-      if (b.paymentMethod == 'card') {
-        store.capturePayment(b.id);
-      }
       if (!mounted) return;
       await _askRating();
     } catch (_) {
@@ -284,15 +278,6 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
     if (b.cleanerId != null && _cleanerProfile == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _loadCleanerProfile();
-      });
-    }
-    // Captura oportunista pós auto-confirmação (idempotente na Edge Fn).
-    if (!_captureAttempted &&
-        b.paymentMethod == 'card' &&
-        b.paymentStatus == 'released') {
-      _captureAttempted = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) context.read<CleaningStore>().capturePayment(b.id);
       });
     }
 

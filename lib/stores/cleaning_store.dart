@@ -301,11 +301,12 @@ class CleaningStore extends ChangeNotifier {
 
   // ══════════════════════════════════════════════════════════════════════════
   // PAGAMENTO — Edge Fn ISOLADA cleaning-checkout (Lista Vermelha; LIVE após
-  // "vai" 2026-07-05). Cartão = retenção manual até o cliente confirmar;
-  // MB Way = cobra na reserva + estorno automático no cancelamento.
+  // "vai" 2026-07-05). Cartão E MB Way cobram NA RESERVA (decisão do Danilo
+  // 2026-07-05 — o hold manual de cartão expirava em ~7 dias); cancelamento
+  // faz estorno automático do que exceder a taxa ('reverse').
   // ══════════════════════════════════════════════════════════════════════════
 
-  /// Cria o PaymentIntent do CARTÃO (capture manual). Devolve
+  /// Cria o PaymentIntent do CARTÃO (cobra na reserva). Devolve
   /// {clientSecret, paymentIntentId, amountCents} ou null em erro.
   Future<Map<String, dynamic>?> createCardPayment(String bookingId) async {
     try {
@@ -361,19 +362,8 @@ class CleaningStore extends ChangeNotifier {
     }
   }
 
-  /// Captura o cartão retido após o cliente confirmar (idempotente; MB Way
-  /// é no-op). Fire-and-forget: falha fica no log e o admin pode repetir.
-  Future<void> capturePayment(String bookingId) async {
-    try {
-      await _sb.functions.invoke('cleaning-checkout',
-          body: {'action': 'capture', 'bookingId': bookingId});
-    } catch (e) {
-      debugPrint('CleaningStore.capturePayment error => $e');
-    }
-  }
-
-  /// Cancelamento: liberta a retenção do cartão (ou captura só a taxa) /
-  /// estorna o excedente no MB Way. No-op se não houver PaymentIntent.
+  /// Cancelamento: estorna o que exceder a taxa de cancelamento (cartão e
+  /// MB Way, ambos cobrados na reserva). No-op se não houver PaymentIntent.
   Future<void> reversePayment(String bookingId) async {
     try {
       await _sb.functions.invoke('cleaning-checkout',

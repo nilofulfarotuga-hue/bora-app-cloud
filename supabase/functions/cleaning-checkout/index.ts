@@ -1,17 +1,19 @@
 // ============================================================================
 // cleaning-checkout — pagamento da vertical LIMPEZA (escrow-like, SEM webhook)
 // ----------------------------------------------------------------------------
-// ⚠️ LISTA VERMELHA: esta função está PREPARADA mas NÃO deployada.
-//    Só entra em produção depois do "vai" do Danilo +
-//    admin_update_setting('cleaning_stripe_enabled', 'true').
+// ⚠️ LISTA VERMELHA: função LIVE desde 2026-07-05 ("vai" do Danilo +
+//    cleaning_stripe_enabled=true). v2 (2026-07-05): cartão passou de hold
+//    manual para COBRANÇA NA RESERVA (hold expirava em ~7 dias).
 //
 // Padrão: espelha tvde-plan-payment (Edge Fn Stripe ISOLADA, sem tocar no
 // stripe-webhook v17+ nem em create-payment-intent). verify_jwt = true.
 //
 // Ações (POST JSON):
 //   { action:'create',        bookingId }
-//     → CARTÃO: PaymentIntent com capture_method:'manual' (retenção real até
-//       o cliente confirmar a limpeza). Devolve { clientSecret, paymentIntentId }.
+//     → CARTÃO: PaymentIntent normal — COBRA NA RESERVA (decisão do Danilo
+//       2026-07-05: o hold manual expirava em ~7 dias e reservas antecipadas
+//       perdiam a retenção). Estorno automático no cancelamento ('reverse').
+//       Devolve { clientSecret, paymentIntentId }.
 //   { action:'create_mbway',  bookingId, phone }
 //     → MB WAY: não suporta captura manual → cobra NA RESERVA (confirm server-
 //       side, push MB WAY). Cancelamento → estorno automático (ação 'reverse').
@@ -20,8 +22,8 @@
 //     → valida o PI na Stripe (dono, kind, valor, estado) e marca a reserva
 //       payment_status='held' + guarda stripe_payment_intent_id.
 //   { action:'capture',       bookingId }
-//     → cliente confirmou (payment_status='released'): captura o PI do cartão.
-//       MB Way: no-op (já cobrado).
+//     → LEGADO (holds manuais anteriores a 2026-07-05): captura o PI se ainda
+//       estiver requires_capture. Cartão/MB Way novos: no-op (já cobrados).
 //   { action:'reverse',       bookingId }
 //     → reserva cancelada: cartão não capturado = cancela o PI (liberta a
 //       retenção); MB Way/capturado = estorno Stripe de (total - taxa cancel).
@@ -93,7 +95,7 @@ Deno.serve(async (req: Request) => {
     const amountCents = Number(booking.total_cents ?? 0);
     if (!amountCents || amountCents < 50) return json({ error: 'amount_below_minimum' }, 400);
 
-    // ── CREATE (cartão, retenção manual) ────────────────────────────────────
+    // ── CREATE (cartão, cobra na reserva) ───────────────────────────────────
     if (action === 'create') {
       if (booking.payment_method !== 'card') return json({ error: 'not_card_booking' }, 400);
       if (booking.payment_status !== 'unpaid') return json({ error: 'already_paid' }, 400);
@@ -101,7 +103,7 @@ Deno.serve(async (req: Request) => {
       const pi = await stripe.paymentIntents.create({
         amount: amountCents,
         currency: 'eur',
-        capture_method: 'manual', // retenção até o cliente confirmar a limpeza
+        // Cobra na reserva (sem capture manual — hold expirava em ~7 dias).
         automatic_payment_methods: { enabled: true, allow_redirects: 'never' },
         metadata: { kind: 'cleaning', booking_id: bookingId, user_id: user.id },
       });
@@ -155,9 +157,11 @@ Deno.serve(async (req: Request) => {
       if (pi.metadata?.user_id !== user.id) return json({ error: 'payment_owner_mismatch' }, 403);
       if (pi.amount !== amountCents) return json({ error: 'payment_amount_mismatch' }, 400);
 
+      // Cartão e MB Way cobram ambos na reserva (2026-07-05).
+      // 'requires_capture' aceite só para holds legados criados antes da mudança.
       const okStates = booking.payment_method === 'card'
-        ? ['requires_capture']            // cartão: retido, à espera de captura
-        : ['succeeded', 'processing'];    // mb way: já cobrado (ou a processar)
+        ? ['succeeded', 'processing', 'requires_capture']
+        : ['succeeded', 'processing'];
       if (!okStates.includes(pi.status)) {
         return json({ error: 'payment_not_completed', status: pi.status }, 402);
       }

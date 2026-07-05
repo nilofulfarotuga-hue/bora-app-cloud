@@ -121,9 +121,10 @@
 5. **Teste E2E real** (reserva → aceitar → concluir → confirmar → capturar)
    ainda não foi feito com contas reais — recomendo 1 ronda manual antes de
    divulgar a categoria.
-6. A skill CEO-AI continua com contagem stale de Edge Functions (agora 45
-   locais / 52 deployed com a cleaning-checkout) — atualizar `SKILL.md` precisa
-   da tua aprovação.
+6. A skill CEO-AI continua com contagem stale de Edge Functions (contagem
+   real verificada pelo Bibliotecário via MCP em 2026-07-05: **49 locais /
+   55 deployed**, incluindo a cleaning-checkout) — atualizar `SKILL.md`
+   precisa da tua aprovação.
 
 ## 5. Validação final (preenchido no fecho da sessão)
 

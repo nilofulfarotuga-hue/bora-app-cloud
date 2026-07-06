@@ -249,9 +249,13 @@ Pré-autorização de **+15% a mais** do valor estimado.
 
 | Quem | Quando | Quantidade |
 |---|---|---|
-| Estafeta | Por entrega | **+40 tokens** |
-| Estafeta | Entrega adicional (stacking) | **+50 tokens** |
-| Cliente | Por pedido | **3% do valor** em tokens |
+| Estafeta | Por entrega (não-parceiro) | **+40 tokens** |
+| Estafeta | Por entrega de **loja parceira** | **+50 tokens** |
+| Cliente | Por pedido | **3 tokens por € (`GREATEST(1, ROUND(valor×3))`)** |
+
+> **Correção de doc (2026-07-06):** versões antigas diziam cliente "3% do valor" e
+> "+50 = stacking". O código (canónico desde Batch D, `trg_award_tokens_on_delivery`)
+> faz **3 tokens/€** para o cliente e **+50 = loja parceira** (não stacking).
 
 ### 4.3 Como se Usam Tokens
 **Cliente:** desconto até **50% do valor do pedido**
@@ -859,29 +863,59 @@ Markup invisível. Cliente nunca vê preço de custo.
 
 ---
 
-## 18. LIMPEZA DE CASAS (FUTURO)
+## 18. LIMPEZA DE CASAS (CONSTRUÍDO — 2026-07-06)
 
 ### 18.1 Estado
-- **Futuro** — planeado, não desenvolvido ainda
-- Lançamento após consolidação do delivery
+- **CONSTRUÍDO e LIVE** (F1–F7 + auditoria de paridade). Config em
+  `platform_settings` (chaves `cleaning_*`); `cleaning_enabled=true`,
+  `cleaning_stripe_enabled=true`.
+- Tabelas `cleaning_bookings`, `cleaners`, `cleaner_slots`, `cleaning_messages`,
+  `cleaner_cancel_events`. Edge Fn `cleaning-checkout` (v2, ACTIVE).
 
 ### 18.2 Quem Faz
-- **Empregadas domésticas independentes**, cadastradas na Bora (fluxo semelhante aos estafetas)
-- Documentos, aprovação pelo admin, contas IBAN
+- **Profissionais de limpeza independentes**, candidatura via `cleaner_apply`,
+  aprovação pelo admin. Cadastro **exige foto de perfil + documento de ID**
+  (KYC): foto → bucket público `avatars`; documento → bucket privado
+  `cleaner-documents` (admin vê por signed URL antes de aprovar).
 
-### 18.3 Como Cobrar (cliente escolhe)
-- **Por hora** (ex: 10€/hora)
-- **Por tamanho da casa** (T0, T1, T2, T3, T4+)
-- **Pacotes fixos** (limpeza básica, limpeza profunda, limpeza pós-mudanças)
+### 18.3 Como Cobrar (cliente escolhe) — valores reais em `platform_settings`
+- **Por tamanho da casa:** T0/T1 **€35** · T2 **€45** · T3 **€55** · T4+ **€70**
+  (`cleaning_price_*_cents`).
+- **Limpeza profunda:** +40% (`cleaning_deep_pct`).
+- **Pós-obras:** +60% (`cleaning_postworks_pct`).
+- **Por hora:** €12/h, mínimo 2h (`cleaning_hourly_cents`, `cleaning_min_hours`).
+- **Recorrência** (semanal/quinzenal): −10% (`cleaning_recurring_discount_pct`),
+  preferindo a mesma profissional.
 
 ### 18.4 Divisão do Valor
-- **85%** para a empregada
-- **15%** para a Bora
+- **85%** para a profissional · **15%** para a Bora (`cleaning_bora_pct=15`).
 
 ### 18.5 Produtos de Limpeza
 Cliente escolhe na marcação:
-- **Sem produtos** (cliente tem em casa, empregada só usa)
-- **Com produtos** (empregada traz, **+€10** cobrado ao cliente)
+- **Sem produtos** (cliente tem em casa) — default.
+- **Com produtos** (profissional traz) — **+€3** (`cleaning_products_fee_cents=300`).
+- *(Nota: versões antigas deste doc diziam +€10 — corrigido para o valor real €3.)*
+
+### 18.6 Pagamento (revisto FASE 1 · 2026-07-06)
+- **Cartão e MB Way cobram na RESERVA** (antes o cartão fazia retenção manual
+  que expirava em ~7 dias — descontinuado). Dinheiro (cash) acerta no local.
+- **Cancelamento estorna automaticamente** o que exceder a taxa via `reverse`
+  (mecânica já existente). Janelas: >24h grátis · 24h–2h 50% · <2h 100%
+  (`cleaning_cancel_free_hours`, `cleaning_cancel_half_hours`).
+- Ação `capture` mantida só para holds legados.
+
+### 18.7 Tokens (⚠️ PROPOSTA — não aplicado)
+- A Limpeza **ainda não atribui tokens** (tal como TVDE e marcações; só o
+  delivery atribui hoje). Proposta pronta em
+  `supabase/PROPOSTA_20260706_cleaning_tokens.sql` (cliente
+  `GREATEST(1, ROUND(total×3/100))` + profissional +40 ao concluir). Bloqueada
+  pela Trava (🔴 dinheiro) — aplicação é ato humano do Danilo.
+
+### 18.8 Comunicação e avaliação
+- Chat bidirecional cliente↔profissional (`cleaning_messages`, push nos 2 lados)
+  + botão LIGAR (tel:) — disponível nos estados accepted…done.
+- Avaliação **bidirecional** (`cleaning_submit_rating` → `subject_type`
+  `cleaner` / `cleaning_client`).
 
 ---
 

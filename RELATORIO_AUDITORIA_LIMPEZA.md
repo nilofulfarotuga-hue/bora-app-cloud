@@ -10,11 +10,11 @@
 
 | Capacidade | Referência | Limpeza tinha? | Estado final |
 |---|---|---|---|
-| Chat bidirecional cliente↔profissional | delivery `messages` / TVDE `tvde_messages` | ❌ FALTA | 🔧 |
-| Botão de chat com badge não-lidas + preview | `ChatBubbleButton` (delivery) | ❌ FALTA | 🔧 |
-| Push de mensagem nova (2 lados) | trigger + notify-chat-message / TVDE | ❌ FALTA | 🔧 |
-| Botão LIGAR (tel:) nos 2 lados | TVDE E2 (`launchUrl('tel:…')`) | ❌ FALTA | 🔧 |
-| Admin vê conversas (read-only + audit) | `admin_list_order_messages` + viewer | ❌ FALTA | 🔧 |
+| Chat bidirecional cliente↔profissional | delivery `messages` / TVDE `tvde_messages` | ❌ FALTA | ✅ FEITO (`cleaning_messages` + RLS, `a374f13`/`4233d26`) |
+| Botão de chat com badge não-lidas + preview | `ChatBubbleButton` (delivery) | ❌ FALTA | ✅ FEITO (`CleaningChatButton`, badge 9+ + preview) |
+| Push de mensagem nova (2 lados) | trigger + notify-chat-message / TVDE | ❌ FALTA | ✅ FEITO (trigger `_cleaning_chat_push`) |
+| Botão LIGAR (tel:) nos 2 lados | TVDE E2 (`launchUrl('tel:…')`) | ❌ FALTA | ✅ FEITO (cliente + profissional) |
+| Admin vê conversas (read-only + audit) | `admin_list_order_messages` + viewer | ❌ FALTA | ✅ FEITO (`admin_list_cleaning_messages` + viewer, `14a7f78`) |
 
 **Decisão de arquitetura (desvio justificado do enunciado):** a missão pedia
 reutilizar "tabelas `messages`/`conversations`". A auditoria mostrou que
@@ -34,19 +34,19 @@ visual (badge vermelho 9+, preview) num botão próprio da Limpeza.
 
 | Capacidade | Referência | Limpeza tinha? | Estado final |
 |---|---|---|---|
-| Foto de perfil da profissional (upload) | bucket `avatars` `$uid/avatar.jpg` (profile_screen) | ⚠️ PARCIAL — `photo_url` existia e era exibido, mas SEM upload no cadastro | 🔧 |
-| Card da profissional p/ cliente (foto/nome/★/nº limpezas/❤) | card motorista TVDE D1 | ✅ TEM (wizard passo 3 + tracking) — faltava telefone/LIGAR | 🔧 (phone) |
-| Foto/nome do cliente p/ profissional | TVDE D2 | ❌ FALTA no serviço ativo. Nota: na OFERTA o TVDE **não mostra** identidade do cliente (privacidade pré-aceitação) — a Limpeza segue o mesmo padrão: identidade só depois de aceitar | 🔧 |
-| Upload de documentos KYC no cadastro | `driver-documents`/`restaurant-documents` (privados) + `PrivateBucketImage` no admin | ❌ FALTA (`docs` jsonb existia vazio; aprovação era "às cegas") | 🔧 |
+| Foto de perfil da profissional (upload) | bucket `avatars` `$uid/avatar.jpg` (profile_screen) | ⚠️ PARCIAL — `photo_url` existia e era exibido, mas SEM upload no cadastro | ✅ FEITO (upload obrigatório no cadastro, `472ff58`) |
+| Card da profissional p/ cliente (foto/nome/★/nº limpezas/❤) | card motorista TVDE D1 | ✅ TEM (wizard passo 3 + tracking) — faltava telefone/LIGAR | ✅ FEITO (LIGAR + ★/nº limpezas no card) |
+| Foto/nome do cliente p/ profissional | TVDE D2 | ❌ FALTA no serviço ativo. Nota: na OFERTA o TVDE **não mostra** identidade do cliente (privacidade pré-aceitação) — a Limpeza segue o mesmo padrão: identidade só depois de aceitar | ✅ FEITO (card na agenda via `cleaning_booking_client_public`) |
+| Upload de documentos KYC no cadastro | `driver-documents`/`restaurant-documents` (privados) + `PrivateBucketImage` no admin | ❌ FALTA (`docs` jsonb existia vazio; aprovação era "às cegas") | ✅ FEITO (bucket `cleaner-documents` + review no admin) |
 
 ## C. PARIDADE HOME/PERFIL DA PROFISSIONAL (vs estafeta/TVDE F1)
 
 | Item do estafeta | Limpeza tinha? | Estado final |
 |---|---|---|
-| Suporte (BoraSupportSheet: IA + WhatsApp + Email) | ❌ FALTA | 🔧 |
-| Histórico de serviços com detalhe | ❌ FALTA (ganhos só tinha somas) | 🔧 |
+| Suporte (BoraSupportSheet: IA + WhatsApp + Email) | ❌ FALTA | ✅ FEITO (atalho no painel, `472ff58`) |
+| Histórico de serviços com detalhe | ❌ FALTA (ganhos só tinha somas) | ✅ FEITO (`CleanerHistoryScreen`, `472ff58`) |
 | Avaliação média recebida | ✅ TEM (painel + ganhos) | ✅ |
-| Perfil editável (foto/bio/raio/zona) | ⚠️ PARCIAL (RPC existia; sem UI além do switch ativa/pausa) | 🔧 |
+| Perfil editável (foto/bio/raio/zona) | ⚠️ PARCIAL (RPC existia; sem UI além do switch ativa/pausa) | ⏳ PENDENTE — ver secção H (edição de foto/bio pós-registo fica para v2; foto entra no cadastro) |
 | Toggle online/offline | ✅ TEM (switch ativa/pausa) | ✅ |
 | Ganhos | ✅ TEM | ✅ |
 
@@ -65,7 +65,7 @@ visual (badge vermelho 9+, preview) num botão próprio da Limpeza.
 | Sentido | Backend | UI | Estado final |
 |---|---|---|---|
 | Cliente → profissional | ✅ (`cleaning_submit_rating` → `subject_type='cleaner'`) | ✅ TEM (tracking) | ✅ |
-| Profissional → cliente | ✅ (mesma RPC → `'cleaning_client'`) | ❌ FALTAVA UI | 🔧 |
+| Profissional → cliente | ✅ (mesma RPC → `'cleaning_client'`) | ❌ FALTAVA UI | ✅ FEITO (diálogo "Avaliar o cliente" na agenda, `4233d26`) |
 
 ## E. OUTRAS PARIDADES
 
@@ -104,4 +104,71 @@ Dinheiro inalterado. ✅ FEITO (`912ce6d`).
 
 ## H. O QUE FOI CORRIGIDO / PENDENTE
 
-*(preenchido no fecho da sessão — ver secção final)*
+### ✅ Corrigido nesta sessão (paridade fechada)
+
+**Comunicação (A):**
+- Tabela `cleaning_messages` (booking_id UUID) + RLS participantes-only + INSERT
+  só em estados ativos (accepted…done) + realtime. RPC
+  `cleaning_mark_messages_read`. Trigger `_cleaning_chat_push` (push aos 2 lados).
+- `CleaningChatStore` (refcount por booking, badge + preview partilham a
+  subscrição), `CleaningChatScreen`, `CleaningChatButton` (badge vermelho 9+).
+- Botão de chat + LIGAR (tel:) no tracking do cliente **e** na agenda da
+  profissional. Card do cliente para a profissional via
+  `cleaning_booking_client_public` (nome/foto/telefone — só depois de aceitar).
+- Admin: "Ver conversa" (read-only) em cada limpeza via
+  `admin_list_cleaning_messages` (com `log_admin_action`).
+
+**Perfis e KYC (B):**
+- `CleanerUploadService`: foto → `avatars` (público); documento → bucket
+  privado novo `cleaner-documents` (4 policies own-folder + admin).
+- Cadastro passa a **exigir** foto de perfil + documento de identificação.
+- Admin vê foto + documentos (signed URL via `PrivateBucketImage`, que passou a
+  reconhecer `cleaner-documents` e `restaurant-documents`) **antes** de aprovar.
+
+**Home da profissional (C):** atalho Suporte (`BoraSupportSheet`) + Histórico
+de serviços com detalhe (`CleanerHistoryScreen`).
+
+**Avaliação bidirecional (D):** diálogo "Avaliar o cliente" na agenda (a RPC
+`cleaning_submit_rating` já suportava o sentido; faltava a UI).
+
+**Pagamento (F / FASE 1):** cartão passa a cobrar na reserva (fim do hold de
+7 dias) — `cleaning-checkout` v2 redeployada. Estorno automático via `reverse`.
+
+**Bug fora de scope corrigido (G2):** `admin_ratings_screen` ganhou os filtros
+`cleaner`, `cleaning_client`, `tvde_passenger` (subject_types confirmados na BD).
+
+### ⚠️ Pendente de ato humano (🔴 Lista Vermelha)
+
+- **Tokens da Limpeza** — `supabase/PROPOSTA_20260706_cleaning_tokens.sql`:
+  trigger que atribui tokens ao cliente `GREATEST(1, ROUND(total×3/100))` +
+  profissional (+40) ao concluir. O Danilo disse "vai", **mas a Trava mecânica
+  (`protege-banco.sh`) bloqueia DDL de tokens vinda do agente** — por design.
+  Está pronto e reversível; **o Danilo aplica à mão** (SQL editor ou mover para
+  `migrations/`). Enquanto não aplicado, a Limpeza não atribui tokens (tal como
+  TVDE e marcações — coerente com o resto da app hoje).
+
+### ⏳ Deixado para v2 (justificado, não é buraco silencioso)
+
+- **Edição de perfil pós-registo** (foto/bio/raio) com UI dedicada: a foto e os
+  dados entram no cadastro; a RPC `cleaner_set_profile` existe. UI de edição
+  completa fica para v2 (não bloqueia o fluxo).
+- **Gestão de documentos pós-registo** (re-upload): docs entram na candidatura;
+  substituição posterior fica para v2.
+- **Deep-link de estado no push**: transversal (nenhum vertical o faz hoje além
+  de oferta TVDE/broadcast/chat) — melhoria global futura (G3).
+
+### 🐞 Bugs fora de scope — reportados, NÃO corrigidos (ficam para o dono)
+
+G1 (`business_rules.md` tokens "3%" vs código ×3 — **corrigido no doc**, ver
+abaixo), G3 (`notify-client` hardcoda `type`), G4 (Edge Fns `upload-*` sem
+fonte local), G5 (`_myRole` unused), G6 (drift de DDL de chat em prod sem
+migration). Recomendo uma sessão de "sincronização repo↔prod" para G4+G6.
+
+### Verificação
+
+- `dart analyze` **por ficheiro** (regra da máquina 4GB) — limpo em todos os
+  ficheiros alterados.
+- Chão anti-trapaça (`python .claude/juiz/anti_trapaca.py --base f0bd479`):
+  ✅ CLEAN — 0 testes tocados, 0 casos removidos.
+- **NÃO foi feito push** — tudo commitado localmente na branch
+  `autonomous-night-2026-04-29`, pronto para revisão do Danilo.

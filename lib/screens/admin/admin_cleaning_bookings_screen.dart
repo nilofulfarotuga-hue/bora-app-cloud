@@ -102,6 +102,81 @@ class _AdminCleaningBookingsScreenState
         'Limpeza cancelada.');
   }
 
+  /// Conversa da limpeza (read-only + audit via admin_list_cleaning_messages).
+  Future<void> _viewChat(Map<String, dynamic> b) async {
+    List<Map<String, dynamic>> msgs = const [];
+    try {
+      final res = await Supabase.instance.client
+          .rpc('admin_list_cleaning_messages', params: {'p_booking_id': b['id']});
+      msgs = ((res as List?) ?? const [])
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(humanizeAdminRpcError(e)),
+          backgroundColor: AppColors.error));
+      return;
+    }
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Conversa (só leitura)'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: msgs.isEmpty
+              ? const Text('Sem mensagens nesta limpeza.')
+              : ListView(
+                  shrinkWrap: true,
+                  children: [
+                    for (final m in msgs)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Align(
+                          alignment: m['sender_role'] == 'client'
+                              ? Alignment.centerLeft
+                              : Alignment.centerRight,
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: m['sender_role'] == 'client'
+                                  ? AppColors.surface
+                                  : AppColors.primaryWash,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: AppColors.divider),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  m['sender_role'] == 'client'
+                                      ? 'Cliente'
+                                      : 'Profissional',
+                                  style: const TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.textSubtle),
+                                ),
+                                Text('${m['message'] ?? ''}'),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Fechar')),
+        ],
+      ),
+    );
+  }
+
   Future<void> _reschedule(Map<String, dynamic> b) async {
     final current =
         DateTime.tryParse(b['scheduled_at']?.toString() ?? '')?.toLocal() ??
@@ -237,6 +312,7 @@ class _AdminCleaningBookingsScreenState
                       statusLabels: _statusLabels,
                       onCancel: () => _cancel(rows[i]),
                       onReschedule: () => _reschedule(rows[i]),
+                      onViewChat: () => _viewChat(rows[i]),
                     ),
                   );
                 },
@@ -256,6 +332,7 @@ class _BookingCard extends StatelessWidget {
     required this.statusLabels,
     required this.onCancel,
     required this.onReschedule,
+    required this.onViewChat,
   });
 
   final Map<String, dynamic> data;
@@ -263,6 +340,7 @@ class _BookingCard extends StatelessWidget {
   final Map<String, String> statusLabels;
   final VoidCallback onCancel;
   final VoidCallback onReschedule;
+  final VoidCallback onViewChat;
 
   String _euro(dynamic cents) =>
       '€${(((cents as num?)?.toInt() ?? 0) / 100).toStringAsFixed(2)}';
@@ -345,8 +423,17 @@ class _BookingCard extends StatelessWidget {
                       fontWeight: FontWeight.w600),
                 ),
               ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: onViewChat,
+                icon: const Icon(Icons.forum_outlined, size: 18),
+                label: const Text('Ver conversa'),
+              ),
+            ),
             if (active) ...[
-              const SizedBox(height: 10),
+              const SizedBox(height: 4),
               Row(
                 children: [
                   Expanded(

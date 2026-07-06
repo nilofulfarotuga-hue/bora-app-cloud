@@ -7,6 +7,8 @@ const _privateBuckets = <String>{
   'driver-documents',
   'order-photos',
   'receipts',
+  'cleaner-documents',
+  'restaurant-documents',
 };
 
 class _Resolved {

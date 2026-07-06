@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
+import '../../widgets/private_bucket_image.dart';
 import '_admin_rpc_errors.dart';
 
 /// Limpeza doméstica — Admin: profissionais de limpeza.
@@ -325,8 +326,8 @@ class _CleanerCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(Icons.person_outline, color: AppColors.primary),
-                const SizedBox(width: 8),
+                _AvatarThumb(photoUrl: data['photo_url'] as String?),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Text((data['name'] as String?) ?? '—',
                       style: const TextStyle(
@@ -382,6 +383,7 @@ class _CleanerCard extends StatelessWidget {
                         color: AppColors.warning,
                         fontWeight: FontWeight.w700)),
               ),
+            _DocsRow(docs: data['docs']),
             const SizedBox(height: 10),
             Wrap(
               spacing: 8,
@@ -437,6 +439,100 @@ class _CleanerCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Miniatura da foto de perfil (bucket público `avatars`).
+class _AvatarThumb extends StatelessWidget {
+  const _AvatarThumb({required this.photoUrl});
+  final String? photoUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final url = photoUrl ?? '';
+    return CircleAvatar(
+      radius: 20,
+      backgroundColor: AppColors.primaryWash,
+      backgroundImage: url.isNotEmpty ? NetworkImage(url) : null,
+      child: url.isEmpty
+          ? const Icon(Icons.person_outline, color: AppColors.primary)
+          : null,
+    );
+  }
+}
+
+/// Linha de documentos KYC (paths no bucket privado `cleaner-documents`).
+/// Abre preview assinado via PrivateBucketImage.
+class _DocsRow extends StatelessWidget {
+  const _DocsRow({required this.docs});
+  final dynamic docs;
+
+  Map<String, dynamic> get _map =>
+      docs is Map ? Map<String, dynamic>.from(docs as Map) : const {};
+
+  static const _labels = {
+    'id_doc': 'Documento de ID',
+    'address_proof': 'Comprovativo de morada',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final entries = _map.entries
+        .where((e) => (e.value as String?)?.isNotEmpty == true)
+        .toList();
+    if (entries.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.only(top: 6),
+        child: Text('⚠️ Sem documentos anexados',
+            style: TextStyle(
+                fontSize: 12,
+                color: AppColors.error,
+                fontWeight: FontWeight.w600)),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          for (final e in entries)
+            OutlinedButton.icon(
+              onPressed: () => showDialog<void>(
+                context: context,
+                builder: (ctx) => Dialog(
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(_labels[e.key] ?? e.key,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 8),
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxHeight: 400),
+                          child: PrivateBucketImage(
+                            urlOrPath: 'cleaner-documents/${e.value}',
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: const Text('Fechar'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              icon: const Icon(Icons.description_outlined, size: 16),
+              label: Text(_labels[e.key] ?? e.key),
+            ),
+        ],
       ),
     );
   }

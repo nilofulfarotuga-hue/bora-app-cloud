@@ -419,6 +419,15 @@ class _AdminRatingsScreenState extends State<AdminRatingsScreen> {
                               value: 'driver', child: Text('Entregadores')),
                           DropdownMenuItem(
                               value: 'app', child: Text('App')),
+                          DropdownMenuItem(
+                              value: 'cleaner',
+                              child: Text('Profissionais de limpeza')),
+                          DropdownMenuItem(
+                              value: 'cleaning_client',
+                              child: Text('Clientes (limpeza)')),
+                          DropdownMenuItem(
+                              value: 'tvde_passenger',
+                              child: Text('Passageiros (Bora Motorista)')),
                         ],
                         onChanged: (v) {
                           if (v == null) return;

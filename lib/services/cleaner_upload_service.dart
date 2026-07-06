@@ -33,17 +33,34 @@ class CleanerUploadService {
     final uid = _sb.auth.currentUser?.id;
     if (uid == null) return null;
     final bytes = await file.readAsBytes();
+    // Bytes vazios (imagem ilegível) davam 400 sem causa clara → mensagem própria.
+    if (bytes.isEmpty) {
+      throw StateError('empty_file');
+    }
+    // BUG do 400: o content-type era 'image/$safeExt' → 'image/jpg', que NÃO é um
+    // MIME válido (o correto é 'image/jpeg'). O Storage compara o content-type
+    // declarado com os bytes reais (JPEG) → mismatch → 400. O avatar funciona
+    // porque envia 'image/jpeg'. Mapeamos a extensão a um MIME VÁLIDO.
     final ext = file.name.split('.').last.toLowerCase();
-    final safeExt = (ext == 'png' || ext == 'jpg' || ext == 'jpeg' || ext == 'webp')
-        ? (ext == 'jpeg' ? 'jpg' : ext)
-        : 'jpg';
+    final (safeExt, mime) = switch (ext) {
+      'png' => ('png', 'image/png'),
+      'webp' => ('webp', 'image/webp'),
+      _ => ('jpg', 'image/jpeg'), // jpg/jpeg/desconhecido → jpeg (padrão do avatar)
+    };
     final path = '$uid/${tag}_${DateTime.now().millisecondsSinceEpoch}.$safeExt';
-    await _sb.storage.from('cleaner-documents').uploadBinary(
-          path,
-          bytes,
-          fileOptions: FileOptions(upsert: true, contentType: 'image/$safeExt'),
-        );
-    debugPrint('[CleanerUploadService] doc uploaded: $path');
+    try {
+      await _sb.storage.from('cleaner-documents').uploadBinary(
+            path,
+            bytes,
+            fileOptions: FileOptions(upsert: true, contentType: mime),
+          );
+    } on StorageException catch (e) {
+      // Erro REAL do Storage (status/error/message) — em vez do 400 opaco.
+      debugPrint('[CleanerUploadService] doc upload 4xx '
+          'status=${e.statusCode} error=${e.error} msg=${e.message}');
+      rethrow;
+    }
+    debugPrint('[CleanerUploadService] doc uploaded ($mime): $path');
     return path;
   }
 }

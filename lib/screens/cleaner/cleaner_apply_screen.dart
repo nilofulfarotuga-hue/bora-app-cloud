@@ -180,14 +180,19 @@ class _CleanerApplyScreenState extends State<CleanerApplyScreen> {
         friendly = 'Indica um telemóvel válido (9+ dígitos).';
       } else if (msg.contains('not_authenticated') || msg.contains('42501')) {
         friendly = 'A tua sessão expirou. Volta a entrar e tenta de novo.';
+      } else if (msg.contains('empty_file')) {
+        friendly = 'Não foi possível ler a imagem do documento. '
+            'Tira ou escolhe a foto de novo.';
+      } else if (msg.contains('Duplicate') || msg.contains('already exists')) {
+        friendly = 'Este documento já tinha sido enviado. Tenta com outra foto.';
       } else if (stage == 'uploads' ||
           msg.contains('StorageException') ||
           msg.contains('row-level security') ||
           msg.contains('Bucket') ||
           msg.contains('Unauthorized') ||
           msg.contains('storage')) {
-        friendly = 'Não conseguimos enviar a foto ou o documento. '
-            'Verifica a ligação à internet e tenta de novo.';
+        friendly = 'Falha ao enviar a foto do documento. '
+            'Tenta escolher ou tirar a foto de novo.';
       } else {
         friendly = 'Não foi possível enviar a candidatura. Tenta de novo — '
             'se continuar, avisa o suporte.';

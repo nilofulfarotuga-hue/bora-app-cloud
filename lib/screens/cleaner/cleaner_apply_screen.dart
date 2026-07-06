@@ -14,7 +14,12 @@ import '../../widgets/bora/bora.dart';
 /// LIMPEZA — candidatura a profissional de limpeza (cleaner_apply).
 /// A aprovação é feita pelo admin no painel (paridade F5).
 class CleanerApplyScreen extends StatefulWidget {
-  const CleanerApplyScreen({super.key});
+  const CleanerApplyScreen({super.key, this.prefill});
+
+  /// MULTI-PAPEL: dados comuns (name/phone/email/nif/photo_url) vindos do papel
+  /// de estafeta/motorista, para não obrigar a reescrever tudo. Ver
+  /// `RolesService.mySummary().driverProfile`.
+  final Map<String, dynamic>? prefill;
 
   @override
   State<CleanerApplyScreen> createState() => _CleanerApplyScreenState();
@@ -35,6 +40,10 @@ class _CleanerApplyScreenState extends State<CleanerApplyScreen> {
   XFile? _idDoc;
   bool _uploading = false;
 
+  /// Foto já existente no outro papel (estafeta) — evita re-upload obrigatório.
+  String _prefillPhotoUrl = '';
+  bool get _fromOtherRole => widget.prefill != null;
+
   @override
   void initState() {
     super.initState();
@@ -42,6 +51,20 @@ class _CleanerApplyScreenState extends State<CleanerApplyScreen> {
     _emailCtrl.text = user?.email ?? '';
     final name = user?.userMetadata?['full_name'] ?? user?.userMetadata?['name'];
     if (name is String) _nameCtrl.text = name;
+
+    // MULTI-PAPEL: pré-preencher a partir do papel de estafeta, se veio de lá.
+    final p = widget.prefill;
+    if (p != null) {
+      if ((p['name'] as String?)?.isNotEmpty == true) _nameCtrl.text = p['name'];
+      if ((p['phone'] as String?)?.isNotEmpty == true) {
+        _phoneCtrl.text = p['phone'];
+      }
+      if ((p['email'] as String?)?.isNotEmpty == true) {
+        _emailCtrl.text = p['email'];
+      }
+      if ((p['nif'] as String?)?.isNotEmpty == true) _nifCtrl.text = p['nif'];
+      _prefillPhotoUrl = (p['photo_url'] as String?) ?? '';
+    }
   }
 
   @override
@@ -73,7 +96,7 @@ class _CleanerApplyScreenState extends State<CleanerApplyScreen> {
 
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    if (_photo == null) {
+    if (_photo == null && _prefillPhotoUrl.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Adiciona uma foto de perfil — os clientes escolhem '
               'pela foto.')));
@@ -88,7 +111,10 @@ class _CleanerApplyScreenState extends State<CleanerApplyScreen> {
     setState(() => _uploading = true);
     try {
       // Uploads primeiro (foto pública + doc privado), depois a candidatura.
-      final photoUrl = await CleanerUploadService.uploadAvatar(_photo!);
+      // MULTI-PAPEL: se não escolheu nova foto, reutiliza a do papel de estafeta.
+      final photoUrl = _photo != null
+          ? await CleanerUploadService.uploadAvatar(_photo!)
+          : _prefillPhotoUrl;
       final idPath = await CleanerUploadService.uploadDocument(_idDoc!, 'id_doc');
       if (!mounted) return;
       await store.apply(
@@ -141,6 +167,30 @@ class _CleanerApplyScreenState extends State<CleanerApplyScreen> {
               'e constrói a tua carteira de clientes.',
               style: TextStyle(color: AppColors.textSecondary, height: 1.4),
             ),
+            if (_fromOtherRole) ...[
+              const SizedBox(height: Spacing.md),
+              Container(
+                padding: const EdgeInsets.all(Spacing.md),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryWash,
+                  borderRadius: BorderRadius.circular(Radii.md),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.check_circle, color: AppColors.primary, size: 20),
+                    SizedBox(width: Spacing.sm),
+                    Expanded(
+                      child: Text(
+                        'Já preenchemos os teus dados a partir do teu perfil de '
+                        'estafeta. Só falta o que é específico da limpeza.',
+                        style: TextStyle(
+                            color: AppColors.textPrimary, fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: Spacing.lg),
             Center(
               child: GestureDetector(
@@ -148,9 +198,12 @@ class _CleanerApplyScreenState extends State<CleanerApplyScreen> {
                 child: CircleAvatar(
                   radius: 48,
                   backgroundColor: AppColors.primaryWash,
-                  backgroundImage:
-                      _photo != null ? FileImage(File(_photo!.path)) : null,
-                  child: _photo == null
+                  backgroundImage: _photo != null
+                      ? FileImage(File(_photo!.path)) as ImageProvider
+                      : (_prefillPhotoUrl.isNotEmpty
+                          ? NetworkImage(_prefillPhotoUrl)
+                          : null),
+                  child: (_photo == null && _prefillPhotoUrl.isEmpty)
                       ? const Icon(Icons.add_a_photo,
                           color: AppColors.primary, size: 28)
                       : null,

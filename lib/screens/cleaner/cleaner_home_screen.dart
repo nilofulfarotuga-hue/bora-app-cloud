@@ -5,10 +5,14 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../models/cleaning_models.dart';
+import '../../services/roles_service.dart';
 import '../../stores/cleaner_store.dart';
+import '../../stores/session_store.dart';
 import '../../widgets/bora/bora.dart';
 import '../../widgets/bora_support_sheet.dart';
 import '../../widgets/cleaning_chat_button.dart';
+import '../../widgets/multirole_switch_card.dart';
+import '../driver/driver_role_apply_screen.dart';
 import 'cleaner_apply_screen.dart';
 import 'cleaner_availability_screen.dart';
 import 'cleaner_earnings_screen.dart';
@@ -25,11 +29,18 @@ class CleanerHomeScreen extends StatefulWidget {
 }
 
 class _CleanerHomeScreenState extends State<CleanerHomeScreen> {
+  RolesSummary _roles = RolesSummary.empty();
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) context.read<CleanerStore>().loadProfile();
+    });
+    // MULTI-PAPEL: saber se já é estafeta (para pré-preencher a candidatura
+    // e mostrar o card de troca de papel no painel).
+    RolesService.mySummary().then((r) {
+      if (mounted) setState(() => _roles = r);
     });
   }
 
@@ -45,7 +56,7 @@ class _CleanerHomeScreenState extends State<CleanerHomeScreen> {
           : profile == null
               ? _InviteView(onApply: _openApply)
               : switch (profile.approvalStatus) {
-                  'approved' => _PanelView(store: store),
+                  'approved' => _PanelView(store: store, roles: _roles),
                   'pending' => const _StatusView(
                       icon: Icons.hourglass_top,
                       color: AppColors.warning,
@@ -73,7 +84,10 @@ class _CleanerHomeScreenState extends State<CleanerHomeScreen> {
   void _openApply() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const CleanerApplyScreen()),
+      MaterialPageRoute(
+        // MULTI-PAPEL: se já é estafeta, pré-preenche com os dados do driver.
+        builder: (_) => CleanerApplyScreen(prefill: _roles.driverProfile),
+      ),
     ).then((_) {
       if (mounted) context.read<CleanerStore>().loadProfile();
     });
@@ -216,8 +230,16 @@ class _RejectedView extends StatelessWidget {
 // ─── painel aprovado ─────────────────────────────────────────────────────────
 
 class _PanelView extends StatelessWidget {
-  const _PanelView({required this.store});
+  const _PanelView({required this.store, required this.roles});
   final CleanerStore store;
+  final RolesSummary roles;
+
+  Future<void> _switchToDriver(BuildContext context) async {
+    final nav = Navigator.of(context);
+    await context.read<SessionStore>().setRole(UserRole.driver);
+    // _RootNavigator (na raiz) reconstrói para a home do estafeta.
+    nav.popUntil((r) => r.isFirst);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -280,6 +302,27 @@ class _PanelView extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+          const SizedBox(height: Spacing.lg),
+
+          // MULTI-PAPEL: convite/troca para Entregas e Viagens (estafeta).
+          MultiRoleSwitchCard(
+            icon: Icons.two_wheeler,
+            otherStatus: roles.driverStatus,
+            inviteTitle: 'Trabalha também em Entregas e Viagens?',
+            inviteSubtitle:
+                'Usa a mesma conta e ganha nas duas frentes. Só pedimos o '
+                'veículo e os documentos.',
+            activeTitle: 'As minhas Entregas e Viagens',
+            pendingTitle: 'Candidatura a estafeta em análise',
+            onInvite: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) =>
+                    DriverRoleApplyScreen(prefill: roles.cleanerProfile),
+              ),
+            ),
+            onOpen: () => _switchToDriver(context),
           ),
           const SizedBox(height: Spacing.lg),
 

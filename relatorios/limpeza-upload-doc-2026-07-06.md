@@ -1,6 +1,6 @@
 # Limpeza — Upload do documento da candidatura (HTTP 400) — RESOLVIDO
 
-**Data:** 2026-07-06 · **Commit:** `041e97c` · **Branch:** `autonomous-night-2026-04-29`
+**Data:** 2026-07-06 · **Commit:** `6b0cda3` · **Branch:** `autonomous-night-2026-04-29`
 **Migration aplicada em prod:** `20260706224707_cleaner_docs_admin_policy_jwt`
 
 ---

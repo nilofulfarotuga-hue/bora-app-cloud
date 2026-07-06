@@ -14,6 +14,7 @@ import '../widgets/bora_support_fab.dart';
 import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
+import '../services/roles_service.dart';
 import '../widgets/biometric_login_tile.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../models/driver_model.dart';
@@ -50,12 +51,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isDeletingAccount = false;
   bool _driverSyncing = false;
 
+  // MULTI-PAPEL: saber se o utilizador já é profissional de limpeza para
+  // adaptar a entrada de Limpeza (convite vs "a minha limpeza").
+  RolesSummary _roles = RolesSummary.empty();
+
   @override
   void initState() {
     super.initState();
     _loadPhotoUrl();
     _validateSession();
     _ensureDriverLoaded();
+    _loadRoles();
+  }
+
+  Future<void> _loadRoles() async {
+    final r = await RolesService.mySummary();
+    if (mounted) setState(() => _roles = r);
   }
 
   Future<void> _ensureDriverLoaded() async {
@@ -656,15 +667,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ListTile(
                     leading: const Icon(Icons.cleaning_services_outlined,
                         color: AppColors.primary),
-                    title: const Text('Sou profissional de limpeza'),
-                    subtitle:
-                        const Text('Candidata-te e gere as tuas limpezas'),
+                    title: Text(_roles.hasCleaner
+                        ? 'A minha Limpeza'
+                        : 'Trabalha também em Limpeza?'),
+                    subtitle: Text(_roles.hasCleaner
+                        ? 'Gere as tuas limpezas e disponibilidade'
+                        : 'Ganha 85% por limpeza — com a mesma conta'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
                           builder: (_) => const CleanerHomeScreen()),
-                    ),
+                    ).then((_) {
+                      if (mounted) _loadRoles();
+                    }),
                   ),
                   ListTile(
                     leading: const Icon(Icons.support_agent_outlined,

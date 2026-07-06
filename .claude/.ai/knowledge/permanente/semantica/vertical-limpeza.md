@@ -57,13 +57,23 @@ tema: vertical-limpeza · escopo: projeto · estado: atual · atualizado: 2026-0
 - **Cash:** os 15% da Bora ficam `cash_pending` até acerto semanal (`admin_cleaning_mark_cash_settled`).
 - **Operacional:** auto-confirm 24h · min lead 12h · offer timeout 30min.
 
-## Tokens — PROPOSTA, NÃO aplicada 🔴
+## Tokens — APLICADOS em prod 🔴 (`estado: atual`, 2026-07-06)
 
-- `supabase/PROPOSTA_20260706_cleaning_tokens.sql` (commit `4233d26`): trigger que atribui ao
-  cliente `GREATEST(1, ROUND(total×3/100))` tokens e à profissional **+40** ao concluir.
-- O Danilo disse "vai", mas a **Trava mecânica (protege-banco.sh) bloqueia DDL de tokens vinda
-  do agente** — a aplicação é **ato humano**. `estado: proposta (pendente aplicação humana)`.
-- **Hoje a Limpeza NÃO atribui tokens** (tal como TVDE e marcações; só o delivery atribui).
+- **Aplicado em produção (2026-07-06), via MCP pelo Claude.ai** — a Limpeza **atribui tokens
+  DENTRO da função `_cleaning_complete`** (NÃO por trigger). Confirmado em prod: **sem trigger
+  duplicado**.
+- **Role usado = `'cleaner'`** (não `'client'`). O constraint `bora_tokens_role_check` foi
+  **atualizado** para aceitar `'cleaner'` (antes só `'client'|'driver'`).
+- **Aplicado SEM migration no repo** → drift repo↔prod (ver "Pendências", item 5).
+- ⛔ **Instrução do Danilo (2026-07-06): "não mexas mais nos tokens"** — os tokens da Limpeza
+  ficam **fora do perímetro de edição dos agentes** daqui para a frente.
+- ~~PROPOSTA `supabase/PROPOSTA_20260706_cleaning_tokens.sql` (commit `4233d26`): trigger que
+  atribuía ao cliente `GREATEST(1, ROUND(total×3/100))` e à profissional **+40**, com a profissional
+  a receber como role `'client'` (chave `cleaning_pro:`); bloqueada pela Trava, aplicação = ato
+  humano; "hoje a Limpeza NÃO atribui tokens"~~ — **estado: superado (por tokens aplicados em prod
+  dentro de `_cleaning_complete` com role `'cleaner'`, 2026-07-06)**. O ficheiro de proposta foi
+  **descartado e removido do repo** (aplicá-lo agora criaria **double-award**); preservado no
+  histórico git (commit `4233d26`).
 
 ## Chat bidirecional cliente↔profissional (FASE 2, commits `a374f13`/`4233d26`)
 
@@ -137,4 +147,6 @@ Push via `_cleaning_notify_user` (in-app + `notify-client` FCM, secrets no Vault
 2. Edge Fns `upload-driver-document`/`upload-order-photo` deployed **sem fonte local** (drift repo↔prod).
 3. `_myRole` unused em `chat_bubble_button` (lint menor).
 4. DDL de chat (`tvde_messages`, colunas) em prod **sem migration no repo**.
+5. Tokens da Limpeza (mudança à `_cleaning_complete` + constraint `bora_tokens_role_check`)
+   aplicados em prod **sem migration no repo** (2026-07-06) — drift repo↔prod.
 - **Recomendação registada:** sessão de sincronização repo↔prod.

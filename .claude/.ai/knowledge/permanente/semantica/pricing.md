@@ -1,5 +1,5 @@
 ---
-tema: pricing · escopo: projeto · estado: atual · atualizado: 2026-07-01
+tema: pricing · escopo: projeto · estado: atual · atualizado: 2026-07-06
 ---
 
 # 💶 Pricing / Tokens / Comissões — resumo operacional
@@ -26,8 +26,11 @@ tema: pricing · escopo: projeto · estado: atual · atualizado: 2026-07-01
 - Driver **+40** normal / **+50 = entrega de loja parceira** (não é stacking). Cliente
   **3 tokens por €** — `GREATEST(1, ROUND(valor×3))`.
 - **100 tokens = €0,50** · máx **50%** de desconto. DB `bora_tokens`, trigger `trg_award_tokens_on_delivery`.
-- **Só o delivery atribui tokens hoje** — TVDE, marcações e Limpeza NÃO (Limpeza tem proposta
-  pendente: `supabase/PROPOSTA_20260706_cleaning_tokens.sql`, ver `semantica/vertical-limpeza.md`).
+- **Delivery e Limpeza atribuem tokens; TVDE e marcações NÃO.** A **Limpeza passou a atribuir
+  tokens em prod (2026-07-06)** dentro da função `_cleaning_complete` (role `'cleaner'`), ver
+  `semantica/vertical-limpeza.md`. ~~Limpeza tem proposta pendente
+  `supabase/PROPOSTA_20260706_cleaning_tokens.sql`~~ — **estado: superado (proposta descartada;
+  aplicado em prod, 2026-07-06)**.
 - ✅ **Contradição resolvida (2026-07-06, commit `4d34a2a`):** `business_rules.md` §4.2 corrigido —
   a regra certa é "3 tokens por €" (o código, `ROUND(price×3)`). — Facto anterior "cliente ganha
   3% do valor": **estado: superado (por correção do §4.2, 2026-07-06)**.

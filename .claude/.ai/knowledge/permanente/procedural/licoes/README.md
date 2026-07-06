@@ -1,5 +1,5 @@
 ---
-tema: licoes-index · escopo: projeto · estado: atual · atualizado: 2026-07-01
+tema: licoes-index · escopo: projeto · estado: atual · atualizado: 2026-07-05
 ---
 
 # 📖 Lições — como esta pasta cresce
@@ -24,4 +24,8 @@ tema: licao-<slug> · escopo: projeto|agente:<nome> · estado: atual · atualiza
 - Se contradiz uma lição antiga → a antiga fica `estado: superado (por <esta>, <data>)`.
 - Ficheiro que passe ~24 KB → partir por sub-tema. O Bibliotecário atualiza o `INDEX.md`.
 
-*(Ainda sem lições registadas — a pasta enche à medida que os agentes entregam handoffs.)*
+## Lições registadas
+- `licao-crlf-sh-eol.md` — CRLF em scripts `.sh` no Windows.
+- `licao-asserts-weakened.md` — não enfraquecer asserções de teste (Juiz).
+- `licao-anti-trapaca-base-stale.md` — em branch longa usar `--base` da sessão.
+- `licao-context-watch-getter.md` — getter com `context.watch` em callback → crash (2026-07-05).

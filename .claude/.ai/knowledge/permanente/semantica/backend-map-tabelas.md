@@ -1,5 +1,5 @@
 ---
-tema: backend-map · escopo: projeto · estado: atual · atualizado: 2026-07-01
+tema: backend-map · escopo: projeto · estado: atual · atualizado: 2026-07-05
 ---
 
 # Backend Map — Tabelas (schema public)
@@ -56,6 +56,18 @@ tema: backend-map · escopo: projeto · estado: atual · atualizado: 2026-07-01
 | `tvde_subscriptions` | Subscrições do motorista TVDE. |
 | `tvde_ride_counters` | Contadores de corridas. |
 | `tvde_driver_balances` 🔴 | Dívida do motorista ao Bora por corridas cash. |
+
+## Limpeza doméstica (isolada) 🔴 — 2026-07-05
+
+Detalhe (regras, pagamento, crons): [vertical-limpeza.md](./vertical-limpeza.md).
+
+| Tabela | Propósito |
+|---|---|
+| `cleaners` | Profissionais de limpeza (candidatura/aprovação/suspensão). |
+| `cleaner_availability` | Agenda/disponibilidade da profissional. |
+| `cleaning_bookings` 🔴 | Reservas de limpeza (preço, split 85/15, estado). |
+| `cleaner_cancel_events` | Cancelamentos tardios (3 em 30d = suspensão automática). |
+| `cleaning_recurrence_stops` | Paragens de recorrência (semanal/quinzenal). |
 
 ## Serviços / Agendamentos (barbearia etc.)
 

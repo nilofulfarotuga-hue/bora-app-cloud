@@ -1,5 +1,5 @@
 ---
-tema: indice-cerebro · escopo: projeto · estado: atual · atualizado: 2026-07-01
+tema: indice-cerebro · escopo: projeto · estado: atual · atualizado: 2026-07-05
 ---
 
 # 🧠 CÉREBRO DO BORA — Índice
@@ -42,6 +42,7 @@ knowledge/
 | DNA — filosofia de decisão do Danilo | `permanente/semantica/dna.md` | dúvida de "como o dono decidiria" |
 | 🔴 Zonas protegidas (a Trava, Fase 1) | `permanente/semantica/zonas-protegidas.md` | **antes de editar código/DB** |
 | Backend map (tabelas/RPCs/edge fns/triggers/RLS) | `permanente/semantica/backend-map.md` | mexer no Supabase; "o que existe" |
+| Vertical LIMPEZA (regras, pagamento, crons, telas, caveats) | `permanente/semantica/vertical-limpeza.md` | qualquer trabalho na limpeza doméstica |
 | Exército (elenco de agentes) | `permanente/semantica/exercito.md` | escolher/delegar a um agente |
 
 ### Episódica — história
@@ -59,6 +60,7 @@ knowledge/
 | ↳ CRLF em scripts `.sh` (Windows) | `permanente/procedural/licoes/licao-crlf-sh-eol.md` | criar hooks/scripts bash |
 | ↳ Não enfraquecer asserções (Juiz) | `permanente/procedural/licoes/licao-asserts-weakened.md` | consertar teste/código sob teste |
 | ↳ anti_trapaca em branch longa: usar `--base` da sessão | `permanente/procedural/licoes/licao-anti-trapaca-base-stale.md` | correr o Juiz nesta branch |
+| ↳ `context.watch` em getter chamado por callback → crash | `permanente/procedural/licoes/licao-context-watch-getter.md` | Flutter/Provider: getters vs callbacks |
 
 ---
 

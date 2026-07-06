@@ -1,10 +1,14 @@
 ---
-tema: backend-map · escopo: projeto · estado: atual · atualizado: 2026-07-01
+tema: backend-map · escopo: projeto · estado: atual · atualizado: 2026-07-05
 ---
 
 # Backend Map — Edge Functions
 
-51 funções ACTIVE. `jwt` = verify_jwt. 🔴 = zona de dinheiro. Índice: [backend-map.md](./backend-map.md).
+**55 funções ACTIVE** (verificado via MCP `list_edge_functions` 2026-07-05; local: 49 pastas com
+`index.ts` em `supabase/functions/`). `jwt` = verify_jwt. 🔴 = zona de dinheiro.
+Índice: [backend-map.md](./backend-map.md).
+> Nota: a skill CEO-AI e o CLAUDE.md ainda dizem "43/44" — **stale**; atualizar o `SKILL.md`
+> aguarda aprovação do Danilo.
 
 ## Core dinheiro / pagamentos 🔴
 
@@ -20,6 +24,8 @@ tema: backend-map · escopo: projeto · estado: atual · atualizado: 2026-07-01
 | `charge-extra` 🔴 | jwt | Cobra extra off_session pós-entrega (sacos). |
 | `pay-debt-standalone` 🔴 | jwt | Pagamento de dívida do estafeta/cliente. |
 | `list-saved-cards` | jwt | Lista cartões guardados (Stripe). |
+| `tvde-plan-payment` 🔴 | jwt | Pagamento de plano/corrida TVDE — isolada, SEM webhook (2026-07-03). |
+| `cleaning-checkout` 🔴 | jwt | Checkout da vertical LIMPEZA (cartão captura manual / MB Way cobra já; padrão tvde-plan-payment, sem webhook). LIVE 2026-07-05 após "vai". Ver [vertical-limpeza.md](./vertical-limpeza.md). |
 
 ## Cancelamento 🔴
 
@@ -50,6 +56,8 @@ tema: backend-map · escopo: projeto · estado: atual · atualizado: 2026-07-01
 | `notify-client` | jwt | Push ao cliente (estado do pedido). |
 | `notify-service-provider` | não | Push ao prestador de serviço. |
 | `notify-tvde-driver` | jwt | Push ao motorista TVDE (oferta corrida). |
+| `notify-tvde-client` | jwt | Push ao passageiro TVDE (estado da corrida). |
+| `notify-tvde-chat` | jwt | Push de mensagem de chat TVDE. |
 | `notify-chat-message` | jwt | Push de nova mensagem de chat. |
 | `notify-admin-urgent` | jwt | Push urgente aos admins. |
 | `notify-partner-low-rating` | jwt | Alerta parceiro de rating baixo. |

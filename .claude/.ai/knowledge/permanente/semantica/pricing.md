@@ -23,10 +23,14 @@ tema: pricing · escopo: projeto · estado: atual · atualizado: 2026-07-01
 - Partilha **30%** do lucro líquido Bora (não-parceiro).
 
 ## Tokens — `estado: atual`
-- Driver **+40** normal / **+50** parceiro. Cliente **3%** do valor.
+- Driver **+40** normal / **+50 = entrega de loja parceira** (não é stacking). Cliente
+  **3 tokens por €** — `GREATEST(1, ROUND(valor×3))`.
 - **100 tokens = €0,50** · máx **50%** de desconto. DB `bora_tokens`, trigger `trg_award_tokens_on_delivery`.
-- ⚠️ **Contradição conhecida** (ver `episodica/bugs-resolvidos.md`): docs dizem "3%",
-  algum código faz `ROUND(price×3)`. `estado: aberto` — decisão do Danilo pendente.
+- **Só o delivery atribui tokens hoje** — TVDE, marcações e Limpeza NÃO (Limpeza tem proposta
+  pendente: `supabase/PROPOSTA_20260706_cleaning_tokens.sql`, ver `semantica/vertical-limpeza.md`).
+- ✅ **Contradição resolvida (2026-07-06, commit `4d34a2a`):** `business_rules.md` §4.2 corrigido —
+  a regra certa é "3 tokens por €" (o código, `ROUND(price×3)`). — Facto anterior "cliente ganha
+  3% do valor": **estado: superado (por correção do §4.2, 2026-07-06)**.
 
 ## Onde o dinheiro é forçado no servidor
 Ledger append-only + `enforce_financial_immutability` (orders_financial_lock) + `_enforce_refund_cap`.

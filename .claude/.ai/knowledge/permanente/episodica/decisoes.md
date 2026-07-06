@@ -1,5 +1,5 @@
 ---
-tema: decisoes · escopo: projeto · estado: atual · atualizado: 2026-07-01
+tema: decisoes · escopo: projeto · estado: atual · atualizado: 2026-07-06
 ---
 
 # Decisões Arquiteturais Persistentes
@@ -171,3 +171,25 @@ tema: decisoes · escopo: projeto · estado: atual · atualizado: 2026-07-01
 - ⚠️ 2 sessões Claude no mesmo working tree = race git → fetch+rebase sempre.
 - **Gap crítico ligado:** `driver_signup` força vehicle_type='motorcycle' (ver `bugs-resolvidos.md` #1).
 - **estado: atual** (`project_bora_motorista_tvde.md`).
+
+---
+
+## Chat por vertical — tabela dedicada (padrão TVDE E1)
+
+### Chat da Limpeza usa `cleaning_messages`, NÃO a tabela `messages` do delivery
+- **Decisão (2026-07-06, commits `a374f13`/`4233d26`):** cada vertical isolada tem a sua tabela
+  de chat (padrão TVDE E1). A tabela `messages` do delivery está acoplada a `orders` (id TEXT) e
+  a RLS/Edge Fn de push só resolvem participantes por `orders` — reutilizá-la exigiria acoplar a
+  Limpeza ao delivery.
+- Implementação: `cleaning_messages` (RLS participantes-only, INSERT só em estados ativos),
+  RPC `cleaning_mark_messages_read`, trigger `_cleaning_chat_push`
+  (migration `20260705120000_cleaning_chat_profiles_kyc.sql`).
+- **estado: atual** (detalhe em `semantica/vertical-limpeza.md`).
+
+### Cartão da Limpeza cobra NA RESERVA (fim do hold manual)
+- **Decisão (2026-07-06, commit `912ce6d`):** `cleaning-checkout` v2 — cartão E MB Way cobram
+  no ato da reserva; cancelamento estorna via `reverse`. Motivo: hold Stripe expirava em ~7 dias
+  e a captura pós auto-confirmação dependia de o cliente reabrir o tracking.
+- Ação `capture` mantida **só** para holds legados (`requires_capture`).
+- **Superado:** cartão com captura manual/hold —
+  **estado: superado (por cleaning-checkout v2, 2026-07-06).**

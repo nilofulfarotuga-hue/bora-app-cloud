@@ -71,7 +71,7 @@ visual (badge vermelho 9+, preview) num botão próprio da Limpeza.
 
 | Item | Veredito da auditoria | Estado final |
 |---|---|---|
-| Tokens (cliente ROUND(€×3) mín 1; profissional por serviço) | ❌ Limpeza não atribui — MAS **TVDE e marcações também não** (só o delivery atribui, via `trg_award_tokens_on_delivery`). Atribuir na Limpeza mexe em `bora_tokens` = 🔴 LISTA VERMELHA → **proposta preparada, NÃO aplicada** (`supabase/PROPOSTA_20260705_cleaning_tokens.sql`) | ⚠️ proposta |
+| Tokens (cliente ROUND(€×3) mín 1; profissional por serviço) | ❌ Limpeza não atribuía. **APLICADO em prod** (2026-07-06, via MCP pelo Claude.ai): a atribuição vive **dentro da função `_cleaning_complete`** (NÃO por trigger), com role `'cleaner'` e o constraint `bora_tokens_role_check` já atualizado para aceitar `'cleaner'`. Sem trigger duplicado. A minha proposta de trigger foi **descartada** (seria mecanismo duplo) | ✅ FEITO (via `_cleaning_complete`) |
 | Push em TODAS as transições | ✅ TEM (oferta, aceite, a caminho, iniciada, concluída, confirmada, cancelamentos, reatribuição, no-show, lembretes 24h/2h) | ✅ |
 | Cancelamento: janelas + contadores dos 2 lados | ✅ TEM (server-side; cliente 24h/2h; profissional `cleaner_cancel_events` 3/30d → suspensão) | ✅ |
 | Banner "Pagar agora" p/ unpaid | ✅ TEM (tracking) | ✅ |
@@ -137,15 +137,18 @@ de serviços com detalhe (`CleanerHistoryScreen`).
 **Bug fora de scope corrigido (G2):** `admin_ratings_screen` ganhou os filtros
 `cleaner`, `cleaning_client`, `tvde_passenger` (subject_types confirmados na BD).
 
-### ⚠️ Pendente de ato humano (🔴 Lista Vermelha)
+### ✅ Tokens da Limpeza — APLICADO em prod (2026-07-06)
 
-- **Tokens da Limpeza** — `supabase/PROPOSTA_20260706_cleaning_tokens.sql`:
-  trigger que atribui tokens ao cliente `GREATEST(1, ROUND(total×3/100))` +
-  profissional (+40) ao concluir. O Danilo disse "vai", **mas a Trava mecânica
-  (`protege-banco.sh`) bloqueia DDL de tokens vinda do agente** — por design.
-  Está pronto e reversível; **o Danilo aplica à mão** (SQL editor ou mover para
-  `migrations/`). Enquanto não aplicado, a Limpeza não atribui tokens (tal como
-  TVDE e marcações — coerente com o resto da app hoje).
+- Aplicado via MCP pelo Claude.ai, **dentro da função `_cleaning_complete`**
+  (NÃO por trigger), com role `'cleaner'`; o constraint `bora_tokens_role_check`
+  foi atualizado para aceitar `'cleaner'`. Confirmado em produção: sem trigger
+  duplicado.
+- A minha proposta de trigger (`PROPOSTA_20260706_cleaning_tokens.sql`) foi
+  **descartada e o ficheiro removido** — aplicá-la teria criado um segundo
+  mecanismo de atribuição (double-award). A Trava tinha bloqueado a minha via de
+  agente; a aplicação final foi feita fora deste agente, como manda o desenho.
+- **Nota:** os tokens estão fora do meu perímetro a partir daqui (instrução do
+  Danilo: "não mexas mais nos tokens").
 
 ### ⏳ Deixado para v2 (justificado, não é buraco silencioso)
 
@@ -163,6 +166,10 @@ G1 (`business_rules.md` tokens "3%" vs código ×3 — **corrigido no doc**, ver
 abaixo), G3 (`notify-client` hardcoda `type`), G4 (Edge Fns `upload-*` sem
 fonte local), G5 (`_myRole` unused), G6 (drift de DDL de chat em prod sem
 migration). Recomendo uma sessão de "sincronização repo↔prod" para G4+G6.
+
+**Nota de drift adicional:** os tokens da Limpeza (via `_cleaning_complete` +
+constraint `bora_tokens_role_check` com `'cleaner'`) foram aplicados em prod por
+MCP, **sem migration no repo** — juntar a G4/G6 na tal sessão de sincronização.
 
 ### Verificação
 

@@ -904,12 +904,14 @@ Cliente escolhe na marcação:
   (`cleaning_cancel_free_hours`, `cleaning_cancel_half_hours`).
 - Ação `capture` mantida só para holds legados.
 
-### 18.7 Tokens (⚠️ PROPOSTA — não aplicado)
-- A Limpeza **ainda não atribui tokens** (tal como TVDE e marcações; só o
-  delivery atribui hoje). Proposta pronta em
-  `supabase/PROPOSTA_20260706_cleaning_tokens.sql` (cliente
-  `GREATEST(1, ROUND(total×3/100))` + profissional +40 ao concluir). Bloqueada
-  pela Trava (🔴 dinheiro) — aplicação é ato humano do Danilo.
+### 18.7 Tokens (✅ APLICADO em prod — 2026-07-06)
+- A Limpeza atribui tokens ao concluir, aplicado via MCP (Claude.ai) **dentro da
+  função `_cleaning_complete`** — NÃO por trigger. Role `'cleaner'`; o constraint
+  `bora_tokens_role_check` foi atualizado para aceitar `'cleaner'` (antes só
+  `'client'|'driver'`). Confirmado em prod: sem trigger duplicado.
+- A proposta de trigger inicial (`PROPOSTA_20260706_cleaning_tokens.sql`) foi
+  **descartada e removida do repo** (evita double-award). Aplicado sem migration
+  no repo — anotar como drift repo↔prod a sincronizar.
 
 ### 18.8 Comunicação e avaliação
 - Chat bidirecional cliente↔profissional (`cleaning_messages`, push nos 2 lados)

@@ -141,6 +141,13 @@ Push via `_cleaning_notify_user` (in-app + `notify-client` FCM, secrets no Vault
   `admin_cleaning_cleaners_screen` (+ docs KYC) — secção "Limpeza doméstica" no dashboard.
 - **Lição associada:** `procedural/licoes/licao-context-watch-getter.md`.
 
+## Ponte MULTIPAPEL (duplo-papel estafeta⇄limpeza)
+
+- Um utilizador pode ter os **dois papéis** (`drivers` + `cleaners`) com a **mesma conta**
+  (`cleaner_apply`/`driver_register_or_update` usam `auth.uid()`; sem exclusividade). Migration
+  `multirole_bridge` (funções read-only `my_roles_summary`/`admin_user_role_flags`) + camada
+  Flutter (cards de troca, prefill, badges admin). Detalhe completo: `multipapel.md`.
+
 ## Pendências fora de scope (reportadas 2026-07-06, NÃO corrigidas)
 
 1. `notify-client` hardcoda `type:'order_status'` → bloqueia deep-link por tipo (afeta o chat da limpeza).

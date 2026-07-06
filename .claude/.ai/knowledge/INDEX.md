@@ -43,6 +43,7 @@ knowledge/
 | 🔴 Zonas protegidas (a Trava, Fase 1) | `permanente/semantica/zonas-protegidas.md` | **antes de editar código/DB** |
 | Backend map (tabelas/RPCs/edge fns/triggers/RLS) | `permanente/semantica/backend-map.md` | mexer no Supabase; "o que existe" |
 | Vertical LIMPEZA (regras, pagamento, crons, telas, caveats) | `permanente/semantica/vertical-limpeza.md` | qualquer trabalho na limpeza doméstica |
+| Vertical MULTIPAPEL (duplo-papel estafeta⇄limpeza, ponte) | `permanente/semantica/multipapel.md` | 2.º papel sem conta nova; my_roles_summary; badges/prefill |
 | Exército (elenco de agentes) | `permanente/semantica/exercito.md` | escolher/delegar a um agente |
 
 ### Episódica — história

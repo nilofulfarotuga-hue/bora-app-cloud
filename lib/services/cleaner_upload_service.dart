@@ -37,10 +37,7 @@ class CleanerUploadService {
     if (bytes.isEmpty) {
       throw StateError('empty_file');
     }
-    // BUG do 400: o content-type era 'image/$safeExt' → 'image/jpg', que NÃO é um
-    // MIME válido (o correto é 'image/jpeg'). O Storage compara o content-type
-    // declarado com os bytes reais (JPEG) → mismatch → 400. O avatar funciona
-    // porque envia 'image/jpeg'. Mapeamos a extensão a um MIME VÁLIDO.
+    // Content-type VÁLIDO por extensão ('image/jpg' não é MIME válido).
     final ext = file.name.split('.').last.toLowerCase();
     final (safeExt, mime) = switch (ext) {
       'png' => ('png', 'image/png'),
@@ -49,10 +46,17 @@ class CleanerUploadService {
     };
     final path = '$uid/${tag}_${DateTime.now().millisecondsSinceEpoch}.$safeExt';
     try {
+      // CAUSA REAL do 400 (2026-07-06): upsert:true faz o Postgres avaliar
+      // também as policies de SELECT/UPDATE do bucket, e a policy de admin
+      // consultava auth.users — tabela proibida ao role authenticated →
+      // "permission denied for table users". Corrigido dos dois lados: a
+      // policy passou a ler o claim do JWT (migration
+      // 20260706224707_cleaner_docs_admin_policy_jwt) e o upsert saiu daqui
+      // (o path tem timestamp — nunca há conflito, o upsert era inútil).
       await _sb.storage.from('cleaner-documents').uploadBinary(
             path,
             bytes,
-            fileOptions: FileOptions(upsert: true, contentType: mime),
+            fileOptions: FileOptions(contentType: mime),
           );
     } on StorageException catch (e) {
       // Erro REAL do Storage (status/error/message) — em vez do 400 opaco.

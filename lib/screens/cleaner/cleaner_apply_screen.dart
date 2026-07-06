@@ -191,7 +191,11 @@ class _CleanerApplyScreenState extends State<CleanerApplyScreen> {
           msg.contains('Bucket') ||
           msg.contains('Unauthorized') ||
           msg.contains('storage')) {
-        friendly = 'Falha ao enviar a foto do documento. '
+        // Mostra a causa REAL do Storage (statusCode + mensagem) — o toast
+        // genérico escondia o erro e deixou-nos às cegas em 3 correções.
+        final detail =
+            e is StorageException ? ' [${e.statusCode}: ${e.message}]' : '';
+        friendly = 'Falha ao enviar a foto do documento$detail. '
             'Tenta escolher ou tirar a foto de novo.';
       } else {
         friendly = 'Não foi possível enviar a candidatura. Tenta de novo — '

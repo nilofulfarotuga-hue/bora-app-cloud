@@ -1,9 +1,13 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
+import '../../services/cleaner_upload_service.dart';
 import '../../stores/cleaner_store.dart';
 import '../../widgets/bora/bora.dart';
 
@@ -26,6 +30,11 @@ class _CleanerApplyScreenState extends State<CleanerApplyScreen> {
   final _addressCtrl = TextEditingController();
   double _radiusKm = 10;
 
+  final _picker = ImagePicker();
+  XFile? _photo;
+  XFile? _idDoc;
+  bool _uploading = false;
+
   @override
   void initState() {
     super.initState();
@@ -46,10 +55,42 @@ class _CleanerApplyScreenState extends State<CleanerApplyScreen> {
     super.dispose();
   }
 
+  Future<void> _pick(bool isPhoto) async {
+    final x = await _picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1400,
+      imageQuality: 85,
+    );
+    if (x == null) return;
+    setState(() {
+      if (isPhoto) {
+        _photo = x;
+      } else {
+        _idDoc = x;
+      }
+    });
+  }
+
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
+    if (_photo == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Adiciona uma foto de perfil — os clientes escolhem '
+              'pela foto.')));
+      return;
+    }
+    if (_idDoc == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Anexa um documento de identificação (BI/CC).')));
+      return;
+    }
     final store = context.read<CleanerStore>();
+    setState(() => _uploading = true);
     try {
+      // Uploads primeiro (foto pública + doc privado), depois a candidatura.
+      final photoUrl = await CleanerUploadService.uploadAvatar(_photo!);
+      final idPath = await CleanerUploadService.uploadDocument(_idDoc!, 'id_doc');
+      if (!mounted) return;
       await store.apply(
         name: _nameCtrl.text.trim(),
         phone: _phoneCtrl.text.trim(),
@@ -58,6 +99,8 @@ class _CleanerApplyScreenState extends State<CleanerApplyScreen> {
         bio: _bioCtrl.text.trim(),
         baseAddress: _addressCtrl.text.trim(),
         serviceRadiusKm: _radiusKm,
+        photoUrl: photoUrl ?? '',
+        docs: {if (idPath != null) 'id_doc': idPath},
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -78,6 +121,8 @@ class _CleanerApplyScreenState extends State<CleanerApplyScreen> {
       }
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(friendly)));
+    } finally {
+      if (mounted) setState(() => _uploading = false);
     }
   }
 
@@ -95,6 +140,34 @@ class _CleanerApplyScreenState extends State<CleanerApplyScreen> {
               'Trabalha quando queres, recebe 85% do valor de cada limpeza '
               'e constrói a tua carteira de clientes.',
               style: TextStyle(color: AppColors.textSecondary, height: 1.4),
+            ),
+            const SizedBox(height: Spacing.lg),
+            Center(
+              child: GestureDetector(
+                onTap: () => _pick(true),
+                child: CircleAvatar(
+                  radius: 48,
+                  backgroundColor: AppColors.primaryWash,
+                  backgroundImage:
+                      _photo != null ? FileImage(File(_photo!.path)) : null,
+                  child: _photo == null
+                      ? const Icon(Icons.add_a_photo,
+                          color: AppColors.primary, size: 28)
+                      : null,
+                ),
+              ),
+            ),
+            const SizedBox(height: Spacing.xs),
+            const Center(
+              child: Text('Foto de perfil *',
+                  style: TextStyle(
+                      color: AppColors.textSecondary, fontSize: 12)),
+            ),
+            const SizedBox(height: Spacing.lg),
+            _DocTile(
+              label: 'Documento de identificação (BI/CC) *',
+              picked: _idDoc != null,
+              onTap: () => _pick(false),
             ),
             const SizedBox(height: Spacing.lg),
             TextFormField(
@@ -170,9 +243,9 @@ class _CleanerApplyScreenState extends State<CleanerApplyScreen> {
             ),
             const SizedBox(height: Spacing.lg),
             BoraPrimaryButton(
-              label: 'Enviar candidatura',
+              label: _uploading ? 'A enviar…' : 'Enviar candidatura',
               icon: Icons.send,
-              loading: store.busy,
+              loading: store.busy || _uploading,
               onPressed: _submit,
             ),
             const SizedBox(height: Spacing.md),
@@ -182,6 +255,57 @@ class _CleanerApplyScreenState extends State<CleanerApplyScreen> {
               textAlign: TextAlign.center,
               style: TextStyle(color: AppColors.textSubtle, fontSize: 12),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DocTile extends StatelessWidget {
+  const _DocTile({
+    required this.label,
+    required this.picked,
+    required this.onTap,
+  });
+  final String label;
+  final bool picked;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(Radii.md),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(Spacing.md),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(Radii.md),
+          border: Border.all(
+            color: picked ? AppColors.primary : AppColors.divider,
+            width: picked ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(picked ? Icons.check_circle : Icons.upload_file,
+                color: picked ? AppColors.primary : AppColors.textSecondary),
+            const SizedBox(width: Spacing.md),
+            Expanded(
+              child: Text(
+                picked ? 'Documento anexado' : label,
+                style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary),
+              ),
+            ),
+            if (picked)
+              const Text('Trocar',
+                  style: TextStyle(
+                      color: AppColors.primary, fontWeight: FontWeight.w600))
+            else
+              const Icon(Icons.chevron_right, color: AppColors.textSubtle),
           ],
         ),
       ),

@@ -12,6 +12,7 @@ import '../../widgets/cleaning_chat_button.dart';
 import 'cleaner_apply_screen.dart';
 import 'cleaner_availability_screen.dart';
 import 'cleaner_earnings_screen.dart';
+import 'cleaner_history_screen.dart';
 
 /// LIMPEZA — painel da profissional. Router por estado da candidatura:
 /// sem registo → convite; pending → em análise; rejected → recandidatar;
@@ -311,6 +312,22 @@ class _PanelView extends StatelessWidget {
               const SizedBox(width: Spacing.md),
               Expanded(
                 child: _ShortcutCard(
+                  icon: Icons.history,
+                  label: 'Histórico',
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const CleanerHistoryScreen()),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: Spacing.md),
+          Row(
+            children: [
+              Expanded(
+                child: _ShortcutCard(
                   icon: Icons.support_agent_outlined,
                   label: 'Suporte',
                   // Mesmo canal do estafeta (BoraIA + WhatsApp + Email).
@@ -322,6 +339,8 @@ class _PanelView extends StatelessWidget {
                   ),
                 ),
               ),
+              const SizedBox(width: Spacing.md),
+              const Expanded(child: SizedBox()),
             ],
           ),
           const SizedBox(height: Spacing.lg),

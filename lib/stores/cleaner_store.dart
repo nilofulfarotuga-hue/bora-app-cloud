@@ -75,6 +75,8 @@ class CleanerStore extends ChangeNotifier {
     double? baseLat,
     double? baseLng,
     double serviceRadiusKm = 10,
+    String photoUrl = '',
+    Map<String, dynamic> docs = const {},
   }) async {
     _setBusy(true);
     try {
@@ -84,12 +86,12 @@ class CleanerStore extends ChangeNotifier {
         'p_email': email,
         'p_nif': nif,
         'p_bio': bio,
-        'p_photo_url': '',
+        'p_photo_url': photoUrl,
         'p_base_address': baseAddress,
         'p_base_lat': baseLat,
         'p_base_lng': baseLng,
         'p_service_radius_km': serviceRadiusKm,
-        'p_docs': <String, dynamic>{},
+        'p_docs': docs,
       });
       _profile = CleanerProfile.fromSupabase(_asMap(res));
       notifyListeners();
@@ -328,6 +330,28 @@ class CleanerStore extends ChangeNotifier {
       rethrow;
     } finally {
       _setBusy(false);
+    }
+  }
+
+  /// Histórico de limpezas concluídas/canceladas da profissional (detalhe).
+  /// Query direta (RLS: cleaner_id = a própria via cleaners) — padrão do
+  /// histórico de corridas do motorista TVDE.
+  Future<List<CleaningBooking>> loadHistory() async {
+    final me = _profile;
+    if (me == null) return const [];
+    try {
+      final rows = await _sb
+          .from('cleaning_bookings')
+          .select()
+          .eq('cleaner_id', me.id)
+          .inFilter('status',
+              const ['completed', 'cancelled_client', 'cancelled_cleaner'])
+          .order('scheduled_at', ascending: false)
+          .limit(100);
+      return rows.map<CleaningBooking>(CleaningBooking.fromSupabase).toList();
+    } catch (e) {
+      debugPrint('CleanerStore.loadHistory error => $e');
+      return const [];
     }
   }
 

@@ -51,7 +51,10 @@ visual (badge vermelho 9+, preview) num botão próprio da Limpeza.
 | Ganhos | ✅ TEM | ✅ |
 
 **Não adaptados (justificação, sem buraco silencioso):**
-- *Chip de tokens*: a Limpeza não atribui tokens (ver E) — chip ficaria a zero.
+- *Chip de tokens*: não foi adicionado nesta sessão. **Nota (atualizado 2026-07-06):**
+  a Limpeza passou a atribuir tokens (via `_cleaning_complete`, ver E), portanto o
+  chip já NÃO ficaria a zero — passa a ser candidato válido à home da profissional
+  (melhoria futura/v2), não uma não-paridade justificada.
 - *Permissões de pedidos* (`DriverPermissionsScreen`): específico dos tipos de
   serviço de entrega/veículo — não se aplica a limpezas.
 - *Modo teste da home do estafeta*: ferramenta interna do fluxo delivery.

@@ -561,6 +561,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
                   ),
+                  // MULTI-PAPEL: a entrada de Limpeza também tem de aparecer ao
+                  // estafeta (a secção "Quick links" abaixo é só do cliente, por
+                  // isso o convite ficava invisível para drivers). Mesmo tile
+                  // role-aware que o cliente vê.
+                  ListTile(
+                    leading: const Icon(Icons.cleaning_services_outlined,
+                        color: AppColors.primary),
+                    title: Text(_roles.hasCleaner
+                        ? 'A minha Limpeza'
+                        : 'Trabalha também em Limpeza?'),
+                    subtitle: Text(_roles.hasCleaner
+                        ? 'Gere as tuas limpezas e disponibilidade'
+                        : 'Ganha 85% por limpeza — com a mesma conta'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const CleanerHomeScreen()),
+                    ).then((_) {
+                      if (mounted) _loadRoles();
+                    }),
+                  ),
                 ],
               ),
             ],

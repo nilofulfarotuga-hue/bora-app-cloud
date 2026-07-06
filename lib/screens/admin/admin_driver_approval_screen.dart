@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
+import '../../widgets/admin_other_role_badge.dart';
 import '../../widgets/private_bucket_image.dart';
 import '_admin_rpc_errors.dart';
 import 'admin_driver_detail_screen.dart';
@@ -30,7 +31,7 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
   bool get _isMultiSelectMode => _selectedIds.isNotEmpty;
 
   static const _columns =
-      'id, name, phone, email, vehicle_type, license_plate, photo_url, '
+      'id, user_id, name, phone, email, vehicle_type, license_plate, photo_url, '
       'document_type, document_number, document_photo_url, vehicle_photo_url, '
       'vehicle_doc_url, registration_selfie_url, nif, '
       'iban, mbway_phone, address, approval_status, rejection_reason, '
@@ -667,6 +668,11 @@ class _DriverList extends StatelessWidget {
                                 fontSize: 12, color: AppColors.textSecondary),
                           ),
                         _DriverWarningChips(driver: d),
+                        // MULTI-PAPEL: sinaliza se já é profissional de limpeza.
+                        AdminOtherRoleBadge(
+                          userId: d['user_id'] as String?,
+                          show: OtherRole.cleaner,
+                        ),
                       ],
                     ),
                   ),

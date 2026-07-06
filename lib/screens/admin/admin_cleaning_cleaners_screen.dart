@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
+import '../../widgets/admin_other_role_badge.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import '../../widgets/private_bucket_image.dart';
 import '_admin_rpc_errors.dart';
@@ -335,6 +336,14 @@ class _CleanerCard extends StatelessWidget {
                 ),
                 _StatusChip(status: status),
               ],
+            ),
+            // MULTI-PAPEL: sinaliza se esta candidata já é entregador/motorista.
+            Align(
+              alignment: Alignment.centerLeft,
+              child: AdminOtherRoleBadge(
+                userId: data['user_id'] as String?,
+                show: OtherRole.driver,
+              ),
             ),
             const SizedBox(height: 6),
             Text(

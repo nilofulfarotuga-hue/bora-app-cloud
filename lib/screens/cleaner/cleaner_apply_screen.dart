@@ -2,13 +2,17 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:latlong2/latlong.dart' as ll;
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
+import '../../config/maps_config.dart';
 import '../../services/cleaner_upload_service.dart';
+import '../../services/place_autocomplete_service.dart';
 import '../../stores/cleaner_store.dart';
+import '../../widgets/address_autocomplete_field.dart';
 import '../../widgets/bora/bora.dart';
 
 /// LIMPEZA — candidatura a profissional de limpeza (cleaner_apply).
@@ -34,6 +38,7 @@ class _CleanerApplyScreenState extends State<CleanerApplyScreen> {
   final _bioCtrl = TextEditingController();
   final _addressCtrl = TextEditingController();
   double _radiusKm = 10;
+  ll.LatLng? _baseCoords; // geocoding da zona base (matching por distância)
 
   final _picker = ImagePicker();
   XFile? _photo;
@@ -94,6 +99,25 @@ class _CleanerApplyScreenState extends State<CleanerApplyScreen> {
     });
   }
 
+  /// Geocodifica a zona base reutilizando o MESMO serviço das outras moradas
+  /// da app (Places/Geocoding). Se a profissional escolheu uma sugestão já
+  /// temos coords; senão tentamos geocodificar o texto escrito. null é
+  /// aceitável — o backend aceita e o admin pode ajustar depois.
+  Future<ll.LatLng?> _resolveBaseCoords() async {
+    if (_baseCoords != null) return _baseCoords;
+    final addr = _addressCtrl.text.trim();
+    if (addr.isEmpty) return null;
+    final svc = createPlaceAutocompleteService(googleApiKey);
+    try {
+      return await svc.geocodeAddress(addr);
+    } catch (e) {
+      debugPrint('CleanerApply geocode fallback falhou => $e');
+      return null;
+    } finally {
+      svc.dispose();
+    }
+  }
+
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     if (_photo == null && _prefillPhotoUrl.isEmpty) {
@@ -109,7 +133,13 @@ class _CleanerApplyScreenState extends State<CleanerApplyScreen> {
     }
     final store = context.read<CleanerStore>();
     setState(() => _uploading = true);
+    // Marcador de fase: diz ONDE falhou (coords/uploads/apply) — para a
+    // mensagem específica e para o log de diagnóstico.
+    var stage = 'coords';
     try {
+      final coords = await _resolveBaseCoords();
+      if (!mounted) return;
+      stage = 'uploads';
       // Uploads primeiro (foto pública + doc privado), depois a candidatura.
       // MULTI-PAPEL: se não escolheu nova foto, reutiliza a do papel de estafeta.
       final photoUrl = _photo != null
@@ -117,6 +147,7 @@ class _CleanerApplyScreenState extends State<CleanerApplyScreen> {
           : _prefillPhotoUrl;
       final idPath = await CleanerUploadService.uploadDocument(_idDoc!, 'id_doc');
       if (!mounted) return;
+      stage = 'apply';
       await store.apply(
         name: _nameCtrl.text.trim(),
         phone: _phoneCtrl.text.trim(),
@@ -124,6 +155,8 @@ class _CleanerApplyScreenState extends State<CleanerApplyScreen> {
         nif: _nifCtrl.text.trim(),
         bio: _bioCtrl.text.trim(),
         baseAddress: _addressCtrl.text.trim(),
+        baseLat: coords?.latitude,
+        baseLng: coords?.longitude,
         serviceRadiusKm: _radiusKm,
         photoUrl: photoUrl ?? '',
         docs: {if (idPath != null) 'id_doc': idPath},
@@ -137,14 +170,29 @@ class _CleanerApplyScreenState extends State<CleanerApplyScreen> {
     } catch (e) {
       if (!mounted) return;
       final msg = e.toString();
-      String friendly = 'Não foi possível enviar a candidatura.';
+      // PASSO 3: nunca só o genérico — mensagem específica conforme a causa.
+      String friendly;
       if (msg.contains('application_already_exists')) {
-        friendly = 'Já tens uma candidatura ativa.';
-      } else if (msg.contains('phone_required')) {
-        friendly = 'Indica um telefone válido.';
+        friendly = 'Já tens uma candidatura de limpeza.';
       } else if (msg.contains('name_required')) {
         friendly = 'Indica o teu nome completo.';
+      } else if (msg.contains('phone_required')) {
+        friendly = 'Indica um telemóvel válido (9+ dígitos).';
+      } else if (msg.contains('not_authenticated') || msg.contains('42501')) {
+        friendly = 'A tua sessão expirou. Volta a entrar e tenta de novo.';
+      } else if (stage == 'uploads' ||
+          msg.contains('StorageException') ||
+          msg.contains('row-level security') ||
+          msg.contains('Bucket') ||
+          msg.contains('Unauthorized') ||
+          msg.contains('storage')) {
+        friendly = 'Não conseguimos enviar a foto ou o documento. '
+            'Verifica a ligação à internet e tenta de novo.';
+      } else {
+        friendly = 'Não foi possível enviar a candidatura. Tenta de novo — '
+            'se continuar, avisa o suporte.';
       }
+      debugPrint('CleanerApply submit FAILED stage=$stage error=$e');
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(friendly)));
     } finally {
@@ -261,13 +309,24 @@ class _CleanerApplyScreenState extends State<CleanerApplyScreen> {
                   helperText: 'Necessário para os recibos.'),
             ),
             const SizedBox(height: Spacing.md),
-            TextFormField(
+            AddressAutocompleteField(
               controller: _addressCtrl,
-              decoration: const InputDecoration(
-                  labelText: 'Zona base (morada ou localidade)',
-                  prefixIcon: Icon(Icons.home_outlined),
-                  helperText:
-                      'Usada para te mostrar limpezas perto de ti.'),
+              labelText: 'Zona base (morada ou localidade)',
+              prefixIcon: const Icon(Icons.home_outlined),
+              onSelected: (address, coords) {
+                setState(() => _baseCoords = coords);
+              },
+              onChanged: (_) {
+                // Editou à mão → invalida coords até nova seleção/geocode.
+                if (_baseCoords != null) setState(() => _baseCoords = null);
+              },
+            ),
+            const Padding(
+              padding: EdgeInsets.only(top: 6, left: 12),
+              child: Text(
+                'Escolhe uma sugestão para te mostrarmos limpezas perto de ti.',
+                style: TextStyle(color: AppColors.textSubtle, fontSize: 12),
+              ),
             ),
             const SizedBox(height: Spacing.lg),
             Text('Raio de serviço: ${_radiusKm.round()} km',

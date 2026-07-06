@@ -265,6 +265,19 @@ class CleanerStore extends ChangeNotifier {
     }
   }
 
+  /// Card público do cliente (nome/foto/telefone) — só para a profissional
+  /// ATRIBUÍDA e com o serviço em curso (padrão tvde_ride_passenger_card).
+  Future<Map<String, dynamic>?> clientCard(String bookingId) async {
+    try {
+      final res = await _sb.rpc('cleaning_booking_client_public',
+          params: {'p_booking_id': bookingId});
+      return res == null ? null : Map<String, dynamic>.from(res as Map);
+    } catch (e) {
+      debugPrint('CleanerStore.clientCard error => $e');
+      return null;
+    }
+  }
+
   /// Avalia o cliente (obrigatório dos dois lados).
   Future<void> rateClient(String bookingId, int stars,
       {String? comment}) async {

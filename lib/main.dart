@@ -50,6 +50,7 @@ import 'stores/reservation_store.dart';
 import 'stores/restaurant_store.dart';
 import 'stores/services_store.dart';
 import 'stores/cleaner_store.dart';
+import 'stores/cleaning_chat_store.dart';
 import 'stores/cleaning_store.dart';
 import 'stores/tvde_store.dart';
 import 'stores/tvde_driver_store.dart';
@@ -393,6 +394,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         ),
         ChangeNotifierProvider<CleanerStore>(
           create: (_) => CleanerStore(),
+        ),
+        ChangeNotifierProvider<CleaningChatStore>(
+          create: (_) => CleaningChatStore(),
         ),
         ChangeNotifierProvider<PartnerReservasStore>(
           create: (_) => PartnerReservasStore(),

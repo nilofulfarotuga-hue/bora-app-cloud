@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
 import '../../../models/cleaning_models.dart';
 import '../../../stores/cleaning_store.dart';
 import '../../../widgets/bora/bora.dart';
+import '../../../widgets/cleaning_chat_button.dart';
 import 'cleaning_payment_flow.dart';
 
 /// LIMPEZA — acompanhamento da reserva (realtime via CleaningStore.trackBooking).
@@ -125,6 +127,16 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Não foi possível cancelar.')),
       );
+    }
+  }
+
+  /// Liga à profissional (tel:) — número vem do perfil público pós-aceitação.
+  Future<void> _callCleaner() async {
+    final phone = _cleanerProfile?['phone'] as String?;
+    if (phone == null || phone.isEmpty) return;
+    final uri = Uri.parse('tel:$phone');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
   }
 
@@ -302,7 +314,27 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
               const SizedBox(height: Spacing.lg),
             ],
             if (b.cleanerId != null) ...[
-              _CleanerCard(profile: _cleanerProfile),
+              _CleanerCard(profile: _cleanerProfile, onCall: _callCleaner),
+              // Chat disponível de "confirmada" até o cliente confirmar
+              // (mesma janela da RLS de cleaning_messages).
+              if (const [
+                CleaningStatus.accepted,
+                CleaningStatus.onTheWay,
+                CleaningStatus.inProgress,
+                CleaningStatus.done,
+              ].contains(b.status)) ...[
+                const SizedBox(height: Spacing.sm),
+                CleaningChatButton(
+                  bookingId: b.id,
+                  myRole: 'client',
+                  title: (_cleanerProfile?['name'] as String?)?.isNotEmpty ==
+                          true
+                      ? _cleanerProfile!['name'] as String
+                      : 'A tua profissional',
+                  otherPhone: _cleanerProfile?['phone'] as String?,
+                  showPreview: true,
+                ),
+              ],
               const SizedBox(height: Spacing.lg),
             ],
             _DetailsCard(booking: b),
@@ -520,8 +552,9 @@ class _CancelledBanner extends StatelessWidget {
 }
 
 class _CleanerCard extends StatelessWidget {
-  const _CleanerCard({required this.profile});
+  const _CleanerCard({required this.profile, required this.onCall});
   final Map<String, dynamic>? profile;
+  final VoidCallback onCall;
 
   @override
   Widget build(BuildContext context) {
@@ -530,6 +563,8 @@ class _CleanerCard extends StatelessWidget {
     final photo = p?['photo_url'] as String? ?? '';
     final rating = (p?['rating_avg'] as num?)?.toDouble() ?? 0;
     final count = (p?['ratings_count'] as num?)?.toInt() ?? 0;
+    final done = (p?['cleanings_done'] as num?)?.toInt() ?? 0;
+    final hasPhone = (p?['phone'] as String?)?.isNotEmpty == true;
 
     return Container(
       padding: const EdgeInsets.all(Spacing.md),
@@ -557,13 +592,24 @@ class _CleanerCard extends StatelessWidget {
                     style: const TextStyle(
                         fontWeight: FontWeight.w700,
                         color: AppColors.textPrimary)),
-                if (count > 0)
-                  Text('★ ${rating.toStringAsFixed(1)} ($count avaliações)',
-                      style: const TextStyle(
-                          color: AppColors.textSecondary, fontSize: 13)),
+                Text(
+                  count > 0
+                      ? '★ ${rating.toStringAsFixed(1)} ($count) · $done limpezas'
+                      : done > 0
+                          ? '$done limpezas'
+                          : 'Nova na plataforma',
+                  style: const TextStyle(
+                      color: AppColors.textSecondary, fontSize: 13),
+                ),
               ],
             ),
           ),
+          if (hasPhone)
+            IconButton(
+              onPressed: onCall,
+              tooltip: 'Ligar',
+              icon: const Icon(Icons.call, color: AppColors.primary),
+            ),
         ],
       ),
     );

@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../models/cleaning_models.dart';
 import '../../stores/cleaner_store.dart';
 import '../../widgets/bora/bora.dart';
+import '../../widgets/bora_support_sheet.dart';
+import '../../widgets/cleaning_chat_button.dart';
 import 'cleaner_apply_screen.dart';
 import 'cleaner_availability_screen.dart';
 import 'cleaner_earnings_screen.dart';
@@ -305,6 +308,20 @@ class _PanelView extends StatelessWidget {
                   ),
                 ),
               ),
+              const SizedBox(width: Spacing.md),
+              Expanded(
+                child: _ShortcutCard(
+                  icon: Icons.support_agent_outlined,
+                  label: 'Suporte',
+                  // Mesmo canal do estafeta (BoraIA + WhatsApp + Email).
+                  onTap: () => showModalBottomSheet<void>(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (_) => const BoraSupportSheet(),
+                  ),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: Spacing.lg),
@@ -514,10 +531,39 @@ class _OfferCard extends StatelessWidget {
   }
 }
 
-class _AgendaCard extends StatelessWidget {
+class _AgendaCard extends StatefulWidget {
   const _AgendaCard({required this.booking, required this.store});
   final CleaningBooking booking;
   final CleanerStore store;
+
+  @override
+  State<_AgendaCard> createState() => _AgendaCardState();
+}
+
+class _AgendaCardState extends State<_AgendaCard> {
+  CleaningBooking get booking => widget.booking;
+  CleanerStore get store => widget.store;
+
+  Map<String, dynamic>? _client;
+
+  @override
+  void initState() {
+    super.initState();
+    // Card público do cliente (nome/foto/telefone) — identidade só depois
+    // de aceitar, padrão TVDE D2.
+    store.clientCard(booking.id).then((c) {
+      if (mounted) setState(() => _client = c);
+    });
+  }
+
+  Future<void> _callClient() async {
+    final phone = _client?['phone'] as String?;
+    if (phone == null || phone.isEmpty) return;
+    final uri = Uri.parse('tel:$phone');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -560,6 +606,57 @@ class _AgendaCard extends StatelessWidget {
                   color: AppColors.textSecondary, height: 1.4),
             ),
             const SizedBox(height: Spacing.sm),
+            // Cliente (nome/foto) + comunicação — só com serviço em curso.
+            if (const [
+              CleaningStatus.accepted,
+              CleaningStatus.onTheWay,
+              CleaningStatus.inProgress,
+              CleaningStatus.done,
+            ].contains(b.status)) ...[
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 16,
+                    backgroundColor: AppColors.primaryWash,
+                    backgroundImage:
+                        (_client?['photo_url'] as String?)?.isNotEmpty == true
+                            ? NetworkImage(_client!['photo_url'] as String)
+                            : null,
+                    child: (_client?['photo_url'] as String?)?.isNotEmpty == true
+                        ? null
+                        : const Icon(Icons.person,
+                            size: 18, color: AppColors.primary),
+                  ),
+                  const SizedBox(width: Spacing.sm),
+                  Expanded(
+                    child: Text(
+                      (_client?['name'] as String?)?.isNotEmpty == true
+                          ? _client!['name'] as String
+                          : 'Cliente',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary),
+                    ),
+                  ),
+                  CleaningChatButton(
+                    bookingId: b.id,
+                    myRole: 'cleaner',
+                    title: (_client?['name'] as String?)?.isNotEmpty == true
+                        ? _client!['name'] as String
+                        : 'Cliente',
+                    otherPhone: _client?['phone'] as String?,
+                    compact: true,
+                  ),
+                  if ((_client?['phone'] as String?)?.isNotEmpty == true)
+                    IconButton(
+                      onPressed: _callClient,
+                      tooltip: 'Ligar',
+                      icon: const Icon(Icons.call, color: AppColors.primary),
+                    ),
+                ],
+              ),
+              const SizedBox(height: Spacing.sm),
+            ],
             _actionRow(context),
           ],
         ),
@@ -611,12 +708,81 @@ class _AgendaCard extends StatelessWidget {
           label: const Text('Concluir limpeza'),
         );
       case CleaningStatus.done:
-        return const Text(
-          'À espera da confirmação do cliente (automática em 24 h).',
-          style: TextStyle(color: AppColors.textSubtle, fontSize: 12),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'À espera da confirmação do cliente (automática em 24 h).',
+              style: TextStyle(color: AppColors.textSubtle, fontSize: 12),
+            ),
+            const SizedBox(height: Spacing.sm),
+            OutlinedButton.icon(
+              onPressed: () => _rateClient(context),
+              icon: const Icon(Icons.star_border, size: 18),
+              label: const Text('Avaliar o cliente'),
+            ),
+          ],
         );
       default:
         return const SizedBox.shrink();
+    }
+  }
+
+  /// Avaliação do cliente pela profissional (avaliação bidirecional — paridade
+  /// TVDE/delivery; a mesma RPC cleaning_submit_rating deteta o sujeito).
+  Future<void> _rateClient(BuildContext context) async {
+    var stars = 5;
+    final commentCtrl = TextEditingController();
+    final submitted = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Como foi o cliente?'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  for (var i = 1; i <= 5; i++)
+                    IconButton(
+                      onPressed: () => setDialogState(() => stars = i),
+                      icon: Icon(i <= stars ? Icons.star : Icons.star_border,
+                          color: AppColors.warning, size: 30),
+                    ),
+                ],
+              ),
+              TextField(
+                controller: commentCtrl,
+                maxLines: 2,
+                decoration:
+                    const InputDecoration(hintText: 'Comentário (opcional)'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Agora não')),
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Enviar')),
+          ],
+        ),
+      ),
+    );
+    if (submitted != true || !context.mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await store.rateClient(booking.id, stars, comment: commentCtrl.text.trim());
+      messenger.showSnackBar(
+          const SnackBar(content: Text('Obrigado pela avaliação! 💚')));
+    } catch (e) {
+      final already = e.toString().contains('already_rated');
+      messenger.showSnackBar(SnackBar(
+          content: Text(already
+              ? 'Já avaliaste este cliente.'
+              : 'Não foi possível enviar a avaliação.')));
     }
   }
 

@@ -376,6 +376,7 @@ class _RideCard extends StatelessWidget {
     final boraCents = (data['bora_cut_cents'] as num?)?.toInt();
     final cancelReason = (data['cancel_reason'] as String?)?.trim();
     final cancelFee = (data['cancel_fee_cents'] as num?)?.toInt() ?? 0;
+    final usedSubscriptionRide = data['used_subscription_ride'] == true;
     final locUpdated = data['driver_loc_updated_at'];
     // Back-to-back: corrida aceita em fila enquanto o motorista termina outra.
     final isQueued = data['is_queued'] == true;
@@ -416,6 +417,22 @@ class _RideCard extends StatelessWidget {
                   ),
                 ],
                 const Spacer(),
+                if (usedSubscriptionRide) ...[
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: const Text('Coberta pelo plano',
+                        style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primary)),
+                  ),
+                  const SizedBox(width: 6),
+                ],
                 Text(
                   fareCents == null
                       ? '—'

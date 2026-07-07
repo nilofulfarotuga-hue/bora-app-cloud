@@ -23,6 +23,15 @@ class TvdePlansScreen extends StatefulWidget {
 }
 
 class _TvdePlansScreenState extends State<TvdePlansScreen> {
+  // Planos SEGUNDA A SEXTA (2 corridas/dia útil) — espelha admin_grant_subscription
+  // e tvde_activate_paid_subscription no backend. Só o preço vem de lá em runtime;
+  // o total de corridas é fixo pela regra do plano (5/10/22 dias úteis × 2).
+  static const _ridesTotal = {'semanal': 10, 'quinzenal': 20, 'mensal': 44};
+  static const _period = {'semanal': 'semana', 'quinzenal': '15 dias', 'mensal': 'mês'};
+
+  /// plano → preço em cêntimos (via RPC tvde_plan_price_cents). null = a carregar.
+  Map<String, int>? _priceCents;
+
   @override
   void initState() {
     super.initState();
@@ -30,7 +39,36 @@ class _TvdePlansScreenState extends State<TvdePlansScreen> {
       context.read<TvdeStore>().loadSubscription();
       context.read<TvdeStore>().loadPlanRequest();
     });
+    _loadPrices();
   }
+
+  Future<void> _loadPrices() async {
+    final store = context.read<TvdeStore>();
+    final results = await Future.wait([
+      store.planPriceCents('semanal'),
+      store.planPriceCents('quinzenal'),
+      store.planPriceCents('mensal'),
+    ]);
+    if (!mounted) return;
+    setState(() {
+      _priceCents = {
+        'semanal': results[0] ?? 0,
+        'quinzenal': results[1] ?? 0,
+        'mensal': results[2] ?? 0,
+      };
+    });
+  }
+
+  String _priceLabel(String plan) {
+    final cents = _priceCents?[plan];
+    if (cents == null || cents <= 0) return 'A carregar…';
+    final v = cents / 100;
+    final euros = v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(2);
+    return '€$euros / ${_period[plan]}';
+  }
+
+  String _detailLabel(String plan) =>
+      '${_ridesTotal[plan]} corridas · Segunda a Sexta · 2 por dia útil';
 
   /// [Item A] Cliente adere pagando por **cartão OU MB Way** (dinheiro NÃO é
   /// permitido no plano). Reaproveita o MESMO picker das Reservas/Serviços
@@ -140,29 +178,34 @@ class _TvdePlansScreenState extends State<TvdePlansScreen> {
               style: const TextStyle(
                   fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
           const SizedBox(height: Spacing.sm),
+          const _WeekdayNotice(),
+          const SizedBox(height: Spacing.sm),
           _PlanCard(
             title: 'Plano Semanal',
-            price: '€56 / semana',
-            detail: '14 corridas · 2 incluídas por dia · €4 / corrida',
-            onAderir: pending || store.busy
+            price: _priceLabel('semanal'),
+            detail: _detailLabel('semanal'),
+            onAderir: pending || store.busy || _priceCents == null
                 ? null
-                : () => _aderir('semanal', 'Plano Semanal', 56),
+                : () => _aderir(
+                    'semanal', 'Plano Semanal', _priceCents!['semanal']! / 100),
           ),
           _PlanCard(
             title: 'Plano Quinzenal',
-            price: '€105 / 15 dias',
-            detail: '30 corridas · 2 incluídas por dia · €3,50 / corrida',
-            onAderir: pending || store.busy
+            price: _priceLabel('quinzenal'),
+            detail: _detailLabel('quinzenal'),
+            onAderir: pending || store.busy || _priceCents == null
                 ? null
-                : () => _aderir('quinzenal', 'Plano Quinzenal', 105),
+                : () => _aderir('quinzenal', 'Plano Quinzenal',
+                    _priceCents!['quinzenal']! / 100),
           ),
           _PlanCard(
             title: 'Plano Mensal',
-            price: '€180 / mês',
-            detail: '60 corridas · 2 incluídas por dia · €3 / corrida',
-            onAderir: pending || store.busy
+            price: _priceLabel('mensal'),
+            detail: _detailLabel('mensal'),
+            onAderir: pending || store.busy || _priceCents == null
                 ? null
-                : () => _aderir('mensal', 'Plano Mensal', 180),
+                : () => _aderir(
+                    'mensal', 'Plano Mensal', _priceCents!['mensal']! / 100),
           ),
         ],
       ),
@@ -188,6 +231,36 @@ class _PendingBanner extends StatelessWidget {
               'Pedido de adesão enviado. A equipa Bora vai ativar o teu plano '
               'em breve.',
               style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Aviso fixo: os planos só cobrem Segunda a Sexta (2 corridas/dia útil).
+/// Fim de semana fica de fora — nesses dias o cliente paga a tarifa normal.
+class _WeekdayNotice extends StatelessWidget {
+  const _WeekdayNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(Spacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.primaryWash,
+        borderRadius: BorderRadius.circular(Radii.md + 2),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.event_available, color: AppColors.primary),
+          SizedBox(width: Spacing.md),
+          Expanded(
+            child: Text(
+              'Válido Segunda a Sexta. Aos fins de semana (sábado e domingo) as '
+              'corridas não são cobertas pelo plano — paga-se a tarifa normal.',
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 12.5),
             ),
           ),
         ],
@@ -224,6 +297,9 @@ class _ActiveSubscription extends StatelessWidget {
                       fontWeight: FontWeight.w700)),
             ],
           ),
+          const SizedBox(height: 2),
+          const Text('Segunda a Sexta · fim de semana não incluído',
+              style: TextStyle(color: Colors.white70, fontSize: 11.5)),
           const SizedBox(height: Spacing.md),
           _row('Hoje', '$remainingToday de ${sub.dailyIncluded} corridas restantes'),
           const SizedBox(height: 4),
@@ -282,7 +358,7 @@ class _PlanCard extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(detail,
-              style: TextStyle(fontSize: 12, color: AppColors.textSubtle)),
+              style: const TextStyle(fontSize: 12, color: AppColors.textSubtle)),
           const SizedBox(height: Spacing.sm),
           SizedBox(
             width: double.infinity,

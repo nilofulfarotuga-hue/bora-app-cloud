@@ -201,7 +201,12 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     // [Item B] cobertura pelo plano (read-only, NÃO consome — só o finish consome).
     final cov = await context.read<TvdeStore>().previewCoverage();
     if (!mounted) return;
-    final covered = cov['covered'] == true;
+    // Planos só cobrem Segunda a Sexta — a RPC tvde_preview_coverage não checa
+    // o dia da semana (só o consumo no finish o faz), então replicamos aqui
+    // para não mostrar "Incluída no plano" ao fim de semana por engano.
+    final isWeekend =
+        DateTime.now().weekday == DateTime.saturday || DateTime.now().weekday == DateTime.sunday;
+    final covered = !isWeekend && cov['covered'] == true;
     final used = (cov['daily_used'] as num?)?.toInt();
     final incl = (cov['daily_included'] as num?)?.toInt();
     setState(() {

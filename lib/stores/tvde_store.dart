@@ -125,6 +125,19 @@ class TvdeStore extends ChangeNotifier {
     }
   }
 
+  /// Preço do plano (cêntimos) via RPC tvde_plan_price_cents (server-side,
+  /// única fonte da verdade — nunca hardcodar no ecrã). null em erro.
+  Future<int?> planPriceCents(String plan) async {
+    try {
+      final res =
+          await _sb.rpc('tvde_plan_price_cents', params: {'p_plan': plan});
+      return (res as num?)?.toInt();
+    } catch (e) {
+      debugPrint('TvdeStore.planPriceCents error => $e');
+      return null;
+    }
+  }
+
   /// [Item B] Cobertura pelo plano SEM consumir (RPC read-only). Devolve
   /// {covered, daily_used, daily_included, rides_left, reason}. {} em erro.
   Future<Map<String, dynamic>> previewCoverage() async {

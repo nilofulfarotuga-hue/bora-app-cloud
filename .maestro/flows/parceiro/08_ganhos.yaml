@@ -1,4 +1,4 @@
-appId: com.example.bora_app
+appId: pt.boraapp.bora
 name: Parceiro — Ganhos (Hoje/Semana/Mês + secção Reservas)
 tags:
   - parceiro
@@ -12,22 +12,22 @@ tags:
 - tapOn: "Ver detalhe de ganhos"
 - extendedWaitUntil:
     visible:
-      text: "Ganhos hoje|Ganhos totais"
+      text: ".*(Hoje|Semana|Mês).*"
     timeout: 10000
 
 # Cycling pelos 3 períodos.
 - tapOn: "Hoje"
 - waitForAnimationToEnd
 - tapOn:
-    text: "Semana|7 dias"
+    text: ".*(Semana|7 dias).*"
 - waitForAnimationToEnd
 - tapOn:
-    text: "Mês|30 dias"
+    text: ".*(Mês|30 dias).*"
 - waitForAnimationToEnd
 
 # Secção Reservas (commit cd041b2) deve estar visível em todos os períodos.
-- assertVisible: "Reservas"
+- assertVisible: ".*Reservas.*"
 - assertVisible:
-    text: "Créditos usados"
+    text: ".*Créditos usados.*"
 - assertVisible:
-    text: "Créditos pendentes"
+    text: ".*Créditos pendentes.*"

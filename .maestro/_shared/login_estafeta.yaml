@@ -1,6 +1,10 @@
-appId: com.example.bora_app
+appId: pt.boraapp.bora
 ---
-# Sub-flow: login como estafeta. Driver demo phone 910000000 / 123456.
+# Sub-flow: login como estafeta. driver_login_screen.dart usa EMAIL (não
+# telefone) — "driver@bora.app" do AuthStore ctor é só prefill de UI em
+# kDebugMode, NÃO existe em auth.users. Conta real criada via
+# 00_signup_estafeta.yaml + aprovada manualmente (admin_audit_log
+# driver_approved) para desbloquear E2E: teste.estafeta.e2e3@bora.app.
 
 # Dismiss GDPR consent dialog (aparece no primeiro launch após clearState).
 - runFlow:
@@ -12,8 +16,8 @@ appId: com.example.bora_app
           notVisible: "Privacidade e Cookies"
           timeout: 5000
 
-- evalScript: ${output.phone = MAESTRO_DRIVER_PHONE ?? "910000000"}
-- evalScript: ${output.pwd = MAESTRO_DRIVER_PASSWORD ?? "123456"}
+- evalScript: ${output.email = MAESTRO_DRIVER_EMAIL ?? "teste.estafeta.e2e3@bora.app"}
+- evalScript: ${output.pwd = MAESTRO_DRIVER_PASSWORD ?? "Teste123456"}
 
 - runFlow:
     when:
@@ -21,13 +25,40 @@ appId: com.example.bora_app
     commands:
       - tapOn: "Sou Estafeta"
       - extendedWaitUntil:
-          visible: "Telefone"
+          visible: "Email"
           timeout: 10000
-      - tapOn: "Telefone"
-      - inputText: ${output.phone}
+      - tapOn: "Email"
+      - inputText: ${output.email}
       - tapOn: "Palavra-passe"
       - inputText: ${output.pwd}
       - tapOn: "Entrar"
       - extendedWaitUntil:
           notVisible: "Entrar"
           timeout: 15000
+
+# Até 2 dialogs podem aparecer, em ordem não-determinística, após o login:
+# (1) "Save sign-in info to Samsung Pass?" — overlay NATIVO do Android
+#     (autofill, fora da árvore Flutter, renderiza com atraso);
+# (2) "Mostrar pedidos por cima de outras apps" — permissão opcional da app.
+# Um dialog modal ESCONDE a árvore de acessibilidade por trás dele (Online/
+# Offline deixam de ser "visible" mesmo continuando no ecrã) — por isso é
+# preciso incluir os dois no wait e despachá-los um de cada vez, não só um.
+- extendedWaitUntil:
+    visible: ".*(Save sign-in info|Mostrar pedidos por cima|Online|Offline).*"
+    timeout: 8000
+- runFlow:
+    when:
+      visible: "Save sign-in info"
+    commands:
+      - tapOn: "Cancelar"
+      - extendedWaitUntil:
+          visible: ".*(Mostrar pedidos por cima|Online|Offline).*"
+          timeout: 6000
+- runFlow:
+    when:
+      visible: ".*Mostrar pedidos por cima.*"
+    commands:
+      - tapOn: "Agora não"
+      - extendedWaitUntil:
+          visible: ".*(Online|Offline).*"
+          timeout: 6000

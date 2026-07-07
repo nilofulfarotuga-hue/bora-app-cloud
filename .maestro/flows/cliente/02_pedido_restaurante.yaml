@@ -1,4 +1,4 @@
-appId: com.example.bora_app
+appId: pt.boraapp.bora
 name: Cliente — Pedido restaurante (golden path)
 tags:
   - cliente
@@ -9,14 +9,22 @@ tags:
     clearState: true
 - runFlow: ../../_shared/login_cliente.yaml
 
-# Tile do serviço Restaurantes (lib/data/fake_data.dart tem 5 restaurantes seed).
+# Tile do serviço Restaurantes. Catálogo real (não-seed): Burger King, KFC,
+# McDonald's, Sabores de Casa Açaí, pizza danilo — a lista muda com o tempo,
+# por isso o selector cobre os nomes reais em vez de um único fixo.
+# Nota (2026-07-07): Maestro faz FULL MATCH do texto visível/tocado — cartões
+# de lista mesclam nome+estado+ETA+distância num só nó de acessibilidade, por
+# isso o regex tem de ser envolto em .* dos dois lados (senão nunca bate certo
+# mesmo com o texto claramente visível no ecrã).
 - tapOn: "Restaurantes"
 - extendedWaitUntil:
-    visible: "Pizza"
-    timeout: 10000
-# Selecciona o primeiro restaurante visível (Pizza Danilo do seed).
+    visible:
+      text: ".*(Burger King|KFC|McDonald|Pizza Hut|Sabores de Casa|pizza danilo).*"
+    timeout: 20000
+# Selecciona o primeiro restaurante ABERTO visível (lista ordena abertos primeiro).
 - tapOn:
-    text: ".*[Pp]izza.*"
+    text: ".*(Burger King|KFC|McDonald|Pizza Hut|Sabores de Casa|pizza danilo).*"
+    index: 0
 - waitForAnimationToEnd
 
 # Adicionar primeiro produto disponível.
@@ -29,7 +37,7 @@ tags:
 - tapOn: "Carrinho"
 - extendedWaitUntil:
     visible: "Finalizar"
-    timeout: 10000
+    timeout: 15000
 - tapOn: "Finalizar"
 
 # Checkout — escolher Cash (sem cartão real para teste E2E).

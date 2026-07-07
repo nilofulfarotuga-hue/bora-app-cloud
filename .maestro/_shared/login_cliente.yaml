@@ -1,4 +1,4 @@
-appId: com.example.bora_app
+appId: pt.boraapp.bora
 ---
 # Sub-flow: login como cliente. Invocado via runFlow.
 # Pre-condição: app aberta no role-picker OU já logada (idempotente).

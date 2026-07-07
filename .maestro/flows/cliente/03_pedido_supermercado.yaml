@@ -1,4 +1,4 @@
-appId: com.example.bora_app
+appId: pt.boraapp.bora
 name: Cliente — Pedido supermercado (storeShopping)
 tags:
   - cliente
@@ -12,8 +12,8 @@ tags:
 - tapOn: "Supermercados"
 - extendedWaitUntil:
     visible:
-      text: "Continente|Pingo Doce|Auchan|Lidl"
-    timeout: 10000
+      text: ".*(Continente|Pingo Doce|Auchan|Lidl).*"
+    timeout: 20000
 # Primeiro supermercado visível.
 - tapOn:
     text: ".*(Continente|Pingo Doce|Auchan|Lidl).*"

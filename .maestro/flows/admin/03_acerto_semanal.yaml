@@ -1,4 +1,4 @@
-appId: com.example.bora_app
+appId: pt.boraapp.bora
 name: Admin — Acerto reservas parceiros (commit cd041b2)
 tags:
   - admin
@@ -9,17 +9,22 @@ tags:
     clearState: true
 - runFlow: ../../_shared/login_admin.yaml
 
-- tapOn: "Acerto reservas parceiros"
+- scrollUntilVisible:
+    element:
+      text: ".*Acerto reservas parceiros.*"
+    direction: DOWN
+    timeout: 10000
+- tapOn: ".*Acerto reservas parceiros.*"
 - extendedWaitUntil:
-    visible: "Acerto Semanal Parceiros"
+    visible: ".*Acerto Semanal Parceiros.*"
     timeout: 10000
 
 # Header com label da semana actual.
 - assertVisible:
-    text: "Semana atual"
+    text: ".*Semana atual.*"
 
 # Body — ou lista de parceiros, ou empty state.
 - assertVisible:
-    text: "Total a pagar esta semana|Nenhum crédito a acertar"
+    text: ".*(Total a pagar esta semana|Nenhum crédito a acertar).*"
 
 # NÃO carrega "Marcar como pago" para evitar mutar dados de teste.

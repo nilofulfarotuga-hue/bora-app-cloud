@@ -1,4 +1,4 @@
-appId: com.example.bora_app
+appId: pt.boraapp.bora
 name: Cliente — Carteira + Tokens
 tags:
   - cliente
@@ -9,24 +9,18 @@ tags:
     clearState: true
 - runFlow: ../../_shared/login_cliente.yaml
 
+# Não há mais nav "Carteira" — Saldo Bora + Tokens são cards inline no Perfil,
+# ambos abrem WalletHistoryScreen (saldo + tokens + histórico combinados).
 - tapOn: "Perfil"
 - extendedWaitUntil:
-    visible: "Carteira"
-    timeout: 10000
+    visible: ".*Saldo Bora.*"
+    timeout: 20000
 
-# Carteira — ver saldo.
-- tapOn: "Carteira"
-- extendedWaitUntil:
-    visible: "Saldo"
-    timeout: 10000
-- assertVisible:
-    text: "€"
-- back
-
-# Tokens — ver total.
 - tapOn:
-    text: "Tokens|Loyalty"
+    text: ".*Saldo Bora.*"
+    index: 0
 - extendedWaitUntil:
-    visible:
-      text: "tokens|Tokens"
-    timeout: 10000
+    visible: ".*€.*"
+    timeout: 15000
+- assertVisible:
+    text: ".*[Tt]oken.*"

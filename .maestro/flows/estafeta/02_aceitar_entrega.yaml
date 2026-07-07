@@ -1,4 +1,4 @@
-appId: com.example.bora_app
+appId: pt.boraapp.bora
 name: Estafeta — Aceitar entrega → recolhido → entregue
 tags:
   - estafeta
@@ -9,48 +9,53 @@ tags:
     clearState: true
 - runFlow: ../../_shared/login_estafeta.yaml
 
-# Pôr online se ainda não estiver.
+# Pôr online se ainda não estiver. O toggle é um Switch puro ao lado do
+# Text("Online"/"Offline") — tocar no texto não muda o estado (não está
+# ligado ao onChanged). Key adicionada no código (driver_online_toggle),
+# mas precisa de novo build; por agora usa o Switch do bottom sheet
+# "Estás offline" (mesmo estado isAvailable).
 - runFlow:
     when:
-      visible: "Offline"
+      visible: ".*Estás offline.*"
     commands:
-      - tapOn: "Offline"
+      - tapOn:
+          point: "83%,65%"
       - extendedWaitUntil:
-          visible: "Online"
+          visible: ".*Online.*"
           timeout: 10000
 
 # Aguardar oferta (DispatchEngine envia em ~10s tipicamente).
 - extendedWaitUntil:
     visible:
-      text: "Aceitar"
+      text: ".*Aceitar.*"
     timeout: 60000
 
-- tapOn: "Aceitar"
+- tapOn: ".*Aceitar.*"
 - extendedWaitUntil:
     visible:
-      text: "Recolhido"
+      text: ".*Recolhido.*"
     timeout: 15000
 
 - tapOn:
-    text: "Recolhido"
+    text: ".*Recolhido.*"
 - extendedWaitUntil:
     visible:
-      text: "Entregue"
+      text: ".*Entregue.*"
     timeout: 15000
 
 - tapOn:
-    text: "Entregue"
+    text: ".*Entregue.*"
 
 # Código 4-dígitos (BR §7.7) — preencher com 0000 placeholder se solicitado.
 - runFlow:
     when:
       visible:
-        text: "Código"
+        text: ".*Código.*"
     commands:
       - inputText: "0000"
-      - tapOn: "Confirmar"
+      - tapOn: ".*Confirmar.*"
 
 - extendedWaitUntil:
     visible:
-      text: "delivered|entregue|Conclu"
+      text: ".*(delivered|entregue|Conclu).*"
     timeout: 30000

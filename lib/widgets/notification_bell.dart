@@ -40,6 +40,7 @@ class _NotificationBellState extends State<NotificationBell> {
       clipBehavior: Clip.none,
       children: [
         IconButton(
+          key: const Key('notification_bell'),
           icon: const Icon(Icons.notifications_outlined),
           onPressed: () async {
             await Navigator.push(

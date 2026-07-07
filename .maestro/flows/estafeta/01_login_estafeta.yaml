@@ -1,4 +1,4 @@
-appId: com.example.bora_app
+appId: pt.boraapp.bora
 name: Estafeta — Login
 tags:
   - estafeta
@@ -8,6 +8,7 @@ tags:
     clearState: true
 - runFlow: ../../_shared/login_estafeta.yaml
 
-# Sucesso = home estafeta visível.
+# Sucesso = home estafeta visível (toggle Online/Offline, estado inicial
+# tipicamente Offline até o estafeta se pôr disponível).
 - assertVisible:
-    text: "Online"
+    text: ".*(Online|Offline).*"

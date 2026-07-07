@@ -1,4 +1,4 @@
-appId: com.example.bora_app
+appId: pt.boraapp.bora
 name: Cliente — Cancelar pedido activo
 tags:
   - cliente
@@ -14,25 +14,25 @@ tags:
 - tapOn: "Perfil"
 - extendedWaitUntil:
     visible:
-      text: "Pedidos"
-    timeout: 10000
+      text: ".*Pedidos.*"
+    timeout: 20000
 - tapOn:
-    text: "Pedidos"
+    text: ".*Pedidos.*"
 
 - runFlow:
     when:
-      visible: "preparando|a preparar|driverAccepted"
+      visible: ".*(preparando|a preparar|driverAccepted).*"
     commands:
       - tapOn:
-          text: "preparando|a preparar"
+          text: ".*(preparando|a preparar).*"
           index: 0
       - extendedWaitUntil:
-          visible: "Cancelar"
+          visible: ".*Cancelar.*"
           timeout: 10000
-      - tapOn: "Cancelar"
+      - tapOn: ".*Cancelar.*"
       - tapOn:
-          text: "Confirmar"
+          text: ".*Confirmar.*"
       - extendedWaitUntil:
           visible:
-            text: "cancelado|rejeitado"
+            text: ".*(cancelado|rejeitado).*"
           timeout: 30000

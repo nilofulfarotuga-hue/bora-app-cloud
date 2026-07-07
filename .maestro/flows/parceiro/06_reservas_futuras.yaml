@@ -1,4 +1,4 @@
-appId: com.example.bora_app
+appId: pt.boraapp.bora
 name: Parceiro — Reservas Pro → Futuras (BUG 3)
 tags:
   - parceiro
@@ -9,14 +9,19 @@ tags:
     clearState: true
 - runFlow: ../../_shared/login_parceiro.yaml
 
-- tapOn: "Reservas Pro"
+- scrollUntilVisible:
+    element:
+      text: ".*Reservas Pro.*"
+    direction: DOWN
+    timeout: 10000
+- tapOn: ".*Reservas Pro.*"
 - extendedWaitUntil:
-    visible: "Futuras"
+    visible: ".*Futuras.*"
     timeout: 10000
 
 # Tab "Futuras" introduzida no commit cd041b2 / antes (BUG 3).
-- tapOn: "Futuras"
+- tapOn: ".*Futuras.*"
 
 # Verifica que aparece header de dia agrupado OU empty state.
 - assertVisible:
-    text: "Sem reservas futuras|Seg|Ter|Qua|Qui|Sex|Sáb|Dom"
+    text: ".*(Sem reservas futuras|Seg|Ter|Qua|Qui|Sex|Sáb|Dom).*"

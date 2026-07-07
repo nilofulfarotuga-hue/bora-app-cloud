@@ -1,4 +1,4 @@
-appId: com.example.bora_app
+appId: pt.boraapp.bora
 name: Admin — Login + acesso ao painel
 tags:
   - admin
@@ -9,5 +9,10 @@ tags:
 - runFlow: ../../_shared/login_admin.yaml
 
 # Sucesso = dashboard admin visível.
+- scrollUntilVisible:
+    element:
+      text: ".*(Settlements semanais|Pedidos|Acerto reservas parceiros|Gestão).*"
+    direction: DOWN
+    timeout: 10000
 - assertVisible:
-    text: "Settlements semanais|Pedidos|Acerto reservas parceiros"
+    text: ".*(Settlements semanais|Pedidos|Acerto reservas parceiros|Gestão).*"

@@ -1,4 +1,4 @@
-appId: com.example.bora_app
+appId: pt.boraapp.bora
 name: Admin — Lista de pedidos activos
 tags:
   - admin
@@ -8,9 +8,14 @@ tags:
     clearState: true
 - runFlow: ../../_shared/login_admin.yaml
 
+- scrollUntilVisible:
+    element:
+      text: "^Pedidos$"
+    direction: DOWN
+    timeout: 10000
 - tapOn:
     text: "^Pedidos$"
 - extendedWaitUntil:
     visible:
-      text: "Activos|created|preparando|Sem pedidos"
+      text: ".*(Activos|created|preparando|Sem pedidos).*"
     timeout: 10000

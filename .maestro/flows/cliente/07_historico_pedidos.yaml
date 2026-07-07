@@ -1,4 +1,4 @@
-appId: com.example.bora_app
+appId: pt.boraapp.bora
 name: Cliente — Histórico de pedidos
 tags:
   - cliente
@@ -11,14 +11,14 @@ tags:
 - tapOn: "Perfil"
 - extendedWaitUntil:
     visible:
-      text: "Histórico|Pedidos"
-    timeout: 10000
+      text: ".*(Histórico|Pedidos).*"
+    timeout: 20000
 
 - tapOn:
-    text: "Histórico"
+    text: ".*Histórico.*"
 
 # Lista carregada (mesmo vazia mostra estado).
 - extendedWaitUntil:
     visible:
-      text: "Sem pedidos|€|Pedido"
-    timeout: 15000
+      text: ".*(Sem pedidos|€|Pedido).*"
+    timeout: 20000

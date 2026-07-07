@@ -199,6 +199,24 @@ do email de contacto correto — corrigido para `boraappbora@gmail.com` e public
 `bora-app-testers@googlegroups.com`) — só o Proprietário (`nilofulfarotuga@gmail.com`) tem
 permissão de gerir membros; a conta `boraappbora@gmail.com` é só Membro.
 
+---
+
+## 🌅 Parte 2 (manhã de 07/07, pós-fix do CI) — 4 categorias novas
+
+Depois do build verde (run 28859407667), escritos 4 flows novos de raiz para as categorias
+sem cobertura. Resultado (device 1, cliente):
+
+| Fluxo novo | Estado | Evidência/nota |
+|---|---|---|
+| `12_servicos_barbearia` | ✅ PASSA | Beleza → Barbearia Nobre → catálogo da DB (€12 Corte, €8 Barba…) → booking flow "Escolher serviço" → avança para profissional/dia. **PARA antes do sinal MBWay (dinheiro real).** Achado: o FAB de suporte sobrepõe o tile Beleza — tap sem centrar abre "Como podemos ajudar?" |
+| `13_limpeza_agendamento` | ✅ PASSA | Wizard passo "Serviço": Por tamanho/Por hora, T0/T1–T4+, Standard/Profunda/Pós-obras, recorrência, preço ao vivo (€45 T2). **Split 85/15 confirmado na DB** pela reserva real de 16/07: total 4500¢ → cleaner 3825¢ / Bora 675¢. Flow PARA no passo 1 (continuar criaria reserva real cash a cada corrida de teste). |
+| `11_favores` | ⚠️ PARCIAL (4 tentativas) | Passo 1 OK (descrição, chips de categoria, "desde €6", paragem em casa +€2 visível). Passo 2 "Onde é o favor?" trava: preencher Local/Onde entregar por texto não ativa o "Próximo" de forma fiável em automação (autocomplete). Fluxo até pagamento cash fica para teste manual. |
+| `14_tvde_pedido_cancelar` | ⚠️ PARCIAL + achado UX | Tile "Bora Motorista" OK (aprovação tvde_access confirmada na DB) · ecrã de pedido OK · recolha auto (R. do Torreão 10) · **"Pagamento em dinheiro ao motorista"** (sem cartão — seguro) · toggle **"Garantir a volta — ida+volta €8"** visível (feature do brief). **🐛 ACHADO UX:** digitar o destino em "Para onde vais?" não mostra sugestões nem resolve (nem com Enter) — "Solicitar corrida" fica desativado; aparentemente o destino só se escolhe pelo mapa. Se for intencional, o hint devia dizê-lo; se não, o campo está desligado do Places. Corrida nunca foi criada (seguro). |
+
+**Estado das RPCs TVDE:** continua PROPOSE-ONLY (nada aplicado).
+**Não coberto (sem device 2 desde ~12h20, Danilo desligou):** fluxos estafeta/parceiro adicionais,
+chegada de reserva (lado parceiro), chat bidirecional.
+
 ### Próxima sessão (recomendado)
 1. Verificar as 3 correções de código na build de amanhã (notification bell, botão "+", toggle online).
 2. Escrever flows Maestro de raiz para TVDE, Limpeza (candidatura + upload), Serviços, Favores.

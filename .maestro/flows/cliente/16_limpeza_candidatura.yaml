@@ -1,0 +1,87 @@
+appId: pt.boraapp.bora
+name: Cliente — Candidatura a profissional de limpeza (upload foto + doc)
+tags:
+  - cliente
+  - limpeza
+---
+# Candidatura de limpeza (cleaner_apply_screen). Fluxo: Perfil → "Trabalha
+# também em Limpeza?" → foto de perfil (gallery) + documento (gallery) →
+# Nome + Telemóvel → "Enviar candidatura" → snackbar de sucesso.
+# Build 370 traz o fix do MIME (cca53c3: image/jpg→image/jpeg no upload do doc).
+# Foto E documento são OBRIGATÓRIOS e abrem o seletor de galeria do sistema.
+- launchApp:
+    clearState: true
+- runFlow: ../../_shared/login_cliente.yaml
+
+# Ir a Perfil (bottom nav). O tile de Limpeza fica abaixo da dobra —
+# rolar até ele (selector ASCII-safe evita o acento de "também").
+- tapOn: "Perfil"
+- assertVisible: ".*Saldo Bora.*"
+- scrollUntilVisible:
+    element: ".*em Limpeza.*"
+    direction: DOWN
+    centerElement: true
+    timeout: 20000
+- tapOn: ".*em Limpeza.*"
+
+# Ecrã intro "Limpezas — Profissional" → botão para abrir o formulário.
+- extendedWaitUntil:
+    visible: ".*Quero candidatar-me.*"
+    timeout: 15000
+- tapOn: ".*Quero candidatar-me.*"
+
+# Ecrã de candidatura (formulário) carregado.
+- extendedWaitUntil:
+    visible: ".*(Foto de perfil|profissional de limpeza).*"
+    timeout: 15000
+- assertVisible: ".*Documento de identificação.*"
+
+# ── Foto de perfil (avatar redondo com ícone add_a_photo, sem texto) ──
+# O avatar é icon-only (sem label acessível) — tocar por ponto (centrado,
+# logo acima do texto "Foto de perfil *").
+- tapOn:
+    point: "50%,24%"
+- extendedWaitUntil:
+    visible: ".*(Fotos|Recentes|Galeria|Selecionar|Imagens|Photos|Álbum).*"
+    timeout: 12000
+    optional: true
+# Escolher a primeira imagem do grid (ponto — thumbnails variam por device).
+- tapOn:
+    point: "17%,32%"
+- extendedWaitUntil:
+    visible: ".*Documento de identificação.*"
+    timeout: 12000
+
+# ── Documento (BI/CC) — _DocTile com texto visível ──
+- tapOn: ".*Documento de identificação.*"
+- extendedWaitUntil:
+    visible: ".*(Fotos|Recentes|Galeria|Selecionar|Imagens|Photos|Álbum).*"
+    timeout: 12000
+    optional: true
+- tapOn:
+    point: "17%,32%"
+- extendedWaitUntil:
+    visible: ".*(Documento anexado|Trocar).*"
+    timeout: 12000
+
+# ── Dados obrigatórios ──
+- tapOn: "Nome completo *"
+- inputText: "Teste E2E Limpeza"
+- hideKeyboard
+- tapOn: "Telemóvel *"
+- inputText: "912345678"
+- hideKeyboard
+
+# ── Enviar ── (rolar até ao fundo; parcialmente visível chega)
+- scrollUntilVisible:
+    element: ".*Enviar candidatura.*"
+    direction: DOWN
+    centerElement: false
+    visibilityPercentage: 20
+    timeout: 15000
+- tapOn: ".*Enviar candidatura.*"
+# Sucesso → snackbar; falha de foto → "Adiciona uma foto"; falha de doc →
+# "Anexa um documento". Capturamos qualquer um para diagnosticar.
+- extendedWaitUntil:
+    visible: ".*(Candidatura enviada|Adiciona uma foto|Anexa um documento|Falha ao enviar).*"
+    timeout: 25000

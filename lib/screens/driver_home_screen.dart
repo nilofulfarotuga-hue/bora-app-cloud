@@ -15,6 +15,7 @@ import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
 import '../widgets/bora_support_fab.dart';
 import '../widgets/cancel_blocked_pickup_sheet.dart';
+import '../widgets/payments/collect_badge.dart';
 import '../widgets/errand_execution_sheet.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../utils/constants.dart';
@@ -1350,53 +1351,26 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                     ),
                   ],
                 ),
-                if (order.paymentMethod == PaymentMethod.cash) ...[
-                  const SizedBox(height: 10),
-                  Container(
-                    width: double.infinity,
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.orange.shade400),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.warning_amber_rounded,
-                                color: Colors.orange.shade800, size: 20),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'COBRAR EM DINHEIRO: €${order.totalToCollectCash.toStringAsFixed(2)}',
-                                style: TextStyle(
-                                  color: Colors.orange.shade900,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        // BUG #1 frontend (§54) — linha extra se inclui dívida prévia
-                        if (order.hasCashDebt) ...[
-                          const SizedBox(height: 4),
-                          Padding(
-                            padding: const EdgeInsets.only(left: 28),
-                            child: Text(
-                              '↳ inclui €${(order.debtCollectedCents / 100).toStringAsFixed(2)} de dívida anterior',
-                              style: const TextStyle(
-                                color: AppColors.accent,
-                                fontSize: 12,
-                                fontStyle: FontStyle.italic,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
+                const SizedBox(height: 10),
+                CollectBadge(
+                  state: order.paymentMethod == PaymentMethod.cash
+                      ? CollectState.collectCash
+                      : CollectState.paidOnline,
+                  amountCents: (order.totalToCollectCash * 100).round(),
+                ),
+                // BUG #1 frontend (§54) — linha extra se inclui dívida prévia
+                if (order.paymentMethod == PaymentMethod.cash &&
+                    order.hasCashDebt) ...[
+                  const SizedBox(height: 4),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 28),
+                    child: Text(
+                      '↳ inclui €${(order.debtCollectedCents / 100).toStringAsFixed(2)} de dívida anterior',
+                      style: const TextStyle(
+                        color: AppColors.accent,
+                        fontSize: 12,
+                        fontStyle: FontStyle.italic,
+                      ),
                     ),
                   ),
                 ],
@@ -2199,33 +2173,15 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                     ),
                   ],
                 ),
-                if (isCash) ...[
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.orange.shade400),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.warning_amber_rounded,
-                            color: Colors.orange.shade800, size: 20),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'COBRAR EM DINHEIRO',
-                            style: TextStyle(
-                              color: Colors.orange.shade900,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                const SizedBox(height: 8),
+                CollectBadge(
+                  state: isCash
+                      ? CollectState.collectCash
+                      : CollectState.paidOnline,
+                  amountCents: (order.totalToCollectCash * 100).round(),
+                  approx: true,
+                  dense: true,
+                ),
                 if (hasActiveOrders) ...[
                   const SizedBox(height: 12),
                   Container(
@@ -2698,34 +2654,13 @@ class _DriverOrderAlertCardState extends State<_DriverOrderAlertCard>
                         ),
                       ],
                     ),
-                    if (order.paymentMethod == PaymentMethod.cash) ...[
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.red.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.red.shade400),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.warning_amber_rounded,
-                                color: Colors.red.shade700, size: 18),
-                            const SizedBox(width: 6),
-                            Text(
-                              'COBRAR EM DINHEIRO',
-                              style: TextStyle(
-                                color: Colors.red.shade800,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                    const SizedBox(height: 8),
+                    CollectBadge(
+                      state: order.paymentMethod == PaymentMethod.cash
+                          ? CollectState.collectCash
+                          : CollectState.paidOnline,
+                      amountCents: (order.totalToCollectCash * 100).round(),
+                    ),
                     if (order.apartmentDelivery) ...[
                       const SizedBox(height: 12),
                       const _ApartmentDeliveryBanner(),
@@ -2919,34 +2854,16 @@ class _AvailableOrderCardState extends State<_AvailableOrderCard> {
                 ),
               ],
             ),
-            if (order.paymentMethod == PaymentMethod.cash) ...[
-              const SizedBox(height: 8),
-              Container(
-                width: double.infinity,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.orange.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orange.shade400),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.warning_amber_rounded,
-                        color: Colors.orange.shade800, size: 18),
-                    const SizedBox(width: 6),
-                    Text(
-                      'COBRAR EM DINHEIRO',
-                      style: TextStyle(
-                        color: Colors.orange.shade900,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
-                ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: CollectBadge(
+                state: order.paymentMethod == PaymentMethod.cash
+                    ? CollectState.collectCash
+                    : CollectState.paidOnline,
+                amountCents: (order.totalToCollectCash * 100).round(),
               ),
-            ],
+            ),
             if (order.pickupAddress != null &&
                 order.pickupAddress!.isNotEmpty) ...[
               const SizedBox(height: 8),

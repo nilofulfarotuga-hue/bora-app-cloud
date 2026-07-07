@@ -10,6 +10,7 @@ import '../../stores/cleaner_store.dart';
 import '../../stores/session_store.dart';
 import '../../widgets/bora/bora.dart';
 import '../../widgets/bora_support_sheet.dart';
+import '../../widgets/payments/collect_badge.dart';
 import '../../widgets/cleaning_chat_button.dart';
 import '../../widgets/multirole_switch_card.dart';
 import '../driver/driver_role_apply_screen.dart';
@@ -667,19 +668,15 @@ class _AgendaCardState extends State<_AgendaCard> {
               style: const TextStyle(
                   color: AppColors.textSecondary, height: 1.4),
             ),
-            // PART4/P1 — em limpeza CASH, o profissional cobra o TOTAL na hora.
-            // Espelha o padrão do estafeta ("COBRAR EM DINHEIRO: €X") para não
-            // ter de adivinhar quanto pedir ao cliente.
-            if (b.paymentMethod == 'cash') ...[
-              const SizedBox(height: 6),
-              Text(
-                'COBRAR EM DINHEIRO: ${CleaningLabels.euro(b.totalCents)}',
-                style: TextStyle(
-                    color: Colors.orange.shade900,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14),
-              ),
-            ],
+            // Badge de cobrança UNIFICADO (mesmo widget do delivery/TVDE):
+            // dinheiro → cobrar o total; card/MB Way → já pago (não cobrar).
+            const SizedBox(height: 6),
+            CollectBadge(
+              state: b.paymentMethod == 'cash'
+                  ? CollectState.collectCash
+                  : CollectState.paidOnline,
+              amountCents: b.paymentMethod == 'cash' ? b.totalCents : null,
+            ),
             const SizedBox(height: Spacing.sm),
             // Cliente (nome/foto) + comunicação — só com serviço em curso.
             if (const [

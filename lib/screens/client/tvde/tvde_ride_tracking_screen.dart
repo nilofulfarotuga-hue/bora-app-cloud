@@ -930,11 +930,15 @@ class _StatusPanel extends StatelessWidget {
   /// a caminho / chegou / em viagem (estados em que faz sentido "passa aqui").
   Widget _buildStops(BuildContext context) {
     final canManage = ride.isOnTheWay || ride.hasArrived || ride.isInProgress;
-    if (!canManage && stops.isEmpty) return const SizedBox.shrink();
+    // Corrida paga no app = preço FECHADO (MVP): esconde as paradas extra
+    // (não se pode acrescentar valor a uma cobrança já feita).
+    if (stops.isEmpty && (!canManage || ride.isPaidOnline)) {
+      return const SizedBox.shrink();
+    }
 
     final feePerStopEur =
         (stops.isNotEmpty ? stops.first.feeCents : stopFeeCents) / 100;
-    final canAdd = canManage && stops.length < maxStops;
+    final canAdd = canManage && stops.length < maxStops && !ride.isPaidOnline;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

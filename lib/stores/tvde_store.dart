@@ -216,7 +216,7 @@ class TvdeStore extends ChangeNotifier {
     _setBusy(true);
     try {
       final res = await _sb.functions.invoke('tvde-payment', body: {
-        'action': method == 'card' ? 'authorize' : 'charge',
+        'action': 'charge',
         'origin_lat': originLat,
         'origin_lng': originLng,
         'origin_label': originLabel,
@@ -325,11 +325,30 @@ class TvdeStore extends ChangeNotifier {
   Future<void> cancelRide(String rideId, {String? reason}) async {
     _setBusy(true);
     try {
-      await _sb.rpc('tvde_cancel_ride', params: {
+      final res = await _sb.rpc('tvde_cancel_ride', params: {
         'p_ride_id': rideId,
         'p_actor': 'cliente',
         'p_reason': reason,
       });
+      // Corrida paga no app (card/mbway) → refund estilo client-cancel-order
+      // (capado ao pago, menos a taxa) via Edge Function. Best-effort: se
+      // falhar, o cancelamento já foi feito. Só corre com o switch ligado.
+      final ride = _activeRide;
+      if (ride != null && ride.id == rideId && ride.isPaidOnline) {
+        int feeCents = 0;
+        try {
+          feeCents = (_asMap(res)['cancel_fee_cents'] as num?)?.toInt() ?? 0;
+        } catch (_) {/* sem taxa legível → refund total */}
+        try {
+          await _sb.functions.invoke('tvde-payment', body: {
+            'action': 'refund',
+            'ride_id': rideId,
+            'cancel_fee_cents': feeCents,
+          });
+        } catch (e) {
+          debugPrint('TvdeStore.cancelRide refund error => $e');
+        }
+      }
     } catch (e) {
       debugPrint('TvdeStore.cancelRide error => $e');
       rethrow;

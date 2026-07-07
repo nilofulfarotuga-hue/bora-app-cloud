@@ -172,11 +172,28 @@ class _AddressAutocompleteFieldState extends State<AddressAutocompleteField> {
         _fieldKey.currentContext?.findRenderObject() as RenderBox?;
     final double width = box?.size.width ?? 280.0;
 
+    // Abrir para CIMA quando o espaço abaixo do campo (já descontado o
+    // teclado) não chega — senão a lista fica escondida atrás do teclado em
+    // campos a meio da página (ex.: destino do TVDE). Campos perto do topo
+    // (ex.: wizard da limpeza) continuam a abrir para baixo como antes.
+    final media = MediaQuery.of(context);
+    bool openUp = false;
+    double maxH = 220.0;
+    if (box != null && box.attached) {
+      final fieldTop = box.localToGlobal(Offset.zero).dy;
+      final fieldBottom = fieldTop + box.size.height;
+      final spaceBelow =
+          media.size.height - media.viewInsets.bottom - fieldBottom - 8;
+      final spaceAbove = fieldTop - media.padding.top - 8;
+      openUp = spaceBelow < 180 && spaceAbove > spaceBelow;
+      maxH = (openUp ? spaceAbove : spaceBelow).clamp(96.0, 220.0);
+    }
+
     return CompositedTransformFollower(
       link: _layerLink,
       showWhenUnlinked: false,
-      targetAnchor: Alignment.bottomLeft,
-      followerAnchor: Alignment.topLeft,
+      targetAnchor: openUp ? Alignment.topLeft : Alignment.bottomLeft,
+      followerAnchor: openUp ? Alignment.bottomLeft : Alignment.topLeft,
       child: SizedBox(
         width: width,
         child: Material(
@@ -184,7 +201,7 @@ class _AddressAutocompleteFieldState extends State<AddressAutocompleteField> {
           borderRadius: BorderRadius.circular(12),
           clipBehavior: Clip.antiAlias,
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 220),
+            constraints: BoxConstraints(maxHeight: maxH),
             child: ListView.separated(
               padding: EdgeInsets.zero,
               shrinkWrap: true,

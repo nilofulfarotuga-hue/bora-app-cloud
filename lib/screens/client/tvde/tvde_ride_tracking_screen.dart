@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:latlong2/latlong.dart' as ll;
 import 'package:provider/provider.dart';
@@ -56,6 +57,20 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
   final DirectionsService _directions = DirectionsService();
   Set<Polyline> _routePolys = <Polyline>{};
   String? _routeKey;
+
+  // ── Heading-up (paridade com o mapa do motorista) ─────────────────────────
+  // Câmara estilo Waze: segue o carro com zoom/tilt de navegação e RODA
+  // (bearing) conforme a direção de marcha, calculada pelo delta de posições
+  // do poll (≥5 m para não amplificar ruído de GPS) — mesmo padrão do
+  // tvde_driver_home_screen [Item G]. Valores espelham platform_settings
+  // (tvde_nav_zoom / tvde_nav_tilt); leitura dinâmica pendente, como no
+  // ecrã do motorista.
+  static const double _kNavZoom = 17.5;
+  static const double _kNavTilt = 45.0;
+  double _bearing = 0;
+  LatLng? _lastBearingPos;
+  bool _followCam = true; // gesto do utilizador pausa; botão mira religa
+  bool _progCamMove = false;
 
   // ── [CAMPO-02 · Feature 1] Paradas adicionais ─────────────────────────────
   List<TvdeRideStop> _stops = const [];
@@ -190,17 +205,64 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
     } catch (_) {/* sem rota → mapa mantém-se sem a linha (fallback) */}
   }
 
-  /// B5 — botão mira: recentra na posição do motorista (ou no ponto de recolha).
+  /// B5 — botão mira: recentra na posição do motorista (ou no ponto de
+  /// recolha) com a câmara de navegação (zoom/tilt/bearing) e religa o follow.
   Future<void> _recenter(TvdeRide ride) async {
     final c = _map;
     if (c == null) return;
     final target = _driverPos ?? LatLng(ride.originLat, ride.originLng);
-    await c.animateCamera(CameraUpdate.newLatLngZoom(target, 15));
+    _followCam = true;
+    _progCamMove = true;
+    try {
+      await c.animateCamera(CameraUpdate.newCameraPosition(CameraPosition(
+        target: target,
+        zoom: _kNavZoom,
+        tilt: _kNavTilt,
+        bearing: _bearing,
+      )));
+    } finally {
+      _progCamMove = false;
+    }
+  }
+
+  /// Heading-up: a câmara segue o carro e roda com a direção de marcha.
+  /// Só quando o follow está ativo — um gesto do utilizador no mapa pausa
+  /// (para poder explorar) e a mira religa.
+  Future<void> _followDriver(LatLng pos) async {
+    final c = _map;
+    if (c == null || !_followCam) return;
+    _progCamMove = true;
+    try {
+      await c.animateCamera(CameraUpdate.newCameraPosition(CameraPosition(
+        target: pos,
+        zoom: _kNavZoom,
+        tilt: _kNavTilt,
+        bearing: _bearing,
+      )));
+    } finally {
+      _progCamMove = false;
+    }
   }
 
   /// C4 — animação suave do carro entre polls (12 passos × 80 ms, o mesmo
   /// padrão do DriverStore no delivery). Sem saltos de marker.
   void _setDriverPos(LatLng target) {
+    // Heading-up: bearing pela direção de marcha, a partir das posições CRUAS
+    // do poll (não das animadas) — paridade com o motorista [Item G].
+    final prevRaw = _lastBearingPos;
+    if (prevRaw != null) {
+      final moved = Geolocator.distanceBetween(prevRaw.latitude,
+          prevRaw.longitude, target.latitude, target.longitude);
+      if (moved >= 5) {
+        var b = Geolocator.bearingBetween(prevRaw.latitude, prevRaw.longitude,
+            target.latitude, target.longitude);
+        if (b < 0) b += 360;
+        _bearing = b;
+      }
+    }
+    _lastBearingPos = target;
+    _followDriver(target);
+
     final from = _driverPos;
     if (from == null) {
       setState(() => _driverPos = target);
@@ -512,9 +574,15 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
             polylines: _routePolys, // B2 — rota grossa recolha→destino
             myLocationButtonEnabled: false,
             zoomControlsEnabled: false,
-            compassEnabled: false,
+            // Com heading-up a bússola deixa o utilizador repor o norte.
+            compassEnabled: true,
             mapToolbarEnabled: false,
             onMapCreated: (c) => _map = c,
+            onCameraMoveStarted: () {
+              // Gesto do utilizador (movimento não-programático) pausa o
+              // follow — a mira (_recenter) religa.
+              if (!_progCamMove) _followCam = false;
+            },
           ),
           // B5 — botão mira (recentra no motorista/recolha).
           Positioned(

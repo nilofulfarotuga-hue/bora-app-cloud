@@ -204,10 +204,8 @@ class _AddButton extends StatelessWidget {
           color: AppColors.primary,
           shape: BoxShape.circle,
         ),
-        child: const Semantics(
-          label: 'Adicionar',
-          child: Icon(Icons.add, color: Colors.white, size: 18),
-        ),
+        child: const Icon(Icons.add,
+            color: Colors.white, size: 18, semanticLabel: 'Adicionar'),
       ),
     );
   }

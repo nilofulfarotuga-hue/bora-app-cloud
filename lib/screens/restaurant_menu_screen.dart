@@ -1357,11 +1357,10 @@ class _SectionProductCard extends StatelessWidget {
                       onTap: product.hasRequiredOptions ? onTap : onAdd,
                       child: const Padding(
                         padding: EdgeInsets.all(7),
-                        child: Semantics(
-                          label: 'Adicionar',
-                          child:
-                              Icon(Icons.add, size: 18, color: Colors.white),
-                        ),
+                        child: Icon(Icons.add,
+                            size: 18,
+                            color: Colors.white,
+                            semanticLabel: 'Adicionar'),
                       ),
                     ),
                   ),

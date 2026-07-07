@@ -21,9 +21,15 @@ class AddressAutocompleteField extends StatefulWidget {
     this.labelText = 'Endereço',
     this.prefixIcon,
     this.validator,
+    this.serviceOverride,
   });
 
   final TextEditingController controller;
+
+  /// Test seam: injeta um [PlaceAutocompleteService] falso nos testes de
+  /// widget (a renderização das sugestões não pode depender da rede). Em
+  /// produção fica null e criamos o serviço real.
+  final PlaceAutocompleteService? serviceOverride;
 
   /// Called when the user selects a suggestion.
   /// [address] is the human-readable string; [coords] is the resolved
@@ -73,7 +79,8 @@ class _AddressAutocompleteFieldState extends State<AddressAutocompleteField> {
   @override
   void initState() {
     super.initState();
-    _service = createPlaceAutocompleteService(googleApiKey);
+    _service =
+        widget.serviceOverride ?? createPlaceAutocompleteService(googleApiKey);
     _focusNode.addListener(_onFocusChanged);
   }
 
@@ -89,17 +96,33 @@ class _AddressAutocompleteFieldState extends State<AddressAutocompleteField> {
   }
 
   void _onFocusChanged() {
-    if (!_focusNode.hasFocus) {
-      _debounce?.cancel();
-      _focusLossTimer?.cancel();
-      _focusLossTimer = Timer(const Duration(milliseconds: 200), () {
-        if (_isSelecting) return;
-        _removeOverlay();
-        if (_predictions.isNotEmpty && mounted) {
-          setState(() => _predictions = const []);
-        }
+    if (_focusNode.hasFocus) {
+      // Uber/Google-style: ao focar, sobe o campo para o topo do Scrollable
+      // (se houver) para que a lista de sugestões — que abre PARA BAIXO —
+      // tenha espaço acima do teclado. É no-op quando o campo não está dentro
+      // de um Scrollable (ex.: alguns formulários), sem efeitos colaterais.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_focusNode.hasFocus) return;
+        final ctx = _fieldKey.currentContext;
+        if (ctx == null) return;
+        Scrollable.ensureVisible(
+          ctx,
+          alignment: 0.0,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+        );
       });
+      return;
     }
+    _debounce?.cancel();
+    _focusLossTimer?.cancel();
+    _focusLossTimer = Timer(const Duration(milliseconds: 200), () {
+      if (_isSelecting) return;
+      _removeOverlay();
+      if (_predictions.isNotEmpty && mounted) {
+        setState(() => _predictions = const []);
+      }
+    });
   }
 
   void _onChanged(String value) {
@@ -127,13 +150,15 @@ class _AddressAutocompleteFieldState extends State<AddressAutocompleteField> {
 
     _debounce?.cancel();
     final trimmed = value.trim();
-    if (trimmed.length < 3) {
+    // Sugestões automáticas desde o 1.º caractere (estilo Uber): digitar "r"
+    // já mostra ruas. O debounce curto evita chamadas a cada tecla.
+    if (trimmed.isEmpty) {
       _service.resetSession();
       _updatePredictions(const []);
       return;
     }
 
-    _debounce = Timer(const Duration(milliseconds: 300), () async {
+    _debounce = Timer(const Duration(milliseconds: 250), () async {
       final query = widget.controller.text.trim();
       if (query.isEmpty || !mounted) return;
       final predictions = await _service.fetchPredictions(query);
@@ -172,28 +197,19 @@ class _AddressAutocompleteFieldState extends State<AddressAutocompleteField> {
         _fieldKey.currentContext?.findRenderObject() as RenderBox?;
     final double width = box?.size.width ?? 280.0;
 
-    // Abrir para CIMA quando o espaço abaixo do campo (já descontado o
-    // teclado) não chega — senão a lista fica escondida atrás do teclado em
-    // campos a meio da página (ex.: destino do TVDE). Campos perto do topo
-    // (ex.: wizard da limpeza) continuam a abrir para baixo como antes.
-    final media = MediaQuery.of(context);
-    bool openUp = false;
-    double maxH = 220.0;
-    if (box != null && box.attached) {
-      final fieldTop = box.localToGlobal(Offset.zero).dy;
-      final fieldBottom = fieldTop + box.size.height;
-      final spaceBelow =
-          media.size.height - media.viewInsets.bottom - fieldBottom - 8;
-      final spaceAbove = fieldTop - media.padding.top - 8;
-      openUp = spaceBelow < 180 && spaceAbove > spaceBelow;
-      maxH = (openUp ? spaceAbove : spaceBelow).clamp(96.0, 220.0);
-    }
-
+    // Abre SEMPRE para baixo — o caminho de renderização comprovado (funciona
+    // na limpeza e no resto). A tentativa anterior de abrir para CIMA em
+    // campos a meio da página produzia uma CAIXA BRANCA VAZIA: o anchor
+    // invertido (followerAnchor bottomLeft) com a ListView shrinkWrap dentro
+    // das constraints soltas do Overlay não renderizava as sugestões. Em vez
+    // disso, o campo sobe ao focar (ver _onFocusChanged), estilo Uber/Google,
+    // deixando a lista abaixo do campo e acima do teclado.
     return CompositedTransformFollower(
       link: _layerLink,
       showWhenUnlinked: false,
-      targetAnchor: openUp ? Alignment.topLeft : Alignment.bottomLeft,
-      followerAnchor: openUp ? Alignment.bottomLeft : Alignment.topLeft,
+      targetAnchor: Alignment.bottomLeft,
+      followerAnchor: Alignment.topLeft,
+      offset: const Offset(0, 4),
       child: SizedBox(
         width: width,
         child: Material(
@@ -201,7 +217,7 @@ class _AddressAutocompleteFieldState extends State<AddressAutocompleteField> {
           borderRadius: BorderRadius.circular(12),
           clipBehavior: Clip.antiAlias,
           child: ConstrainedBox(
-            constraints: BoxConstraints(maxHeight: maxH),
+            constraints: const BoxConstraints(maxHeight: 260),
             child: ListView.separated(
               padding: EdgeInsets.zero,
               shrinkWrap: true,

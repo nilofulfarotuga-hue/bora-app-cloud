@@ -377,10 +377,19 @@ class _DriverCard extends StatelessWidget {
                   _Pill(
                       icon: Icons.delivery_dining, label: 'Entrega em curso'),
                 _Pill(icon: Icons.done_all, label: '$total concluídas'),
+                // Saldo com sinal (liquidação por método): positivo = motorista
+                // deve ao Bora (dinheiro); negativo = Bora deve ao motorista
+                // (cartão/MB Way, a Bora recebeu online). Zero = quitado.
                 _Pill(
                   icon: Icons.account_balance_wallet,
-                  label: 'Deve ao Bora: €${balance.toStringAsFixed(2)}',
-                  color: balance > 0 ? AppColors.accent : AppColors.primary,
+                  label: balance > 0
+                      ? 'Deve ao Bora: €${balance.toStringAsFixed(2)}'
+                      : balance < 0
+                          ? 'Bora deve: €${(-balance).toStringAsFixed(2)}'
+                          : 'Saldo quitado',
+                  color: balance > 0
+                      ? AppColors.accent
+                      : (balance < 0 ? AppColors.info : AppColors.primary),
                 ),
                 _Pill(
                   icon: Icons.favorite,

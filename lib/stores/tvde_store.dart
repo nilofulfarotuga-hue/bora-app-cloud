@@ -166,6 +166,10 @@ class TvdeStore extends ChangeNotifier {
     required double destLng,
     String? destLabel,
     required double distanceKm,
+    // Método de pagamento (backend aplicado via MCP). DEFAULT 'cash' → app
+    // antigo e fluxo dinheiro continuam iguais. Com o kill switch
+    // (tvde_card_payments_enabled) desligado, a RPC rejeita card/mbway.
+    String paymentMethod = 'cash',
   }) async {
     _setBusy(true);
     try {
@@ -177,6 +181,7 @@ class TvdeStore extends ChangeNotifier {
         'p_dest_lng': destLng,
         'p_dest_label': destLabel,
         'p_est_distance_km': distanceKm,
+        'p_payment_method': paymentMethod,
       });
       final ride = TvdeRide.fromMap(_asMap(res));
       _activeRide = ride;
@@ -185,6 +190,63 @@ class TvdeStore extends ChangeNotifier {
       return ride;
     } catch (e) {
       debugPrint('TvdeStore.requestRide error => $e');
+      rethrow;
+    } finally {
+      _setBusy(false);
+    }
+  }
+
+  /// Corrida paga ONLINE (card/mbway). Invoca a Edge Function `tvde-payment`,
+  /// que valida o kill switch, autoriza/cobra no Stripe e SÓ ENTÃO cria a
+  /// corrida (nunca cria ride sem pagamento). Só é chamada com o switch ligado
+  /// — a UI esconde card/mbway quando `tvde_card_payments_enabled` está OFF.
+  /// [confirmCard] confirma o clientSecret (autoriza o hold de captura manual).
+  Future<TvdeRide?> requestRidePaid({
+    required double originLat,
+    required double originLng,
+    String? originLabel,
+    required double destLat,
+    required double destLng,
+    String? destLabel,
+    required double distanceKm,
+    required String method, // 'card' | 'mbway'
+    String? mbwayPhone,
+    Future<void> Function(String clientSecret)? confirmCard,
+  }) async {
+    _setBusy(true);
+    try {
+      final res = await _sb.functions.invoke('tvde-payment', body: {
+        'action': method == 'card' ? 'authorize' : 'charge',
+        'origin_lat': originLat,
+        'origin_lng': originLng,
+        'origin_label': originLabel,
+        'dest_lat': destLat,
+        'dest_lng': destLng,
+        'dest_label': destLabel,
+        'distance_km': distanceKm,
+        'method': method,
+        if (mbwayPhone != null) 'phone': mbwayPhone,
+      });
+      final data = (res.data is Map)
+          ? Map<String, dynamic>.from(res.data as Map)
+          : <String, dynamic>{};
+      if (data['error'] != null) throw Exception(data['error'].toString());
+      // Cartão → confirma o hold (autoriza a captura manual do valor final).
+      final clientSecret = data['clientSecret'] as String?;
+      if (method == 'card' && clientSecret != null && confirmCard != null) {
+        await confirmCard(clientSecret);
+      }
+      final rideMap = data['ride'];
+      if (rideMap is Map) {
+        final ride = TvdeRide.fromMap(Map<String, dynamic>.from(rideMap));
+        _activeRide = ride;
+        _subscribeRide(ride.id);
+        notifyListeners();
+        return ride;
+      }
+      return null;
+    } catch (e) {
+      debugPrint('TvdeStore.requestRidePaid error => $e');
       rethrow;
     } finally {
       _setBusy(false);
@@ -289,6 +351,20 @@ class TvdeStore extends ChangeNotifier {
       return int.tryParse(res.toString()) ?? fallback;
     } catch (e) {
       debugPrint('TvdeStore.getSettingInt($key) error => $e');
+      return fallback;
+    }
+  }
+
+  /// Lê um bool de platform_settings (ex.: o kill switch
+  /// `tvde_card_payments_enabled`). Falha fechada → devolve [fallback].
+  Future<bool> getSettingBool(String key, bool fallback) async {
+    try {
+      final res = await _sb.rpc('get_setting', params: {'p_key': key});
+      if (res == null) return fallback;
+      final s = res.toString().trim().toLowerCase();
+      return s == 'true' || s == '1' || s == 't';
+    } catch (e) {
+      debugPrint('TvdeStore.getSettingBool($key) error => $e');
       return fallback;
     }
   }

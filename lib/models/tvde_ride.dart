@@ -29,6 +29,7 @@ class TvdeRide {
     this.extraStopsCount = 0,
     this.extraStopsFeeCents = 0,
     this.extraStopsDriverCents = 0,
+    this.paymentMethod = 'cash',
   });
 
   final String id;
@@ -80,6 +81,10 @@ class TvdeRide {
   final int extraStopsFeeCents;
   final int extraStopsDriverCents;
 
+  /// Método de pagamento: 'cash' (default), 'card' ou 'mbway'. Card/mbway só
+  /// existem com o kill switch `tvde_card_payments_enabled` ligado.
+  final String paymentMethod;
+
   factory TvdeRide.fromMap(Map<String, dynamic> m) {
     double d(dynamic v) => (v as num?)?.toDouble() ?? 0;
     return TvdeRide(
@@ -117,11 +122,14 @@ class TvdeRide {
       extraStopsFeeCents: (m['extra_stops_fee_cents'] as num?)?.toInt() ?? 0,
       extraStopsDriverCents:
           (m['extra_stops_driver_cents'] as num?)?.toInt() ?? 0,
+      paymentMethod: m['payment_method'] as String? ?? 'cash',
     );
   }
 
   // ── Helpers de estado ───────────────────────────────────────────────────
   bool get isSearching => status == 'solicitada';
+  /// Pago online (cartão/MB Way) — o motorista NÃO cobra nada ao passageiro.
+  bool get isPaidOnline => paymentMethod == 'card' || paymentMethod == 'mbway';
   bool get isNoDriver => status == 'sem_motorista';
   bool get isAssigned => status == 'motorista_atribuido' ||
       status == 'motorista_a_caminho' ||

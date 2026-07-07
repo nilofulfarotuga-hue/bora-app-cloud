@@ -20,20 +20,35 @@ class TvdePayBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 3 estados (precedência: plano → pago online → dinheiro):
+    // - coberta pelo plano  → verde, "NÃO cobrar"
+    // - card/mbway (online) → verde, "💳 Pago no app — NÃO cobrar" [PART C]
+    // - dinheiro            → laranja, "cobrar €X ao passageiro"
     final covered = ride.usedSubscriptionRide;
-    final grossCents = ride.finalFareCents ?? ride.estFareCents;
-    final approx = ride.finalFareCents == null; // antes do finish = estimado
-    final gross = (grossCents / 100).toStringAsFixed(2);
+    final paidOnline = !covered && ride.isPaidOnline;
+    final noCollect = covered || paidOnline;
 
-    final text = covered
-        ? 'Coberta pelo plano — NÃO cobrar o passageiro'
-        : 'Dinheiro · cobrar ${approx ? '~' : ''}€$gross ao passageiro';
-    final color = covered ? AppColors.primary : Colors.orange.shade900;
+    final String emoji;
+    final String text;
+    if (covered) {
+      emoji = '💚';
+      text = 'Coberta pelo plano — NÃO cobrar o passageiro';
+    } else if (paidOnline) {
+      emoji = '💳';
+      text = 'Pago no app — NÃO cobrar o passageiro';
+    } else {
+      final grossCents = ride.finalFareCents ?? ride.estFareCents;
+      final approx = ride.finalFareCents == null; // antes do finish = estimado
+      final gross = (grossCents / 100).toStringAsFixed(2);
+      emoji = '💵';
+      text = 'Dinheiro · cobrar ${approx ? '~' : ''}€$gross ao passageiro';
+    }
+    final color = noCollect ? AppColors.primary : Colors.orange.shade900;
 
     final row = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Text('💵', style: TextStyle(fontSize: 14)),
+        Text(emoji, style: const TextStyle(fontSize: 14)),
         const SizedBox(width: 6),
         Flexible(
           child: Text(
@@ -50,7 +65,7 @@ class TvdePayBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
-        color: covered
+        color: noCollect
             ? AppColors.primary.withValues(alpha: 0.10)
             : Colors.orange.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(8),

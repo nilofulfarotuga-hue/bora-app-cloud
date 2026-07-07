@@ -14,6 +14,7 @@ import '../../../stores/tvde_store.dart';
 import '../../../utils/map_utils.dart';
 import '../../../widgets/address_autocomplete_field.dart';
 import '../../../widgets/bora/bora.dart';
+import '../../../widgets/tvde/tvde_payment_selector.dart';
 import 'tvde_plans_screen.dart';
 import 'tvde_rides_history_screen.dart';
 import 'tvde_ride_tracking_screen.dart';
@@ -58,6 +59,13 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
   int _roundtripPriceCents = 800; // fallback; sobrescrito por platform_settings
   Map<String, dynamic>? _activeCredit; // vale-volta ativo (mostra "Chamar a volta")
 
+  // Pagamento da corrida. Dinheiro é o default e está SEMPRE visível.
+  // Cartão + MB Way só aparecem se o kill switch estiver ligado
+  // (`tvde_card_payments_enabled`) — hoje OFF → só dinheiro (resolve o
+  // "ia direto sem pedir pagamento", mostrando "Pagamento: Dinheiro").
+  String _paymentMethod = 'cash';
+  bool _cardEnabled = false;
+
   @override
   void initState() {
     super.initState();
@@ -85,10 +93,14 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     // [F3] preço do pacote ida-volta + vale ativo (para "Chamar a minha volta").
     final price = await store.getSettingInt('tvde_roundtrip_price_cents', 800);
     final credit = await store.activeRoundtripCredit();
+    // Kill switch de card/mbway (falha fechada → só dinheiro).
+    final cardEnabled =
+        await store.getSettingBool('tvde_card_payments_enabled', false);
     if (mounted) {
       setState(() {
         _roundtripPriceCents = price;
         _activeCredit = credit;
+        _cardEnabled = cardEnabled;
       });
     }
   }
@@ -225,23 +237,48 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     final store = context.read<TvdeStore>();
     final km = _effectiveKm;
     if (_pickup == null || _dest == null || km == null) return;
+    // Coberta pelo plano (paga €0) OU switch de card/mbway desligado → dinheiro.
+    final method = (_covered || !_cardEnabled) ? 'cash' : _paymentMethod;
     try {
-      await store.requestRide(
-        originLat: _pickup!.latitude,
-        originLng: _pickup!.longitude,
-        originLabel: _pickupLabel,
-        destLat: _dest!.latitude,
-        destLng: _dest!.longitude,
-        destLabel: _destLabel,
-        distanceKm: km,
-      );
+      if (method == 'card' || method == 'mbway') {
+        // Pagamento online ANTES de criar a corrida (a Edge Function autoriza/
+        // cobra no Stripe e só então cria a ride). Só chega aqui com o switch on.
+        await store.requestRidePaid(
+          originLat: _pickup!.latitude,
+          originLng: _pickup!.longitude,
+          originLabel: _pickupLabel,
+          destLat: _dest!.latitude,
+          destLng: _dest!.longitude,
+          destLabel: _destLabel,
+          distanceKm: km,
+          method: method,
+          confirmCard: (clientSecret) =>
+              PaymentService().processPayment(clientSecret),
+        );
+      } else {
+        await store.requestRide(
+          originLat: _pickup!.latitude,
+          originLng: _pickup!.longitude,
+          originLabel: _pickupLabel,
+          destLat: _dest!.latitude,
+          destLng: _dest!.longitude,
+          destLabel: _destLabel,
+          distanceKm: km,
+          paymentMethod: 'cash',
+        );
+      }
       if (!mounted) return;
       _openTracking();
     } catch (e) {
       if (!mounted) return;
-      final msg = e.toString().contains('ride_in_progress')
+      final s = e.toString();
+      final msg = s.contains('ride_in_progress')
           ? 'Já tens uma corrida em curso.'
-          : 'Não foi possível pedir a corrida.';
+          : s.contains('card_payments_not_enabled')
+              ? 'Pagamento por cartão ainda não está disponível.'
+              : s.contains('cancel') || s.contains('Cancel')
+                  ? 'Pagamento cancelado.'
+                  : 'Não foi possível pedir a corrida.';
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(msg)));
     }
@@ -463,6 +500,17 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
               covered: _covered,
               coverageLabel: _coverageLabel,
             ),
+            // Secção de pagamento. Dinheiro SEMPRE visível (default). Cartão +
+            // MB Way só aparecem com o kill switch ligado — hoje OFF → mostra
+            // "Pagamento: Dinheiro" (resolve o "ia direto sem pedir pagamento").
+            if (!_covered) ...[
+              const SizedBox(height: Spacing.md),
+              TvdePaymentSelector(
+                current: _paymentMethod,
+                cardEnabled: _cardEnabled,
+                onChanged: (m) => setState(() => _paymentMethod = m),
+              ),
+            ],
             const SizedBox(height: Spacing.md),
             // [F3] "Garantir a volta" — pacote ida+volta pago adiantado.
             _RoundtripToggle(

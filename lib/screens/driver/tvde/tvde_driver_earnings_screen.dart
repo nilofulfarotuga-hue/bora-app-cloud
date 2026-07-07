@@ -211,6 +211,22 @@ class _RideTile extends StatelessWidget {
                 Text('$when · $km km',
                     style: TextStyle(
                         color: AppColors.textSecondary, fontSize: 12)),
+                // PART2 — breakdown do dinheiro: quanto cobrou ao passageiro e
+                // quanto fica para a Bora (o €earn à direita é o ganho dele).
+                Builder(builder: (_) {
+                  if (ride.usedSubscriptionRide) {
+                    return const Text('Coberta pelo plano · dinheiro',
+                        style: TextStyle(
+                            color: AppColors.textSecondary, fontSize: 11.5));
+                  }
+                  final grossCents = ride.finalFareCents ?? ride.estFareCents;
+                  final gross = (grossCents / 100).toStringAsFixed(2);
+                  final cut = ((grossCents - (ride.driverEarnCents ?? 0)) / 100)
+                      .toStringAsFixed(2);
+                  return Text('Cobrado €$gross · Bora €$cut',
+                      style: const TextStyle(
+                          color: AppColors.textSecondary, fontSize: 11.5));
+                }),
               ],
             ),
           ),

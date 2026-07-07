@@ -11,6 +11,7 @@ import '../../../services/sound_service.dart';
 import '../../../stores/driver_store.dart';
 import '../../../stores/tvde_driver_store.dart';
 import '../../../widgets/bora/bora.dart';
+import '../../../widgets/tvde/tvde_pay_badge.dart';
 
 /// TVDE — Ecrã de OFERTA ao motorista (passageiros). Aceite por TOCAR aqui
 /// (nunca pelos botões de ação da notificação — bug conhecido em background).
@@ -189,6 +190,9 @@ class _TvdeOfferScreenState extends State<TvdeOfferScreen> {
                             style: TextStyle(
                                 color: AppColors.textSecondary, fontSize: 13)),
                       ),
+                      // PART2 — método de pagamento visível já na oferta.
+                      const SizedBox(height: Spacing.sm),
+                      Center(child: TvdePayBadge(ride: ride)),
                       if (toPickup != null) ...[
                         const SizedBox(height: 2),
                         Center(

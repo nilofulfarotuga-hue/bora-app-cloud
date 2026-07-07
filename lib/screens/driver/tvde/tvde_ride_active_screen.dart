@@ -22,6 +22,7 @@ import '../../../stores/tvde_driver_store.dart';
 import '../../../stores/tvde_store.dart';
 import '../../../utils/map_utils.dart';
 import '../../../widgets/bora/bora.dart';
+import '../../../widgets/tvde/tvde_pay_badge.dart';
 import '../../shared/tvde_chat_screen.dart';
 import 'tvde_driver_rate_screen.dart';
 
@@ -90,6 +91,13 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   double _bearing = 0;
   LatLng? _lastArrowPos;
 
+  /// [PART1 2026-07-07] Follow heading-up contínuo (estilo Waze). A câmara
+  /// segue o motorista e RODA com a direção de marcha. O gesto do utilizador
+  /// pausa o seguimento; o botão mira volta a ligar. `_progCamMove` distingue
+  /// movimento programático (nosso animateCamera) de gesto do dedo.
+  bool _followCam = true;
+  bool _progCamMove = false;
+
   @override
   void initState() {
     super.initState();
@@ -114,15 +122,36 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   static const double _kNavZoom = 17.5; // faixa 17–18 (Waze usa 17)
   static const double _kNavTilt = 45.0; // 3D following
 
-  /// B5 — botão mira: recentra a câmara na posição do motorista (zoom Waze).
+  /// B5 — botão mira: recentra a câmara no motorista (zoom Waze) e RELIGA o
+  /// seguimento heading-up (o gesto do utilizador tinha-o pausado).
   Future<void> _recenter(LatLng? driverPos, LatLng fallback) async {
     final c = _mapCtrl;
     if (c == null) return;
+    _followCam = true;
+    _progCamMove = true;
     await c.animateCamera(CameraUpdate.newCameraPosition(
       CameraPosition(
         target: driverPos ?? fallback,
         zoom: _kNavZoom,
         tilt: _kNavTilt,
+        bearing: _bearing,
+      ),
+    ));
+  }
+
+  /// [PART1] Câmara segue o motorista com heading-up CONTÍNUO (Waze): a cada
+  /// posição nova anima para o carro com o bearing atual → o mapa RODA quando
+  /// o motorista vira. No-op se o utilizador pausou o seguimento (arrastou).
+  void _followDriver(LatLng target) {
+    final c = _mapCtrl;
+    if (c == null || !_followCam) return;
+    _progCamMove = true;
+    c.animateCamera(CameraUpdate.newCameraPosition(
+      CameraPosition(
+        target: target,
+        zoom: _kNavZoom,
+        tilt: _kNavTilt,
+        bearing: _bearing,
       ),
     ));
   }
@@ -161,17 +190,27 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     return bytes!.buffer.asUint8List();
   }
 
-  /// [Item N] Atualiza o bearing da seta a partir de posições GPS consecutivas.
+  /// [Item N / PART1] Atualiza o bearing da seta a partir de posições GPS
+  /// consecutivas E faz a câmara SEGUIR o motorista (heading-up contínuo).
+  /// O bearing só é fiável em MOVIMENTO: atualiza quando andou ≥ 5 m; parado
+  /// mantém o último (não gira à toa). Movimento menor ainda faz a câmara
+  /// acompanhar a posição, sem mudar a rotação.
   void _updateBearing(LatLng? driverPos) {
     if (driverPos == null) return;
     final prev = _lastArrowPos;
-    if (prev != null &&
-        ((prev.latitude - driverPos.latitude).abs() > 1e-6 ||
-            (prev.longitude - driverPos.longitude).abs() > 1e-6)) {
-      var b = Geolocator.bearingBetween(prev.latitude, prev.longitude,
-          driverPos.latitude, driverPos.longitude);
-      if (b < 0) b += 360;
-      if (mounted) setState(() => _bearing = b);
+    if (prev != null) {
+      final moved = Geolocator.distanceBetween(
+          prev.latitude, prev.longitude, driverPos.latitude, driverPos.longitude);
+      if (moved >= 5) {
+        var b = Geolocator.bearingBetween(prev.latitude, prev.longitude,
+            driverPos.latitude, driverPos.longitude);
+        if (b < 0) b += 360;
+        if (mounted) setState(() => _bearing = b);
+        _followDriver(driverPos);
+      } else if (moved >= 1) {
+        // Movimento pequeno: acompanha a posição, mantém o bearing anterior.
+        _followDriver(driverPos);
+      }
     }
     _lastArrowPos = driverPos;
   }
@@ -618,6 +657,14 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
             compassEnabled: true, // [Item G] paridade com o mapa do estafeta
             mapToolbarEnabled: false,
             onMapCreated: (c) => _mapCtrl = c,
+            // [PART1] Gesto do dedo pausa o seguimento (deixa explorar o mapa);
+            // o nosso animateCamera (com _progCamMove) não conta como gesto.
+            onCameraMoveStarted: () {
+              if (!_progCamMove && _followCam) {
+                setState(() => _followCam = false);
+              }
+            },
+            onCameraIdle: () => _progCamMove = false,
           ),
           // B5 — botão mira (recentra no motorista), igual ao estafeta.
           Positioned(
@@ -754,6 +801,10 @@ class _ActionPanel extends StatelessWidget {
           const SizedBox(height: Spacing.sm),
           Text('${ride.originLabel ?? 'Recolha'} → ${ride.destLabel ?? 'Destino'}',
               style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+          // PART2 — método de pagamento + quanto COBRAR ao passageiro (paridade
+          // com o estafeta do delivery). Hoje as corridas são todas em dinheiro.
+          const SizedBox(height: Spacing.sm),
+          TvdePayBadge(ride: ride),
           // [CAMPO-02 · F1] ganho extra por paradas (some ao líquido do motorista).
           if (ride.extraStopsDriverCents > 0) ...[
             const SizedBox(height: Spacing.xs),

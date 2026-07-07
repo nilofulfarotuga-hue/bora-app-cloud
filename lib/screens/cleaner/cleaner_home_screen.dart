@@ -667,6 +667,19 @@ class _AgendaCardState extends State<_AgendaCard> {
               style: const TextStyle(
                   color: AppColors.textSecondary, height: 1.4),
             ),
+            // PART4/P1 — em limpeza CASH, o profissional cobra o TOTAL na hora.
+            // Espelha o padrão do estafeta ("COBRAR EM DINHEIRO: €X") para não
+            // ter de adivinhar quanto pedir ao cliente.
+            if (b.paymentMethod == 'cash') ...[
+              const SizedBox(height: 6),
+              Text(
+                'COBRAR EM DINHEIRO: ${CleaningLabels.euro(b.totalCents)}',
+                style: TextStyle(
+                    color: Colors.orange.shade900,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14),
+              ),
+            ],
             const SizedBox(height: Spacing.sm),
             // Cliente (nome/foto) + comunicação — só com serviço em curso.
             if (const [

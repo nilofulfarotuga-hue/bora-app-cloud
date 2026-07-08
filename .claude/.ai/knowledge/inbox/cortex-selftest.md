@@ -1,11 +1,11 @@
 ---
 id: cortex-selftest
 tipo: conceito
-origem: [selftest da ponte de escrita — deploy key]
+origem: [selftest via MCP]
 ultima_confirmacao: 2026-07-08
 zona: verde
 confianca: auto
 ---
 
-# Cortex — selftest de escrita
-Linha base escrita pelo HERMES (host) e enviada via deploy key SSH.
+# Cortex selftest
+ESCRITO PELO MCP (write ON) via deploy key SSH.

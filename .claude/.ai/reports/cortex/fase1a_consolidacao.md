@@ -21,7 +21,7 @@ Comparação por **basename + SHA-256 + mtime** (`.obsidian-vault` × `Desktop\B
 - **1 conflito de conteúdo** 🟠: `negocios/visao-geral.md` — canónico (2026-05-08) **mais recente** que o velho (2026-04-23).
 - **49 idênticos** (já migrados) · **0 casos** em que o velho seja mais novo que o canónico → **nenhuma perda de trabalho recente**.
 
-## 2. Consolidação aditiva (Passo 2) — commit `0c623cc`
+## 2. Consolidação aditiva (Passo 2) — commit `0b44734`
 - **33 órfãos copiados** para `.obsidian-vault/_importado-velho/<caminho-de-origem>/` (o velho fica **intacto**; foi cópia).
   Inclui a auditoria de Julho (`AUDITORIA_PARIDADE_360_2026-07-01`), `00_BORA_DNA`, benchmarks, o
   `knowledge/00-12` do velho e os relatórios da migração de Maio.
@@ -30,7 +30,7 @@ Comparação por **basename + SHA-256 + mtime** (`.obsidian-vault` × `Desktop\B
   `sessões/` passou de 13 → 53 · `sessoes/` ficou com **0 tracked** (sobram só checkpoints efémeros
   *gitignored*, que a PROTOCOLO marca como apagáveis — por isso ficam onde estão).
 
-## 3. `schema.md` (Passo 3) — commit `0f7e0e0`
+## 3. `schema.md` (Passo 3) — commit `ffe08c5`
 Criado `.claude/.ai/knowledge/schema.md` (a **Camada 3** — regras de trabalho do Córtex), que funde
 sem perder regra: `CLAUDE.md` + `.claude/skills/ceo-ai/SKILL.md` + `PROTOCOLO.md` + o blueprint da Fase 0.
 Cobre: anatomia (inbox `sessao/` vs `permanente/`), a regra de ouro (só o Bibliotecário escreve),
@@ -93,6 +93,6 @@ canónico como versão mais nova (velho guardado `.doVelho.md`). **Nada com valo
 - 🟢 **Bridge `bora-pc`** — o alias não resolve no `docker exec`; a sync já não depende dele. Se quiseres o alias de volta (usado por outros comandos do Hermes), é preciso repor o `Host bora-pc` de forma que o exec o aplique — fora do âmbito desta fase.
 
 ## 8. Commits desta fase (todos `[skip ci]`, docs)
-- `0c623cc` — consolidar órfãos do vault velho no canónico (aditivo) — 75 ficheiros.
-- `0f7e0e0` — `schema.md` unifica regras (ceo-ai+CLAUDE+PROTOCOLO).
+- `0b44734` — consolidar órfãos do vault velho no canónico (aditivo) — 75 ficheiros.
+- `ffe08c5` — `schema.md` unifica regras (ceo-ai+CLAUDE+PROTOCOLO).
 - *(este relatório + `obsidian-sync.vps.sh` de proveniência — commit seguinte.)*

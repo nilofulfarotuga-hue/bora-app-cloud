@@ -19,6 +19,16 @@ import 'tvde_plans_screen.dart';
 import 'tvde_rides_history_screen.dart';
 import 'tvde_ride_tracking_screen.dart';
 
+/// Frente 4 — como o cliente paga ESTA corrida, decidido pela cobertura do
+/// plano. Espelha a matemática do `tvde_finish_ride` para mostrar o valor e o
+/// porquê ANTES de pedir (nunca cobrar sem o cliente ver).
+enum _PayCase {
+  normal, // sem plano (ou plano não cobre hoje) → tarifa cheia
+  freeCovered, // coberta e ≤ base_km → grátis, não abre pagamento
+  excess, // coberta mas > base_km → só o excesso (€/km acima)
+  extra, // membro sem corridas hoje → €4,50 + excesso
+}
+
 /// TVDE — Ecrã para o passageiro pedir uma corrida.
 /// Pickup por GPS + destino (Google Places, reuso do Favores) + preço estimado.
 class TvdeRequestRideScreen extends StatefulWidget {
@@ -39,7 +49,6 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
   LatLng? _dest;
   String? _destLabel;
 
-  int _estimateCents = -1;
   bool _estimating = false;
   bool _locating = true;
 
@@ -49,22 +58,25 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
   // ignore: unused_field — [Item D] guardado para futura persistência no ride.
   String _distanceSource = 'route';
 
-  // [Item B] cobertura pelo plano (preview read-only): quando true, a corrida é
-  // grátis para o cliente (paga €0) e mostra-se o badge em vez do preço.
-  bool _covered = false;
-  String? _coverageLabel;
+  // Frente 4 — caso de pagamento decidido pela cobertura do plano (preview
+  // read-only). Espelha o `tvde_finish_ride`: grátis / só-excesso / extra-membro
+  // / normal, com o valor e a mensagem que o cliente vê ANTES de pedir.
+  _PayCase _payCase = _PayCase.normal;
+  int _payableCents = 0;
+  String? _payMessage;
 
   // [CAMPO-02 · Feature 3] "Garantir a volta": pacote ida+volta pago adiantado.
   bool _roundtrip = false;
   int _roundtripPriceCents = 800; // fallback; sobrescrito por platform_settings
   Map<String, dynamic>? _activeCredit; // vale-volta ativo (mostra "Chamar a volta")
 
-  // Pagamento da corrida. Dinheiro é o default e está SEMPRE visível.
-  // Cartão + MB Way só aparecem se o kill switch estiver ligado
-  // (`tvde_card_payments_enabled`) — hoje OFF → só dinheiro (resolve o
-  // "ia direto sem pedir pagamento", mostrando "Pagamento: Dinheiro").
-  String _paymentMethod = 'cash';
+  // Cartão + MB Way só aparecem (na FOLHA de pagamento, depois do botão) se o
+  // kill switch estiver ligado (`tvde_card_payments_enabled`). Preços do plano
+  // vêm do backend (platform_settings) para a UI bater certo com o finish.
   bool _cardEnabled = false;
+  int _perKmCents = 50;
+  int _baseKm = 6;
+  int _extraRideCents = 450;
 
   @override
   void initState() {
@@ -96,11 +108,19 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     // Kill switch de card/mbway (falha fechada → só dinheiro).
     final cardEnabled =
         await store.getSettingBool('tvde_card_payments_enabled', false);
+    // Preços do plano (mesmos que o backend usa no finish) para a UI mostrar o
+    // valor certo do excesso/extra ANTES de pedir.
+    final perKm = await store.getSettingInt('tvde_extra_per_km_cents', 50);
+    final baseKm = await store.getSettingInt('tvde_base_distance_km', 6);
+    final extraRide = await store.getSettingInt('tvde_extra_ride_cents', 450);
     if (mounted) {
       setState(() {
         _roundtripPriceCents = price;
         _activeCredit = credit;
         _cardEnabled = cardEnabled;
+        _perKmCents = perKm;
+        _baseKm = baseKm;
+        _extraRideCents = extraRide;
       });
     }
   }
@@ -182,9 +202,9 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     if (_pickup == null || _dest == null || fallback == null) {
       setState(() {
         _effectiveKm = null;
-        _estimateCents = -1;
-        _covered = false;
-        _coverageLabel = null;
+        _payCase = _PayCase.normal;
+        _payableCents = 0;
+        _payMessage = null;
       });
       return;
     }
@@ -221,24 +241,83 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     final covered = !isWeekend && cov['covered'] == true;
     final used = (cov['daily_used'] as num?)?.toInt();
     final incl = (cov['daily_included'] as num?)?.toInt();
+    final reason = cov['reason'] as String?;
+    // Membro = tem plano ativo (mesmo que hoje não cubra: fim de semana ou já
+    // usou as de hoje). O finish cobra €4,50 + excesso a membros não-cobertos.
+    final isMember = covered || reason == 'daily_limit';
+    final excessKm = km > _baseKm ? (km - _baseKm).ceil() : 0;
+    final excessCents = excessKm * _perKmCents;
+
+    _PayCase pc;
+    int payable;
+    String? message;
+    if (covered) {
+      if (excessKm == 0) {
+        pc = _PayCase.freeCovered;
+        payable = 0;
+        message = (used != null && incl != null)
+            ? 'Incluída no teu plano · ${used + 1}.ª de $incl hoje'
+            : 'Incluída no teu plano';
+      } else {
+        pc = _PayCase.excess;
+        payable = excessCents;
+        message = 'Corrida do plano — só pagas o excesso: '
+            '$excessKm km acima de $_baseKm = €${(payable / 100).toStringAsFixed(2)}';
+      }
+    } else if (isMember) {
+      pc = _PayCase.extra;
+      payable = _extraRideCents + excessCents;
+      message = 'Já usaste as corridas de hoje — esta fica '
+          '€${(payable / 100).toStringAsFixed(2)} (preço de membro).';
+    } else {
+      pc = _PayCase.normal;
+      payable = cents;
+      message = null;
+    }
     setState(() {
       _effectiveKm = km;
       _distanceSource = source;
-      _estimateCents = cents;
-      _covered = covered;
-      _coverageLabel = (covered && used != null && incl != null)
-          ? 'Incluída no plano · ${used + 1}.ª de $incl hoje'
-          : (covered ? 'Incluída no plano' : null);
+      _payCase = pc;
+      _payableCents = payable;
+      _payMessage = message;
       _estimating = false;
     });
   }
 
-  Future<void> _solicitar() async {
+  /// Frente 3 — carregar em "Solicitar corrida" abre a FOLHA de pagamento
+  /// (como no checkout do delivery: método só APÓS o botão). Grátis (coberta
+  /// ≤ base_km) cria já, sem folha.
+  Future<void> _onRequestPressed() async {
+    if (_payCase == _PayCase.freeCovered) {
+      await _solicitar('cash');
+      return;
+    }
+    // Online (cartão/MB Way) só na tarifa NORMAL: a Edge Function cobra a tarifa
+    // cheia (tvde_calculate_fare); no plano (excesso/extra) isso seria mais do
+    // que o devido → nesses casos só dinheiro (o motorista cobra o valor certo,
+    // consumido no fim). Online p/ plano = proposta no relatório.
+    final allowOnline = _cardEnabled && _payCase == _PayCase.normal;
+    final method = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _TvdePaymentSheet(
+        amountCents: _payableCents,
+        message: _payMessage,
+        allowOnline: allowOnline,
+      ),
+    );
+    if (method == null || !mounted) return;
+    await _solicitar(method);
+  }
+
+  Future<void> _solicitar(String method) async {
     final store = context.read<TvdeStore>();
     final km = _effectiveKm;
     if (_pickup == null || _dest == null || km == null) return;
-    // Coberta pelo plano (paga €0) OU switch de card/mbway desligado → dinheiro.
-    final method = (_covered || !_cardEnabled) ? 'cash' : _paymentMethod;
     try {
       if (method == 'card' || method == 'mbway') {
         // Pagamento online ANTES de criar a corrida (a Edge Function autoriza/
@@ -487,30 +566,19 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
                   setState(() {
                     _dest = null;
                     _effectiveKm = null;
-                    _estimateCents = -1;
+                    _payableCents = 0;
                   });
                 }
               },
             ),
             const SizedBox(height: Spacing.lg),
             _EstimateCard(
-              cents: _estimateCents,
+              payableCents: _payableCents,
               km: _effectiveKm,
               loading: _estimating,
-              covered: _covered,
-              coverageLabel: _coverageLabel,
+              isFree: _payCase == _PayCase.freeCovered,
+              message: _payMessage,
             ),
-            // Secção de pagamento. Dinheiro SEMPRE visível (default). Cartão +
-            // MB Way só aparecem com o kill switch ligado — hoje OFF → mostra
-            // "Pagamento: Dinheiro" (resolve o "ia direto sem pedir pagamento").
-            if (!_covered) ...[
-              const SizedBox(height: Spacing.md),
-              TvdePaymentSelector(
-                current: _paymentMethod,
-                cardEnabled: _cardEnabled,
-                onChanged: (m) => setState(() => _paymentMethod = m),
-              ),
-            ],
             const SizedBox(height: Spacing.md),
             // [F3] "Garantir a volta" — pacote ida+volta pago adiantado.
             _RoundtripToggle(
@@ -525,16 +593,17 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
                   : 'Solicitar corrida',
               icon: _roundtrip ? Icons.sync_alt : Icons.local_taxi,
               loading: store.busy,
-              onPressed:
-                  canRequest ? (_roundtrip ? _solicitarRoundtrip : _solicitar) : null,
+              onPressed: canRequest
+                  ? (_roundtrip ? _solicitarRoundtrip : _onRequestPressed)
+                  : null,
             ),
             const SizedBox(height: Spacing.md),
             Text(
-              _covered
-                  ? 'Esta corrida está incluída no teu plano — não pagas nada ao '
-                      'motorista.'
-                  : 'Pagamento em dinheiro ao motorista. O valor final é calculado '
-                      'pela distância real da viagem.',
+              _payCase == _PayCase.freeCovered
+                  ? 'Incluída no teu plano — não pagas nada ao motorista.'
+                  : _payCase == _PayCase.normal
+                      ? 'Escolhes como pagar depois de solicitares.'
+                      : 'Corrida do plano — pagas em dinheiro ao motorista.',
               textAlign: TextAlign.center,
               style: const TextStyle(color: AppColors.textSubtle, fontSize: 12),
             ),
@@ -674,21 +743,22 @@ class _PlansTeaser extends StatelessWidget {
 }
 
 class _EstimateCard extends StatelessWidget {
-  const _EstimateCard(
-      {required this.cents,
-      required this.km,
-      required this.loading,
-      this.covered = false,
-      this.coverageLabel});
-  final int cents;
+  const _EstimateCard({
+    required this.payableCents,
+    required this.km,
+    required this.loading,
+    required this.isFree,
+    this.message,
+  });
+  final int payableCents;
   final double? km;
   final bool loading;
-  final bool covered; // [Item B] corrida coberta pelo plano (cliente paga €0)
-  final String? coverageLabel;
+  final bool isFree; // coberta ≤ base_km → cliente paga €0
+  final String? message; // linha do porquê (plano/excesso/extra)
 
   @override
   Widget build(BuildContext context) {
-    final hasEstimate = cents > 0 && km != null;
+    final hasKm = km != null;
     return Container(
       padding: const EdgeInsets.all(Spacing.lg),
       decoration: BoxDecoration(
@@ -703,8 +773,8 @@ class _EstimateCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Valor estimado',
-                    style: TextStyle(color: Colors.white70, fontSize: 12)),
+                Text(isFree ? 'Plano' : 'Valor estimado',
+                    style: const TextStyle(color: Colors.white70, fontSize: 12)),
                 const SizedBox(height: 2),
                 if (loading)
                   const SizedBox(
@@ -712,42 +782,119 @@ class _EstimateCard extends StatelessWidget {
                       width: 20,
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: Colors.white))
-                else if (covered && km != null) ...[
-                  Text('Grátis  ·  ${km!.toStringAsFixed(1)} km',
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700)),
-                  if (coverageLabel != null) ...[
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        const Icon(Icons.check_circle,
-                            color: Colors.white, size: 14),
-                        const SizedBox(width: 4),
-                        Flexible(
-                          child: Text(coverageLabel!,
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12.5,
-                                  fontWeight: FontWeight.w600)),
-                        ),
-                      ],
-                    ),
-                  ],
-                ]
                 else
                   Text(
-                    hasEstimate
-                        ? '€${(cents / 100).toStringAsFixed(2)}  ·  ${km!.toStringAsFixed(1)} km'
-                        : 'Escolhe o destino',
+                    !hasKm
+                        ? 'Escolhe o destino'
+                        : isFree
+                            ? 'Grátis  ·  ${km!.toStringAsFixed(1)} km'
+                            : '€${(payableCents / 100).toStringAsFixed(2)}  ·  ${km!.toStringAsFixed(1)} km',
                     style: const TextStyle(
                         color: Colors.white,
                         fontSize: 20,
                         fontWeight: FontWeight.w700),
                   ),
+                if (message != null && hasKm) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(isFree ? Icons.check_circle : Icons.info_outline,
+                          color: Colors.white, size: 14),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(message!,
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600)),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Frente 3 — folha de pagamento (aparece SÓ depois de "Solicitar corrida",
+/// como no checkout do delivery): mostra o valor final + os métodos e confirma.
+/// Dinheiro sempre; Cartão/MB Way só se [allowOnline] (switch on + tarifa normal).
+class _TvdePaymentSheet extends StatefulWidget {
+  const _TvdePaymentSheet({
+    required this.amountCents,
+    required this.message,
+    required this.allowOnline,
+  });
+  final int amountCents;
+  final String? message;
+  final bool allowOnline;
+
+  @override
+  State<_TvdePaymentSheet> createState() => _TvdePaymentSheetState();
+}
+
+class _TvdePaymentSheetState extends State<_TvdePaymentSheet> {
+  String _method = 'cash';
+
+  @override
+  Widget build(BuildContext context) {
+    final inset = MediaQuery.of(context).viewInsets.bottom;
+    final eur = '€${(widget.amountCents / 100).toStringAsFixed(2)}';
+    return Padding(
+      padding: EdgeInsets.only(
+          left: Spacing.lg,
+          right: Spacing.lg,
+          top: Spacing.lg,
+          bottom: Spacing.lg + inset),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.payments_outlined, color: AppColors.primary),
+              const SizedBox(width: Spacing.sm),
+              const Expanded(
+                child: Text('Pagamento',
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary)),
+              ),
+              IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close)),
+            ],
+          ),
+          const SizedBox(height: Spacing.xs),
+          Text('Total: $eur',
+              style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary)),
+          if (widget.message != null) ...[
+            const SizedBox(height: 4),
+            Text(widget.message!,
+                style: const TextStyle(
+                    fontSize: 13, color: AppColors.textSecondary)),
+          ],
+          const SizedBox(height: Spacing.md),
+          TvdePaymentSelector(
+            current: _method,
+            cardEnabled: widget.allowOnline,
+            onChanged: (m) => setState(() => _method = m),
+          ),
+          const SizedBox(height: Spacing.lg),
+          BoraAccentButton(
+            label: _method == 'cash'
+                ? 'Confirmar · pagar em dinheiro'
+                : 'Pagar $eur',
+            icon: Icons.check,
+            onPressed: () => Navigator.pop(context, _method),
           ),
         ],
       ),

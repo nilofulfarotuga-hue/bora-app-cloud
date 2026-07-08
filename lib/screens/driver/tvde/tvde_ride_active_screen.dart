@@ -98,6 +98,20 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   bool _followCam = true;
   bool _progCamMove = false;
 
+  /// [PERF 2026-07-08] Trava do reposicionamento da câmara. O DriverStore
+  /// interpola a localização em passos (notifyListeners a cada passo), pelo que
+  /// sem trava o `_followDriver` disparava um `animateCamera` a CADA tick de
+  /// interpolação (vários por segundo) → o mapa "travava". Só reposiciona se o
+  /// motorista andou ≥ 15 m OU passou ≥ 1 s desde o último movimento de câmara.
+  DateTime? _lastCamMove;
+  LatLng? _lastCamTarget;
+
+  /// [PERF 2026-07-08] Conjunto de marcadores REUTILIZADO — não recriamos a
+  /// identidade do Set (nem os Marker) a cada rebuild; só o reconstruímos
+  /// quando a assinatura (fase/alvo/posição/bearing/ícone) muda de facto.
+  Set<Marker> _mapMarkers = <Marker>{};
+  String? _markersKey;
+
   @override
   void initState() {
     super.initState();
@@ -129,9 +143,13 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     if (c == null) return;
     _followCam = true;
     _progCamMove = true;
+    final target = driverPos ?? fallback;
+    // [PERF] Mantém a trava coerente: o próximo follow-tick não re-anima já.
+    _lastCamMove = DateTime.now();
+    _lastCamTarget = target;
     await c.animateCamera(CameraUpdate.newCameraPosition(
       CameraPosition(
-        target: driverPos ?? fallback,
+        target: target,
         zoom: _kNavZoom,
         tilt: _kNavTilt,
         bearing: _bearing,
@@ -145,15 +163,35 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   void _followDriver(LatLng target) {
     final c = _mapCtrl;
     if (c == null || !_followCam) return;
+    // [PERF 2026-07-08] Trava: NÃO animar a câmara a cada tick de GPS. O
+    // DriverStore interpola a posição em passos curtos → sem isto eram vários
+    // animateCamera por segundo (o mapa "travava"). Só reposiciona se o
+    // motorista andou ≥ 15 m OU passou ≥ 1 s desde o último movimento de câmara.
+    final now = DateTime.now();
+    final last = _lastCamMove;
+    final lastTarget = _lastCamTarget;
+    if (last != null && lastTarget != null) {
+      final movedFromCam = Geolocator.distanceBetween(lastTarget.latitude,
+          lastTarget.longitude, target.latitude, target.longitude);
+      if (movedFromCam < 15 && now.difference(last).inMilliseconds < 1000) {
+        return;
+      }
+    }
+    _lastCamMove = now;
+    _lastCamTarget = target;
     _progCamMove = true;
-    c.animateCamera(CameraUpdate.newCameraPosition(
-      CameraPosition(
-        target: target,
-        zoom: _kNavZoom,
-        tilt: _kNavTilt,
-        bearing: _bearing,
+    c.animateCamera(
+      CameraUpdate.newCameraPosition(
+        CameraPosition(
+          target: target,
+          zoom: _kNavZoom,
+          tilt: _kNavTilt,
+          bearing: _bearing,
+        ),
       ),
-    ));
+      // [PERF] Glide suave (~400 ms) em vez de salto instantâneo entre updates.
+      duration: const Duration(milliseconds: 400),
+    );
   }
 
   /// [Item N] Seta verde do motorista (igual à home). Off-Web apenas —
@@ -428,6 +466,11 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   /// [Item N] Um só pino LARANJA no alvo atual (recolha até ao pickup, destino
   /// em viagem) + a SETA verde do motorista (paridade com a home). Sem o pino
   /// verde extra. Na Web (sem seta), a bolinha azul nativa marca o motorista.
+  ///
+  /// [PERF 2026-07-08] Reutiliza o mesmo Set entre rebuilds — só o reconstrói
+  /// quando a assinatura muda (fase/alvo, posição do motorista ~1 m, bearing,
+  /// ícone). Evita alocar um Set + Marker novos a cada tick de interpolação do
+  /// DriverStore (o build corre várias vezes por segundo).
   Set<Marker> _markers(TvdeRide ride, LatLng? driverPos) {
     final target = ride.isInProgress
         ? LatLng(ride.destLat, ride.destLng)
@@ -435,6 +478,14 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     final label = ride.isInProgress
         ? (ride.destLabel ?? 'Destino')
         : (ride.originLabel ?? 'Recolha');
+    // Assinatura barata: fase + alvo + posição do motorista (~5 casas ≈ 1 m) +
+    // bearing (grau inteiro) + se a seta já carregou. Igual → devolve o cache.
+    final key = '${ride.isInProgress}|$label|'
+        '${target.latitude.toStringAsFixed(5)},${target.longitude.toStringAsFixed(5)}|'
+        '${driverPos?.latitude.toStringAsFixed(5)},${driverPos?.longitude.toStringAsFixed(5)}|'
+        '${_bearing.round()}|${_driverArrowIcon != null}';
+    if (key == _markersKey) return _mapMarkers;
+    _markersKey = key;
     final markers = <Marker>{
       Marker(
         markerId: const MarkerId('target'),
@@ -453,7 +504,8 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
         flat: true,
       ));
     }
-    return markers;
+    _mapMarkers = markers;
+    return _mapMarkers;
   }
 
   Future<void> _arrived(TvdeRide ride) async {

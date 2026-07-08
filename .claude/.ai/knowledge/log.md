@@ -24,3 +24,4 @@ confianca: auto
 | 2026-07-08 | vps  | claude | B0 brain→`/opt/data/cortex-brain` (@7c96df8) + cron refresh 06:30 + deploy `cortex-mcp` LIVE (read/propose, HTTPS, token) |
 | 2026-07-08 | vps  | claude | PAT hardening (fora dos .git/config → store 600) + deploy key gerada; OAuth 2.1 (DCR+PKCE) LIVE no `cortex-mcp` v1.1 (self-tested) |
 | 2026-07-08 | vps  | claude | Contradiction engine fora do "parcial": `export_signals.py`→`_signals.json` + cron 07:05 |
+| 2026-07-08 | vps  | claude | Remotes→SSH deploy key (PAT revogado, resíduo 0); **escrita LIGADA** (`CORTEX_WRITE_ENABLED=true`); E2E verde push `285f0e9` + vermelho recusado |

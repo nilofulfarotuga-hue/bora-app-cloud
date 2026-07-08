@@ -27,10 +27,12 @@ docker run -d --name cortex-mcp --restart unless-stopped --network "$NET" --user
   -e CORTEX_TOKEN="$TOKEN" \
   -e CORTEX_ISSUER="https://$DOMAIN" \
   -e CORTEX_BRAIN=/brain/.claude/.ai/knowledge \
-  -e CORTEX_WRITE_ENABLED=false \
-  -e CORTEX_GIT_PUSH=false \
+  -e CORTEX_WRITE_ENABLED=true \
+  -e CORTEX_GIT_PUSH=true \
+  `# escrita LIGADA desde 2026-07-08 (PAT rotacionado p/ deploy key + OAuth live + travas de zona no servidor). Reverter p/ false se o teste falhar.` \
   -v "$VOL/cortex-brain":/brain:rw \
-  `# rw: cortex_propor/log precisam escrever a fila+log. Escrita de PÁGINA fica travada pelo flag + zona no código.` \
+  -v "$VOL/.secrets":/opt/data/.secrets:ro \
+  `# .secrets:ro = deploy key + known_hosts p/ o git push via SSH (mesma chave do Hermes; NUNCA PAT). rw no brain: fila+log+páginas verdes.` \
   -l traefik.enable=true \
   -l "traefik.http.routers.cortex.rule=Host(\`$DOMAIN\`)" \
   -l traefik.http.routers.cortex.entrypoints=websecure \

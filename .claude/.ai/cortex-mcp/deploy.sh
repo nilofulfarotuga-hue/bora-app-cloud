@@ -17,16 +17,19 @@ NET=$(docker inspect "$HERMES" --format '{{range $k,$v := .NetworkSettings.Netwo
 VOL=$(docker inspect "$HERMES" --format '{{range .Mounts}}{{if eq .Destination "/opt/data"}}{{.Source}}{{end}}{{end}}')
 echo "NET=$NET  VOL=$VOL  DOMAIN=$DOMAIN"
 [ -n "$NET" ] && [ -n "$VOL" ] || { echo "!! rede/volume não descobertos — abortar"; exit 1; }
+OWN=$(docker exec -u hermes "$HERMES" stat -c '%u:%g' /opt/data/cortex-brain 2>/dev/null || echo 10000:10000)
+echo "OWN(uid:gid do brain)=$OWN  (container corre com este user — não-root)"
 
 # 3) build + (re)run
 docker build -t cortex-mcp:latest "$DIR"
 docker rm -f cortex-mcp >/dev/null 2>&1 || true
-docker run -d --name cortex-mcp --restart unless-stopped --network "$NET" \
+docker run -d --name cortex-mcp --restart unless-stopped --network "$NET" --user "$OWN" \
   -e CORTEX_TOKEN="$TOKEN" \
   -e CORTEX_BRAIN=/brain/.claude/.ai/knowledge \
   -e CORTEX_WRITE_ENABLED=false \
   -e CORTEX_GIT_PUSH=false \
-  -v "$VOL/cortex-brain":/brain:ro \
+  -v "$VOL/cortex-brain":/brain:rw \
+  `# rw: cortex_propor/log precisam escrever a fila+log. Escrita de PÁGINA fica travada pelo flag + zona no código.` \
   -l traefik.enable=true \
   -l "traefik.http.routers.cortex.rule=Host(\`$DOMAIN\`)" \
   -l traefik.http.routers.cortex.entrypoints=websecure \

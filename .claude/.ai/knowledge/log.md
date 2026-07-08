@@ -20,3 +20,5 @@ confianca: auto
 | 2026-07-08 | vps  | claude | Bloco 0.3: `sessoes` stale (5) → `_vault_velho_arquivo/…_stale_20260708` |
 | 2026-07-08 | repo | claude | Bloco 2/3/4/5: `inbox/`, `_debt.md`, `wiki/decisoes/`(2), `wiki/licoes/`(5), `_tools/cortex_nightly.py`, `log.md` |
 | 2026-07-08 | repo | bibliotecario-cerebro | Bloco 1: frontmatter de identidade em `permanente/**` |
+| 2026-07-08 | repo | claude | Ponte MCP: servidor `cortex-mcp` + A1 obsidian.json + A2 aging fix + ADR fonte-verdade |
+| 2026-07-08 | vps  | claude | B0 brain→`/opt/data/cortex-brain` (@7c96df8) + cron refresh 06:30 + deploy `cortex-mcp` LIVE (read/propose, HTTPS, token) |

@@ -4,10 +4,10 @@ description: >
   Carteiro do loop de orquestração. Acionado pela CAMPAINHA (webhook do cortex-mcp) quando há
   ordem nova em orquestracao/. Pega a ordem, aplica os tetos T1-T5, executa Claude Code no PC
   (via o stub 'claude' que redireciona), escreve a saída na fila e marca 'respondida'.
-  STAGED: fonte no repo; deploy ao Hermes é um passo humano.
+  LIGADO 2026-07-08: implementado como carteiro determinístico (deploy/) + campainha inotify.
 zona: amarela
 tetos: [T1_5_tentativas, T2_budget, T3_zona_vermelha_fora, T4_allowedTools_restrito, T5_kill_switch]
-status: staged
+status: live (2026-07-08) — runtime real em deploy/ (carteiro.sh + campainha.sh + pc-loop/pc-judge + .cmd). Ver deploy/DEPLOY.md
 ---
 
 # orquestrador-carteiro (o "carteiro" do loop)

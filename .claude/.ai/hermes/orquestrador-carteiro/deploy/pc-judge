@@ -1,0 +1,4 @@
+#!/bin/sh
+# pc-judge — bridge CLAUDE-JUIZ do loop (isolado do pc partilhado)
+B64=$(printf '%s' "$*" | base64 | tr -d '\n=')
+exec ssh -o ProxyCommand="tailscale nc %h %p" -o StrictHostKeyChecking=accept-new -o ConnectTimeout=25 hermes@100.71.105.7 "C:\\Users\\danil\\Desktop\\produtividade-ia\\hermes-bridge\\run-claude-judge.cmd --b64 $B64"

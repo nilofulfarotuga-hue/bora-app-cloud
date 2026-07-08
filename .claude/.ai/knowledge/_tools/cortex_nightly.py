@@ -98,6 +98,12 @@ def git(args):
         return ""
 
 
+def git_added_date(path):
+    # data do último commit que tocou o ficheiro no caminho ATUAL = quando entrou no inbox
+    out = git(["log", "-1", "--format=%cs", "--", path])
+    return pdate(out) if out else None
+
+
 def main():
     debt, protected_touched = [], []
     for p in iter_pages():
@@ -121,7 +127,10 @@ def main():
             if not os.path.isfile(fp) or not f.endswith(".md") or f == "README.md":
                 continue
             fm, _ = parse_front(read(fp))
-            d = pdate(fm.get("ultima_confirmacao", "")) or date.fromtimestamp(os.path.getmtime(fp))
+            # idade = desde a ENTRADA no inbox (entrou_inbox > commit que o trouxe > mtime),
+            # não desde o mtime original — um registo antigo re-alojado hoje NÃO é "velho".
+            d = (pdate(fm.get("entrou_inbox", "")) or git_added_date(fp)
+                 or pdate(fm.get("ultima_confirmacao", "")) or date.fromtimestamp(os.path.getmtime(fp)))
             age = (TODAY - d).days
             if age > AGE_LIMIT:
                 stem = f[:-3]

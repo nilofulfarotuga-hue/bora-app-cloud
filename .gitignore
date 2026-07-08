@@ -154,3 +154,9 @@ testsprite_tests\tmp\config.json
 
 # ── Backups descartáveis ─────────────────────────────────────────────────────
 *.bak
+
+# ── Graphify: grafo de código gerado (não versionar — regenerável via AST) ────
+graphify-out/
+.graphify/
+.graphify_analysis.json
+.graphify_labels.json

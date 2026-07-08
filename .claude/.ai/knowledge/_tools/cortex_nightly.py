@@ -150,6 +150,8 @@ def main():
         flags.append("Commit recente mexeu em cancel/dispatch E cancelamentos >=20%% (sinal: %s)" % signals.get("cancel_pct"))
     if not signals:
         flags.append("[sem _signals.json do VPS] contradiction engine em modo parcial — ver ADR manutencao-cerebro-repo-side")
+    elif not flags:
+        flags.append("0 contradições (sinais lidos: cancel_pct=%s, crashes=%s)" % (signals.get("cancel_pct"), signals.get("crashes")))
 
     # ---- report ----
     os.makedirs(REPORTS, exist_ok=True)

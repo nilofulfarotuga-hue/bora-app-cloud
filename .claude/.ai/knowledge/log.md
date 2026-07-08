@@ -22,3 +22,5 @@ confianca: auto
 | 2026-07-08 | repo | bibliotecario-cerebro | Bloco 1: frontmatter de identidade em `permanente/**` |
 | 2026-07-08 | repo | claude | Ponte MCP: servidor `cortex-mcp` + A1 obsidian.json + A2 aging fix + ADR fonte-verdade |
 | 2026-07-08 | vps  | claude | B0 brain→`/opt/data/cortex-brain` (@7c96df8) + cron refresh 06:30 + deploy `cortex-mcp` LIVE (read/propose, HTTPS, token) |
+| 2026-07-08 | vps  | claude | PAT hardening (fora dos .git/config → store 600) + deploy key gerada; OAuth 2.1 (DCR+PKCE) LIVE no `cortex-mcp` v1.1 (self-tested) |
+| 2026-07-08 | vps  | claude | Contradiction engine fora do "parcial": `export_signals.py`→`_signals.json` + cron 07:05 |

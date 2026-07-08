@@ -25,6 +25,7 @@ docker build -t cortex-mcp:latest "$DIR"
 docker rm -f cortex-mcp >/dev/null 2>&1 || true
 docker run -d --name cortex-mcp --restart unless-stopped --network "$NET" --user "$OWN" \
   -e CORTEX_TOKEN="$TOKEN" \
+  -e CORTEX_ISSUER="https://$DOMAIN" \
   -e CORTEX_BRAIN=/brain/.claude/.ai/knowledge \
   -e CORTEX_WRITE_ENABLED=false \
   -e CORTEX_GIT_PUSH=false \

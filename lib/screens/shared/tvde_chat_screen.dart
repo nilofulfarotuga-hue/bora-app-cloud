@@ -32,16 +32,18 @@ class _TvdeChatScreenState extends State<TvdeChatScreen> {
   final _controller = TextEditingController();
   final _scroll = ScrollController();
   bool _sending = false;
+  late final TvdeChatStore _chatStore;
 
   @override
   void initState() {
     super.initState();
-    context.read<TvdeChatStore>().listen(widget.rideId);
+    _chatStore = context.read<TvdeChatStore>();
+    _chatStore.listen(widget.rideId);
   }
 
   @override
   void dispose() {
-    context.read<TvdeChatStore>().unlisten(widget.rideId);
+    _chatStore.unlisten(widget.rideId);
     _controller.dispose();
     _scroll.dispose();
     super.dispose();

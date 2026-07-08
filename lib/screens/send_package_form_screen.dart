@@ -10,7 +10,6 @@ import '../widgets/address_autocomplete_field.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/mandatory_photo_picker.dart';
 import '../widgets/quote_price_footer.dart';
-import '../main.dart' show logScreenBreadcrumb;
 import 'payment_method_screen.dart';
 
 class SendPackageFormScreen extends StatefulWidget {
@@ -37,18 +36,11 @@ class _SendPackageFormScreenState extends State<SendPackageFormScreen> {
   // Mandatory package photo (BR §7.5).
   String? _packagePhotoUrl;
 
-  // [C/adenda] breadcrumb único no 1º build — confirma que o body chegou a
-  // construir (vs. ficar branco).
-  bool _builtOnce = false;
-
-  // [TELA BRANCA 2026-07-01] mede a altura real do body após o 1º frame.
   final _bodyKey = GlobalKey();
 
   @override
   void initState() {
     super.initState();
-    logScreenBreadcrumb(
-        'SendPackageForm', 'initState mapsKeyEmpty=${googleApiKey.isEmpty}');
     // [C/adenda] _prefillPickupFromGps faz setState; chamá-lo SÍNCRONO no
     // initState marcava build durante build. Diferido para depois do 1º frame.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -87,9 +79,6 @@ class _SendPackageFormScreenState extends State<SendPackageFormScreen> {
       if (mounted) setState(() => _pickupController.text = _fallbackAddress);
     } finally {
       if (mounted) setState(() => _loadingLocation = false);
-      // [TELA BRANCA 2026-07-01] confirma que o prefill GPS terminou.
-      logScreenBreadcrumb('SendPackageForm',
-          'gps prefill done coords=${_pickupLocation != null}');
     }
   }
 
@@ -151,22 +140,6 @@ class _SendPackageFormScreenState extends State<SendPackageFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_builtOnce) {
-      _builtOnce = true;
-      logScreenBreadcrumb('SendPackageForm', 'build#1 body a construir');
-      // [TELA BRANCA 2026-07-01] geometria real do 1º frame — se bodyH≈0 a
-      // causa é o Scaffold a esmagar o corpo (insets), não o conteúdo.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        final bodyH = _bodyKey.currentContext?.size?.height;
-        final mq = MediaQuery.of(context);
-        logScreenBreadcrumb(
-            'SendPackageForm',
-            'pós-frame#1 bodyH=${bodyH?.toStringAsFixed(0)} '
-                'padBottom=${mq.padding.bottom.toStringAsFixed(1)} '
-                'insetsBottom=${mq.viewInsets.bottom.toStringAsFixed(1)}');
-      });
-    }
     // [TELA BRANCA 2026-07-01] blindagem: viewInsets absurdos (Android 16
     // edge-to-edge) esmagam o body para altura ~0 → tela branca. Teclado real
     // nunca passa ~60% do ecrã; acima disso é lixo do sistema → ignora-se.

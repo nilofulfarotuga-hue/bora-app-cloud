@@ -44,6 +44,7 @@ class _CleanerApplyScreenState extends State<CleanerApplyScreen> {
   XFile? _photo;
   XFile? _idDoc;
   bool _uploading = false;
+  bool _isPicking = false;
 
   /// Foto já existente no outro papel (estafeta) — evita re-upload obrigatório.
   String _prefillPhotoUrl = '';
@@ -84,19 +85,25 @@ class _CleanerApplyScreenState extends State<CleanerApplyScreen> {
   }
 
   Future<void> _pick(bool isPhoto) async {
-    final x = await _picker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 1400,
-      imageQuality: 85,
-    );
-    if (x == null) return;
-    setState(() {
-      if (isPhoto) {
-        _photo = x;
-      } else {
-        _idDoc = x;
-      }
-    });
+    if (_isPicking) return;
+    _isPicking = true;
+    try {
+      final x = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1400,
+        imageQuality: 85,
+      );
+      if (x == null) return;
+      setState(() {
+        if (isPhoto) {
+          _photo = x;
+        } else {
+          _idDoc = x;
+        }
+      });
+    } finally {
+      _isPicking = false;
+    }
   }
 
   /// Geocodifica a zona base reutilizando o MESMO serviço das outras moradas

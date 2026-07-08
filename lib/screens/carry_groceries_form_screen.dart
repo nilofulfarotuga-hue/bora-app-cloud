@@ -10,7 +10,6 @@ import '../widgets/address_autocomplete_field.dart';
 import '../widgets/business_autocomplete_field.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/quote_price_footer.dart';
-import '../main.dart' show logScreenBreadcrumb;
 import 'payment_method_screen.dart';
 
 class CarryGroceriesFormScreen extends StatefulWidget {
@@ -33,17 +32,11 @@ class _CarryGroceriesFormScreenState extends State<CarryGroceriesFormScreen> {
 
   late final PlaceAutocompleteService _geocoder;
 
-  // [C/adenda] breadcrumb único no 1º build.
-  bool _builtOnce = false;
-
-  // [TELA BRANCA 2026-07-01] mede a altura real do body após o 1º frame.
   final _bodyKey = GlobalKey();
 
   @override
   void initState() {
     super.initState();
-    logScreenBreadcrumb(
-        'CarryGroceriesForm', 'initState mapsKeyEmpty=${googleApiKey.isEmpty}');
     _geocoder = createPlaceAutocompleteService(googleApiKey);
   }
 
@@ -115,22 +108,6 @@ class _CarryGroceriesFormScreenState extends State<CarryGroceriesFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_builtOnce) {
-      _builtOnce = true;
-      logScreenBreadcrumb('CarryGroceriesForm', 'build#1 body a construir');
-      // [TELA BRANCA 2026-07-01] geometria real do 1º frame — se bodyH≈0 a
-      // causa é o Scaffold a esmagar o corpo (insets), não o conteúdo.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        final bodyH = _bodyKey.currentContext?.size?.height;
-        final mq = MediaQuery.of(context);
-        logScreenBreadcrumb(
-            'CarryGroceriesForm',
-            'pós-frame#1 bodyH=${bodyH?.toStringAsFixed(0)} '
-                'padBottom=${mq.padding.bottom.toStringAsFixed(1)} '
-                'insetsBottom=${mq.viewInsets.bottom.toStringAsFixed(1)}');
-      });
-    }
     // [TELA BRANCA 2026-07-01] blindagem: viewInsets absurdos (Android 16
     // edge-to-edge) esmagam o body para altura ~0 → tela branca. Teclado real
     // nunca passa ~60% do ecrã; acima disso é lixo do sistema → ignora-se.

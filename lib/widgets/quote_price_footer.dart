@@ -15,7 +15,6 @@ import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../config/app_colors.dart';
-import '../main.dart' show logScreenBreadcrumb;
 import '../models/order_model.dart';
 import '../services/directions_service.dart';
 import '../services/payment_service.dart';
@@ -42,10 +41,6 @@ class _QuotePriceFooterState extends State<QuotePriceFooter> {
   final _payment = PaymentService();
   Map<String, dynamic>? _quote;
   bool _loading = false;
-
-  // [TELA BRANCA 2026-07-01] breadcrumb único no 1º build — regista os insets
-  // reais do device para confirmar o diagnóstico no próximo build.
-  bool _builtOnce = false;
 
   @override
   void didUpdateWidget(covariant QuotePriceFooter old) {
@@ -116,14 +111,6 @@ class _QuotePriceFooterState extends State<QuotePriceFooter> {
     // "Total estimado" no topo e branco puro por baixo. Inset real da barra
     // de gestos nunca passa ~40 px lógicos.
     final double bottomInset = math.min(mq.padding.bottom, 40.0);
-    if (!_builtOnce) {
-      _builtOnce = true;
-      logScreenBreadcrumb(
-          'QuotePriceFooter',
-          'build#1 padBottom=${mq.padding.bottom.toStringAsFixed(1)} '
-              'insetsBottom=${mq.viewInsets.bottom.toStringAsFixed(1)} '
-              'screenH=${mq.size.height.toStringAsFixed(0)}');
-    }
     final total = (_quote?['customer_total'] as num?)?.toDouble();
     final label =
         total != null ? '€${total.toStringAsFixed(2)}' : widget.fallbackLabel;

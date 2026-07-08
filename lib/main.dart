@@ -153,8 +153,22 @@ Future<void> _setupForegroundAndUrgentChannel() async {
   }
 }
 
+// [Ponto 3, 2026-07-08] Erros de conectividade (sem internet/DNS instável)
+// não são crash de código — poluíam debug_crash_logs (21 das 78 ocorrências
+// analisadas). Filtrados aqui antes de chegar à tabela.
+bool _isConnectivityError(Object error) {
+  final msg = error.toString();
+  return msg.contains('Failed host lookup') ||
+      msg.contains('SocketException') ||
+      msg.contains('AuthRetryableFetchException') ||
+      msg.contains('Network is unreachable') ||
+      msg.contains('Connection timed out') ||
+      msg.contains('Connection refused');
+}
+
 // TODO: remover após diagnóstico — grava crash na tabela debug_crash_logs.
 void _logCrashToSupabase(Object error, StackTrace stack, {String? screen}) {
+  if (_isConnectivityError(error)) return;
   try {
     final supabase = Supabase.instance.client;
     String? uid;
@@ -176,13 +190,6 @@ void _logCrashToSupabase(Object error, StackTrace stack, {String? screen}) {
     }).then((_) {}, onError: (_) {});
   } catch (_) {}
 }
-
-/// [C/adenda 2026-06-30] Breadcrumb leve (NÃO-crash) para diagnosticar telas
-/// brancas no device: regista entrada/build de um ecrã + estado relevante em
-/// debug_crash_logs, reutilizando o RPC enriquecido do [F] (device/versão/rota/
-/// gms/user). Permite ver o que está null/loading quando o body fica branco.
-void logScreenBreadcrumb(String screen, String info) =>
-    _logCrashToSupabase('BREADCRUMB: $info', StackTrace.empty, screen: screen);
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

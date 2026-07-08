@@ -1,18 +1,19 @@
 // =============================================================================
 // tvde-payment — pagamento CARD + MB WAY nas corridas TVDE.
 // =============================================================================
-// PADRÃO ÚNICO (= delivery): cobra NA HORA o preço fechado (est_fare_cents) e
-// faz refund estilo `client-cancel-order` (capado ao pago, menos a taxa).
-// SEM authorize/capture. Função NOVA e ISOLADA — NÃO toca no stripe-webhook.
+// PADRÃO ÚNICO (= delivery): cobra NA HORA o valor do plano e faz refund estilo
+// `client-cancel-order` (capado ao pago, menos a taxa). SEM authorize/capture.
+// Função NOVA e ISOLADA — NÃO toca no stripe-webhook.
 //
 // Triplo-gate: (1) kill switch server-side aqui, (2) a RPC tvde_request_ride
 // rejeita card/mbway com o switch off, (3) a UI esconde card/mbway com off.
 //
 // Ações (body.action):
-//   charge  → CARTÃO: cria PaymentIntent (imediato, automatic_payment_methods)
-//             e devolve clientSecret p/ o cliente confirmar (PaymentSheet).
-//             MB WAY: cria PaymentIntent mb_way confirm=true (push MB WAY).
-//             Em ambos: cria a corrida (JWT) e liga o payment_intent_id.
+//   charge  → cria a corrida (JWT) — a RPC grava `est_fare_cents` JÁ com a regra
+//             do plano — e cobra o valor de `tvde_ride_charge_cents(ride_id)`
+//             (NÃO a tarifa cheia): coberta→só excesso, extra→€4,50+excesso,
+//             normal→cheia. €0 (coberta ≤6km) → não cobra. CARTÃO devolve
+//             clientSecret; MB WAY confirma server-side. Liga o payment_intent_id.
 //   refund  → cancelamento: refund = max(0, min(pago − taxa, pago)).
 // =============================================================================
 
@@ -75,7 +76,7 @@ Deno.serve(async (req) => {
     const user = userData?.user;
     if (!user) return json({ error: 'not_authenticated' }, 401);
 
-    // ── CHARGE — cobra o preço fechado E cria a corrida ─────────────────────
+    // ── CHARGE — cria a corrida e cobra o VALOR DO PLANO (não a tarifa cheia) ─
     if (action === 'charge') {
       const method = String(body.method ?? '');
       if (method !== 'card' && method !== 'mbway') {
@@ -84,43 +85,8 @@ Deno.serve(async (req) => {
       const distanceKm = Number(body.distance_km ?? 0);
       if (!(distanceKm > 0)) return json({ error: 'invalid_distance' }, 400);
 
-      // Preço SEMPRE calculado no servidor (nunca confiar no cliente).
-      const { data: fareData, error: fareErr } = await admin.rpc(
-        'tvde_calculate_fare',
-        { p_distance_km: distanceKm },
-      );
-      if (fareErr) return json({ error: 'fare_calc_failed' }, 500);
-      const amountCents = Number(fareData);
-      if (!(amountCents >= 50)) return json({ error: 'below_minimum' }, 400); // 0.50€
-
-      let pi: Stripe.PaymentIntent;
-      if (method === 'card') {
-        // Padrão delivery: PI imediato → clientSecret p/ o cliente confirmar.
-        pi = await stripe.paymentIntents.create({
-          amount: amountCents,
-          currency: 'eur',
-          automatic_payment_methods: { enabled: true },
-          metadata: { kind: 'tvde_ride', method, user_id: user.id },
-        });
-      } else {
-        const phone = String(body.phone ?? '');
-        const e164 = phone.startsWith('+')
-          ? phone
-          : `+351${phone.replace(/\D/g, '').replace(/^0/, '')}`;
-        pi = await stripe.paymentIntents.create(
-          {
-            amount: amountCents,
-            currency: 'eur',
-            payment_method_types: ['mb_way'],
-            payment_method_data: { type: 'mb_way', billing_details: { phone: e164 } },
-            confirm: true,
-            metadata: { kind: 'tvde_ride', method, user_id: user.id },
-          },
-          { idempotencyKey: `tvde_mbway_${user.id}_${Math.round(distanceKm * 1000)}` },
-        );
-      }
-
-      // Cria a corrida COMO O CLIENTE (auth.uid). Se falhar, cancela o PI.
+      // 1) Cria a corrida COMO O CLIENTE. A RPC grava `est_fare_cents` JÁ com a
+      //    regra do plano: coberta→só excesso, extra→€4,50+excesso, normal→cheia.
       const { data: rideRes, error: rideErr } = await userClient.rpc(
         'tvde_request_ride',
         {
@@ -135,14 +101,83 @@ Deno.serve(async (req) => {
         },
       );
       if (rideErr || !rideRes) {
-        try {
-          await stripe.paymentIntents.cancel(pi.id);
-        } catch (_) {/* best effort */}
         return json({ error: String(rideErr?.message ?? 'ride_create_failed') }, 400);
       }
       const ride = Array.isArray(rideRes) ? rideRes[0] : rideRes;
 
-      // Liga o PaymentIntent à corrida (service role — coluna sensível).
+      // Cancela a corrida órfã se a cobrança falhar (nada foi cobrado ainda).
+      const cancelRide = async () => {
+        try {
+          await userClient.rpc('tvde_cancel_ride', {
+            p_ride_id: ride.id,
+            p_actor: 'cliente',
+            p_reason: 'payment_failed',
+          });
+        } catch (_) {/* best effort */}
+      };
+
+      // 2) Valor a cobrar = FONTE ÚNICA `tvde_ride_charge_cents` (NÃO recalcular).
+      const { data: chargeData, error: chargeErr } = await admin.rpc(
+        'tvde_ride_charge_cents',
+        { p_ride_id: ride.id },
+      );
+      if (chargeErr) {
+        await cancelRide();
+        return json({ error: 'charge_calc_failed' }, 500);
+      }
+      const amountCents = Number(chargeData ?? 0);
+
+      // 3) €0 → coberta ≤ base_km: não há cobrança online (a UI também não a
+      //    envia neste caso). Devolve a corrida criada sem PaymentIntent.
+      if (amountCents <= 0) {
+        await admin.from('tvde_rides')
+          .update({ payment_status: 'not_charged' }).eq('id', ride.id);
+        return json({
+          ride: { ...ride, payment_status: 'not_charged' },
+          paymentIntentId: null,
+          clientSecret: null,
+          status: 'not_charged',
+        });
+      }
+      if (amountCents < 50) { // mínimo Stripe — não deve ocorrer (excesso mín = 50)
+        await cancelRide();
+        return json({ error: 'below_minimum' }, 400);
+      }
+
+      // 4) PaymentIntent DESSE valor (o do plano), não a tarifa cheia.
+      let pi: Stripe.PaymentIntent;
+      try {
+        if (method === 'card') {
+          pi = await stripe.paymentIntents.create({
+            amount: amountCents,
+            currency: 'eur',
+            automatic_payment_methods: { enabled: true },
+            metadata: { kind: 'tvde_ride', method, ride_id: ride.id, user_id: user.id },
+          });
+        } else {
+          const phone = String(body.phone ?? '');
+          const e164 = phone.startsWith('+')
+            ? phone
+            : `+351${phone.replace(/\D/g, '').replace(/^0/, '')}`;
+          pi = await stripe.paymentIntents.create(
+            {
+              amount: amountCents,
+              currency: 'eur',
+              payment_method_types: ['mb_way'],
+              payment_method_data: { type: 'mb_way', billing_details: { phone: e164 } },
+              confirm: true,
+              metadata: { kind: 'tvde_ride', method, ride_id: ride.id, user_id: user.id },
+            },
+            { idempotencyKey: `tvde_charge_${ride.id}` },
+          );
+        }
+      } catch (err) {
+        await cancelRide();
+        const message = err instanceof Error ? err.message : String(err);
+        return json({ error: message }, 400);
+      }
+
+      // 5) Liga o PaymentIntent à corrida (service role — coluna sensível).
       await admin
         .from('tvde_rides')
         .update({ payment_intent_id: pi.id, payment_status: pi.status })

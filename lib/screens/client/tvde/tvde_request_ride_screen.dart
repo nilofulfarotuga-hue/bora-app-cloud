@@ -292,11 +292,10 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
       await _solicitar('cash');
       return;
     }
-    // Online (cartão/MB Way) só na tarifa NORMAL: a Edge Function cobra a tarifa
-    // cheia (tvde_calculate_fare); no plano (excesso/extra) isso seria mais do
-    // que o devido → nesses casos só dinheiro (o motorista cobra o valor certo,
-    // consumido no fim). Online p/ plano = proposta no relatório.
-    final allowOnline = _cardEnabled && _payCase == _PayCase.normal;
+    // Online (cartão/MB Way) em QUALQUER corrida com valor > 0. A Edge Function
+    // cobra o valor do plano (`tvde_ride_charge_cents`), não a tarifa cheia — por
+    // isso excesso/extra também pagam por cartão/MB Way sem sobre-cobrar.
+    final allowOnline = _cardEnabled && _payableCents > 0;
     final method = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
@@ -601,9 +600,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
             Text(
               _payCase == _PayCase.freeCovered
                   ? 'Incluída no teu plano — não pagas nada ao motorista.'
-                  : _payCase == _PayCase.normal
-                      ? 'Escolhes como pagar depois de solicitares.'
-                      : 'Corrida do plano — pagas em dinheiro ao motorista.',
+                  : 'Escolhes como pagar depois de solicitares.',
               textAlign: TextAlign.center,
               style: const TextStyle(color: AppColors.textSubtle, fontSize: 12),
             ),

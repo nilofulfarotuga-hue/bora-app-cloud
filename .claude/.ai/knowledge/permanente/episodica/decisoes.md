@@ -1,5 +1,11 @@
 ---
 tema: decisoes · escopo: projeto · estado: atual · atualizado: 2026-07-06
+id: decisoes
+tipo: decisao
+origem: [_arquivo/MEMORY_pre_cerebro_2026-07-01.md, .claude/.ai/business_rules.md]
+ultima_confirmacao: 2026-07-08
+zona: vermelha
+confianca: auto
 ---
 
 # Decisões Arquiteturais Persistentes

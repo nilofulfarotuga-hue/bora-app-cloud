@@ -1,6 +1,12 @@
 ---
 tema: licao-asserts-weakened · escopo: agente:juiz-revisor · estado: atual · atualizado: 2026-07-01
 natureza: LIÇÃO DE FALHA · gatilho: ASSERTS_WEAKENED
+id: licao-asserts-weakened
+tipo: licao
+origem: [.claude/juiz/anti_trapaca.py]
+ultima_confirmacao: 2026-07-08
+zona: verde
+confianca: auto
 ---
 
 # Não enfraquecer asserções para fingir "verde" (o Juiz apanha por git diff)

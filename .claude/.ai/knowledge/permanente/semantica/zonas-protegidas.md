@@ -1,5 +1,11 @@
 ---
 tema: zonas-protegidas · escopo: projeto · estado: atual · atualizado: 2026-07-01
+id: zonas-protegidas
+tipo: conceito
+origem: [.claude/HOOKS.md]
+ultima_confirmacao: 2026-07-08
+zona: vermelha
+confianca: auto
 ---
 
 # 🔴 Zonas Protegidas — a Trava (Fase 1)

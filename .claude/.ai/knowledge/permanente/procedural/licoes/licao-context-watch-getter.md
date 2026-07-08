@@ -1,5 +1,11 @@
 ---
 tema: licao-context-watch-getter · escopo: projeto · estado: atual · atualizado: 2026-07-05
+id: licao-context-watch-getter
+tipo: licao
+origem: [lib/screens/client/cleaning/cleaning_tracking_screen.dart, commit c77ce08]
+ultima_confirmacao: 2026-07-08
+zona: verde
+confianca: auto
 ---
 
 # Getter com `context.watch` não pode ser chamado em callbacks (Flutter/Provider)

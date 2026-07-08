@@ -1,5 +1,11 @@
 ---
 tema: vertical-limpeza · escopo: projeto · estado: atual · atualizado: 2026-07-06
+id: vertical-limpeza
+tipo: service
+origem: [commits 6e6d066·3bcca93·c77ce08·c0c84d7·2b66e67·4842801, RELATORIO_LIMPEZA_V1.md]
+ultima_confirmacao: 2026-07-08
+zona: vermelha
+confianca: auto
 ---
 
 # Vertical LIMPEZA (limpeza doméstica) — v1 + auditoria de paridade

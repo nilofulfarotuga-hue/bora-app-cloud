@@ -1,5 +1,11 @@
 ---
 tema: convencoes · escopo: projeto · estado: atual · atualizado: 2026-07-01
+id: convencoes
+tipo: conceito
+origem: [.github/workflows/build_android.yml, .gitattributes]
+ultima_confirmacao: 2026-07-08
+zona: verde
+confianca: auto
 ---
 
 # 🛠️ Convenções — ambiente, git, MCP, Windows

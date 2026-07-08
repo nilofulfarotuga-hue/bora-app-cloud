@@ -1,5 +1,11 @@
 ---
 tema: backend-map · escopo: projeto · estado: atual · atualizado: 2026-07-05
+id: backend-map-tabelas
+tipo: conceito
+origem: [Supabase project ojykpzwqrtusfeakzrna, information_schema (schema public)]
+ultima_confirmacao: 2026-07-08
+zona: vermelha
+confianca: auto
 ---
 
 # Backend Map — Tabelas (schema public)

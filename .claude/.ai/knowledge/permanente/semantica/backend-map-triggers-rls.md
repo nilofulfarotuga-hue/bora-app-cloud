@@ -1,5 +1,11 @@
 ---
 tema: backend-map · escopo: projeto · estado: atual · atualizado: 2026-07-01
+id: backend-map-triggers-rls
+tipo: conceito
+origem: [Supabase project ojykpzwqrtusfeakzrna, information_schema.triggers, pg_policies]
+ultima_confirmacao: 2026-07-08
+zona: vermelha
+confianca: auto
 ---
 
 # Backend Map — Triggers & RLS

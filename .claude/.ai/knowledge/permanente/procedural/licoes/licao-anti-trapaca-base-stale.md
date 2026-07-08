@@ -1,5 +1,11 @@
 ---
 tema: licao-anti-trapaca-base-stale · escopo: projeto · estado: atual · atualizado: 2026-07-02
+id: licao-anti-trapaca-base-stale
+tipo: licao
+origem: [.claude/juiz/anti_trapaca.py, branch autonomous-night-2026-04-29]
+ultima_confirmacao: 2026-07-08
+zona: verde
+confianca: auto
 ---
 
 # Lição: anti_trapaca.py com base default numa branch longa = falso-positivo

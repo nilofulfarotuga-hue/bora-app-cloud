@@ -1,5 +1,11 @@
 ---
 tema: multipapel · escopo: projeto · estado: atual · atualizado: 2026-07-06
+id: multipapel
+tipo: conceito
+origem: [tabelas drivers/cleaners (Supabase), driver_signup_screen.dart, branch autonomous-night-2026-04-29]
+ultima_confirmacao: 2026-07-08
+zona: verde
+confianca: auto
 ---
 
 # Vertical MULTIPAPEL (duplo-papel estafeta ⇄ limpeza)

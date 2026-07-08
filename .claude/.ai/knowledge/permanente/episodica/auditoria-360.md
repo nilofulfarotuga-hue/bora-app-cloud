@@ -1,5 +1,11 @@
 ---
-tema: auditoria-360 · escopo: projeto · estado: atual · atualizado: 2026-07-01
+tema: auditoria-360 · escopo: projeto · estado: atual · atualizado: 2026-07-06
+id: auditoria-360
+tipo: conceito
+origem: [audits/AUDITORIA_PARIDADE_360_2026-07-01.md]
+ultima_confirmacao: 2026-07-08
+zona: verde
+confianca: auto
 ---
 
 # 🔎 Auditoria de Paridade 360° (2026-07-01) — resumo ingerido
@@ -17,6 +23,9 @@ tema: auditoria-360 · escopo: projeto · estado: atual · atualizado: 2026-07-0
    devia ser RPC server-side. `estado: atual`
 4. **3 buckets públicos com listing** (`avatars`, `product-images`, `restaurant-assets`) —
    confirmar que `driver-documents` é privado. `estado: atual`
+   ↳ **[2026-07-06] escrita anónima em `avatars`:** policies `{authenticated, anon}` sem check de
+   pasta → qualquer portador da anon key pode upload/update/delete de QUALQUER avatar. PROPOSE-ONLY,
+   Danilo decide. Ver `procedural/licoes/licao-storage-policy-auth-users.md`. `estado: atual`
 5. **Zonas de entrega / taxa por zona / pedido mínimo / surge INEXISTENTES** (backend + admin).
    P0 para escalar; adiável enquanto for só Guarda. `estado: atual`
 

@@ -1,5 +1,11 @@
 ---
 tema: exercito · escopo: projeto · estado: atual · atualizado: 2026-07-01 (Fase 5)
+id: exercito
+tipo: conceito
+origem: [.claude/agents/*.md, .claude/agents/agent-memory.md, CLAUDE.md]
+ultima_confirmacao: 2026-07-08
+zona: verde
+confianca: auto
 ---
 
 # 🎖️ Exército — elenco de agentes (Fase 3 + Juiz Fase 4 + Maestro Fase 5)

@@ -1,5 +1,11 @@
 ---
 tema: business-rules · escopo: projeto · estado: atual · atualizado: 2026-07-01
+id: business-rules
+tipo: conceito
+origem: [.claude/.ai/business_rules.md]
+ultima_confirmacao: 2026-07-08
+zona: vermelha
+confianca: auto
 ---
 
 # 📐 Regras de Negócio — ponteiro

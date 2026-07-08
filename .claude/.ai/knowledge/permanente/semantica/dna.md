@@ -1,5 +1,11 @@
 ---
 tema: dna · escopo: projeto · estado: atual · atualizado: 2026-07-01
+id: dna
+tipo: conceito
+origem: [.claude/.ai/00_BORA_DNA.md]
+ultima_confirmacao: 2026-07-08
+zona: verde
+confianca: auto
 ---
 
 # 🧬 DNA do Bora — ponteiro

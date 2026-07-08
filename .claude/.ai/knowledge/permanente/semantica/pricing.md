@@ -1,5 +1,11 @@
 ---
 tema: pricing · escopo: projeto · estado: atual · atualizado: 2026-07-06
+id: pricing
+tipo: service
+origem: [.claude/.ai/business_rules.md, lib/services/pricing_service.dart]
+ultima_confirmacao: 2026-07-08
+zona: vermelha
+confianca: auto
 ---
 
 # 💶 Pricing / Tokens / Comissões — resumo operacional

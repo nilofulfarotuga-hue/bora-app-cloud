@@ -1,5 +1,11 @@
 ---
 tema: bugs-resolvidos · escopo: projeto · estado: atual · atualizado: 2026-07-02
+id: bugs-resolvidos
+tipo: conceito
+origem: [_arquivo/MEMORY_pre_cerebro_2026-07-01.md, migration 20260702091000]
+ultima_confirmacao: 2026-07-08
+zona: verde
+confianca: auto
 ---
 
 # Bugs Resolvidos — Saga Arquitetural do Bora

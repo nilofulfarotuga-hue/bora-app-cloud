@@ -1,5 +1,11 @@
 ---
 tema: backend-map · escopo: projeto · estado: atual · atualizado: 2026-07-05
+id: backend-map-edge-functions
+tipo: conceito
+origem: [MCP list_edge_functions 2026-07-05, supabase/functions/]
+ultima_confirmacao: 2026-07-08
+zona: vermelha
+confianca: auto
 ---
 
 # Backend Map — Edge Functions

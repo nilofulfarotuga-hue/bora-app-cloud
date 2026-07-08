@@ -1,5 +1,11 @@
 ---
 tema: backend-map · escopo: projeto · estado: atual · atualizado: 2026-07-05
+id: backend-map
+tipo: conceito
+origem: [Supabase project ojykpzwqrtusfeakzrna (schema public), MCP list_edge_functions 2026-07-05]
+ultima_confirmacao: 2026-07-08
+zona: vermelha
+confianca: auto
 ---
 
 # Backend Map — Cérebro do Bora (Fase 2)

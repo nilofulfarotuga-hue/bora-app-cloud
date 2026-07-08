@@ -1,5 +1,11 @@
 ---
 tema: licao-crlf-sh-eol · escopo: projeto · estado: atual · atualizado: 2026-07-01
+id: licao-crlf-sh-eol
+tipo: licao
+origem: [commit f1ed9ad→d0e89cd, .gitattributes]
+ultima_confirmacao: 2026-07-08
+zona: verde
+confianca: auto
 ---
 
 # Scripts `.sh` em Windows: forçar LF ou o bash quebra

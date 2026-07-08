@@ -1,5 +1,11 @@
 ---
 tema: licoes-index · escopo: projeto · estado: atual · atualizado: 2026-07-05
+id: licoes-index
+tipo: conceito
+origem: [.claude/.ai/knowledge/PROTOCOLO.md]
+ultima_confirmacao: 2026-07-08
+zona: verde
+confianca: auto
 ---
 
 # 📖 Lições — como esta pasta cresce

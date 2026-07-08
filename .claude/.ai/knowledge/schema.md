@@ -17,11 +17,19 @@ tema: schema-cortex · escopo: projeto · estado: atual · atualizado: 2026-07-0
   INDEX.md        ← entry point (o quê existe; lê-se SEMPRE, primeiro)
   PROTOCOLO.md    ← o ciclo ler-antes / handoff-depois
   schema.md       ← este ficheiro (as regras de trabalho)
-  permanente/     ← factos que valem no tempo
+  inbox/          ← memória DESCARTÁVEL (sessões cruas, experimentos) — regra dos 14 dias (§10)
+    _descartado/  ← não promovido em 14d vem para cá (recuperável 30 dias, nunca apagado)
+  permanente/     ← factos que valem no tempo (só sobe via handoff ao Bibliotecário)
     semantica/    ← o que É verdade (regras, backend-map, zonas-protegidas, pricing, DNA)
     episodica/    ← o que ACONTECEU (bugs-resolvidos, decisões, auditoria-360)
     procedural/   ← como se FAZ (convenções, licoes/)
-  sessao/         ← INBOX / memória de trabalho efémera (gitignored, apagável)
+  wiki/
+    decisoes/     ← ADR: o PORQUÊ de cada decisão (tipo: decisao)
+    licoes/       ← memória de experiência; só regras generalizáveis (tipo: licao)
+  _tools/         ← cortex_nightly.py — manutenção noturna (dry-run) — o cérebro cuida-se (§9/§10)
+  _debt.md        ← cartão de dívida (AUTO-gerado): páginas de baixa confiança (§9)
+  log.md          ← proveniência append-only (quem/quando/de-que-lado escreveu)
+  sessao/         ← memória de trabalho efémera (gitignored, apagável)
   _arquivo/       ← histórico bruto + mapas de migração (nunca apagar)
 
 bora_app/.obsidian-vault/         ← VAULT CANÓNICO (117+ .md, versionado no git)
@@ -58,22 +66,24 @@ bora_app/.obsidian-vault/         ← VAULT CANÓNICO (117+ .md, versionado no g
 tema: <slug> · escopo: projeto|agente:<nome> · estado: atual|superado (por X, data) · atualizado: YYYY-MM-DD
 ---
 ```
-### 3.2 Frontmatter de IDENTIDADE (a aplicar na Fase 1B — só DOCUMENTAR agora)
-Cada página do Córtex passará a ter, na 1B (faseado, não já):
+### 3.2 Frontmatter de IDENTIDADE (em aplicação — Bloco 1, faseado por batches)
+Cada página do Córtex tem (o `bibliotecario-cerebro` carimba em batches; páginas novas nascem já com ele):
 ```
 ---
 id: <slug único>
 tipo: service | conceito | decisao | licao | negocio
-origem: [ficheiro/commit/view que comprova]
+origem: [ficheiro/commit/view que comprova]   # sem prova verificável → NAO_VERIFICADO (não inventar)
 ultima_confirmacao: <YYYY-MM-DD>
 zona: verde | vermelha
+confianca: auto              # DERIVADA da data+proveniência — nunca escrita à mão (ver §9)
 validade_dias: <opcional; só onde o conhecimento expira>
 ---
 ```
 - `origem` = prova verificável (o Bibliotecário recusa factos sem origem).
 - `zona: vermelha` ⇒ a página descreve dinheiro/segurança ⇒ **Anel D / PROPOSE-ONLY** (ver §4).
 - `validade_dias` só onde faz sentido (ex.: um preço de mercado externo expira; o DNA não).
-- **Aplicar às 117 páginas é trabalho da 1B**, faseado por batches (ver blueprint C3). Aqui só se fixa o padrão.
+- **Aplicação faseada por batches** (Bloco 1): `permanente/**` primeiro (pelo Bibliotecário); o vault
+  e `_importado-velho/` são **arquivo** — carimbam-se depois ou ficam como histórico. Reversível batch a batch.
 
 ## 4. Governança por zona × anel (dono de escrita)
 Herdado do SOUL/CEO-AI: **qualquer página que descreva zona 🔴 = Anel D (PROPOSE-ONLY)** — o agente
@@ -123,4 +133,21 @@ Vermelha (dinheiro/RLS/auth/migrations destrutivas/build prod) = PROPOSE-ONLY.
 ## 8. Painel admin (paridade — a "Central do Córtex", só requisito)
 Toda evolução do Córtex que precise de supervisão humana espelha o inbox de aprovação existente
 (`robot_suggestions`, Fase 5) — **cabeçalho da mesma caixa, não um segundo inbox**. Requisitos de UI
-listados no relatório da Fase 1A (§ painel admin).
+listados no relatório da Fase 1A (§ painel admin) e no spec `reports/cortex/central_cortex_admin_spec.md`.
+
+## 9. Confiança derivada + Knowledge Debt (Bloco 3)
+`confianca` **nunca** é um número chutado pela IA — é **função da data + proveniência**, calculada por
+`_tools/cortex_nightly.py`:
+- **100%** no dia da `ultima_confirmacao`; decai **−1%/semana** desde então.
+- `origem: [NAO_VERIFICADO]` → arranca em **40%**.
+- `validade_dias` expirado → **0%** (dívida imediata).
+- No frontmatter fica `confianca: auto` (placeholder); o valor real vive no `_debt.md` + relatório noturno.
+
+**Knowledge Debt** (`_debt.md`, AUTO-gerado): página entra em dívida se `confianca < 50%` **OU** não
+confirmada há **> 180 dias** **OU** `origem: NAO_VERIFICADO`. É o cartão que diz onde curar o cérebro.
+
+## 10. Inbox — a regra dos 14 dias (Bloco 2)
+`inbox/` é a camada **antes** do permanente. **Toda página paga aluguel:** o que ninguém promove ao
+`wiki/` em **14 dias** é **movido** para `inbox/_descartado/` (recuperável 30 dias, nunca apagado) pela
+consolidação noturna — **não** pelo humano. Relatórios de sessão nascem no `inbox/`, não no permanente.
+Zona 🔴 **nunca** é auto-promovida nem auto-corrigida: só proposta na fila do admin.

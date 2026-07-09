@@ -320,8 +320,7 @@ class _BusinessAutocompleteFieldState extends State<BusinessAutocompleteField> {
               physics: const ClampingScrollPhysics(),
               itemCount: _predictions.length,
               separatorBuilder: (_, __) => const Divider(height: 1),
-              itemBuilder: (context, index) =>
-                  _buildTile(_predictions[index]),
+              itemBuilder: (context, index) => _buildTile(_predictions[index]),
             ),
           ),
         ),
@@ -335,8 +334,12 @@ class _BusinessAutocompleteFieldState extends State<BusinessAutocompleteField> {
   Widget _buildPlaceTile(PlacePrediction p) {
     return ListTile(
       dense: true,
-      leading: const Icon(Icons.location_on_outlined,
-          size: 20, color: AppColors.textSecondary),
+      leading: Icon(
+          p.isEstablishment
+              ? Icons.storefront_outlined
+              : Icons.location_on_outlined,
+          size: 20,
+          color: AppColors.textSecondary),
       title: Text(
         p.primaryText ?? p.description,
         maxLines: 1,

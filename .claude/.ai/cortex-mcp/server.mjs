@@ -36,16 +36,19 @@ function validToken(tok) { if (TOKEN && tok === TOKEN) return true; const t = to
 const buckets = new Map();
 const rateOk = (ip) => { const n = Date.now(); const b = buckets.get(ip) || { n: 0, t: n }; if (n - b.t > 60000) { b.n = 0; b.t = n; } b.n++; buckets.set(ip, b); return b.n <= 120; };
 
-// ---- Cortex (leitura só dentro do BRAIN) ----
+// ---- Cortex (leitura no BRAIN + orquestracao/ — a fila do loop) ----
 function walk(dir) { const out = []; (function r(d) { let it; try { it = fs.readdirSync(d, { withFileTypes: true }); } catch { return; } for (const e of it) { if (e.isDirectory()) { if (['_descartado', '.git', '__pycache__', '.obsidian'].includes(e.name)) continue; r(path.join(d, e.name)); } else if (e.name.endsWith('.md')) out.push(path.join(d, e.name)); } })(dir); return out; }
+const READ_ROOTS = [BRAIN, FILA]; // escopo de leitura = cérebro (knowledge) + fila de orquestração
+function walkRoots() { const out = []; for (const r of READ_ROOTS) { try { out.push(...walk(r)); } catch {} } return out; }
+function relPath(p) { const b = path.relative(BRAIN, p); if (!b.startsWith('..')) return b; const fp = path.relative(FILA, p); if (!fp.startsWith('..')) return 'orquestracao/' + fp; return b; }
 const readf = (p) => { try { return fs.readFileSync(p, 'utf8'); } catch { return null; } };
 function frontmatter(txt) { const fm = {}; if (!txt || !txt.startsWith('---')) return fm; const end = txt.indexOf('\n---', 3); if (end < 0) return fm; for (const line of txt.slice(3, end).split('\n')) { const m = line.match(/^([a-zA-Z_]+):\s*(.*)$/); if (m) fm[m[1]] = m[2].trim(); } return fm; }
-function findById(id) { for (const p of walk(BRAIN)) { const t = readf(p); if (frontmatter(t).id === id) return { p, t }; } return null; }
+function findById(id) { for (const p of walkRoots()) { const t = readf(p); if (frontmatter(t).id === id) return { p, t }; } return null; }
 function logWrite(who, what) { try { fs.appendFileSync(LOG, `| ${new Date().toISOString().slice(0, 10)} | vps-mcp | ${who} | ${what} |\n`); } catch { } }
 
-function t_buscar({ query }) { const q = (query || '').toLowerCase(); const res = []; for (const p of walk(BRAIN)) { const t = readf(p) || ''; const fm = frontmatter(t); if ((path.basename(p) + ' ' + t).toLowerCase().includes(q)) { const i = t.toLowerCase().indexOf(q); res.push({ id: fm.id || null, path: path.relative(BRAIN, p), tipo: fm.tipo, zona: fm.zona, snippet: i >= 0 ? t.slice(Math.max(0, i - 40), i + 90).replace(/\s+/g, ' ') : '' }); } if (res.length >= 20) break; } return { total: res.length, resultados: res }; }
-function t_ler({ id }) { const f = findById(id); return f ? { id, path: path.relative(BRAIN, f.p), conteudo: f.t } : { error: `id '${id}' não encontrado` }; }
-function t_listar({ filtro }) { const res = []; for (const p of walk(BRAIN)) { const fm = frontmatter(readf(p)); if (!fm.id) continue; if (filtro && fm.tipo !== filtro && fm.zona !== filtro) continue; res.push({ id: fm.id, tipo: fm.tipo, zona: fm.zona, path: path.relative(BRAIN, p) }); } return { total: res.length, paginas: res }; }
+function t_buscar({ query }) { const q = (query || '').toLowerCase(); const res = []; for (const p of walkRoots()) { const t = readf(p) || ''; const fm = frontmatter(t); if ((path.basename(p) + ' ' + t).toLowerCase().includes(q)) { const i = t.toLowerCase().indexOf(q); res.push({ id: fm.id || null, path: relPath(p), tipo: fm.tipo, zona: fm.zona, snippet: i >= 0 ? t.slice(Math.max(0, i - 40), i + 90).replace(/\s+/g, ' ') : '' }); } if (res.length >= 20) break; } return { total: res.length, resultados: res }; }
+function t_ler({ id }) { const f = findById(id); return f ? { id, path: relPath(f.p), conteudo: f.t } : { error: `id '${id}' não encontrado` }; }
+function t_listar({ filtro }) { const res = []; for (const p of walkRoots()) { const fm = frontmatter(readf(p)); if (!fm.id) continue; const folder = relPath(p).split('/')[0]; if (filtro && fm.tipo !== filtro && fm.zona !== filtro && folder !== filtro) continue; res.push({ id: fm.id, tipo: fm.tipo, zona: fm.zona, path: relPath(p) }); } return { total: res.length, paginas: res }; }
 function t_debt() { const t = readf(path.join(BRAIN, '_debt.md')); return t ? { conteudo: t } : { error: '_debt.md ausente' }; }
 function t_propor({ id, conteudo }, who) { const pid = 'prop-' + crypto.randomBytes(4).toString('hex'); const f = findById(id); const rec = { pid, id, zona: f ? frontmatter(f.t).zona : '?', who, ts: new Date().toISOString(), conteudo: String(conteudo || '') }; try { fs.mkdirSync(path.dirname(PROPOSALS), { recursive: true }); fs.appendFileSync(PROPOSALS, JSON.stringify(rec) + '\n'); } catch (e) { return { error: String(e).slice(0, 200) }; } logWrite(who, `PROPOSTA ${pid} p/ ${id} (${rec.zona})`); return { pid, status: 'na fila de aprovação do admin (Central do Córtex)' }; }
 function t_escrever({ id, conteudo }, who) {

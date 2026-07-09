@@ -6,6 +6,7 @@ import 'dart:js' as js;
 
 import 'package:latlong2/latlong.dart' as ll;
 
+import '../config/maps_config.dart';
 import 'place_autocomplete_service.dart';
 
 PlaceAutocompleteService createPlaceAutocompleteServiceImpl(String apiKey) =>
@@ -59,7 +60,51 @@ class _WebPlaceAutocompleteService implements PlaceAutocompleteService {
     }
   }
 
+  /// Constrói um `google.maps.LatLng` para o viés da Guarda. Devolve null se
+  /// o SDK ainda não estiver pronto (o autocomplete funciona na mesma, sem viés).
+  js.JsObject? _guardaLatLng() {
+    try {
+      final googleRaw = js.context['google'];
+      if (googleRaw is! js.JsObject) return null;
+      final mapsRaw = googleRaw['maps'];
+      if (mapsRaw is! js.JsObject) return null;
+      final latLngCtor = mapsRaw['LatLng'];
+      if (latLngCtor is! js.JsFunction) return null;
+      return js.JsObject(latLngCtor, [kGuardaBiasLat, kGuardaBiasLng]);
+    } catch (_) {
+      return null;
+    }
+  }
+
   // ─── fetchPredictions ──────────────────────────────────────────────────────
+
+  /// Reordena as predições para que as da Guarda apareçam primeiro (ordenação
+  /// estável). O viés location+radius do Google é fraco; para a cidade única de
+  /// operação queremos garantia de que o resultado local ganha o topo.
+  List<PlacePrediction> _rankGuardaFirst(List<PlacePrediction> predictions) {
+    if (predictions.length < 2) return predictions;
+    final guarda = predictions.where(_isGuarda).toList();
+    if (guarda.isEmpty) return predictions;
+    final outros = predictions.where((p) => !_isGuarda(p)).toList();
+    return <PlacePrediction>[...guarda, ...outros];
+  }
+
+  bool _isGuarda(PlacePrediction p) =>
+      '${p.description} ${p.secondaryText ?? ''}'
+          .toLowerCase()
+          .contains('guarda');
+
+  List<PlacePrediction> _mergeDedupe(
+    List<PlacePrediction> prioritarias,
+    List<PlacePrediction> resto,
+  ) {
+    final vistos = <String>{};
+    final out = <PlacePrediction>[];
+    for (final p in <PlacePrediction>[...prioritarias, ...resto]) {
+      if (vistos.add(p.placeId)) out.add(p);
+    }
+    return out;
+  }
 
   @override
   Future<List<PlacePrediction>> fetchPredictions(String input) async {
@@ -72,16 +117,47 @@ class _WebPlaceAutocompleteService implements PlaceAutocompleteService {
 
     if (!_init()) return const <PlacePrediction>[];
 
+    var predictions = await _requestPredictions(query);
+    // Espelha o io.dart: sempre que NENHUM resultado local (Guarda) surgiu — o
+    // viés do Google é fraco e "Continente" trazia só outras cidades — dispara
+    // uma pesquisa explícita "<query> Guarda" e coloca-a à frente (dedup).
+    // Cobre o "outra cidade em 1.º" E o "vazio" (comércio local, ex.: "Lavie").
+    final semGuarda = !predictions.any(_isGuarda);
+    if (semGuarda && !query.toLowerCase().contains('guarda')) {
+      final locais = await _requestPredictions('$query Guarda');
+      predictions = _mergeDedupe(locais, predictions);
+    }
+    predictions = _rankGuardaFirst(predictions);
+
+    _lastQuery = query;
+    _cachedPredictions = predictions;
+    return predictions;
+  }
+
+  Future<List<PlacePrediction>> _requestPredictions(String query) async {
     final completer = Completer<List<PlacePrediction>>();
+
+    // Sem 'types': devolve moradas E comércios/POIs (ex.: "KFC", "Lavie
+    // Shopping"), como a pesquisa do Google Maps. Antes estava preso a
+    // 'geocode' (só ruas).
+    final request = <String, dynamic>{
+      'input': query,
+      'componentRestrictions': {'country': 'pt'},
+      'language': 'pt-PT',
+    };
+    // Viés FORTE para a Guarda (location + radius + strictbounds → restringe
+    // ao raio de serviço, elimina lojas homónimas de outras cidades). Só
+    // aplica se o construtor LatLng existir.
+    final biasLocation = _guardaLatLng();
+    if (biasLocation != null) {
+      request['location'] = biasLocation;
+      request['radius'] = kGuardaBiasRadiusMeters;
+      if (kGuardaStrictBounds) request['strictbounds'] = true;
+    }
 
     // dart:js.JsObject.callMethod wraps Dart functions automatically.
     _autocompleteSvc!.callMethod('getPlacePredictions', [
-      js.JsObject.jsify({
-        'input': query,
-        'componentRestrictions': {'country': 'pt'},
-        'language': 'pt-PT',
-        'types': ['geocode'],
-      }),
+      js.JsObject.jsify(request),
       (dynamic predictions, dynamic status) {
         if (completer.isCompleted) return;
 
@@ -98,11 +174,15 @@ class _WebPlaceAutocompleteService implements PlaceAutocompleteService {
             final placeId = p['place_id'] as String? ?? '';
             if (placeId.isEmpty) continue;
             final sf = p['structured_formatting'] as js.JsObject?;
+            final types = p['types'];
+            final isEstablishment = types is js.JsArray &&
+                types.any((t) => t?.toString() == 'establishment');
             list.add(PlacePrediction(
               placeId: placeId,
               description: p['description'] as String? ?? '',
               primaryText: sf?['main_text'] as String?,
               secondaryText: sf?['secondary_text'] as String?,
+              isEstablishment: isEstablishment,
             ));
           }
           completer.complete(list);
@@ -113,11 +193,7 @@ class _WebPlaceAutocompleteService implements PlaceAutocompleteService {
     ]);
 
     try {
-      final result =
-          await completer.future.timeout(const Duration(seconds: 10));
-      _lastQuery = query;
-      _cachedPredictions = result;
-      return result;
+      return await completer.future.timeout(const Duration(seconds: 10));
     } catch (_) {
       return const <PlacePrediction>[];
     }

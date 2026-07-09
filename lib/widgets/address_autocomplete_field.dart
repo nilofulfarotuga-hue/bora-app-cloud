@@ -228,7 +228,12 @@ class _AddressAutocompleteFieldState extends State<AddressAutocompleteField> {
                 final p = _predictions[index];
                 return ListTile(
                   dense: true,
-                  leading: const Icon(Icons.location_on_outlined, size: 20),
+                  leading: Icon(
+                    p.isEstablishment
+                        ? Icons.storefront_outlined
+                        : Icons.location_on_outlined,
+                    size: 20,
+                  ),
                   title: Text(
                     p.primaryText ?? p.description,
                     maxLines: 1,

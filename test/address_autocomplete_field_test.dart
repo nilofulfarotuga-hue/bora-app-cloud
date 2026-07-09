@@ -111,4 +111,39 @@ void main() {
 
     expect(find.text('Rossio'), findsOneWidget);
   });
+
+  testWidgets('comércio/POI mostra ícone de loja + morada (estilo Google Maps)',
+      (tester) async {
+    // Prova a extensão: predições de estabelecimento (isEstablishment=true)
+    // renderizam com o ícone de loja, e moradas normais com o pino.
+    await _pumpField(tester, results: const [
+      PlacePrediction(
+        placeId: 'kfc',
+        description: 'KFC, Rua Dr. Francisco de Passos, Guarda',
+        primaryText: 'KFC',
+        secondaryText: 'Rua Dr. Francisco de Passos, Guarda',
+        isEstablishment: true,
+      ),
+      PlacePrediction(
+        placeId: 'rua',
+        description: 'Rua Rui de Pina, Guarda',
+        primaryText: 'Rua Rui de Pina',
+        secondaryText: 'Guarda',
+      ),
+    ]);
+
+    await tester.enterText(find.byType(TextField), 'kfc');
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump();
+    await tester.pump();
+
+    // Nome do local + morada visíveis (padrão Google Maps).
+    expect(find.text('KFC'), findsOneWidget);
+    expect(
+        find.text('Rua Dr. Francisco de Passos, Guarda'), findsOneWidget);
+    // Ícone de loja só para o POI (o campo não usa storefront).
+    expect(find.byIcon(Icons.storefront_outlined), findsOneWidget);
+    // Pino na morada normal + no prefixo default do próprio campo = 2.
+    expect(find.byIcon(Icons.location_on_outlined), findsNWidgets(2));
+  });
 }

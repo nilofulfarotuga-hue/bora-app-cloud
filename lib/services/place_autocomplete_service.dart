@@ -10,12 +10,18 @@ class PlacePrediction {
     required this.description,
     this.primaryText,
     this.secondaryText,
+    this.isEstablishment = false,
   });
 
   final String placeId;
   final String description;
   final String? primaryText;
   final String? secondaryText;
+
+  /// True quando a predição é um comércio / ponto de interesse (ex.: "KFC",
+  /// "Lavie Shopping") e não apenas uma morada. Usado para mostrar o ícone
+  /// de loja em vez do pino de morada, à semelhança do Google Maps.
+  final bool isEstablishment;
 }
 
 abstract class PlaceAutocompleteService {

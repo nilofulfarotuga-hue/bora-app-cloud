@@ -18,6 +18,8 @@ const GIT_PUSH = process.env.CORTEX_GIT_PUSH === 'true';
 const LOG = path.join(BRAIN, 'log.md');
 const PROPOSALS = path.join(BRAIN, 'inbox', '_reports', 'proposals.jsonl');
 const RED = /dispatch|pricing|finalizepurchase|bora_tokens|stripe|\brls\b|wallet|ledger|refund|comiss|markup|service_fee/i;
+const FILA = process.env.CORTEX_FILA || path.join(BRAIN.replace(/[\\/]\.claude[\\/]\.ai[\\/]knowledge$/, ''), 'orquestracao'); // fila do loop (o MESMO dir que a campainha inotify observa)
+const RED_ORDER = /dispatch_engine|dispatch|pricing|finalizepurchase|bora_tokens|stripe|payment|webhook|wallet|ledger|refund|payout|comiss|commission|markup|service_fee|platform_settings|\brls\b|force.?push/i; // zona vermelha p/ ordens novas (>= cobertura do carteiro T3)
 
 // ---- OAuth state (memória; single-user) ----
 const clients = new Map();   // client_id -> {redirect_uris:[]}
@@ -55,6 +57,28 @@ function t_escrever({ id, conteudo }, who) {
   if (GIT_PUSH) { try { const repo = path.resolve(BRAIN, '..', '..', '..'); execFileSync('git', ['-C', repo, 'add', path.relative(repo, f.p)]); execFileSync('git', ['-C', repo, 'commit', '-m', `cortex(mcp): ${who} atualizou ${id} [skip ci]`]); execFileSync('git', ['-C', repo, 'push']); pushed = true; } catch (e) { return { written: true, pushed: false, gitError: String(e).slice(0, 160) }; } }
   return { written: true, pushed };
 }
+function t_nova_ordem({ tarefa, zona }, who) {
+  const task1 = String(tarefa || '').replace(/\r?\n/g, ' ').trim();
+  if (!task1) return { error: 'tarefa vazia — nada a fazer.' };
+  // zona: auto-deteta por palavra-chave; override manual só ESCALA p/ vermelha, nunca desce (segurança).
+  const vermelha = zona === 'vermelha' || RED_ORDER.test(task1);
+  const id = 'ordem-' + new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14) + '-' + crypto.randomBytes(2).toString('hex');
+  const criada = new Date().toISOString();
+  if (vermelha) {
+    // 🔴 NUNCA entra no loop — vai p/ a fila de aprovação do admin (como cortex_propor).
+    const pid = 'prop-' + crypto.randomBytes(4).toString('hex');
+    const rec = { pid, id, tipo: 'ordem_orquestracao', zona: 'vermelha', tarefa: task1, who, ts: criada };
+    try { fs.mkdirSync(path.dirname(PROPOSALS), { recursive: true }); fs.appendFileSync(PROPOSALS, JSON.stringify(rec) + '\n'); } catch (e) { return { error: String(e).slice(0, 200) }; }
+    logWrite(who, `NOVA ORDEM 🔴 ${id} -> aprovacao admin (${pid})`);
+    return { id: null, roteado: 'aprovacao_admin', zona: 'vermelha', pid, aviso: '🔴 ZONA VERMELHA — a ordem NAO entra no loop automatico; foi p/ a fila de aprovação do admin (Central do Córtex). So corre depois de o Danilo aprovar a mao.' };
+  }
+  // 🟢 verde — cria a ordem na fila; a escrita do ficheiro dispara a campainha (inotify).
+  const md = `--- ordem ---\nid: ${id}\nestado: aberta\nautor: ${who || 'claude.ai'}\ncriada: ${criada}\nzona: verde\ntentativa: 0\nteto_tentativas: 5\ntarefa: ${task1}\n--- fim ---\n`;
+  const dest = path.join(FILA, id + '.md');
+  try { fs.mkdirSync(FILA, { recursive: true }); fs.writeFileSync(dest, md); } catch (e) { return { error: 'falha a escrever na fila: ' + String(e).slice(0, 180) }; }
+  logWrite(who, `NOVA ORDEM 🟢 ${id} (aberta) na fila`);
+  return { id, estado: 'aberta', zona: 'verde', path: 'orquestracao/' + id + '.md', teto_tentativas: 5, campainha: 'disparada — o watcher inotify acorda o carteiro (se orquestracao_enabled=false a ordem espera aberta).', acompanhar: `cortex_ler('${id}') p/ ver o estado evoluir: aberta->executando->respondida->aprovada|corrigir.` };
+}
 const TOOL_DEFS = [
   { name: 'cortex_buscar', description: 'Procura no Córtex (nome+conteúdo). id/tipo/zona/snippet.', inputSchema: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] } },
   { name: 'cortex_ler', description: 'Página do Córtex pelo id do frontmatter.', inputSchema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] } },
@@ -62,8 +86,9 @@ const TOOL_DEFS = [
   { name: 'cortex_debt', description: 'Devolve o _debt.md.', inputSchema: { type: 'object', properties: {} } },
   { name: 'cortex_escrever', description: 'Atualiza página EXISTENTE — só zona verde. 🔴 recusada. Pode estar desligado.', inputSchema: { type: 'object', properties: { id: { type: 'string' }, conteudo: { type: 'string' } }, required: ['id', 'conteudo'] } },
   { name: 'cortex_propor', description: 'Zona 🔴 / write off: cria proposta na fila do admin (não escreve).', inputSchema: { type: 'object', properties: { id: { type: 'string' }, conteudo: { type: 'string' } }, required: ['id', 'conteudo'] } },
+  { name: 'cortex_nova_ordem', description: 'Cria uma ORDEM NOVA no loop de orquestração (id novo, estado aberta) e dispara a campainha. Zona verde entra no loop automatico; zona vermelha vai p/ aprovação do admin (NUNCA no loop). Teto de tentativas fixo em 5. Devolve o id p/ acompanhar com cortex_ler.', inputSchema: { type: 'object', properties: { tarefa: { type: 'string', description: 'O comando exato p/ o Claude Code executor (uma linha).' }, zona: { type: 'string', enum: ['verde', 'vermelha'], description: 'Opcional. Auto-detetada por palavras-chave das zonas protegidas; podes forçar vermelha. Nunca desce vermelha->verde.' }, teto_tentativas: { type: 'integer', description: 'IGNORADO — o sistema fixa sempre 5.' } }, required: ['tarefa'] } },
 ];
-function dispatch(name, a, who) { switch (name) { case 'cortex_buscar': return t_buscar(a); case 'cortex_ler': return t_ler(a); case 'cortex_listar': return t_listar(a); case 'cortex_debt': return t_debt(a); case 'cortex_propor': return t_propor(a, who); case 'cortex_escrever': return t_escrever(a, who); default: return { error: 'ferramenta desconhecida: ' + name }; } }
+function dispatch(name, a, who) { switch (name) { case 'cortex_buscar': return t_buscar(a); case 'cortex_ler': return t_ler(a); case 'cortex_listar': return t_listar(a); case 'cortex_debt': return t_debt(a); case 'cortex_propor': return t_propor(a, who); case 'cortex_escrever': return t_escrever(a, who); case 'cortex_nova_ordem': return t_nova_ordem(a, who); default: return { error: 'ferramenta desconhecida: ' + name }; } }
 
 function handleRpc(m, who) {
   if (!m || m.id === undefined || m.id === null) return null;

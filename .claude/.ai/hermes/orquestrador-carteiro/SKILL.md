@@ -16,9 +16,11 @@ status: live (2026-07-08) — runtime real em deploy/ (carteiro.sh + campainha.s
 > com os tetos e devolve a saída. Todo o juízo de aprovado/corrigir é do juiz.
 
 ## Gatilho
-Webhook do `cortex-mcp` quando um `cortex_escrever` cria/atualiza uma ordem `estado: aberta` em
-`orquestracao/`. Debounce: uma campainha por lote. Fallback: cron lento (1x/hora) varre `aberta`
-sem resposta. **NÃO fazer polling** (desperdiça o modelo grátis).
+O Claude.ai cria a ordem com **`cortex_nova_ordem({ tarefa, zona? })`** (2026-07-09): gera id novo,
+escreve `orquestracao/<id>.md` (`estado: aberta`) e a escrita **dispara a campainha inotify** →
+carteiro. Zona vermelha vai p/ aprovação do admin (nunca entra no loop). `teto_tentativas` fixo em 5.
+Debounce: uma campainha por lote. Fallback: cron lento (1x/hora) varre `aberta`. **NÃO fazer polling.**
+(O `cortex_escrever` só ATUALIZA página existente; a criação de ordens é sempre por `cortex_nova_ordem`.)
 
 ## Passos (ao ser acionado)
 1. **T5 — kill switch.** `cortex_ler orquestracao/controlo` → se `orquestracao_enabled: false` → **não faz nada**, sai.

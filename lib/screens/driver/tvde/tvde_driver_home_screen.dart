@@ -349,7 +349,13 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
     if (!enabled) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Ative o GPS para receber corridas.')));
+          content: Text('GPS desativado. Ative a localização para receber corridas.'),
+          duration: Duration(seconds: 8),
+          action: SnackBarAction(
+            label: 'Ativar',
+            onPressed: Geolocator.openLocationSettings,
+          ),
+        ));
       }
       return;
     }

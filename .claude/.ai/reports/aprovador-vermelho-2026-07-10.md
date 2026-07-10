@@ -113,3 +113,11 @@ Balde B", ficam `nova` para toque humano:
 O flag auto-Balde-A fica **armado** para itens genuinamente de leitura-pura em rondas futuras
 (este lote não tinha nenhum). Furo dos 52 N3 expirados: eram do mesmo padrão (deadlock histórico);
 ficam como estão (expirados não ocupam teto).
+
+### ✅ Danilo aprovou os 2 de timeouts HTTP (2026-07-10)
+`d7accff0` + `51401355` → `nova`→`aprovada` (via UPDATE direto espelhando `robot_approve_plan`; o
+RPC exige JWT admin que o MCP não tem). **Seguro:** nivel-3 aprovado só marca o plano como aprovado
+(sem execução — `robot_apply_suggestion` recusa nivel-3; sem triggers na tabela; payload vazio).
+Auditado em `admin_logs` (autorizado_por=Danilo). Fila N3 restante: **4 `nova`** (Balde B, aguardam
+toque): `9996b1fe` reatribuir · `e8aabbcd` investigar pedidos presos · `268aad47`
+`bora_dispatch_maintenance` · `abeca5d7` `_appointment_cron_auto_no_show`.

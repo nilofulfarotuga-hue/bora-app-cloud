@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
@@ -14,6 +15,7 @@ import '../../../stores/tvde_store.dart';
 import '../../../utils/map_utils.dart';
 import '../../../widgets/address_autocomplete_field.dart';
 import '../../../widgets/bora/bora.dart';
+import '../../../widgets/customer_note_field.dart';
 import '../../../widgets/tvde/tvde_payment_selector.dart';
 import 'tvde_plans_screen.dart';
 import 'tvde_rides_history_screen.dart';
@@ -296,7 +298,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     // cobra o valor do plano (`tvde_ride_charge_cents`), não a tarifa cheia — por
     // isso excesso/extra também pagam por cartão/MB Way sem sobre-cobrar.
     final allowOnline = _cardEnabled && _payableCents > 0;
-    final method = await showModalBottomSheet<String>(
+    final result = await showModalBottomSheet<_TvdePayResult>(
       context: context,
       isScrollControlled: true,
       backgroundColor: AppColors.surface,
@@ -309,19 +311,20 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
         allowOnline: allowOnline,
       ),
     );
-    if (method == null || !mounted) return;
-    await _solicitar(method);
+    if (result == null || !mounted) return;
+    await _solicitar(result.method, note: result.note, tokensUsed: result.tokensUsed);
   }
 
-  Future<void> _solicitar(String method) async {
+  Future<void> _solicitar(String method, {String? note, int tokensUsed = 0}) async {
     final store = context.read<TvdeStore>();
     final km = _effectiveKm;
     if (_pickup == null || _dest == null || km == null) return;
     try {
+      TvdeRide? ride;
       if (method == 'card' || method == 'mbway') {
         // Pagamento online ANTES de criar a corrida (a Edge Function autoriza/
         // cobra no Stripe e só então cria a ride). Só chega aqui com o switch on.
-        await store.requestRidePaid(
+        ride = await store.requestRidePaid(
           originLat: _pickup!.latitude,
           originLng: _pickup!.longitude,
           originLabel: _pickupLabel,
@@ -330,11 +333,12 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
           destLabel: _destLabel,
           distanceKm: km,
           method: method,
+          tokensUsed: tokensUsed,
           confirmCard: (clientSecret) =>
               PaymentService().processPayment(clientSecret),
         );
       } else {
-        await store.requestRide(
+        ride = await store.requestRide(
           originLat: _pickup!.latitude,
           originLng: _pickup!.longitude,
           originLabel: _pickupLabel,
@@ -344,6 +348,12 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
           distanceKm: km,
           paymentMethod: 'cash',
         );
+      }
+      // Nota do cliente para o motorista (não-financeiro): grava após a corrida
+      // criada. Falha silenciosa — nunca bloqueia o pedido por causa da nota.
+      final trimmed = note?.trim() ?? '';
+      if (ride != null && trimmed.isNotEmpty) {
+        await store.setRideNote(ride.id, trimmed);
       }
       if (!mounted) return;
       _openTracking();
@@ -820,6 +830,14 @@ class _EstimateCard extends StatelessWidget {
 /// Frente 3 — folha de pagamento (aparece SÓ depois de "Solicitar corrida",
 /// como no checkout do delivery): mostra o valor final + os métodos e confirma.
 /// Dinheiro sempre; Cartão/MB Way só se [allowOnline] (switch on + tarifa normal).
+/// Resultado da folha de pagamento TVDE: método escolhido + nota opcional + tokens usados.
+class _TvdePayResult {
+  const _TvdePayResult(this.method, this.note, this.tokensUsed);
+  final String method;
+  final String? note;
+  final int tokensUsed;
+}
+
 class _TvdePaymentSheet extends StatefulWidget {
   const _TvdePaymentSheet({
     required this.amountCents,
@@ -836,6 +854,114 @@ class _TvdePaymentSheet extends StatefulWidget {
 
 class _TvdePaymentSheetState extends State<_TvdePaymentSheet> {
   String _method = 'cash';
+  final TextEditingController _noteController = TextEditingController();
+
+  // ── Token discount state ───────────────────────────────────────────────────
+  int _availableTokens = 0;
+  bool _useTokens = false;
+  bool _tokensLoaded = false;
+  int _tokenMaxPct = 50;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTokens();
+  }
+
+  @override
+  void dispose() {
+    _noteController.dispose();
+    super.dispose();
+  }
+
+  /// Carrega saldo de tokens e configuração de percentagem máxima.
+  Future<void> _loadTokens() async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) {
+      setState(() => _tokensLoaded = true);
+      return;
+    }
+    try {
+      final response = await Supabase.instance.client.rpc(
+        'get_user_tokens',
+        params: {'p_user_id': userId},
+      );
+      int pct = _tokenMaxPct;
+      try {
+        final pctRes = await Supabase.instance.client.rpc(
+          'get_setting',
+          params: {'p_key': 'token_payment_max_pct'},
+        );
+        if (pctRes is num) {
+          pct = pctRes.toInt();
+        } else if (pctRes is String) {
+          pct = int.tryParse(pctRes) ?? pct;
+        }
+      } catch (e) {
+        debugPrint('[TvdePaymentSheet] token_payment_max_pct fallback: $e');
+      }
+      if (mounted) {
+        setState(() {
+          _availableTokens = (response as num?)?.toInt() ?? 0;
+          _tokenMaxPct = pct;
+          _tokensLoaded = true;
+        });
+      }
+    } catch (e) {
+      debugPrint('[TvdePaymentSheet] _loadTokens error: $e');
+      if (mounted) setState(() => _tokensLoaded = true);
+    }
+  }
+
+  /// Calcula quantos tokens podem ser usados (limitado a 50% do total).
+  int _calculateTokensToUse() {
+    const double tokenValueEur = 0.005; // TOKEN_VALUE_EUR
+    final double maxDiscountEur =
+        (widget.amountCents / 100) * (_tokenMaxPct / 100.0);
+    final int tokensToUse = (maxDiscountEur / tokenValueEur).toInt();
+    return tokensToUse.clamp(0, _availableTokens);
+  }
+
+  /// Widget do toggle de tokens (estilo delivery, com cores amber).
+  Widget _buildTokenToggle() {
+    const double tokenValueEur = 0.005;
+    final tokensToUse = _calculateTokensToUse();
+    final tokenDiscount = tokensToUse * tokenValueEur;
+    final maxDiscountEur =
+        (widget.amountCents / 100) * (_tokenMaxPct / 100.0);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.amber.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.amber.shade200),
+      ),
+      child: SwitchListTile.adaptive(
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        secondary:
+            const Icon(Icons.monetization_on, color: Colors.amber),
+        title: const Text(
+          'Usar Bora Tokens',
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+          ),
+        ),
+        subtitle: Text(
+          '$tokensToUse tokens → -€${tokenDiscount.toStringAsFixed(2)}\n'
+          'Máximo $_tokenMaxPct% em Bora Tokens '
+          '(€${maxDiscountEur.toStringAsFixed(2)})',
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.amber.shade800,
+          ),
+        ),
+        value: _useTokens,
+        onChanged: (v) => setState(() => _useTokens = v),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -885,13 +1011,33 @@ class _TvdePaymentSheetState extends State<_TvdePaymentSheet> {
             cardEnabled: widget.allowOnline,
             onChanged: (m) => setState(() => _method = m),
           ),
+          const SizedBox(height: Spacing.md),
+          // Nota opcional para o MOTORISTA — mesmo widget/limite do delivery.
+          CustomerNoteField(
+            controller: _noteController,
+            title: 'Nota para o motorista (opcional)',
+            hint: 'Ex.: espero à porta, levo mala grande, cadeira de bebé',
+          ),
+
+          // ── Token discount toggle ──────────────────────────
+          if (_tokensLoaded && _availableTokens > 0) ...[
+            const SizedBox(height: Spacing.md),
+            _buildTokenToggle(),
+          ],
+
           const SizedBox(height: Spacing.lg),
           BoraAccentButton(
             label: _method == 'cash'
                 ? 'Confirmar · pagar em dinheiro'
                 : 'Pagar $eur',
             icon: Icons.check,
-            onPressed: () => Navigator.pop(context, _method),
+            onPressed: () {
+              final tokensToUse = _useTokens ? _calculateTokensToUse() : 0;
+              Navigator.pop(
+                context,
+                _TvdePayResult(_method, _noteController.text, tokensToUse),
+              );
+            },
           ),
         ],
       ),

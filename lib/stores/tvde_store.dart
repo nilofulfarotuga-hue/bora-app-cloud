@@ -201,6 +201,7 @@ class TvdeStore extends ChangeNotifier {
   /// corrida (nunca cria ride sem pagamento). Só é chamada com o switch ligado
   /// — a UI esconde card/mbway quando `tvde_card_payments_enabled` está OFF.
   /// [confirmCard] confirma o clientSecret (autoriza o hold de captura manual).
+  /// [tokensUsed] quantidade de Bora Tokens a aplicar no desconto.
   Future<TvdeRide?> requestRidePaid({
     required double originLat,
     required double originLng,
@@ -211,6 +212,7 @@ class TvdeStore extends ChangeNotifier {
     required double distanceKm,
     required String method, // 'card' | 'mbway'
     String? mbwayPhone,
+    int tokensUsed = 0,
     Future<void> Function(String clientSecret)? confirmCard,
   }) async {
     _setBusy(true);
@@ -226,6 +228,7 @@ class TvdeStore extends ChangeNotifier {
         'distance_km': distanceKm,
         'method': method,
         if (mbwayPhone != null) 'phone': mbwayPhone,
+        if (tokensUsed > 0) 'tokens_used': tokensUsed,
       });
       final data = (res.data is Map)
           ? Map<String, dynamic>.from(res.data as Map)
@@ -250,6 +253,21 @@ class TvdeStore extends ChangeNotifier {
       rethrow;
     } finally {
       _setBusy(false);
+    }
+  }
+
+  /// Grava a nota opcional do cliente para o MOTORISTA (paridade com a "Nota
+  /// para o estafeta" do delivery). NÃO-FINANCEIRO: RPC dedicada que só escreve
+  /// texto livre (`tvde_set_ride_note`, limite 200 chars server-side). Falha
+  /// silenciosa — a nota nunca deve bloquear a criação da corrida.
+  Future<void> setRideNote(String rideId, String note) async {
+    try {
+      await _sb.rpc('tvde_set_ride_note', params: {
+        'p_ride_id': rideId,
+        'p_note': note,
+      });
+    } catch (e) {
+      debugPrint('TvdeStore.setRideNote error => $e');
     }
   }
 

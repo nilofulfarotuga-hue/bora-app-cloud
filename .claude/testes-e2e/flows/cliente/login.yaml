@@ -20,18 +20,27 @@ env:
       visible: "Entrar com outra conta"
     commands:
       - tapOn: "Entrar com outra conta"
+# fix 2026-07-10: campos por ID (Semantics) + password em 3 blocos com pausa —
+# obscureText + inputText rápido deixava cair caracteres → invalid_credentials 400.
 - runFlow:
     when:
       visible: "Email"
     commands:
-      - tapOn: "Email"
+      - tapOn:
+          id: "fld_email"
       - eraseText: 80
       - inputText: ${CLIENT_EMAIL}
-      - tapOn: "Palavra-passe"
-      - eraseText
-      - inputText: ${CLIENT_PASSWORD}
+      - tapOn:
+          id: "fld_password"
+      - eraseText: 40
+      - inputText: ${CLIENT_PW_A}
+      - waitForAnimationToEnd
+      - inputText: ${CLIENT_PW_B}
+      - waitForAnimationToEnd
+      - inputText: ${CLIENT_PW_C}
       - hideKeyboard
-      - tapOn: "Entrar"
+      - tapOn:
+          id: "btn_entrar"
 # 1º login neste device pode perguntar "Entrar com biometria?" → recusar no teste
 - extendedWaitUntil:
     visible: "Agora não|Início"

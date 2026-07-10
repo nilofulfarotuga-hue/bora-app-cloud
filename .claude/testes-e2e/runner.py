@@ -140,12 +140,23 @@ def _creds_maestro() -> dict:
     Os defaults nos YAML são fallback; a fonte da verdade é o .env (criar-contas-teste.py)."""
     e = DB.get("env", {})
     creds = {}
+
+    def _chunks(pw: str, prefix: str):
+        # fix 2026-07-10: obscureText + inputText rápido deixa cair caracteres
+        # (Maestro+Flutter, confirmado nos DOIS devices) → digitar em 3 blocos
+        # com waitForAnimationToEnd entre eles. Blocos sempre não-vazios.
+        n = max(1, len(pw) // 3)
+        a, b, c = pw[:n], pw[n:2 * n], pw[2 * n:]
+        return {prefix + "_A": a, prefix + "_B": b or a, prefix + "_C": c or (b or a)}
+
     if e.get("E2E_CLIENT_PASSWORD"):
         creds["CLIENT_EMAIL"] = e.get("E2E_CLIENT_EMAIL", "teste-cliente@bora.app")
         creds["CLIENT_PASSWORD"] = e["E2E_CLIENT_PASSWORD"]
+        creds.update(_chunks(e["E2E_CLIENT_PASSWORD"], "CLIENT_PW"))
     if e.get("E2E_DRIVER_PASSWORD"):
         creds["DRIVER_EMAIL"] = e.get("E2E_DRIVER_EMAIL", TEST_DRIVER_EMAIL)
         creds["DRIVER_PASSWORD"] = e["E2E_DRIVER_PASSWORD"]
+        creds.update(_chunks(e["E2E_DRIVER_PASSWORD"], "DRIVER_PW"))
     return creds
 
 

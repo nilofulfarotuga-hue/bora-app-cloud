@@ -374,6 +374,22 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
       _trimPassedRoutePoints(newLoc);
       // 2C/2D: reroute if driver strays > 50 m from the current polyline.
       _checkOffRouteAndReroute(newLoc);
+    }, onError: (Object e) {
+      // GPS desligado a meio do stream emite LocationServiceDisabledException.
+      // Sem este handler, o erro fica por tratar e rebenta o app.
+      if (!mounted) return;
+      if (e is LocationServiceDisabledException) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('GPS desativado. Ative a localização para tracking.'),
+            duration: Duration(seconds: 8),
+            action: SnackBarAction(
+              label: 'Ativar',
+              onPressed: Geolocator.openLocationSettings,
+            ),
+          ),
+        );
+      }
     });
   }
 

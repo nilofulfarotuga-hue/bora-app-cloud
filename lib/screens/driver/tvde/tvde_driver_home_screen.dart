@@ -410,6 +410,22 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
         speedKmh: pos.speed.isFinite ? pos.speed * 3.6 : null,
         isOnline: true,
       );
+    }, onError: (Object e) {
+      // GPS desligado a meio do stream emite LocationServiceDisabledException.
+      // Sem este handler, o erro fica por tratar e rebenta o app.
+      if (!mounted) return;
+      if (e is LocationServiceDisabledException) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('GPS desativado. Ative a localização para receber corridas.'),
+            duration: Duration(seconds: 8),
+            action: SnackBarAction(
+              label: 'Ativar',
+              onPressed: Geolocator.openLocationSettings,
+            ),
+          ),
+        );
+      }
     });
   }
 

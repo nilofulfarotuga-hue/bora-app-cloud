@@ -1,0 +1,27 @@
+# Preâmbulo single-device: normaliza o telemóvel para o RoleScreen antes de CADA fluxo.
+# Cobre: cliente logado (bottom nav "Início"), estafeta logado (toggle Online/Offline),
+# ecrã de login pendurado ("Email" visível), ou já no RoleScreen (no-op).
+appId: pt.boraapp.bora
+---
+- launchApp:
+    clearState: false
+# cliente logado → sair
+- runFlow:
+    when:
+      visible: "Início"
+    file: ../cliente/logout.yaml
+# estafeta logado → offline + sair
+- runFlow:
+    when:
+      visible: "Offline|Online"
+    file: ../estafeta/logout.yaml
+# ecrã de login pendurado (papel escolhido sem sessão) → link in-app (back sairia da app)
+- runFlow:
+    when:
+      visible: ".*escolha de perfil.*"
+    commands:
+      - tapOn: ".*escolha de perfil.*"
+# resultado esperado: RoleScreen (botões "Sou Cliente"/"Sou Estafeta"/"Sou Parceiro")
+- extendedWaitUntil:
+    visible: "Sou Cliente"
+    timeout: 20000

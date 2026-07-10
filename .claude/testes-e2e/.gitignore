@@ -1,0 +1,7 @@
+.env
+gravacoes/
+frames/
+resultados-*.json
+.cinegrafista-state.json
+*.log
+__pycache__/

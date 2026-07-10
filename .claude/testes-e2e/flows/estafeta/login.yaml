@@ -1,0 +1,54 @@
+# Subflow: login do estafeta de teste
+# Credenciais via env: DRIVER_EMAIL / DRIVER_PASSWORD (default: conta de teste)
+appId: pt.boraapp.bora
+env:
+  DRIVER_EMAIL: teste-estafeta@bora.app
+  DRIVER_PASSWORD: "123456"
+---
+- launchApp:
+    clearState: false
+- runFlow:
+    when:
+      visible: "Sou Estafeta"
+    commands:
+      - tapOn: "Sou Estafeta"
+# conta lembrada pré-preenchida → limpar primeiro (senão o inputText concatena)
+- runFlow:
+    when:
+      visible: "Entrar com outra conta"
+    commands:
+      - tapOn: "Entrar com outra conta"
+- runFlow:
+    when:
+      visible: "Email"
+    commands:
+      - tapOn: "Email"
+      - eraseText: 80
+      - inputText: ${DRIVER_EMAIL}
+      - tapOn: "Palavra-passe"
+      - eraseText
+      - inputText: ${DRIVER_PASSWORD}
+      - hideKeyboard
+      - tapOn: "Entrar"
+# 1º login neste device pode perguntar "Entrar com biometria?" → recusar no teste
+- extendedWaitUntil:
+    visible: "Agora não|Offline|Online"
+    timeout: 45000
+- runFlow:
+    when:
+      visible: "Agora não"
+    commands:
+      - tapOn: "Agora não"
+# resultado esperado: home do estafeta (toggle Online/Offline visível)
+- extendedWaitUntil:
+    visible: "Offline|Online"
+    timeout: 25000
+# garantir ONLINE (para receber a oferta do teste)
+- runFlow:
+    when:
+      visible: "Offline"
+    commands:
+      - tapOn: "Offline"
+- extendedWaitUntil:
+    visible: "Online"
+    timeout: 15000

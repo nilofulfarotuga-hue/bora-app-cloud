@@ -68,9 +68,23 @@ de `~/.claude/projects/.../240b7ea9*.jsonl`):
 candidata pós-lançamento · **WhatsApp Evolution API = proposta com risco de ban explícito**
 (nunca no número principal; decisão do Danilo).
 
-## FASE 7 (missão anterior) — loop E2E single-device 🔄
-Runner `--single-device` (padrão) + `loop-noturno.py` + `run-tudo.cmd` em construção por
-esquadrão; smoke com o telemóvel se ligado. Secção atualizada no fecho da sessão.
+## FASE 7 (missão anterior) — loop E2E single-device 🟡 (montado; smoke bloqueado em PENDENTE-HUMANO)
+- **Construído:** `runner.py` com `--single-device` PADRÃO (fluxos `dois_devices` viram
+  sequenciais no mesmo telemóvel com troca de papel; `manual_2_devices` = MANUAL-2-DEVICES,
+  não correm nem bloqueiam) + injeção de credenciais `.env` em todos os flows + guarda de
+  isolamento (aborta com estafeta real online) · `loop-noturno.py` (classifica BUG DO TESTE
+  vs BUG DO APP, re-corre só falhados, verde 2 ciclos = para exceto críticos, adb reconnect,
+  nunca crasha) · `run-tudo.cmd` · flows cliente/comum/estafeta + registry.
+- **Debug do smoke (login cliente) — trilha de diagnóstico real:** conta de teste OK
+  (bora_role=client, confirmada) · AUTH REST 200 com a password do .env · app no build 396
+  do CI · internet do device OK · **logcat apanhou a causa: a app recebe
+  `invalid_credentials 400`** — a password digitada pelo Maestro chega adulterada ao campo.
+  Password rodada para alfanumérica de 24 (AUTH 200 ✅); o re-run ficou bloqueado porque o
+  restart do adb deixou o Xiaomi `unauthorized`.
+- **PENDENTE-HUMANO:** tocar **"Permitir depuração USB" (Permitir sempre)** no Xiaomi →
+  o loop noturno (já a correr em background) retoma sozinho e re-testa.
+- **Descoberta paralela:** `teste-estafeta@bora.app` NÃO existe no Auth (drivers usam email
+  sintético `{phone}@driver.bora.app`) — o loop de fluxos de estafeta valida isto no 1.º ciclo.
 
 ## Bugs/sinais fora de escopo (reportar TODOS)
 1. 🔴 **44 crashes em 7 dias (5 ontem)** — risco Play Store; ordem #3 da missão de lançamento.

@@ -1,0 +1,48 @@
+# [2-DEVICES lado cliente] Pedido de mercado NÃO-parceiro, pagamento DINHEIRO (máx €40).
+# Pré-condições: login feito (subflow), endereço de entrega definido na conta de teste.
+# Marca [E2E-TESTE]: identificado pela conta de teste (cliente@bora.app) — limpeza por conta.
+appId: pt.boraapp.bora
+---
+- runFlow: login.yaml
+# ir à home (tab Início)
+- runFlow:
+    when:
+      visible: "Início"
+    commands:
+      - tapOn: "Início"
+- tapOn: "Supermercados"
+# escolher a primeira loja da lista (fallback: Continente)
+- runFlow:
+    when:
+      visible: "Continente.*"
+    commands:
+      - tapOn: "Continente.*"
+# adicionar o primeiro produto visível ao carrinho (o loop noturno afina este selector)
+- extendedWaitUntil:
+    visible: ".*€.*"
+    timeout: 15000
+- tapOn:
+    text: ".*€.*"
+    index: 0
+- runFlow:
+    when:
+      visible: "Adicionar.*"
+    commands:
+      - tapOn: "Adicionar.*"
+- back
+# abrir carrinho e finalizar
+- tapOn: ".*[Cc]arrinho.*"
+- extendedWaitUntil:
+    visible: "Finalizar pedido"
+    timeout: 15000
+- tapOn: "Finalizar pedido"
+# ecrã de pagamento: escolher Dinheiro e confirmar
+- extendedWaitUntil:
+    visible: ".*[Dd]inheiro.*"
+    timeout: 15000
+- tapOn: ".*[Dd]inheiro.*"
+- tapOn: "Confirmar pagamento"
+# resultado esperado: pedido criado (ecrã de pedidos/tracking)
+- extendedWaitUntil:
+    visible: ".*[Pp]edido.*"
+    timeout: 30000

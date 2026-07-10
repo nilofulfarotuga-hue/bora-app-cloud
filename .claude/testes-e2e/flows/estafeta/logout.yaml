@@ -1,0 +1,32 @@
+# Subflow: logout do estafeta de teste (single-device).
+# 1) garante OFFLINE (não deixar o estafeta de teste a receber ofertas reais)
+# 2) Perfil (ícone com tooltip "Perfil" na home do estafeta) → "Terminar sessão"
+# 3) espera o RoleScreen. limpar-dados-teste.py força offline no DB de qualquer forma.
+appId: pt.boraapp.bora
+---
+- repeat:
+    times: 4
+    while:
+      notVisible: "Perfil"
+    commands:
+      - back
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible: "Perfil"
+    timeout: 15000
+# ficar OFFLINE antes de sair (toggle mostra "Online" quando está online)
+- runFlow:
+    when:
+      visible: "Online"
+    commands:
+      - tapOn: "Online"
+- tapOn: "Perfil"
+- scrollUntilVisible:
+    element:
+      text: "Terminar sessão"
+- tapOn: "Terminar sessão"
+# resultado esperado: RoleScreen (botão "Sou Cliente")
+- extendedWaitUntil:
+    visible: "Sou Cliente"
+    timeout: 20000

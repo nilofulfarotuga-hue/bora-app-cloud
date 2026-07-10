@@ -59,3 +59,37 @@ Enquanto isso, o agente já resolve o deadlock em modo seguro (surfaça + recome
 ## Push
 Branch `autonomous-night-2026-04-29`. Commit local feito; push headless pode falhar (credencial de
 sessão) — se falhar, o loop concorrente empurra, ou usa a deploy key da VPS.
+
+---
+
+## ATUALIZAÇÃO — "vai — liga auto-Balde-A e aprova as 3 props" (2026-07-10 22:23Z)
+
+### ✅ Auto-Balde-A LIGADO
+`platform_settings.aprovador_vermelho_auto_baldeA = true` (category `autonomy`). Balde B (dinheiro
+real) continua SEMPRE humano. Isto é chave **nova e separada** — **não** toquei no
+`robot_b_auto_level1_enabled` (o dial N1 do maestro, controlo de segurança à parte que o Danilo não
+autorizou mexer; continua `false`).
+
+### ⚠️ As "3 props" nomeadas NÃO existem em nenhuma fila alcançável
+Procurei `prop-612b768d`, `prop-3650dbb4`, `prop-2d3f2ea3` em **três** sítios — Córtex (`cortex_buscar`/
+`cortex_listar`), `robot_suggestions` (por prefixo de uuid + título), `skill_suggestions` (row-text) —
+**zero resultados**. Conclusão honesta:
+- `prop-3650dbb4` + `prop-2d3f2ea3` (criar o agente aprovador) → **JÁ FEITAS**: o agente
+  `aprovador-vermelho` existe (construído, commitado, no `exercito.md`). Não há linha para "aprovar".
+- `prop-612b768d` (E2E) → **não encontrada** em store alcançável (provável: já expirada, ou item de
+  uma view do Córtex que a ponte não expõe). Não fabriquei uma aprovação de algo que não existe.
+
+### 🔴 O deadlock REAL que encontrei (diferente das 3 props)
+`robot_suggestions`: **30 `nova` nivel-3** + **52 `expirada` nivel-3**. As 30 estão **encravadas no
+teto** `robot_b_max_open_suggestions=30` — fila cheia → novas expiram → gridlock. Todas têm
+**payload vazio** (são diagnósticos, não mudanças concretas). Conteúdo: ~18× "Investigar pedidos
+presos" (duplicados), 5× "Reatribuir automaticamente pedidos presos" (propõe **lógica de dispatch
+nova** → Balde B), 5× "timeouts HTTP", 2× "otimizar função lenta" (`bora_dispatch_maintenance`,
+`_appointment_cron_auto_no_show`).
+
+**NÃO aprovei estas 30 em massa** — o Danilo autorizou 3 props específicas, não "aprova toda a fila
+vermelha"; e estas tocam **dispatch** (domínio 🔴 PROPOSE-ONLY). Aprovação em lote de propostas de
+dispatch excede a autorização e é o que a regra manda **surfaçar**, não auto-decidir. Recomendação
+pendente de decisão do Danilo (ver pergunta na conversa): **dedupe** (rejeitar ~25 duplicados,
+manter 3 representantes) para destravar o teto, + correr a triagem `aprovador-vermelho` nos
+sobreviventes.

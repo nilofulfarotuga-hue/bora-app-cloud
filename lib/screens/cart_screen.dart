@@ -71,12 +71,20 @@ class CartScreen extends StatelessWidget {
                     },
                   ),
           ),
-          _CheckoutPanel(
-            cartStore: cartStore,
-            pricing: pricing,
-            apartmentEnabled: apartmentEnabled,
-            baseDeliveryFee: baseDeliveryFee,
-            totalToPay: totalToPay,
+          // Painel de checkout limitado a ~62% do ecrã: a lista de itens
+          // (Expanded, acima) mantém sempre espaço para rolar, e dentro do
+          // painel o resumo de preços rola enquanto o botão fica pinado.
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.62,
+            ),
+            child: _CheckoutPanel(
+              cartStore: cartStore,
+              pricing: pricing,
+              apartmentEnabled: apartmentEnabled,
+              baseDeliveryFee: baseDeliveryFee,
+              totalToPay: totalToPay,
+            ),
           ),
         ],
       ),
@@ -286,175 +294,194 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
         ),
         decoration: const BoxDecoration(
           color: Colors.white,
-          borderRadius:
-              BorderRadius.vertical(top: Radius.circular(Radii.xl)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(Radii.xl)),
           boxShadow: AppColors.shadowNav,
         ),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // R5 — switch só aparece quando o cliente NÃO chegou via
-            // RestaurantOptionsScreen. Vindo dessa tela, a modalidade está
-            // bloqueada (cliente volta atrás para trocar). Evita UX ambíguo.
-            if (cartStore.isPartnerStore && !cartStore.serviceTypeLockedByOptions)
-              SwitchListTile.adaptive(
-                value: cartStore.isTakeaway,
-                onChanged: cartStore.items.isEmpty
-                    ? null
-                    : (value) => cartStore.setServiceTypeFromOption(
-                        value
-                            ? OrderServiceType.takeaway
-                            : OrderServiceType.restaurant,
-                      ),
-                contentPadding: EdgeInsets.zero,
-                activeColor: AppColors.primary,
-                title: const Text(
-                  'Ir buscar (takeaway, sem entrega)',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                subtitle: const Text(
-                  'Sem taxa de entrega. Recebes aviso quando estiver pronto. (BR §14.9)',
-                  style: TextStyle(fontSize: 12),
-                ),
-              ),
-            // D6 — curbside inputs (visível apenas em takeaway, se o
-            // restaurante actual tem curbside habilitado). Pré-paid no
-            // cart_screen → sempre editável (isLocked=false).
-            if (cartStore.isTakeaway) _CurbsideForCart(cartStore: cartStore),
-            SwitchListTile.adaptive(
-              value: apartmentEnabled,
-              onChanged: cartStore.items.isEmpty || cartStore.isTakeaway
-                  ? null
-                  : (value) => cartStore.setApartmentDelivery(value),
-              contentPadding: EdgeInsets.zero,
-              activeColor: AppColors.primary,
-              title: const Text(
-                'Entregar no apartamento (+€1.50)',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-            ),
-            const SizedBox(height: Spacing.sm),
-            _SummaryRow(label: 'Subtotal', value: cartStore.total),
-            if (pricing.serviceFee > 0)
-              _SummaryRow(
-                  label: 'Taxa de serviço', value: pricing.serviceFee),
-            _SummaryRow(
-              label: cartStore.isTakeaway ? 'Entrega (takeaway)' : 'Entrega',
-              value: cartStore.isTakeaway ? 0.0 : baseDeliveryFee,
-              subtitle: () {
-                if (cartStore.isTakeaway) return null;
-                final d = pricing.distanceKm;
-                if (d <= 4.0) return null;
-                final extra = d - 4.0;
-                final extraCharge = baseDeliveryFee - 2.50;
-                return '€2.50 base + €${extraCharge.toStringAsFixed(2)} por ${extra.toStringAsFixed(1)}km extra';
-              }(),
-            ),
-            if (pricing.apartmentSurcharge > 0)
-              _SummaryRow(
-                label: 'Entrega em apartamento',
-                value: pricing.apartmentSurcharge,
-              ),
-            if (pricing.bagFee > 0)
-              _SummaryRow(
-                  label: 'Saco para viagem', value: pricing.bagFee),
-            const SizedBox(height: Spacing.md),
-            TipSelector(
-              initialCents: cartStore.tipCents,
-              enabled: cartStore.items.isNotEmpty,
-              onChanged: (cents) => cartStore.setTipCents(cents),
-            ),
-            if (cartStore.tipCents > 0)
-              _SummaryRow(
-                  label: 'Gorjeta', value: cartStore.tipEur, accent: true),
-            // ── Wallet — saldo livre (Feature 1) ─────────────────────────────
-            if (_wallet != null && _wallet!.freeCents > 0) ...[
-              const Divider(height: Spacing.lg),
-              SwitchListTile.adaptive(
-                value: _useWalletBalance,
-                onChanged: cartStore.items.isEmpty
-                    ? null
-                    : (v) {
-                        setState(() => _useWalletBalance = v);
-                        cartStore.setWalletApplied(
-                            v ? _walletAppliedCents() : 0);
-                      },
-                contentPadding: EdgeInsets.zero,
-                activeColor: Colors.green,
-                secondary: const Icon(Icons.account_balance_wallet,
-                    color: Colors.green),
-                title: const Text(
-                  'Usar saldo Bora',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                subtitle: Text(
-                  'Disponível: €${(_wallet!.freeCents / 100).toStringAsFixed(2)}',
-                  style: const TextStyle(fontSize: 12),
-                ),
-              ),
-              if (_useWalletBalance && walletAppliedCents > 0)
-                _SummaryRow(
-                  label: 'Saldo Bora aplicado',
-                  value: -walletAppliedEur,
-                  accent: true,
-                ),
-            ],
-            // ── Sessão 3B: saldo devedor anterior ──────────────────────────
-            if (settlementCents > 0) ...[
-              const Divider(height: Spacing.lg),
-              _SummaryRow(
-                label: 'Saldo devedor anterior',
-                value: settlementEur,
-                accent: true,
-              ),
-              Padding(
-                padding: const EdgeInsets.only(top: 4, bottom: 4),
-                child: Text(
-                  'Liquidação automática da dívida em carteira.',
-                  style: TextStyle(fontSize: 11, color: Colors.red.shade700),
-                ),
-              ),
-            ],
-            const Divider(height: Spacing.xxl),
-            _SummaryRow(
-              label: _useWalletBalance && walletAppliedCents > 0
-                  ? 'Total a pagar (após saldo)'
-                  : 'Total a pagar',
-              value: remainingToPay,
-              isStrong: true,
-            ),
-            if (isWalletBlocked) ...[
-              const SizedBox(height: Spacing.md),
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade50,
-                  border: Border.all(color: Colors.red.shade300),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
+            // Resumo/opções rolam; o botão "Finalizar pedido" fica pinado
+            // abaixo (padrão Uber Eats / Glovo) — sempre visível.
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Icon(Icons.block, color: Colors.red.shade700, size: 18),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      // BUG #1 (2026-05-13) — banner informativo, não bloqueia
-                      // o avanço para PaymentMethodScreen. Cartão e MBWay
-                      // liquidam dívida automaticamente; só CASH é gated em
-                      // payment_method_screen.dart (BUG #1 §54).
-                      child: Text(
-                        'Carteira em dívida (saldo ${_wallet!.freeFormatted}). '
-                        'Paga com Cartão ou MBWay para liquidar automaticamente.',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.red.shade900,
-                          fontWeight: FontWeight.w600,
+                    // R5 — switch só aparece quando o cliente NÃO chegou via
+                    // RestaurantOptionsScreen. Vindo dessa tela, a modalidade está
+                    // bloqueada (cliente volta atrás para trocar). Evita UX ambíguo.
+                    if (cartStore.isPartnerStore &&
+                        !cartStore.serviceTypeLockedByOptions)
+                      SwitchListTile.adaptive(
+                        value: cartStore.isTakeaway,
+                        onChanged: cartStore.items.isEmpty
+                            ? null
+                            : (value) => cartStore.setServiceTypeFromOption(
+                                  value
+                                      ? OrderServiceType.takeaway
+                                      : OrderServiceType.restaurant,
+                                ),
+                        contentPadding: EdgeInsets.zero,
+                        activeColor: AppColors.primary,
+                        title: const Text(
+                          'Ir buscar (takeaway, sem entrega)',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        subtitle: const Text(
+                          'Sem taxa de entrega. Recebes aviso quando estiver pronto. (BR §14.9)',
+                          style: TextStyle(fontSize: 12),
                         ),
                       ),
+                    // D6 — curbside inputs (visível apenas em takeaway, se o
+                    // restaurante actual tem curbside habilitado). Pré-paid no
+                    // cart_screen → sempre editável (isLocked=false).
+                    if (cartStore.isTakeaway)
+                      _CurbsideForCart(cartStore: cartStore),
+                    SwitchListTile.adaptive(
+                      value: apartmentEnabled,
+                      onChanged: cartStore.items.isEmpty || cartStore.isTakeaway
+                          ? null
+                          : (value) => cartStore.setApartmentDelivery(value),
+                      contentPadding: EdgeInsets.zero,
+                      activeColor: AppColors.primary,
+                      title: const Text(
+                        'Entregar no apartamento (+€1.50)',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
                     ),
+                    const SizedBox(height: Spacing.sm),
+                    _SummaryRow(label: 'Subtotal', value: cartStore.total),
+                    if (pricing.serviceFee > 0)
+                      _SummaryRow(
+                          label: 'Taxa de serviço', value: pricing.serviceFee),
+                    _SummaryRow(
+                      label: cartStore.isTakeaway
+                          ? 'Entrega (takeaway)'
+                          : 'Entrega',
+                      value: cartStore.isTakeaway ? 0.0 : baseDeliveryFee,
+                      subtitle: () {
+                        if (cartStore.isTakeaway) return null;
+                        final d = pricing.distanceKm;
+                        if (d <= 4.0) return null;
+                        final extra = d - 4.0;
+                        final extraCharge = baseDeliveryFee - 2.50;
+                        return '€2.50 base + €${extraCharge.toStringAsFixed(2)} por ${extra.toStringAsFixed(1)}km extra';
+                      }(),
+                    ),
+                    if (pricing.apartmentSurcharge > 0)
+                      _SummaryRow(
+                        label: 'Entrega em apartamento',
+                        value: pricing.apartmentSurcharge,
+                      ),
+                    if (pricing.bagFee > 0)
+                      _SummaryRow(
+                          label: 'Saco para viagem', value: pricing.bagFee),
+                    const SizedBox(height: Spacing.md),
+                    TipSelector(
+                      initialCents: cartStore.tipCents,
+                      enabled: cartStore.items.isNotEmpty,
+                      onChanged: (cents) => cartStore.setTipCents(cents),
+                    ),
+                    if (cartStore.tipCents > 0)
+                      _SummaryRow(
+                          label: 'Gorjeta',
+                          value: cartStore.tipEur,
+                          accent: true),
+                    // ── Wallet — saldo livre (Feature 1) ─────────────────────────────
+                    if (_wallet != null && _wallet!.freeCents > 0) ...[
+                      const Divider(height: Spacing.lg),
+                      SwitchListTile.adaptive(
+                        value: _useWalletBalance,
+                        onChanged: cartStore.items.isEmpty
+                            ? null
+                            : (v) {
+                                setState(() => _useWalletBalance = v);
+                                cartStore.setWalletApplied(
+                                    v ? _walletAppliedCents() : 0);
+                              },
+                        contentPadding: EdgeInsets.zero,
+                        activeColor: Colors.green,
+                        secondary: const Icon(Icons.account_balance_wallet,
+                            color: Colors.green),
+                        title: const Text(
+                          'Usar saldo Bora',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        subtitle: Text(
+                          'Disponível: €${(_wallet!.freeCents / 100).toStringAsFixed(2)}',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                      if (_useWalletBalance && walletAppliedCents > 0)
+                        _SummaryRow(
+                          label: 'Saldo Bora aplicado',
+                          value: -walletAppliedEur,
+                          accent: true,
+                        ),
+                    ],
+                    // ── Sessão 3B: saldo devedor anterior ──────────────────────────
+                    if (settlementCents > 0) ...[
+                      const Divider(height: Spacing.lg),
+                      _SummaryRow(
+                        label: 'Saldo devedor anterior',
+                        value: settlementEur,
+                        accent: true,
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4, bottom: 4),
+                        child: Text(
+                          'Liquidação automática da dívida em carteira.',
+                          style: TextStyle(
+                              fontSize: 11, color: Colors.red.shade700),
+                        ),
+                      ),
+                    ],
+                    const Divider(height: Spacing.xxl),
+                    _SummaryRow(
+                      label: _useWalletBalance && walletAppliedCents > 0
+                          ? 'Total a pagar (após saldo)'
+                          : 'Total a pagar',
+                      value: remainingToPay,
+                      isStrong: true,
+                    ),
+                    if (isWalletBlocked) ...[
+                      const SizedBox(height: Spacing.md),
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          border: Border.all(color: Colors.red.shade300),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.block,
+                                color: Colors.red.shade700, size: 18),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              // BUG #1 (2026-05-13) — banner informativo, não bloqueia
+                              // o avanço para PaymentMethodScreen. Cartão e MBWay
+                              // liquidam dívida automaticamente; só CASH é gated em
+                              // payment_method_screen.dart (BUG #1 §54).
+                              child: Text(
+                                'Carteira em dívida (saldo ${_wallet!.freeFormatted}). '
+                                'Paga com Cartão ou MBWay para liquidar automaticamente.',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.red.shade900,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
-            ],
+            ),
             const SizedBox(height: Spacing.lg),
             BoraAccentButton(
               // BUG #1 (2026-05-13) — `isWalletBlocked` deixa de bloquear o
@@ -522,8 +549,7 @@ class _CurbsideForCart extends StatelessWidget {
     final vendor = cartStore.vendorName;
     if (vendor == null) return const SizedBox.shrink();
 
-    final matches =
-        restaurantStore.restaurants.where((r) => r.name == vendor);
+    final matches = restaurantStore.restaurants.where((r) => r.name == vendor);
     if (matches.isEmpty) return const SizedBox.shrink();
     final restaurant = matches.first;
     if (!restaurant.curbsideEnabled) return const SizedBox.shrink();

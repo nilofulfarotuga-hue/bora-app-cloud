@@ -11,6 +11,7 @@ import '../models/product_variant.dart';
 import '../services/pricing_service.dart';
 import '../stores/cart_store.dart';
 import '../stores/restaurant_store.dart';
+import '../utils/cart_feedback.dart';
 import '../widgets/bora/bora_accent_button.dart';
 import '../widgets/bora/bora_primary_button.dart';
 import 'cart_screen.dart';
@@ -104,19 +105,18 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     return 'Escolhe até ${g.maxChoices}';
   }
 
+  // Confirmação compacta e não-bloqueante (padrão Uber Eats / Glovo) — o
+  // mesmo snack verde de uma linha usado no menu e nas lojas. Tocar só
+  // adiciona; a acção "Ver" leva ao carrinho, sem navegar automaticamente.
   void _snack(String msg) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(msg),
-          duration: const Duration(milliseconds: 1200),
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16),
-          dismissDirection: DismissDirection.horizontal,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ),
-      );
+    showAddedToCartSnack(
+      context,
+      msg,
+      onView: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const CartScreen()),
+      ),
+    );
   }
 
   // Sessão 4C: ProductVariant.id é UUID válido — usar directamente.

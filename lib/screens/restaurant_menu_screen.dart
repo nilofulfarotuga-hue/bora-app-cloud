@@ -19,6 +19,7 @@ import '../services/pricing_service.dart';
 import '../stores/cart_store.dart';
 import '../stores/favorite_store.dart';
 import '../stores/restaurant_store.dart';
+import '../utils/cart_feedback.dart';
 import '../widgets/bora/bora.dart';
 import '../widgets/bora_support_fab.dart';
 import 'cart_screen.dart';
@@ -260,26 +261,14 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
               product.price, widget.restaurant.isPartner),
           basePrice: product.price,
         ));
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text('${product.name} adicionado ao carrinho'),
-          duration: const Duration(milliseconds: 1200),
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16),
-          dismissDirection: DismissDirection.horizontal,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          action: SnackBarAction(
-            label: 'Ver',
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const CartScreen()),
-            ),
-          ),
-        ),
-      );
+    showAddedToCartSnack(
+      context,
+      '${product.name} no carrinho',
+      onView: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const CartScreen()),
+      ),
+    );
   }
 
   Widget _buildGlovoMenu(
@@ -587,22 +576,15 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
                                               item.price,
                                               widget.restaurant.isPartner),
                                           basePrice: item.price));
-                                  ScaffoldMessenger.of(context)
-                                    ..hideCurrentSnackBar()
-                                    ..showSnackBar(SnackBar(
-                                      content: Text(
-                                          '${item.name} adicionado ao carrinho'),
-                                      duration:
-                                          const Duration(milliseconds: 1200),
-                                      behavior: SnackBarBehavior.floating,
-                                      margin: const EdgeInsets.only(
-                                          bottom: 80, left: 16, right: 16),
-                                      dismissDirection:
-                                          DismissDirection.horizontal,
-                                      shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(10)),
-                                    ));
+                                  showAddedToCartSnack(
+                                    context,
+                                    '${item.name} no carrinho',
+                                    onView: () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: (_) => const CartScreen()),
+                                    ),
+                                  );
                                 },
                               ),
                             );
@@ -1176,26 +1158,14 @@ class _SectionProductsScreen extends StatelessWidget {
                 product.price, restaurant.isPartner),
             basePrice: product.price,
           ));
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(
-            content: Text('${product.name} adicionado ao carrinho'),
-            duration: const Duration(milliseconds: 1200),
-            behavior: SnackBarBehavior.floating,
-            margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16),
-            dismissDirection: DismissDirection.horizontal,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            action: SnackBarAction(
-              label: 'Ver',
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const CartScreen()),
-              ),
-            ),
-          ),
-        );
+      showAddedToCartSnack(
+        context,
+        '${product.name} no carrinho',
+        onView: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const CartScreen()),
+        ),
+      );
     }
 
     return Scaffold(

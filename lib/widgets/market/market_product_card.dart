@@ -9,6 +9,7 @@ import '../../screens/product_detail_screen.dart';
 import '../../services/pricing_service.dart';
 import '../../stores/cart_store.dart';
 import '../../stores/restaurant_store.dart';
+import '../../utils/cart_feedback.dart';
 
 /// Card horizontal estilo Glovo para secções de produtos no interior do mercado.
 /// Largura fixa ~160px, altura ~220px — adequado para scroll horizontal.
@@ -57,13 +58,7 @@ class MarketProductCard extends StatelessWidget {
           basePrice: product.price,
           quantity: 1,
         ));
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        content: Text('${product.name} adicionado'),
-        duration: const Duration(milliseconds: 1200),
-        behavior: SnackBarBehavior.floating,
-      ));
+    showAddedToCartSnack(context, '${product.name} no carrinho');
   }
 
   @override

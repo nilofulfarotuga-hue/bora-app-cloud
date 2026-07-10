@@ -20,6 +20,7 @@ import '../models/saved_card.dart';
 import '../services/payment_service.dart';
 import '../widgets/bora/bora_primary_button.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
+import '../widgets/customer_note_field.dart';
 
 class PaymentMethodScreen extends StatefulWidget {
   const PaymentMethodScreen({super.key});
@@ -479,40 +480,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                 ),
                 const SizedBox(height: 24),
                 // C1 — nota opcional para o estafeta (liga ao customerNotes).
-                Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.card,
-                    borderRadius: BorderRadius.circular(Radii.lg),
-                    boxShadow: AppColors.shadowCard,
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Nota para o estafeta (opcional)',
-                          style:
-                              Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                        ),
-                        const SizedBox(height: 8),
-                        TextField(
-                          controller: _notesController,
-                          maxLines: 2,
-                          maxLength: 200,
-                          textInputAction: TextInputAction.done,
-                          decoration: const InputDecoration(
-                            hintText:
-                                'Ex.: deixar na portaria, não tocar à campainha',
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+                CustomerNoteField(controller: _notesController),
                 const SizedBox(height: 24),
                 Text(
                   'Escolha o método de pagamento',

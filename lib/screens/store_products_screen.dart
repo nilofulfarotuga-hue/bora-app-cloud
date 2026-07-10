@@ -11,6 +11,7 @@ import '../services/pricing_service.dart';
 import '../stores/cart_store.dart';
 import '../stores/favorite_store.dart';
 import '../stores/restaurant_store.dart';
+import '../utils/cart_feedback.dart';
 import '../widgets/bora/bora_product_card.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora_support_fab.dart';
@@ -899,20 +900,7 @@ class _BoraProductCardTile extends StatelessWidget {
               price: PricingService.applyMarkup(product.price, isPartnerStore),
               basePrice: product.price,
             ));
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(
-            SnackBar(
-              content: Text('${product.name} adicionado ao carrinho'),
-              duration: const Duration(milliseconds: 1200),
-              behavior: SnackBarBehavior.floating,
-              margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16),
-              dismissDirection: DismissDirection.horizontal,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-          );
+        showAddedToCartSnack(context, '${product.name} no carrinho');
       },
     );
   }
@@ -1100,21 +1088,8 @@ class _ProductCardState extends State<_ProductCard>
                                     widget.isPartnerStore),
                                 basePrice: widget.product.price,
                               ));
-                          ScaffoldMessenger.of(context)
-                            ..hideCurrentSnackBar()
-                            ..showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                    '${widget.product.name} adicionado ao carrinho'),
-                                duration: const Duration(milliseconds: 1200),
-                                behavior: SnackBarBehavior.floating,
-                                margin: const EdgeInsets.only(
-                                    bottom: 80, left: 16, right: 16),
-                                dismissDirection: DismissDirection.horizontal,
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10)),
-                              ),
-                            );
+                          showAddedToCartSnack(
+                              context, '${widget.product.name} no carrinho');
                         },
                       ),
                     ],
@@ -1188,24 +1163,12 @@ class _VariantMiniCard extends StatelessWidget {
           price: PricingService.applyMarkup(variant.price, isPartnerStore),
           basePrice: variant.price,
         ));
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text('${variant.brandName} adicionado ao carrinho'),
-          duration: const Duration(milliseconds: 1200),
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16),
-          dismissDirection: DismissDirection.horizontal,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          action: SnackBarAction(
-            label: 'Ver',
-            onPressed: () => Navigator.push(
-                context, MaterialPageRoute(builder: (_) => const CartScreen())),
-          ),
-        ),
-      );
+    showAddedToCartSnack(
+      context,
+      '${variant.brandName} no carrinho',
+      onView: () => Navigator.push(
+          context, MaterialPageRoute(builder: (_) => const CartScreen())),
+    );
   }
 
   @override

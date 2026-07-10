@@ -107,6 +107,30 @@ function stripControlChars(s: string): string {
   return out;
 }
 
+// Quando o bot escala (não conseguiu resolver a pergunta), oferece SEMPRE de
+// forma explícita os canais humanos reais (WhatsApp + email das settings) na
+// própria resposta — antes de o cliente ficar só com um ticket aberto sem
+// resposta imediata. Não duplica se o número/email já constarem do texto.
+function appendContactOptions(text: string, settings: SupportSettings): string {
+  const wa = (settings.whatsapp_number ?? '').trim();
+  const email = (settings.support_email ?? '').trim();
+  if (!wa && !email) return text;
+  const already =
+    (wa.length > 0 && text.includes(wa)) ||
+    (email.length > 0 && text.includes(email));
+  if (already) return text;
+  const parts: string[] = [];
+  if (wa) parts.push(`WhatsApp ${wa}`);
+  if (email) parts.push(`email ${email}`);
+  const opts = parts.join(' ou ');
+  const base = text.trim();
+  return (
+    `${base}${base.length > 0 ? '\n\n' : ''}` +
+    `Se preferires falar já com uma pessoa: ${opts}. ` +
+    `Também vou abrir um pedido de atendimento para a equipa te responder.`
+  );
+}
+
 function sanitizeMessage(input: string, maxChars: number): { ok: boolean; out?: string; err?: string } {
   if (typeof input !== 'string') return { ok: false, err: 'message must be string' };
   const cleaned = stripControlChars(input);
@@ -416,7 +440,11 @@ function buildSystemPrompt(
     '   Podes citar as regras acima, mas o valor exacto vem das tools agent_get_refund_status / agent_get_user_wallet_summary.',
     '#2: NUNCA inventas valores, IDs, nomes de RPC, colunas ou comportamento — usa tools.',
     '#3: Respostas curtas (<=3 frases) excepto explicacao tecnica necessaria.',
-    '#4: Em duvida ou queixa seria, marca [HANDOFF_HUMAN] no fim.',
+    '#4: SEMPRE que nao consegues resolver (dizes "nao sei" / "nao consigo ajudar" / ',
+    '   "nao tenho como fazer isso" / "vais ter de contactar a equipa"), ou em duvida ou ',
+    '   queixa seria, marca [HANDOFF_HUMAN] no fim OBRIGATORIAMENTE. Isso faz-te oferecer ',
+    '   automaticamente WhatsApp/email ao cliente E abrir atendimento humano na mesma resposta. ',
+    '   NUNCA deixes o cliente sem saida nem com um pedido aberto sem resposta imediata.',
     '',
     '═══ O QUE NUNCA FAZES (sempre escalar humano) ═══',
     '- Disputas entre cliente/driver/parceiro.',
@@ -989,6 +1017,11 @@ Deno.serve(async (req: Request) => {
   if (finalText.includes('[HANDOFF_HUMAN]')) {
     escalated = true;
     finalText = finalText.replace('[HANDOFF_HUMAN]', '').trim();
+  }
+  // Escala = bot não resolveu → oferece canais humanos reais na resposta ANTES
+  // de o ticket ficar aberto sem resposta (WhatsApp/email vindos das settings).
+  if (escalated) {
+    finalText = appendContactOptions(finalText, settings);
   }
 
   {

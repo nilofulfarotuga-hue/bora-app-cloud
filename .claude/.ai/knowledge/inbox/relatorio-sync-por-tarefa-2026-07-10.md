@@ -61,11 +61,21 @@ os três masters foram **deployados** do repo para o host (backups `*.bak_202607
 `sync-brain fast=3 · carteiro sync_espelho=2 · bridge cortex-sync=1` ✅.
 
 ## Teste real (ciclo medido, 2026-07-10)
-Com os masters já live: (1) invocação directa do `sync-brain.sh fast` no container correu pelo
-caminho `merge --ff-only` sem tocar a fila `orquestracao/`; (2) este próprio relatório foi commitado
-e `push origin autonomous-night-2026-04-29` → o `pre-push` disparou o `fast` na VPS → o espelho
-`/opt/data/cortex-brain` refletiu o novo HEAD em segundos. Cegueira resolvida **em produção**: o
-Claude.ai/Hermes veem conteúdo novo em segundos, não no dia seguinte.
+Com os três masters já live, empurrei um commit real (este relatório) e medi o ciclo:
+1. **Push:** o `git push` https do PC do executor **falha headless** (`wincredman` pede sessão
+   interactiva — ver `project_headless_push_credential`). Contornado pelo **deploy key SSH RW**:
+   o commit exacto (`8676ca9`, via `git bundle` → push de dentro do container) chegou ao origin
+   **sem SHA divergente**. `origin HEAD = 8676ca9` confirmado.
+2. **Sync por-tarefa:** invoquei o `sync-brain.sh fast` como o carteiro faz. O espelho é um clone
+   **`--depth 1` (shallow)**, por isso o `merge --ff-only` dá `fatal: refusing to merge unrelated
+   histories` — o **fallback do script** entra e refresca `.claude/.ai/knowledge/` (o conteúdo que
+   o MCP/Claude.ai realmente lê). Medido: **~1 s**, a frase nova do relatório já visível no espelho.
+   A fila `orquestracao/` ficou **intacta (41→41)**.
+
+**Resultado.** Cegueira resolvida **em produção ao nível do CONTEÚDO**: o Claude.ai/Hermes veem o
+knowledge/ novo em segundos, não no dia seguinte. O **HEAD** do espelho não avança no `fast` (artefacto
+do shallow) — reconciliado pelo **cron 06h30** (`reset --hard`). Como todo o Córtex vive sob
+`.claude/.ai/knowledge/`, o fallback cobre 100% do que o MCP lê.
 
 ## Decisão de segurança (raiz de um bug latente)
 O `reset --hard` noturno DESCARTA edições locais não commitadas — o estado terminal de uma ordem
@@ -78,3 +88,11 @@ o modo `fast` usa `merge --ff-only` (preserva) e não `reset --hard`.
   webhook GitHub → VPS fica como melhoria futura (proposta, não construída).
 - Divergência real (commits locais no espelho vs remote) → o `ff-only` salta e o cron resolve;
   se um dia o carteiro precisar de freshness com árvore suja, avaliar `stash`/`pop`.
+- **Espelho é shallow (`--depth 1`)** → o `merge --ff-only` do `fast` dá SEMPRE "unrelated
+  histories" e cai no fallback (checkout de `knowledge/`). Funciona para o conteúdo (é o que o MCP
+  lê), mas o HEAD do espelho só avança no cron. Melhoria futura (opcional): clonar full ou
+  `git fetch --unshallow` uma vez para o `ff-only` avançar o HEAD limpo. Não feito (mantém simples;
+  o conteúdo — o requisito — já reflecte em segundos).
+- **Push headless:** o executor no PC não faz `git push` https (wincredman precisa sessão). O push
+  por-tarefa real vai pelo **deploy key SSH** de dentro do container (bundle preserva o SHA). Ver
+  `project_headless_push_credential`.

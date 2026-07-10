@@ -6,6 +6,8 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+
+import '../../utils/safe_image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -138,8 +140,7 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
       ),
     );
     if (source == null || !mounted) return;
-    final picker = ImagePicker();
-    final file = await picker.pickImage(
+    final file = await SafeImagePicker.pickImage(
       source: source,
       imageQuality: 85,
       maxWidth: 1200,
@@ -258,8 +259,7 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
       ),
     );
     if (source == null || !mounted) return;
-    final picker = ImagePicker();
-    final file = await picker.pickImage(
+    final file = await SafeImagePicker.pickImage(
       source: source,
       imageQuality: 85,
       maxWidth: 1200,

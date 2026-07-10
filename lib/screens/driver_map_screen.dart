@@ -4,6 +4,8 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:image_picker/image_picker.dart';
+
+import '../utils/safe_image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../services/receipt_upload_service.dart';
@@ -3392,8 +3394,7 @@ class _ReceiptCaptureSheetState extends State<_ReceiptCaptureSheet> {
 
   Future<void> _takePhoto() async {
     try {
-      final picker = ImagePicker();
-      final picked = await picker.pickImage(
+      final picked = await SafeImagePicker.pickImage(
         source: ImageSource.camera, // Decisão G — só câmara
         preferredCameraDevice: CameraDevice.rear,
         imageQuality: 80,

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../services/order_photo_upload_service.dart';
+import '../utils/safe_image_picker.dart';
 
 /// Reusable mandatory photo picker used by sendPackage and carryGroceries
 /// forms (BR §7.5, §7.6).
@@ -30,14 +31,13 @@ class MandatoryPhotoPicker extends StatefulWidget {
 }
 
 class _MandatoryPhotoPickerState extends State<MandatoryPhotoPicker> {
-  final _picker = ImagePicker();
   XFile? _local;
   bool _uploading = false;
   String? _uploadedUrl;
 
   Future<void> _pick(ImageSource source) async {
     try {
-      final picked = await _picker.pickImage(
+      final picked = await SafeImagePicker.pickImage(
         source: source,
         maxWidth: 1600,
         imageQuality: 85,

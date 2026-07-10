@@ -12,6 +12,7 @@ import '../../config/maps_config.dart';
 import '../../services/cleaner_upload_service.dart';
 import '../../services/place_autocomplete_service.dart';
 import '../../stores/cleaner_store.dart';
+import '../../utils/safe_image_picker.dart';
 import '../../widgets/address_autocomplete_field.dart';
 import '../../widgets/bora/bora.dart';
 
@@ -40,7 +41,6 @@ class _CleanerApplyScreenState extends State<CleanerApplyScreen> {
   double _radiusKm = 10;
   ll.LatLng? _baseCoords; // geocoding da zona base (matching por distância)
 
-  final _picker = ImagePicker();
   XFile? _photo;
   XFile? _idDoc;
   bool _uploading = false;
@@ -88,7 +88,7 @@ class _CleanerApplyScreenState extends State<CleanerApplyScreen> {
     if (_isPicking) return;
     _isPicking = true;
     try {
-      final x = await _picker.pickImage(
+      final x = await SafeImagePicker.pickImage(
         source: ImageSource.gallery,
         maxWidth: 1400,
         imageQuality: 85,

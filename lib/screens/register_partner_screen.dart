@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+
+import '../utils/safe_image_picker.dart';
 import 'package:latlong2/latlong.dart' as ll;
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -54,7 +56,6 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
   // Step 4: Logo/Confirmação
   XFile? _logoFile;
 
-  final _imagePicker = ImagePicker();
   int _currentStep = 0;
   bool _isSubmitting = false;
 
@@ -68,7 +69,7 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
   }
 
   Future<void> _recoverLostImage() async {
-    final lost = await _imagePicker.retrieveLostData();
+    final lost = await SafeImagePicker.retrieveLostData();
     if (lost.isEmpty || !mounted) return;
     final file = lost.file;
     if (file == null) return;
@@ -156,7 +157,7 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
 
   Future<void> _pickDocument(bool isOwnerDoc) async {
     try {
-      final picked = await _imagePicker.pickImage(
+      final picked = await SafeImagePicker.pickImage(
         source: ImageSource.gallery,
         maxWidth: 1200,
         imageQuality: 85,
@@ -181,7 +182,7 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
 
   Future<void> _pickLogo(ImageSource source) async {
     try {
-      final picked = await _imagePicker.pickImage(
+      final picked = await SafeImagePicker.pickImage(
         source: source,
         maxWidth: 1200,
         imageQuality: 85,

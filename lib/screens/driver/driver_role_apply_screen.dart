@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+
+import '../../utils/safe_image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
@@ -36,7 +38,6 @@ class _DriverRoleApplyScreenState extends State<DriverRoleApplyScreen> {
   };
   String _vehicleType = 'motorcycle';
 
-  final _picker = ImagePicker();
   XFile? _idDoc;
   XFile? _selfie;
   bool _busy = false;
@@ -61,7 +62,7 @@ class _DriverRoleApplyScreenState extends State<DriverRoleApplyScreen> {
   }
 
   Future<void> _pick(bool isDoc) async {
-    final x = await _picker.pickImage(
+    final x = await SafeImagePicker.pickImage(
         source: ImageSource.gallery, maxWidth: 1400, imageQuality: 85);
     if (x == null) return;
     setState(() {

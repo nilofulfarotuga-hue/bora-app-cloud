@@ -6,6 +6,8 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
+
+import '../utils/safe_image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -42,8 +44,6 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  final _imagePicker = ImagePicker();
-
   String? _photoUrl;
   XFile? _localPreview;
   bool _isUploading = false;
@@ -265,7 +265,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     XFile? picked;
     try {
-      picked = await _imagePicker.pickImage(
+      picked = await SafeImagePicker.pickImage(
         source: chosen,
         maxWidth: 1200,
         imageQuality: 85,

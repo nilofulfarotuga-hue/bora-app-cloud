@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+
+import '../utils/safe_image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -104,7 +106,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
   Future<void> _takePhoto() async {
     try {
-      final photo = await ImagePicker().pickImage(
+      final photo = await SafeImagePicker.pickImage(
         source: ImageSource.camera,
         maxWidth: 1200,
         imageQuality: 85,
@@ -129,7 +131,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
   Future<void> _pickFromGallery() async {
     try {
-      final photo = await ImagePicker().pickImage(
+      final photo = await SafeImagePicker.pickImage(
         source: ImageSource.gallery,
         maxWidth: 1200,
         imageQuality: 85,

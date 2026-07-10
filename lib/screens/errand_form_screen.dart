@@ -15,6 +15,8 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+
+import '../utils/safe_image_picker.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
@@ -319,8 +321,8 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
       ),
     );
     if (src == null) return;
-    final x =
-        await ImagePicker().pickImage(source: src, imageQuality: 70, maxWidth: 1200);
+    final x = await SafeImagePicker.pickImage(
+        source: src, imageQuality: 70, maxWidth: 1200);
     if (x == null) return;
     final file = File(x.path);
     setState(() {

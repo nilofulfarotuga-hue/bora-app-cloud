@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+
+import '../utils/safe_image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -62,8 +64,6 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
   bool _isProcessing = false;
   int _currentStep = 0;
 
-  final _imagePicker = ImagePicker();
-
   static const _kDraftKey = 'bora_app.signup_draft.driver';
 
   @override
@@ -92,7 +92,7 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
   }
 
   Future<void> _recoverLostImage() async {
-    final lost = await _imagePicker.retrieveLostData();
+    final lost = await SafeImagePicker.retrieveLostData();
     if (lost.isEmpty || !mounted) return;
     final file = lost.file;
     if (file == null) return;
@@ -192,7 +192,7 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
     required void Function(XFile) onPicked,
   }) async {
     try {
-      final picked = await _imagePicker.pickImage(
+      final picked = await SafeImagePicker.pickImage(
         source: source,
         maxWidth: 1200,
         imageQuality: 85,

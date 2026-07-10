@@ -93,3 +93,23 @@ dispatch excede a autorização e é o que a regra manda **surfaçar**, não aut
 pendente de decisão do Danilo (ver pergunta na conversa): **dedupe** (rejeitar ~25 duplicados,
 manter 3 representantes) para destravar o teto, + correr a triagem `aprovador-vermelho` nos
 sobreviventes.
+
+### ✅ EXECUTADO — Danilo escolheu "Dedupe + triagem" (2026-07-10)
+**Dedupe:** rejeitei **24 duplicados exatos de título** (18× "pedidos presos" + 4× "reatribuir" +
+2× "timeouts"), mantendo o representante **mais recente** de cada título. Fila `nova` N3: **30 → 6**
+(24 slots livres no teto de 30 → **destravado**). Feito por UPDATE direto (o RPC
+`robot_reject_suggestion` exige JWT admin que o MCP não tem) espelhando o efeito do RPC +
+`motivo_rejeicao` + `reviewed_at`. Auditoria: `log_admin_action('robot_dedupe_suggestions', …)` →
+`admin_logs` (rejeitados=24, mantidos=6, autorizado_por=Danilo).
+
+**Triagem dos 6 sobreviventes (todos payload-vazio):** **0 auto-aprovados; 6 → Balde B** (surfaçados
+ao Danilo). Nenhum é leitura-pura provável — todos tocam dispatch (🔴 PROPOSE-ONLY), agendamentos
+(€3 pré-pago) ou timeouts HTTP de origem não verificada. Por "prova positiva obrigatória; dúvida →
+Balde B", ficam `nova` para toque humano:
+- `9996b1fe` Reatribuir pedidos presos (propõe lógica dispatch) · `e8aabbcd` Investigar pedidos presos
+- `268aad47` Otimizar `bora_dispatch_maintenance` · `abeca5d7` Otimizar `_appointment_cron_auto_no_show`
+- `d7accff0` + `51401355` Timeouts HTTP recorrentes (investigar/otimizar)
+
+O flag auto-Balde-A fica **armado** para itens genuinamente de leitura-pura em rondas futuras
+(este lote não tinha nenhum). Furo dos 52 N3 expirados: eram do mesmo padrão (deadlock histórico);
+ficam como estão (expirados não ocupam teto).

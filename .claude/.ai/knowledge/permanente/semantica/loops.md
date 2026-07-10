@@ -43,6 +43,13 @@ confianca: verificado
 | 🟣 | **Watchdog Hermes** | loops morrem em silêncio | tempo-até-deteção | cron host 2h/2h | todos os loops | alerta certo na cor certa; NUNCA age | fila+logs+recursos → alerta Telegram | 1 | Hermes(host) |
 | ⚫ | **missao-lancamento-play-store** | lançar na Play Store | critérios da missão | Mission Engine (uma ordem de cada vez) | Danilo | critério de conclusão da página da missão | `orquestracao/missao-*.md` → ordens | 1 | `maestro-autonomia` |
 
+> **Orquestração (carteiro) — nota de robustez (2026-07-10).** O executor usa `--output-format text`,
+> que só emite no FIM. Se a tarefa não terminar dentro do `timeout` do carteiro, o kill devolve **0 bytes**
+> — indistinguível de "ponte morta", e a ordem entra em ciclo `aberta→…→travada` em silêncio. Fix:
+> `timeout 320→900s`, `--max-turns 20→40`, `--max-budget-usd 5→10`, e log **`SAIDA VAZIA`** no carteiro
+> para separar "tarefa não acabou (timeout)" de "transporte partido". Diagnóstico: `respondida` ~Xs
+> exactos após `executando` = timeout, não ponte. Ver `wiki/licoes/ponte-loop-nao-devolve-output.md`.
+
 ## Loop Economy (ROI por loop)
 A telemetria de cada loop ganha, além de sucesso/falha, o par:
 - **`custo_acumulado`** (€ de IA) — heurística lite: `tokens ≈ caracteres/4` (entrada+saída da

@@ -4,7 +4,9 @@ chcp 65001 >NUL
 REM ===========================================================================
 REM  PONTE BORA :: EXECUTOR do loop de orquestração (carteiro -> pc-loop -> aqui)
 REM  Isolado do run-claude.cmd partilhado. Tetos T2/T4 do loop vivem AQUI.
-REM  - T2 custo: --max-turns 20 + --max-budget-usd 5 (teto por tentativa)
+REM  - T2 custo: --max-turns 40 + --max-budget-usd 10 (teto por tentativa)
+REM    (subido 2026-07-10: com 20/5 as tarefas pesadas nao terminavam dentro do
+REM     timeout 320s da carteiro -> --output-format text so emite no fim -> saida VAZIA)
 REM  - T3 zona vermelha: os hooks protege-*.sh disparam mesmo com skip-permissions
 REM    (verificado). O guard abaixo reforça (soft). Sem commit/push automático.
 REM ===========================================================================
@@ -15,8 +17,8 @@ if not exist "%CLAUDE_EXE%" ( echo [loop] ERRO: claude.exe nao encontrado & exit
 
 set "PERM=--dangerously-skip-permissions"
 set "MODEL=--model opus"
-set "BUDGET=--max-budget-usd 5"
-set "TURNS=--max-turns 20"
+set "BUDGET=--max-budget-usd 10"
+set "TURNS=--max-turns 40"
 
 set "GUARD=Estas a correr como EXECUTOR de um loop autonomo do Bora (headless, sem canal com o Danilo). Faz a tarefa toda sozinho, decisoes REVERSIVEIS por conta propria. NUNCA faças git commit nem git push (a menos que a tarefa peça explicitamente). PARA e responde SO com uma linha 'CONFIRMACAO NECESSARIA: <o que>' se a tarefa tocar Lista Vermelha (Stripe/pagamentos/payouts/pricing/dispatch_engine/finalizePurchase/bora_tokens/RLS de orders-wallets-ledger/migrations destrutivas/force-push/disparos em massa/builds de producao). Nunca imprimas segredos. No fim devolve RESULTADO conciso PT-BR: o que fizeste + ficheiros tocados."
 

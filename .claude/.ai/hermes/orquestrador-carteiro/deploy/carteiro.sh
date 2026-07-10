@@ -17,9 +17,12 @@ get(){ grep -E "^$1:" "$2" 2>/dev/null | head -1 | sed "s/^$1: *//" | tr -d '\r'
 setf(){ if grep -qE "^$1:" "$3"; then sed -i "s|^$1:.*|$1: $2|" "$3"; else echo "$1: $2" >> "$3"; fi; }
 notify(){ docker exec -u hermes "$C" hermes send -t telegram "$1" >/dev/null 2>&1 || log "notify(best-effort) falhou"; }
 clean(){ grep -vE '^\[ponte\]|^\[loop\]|^\[juiz\]|Permission deny rule|matches no known tool' ; }
+# sync por-tarefa: após o executor fazer push, refresca o espelho para o Claude.ai o ver em segundos
+# (modo fast = merge --ff-only, PRESERVA a fila local; a cegueira era esperar o cron das 06h30).
+sync_espelho(){ docker exec -u hermes -e HOME=/opt/data -i "$C" sh -s fast < /root/cortex-mcp/sync-brain.sh >> "$LOG" 2>&1 && log "espelho sincronizado (fast)" || log "sync espelho (best-effort) falhou"; }
 
 pc_exec(){ printf '%s' "$1" > "$HOSTDATA/orq_task.txt"
-  docker exec -u hermes "$C" sh -lc 'export PATH=/opt/data/.local/bin:$PATH; timeout 320 pc-loop "$(cat /opt/data/orq_task.txt)"' 2>&1 | clean; }
+  docker exec -u hermes "$C" sh -lc 'export PATH=/opt/data/.local/bin:$PATH; timeout 900 pc-loop "$(cat /opt/data/orq_task.txt)"' 2>&1 | clean; }
 pc_judge(){ printf '%s' "$1" > "$HOSTDATA/orq_judge.txt"
   docker exec -u hermes "$C" sh -lc 'export PATH=/opt/data/.local/bin:$PATH; timeout 200 pc-judge "$(cat /opt/data/orq_judge.txt)"' 2>&1 | clean; }
 
@@ -50,6 +53,11 @@ for f in "$FILA"/*.md; do
   tent=$((tent+1)); setf tentativa "$tent" "$f"; setf estado executando "$f"
   saida=$(pc_exec "$tarefa"); printf '%s\n' "$saida" > "$FILA/$id.saida.txt"
   setf estado respondida "$f"; log "ordem $id: respondida (tentativa $tent)"
+  # detecção durável: saída vazia = ponte VIVA mas executor não terminou (timeout 900s / startup),
+  # NÃO uma ponte morta. `--output-format text` só emite no fim → kill a meio = 0 bytes.
+  if [ -z "$(printf '%s' "$saida" | tr -d '[:space:]')" ]; then
+    log "ordem $id: ⚠️ SAIDA VAZIA — executor nao devolveu texto (ponte viva; tarefa nao terminou em 900s ou startup lento)"
+  fi
 
   jinput=$(printf 'TAREFA:\n%s\n\nSAIDA DO EXECUTOR:\n%s\n' "$tarefa" "$(printf '%s' "$saida" | tail -50)")
   veredito=$(pc_judge "$jinput")
@@ -62,5 +70,7 @@ for f in "$FILA"/*.md; do
     if [ "$tent" -ge 5 ]; then setf estado travada "$f"; notify "⛔ Bora/orquestração: ordem $id travou (5 tentativas). Precisa de ti."
     else setf estado aberta "$f"; log "ordem $id: CORRIGIR -> reaberta (campainha volta a disparar)"; fi
   fi
+  # fim da ordem: o executor já fez push → refresca o espelho para o Claude.ai (não espera o cron)
+  sync_espelho
 done
 log "ciclo terminado"

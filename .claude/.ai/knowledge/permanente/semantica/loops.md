@@ -43,12 +43,14 @@ confianca: verificado
 | 🟣 | **Watchdog Hermes** | loops morrem em silêncio | tempo-até-deteção | cron host 2h/2h | todos os loops | alerta certo na cor certa; NUNCA age | fila+logs+recursos → alerta Telegram | 1 | Hermes(host) |
 | ⚫ | **missao-lancamento-play-store** | lançar na Play Store | critérios da missão | Mission Engine (uma ordem de cada vez) | Danilo | critério de conclusão da página da missão | `orquestracao/missao-*.md` → ordens | 1 | `maestro-autonomia` |
 
-> **Orquestração (carteiro) — nota de robustez (2026-07-10).** O executor usa `--output-format text`,
-> que só emite no FIM. Se a tarefa não terminar dentro do `timeout` do carteiro, o kill devolve **0 bytes**
-> — indistinguível de "ponte morta", e a ordem entra em ciclo `aberta→…→travada` em silêncio. Fix:
-> `timeout 320→900s`, `--max-turns 20→40`, `--max-budget-usd 5→10`, e log **`SAIDA VAZIA`** no carteiro
-> para separar "tarefa não acabou (timeout)" de "transporte partido". Diagnóstico: `respondida` ~Xs
-> exactos após `executando` = timeout, não ponte. Ver `wiki/licoes/ponte-loop-nao-devolve-output.md`.
+> **Orquestração (carteiro) — nota de robustez (2026-07-10).** Ordens pesadas ficavam presas
+> (`aberta→…→travada`, saída 0 bytes). Causa-raiz: o `pc-loop` passava a tarefa em base64 como
+> **argumento** de linha de comando do ssh remoto; no Windows, arg grande (≥~1 KB) faz o
+> `run-claude-loop.cmd` **nunca correr** → o executor nem arranca → ssh pendura até ao `timeout` → 0 bytes.
+> Fix: passar o b64 por **STDIN** (`pc-loop | ssh "run-claude-loop.cmd --b64stdin"`). Hardening extra:
+> `timeout 320→900s`, `--max-turns 20→40`, `--max-budget-usd 5→10`, e log **`SAIDA VAZIA`** no carteiro.
+> Diagnóstico rápido: transporte OK (`ssh "echo PONG"`) mas `%TEMP%\bora_loop_task.txt` velho + 0
+> `claude.exe` no PC = o `.cmd` não arranca (arg grande). Ver `wiki/licoes/ponte-loop-nao-devolve-output.md`.
 
 ## Loop Economy (ROI por loop)
 A telemetria de cada loop ganha, além de sucesso/falha, o par:

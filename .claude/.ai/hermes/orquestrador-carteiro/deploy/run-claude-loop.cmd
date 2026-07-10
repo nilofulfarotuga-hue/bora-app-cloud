@@ -24,6 +24,13 @@ set "GUARD=Estas a correr como EXECUTOR de um loop autonomo do Bora (headless, s
 
 cd /d "%PROJ%" || ( echo [loop] ERRO: projeto nao encontrado & exit /b 3 )
 
+REM --b64stdin: base64 da tarefa vem por STDIN (nao como argumento CLI). Args grandes
+REM rebentavam o comando remoto do ssh no Windows -> o .cmd nunca corria (fix 2026-07-10).
+if /I "%~1"=="--b64stdin" (
+  powershell -NoProfile -Command "$b=[Console]::In.ReadToEnd().Trim(); $b=$b.PadRight([math]::Ceiling($b.Length/4)*4,'='); [IO.File]::WriteAllText($env:TEMP + '\bora_loop_task.txt', [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b)))" || ( echo [loop] ERRO base64stdin & exit /b 5 )
+  "%CLAUDE_EXE%" -p --append-system-prompt "%GUARD%" --output-format text %MODEL% %PERM% %TURNS% %BUDGET% < "%TEMP%\bora_loop_task.txt"
+  exit /b %ERRORLEVEL%
+)
 if /I "%~1"=="--b64" (
   set "BORA_B64=%~2"
   powershell -NoProfile -Command "$b=$env:BORA_B64; $b=$b.PadRight([math]::Ceiling($b.Length/4)*4,'='); [IO.File]::WriteAllText($env:TEMP + '\bora_loop_task.txt', [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b)))" || ( echo [loop] ERRO base64 & exit /b 5 )

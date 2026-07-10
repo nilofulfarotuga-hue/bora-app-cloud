@@ -7,61 +7,64 @@ zona: verde
 confianca: auto
 ---
 
-# Lição — "a ponte do loop não devolve output" (quase sempre é TIMEOUT, não transporte partido)
+# Lição — "a ponte do loop não devolve output" (o executor nem ARRANCA para tarefas grandes)
 
 **Sintoma.** Ordens de orquestração ficam `aberta`, a `tentativa` sobe (0→…→5→`travada`), e o
-Juiz escreve notas do tipo *"executor não forneceu saída — tarefa incompleta"*. Ordens **leves**
-passam (`aprovada`, tentativa 0); ordens **pesadas** falham todas. Parece uma ponte morta
-(VPS↔PC) — **mas quase nunca é.**
+Juiz escreve *"executor não forneceu saída — tarefa incompleta"*. Ordens **leves** passam
+(`aprovada`, tentativa 0); ordens **pesadas** falham **todas**. `*.saida.txt` = **1 byte** (só `\n`).
+Parece uma ponte VPS↔PC morta — **não é.**
 
-**O que REALMENTE parte.** O transporte está vivo. O elo fraco é o **wall-timeout × formato de saída**:
+## Causa-raiz REAL (confirmada por reprodução) — argumento base64 grande
 
-1. O executor no PC (`run-claude-loop.cmd`) corre `claude -p --output-format text`.
-   `--output-format text` **só emite o texto FINAL** — durante os turnos de tool-use (Read/Bash/
-   flutter analyze/git) não imprime nada.
-2. A `carteiro.sh` embrulha o executor em `timeout 320 pc-loop` (era 320s).
-3. Tarefa pesada (ex.: "3 bugs de crash + analyze + push") **não termina em 320s** → o `timeout`
-   mata o processo **antes** do texto final → **0 bytes** (o `saida.txt` fica com 1 byte = só `\n`).
-4. `clean()` no carteiro ainda remove as linhas de arranque (`Permission deny rule … matches no
-   known tool`), por isso o pouco que existia também desaparece → saída **vazia**.
-5. Juiz vê vazio → "sem saída" → reabre → repete até `travada`. **Ciclo infinito silencioso.**
+O `pc-loop` (no container) entregava a tarefa ao PC assim:
+`ssh … hermes@PC "run-claude-loop.cmd --b64 <BASE64_DA_TAREFA>"` — ou seja, a tarefa **inteira em
+base64 como ARGUMENTO de linha de comando** do comando remoto do ssh.
 
-Pista decisiva: cada `respondida` cai a **~320s exactos** depois de `executando` = o `timeout` a
-disparar (não é aleatório). A 1.ª tentativa às vezes **produz** output porque bate no `--max-turns`
-**antes** dos 320s (sai com resultado parcial); as seguintes batem no wall-timeout (mata a meio → nada).
+- Tarefa pequena (b64 curto) → o `.cmd` corre, `claude.exe` arranca, devolve output. ✅
+- Tarefa real (≥~1 KB → b64 ≥~1500 chars) → o **OpenSSH do Windows falha em executar o `.cmd`**
+  com um argumento remoto grande: o `.cmd` **nunca corre** (o ficheiro temporário
+  `%TEMP%\bora_loop_task.txt` não é actualizado, **não há `cmd.exe` nem `claude.exe` no PC**), o
+  `ssh` fica **pendurado** até o `timeout` da carteiro o matar → **0 bytes**. ❌
 
-**Como se diagnosticou (ordem util).**
-1. Tailscale dos 2 lados — PC `tailscale status` vê `bora-vps` *active/direct*; no container
-   `docker exec -u hermes … tailscale status` vê o PC. **Estava UP.** (transporte OK)
-2. Testar o executor **isolado**, direto no PC: correr `run-claude-loop.cmd --b64 <b64 de "responde PONG">`
-   com timeout curto → **respondeu "PONG" em ~28s.** ⇒ headless `claude.exe` **funciona**; não é auth,
-   não é lock, não é transporte.
-3. Ler o `carteiro.log`: veredito da 1.ª tentativa foi *"atingiu limite de turnos (20)"* (⇒ houve
-   output!) e as seguintes *"sem saída"*. Tamanhos de `*.saida.txt`: **1 byte** nas falhas vs 1414/2061
-   bytes nas que passaram. Diferença = **a tarefa acabou ou não dentro do teto.**
-4. Confirmar que os `claude.exe` "acumulados" no PC eram o **Claude Desktop app**
-   (`WindowsApps\Claude_1.18286…`), **não** executores órfãos — via `Get-CimInstance Win32_Process`
-   + `CommandLine`. (Não matar às cegas por nome!)
+Prova (2026-07-10): mesma tarefa de 1183 bytes → via **arg** `--b64` = 0 bytes, `claude.exe` nunca
+arranca; via **STDIN** `--b64stdin` = devolve output normal. Tarefa de 47 bytes via arg = funciona.
+⇒ **é o tamanho do argumento, não o transporte** (o leg `container→PC` via `tailscale nc`+ssh está
+vivo: `ssh … "echo PONG"` volta na hora).
 
-**Fix aplicado (2026-07-10).**
-- `carteiro.sh`: `timeout 320 → 900` no `pc_exec` (dá espaço à tarefa pesada acabar e emitir o texto final).
-- `run-claude-loop.cmd`: `--max-turns 20 → 40`, `--max-budget-usd 5 → 10`.
-- `carteiro.sh`: **novo log `⚠️ SAIDA VAZIA`** quando o output vem vazio — para NUNCA MAIS confundir
-  "tarefa não acabou (timeout)" com "transporte partido". A ponte viva + saída vazia = subir o teto
-  ou partir a tarefa, **não** mexer em Tailscale/SSH.
-- Provado ponta-a-ponta: `pc-loop` (executor) → `saida` → `pc-judge` (`VEREDITO: APROVADA`) →
-  `hermes send -t telegram` (**entregue**).
+**Fix (o que resolve):** passar o base64 por **STDIN**, não como argumento.
+- `pc-loop`: `printf '%s' "$*" | base64 | tr -d '\n=' | ssh … "run-claude-loop.cmd --b64stdin"`.
+- `run-claude-loop.cmd`: novo ramo `--b64stdin` lê o b64 de `[Console]::In.ReadToEnd()`, descodifica
+  para `%TEMP%\bora_loop_task.txt`, e corre `claude -p … < ficheiro`. Sem limite de tamanho.
 
-**Como detetar no futuro (checklist rápido).**
-- `respondida` cai **~Xs exactos** depois de `executando` (X = valor do `timeout`)? → é **timeout**, não ponte.
-- `*.saida.txt` == 1 byte + log **`SAIDA VAZIA`**? → tarefa não terminou dentro do teto. Sobe o teto ou parte a tarefa.
-- Antes de culpar o transporte: `run-claude-loop.cmd --b64 <PONG>` no PC. Volta "PONG"? → transporte OK, o problema é o teto/tarefa.
-- Órfãos no PC? Confirmar **CommandLine** (`Get-CimInstance Win32_Process`), não o nome — o Claude **Desktop** também é `claude.exe`.
+## Causa secundária (defensiva, também corrigida) — timeout × `--output-format text`
 
-**Gotchas.**
-- `--output-format text` é **tudo-ou-nada**: kill a meio = 0 bytes. Se um dia se quiser output parcial,
-  mudar para `stream-json` + tee p/ ficheiro (mais código; para estas tarefas o que interessa é **acabar**).
-- O executor corre no **mesmo working tree** (`bora_app`) que uma sessão interactiva. Antes de deixar
-  o loop correr, **committar/limpar** as tuas mudanças — senão o executor pode varrê-las num `git add`.
-- Ver também: [[docker-exec-user-hermes]] (·`-u hermes`), [[verificar-estado-antes-de-reexecutar]],
-  [[onde-vive-a-trava]].
+Mesmo quando o executor ARRANCA, `claude -p --output-format text` **só emite o texto no FIM**
+(nada nos turnos de tool-use). Se a tarefa não acabar dentro do `timeout` da carteiro, o kill devolve
+**0 bytes** — outra vez indistinguível de ponte morta. Por isso subiu-se também:
+`timeout 320→900s` (carteiro) · `--max-turns 20→40`, `--max-budget-usd 5→10` (`run-claude-loop.cmd`).
+E adicionou-se log **`⚠️ SAIDA VAZIA`** no carteiro (separa "não acabou" de "transporte partido").
+
+> Nota honesta: a 1.ª leitura desta sessão culpou o `timeout` (o `respondida ~320s` parecia claude a
+> correr 320s). O teste directo mostrou que era o `ssh` **pendurado** 320s à espera de um `.cmd` que
+> **nunca corria** — o teto de tempo era sintoma, não causa. A causa é o argumento grande.
+
+## Como diagnosticar (ordem útil, para a próxima)
+1. **Transporte primeiro:** `docker exec -u hermes $C sh -lc 'ssh -o ProxyCommand="tailscale nc %h %p" … hermes@PC "echo PONG"'`. Volta "PONG"? → transporte OK, **não** é Tailscale/SSH.
+2. **O `.cmd` chega a correr no PC?** No PC: `Get-Item $env:TEMP\bora_loop_task.txt` (mtime recente?) +
+   `Get-CimInstance Win32_Process -Filter "Name='claude.exe'"` filtrando `--output-format text`.
+   **Ficheiro velho + 0 `claude.exe` + `ssh`/`pc-loop` vivo no container = o `.cmd` NÃO arranca** →
+   suspeitar do **tamanho do argumento** (ou de ter voltado ao `--b64` em vez de `--b64stdin`).
+3. **Reproduzir por tamanho:** correr `pc-loop` com tarefa pequena (funciona) vs ~1 KB (falha via arg).
+4. `respondida` cai a **~Xs exactos** (X=`timeout`)? Pode ser (a) ssh pendurado (arg grande) **ou**
+   (b) claude a correr sem acabar. Distinguir pelo passo 2 (há `claude.exe`? o temp actualizou?).
+5. Órfãos no PC: confirmar **CommandLine** (`Get-CimInstance Win32_Process`), **não** o nome — o Claude
+   **Desktop** (`WindowsApps\Claude_1.18286…`) também é `claude.exe`; não matar às cegas.
+
+## Gotchas
+- **Nunca** passar payloads grandes como argumento de comando remoto de ssh no Windows → usar STDIN.
+- `--output-format text` é tudo-ou-nada: kill a meio = 0 bytes.
+- O executor corre no **mesmo working tree** (`bora_app`) que a sessão interactiva → **committar/limpar
+  antes** de deixar o loop correr, senão o executor varre as tuas mudanças num `git add`.
+- Um **gap** (reset da sessão) pode reabrir ordens antigas `travada`; verificar a fila (`grep -l 'estado: aberta'`)
+  antes de religar o kill switch, para não gastar slots do executor em ordens fora da lista.
+- Ver também: [[docker-exec-user-hermes]], [[verificar-estado-antes-de-reexecutar]], [[onde-vive-a-trava]].

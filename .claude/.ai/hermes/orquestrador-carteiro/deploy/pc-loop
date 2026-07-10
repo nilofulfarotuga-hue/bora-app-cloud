@@ -1,4 +1,6 @@
 #!/bin/sh
 # pc-loop — bridge EXECUTOR do loop de orquestração (isolado do pc partilhado)
-B64=$(printf '%s' "$*" | base64 | tr -d '\n=')
-exec ssh -o ProxyCommand="tailscale nc %h %p" -o StrictHostKeyChecking=accept-new -o ConnectTimeout=25 hermes@100.71.105.7 "C:\\Users\\danil\\Desktop\\produtividade-ia\\hermes-bridge\\run-claude-loop.cmd --b64 $B64"
+# A tarefa vai em base64 por STDIN (nao como argumento CLI): args grandes (>~1KB)
+# rebentavam o comando remoto do ssh no Windows -> o .cmd nunca corria e a saida
+# vinha VAZIA (fix 2026-07-10, ver wiki/licoes/ponte-loop-nao-devolve-output.md).
+printf '%s' "$*" | base64 | tr -d '\n=' | ssh -o ProxyCommand="tailscale nc %h %p" -o StrictHostKeyChecking=accept-new -o ConnectTimeout=25 hermes@100.71.105.7 "C:\\Users\\danil\\Desktop\\produtividade-ia\\hermes-bridge\\run-claude-loop.cmd --b64stdin"

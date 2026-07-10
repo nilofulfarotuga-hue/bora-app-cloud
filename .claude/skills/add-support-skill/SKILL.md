@@ -7,6 +7,12 @@ metadata:
   depends_on: bora-knowledge
   uses_edge_fns: []
   version: 1.0.0
+  versao: 1.0
+  execucoes: 0
+  sucessos: 0
+  falhas: 0
+  ultima_execucao: null
+  criada_por: pre-telemetria (rollout 2026-07-10)
 ---
 
 # Add Support Skill
@@ -50,3 +56,10 @@ Todo o playbook **tem de ter fallback humano** (bloco "Escalar quando").
 - Não reescreve a lógica do agente — só adiciona 1 playbook (`active=false`).
 - `version=1` em novos; nome único (recusa se já existe um skill ativo com o nome).
 - Dry-run default.
+
+## 📊 Telemetria (obrigatório no fim de cada execução)
+
+No fim de cada execução desta skill:
+1. Atualiza o frontmatter deste ficheiro: incrementa `execucoes` e `sucessos` OU `falhas`; atualiza `ultima_execucao` (YYYY-MM-DD).
+2. Acrescenta UMA linha à tabela de `.claude/.ai/knowledge/wiki/skills-metrics.md` (Skill | Data | Contexto | Volume | Resultado).
+O evolution-engine lê essa tabela: falhas/execucoes > 30% → candidata a reescrita; 90 dias sem uso → candidata a arquivo.

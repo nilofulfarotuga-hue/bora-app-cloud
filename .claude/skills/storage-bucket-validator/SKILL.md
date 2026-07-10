@@ -7,6 +7,13 @@ triggers:
   - "validar policies storage"
   - "/storage-bucket-validator"
   - "diagnose upload failure"
+metadata:
+  versao: 1.0
+  execucoes: 0
+  sucessos: 0
+  falhas: 0
+  ultima_execucao: null
+  criada_por: pre-telemetria (rollout 2026-07-10)
 ---
 
 # Storage Bucket Validator
@@ -128,3 +135,10 @@ existência, configuração, RLS policies, e amostra de ficheiros.
 - Read-only — NÃO modifica DB nem bucket
 - Para criar bucket via skill: NÃO. Devem ser migrations versionadas no repo.
 - Útil em par com `storeshopping-v2-debugger` quando o receipt falta — esta skill confirma se é bucket ou se é flow upstream que falhou.
+
+## 📊 Telemetria (obrigatório no fim de cada execução)
+
+No fim de cada execução desta skill:
+1. Atualiza o frontmatter deste ficheiro: incrementa `execucoes` e `sucessos` OU `falhas`; atualiza `ultima_execucao` (YYYY-MM-DD).
+2. Acrescenta UMA linha à tabela de `.claude/.ai/knowledge/wiki/skills-metrics.md` (Skill | Data | Contexto | Volume | Resultado).
+O evolution-engine lê essa tabela: falhas/execucoes > 30% → candidata a reescrita; 90 dias sem uso → candidata a arquivo.

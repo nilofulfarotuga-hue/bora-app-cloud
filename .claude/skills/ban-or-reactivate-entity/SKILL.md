@@ -7,6 +7,12 @@ metadata:
   depends_on: bora-knowledge
   uses_edge_fns: [admin-force-driver-logout]
   version: 1.0.0
+  versao: 1.0
+  execucoes: 0
+  sucessos: 0
+  falhas: 0
+  ultima_execucao: null
+  criada_por: pre-telemetria (rollout 2026-07-10)
 ---
 
 # Ban / Reactivate Entity
@@ -68,3 +74,10 @@ python scripts/reactivate.py --type partner --id <text-id> --reason "Resolvido" 
 - `restaurants` sem colunas de ban → considerar migration (`is_banned/banned_at/banned_by/
   ban_reason_code/ban_reason/banned_until`). NÃO feito nesta sessão.
 - `users` sem colunas de ban → ban de cliente vive em Auth (app pode não refletir).
+
+## 📊 Telemetria (obrigatório no fim de cada execução)
+
+No fim de cada execução desta skill:
+1. Atualiza o frontmatter deste ficheiro: incrementa `execucoes` e `sucessos` OU `falhas`; atualiza `ultima_execucao` (YYYY-MM-DD).
+2. Acrescenta UMA linha à tabela de `.claude/.ai/knowledge/wiki/skills-metrics.md` (Skill | Data | Contexto | Volume | Resultado).
+O evolution-engine lê essa tabela: falhas/execucoes > 30% → candidata a reescrita; 90 dias sem uso → candidata a arquivo.

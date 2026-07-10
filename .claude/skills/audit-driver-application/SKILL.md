@@ -7,6 +7,12 @@ metadata:
   depends_on: bora-knowledge
   uses_edge_fns: []
   version: 1.0.0
+  versao: 1.0
+  execucoes: 0
+  sucessos: 0
+  falhas: 0
+  ultima_execucao: null
+  criada_por: pre-telemetria (rollout 2026-07-10)
 ---
 
 # Audit Driver Application
@@ -59,3 +65,10 @@ python scripts/decide.py --driver-id <uuid> --action reject --reason-code docs_i
 - NÃO altera `token_balance`, `priority_until`, `is_online`, `is_banned`.
 - NÃO mexe em pricing_service nem dispatch.
 - Toda decisão regista quem (`BORA_ADMIN_USER_ID`) / quando (now()) / razão.
+
+## 📊 Telemetria (obrigatório no fim de cada execução)
+
+No fim de cada execução desta skill:
+1. Atualiza o frontmatter deste ficheiro: incrementa `execucoes` e `sucessos` OU `falhas`; atualiza `ultima_execucao` (YYYY-MM-DD).
+2. Acrescenta UMA linha à tabela de `.claude/.ai/knowledge/wiki/skills-metrics.md` (Skill | Data | Contexto | Volume | Resultado).
+O evolution-engine lê essa tabela: falhas/execucoes > 30% → candidata a reescrita; 90 dias sem uso → candidata a arquivo.

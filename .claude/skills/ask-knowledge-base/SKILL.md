@@ -1,6 +1,13 @@
 ---
 name: ask-knowledge-base
 description: Skill do Robô B (Claude Code) para responder perguntas técnicas registadas pelo Robô A (chatbot Bora App) na tabela `robot_crosstalk` (a_to_b/pending). Use esta skill quando o utilizador pedir para verificar perguntas pendentes, consultar a knowledge base RAG (534 chunks), responder a perguntas crosstalk, ou quando referir o sistema de comunicação Robô A↔B (5F). Triggers comuns: "ver perguntas pendentes", "responder à pergunta crosstalk X", "consulta RAG sobre Y", "robot crosstalk", "ask-knowledge-base".
+metadata:
+  versao: 1.0
+  execucoes: 0
+  sucessos: 0
+  falhas: 0
+  ultima_execucao: null
+  criada_por: pre-telemetria (rollout 2026-07-10)
 ---
 
 # ASK-KNOWLEDGE-BASE — Robô B (Claude Code)
@@ -130,3 +137,10 @@ Se `SERVICE_ROLE_KEY` ausente: scripts saem com mensagem clara
 - RPC RAG: `match_knowledge` (Sessão 5C-α)
 - Embedding model: `gemini-embedding-001` taskType='RETRIEVAL_QUERY' dim=768
 - business_rules.md §39 (Sessão 5F)
+
+## 📊 Telemetria (obrigatório no fim de cada execução)
+
+No fim de cada execução desta skill:
+1. Atualiza o frontmatter deste ficheiro: incrementa `execucoes` e `sucessos` OU `falhas`; atualiza `ultima_execucao` (YYYY-MM-DD).
+2. Acrescenta UMA linha à tabela de `.claude/.ai/knowledge/wiki/skills-metrics.md` (Skill | Data | Contexto | Volume | Resultado).
+O evolution-engine lê essa tabela: falhas/execucoes > 30% → candidata a reescrita; 90 dias sem uso → candidata a arquivo.

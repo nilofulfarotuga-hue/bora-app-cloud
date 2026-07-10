@@ -7,6 +7,12 @@ metadata:
   depends_on: bora-knowledge
   uses_edge_fns: [execute-broadcast]
   version: 1.0.0
+  versao: 1.0
+  execucoes: 0
+  sucessos: 0
+  falhas: 0
+  ultima_execucao: null
+  criada_por: pre-telemetria (rollout 2026-07-10)
 ---
 
 # Notify Broadcast
@@ -42,3 +48,10 @@ python scripts/send.py --segment clients --title "..." --body "..." --commit --c
 - Mensagens **PT-PT**; não enviar conteúdo $ enganoso (o operador é responsável pelo texto).
 - Rate/lotes geridos pela Edge Fn (batches de 50). Não recria infra de push.
 - **Admin UI**: idealmente o Danilo compõe/agenda broadcasts num ecrã admin — **pendência** anotada.
+
+## 📊 Telemetria (obrigatório no fim de cada execução)
+
+No fim de cada execução desta skill:
+1. Atualiza o frontmatter deste ficheiro: incrementa `execucoes` e `sucessos` OU `falhas`; atualiza `ultima_execucao` (YYYY-MM-DD).
+2. Acrescenta UMA linha à tabela de `.claude/.ai/knowledge/wiki/skills-metrics.md` (Skill | Data | Contexto | Volume | Resultado).
+O evolution-engine lê essa tabela: falhas/execucoes > 30% → candidata a reescrita; 90 dias sem uso → candidata a arquivo.

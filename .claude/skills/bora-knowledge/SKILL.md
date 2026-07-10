@@ -5,6 +5,12 @@ metadata:
   type: foundation
   version: 1.0.0
   consulted_by: [onboard-partner-restaurant, onboard-partner-store, onboard-partner-pharmacy, add-home-category, update-design-token]
+  versao: 1.0
+  execucoes: 0
+  sucessos: 0
+  falhas: 0
+  ultima_execucao: null
+  criada_por: pre-telemetria (rollout 2026-07-10)
 ---
 
 # bora-knowledge — Memória viva do projeto
@@ -51,3 +57,10 @@ relevantes em `knowledge/` antes de planear mudanças.
 Quando o design, regras ou schema mudarem: **atualizar SÓ esta skill**.
 As skills filhas (onboarders) leem daqui — não duplicam conteúdo.
 Última sincronização MCP: 2026-05-29 (projeto Supabase `ojykpzwqrtusfeakzrna`).
+
+## 📊 Telemetria (obrigatório no fim de cada execução)
+
+No fim de cada execução desta skill:
+1. Atualiza o frontmatter deste ficheiro: incrementa `execucoes` e `sucessos` OU `falhas`; atualiza `ultima_execucao` (YYYY-MM-DD).
+2. Acrescenta UMA linha à tabela de `.claude/.ai/knowledge/wiki/skills-metrics.md` (Skill | Data | Contexto | Volume | Resultado).
+O evolution-engine lê essa tabela: falhas/execucoes > 30% → candidata a reescrita; 90 dias sem uso → candidata a arquivo.

@@ -7,6 +7,12 @@ metadata:
   depends_on: bora-knowledge
   uses_edge_fns: []
   version: 1.0.0
+  versao: 1.0
+  execucoes: 0
+  sucessos: 0
+  falhas: 0
+  ultima_execucao: null
+  criada_por: pre-telemetria (rollout 2026-07-10)
 ---
 
 # Smoke Test Critical Paths (read-only)
@@ -46,3 +52,10 @@ RPCs verificados: `is_admin`, `pricing_calculate` (+ outros configuráveis).
 - **Nunca** invoca uma Edge Fn com corpo real (só preflight OPTIONS — não executa lógica).
 - Não cria pedidos nem pagamentos. (Regra do projeto: testes de pagamento = cash; aqui nem isso.)
 - Exit 1 se algum check crítico falhar (útil em CI/pré-build).
+
+## 📊 Telemetria (obrigatório no fim de cada execução)
+
+No fim de cada execução desta skill:
+1. Atualiza o frontmatter deste ficheiro: incrementa `execucoes` e `sucessos` OU `falhas`; atualiza `ultima_execucao` (YYYY-MM-DD).
+2. Acrescenta UMA linha à tabela de `.claude/.ai/knowledge/wiki/skills-metrics.md` (Skill | Data | Contexto | Volume | Resultado).
+O evolution-engine lê essa tabela: falhas/execucoes > 30% → candidata a reescrita; 90 dias sem uso → candidata a arquivo.

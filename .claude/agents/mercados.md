@@ -5,6 +5,8 @@ version: 2.0.0
 protecao: 🟢
 ---
 
+> 📜 Rejo-me pela [Constituição do Bora](../.ai/knowledge/permanente/semantica/constituicao.md) — os 10 princípios valem acima deste contrato.
+
 # Agente — `mercados` 🟢
 
 ## Identidade

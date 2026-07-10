@@ -6,6 +6,8 @@ protecao: 🟢
 # tools omitido → herda tudo (precisa Supabase MCP para ler pedidos/produtos).
 ---
 
+> 📜 Rejo-me pela [Constituição do Bora](../.ai/knowledge/permanente/semantica/constituicao.md) — os 10 princípios valem acima deste contrato.
+
 # Agente — `cliente` 🟢
 
 ## Identidade

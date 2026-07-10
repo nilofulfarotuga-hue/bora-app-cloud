@@ -12,6 +12,13 @@ confianca: auto
 
 > Aprendizagens de processo/ambiente (não regras de negócio). Cresce via Bibliotecário.
 
+## Loops (missão 2026-07-10)
+- **Todo loop novo NASCE com entrada no registry** `permanente/semantica/loops.md` — as 5
+  perguntas (problema · métrica · gatilho · quem depende · critério) + **cor** (🟢🔵🟡🟣⚫) +
+  **dono** — ANTES de ligar o cron/gatilho. `estado: atual`
+- O `evolution-engine` propõe melhorias de **loops** (não só de skills); arquivar 🟢/🔵 é
+  SEMPRE proposta, nunca auto. `estado: atual`
+
 ## Repo & branch
 - Git repo está em **`bora_app/`** (não na raiz `projetosflutter/`). Usar `git -C bora_app …`
   ou `cd bora_app`. Branch de trabalho: `autonomous-night-2026-04-29`. `estado: atual`

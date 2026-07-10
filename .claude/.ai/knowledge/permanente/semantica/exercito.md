@@ -1,5 +1,5 @@
 ---
-tema: exercito · escopo: projeto · estado: atual · atualizado: 2026-07-01 (Fase 5)
+tema: exercito · escopo: projeto · estado: atual · atualizado: 2026-07-10 (Fase Marketing+Evolução)
 id: exercito
 tipo: conceito
 origem: [.claude/agents/*.md, .claude/agents/agent-memory.md, CLAUDE.md]
@@ -16,7 +16,7 @@ confianca: auto
 > (a Trava bloqueia a edição; o agente lê e propõe, o Danilo aprova). Cada agente tem gaveta de
 > memória própria no Cérebro: `escopo: agente:<nome>`. Regras de despacho no `CLAUDE.md`.
 
-## Elenco canónico — 26 agentes
+## Elenco canónico — 29 agentes
 
 ### Domínio (11)
 - `cliente` 🟢 — ecrãs e fluxos do cliente.
@@ -65,6 +65,21 @@ confianca: auto
   **Dial COMEÇA cauteloso** (`robot_b_auto_level1_enabled=false`); **kill switch** `robot_b_enabled`.
   Envelope de 5 paredes: Trava · Juiz · Tetos · Humano-acima-do-L1 · Kill switch.
   Contrato em `.claude/agents/maestro-autonomia.md`; detalhe em `episodica/decisoes.md` (Fase 5).
+
+### Marketing + Evolução (Fase Marketing+Evolução, 2026-07-10) — 27.º–29.º agentes
+> Nascidos na missão noturna 2026-07-09/10 (Fase 5 do prompt "Olho do Bora + Cérebro de
+> Marca + Evolução + Hermes em tudo").
+- `diretor-criativo` 🟢 (**NOVO**) — dono do `brand-brain.md` e da skill homónima; campanhas
+  completas com gate anti-slop. Fronteira: **catálogo=produto** (`catalogo-visual`),
+  **diretor=marca**. Nunca publica.
+- `social-media` 🟢 (**NOVO**) — dono de `social-publisher` + `marketing-loop` (Postiz).
+  NUNCA cria contas; NUNCA publica sem Juiz + aprovação explícita do Danilo; sem Postiz/contas
+  → dry-run.
+- `evolution-engine` 🟡 (**NOVO** — meta-agente) — evolução governada de skills: deteta
+  padrões / reescreve (falhas>30% ou 2 rejeições do Juiz) / arquiva (90d) / funde (>70%) /
+  divide (>600 linhas). Verde = draft→Juiz; vermelho/dinheiro/auth = SÓ PROPOSTA. **Nunca se
+  auto-modifica.** ADR: `wiki/decisoes/2026-07-10-evolution-engine-governado.md` (EvoSkill →
+  opção (b), conceitos nativos).
 
 ### Fase 4 — não tocar agora (2)
 > **estado: superado (pela Fase 4, 2026-07-01).** `checkout-fixer` e `e2e-test-builder` deixam de

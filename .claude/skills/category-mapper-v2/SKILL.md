@@ -11,6 +11,13 @@ description: >
   Danilo e modo interactivo para produtos sem categoria clara.
   Triggers: "reclassificar produtos", "mapear 22 categorias", "category-mapper-v2",
   "dry-run Continente/Pingo Doce/Auchan/Mercadona/Lidl/Intermarché".
+metadata:
+  versao: 1.0
+  execucoes: 0
+  sucessos: 0
+  falhas: 0
+  ultima_execucao: null
+  criada_por: pre-telemetria (rollout 2026-07-10)
 ---
 
 # category-mapper-v2
@@ -59,3 +66,10 @@ Quando `confidence < 0.7` e `taxonomy_section ∈ (NULL, 'Outros')`:
 - `scripts/run_all.py` — orchestrator com paragens por fase.
 - `references/categorias.md` — docs das 22 categorias + regras.
 - `references/decisoes_danilo.json` — decisões manuais.
+
+## 📊 Telemetria (obrigatório no fim de cada execução)
+
+No fim de cada execução desta skill:
+1. Atualiza o frontmatter deste ficheiro: incrementa `execucoes` e `sucessos` OU `falhas`; atualiza `ultima_execucao` (YYYY-MM-DD).
+2. Acrescenta UMA linha à tabela de `.claude/.ai/knowledge/wiki/skills-metrics.md` (Skill | Data | Contexto | Volume | Resultado).
+O evolution-engine lê essa tabela: falhas/execucoes > 30% → candidata a reescrita; 90 dias sem uso → candidata a arquivo.

@@ -6,6 +6,8 @@ version: 1.0.0
 #                                                 OMITE esta linha se precisares de MCP (herda tudo).
 ---
 
+> 📜 Rejo-me pela [Constituição do Bora](../.ai/knowledge/permanente/semantica/constituicao.md) — os 10 princípios valem acima deste contrato.
+
 # Agente — `nome-do-agente`
 
 ## Identidade

@@ -7,6 +7,12 @@ metadata:
   depends_on: bora-knowledge
   uses_edge_fns: []
   version: 1.0.0
+  versao: 1.0
+  execucoes: 0
+  sucessos: 0
+  falhas: 0
+  ultima_execucao: null
+  criada_por: pre-telemetria (rollout 2026-07-10)
 ---
 
 # Daily Pulse — o pulso do negócio (Sócio-AI Fase A)
@@ -39,7 +45,12 @@ respondo "GMV de ontem, funil, estafetas" **sem chutar**. Nesta Fase A corre **s
 4. **NORTE** — ler `docs/estrategia/NORTE.md`. Se ainda tiver linhas `<<DANILO PREENCHE>>`,
    **não prometer movimento de KPI** — dizer que falta a régua e pedir para preencher.
 
-5. **Síntese PT** (formato fixo abaixo). Curto. 1 recomendação, não um menu.
+5. **Evolution-report** (Fase 5, 2026-07-10 — modo análise, SEM aplicar nada) — correr
+   `python .claude/skills/evolution-engine/scripts/evolution_engine.py` e contar as
+   propostas novas do relatório `inbox/evolution-report-<data>.md`. Só contagem no resumo;
+   as propostas seguem a governança própria (Juiz / Danilo). Falhou → "evolução: sem dados".
+
+6. **Síntese PT** (formato fixo abaixo). Curto. 1 recomendação, não um menu.
 
 ## Formato de saída (fixo)
 ```
@@ -49,6 +60,7 @@ respondo "GMV de ontem, funil, estafetas" **sem chutar**. Nesta Fase A corre **s
 • Conversão checkout: {conv}%  ({seta vs média})
 • Estafetas: {online} online · {pendentes} à espera de aprovação
 • Comms: {n_email} emails / {n_wa} WhatsApp respondidos (24h){, erros: X}
+• Evolução: {n_propostas} propostas de skills no inbox (evolution-report)
 
 🔎 Sinal do dia: {a coisa que mais mexeu, 1 frase}
 ✅ Recomendação: {1 ação concreta — "eu faria X porque Y"}
@@ -59,3 +71,10 @@ respondo "GMV de ontem, funil, estafetas" **sem chutar**. Nesta Fase A corre **s
 - **Não fabricar** metas nem tendências sem dados — dados pequenos (lançamento) são normais;
   dizer "amostra pequena" em vez de inventar significância.
 - Handoff ao `bibliotecario-cerebro` só se descobrir um facto novo de negócio.
+
+## 📊 Telemetria (obrigatório no fim de cada execução)
+
+No fim de cada execução desta skill:
+1. Atualiza o frontmatter deste ficheiro: incrementa `execucoes` e `sucessos` OU `falhas`; atualiza `ultima_execucao` (YYYY-MM-DD).
+2. Acrescenta UMA linha à tabela de `.claude/.ai/knowledge/wiki/skills-metrics.md` (Skill | Data | Contexto | Volume | Resultado).
+O evolution-engine lê essa tabela: falhas/execucoes > 30% → candidata a reescrita; 90 dias sem uso → candidata a arquivo.

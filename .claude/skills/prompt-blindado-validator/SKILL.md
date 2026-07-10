@@ -6,6 +6,12 @@ metadata:
   category: governance
   depends_on: bora-knowledge
   version: 1.0.0
+  versao: 1.0
+  execucoes: 0
+  sucessos: 0
+  falhas: 0
+  ultima_execucao: null
+  criada_por: pre-telemetria (rollout 2026-07-10)
 ---
 
 # SKILL: prompt-blindado-validator
@@ -95,3 +101,10 @@ Reportar ao Danilo para corrigir o prompt.
 3. Blocos 2, 3, 4 só aplicam se a tarefa for relevante — mas verificar sempre
 4. Reportar de forma clara e simples — Danilo não é programador
 5. Depois de validar → devolver controlo ao CEO-AI para execução normal
+
+## 📊 Telemetria (obrigatório no fim de cada execução)
+
+No fim de cada execução desta skill:
+1. Atualiza o frontmatter deste ficheiro: incrementa `execucoes` e `sucessos` OU `falhas`; atualiza `ultima_execucao` (YYYY-MM-DD).
+2. Acrescenta UMA linha à tabela de `.claude/.ai/knowledge/wiki/skills-metrics.md` (Skill | Data | Contexto | Volume | Resultado).
+O evolution-engine lê essa tabela: falhas/execucoes > 30% → candidata a reescrita; 90 dias sem uso → candidata a arquivo.

@@ -7,6 +7,12 @@ metadata:
   depends_on: bora-knowledge
   uses_edge_fns: [admin-force-driver-logout]
   version: 1.0.0
+  versao: 1.0
+  execucoes: 0
+  sucessos: 0
+  falhas: 0
+  ultima_execucao: null
+  criada_por: pre-telemetria (rollout 2026-07-10)
 ---
 
 # Force Driver Logout
@@ -51,3 +57,10 @@ python scripts/logout.py --driver-id <uuid> --reason "..." --confirm --force-any
 - `--driver-id` validado como UUID (a Edge Fn rejeita não-UUID).
 - Nunca chama sem `SUPABASE_SERVICE_ROLE_KEY` (leitura) e sem JWT de admin (Edge Fn).
 - Não toca pricing/tokens/dispatch. A auditoria é feita pela própria Edge Fn.
+
+## 📊 Telemetria (obrigatório no fim de cada execução)
+
+No fim de cada execução desta skill:
+1. Atualiza o frontmatter deste ficheiro: incrementa `execucoes` e `sucessos` OU `falhas`; atualiza `ultima_execucao` (YYYY-MM-DD).
+2. Acrescenta UMA linha à tabela de `.claude/.ai/knowledge/wiki/skills-metrics.md` (Skill | Data | Contexto | Volume | Resultado).
+O evolution-engine lê essa tabela: falhas/execucoes > 30% → candidata a reescrita; 90 dias sem uso → candidata a arquivo.

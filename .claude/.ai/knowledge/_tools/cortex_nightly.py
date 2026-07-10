@@ -34,6 +34,8 @@ TODAY = date.today()
 AGE_LIMIT = 14        # dias no inbox antes de propor promover/descartar
 CONF_FLOOR = 50.0     # abaixo disto = divida
 STALE_DAYS = 180      # nao confirmado ha mais que isto = divida
+STALE_WARN = 60       # F4 2026-07-10: >60d -> aviso "possivelmente desatualizada" (nunca apaga)
+AVISO_TXT = "aviso: ⚠️ possivelmente desatualizada (>60d, cortex_nightly)"
 PROTECTED = re.compile(r"dispatch|pricing|finalizepurchase|bora_tokens|stripe|\brls\b|wallet|ledger|refund|comiss|markup|service_fee", re.I)
 
 
@@ -104,8 +106,25 @@ def git_added_date(path):
     return pdate(out) if out else None
 
 
+def mark_stale(p):
+    """F4: insere o aviso no frontmatter (idempotente, aditivo). Nunca em zona vermelha."""
+    text = read(p)
+    if not text.startswith("---") or AVISO_TXT.split(":")[0] + ":" in text[:600]:
+        return False
+    end = text.find("\n---", 3)
+    if end == -1:
+        return False
+    new = text[:end] + "\n" + AVISO_TXT + text[end:]
+    try:
+        with open(p, "w", encoding="utf-8") as fh:
+            fh.write(new)
+        return True
+    except Exception:
+        return False
+
+
 def main():
-    debt, protected_touched = [], []
+    debt, protected_touched, warn60 = [], [], []
     for p in iter_pages():
         fm, _ = parse_front(read(p))
         if not fm:
@@ -116,8 +135,25 @@ def main():
         naoverif = "NAO_VERIFICADO" in fm.get("origem", "")
         if c < CONF_FLOOR or stale or naoverif:
             debt.append((rel(p), c, "NAO_VERIFICADO" if naoverif else ("stale>%dd" % STALE_DAYS if stale else "conf<%.0f" % CONF_FLOOR)))
+        if d and (TODAY - d).days > STALE_WARN:
+            warn60.append((rel(p), (TODAY - d).days, fm.get("zona", "") == "vermelha", p))
         if fm.get("zona", "") == "vermelha":
             protected_touched.append(rel(p))
+
+    # F4 2026-07-10: marcar >60d (APPLY, nunca vermelha) + 5 piores p/ evolution-report
+    marked = 0
+    if APPLY:
+        for r, dias, red, fullp in warn60:
+            if not red and mark_stale(fullp):
+                marked += 1
+    try:
+        os.makedirs(REPORTS, exist_ok=True)
+        worst5 = [{"pagina": r, "dias": dias, "zona_vermelha": red}
+                  for r, dias, red, _ in sorted(warn60, key=lambda x: -x[1])[:5]]
+        with open(os.path.join(REPORTS, "stale-pages.json"), "w", encoding="utf-8") as fh:
+            json.dump({"gerado": TODAY.isoformat(), "total_60d": len(warn60), "piores5": worst5}, fh, ensure_ascii=False, indent=1)
+    except Exception:
+        pass
 
     # inbox aging (nunca toca _* internos)
     aged = []
@@ -166,6 +202,9 @@ def main():
         "",
         "## Zona vermelha (so PROPOSTA, nunca auto): %d" % len(protected_touched),
     ] + ["- `%s`" % r for r in protected_touched] + [
+        "",
+        "## Higiene >%dd (F4): %d paginas%s" % (STALE_WARN, len(warn60), (" — %d marcadas com aviso" % marked) if APPLY else " (dry-run: marcaria as nao-vermelhas)"),
+    ] + ["- `%s` — %dd%s" % (r, dias, " 🔴(so proposta)" if red else "") for r, dias, red, _ in sorted(warn60, key=lambda x: -x[1])[:5]] + [
         "",
         "## Contradiction scan",
     ] + ["- %s" % f for f in flags]

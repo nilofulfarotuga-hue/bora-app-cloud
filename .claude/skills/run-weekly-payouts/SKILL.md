@@ -7,6 +7,12 @@ metadata:
   depends_on: bora-knowledge
   uses_edge_fns: []
   version: 1.0.0
+  versao: 1.0
+  execucoes: 0
+  sucessos: 0
+  falhas: 0
+  ultima_execucao: null
+  criada_por: pre-telemetria (rollout 2026-07-10)
 ---
 
 # Run Weekly Payouts (relatório, read-only)
@@ -43,3 +49,10 @@ python scripts/payouts.py --since 2026-05-01T00:00:00Z --until 2026-05-08T00:00:
 - **READ-ONLY**: só `SELECT ledger_entries`. NUNCA mexe em `bora_tokens`, `orders`, Stripe.
 - Não recalcula comissões (usa os valores já lançados no ledger; fórmulas só p/ referência humana).
 - `platform` é mostrado como informação (margem Bora), não como payout.
+
+## 📊 Telemetria (obrigatório no fim de cada execução)
+
+No fim de cada execução desta skill:
+1. Atualiza o frontmatter deste ficheiro: incrementa `execucoes` e `sucessos` OU `falhas`; atualiza `ultima_execucao` (YYYY-MM-DD).
+2. Acrescenta UMA linha à tabela de `.claude/.ai/knowledge/wiki/skills-metrics.md` (Skill | Data | Contexto | Volume | Resultado).
+O evolution-engine lê essa tabela: falhas/execucoes > 30% → candidata a reescrita; 90 dias sem uso → candidata a arquivo.

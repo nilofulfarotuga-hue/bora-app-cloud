@@ -9,6 +9,13 @@ description: >
   presents multiple problems to solve, or reports a bug/error and needs to know
   if it should be fixed now or later. This skill does NOT execute code —
   it only analyzes, decides, and produces instructions.
+metadata:
+  versao: 1.0
+  execucoes: 0
+  sucessos: 0
+  falhas: 0
+  ultima_execucao: null
+  criada_por: pre-telemetria (rollout 2026-07-10)
 ---
 
 # CEO-AI — Bora App Orchestrator
@@ -287,6 +294,11 @@ Ver referência completa: `.claude/skills/ceo-ai/references/FONTES_DADOS_MERCADO
 7. Repetir
 ```
 
+### Decision Brain (obrigatório desde 2026-07-10)
+Antes de decisões não-triviais (o que construir, prioridade, vale a pena?): consultar
+`.claude/.ai/knowledge/permanente/procedural/decision-brain.md` (8 critérios, score 0–16)
+e registar as 3 linhas de saída na ordem/decisão. É checklist, não sistema novo.
+
 ### Decide sozinho e EXECUTA (default)
 - Ordem de tarefas dentro das prioridades
 - Escolha da abordagem quando há várias opções (escolhe a melhor, não pergunta)
@@ -347,3 +359,10 @@ Quando algo muda:
 - `.claude/skills/ceo-ai/references/PROJECT_CONTEXT.md`
 - `.claude/skills/ceo-ai/references/FONTES_DADOS_MERCADOS.md`
 - `.claude/.ai/reports/` (relatórios scraping)
+
+## 📊 Telemetria (obrigatório no fim de cada execução)
+
+No fim de cada execução desta skill:
+1. Atualiza o frontmatter deste ficheiro: incrementa `execucoes` e `sucessos` OU `falhas`; atualiza `ultima_execucao` (YYYY-MM-DD).
+2. Acrescenta UMA linha à tabela de `.claude/.ai/knowledge/wiki/skills-metrics.md` (Skill | Data | Contexto | Volume | Resultado).
+O evolution-engine lê essa tabela: falhas/execucoes > 30% → candidata a reescrita; 90 dias sem uso → candidata a arquivo.

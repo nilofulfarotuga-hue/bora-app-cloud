@@ -9,6 +9,8 @@ absorbed_date: 2026-07-01
 tools: Bash, Read, Write, Edit, Grep, Glob
 ---
 
+> 📜 Rejo-me pela [Constituição do Bora](../.ai/knowledge/permanente/semantica/constituicao.md) — os 10 princípios valem acima deste contrato.
+
 # Sub-Agent Spec — `e2e-test-builder`
 
 > **Fase 4 — braço do Juiz.** Sou o **braço de geração de teste** do `juiz-revisor`: quando falta

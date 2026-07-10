@@ -1,0 +1,113 @@
+{
+  "propostas": {
+    "padrao:tokens": {
+      "estado": "proposta",
+      "primeira_vez": "2026-07-10"
+    },
+    "padrao:autocomplete": {
+      "estado": "proposta",
+      "primeira_vez": "2026-07-10"
+    },
+    "padrao:continente": {
+      "estado": "proposta",
+      "primeira_vez": "2026-07-10"
+    },
+    "padrao:bugs": {
+      "estado": "proposta",
+      "primeira_vez": "2026-07-10"
+    },
+    "padrao:campaign": {
+      "estado": "proposta",
+      "primeira_vez": "2026-07-10"
+    },
+    "padrao:plan": {
+      "estado": "proposta",
+      "primeira_vez": "2026-07-10"
+    },
+    "padrao:redlist": {
+      "estado": "proposta",
+      "primeira_vez": "2026-07-10"
+    },
+    "padrao:bug1": {
+      "estado": "proposta",
+      "primeira_vez": "2026-07-10"
+    },
+    "padrao:investigation": {
+      "estado": "proposta",
+      "primeira_vez": "2026-07-10"
+    },
+    "padrao:reservas": {
+      "estado": "proposta",
+      "primeira_vez": "2026-07-10"
+    },
+    "padrao:paragem": {
+      "estado": "proposta",
+      "primeira_vez": "2026-07-10"
+    },
+    "padrao:verde": {
+      "estado": "proposta",
+      "primeira_vez": "2026-07-10"
+    },
+    "padrao:updater": {
+      "estado": "proposta",
+      "primeira_vez": "2026-07-10"
+    },
+    "padrao:bug4": {
+      "estado": "proposta",
+      "primeira_vez": "2026-07-10"
+    },
+    "padrao:cliente": {
+      "estado": "proposta",
+      "primeira_vez": "2026-07-10"
+    },
+    "padrao:autonomous": {
+      "estado": "proposta",
+      "primeira_vez": "2026-07-10"
+    },
+    "padrao:tudo": {
+      "estado": "proposta",
+      "primeira_vez": "2026-07-10"
+    },
+    "padrao:phase1": {
+      "estado": "proposta",
+      "primeira_vez": "2026-07-10"
+    },
+    "padrao:exec": {
+      "estado": "proposta",
+      "primeira_vez": "2026-07-10"
+    },
+    "padrao:finalize": {
+      "estado": "proposta",
+      "primeira_vez": "2026-07-10"
+    },
+    "padrao:glovo": {
+      "estado": "proposta",
+      "primeira_vez": "2026-07-10"
+    },
+    "padrao:3of5": {
+      "estado": "proposta",
+      "primeira_vez": "2026-07-10"
+    },
+    "padrao:4of5": {
+      "estado": "proposta",
+      "primeira_vez": "2026-07-10"
+    },
+    "padrao:validacao": {
+      "estado": "proposta",
+      "primeira_vez": "2026-07-10"
+    },
+    "padrao:phase0": {
+      "estado": "proposta",
+      "primeira_vez": "2026-07-10"
+    },
+    "padrao:pvpr": {
+      "estado": "proposta",
+      "primeira_vez": "2026-07-10"
+    },
+    "reescrita:diretor-criativo": {
+      "estado": "aprovada",
+      "primeira_vez": "2026-07-10",
+      "nota": "v2 restricoes pre-geracao; Juiz anti-trapaca CLEAN; aplicada 2026-07-10"
+    }
+  }
+}

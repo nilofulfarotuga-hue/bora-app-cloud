@@ -49,11 +49,15 @@
   *handoff* ao `bibliotecario-cerebro` no fim. Proteção: 🟢 zona segura · 🟡 sensível · 🔴 dinheiro
   = **PROPOSE-ONLY** (a Trava bloqueia a edição; o agente lê e propõe, o Danilo aprova).
 
-**Elenco canónico (Fase 5, 2026-07-01) — 26 agentes** (Fase 5: +`maestro-autonomia`). Ver `README.md`.
+**Elenco canónico (Fase Marketing+Evolução, 2026-07-10) — 29 agentes** (Fase 5: +`maestro-autonomia`;
+Marketing+Evolução 2026-07-10: +`diretor-criativo` +`social-media` +`evolution-engine`). Ver `README.md`.
 - **Domínio:** `cliente`🟢 · `estafeta-motorista`🟡 · `parceiro-restaurante`🟡 · `parceiro-servicos`🟢
   · `mercados`🟢 · `favores`🟢 · `pagamentos-wallet`🔴 · `dispatch`🔴 · `admin`🟢 · `notificacoes`🟢 · `chat-suporte`🟢
 - **Ofício:** `flutter-ui`🟢 · `backend-supabase`🟡 · `seguranca`🟡 · `dados-sql`🟢 · `devops-ci`🟡
   · `compliance-pt`🟡 · `pesquisa-concorrencia`🟢 · `catalogo-visual`🟢 · `marketing-push`🟢 · `obsidian-sync`🟢
+- **Marketing & Evolução (2026-07-10):** `diretor-criativo`🟢 (marca/campanhas; catálogo=produto,
+  diretor=marca) · `social-media`🟢 (Postiz; nunca cria contas, nunca publica sem Juiz+Danilo)
+  · `evolution-engine`🟡 (meta-agente de evolução de skills; nunca se auto-modifica).
 - **Cérebro:** `bibliotecario-cerebro`🟡 (único que escreve na memória).
 - **Juiz (Fase 4):** `juiz-revisor`🟡 (gate anti-trapaça) — **absorveu** `checkout-fixer` (fixer de
   regressão de checkout) e `e2e-test-builder` (geração de teste) como braços.
@@ -103,6 +107,9 @@ varreduras grandes (auditoria/migração ampla).
 | Reserva/serviço | `parceiro-servicos` + `flutter-ui` + `admin` |
 | Favor/errand + talão | `favores` + `dados-sql` + `admin` |
 | Push/campanha | `marketing-push` + `notificacoes` + `admin` |
+| Campanha de marca/criativos | `diretor-criativo` + `marketing-push` + `catalogo-visual` + `admin` |
+| Publicar redes/métricas sociais | `social-media` + `diretor-criativo` + `admin` |
+| Evolução de skills (telemetria) | `evolution-engine`[propõe] → `juiz-revisor` (gate) → Danilo |
 | RLS/segurança | `seguranca` + `backend-supabase` |
 | Release/CI | `devops-ci` + `juiz-revisor` (gate antes do release) |
 | Gerar/reparar teste | `juiz-revisor` → braços `e2e-test-builder` (gerar) / `checkout-fixer` (regressão checkout) |

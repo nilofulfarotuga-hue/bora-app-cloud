@@ -5,6 +5,8 @@ version: 1.0.0
 # tools omitido de propósito → herda tudo (precisa ler/escrever ficheiros; MCP só para verificar entidades em SELECT).
 ---
 
+> 📜 Rejo-me pela [Constituição do Bora](../.ai/knowledge/permanente/semantica/constituicao.md) — os 10 princípios valem acima deste contrato.
+
 # Agente — `bibliotecario-cerebro`
 
 ## Identidade

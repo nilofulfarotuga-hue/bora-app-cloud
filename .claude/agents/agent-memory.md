@@ -5,6 +5,8 @@ version: 1.1.0
 updated: 2026-06-23
 ---
 
+> 📜 Rejo-me pela [Constituição do Bora](../.ai/knowledge/permanente/semantica/constituicao.md) — os 10 princípios valem acima deste contrato.
+
 # 🧠 Memória dos Agentes — Bora App
 
 > **ESTE FICHEIRO É LIDO POR TODOS OS AGENTES NO INÍCIO DE CADA SESSÃO.**

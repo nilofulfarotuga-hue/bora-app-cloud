@@ -118,10 +118,22 @@ def _find_adb(explicit=None):
     if os.path.isfile(candidate):
         return candidate
     home = os.path.expanduser("~")
-    for base in (
+    bases = [
         os.path.join(home, "AppData", "Local", "Android", "Sdk"),
         os.path.join(home, "Android", "Sdk"),
-    ):
+    ]
+    # No loop autónomo os shells correm como 'hermes', mas o Android SDK está
+    # instalado no perfil do Danilo. Como LOCALAPPDATA/HOME apontam para hermes,
+    # os candidatos acima falham. Varremos C:\Users\*\...\Android\Sdk para o
+    # encontrar sem depender de variáveis de ambiente do utilizador actual.
+    users_dir = os.environ.get("SystemDrive", "C:") + os.sep + "Users"
+    try:
+        for user in os.listdir(users_dir):
+            bases.append(os.path.join(users_dir, user, "AppData", "Local",
+                                      "Android", "Sdk"))
+    except OSError:
+        pass
+    for base in bases:
         c = os.path.join(base, "platform-tools", "adb.exe")
         if os.path.isfile(c):
             return c

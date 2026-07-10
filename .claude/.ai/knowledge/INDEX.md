@@ -1,5 +1,5 @@
 ---
-tema: indice-cerebro · escopo: projeto · estado: atual · atualizado: 2026-07-05
+tema: indice-cerebro · escopo: projeto · estado: atual · atualizado: 2026-07-06
 ---
 
 # 🧠 CÉREBRO DO BORA — Índice
@@ -45,6 +45,12 @@ knowledge/
 | Vertical LIMPEZA (regras, pagamento, crons, telas, caveats) | `permanente/semantica/vertical-limpeza.md` | qualquer trabalho na limpeza doméstica |
 | Vertical MULTIPAPEL (duplo-papel estafeta⇄limpeza, ponte) | `permanente/semantica/multipapel.md` | 2.º papel sem conta nova; my_roles_summary; badges/prefill |
 | Exército (elenco de agentes) | `permanente/semantica/exercito.md` | escolher/delegar a um agente |
+| 📜 Constituição (10 princípios, índice) | `permanente/semantica/constituicao.md` | topo de contrato de agente; dúvida de princípio |
+| 🔁 Loop Registry (5 perguntas + cores + economy) | `permanente/semantica/loops.md` | criar/alterar qualquer loop; watchdog |
+| 📸 Estado Vivo (foto da empresa — reescrito) | `permanente/semantica/estado-vivo.md` | precisar da "foto da empresa" |
+| 🛎️ Hermes Concierge (rotas + limites) | `permanente/semantica/hermes-concierge.md` | mexer no Hermes/Telegram; governança |
+| 🎨 Brand-brain (marca, personas, anti-slop) | `permanente/semantica/brand-brain.md` | qualquer peça de marketing |
+| Mapa de fluxos (índice + cliente/estafeta/parceiro/anti-regressão) | `permanente/semantica/mapa-de-fluxos.md` | testes E2E; entender um fluxo ponta-a-ponta |
 
 ### Episódica — história
 | Tema | Ficheiro | Quando ler |
@@ -57,11 +63,13 @@ knowledge/
 | Tema | Ficheiro | Quando ler |
 |---|---|---|
 | Convenções (ambiente, git, MCP, Windows) | `permanente/procedural/convencoes.md` | build/push/MCP/encoding |
+| 🧮 Decision Brain (checklist de score 0–16) | `permanente/procedural/decision-brain.md` | CEO-AI/maestro antes de decisão não-trivial |
 | Lições (cresce com o tempo) | `permanente/procedural/licoes/` | evitar repetir erros |
 | ↳ CRLF em scripts `.sh` (Windows) | `permanente/procedural/licoes/licao-crlf-sh-eol.md` | criar hooks/scripts bash |
 | ↳ Não enfraquecer asserções (Juiz) | `permanente/procedural/licoes/licao-asserts-weakened.md` | consertar teste/código sob teste |
 | ↳ anti_trapaca em branch longa: usar `--base` da sessão | `permanente/procedural/licoes/licao-anti-trapaca-base-stale.md` | correr o Juiz nesta branch |
 | ↳ `context.watch` em getter chamado por callback → crash | `permanente/procedural/licoes/licao-context-watch-getter.md` | Flutter/Provider: getters vs callbacks |
+| ↳ Policy de Storage não pode ler `auth.users` (usar claim JWT) | `permanente/procedural/licoes/licao-storage-policy-auth-users.md` | criar/editar policies de storage.objects; upload 400 opaco |
 
 ---
 

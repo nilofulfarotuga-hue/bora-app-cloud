@@ -16,7 +16,7 @@ confianca: auto
 > (a Trava bloqueia a edição; o agente lê e propõe, o Danilo aprova). Cada agente tem gaveta de
 > memória própria no Cérebro: `escopo: agente:<nome>`. Regras de despacho no `CLAUDE.md`.
 
-## Elenco canónico — 29 agentes
+## Elenco canónico — 30 agentes
 
 ### Domínio (11)
 - `cliente` 🟢 — ecrãs e fluxos do cliente.
@@ -80,6 +80,15 @@ confianca: auto
   divide (>600 linhas). Verde = draft→Juiz; vermelho/dinheiro/auth = SÓ PROPOSTA. **Nunca se
   auto-modifica.** ADR: `wiki/decisoes/2026-07-10-evolution-engine-governado.md` (EvoSkill →
   opção (b), conceitos nativos).
+
+### Roteamento de aprovação (2026-07-10) — 30.º agente
+- `aprovador-vermelho` 🟡 (**NOVO**) — roteador da fila vermelha: **TRIAGE + SURFACE**. Torna a fila
+  🔴 (Central) visível ao Danilo (relatório + Telegram) e separa **Balde A** (só leitura / falso-positivo
+  do filtro T3 → recomenda aprovar com motivo) de **Balde B** (dinheiro REAL → **SEMPRE humano**, nunca
+  auto). **NÃO altera lógica de dinheiro — só o roteamento de aprovação**; a Trava continua a bloquear
+  ESCRITA nas zonas 🔴. Auto-aprovação de Balde A é capacidade **OPT-IN desligada por defeito**
+  (`platform_settings.aprovador_vermelho_auto_baldeA=false`), respeitando "protecção total = aprovar
+  CADA tarefa, não por lote". Contrato em `.claude/agents/aprovador-vermelho.md`.
 
 ### Fase 4 — não tocar agora (2)
 > **estado: superado (pela Fase 4, 2026-07-01).** `checkout-fixer` e `e2e-test-builder` deixam de

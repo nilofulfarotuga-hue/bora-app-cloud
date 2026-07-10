@@ -9,7 +9,10 @@ FILA="$HOSTDATA/cortex-brain/orquestracao"
 CTRL="$FILA/_controlo.md"
 LOG=/root/orquestracao/carteiro.log
 LOCK=/root/orquestracao/.carteiro.lock
-RED='dispatch_engine|pricing_service|finalizePurchase|bora_tokens|stripe|payment|webhook|wallet|ledger|refund|payout|commission|platform_settings|disable row level|force.?push'
+# T3 money-filter. -iE (case-insensitive). 2026-07-10: fechado o furo dos tokens —
+# 'bora_tokens' sozinho deixava passar 'Bora Tokens' (espaço), 'tokens_applied' e 'tvde...token'
+# (foi como a ordem 8448 passou por verde). Variações agora cobertas cirurgicamente (não engole JWT/fcm token genérico).
+RED='dispatch_engine|pricing_service|finalizePurchase|bora[ _]tokens?|tokens?_applied|tvde[a-z_ ]*tokens?|stripe|payment|webhook|wallet|ledger|refund|payout|commission|platform_settings|disable row level|force.?push'
 
 ts(){ date -u +%Y-%m-%dT%H:%M:%SZ; }
 log(){ echo "[$(ts)] $*" >> "$LOG"; }

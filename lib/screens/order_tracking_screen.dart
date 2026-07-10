@@ -779,19 +779,23 @@ class _BottomCardState extends State<_BottomCard> {
                     const SizedBox(height: Spacing.sm),
                     SizedBox(
                       width: double.infinity,
-                      child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.error,
-                          side: const BorderSide(color: AppColors.error),
-                          padding: const EdgeInsets.symmetric(
-                              vertical: Spacing.md),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(Radii.md + 2),
+                      child: Semantics(
+                        identifier: 'btn_cancelar_pedido',
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.error,
+                            side: const BorderSide(color: AppColors.error),
+                            padding: const EdgeInsets.symmetric(
+                                vertical: Spacing.md),
+                            shape: RoundedRectangleBorder(
+                              borderRadius:
+                                  BorderRadius.circular(Radii.md + 2),
+                            ),
                           ),
+                          onPressed: () => _confirmClientCancel(context),
+                          icon: const Icon(Icons.cancel_outlined, size: 18),
+                          label: const Text('Cancelar pedido'),
                         ),
-                        onPressed: () => _confirmClientCancel(context),
-                        icon: const Icon(Icons.cancel_outlined, size: 18),
-                        label: const Text('Cancelar pedido'),
                       ),
                     ),
                   ],

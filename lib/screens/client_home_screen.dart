@@ -569,22 +569,34 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
       mainAxisSpacing: Spacing.md,
       childAspectRatio: 0.95,
       children: tiles.map((t) {
+        // Semantics identifiers para testes E2E (Maestro): label → resource-id.
+        const semanticsIds = {
+          'Restaurantes': 'tile_restaurantes',
+          'Supermercados': 'tile_supermercados',
+          'Favores': 'tile_favores',
+          'Limpeza': 'tile_limpeza',
+        };
+        final Widget card;
         if (t.imageAsset != null) {
-          return BoraTileCard.image(
+          card = BoraTileCard.image(
             label: t.label,
             gradient: t.gradient,
             imageAsset: t.imageAsset!,
             onTap: t.onTap,
           );
+        } else {
+          // Fallback legacy (ainda sem PNG da categoria) — ver TODO no tile.
+          // ignore: deprecated_member_use_from_same_package
+          card = BoraTileCard(
+            label: t.label,
+            gradient: t.gradient,
+            iconData: t.iconData,
+            onTap: t.onTap,
+          );
         }
-        // Fallback legacy (ainda sem PNG da categoria) — ver TODO no tile.
-        // ignore: deprecated_member_use_from_same_package
-        return BoraTileCard(
-          label: t.label,
-          gradient: t.gradient,
-          iconData: t.iconData,
-          onTap: t.onTap,
-        );
+        final id = semanticsIds[t.label];
+        if (id == null) return card;
+        return Semantics(identifier: id, child: card);
       }).toList(),
     );
   }

@@ -1113,22 +1113,25 @@ class _BottomPanelState extends State<_BottomPanel> {
                       'Peça ao cliente o código de 4 dígitos para confirmar a entrega.',
                     ),
                     const SizedBox(height: 16),
-                    TextFormField(
-                      controller: controller,
-                      keyboardType: TextInputType.number,
-                      maxLength: 4,
-                      autofocus: true,
-                      decoration: InputDecoration(
-                        labelText: 'Código',
-                        counterText: '',
-                        errorText: errorText,
-                        border: const OutlineInputBorder(),
+                    Semantics(
+                      identifier: 'fld_codigo_entrega',
+                      child: TextFormField(
+                        controller: controller,
+                        keyboardType: TextInputType.number,
+                        maxLength: 4,
+                        autofocus: true,
+                        decoration: InputDecoration(
+                          labelText: 'Código',
+                          counterText: '',
+                          errorText: errorText,
+                          border: const OutlineInputBorder(),
+                        ),
+                        onChanged: (_) {
+                          if (errorText != null) {
+                            setDialogState(() => errorText = null);
+                          }
+                        },
                       ),
-                      onChanged: (_) {
-                        if (errorText != null) {
-                          setDialogState(() => errorText = null);
-                        }
-                      },
                     ),
                   ],
                 ),
@@ -1238,7 +1241,13 @@ class _BottomPanelState extends State<_BottomPanel> {
             ? order.vendorName!.trim()
             : order.serviceType.label;
     final label = showVendor ? '${action.label} — $vendor' : action.label;
-    return ElevatedButton(
+    // Semantics identifiers para testes E2E (Maestro): action.label → id.
+    const semanticsIds = {
+      'Recolher pedido': 'btn_recolher',
+      'Iniciar entrega': 'btn_iniciar_entrega',
+      'Concluir entrega': 'btn_concluir_entrega',
+    };
+    final button = ElevatedButton(
       onPressed: _isLoading
           ? null
           : () async {
@@ -1297,6 +1306,9 @@ class _BottomPanelState extends State<_BottomPanel> {
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
     );
+    final semanticsId = semanticsIds[action.label];
+    if (semanticsId == null) return button;
+    return Semantics(identifier: semanticsId, child: button);
   }
 
   @override

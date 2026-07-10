@@ -246,21 +246,27 @@ class _DriverOrderOverlayState extends State<_DriverOrderOverlay> {
                 child: Row(
                   children: [
                     Expanded(
-                      child: _ActionButton(
-                        label: 'Rejeitar',
-                        icon: Icons.close_rounded,
-                        color: Colors.red.shade700,
-                        onTap: () => _decide('reject'),
+                      child: Semantics(
+                        identifier: 'btn_recusar_oferta',
+                        child: _ActionButton(
+                          label: 'Rejeitar',
+                          icon: Icons.close_rounded,
+                          color: Colors.red.shade700,
+                          onTap: () => _decide('reject'),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
                       flex: 2,
-                      child: _ActionButton(
-                        label: 'Aceitar',
-                        icon: Icons.check_rounded,
-                        color: _kBoraGreen,
-                        onTap: () => _decide('accept'),
+                      child: Semantics(
+                        identifier: 'btn_aceitar_oferta',
+                        child: _ActionButton(
+                          label: 'Aceitar',
+                          icon: Icons.check_rounded,
+                          color: _kBoraGreen,
+                          onTap: () => _decide('accept'),
+                        ),
                       ),
                     ),
                   ],

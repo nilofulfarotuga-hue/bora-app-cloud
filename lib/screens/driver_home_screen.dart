@@ -708,12 +708,15 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                 isAvailable ? "Online" : "Offline",
                 style: const TextStyle(fontSize: 12),
               ),
-              Switch(
-                key: const Key('driver_online_toggle'),
-                value: isAvailable,
-                // Sessão 2026-05-22 — gate Uber/Glovo (3 perms) antes de
-                // ficar Online; legacy snackbar + heartbeat stop no offline.
-                onChanged: (value) => _handleOnlineToggle(value),
+              Semantics(
+                identifier: 'btn_toggle_online',
+                child: Switch(
+                  key: const Key('driver_online_toggle'),
+                  value: isAvailable,
+                  // Sessão 2026-05-22 — gate Uber/Glovo (3 perms) antes de
+                  // ficar Online; legacy snackbar + heartbeat stop no offline.
+                  onChanged: (value) => _handleOnlineToggle(value),
+                ),
               ),
             ],
           ),

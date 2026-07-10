@@ -209,21 +209,24 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
                 const SizedBox(height: Spacing.xxl + 4),
 
                 // ── Email ─────────────────────────────────────────────
-                TextFormField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  autofillHints: const [AutofillHints.email],
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    prefixIcon: Icon(Icons.email_outlined),
+                Semantics(
+                  identifier: 'fld_email',
+                  child: TextFormField(
+                    controller: _emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    autofillHints: const [AutofillHints.email],
+                    decoration: const InputDecoration(
+                      labelText: 'Email',
+                      prefixIcon: Icon(Icons.email_outlined),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Informe o seu email.';
+                      }
+                      if (!value.contains('@')) return 'Email inválido.';
+                      return null;
+                    },
                   ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Informe o seu email.';
-                    }
-                    if (!value.contains('@')) return 'Email inválido.';
-                    return null;
-                  },
                 ),
                 if (_prefilledFromMemory)
                   Align(
@@ -237,38 +240,44 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
                 const SizedBox(height: Spacing.lg),
 
                 // ── Password ──────────────────────────────────────────
-                TextFormField(
-                  controller: _passwordController,
-                  obscureText: _obscurePassword,
-                  autofillHints: const [AutofillHints.password],
-                  decoration: InputDecoration(
-                    labelText: 'Palavra-passe',
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined,
+                Semantics(
+                  identifier: 'fld_password',
+                  child: TextFormField(
+                    controller: _passwordController,
+                    obscureText: _obscurePassword,
+                    autofillHints: const [AutofillHints.password],
+                    decoration: InputDecoration(
+                      labelText: 'Palavra-passe',
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                        ),
+                        onPressed: () => setState(
+                            () => _obscurePassword = !_obscurePassword),
                       ),
-                      onPressed: () =>
-                          setState(() => _obscurePassword = !_obscurePassword),
                     ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Informe a palavra-passe.';
+                      }
+                      return null;
+                    },
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Informe a palavra-passe.';
-                    }
-                    return null;
-                  },
                 ),
 
                 const SizedBox(height: Spacing.xxl + 4),
 
                 // ── Login button ──────────────────────────────────────
-                BoraPrimaryButton(
-                  label: 'Entrar',
-                  loading: _isProcessing,
-                  onPressed: _submit,
+                Semantics(
+                  identifier: 'btn_entrar',
+                  child: BoraPrimaryButton(
+                    label: 'Entrar',
+                    loading: _isProcessing,
+                    onPressed: _submit,
+                  ),
                 ),
                 // ── L3 — biometria ────────────────────────────────────
                 if (_biometricAvailable) ...[

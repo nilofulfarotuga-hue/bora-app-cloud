@@ -1385,22 +1385,28 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
               ),
             ] else if (order.status == OrderStatus.created) ...[
               Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    widget.onAccept(order);
-                  },
-                  icon: const Icon(Icons.check),
-                  label: const Text('Aceitar pedido'),
+                child: Semantics(
+                  identifier: 'btn_aceitar_pedido',
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      widget.onAccept(order);
+                    },
+                    icon: const Icon(Icons.check),
+                    label: const Text('Aceitar pedido'),
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    widget.onReject(order);
-                  },
-                  icon: const Icon(Icons.close),
-                  label: const Text('Rejeitar'),
+                child: Semantics(
+                  identifier: 'btn_rejeitar_pedido',
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      widget.onReject(order);
+                    },
+                    icon: const Icon(Icons.close),
+                    label: const Text('Rejeitar'),
+                  ),
                 ),
               ),
             ] else if (order.isTakeaway) ...[
@@ -1733,23 +1739,26 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
       case OrderStatus.preparing:
         return SizedBox(
           width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: busy ? null : () => _chamarEstafeta(order),
-            icon: busy
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                : const Icon(Icons.delivery_dining),
-            label: Text(busy ? 'A chamar...' : 'Chamar estafeta'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.accent,
-              foregroundColor: Colors.white,
-              minimumSize: const Size(double.infinity, 48),
+          child: Semantics(
+            identifier: 'btn_chamar_estafeta',
+            child: ElevatedButton.icon(
+              onPressed: busy ? null : () => _chamarEstafeta(order),
+              icon: busy
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.delivery_dining),
+              label: Text(busy ? 'A chamar...' : 'Chamar estafeta'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.accent,
+                foregroundColor: Colors.white,
+                minimumSize: const Size(double.infinity, 48),
+              ),
             ),
           ),
         );

@@ -83,6 +83,30 @@ O `reset --hard` noturno DESCARTA edições locais não commitadas — o estado 
 daqui em diante: **estado terminal de ordem grava-se no REPO, não só no espelho.** É por isso que
 o modo `fast` usa `merge --ff-only` (preserva) e não `reset --hard`.
 
+## ✅ Verificação live em produção (3.ª passagem do executor, 2026-07-10)
+Re-auditoria por SSH ao host confirmou os três masters **live** (não regrediram):
+- `/root/cortex-mcp/sync-brain.sh` = **41 linhas, 3× `fast`** ✅
+- `/root/orquestracao/carteiro.sh` = **76 linhas, 2× `sync_espelho`** ✅
+- `/root/bora-bridge-up.sh` = **77 linhas, 1× bloco `cortex-sync`** ✅
+- espelho remote = `git@github.com:...bora-app-cloud.git` (SSH deploy key, **nunca PAT**) ✅
+
+**Teste medido (por-tarefa, modo `fast`).** Disparei `sync-brain.sh fast` como o carteiro faz:
+- **Duração: ~1,46 s** (fetch + reconciliação do `knowledge/`) — "segundos", não o dia seguinte.
+- **Fila `orquestracao/` preservada: 22 → 22** ficheiros (o `fast` NÃO rebobina a fila viva). Nota:
+  a fila vive na **raiz** do espelho (`/opt/data/cortex-brain/orquestracao/`), não sob `knowledge/`.
+- O `fetch` trouxe `origin/autonomous-night-2026-04-29` já à frente do espelho — o conteúdo novo
+  passou a estar visível ao MCP/Claude.ai no próprio ciclo.
+- **HEAD do espelho não avança no `fast`** (artefacto do clone `--depth 1`): fica no SHA antigo e é
+  reconciliado pelo **cron 06h30** (`reset --hard`). Como o Claude.ai lê **CONTEÚDO** sob
+  `knowledge/` (e não o SHA), a cegueira está resolvida ao nível que importa.
+
+**Porque NÃO se força o HEAD por-tarefa (decisão reafirmada).** O working tree do espelho está
+cronicamente "sujo" (a fila `orquestracao/` da raiz + reports editados localmente). Um `reset --hard`
+ou um `--unshallow`+`ff-only` agressivo por-tarefa arriscaria a **fila viva do carteiro** (loop 🟢
+Core). O design escolhe deliberadamente `merge --ff-only` + fallback (checkout de `knowledge/`) para
+**preservar** essa fila; o avanço limpo do HEAD fica com o cron noturno. `--unshallow` continua como
+melhoria futura **opcional**, não aplicada (mantém o mecanismo simples e a fila segura).
+
 ## Pendência/nota
 - O "hook pós-push" é aproximado por `pre-push` + delay (git não tem `post-push` nativo);
   webhook GitHub → VPS fica como melhoria futura (proposta, não construída).

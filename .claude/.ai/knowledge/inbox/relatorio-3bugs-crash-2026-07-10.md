@@ -75,3 +75,17 @@ Se voltar a aparecer numa build recente com stack trace, trocar o `!` culpado po
 
 **Fora do escopo:** `errand_execution_sheet.dart` (picker) fica como proposta para zona Trava.
 **Não tocado:** zonas vermelhas, versionCode. `flutter analyze` + `flutter test` corridos.
+
+---
+
+## ✅ Verificação independente (2.ª sessão, 2026-07-10 ~18h)
+Auditoria cega pela sessão principal do PC, ANTES de conhecer este relatório — os achados
+**batem 100%**: (a) GPS — todos os call sites com service-check + `onError` + try/catch;
+cliente coberto pelo `LocationService` que nunca lança; fix posterior ao build 396 (os 5
+crashes são do build velho). (b) Picker — 11/12 sítios via `SafeImagePicker`; o 12.º
+(`errand_execution_sheet.dart:96`, `_pickReceipt`) confirmado bloqueado pela Trava
+(`_finalizePurchase` no mesmo ficheiro). Diff pronto na verificação: trocar
+`ImagePicker().pickImage` → `SafeImagePicker.pickImage` + `if (!mounted) return;` antes do
+`setState`. **⚠️ Ficheiro na Trava por causa de dinheiro. Está tudo pronto — confirma que
+eu aplico.** (c) Null-check — 8 usos de `!` em `dispose()`, todos guardados por
+`if != null`. Validação da 2.ª sessão: `flutter test` 37/37 verde; analyze 216/0 erros.

@@ -7,6 +7,9 @@ zona: verde
 confianca: auto
 ---
 
-# E2E — 2026-07-10: 0/1 verdes
+# E2E — 2026-07-10: 1/4 verdes
 
-- ❌ **smoke-login-cliente** — FALHOU (170.2s) · falha: `{"yaml": "cliente/login.yaml", "serial": "N75LTG5X5DSKDMV4", "t_epoch": 1783696646.510119, "tail": "Run flow when \"Entrar com outra conta\" is visible... SKIPPED\nRun flow when \"`
+- ✅ **smoke-login-cliente** — PASSOU (214.6s)
+- ❌ **login-estafeta** — FALHOU (366.0s) · falha: `{"yaml": "estafeta/login.yaml", "serial": "RZGYB1XQD2P", "t_epoch": 1783702570.5520082, "tail": "Run flow when \"Entrar com outra conta\" is visible... SKIPPED\nRun flow when \"Ema`
+- ❌ **delivery-mercado-cash** — PRE-CONDICAO-FALHOU (?s)
+- 📱📱 **tvde-corrida-cliente-motorista** — MANUAL-2-DEVICES (0s)

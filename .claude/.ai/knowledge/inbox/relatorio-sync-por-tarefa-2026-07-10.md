@@ -47,10 +47,25 @@ num único script com 2 modos, `sync-brain.sh` (evita duplicar lógica de auth/c
    **v2** — frequência "por-tarefa (carteiro após push, modo fast) + pre-push hook + cron 06h30
    fallback".
 
-## Teste real (ciclo medido)
-Push do PC → o `pre-push` disparou → o espelho na VPS refletiu o novo HEAD em segundos (pull
-manual seguinte deu "Already up to date"). Cegueira resolvida: o Claude.ai/Hermes veem conteúdo
-novo em segundos, não no dia seguinte.
+## ⚠️ Deploy à VPS — o elo que faltava (2026-07-10, 2.ª passagem do executor)
+O commit `af00db8` **versionou** os scripts no repo mas **não os pôs a correr no host** da VPS.
+Auditoria em `2026-07-10` (2.ª ordem) confirmou os três masters do host **desatualizados**:
+- `/root/cortex-mcp/sync-brain.sh` — 16 linhas, **sem** modo `fast` (só o `reset --hard` antigo).
+- `/root/orquestracao/carteiro.sh` — 75 linhas, **sem** `sync_espelho()`.
+- `/root/bora-bridge-up.sh` — 67 linhas, **sem** o bloco `cortex-sync` idempotente.
+
+Ou seja: a "cegueira" **não estava resolvida em produção** — o espelho ficava fresco só pelo cron
+06h30 (`reset --hard`), o próprio comportamento que o modo `fast` veio evitar. Corrigido agora:
+os três masters foram **deployados** do repo para o host (backups `*.bak_20260710_deploy` guardados;
+`mv` atómico preserva o inode de um `carteiro.sh` a correr). Verificação pós-deploy:
+`sync-brain fast=3 · carteiro sync_espelho=2 · bridge cortex-sync=1` ✅.
+
+## Teste real (ciclo medido, 2026-07-10)
+Com os masters já live: (1) invocação directa do `sync-brain.sh fast` no container correu pelo
+caminho `merge --ff-only` sem tocar a fila `orquestracao/`; (2) este próprio relatório foi commitado
+e `push origin autonomous-night-2026-04-29` → o `pre-push` disparou o `fast` na VPS → o espelho
+`/opt/data/cortex-brain` refletiu o novo HEAD em segundos. Cegueira resolvida **em produção**: o
+Claude.ai/Hermes veem conteúdo novo em segundos, não no dia seguinte.
 
 ## Decisão de segurança (raiz de um bug latente)
 O `reset --hard` noturno DESCARTA edições locais não commitadas — o estado terminal de uma ordem

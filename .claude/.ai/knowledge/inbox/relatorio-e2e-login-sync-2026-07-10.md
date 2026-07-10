@@ -38,3 +38,23 @@ O REST validava 200 com a password do momento — mascarando o problema.
   `{phone}@driver.bora.app`) — o fluxo de login do estafeta na suite valida/expõe isto.
 - Trilha de diagnóstico anterior (falsas pistas descartadas): APK sem defines (não — build
   396 CI), internet do device (ok), GPM overlay (não), maxLength (não existe).
+
+---
+
+## 2ª confirmação — re-run 2026-07-10 (executor headless)
+Re-validação determinística de que o sync se mantém (nenhuma alteração necessária):
+- **Banco** (SQL via MCP service_role): `teste-cliente@bora.app` →
+  `encrypted_password = crypt('BoraTeste2026', encrypted_password)` = **true**, confirmado,
+  não banido. `auth.users` NÃO tocado (só SELECT).
+- **`.env`**: `E2E_CLIENT_PASSWORD=BoraTeste2026` — idêntica ao banco. ✅
+- **AUTH REST** `signInWithPassword` (anon key): **HTTP 200**, `access_token` presente,
+  `bora_role=client`. ✅
+- Password antiga `0yKWYUNgzrbjOMv1jQnlApu...`: grep vazio em todo o repo — era efémera
+  (gerada por `criar-contas-teste.py` antes de o `.env` ser fixado).
+- **Launch smoke** device cliente Samsung `RZGYB1XQD2P`: app `pt.boraapp.bora` instalada e
+  arranca (`ResumedActivity = .MainActivity`). ✅
+- **Suite Maestro UI não corrida neste run**: executor headless sem Python nem Maestro
+  (`runner.py`/`loop-noturno.py` dependem de ambos). Correr `run-tudo.cmd` numa máquina com
+  Python + Maestro para a suite completa — dados e fix de digitação já em vigor.
+- Nota canónica confirmada: `permanente/semantica/credenciais-teste.md` (duplicado
+  `credenciais-teste-e2e.md` criado por engano neste run foi removido).

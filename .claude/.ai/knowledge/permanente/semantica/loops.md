@@ -1,9 +1,9 @@
 ---
-tema: loops · escopo: projeto · estado: atual · atualizado: 2026-07-10
+tema: loops · escopo: projeto · estado: atual · atualizado: 2026-07-11
 id: loops
 tipo: registry
 origem: [missão "Do Prompt ao Loop" 2026-07-10 — crons VPS/host verificados por SSH, crons Supabase, skills]
-ultima_confirmacao: 2026-07-10
+ultima_confirmacao: 2026-07-11
 zona: verde
 confianca: verificado
 ---
@@ -41,7 +41,19 @@ confianca: verificado
 | 🟡 | **obsidian-sync** | vault e Cérebro divergem | drift=0 | cron host 04h30 | bibliotecário | sync idempotente sem erro | vault → from-obsidian/ | 1 | `obsidian-sync` |
 | 🟣 | **Loop E2E noturno** | regressões chegam ao Danilo/testers | fluxos verdes/total | manual `run-tudo.cmd` / noite | devops-ci, Juiz, release | verdes 2 ciclos seguidos | flows YAML → resultados+vídeos+Telegram | 1 | `juiz-revisor` (braço e2e) |
 | 🟣 | **Watchdog Hermes** | loops morrem em silêncio | tempo-até-deteção | cron host 2h/2h | todos os loops | alerta certo na cor certa; NUNCA age | fila+logs+recursos → alerta Telegram | 1 | Hermes(host) |
+| 🟡 | **aprovador-vermelho (gate da fila 🔴)** | zona vermelha presa sem o Danilo ter acesso à Central | propostas triadas/hora (latência ≤10 min) | cron host `*/10` + campainha (inotify) quando entra ordem | Danilo, carteiro | fila nunca fica com proposta parada >10 min sem triagem | watermark RPC anon → ordem na fila → agente tria (Balde A auto / Balde B Telegram) | 1 | Hermes(host)/`aprovador-vermelho` |
 | ⚫ | **missao-lancamento-play-store** | lançar na Play Store | critérios da missão | Mission Engine (uma ordem de cada vez) | Danilo | critério de conclusão da página da missão | `orquestracao/missao-*.md` → ordens | 1 | `maestro-autonomia` |
+
+> **aprovador-vermelho — gate barato + gatilho event-driven (2026-07-11).** O agente triava a fila
+> 🔴 só quando alguém o corria à mão → propostas ficavam presas. Ligado como loop 🟡: cron host
+> `*/10` (`/usr/local/bin/hermes-aprovador-vermelho.sh`, canónico em `.claude/scripts/`) lê um
+> **watermark barato** — RPC `red_queue_watermark()` (SECURITY DEFINER, só devolve `count`+`newest`
+> de `robot_suggestions status=nova`, **sem títulos nem dinheiro**, executável por `anon`). Só quando
+> `newest` avança (item genuinamente novo) injeta UMA ordem na fila; a campainha (inotify) acorda o
+> carteiro **na hora** → o PC corre o agente. **SILENCIOSO:** o backlog de Balde B já surfaçado
+> (timestamps antigos) não re-dispara — high-water no `newest`. O agente **nunca decide dinheiro**:
+> Balde A (não-$) auto-aprova; Balde B fica `nova` e vai por Telegram ao Danilo. A Trava continua a
+> bloquear escrita nas zonas 🔴. Testado 2026-07-11: item novo → deteta; backlog → silêncio.
 
 > **Orquestração (carteiro) — nota de robustez (2026-07-10).** Ordens pesadas ficavam presas
 > (`aberta→…→travada`, saída 0 bytes). Causa-raiz: o `pc-loop` passava a tarefa em base64 como

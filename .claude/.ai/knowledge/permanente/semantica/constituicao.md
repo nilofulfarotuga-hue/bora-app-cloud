@@ -1,9 +1,9 @@
 ---
-tema: constituicao · escopo: projeto · estado: atual · atualizado: 2026-07-10
+tema: constituicao · escopo: projeto · estado: atual · atualizado: 2026-07-11
 id: constituicao
 tipo: indice
 origem: [missão "Do Prompt ao Loop" 2026-07-10 — página-índice, NÃO duplica: aponta]
-ultima_confirmacao: 2026-07-10
+ultima_confirmacao: 2026-07-11
 zona: verde
 confianca: verificado
 ---
@@ -37,6 +37,12 @@ confianca: verificado
     prompt solto nem script isolado."** (princípio novo, missão 2026-07-10). Loop novo só
     nasce com as 5 perguntas + cor + dono no registry; o evolution-engine evolui skills E
     loops com governança (Juiz/Danilo). → `loops.md` · `evolution-engine`
+11. **Não pisar em casca de ovo com palavras — só ESCRITA real em dinheiro é vermelha.**
+    Um guard de zona sensível que trava por MENÇÃO de uma palavra (sem olhar ao verbo) gera
+    fricção sem ganho de segurança; vermelho exige intenção de escrita (ou ação destrutiva
+    por si só). Em dúvida genuína sobre dinheiro, o agente PARA e pergunta ao Danilo em 1
+    linha — não trava sozinho, não pede para reescrever a tarefa. (princípio novo,
+    2026-07-11). → `wiki/licoes/classificador-zona-menos-sensivel-a-palavras.md` · `carteiro.sh`
 
 **Precedência em conflito de fontes:** `business_rules.md` vence nos NÚMEROS; `dna.md` vence
 na FILOSOFIA; a Trava vence sempre em segurança.

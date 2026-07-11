@@ -1,9 +1,9 @@
 ---
-tema: convencoes · escopo: projeto · estado: atual · atualizado: 2026-07-01
+tema: convencoes · escopo: projeto · estado: atual · atualizado: 2026-07-11
 id: convencoes
 tipo: conceito
 origem: [.github/workflows/build_android.yml, .gitattributes]
-ultima_confirmacao: 2026-07-08
+ultima_confirmacao: 2026-07-11
 zona: verde
 confianca: auto
 ---
@@ -11,6 +11,15 @@ confianca: auto
 # 🛠️ Convenções — ambiente, git, MCP, Windows
 
 > Aprendizagens de processo/ambiente (não regras de negócio). Cresce via Bibliotecário.
+
+## Classificador de zona vermelha (carteiro, 2026-07-11)
+- **Não pisar em casca de ovo com palavras — só ESCRITA real em dinheiro é vermelha.** O T3
+  do carteiro deixou de pintar vermelho por MENÇÃO de termo protegido (`stripe`, `pricing_service`,
+  `bora_tokens`, …); agora exige intenção de escrita junto (verbo `mudar/atualizar/aplicar/…` ou
+  SQL `UPDATE/INSERT/DELETE/ALTER/DROP`), ou uma ação destrutiva por si só (`--force`,
+  `reset --hard`, `disable row level`). Em dúvida genuína sobre dinheiro → o agente PARA e
+  pergunta ao Danilo em 1 linha; não trava sozinho, não obriga a reescrever a tarefa até passar.
+  `estado: atual`. → `wiki/licoes/classificador-zona-menos-sensivel-a-palavras.md`
 
 ## Loops (missão 2026-07-10)
 - **Todo loop novo NASCE com entrada no registry** `permanente/semantica/loops.md` — as 5

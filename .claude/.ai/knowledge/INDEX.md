@@ -51,6 +51,7 @@ knowledge/
 | 🛎️ Hermes Concierge (rotas + limites) | `permanente/semantica/hermes-concierge.md` | mexer no Hermes/Telegram; governança |
 | 🎨 Brand-brain (marca, personas, anti-slop) | `permanente/semantica/brand-brain.md` | qualquer peça de marketing |
 | Mapa de fluxos (índice + cliente/estafeta/parceiro/anti-regressão) | `permanente/semantica/mapa-de-fluxos.md` | testes E2E; entender um fluxo ponta-a-ponta |
+| 📍 Ponto de retoma — teste E2E delivery-mercado-cash | `permanente/semantica/estado-teste-e2e.md` | retomar o teste E2E sem recomeçar do zero |
 
 ### Episódica — história
 | Tema | Ficheiro | Quando ler |

@@ -43,6 +43,12 @@ confianca: verificado
     por si só). Em dúvida genuína sobre dinheiro, o agente PARA e pergunta ao Danilo em 1
     linha — não trava sozinho, não pede para reescrever a tarefa. (princípio novo,
     2026-07-11). → `wiki/licoes/classificador-zona-menos-sensivel-a-palavras.md` · `carteiro.sh`
+12. **O sistema tem um maestro-que-nunca-dorme.** Quando um loop 🟢 Core (carteiro, aprovador,
+    campainha, watchdog) morre ou trava, outro mecanismo o revive sozinho — sem esperar o
+    Danilo nem o Claude.ai. Falha em cascata sem auto-recuperação é erro grave; todo loop 🟢
+    Core precisa de um vigia INDEPENDENTE dele próprio (não vale o vigia morrer junto).
+    (princípio novo, missão "automação total" 2026-07-11). → `loops.md` ·
+    `hermes-carteiro-vigia.sh` · `wiki/licoes/executor-vivo-mas-tarefa-pesada-esgota-tentativas.md`
 
 **Precedência em conflito de fontes:** `business_rules.md` vence nos NÚMEROS; `dna.md` vence
 na FILOSOFIA; a Trava vence sempre em segurança.

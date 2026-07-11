@@ -57,6 +57,7 @@ BASE = Path(__file__).resolve().parent
 REPO = BASE.parent.parent
 FLOWS = BASE / "flows"
 INBOX = REPO / ".claude" / ".ai" / "knowledge" / "inbox"
+GRAVACOES = BASE / "gravacoes"
 
 sys.path.insert(0, str(BASE))
 import importlib.util as _iu
@@ -64,6 +65,9 @@ _spec = _iu.spec_from_file_location("cinegrafista", BASE / "cinegrafista.py")
 _cine_mod = _iu.module_from_spec(_spec)
 _spec.loader.exec_module(_cine_mod)
 Cinegrafista = _cine_mod.Cinegrafista
+
+# Diário E2E — dá olhos em tempo real ao Claude.ai (escreve cada passo em e2e_log).
+import e2e_diario
 
 TEST_DRIVER_EMAIL = os.environ.get("E2E_DRIVER_EMAIL", "teste-estafeta@bora.app")
 RESET_YAML = "comum/reset-role-screen.yaml"
@@ -84,6 +88,165 @@ def adb_serials() -> list:
     except Exception:
         return []
     return [l.split("\t")[0] for l in out.splitlines()[1:] if "\tdevice" in l]
+
+
+def _adb_estado() -> tuple:
+    """(autorizados, problemáticos) lidos de 'adb devices' — separa 'device' de
+    'unauthorized'/'offline' (o problema recorrente: a autorização USB caía a meio)."""
+    try:
+        out = subprocess.run([_adb_bin(), "devices"], capture_output=True, text=True, timeout=20).stdout or ""
+    except Exception:
+        return ([], [])
+    auth, mau = [], []
+    for l in out.splitlines()[1:]:
+        if "\tdevice" in l:
+            auth.append(l.split("\t")[0])
+        elif "\tunauthorized" in l or "\toffline" in l:
+            mau.append(l.split("\t")[0])
+    return (auth, mau)
+
+
+def adb_reautoriza() -> dict:
+    """No arranque do runner: força re-handshake do adb REUTILIZANDO a chave já
+    autorizada (~/.android/adbkey) — kill-server + start-server + devices. Isto
+    resolve o problema recorrente de a autorização USB cair e travar tudo. Se algum
+    device ficar 'unauthorized'/'offline', tenta 'adb reconnect' e regista em e2e_log.
+    NUNCA lança — sem device o main() trata o erro normalmente."""
+    adb = _adb_bin()
+    for cmd in (["kill-server"], ["start-server"]):
+        try:
+            subprocess.run([adb] + cmd, capture_output=True, text=True, timeout=30)
+        except Exception:
+            pass
+    time.sleep(1.5)
+    auth, mau = _adb_estado()
+    if mau:
+        for cmd in (["reconnect", "offline"], ["reconnect"]):
+            try:
+                subprocess.run([adb] + cmd, capture_output=True, timeout=20)
+            except Exception:
+                pass
+        time.sleep(2)
+        auth, mau = _adb_estado()
+        # lição 2026-07-11: um único kill/start-server + reconnect nem sempre
+        # destranca 'unauthorized' (visto no loop das 14:38). Se persistir, um
+        # segundo restart completo do daemon costuma recuperar (reusa adbkey).
+        if mau:
+            for cmd in (["kill-server"], ["start-server"]):
+                try:
+                    subprocess.run([adb] + cmd, capture_output=True, timeout=30)
+                except Exception:
+                    pass
+            time.sleep(3)
+            auth, mau = _adb_estado()
+        try:
+            e2e_diario.registar("runner", "adb re-autorização", "falhou" if mau else "passou",
+                                detalhe=f"unauthorized/offline={mau} · autorizados={auth}", device="host")
+        except Exception:
+            pass
+    print(f"[adb] re-autorização: autorizados={auth}" + (f" · problema={mau}" if mau else ""))
+    return {"auth": auth, "mau": mau}
+
+
+def garante_serial_autorizado(serial: str) -> bool:
+    """Antes de cada Maestro: se o serial caiu para 'unauthorized'/'offline', tenta
+    'adb reconnect' e regista em e2e_log — em vez de deixar o teste morrer sem pista.
+    Devolve True se o serial está 'device'. Nunca lança (best-effort)."""
+    auth, mau = _adb_estado()
+    if serial in auth:
+        return True
+    try:
+        e2e_diario.registar("runner", "device caiu (unauthorized/offline)", "falhou",
+                            detalhe=f"serial={serial} · problema={mau}", device=serial)
+    except Exception:
+        pass
+    adb = _adb_bin()
+    for cmd in (["reconnect"], ["reconnect", "offline"], ["-s", serial, "reconnect"]):
+        try:
+            subprocess.run([adb] + cmd, capture_output=True, timeout=20)
+        except Exception:
+            pass
+    time.sleep(3)
+    auth, _ = _adb_estado()
+    ok = serial in auth
+    # lição 2026-07-11 (device caído a meio do loop): 'adb reconnect' NÃO recupera um
+    # device que desapareceu por completo de 'adb devices' (só apanha 'offline', não o
+    # drop total do USB). O que recupera de facto — confirmado à mão nesta sessão nos
+    # DOIS telemóveis — é um restart COMPLETO do daemon (kill-server + start-server),
+    # que refaz o handshake reutilizando ~/.android/adbkey. Sem isto o Maestro arrancava
+    # contra um serial fantasma e morria em ~12-18s com "was requested, but it is not
+    # connected" (o falso "reset-role-screen falha rápido").
+    if not ok:
+        for cmd in (["kill-server"], ["start-server"]):
+            try:
+                subprocess.run([adb] + cmd, capture_output=True, timeout=30)
+            except Exception:
+                pass
+        time.sleep(3)
+        auth, _ = _adb_estado()
+        ok = serial in auth
+        try:
+            e2e_diario.registar("runner", "adb kill/start-server (escalada)",
+                                "passou" if ok else "falhou",
+                                detalhe=f"serial={serial} · voltou={ok}", device=serial)
+        except Exception:
+            pass
+    try:
+        e2e_diario.registar("runner", "adb reconnect", "passou" if ok else "falhou",
+                            detalhe=f"serial={serial} · voltou={ok}", device=serial)
+    except Exception:
+        pass
+    print(f"[adb] reconnect {serial}: {'OK' if ok else 'ainda caído'}")
+    return ok
+
+
+APP_PACKAGE = os.environ.get("E2E_APP_PACKAGE", "pt.boraapp.bora")
+
+# Permissões de runtime (dangerous) que o app pede em diálogo — se ninguém tocar
+# "Permitir", o teste fica PRESO à espera de mão humana (lição 2026-07-11: era a
+# permissão de armazenamento que travava o arranque). Concedemos TODAS por adb
+# antes de correr, para o loop nunca depender de um toque.
+RUNTIME_PERMISSIONS = [
+    "android.permission.ACCESS_FINE_LOCATION",
+    "android.permission.ACCESS_COARSE_LOCATION",
+    "android.permission.ACCESS_BACKGROUND_LOCATION",
+    "android.permission.CAMERA",
+    "android.permission.POST_NOTIFICATIONS",
+    "android.permission.READ_EXTERNAL_STORAGE",
+    "android.permission.WRITE_EXTERNAL_STORAGE",
+    "android.permission.READ_MEDIA_IMAGES",
+    "android.permission.RECORD_AUDIO",
+]
+# appops especiais (não são pm grant) — overlay e ignorar otimização de bateria.
+SPECIAL_APPOPS = ["SYSTEM_ALERT_WINDOW", "REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"]
+
+
+def garante_permissoes(serial: str, pkg: str = APP_PACKAGE) -> dict:
+    """Concede todas as permissões de runtime do app via adb (best-effort, idempotente).
+    Cada grant é individual e tolera erro (permissão não declarada / não-grantável /
+    versão de Android) para NUNCA abortar o run. Devolve resumo {concedidas, falhadas}."""
+    adb = _adb_bin()
+    ok, ko = [], []
+    for perm in RUNTIME_PERMISSIONS:
+        try:
+            r = subprocess.run([adb, "-s", serial, "shell", "pm", "grant", pkg, perm],
+                               capture_output=True, text=True, timeout=20)
+            (ok if r.returncode == 0 else ko).append(perm.split(".")[-1])
+        except Exception:
+            ko.append(perm.split(".")[-1])
+    for op in SPECIAL_APPOPS:
+        try:
+            subprocess.run([adb, "-s", serial, "shell", "appops", "set", pkg, op, "allow"],
+                           capture_output=True, text=True, timeout=20)
+        except Exception:
+            pass
+    print(f"[permissoes] {pkg} @ {serial}: {len(ok)} concedidas"
+          + (f" · {len(ko)} n/a: {ko}" if ko else ""))
+    # diário: prova ao Claude.ai (ao vivo) que o diálogo de permissão já não depende de toque.
+    e2e_diario.registar("runner", "permissoes concedidas", "passou",
+                        detalhe=f"{len(ok)} concedidas" + (f" · n/a={ko}" if ko else ""),
+                        device=serial)
+    return {"concedidas": ok, "falhadas": ko}
 
 
 def _maestro_bin() -> str:
@@ -183,10 +346,52 @@ def _creds_maestro() -> dict:
     return creds
 
 
-def corre_maestro(serial: str, yaml_rel: str, env_extra: dict, log_passos: list) -> dict:
+def _diario_env() -> dict:
+    """Credenciais do diário injetadas em TODOS os flows Maestro (via --env) para o
+    sub-flow ../comum/diario.yaml poder escrever milestones em e2e_log em tempo real.
+    NUNCA impressas (a chave fica só no processo). Sem credenciais → dict vazio (no-op)."""
+    if not (DB.get("url") and DB.get("key")):
+        return {}
+    return {"SUPABASE_URL": DB["url"], "SUPABASE_KEY": DB["key"],
+            "E2E_RUN_ID": e2e_diario.RUN_ID}
+
+
+def screenshot_falha(serial: str, fluxo: str, yaml_rel: str) -> str:
+    """REGRA DE OURO (dica Danilo 2026-07-11): quando um passo falha, NUNCA ficar
+    preso em silêncio — tirar uma foto AGORA (adb screencap → gravacoes/) e registar
+    o caminho no diário, para o Claude.ai ver o ecrã exato da falha. Best-effort:
+    nunca lança (uma foto que falhe não pode afundar o teste)."""
+    try:
+        GRAVACOES.mkdir(parents=True, exist_ok=True)
+        # sem Date.now-style aleatório: nome estável por (fluxo, yaml, serial) —
+        # a última falha do mesmo passo sobrepõe-se (não polui a pasta).
+        slug = re.sub(r"[^a-z0-9]+", "-", f"{fluxo}-{yaml_rel}".lower()).strip("-")
+        destino = GRAVACOES / f"falha-{slug}-{serial}.png"
+        r = subprocess.run([_adb_bin(), "-s", serial, "exec-out", "screencap", "-p"],
+                           capture_output=True, timeout=25)
+        if r.returncode == 0 and r.stdout:
+            destino.write_bytes(r.stdout)
+            e2e_diario.registar(fluxo, f"screenshot da falha: {yaml_rel}", "falhou",
+                                detalhe=f"foto do ecrã no momento da falha: {destino}",
+                                device=serial)
+            return str(destino)
+    except Exception as e:
+        try:
+            e2e_diario.registar(fluxo, "screenshot da falha", "falhou",
+                                detalhe=f"não consegui tirar foto (não-fatal): {e}",
+                                device=serial)
+        except Exception:
+            pass
+    return ""
+
+
+def corre_maestro(serial: str, yaml_rel: str, env_extra: dict, log_passos: list,
+                  fluxo: str = "?") -> dict:
     yaml_path = FLOWS / yaml_rel
+    garante_serial_autorizado(serial)  # recupera se a autorização USB caiu a meio
+    e2e_diario.registar(fluxo, f"maestro: {yaml_rel}", "iniciou", device=serial)
     cmd = [_maestro_bin(), "--device", serial, "test", str(yaml_path)]
-    for k, v in {**_creds_maestro(), **(env_extra or {})}.items():
+    for k, v in {**_diario_env(), **_creds_maestro(), **(env_extra or {})}.items():
         cmd += ["--env", f"{k}={v}"]
     # maestro precisa do adb: garantir ANDROID_HOME + platform-tools no PATH
     env_proc = dict(os.environ)
@@ -197,19 +402,57 @@ def corre_maestro(serial: str, yaml_rel: str, env_extra: dict, log_passos: list)
     env_proc.setdefault("JAVA_TOOL_OPTIONS", "-Xmx768m")
     t0 = time.time()
     log_passos.append({"ts": t0, "evento": f"maestro start {yaml_rel} @ {serial}"})
-    r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=900, env=env_proc)
+    # Teto de tempo por chamada Maestro. 480s (8 min) dá folga a login+fluxo completo
+    # (a espera final do pedido é 120s) mas impede o hang silencioso de 20+ min que
+    # arrastava a noite. TimeoutExpired NÃO rebenta o runner: é tratado como passo
+    # falhado (regra de ouro: foto + segue), para o próximo fluxo continuar.
+    MAESTRO_TIMEOUT_S = 480
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8",
+                           errors="replace", timeout=MAESTRO_TIMEOUT_S, env=env_proc)
+    except subprocess.TimeoutExpired as e:
+        t1 = time.time()
+        tail = "\n".join((e.stdout or "").splitlines()[-25:]) if isinstance(e.stdout, str) else ""
+        err_tail = "\n".join((e.stderr or "").splitlines()[-15:]).strip() if isinstance(e.stderr, str) else ""
+        if err_tail:
+            tail = (tail + "\n").lstrip() + "[stderr]\n" + err_tail
+        log_passos.append({"ts": t1, "evento": f"maestro TIMEOUT {MAESTRO_TIMEOUT_S}s {yaml_rel}", "tail": tail})
+        foto = screenshot_falha(serial, fluxo, yaml_rel)
+        e2e_diario.registar(fluxo, f"maestro: {yaml_rel}", "falhou",
+                            detalhe=f"TIMEOUT {MAESTRO_TIMEOUT_S}s · foto={foto} · {tail[-1200:]}",
+                            device=serial)
+        return {"ok": False, "rc": -9, "dur_s": round(t1 - t0, 1), "t_fim": t1,
+                "tail": tail, "foto": foto}
     t1 = time.time()
     ok = r.returncode == 0
     # último passo visível no stdout do maestro (para achar o segundo da falha no vídeo)
     tail = "\n".join((r.stdout or "").splitlines()[-25:])
+    # OBSERVABILIDADE (2026-07-11): quando o maestro erra ANTES de correr o flow
+    # (adb reset / device offline/unauthorized a meio do loop, JVM crash), NÃO
+    # imprime nada no stdout — a causa real vai para o STDERR. Sem isto o tail
+    # ficava vazio e a falha era cega (o sintoma "rc=1 em 14s, tail vazio").
+    if not ok:
+        stderr_tail = "\n".join((r.stderr or "").splitlines()[-15:]).strip()
+        if stderr_tail:
+            tail = (tail + "\n").lstrip() + "[stderr]\n" + stderr_tail
     log_passos.append({"ts": t1, "evento": f"maestro end rc={r.returncode}", "tail": tail})
-    return {"ok": ok, "rc": r.returncode, "dur_s": round(t1 - t0, 1), "t_fim": t1, "tail": tail}
+    # REGRA DE OURO: falhou → foto imediata do ecrã (adb) + caminho no diário, para
+    # o Claude.ai ver o que estava no ecrã sem depender do frame extraído do vídeo.
+    foto = "" if ok else screenshot_falha(serial, fluxo, yaml_rel)
+    e2e_diario.registar(fluxo, f"maestro: {yaml_rel}",
+                        "passou" if ok else "falhou",
+                        detalhe=("" if ok else f"rc={r.returncode} · foto={foto} · {tail[-1400:]}"),
+                        device=serial)
+    return {"ok": ok, "rc": r.returncode, "dur_s": round(t1 - t0, 1), "t_fim": t1,
+            "tail": tail, "foto": foto}
 
 
 def poll_db(passo: dict, contexto: dict, log_passos: list) -> dict:
     t0 = time.time()
     timeout = passo.get("timeout_s", 180)
     tabela, filtro = passo["tabela"], passo.get("filtro", "")
+    fid = contexto.get("fid", "?")
+    e2e_diario.registar(fid, f"poll_db: {tabela}", "iniciou", detalhe=filtro)
     # janela temporal: só linhas criadas depois do início do fluxo (evita apanhar pedidos velhos)
     inicio_iso = contexto["inicio_iso"]
     filtro_full = (filtro + "&" if filtro else "") + f"created_at=gte.{inicio_iso}&order=created_at.desc"
@@ -225,9 +468,11 @@ def poll_db(passo: dict, contexto: dict, log_passos: list) -> dict:
             if passo.get("guarda"):
                 contexto[passo["guarda"]] = rows[0]
             log_passos.append({"ts": time.time(), "evento": f"poll_db OK {tabela} ({len(rows)})"})
+            e2e_diario.registar(fid, f"poll_db: {tabela}", "passou", detalhe=f"{len(rows)} linha(s)")
             return {"ok": True, "row": {k: rows[0].get(k) for k in list(rows[0])[:8]}}
         time.sleep(6)
     log_passos.append({"ts": time.time(), "evento": f"poll_db TIMEOUT {tabela} {filtro}"})
+    e2e_diario.registar(fid, f"poll_db: {tabela}", "falhou", detalhe=f"timeout {timeout}s · filtro={filtro}")
     return {"ok": False, "erro": f"timeout {timeout}s à espera de {tabela}?{filtro}"}
 
 
@@ -244,8 +489,10 @@ def corre_fluxo(fluxo: dict, devices: dict, single: bool = True, logout_map: dic
 
     cine = Cinegrafista()
     log_passos = []
-    contexto = {"inicio_iso": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")}
+    contexto = {"inicio_iso": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S"), "fid": fid}
     resultado = {"id": fid, "estado": "PASSOU", "passos": [], "videos": [], "inicio": time.time()}
+    e2e_diario.registar(fid, "início do fluxo", "iniciou",
+                        detalhe=f"single={single}", device=next(iter(devices.values()), ""))
 
     # guarda de isolamento para fluxos 2-devices
     if fluxo.get("dois_devices"):
@@ -269,7 +516,7 @@ def corre_fluxo(fluxo: dict, devices: dict, single: bool = True, logout_map: dic
                 mp4 = cine.start(serial0, fid)
                 resultado["videos"].append(mp4)
                 serials_usados.add(serial0)
-                r0 = corre_maestro(serial0, RESET_YAML, {}, log_passos)
+                r0 = corre_maestro(serial0, RESET_YAML, {}, log_passos, fluxo=fid)
                 resultado["passos"].append({"tipo": "reset", "yaml": RESET_YAML,
                                             **{k: r0[k] for k in ("ok", "rc", "dur_s")}})
                 if not r0["ok"]:
@@ -289,7 +536,7 @@ def corre_fluxo(fluxo: dict, devices: dict, single: bool = True, logout_map: dic
                 if single and papel_atual and papel_atual != passo["device"]:
                     ly = (logout_map or {}).get(papel_atual)
                     if ly:
-                        r_lo = corre_maestro(serial, ly, {}, log_passos)
+                        r_lo = corre_maestro(serial, ly, {}, log_passos, fluxo=fid)
                         resultado["passos"].append({"tipo": "logout", "yaml": ly,
                                                     **{k: r_lo[k] for k in ("ok", "rc", "dur_s")}})
                         if not r_lo["ok"]:
@@ -302,7 +549,7 @@ def corre_fluxo(fluxo: dict, devices: dict, single: bool = True, logout_map: dic
                 for k, campo in (passo.get("env_de_db") or {}).items():
                     row = contexto.get("order") or {}
                     env_extra[k] = str(row.get(campo, ""))
-                r = corre_maestro(serial, passo["yaml"], env_extra, log_passos)
+                r = corre_maestro(serial, passo["yaml"], env_extra, log_passos, fluxo=fid)
                 resultado["passos"].append({"tipo": "maestro", "yaml": passo["yaml"], **{k: r[k] for k in ("ok", "rc", "dur_s")}})
                 if not r["ok"]:
                     resultado["estado"] = "FALHOU"
@@ -345,6 +592,10 @@ def corre_fluxo(fluxo: dict, devices: dict, single: bool = True, logout_map: dic
 
     resultado["log"] = log_passos
     resultado["dur_s"] = round(time.time() - resultado.pop("inicio"), 1)
+    e2e_diario.registar(fid, "fim do fluxo",
+                        "passou" if resultado["estado"] == "PASSOU" else "falhou",
+                        detalhe=f"{resultado['estado']} ({resultado['dur_s']}s) · "
+                                f"{json.dumps(resultado.get('falha', {}), ensure_ascii=False)[:600]}")
     print(f"  → {resultado['estado']} ({resultado['dur_s']}s)")
     return resultado
 
@@ -382,6 +633,7 @@ def main():
 
     # mapa papel→serial: single-device = tudo no mesmo telemóvel (auto-detectado)
     if single:
+        adb_reautoriza()  # força re-handshake USB (reusa ~/.android/adbkey) — fix autorização caída
         ligados = adb_serials()
         if not ligados:
             print("ERRO: nenhum telemóvel no adb — liga o telemóvel e volta a correr (run-tudo.cmd)")
@@ -390,8 +642,21 @@ def main():
         serial = pref if pref in ligados else ligados[0]
         devices = {papel: serial for papel in reg["devices"]}
         print(f"[single-device] todos os papéis em {serial}")
+        garante_permissoes(serial)
     else:
+        adb_reautoriza()  # força re-handshake USB (reusa ~/.android/adbkey) — fix autorização caída
         devices = reg["devices"]
+        for serial in set(devices.values()):
+            garante_permissoes(serial)
+
+    # Parte 6 "automação total" (2026-07-11): abre o monitor visual sozinho ao arrancar um
+    # teste (scrcpy always-on-top + tail do e2e_log) — antes só abria se alguém pedisse.
+    # `start` destaca a janela; falha aqui NUNCA deve travar o teste em si (só um aviso).
+    try:
+        subprocess.Popen(["cmd", "/c", "start", "", "monitor-bora.cmd"], cwd=str(BASE), shell=False)
+        print("[monitor] monitor-bora.cmd aberto automaticamente")
+    except Exception as e:
+        print(f"[monitor] AVISO: falhou abrir monitor automaticamente ({e}) — teste continua")
 
     logout_map = reg.get("logout_flows", {})
     resultados = [corre_fluxo(f, devices, single=single, logout_map=logout_map) for f in fluxos]

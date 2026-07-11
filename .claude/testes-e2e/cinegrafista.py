@@ -54,6 +54,25 @@ def _scrcpy_bin() -> str:
     raise RuntimeError("scrcpy não encontrado no PATH — instala com: winget install Genymobile.scrcpy")
 
 
+def _adb_bin() -> str:
+    exe = shutil.which("adb")
+    if exe:
+        return exe
+    cand = Path(os.environ.get("LOCALAPPDATA", "")) / "Android/Sdk/platform-tools/adb.exe"
+    if cand.exists():
+        return str(cand)
+    raise RuntimeError("adb não encontrado no PATH")
+
+
+def _pick_backend() -> tuple:
+    """(backend, binário). Prefere scrcpy; cai para `adb screenrecord` se faltar —
+    o loop nunca deve abortar por falta de scrcpy (o adb está sempre presente)."""
+    try:
+        return ("scrcpy", _scrcpy_bin())
+    except RuntimeError:
+        return ("adb", _adb_bin())
+
+
 def _scrcpy_flags() -> list:
     """--no-playback (>=2.0) ou --no-display (1.x)."""
     try:
@@ -90,18 +109,27 @@ class Cinegrafista:
         destino = GRAVACOES / dia / serial
         destino.mkdir(parents=True, exist_ok=True)
         mp4 = destino / f"{fluxo}-{ts}.mp4"
-        cmd = [_scrcpy_bin(), f"--serial={serial}", f"--record={mp4}"] + _scrcpy_flags()
+        backend, binpath = _pick_backend()
+        devpath = None
+        if backend == "scrcpy":
+            cmd = [binpath, f"--serial={serial}", f"--record={mp4}"] + _scrcpy_flags()
+        else:
+            # fallback: grava no device e puxa no stop(). screenrecord: máx 180s/segmento.
+            devpath = f"/sdcard/e2e-{fluxo}-{ts}.mp4"
+            cmd = [binpath, "-s", serial, "shell", "screenrecord",
+                   "--bit-rate", "4000000", "--size", "720x1280", devpath]
         log = open(destino / f"{fluxo}-{ts}.scrcpy.log", "w", encoding="utf-8", errors="replace")
         proc = subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT,
                                 creationflags=getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0))
         self._procs[serial] = proc
         sidecar = {"serial": serial, "fluxo": fluxo, "mp4": str(mp4),
-                   "inicio_epoch": time.time(), "pid": proc.pid}
+                   "inicio_epoch": time.time(), "pid": proc.pid,
+                   "backend": backend, "devpath": devpath}
         mp4.with_suffix(".json").write_text(json.dumps(sidecar, indent=2, ensure_ascii=False), encoding="utf-8")
         st = _load_state(); st[serial] = sidecar; _save_state(st)
         time.sleep(1.5)  # frames extra antes da ação (pedido: playback suave)
         if proc.poll() is not None:
-            raise RuntimeError(f"scrcpy morreu ao arrancar para {serial} — vê {mp4.with_suffix('.scrcpy.log')}")
+            raise RuntimeError(f"{backend} morreu ao arrancar para {serial} — vê {mp4.with_suffix('.scrcpy.log')}")
         return str(mp4)
 
     def stop(self, serial: str):
@@ -114,6 +142,26 @@ class Cinegrafista:
         if pid is None:
             return
         time.sleep(1.5)  # frames extra depois da ação
+        # fallback adb: finaliza o screenrecord NO device (SIGINT fecha o mp4) e puxa-o.
+        if (info or {}).get("backend") == "adb":
+            devpath = (info or {}).get("devpath")
+            mp4 = (info or {}).get("mp4")
+            serial_ = (info or {}).get("serial", serial)
+            try:
+                adb = _adb_bin()
+                subprocess.run([adb, "-s", serial_, "shell", "pkill", "-SIGINT", "screenrecord"],
+                               capture_output=True, timeout=10)
+                time.sleep(2)  # deixa o mp4 fechar no device
+                if proc is not None and proc.poll() is None:
+                    proc.terminate()
+                if devpath and mp4:
+                    subprocess.run([adb, "-s", serial_, "pull", devpath, mp4],
+                                   capture_output=True, timeout=60)
+                    subprocess.run([adb, "-s", serial_, "shell", "rm", "-f", devpath],
+                                   capture_output=True, timeout=10)
+            except Exception:
+                pass
+            return
         try:
             if proc is not None and proc.poll() is None:
                 # CTRL_BREAK fecha o scrcpy limpo no Windows; fallback terminate

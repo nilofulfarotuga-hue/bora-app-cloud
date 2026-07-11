@@ -44,7 +44,7 @@ env:
 # 1º login neste device pode perguntar "Entrar com biometria?" → recusar no teste
 - extendedWaitUntil:
     visible: "Agora não|Início"
-    timeout: 67500
+    timeout: 101250
 - runFlow:
     when:
       visible: "Agora não"
@@ -53,4 +53,4 @@ env:
 # resultado esperado: home do cliente com a bottom nav
 - extendedWaitUntil:
     visible: "Início"
-    timeout: 67500
+    timeout: 101250

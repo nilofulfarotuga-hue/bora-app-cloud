@@ -21,6 +21,39 @@ appId: pt.boraapp.bora
       visible: ".*escolha de perfil.*"
     commands:
       - tapOn: ".*escolha de perfil.*"
+# fallback universal (2026-07-11): se nenhum dos caminhos acima chegou ao RoleScreen,
+# a app resumiu num estado não previsto (login pendurado sem link, diálogo de permissão,
+# ecrã de tracking/TVDE, ANR). clearState:true faz logout forçado + boot limpo → RoleScreen.
+# Só dispara quando estamos mesmo presos (guarda notVisible "Sou Cliente").
+- runFlow:
+    when:
+      notVisible: "Sou Cliente"
+    commands:
+      - launchApp:
+          clearState: true
+# diálogos que tapam o RoleScreen após clearState:true / boot limpo (2026-07-11):
+#   (a) pedido de NOTIFICAÇÕES do Android 13+ ("Permitir que a app bora_app lhe envie...")
+#   (b) modal in-app "Privacidade e Cookies" (Aceitar tudo / Rejeitar / Gerir preferências)
+# Qualquer um por cima → o assert final não via "Sou Cliente" e o login falhava com
+# "ecrã inesperado". Dispensar ambos (+ localização, por robustez). Rendem em ~1-2 s.
+- extendedWaitUntil:
+    visible: "Permitir|Não permitir|Aceitar tudo|Privacidade e Cookies|Sou Cliente"
+    timeout: 25000
+- runFlow:
+    when:
+      visible: "Não permitir"
+    commands:
+      - tapOn: "Permitir"
+- runFlow:
+    when:
+      visible: "Aceitar tudo|Privacidade e Cookies"
+    commands:
+      - tapOn: "Aceitar tudo"
+- runFlow:
+    when:
+      visible: "Enquanto usa a app|Ao usar a app|Só desta vez|Permitir"
+    commands:
+      - tapOn: "Enquanto usa a app|Ao usar a app|Permitir"
 # resultado esperado: RoleScreen (botões "Sou Cliente"/"Sou Estafeta"/"Sou Parceiro")
 - extendedWaitUntil:
     visible: "Sou Cliente"

@@ -94,6 +94,14 @@ def _maestro_bin() -> str:
     exe = shutil.which("maestro") or shutil.which("maestro.bat")
     if exe:
         return exe
+    # o loop pode ser lançado por outra conta (ex.: hermes headless) cujo
+    # %LOCALAPPDATA% não é o do dono — procura o maestro nos perfis de utilizador.
+    users = Path(os.environ.get("SystemDrive", "C:") + "/Users")
+    for rel in ("AppData/Local/Programs/maestro/maestro/bin/maestro.bat",
+                ".maestro/bin/maestro.bat"):
+        for hit in sorted(users.glob(f"*/{rel}")):
+            if hit.exists():
+                return str(hit)
     raise RuntimeError("maestro não encontrado — reinstala (Fase 2 da missão instalou em %LOCALAPPDATA%\\Programs\\maestro)")
 
 

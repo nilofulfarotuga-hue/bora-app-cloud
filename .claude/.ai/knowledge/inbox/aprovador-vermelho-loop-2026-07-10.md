@@ -90,3 +90,14 @@ surfaçado → silêncio. Critério de sucesso do loop **cumprido**.
   **Balde B (dinheiro) NUNCA auto — sempre humano.** O loop só garante *visibilidade* ≤10 min.
 - Handoff pendente ao `bibliotecario-cerebro` (escopo `agente:aprovador-vermelho` + `loops`) para
   consolidar no Cérebro.
+
+## Verificação independente (2026-07-11, run seguinte)
+Re-corrida do executor confirmou que a ligação é **real**, não só texto de commit:
+- **DB (`ojykpzwqrtusfeakzrna`):** RPC `red_queue_watermark()` existe e devolve só
+  `TABLE(pending_count int, newest timestamptz)` — zero títulos, zero dinheiro. ✅
+- **Fila `robot_suggestions`:** 6 `nova`, **todas nível 3 (Balde B / dinheiro-dispatch)** — retidas
+  para ato humano, nenhuma auto-aprovada. Comportamento correto. ✅
+- **VPS (`srv1786862.hstgr.cloud`):** `/usr/local/bin/hermes-aprovador-vermelho.sh` executável
+  (3917 B) + cron `*/10 … # aprovador-vermelho-loop` ativo + state file seeded no newest atual. ✅
+- **Live dry-run do gate no VPS:** leu o RPC e respondeu `sem novidade … silêncio` — o backlog já
+  surfaçado **não re-dispara** (sem spam). Cadeia RPC→watermark→gate funcional ponta-a-ponta. ✅

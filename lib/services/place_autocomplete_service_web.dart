@@ -118,12 +118,11 @@ class _WebPlaceAutocompleteService implements PlaceAutocompleteService {
     if (!_init()) return const <PlacePrediction>[];
 
     var predictions = await _requestPredictions(query);
-    // Espelha o io.dart: sempre que NENHUM resultado local (Guarda) surgiu — o
-    // viés do Google é fraco e "Continente" trazia só outras cidades — dispara
-    // uma pesquisa explícita "<query> Guarda" e coloca-a à frente (dedup).
+    // Espelha o io.dart (v2): o viés do Google é fraco e o gate "só quando não
+    // há Guarda" era frágil (um homónimo/rua da Guarda saltava o retry). Dispara
+    // SEMPRE a pesquisa explícita "<query> Guarda" e coloca-a à frente (dedup).
     // Cobre o "outra cidade em 1.º" E o "vazio" (comércio local, ex.: "Lavie").
-    final semGuarda = !predictions.any(_isGuarda);
-    if (semGuarda && !query.toLowerCase().contains('guarda')) {
+    if (!query.toLowerCase().contains('guarda')) {
       final locais = await _requestPredictions('$query Guarda');
       predictions = _mergeDedupe(locais, predictions);
     }

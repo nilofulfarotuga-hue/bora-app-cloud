@@ -53,18 +53,18 @@ class _IoPlaceAutocompleteService implements PlaceAutocompleteService {
       // 1.ª tentativa: com viés geográfico da Guarda (puxa o local para o topo).
       var predictions = await _requestPredictions(query, biased: true);
 
-      // CORREÇÃO (bug real telemóvel): o viés location+radius do Google é FRACO.
-      // Para "Continente" ele devolve 5 Continentes de cidades maiores (Lisboa,
-      // Porto…) e o da Guarda NEM APARECE no conjunto — logo _rankGuardaFirst
-      // não tinha o que reordenar. Sempre que NENHUM resultado local (Guarda)
-      // surgiu, disparamos uma pesquisa EXPLÍCITA "<query> Guarda" e colocamos
-      // esses resultados à frente (dedup por place_id). Isto GARANTE que o
-      // Continente/Pingo Doce/Lavie da Guarda aparece — cobre o caso "outra
-      // cidade em 1.º" E o caso "vazio" (comércio local mal indexado, ex.:
-      // "Lavie" sozinho sob country:pt não surge, mas "Lavie Guarda" devolve o
-      // LaVie Shopping). Só dispara quando não há local → não penaliza moradas.
-      final semGuarda = !predictions.any(_isGuarda);
-      if (semGuarda && !query.toLowerCase().contains('guarda')) {
+      // CORREÇÃO (bug real telemóvel v2): o viés location+radius do Google é
+      // FRACO e o gate anterior ("só disparar quando NENHUM resultado da Guarda
+      // apareceu") era FRÁGIL — bastava a 1.ª passagem trazer QUALQUER item que
+      // mencionasse "Guarda" (uma rua, um homónimo) para o retry ser saltado e
+      // o estabelecimento local desejado (Continente/LaVie da Guarda) NUNCA
+      // surgir. Agora disparamos SEMPRE uma pesquisa EXPLÍCITA "<query> Guarda"
+      // e colocamos esses resultados à FRENTE (dedup por place_id). É garantia,
+      // não probabilidade — o custo é 1 pedido extra por query (o input já é
+      // debounced e cacheado, e a app opera numa cidade única). Cobre os dois
+      // casos do device: "Continente" (outra cidade em 1.º) E "Lavie" (vazio,
+      // comércio local mal indexado — "Lavie Guarda" devolve o LaVie Shopping).
+      if (!query.toLowerCase().contains('guarda')) {
         final locais = await _requestPredictions('$query Guarda', biased: true);
         predictions = _mergeDedupe(locais, predictions);
       }

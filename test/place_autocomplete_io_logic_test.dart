@@ -95,6 +95,42 @@ void main() {
     expect(result.first.description.toLowerCase(), contains('lavie'));
   });
 
+  test('gate frágil: 1.ª passagem traz um item da Guarda ERRADO → retry tem de disparar na mesma',
+      () async {
+    // Bug real: o gate antigo só disparava "<query> Guarda" quando NENHUM item
+    // mencionava "Guarda". Bastava a 1.ª passagem trazer uma RUA/homónimo da
+    // Guarda (não o estabelecimento certo) para o retry ser saltado e o
+    // Continente da Guarda nunca aparecer. Agora dispara SEMPRE.
+    var pediuGuarda = false;
+    final client = MockClient((request) async {
+      final input = request.url.queryParameters['input'] ?? '';
+      if (input == 'Continente') {
+        return _ok(<Map<String, dynamic>>[
+          // item da Guarda, mas é uma RUA — não é o supermercado que se quer.
+          _pred('rua', 'Rua do Continente, Guarda', 'Guarda'),
+          _pred('lx', 'Continente, Lisboa', 'Lisboa'),
+        ]);
+      }
+      if (input == 'Continente Guarda') {
+        pediuGuarda = true;
+        return _ok(<Map<String, dynamic>>[
+          _pred('gd', 'Continente Bom Dia, Guarda', 'Guarda'),
+        ]);
+      }
+      return _zero();
+    });
+
+    final service = createPlaceAutocompleteServiceForTest('FAKE_KEY', client);
+    final result = await service.fetchPredictions('Continente');
+
+    expect(pediuGuarda, isTrue,
+        reason: 'o retry "<query> Guarda" tem de disparar SEMPRE, não só quando falta a Guarda');
+    // O supermercado (do retry explícito) tem de estar presente e à frente.
+    expect(result.any((p) => p.placeId == 'gd'), isTrue,
+        reason: 'o Continente Bom Dia da Guarda tem de aparecer');
+    expect(result.first.description.toLowerCase(), contains('guarda'));
+  });
+
   test('Cobertura nacional: se nem "<query> Guarda" acha nada, faz fallback sem viés',
       () async {
     var chamadasSemVies = 0;

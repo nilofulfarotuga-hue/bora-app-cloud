@@ -1215,7 +1215,12 @@ class _AddStopSheetState extends State<_AddStopSheet> {
               );
             },
           ),
-          const SizedBox(height: Spacing.sm),
+          // O overlay de sugestões do AddressAutocompleteField abre SEMPRE para
+          // baixo (maxHeight 260). Neste bottom sheet (mainAxisSize.min, sem
+          // Scrollable ancestral) o campo ficava colado ao teclado e a lista
+          // saía cortada e não-clicável (atrás do teclado). Reservar espaço
+          // abaixo do campo levanta-o acima do teclado, dando lugar à lista.
+          const SizedBox(height: 280),
         ],
       ),
     );

@@ -126,12 +126,27 @@ def db_get(tabela: str, filtro: str, select: str = "*", limit: int = 5):
         return json.loads(r.read().decode())
 
 
+# Contas de DEV do dono (não são estafetas REAIS de produção). A app de driver
+# destas contas fica online sozinha via heartbeat e bloqueava o isolamento à toa;
+# excluímos por UUID (preciso — nunca mascara um estafeta de terceiro genuíno).
+DEV_DRIVER_IDS = {
+    "4f61dd31-5e9e-4a7c-a557-7d53d2ceded7",  # Danilo
+    "503a2e09-2111-44b5-9852-d6d5897467f1",  # Danilo Fulfaro
+    "429efb33-3558-493e-810e-878b73a0b3d1",  # John Doe
+    "13db062d-e9f9-4b95-b23a-a87f0b2e8cda",  # Test User
+    "ee17553a-65fb-4595-8fd9-540ccc935fd9",  # Test User
+}
+
+
 def so_estafeta_teste_online() -> tuple:
     """Guarda de isolamento: True se APENAS estafetas de teste estão online (read-only)."""
     rows = db_get("drivers", "is_online=eq.true", select="id,email,name", limit=20)
     if rows is None:
         return (None, "sem credenciais DB — verificação de isolamento IMPOSSÍVEL")
-    reais = [r for r in rows if TEST_DRIVER_EMAIL.split("@")[0] not in str(r.get("email") or "") and "teste" not in str(r.get("name") or "").lower()]
+    reais = [r for r in rows
+             if TEST_DRIVER_EMAIL.split("@")[0] not in str(r.get("email") or "")
+             and "teste" not in str(r.get("name") or "").lower()
+             and str(r.get("id")) not in DEV_DRIVER_IDS]
     return (len(reais) == 0, f"{len(rows)} online, {len(reais)} reais: {[r.get('email') or r.get('name') for r in reais][:3]}")
 
 

@@ -21,3 +21,4 @@ confianca: auto
 | [[verificar-estado-antes-de-reexecutar]] | Antes de reexecutar, `git log` o estado real — **verificar > reexecutar** |
 | [[onde-vive-a-trava]] | Mapear **onde** vive um guard antes de o testar (a Trava é hook repo-side, não `engine` no VPS) |
 | [[confirmar-ferramenta-antes-de-prometer]] | Confirmar que a ferramenta **existe** antes de prometer o passo |
+| [[classificador-zona-menos-sensivel-a-palavras]] | Guard de zona lê **intenção** (verbo escrita vs leitura), não só a **palavra** — senão treina *prompt-laundering* |

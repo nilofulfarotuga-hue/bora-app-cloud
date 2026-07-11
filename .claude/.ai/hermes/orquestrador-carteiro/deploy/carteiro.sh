@@ -9,10 +9,27 @@ FILA="$HOSTDATA/cortex-brain/orquestracao"
 CTRL="$FILA/_controlo.md"
 LOG=/root/orquestracao/carteiro.log
 LOCK=/root/orquestracao/.carteiro.lock
-# T3 money-filter. -iE (case-insensitive). 2026-07-10: fechado o furo dos tokens —
-# 'bora_tokens' sozinho deixava passar 'Bora Tokens' (espaço), 'tokens_applied' e 'tvde...token'
-# (foi como a ordem 8448 passou por verde). Variações agora cobertas cirurgicamente (não engole JWT/fcm token genérico).
-RED='dispatch_engine|pricing_service|finalizePurchase|bora[ _]tokens?|tokens?_applied|tvde[a-z_ ]*tokens?|stripe|payment|webhook|wallet|ledger|refund|payout|commission|platform_settings|disable row level|force.?push'
+# T3 money-filter. -iE (case-insensitive).
+# 2026-07-11: classificador menos sensível a PALAVRAS (ver wiki/licoes/classificador-zona-menos-sensivel-a-palavras.md).
+#   Antes: qualquer MENÇÃO de um termo protegido pintava vermelho — mesmo "testar/ler o fluxo de X" —
+#   e o Danilo tinha de reescrever a tarefa até passar. Agora vermelho exige INTENÇÃO DE ESCRITA:
+#   RED_ALWAYS  = ações destrutivas por si só (--force / reset --hard / disable RLS) -> vermelho SEMPRE.
+#   RED_TERMS   = domínios de dinheiro (nomes) -> vermelho SÓ se houver intenção de escrita junto.
+#   WRITE_INTENT= verbos de escrita PT (mudar/atualizar/alterar/modificar/mexer/aplicar/deploy/…) OU
+#                 comandos SQL de escrita (UPDATE/INSERT/DELETE/ALTER/DROP/TRUNCATE).
+#   NEG         = tira 'sem corrigir', 'nao alterar' etc. antes do teste (leitura negada != escrita).
+# Proteção real intacta: qualquer escrita genuína nestes domínios continua vermelha, sem exceção.
+# 'bora_tokens'/'tvde…tokens' continuam cirúrgicos (não engolem JWT/fcm token genérico — furo da 8448 fechado 2026-07-10).
+RED_ALWAYS='disable row level|--force|force.?with.?lease|reset .*--hard|force.?push'
+RED_TERMS='dispatch_engine|pricing_service|finalizePurchase|bora[ _]tokens?|tokens?_applied|tvde[a-z_ ]*tokens?|stripe|payment|webhook|wallet|ledger|refund|payout|commission|platform_settings'
+WRITE_INTENT='mud(a|ar|e|ei|ou|anca|ança)|atualiz|altera|modific|mexer?|edita|reescrev|refator|aplica|grava|escrev|deploy|remov|apaga|dropa|insere|inserir|configura|corrig|ajusta|\b(UPDATE|INSERT|DELETE|ALTER|DROP|TRUNCATE)\b'
+NEG='(sem|nao|não|nunca|jamais) +[a-zàáâãéêíóôõúç]+'
+zona_vermelha(){ # $1=tarefa -> retorna 0 (vermelho) / 1 (verde)
+  local limpo; limpo=$(printf '%s' "$1" | sed -E "s/$NEG//gi")
+  echo "$1" | grep -iqE "$RED_ALWAYS" && return 0
+  echo "$1" | grep -iqE "$RED_TERMS" && echo "$limpo" | grep -iqE "$WRITE_INTENT" && return 0
+  return 1
+}
 
 ts(){ date -u +%Y-%m-%dT%H:%M:%SZ; }
 log(){ echo "[$(ts)] $*" >> "$LOG"; }
@@ -44,8 +61,8 @@ for f in "$FILA"/*.md; do
   id=$(get id "$f"); tarefa=$(get tarefa "$f"); tent=$(get tentativa "$f"); tent=${tent:-0}
   log "ordem $id: aberta (tentativa=$tent)"
 
-  # T3 — zona vermelha NUNCA no loop
-  if echo "$tarefa" | grep -iqE "$RED"; then
+  # T3 — zona vermelha NUNCA no loop (ação destrutiva pura OU domínio $ + intenção de escrita)
+  if zona_vermelha "$tarefa"; then
     setf estado zona_vermelha "$f"; log "ordem $id: 🔴 ZONA VERMELHA -> aprovacao humana"
     notify "🔴 Bora/orquestração: ordem $id toca zona vermelha — precisa de ti."; continue
   fi

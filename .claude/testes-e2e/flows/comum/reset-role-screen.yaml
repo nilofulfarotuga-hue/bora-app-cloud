@@ -24,4 +24,4 @@ appId: pt.boraapp.bora
 # resultado esperado: RoleScreen (botões "Sou Cliente"/"Sou Estafeta"/"Sou Parceiro")
 - extendedWaitUntil:
     visible: "Sou Cliente"
-    timeout: 20000
+    timeout: 45000

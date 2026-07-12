@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# --- STOP GLOBAL (reengenharia 2026-07-12): respeita .pausa-total ---
+[ -f /docker/hermes-agent-fvnc/data/cortex-brain/orquestracao/.pausa-total ] && exit 0
 # hermes-e2e-vigia.sh — vigia BARATO do loop E2E. Deteta que o teste parou a meio e TOCA A
 # CAMPAINHA (injeta 1 ordem na fila) para o Claude Code retomar. SÓ 1 curl SQL + bash — nunca
 # chama Opus, nunca gasta o limite do Claude.ai. Custo por tick ≈ 1 GET minúsculo ao PostgREST.

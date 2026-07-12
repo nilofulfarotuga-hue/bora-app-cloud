@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# --- STOP GLOBAL (reengenharia 2026-07-12): respeita .pausa-total ---
+[ -f /docker/hermes-agent-fvnc/data/cortex-brain/orquestracao/.pausa-total ] && exit 0
 # hermes-aprovador-vermelho.sh — Loop 🟡 Learning: gate barato (cron */10) da fila vermelha.
 #
 # Corre no HOST do VPS (cron a cada 10 min). Lê o WATERMARK (count + newest) da Central via RPC

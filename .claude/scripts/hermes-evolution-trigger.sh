@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# --- STOP GLOBAL (reengenharia 2026-07-12): respeita .pausa-total ---
+[ -f /docker/hermes-agent-fvnc/data/cortex-brain/orquestracao/.pausa-total ] && exit 0
 # hermes-evolution-trigger.sh — Loop 🟡 Learning: acorda o evolution-engine NA HORA
 # (em vez de esperar o passo 5 do daily-pulse, 1x/dia).
 #

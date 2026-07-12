@@ -1,7 +1,29 @@
 #!/bin/bash
 # carteiro.sh — dispatcher determinístico do loop de orquestração (corre no HOST do VPS).
 # Campainha -> este script -> pc-loop (executor) + pc-judge (juiz) -> escreve na fila.
-# Tetos: T1(5) T2(budget/turns nos .cmd) T3(zona vermelha) T4(tools nos .cmd) T5(kill switch).
+#
+# PAREDES DE SEGURANÇA (por ordem em que travam):
+#   STOP-TOTAL     .pausa-total          -> Danilo trava TUDO (carteiro+campainha+crons)
+#   PAUSA-RL       .pausa-rate-limit      -> automática; conta Claude no limite; retoma no reset
+#   T5 kill switch _controlo.md           -> orquestracao_enabled: true|false
+#   T3 zona verm.  zona_vermelha()        -> dinheiro + intenção de escrita -> humano
+#   T1 teto 5      tentativa>=5           -> travada
+#   T2/T4          budget/turns/tools nos .cmd do PC
+#
+# REENGENHARIA 2026-07-12 (ver inbox/reengenharia-esteira-2026-07-12.md):
+#   • nota NUNCA vazia — todo ramo de falha grava causa (RATE-LIMIT/TIMEOUT-900s/SAIDA-VAZIA/
+#     JUIZ-SEM-VEREDITO). Antes: falha do juiz -> nota "" e a causa perdia-se.
+#   • rate-limit inteligente — "hit your session limit" NÃO gasta tentativa; pausa a fila até ao
+#     reset (.pausa-rate-limit), avisa 1x no Telegram, retoma sozinho.
+#   • TIMEOUT não re-tenta 5x — após 2 timeouts a ordem trava com sugestão de DIVIDIR.
+#   • encadeamento de missão — ordem com campo `missao:` que fecha aprovada marca o passo e
+#     dispara o(s) seguinte(s). Telegram só em: missão concluída / dinheiro / missão travada.
+#     Ordem normal (sem missão) aprovada = SILÊNCIO (nada de aviso por passo).
+#
+# ---- REGRA DE TAMANHO DE ORDEM (anti rate-limit) — ver orquestracao/convencoes.md ----
+#   1 ordem = 1 objetivo pequeno (≤15 min de trabalho). Trabalho grande = PÁGINA DE MISSÃO
+#   com passos pequenos encadeados. Tarefa que estoura 900s -> TIMEOUT + sugestão de dividir,
+#   NUNCA a mesma coisa 5x.
 set -u
 C=hermes-agent-fvnc-hermes-agent-1
 HOSTDATA=/docker/hermes-agent-fvnc/data
@@ -9,22 +31,19 @@ FILA="$HOSTDATA/cortex-brain/orquestracao"
 CTRL="$FILA/_controlo.md"
 LOG=/root/orquestracao/carteiro.log
 LOCK=/root/orquestracao/.carteiro.lock
-# T3 money-filter. -iE (case-insensitive).
-# 2026-07-11: classificador menos sensível a PALAVRAS (ver wiki/licoes/classificador-zona-menos-sensivel-a-palavras.md).
-#   Antes: qualquer MENÇÃO de um termo protegido pintava vermelho — mesmo "testar/ler o fluxo de X" —
-#   e o Danilo tinha de reescrever a tarefa até passar. Agora vermelho exige INTENÇÃO DE ESCRITA:
-#   RED_ALWAYS  = ações destrutivas por si só (--force / reset --hard / disable RLS) -> vermelho SEMPRE.
-#   RED_TERMS   = domínios de dinheiro (nomes) -> vermelho SÓ se houver intenção de escrita junto.
-#   WRITE_INTENT= verbos de escrita PT (mudar/atualizar/alterar/modificar/mexer/aplicar/deploy/…) OU
-#                 comandos SQL de escrita (UPDATE/INSERT/DELETE/ALTER/DROP/TRUNCATE).
-#   NEG         = tira 'sem corrigir', 'nao alterar' etc. antes do teste (leitura negada != escrita).
-# Proteção real intacta: qualquer escrita genuína nestes domínios continua vermelha, sem exceção.
-# 'bora_tokens'/'tvde…tokens' continuam cirúrgicos (não engolem JWT/fcm token genérico — furo da 8448 fechado 2026-07-10).
+PAUSA_TOTAL="$FILA/.pausa-total"           # STOP global (Danilo)
+PAUSA_RL="$FILA/.pausa-rate-limit"         # pausa automática por rate-limit (guarda epoch de retoma)
+RL_AVISADO=/root/orquestracao/.rate-limit.avisado
+
+# T3 money-filter. -iE (case-insensitive). 2026-07-11: menos sensível a PALAVRAS
+# (ver wiki/licoes/classificador-zona-menos-sensivel-a-palavras.md). Vermelho exige INTENÇÃO
+# DE ESCRITA: RED_ALWAYS = destrutivo por si só; RED_TERMS = domínio $; WRITE_INTENT = verbo de
+# escrita; NEG = tira 'sem corrigir'/'nao alterar' antes do teste. Proteção real intacta.
 RED_ALWAYS='disable row level|--force|force.?with.?lease|reset .*--hard|force.?push'
 RED_TERMS='dispatch_engine|pricing_service|finalizePurchase|bora[ _]tokens?|tokens?_applied|tvde[a-z_ ]*tokens?|stripe|payment|webhook|wallet|ledger|refund|payout|commission|platform_settings'
 WRITE_INTENT='mud(a|ar|e|ei|ou|anca|ança)|atualiz|altera|modific|mexer?|edita|reescrev|refator|aplica|grava|escrev|deploy|remov|apaga|dropa|insere|inserir|configura|corrig|ajusta|\b(UPDATE|INSERT|DELETE|ALTER|DROP|TRUNCATE)\b'
 NEG='(sem|nao|não|nunca|jamais) +[a-zàáâãéêíóôõúç]+'
-zona_vermelha(){ # $1=tarefa -> retorna 0 (vermelho) / 1 (verde)
+zona_vermelha(){ # $1=tarefa -> 0 (vermelho) / 1 (verde)
   local limpo; limpo=$(printf '%s' "$1" | sed -E "s/$NEG//gi")
   echo "$1" | grep -iqE "$RED_ALWAYS" && return 0
   echo "$1" | grep -iqE "$RED_TERMS" && echo "$limpo" | grep -iqE "$WRITE_INTENT" && return 0
@@ -37,8 +56,6 @@ get(){ grep -E "^$1:" "$2" 2>/dev/null | head -1 | sed "s/^$1: *//" | tr -d '\r'
 setf(){ if grep -qE "^$1:" "$3"; then sed -i "s|^$1:.*|$1: $2|" "$3"; else echo "$1: $2" >> "$3"; fi; }
 notify(){ docker exec -u hermes "$C" hermes send -t telegram "$1" >/dev/null 2>&1 || log "notify(best-effort) falhou"; }
 clean(){ grep -vE '^\[ponte\]|^\[loop\]|^\[juiz\]|Permission deny rule|matches no known tool' ; }
-# sync por-tarefa: após o executor fazer push, refresca o espelho para o Claude.ai o ver em segundos
-# (modo fast = merge --ff-only, PRESERVA a fila local; a cegueira era esperar o cron das 06h30).
 sync_espelho(){ docker exec -u hermes -e HOME=/opt/data -i "$C" sh -s fast < /root/cortex-mcp/sync-brain.sh >> "$LOG" 2>&1 && log "espelho sincronizado (fast)" || log "sync espelho (best-effort) falhou"; }
 
 pc_exec(){ printf '%s' "$1" > "$HOSTDATA/orq_task.txt"
@@ -46,9 +63,156 @@ pc_exec(){ printf '%s' "$1" > "$HOSTDATA/orq_task.txt"
 pc_judge(){ printf '%s' "$1" > "$HOSTDATA/orq_judge.txt"
   docker exec -u hermes "$C" sh -lc 'export PATH=/opt/data/.local/bin:$PATH; timeout 200 pc-judge "$(cat /opt/data/orq_judge.txt)"' 2>&1 | clean; }
 
-# concorrência: um carteiro de cada vez
+# ---------------- RATE-LIMIT: deteção + cálculo de retoma ----------------
+is_rate_limit(){ printf '%s' "$1" | grep -iqE "hit your (session|usage) limit|session limit|usage limit|rate limit|reached your (usage|session)? *limit"; }
+# "resets 5pm (Europe/London)" -> epoch UTC; se não parsear -> now+3600 (defensivo).
+rl_resume_epoch(){
+  local txt hh ap now h24 ep
+  txt=$(printf '%s' "$1" | grep -oiE "resets[^0-9]*[0-9]{1,2} *(am|pm)" | head -1)
+  hh=$(printf '%s' "$txt" | grep -oE '[0-9]{1,2}' | head -1)
+  ap=$(printf '%s' "$txt" | grep -oiE 'am|pm' | head -1 | tr 'A-Z' 'a-z')
+  now=$(date +%s)
+  if [ -n "$hh" ] && [ -n "$ap" ]; then
+    h24=$hh
+    [ "$ap" = pm ] && [ "$hh" != 12 ] && h24=$((hh+12))
+    [ "$ap" = am ] && [ "$hh" = 12 ] && h24=0
+    ep=$(TZ='Europe/London' date -d "today ${h24}:00" +%s 2>/dev/null)
+    [ -n "$ep" ] && [ "$ep" -gt "$now" ] && { echo "$ep"; return; }
+  fi
+  echo $((now+3600))
+}
+hhmm(){ date -u -d "@$1" +%H:%M 2>/dev/null || echo "?"; }
+
+# ---------------- ENCADEAMENTO DE MISSÃO (FASE 2) ----------------
+# Formato de cada passo (1 linha) em orquestracao/<mid>.md:
+#   passo: A | modelo: SONNET | paralelo: sim | depende: - | propose_only: nao | estado: pendente | tarefa: <texto>
+missao_path(){ echo "$FILA/missoes/$1.md"; }   # missões num subdir -> o glob de ordens nunca as vê
+missao_set_passo(){ # $1=mf $2=passoid $3=estado — [|] = pipe literal (evita alternância ERE)
+  sed -i -E "/^passo: *$2 *[|]/ s|(estado: *)[A-Za-z_-]+|\1$3|I" "$1"; }
+deps_ok(){ # $1=mf $2="A,B" ou "-" -> 0 se todas concluídas
+  local mf="$1" dep="$2" d
+  { [ -z "$dep" ] || [ "$dep" = "-" ]; } && return 0
+  for d in $(echo "$dep" | tr ',' ' '); do
+    d=$(echo "$d" | tr -d ' '); [ -z "$d" ] && continue
+    grep -E "^passo: *$d *[|]" "$mf" | grep -qi 'estado: *concluida' || return 1
+  done
+  return 0
+}
+missao_dispara_passo(){ # $1=mid $2=mf $3=linha $4=pid — cria a ordem na fila (via container, dono hermes)
+  local mid="$1" mf="$2" linha="$3" pid="$4" modelo propose tarefa prefixo oid stamp
+  modelo=$(echo "$linha" | grep -oiE 'modelo: *[A-Za-z]+' | sed -E 's/modelo: *//I' | tr 'a-z' 'A-Z')
+  propose=$(echo "$linha" | grep -oiE 'propose_only: *[a-z]+' | sed -E 's/propose_only: *//I' | tr 'A-Z' 'a-z')
+  tarefa=$(echo "$linha" | sed -E 's/.*[|] *tarefa: *//')
+  prefixo="[MODELO: ${modelo:-SONNET}]"
+  [ "$propose" = sim ] && prefixo="$prefixo [PROPOSE-ONLY: prepara o fix completo mas NÃO apliques nem faças commit; devolve a proposta e espera 'vai' do Danilo]"
+  stamp=$(date -u +%Y%m%d%H%M%S)
+  oid="ordem-${stamp}-${mid}-${pid}"
+  missao_set_passo "$mf" "$pid" "executando"
+  docker exec -i -u hermes "$C" sh -lc "cat > /opt/data/cortex-brain/orquestracao/$oid.md" <<EOF
+--- ordem ---
+id: $oid
+estado: aberta
+autor: carteiro-chaining
+criada: $(ts)
+zona: verde
+tentativa: 0
+teto_tentativas: 5
+missao: $mid
+passo: $pid
+tarefa: $prefixo $tarefa
+--- fim ---
+nota:
+EOF
+  log "missão $mid: disparado passo $pid -> $oid (modelo ${modelo:-SONNET}${propose:+, propose-only})"
+}
+missao_fire_next(){ # $1=mid -> dispara até 2 passos pendentes elegíveis; 2º só se ambos paralelo:sim
+  local mid="$1" mf disparados=0 linha pid est dep par
+  mf=$(missao_path "$mid"); [ -f "$mf" ] || { echo 0; return; }
+  while IFS= read -r linha; do
+    [ "$disparados" -ge 2 ] && break
+    pid=$(echo "$linha" | sed -E 's/^passo: *([^ |]+).*/\1/')
+    est=$(echo "$linha" | grep -oiE 'estado: *[a-z_-]+' | sed -E 's/estado: *//I' | tr 'A-Z' 'a-z')
+    [ "$est" = pendente ] || continue
+    dep=$(echo "$linha" | grep -oE 'depende: *[^|]*' | sed -E 's/depende: *//')
+    deps_ok "$mf" "$dep" || continue
+    par=$(echo "$linha" | grep -oiE 'paralelo: *[a-z]+' | sed -E 's/paralelo: *//I' | tr 'A-Z' 'a-z')
+    if [ "$disparados" -eq 0 ]; then
+      missao_dispara_passo "$mid" "$mf" "$linha" "$pid"; disparados=1
+      [ "$par" = sim ] || break            # 1º solo -> não dispara 2º
+    else
+      [ "$par" = sim ] || continue         # 2º só se paralelo:sim
+      missao_dispara_passo "$mid" "$mf" "$linha" "$pid"; disparados=2
+    fi
+  done < <(grep -E '^passo:' "$mf")
+  echo "$disparados"
+}
+missao_avanca(){ # $1=mid $2=passo (que acabou aprovado)
+  local mid="$1" p="$2" mf n
+  mf=$(missao_path "$mid"); [ -f "$mf" ] || { log "missão $mid: ficheiro não existe"; return; }
+  missao_set_passo "$mf" "$p" "concluida"; log "missão $mid: passo $p CONCLUÍDO"
+  if ! grep -E '^passo:' "$mf" | grep -qiE 'estado: *(pendente|aberta|executando|em_correcao|corrigir)'; then
+    setf estado concluida "$mf"; log "missão $mid: MISSÃO CONCLUÍDA"
+    notify "✅ Bora/missão $mid CONCLUÍDA — todos os passos fechados."; return
+  fi
+  n=$(missao_fire_next "$mid")
+  [ "${n:-0}" -eq 0 ] && log "missão $mid: sem próximos passos elegíveis agora (deps pendentes)"
+}
+missao_travada_ou_silencio(){ # $1=of $2=mid $3=passo
+  local mid="$2" p="$3" mf
+  if [ -n "$mid" ]; then
+    mf=$(missao_path "$mid"); [ -f "$mf" ] && missao_set_passo "$mf" "$p" "travada"
+    notify "⛔ Bora/missão $mid: passo $p TRAVOU. Precisa de ti."
+    log "missão $mid: passo $p travado -> Telegram"
+  else
+    log "ordem travada (sem missão) — sem Telegram (o watchdog escala se persistir >12h)"
+  fi
+}
+
+# ---------------- MODOS AUXILIARES (não tocam a fila real de produção) ----------------
+if [ "${1:-}" = "--selftest" ]; then
+  fail=0; ok(){ echo "OK   $1"; }; bad(){ echo "FAIL $1"; fail=1; }
+  is_rate_limit "You've hit your session limit · resets 5pm (Europe/London)" && ok "rate-limit detecta" || bad "rate-limit detecta"
+  is_rate_limit "tudo bem, terminei a tarefa" && bad "rate-limit falso-positivo" || ok "rate-limit sem falso-positivo"
+  now=$(date +%s)
+  ep=$(rl_resume_epoch "resets 5pm (Europe/London)")
+  [ "$ep" -gt "$now" ] && ok "reset 5pm -> epoch sempre futuro (nunca pausa no passado)" || bad "reset 5pm epoch futuro"
+  ep2=$(rl_resume_epoch "sem hora nenhuma aqui")
+  [ "$ep2" -gt "$now" ] && ok "reset sem hora -> futuro (now+1h defensivo)" || bad "reset defensivo"
+  tmf=$(mktemp)
+  printf 'passo: A | modelo: SONNET | paralelo: sim | depende: - | propose_only: nao | estado: concluida | tarefa: x\npasso: B | modelo: SONNET | paralelo: sim | depende: A | propose_only: nao | estado: pendente | tarefa: y\n' > "$tmf"
+  deps_ok "$tmf" "A" && ok "deps_ok A concluida" || bad "deps_ok A"
+  deps_ok "$tmf" "B" && bad "deps_ok B pendente devia falhar" || ok "deps_ok B pendente falha"
+  deps_ok "$tmf" "-" && ok "deps_ok sem deps" || bad "deps_ok -"
+  missao_set_passo "$tmf" "B" "concluida"
+  grep -E '^passo: *B' "$tmf" | grep -qi 'estado: *concluida' && ok "set_passo B->concluida" || bad "set_passo B"
+  grep -E '^passo: *A' "$tmf" | grep -qi 'estado: *concluida' && ok "set_passo não tocou A" || bad "set_passo tocou A errado"
+  rm -f "$tmf"
+  [ "$fail" = 0 ] && echo "SELFTEST: TODOS OK" || echo "SELFTEST: HÁ FALHAS"
+  exit "$fail"
+fi
+if [ "${1:-}" = "--iniciar-missao" ]; then   # arranca a missão: dispara os primeiros passos elegíveis
+  mid="${2:-}"; mf=$(missao_path "$mid")
+  [ -f "$mf" ] || { echo "missão '$mid' não existe em $mf"; exit 1; }
+  n=$(missao_fire_next "$mid")
+  echo "missão $mid: $n passo(s) disparado(s). A campainha acorda o carteiro."
+  exit 0
+fi
+
+# ================= CICLO NORMAL =================
 exec 9>"$LOCK"; flock -n 9 || { log "outro carteiro a correr — saio"; exit 0; }
 mkdir -p "$FILA"
+
+# STOP global — .pausa-total (Danilo): trava TUDO
+if [ -f "$PAUSA_TOTAL" ]; then log "STOP-TOTAL: .pausa-total presente — nada a fazer"; exit 0; fi
+
+# PAUSA automática por rate-limit: espera o reset e retoma sozinho
+if [ -f "$PAUSA_RL" ]; then
+  resume=$(tr -dc '0-9' < "$PAUSA_RL" 2>/dev/null); now=$(date +%s)
+  if [ -n "$resume" ] && [ "$now" -lt "$resume" ]; then
+    log "PAUSA-RATE-LIMIT: fila pausada até $(hhmm "$resume") UTC — saio"; exit 0
+  fi
+  rm -f "$PAUSA_RL" "$RL_AVISADO"; log "PAUSA-RATE-LIMIT: reset atingido — retomo o ciclo"
+fi
 
 # T5 — kill switch
 enabled=$(get orquestracao_enabled "$CTRL"); enabled=$(echo "${enabled:-false}" | tr 'A-Z' 'a-z')
@@ -59,38 +223,74 @@ for f in "$FILA"/*.md; do
   case "$f" in */_controlo.md) continue;; esac
   [ "$(get estado "$f")" = "aberta" ] || continue
   id=$(get id "$f"); tarefa=$(get tarefa "$f"); tent=$(get tentativa "$f"); tent=${tent:-0}
-  log "ordem $id: aberta (tentativa=$tent)"
+  missao=$(get missao "$f"); passo=$(get passo "$f")
+  log "ordem $id: aberta (tentativa=$tent)${missao:+ [missão $missao/$passo]}"
 
-  # T3 — zona vermelha NUNCA no loop (ação destrutiva pura OU domínio $ + intenção de escrita)
+  # T3 — zona vermelha (dinheiro + intenção de escrita)
   if zona_vermelha "$tarefa"; then
-    setf estado zona_vermelha "$f"; log "ordem $id: 🔴 ZONA VERMELHA -> aprovacao humana"
-    notify "🔴 Bora/orquestração: ordem $id toca zona vermelha — precisa de ti."; continue
+    setf estado zona_vermelha "$f"; setf nota "🔴 ZONA VERMELHA — precisa de decisão humana (dinheiro)" "$f"
+    log "ordem $id: 🔴 ZONA VERMELHA -> aprovacao humana"
+    notify "🔴 Bora/orquestração: ordem $id toca zona vermelha (dinheiro) — precisa de ti."
+    [ -n "$missao" ] && { mf=$(missao_path "$missao"); [ -f "$mf" ] && missao_set_passo "$mf" "$passo" "zona_vermelha"; }
+    continue
   fi
   # T1 — teto 5
-  if [ "$tent" -ge 5 ]; then setf estado travada "$f"; log "ordem $id: TRAVADA (5 tentativas)"
-    notify "⛔ Bora/orquestração: ordem $id travou nas 5 tentativas. Precisa de ti."; continue; fi
+  if [ "$tent" -ge 5 ]; then setf estado travada "$f"
+    [ -z "$(get nota "$f")" ] && setf nota "⛔ TRAVADA nas 5 tentativas" "$f"
+    log "ordem $id: TRAVADA (5 tentativas)"; missao_travada_ou_silencio "$f" "$missao" "$passo"; continue; fi
 
   tent=$((tent+1)); setf tentativa "$tent" "$f"; setf estado executando "$f"
   saida=$(pc_exec "$tarefa"); printf '%s\n' "$saida" > "$FILA/$id.saida.txt"
   setf estado respondida "$f"; log "ordem $id: respondida (tentativa $tent)"
-  # detecção durável: saída vazia = ponte VIVA mas executor não terminou (timeout 900s / startup),
-  # NÃO uma ponte morta. `--output-format text` só emite no fim → kill a meio = 0 bytes.
-  if [ -z "$(printf '%s' "$saida" | tr -d '[:space:]')" ]; then
-    log "ordem $id: ⚠️ SAIDA VAZIA — executor nao devolveu texto (ponte viva; tarefa nao terminou em 900s ou startup lento)"
+  vazio=0; [ -z "$(printf '%s' "$saida" | tr -d '[:space:]')" ] && vazio=1
+
+  # ---- RATE-LIMIT: não gasta tentativa, pausa a fila, avisa 1x, retoma sozinho ----
+  if is_rate_limit "$saida"; then
+    setf tentativa "$((tent-1))" "$f"                 # devolve a tentativa (foi limite, não trabalho)
+    setf estado pausada-rate-limit "$f"
+    resume=$(rl_resume_epoch "$saida"); echo "$resume" > "$PAUSA_RL"
+    setf nota "🚫 RATE-LIMIT (conta Claude no limite; retoma $(hhmm "$resume") UTC)" "$f"
+    log "ordem $id: 🚫 RATE-LIMIT — fila pausada até $(hhmm "$resume") UTC"
+    if [ ! -f "$RL_AVISADO" ]; then
+      notify "🚫 Bora/orquestração: conta Claude Code no limite de sessão. Fila PAUSADA até $(hhmm "$resume") UTC — retomo sozinho, sem gastar tentativas."; touch "$RL_AVISADO"
+    fi
+    break                                             # não processa mais nada até ao reset
   fi
 
+  # juiz
   jinput=$(printf 'TAREFA:\n%s\n\nSAIDA DO EXECUTOR:\n%s\n' "$tarefa" "$(printf '%s' "$saida" | tail -50)")
   veredito=$(pc_judge "$jinput")
   vline=$(printf '%s' "$veredito" | grep -iE 'VEREDITO:' | head -1)
-  log "ordem $id: $vline"
+  log "ordem $id: ${vline:-<juiz sem veredito>}"
+
   if printf '%s' "$vline" | grep -iq 'APROVADA'; then
-    setf estado aprovada "$f"; notify "✅ Bora/orquestração: ordem $id terminada e aprovada."
+    setf estado aprovada "$f"; setf nota "" "$f"; log "ordem $id: APROVADA"
+    if [ -n "$missao" ]; then missao_avanca "$missao" "$passo"
+    else log "ordem $id: aprovada (sem missão) — silêncio (sem Telegram)"; fi
   else
-    setf nota "$(printf '%s' "$vline" | sed 's/.*CORRIGIR: *//')" "$f"
-    if [ "$tent" -ge 5 ]; then setf estado travada "$f"; notify "⛔ Bora/orquestração: ordem $id travou (5 tentativas). Precisa de ti."
-    else setf estado aberta "$f"; log "ordem $id: CORRIGIR -> reaberta (campainha volta a disparar)"; fi
+    # ---- NOTA NUNCA VAZIA — causa explícita por construção ----
+    motivo=$(printf '%s' "$vline" | sed 's/.*CORRIGIR: *//')
+    if [ "$vazio" -eq 1 ]; then
+      nota="⏱️ TIMEOUT-900s / SAIDA-VAZIA — executor não devolveu texto (tarefa grande demais? dividir em passos menores — ver convencoes.md)"
+    elif [ -z "$vline" ]; then
+      nota="⚖️ JUIZ-SEM-VEREDITO — juiz não devolveu linha VEREDITO (ver $id.saida.txt; possível rate-limit/erro do juiz)"
+    elif [ -n "$motivo" ] && [ "$motivo" != "$vline" ]; then
+      nota="$motivo"
+    else
+      nota="❓ CORRIGIR sem motivo explícito (ver $id.saida.txt)"
+    fi
+    setf nota "$nota" "$f"
+
+    if [ "$vazio" -eq 1 ] && [ "$tent" -ge 2 ]; then   # TIMEOUT não re-tenta 5x
+      setf estado travada "$f"
+      setf nota "⏱️ TIMEOUT-900s x$tent — tarefa grande demais; DIVIDIR em passos menores (convencoes.md). Não re-tento a mesma coisa." "$f"
+      log "ordem $id: TRAVADA-TIMEOUT (não re-tenta tarefa grande)"; missao_travada_ou_silencio "$f" "$missao" "$passo"
+    elif [ "$tent" -ge 5 ]; then
+      setf estado travada "$f"; log "ordem $id: TRAVADA (5 tentativas) — nota: $nota"; missao_travada_ou_silencio "$f" "$missao" "$passo"
+    else
+      setf estado aberta "$f"; log "ordem $id: CORRIGIR -> reaberta (nota: $nota)"
+    fi
   fi
-  # fim da ordem: o executor já fez push → refresca o espelho para o Claude.ai (não espera o cron)
   sync_espelho
 done
 log "ciclo terminado"

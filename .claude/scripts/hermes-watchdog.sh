@@ -1,75 +1,132 @@
 #!/usr/bin/env bash
-# hermes-watchdog.sh — vigia loops/ordens/recursos da VPS. SÓ AVISA (nunca age sozinho).
-# Fase 2 da missão "Do Prompt ao Loop" (2026-07-10). Prioridade do alerta = COR do loop
-# no registry (loops.md): 🟢 Core parado = VERMELHO imediato; 🔵 prioritário; 🟡/🟣 normal.
-# Cron: a cada 10 min (subido de 2h/2h em 2026-07-11 — "automação total": 2h era devagar
-# demais para apanhar travamentos do mesmo dia). Limitação documentada: job logs do pg_cron
-# do Supabase exigem service key (que o VPS NÃO tem, por design) → essa checagem é do lado do PC/MCP.
+# --- STOP GLOBAL (reengenharia 2026-07-12): respeita .pausa-total ---
+[ -f /docker/hermes-agent-fvnc/data/cortex-brain/orquestracao/.pausa-total ] && exit 0
+# hermes-watchdog.sh v2 — DETETA → AGE se puder → só AVISA o Danilo se for dinheiro/ambíguo.
 #
-# 2026-07-11 (Parte 3 "automação total"): +2 checagens novas:
-#   (a) ordem 'aberta' com tentativa=0 parada >15min sem ser apanhada — causa principal dos
-#       travamentos de hoje, nunca antes coberta (o resto do vigia só olhava 'executando'/'travada').
-#       AÇÃO própria fica no `hermes-carteiro-vigia.sh` (cron */5) — aqui é só o AVISO.
-#   (b) crashes REAIS de app (RPC `real_crash_count_24h`, exclui rede/breadcrumb) >10/24h —
-#       antes só aparecia quando alguém perguntava; agora entra no ciclo de 10 min, não espera
-#       o daily-pulse.
+# Mudança 2026-07-12 ("watchdog age e limpa"): a v1 SÓ AVISAVA ("eu só aviso, não ajo") e
+# re-enviava a MESMA lista de ordens travadas a cada 10 min = spam no Telegram. A v2:
+#   1) AGE no que se sabe reviver — chama os revivedores que já existem (umbrella, não duplica):
+#        · container Hermes DOWN            → docker start
+#        · campainha morta / ordem aberta parada → hermes-carteiro-vigia.sh (revive + avisa ele)
+#        · loop E2E parado a meio           → hermes-e2e-vigia.sh (toca a campainha; ele é silencioso no TG)
+#   2) ESCALA ao Danilo SÓ o que precisa de decisão de dinheiro ou é genuinamente ambíguo
+#      (zona_vermelha, travada esgotada >12h, daily-pulse morto, disco cheio, crashes reais).
+#   3) ANTI-SPAM: a escalada tem ASSINATURA (hash do conjunto). Só envia se a assinatura MUDOU
+#      desde o último tick. Mesma lista → silêncio. Fila esvazia → reset (próximo problema avisa
+#      na hora). As ações são reportadas quando acontecem (os revivedores já têm dedupe próprio).
+#
+# Prioridade do alerta = COR do loop no registry (loops.md): 🟢 Core parado = topo.
+# Cron: */10. Corre no HOST do VPS (root). Canónico: bora_app/.claude/scripts/. Instalado /usr/local/bin/.
+# Limitação: job logs do pg_cron do Supabase exigem service key (VPS não tem) → checagem é do lado PC/MCP.
 set -u
 C=hermes-agent-fvnc-hermes-agent-1
 H=/docker/hermes-agent-fvnc/data
 FILA=$H/cortex-brain/orquestracao
 ENV=$H/.env
 LOG=/root/hermes-watchdog.log
+SIG=/root/orquestracao/.watchdog.sig     # dedupe: assinatura da última escalada enviada
+CARTEIRO_VIGIA=/usr/local/bin/hermes-carteiro-vigia.sh
+E2E_VIGIA=/usr/local/bin/hermes-e2e-vigia.sh
 now=$(date +%s)
-RED=(); AMB=()
+mkdir -p /root/orquestracao 2>/dev/null || true
 
-# 1) ordens: executando >3h · travada/zona_vermelha >12h sem resposta · aberta tentativa=0 >15min
+ACOES=()    # o que EU fiz este tick (reportado quando acontece; revivedores têm dedupe próprio)
+ESCALAR=()  # dinheiro/ambíguo — enviado só se a assinatura mudou
+ts(){ date -Is; }
+send(){ docker exec -u hermes "$C" hermes send -t telegram "$1" >/dev/null 2>&1 || echo "[$(ts)] envio falhou" >> "$LOG"; }
+
+# ---------- 1) AGIR: reviver o que se sabe reviver ----------
+
+# 1a) container Hermes DOWN → start (ato próprio, reversível)
+if ! docker ps --format '{{.Names}}' | grep -q "^$C$"; then
+  if docker start "$C" >/dev/null 2>&1; then ACOES+=("🔄 container Hermes estava DOWN — dei docker start")
+  else ESCALAR+=("⛔ container Hermes DOWN e NÃO reiniciou — precisa de ti"); fi
+fi
+
+# 1b) campainha morta OU ordem 'aberta' t=0 parada >15min → carteiro-vigia (ele revive + avisa)
+campainha_morta=0; pgrep -f "inotifywait.*orquestracao" >/dev/null 2>&1 || campainha_morta=1
+aberta_presa=""
 for f in "$FILA"/ordem-*.md; do
   [ -f "$f" ] || continue
   e=$(grep -m1 '^estado:' "$f" | sed 's/estado: *//' | tr -d '\r')
+  [ "$e" = "aberta" ] || continue
   t=$(grep -m1 '^tentativa:' "$f" | sed 's/tentativa: *//' | tr -d '\r')
-  ageh=$(( (now - $(stat -c %Y "$f")) / 3600 ))
+  [ "${t:-0}" = "0" ] || continue
   agemin=$(( (now - $(stat -c %Y "$f")) / 60 ))
-  id=$(basename "$f" .md)
-  # arquivada/aprovada = estados terminais — FORA do whitelist travada|zona_vermelha de propósito (nao contam como pendente).
-  case "$e" in
-    executando) [ "$ageh" -ge 3 ] && RED+=("🟢Core orquestração: $id executando há ${ageh}h — verificar pc-loop/PC");;
-    travada|zona_vermelha) [ "$ageh" -ge 12 ] && AMB+=("ordem $id ($e) espera-te há ${ageh}h");;
-    aberta) [ "${t:-0}" = "0" ] && [ "$agemin" -ge 15 ] && RED+=("🟢Core orquestração: $id aberta tentativa=0 há ${agemin}min sem ser apanhada — carteiro/campainha lenta ou morta (vigia tenta reviver sozinho)");;
-  esac
+  [ "$agemin" -ge 15 ] && aberta_presa="$(basename "$f" .md) (${agemin}min)"
+done
+if [ "$campainha_morta" = 1 ] || [ -n "$aberta_presa" ]; then
+  [ -x "$CARTEIRO_VIGIA" ] && "$CARTEIRO_VIGIA" >/dev/null 2>&1
+  # a notificação de revival é do carteiro-vigia (dedupe próprio). Aqui só escalo se FALHOU reviver.
+  pgrep -f "inotifywait.*orquestracao" >/dev/null 2>&1 || ESCALAR+=("⛔ campainha morta e não foi revivida — olha o carteiro-vigia.log")
+fi
+
+# 1c) loop E2E parado a meio → e2e-vigia toca a campainha (silencioso no TG → eu reporto o ato)
+if [ -x "$E2E_VIGIA" ]; then
+  e2e_out=$("$E2E_VIGIA" 2>&1)
+  echo "$e2e_out" | grep -qi "CAMPAINHA" && ACOES+=("🔔 loop E2E estava em silêncio — retomei-o (e2e-vigia injetou ordem)")
+fi
+
+# 1d) ordem 'executando' há >3h → pc-loop pode estar preso (não há reviver seguro → escala)
+for f in "$FILA"/ordem-*.md; do
+  [ -f "$f" ] || continue
+  e=$(grep -m1 '^estado:' "$f" | sed 's/estado: *//' | tr -d '\r')
+  [ "$e" = "executando" ] || continue
+  ageh=$(( (now - $(stat -c %Y "$f")) / 3600 ))
+  [ "$ageh" -ge 3 ] && ESCALAR+=("🟢 ordem $(basename "$f" .md) executando há ${ageh}h — pc-loop pode estar preso")
 done
 
-# 2) loops 🟢 Core vivos
-find /root/hermes-daily-pulse.log -mmin -1560 >/dev/null 2>&1 || RED+=("🟢Core daily-pulse: sem execução há >26h")
-pgrep -f "inotifywait.*orquestracao" >/dev/null 2>&1 || RED+=("🟢Core campainha: inotify parado (ordens só no fallback horário) — sugestão: correr campainha.sh")
-docker ps --format '{{.Names}}' | grep -q "^$C$" || RED+=("🟢Core Hermes: container DOWN — sugestão: docker start $C")
-AGE_MIRROR=$(( (now - $(stat -c %Y "$H/cortex-brain/.git/FETCH_HEAD" 2>/dev/null || echo "$now")) / 3600 ))
-[ "$AGE_MIRROR" -ge 30 ] && AMB+=("espelho cortex-brain com ${AGE_MIRROR}h — sync das 06h30 falhou?")
+# ---------- 2) ESCALAR: só dinheiro / ambíguo (sem ato seguro possível) ----------
 
-# 3) recursos ≥85%
+# 2a) zona_vermelha = decisão de dinheiro/produção — SEMPRE do Danilo
+nvr=$(grep -l '^estado: zona_vermelha' "$FILA"/ordem-*.md 2>/dev/null | wc -l)
+[ "$nvr" -gt 0 ] && ESCALAR+=("🔴 $nvr ordem(ns) zona_vermelha à tua espera (dinheiro/produção)")
+
+# 2b) travada esgotada (tentativas no teto) >12h — ambíguo: decide arquivar ou reformular
+ntrav=0
+for f in "$FILA"/ordem-*.md; do
+  [ -f "$f" ] || continue
+  e=$(grep -m1 '^estado:' "$f" | sed 's/estado: *//' | tr -d '\r')
+  [ "$e" = "travada" ] || continue
+  ageh=$(( (now - $(stat -c %Y "$f")) / 3600 ))
+  [ "$ageh" -ge 12 ] && ntrav=$((ntrav+1))
+done
+[ "$ntrav" -gt 0 ] && ESCALAR+=("🟡 $ntrav ordem(ns) travada(s) >12h (tentativas esgotadas) — arquivar ou reformular")
+
+# 2c) daily-pulse morto (>26h)
+find /root/hermes-daily-pulse.log -mmin -1560 >/dev/null 2>&1 || ESCALAR+=("🟢 daily-pulse sem execução há >26h")
+
+# 2d) disco ≥85% (prune é decisão contigo)
 du=$(df -P / | awk 'NR==2{gsub("%","",$5); print $5}')
+[ "${du:-0}" -ge 85 ] && ESCALAR+=("💾 disco ${du}% cheio — prune contigo")
+
+# 2e) RAM ≥90% (só informativo, entra na escalada agregada)
 mu=$(free | awk '/Mem:/{printf "%d", ($2-$7)*100/$2}')
-[ "${du:-0}" -ge 85 ] && RED+=("disco ${du}% cheio — sugestão: docker system prune (com o Danilo)")
-[ "${mu:-0}" -ge 85 ] && AMB+=("RAM ${mu}% usada")
+[ "${mu:-0}" -ge 90 ] && ESCALAR+=("🧠 RAM ${mu}% usada")
 
-# 4) fila acumulada (>10 itens à espera do Danilo)
-nwait=$(grep -l '^estado: \(travada\|zona_vermelha\)' "$FILA"/ordem-*.md 2>/dev/null | wc -l)
-[ "$nwait" -gt 10 ] && AMB+=("fila com $nwait itens à tua espera")
-
-# 5) crashes REAIS de app nas últimas 24h (exclui rede/breadcrumb) — RPC real_crash_count_24h
+# 2f) crashes REAIS de app >10/24h (RPC real_crash_count_24h; exclui rede/breadcrumb)
 URL=$(grep -E '^SUPABASE_URL=' "$ENV" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"'\''\r')
 KEY=$(grep -E '^SUPABASE_ANON_KEY=' "$ENV" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"'\''\r')
 if [ -n "$URL" ] && [ -n "$KEY" ]; then
   resp=$(curl -s --max-time 15 -X POST "$URL/rest/v1/rpc/real_crash_count_24h" \
     -H "apikey: $KEY" -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" -d '{}')
   rc=$(echo "$resp" | grep -oE '"real_count":[0-9]+' | head -1 | grep -oE '[0-9]+')
-  [ -n "${rc:-}" ] && [ "$rc" -gt 10 ] 2>/dev/null && RED+=("🟢Core app: $rc crashes REAIS/24h (limite 10) — ver debug_crash_logs")
+  [ -n "${rc:-}" ] && [ "$rc" -gt 10 ] 2>/dev/null && ESCALAR+=("🟢 $rc crashes REAIS/24h (limite 10) — ver debug_crash_logs")
 fi
 
-echo "[$(date -Is)] red=${#RED[@]} amb=${#AMB[@]} disco=${du}% ram=${mu}%" >> "$LOG"
-send(){ docker exec -u hermes "$C" hermes send -t telegram "$1" >/dev/null 2>&1 || echo "[$(date -Is)] envio falhou" >> "$LOG"; }
-if [ ${#RED[@]} -gt 0 ]; then
-  send "🚨 WATCHDOG BORA (VERMELHO): $(printf '%s · ' "${RED[@]}")$( [ ${#AMB[@]} -gt 0 ] && printf '| avisos: %s · ' "${AMB[@]}" )— eu só aviso, não ajo."
-elif [ ${#AMB[@]} -gt 0 ]; then
-  send "⚠️ Watchdog Bora: $(printf '%s · ' "${AMB[@]}")— eu só aviso, não ajo."
+# ---------- 3) ENVIAR: ações reportam sempre; escalada só se a assinatura mudou ----------
+sig=$(printf '%s\n' "${ESCALAR[@]:-}" | sort | md5sum | cut -d' ' -f1)
+prev=$(cat "$SIG" 2>/dev/null | tr -d '\r\n')
+echo "[$(ts)] acoes=${#ACOES[@]} escalar=${#ESCALAR[@]} disco=${du}% ram=${mu}% sig=$sig prev=$prev" >> "$LOG"
+
+msg=""
+[ ${#ACOES[@]} -gt 0 ] && msg="✅ Watchdog Bora AGIU: $(printf '%s · ' "${ACOES[@]}")"
+if [ ${#ESCALAR[@]} -gt 0 ] && [ "$sig" != "$prev" ]; then
+  msg="${msg}⚠️ Precisa de ti (novo/mudou): $(printf '%s · ' "${ESCALAR[@]}")"
 fi
+
+# grava/reseta assinatura para não re-alertar a mesma lista; fila limpa → reset
+if [ ${#ESCALAR[@]} -gt 0 ]; then printf '%s' "$sig" > "$SIG"; else rm -f "$SIG"; fi
+
+[ -n "$msg" ] && send "$msg"
 exit 0

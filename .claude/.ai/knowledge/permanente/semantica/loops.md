@@ -50,11 +50,47 @@ confianca: verificado
 lê `e2e_log.last_write` (1 GET anon), e se o teste ficou silencioso 20–90 min (parou a meio, não
 "nunca arrancou") injeta **uma** ordem de retoma; enquanto o `last_write` não mudar, não repete.
 
+## Conclusão de tarefas: HOOK POR EVENTO (primário) + WATCHDOG (rede de segurança) — 2026-07-12
+> **Desenho do Danilo:** o encadeamento é **POR EVENTO, não por ronda de 10 min**. Quando uma
+> ordem **TERMINA** (o juiz deu veredito terminal), o próprio fecho **encadeia o próximo passo**;
+> só se escala ao Danilo **no fim**. "O sistema resolve, não avisa."
+
+- **Mecanismo PRIMÁRIO — `hermes-hook-conclusao.sh`** (bash no HOST, zero-Opus). O `carteiro.sh`
+  **chama-o** no ponto de veredito terminal (APROVADA / TRAVADA / ZONA_VERMELHA). O juízo de
+  qualidade JÁ foi feito pelo pc-judge; o hook só **AGE** sobre o veredito:
+  - **APROVADA** + faz parte de missão + há próxima parte `pendente` → promove-a
+    (`pendente→aberta`) → a campainha encadeia. **SILENCIOSO.** (= "segue para a próxima ordem
+    pendente da mesma missão".)
+  - **APROVADA** + era a **última** parte → **missão concluída** → Telegram com resumo.
+  - **APROVADA** + ordem solta → concluída, **silenciosa** (acabou o spam "terminei aprovado"
+    por-ordem).
+  - **TRAVADA** (5 tentativas esgotadas) + `continuacao < 2` → cria **ordem de continuação**
+    (continua de onde parou, nota do juiz como contexto, 5 tentativas frescas). **SILENCIOSO** —
+    auto-resolve, **nunca mais "alarme vermelho" de travada** que o sistema consegue destravar.
+  - **TRAVADA** + continuações esgotadas → genuinamente preso → Telegram (reformular/arquivar).
+  - **ZONA_VERMELHA** → dinheiro/produção/destrutivo → Telegram + espera o Danilo. **Nunca auto.**
+- **Telegram ao Danilo SÓ em 2 casos:** (a) uma **missão inteira** terminou (resumo), ou (b)
+  precisa de **decisão** dele (zona vermelha / travada esgotada). Toda a notificação passa pelo
+  hook — o carteiro deixou de mandar Telegram por-ordem.
+- **Missão = conjunto de ordens** com o mesmo campo `missao: <id>` e `parte: <n>`; ao lançar,
+  só a parte 1 nasce `aberta`, as restantes `pendente` (o carteiro ignora `pendente`). O hook
+  vira a próxima `pendente→aberta` a cada parte aprovada. Encadeamento por **flip de estado** —
+  determinístico, sem parsear prosa, event-driven (o `close_write` toca a campainha).
+- **Rede de segurança (ÚLTIMO recurso) — o Watchdog Hermes (`*/10`)** deixa de ser o mecanismo
+  primário de deteção: existe só para o caso de o **hook falhar** e algo ficar mesmo parado sem
+  ninguém pegar. Continua a apanhar `travada >12h`, `zona_vermelha` presa, container DOWN, disco,
+  crashes — mas o caminho normal é o hook resolver **antes** de o watchdog sequer ver. Se o hook
+  estiver ausente/quebrado, o carteiro loga e o watchdog é quem apanha.
+
+Prova headless (2026-07-12): `hermes-hook-conclusao.sh --selftest` = 7/7 OK (promoção de parte,
+fecho de missão, continuação de travada, escalada no teto, conclusão silenciosa de ordem solta).
+
 ## Loops ativos
 
 | Cor | Loop | (1) Problema que resolve | (2) Métrica que melhora | (3) Gatilho | (4) Quem depende | (5) Critério de sucesso | Entradas→Saídas | v | Dono |
 |---|---|---|---|---|---|---|---|---|---|
-| 🟢 | **Orquestração (carteiro)** | ordens do Danilo executadas no PC sem sessão manual | ordens concluídas/semana | inotify (campainha) + cron `:17` hourly | Danilo, Hermes, maestro | ordem `aprovada` ≤5 tentativas | `orquestracao/ordem-*.md` → `.saida.txt`+Telegram | 1 | Hermes(host)/`maestro-autonomia` |
+| 🟢 | **Orquestração (carteiro)** | ordens do Danilo executadas no PC sem sessão manual | ordens concluídas/semana | inotify (campainha) + cron `:17` hourly | Danilo, Hermes, maestro | ordem `aprovada` ≤5 tentativas | `orquestracao/ordem-*.md` → `.saida.txt`+hook | 1 | Hermes(host)/`maestro-autonomia` |
+| 🟢 | **hook-de-conclusão (encadeamento por evento)** | encadear o próximo passo era ronda de 10 min (lenta) e travada = "alarme vermelho" espúrio | latência fecho→próximo passo; nº de avisos supérfluos ao Danilo | **evento**: carteiro chama o hook no veredito terminal (APROVADA/TRAVADA/ZONA_VERMELHA) | carteiro, maestro, Danilo | missão encadeia sozinha; Telegram só em 2 casos (missão fecha / decisão) | veredito terminal → promove parte `pendente`/cria continuação/escala | 1 | Hermes(host) |
 | 🟢 | **Maestro↔Juiz (auto-cura)** | paridade admin sem supervisão item-a-item | placar paridade 360° | ciclo do maestro | Central/Danilo | nota ≥9 ou travado c/ pedido de ajuda | backlog → suggestion `aguarda_ti` | 1 | `maestro-autonomia` |
 | 🟢 | **daily-pulse (Sócio-AI)** | cegueira ao negócio | sinais detetados (>20% moves) | cron host 07h00 Lisboa | Danilo, estado-vivo, watchdog | pulso diário com KPIs reais | views `socio_kpi_*`+autologs+tickets(RPC) → pulso+Telegram+`estado-vivo` | 3 | Sócio-AI/Hermes |
 | 🟢 | **weekly settlement (payouts)** | estafetas/parceiros pagos certo | € conferido vs ledger | semanal (dry-run SEMPRE) | estafetas/parceiros, Danilo | números batem com `ledger_entries` | ledger → relatório+CSV | 1 | `pagamentos-wallet` 🔴 propose-only |
@@ -66,7 +102,7 @@ lê `e2e_log.last_write` (1 GET anon), e se o teste ficou silencioso 20–90 min
 | 🟡 | **cortex_nightly (higiene)** | Cérebro incha/desatualiza | páginas >24KB=0; staleness marcada | cron host 07h05 | todos os agentes | higiene aplicada sem apagar nada | knowledge → sinais+⚠️>60d | 2 | `bibliotecario-cerebro` |
 | 🟡 | **obsidian-sync** | vault e Cérebro divergem | drift=0 | cron host 04h30 | bibliotecário | sync idempotente sem erro | vault → from-obsidian/ | 1 | `obsidian-sync` |
 | 🟣 | **Loop E2E noturno** | regressões chegam ao Danilo/testers | fluxos verdes/total | manual `run-tudo.cmd` / noite | devops-ci, Juiz, release | verdes 2 ciclos seguidos | flows YAML → resultados+vídeos+Telegram | 1 | `juiz-revisor` (braço e2e) |
-| 🟣 | **Watchdog Hermes** | loops morrem em silêncio; a v2 SÓ avisava e repetia a mesma lista a cada 10min (spam) | tempo-até-deteção **e** tempo-até-ação | cron host `*/10` | todos os loops | **DETETA→AGE→só avisa se dinheiro/ambíguo**: container DOWN→start, campainha/E2E parados→revive (via vigias); escala com **dedupe por assinatura** (mesma lista→silêncio) | fila+logs+recursos+crashes(RPC) → **ação (revive)** + alerta Telegram deduped | 3 | Hermes(host) |
+| 🟣 | **Watchdog Hermes** (rede de segurança — ÚLTIMO recurso) | desde 2026-07-12 deixou de ser deteção primária: existe só se o **hook-de-conclusão falhar** e algo ficar mesmo parado | tempo-até-deteção do que escapou ao hook | cron host `*/10` | todos os loops | **só apanha o que o hook não resolveu**: container DOWN→start, campainha/E2E parados→revive, `travada >12h`/`zona_vermelha` presas→escala (dedupe por assinatura) | fila+logs+recursos+crashes(RPC) → ação (revive) + alerta deduped | 3 | Hermes(host) |
 | 🟡 | **aprovador-vermelho (gate da fila 🔴)** | zona vermelha presa sem o Danilo ter acesso à Central | propostas triadas/hora (latência ≤10 min) | cron host `*/10` + campainha (inotify) quando entra ordem + **fallback forçado se item `nova` parado ≥30min** | Danilo, carteiro | fila nunca fica com proposta parada >30 min sem triagem (era "sem triagem" indefinidamente se o disparo por watermark falhasse em silêncio — ver nota 2026-07-12) | watermark RPC anon (`pending_count`+`newest`+`oldest_age_min`) → ordem na fila (normal OU forçada por staleness) → agente tria (Balde A auto / Balde B Telegram) | 2 | Hermes(host)/`aprovador-vermelho` |
 | 🟡 | **evolution-trigger (acordar na hora)** | evolution-engine só corria 1x/dia — ordem `travada` ou erro repetido ficava sem análise até à noite | tempo-até-análise de ordem travada/erro repetido | cron host `*/5` (watermark: só ids novos) | Danilo, evolution-engine | ordem travada nova OU nota repetida 2x/2h gera 1 ordem de análise em minutos, não horas | `orquestracao/*.md`(estado+nota) → ordem `-evol` na fila | 1 | Hermes(host)/`evolution-engine` |
 | 🟢 | **carteiro-vigia (vigia do vigia)** | campainha (inotify) morre e ninguém a revive — ordens ficam em `tentativa=0` sem serem apanhadas | tempo-até-revive da campainha | cron host `*/5`, independente do carteiro/campainha | Danilo, carteiro, aprovador-vermelho, evolution-trigger | campainha morta → reiniciada sozinha em ≤5min + aviso Telegram (1x por episódio, sem spam) | `pgrep inotifywait`+ordens `aberta` paradas → `campainha.sh` reiniciada+Telegram | 1 | Hermes(host) |
@@ -153,6 +189,30 @@ lê `e2e_log.last_write` (1 GET anon), e se o teste ficou silencioso 20–90 min
 > `timeout 320→900s`, `--max-turns 20→40`, `--max-budget-usd 5→10`, e log **`SAIDA VAZIA`** no carteiro.
 > Diagnóstico rápido: transporte OK (`ssh "echo PONG"`) mas `%TEMP%\bora_loop_task.txt` velho + 0
 > `claude.exe` no PC = o `.cmd` não arranca (arg grande). Ver `wiki/licoes/ponte-loop-nao-devolve-output.md`.
+
+> **Reengenharia da esteira (2026-07-12) — 5 ordens mortas com nota vazia.** Causa dupla provada
+> (`inbox/diagnostico-esteira-2026-07-12.md`): (A) a conta Claude Code do PC bateu **rate-limit de
+> sessão** a meio da tarde — `b049.saida.txt` = "You've hit your session limit"; (B) tarefas
+> gigantes auto-referenciais estouravam os 900s. E o carteiro gravava `nota: ""` sem distinguir a
+> causa. **Reengenharia aplicada** (`deploy/carteiro.sh`, `deploy/campainha.sh`,
+> `hermes-bridge/run-claude-loop.cmd`+`bora-live-parser.ps1`):
+> • **nota NUNCA vazia** — todo ramo de falha grava a causa (RATE-LIMIT / TIMEOUT-900s / SAIDA-VAZIA /
+> JUIZ-SEM-VEREDITO). • **rate-limit inteligente** — não gasta tentativa; pausa a fila
+> (`.pausa-rate-limit` com epoch de reset), avisa 1x, retoma sozinho. • **TIMEOUT não re-tenta 5x** —
+> 2º timeout → trava com sugestão de dividir (ver `orquestrador-carteiro/CONVENCOES.md`).
+> • **modelo por tarefa** — `[MODELO: OPUS]` no texto → opus; senão **Sonnet** (default económico;
+> antes era opus fixo, que queimava a conta). • **STOP global `.pausa-total`** respeitado por
+> carteiro + campainha + os 5 crons (`touch`/`rm` do ficheiro na fila). • **visibilidade ao vivo** —
+> executor emite `stream-json` → `bora-live-parser.ps1` escreve `.claude/bora-live.log` legível;
+> Danilo acompanha com `assistir.cmd` na raiz do projeto. • **campainha** coalesce rajadas
+> (1 carteiro/8s) e respeita a pausa. • **encadeamento de missão** — ordem com `missao:` que fecha
+> aprovada marca o passo e dispara o(s) próximo(s) (até 2 se `paralelo: sim`); Telegram só em
+> missão-concluída / dinheiro / passo-travado; ordem normal aprovada = **silêncio**. Missões em
+> `orquestracao/missoes/<id>.md`, arranque via `carteiro.sh --iniciar-missao <id>`. Provado
+> ponta-a-ponta 2026-07-12 (ordem-teste: sonnet auto, aprovada, live-log OK; `carteiro.sh --selftest`
+> = TODOS OK). **1.6:** o `carteiro-vigia` já tinha log próprio
+> (`/root/orquestracao/carteiro-vigia.log`) — o diagnóstico olhou o caminho errado. Ver
+> `inbox/reengenharia-esteira-2026-07-12.md`.
 
 > **aprovador-vermelho / e2e-vigia / evolution-trigger — causa-raiz do "desaparece sem rasto"
 > (2026-07-12).** Achado ao investigar a paragem da noite de 2026-07-11→12: os 3 scripts que

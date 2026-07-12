@@ -37,6 +37,7 @@ if [ ! -f "$STATE" ]; then
   seed=0
   for f in "$FILA"/ordem-*.md; do
     [ -f "$f" ] || continue
+    case "$(basename "$f" .md)" in *-evol|*-aprv|*-e2e) continue;; esac  # EVOL-1: ignora as próprias saídas
     e=$(grep -m1 '^estado:' "$f" | sed 's/estado: *//' | tr -d '\r')
     [ "$e" = "travada" ] && { basename "$f" .md >> "$STATE"; seed=$((seed+1)); }
   done
@@ -53,6 +54,7 @@ for f in "$FILA"/ordem-*.md; do
   e=$(grep -m1 '^estado:' "$f" | sed 's/estado: *//' | tr -d '\r')
   [ "$e" = "travada" ] || continue
   id=$(basename "$f" .md)
+  case "$id" in *-evol|*-aprv|*-e2e) continue;; esac  # EVOL-1: não conta as próprias saídas como travadas novas
   grep -qxF "$id" "$STATE" && continue
   travadas_novas="$travadas_novas $id"
 done
@@ -61,7 +63,7 @@ travadas_novas=$(echo "$travadas_novas" | sed 's/^ *//')
 # (b) mesma nota (motivo do CORRIGIR) repetida 2+ vezes em ordens tocadas nas últimas 2h
 nota_repetida=""
 if command -v find >/dev/null 2>&1; then
-  notas=$(find "$FILA" -maxdepth 1 -name 'ordem-*.md' -mmin -120 -exec grep -H '^nota:' {} \; \
+  notas=$(find "$FILA" -maxdepth 1 -name 'ordem-*.md' ! -name '*-evol.md' ! -name '*-aprv.md' ! -name '*-e2e.md' -mmin -120 -exec grep -H '^nota:' {} \; \
     | sed 's/^[^:]*:nota: *//' | grep -v '^$' | sort | uniq -c | sort -rn | head -1)
   cnt=$(echo "$notas" | awk '{print $1}')
   if [ -n "${cnt:-}" ] && [ "$cnt" -ge 2 ] 2>/dev/null; then

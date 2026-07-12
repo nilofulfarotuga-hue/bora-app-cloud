@@ -90,7 +90,8 @@ missao_path(){ echo "$FILA/missoes/$1.md"; }   # missões num subdir -> o glob d
 missao_set_passo(){ # $1=mf $2=passoid $3=estado — [|] = pipe literal (evita alternância ERE)
   sed -i -E "/^passo: *$2 *[|]/ s|(estado: *)[A-Za-z_-]+|\1$3|I" "$1"; }
 deps_ok(){ # $1=mf $2="A,B" ou "-" -> 0 se todas concluídas
-  local mf="$1" dep="$2" d
+  local mf="$1" dep d
+  dep=$(printf '%s' "$2" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')   # trim: o extrator [^|]* deixa espaço à direita
   { [ -z "$dep" ] || [ "$dep" = "-" ]; } && return 0
   for d in $(echo "$dep" | tr ',' ' '); do
     d=$(echo "$d" | tr -d ' '); [ -z "$d" ] && continue
@@ -183,6 +184,9 @@ if [ "${1:-}" = "--selftest" ]; then
   deps_ok "$tmf" "A" && ok "deps_ok A concluida" || bad "deps_ok A"
   deps_ok "$tmf" "B" && bad "deps_ok B pendente devia falhar" || ok "deps_ok B pendente falha"
   deps_ok "$tmf" "-" && ok "deps_ok sem deps" || bad "deps_ok -"
+  deps_ok "$tmf" "- " && ok "deps_ok tolera trailing space (bug do extrator)" || bad "deps_ok trailing space"
+  dep_real=$(echo "passo: X | depende: A | estado: pendente | tarefa: y" | grep -oE 'depende: *[^|]*' | sed -E 's/depende: *//')
+  deps_ok "$tmf" "$dep_real" && ok "deps_ok com dep extraido de linha real (A concluida)" || bad "deps_ok dep extraido"
   missao_set_passo "$tmf" "B" "concluida"
   grep -E '^passo: *B' "$tmf" | grep -qi 'estado: *concluida' && ok "set_passo B->concluida" || bad "set_passo B"
   grep -E '^passo: *A' "$tmf" | grep -qi 'estado: *concluida' && ok "set_passo não tocou A" || bad "set_passo tocou A errado"

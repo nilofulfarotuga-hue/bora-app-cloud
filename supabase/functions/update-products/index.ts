@@ -154,9 +154,12 @@ const decodeEntities = (s: string) =>
     .replace(/&ccedil;/g, 'ç').replace(/&Ccedil;/g, 'Ç')
     .replace(/&ntilde;/g, 'ñ').replace(/&Ntilde;/g, 'Ñ')
     .replace(/&szlig;/g, 'ß')
+    .replace(/&ordf;/g, 'ª').replace(/&ordm;/g, 'º').replace(/&acute;/g, '´')
+    .replace(/&hellip;/g, '…')
     .replace(/&euro;/g, '€').replace(/&pound;/g, '£')
     .replace(/&nbsp;/g, ' ').replace(/&shy;/g, '')
     .replace(/&reg;/g, '®').replace(/&copy;/g, '©').replace(/&trade;/g, '™')
+    .replace(/&ndash;/g, '–').replace(/&mdash;/g, '—')
     // Numeric decimal entities &#NNN;
     .replace(/&#(\d+);/g, (_: string, n: string) => String.fromCharCode(parseInt(n, 10)))
     // Numeric hex entities &#xHHH;
@@ -203,13 +206,16 @@ function parseImpression(html: string, cfg: SfccConfig): ParsedRow[] {
       if (/\/badges\//i.test(img)) continue;
       if (!cfg.catalogMarker.test(img)) continue;
       const pid = String(json.id ?? json.sku ?? '').trim();
-      const name = String(json.name ?? '').trim();
+      // O atributo data-product-tile-impression vem DUPLAMENTE codificado
+      // (`&amp;ccedil;`): o decodeEntities acima resolve o nível do atributo,
+      // mas a entidade interna (`&ccedil;`) sobra dentro do JSON. 2.º passe.
+      const name = decodeEntities(String(json.name ?? '').trim());
       const price = Number(json.price ?? 0);
       if (!pid || !name || !(price > 0)) continue;
       rows.push({
         pid, name, price,
-        brand: json.brand ? String(json.brand) : null,
-        category: json.category ? String(json.category) : null,
+        brand: json.brand ? decodeEntities(String(json.brand)) : null,
+        category: json.category ? decodeEntities(String(json.category)) : null,
         photo_url: img,
       });
     } catch { /* skip */ }
@@ -228,16 +234,18 @@ function parseGtm(html: string, cfg: SfccConfig): ParsedRow[] {
       if (/\/badges\//i.test(img)) continue;
       if (!cfg.catalogMarker.test(img)) continue;
       const pid = String(json.id ?? json.item_id ?? '').trim();
-      const nameRaw = String(json.name ?? json.item_name ?? '').trim();
+      // 2.º passe de decode: o valor do atributo GTM também traz entidades
+      // internas duplamente codificadas (`&amp;atilde;` → `&atilde;`).
+      const nameRaw = decodeEntities(String(json.name ?? json.item_name ?? '').trim());
       const price = Number(json.price ?? 0);
       if (!pid || !nameRaw || !(price > 0)) continue;
       rows.push({
         pid,
         name: titleCase(nameRaw),
         price,
-        brand: json.brand ? titleCase(String(json.brand)) : null,
-        category: json.category ? normCategory(String(json.category))
-          : json.item_category ? normCategory(String(json.item_category)) : null,
+        brand: json.brand ? titleCase(decodeEntities(String(json.brand))) : null,
+        category: json.category ? normCategory(decodeEntities(String(json.category)))
+          : json.item_category ? normCategory(decodeEntities(String(json.item_category))) : null,
         photo_url: img,
       });
     } catch { /* skip */ }

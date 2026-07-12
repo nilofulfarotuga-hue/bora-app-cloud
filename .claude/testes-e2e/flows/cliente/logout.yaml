@@ -10,12 +10,17 @@ appId: pt.boraapp.bora
       notVisible: "Perfil"
     commands:
       - back
-# se os backs saíram da app, relança (sessão mantém-se — clearState: false)
-- launchApp:
-    clearState: false
-- extendedWaitUntil:
-    visible: "Perfil"
-    timeout: 15000
+# se os backs saíram da app, relança (sessão mantém-se — clearState: false).
+# fix 2026-07-11: o relançar após os backs falha transitoriamente em host com pouca
+# RAM ("Unable to launch app pt.boraapp.bora") e abortava o reset inteiro → retry.
+- retry:
+    maxRetries: 2
+    commands:
+      - launchApp:
+          clearState: false
+      - extendedWaitUntil:
+          visible: "Perfil"
+          timeout: 15000
 - tapOn: "Perfil"
 - scrollUntilVisible:
     element:

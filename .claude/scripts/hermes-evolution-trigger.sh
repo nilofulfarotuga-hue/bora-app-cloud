@@ -83,7 +83,7 @@ if [ "$DRY" = 1 ]; then
   exit 0
 fi
 
-docker exec -u hermes "$C" sh -lc "cat > /opt/data/cortex-brain/orquestracao/$oid.md" <<EOF
+docker exec -i -u hermes "$C" sh -lc "cat > /opt/data/cortex-brain/orquestracao/$oid.md" <<EOF
 --- ordem ---
 id: $oid
 estado: aberta

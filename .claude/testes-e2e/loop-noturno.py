@@ -21,6 +21,7 @@ Progresso por ciclo: .claude/.ai/knowledge/inbox/e2e-resultados-<data>.md + loop
 Parar a meio: criar o ficheiro PARAR nesta pasta.
 """
 import json
+import os
 import re
 import subprocess
 import sys
@@ -38,6 +39,12 @@ REPO = BASE.parent.parent
 FLOWS = BASE / "flows"
 INBOX = REPO / ".claude" / ".ai" / "knowledge" / "inbox"
 STOP_FILE = BASE / "PARAR"
+LOCK_FILE = BASE / ".loop-noturno.lock"
+
+# Diário E2E — o loop escreve eventos de ALTO NÍVEL (ciclo/classificação) em e2e_log;
+# o runner (subprocesso) escreve os passos finos. Ambos → mesma tabela, mesmo Claude.ai a ver.
+sys.path.insert(0, str(BASE))
+import e2e_diario  # noqa: E402
 
 MAX_CICLOS = 10
 MAX_FIX_TENTATIVAS = 2          # afinações de timing por fluxo antes de virar BUG DO APP
@@ -49,6 +56,18 @@ CRITICOS_PAT = re.compile(r"checkout|delivery|dispatch", re.I)
 RED_ZONE_PAT = re.compile(
     r"pagamento|pagar|checkout|dinheiro|stripe|mb\s?way|mbway|bora_tokens|token|wallet|"
     r"refund|reembolso|comiss|fee|pricing|finalizePurchase", re.I)
+# Lição 2026-07-12: das últimas 48h, 68 falhas eram desconexão de device/adb (INFRA)
+# e 15 foram erradamente marcadas BUG-APP (todas reset-role-screen a cair por device
+# caído). Infra NUNCA é bug do app — reconecta e re-corre. Verificado ANTES de tudo.
+INFRA_PAT = re.compile(
+    r"device not connected|device not found|device offline|\boffline\b|"
+    r"\bunauthorized\b|no devices(?:/emulators)? found|"
+    r"device '[^']*' not found|error: device|daemon not running|"
+    # Lição 2026-07-12 (run 20260712-073807): a frase REAL do Maestro quando o
+    # device cai a meio é "Device <serial> was requested, but it is not connected."
+    # O INFRA_PAT antigo só tinha "device not connected" (colado), por isso NÃO
+    # apanhava esta — o smoke caía em reset-role-screen e era mal-marcado BUG-APP.
+    r"was requested, but it is not connected|\bis not connected\b|not connected", re.I)
 TESTE_PAT = re.compile(r"element not found|timed ?out|timeout|assertion|not visible|"
                        r"unable to find|extendedwaituntil", re.I)
 APP_PAT = re.compile(r"crashed|crash|anr |fatal exception|unable to launch app", re.I)
@@ -77,16 +96,59 @@ def adb_serials() -> list:
     return [l.split("\t")[0] for l in out.splitlines()[1:] if "\tdevice" in l]
 
 
+APP_PACKAGE = "pt.boraapp.bora"
+# Lição 2026-07-11: um diálogo de permissão do Android (armazenamento) travou o
+# arranque da suite à espera de toque humano. Concedemos TODAS as permissões de
+# runtime por adb assim que o device está presente — o runner repete por segurança.
+_RUNTIME_PERMISSIONS = [
+    "android.permission.ACCESS_FINE_LOCATION", "android.permission.ACCESS_COARSE_LOCATION",
+    "android.permission.ACCESS_BACKGROUND_LOCATION", "android.permission.CAMERA",
+    "android.permission.POST_NOTIFICATIONS", "android.permission.READ_EXTERNAL_STORAGE",
+    "android.permission.WRITE_EXTERNAL_STORAGE", "android.permission.READ_MEDIA_IMAGES",
+    "android.permission.RECORD_AUDIO",
+]
+
+
+def concede_permissoes(eventos: list):
+    """Best-effort, idempotente: pm grant de cada permissão em cada device presente.
+    Tolera erro por permissão (não declarada / versão Android) — nunca aborta a noite."""
+    for serial in adb_serials():
+        n_ok = 0
+        for perm in _RUNTIME_PERMISSIONS:
+            try:
+                r = subprocess.run([_adb(), "-s", serial, "shell", "pm", "grant", APP_PACKAGE, perm],
+                                   capture_output=True, text=True, timeout=20)
+                if r.returncode == 0:
+                    n_ok += 1
+            except Exception:
+                pass
+        for op in ("SYSTEM_ALERT_WINDOW", "REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"):
+            try:
+                subprocess.run([_adb(), "-s", serial, "shell", "appops", "set", APP_PACKAGE, op, "allow"],
+                               capture_output=True, timeout=20)
+            except Exception:
+                pass
+        eventos.append({"ts": time.time(), "evento": f"permissões concedidas via adb ({n_ok} ok) @ {serial}"})
+        log(f"permissões de runtime concedidas via adb ({n_ok} ok) @ {serial}")
+
+
 def garante_device(eventos: list) -> bool:
-    """Telemóvel presente? Se caiu: pausa + adb reconnect (regista). Nunca lança exceção."""
+    """Telemóvel presente? Se caiu: pausa + recuperação adb (regista). Nunca lança exceção.
+
+    Lição 2026-07-11: o device pode ficar 'unauthorized' (não conta como presente).
+    `adb reconnect` NÃO limpa um daemon preso em 'unauthorized' — só kill-server +
+    start-server o faz (reusa ~/.android/adbkey já autorizada). Por isso, em cada
+    tentativa, forçamos primeiro um restart completo do daemon e só depois reconnect."""
     for tentativa in range(1, 16):  # ~5 min
         if adb_serials():
+            concede_permissoes(eventos)
             return True
-        eventos.append({"ts": time.time(), "evento": f"device ausente (tentativa {tentativa}) — adb reconnect"})
-        log(f"telemóvel caiu do adb — reconnect (tentativa {tentativa}/15)")
-        for cmd in (["reconnect"], ["reconnect", "offline"]):
+        eventos.append({"ts": time.time(), "evento": f"device ausente/unauthorized (tentativa {tentativa}) — restart daemon + reconnect"})
+        log(f"telemóvel caiu do adb — kill/start-server + reconnect (tentativa {tentativa}/15)")
+        # restart completo do daemon: o que realmente destranca 'unauthorized'
+        for cmd in (["kill-server"], ["start-server"], ["reconnect"], ["reconnect", "offline"]):
             try:
-                subprocess.run([_adb()] + cmd, capture_output=True, timeout=20)
+                subprocess.run([_adb()] + cmd, capture_output=True, timeout=30)
             except Exception:
                 pass
         time.sleep(20)
@@ -161,8 +223,11 @@ def texto_da_falha(resultado: dict) -> str:
 
 
 def classifica(resultado: dict, tentativas_fix: int) -> str:
-    """'teste' (selector/timing → afinar YAML) ou 'app' (regista/bloqueia)."""
+    """'infra' (device/adb caiu → reconecta e re-corre, NUNCA bug do app),
+    'teste' (selector/timing → afinar YAML) ou 'app' (regista/bloqueia)."""
     txt = texto_da_falha(resultado)
+    if INFRA_PAT.search(txt):
+        return "infra"  # desconexão de device/adb — nunca é bug do app
     if APP_PAT.search(txt):
         return "app"
     if tentativas_fix >= MAX_FIX_TENTATIVAS:
@@ -275,6 +340,7 @@ def main():
     estados = {}
     for f in reg["fluxos"]:
         estados[f["id"]] = {"verdes_seguidos": 0, "fix_tentativas": 0, "ambiente_falhas": 0,
+                            "infra_falhas": 0,
                             "estado_final": None, "ultimo_estado": None, "ultima_falha": None,
                             "critico": bool(CRITICOS_PAT.search(f["id"])), "nota": ""}
         if f.get("manual_2_devices"):
@@ -296,6 +362,8 @@ def main():
         a_correr = pendentes + [f for f in elegiveis
                                 if estados[f]["critico"] and f not in pendentes]
         log(f"── CICLO {n}: {len(a_correr)} fluxos → {a_correr}")
+        e2e_diario.registar("loop-noturno", f"ciclo {n} arranca", "iniciou",
+                            detalhe=f"{len(a_correr)} fluxos: {a_correr}", device="host")
         t0 = time.time()
         passou = falhou = 0
 
@@ -332,13 +400,28 @@ def main():
                     st["verdes_seguidos"] = 0
                     st["ultima_falha"] = r.get("falha") or r.get("estado")
                     tipo = classifica(r, st["fix_tentativas"])
-                    if tipo == "teste":
+                    if tipo == "infra":
+                        st["infra_falhas"] = st.get("infra_falhas", 0) + 1
+                        log(f"  {fid}: FALHA-INFRA (device/adb caiu) → reconecta e re-corre "
+                            f"(infra #{st['infra_falhas']}, NÃO é bug do app)")
+                        e2e_diario.registar(fid, "classificação do loop", "falhou",
+                                            detalhe=f"FALHA-INFRA (device/adb) → reconecta e re-corre "
+                                                    f"(infra #{st['infra_falhas']})",
+                                            device="host")
+                        garante_device(eventos)  # recupera já; re-corre no próximo ciclo
+                    elif tipo == "teste":
                         aplica_fix_teste(st, r, mudancas)
                         log(f"  {fid}: BUG DO TESTE → YAML afinado (tentativa {st['fix_tentativas']})")
+                        e2e_diario.registar(fid, "classificação do loop", "falhou",
+                                            detalhe=f"BUG DO TESTE → YAML afinado (tentativa {st['fix_tentativas']})",
+                                            device="host")
                     else:
                         z = zona(r)
                         st["estado_final"] = "BLOQUEADO-APROVACAO" if z == "vermelha" else "BUG-APP-REGISTADO"
                         log(f"  {fid}: BUG DO APP (zona {z}) → {st['estado_final']}")
+                        e2e_diario.registar(fid, "classificação do loop", "falhou",
+                                            detalhe=f"BUG DO APP (zona {z}) → {st['estado_final']}",
+                                            device="host")
             except Exception as e:  # o loop NUNCA crasha
                 eventos.append({"ts": time.time(), "evento": f"exceção em {fid}: {e}",
                                 "trace": traceback.format_exc()[-800:]})
@@ -355,5 +438,47 @@ def main():
     sys.exit(0 if ok else 1)
 
 
+def _pid_vivo(pid):
+    try:
+        out = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/NH"],
+                              capture_output=True, text=True, timeout=10).stdout or ""
+        return str(pid) in out
+    except Exception:
+        return False
+
+
+def adquire_lock_unico():
+    """Lição 2026-07-12: as tarefas agendadas HORÁRIAS empilhavam-se em cima de corridas
+    presas (o schtask dispara de novo mesmo com a corrida anterior ainda viva) — 4 instâncias
+    chegaram a correr ao mesmo tempo, todas a lutar pelos mesmos 2 telemóveis via adb. Isso
+    é que produzia os erros persistentes "device not connected"/"unauthorized", não o
+    hardware. Lock de instância única: se já há um PID vivo dono do lock, esta corrida NÃO
+    arranca por cima — sai já (o schtask tenta de novo na próxima hora)."""
+    if LOCK_FILE.exists():
+        try:
+            pid_antigo = int(LOCK_FILE.read_text(encoding="utf-8").strip())
+        except Exception:
+            pid_antigo = None
+        if pid_antigo and _pid_vivo(pid_antigo):
+            log(f"já há uma instância a correr (pid={pid_antigo}) — não arranco outra em cima; saio")
+            return False
+        log(f"lock órfão (pid antigo {pid_antigo} já não está vivo) — assumo o lock")
+    LOCK_FILE.write_text(str(os.getpid()), encoding="utf-8")
+    return True
+
+
+def liberta_lock_unico():
+    try:
+        if LOCK_FILE.exists() and LOCK_FILE.read_text(encoding="utf-8").strip() == str(os.getpid()):
+            LOCK_FILE.unlink()
+    except Exception:
+        pass
+
+
 if __name__ == "__main__":
-    main()
+    if not adquire_lock_unico():
+        sys.exit(0)
+    try:
+        main()
+    finally:
+        liberta_lock_unico()

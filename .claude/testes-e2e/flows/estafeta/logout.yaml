@@ -10,11 +10,16 @@ appId: pt.boraapp.bora
       notVisible: "Perfil"
     commands:
       - back
-- launchApp:
-    clearState: false
-- extendedWaitUntil:
-    visible: "Perfil"
-    timeout: 15000
+# fix 2026-07-11: relançar após os backs falha transitoriamente em host com pouca
+# RAM ("Unable to launch app") e abortava o reset inteiro → retry.
+- retry:
+    maxRetries: 2
+    commands:
+      - launchApp:
+          clearState: false
+      - extendedWaitUntil:
+          visible: "Perfil"
+          timeout: 15000
 # ficar OFFLINE antes de sair (toggle mostra "Online" quando está online)
 - runFlow:
     when:

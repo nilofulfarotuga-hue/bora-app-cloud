@@ -407,34 +407,54 @@ def corre_maestro(serial: str, yaml_rel: str, env_extra: dict, log_passos: list,
     # arrastava a noite. TimeoutExpired NÃO rebenta o runner: é tratado como passo
     # falhado (regra de ouro: foto + segue), para o próximo fluxo continuar.
     MAESTRO_TIMEOUT_S = 480
-    try:
-        r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8",
-                           errors="replace", timeout=MAESTRO_TIMEOUT_S, env=env_proc)
-    except subprocess.TimeoutExpired as e:
+    # DEVICE CAÍDO A MEIO (2026-07-12): garante_serial_autorizado() só corre ANTES do
+    # Maestro. Se o USB/adb dropar DURANTE o flow, o Maestro morre com "... was
+    # requested, but it is not connected" e o passo conta como FALHA de teste — foi o
+    # falso "reset-role-screen falha em ~26s com rc=1" do run 20260712-073807. Aqui,
+    # se a falha tiver a assinatura de device desligado, recuperamos (mesmo reconnect
+    # + kill/start-server, reusa adbkey) e repetimos UMA vez. Um drop transitório de
+    # USB deixa de contar como bug do app/YAML.
+    DESLIGADO_SIG = ("is not connected", "was requested, but it is not",
+                     "no devices/emulators found", "device offline")
+    for tentativa in range(2):
+        try:
+            r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8",
+                               errors="replace", timeout=MAESTRO_TIMEOUT_S, env=env_proc)
+        except subprocess.TimeoutExpired as e:
+            t1 = time.time()
+            tail = "\n".join((e.stdout or "").splitlines()[-25:]) if isinstance(e.stdout, str) else ""
+            err_tail = "\n".join((e.stderr or "").splitlines()[-15:]).strip() if isinstance(e.stderr, str) else ""
+            if err_tail:
+                tail = (tail + "\n").lstrip() + "[stderr]\n" + err_tail
+            log_passos.append({"ts": t1, "evento": f"maestro TIMEOUT {MAESTRO_TIMEOUT_S}s {yaml_rel}", "tail": tail})
+            foto = screenshot_falha(serial, fluxo, yaml_rel)
+            e2e_diario.registar(fluxo, f"maestro: {yaml_rel}", "falhou",
+                                detalhe=f"TIMEOUT {MAESTRO_TIMEOUT_S}s · foto={foto} · {tail[-1200:]}",
+                                device=serial)
+            return {"ok": False, "rc": -9, "dur_s": round(t1 - t0, 1), "t_fim": t1,
+                    "tail": tail, "foto": foto}
         t1 = time.time()
-        tail = "\n".join((e.stdout or "").splitlines()[-25:]) if isinstance(e.stdout, str) else ""
-        err_tail = "\n".join((e.stderr or "").splitlines()[-15:]).strip() if isinstance(e.stderr, str) else ""
-        if err_tail:
-            tail = (tail + "\n").lstrip() + "[stderr]\n" + err_tail
-        log_passos.append({"ts": t1, "evento": f"maestro TIMEOUT {MAESTRO_TIMEOUT_S}s {yaml_rel}", "tail": tail})
-        foto = screenshot_falha(serial, fluxo, yaml_rel)
-        e2e_diario.registar(fluxo, f"maestro: {yaml_rel}", "falhou",
-                            detalhe=f"TIMEOUT {MAESTRO_TIMEOUT_S}s · foto={foto} · {tail[-1200:]}",
-                            device=serial)
-        return {"ok": False, "rc": -9, "dur_s": round(t1 - t0, 1), "t_fim": t1,
-                "tail": tail, "foto": foto}
-    t1 = time.time()
-    ok = r.returncode == 0
-    # último passo visível no stdout do maestro (para achar o segundo da falha no vídeo)
-    tail = "\n".join((r.stdout or "").splitlines()[-25:])
-    # OBSERVABILIDADE (2026-07-11): quando o maestro erra ANTES de correr o flow
-    # (adb reset / device offline/unauthorized a meio do loop, JVM crash), NÃO
-    # imprime nada no stdout — a causa real vai para o STDERR. Sem isto o tail
-    # ficava vazio e a falha era cega (o sintoma "rc=1 em 14s, tail vazio").
-    if not ok:
-        stderr_tail = "\n".join((r.stderr or "").splitlines()[-15:]).strip()
-        if stderr_tail:
-            tail = (tail + "\n").lstrip() + "[stderr]\n" + stderr_tail
+        ok = r.returncode == 0
+        # último passo visível no stdout do maestro (para achar o segundo da falha no vídeo)
+        tail = "\n".join((r.stdout or "").splitlines()[-25:])
+        # OBSERVABILIDADE (2026-07-11): quando o maestro erra ANTES de correr o flow
+        # (adb reset / device offline/unauthorized a meio do loop, JVM crash), NÃO
+        # imprime nada no stdout — a causa real vai para o STDERR. Sem isto o tail
+        # ficava vazio e a falha era cega (o sintoma "rc=1 em 14s, tail vazio").
+        if not ok:
+            stderr_tail = "\n".join((r.stderr or "").splitlines()[-15:]).strip()
+            if stderr_tail:
+                tail = (tail + "\n").lstrip() + "[stderr]\n" + stderr_tail
+        # device caiu a meio → recupera e repete uma vez (não é falha do app/YAML)
+        if not ok and tentativa == 0 and any(s in tail.lower() for s in DESLIGADO_SIG):
+            log_passos.append({"ts": t1, "evento": f"maestro device caído a meio ({yaml_rel}) — reconnect + retry"})
+            e2e_diario.registar(fluxo, f"maestro: {yaml_rel}", "reconnect",
+                                detalhe=f"device caiu a meio (rc={r.returncode}); a recuperar + repetir 1x",
+                                device=serial)
+            garante_serial_autorizado(serial)
+            time.sleep(2)
+            continue
+        break
     log_passos.append({"ts": t1, "evento": f"maestro end rc={r.returncode}", "tail": tail})
     # REGRA DE OURO: falhou → foto imediata do ecrã (adb) + caminho no diário, para
     # o Claude.ai ver o que estava no ecrã sem depender do frame extraído do vídeo.

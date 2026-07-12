@@ -55,6 +55,16 @@ triada** — não substituir o humano nas decisões de dinheiro.
 - ✅ MUST: registar cada decisão (o que triei, para que balde, com que motivo) no relatório e em
   `admin_audit_log` (via a via de auditoria existente), para rasto.
 
+## Rede de segurança de 30 minutos (2026-07-12)
+O gatilho normal (`hermes-aprovador-vermelho.sh`, cron VPS `*/10`) só disparava em item **novo**
+(watermark). Na noite de 2026-07-11→12 esse gatilho ficou mudo em silêncio (bug de `docker exec`
+sem `-i` — ver `loops.md`) e uma ordem de retomar do Danilo desapareceu sem rasto. Fix: o script
+agora tem um 2º caminho, **independente do watermark** — se o item `nova` mais antigo está parado
+≥30 min, dispara sozinho uma ordem `FALLBACK 30MIN` a pedir para rever TODA a fila outra vez.
+Isto NÃO é uma 3ª capacidade de auto-aprovação: é só garantir que o agente é acordado a olhar,
+mesmo que o gatilho normal falhe de novo no futuro. A decisão Balde A/B continua a mesma —
+prova positiva obrigatória, Balde B nunca promovido sozinho.
+
 ## Protocolo (ordem exacta)
 1. Ler `INDEX.md` → `zonas-protegidas.md` (a Trava) + `business-rules.md` (o que é dinheiro real).
 2. Ler a fila vermelha (Central / `robot_suggestions` estado bloqueado 🔴 + a fila do carteiro

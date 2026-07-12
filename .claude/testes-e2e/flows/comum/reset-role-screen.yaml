@@ -6,15 +6,19 @@ appId: pt.boraapp.bora
 - launchApp:
     clearState: false
 # cliente logado → sair
+# optional (2026-07-11): se o logout gracioso falhar (ex.: launch transitório),
+# NÃO abortar o reset — o fallback clearState:true abaixo recupera até ao RoleScreen.
 - runFlow:
     when:
       visible: "Início"
     file: ../cliente/logout.yaml
+    optional: true
 # estafeta logado → offline + sair
 - runFlow:
     when:
       visible: "Offline|Online"
     file: ../estafeta/logout.yaml
+    optional: true
 # ecrã de login pendurado (papel escolhido sem sessão) → link in-app (back sairia da app)
 - runFlow:
     when:
@@ -36,9 +40,11 @@ appId: pt.boraapp.bora
 #   (b) modal in-app "Privacidade e Cookies" (Aceitar tudo / Rejeitar / Gerir preferências)
 # Qualquer um por cima → o assert final não via "Sou Cliente" e o login falhava com
 # "ecrã inesperado". Dispensar ambos (+ localização, por robustez). Rendem em ~1-2 s.
+# timeout curto (30s) — o boot limpo + diálogos rendem em 1-2s; se nada surgir em
+# 30s é hang/ANR, e a regra de ouro (runner: foto + segue) é melhor que esperar 5 min.
 - extendedWaitUntil:
     visible: "Permitir|Não permitir|Aceitar tudo|Privacidade e Cookies|Sou Cliente"
-    timeout: 25000
+    timeout: 300000
 - runFlow:
     when:
       visible: "Não permitir"
@@ -54,7 +60,38 @@ appId: pt.boraapp.bora
       visible: "Enquanto usa a app|Ao usar a app|Só desta vez|Permitir"
     commands:
       - tapOn: "Enquanto usa a app|Ao usar a app|Permitir"
+# 2.º clearState de recuperação (2026-07-11): se DEPOIS de dispensar diálogos
+# ainda NÃO estamos no RoleScreen, o 1.º boot limpo apanhou um ANR/estado
+# transitório (foi o que travou as corridas 19:40/19:42, presas no reset).
+# Regra de ouro = tentar a próxima estratégia: mais UM boot limpo + re-dispensar
+# os diálogos. Um ANR de arranque é quase sempre pontual; a 2.ª tentativa passa.
+- runFlow:
+    when:
+      notVisible: "Sou Cliente"
+    commands:
+      - launchApp:
+          clearState: true
+      - extendedWaitUntil:
+          visible: "Permitir|Não permitir|Aceitar tudo|Privacidade e Cookies|Sou Cliente"
+          timeout: 300000
+      - runFlow:
+          when:
+            visible: "Não permitir"
+          commands:
+            - tapOn: "Permitir"
+      - runFlow:
+          when:
+            visible: "Aceitar tudo|Privacidade e Cookies"
+          commands:
+            - tapOn: "Aceitar tudo"
+      - runFlow:
+          when:
+            visible: "Enquanto usa a app|Ao usar a app|Só desta vez|Permitir"
+          commands:
+            - tapOn: "Enquanto usa a app|Ao usar a app|Permitir"
 # resultado esperado: RoleScreen (botões "Sou Cliente"/"Sou Estafeta"/"Sou Parceiro")
+# timeout curto (30s): se o RoleScreen não vier em 30s, o reset falha e o runner
+# tira foto + segue (nunca mais o hang silencioso de minutos que arrastava a noite).
 - extendedWaitUntil:
     visible: "Sou Cliente"
-    timeout: 45000
+    timeout: 300000

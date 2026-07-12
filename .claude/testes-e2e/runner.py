@@ -172,12 +172,21 @@ def espera_device_pronto(serial: str, timeout: int = 40) -> bool:
     return False
 
 
-def garante_serial_autorizado(serial: str) -> bool:
+def garante_serial_autorizado(serial: str, exigir_pronto: bool = False) -> bool:
     """Antes de cada Maestro: se o serial caiu para 'unauthorized'/'offline', tenta
     'adb reconnect' e regista em e2e_log — em vez de deixar o teste morrer sem pista.
-    Devolve True se o serial está 'device'. Nunca lança (best-effort)."""
+    Devolve True se o serial está 'device'. Nunca lança (best-effort).
+
+    exigir_pronto=True (2026-07-12, usado na recuperação mid-flow): mesmo que o serial
+    JÁ apareça como 'device', confirma boot_completed antes de devolver. Depois de um
+    drop de USB a meio do fluxo o device re-enumera como 'device' em ~1-2s mas ainda
+    não está responsivo; o Maestro relançado nesse intervalo morre outra vez com
+    'is not connected'. Sem esta verificação, as retentativas queimavam contra um
+    device meio-morto (foi o N75LTG5X5DSKDMV4 a falhar 3x seguidas em ~50s)."""
     auth, mau = _adb_estado()
     if serial in auth:
+        if exigir_pronto:
+            espera_device_pronto(serial)
         return True
     try:
         e2e_diario.registar("runner", "device caiu (unauthorized/offline)", "falhou",
@@ -489,8 +498,8 @@ def corre_maestro(serial: str, yaml_rel: str, env_extra: dict, log_passos: list,
             e2e_diario.registar(fluxo, f"maestro: {yaml_rel}", "reconnect",
                                 detalhe=f"device caiu a meio (rc={r.returncode}); a recuperar + repetir 1x",
                                 device=serial)
-            garante_serial_autorizado(serial)
-            time.sleep(2)
+            garante_serial_autorizado(serial, exigir_pronto=True)
+            time.sleep(3 + tentativa * 3)  # backoff (3s, 6s): dá tempo ao USB re-estabilizar
             continue
         break
     log_passos.append({"ts": t1, "evento": f"maestro end rc={r.returncode}", "tail": tail})

@@ -450,7 +450,11 @@ def corre_maestro(serial: str, yaml_rel: str, env_extra: dict, log_passos: list,
     # USB deixa de contar como bug do app/YAML.
     DESLIGADO_SIG = ("is not connected", "was requested, but it is not",
                      "no devices/emulators found", "device offline")
-    for tentativa in range(2):
+    # 2026-07-12 (missão): device N75LTG5X5DSKDMV4 dropa muito → até 2 retentativas
+    # mid-flow (reconnect + repetir) antes de contar como falha. USB selective suspend
+    # já foi desligado no host (powercfg) — isto é o cinto-de-segurança no runner.
+    MAX_TENT = 3
+    for tentativa in range(MAX_TENT):
         try:
             r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8",
                                errors="replace", timeout=MAESTRO_TIMEOUT_S, env=env_proc)
@@ -480,8 +484,8 @@ def corre_maestro(serial: str, yaml_rel: str, env_extra: dict, log_passos: list,
             if stderr_tail:
                 tail = (tail + "\n").lstrip() + "[stderr]\n" + stderr_tail
         # device caiu a meio → recupera e repete uma vez (não é falha do app/YAML)
-        if not ok and tentativa == 0 and any(s in tail.lower() for s in DESLIGADO_SIG):
-            log_passos.append({"ts": t1, "evento": f"maestro device caído a meio ({yaml_rel}) — reconnect + retry"})
+        if not ok and tentativa < MAX_TENT - 1 and any(s in tail.lower() for s in DESLIGADO_SIG):
+            log_passos.append({"ts": t1, "evento": f"maestro device caído a meio ({yaml_rel}) — reconnect + retry {tentativa+1}/{MAX_TENT-1}"})
             e2e_diario.registar(fluxo, f"maestro: {yaml_rel}", "reconnect",
                                 detalhe=f"device caiu a meio (rc={r.returncode}); a recuperar + repetir 1x",
                                 device=serial)

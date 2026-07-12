@@ -1078,6 +1078,7 @@ class _ProductCardState extends State<_ProductCard>
                       _QtyButton(
                         icon: Icons.add,
                         color: primaryColor,
+                        semanticId: 'btn_add_carrinho',
                         onTap: () {
                           if (widget.product.price <= 0) return;
                           context.read<CartStore>().addItem(CartItem(
@@ -1251,6 +1252,7 @@ class _VariantMiniCard extends StatelessWidget {
                 _QtyButton(
                   icon: Icons.add,
                   color: primaryColor,
+                  semanticId: 'btn_add_carrinho',
                   onTap: () => _addToCart(context),
                 )
               else
@@ -1408,15 +1410,22 @@ class _PlaceholderImage extends StatelessWidget {
 
 class _QtyButton extends StatelessWidget {
   const _QtyButton(
-      {required this.icon, required this.color, required this.onTap});
+      {required this.icon,
+      required this.color,
+      required this.onTap,
+      this.semanticId});
 
   final IconData icon;
   final Color color;
   final VoidCallback onTap;
+  // Identificador estável para o botão pequeno de "+" (adicionar ao carrinho).
+  // O E2E toca-o por id (btn_add_carrinho) em vez de adivinhar a coordenada do
+  // ícone sem texto no canto do card — ver flows/cliente/delivery-mercado-cash.yaml.
+  final String? semanticId;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    final button = InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
       child: Container(
@@ -1428,6 +1437,9 @@ class _QtyButton extends StatelessWidget {
         child: Icon(icon, size: 18, color: color),
       ),
     );
+    return semanticId == null
+        ? button
+        : Semantics(identifier: semanticId, button: true, child: button);
   }
 }
 

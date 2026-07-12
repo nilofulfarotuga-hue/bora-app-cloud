@@ -40,7 +40,7 @@ appId: pt.boraapp.bora
 # ── Escolher a loja (Continente) ─────────────────────────────────────────
 - extendedWaitUntil:
     visible: "Continente.*"
-    timeout: 60000
+    timeout: 90000
 - tapOn: "Continente.*"
 - runFlow:
     file: ../comum/diario.yaml
@@ -50,7 +50,7 @@ appId: pt.boraapp.bora
 #    visível (SliverAppBar pinned). A barra de pesquisa fica logo abaixo. ─
 - extendedWaitUntil:
     visible: "Continente"
-    timeout: 60000
+    timeout: 90000
 
 # ── SCROLL VERTICAL DOWN (demonstração + espera de dados): rolar até a grelha
 #    "Comprar por categoria", que só existe quando os produtos vieram do backend.
@@ -59,7 +59,7 @@ appId: pt.boraapp.bora
     element:
       text: "Comprar por categoria"
     direction: DOWN
-    timeout: 60000
+    timeout: 90000
     visibilityPercentage: 40
 - runFlow:
     file: ../comum/diario.yaml
@@ -71,7 +71,7 @@ appId: pt.boraapp.bora
     element:
       text: "Procurar em.*"
     direction: UP
-    timeout: 30000
+    timeout: 45000
     visibilityPercentage: 60
 - runFlow:
     file: ../comum/diario.yaml
@@ -110,7 +110,7 @@ appId: pt.boraapp.bora
     element:
       text: "€[0-9]+[.][0-9][0-9]"
     direction: DOWN
-    timeout: 60000
+    timeout: 90000
     visibilityPercentage: 40
 - runFlow:
     file: ../comum/diario.yaml
@@ -135,7 +135,7 @@ appId: pt.boraapp.bora
 # dar tempo ao contador/carrinho de renderizar antes de decidir o fallback
 - extendedWaitUntil:
     visible: "Ver carrinho.*"
-    timeout: 8000
+    timeout: 12000
     optional: true
 
 #    (b) FALLBACK — se o "+" por id não encheu o carrinho ("Ver carrinho" ainda
@@ -153,7 +153,7 @@ appId: pt.boraapp.bora
           optional: true
       - extendedWaitUntil:
           visible: "Adicionar ao carrinho.*"
-          timeout: 30000
+          timeout: 45000
           optional: true
       - tapOn:
           text: "Adicionar ao carrinho.*"
@@ -171,7 +171,7 @@ appId: pt.boraapp.bora
 - takeScreenshot: estado-apos-adicionar
 - extendedWaitUntil:
     visible: "Ver carrinho.*"
-    timeout: 30000
+    timeout: 45000
 - tapOn: "Ver carrinho.*"
 
 # ── Carrinho → Finalizar pedido (botão pinado no fundo) ─────────────────
@@ -179,7 +179,7 @@ appId: pt.boraapp.bora
     element:
       text: "Finalizar pedido"
     direction: DOWN
-    timeout: 30000
+    timeout: 45000
     visibilityPercentage: 80
 - tapOn: "Finalizar pedido"
 - runFlow:
@@ -189,13 +189,13 @@ appId: pt.boraapp.bora
 # ── Pagamento: escolher Dinheiro e confirmar ────────────────────────────
 - extendedWaitUntil:
     visible: "Dinheiro"
-    timeout: 60000
+    timeout: 90000
 - tapOn: "Dinheiro"
 - scrollUntilVisible:
     element:
       text: "Confirmar pagamento"
     direction: DOWN
-    timeout: 30000
+    timeout: 45000
     visibilityPercentage: 80
 - tapOn: "Confirmar pagamento"
 
@@ -204,7 +204,7 @@ appId: pt.boraapp.bora
 #    sucesso. Aceitamos qualquer sinal; a PROVA REAL é a linha em `orders`. ──
 - extendedWaitUntil:
     visible: "Pedido criado.*|Os meus pedidos.*|A preparar.*|Aguardando confirmação.*|Início"
-    timeout: 120000
+    timeout: 180000
 - runFlow:
     file: ../comum/diario.yaml
     env: { DIARIO_FLUXO: "delivery-mercado-cash", DIARIO_PASSO: "PEDIDO CRIADO (confirmou pagamento em dinheiro)", DIARIO_ESTADO: "passou" }

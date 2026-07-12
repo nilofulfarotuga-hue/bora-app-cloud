@@ -190,17 +190,23 @@ class _AddButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 28,
-        height: 28,
-        decoration: const BoxDecoration(
-          color: AppColors.primary,
-          shape: BoxShape.circle,
+    // identifier estável para o E2E tocar o "+" pequeno do card por id
+    // (btn_add_carrinho), em vez de adivinhar a coordenada do ícone sem texto.
+    return Semantics(
+      identifier: 'btn_add_carrinho',
+      button: true,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 28,
+          height: 28,
+          decoration: const BoxDecoration(
+            color: AppColors.primary,
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(Icons.add,
+              color: Colors.white, size: 18, semanticLabel: 'Adicionar'),
         ),
-        child: const Icon(Icons.add,
-            color: Colors.white, size: 18, semanticLabel: 'Adicionar'),
       ),
     );
   }

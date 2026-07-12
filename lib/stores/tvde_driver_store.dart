@@ -328,10 +328,17 @@ class TvdeDriverStore extends ChangeNotifier {
       {String? distanceSource}) async {
     _setBusy(true);
     try {
+      // Passa SEMPRE os 4 params: existem 3 overloads de tvde_finish_ride (2/3/4
+      // args) e um subconjunto de nomes deixa o PostgREST ambíguo (PGRST203
+      // "could not choose the best candidate") → era o "a corrida não finaliza,
+      // dá erro" após adicionar parada. Com os 4 nomes casa UNICAMENTE o overload
+      // de 4 args. Comportamento idêntico: tokens=0 é exatamente o que os
+      // overloads 2/3-arg já delegavam; distanceSource null mantém o COALESCE.
       final res = await _sb.rpc('tvde_finish_ride', params: {
         'p_ride_id': rideId,
         'p_final_distance_km': finalDistanceKm,
-        if (distanceSource != null) 'p_distance_source': distanceSource,
+        'p_distance_source': distanceSource,
+        'p_tokens_to_apply': 0,
       });
       final finished = TvdeRide.fromMap(_asMap(res));
       if (_queuedRide != null) {

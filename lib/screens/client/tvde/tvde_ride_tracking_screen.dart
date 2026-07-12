@@ -1168,60 +1168,68 @@ class _AddStopSheetState extends State<_AddStopSheet> {
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    // O overlay de sugestões do AddressAutocompleteField abre SEMPRE para baixo
+    // (maxHeight 260) e o "campo sobe ao focar" depende de Scrollable.ensureVisible
+    // — que é NO-OP sem um Scrollable ancestral. Antes, esta folha usava
+    // Column(mainAxisSize.min) sem scroll: o ensureVisible não engatava, o campo
+    // ficava colado ao teclado e a lista saía cortada/não-clicável. Fix igual ao
+    // ecrã de pedido: folha com altura fixa generosa + SingleChildScrollView, para
+    // o campo poder subir ao topo e deixar os 260px da lista acima do teclado.
+    final maxSheet = MediaQuery.of(context).size.height * 0.7;
     return Padding(
-      padding: EdgeInsets.only(
-        left: Spacing.lg,
-        right: Spacing.lg,
-        top: Spacing.lg,
-        bottom: Spacing.lg + bottomInset,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
+      padding: EdgeInsets.only(bottom: bottomInset),
+      child: SizedBox(
+        height: maxSheet,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(Spacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Icon(Icons.add_location_alt_outlined,
-                  color: AppColors.primary),
-              const SizedBox(width: Spacing.sm),
-              const Expanded(
-                child: Text('Adicionar parada',
-                    style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary)),
+              Row(
+                children: [
+                  const Icon(Icons.add_location_alt_outlined,
+                      color: AppColors.primary),
+                  const SizedBox(width: Spacing.sm),
+                  const Expanded(
+                    child: Text('Adicionar parada',
+                        style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary)),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
               ),
-              IconButton(
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.close),
+              const SizedBox(height: Spacing.xs),
+              const Text(
+                  'Escolhe onde o motorista deve passar a caminho do destino.',
+                  style:
+                      TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+              const SizedBox(height: Spacing.md),
+              AddressAutocompleteField(
+                controller: _controller,
+                labelText: 'Morada da parada',
+                onSelected: (address, coords) {
+                  if (coords == null) return;
+                  Navigator.pop(
+                    context,
+                    _PickedStop(
+                        label: address,
+                        lat: coords.latitude,
+                        lng: coords.longitude),
+                  );
+                },
               ),
+              // Espaço abaixo do campo: dá extensão de scroll para o ensureVisible
+              // puxar o campo ao topo e deixar os 260px da lista visíveis.
+              const SizedBox(height: 280),
             ],
           ),
-          const SizedBox(height: Spacing.xs),
-          const Text('Escolhe onde o motorista deve passar a caminho do destino.',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
-          const SizedBox(height: Spacing.md),
-          AddressAutocompleteField(
-            controller: _controller,
-            labelText: 'Morada da parada',
-            onSelected: (address, coords) {
-              if (coords == null) return;
-              Navigator.pop(
-                context,
-                _PickedStop(
-                    label: address,
-                    lat: coords.latitude,
-                    lng: coords.longitude),
-              );
-            },
-          ),
-          // O overlay de sugestões do AddressAutocompleteField abre SEMPRE para
-          // baixo (maxHeight 260). Neste bottom sheet (mainAxisSize.min, sem
-          // Scrollable ancestral) o campo ficava colado ao teclado e a lista
-          // saía cortada e não-clicável (atrás do teclado). Reservar espaço
-          // abaixo do campo levanta-o acima do teclado, dando lugar à lista.
-          const SizedBox(height: 280),
-        ],
+        ),
       ),
     );
   }

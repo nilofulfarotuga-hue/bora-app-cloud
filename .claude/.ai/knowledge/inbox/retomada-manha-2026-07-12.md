@@ -152,3 +152,39 @@ Ambas são mecânicas (ficheiro de estado + PID vivo), não dependem de IA para 
   `carteiro-vigia`/`e2e-vigia`, mas o próprio `hermes-watchdog.sh` (99+/44- linhas, trabalho de
   outra sessão concorrente) continua por commitar/deployar — não revi essa mudança, fica uma
   inconsistência conhecida entre doc e código até alguém rever esse script.
+
+## PASSO 3 — continuação (2ª sessão de acompanhamento, ~07:35–07:48 UTC)
+
+Acompanhei a corrida em tempo real depois deste relatório escrito. **`delivery-mercado-cash`
+falhou de facto (422.5s, `scrollUntilVisible` sem encontrar o preço)** — mas a causa não foi
+scroll nem seletor: a screenshot da falha mostra o **ecrã de bloqueio do telemóvel** (relógio
+08:39, "Carregamento em pausa"). O telemóvel adormeceu a meio do fluxo — `screen_off_timeout`
+normal do Android, não relacionado com as instâncias empilhadas (esta corrida já era a única
+instância viva). O `garante_device()` só verifica presença no adb, não se o ecrã está aceso —
+device "presente" mas com ecrã apagado passa despercebido.
+
+**Fix aplicado:** `concede_permissoes()` em `loop-noturno.py` agora, em cada device, antes de
+cada flow: `input keyevent KEYCODE_WAKEUP` + `wm dismiss-keyguard` + `settings put system
+screen_off_timeout 1800000` (30 min). Sintaxe validada. Desbloqueei os 2 telemóveis manualmente
+para destravar a corrida em curso.
+
+**Ciclo 2 arrancou** (classificado corretamente como `teste`, YAML afinado, não BUG-APP) e voltou
+a passar `reset-role-screen` rapidamente — mas `smoke-login-cliente` falhou de novo a meio de
+`login.yaml` por volta das 07:44 UTC, também classificado `teste`/YAML afinado (ciclo 3 deve
+arrancar sozinho). **Nota honesta sobre a minha própria interferência:** ao investigar ao vivo,
+enviei `adb keyevent`/`dismiss-keyguard` manualmente enquanto o loop podia estar a meio de um
+passo — isto pode ter colidido com a automação do próprio Maestro (ex.: painel de notificações
+a abrir sem explicação). **Parei de mexer no device a partir daqui** — o fix já está no código,
+o loop tem retries próprios (até 10 ciclos) e não precisa de intervenção manual concorrente, que
+só acrescenta risco de corrida.
+
+**Estado final no fecho desta sessão:** ainda sem pedido novo em `orders`. O loop continua a
+correr sozinho (ciclo 2/3, dentro do teto de 10) com o fix de wake/unlock já ativo — não deveria
+voltar a falhar por ecrã apagado. Se ainda não tiver passado quando o Danilo verificar,
+`e2e_log` tem o detalhe passo-a-passo e `_schtask_loop.log` o resumo por ciclo; a rede de
+segurança `e2e-vigia` (cron VPS `*/10`, ver `loops.md`) deteta se o loop ficar >20-90min
+silencioso e injeta uma ordem de retoma sozinha — não depende desta conversa continuar aberta.
+
+### Ficheiro adicional tocado
+- `.claude/testes-e2e/loop-noturno.py` — wake/dismiss-keyguard/screen_off_timeout em
+  `concede_permissoes()` (além do lock de instância única já registado acima)

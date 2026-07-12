@@ -128,6 +128,20 @@ def concede_permissoes(eventos: list):
                                capture_output=True, timeout=20)
             except Exception:
                 pass
+        # Lição 2026-07-12: um fluxo (delivery-mercado-cash) falhou 422s a fazer scrollUntilVisible
+        # contra o LOCKSCREEN — o telemóvel adormeceu a meio do fluxo (screen_off_timeout normal),
+        # o Maestro nunca via a app. Acorda + desbloqueia (keyguard sem PIN) + timeout de ecrã longo
+        # (30min) ANTES de cada flow, não só na deteção de "device ausente" — screen lock não conta
+        # como device ausente para o adb, por isso isto tem de estar aqui, não só no garante_device.
+        try:
+            subprocess.run([_adb(), "-s", serial, "shell", "input", "keyevent", "KEYCODE_WAKEUP"],
+                           capture_output=True, timeout=15)
+            subprocess.run([_adb(), "-s", serial, "shell", "wm", "dismiss-keyguard"],
+                           capture_output=True, timeout=15)
+            subprocess.run([_adb(), "-s", serial, "shell", "settings", "put", "system",
+                            "screen_off_timeout", "1800000"], capture_output=True, timeout=15)
+        except Exception:
+            pass
         eventos.append({"ts": time.time(), "evento": f"permissões concedidas via adb ({n_ok} ok) @ {serial}"})
         log(f"permissões de runtime concedidas via adb ({n_ok} ok) @ {serial}")
 

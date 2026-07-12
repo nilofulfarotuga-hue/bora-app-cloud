@@ -148,6 +148,30 @@ def adb_reautoriza() -> dict:
     return {"auth": auth, "mau": mau}
 
 
+def espera_device_pronto(serial: str, timeout: int = 40) -> bool:
+    """Depois de um reconnect/kill-start-server o serial pode voltar a 'device' mas
+    ainda NÃO estar responsivo (boot/USB a estabilizar). O Maestro arrancado nesse
+    intervalo morre com 'was requested, but it is not connected'. Aqui esperamos que
+    o adb confirme o device E que sys.boot_completed==1 antes de deixar o Maestro
+    arrancar. Best-effort: nunca lança; devolve True quando o device está pronto."""
+    adb = _adb_bin()
+    try:
+        subprocess.run([adb, "-s", serial, "wait-for-device"], capture_output=True, timeout=timeout)
+    except Exception:
+        pass
+    t0 = time.time()
+    while time.time() - t0 < timeout:
+        try:
+            out = subprocess.run([adb, "-s", serial, "shell", "getprop", "sys.boot_completed"],
+                                 capture_output=True, text=True, timeout=10).stdout.strip()
+        except Exception:
+            out = ""
+        if out == "1":
+            return True
+        time.sleep(2)
+    return False
+
+
 def garante_serial_autorizado(serial: str) -> bool:
     """Antes de cada Maestro: se o serial caiu para 'unauthorized'/'offline', tenta
     'adb reconnect' e regista em e2e_log — em vez de deixar o teste morrer sem pista.
@@ -191,6 +215,16 @@ def garante_serial_autorizado(serial: str) -> bool:
                                 detalhe=f"serial={serial} · voltou={ok}", device=serial)
         except Exception:
             pass
+    # readiness: 'device' em adb ≠ device pronto. Espera boot_completed antes de
+    # deixar o Maestro arrancar (senão morre com 'is not connected' logo no start).
+    if ok:
+        pronto = espera_device_pronto(serial)
+        if not pronto:
+            try:
+                e2e_diario.registar("runner", "device não ficou pronto (boot_completed)",
+                                    "falhou", detalhe=f"serial={serial}", device=serial)
+            except Exception:
+                pass
     try:
         e2e_diario.registar("runner", "adb reconnect", "passou" if ok else "falhou",
                             detalhe=f"serial={serial} · voltou={ok}", device=serial)

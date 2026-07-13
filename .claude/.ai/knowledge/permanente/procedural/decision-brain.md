@@ -1,9 +1,9 @@
 ---
-tema: decision-brain · escopo: projeto · estado: atual · atualizado: 2026-07-10
+tema: decision-brain · escopo: projeto · estado: atual · atualizado: 2026-07-13
 id: decision-brain
 tipo: procedimento
-origem: [missão "Do Prompt ao Loop" 2026-07-10 — Fase 1.3]
-ultima_confirmacao: 2026-07-10
+origem: [missão "Do Prompt ao Loop" 2026-07-10 — Fase 1.3; Lei do Pre-Voo 2026-07-13]
+ultima_confirmacao: 2026-07-13
 zona: verde
 confianca: auto
 ---
@@ -43,6 +43,32 @@ PORQUÊ: <1 frase com o fator dominante>
 QUANDO: já | esta semana | backlog | recusado
 ```
 
+## ✈️ LEI DO PRE-VOO (2026-07-13) — simular ANTES de agir
+
+> Pedido do Danilo depois de ordens que ficaram mudas/travadas por tentar a cegas: **prever o
+> futuro antes de agir, nunca mais agir às cegas.** Aplica-se a QUALQUER executor (Claude Code,
+> agente, script) antes de correr qualquer tarefa não-trivial.
+
+**O protocolo:** antes de executar, o executor SIMULA mentalmente o resultado — *"se eu fizer por
+este caminho, vai dar certo? vai estourar timeout? precisa de algo que não existe (device, ficheiro,
+permissão)?"* Se a previsão é de falha, **muda a abordagem ANTES de começar**, ou reporta o
+bloqueio em 1 linha em vez de tentar 5x a mesma coisa.
+
+**Regras concretas (mecânicas, não opinião):**
+- **Tarefa >15min estimados** → dividir ANTES de começar (sub-tarefas menores, cada uma verificável).
+- **2 falhas iguais seguidas** → MUDAR de abordagem. Nunca há 3ª tentativa igual — se a 2ª falhou
+  do mesmo jeito que a 1ª, o caminho está errado, não a sorte.
+- **Antes de mexer num ficheiro** → verificar que existe (Read/ls) antes de Edit/Write assumir conteúdo.
+- **Antes de chamar um device/emulador** → verificar que está ligado/disponível antes de tentar a
+  captura ou o comando (evita ficar preso à espera do que nunca vai responder).
+- Falhou a previsão e não há caminho alternativo óbvio → reportar o bloqueio em 1 linha (não é
+  fraqueza, é sinal). Nunca ficar mudo, nunca travar em loop silencioso.
+
+**Porquê:** ver `agente:juiz-revisor` — a investigação de 2026-07-13 (ordens "JUIZ-SEM-VEREDITO")
+mostrou que agir sem prever (chamar captura visual numa tarefa de infra, tentar arrancar 2º executor
+sem checar lock) causa travamento silencioso, não erro visível. Pré-voo é a prevenção.
+
 ## Quem referencia este procedimento
 - `ceo-ai/SKILL.md` (protocolo de orquestração — antes de priorizar)
 - `.claude/agents/maestro-autonomia.md` (ao decompor missões em ordens — Mission Engine)
+- `.claude/agents/juiz-revisor.md` (Lei do Pre-Voo aplicada ao seu próprio protocolo de avaliação)

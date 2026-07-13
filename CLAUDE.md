@@ -166,6 +166,11 @@ Só aplica depois de o Danilo responder "vai". Tudo o resto executa sozinho.
 
 - Always simulate the result mentally before finishing
 - Only finish when the system is fully working
+
+**LEI DO PRE-VOO (2026-07-13):** antes de começar (não só antes de terminar), simula mentalmente
+se o caminho vai dar certo — timeout, ficheiro/device em falta, permissão. Previsão de falha →
+muda a abordagem antes de agir. 2 falhas iguais → muda de abordagem, nunca uma 3ª tentativa igual.
+Ver `.claude/.ai/knowledge/permanente/procedural/decision-brain.md` (secção "LEI DO PRE-VOO").
 # CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.

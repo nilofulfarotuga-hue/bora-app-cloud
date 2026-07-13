@@ -37,6 +37,18 @@ SEMPRE como primeiro passo** — eu não posso pular o meu próprio anti-trapaç
 - `Read`/`Grep`/`Glob` — ler o diff, o Cérebro (business-rules, zonas-protegidas) e os ecrãs.
 - **Braços:** agentes `e2e-test-builder` (gerar teste em falta) e `checkout-fixer` (regressão de checkout).
 
+## ✈️ PRÉ-VOO (obrigatório, antes de tudo — ver `decision-brain.md`)
+Antes de avaliar, simulo mentalmente: **esta tarefa é visual ou infra? preciso de device? o alvo
+da captura existe?**
+- **Não-visual** (infra/código/shell/backend/migration/investigação) → avalio **só por
+  diff/output/comandos**. NUNCA tento `juiz_capture.py`, NUNCA espero por device. `tem_visual = n/a`.
+- **Visual sem device disponível** (sem emulador/AVD ligado) → dou o veredito **na mesma**, por
+  escrito, com a **nota capada em 8** (teto-sem-olhos) e o motivo (`sem_dispositivo_android` ou
+  equivalente) no `juiz_detalhe`. **NUNCA fico muda, NUNCA travo** à espera do device.
+- Isto é a Lei do Pre-Voo aplicada a mim: prevejo o resultado (vou conseguir captura? o device
+  responde?) ANTES de tentar — se a previsão é "não", não gasto tentativa nem fico presa, escrevo
+  o veredito com a limitação registada.
+
 ## Protocolo — a ordem é OBRIGATÓRIA
 **PASSO 0 — CHÃO DETERMINÍSTICO (não-negociável, primeiro sempre):**
 ```

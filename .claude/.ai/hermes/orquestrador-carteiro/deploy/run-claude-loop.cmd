@@ -16,6 +16,11 @@ REM    so 1 claude.exe executor de cada vez (lock em .claude\executor.lock, PID+
 REM    lock orfao = PID morto OU idade >10min -> assumido na hora) + limpeza de processos
 REM    orfaos da esteira antes de cada ciclo. Ver executor-lock.ps1 +
 REM    inbox/lock-concorrencia-2026-07-13.md.
+REM  - FASE 1.6 (2026-07-13, ordem auto-limpeza-ram): rede de seguranca extra de RAM/zumbis
+REM    -- auto-limpeza-ram.cmd corre no FIM de cada ciclo (zumbis claude/cmd/python/conhost +
+REM    limpeza de temp se RAM < 300MB). Complementa o cleanorphans acima (que so corre ANTES);
+REM    esta corre DEPOIS, apanhando o que sobrou do proprio ciclo. Ver auto-limpeza-ram.ps1 +
+REM    inbox/auto-limpeza-ram-2026-07-13.md.
 REM ===========================================================================
 set "CLAUDE_CONFIG_DIR=C:\Users\danil\.claude"
 set "CLAUDE_EXE=C:\Users\danil\AppData\Roaming\npm\node_modules\@anthropic-ai\claude-code\bin\claude.exe"
@@ -26,6 +31,7 @@ set "TASKFILE=%TEMP%\bora_loop_task.txt"
 set "LOCKFILE=%PROJ%\.claude\executor.lock"
 set "LOCKPS=%~dp0executor-lock.ps1"
 set "LOCK_MAXWAIT=480"
+set "AUTOLIMPEZA=%~dp0auto-limpeza-ram.cmd"
 if not exist "%CLAUDE_EXE%" ( echo [loop] ERRO: claude.exe nao encontrado & exit /b 4 )
 
 set "PERM=--dangerously-skip-permissions"
@@ -87,4 +93,5 @@ REM FASE 1.4 -- stream legivel no LIVELOG + resultado final no stdout (via parse
 "%CLAUDE_EXE%" -p --append-system-prompt "%GUARD%" --output-format stream-json --verbose %MODEL% %PERM% %TURNS% %BUDGET% < "%TASKFILE%" 2>&1 | powershell -NoProfile -ExecutionPolicy Bypass -File "%PARSER%" "%LIVELOG%"
 set "CLAUDE_RC=%ERRORLEVEL%"
 powershell -NoProfile -ExecutionPolicy Bypass -File "%LOCKPS%" -Action release -LockFile "%LOCKFILE%" -OwnerPid %MYPID% >> "%LIVELOG%" 2>&1
+if exist "%AUTOLIMPEZA%" ( call "%AUTOLIMPEZA%" hook >> "%LIVELOG%" 2>&1 )
 exit /b %CLAUDE_RC%

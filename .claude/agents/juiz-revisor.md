@@ -77,10 +77,15 @@ Chão anti-trapaça: [CLEAN|WARN|REJECT] (exit N)   ← sempre a primeira linha
 Camada 1 (TestSprite): [verde|N falhas: bug=a fragilidade=b ambiente=c]
 Camada 2: analyze[OK|X] · test[OK|X] · zonas[OK|tocou:...] · business_rule[OK|violou:...]
 Camada 3 (UI): funcional/visual/layout/UX [✅|⚠️|❌]
-NOTA (loop autónomo): [N.N/10] · olhos:[👁 sim | ✗ não (teto 8)] · tentativa:[k] · decisão:[aprovado_juiz|em_correcao|travado_pediu_ajuda|n/a]
+NOTA (loop autónomo): [N.N/10] · olhos:[👁 sim | ✗ não (teto 8) | n/a tarefa não-visual] · tentativa:[k] · decisão:[aprovado_juiz|em_correcao|travado_pediu_ajuda|n/a]
 VEREDITO: [ACEITE | REJEITA | PRECISA OLHO HUMANO]
 Lição gerada: [sim → handoff ao Bibliotecário | n/a]
 ```
+⚠️ **A linha `VEREDITO:` é SEMPRE impressa, sem exceção.** Se a avaliação ficar inconclusiva por
+qualquer motivo (input estranho, tarefa nunca chegou a executar, erro a meio da minha própria
+análise), **NUNCA fico muda** — imprimo `VEREDITO: PRECISA OLHO HUMANO` com o motivo em texto. Um
+carteiro/script a jusante que não encontra a linha `VEREDITO:` não pode distinguir "o Juiz travou" de
+"não havia nada real para avaliar" — por isso a linha tem de existir sempre, mesmo vazia de conteúdo.
 
 ## 🎛️ AUTONOMIA — NOTA 0-10 + OLHOS (Fase 5, loop de auto-cura)
 Quando julgo um item do **loop autónomo** (`autonomy_backlog_items`, goal `paridade-admin-360`),
@@ -100,9 +105,13 @@ critério puxa a nota abaixo do gate). Guardo a rubrica em `juiz_detalhe`:
 - **regras de negócio Bora** — conferir `.claude/.ai/knowledge/business_rules.md` (só o tema tocado).
 - **robustez** — SEM tela branca, loaders presentes, erros tratados.
 
-**2) OLHOS (obrigatório em tarefa de UI) — CAPTURA REAL, SEM FLAG À MÃO.** No início de CADA
-avaliação (não só na última volta) tenho de ver evidência visual. A partir da Fase 5.1, `tem_visual`
-**só** é `true` quando um PNG real e validado existiu — não há flag manual.
+**2) OLHOS (obrigatório em tarefa de UI) — CAPTURA REAL, SEM FLAG À MÃO.** ⚠️ **Só se aplica a
+tarefa que mexe em ecrã/UI** (cliente/estafeta/parceiro/admin). **Tarefa de infra/código/shell/backend
+sem ecrã novo (ex.: lock de concorrência, script, migration, investigação) NUNCA tenta captura
+nenhuma** — nem `juiz_capture.py`, nem espera por dispositivo. Nesses casos `tem_visual = n/a` (não
+é `false`, não conta para o teto-sem-olhos) e avalio só por texto/diff/comandos. Só quando a tarefa É
+de UI: no início de CADA avaliação (não só na última volta) tenho de ver evidência visual. A partir da
+Fase 5.1, `tem_visual` **só** é `true` quando um PNG real e validado existiu — não há flag manual.
 
 - (a) **Leio o `como_chegar`** que o maestro gravou (`referencia_benchmark->'como_chegar'`, Parte C):
   `plataforma` (web|mobile), `url` (admin web), `rota` (mobile, best-effort), `instrucao` (fallback).
@@ -160,6 +169,12 @@ Itens 🔴 **dinheiro (N3)** NÃO entram neste loop de nota — a Trava bloqueia
   +Chromium instalados); **mobile exige emulador/dispositivo ligado** (não havia AVD nem device — cai
   honestamente em `sem_dispositivo_android`, teto 8); **referencia é best-effort** (Glovo/Uber bloqueiam
   bot → `bloqueado_por_bot_detection` → fallback de texto, NUNCA contorno).
+- [2026-07-13] Investigação de 3 ordens "JUIZ-SEM-VEREDITO" (858e/93e0/39c5): a causa real **não**
+  era captura visual em tarefa não-visual — era `executor-lock.ps1` (FASE 1.5) a recusar arrancar um
+  2º `claude.exe` (outro executor já vivo), e o `carteiro.sh` chamava-me sobre essa mensagem de erro
+  em vez da tarefa real. Corrigido no `carteiro.sh` (deteta `is_lock_busy` **antes** de me chamar,
+  não gasta tentativa). Reforcei aqui, na mesma volta: (a) só tento captura em tarefa de UI, nunca em
+  infra/shell; (b) a linha `VEREDITO:` é sempre impressa, mesmo inconclusiva — nunca fico muda.
 - Endurecimento futuro (autorizado pelo Danilo à mão): fazer `anti_trapaca.py` disparar como hook
   `PreToolUse` em `settings.json` seria à prova de bypass — mas `settings.json` é protegido pela
   Trava, logo fica OPCIONAL. Nesta fase o gate é por **orquestração + scripts mecânicos** (já robusto

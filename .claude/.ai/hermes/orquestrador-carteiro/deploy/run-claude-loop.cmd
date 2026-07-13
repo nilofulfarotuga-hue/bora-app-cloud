@@ -1,5 +1,5 @@
 @echo off
-setlocal EnableExtensions
+setlocal EnableExtensions EnableDelayedExpansion
 chcp 65001 >NUL
 REM ===========================================================================
 REM  PONTE BORA :: EXECUTOR do loop de orquestracao (carteiro -> pc-loop -> aqui)
@@ -73,8 +73,8 @@ for /f "usebackq delims=" %%L in ("%TEMP%\bora_lock_acquire.txt") do (
   echo [%date% %time%] %%L >> "%LIVELOG%"
   set "LOCKRESULT=%%L"
 )
-if /I not "%LOCKRESULT%"=="ACQUIRED" (
-  echo [%date% %time%] [loop] ERRO: lock ocupado por outro executor vivo -- abortar sem subir claude.exe (evita empilhar RAM) >> "%LIVELOG%"
+if /I not "!LOCKRESULT!"=="ACQUIRED" (
+  echo [%date% %time%] [loop] ERRO: lock ocupado por outro executor vivo - abortar sem subir claude.exe, evita empilhar RAM >> "%LIVELOG%"
   echo ERRO: outro executor Bora ja em curso ha muito tempo - tarefa nao executada, o carteiro tenta de novo.
   exit /b 7
 )

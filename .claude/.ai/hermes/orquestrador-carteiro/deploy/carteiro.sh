@@ -70,6 +70,14 @@ pc_exec(){ printf '%s' "$1" > "$HOSTDATA/orq_task.txt"
 pc_judge(){ printf '%s' "$1" > "$HOSTDATA/orq_judge.txt"
   docker exec -u hermes "$C" sh -lc 'export PATH=/opt/data/.local/bin:$PATH; timeout 400 pc-judge "$(cat /opt/data/orq_judge.txt)"' 2>&1 | clean; }
 
+# ---------------- LOCK-OCUPADO: executor.lock do PC recusou arrancar claude.exe ----------------
+# FASE 1.7 (2026-07-13): 6 ordens seguidas (4c87/859a/858e/14bc/93e0/39c5) travaram rotuladas
+# "JUIZ-SEM-VEREDITO" -- prova (saida.txt) mostrou que NENHUMA chegou a executar: o
+# executor-lock.ps1 (FASE 1.5) recusou por "outro executor ja em curso" e o juiz foi chamado
+# em cima dessa mensagem de erro (sem sentido para avaliar), devolvendo lixo sem "VEREDITO:".
+# Deteta isto ANTES do juiz: não gasta tentativa, não chama o juiz, reabre para a próxima volta.
+is_lock_busy(){ printf '%s' "$1" | grep -iqE "outro executor Bora ja em curso|ERRO: lock ocupado"; }
+
 # ---------------- RATE-LIMIT: deteção + cálculo de retoma ----------------
 is_rate_limit(){ printf '%s' "$1" | grep -iqE "hit your (session|usage) limit|session limit|usage limit|rate limit|reached your (usage|session)? *limit"; }
 # "resets 5pm (Europe/London)" -> epoch UTC; se não parsear -> now+3600 (defensivo).
@@ -254,6 +262,17 @@ for f in "$FILA"/*.md; do
   saida=$(pc_exec "$tarefa"); printf '%s\n' "$saida" > "$FILA/$id.saida.txt"
   setf estado respondida "$f"; log "ordem $id: respondida (tentativa $tent)"
   vazio=0; [ -z "$(printf '%s' "$saida" | tr -d '[:space:]')" ] && vazio=1
+
+  # ---- LOCK-OCUPADO: executor nem chegou a arrancar (outro claude.exe vivo no PC) — não
+  # gasta tentativa nem chama o juiz (não há nada real para avaliar); reabre para a próxima
+  # volta tentar de novo, sem queimar o teto T1 nem confundir com falha do juiz.
+  if is_lock_busy "$saida"; then
+    setf tentativa "$((tent-1))" "$f"
+    setf estado aberta "$f"
+    setf nota "🔒 LOCK-OCUPADO — outro executor Bora já em curso no PC; reagendado sem gastar tentativa." "$f"
+    log "ordem $id: 🔒 LOCK-OCUPADO — reaberta sem gastar tentativa"
+    continue
+  fi
 
   # ---- RATE-LIMIT: não gasta tentativa, pausa a fila, avisa 1x, retoma sozinho ----
   if is_rate_limit "$saida"; then

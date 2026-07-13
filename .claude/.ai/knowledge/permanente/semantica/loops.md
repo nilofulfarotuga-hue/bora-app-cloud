@@ -1,9 +1,9 @@
 ---
-tema: loops · escopo: projeto · estado: atual · atualizado: 2026-07-12
+tema: loops · escopo: projeto · estado: atual · atualizado: 2026-07-13
 id: loops
 tipo: registry
 origem: [missão "Do Prompt ao Loop" 2026-07-10 — crons VPS/host verificados por SSH, crons Supabase, skills]
-ultima_confirmacao: 2026-07-12
+ultima_confirmacao: 2026-07-13
 zona: verde
 confianca: verificado
 ---
@@ -98,13 +98,13 @@ fecho de missão, continuação de travada, escalada no teto, conclusão silenci
 | 🟢 | **cortex-mcp-sync (espelho)** | Hermes/Claude.ai cegos ao Córtex | idade do espelho | **por-tarefa** (carteiro após push, modo fast=ff-only) + pre-push hook + cron host 06h30 (fallback reset --hard) | Hermes, Claude.ai/MCP, Concierge, cortex_nightly | espelho fresco em segundos após push; ≤24h garantido pelo fallback | git → `/opt/data/cortex-brain` | 2 | Hermes(host) |
 | 🔵 | **marketing-loop** | marketing sem aprendizado | engagement/persona validada | cron host dom 20h30 | social-media, diretor-criativo | aprendizado com dados (ou no-op registado) | métricas Postiz → aprendizados+Telegram | 1 | `social-media` |
 | 🔵 | **Relatório estratégico semanal (Sócio-AI B)** | decidir a semana sem dados | recomendação aplicada | domingo, junto do marketing-loop | Danilo | 10 linhas com resposta às perguntas do DNA | estado-vivo+Córtex → Telegram+inbox | 1 | Sócio-AI/Hermes |
-| 🟡 | **evolution-report** | skills/loops que degradam em silêncio | propostas aprovadas | passo 5 do daily-pulse | evolution-engine, Danilo | ≥0 propostas válidas; rejeitada não reproposta | telemetria+reports → `inbox/evolution-report-<data>.md` | 1 | `evolution-engine` |
+| 🟡 | **evolution-report** | skills/loops/erros que degradam em silêncio | propostas aprovadas + lições permanentes gravadas | (1) fim de missão — relatório cai em `inbox/`; (2) daily-pulse 1x/dia (contagem `--dry-run` no espelho, camada barata) | evolution-engine, bibliotecario-cerebro, Danilo | ≥0 propostas válidas; rejeitada não reproposta; **NUNCA cria ordem na fila** | telemetria+reports(inbox/) → `inbox/evolution-report-<data>.md` + handoff de lições ao bibliotecario-cerebro | 2 | `evolution-engine` |
 | 🟡 | **cortex_nightly (higiene)** | Cérebro incha/desatualiza | páginas >24KB=0; staleness marcada | cron host 07h05 | todos os agentes | higiene aplicada sem apagar nada | knowledge → sinais+⚠️>60d | 2 | `bibliotecario-cerebro` |
 | 🟡 | **obsidian-sync** | vault e Cérebro divergem | drift=0 | cron host 04h30 | bibliotecário | sync idempotente sem erro | vault → from-obsidian/ | 1 | `obsidian-sync` |
 | 🟣 | **Loop E2E noturno** | regressões chegam ao Danilo/testers | fluxos verdes/total | manual `run-tudo.cmd` / noite | devops-ci, Juiz, release | verdes 2 ciclos seguidos | flows YAML → resultados+vídeos+Telegram | 1 | `juiz-revisor` (braço e2e) |
 | 🟣 | **Watchdog Hermes** (rede de segurança — ÚLTIMO recurso) | desde 2026-07-12 deixou de ser deteção primária: existe só se o **hook-de-conclusão falhar** e algo ficar mesmo parado | tempo-até-deteção do que escapou ao hook | cron host `*/10` | todos os loops | **só apanha o que o hook não resolveu**: container DOWN→start, campainha/E2E parados→revive, `travada >12h`/`zona_vermelha` presas→escala (dedupe por assinatura) | fila+logs+recursos+crashes(RPC) → ação (revive) + alerta deduped | 3 | Hermes(host) |
 | 🟡 | **aprovador-vermelho (gate da fila 🔴)** | zona vermelha presa sem o Danilo ter acesso à Central | propostas triadas/hora (latência ≤10 min) | cron host `*/10` + campainha (inotify) quando entra ordem + **fallback forçado se item `nova` parado ≥30min** | Danilo, carteiro | fila nunca fica com proposta parada >30 min sem triagem (era "sem triagem" indefinidamente se o disparo por watermark falhasse em silêncio — ver nota 2026-07-12) | watermark RPC anon (`pending_count`+`newest`+`oldest_age_min`) → ordem na fila (normal OU forçada por staleness) → agente tria (Balde A auto / Balde B Telegram) | 2 | Hermes(host)/`aprovador-vermelho` |
-| 🟡 | **evolution-trigger (acordar na hora)** | evolution-engine só corria 1x/dia — ordem `travada` ou erro repetido ficava sem análise até à noite | tempo-até-análise de ordem travada/erro repetido | cron host `*/5` (watermark: só ids novos) | Danilo, evolution-engine | ordem travada nova OU nota repetida 2x/2h gera 1 ordem de análise em minutos, não horas | `orquestracao/*.md`(estado+nota) → ordem `-evol` na fila | 1 | Hermes(host)/`evolution-engine` |
+| ⚫ | ~~evolution-trigger (acordar na hora)~~ **SUPERADO 2026-07-13** | era: ordem `travada`/erro repetido sem análise até à noite | — | ~~cron host `*/5`~~ **retirado do crontab** | — | — | ~~`orquestracao/*.md` → ordem `-evol` na fila~~ | 2 | Hermes(host) |
 | 🟢 | **carteiro-vigia (vigia do vigia)** | campainha (inotify) morre e ninguém a revive — ordens ficam em `tentativa=0` sem serem apanhadas | tempo-até-revive da campainha | cron host `*/5`, independente do carteiro/campainha | Danilo, carteiro, aprovador-vermelho, evolution-trigger | campainha morta → reiniciada sozinha em ≤5min + aviso Telegram (1x por episódio, sem spam) | `pgrep inotifywait`+ordens `aberta` paradas → `campainha.sh` reiniciada+Telegram | 1 | Hermes(host) |
 | 🟣 | **e2e-vigia (retoma o loop E2E)** | loop E2E para a meio e ninguém o retoma — regressões deixam de ser vistas | tempo-até-retomar do loop E2E | cron host `*/10` (só 1 curl SQL + bash — SEM Opus, SEM limite Claude.ai) | Danilo, juiz-revisor(braço e2e), devops-ci | teste parado a meio → 1 ordem de retoma em ≤10min, no MÁX 1x/episódio (dedupe pelo `last_write`) | `e2e_log` last_write (SELECT anon) → ordem `aberta` na fila (campainha) | 1 | Hermes(host) |
 | 🟢 | **heartbeat-desktop** | fechar o loop SEM API paga — o Claude só sabe do estado se alguém contar; contar por API custa | latência estado-final→Claude avisado (sem custo €) | mudança de estado de ordem (final) OU teste novo · schtask PC `*/10` `/RU danil /IT` (watermark) | Danilo, maestro, Claude Desktop | mudança real → frase fixa colada e enviada no **app Claude Desktop** (input de SO, sem Turnstile); sem mudança → 0 envios (anti-spam 2 camadas) | `orquestracao/*.md`(estados finais)+`e2e_log`/`orders`(SELECT anon) → `pending.trigger` → desktop-operador traz o app Claude à frente e cola a frase | 1 | `desktop-operador` |
@@ -239,6 +239,34 @@ fecho de missão, continuação de travada, escalada no teto, conclusão silenci
 > ficou silenciosa (dedupe a funcionar). **Achado colateral:** a fila `robot_suggestions` tem uma
 > dezena de itens Balde B (dispatch/no-show) que se repetem de hora a hora sem dedupe próprio —
 > não corrigido agora (fora do escopo desta missão), fica anotado para o `evolution-engine` olhar.
+> **Confirmado 2026-07-13:** o `STALE_MIN` (30 min) serve de gatilho E de cooldown do
+> `STATE_FORCE` em `hermes-aprovador-vermelho.sh` — por isso refire para sempre enquanto o item
+> ficar `nova` (9 reconfirmações idênticas em <9h). Ainda sem correção; detalhe e recomendação em
+> `procedural/aprovador-vermelho-triagem.md`.
+
+> **evolution-engine religado REATIVO, sem disparar ordens (2026-07-13).** O
+> `hermes-evolution-trigger.sh` (cron host `*/5`) foi a causa do spam de ordens `-evol`: mesmo
+> depois da guarda EVOL-1 (10ea1b8, 2026-07-12 — ignora as próprias saídas `*-evol/*-aprv/*-e2e`
+> nos scans), o desenho "cron que injeta ordem na fila a cada sinal" continuava um vetor de
+> custo/spam por construção — confirmado **já retirado do crontab** da VPS antes desta sessão.
+> Endurecido nesta sessão (defesa em profundidade): o script agora é um **stub inerte**
+> (early-exit, só regista no log que foi retirado) mesmo no repo e na cópia deployada — se
+> alguém repuser a linha no crontab por engano, não acontece nada. **Desenho novo (2 camadas,
+> nunca uma 3ª que dispara ordem):**
+> 1. **Camada barata (VPS, diária, já ativa):** `hermes-daily-pulse.sh` corre
+>    `evolution_engine.py --dry-run` **dentro do container**, só para contar propostas e alimentar
+>    o resumo do Telegram. Não persiste nada de propósito — o espelho do Córtex no container é
+>    apagado/`reset --hard` pelo `cortex-mcp-sync` (linha 98 acima), então escrever "a sério" ali
+>    seria perdido em <24h. Isto é **intencional**, não um bug: é só o sinal barato.
+> 2. **Camada de análise real (sessão Claude Code de verdade — manual ou missão legítima, NUNCA
+>    auto-disparada):** corre `evolution_engine.py` sem `--dry-run` no repo real (PC), escreve
+>    `inbox/evolution-report-<data>.md` + `scripts/state/propostas.json`, commit+push — e o agente
+>    `evolution-engine` lê os relatórios recentes de `inbox/` (que já acumulam a cada fecho de
+>    missão, por convenção — "Saída padrão") e entrega lições ao `bibliotecario-cerebro`. Esta
+>    sessão (2026-07-13) fez exatamente essa corrida real como prova + backfill das lições da
+>    semana — ver `inbox/evolution-engine-religado-2026-07-13.md`.
+> **Garantia:** em nenhuma das 2 camadas o evolution-engine cria `ordem-*.md` na fila. Ver
+> `licao-spam-ordens-autoreferencial.md`.
 
 ## Loop Economy (ROI por loop)
 A telemetria de cada loop ganha, além de sucesso/falha, o par:

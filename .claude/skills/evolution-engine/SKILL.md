@@ -4,10 +4,10 @@ description: Meta-skill de evolução GOVERNADA de skills — lê a telemetria (
 metadata:
   type: meta
   versao: 1
-  execucoes: 1
-  sucessos: 1
+  execucoes: 9
+  sucessos: 9
   falhas: 0
-  ultima_execucao: 2026-07-10
+  ultima_execucao: 2026-07-13
   criada_por: missao-noturna-2026-07-10 (Fase 5)
 ---
 
@@ -56,10 +56,21 @@ A parte NÃO-mecânica (drafts de reescrita, análise de responsabilidades mistu
 é feita pelo agente `evolution-engine` a partir deste relatório — o script deteta,
 o agente redige, o Juiz avalia.
 
-## Integração daily-pulse (Hermes)
+## Integração daily-pulse (Hermes) — religado reativo, sem ordens (2026-07-13)
 
-O daily-pulse ganha o passo `evolution-report` (modo análise, sem aplicar): corre o script,
-conta as propostas novas e inclui no resumo do Telegram ("Evolução: N propostas no inbox").
+**NUNCA crio `ordem-*.md` na fila.** O antigo `hermes-evolution-trigger.sh` (cron host `*/5`
+que injetava uma ordem a cada sinal) foi **retirado** — mesmo com a guarda EVOL-1 (10ea1b8,
+ignora as próprias saídas), "cron que dispara ordem" é spam por construção. Desenho atual, 2
+camadas:
+1. **Barata (diária, já ativa):** `hermes-daily-pulse.sh` corre `evolution_engine.py --dry-run`
+   dentro do container — só conta propostas para o resumo do Telegram ("Evolução: N propostas
+   no inbox"). Não persiste de propósito: o espelho do container é `reset --hard` diariamente
+   pelo `cortex-mcp-sync`, escrever "a sério" ali seria perdido.
+2. **Real (por invocação — fim de missão ou sessão dedicada, nunca auto):** corre o script
+   **sem** `--dry-run` no repo de verdade (PC), escreve `inbox/evolution-report-<data>.md` +
+   `scripts/state/propostas.json`, commit+push. O agente lê os relatórios recentes de `inbox/`
+   (já alimentados a cada fecho de missão pela convenção "Saída padrão") e entrega lições ao
+   `bibliotecario-cerebro` — nunca cria trabalho novo sozinho.
 
 ## 📊 Telemetria (obrigatório no fim de cada execução)
 

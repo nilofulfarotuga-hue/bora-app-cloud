@@ -1,4 +1,20 @@
 #!/usr/bin/env bash
+# ⛔ RETIRADO (2026-07-13, religar-evolution-engine): este script NÃO injeta mais ordens
+# na fila. Causa: mesmo com a guarda EVOL-1 (10ea1b8, ignora *-evol/*-aprv/*-e2e), o desenho
+# de "cron que dispara ordem na fila a cada sinal" continua um vetor de spam/custo por
+# construção. Substituído pelo desenho REATIVO (nunca dispara ordem nova):
+#   (1) fim de cada missão -> o relatório em inbox/ já fica disponível para o próximo passo;
+#   (2) 1x/dia -> hermes-daily-pulse.sh corre evolution_engine.py (passe REAL, não --dry-run)
+#       e escreve inbox/evolution-report-<data>.md + grava state (dedup).
+# Ver .claude/.ai/knowledge/permanente/semantica/loops.md (linha 'evolution-trigger',
+# estado: superado) + lição `licao-spam-ordens-autoreferencial.md`.
+# Já NÃO está no crontab da VPS (confirmado 2026-07-13). Este early-exit é só defesa em
+# profundidade: se alguém recolocar a linha no crontab por engano, o script não faz nada.
+log_retirado(){ echo "[$(date -u +%FT%TZ)] RETIRADO — evolution-trigger não injeta mais ordens (ver loops.md)" >> "${EVOLUTION_TRIGGER_LOG:-/root/orquestracao/evolution-trigger.log}" 2>/dev/null; }
+log_retirado
+exit 0
+
+# --- código legado abaixo (morto, mantido só para histórico/grep — nunca executa) ---
 # --- STOP GLOBAL (reengenharia 2026-07-12): respeita .pausa-total ---
 [ -f /docker/hermes-agent-fvnc/data/cortex-brain/orquestracao/.pausa-total ] && exit 0
 # hermes-evolution-trigger.sh — Loop 🟡 Learning: acorda o evolution-engine NA HORA

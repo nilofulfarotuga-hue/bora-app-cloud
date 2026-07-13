@@ -1,5 +1,5 @@
 ---
-tema: indice-cerebro · escopo: projeto · estado: atual · atualizado: 2026-07-06
+tema: indice-cerebro · escopo: projeto · estado: atual · atualizado: 2026-07-12
 ---
 
 # 🧠 CÉREBRO DO BORA — Índice
@@ -71,6 +71,9 @@ knowledge/
 | ↳ anti_trapaca em branch longa: usar `--base` da sessão | `permanente/procedural/licoes/licao-anti-trapaca-base-stale.md` | correr o Juiz nesta branch |
 | ↳ `context.watch` em getter chamado por callback → crash | `permanente/procedural/licoes/licao-context-watch-getter.md` | Flutter/Provider: getters vs callbacks |
 | ↳ Policy de Storage não pode ler `auth.users` (usar claim JWT) | `permanente/procedural/licoes/licao-storage-policy-auth-users.md` | criar/editar policies de storage.objects; upload 400 opaco |
+| ↳ cron que dispara ordem na fila a cada sinal = spam por construção | `permanente/procedural/licoes/licao-spam-ordens-autoreferencial.md` | desenhar/religar qualquer agente reativo (evolution-engine e futuros) |
+| ↳ 5 causas-raiz de robustez do loop autónomo (pipe SSH, rate-limit falso, RAM/lock, juiz mudo, timeout) | `permanente/procedural/licoes/licao-robustez-loop-autonomo-2026-07-13.md` | mexer no carteiro/executor headless/Juiz |
+| Aprovador-vermelho — conhecimento de triagem (Balde A/B) | `permanente/procedural/aprovador-vermelho-triagem.md` | antes de triar a fila `robot_suggestions`; staleness de item Balde B não é bug |
 
 ---
 

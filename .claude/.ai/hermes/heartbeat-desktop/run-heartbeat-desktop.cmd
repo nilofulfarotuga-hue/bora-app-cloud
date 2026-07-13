@@ -12,5 +12,9 @@ set LOG=%REPO%\.claude\.ai\hermes\heartbeat-desktop\heartbeat-desktop.log
 echo [%DATE% %TIME%] --- ciclo heartbeat-desktop --- >> "%LOG%"
 if exist "%DET%" ("%PY%" "%DET%" >> "%LOG%" 2>&1) else (echo detetor ausente, salto Peca 1 >> "%LOG%")
 "%PY%" "%OP%" >> "%LOG%" 2>&1
-echo [%DATE% %TIME%] exit=%ERRORLEVEL% >> "%LOG%"
-endlocal
+set RC=%ERRORLEVEL%
+echo [%DATE% %TIME%] exit=%RC% >> "%LOG%"
+rem propaga o exit code real ao Task Scheduler (senao "echo" acima faz o .cmd reportar sempre 0
+rem e falhas repetidas ficam invisiveis ao "Ultimo Resultado" do schtasks — ver investigacao
+rem heartbeat-parou-2026-07-13.md, Prova 3)
+endlocal & exit /b %RC%

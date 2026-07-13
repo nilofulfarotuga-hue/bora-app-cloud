@@ -30,6 +30,7 @@ import ctypes
 import json
 import os
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -38,11 +39,14 @@ REPO = Path(r"C:\Users\danil\Desktop\projetosflutter\bora_app")
 _LIBS = Path(__file__).resolve().parent / "_libs"
 if _LIBS.is_dir():
     sys.path.insert(0, str(_LIBS))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from limit_watch import gate  # noqa: E402  (reengenharia 2026-07-13 — auto-pausa/retoma por limite)
 # O detetor (Peca 1, inalterado) escreve o trigger na pasta heartbeat-browser.
 HB_BROWSER = REPO / ".claude" / ".ai" / "hermes" / "heartbeat-browser"
 HB_DESKTOP = REPO / ".claude" / ".ai" / "hermes" / "heartbeat-desktop"
 TRIGGER = HB_BROWSER / "pending.trigger"
 CONSUMIDOS = HB_DESKTOP / "consumidos"
+PAUSA_RL = HB_DESKTOP / ".pausa-rate-limit-pc"
 SHOTS = REPO / ".claude" / "testes-e2e" / "screenshots-pc"
 SHOT = SHOTS / "teste-heartbeat-desktop.png"            # prova final (nome exigido)
 SHOT_WIN = SHOTS / "teste-heartbeat-desktop-1-janela.png"
@@ -56,6 +60,18 @@ APP_URL = "https://claude.ai/new"
 
 def log(msg):
     print(msg, flush=True)
+
+
+def _start_watchdog(timeout=45):
+    """Mata o processo se ficar preso (ex.: chamadas pyautogui/pygetwindow bloqueiam
+    para sempre quando o schtask corre sem sessao interativa alcancavel — Session 0/
+    ecra bloqueado). Sem isto, cada ciclo preso vira um zombie python.exe permanente."""
+    def _kill():
+        log(f"STEP X FAIL: watchdog matou o processo (>{timeout}s sem terminar)")
+        os._exit(9)
+    t = threading.Timer(timeout, _kill)
+    t.daemon = True
+    t.start()
 
 
 def _dpi_aware():
@@ -92,6 +108,15 @@ def _find_claude_windows(gw):
 
 
 def main():
+    # Reengenharia 2026-07-13: se um ciclo anterior detetou limite de sessao/uso (ver
+    # limit_watch.py), respeita a pausa. Passado o reset (+2min margem), o gate() limpa
+    # o ficheiro sozinho e o ciclo segue em frente -- sem intervencao do Danilo.
+    pode, info = gate(PAUSA_RL)
+    if not pode:
+        log(f"STEP 0 SKIP: pausado por limite de sessao ate {info} (retoma sozinho, sem gastar ciclo)")
+        return 8
+
+    _start_watchdog()
     _dpi_aware()
     SHOTS.mkdir(parents=True, exist_ok=True)
 

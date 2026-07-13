@@ -61,12 +61,12 @@ ORQ_DIR = Path(os.environ.get("BORA_ORQ_DIR", str(REPO / "orquestracao")))
 FINAL_STATES = {"aprovada", "travada", "zona_vermelha", "cancelada"}
 
 # FRASE FIXA — colada num chat NOVO do claude.ai pelo browser-operador. VERBATIM.
+# Versao "1h" (2026-07-13): loop horario, resume em-curso/falta, sugere melhoria/pesquisa, age.
 FRASE_FIXA = (
-    "Bora Loop automatico: puxa o contexto do Bora pela tua memoria e Cortex, "
-    "verifica o estado das ordens (cortex_ler) e dos testes (SELECT em orders e "
-    "e2e_log no Supabase), e age no que for preciso - dispara a proxima ordem se "
-    "algo travou ou ficou incompleto, ou responde que esta tudo ok se nao ha nada "
-    "pendente. So avisa o Danilo se for importante ou decisao de dinheiro."
+    "Bora Loop horario: puxa o contexto (memoria + Cortex + Supabase), verifica "
+    "ordens e testes, resume o que esta em curso e O QUE FALTA, sugere 1 melhoria "
+    "ou pesquisa util (concorrencia/novidades do mundo) e AGE no necessario - so "
+    "avisa o Danilo se for importante ou dinheiro."
 )
 
 

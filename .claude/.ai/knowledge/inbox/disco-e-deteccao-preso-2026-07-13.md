@@ -78,3 +78,27 @@ atualizado).
 
 Ficheiros tocados: `.claude/.ai/hermes/orquestrador-carteiro/deploy/executor-lock.ps1`,
 `auto-limpeza-ram.ps1`, `run-claude-loop.cmd`.
+
+---
+
+## Reconfirmação (mesmo dia, ciclo seguinte do loop)
+
+A mesma ordem de trabalho voltou a disparar (provável reenvio da fila). Em vez de repetir
+a limpeza destrutiva já feita acima, verifiquei o estado atual antes de agir:
+
+- **Disco:** já em 17,23 GB livres (>= 15 GB pedido) — sem regressão desde a limpeza anterior.
+  Os 3 alvos específicos do pedido original ("gradle >7 dias / TEMP / gravações E2E >2 dias")
+  continuavam quase vazios (gradle: 0 MB >7 dias em 2044,6 MB totais; TEMP: 1,3 MB; gravações:
+  nada >2 dias, o mais antigo tinha ~39h). Limpei mesmo assim em lotes pequenos e separados
+  (1 tipo por comando) como pedido: TEMP (removidos ~600 ficheiros antigos do utilizador
+  `hermes`, ficaram só os do processo ativo — recriados na hora, sem perda real); gradle e
+  gravações não tinham nada a apagar.
+- **Deteção de terminal preso:** `executor-lock.ps1` e `auto-limpeza-ram.ps1` continuam com a
+  lógica `-LiveLog`/`-StaleOutputMin` (commit `4fed01f`), sintaxe validada de novo via
+  `Parser::ParseFile` (0 erros nos 2 ficheiros). `bora-live.log` está a crescer normalmente
+  (escrita há segundos), confirmando que a deteção não vai falsamente marcar esta sessão como
+  presa. Nenhum código novo necessário — já estava correto.
+
+Nota: a árvore de trabalho tinha (e continua a ter) alterações não commitadas por completo
+noutros ficheiros (`hermes-carteiro-vigia.sh`, `hermes-aprovador-vermelho.sh`, etc.) de uma
+tarefa diferente em curso — não tocados aqui, fora do âmbito desta ordem.

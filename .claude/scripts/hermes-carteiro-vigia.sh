@@ -37,6 +37,7 @@ CARTEIRO_LOG="${VIGIA_CARTEIRO_LOG:-/root/orquestracao/carteiro.log}"
 LOCK="${VIGIA_LOCK:-/root/orquestracao/.carteiro.lock}"
 NOTIFIED="${VIGIA_NOTIFIED:-/root/orquestracao/.carteiro-vigia.avisado}"
 STALL_MIN="${VIGIA_STALL_MIN:-15}"
+PAUSA_RL="${VIGIA_PAUSA_RL:-$FILA/.pausa-rate-limit}"
 C=hermes-agent-fvnc-hermes-agent-1
 
 DRY=0; SELFTEST=0
@@ -74,6 +75,21 @@ carteiro_ocupado(){
   return 1
 }
 
+# RATE-LIMIT EXPIRADA — reengenharia 2026-07-13 (ver inbox/reengenharia-loop-resiliencia-2026-07-13.md):
+# o carteiro.sh só relê `.pausa-rate-limit` quando É INVOCADO de novo; mas depois de pausar por
+# limite de sessão, NADA o invoca de novo sozinho — a campainha (inotify) só dispara em ESCRITA
+# NOVA na fila (não há, a fila está parada) e `ordem_estagnada()` só olha `estado: aberta` (a
+# ordem pausada fica em `estado: pausada-rate-limit`, nunca conta como estagnada). Resultado: a
+# conta renova e a fila fica parada até o Danilo dar um toque manual. Esta função fecha o furo.
+rate_limit_expirado(){
+  [ -f "$PAUSA_RL" ] || return 1
+  local resume now
+  resume=$(tr -dc '0-9' < "$PAUSA_RL" 2>/dev/null)
+  [ -n "$resume" ] || return 1
+  now=$(date +%s)
+  [ "$now" -ge "$resume" ]
+}
+
 # ordem ESTAGNADA = `aberta` há >= STALL_MIN (ninguém a apanhou). Independente do inotifywait.
 ordem_estagnada(){
   local now g e age; now=$(date +%s)
@@ -106,6 +122,16 @@ decide(){
     return 0
   fi
 
+  # CASO 1.5 — pausa por rate-limit já EXPIROU e o carteiro está LIVRE: dá o toque para retomar
+  # sozinho. O carteiro.sh (idempotente) relê `.pausa-rate-limit`, vê que já passou, limpa-a e
+  # segue o ciclo normal. Furo de 2026-07-13 fechado (ver reate_limit_expirado acima).
+  if rate_limit_expirado && [ "$ocup" = 0 ]; then
+    log "RATE-LIMIT EXPIROU: $PAUSA_RL já passou e carteiro LIVRE -> NUDGE (retoma sozinho, sem Danilo)"
+    nudge_carteiro
+    [ -f "$NOTIFIED" ] || { notify "🔄 Bora/carteiro: o limite de sessão do Claude já renovou — retomei a fila sozinho, sem esperar por ti."; touch "$NOTIFIED" 2>/dev/null || true; }
+    return 0
+  fi
+
   # CASO 2 — campainha viva MAS ordem estagnada E carteiro livre: ESTE era o furo de 2026-07-12.
   # Pipeline parado com campainha "viva". Toque direto no carteiro (varre a fila já).
   if [ -n "$estag" ] && [ "$ocup" = 0 ]; then
@@ -131,7 +157,7 @@ selftest(){
   # STALL_MIN=0 -> qualquer ordem `aberta` conta como estagnada, sem depender do relógio/mtime
   # (o limiar de idade é aritmética trivial; o que se testa aqui é a DECISÃO). Sobrescrevo os
   # globais JÁ resolvidos (o topo do script fixa-os antes daqui) para apontar à fila temporária.
-  FILA="$tmp"; LOG="$tmp/vigia.log"; LOCK="$tmp/.lock"; STALL_MIN=0
+  FILA="$tmp"; LOG="$tmp/vigia.log"; LOCK="$tmp/.lock"; STALL_MIN=0; PAUSA_RL="$tmp/.pausa-rate-limit"
   chk(){ if eval "$2"; then echo "  [OK] $1"; ok=$((ok+1)); else echo "  [X ] $1"; fail=$((fail+1)); fi; }
   mkstuck(){ printf 'id: %s\nestado: aberta\ntentativa: 0\ntarefa: x\n' "$1" > "$tmp/$1.md"; }
 
@@ -155,6 +181,18 @@ selftest(){
   rm -f "$tmp"/ordem-stuck1.md
   out=$(VIGIA_ASSUME_VIVA=1 SELFTEST=1 decide 2>&1)
   chk "silencioso (nenhuma ação)" '! echo "$out" | grep -qE "\[NUDGE|\[RESTART"'
+
+  echo "== T5: REGRESSÃO 2026-07-13 — pausa-rate-limit EXPIRADA (epoch passado) + carteiro LIVRE -> NUDGE (fecha furo: quota renovou e nada retomava sozinho) =="
+  echo $(( $(date +%s) - 60 )) > "$tmp/.pausa-rate-limit"
+  out=$(VIGIA_ASSUME_VIVA=1 SELFTEST=1 decide 2>&1)
+  chk "decidiu NUDGE (rate-limit expirou, retomou sozinho)" 'echo "$out" | grep -q "\[NUDGE carteiro\]"'
+  rm -f "$tmp/.pausa-rate-limit"
+
+  echo "== T6: pausa-rate-limit AINDA NO FUTURO -> NÃO nudge (respeita a pausa, não gasta tentativa à toa) =="
+  echo $(( $(date +%s) + 3600 )) > "$tmp/.pausa-rate-limit"
+  out=$(VIGIA_ASSUME_VIVA=1 SELFTEST=1 decide 2>&1)
+  chk "não deu nudge (pausa ainda válida)" '! echo "$out" | grep -q "\[NUDGE carteiro\]"'
+  rm -f "$tmp/.pausa-rate-limit"
 
   rm -rf "$tmp"
   echo "-- selftest vigia: $ok OK, $fail FALHAS --"

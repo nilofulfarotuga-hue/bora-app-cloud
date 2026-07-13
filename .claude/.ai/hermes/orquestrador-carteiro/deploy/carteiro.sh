@@ -34,6 +34,7 @@ LOCK=/root/orquestracao/.carteiro.lock
 PAUSA_TOTAL="$FILA/.pausa-total"           # STOP global (Danilo)
 PAUSA_RL="$FILA/.pausa-rate-limit"         # pausa automática por rate-limit (guarda epoch de retoma)
 RL_AVISADO=/root/orquestracao/.rate-limit.avisado
+FILA_VAZIA_AVISADO=/root/orquestracao/.fila-vazia.avisado   # f523: 1 aviso só quando a fila esvazia
 
 # T3 money-filter. -iE (case-insensitive). 2026-07-11: menos sensível a PALAVRAS
 # (ver wiki/licoes/classificador-zona-menos-sensivel-a-palavras.md). Vermelho exige INTENÇÃO
@@ -50,6 +51,12 @@ zona_vermelha(){ # $1=tarefa -> 0 (vermelho) / 1 (verde)
   return 1
 }
 
+resultado_1linha(){ # $1=saida -> "Uma linha final: X" se existir, senão a última linha não vazia
+  local r
+  r=$(printf '%s' "$1" | grep -iE '^Uma linha final:' | tail -1 | sed -E 's/^Uma linha final: *//I' | tr -d '\r')
+  [ -n "$r" ] && { echo "$r"; return; }
+  printf '%s' "$1" | grep -vE '^[[:space:]]*$' | tail -1 | tr -d '\r'
+}
 ts(){ date -u +%Y-%m-%dT%H:%M:%SZ; }
 log(){ echo "[$(ts)] $*" >> "$LOG"; }
 get(){ grep -E "^$1:" "$2" 2>/dev/null | head -1 | sed "s/^$1: *//" | tr -d '\r'; }
@@ -174,13 +181,18 @@ missao_avanca(){ # $1=mid $2=passo (que acabou aprovado)
   [ "${n:-0}" -eq 0 ] && log "missão $mid: sem próximos passos elegíveis agora (deps pendentes)"
 }
 missao_travada_ou_silencio(){ # $1=of $2=mid $3=passo
-  local mid="$2" p="$3" mf
+  local of="$1" mid="$2" p="$3" mf oid nota
   if [ -n "$mid" ]; then
     mf=$(missao_path "$mid"); [ -f "$mf" ] && missao_set_passo "$mf" "$p" "travada"
     notify "⛔ Bora/missão $mid: passo $p TRAVOU. Precisa de ti."
     log "missão $mid: passo $p travado -> Telegram"
   else
-    log "ordem travada (sem missão) — sem Telegram (o watchdog escala se persistir >12h)"
+    # 2026-07-13 (ordem f523): avisos de travamento restaurados — antes ficava
+    # mudo à espera do watchdog (>12h). Uma tarefa travada é sinal de que
+    # precisa de decisão humana, não de silêncio.
+    oid=$(get id "$of"); nota=$(get nota "$of")
+    notify "⛔ Bora: tarefa $oid TRAVOU — ${nota:-motivo desconhecido}"
+    log "ordem $oid: travada (sem missão) -> Telegram"
   fi
 }
 
@@ -231,6 +243,21 @@ if [ -f "$PAUSA_RL" ]; then
     log "PAUSA-RATE-LIMIT: fila pausada até $(hhmm "$resume") UTC — saio"; exit 0
   fi
   rm -f "$PAUSA_RL" "$RL_AVISADO"; log "PAUSA-RATE-LIMIT: reset atingido — retomo o ciclo"
+  # 2026-07-13: ao expirar, isto só limpava o ficheiro de controlo — a ordem que estava
+  # EM EXECUÇÃO no instante exato do rate-limit ficava gravada em `estado: pausada-rate-limit`
+  # (linha ~280) e o loop abaixo só processa `estado: aberta`, logo nada a devolvia. Ficava
+  # presa nesse rótulo para sempre mesmo com a fila já a funcionar (ver
+  # inbox/diagnostico-rate-limit-2026-07-13.md, caso f523/f960). A tentativa já foi devolvida
+  # na altura da pausa (linha ~279) — reabrir aqui não gasta tentativa extra.
+  for pf in "$FILA"/*.md; do
+    [ -f "$pf" ] || continue
+    case "$pf" in */_controlo.md) continue;; esac
+    if [ "$(get estado "$pf")" = "pausada-rate-limit" ]; then
+      pid=$(get id "$pf")
+      setf estado aberta "$pf"; setf nota "" "$pf"
+      log "ordem $pid: reaberta automaticamente (era pausada-rate-limit, reset já passou)"
+    fi
+  done
 fi
 
 # T5 — kill switch
@@ -295,8 +322,16 @@ for f in "$FILA"/*.md; do
 
   if printf '%s' "$vline" | grep -iq 'APROVADA'; then
     setf estado aprovada "$f"; setf nota "" "$f"; log "ordem $id: APROVADA"
-    if [ -n "$missao" ]; then missao_avanca "$missao" "$passo"
-    else log "ordem $id: aprovada (sem missão) — silêncio (sem Telegram)"; fi
+    if [ -n "$missao" ]; then
+      missao_avanca "$missao" "$passo"
+    else
+      # 2026-07-13 (ordem f523): restaurado o aviso de conclusão — antes era
+      # silêncio total (reengenharia 2026-07-12, pensada só para não repetir
+      # aviso a cada passo de uma MISSÃO). Ordem avulsa aprovada volta a avisar.
+      resumo=$(resultado_1linha "$saida")
+      notify "✅ Bora: tarefa $id concluída com sucesso. ${resumo:-(sem resumo)}"
+      log "ordem $id: aprovada -> Telegram (conclusão)"
+    fi
   else
     # ---- NOTA NUNCA VAZIA — causa explícita por construção ----
     motivo=$(printf '%s' "$vline" | sed 's/.*CORRIGIR: *//')
@@ -323,4 +358,23 @@ for f in "$FILA"/*.md; do
   fi
   sync_espelho
 done
+
+# ---- FILA VAZIA / TERMINAL LIMPO (ordem f523) — avisa 1x quando não sobra nada
+# pendente (aberta/executando/respondida); não repete a cada ciclo ocioso; volta a
+# armar assim que aparecer trabalho novo. Não corre se saímos mais cedo por
+# STOP-TOTAL/kill-switch/PAUSA-RL (nesses casos não houve ciclo real).
+pendentes=0
+for f in "$FILA"/*.md; do
+  [ -f "$f" ] || continue
+  case "$f" in */_controlo.md) continue;; esac
+  case "$(get estado "$f")" in aberta|executando|respondida) pendentes=$((pendentes+1));; esac
+done
+if [ "$pendentes" -eq 0 ]; then
+  if [ ! -f "$FILA_VAZIA_AVISADO" ]; then
+    notify "🧹 Bora: todas as tarefas concluídas, terminal limpo e livre."
+    touch "$FILA_VAZIA_AVISADO"
+  fi
+else
+  rm -f "$FILA_VAZIA_AVISADO"
+fi
 log "ciclo terminado"

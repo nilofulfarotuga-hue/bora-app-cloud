@@ -8,7 +8,13 @@ param([Parameter(Mandatory=$true)][string]$Live)
 $ErrorActionPreference = 'SilentlyContinue'
 function TS { (Get-Date).ToString('HH:mm:ss') }
 function Trim120([string]$s){ if($null -eq $s){return ''}; $s = ($s -replace '\s+',' ').Trim(); if($s.Length -gt 120){ $s.Substring(0,120)+'…' } else { $s } }
-while ($null -ne ($line = [Console]::In.ReadLine())) {
+# FASE 1.6 (2026-07-13, elo 6): [Console]::In.ReadLine() nao deteta EOF de forma fiavel quando
+# ha um conhost.exe anexado (caso do sshd do Windows a invocar cmd.exe) -- o parser ficava
+# bloqueado a espera de mais input mesmo depois do claude.exe ter terminado e fechado o stdout,
+# o que mantinha a sessao SSH aberta e o carteiro.sh preso num read sem EOF. StreamReader sobre
+# OpenStandardInput() le o pipe redirecionado diretamente, sem depender do buffer de consola.
+$stdinReader = New-Object System.IO.StreamReader([Console]::OpenStandardInput())
+while ($null -ne ($line = $stdinReader.ReadLine())) {
   if ([string]::IsNullOrWhiteSpace($line)) { continue }
   $o = $null
   try { $o = $line | ConvertFrom-Json } catch { $o = $null }
@@ -37,3 +43,4 @@ while ($null -ne ($line = [Console]::In.ReadLine())) {
     }
   }
 }
+$stdinReader.Close()

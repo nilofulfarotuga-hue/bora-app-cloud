@@ -59,6 +59,12 @@ clean(){ grep -vE '^\[ponte\]|^\[loop\]|^\[juiz\]|Permission deny rule|matches n
 sync_espelho(){ docker exec -u hermes -e HOME=/opt/data -i "$C" sh -s fast < /root/cortex-mcp/sync-brain.sh >> "$LOG" 2>&1 && log "espelho sincronizado (fast)" || log "sync espelho (best-effort) falhou"; }
 
 pc_exec(){ printf '%s' "$1" > "$HOSTDATA/orq_task.txt"
+  # FASE 1.6 (2026-07-13, elo 6): a causa raiz do bloqueio era bora-live-parser.ps1 preso sem
+  # EOF (ver inbox/investigacao-cadeia-ordens-2026-07-13.md) -- corrigido com StreamReader.
+  # Testado reduzir este teto para 300s como rede de seguranca extra, mas cortou a meio uma
+  # ordem legitima (233a, a editar/testar ficheiros reais) antes dela terminar -- 900s respeita
+  # o orcamento de "1 ordem <=15min" ja documentado acima. Mantido em 900; a cura real e o fix
+  # do parser, nao o teto.
   docker exec -u hermes "$C" sh -lc 'export PATH=/opt/data/.local/bin:$PATH; timeout 900 pc-loop "$(cat /opt/data/orq_task.txt)"' 2>&1 | clean; }
 pc_judge(){ printf '%s' "$1" > "$HOSTDATA/orq_judge.txt"
   docker exec -u hermes "$C" sh -lc 'export PATH=/opt/data/.local/bin:$PATH; timeout 200 pc-judge "$(cat /opt/data/orq_judge.txt)"' 2>&1 | clean; }

@@ -2,7 +2,8 @@ param(
   [string]$Mode = 'manual',
   [int]$ZombieMin = 10,
   [int]$LowRamMB = 300,
-  [int]$TempAgeMin = 15
+  [int]$TempAgeMin = 15,
+  [int]$StaleOutputMin = 15
 )
 # auto-limpeza-ram.ps1 -- rede de seguranca de RAM/zumbis (2026-07-13).
 # Base logica: agente limpeza-pc (produtividade-ia\.claude\agents\limpeza-pc.md), adaptada para
@@ -23,6 +24,7 @@ $Deploy = Join-Path $Root '.claude\.ai\hermes\orquestrador-carteiro\deploy'
 $LockFile = Join-Path $Root '.claude\executor.lock'
 $LockPs = Join-Path $Deploy 'executor-lock.ps1'
 $LogFile = Join-Path $Deploy 'auto-limpeza-ram.log'
+$LiveLog = Join-Path $Root '.claude\bora-live.log'
 
 function Get-FreeMB {
   $os = Get-CimInstance Win32_OperatingSystem
@@ -38,10 +40,13 @@ function Log([string]$msg) {
 $ramBefore = Get-FreeMB
 Log "inicio :: RAM livre = ${ramBefore}MB"
 
-# Tier A -- zumbis claude/cmd/python da esteira Bora (delega no executor-lock.ps1 ja testado)
+# Tier A -- zumbis claude/cmd/python da esteira Bora (delega no executor-lock.ps1 ja testado).
+# LiveLog+StaleOutputMin (2026-07-13): PID vivo nao chega -- se o LIVELOG nao cresce ha
+# >StaleOutputMin, o executor-lock.ps1 mata mesmo com CPU a saltitar (terminal preso numa
+# pergunta/sugestao do proprio Claude Code, nunca respondida em modo headless).
 $tierA = 'sem-lockfile'
 if (Test-Path -LiteralPath $LockPs) {
-  $tierA = & powershell -NoProfile -ExecutionPolicy Bypass -File $LockPs -Action cleanorphans -LockFile $LockFile -ProcOrphanMin $ZombieMin
+  $tierA = & powershell -NoProfile -ExecutionPolicy Bypass -File $LockPs -Action cleanorphans -LockFile $LockFile -ProcOrphanMin $ZombieMin -LiveLog $LiveLog -StaleOutputMin $StaleOutputMin
 }
 Log "tierA (fingerprint claude/cmd/python, via executor-lock.ps1) :: $tierA"
 

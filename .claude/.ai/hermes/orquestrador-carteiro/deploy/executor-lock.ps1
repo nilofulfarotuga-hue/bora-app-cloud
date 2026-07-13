@@ -5,7 +5,9 @@ param(
   [int]$MaxWaitSec = 480,
   [int]$PollSec = 5,
   [int]$LockOrphanMin = 10,
-  [int]$ProcOrphanMin = 10
+  [int]$ProcOrphanMin = 10,
+  [string]$LiveLog = '',
+  [int]$StaleOutputMin = 15
 )
 # executor-lock.ps1 -- CURA DA RAIZ DOS TRAVAMENTOS (2026-07-13, ordem 4833).
 # So 1 claude.exe executor de cada vez: lock em ficheiro (PID+timestamp). Lock orfao
@@ -13,6 +15,15 @@ param(
 # processos claude/cmd/python presos (~0% CPU ha >ProcOrphanMin) MAS so os que tem a
 # impressao digital da esteira Bora na linha de comando -- nunca sessoes interativas do
 # Danilo nem daemons do heartbeat-desktop. Ver .claude/.ai/knowledge/inbox/lock-concorrencia-2026-07-13.md
+#
+# ACHADO 2026-07-13 (Danilo): PID vivo != executor a trabalhar. Um terminal pode ficar VIVO
+# para sempre a espera que o Danilo clique numa sugestao/pergunta que o proprio Claude Code fez
+# (ex.: "How is Claude doing?") -- isso NAO aparece como PID morto, e a amostra de CPU de 1s do
+# cleanorphans pode falhar (ruido). Sinal mais direto: o LIVELOG (stream-json parseado) para de
+# CRESCER quando o executor para de produzir output, mesmo que o processo continue vivo. Por
+# isso cleanorphans agora tambem mata se o LIVELOG nao tiver escrita nova ha > StaleOutputMin
+# (default 15min) -- independente da amostra de CPU. Ver .claude/.ai/knowledge/inbox/
+# disco-e-deteccao-preso-2026-07-13.md.
 $ErrorActionPreference = 'SilentlyContinue'
 
 function Now-Epoch { [DateTimeOffset]::UtcNow.ToUnixTimeSeconds() }
@@ -110,13 +121,23 @@ switch ($Action) {
         }
       }
     }
+    # Sinal de "preso": LIVELOG (stream-json em texto) sem escrita nova ha > StaleOutputMin.
+    # Vale para TODO o ciclo (1 executor, 1 log) -- por isso e calculado uma vez, fora do loop
+    # de processos. PID vivo + CPU a saltitar nao prova progresso; o log parado prova estagnacao.
+    $outputStale = $false
+    if (-not [string]::IsNullOrWhiteSpace($LiveLog) -and (Test-Path -LiteralPath $LiveLog)) {
+      $lastWrite = (Get-Item -LiteralPath $LiveLog -ErrorAction SilentlyContinue).LastWriteTime
+      if ($null -ne $lastWrite -and $lastWrite -lt (Get-Date).AddMinutes(-$StaleOutputMin)) { $outputStale = $true }
+    }
     $killed = @()
     foreach ($name in @('claude','cmd','python')) {
       $procs = Get-Process -Name $name -ErrorAction SilentlyContinue
       foreach ($p in $procs) {
         if ($p.Id -eq $PID) { continue }
-        if ($protected.ContainsKey($p.Id)) { continue }
         if ($p.StartTime -gt $cutoff) { continue }
+        # protegido normalmente escapa a limpeza -- exceto se o output ja provou estagnacao
+        # (PRESO-VIVO: aparenta "executor ativo" pelo lock, mas nao produz output ha 15min+).
+        if ($protected.ContainsKey($p.Id) -and -not $outputStale) { continue }
         try {
           $cim = Get-CimInstance Win32_Process -Filter ('ProcessId=' + $p.Id) -ErrorAction SilentlyContinue
           if ($null -eq $cim -or [string]::IsNullOrEmpty($cim.CommandLine) -or $cim.CommandLine -notmatch $fingerprint) { continue }
@@ -124,9 +145,11 @@ switch ($Action) {
           Start-Sleep -Milliseconds 1000
           $p2 = Get-Process -Id $p.Id -ErrorAction SilentlyContinue
           if ($null -eq $p2) { continue }
-          if (($p2.CPU - $cpu1) -lt 0.05) {
+          $idleCpu = ($p2.CPU - $cpu1) -lt 0.05
+          if ($idleCpu -or $outputStale) {
             Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
-            $killed += "$($p.Id):$name"
+            $reason = if ($outputStale -and -not $idleCpu) { 'preso-vivo:output-stale' } elseif ($outputStale) { 'idle+output-stale' } else { 'idle-cpu' }
+            $killed += "$($p.Id):$name($reason)"
           }
         } catch {}
       }

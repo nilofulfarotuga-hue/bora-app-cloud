@@ -67,7 +67,10 @@ echo [%date% %time%] ==== ciclo :: MYPID=%MYPID% ==== >> "%LIVELOG%"
 
 REM FASE 1.5 -- limpeza de orfaos da esteira (so claude/cmd/python com a marca do Bora
 REM na linha de comando, parados ha >10min a ~0% CPU) ANTES de tentar subir outro claude.exe.
-powershell -NoProfile -ExecutionPolicy Bypass -File "%LOCKPS%" -Action cleanorphans -LockFile "%LOCKFILE%" > "%TEMP%\bora_lock_clean.txt" 2>&1
+REM FASE 1.7 (2026-07-13, deteccao de terminal preso): tambem mata se o LIVELOG nao cresce ha
+REM >15min -- PID vivo nao chega, um terminal pode estar preso para sempre numa pergunta/
+REM sugestao do proprio Claude Code sem produzir output novo. Ver executor-lock.ps1.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%LOCKPS%" -Action cleanorphans -LockFile "%LOCKFILE%" -LiveLog "%LIVELOG%" -StaleOutputMin 15 > "%TEMP%\bora_lock_clean.txt" 2>&1
 for /f "usebackq delims=" %%L in ("%TEMP%\bora_lock_clean.txt") do echo [%date% %time%] %%L >> "%LIVELOG%"
 
 REM FASE 1.5 -- lock de concorrencia: so 1 claude.exe executor de cada vez. Se outro

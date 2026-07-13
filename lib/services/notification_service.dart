@@ -999,15 +999,15 @@ class NotificationService {
       final type = msg.data['type'];
       // new_order: o realtime channel já renderiza o card + som via UI.
       if (type == 'new_order') return;
-      // [A2 2026-07-04] new_order_offer em FOREGROUND: antes era `return`
-      // silencioso porque "o card do delivery dispara o som via UI". Mas esse
-      // som só toca no ECRÃ do delivery — um motorista "everything" no mapa
-      // TVDE (ou noutro ecrã) recebia a oferta de ENTREGA em SILÊNCIO. Agora
-      // alerta sempre ao chegar (som curto), independente do ecrã. No ecrã do
-      // delivery pode sobrepor levemente o som do card (aceitável — o objetivo
-      // é NUNCA silêncio; um beep curto sobre o loop é imperceptível).
+      // [A2 2026-07-04, endurecido 2026-07-13] new_order_offer em FOREGROUND:
+      // antes tocava só um beep curto e SEM card — um motorista "everything"
+      // parado no mapa TVDE (ou fora do ecrã de delivery) ouvia mas não via
+      // nada para aceitar. Agora heads-up local completo (visual + som do
+      // canal urgente), igual à oferta TVDE, acionável em qualquer ecrã. No
+      // ecrã do delivery pode sobrepor levemente o card existente (aceitável
+      // — o objetivo é NUNCA silêncio nem ausência de card).
       if (type == 'new_order_offer') {
-        _sound.playOnce();
+        unawaited(_showDeliveryOfferNotification(msg));
         return;
       }
       if (type == 'chat') {
@@ -1751,6 +1751,66 @@ class NotificationService {
       debugPrint('[NotificationService FG] TVDE offer notif posted ride=$rideId');
     } catch (e) {
       debugPrint('[NotificationService FG] TVDE offer notif error: $e');
+      _sound.playOnce();
+    }
+  }
+
+  /// [A2 2026-07-13] Heads-up local para oferta de ENTREGA (`new_order_offer`)
+  /// com o app em foreground fora do ecrã de delivery — antes só tocava um
+  /// beep curto e não havia card para aceitar. Modelado 1:1 em
+  /// `_showTvdeOfferNotification` (mesmo canal urgente).
+  Future<void> _showDeliveryOfferNotification(RemoteMessage message) async {
+    final data = message.data;
+    final orderId = data['orderId']?.toString() ?? '';
+    final vendorName = data['vendorName']?.toString() ?? 'Novo pedido';
+    final total = data['total']?.toString() ?? '0.00';
+    final distanceKm = data['distanceKm']?.toString() ?? '0';
+    final driverEarnings = data['driverEarnings']?.toString() ?? '0.00';
+    final title = '🛵 Novo pedido — €$driverEarnings';
+    final body = '$vendorName • €$total • ${distanceKm}km';
+    try {
+      final plugin = FlutterLocalNotificationsPlugin();
+      final androidImpl = plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      await androidImpl?.createNotificationChannel(
+        const AndroidNotificationChannel(
+          'bora_orders_urgent_v3',
+          'Bora — Novos pedidos',
+          description: 'Som contínuo + vibração para novos pedidos e mensagens.',
+          importance: Importance.max,
+          playSound: true,
+          sound: RawResourceAndroidNotificationSound('bora_alert'),
+          enableVibration: true,
+          showBadge: true,
+        ),
+      );
+      final androidDetails = AndroidNotificationDetails(
+        'bora_orders_urgent_v3',
+        'Bora — Novos pedidos',
+        channelDescription: 'Pedido novo — tap para abrir e aceitar.',
+        importance: Importance.max,
+        priority: Priority.max,
+        playSound: true,
+        sound: const RawResourceAndroidNotificationSound('bora_alert'),
+        enableVibration: true,
+        category: AndroidNotificationCategory.call,
+        fullScreenIntent: true,
+        autoCancel: true,
+        onlyAlertOnce: false,
+        ticker: title,
+        visibility: fln.NotificationVisibility.public,
+        styleInformation: BigTextStyleInformation(body, contentTitle: title),
+      );
+      await plugin.show(
+        orderId.isNotEmpty ? orderId.hashCode : title.hashCode,
+        title,
+        body,
+        NotificationDetails(android: androidDetails),
+        payload: jsonEncode({'type': 'new_order_offer', 'orderId': orderId}),
+      );
+      debugPrint('[NotificationService FG] delivery offer notif posted order=$orderId');
+    } catch (e) {
+      debugPrint('[NotificationService FG] delivery offer notif error: $e');
       _sound.playOnce();
     }
   }

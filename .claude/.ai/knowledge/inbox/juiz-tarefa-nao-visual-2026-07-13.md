@@ -110,3 +110,28 @@ relatório acima):
 Conclusão: nada a corrigir de novo. Análise e fix anteriores confirmados corretos e já em
 produção. Não reabri as ordens 858e/93e0/39c5 (já `aprovada`/fechadas) para não gastar tentativas
 repetindo uma investigação já concluída.
+
+## Reconfirmação independente #2 (terceira sessão executora, mesma data, mesma hipótese)
+
+Recebida pela terceira vez a mesma ordem (mesma hipótese do Danilo sobre captura visual em
+tarefa não-visual). Reverifiquei o estado atual do repo local (não a VPS desta vez — já
+confirmado ao vivo na volta anterior) antes de escrever mais uma palavra:
+
+- `.claude/.ai/hermes/orquestrador-carteiro/deploy/carteiro.sh`: `is_lock_busy()` na linha 79,
+  chamada na linha 269 — intacto, `git status --short` limpo (sem alterações locais pendentes).
+- `.claude/agents/juiz-revisor.md`: reforço presente (linhas 44/92/94/123/185/189) — "tarefa
+  não-visual → nunca tento `juiz_capture.py`, `tem_visual = n/a`" e "VEREDITO: sempre impresso,
+  mesmo inconclusivo" — intacto, também sem alterações locais pendentes.
+- `.claude/scripts/juiz_capture.py` (lido nesta sessão pela primeira vez): confirma por leitura
+  direta do código que o script **nunca decide sozinho capturar** — só corre com `--mode`
+  explícito passado por quem o invoca (mobile/web/referencia) e falha honestamente
+  (`ok:false` + `motivo_falha`) sem nunca travar/ficar mudo. A decisão de "esta tarefa é visual ou
+  não" vive inteiramente na camada de chamada (protocolo do `juiz-revisor`), não neste script —
+  confirma que não há bug de captura automática a travar tarefas de infra.
+- `git log --oneline -- <ambos os relatórios>`: `0c3eb17` e `437d3c1`, nenhum commit novo desde
+  então — ninguém tocou nisto entretanto.
+
+Conclusão (3ª vez): **sem novidade, sem regressão, nada para corrigir.** A causa real continua a
+ser o lock de concorrência do executor (já corrigido), nunca a captura visual. Não commitei nada
+de código — só este parágrafo de reconfirmação, para o loop parar de reenviar a mesma hipótese já
+respondida duas vezes com prova mecânica.

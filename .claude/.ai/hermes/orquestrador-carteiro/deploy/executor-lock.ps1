@@ -4,12 +4,12 @@ param(
   [int]$OwnerPid = 0,
   [int]$MaxWaitSec = 480,
   [int]$PollSec = 5,
-  [int]$LockOrphanMin = 30,
+  [int]$LockOrphanMin = 10,
   [int]$ProcOrphanMin = 10
 )
 # executor-lock.ps1 -- CURA DA RAIZ DOS TRAVAMENTOS (2026-07-13, ordem 4833).
 # So 1 claude.exe executor de cada vez: lock em ficheiro (PID+timestamp). Lock orfao
-# (PID morto OU idade > LockOrphanMin) e assumido na hora, sem esperar. cleanorphans mata
+# (PID morto OU idade > LockOrphanMin, default 10min) e assumido na hora, sem esperar. cleanorphans mata
 # processos claude/cmd/python presos (~0% CPU ha >ProcOrphanMin) MAS so os que tem a
 # impressao digital da esteira Bora na linha de comando -- nunca sessoes interativas do
 # Danilo nem daemons do heartbeat-desktop. Ver .claude/.ai/knowledge/inbox/lock-concorrencia-2026-07-13.md

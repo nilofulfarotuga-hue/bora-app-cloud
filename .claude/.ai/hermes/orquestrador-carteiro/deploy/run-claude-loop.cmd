@@ -13,7 +13,7 @@ REM    resultado final no stdout (o carteiro/juiz recebem texto igual ao de ante
 REM  - FASE 1.5 (2026-07-13, ordem 4833): LOCK DE CONCORRENCIA -- causa raiz de dias de
 REM    travamento era RAM esgotada por varios claude.exe empilhados (nao a ponte). Agora:
 REM    so 1 claude.exe executor de cada vez (lock em .claude\executor.lock, PID+timestamp;
-REM    lock orfao = PID morto OU idade >30min -> assumido na hora) + limpeza de processos
+REM    lock orfao = PID morto OU idade >10min -> assumido na hora) + limpeza de processos
 REM    orfaos da esteira antes de cada ciclo. Ver executor-lock.ps1 +
 REM    inbox/lock-concorrencia-2026-07-13.md.
 REM ===========================================================================
@@ -65,7 +65,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "%LOCKPS%" -Action cleanorph
 for /f "usebackq delims=" %%L in ("%TEMP%\bora_lock_clean.txt") do echo [%date% %time%] %%L >> "%LIVELOG%"
 
 REM FASE 1.5 -- lock de concorrencia: so 1 claude.exe executor de cada vez. Se outro
-REM executor vivo (<30min) estiver a correr, ESPERA (nunca sobe um segundo); lock orfao e
+REM executor vivo (<10min) estiver a correr, ESPERA (nunca sobe um segundo); lock orfao e
 REM assumido na hora.
 powershell -NoProfile -ExecutionPolicy Bypass -File "%LOCKPS%" -Action acquire -LockFile "%LOCKFILE%" -OwnerPid %MYPID% -MaxWaitSec %LOCK_MAXWAIT% > "%TEMP%\bora_lock_acquire.txt" 2>&1
 set "LOCKRESULT="

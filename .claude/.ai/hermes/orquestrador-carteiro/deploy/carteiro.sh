@@ -86,7 +86,20 @@ pc_judge(){ printf '%s' "$1" > "$HOSTDATA/orq_judge.txt"
 is_lock_busy(){ printf '%s' "$1" | grep -iqE "outro executor Bora ja em curso|ERRO: lock ocupado"; }
 
 # ---------------- RATE-LIMIT: deteção + cálculo de retoma ----------------
-is_rate_limit(){ printf '%s' "$1" | grep -iqE "hit your (session|usage) limit|session limit|usage limit|rate limit|reached your (usage|session)? *limit"; }
+# 2026-07-13 (ordem a73d, falso rate-limit): a regex batia em QUALQUER saída que
+# contivesse a frase, mesmo um relatório de sucesso que a CITA (ex.: tarefa cujo
+# objetivo é diagnosticar rate-limit e reportar "TEXTO EXATO DETECTADO: ..." —
+# a própria tarefa manda citar a frase). Prova: bloqueio genuíno (f523/f960) =
+# saída de 61 bytes, SÓ a mensagem, nada mais — o claude -p pára ali. O
+# falso-positivo (a73d) = relatório completo de 1986 bytes que MENCIONA a frase
+# a meio de texto substantivo. Um bloqueio real nunca produz relatório — corta
+# o falso-positivo exigindo que a saída inteira seja curta (bloqueio genuíno
+# nunca passa disto; 600 é ~10x a maior saída real observada e ~3x menor que a
+# menor saída falsa observada — larga margem dos dois lados).
+is_rate_limit(){
+  printf '%s' "$1" | grep -iqE "hit your (session|usage) limit|session limit|usage limit|rate limit|reached your (usage|session)? *limit" || return 1
+  [ "$(printf '%s' "$1" | wc -c)" -le 600 ]
+}
 # "resets 5pm (Europe/London)" -> epoch UTC; se não parsear -> now+3600 (defensivo).
 rl_resume_epoch(){
   local txt hh ap now h24 ep
@@ -199,8 +212,12 @@ missao_travada_ou_silencio(){ # $1=of $2=mid $3=passo
 # ---------------- MODOS AUXILIARES (não tocam a fila real de produção) ----------------
 if [ "${1:-}" = "--selftest" ]; then
   fail=0; ok(){ echo "OK   $1"; }; bad(){ echo "FAIL $1"; fail=1; }
-  is_rate_limit "You've hit your session limit · resets 5pm (Europe/London)" && ok "rate-limit detecta" || bad "rate-limit detecta"
+  is_rate_limit "You've hit your session limit · resets 5pm (Europe/London)" && ok "rate-limit detecta (bloqueio curto genuino)" || bad "rate-limit detecta"
   is_rate_limit "tudo bem, terminei a tarefa" && bad "rate-limit falso-positivo" || ok "rate-limit sem falso-positivo"
+  # REGRESSAO 2026-07-13 (ordem a73d): relatorio longo que CITA a frase (tarefa
+  # era diagnosticar rate-limit) nao pode disparar pausa -- so bloqueio curto conta.
+  relatorio_longo="Confirmado: o relatorio ja existe e responde a pergunta pedida. $(printf 'x%.0s' $(seq 1 500)) TEXTO EXATO DETECTADO: \"You've hit your session limit · resets 1pm (Europe/London)\" · E RATE-LIMIT REAL: sim (mas essa janela ja passou ha muito)."
+  is_rate_limit "$relatorio_longo" && bad "relatorio longo que cita a frase NAO devia disparar rate-limit" || ok "relatorio longo citando a frase nao dispara (falso-positivo a73d corrigido)"
   now=$(date +%s)
   ep=$(rl_resume_epoch "resets 5pm (Europe/London)")
   [ "$ep" -gt "$now" ] && ok "reset 5pm -> epoch sempre futuro (nunca pausa no passado)" || bad "reset 5pm epoch futuro"

@@ -87,3 +87,26 @@ apontar para onde diz que aponta, ou é só o sintoma mais visível de outra coi
 JUIZ CORRIGIDO — distingue visual/não-visual, nunca fica mudo; e a causa real das 3 ordens travadas
 (lock de concorrência do executor, não captura visual) já estava corrigida por outro elo do loop —
 confirmado e as ordens fechadas.
+
+## Reconfirmação independente (sessão executora seguinte, mesma data)
+
+Recebida a mesma investigação como ordem nova (mesma hipótese do Danilo). Antes de duplicar
+trabalho, reverifiquei tudo com prova mecânica própria, via SSH direto à VPS (sem confiar no
+relatório acima):
+
+- `ordem-20260713083501-39c5.saida.txt` (lido diretamente em
+  `/docker/hermes-agent-fvnc/data/cortex-brain/orquestracao/arquivo/`): confirmado, contém só
+  `ERRO: outro executor Bora ja em curso ha muito tempo...` — nenhuma menção a captura visual.
+- `ordem-20260713083501-39c5.md`: `estado: aprovada`, já com nota de resolução apontando para
+  este mesmo ficheiro.
+- `/root/orquestracao/carteiro.sh` (o script que corre de facto na VPS, não uma cópia): tem
+  `is_lock_busy()` (linha 79) e o branch que a usa (linha 269) — mtime `2026-07-13 08:47:00 UTC`,
+  ou seja, já deployado antes de esta ordem sequer ter sido criada.
+- `437d3c1` (commit do fix) confirmado no histórico local **e já em
+  `origin/autonomous-night-2026-04-29`** — nada para commitar/pushar de novo.
+- `juiz-revisor.md` já contém o reforço "não-visual → avalio só por diff/output, nunca tento
+  `juiz_capture.py`" e "a linha VEREDITO: é sempre impressa".
+
+Conclusão: nada a corrigir de novo. Análise e fix anteriores confirmados corretos e já em
+produção. Não reabri as ordens 858e/93e0/39c5 (já `aprovada`/fechadas) para não gastar tentativas
+repetindo uma investigação já concluída.

@@ -393,6 +393,8 @@ class _CleanerCard extends StatelessWidget {
                         fontWeight: FontWeight.w700)),
               ),
             _DocsRow(docs: data['docs']),
+            _MaterialsRow(docs: data['docs']),
+            _AvailabilityRow(cleanerId: data['id']?.toString() ?? ''),
             const SizedBox(height: 10),
             Wrap(
               spacing: 8,
@@ -542,6 +544,107 @@ class _DocsRow extends StatelessWidget {
               label: Text(_labels[e.key] ?? e.key),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// Materiais obrigatórios confirmados na candidatura (lidos de `docs`).
+class _MaterialsRow extends StatelessWidget {
+  const _MaterialsRow({required this.docs});
+  final dynamic docs;
+
+  @override
+  Widget build(BuildContext context) {
+    final map = docs is Map ? Map<String, dynamic>.from(docs as Map) : const {};
+    final ok = map['materials_ok'] == true;
+    final list = (map['materials_list'] as List?)?.cast<String>() ?? const [];
+    if (!ok && list.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.only(top: 6),
+        child: Text('⚠️ Materiais não confirmados',
+            style: TextStyle(
+                fontSize: 12,
+                color: AppColors.warning,
+                fontWeight: FontWeight.w600)),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Text(
+        '🧹 Materiais confirmados${list.isNotEmpty ? ': ${list.join(', ')}' : ''}',
+        style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+      ),
+    );
+  }
+}
+
+/// Disponibilidade semanal da profissional (admin — read-only via RPC).
+class _AvailabilityRow extends StatelessWidget {
+  const _AvailabilityRow({required this.cleanerId});
+  final String cleanerId;
+
+  static const _weekdaysPt = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+  Future<void> _open(BuildContext context) async {
+    List<Map<String, dynamic>> slots = const [];
+    try {
+      final res = await Supabase.instance.client.rpc(
+          'admin_cleaner_availability',
+          params: {'p_cleaner_id': cleanerId});
+      slots = (res as List).map((e) => Map<String, dynamic>.from(e)).toList();
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(humanizeAdminRpcError(e))));
+      }
+      return;
+    }
+    if (!context.mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Disponibilidade semanal'),
+        content: slots.isEmpty
+            ? const Text('Sem disponibilidade marcada.')
+            : SizedBox(
+                width: double.maxFinite,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (final s in slots)
+                      Text(
+                        '${_weekdaysPt[(s['weekday'] as num).toInt() % 7]}: '
+                        '${(s['start_time'] as String).substring(0, 5)}–'
+                        '${(s['end_time'] as String).substring(0, 5)}',
+                        style: const TextStyle(color: AppColors.textPrimary),
+                      ),
+                  ],
+                ),
+              ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Fechar')),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (cleanerId.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: TextButton.icon(
+          onPressed: () => _open(context),
+          style: TextButton.styleFrom(
+              padding: EdgeInsets.zero, minimumSize: const Size(0, 32)),
+          icon: const Icon(Icons.event_available, size: 16),
+          label: const Text('Ver disponibilidade'),
+        ),
       ),
     );
   }

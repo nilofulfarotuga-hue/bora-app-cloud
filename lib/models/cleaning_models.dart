@@ -11,7 +11,8 @@ enum CleaningStatus {
   done,
   completed,
   cancelledClient,
-  cancelledCleaner;
+  cancelledCleaner,
+  cancelledNoCleaner;
 
   static CleaningStatus fromDb(String? raw) {
     switch (raw) {
@@ -29,6 +30,8 @@ enum CleaningStatus {
         return CleaningStatus.cancelledClient;
       case 'cancelled_cleaner':
         return CleaningStatus.cancelledCleaner;
+      case 'cancelled_no_cleaner':
+        return CleaningStatus.cancelledNoCleaner;
       default:
         return CleaningStatus.scheduled;
     }
@@ -52,12 +55,15 @@ enum CleaningStatus {
         return 'Cancelada';
       case CleaningStatus.cancelledCleaner:
         return 'Cancelada pela profissional';
+      case CleaningStatus.cancelledNoCleaner:
+        return 'Cancelada — sem profissional';
     }
   }
 
   bool get isCancelled =>
       this == CleaningStatus.cancelledClient ||
-      this == CleaningStatus.cancelledCleaner;
+      this == CleaningStatus.cancelledCleaner ||
+      this == CleaningStatus.cancelledNoCleaner;
 
   bool get isActive => !isCancelled && this != CleaningStatus.completed;
 }

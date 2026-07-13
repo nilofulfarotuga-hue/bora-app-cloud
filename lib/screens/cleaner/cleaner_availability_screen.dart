@@ -89,16 +89,42 @@ class _CleanerAvailabilityScreenState extends State<CleanerAvailabilityScreen> {
   @override
   Widget build(BuildContext context) {
     final store = context.watch<CleanerStore>();
+    final nothingMarked = _slots.isEmpty;
     return Scaffold(
-      appBar: const BoraScreenAppBar(title: 'Agenda semanal'),
+      appBar: const BoraScreenAppBar(title: 'A minha disponibilidade'),
       body: ListView(
         padding: const EdgeInsets.all(Spacing.lg),
         children: [
           const Text(
-            'Define as janelas em que aceitas limpezas. Só recebes ofertas '
-            'que cabem por inteiro numa janela.',
+            'Marca os dias e as horas em que aceitas limpezas. Só recebes '
+            'ofertas que cabem por inteiro numa janela que marcaste.',
             style: TextStyle(color: AppColors.textSecondary, height: 1.4),
           ),
+          if (nothingMarked) ...[
+            const SizedBox(height: Spacing.md),
+            Container(
+              padding: const EdgeInsets.all(Spacing.md),
+              decoration: BoxDecoration(
+                color: AppColors.warning.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(Radii.lg),
+                border:
+                    Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.touch_app_outlined, color: AppColors.warning),
+                  SizedBox(width: Spacing.md),
+                  Expanded(
+                    child: Text(
+                      'Ainda não marcaste nada. Toca no + de um dia para '
+                      'adicionar um horário e depois guarda.',
+                      style: TextStyle(color: AppColors.textPrimary),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: Spacing.lg),
           for (var weekday = 1; weekday <= 7; weekday++)
             _DayRow(
@@ -113,10 +139,15 @@ class _CleanerAvailabilityScreenState extends State<CleanerAvailabilityScreen> {
             ),
           const SizedBox(height: Spacing.lg),
           BoraPrimaryButton(
-            label: 'Guardar agenda',
+            label: 'Guardar disponibilidade',
             icon: Icons.save,
             loading: store.busy,
-            onPressed: _dirty ? _save : () {},
+            onPressed: _dirty
+                ? _save
+                : () {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                        content: Text('Já está tudo guardado.')));
+                  },
           ),
           if (_dirty)
             const Padding(

@@ -373,12 +373,20 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
         ]),
         const SizedBox(height: Spacing.lg),
         _sectionTitle('Produtos de limpeza'),
+        const Padding(
+          padding: EdgeInsets.only(bottom: Spacing.sm),
+          child: Text(
+            'Quer que a profissional leve os produtos de limpeza, ou prefere '
+            'que ela use os seus (de casa)?',
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+          ),
+        ),
         _choiceRow([
-          _choice('Uso os meus', _productsBy == 'client', () {
+          _choice('Uso os meus (de casa)', _productsBy == 'client', () {
             setState(() => _productsBy = 'client');
             _refreshQuote();
           }),
-          _choice('A profissional traz', _productsBy == 'cleaner', () {
+          _choice('A profissional leva', _productsBy == 'cleaner', () {
             setState(() => _productsBy = 'cleaner');
             _refreshQuote();
           }),

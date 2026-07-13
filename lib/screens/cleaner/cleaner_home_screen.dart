@@ -332,8 +332,8 @@ class _PanelView extends StatelessWidget {
             children: [
               Expanded(
                 child: _ShortcutCard(
-                  icon: Icons.calendar_month,
-                  label: 'Agenda semanal',
+                  icon: Icons.event_available,
+                  label: 'A minha disponibilidade',
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -390,26 +390,36 @@ class _PanelView extends StatelessWidget {
           const SizedBox(height: Spacing.lg),
 
           if (store.slots.isEmpty) ...[
-            Container(
-              padding: const EdgeInsets.all(Spacing.md),
-              decoration: BoxDecoration(
-                color: AppColors.warning.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(Radii.lg),
-                border:
-                    Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
+            InkWell(
+              borderRadius: BorderRadius.circular(Radii.lg),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => const CleanerAvailabilityScreen()),
               ),
-              child: const Row(
-                children: [
-                  Icon(Icons.info_outline, color: AppColors.warning),
-                  SizedBox(width: Spacing.md),
-                  Expanded(
-                    child: Text(
-                      'Ainda não definiste a tua agenda semanal — sem ela '
-                      'não recebes ofertas.',
-                      style: TextStyle(color: AppColors.textPrimary),
+              child: Container(
+                padding: const EdgeInsets.all(Spacing.md),
+                decoration: BoxDecoration(
+                  color: AppColors.warning.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(Radii.lg),
+                  border: Border.all(
+                      color: AppColors.warning.withValues(alpha: 0.4)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.info_outline, color: AppColors.warning),
+                    SizedBox(width: Spacing.md),
+                    Expanded(
+                      child: Text(
+                        'Ainda não marcaste a tua disponibilidade — sem ela '
+                        'não recebes ofertas. Toca aqui para marcar os teus '
+                        'dias e horas.',
+                        style: TextStyle(color: AppColors.textPrimary),
+                      ),
                     ),
-                  ),
-                ],
+                    Icon(Icons.chevron_right, color: AppColors.warning),
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: Spacing.lg),

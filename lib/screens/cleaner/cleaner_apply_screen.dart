@@ -46,6 +46,21 @@ class _CleanerApplyScreenState extends State<CleanerApplyScreen> {
   bool _uploading = false;
   bool _isPicking = false;
 
+  /// Materiais obrigatórios que a profissional confirma ter (modelo Oscar:
+  /// materiais incluídos no serviço, sem custo ao cliente). Todos exigidos.
+  static const _requiredMaterials = <String>[
+    'Aspirador',
+    'Vassoura e pá',
+    'Esfregona/mop e balde com espremedor',
+    'Panos de microfibra',
+    'Luvas',
+    'Escova',
+    'Rodo',
+  ];
+  final Set<String> _materialsChecked = {};
+  bool get _allMaterialsChecked =>
+      _materialsChecked.length == _requiredMaterials.length;
+
   /// Foto já existente no outro papel (estafeta) — evita re-upload obrigatório.
   String _prefillPhotoUrl = '';
   bool get _fromOtherRole => widget.prefill != null;
@@ -138,6 +153,12 @@ class _CleanerApplyScreenState extends State<CleanerApplyScreen> {
           content: Text('Anexa um documento de identificação (BI/CC).')));
       return;
     }
+    if (!_allMaterialsChecked) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Confirma que tens todos os materiais de limpeza '
+              'obrigatórios.')));
+      return;
+    }
     final store = context.read<CleanerStore>();
     setState(() => _uploading = true);
     // Marcador de fase: diz ONDE falhou (coords/uploads/apply) — para a
@@ -166,7 +187,11 @@ class _CleanerApplyScreenState extends State<CleanerApplyScreen> {
         baseLng: coords?.longitude,
         serviceRadiusKm: _radiusKm,
         photoUrl: photoUrl ?? '',
-        docs: {if (idPath != null) 'id_doc': idPath},
+        docs: {
+          if (idPath != null) 'id_doc': idPath,
+          'materials_ok': true,
+          'materials_list': _requiredMaterials,
+        },
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -369,6 +394,35 @@ class _CleanerApplyScreenState extends State<CleanerApplyScreen> {
                     'Ex.: 5 anos de experiência, cuidadosa com animais…',
               ),
             ),
+            const SizedBox(height: Spacing.lg),
+            const Text('Materiais obrigatórios',
+                style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary)),
+            const SizedBox(height: Spacing.xs),
+            const Text(
+              'Os materiais estão incluídos no serviço, sem custo para o '
+              'cliente. Confirma que tens todos:',
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            ),
+            const SizedBox(height: Spacing.xs),
+            for (final m in _requiredMaterials)
+              CheckboxListTile(
+                value: _materialsChecked.contains(m),
+                onChanged: (v) => setState(() {
+                  if (v == true) {
+                    _materialsChecked.add(m);
+                  } else {
+                    _materialsChecked.remove(m);
+                  }
+                }),
+                title: Text(m,
+                    style: const TextStyle(color: AppColors.textPrimary)),
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                activeColor: AppColors.primary,
+              ),
             const SizedBox(height: Spacing.lg),
             BoraPrimaryButton(
               label: _uploading ? 'A enviar…' : 'Enviar candidatura',

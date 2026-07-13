@@ -33,6 +33,7 @@ class _AdminCleaningBookingsScreenState
     'completed': 'Concluída',
     'cancelled_client': 'Cancelada (cliente)',
     'cancelled_cleaner': 'Cancelada (profissional)',
+    'cancelled_no_cleaner': 'Cancelada (sem profissional)',
   };
 
   @override

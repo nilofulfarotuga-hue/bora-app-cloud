@@ -100,18 +100,22 @@ is_rate_limit(){
   printf '%s' "$1" | grep -iqE "hit your (session|usage) limit|session limit|usage limit|rate limit|reached your (usage|session)? *limit" || return 1
   [ "$(printf '%s' "$1" | wc -c)" -le 600 ]
 }
-# "resets 5pm (Europe/London)" -> epoch UTC; se não parsear -> now+3600 (defensivo).
+# "resets 5pm (Europe/London)" ou "resets 11:50pm (Europe/London)" -> epoch UTC;
+# se não parsear -> now+3600 (defensivo). TZ=Europe/London via `date` já resolve BST/GMT
+# sozinho (tzdata do sistema) — não precisa de lógica extra de DST aqui.
 rl_resume_epoch(){
-  local txt hh ap now h24 ep
-  txt=$(printf '%s' "$1" | grep -oiE "resets[^0-9]*[0-9]{1,2} *(am|pm)" | head -1)
-  hh=$(printf '%s' "$txt" | grep -oE '[0-9]{1,2}' | head -1)
+  local txt hh mm ap now h24 ep
+  txt=$(printf '%s' "$1" | grep -oiE "resets[^0-9]*[0-9]{1,2}(:[0-9]{2})? *(am|pm)" | head -1)
+  hh=$(printf '%s' "$txt" | grep -oE '[0-9]{1,2}' | head -1 | sed 's/^0*//')
+  mm=$(printf '%s' "$txt" | grep -oE ':[0-9]{2}' | head -1 | tr -d ':')
+  mm=${mm:-00}
   ap=$(printf '%s' "$txt" | grep -oiE 'am|pm' | head -1 | tr 'A-Z' 'a-z')
   now=$(date +%s)
   if [ -n "$hh" ] && [ -n "$ap" ]; then
     h24=$hh
     [ "$ap" = pm ] && [ "$hh" != 12 ] && h24=$((hh+12))
     [ "$ap" = am ] && [ "$hh" = 12 ] && h24=0
-    ep=$(TZ='Europe/London' date -d "today ${h24}:00" +%s 2>/dev/null)
+    ep=$(TZ='Europe/London' date -d "today ${h24}:${mm}" +%s 2>/dev/null)
     [ -n "$ep" ] && [ "$ep" -gt "$now" ] && { echo "$ep"; return; }
   fi
   echo $((now+3600))
@@ -223,6 +227,22 @@ if [ "${1:-}" = "--selftest" ]; then
   [ "$ep" -gt "$now" ] && ok "reset 5pm -> epoch sempre futuro (nunca pausa no passado)" || bad "reset 5pm epoch futuro"
   ep2=$(rl_resume_epoch "sem hora nenhuma aqui")
   [ "$ep2" -gt "$now" ] && ok "reset sem hora -> futuro (now+1h defensivo)" || bad "reset defensivo"
+  # REGRESSAO 2026-07-13 (ordem 883f): "resets 11:50pm" (com minutos) caía no
+  # fallback now+3600 porque a regex só reconhecia hora redonda ("6pm"). Os
+  # testes abaixo confirmam que os minutos são extraídos e preservados (o
+  # offset Europe/London->UTC é sempre em horas inteiras, nunca fraciona minuto).
+  ep3=$(rl_resume_epoch "resets 11:50pm (Europe/London)")
+  { [ "$ep3" -gt "$now" ] && [ "$(date -u -d "@$ep3" +%M)" = "50" ]; } \
+    && ok "reset 11:50pm -> minutos preservados (23:50 Europe/London)" || bad "reset 11:50pm minutos"
+  ep4=$(rl_resume_epoch "resets 9:05am (Europe/London)")
+  { [ "$ep4" -gt "$now" ] && [ "$(date -u -d "@$ep4" +%M)" = "05" ]; } \
+    && ok "reset 9:05am -> minutos preservados" || bad "reset 9:05am minutos"
+  ep5=$(rl_resume_epoch "resets 12am (Europe/London)")
+  [ "$ep5" -gt "$now" ] && ok "reset 12am -> epoch futuro (meia-noite)" || bad "reset 12am epoch futuro"
+  ep6=$(rl_resume_epoch "resets 12pm (Europe/London)")
+  [ "$ep6" -gt "$now" ] && ok "reset 12pm -> epoch futuro (meio-dia)" || bad "reset 12pm epoch futuro"
+  ep7=$(rl_resume_epoch "resets 6pm (Europe/London)")
+  [ "$ep7" -gt "$now" ] && ok "reset 6pm -> formato hora redonda continua a funcionar" || bad "reset 6pm hora redonda"
   tmf=$(mktemp)
   printf 'passo: A | modelo: SONNET | paralelo: sim | depende: - | propose_only: nao | estado: concluida | tarefa: x\npasso: B | modelo: SONNET | paralelo: sim | depende: A | propose_only: nao | estado: pendente | tarefa: y\n' > "$tmf"
   deps_ok "$tmf" "A" && ok "deps_ok A concluida" || bad "deps_ok A"

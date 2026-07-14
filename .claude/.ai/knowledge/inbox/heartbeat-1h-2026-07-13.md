@@ -88,6 +88,30 @@ Screenshot de prova: `.claude/testes-e2e/screenshots-pc/teste-heartbeat-desktop.
 físico do Danilo em uso — a prova acima já é da mesma sessão noturna contínua, com o mecanismo
 (watchdog + gate) já ativo no momento do teste.
 
+## 5b. Confirmação adicional — ciclo AUTOMÁTICO real (não forçado) entregou (14/07 01:17)
+
+Corrida seguinte do loop verificou o log ao vivo e encontrou prova ainda mais forte que o
+disparo manual do §5: o **próprio schtask agendado** (sem `--force`, sem intervenção) escreveu o
+trigger e entregou a mensagem sozinho:
+
+```
+[14/07/2026  0:17:03] STEP 0 FAIL: pending.trigger nao existe (gatilho nao disparado)  → exit=3
+                        (ciclo horário sem mudança de estado, comportamento esperado)
+[14/07/2026  1:17:02] pending.trigger escrito. browser-operador deve abrir chat novo no claude.ai.
+  STEP 0 OK: trigger lido, frase 273 chars
+  STEP 1 OK: app Claude ja aberto -> trazer p/ frente
+  STEP 2 OK: clicado no composer
+  STEP 3 OK: frase colada no composer
+  STEP 4: Enter pressionado
+  STEP 5 OK: mensagem enviada (prova)
+  STEP 6 OK: trigger consumido -> consumido-20260714T001745Z.trigger
+[14/07/2026  1:17:46] exit=0
+```
+
+`schtasks /Query /TN "Bora-heartbeat-desktop" /V`: Último resultado=0, Horário da última
+execução=14/07/2026 01:17:01, Hora da próxima execução=14/07/2026 02:17:00 — cadência horária
+confirmada em produção, com entrega real e exit code correto de ponta a ponta.
+
 ## 6. Pendências (não bloqueiam "1h ativo", ficam propostas para depois)
 
 - Watchdog equivalente para `heartbeat-browser.py` (Peça 1) — hoje só tem timeout de 15s por

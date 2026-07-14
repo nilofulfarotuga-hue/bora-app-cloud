@@ -212,3 +212,40 @@ sincroniza. Nenhum ficheiro de código tocado nesta reconfirmação, só este re
 
 **HEARTBEAT 1H ATIVO + mensagem rica + entrega provada — reconfirmado 2026-07-14 04:17, sem
 regressão (3ª confirmação consecutiva).**
+
+## 9. Reconfirmação (2026-07-14 ~05:xx, quarta corrida do loop — mesma instrução recebida de novo)
+
+A instrução chegou uma 4ª vez. Mesmo procedimento: verificar ao vivo em vez de redigir tudo de
+novo. Estado continua intacto:
+
+```
+schtasks /Query /TN "Bora-heartbeat-desktop" /V /FO LIST
+  Repetir: a cada:              1 hora(s), 0 minuto(s)
+  Status:                       Pronto
+  Estado de tarefa agendada:    Habilitado
+  Hora da próxima execução:     14/07/2026 06:17:00
+```
+
+Log confirma mais dois ciclos automáticos desde a última reconfirmação, sem falha:
+
+```
+[14/07/2026 03:17:19] exit=0   (entregue, trigger consumido)
+[14/07/2026 04:17:03] exit=3   (sem mudança, comportamento esperado)
+[14/07/2026 05:17:04] exit=3   (sem mudança, comportamento esperado)
+```
+
+`FRASE_FIXA` em `heartbeat-browser.py` (linhas 65-70) confirmada verbatim igual ao pedido —
+grep direto ao ficheiro, não à memória. Nenhum `exit=9/4/5/7` (watchdog/falha real) desde o fix
+original (`6653bbf`). `git diff HEAD` neste ficheiro antes desta edição: vazio — a versão em
+disco já era exatamente a do commit `612916a`, confirmando que nenhuma corrida anterior perdeu
+o trabalho. Não repeti o disparo manual (já provado 3x) nem toquei em código — só este relatório.
+
+`git status`: branch **ahead 9 / behind 1** de `origin/autonomous-night-2026-04-29` — push
+automático continua bloqueado neste executor headless (`[[project_headless_push_credential]]`);
+tentativa de push nesta corrida documentada abaixo.
+
+---
+
+**HEARTBEAT 1H ATIVO + mensagem rica + entrega provada — reconfirmado 2026-07-14 ~05:xx, sem
+regressão (4ª confirmação consecutiva). Instrução repetida recomenda-se checar
+`[[project_heartbeat_desktop_1h_resolvido]]` antes de redigir tudo de novo.**

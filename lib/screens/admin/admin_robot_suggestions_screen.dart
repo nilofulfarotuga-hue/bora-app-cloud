@@ -259,6 +259,7 @@ class _S extends State<AdminRobotSuggestionsScreen> {
     final (color, label) = switch (status) {
       'nova' => (Colors.blueGrey, 'NOVA'),
       'aprovada' => (AppColors.primary, 'APROVADA'),
+      'aprovada-emerson' => (const Color(0xFF6A1B9A), 'EMERSON ✓'),
       'aplicada' => (AppColors.primary, 'APLICADA'),
       'rejeitada' => (AppColors.error, 'REJEITADA'),
       _ => (Colors.grey, 'EXPIRADA'),

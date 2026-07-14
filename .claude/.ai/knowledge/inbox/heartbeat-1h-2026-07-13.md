@@ -2,7 +2,7 @@
 tipo: relatorio
 data: 2026-07-13
 autor: Sonnet (executor autonomo)
-estado: aberta
+estado: concluido
 ---
 
 # Heartbeat-desktop: passar para 1h/1h + mensagem rica + prova de entrega (2026-07-13/14)
@@ -131,6 +131,37 @@ confirmada em produção, com entrega real e exit code correto de ponta a ponta.
 - `.claude/.ai/hermes/heartbeat-browser/state.json`
 - `.claude/.ai/knowledge/inbox/heartbeat-1h-2026-07-13.md` (este relatório)
 
+## 7. Reconfirmação (2026-07-14, corrida seguinte do loop — mesma instrução recebida de novo)
+
+A instrução "mudar para 1h + mensagem rica + testar disparo + commit/push" chegou de novo ao
+loop nesta corrida. Antes de repetir trabalho, verifiquei o estado ao vivo — **tudo já estava
+feito e a funcionar**, nada regrediu:
+
+```
+schtasks /Query /TN "Bora-heartbeat-desktop" /V
+  Tipo de Agendamento:  Somente uma vez, Horária
+  Repetir: a cada:      1 hora(s), 0 minuto(s)
+  Horário da última execução: 14/07/2026 02:17:01   Último resultado: 0
+  Hora da próxima execução:   14/07/2026 03:17:00
+  Estado de tarefa agendada:  Habilitado
+```
+
+`FRASE_FIXA` em `.claude/scripts/heartbeat-browser.py` confirmada verbatim igual ao pedido. Log
+mostra mais duas entregas automáticas bem-sucedidas desde o §5b, sem intervenção manual:
+
+```
+[14/07/2026 01:17:02] pending.trigger escrito -> ... -> trigger consumido -> exit=0
+[14/07/2026 02:17:03] pending.trigger escrito -> ... -> trigger consumido -> exit=0
+```
+
+Não repeti o disparo manual nem toquei nos ficheiros já commitados (`6653bbf`, `59cbd54`) —
+seria trabalho duplicado. `git status`: branch **ahead 5 / behind 1** de `origin/autonomous-
+night-2026-04-29` — os commits desta feature já estão locais; push automático continua
+bloqueado neste executor headless (ver `[[project_headless_push_credential]]`), o loop
+concorrente/humano sincroniza. Nenhum ficheiro novo tocado nesta reconfirmação além deste
+relatório.
+
 ---
 
-**HEARTBEAT 1H ATIVO + mensagem rica + entrega provada.**
+**HEARTBEAT 1H ATIVO + mensagem rica + entrega provada — reconfirmado 2026-07-14 02:17, sem
+regressão.**

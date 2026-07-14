@@ -82,6 +82,37 @@ pc_exec(){ printf '%s' "$1" > "$HOSTDATA/orq_task.txt"
 pc_judge(){ printf '%s' "$1" > "$HOSTDATA/orq_judge.txt"
   docker exec -u hermes "$C" sh -lc 'export PATH=/opt/data/.local/bin:$PATH; timeout 400 pc-judge "$(cat /opt/data/orq_judge.txt)"' 2>&1 | clean; }
 
+# ---------------- EXECUÇÃO LOCAL NA VPS (2026-07-14, tira a dependência do PC de 4GB) ----------------
+# claude -p corre diretamente no host da VPS (wrapper /root/claude-vps-exec.sh, tarefa por
+# stdin) em vez de saltar por SSH/Tailscale até ao PC — o pc_exec acima fica como FALLBACK,
+# não é apagado. rc=124 (timeout, mesmo teto de 3600s do pc_exec) segue o fluxo normal
+# (vira TIMEOUT-3600s/SAIDA-VAZIA mais abaixo); só rc de erro real do wrapper (token
+# inválido, claude ausente, etc.) é que cai para o PC.
+VPS_EXEC=/root/claude-vps-exec.sh
+VPS_RC_FILE=/root/orquestracao/.vps-exec.rc
+VPS_FALLBACK_AVISADO=/root/orquestracao/.vps-exec-fallback.avisado
+vps_exec(){ # $1=tarefa -> saida (stdout+stderr do wrapper); grava rc em $VPS_RC_FILE
+  local out
+  out=$(printf '%s' "$1" | timeout 3600 bash "$VPS_EXEC" 2>&1)
+  echo $? > "$VPS_RC_FILE"
+  printf '%s' "$out"
+}
+exec_ordem(){ # $1=tarefa -> tenta VPS local; só cai para pc_exec em falha real do wrapper
+  local out rc
+  out=$(vps_exec "$1" | clean)
+  rc=$(cat "$VPS_RC_FILE" 2>/dev/null); rc=${rc:-1}
+  if [ "$rc" -eq 0 ] || [ "$rc" -eq 124 ]; then
+    rm -f "$VPS_FALLBACK_AVISADO"
+    printf '%s' "$out"; return
+  fi
+  log "VPS-EXEC falhou (rc=$rc) — fallback para o PC nesta ordem"
+  if [ ! -f "$VPS_FALLBACK_AVISADO" ]; then
+    notify "⚠️ Bora/orquestração: execução local na VPS falhou (rc=$rc) — esta ordem caiu para o fallback PC."
+    touch "$VPS_FALLBACK_AVISADO"
+  fi
+  pc_exec "$1"
+}
+
 # ---------------- LOCK-OCUPADO: executor.lock do PC recusou arrancar claude.exe ----------------
 # FASE 1.7 (2026-07-13): 6 ordens seguidas (4c87/859a/858e/14bc/93e0/39c5) travaram rotuladas
 # "JUIZ-SEM-VEREDITO" -- prova (saida.txt) mostrou que NENHUMA chegou a executar: o
@@ -344,7 +375,7 @@ Para libertar para a fila normal, responde aqui: vai $id"
     log "ordem $id: TRAVADA (5 tentativas)"; missao_travada_ou_silencio "$f" "$missao" "$passo"; continue; fi
 
   tent=$((tent+1)); setf tentativa "$tent" "$f"; setf estado executando "$f"
-  saida=$(pc_exec "$tarefa"); printf '%s\n' "$saida" > "$FILA/$id.saida.txt"
+  saida=$(exec_ordem "$tarefa"); printf '%s\n' "$saida" > "$FILA/$id.saida.txt"
   setf estado respondida "$f"; log "ordem $id: respondida (tentativa $tent)"
   vazio=0; [ -z "$(printf '%s' "$saida" | tr -d '[:space:]')" ] && vazio=1
 

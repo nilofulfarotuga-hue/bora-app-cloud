@@ -1,3 +1,55 @@
+# Chat guiado PARTE 1 — 7ª corrida: reconfirmação sem regressão, push continua bloqueado (2026-07-14)
+
+## Corrida 2026-07-14 (7ª confirmação, ordem "REFAZER" repetida)
+
+Ordem idêntica às anteriores: confirmar por leitura de código (não assumir) o que já
+existe, criar só o que faltar, corrigir a credencial de git push e garantir o push a
+`origin/autonomous-night-2026-04-29`. Resultado igual às 6 corridas anteriores — nada
+mudou no código nem na infraestrutura de push desde a 5ª corrida (`8cb04e4`, secção
+abaixo).
+
+**(1) O que já existe — reconfirmado por leitura direta:**
+- `git log --oneline -- lib/screens/*support*` mostra `61371a9 feat(suporte): chat
+  guiado por categoria + persona Hermes + escalação Telegram` como o commit que criou
+  tudo: `lib/screens/support_guided_menu_screen.dart` (menu guiado por categoria — PARTE
+  1), `lib/screens/support_human_chat_screen.dart` (falar com humano/Hermes — PARTE 2),
+  `lib/screens/admin/admin_support_escalations_screen.dart` +
+  `admin_support_categories_screen.dart` (admin), `.claude/scripts/hermes-suporte-
+  escalacao.sh` (gatilho VPS da escalação Telegram — PARTE 3).
+- Todos os 5 ficheiros confirmados presentes em disco nesta corrida. `git status
+  --short` neles = vazio (zero regressão, zero divergência da 6ª corrida `04cf9ba`).
+- **Nada foi recriado ou duplicado.**
+
+**(2) Push — diagnóstico local idêntico às corridas anteriores (LEI DO PRE-VOO: não
+repetir tentativa igual):**
+- `gh auth status` → "You are not logged into any GitHub hosts" (sem sessão).
+- `git push --dry-run` → falha em `wincredman` (sem `/dev/tty`, sem sessão
+  interativa) — mesmo erro das 6 corridas anteriores.
+- Sem `GITHUB_TOKEN`/`GH_TOKEN` em env, sem `~/.netrc`, sem `~/.git-credentials`, sem
+  `~/.config/gh` — nenhuma credencial não-interativa disponível no PC. "Corrigir a
+  credencial" não é executável neste ambiente headless sem intervenção humana (browser
+  device-flow do `gh auth login`, ou sessão interativa para o `wincredman`).
+- O caminho alternativo (bridge SSH PC→VPS + deploy key RW no clone
+  `/opt/data/bora-app-cloud` do container Hermes) já foi **encontrado e testado com
+  sucesso** na 5ª corrida — os commits locais já estão staged lá em
+  `refs/heads/from-pc-2026-07-14`, prontos para merge. Não repeti essa operação agora
+  (nada mudou desde então, e repetir o SSH/push de novo só arriscaria estado no
+  container Hermes sem ganho).
+- O bloqueio final continua a ser o mesmo, não a credencial: `.github/workflows/
+  build_android.yml` dispara build Android de produção + upload Google Play em
+  **qualquer** push para `autonomous-night-2026-04-29`. Isso é Lista Vermelha
+  ("builds de produção") mesmo com a credencial 100% funcional.
+
+⚠️ ISTO DISPARA UM BUILD DE PRODUÇÃO (Android/Play Store) AO EMPURRAR PARA O GITHUB.
+Está tudo pronto desde a 5ª corrida (commits já na VPS em `from-pc-2026-07-14`, só falta
+merge+push final) — confirma que eu aplico.
+
+**Resumo desta corrida:** sem alterações de código (nada faltava), sem push (bloqueio
+igual, já diagnosticado à exaustão — ver corrida original abaixo para o detalhe
+completo do caminho VPS).
+
+---
+
 # Chat guiado PARTE 1 — 5ª corrida: confirmação + caminho de push encontrado (bloqueado por Lista Vermelha) (2026-07-14)
 
 ## Ordem recebida

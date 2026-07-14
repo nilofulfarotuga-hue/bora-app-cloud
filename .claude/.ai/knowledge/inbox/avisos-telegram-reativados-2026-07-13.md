@@ -92,3 +92,22 @@ sobrescrito"). Antes de "corrigir" às cegas, segui a própria guarda registada 
 está a ver as mensagens no telemóvel apesar do `Sent to telegram` confirmado 2x, o próximo passo
 não é mexer no `carteiro.sh` — é confirmar do lado do Telegram (bot silenciado / notificações da
 conversa desligadas / bloqueio) diretamente na app.
+
+## Addendum — reconfirmação (2026-07-14T05:44Z), 3ª vez
+
+Ordem repetiu a mesma alegação pela 3ª vez no mesmo dia ("os vários deploys de hoje podem ter
+sobrescrito as chamadas Telegram"). A própria memória já dizia "se vier uma 3ª vez, não
+reinvestigar do zero" — por isso fiz só verificação leve, não a investigação completa:
+
+- `sha256sum` VPS (`/root/orquestracao/carteiro.sh`) = `cd8aaea...87b9` = **idêntico** ao local
+  e às 2 verificações anteriores. `grep -c 'notify "'` = 7 (inalterado).
+- `carteiro.log` mostrava `-> Telegram` com sucesso às `05:43:22Z` — 1 min antes desta
+  verificação (hora VPS: `05:44:36Z`).
+- Enviei 1 mensagem de teste real pelo mesmo caminho do carteiro → `Sent to telegram home
+  channel (chat_id: 6731890157)`.
+
+**3ª confirmação: continua falso alarme. Zero alterações a código, zero commit, zero push** —
+não havia nada para corrigir. Não vou repetir esta investigação uma 4ª vez sem evidência nova
+(ex.: log a mostrar "notify(best-effort) falhou", ou hash a divergir). Se o Danilo continua sem
+ver as mensagens no telemóvel, o problema está confirmado do lado do dispositivo/app Telegram,
+não do código — ele precisa de checar isso diretamente.

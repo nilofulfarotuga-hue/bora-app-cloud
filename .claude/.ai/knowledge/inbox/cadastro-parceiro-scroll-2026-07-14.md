@@ -65,3 +65,17 @@ analyze`). Recomenda-se confirmação visual do Danilo ao testar o build.
 
 ## Ficheiro tocado
 - `lib/screens/register_partner_screen.dart` (+4 linhas, 1 parâmetro)
+
+## Reconfirmação (2ª vez, mesma sessão de loop, 2026-07-14)
+Tarefa recebida de novo, idêntica à original. Fix de `physics: const
+NeverScrollableScrollPhysics()` no `Stepper` (linha 476) continua presente no
+working tree — sem regressão. Reconfirmado `flutter analyze
+lib/screens/register_partner_screen.dart` → 0 erros (mesmos 6
+warnings/infos pré-existentes de antes, nenhum novo).
+
+`git push` não foi executado: o branch local está 2 commits à frente do
+remoto mas **30 atrás** (CI já correu builds/version bumps entretanto);
+push para `autonomous-night-2026-04-29` dispara `build_android.yml`
+(build de produção / Play Store) — Lista Vermelha para o executor headless.
+Commit local (reconfirmação) fica pronto; push aguarda "vai" do Danilo ou
+janela de sync explícita.

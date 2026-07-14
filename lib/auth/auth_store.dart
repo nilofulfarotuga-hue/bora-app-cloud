@@ -128,6 +128,12 @@ class AuthStore extends ChangeNotifier {
   final _supabase = Supabase.instance.client;
   StreamSubscription<AuthState>? _authSubscription;
 
+  /// Mensagem devolvida quando o email já tem conta confirmada no Supabase
+  /// Auth — comparação por identidade (==) permite ao caller distinguir este
+  /// caso de outros erros sem re-parsear texto.
+  static const String duplicatePartnerEmailMessage =
+      'Este email já tem uma conta. Faz login em vez de criar uma nova conta.';
+
   static const _kRole = 'bora_role';
   static const _kName = 'bora_name';
   static const _kPhone = 'bora_phone';
@@ -326,6 +332,13 @@ class AuthStore extends ChangeNotifier {
       // _ensureGuestSession will re-establish a session immediately after.
       return;
     }
+
+    // Recuperação de palavra-passe: o Supabase cria uma sessão temporária ao
+    // abrir o link do email. NÃO hidratar conta aqui — isso "logaria" o
+    // utilizador direto no ecrã principal do seu papel antes de escolher a
+    // nova palavra-passe. main.dart escuta este evento à parte e abre o
+    // ResetPasswordScreen.
+    if (state.event == AuthChangeEvent.passwordRecovery) return;
 
     // L3 — o Supabase roda o refresh token a cada refresh; mantém o token
     // biométrico guardado em dia (só para papéis com biometria ativa e
@@ -946,9 +959,17 @@ class AuthStore extends ChangeNotifier {
     }
   }
 
+  /// Deep link para onde o Supabase reencaminha depois do clique no email de
+  /// recuperação. Tem de bater certo com o intent-filter do AndroidManifest
+  /// e estar na allow-list "Redirect URLs" do Supabase Auth (dashboard).
+  static const String _passwordResetRedirect = 'pt.boraapp.bora://reset-password';
+
   Future<void> resetDriverPassword(String email) async {
     try {
-      await _supabase.auth.resetPasswordForEmail(email.trim().toLowerCase());
+      await _supabase.auth.resetPasswordForEmail(
+        email.trim().toLowerCase(),
+        redirectTo: _passwordResetRedirect,
+      );
     } catch (e) {
       debugPrint('AuthStore: resetDriverPassword error => $e');
     }
@@ -957,7 +978,10 @@ class AuthStore extends ChangeNotifier {
   /// Generic password-reset email — works for any role (partner + driver).
   Future<void> resetPassword(String email) async {
     try {
-      await _supabase.auth.resetPasswordForEmail(email.trim().toLowerCase());
+      await _supabase.auth.resetPasswordForEmail(
+        email.trim().toLowerCase(),
+        redirectTo: _passwordResetRedirect,
+      );
     } catch (e) {
       debugPrint('AuthStore: resetPassword error => $e');
     }
@@ -1092,6 +1116,13 @@ class AuthStore extends ChangeNotifier {
         return 'Não foi possível criar a conta. Tente novamente.';
       }
 
+      // Supabase devolve um user "fantasma" com identities vazio quando o
+      // email já tem conta confirmada (proteção anti-enumeração) — não
+      // lança AuthException, por isso é preciso detetar aqui explicitamente.
+      if (user.identities == null || user.identities!.isEmpty) {
+        return duplicatePartnerEmailMessage;
+      }
+
       // Ensure session is active (some Supabase configs require email confirm).
       if (res.session == null) {
         try {
@@ -1119,7 +1150,14 @@ class AuthStore extends ChangeNotifier {
       _persistPartner(partner);
       return null;
     } on AuthException catch (e) {
-      // Surface Supabase errors (e.g. "User already registered") as-is.
+      // Caso real (validado ao vivo contra este projecto Supabase): conta já
+      // confirmada => 422 code=user_already_exists, NÃO o "user fantasma"
+      // de identities vazio. Sem este check, o erro chegava em inglês e sem
+      // isDuplicateEmail, e o ecrã não voltava ao passo "Conta de Acesso".
+      if (e.code == 'user_already_exists') {
+        return duplicatePartnerEmailMessage;
+      }
+      // Restantes erros do Supabase (ex.: password fraca) — mostra tal qual.
       return e.message;
     } catch (e) {
       return 'Erro ao criar conta. Tente novamente.';
@@ -1161,10 +1199,90 @@ class AuthStore extends ChangeNotifier {
 
     if (authError != null) {
       debugPrint('[AuthStore] registerPartnerWithDocumentsAsync: registerPartnerAsync failed => $authError');
-      return null; // Erro já foi retornado ao caller
+      return {
+        'error': authError,
+        'isDuplicateEmail': authError == duplicatePartnerEmailMessage,
+      };
     }
 
-    // Step 2: Invoca Edge Function register-partner c/ service_role
+    return _submitRestaurantEdgeFunction(
+      restaurantName: restaurantName,
+      address: address,
+      phone: phone,
+      email: email,
+      cuisineType: cuisineType,
+      category: category,
+      lat: lat,
+      lng: lng,
+      nif: nif,
+      iban: iban,
+      ownerDocUrl: ownerDocUrl,
+      activityDocUrl: activityDocUrl,
+    );
+  }
+
+  /// Retoma o registo de um parceiro que JÁ está autenticado (login com conta
+  /// existente) mas ainda não tem `restaurants`/`service_providers` — caso da
+  /// conta de acesso criada numa tentativa anterior cuja submissão falhou.
+  /// Ao contrário de [registerPartnerWithDocumentsAsync], NÃO chama
+  /// [registerPartnerAsync] (isso tentaria criar de novo o auth user e falha
+  /// sempre com "email já existe", prendendo o utilizador num loop mesmo já
+  /// autenticado). Usa a sessão Supabase corrente — a Edge Function
+  /// register-partner só precisa do JWT (extrai o user_id de lá).
+  Future<Map<String, dynamic>?> resumePartnerRegistrationAsync({
+    required String restaurantName,
+    required String address,
+    required String phone,
+    required String cuisineType,
+    required String category,
+    double? lat,
+    double? lng,
+    String? nif,
+    String? iban,
+    String? ownerDocUrl,
+    String? activityDocUrl,
+  }) async {
+    final partner = _currentPartner;
+    if (partner == null) {
+      return {
+        'error': 'Sessão expirada. Faz login novamente.',
+        'isDuplicateEmail': false,
+      };
+    }
+    return _submitRestaurantEdgeFunction(
+      restaurantName: restaurantName,
+      address: address,
+      phone: phone,
+      email: partner.email,
+      cuisineType: cuisineType,
+      category: category,
+      lat: lat,
+      lng: lng,
+      nif: nif,
+      iban: iban,
+      ownerDocUrl: ownerDocUrl,
+      activityDocUrl: activityDocUrl,
+    );
+  }
+
+  /// Invoca a Edge Function register-partner c/ service_role (Step 2 do
+  /// workflow de registo). Extraído para ser partilhado por
+  /// [registerPartnerWithDocumentsAsync] (fluxo novo, cria conta primeiro) e
+  /// [resumePartnerRegistrationAsync] (fluxo de retomada, já autenticado).
+  Future<Map<String, dynamic>?> _submitRestaurantEdgeFunction({
+    required String restaurantName,
+    required String address,
+    required String phone,
+    required String email,
+    required String cuisineType,
+    required String category,
+    double? lat,
+    double? lng,
+    String? nif,
+    String? iban,
+    String? ownerDocUrl,
+    String? activityDocUrl,
+  }) async {
     try {
       final response = await _supabase.functions.invoke(
         'register-partner',
@@ -1186,7 +1304,14 @@ class AuthStore extends ChangeNotifier {
 
       if (response.status != 201) {
         debugPrint('[AuthStore] register-partner EF returned ${response.status}: ${response.data}');
-        return null;
+        // A conta de acesso (email+senha) JÁ foi criada no passo anterior —
+        // não é um problema de email/password. Diz isso, para não confundir
+        // o utilizador a duvidar da senha que acabou de definir.
+        return {
+          'error':
+              'A tua conta de acesso foi criada, mas houve um erro ao registar o estabelecimento. Contacta o suporte — não precisas de repetir o email/senha.',
+          'isDuplicateEmail': false,
+        };
       }
 
       final data = Map<String, dynamic>.from(response.data as Map);
@@ -1197,8 +1322,12 @@ class AuthStore extends ChangeNotifier {
         'message': data['message'],
       };
     } catch (e) {
-      debugPrint('[AuthStore] registerPartnerWithDocumentsAsync: register-partner EF failed => $e');
-      return null;
+      debugPrint('[AuthStore] _submitRestaurantEdgeFunction failed => $e');
+      return {
+        'error':
+            'A tua conta de acesso foi criada, mas houve um erro de ligação ao registar o estabelecimento. Contacta o suporte — não precisas de repetir o email/senha.',
+        'isDuplicateEmail': false,
+      };
     }
   }
 

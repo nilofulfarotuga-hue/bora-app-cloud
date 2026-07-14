@@ -351,24 +351,23 @@ class _PartnerLoginScreenState extends State<PartnerLoginScreen> {
       // Persist FCM token for this partner device so push notifications work.
       NotificationService.instance.saveTokenForPartner(restaurant.id).ignore();
     } else {
-      // No `restaurants` row. A Serviços/Barbearias partner owns a
-      // `service_providers` record instead — let it through so _RootNavigator →
-      // PartnerEntryScreen routes to the marcações hub. Reject only when the
-      // account has neither a restaurant nor a service provider.
-      final hasServiceProvider = await _hasServiceProvider(appointmentsStore);
+      // No `restaurants` row. Two possibilities: (a) a Serviços/Barbearias
+      // partner, whose home is the marcações hub (`service_providers`
+      // record), or (b) a restaurant signup whose Edge Function call failed
+      // after the auth account was already created (login works, but the
+      // `restaurants` insert never happened). Rejecting login here used to
+      // log the partner straight back out with a generic error — trapping
+      // anyone in case (b), since they'd just log back in and hit the same
+      // wall. Let both cases through: _RootNavigator → PartnerEntryScreen →
+      // _PartnerNoRestaurantRouter resolves the marcações hub for (a) or the
+      // registration wizard (already-authenticated resume, no email/senha
+      // re-asked) for (b). Pre-warm the provider lookup here so
+      // _PartnerNoRestaurantRouter's FutureBuilder resolves instantly
+      // (loadMyProvider caches in the store) instead of showing a spinner.
+      try {
+        await appointmentsStore.loadMyProvider();
+      } catch (_) {}
       if (!mounted) return;
-      if (!hasServiceProvider) {
-        // L3 — bounce de validação, não "Sair": preserva biometria.
-        authStore.logout(wipeBiometrics: false);
-        setState(() => _isProcessing = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content:
-                Text('Não encontramos o restaurante associado a este email.'),
-          ),
-        );
-        return;
-      }
     }
 
     // L3 — oferece login biométrico (pergunta uma vez; antes do setRole
@@ -384,17 +383,6 @@ class _PartnerLoginScreenState extends State<PartnerLoginScreen> {
 
     if (Navigator.canPop(context)) {
       Navigator.of(context).popUntil((route) => route.isFirst);
-    }
-  }
-
-  /// True when the logged-in partner owns a `service_providers` record
-  /// (Serviços/Barbearias vertical). Lets service-only partners — who have no
-  /// `restaurants` row — into the app instead of rejecting login.
-  Future<bool> _hasServiceProvider(PartnerAppointmentsStore store) async {
-    try {
-      return (await store.loadMyProvider()) != null;
-    } catch (_) {
-      return false;
     }
   }
 }

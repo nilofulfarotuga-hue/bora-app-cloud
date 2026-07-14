@@ -59,11 +59,21 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
   int _currentStep = 0;
   bool _isSubmitting = false;
 
+  // Utilizador já autenticado (login com conta existente cuja submissão
+  // anterior falhou antes de criar o `restaurants`/`service_providers`) —
+  // não pede email/senha de novo, só retoma a criação do estabelecimento.
+  bool _alreadyAuthenticated = false;
+
   static const _kDraftKey = 'bora_app.signup_draft.partner';
 
   @override
   void initState() {
     super.initState();
+    final currentPartner = context.read<AuthStore>().currentPartner;
+    if (currentPartner != null) {
+      _alreadyAuthenticated = true;
+      _emailController.text = currentPartner.email;
+    }
     _recoverLostImage();
     _restoreDraft();
   }
@@ -120,8 +130,12 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
       if (address.isNotEmpty) _addressController.text = address;
       final phone = prefs.getString('$_kDraftKey.phone') ?? '';
       if (phone.isNotEmpty) _phoneController.text = phone;
-      final email = prefs.getString('$_kDraftKey.email') ?? '';
-      if (email.isNotEmpty) _emailController.text = email;
+      // Já autenticado: o email é o da conta existente, não o do rascunho
+      // (podem divergir se uma tentativa anterior falhou a meio do fluxo).
+      if (!_alreadyAuthenticated) {
+        final email = prefs.getString('$_kDraftKey.email') ?? '';
+        if (email.isNotEmpty) _emailController.text = email;
+      }
       final cuisine = prefs.getString('$_kDraftKey.cuisine') ?? '';
       if (cuisine.isNotEmpty) _cuisineController.text = cuisine;
       final categoryName = prefs.getString('$_kDraftKey.category');
@@ -250,18 +264,22 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
   }
 
   bool _validateStep3() {
-    if (_emailController.text.trim().isEmpty ||
-        !_emailController.text.contains('@')) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Email inválido')),
-      );
-      return false;
-    }
-    if (_passwordController.text.length < 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Senha mínima de 6 caracteres')),
-      );
-      return false;
+    // Já autenticado: email vem da conta existente e não pede senha de novo
+    // (ver _alreadyAuthenticated em initState).
+    if (!_alreadyAuthenticated) {
+      if (_emailController.text.trim().isEmpty ||
+          !_emailController.text.contains('@')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Email inválido')),
+        );
+        return false;
+      }
+      if (_passwordController.text.length < 6) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Senha mínima de 6 caracteres')),
+        );
+        return false;
+      }
     }
     if (!_acceptedTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -364,31 +382,58 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
         }
       }
 
-      // Registra parceiro com documentos
-      final result =
-          await authStore.registerPartnerWithDocumentsAsync(
-        restaurantName: _nameController.text,
-        address: _addressController.text,
-        phone: _phoneController.text,
-        email: _emailController.text,
-        password: _passwordController.text,
-        cuisineType: _cuisineController.text,
-        category: _selectedCategory.name,
-        lat: _pickupCoords?.latitude,
-        lng: _pickupCoords?.longitude,
-        nif: _nifController.text.isEmpty ? null : _nifController.text,
-        iban: _ibanController.text.isEmpty ? null : _ibanController.text,
-        ownerDocUrl: ownerDocUrl,
-        activityDocUrl: activityDocUrl,
-        consentAcceptedAt: DateTime.now().toUtc(),
-      );
+      // Já autenticado (login com conta existente sem restaurante criado)
+      // → retoma sem recriar a conta de acesso; caso contrário, fluxo novo.
+      final result = _alreadyAuthenticated
+          ? await authStore.resumePartnerRegistrationAsync(
+              restaurantName: _nameController.text,
+              address: _addressController.text,
+              phone: _phoneController.text,
+              cuisineType: _cuisineController.text,
+              category: _selectedCategory.name,
+              lat: _pickupCoords?.latitude,
+              lng: _pickupCoords?.longitude,
+              nif: _nifController.text.isEmpty ? null : _nifController.text,
+              iban: _ibanController.text.isEmpty ? null : _ibanController.text,
+              ownerDocUrl: ownerDocUrl,
+              activityDocUrl: activityDocUrl,
+            )
+          : await authStore.registerPartnerWithDocumentsAsync(
+              restaurantName: _nameController.text,
+              address: _addressController.text,
+              phone: _phoneController.text,
+              email: _emailController.text,
+              password: _passwordController.text,
+              cuisineType: _cuisineController.text,
+              category: _selectedCategory.name,
+              lat: _pickupCoords?.latitude,
+              lng: _pickupCoords?.longitude,
+              nif: _nifController.text.isEmpty ? null : _nifController.text,
+              iban: _ibanController.text.isEmpty ? null : _ibanController.text,
+              ownerDocUrl: ownerDocUrl,
+              activityDocUrl: activityDocUrl,
+              consentAcceptedAt: DateTime.now().toUtc(),
+            );
 
-      if (result == null) {
+      if (result == null || result['error'] != null) {
         if (!mounted) return;
-        setState(() => _isSubmitting = false);
-        debugPrint('[RegisterPartnerScreen] registerPartnerWithDocumentsAsync returned null');
+        final specificError = result?['error'] as String?;
+        final isDuplicateEmail = result?['isDuplicateEmail'] == true;
+        debugPrint('[RegisterPartnerScreen] registerPartnerWithDocumentsAsync failed => $specificError');
+        setState(() {
+          _isSubmitting = false;
+          if (isDuplicateEmail) {
+            _emailInlineError = specificError;
+            _currentStep = 2; // volta ao passo "Conta de Acesso"
+          }
+        });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro: Verifica email/password ou contacta support. Detalhes nos logs.')),
+          SnackBar(
+            content: Text(
+              specificError ??
+                  'Erro: Verifica email/password ou contacta support. Detalhes nos logs.',
+            ),
+          ),
         );
         return;
       }
@@ -566,7 +611,7 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
                     onChanged: (_) => _saveDraft(),
                     decoration: const InputDecoration(
                       labelText: 'IBAN (opcional)',
-                      hintText: 'PT + 22 dígitos',
+                      hintText: 'PT + 23 dígitos',
                       prefixIcon: Icon(Icons.account_balance),
                     ),
                   ),
@@ -647,42 +692,65 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
               state: _currentStep > 2 ? StepState.complete : StepState.indexed,
               content: Column(
                 children: [
-                  TextFormField(
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    onChanged: (_) {
-                      _saveDraft();
-                      if (_emailInlineError != null) {
-                        setState(() => _emailInlineError = null);
-                      }
-                    },
-                    decoration: InputDecoration(
-                      labelText: 'Email',
-                      prefixIcon: const Icon(Icons.email_outlined),
-                      errorText: _emailInlineError,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _passwordController,
-                    obscureText: _obscurePassword,
-                    decoration: InputDecoration(
-                      labelText: 'Senha',
-                      prefixIcon: const Icon(Icons.lock_outline),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscurePassword
-                              ? Icons.visibility_outlined
-                              : Icons.visibility_off_outlined,
+                  if (_alreadyAuthenticated)
+                    Card(
+                      color: AppColors.primary.withValues(alpha: 0.08),
+                      child: Padding(
+                        padding: const EdgeInsets.all(Spacing.md),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.check_circle,
+                                color: AppColors.primary),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Sessão iniciada como ${_emailController.text}. '
+                                'Não precisas de repetir email/senha — só falta '
+                                'concluir o registo do estabelecimento.',
+                              ),
+                            ),
+                          ],
                         ),
-                        onPressed: () {
-                          setState(() {
-                            _obscurePassword = !_obscurePassword;
-                          });
-                        },
+                      ),
+                    )
+                  else ...[
+                    TextFormField(
+                      controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      onChanged: (_) {
+                        _saveDraft();
+                        if (_emailInlineError != null) {
+                          setState(() => _emailInlineError = null);
+                        }
+                      },
+                      decoration: InputDecoration(
+                        labelText: 'Email',
+                        prefixIcon: const Icon(Icons.email_outlined),
+                        errorText: _emailInlineError,
                       ),
                     ),
-                  ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _passwordController,
+                      obscureText: _obscurePassword,
+                      decoration: InputDecoration(
+                        labelText: 'Senha',
+                        prefixIcon: const Icon(Icons.lock_outline),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscurePassword = !_obscurePassword;
+                            });
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: Spacing.xl),
                   CheckboxListTile(
                     value: _acceptedTerms,

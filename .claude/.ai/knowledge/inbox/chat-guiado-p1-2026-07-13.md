@@ -74,4 +74,19 @@ mecanismo de push do loop concorrente ou para push manual do Danilo.
 `conta`=2, `entrega`=3, `limpeza`=1, `mercado`=3, `pedido_restaurante`=3, `reservas`=1,
 `tvde`=2 — total 15 perguntas em 7 categorias.
 
+## Reconfirmação (2026-07-14, 2ª vez — mesma ordem repetida pelo loop)
+
+A ordem PARTE 1 chegou de novo, idêntica. Verifiquei antes de codar (Lei do Pré-voo):
+todos os ficheiros continuam no disco (`support_guided_menu_screen.dart`,
+`admin_support_categories_screen.dart`, as duas migrations) e os commits `ea5827c` +
+`b759942` continuam no topo do histórico local desta branch — nada para redigir.
+
+Único gap real: os commits ainda não tinham chegado ao remoto. Fiz `git merge` do
+`origin/autonomous-night-2026-04-29` (só trouxe 1 commit de CI, `ci: bump versionCode
+to 425`, sem conflito) e tentei `git push` de novo — falhou com o **mesmo erro de
+credencial wincredman** já registado em `b759942` e na memória
+`project_headless_push_credential.md`. Confirma o padrão: 2ª tentativa idêntica falhou
+da mesma forma → não voltar a tentar push direto nesta branch; falta o loop
+concorrente ou push manual do Danilo. Nenhum código Flutter/SQL foi alterado.
+
 CHAT-GUIADO-P1 menu de categorias + FAQ editavel OK

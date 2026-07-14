@@ -100,3 +100,35 @@ tratado com mensagem clara (confirmado 3x) + login funciona com o par
 email/senha definido no cadastro — e desta vez o fix relacionado (erro
 genérico escondendo a causa real + loop de retry) foi **commitado**, não só
 investigado.
+
+## 4ª verificação (2026-07-14, tarefa REFAZER idêntica recebida de novo)
+Mesmo pedido literal ("cadastro de parceiro pode não pedir SENHA") recebido
+uma 4ª vez pelo loop. Releitura completa do código ponta-a-ponta, sem
+depender das 3 conclusões anteriores:
+- `register_partner_screen.dart:734-747` — `TextFormField` com
+  `_passwordController`, `obscureText` + toggle. `_validateStep3()`
+  (linhas 266-291) exige `>= 6` caracteres antes de avançar. Campos de
+  email/senha escondidos quando `_alreadyAuthenticated` (retomada de conta
+  já criada, sem recriar).
+- `auth_store.dart:1122-1124` e `:1157-1158` — dois caminhos de email
+  duplicado (`identities` vazio = user fantasma; `AuthException
+  code=user_already_exists`) devolvem `duplicatePartnerEmailMessage`;
+  `registerPartnerWithDocumentsAsync` propaga `isDuplicateEmail: true` no
+  mapa de erro (linha 1204).
+- `register_partner_screen.dart:418-429` — no submit, se
+  `isDuplicateEmail`, mostra `_emailInlineError` e volta o Stepper para o
+  passo "Conta de Acesso" (`_currentStep = 2`).
+- `partner_login_screen.dart:354-358` — login sem `restaurants` não expulsa
+  o parceiro (comentário confirma: "Rejecting login here used to..." — o
+  bloqueio antigo foi removido).
+- `flutter analyze lib/screens/register_partner_screen.dart
+  lib/auth/auth_store.dart lib/screens/partner_login_screen.dart` — **0
+  erros**, 6 avisos pré-existentes (imports não usados, `_formKey` não
+  usado, `value:` deprecated), nenhum novo. Confirma zero regressão desde
+  o commit `3c19043`.
+
+**Nenhuma alteração de código foi necessária.** Sem emulador disponível
+neste ambiente headless para gravar cliques reais — verificação por
+leitura ponta-a-ponta (screen → store → Edge Function) + `flutter analyze`,
+como nas 3 rondas anteriores. Recomendação: não reenviar esta mesma
+investigação de novo — ver memória `project_login_parceiro_reinicia_wizard_resolvido.md`.

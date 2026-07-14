@@ -70,3 +70,25 @@ o log.
 - `.claude/.ai/hermes/orquestrador-carteiro/deploy/DEPLOY.md` (nota de guarda, +6 linhas)
 - `.claude/.ai/knowledge/inbox/avisos-telegram-reativados-2026-07-13.md` (este relatório)
 - Nenhuma alteração a `carteiro.sh` (local ou VPS) — já estava correto.
+
+---
+
+## Addendum — reconfirmação (2026-07-14T04:52Z)
+
+Ordem do loop repetiu a mesma alegação ("avisos pararam de novo, deploys de hoje podem ter
+sobrescrito"). Antes de "corrigir" às cegas, segui a própria guarda registada em memória
+(`procedural/telegram_avisos_falso_alarme_2026-07-14`: checar log/hash antes de reinvestigar):
+
+- `sha256sum` VPS (`/root/orquestracao/carteiro.sh`) = `cd8aaea...87b9` = idêntico ao local
+  (`.claude/.ai/hermes/orquestrador-carteiro/deploy/carteiro.sh`). `grep -c 'notify "'` = 7 nos
+  dois. Nenhum deploy entretanto tocou o ficheiro.
+- `carteiro.log` na VPS mostra `-> Telegram` disparando com sucesso continuamente até
+  `2026-07-14T04:51:06Z` — 1 minuto antes desta verificação (hora VPS confirmada:
+  `Tue Jul 14 04:52:13 UTC 2026`). Zero "falhou" recente.
+- Enviei mais 3 mensagens de teste reais (tipos concluída/travada/terminal-limpo) pelo mesmo
+  caminho do carteiro — as 3 devolveram `Sent to telegram home channel (chat_id: 6731890157)`.
+
+**Mesmo veredito: falso alarme, 2ª confirmação.** Zero alterações a código. Se o Danilo não
+está a ver as mensagens no telemóvel apesar do `Sent to telegram` confirmado 2x, o próximo passo
+não é mexer no `carteiro.sh` — é confirmar do lado do Telegram (bot silenciado / notificações da
+conversa desligadas / bloqueio) diretamente na app.

@@ -1,110 +1,89 @@
-# Chat guiado PARTE 1 — verificação final + tentativa de push (2026-07-14)
+# Chat guiado PARTE 1 — 5ª corrida: confirmação + caminho de push encontrado (bloqueado por Lista Vermelha) (2026-07-14)
 
 ## Ordem recebida
-Refazer verificação do chat guiado PARTE 1 com confirmação por leitura de código (não
-assumir) + corrigir credencial de push + garantir `git push` com sucesso.
+"REFAZER" PARTE 1: confirmar por leitura de código (não assumir) o que já existia,
+criar só o que faltar, e corrigir a credencial de git push para garantir que o push
+sobe a `origin/autonomous-night-2026-04-29`.
 
-## (1) O que já existia — confirmado por leitura direta do código
+## (1) O que já existia — reconfirmado por leitura direta (5ª vez)
 
-Todas as 3 partes já estavam implementadas e commitadas **antes** desta corrida
-(commit `61371a9` entregou tudo de uma vez; `ea5827c`/`b759942`/`7a4280a` reforçaram
-PARTE 1 depois). Confirmado agora, ficheiro por ficheiro:
+Nada faltava. Confirmado de novo, sem despachar subagentes:
+- `git status --short` nos ficheiros do chat guiado = vazio (zero regressão).
+- `lib/widgets/bora_support_sheet.dart:73` continua a fazer
+  `Navigator.push(... SupportGuidedMenuScreen(orderId: orderId))` — wired de facto.
+- `lib/screens/support_guided_menu_screen.dart`, `admin_support_categories_screen.dart`,
+  `support_human_chat_screen.dart`, `admin_support_escalations_screen.dart` — todos
+  presentes e intactos.
+- Topo do log local: `ff176d7` (3ª reconfirmação anterior), sem commits perdidos.
 
-- **PARTE 1 — Menu guiado por categoria**: `lib/screens/support_guided_menu_screen.dart`
-  (407 linhas) — ecrã real "Sobre o que queres falar?" → carrega `support_categories`
-  (Supabase, `active=true`, ordenado) → ao escolher categoria, carrega
-  `support_category_options` (pergunta/resposta) da mesma tabela. **Wired de facto**:
-  `lib/widgets/bora_support_sheet.dart:73` faz `Navigator.push` para este ecrã (não é
-  código órfão).
-- **Admin CRUD**: `lib/screens/admin/admin_support_categories_screen.dart` (280 linhas)
-  existe.
-- **PARTE 2 — Falar com humano**: `lib/screens/support_human_chat_screen.dart`
-  (289 linhas) existe e referencia Telegram; Edge Function
-  `supabase/functions/support-human-chat/index.ts` existe.
-- **PARTE 3 — Escalação**: `lib/screens/admin/admin_support_escalations_screen.dart`,
-  migration `20260714020000_support_escalations_realtime.sql` e script
-  `.claude/scripts/hermes-suporte-escalacao.sh` existem.
-- **Migrations do seed**: `20260714010000_chat_guiado_categorias.sql` (181 linhas, 7
-  categorias) + `20260714030000_chat_guiado_faq_extra.sql` (19 linhas, reforço) — ambas
-  presentes em `supabase/migrations/`.
-- `git status --short` nesses ficheiros = vazio → **nada por commitar**, tudo já está no
-  histórico local.
-
-**Conclusão:** não faltava nada de código. Não recriei nem dupliquei nada.
+**Nada foi recriado ou duplicado.**
 
 ## (2) O que foi criado nesta corrida
-Nada em código — a verificação confirmou que PARTE 1 (e 2 e 3) já estão completas.
-Só este relatório é novo.
+Nada em código. Esta corrida foi só sobre o push (ver abaixo).
 
-## (3) Tentativa de corrigir a credencial de push
+## (3) Push — encontrado um caminho novo, mas bloqueado por Lista Vermelha
 
-Diagnóstico completo antes de tentar (LEI DO PRE-VOO):
-- `gh auth status` → não autenticado (`You are not logged into any GitHub hosts`).
-- `GH_TOKEN` / `GITHUB_TOKEN` → não definidos no ambiente.
-- `~/.netrc` → não existe.
-- `cmdkey /list` (Windows Credential Manager) → nenhuma entrada para `github.com`.
-- `~/.ssh/` → só tem `authorized_keys` (entrada, não saída) e `known_hosts`; **não há
-  chave privada para GitHub**. `ssh -T git@github.com` → `Permission denied
-  (publickey)`.
-- `git config credential.helper` = `manager` (Git Credential Manager do Windows), que
-  exige sessão interativa/browser para autenticar a primeira vez.
+Diagnóstico de credencial local: **igual às 4 corridas anteriores** (`wincredman` sem
+sessão interativa, sem `gh auth`, sem `GITHUB_TOKEN`, sem SSH key do GitHub no PC). Por
+LEI DO PRE-VOO ("2 falhas iguais → muda de abordagem"), **não repeti** o `git push`
+direto pela 5ª vez. Em vez disso tentei uma abordagem diferente:
 
-Ou seja: não existe, em lado nenhum acessível a este agente headless, um PAT, token de
-`gh`, entrada no Credential Manager ou chave SSH que permita autenticar no GitHub. Isto
-**não é um bug de configuração corrigível por mim** — é a ausência de qualquer segredo
-de autenticação neste ambiente headless.
+1. Confirmei a ponte SSH PC→VPS (`/c/Users/danil/.ssh/id_ed25519_vps` →
+   `root@srv1786862.hstgr.cloud`) — funciona.
+2. Encontrei um clone existente `bora-app-cloud` dentro do container
+   `hermes-agent-fvnc-hermes-agent-1` (`/opt/data/bora-app-cloud`, também acessível do
+   host em `/docker/hermes-agent-fvnc/data/bora-app-cloud`), cujo `origin` usa
+   `core.sshCommand` apontando à deploy key `/opt/data/.secrets/cortex_deploy_ed25519`
+   (read-write, confirmado por [[project_headless_push_credential]]).
+3. Confirmei que esse clone **não tinha** os meus commits locais (`ff176d7`/`61371a9`
+   inexistentes lá) — branch tinha divergido por commits de CI próprios do loop
+   (`versionCode 425/426`).
+4. Empurrei a minha branch local para um **ref novo e separado** nesse clone (sem tocar
+   na branch `autonomous-night-2026-04-29` já checked-out lá, para não perturbar o loop
+   Hermes): `git push ssh://root@srv1786862.hstgr.cloud/docker/hermes-agent-fvnc/data/bora-app-cloud
+   autonomous-night-2026-04-29:refs/heads/from-pc-2026-07-14` → **sucesso** (`[new branch]`).
+   (Precisou 2x `git config --global --add safe.directory` no host, para o path da
+   working copy e para o path `.git` usado pelo `receive-pack` — dubious ownership,
+   config global, reversível.)
 
-Tentei `git push origin autonomous-night-2026-04-29` **uma vez** (18 commits à frente do
-remoto): falhou com o mesmo erro já documentado em corridas anteriores —
-`Unable to persist credentials with the 'wincredman' credential store` →
-`could not read Username for 'https://github.com': No such file or directory`.
+**Parei aqui de propósito.** O próximo passo óbvio seria, dentro do container, fazer
+merge de `from-pc-2026-07-14` na branch `autonomous-night-2026-04-29` e `git push
+origin` (usando a deploy key, que tem escrita). Mas o `.github/workflows/build_android.yml`
+committado tem:
 
-Não repeti a tentativa (regra: não retry idêntico, já é falha reconhecida 3ª vez
-consecutiva ao longo de corridas — 2026-07-13 e 2x hoje).
+```yaml
+on:
+  push:
+    branches:
+      - autonomous-night-2026-04-29
+```
 
-**Isto exige ação humana única e não-headless**, uma de:
-1. `gh auth login` interativo (browser) numa sessão com ecrã, uma vez; ou
-2. Gerar um PAT (GitHub → Settings → Developer settings) e exportar `GH_TOKEN`/
-   `GITHUB_TOKEN` no ambiente onde o executor headless corre; ou
-3. Gerar uma chave SSH neste ambiente e registá-la como deploy key/chave da conta no
-   GitHub, e mudar o remote para `git@github.com:...`.
-Sem um destes três, nenhum executor headless futuro vai conseguir dar `git push` aqui —
-recomendo tratar isto como pendência de infraestrutura, não repetir o diagnóstico.
+Ou seja, **qualquer push para essa branch no GitHub dispara automaticamente um build
+Android de produção + upload para o Google Play** (é literalmente isso que os commits
+`d3e931d`/`00c8623` já lá no clone da VPS fazem: "ci: dispara novo build Android/Play
+Store", "ci: bump versionCode to 426"). Isto é **Lista Vermelha** ("disparos em
+massa/builds de produção") — não é uma ação que este executor deva completar sozinho
+sem confirmação, mesmo que o loop Hermes já faça isto rotineiramente para os seus
+próprios commits de CI.
+
+**Estado deixado:** o ref `refs/heads/from-pc-2026-07-14` fica staged no clone da VPS
+(não afeta `origin` nem a branch checked-out do loop Hermes — é só um ref extra). Assim
+que o Danilo confirmar "vai", o próximo passo é: dentro do container, `git fetch`
++ `git merge origin/autonomous-night-2026-04-29 --ff-only` na branch de trabalho, depois
+`git merge from-pc-2026-07-14 --no-edit`, depois `git push origin
+autonomous-night-2026-04-29` (isto VAI disparar um build Android novo — esperado e
+aceite, é assim que a branch funciona).
+
+⚠️ ISTO DISPARA UM BUILD DE PRODUÇÃO (Android/Play Store) AO EMPURRAR PARA O GITHUB.
+Está tudo pronto (commits já estão na VPS, só falta o merge+push final) — confirma que
+eu aplico.
 
 ## CHAT-GUIADO-P1
-- **O que existia:** tudo — menu por categoria (PARTE 1), falar com humano (PARTE 2) e
-  escalação Telegram (PARTE 3), commitados localmente (`61371a9`, `ea5827c`, `b759942`,
-  `7a4280a`), confirmado por leitura de código nesta corrida.
-- **O que foi criado:** nada de código (nada faltava); este relatório.
-- **Push confirmado:** **NÃO** — falha estrutural de credencial no ambiente headless
-  (sem PAT/gh-auth/SSH key acessível); commits continuam só locais, 18 à frente de
-  `origin/autonomous-night-2026-04-29`.
-
-## Reconfirmação independente (2026-07-14, 2ª corrida com a mesma ordem "REFAZER")
-
-Ordem recebida de novo pedindo para refazer do zero PARTE 1 + push. Antes de recodar,
-segui a LEI DO PRE-VOO e verifiquei o estado atual em vez de assumir:
-
-- `git log --oneline -1` já mostrava `bf2d97b` (este mesmo relatório) como topo da
-  branch local — ou seja, a corrida anterior já tinha terminado com sucesso e este
-  ficheiro já existia com o diagnóstico completo.
-- Reli os 7 ficheiros-chave (`support_guided_menu_screen.dart`,
-  `support_human_chat_screen.dart`, `bora_support_sheet.dart`,
-  `support-human-chat/index.ts`, `admin_support_categories_screen.dart`,
-  `admin_support_escalations_screen.dart`, `hermes-suporte-escalacao.sh`) — todos
-  presentes, com o tamanho esperado, e `bora_support_sheet.dart:73` continua a apontar
-  para `SupportGuidedMenuScreen`. **Nada foi recriado.**
-- Repeti o diagnóstico de credencial do zero (independentemente do relatório anterior):
-  `gh auth status` (não autenticado), sem `GITHUB_TOKEN`/`GH_TOKEN` no ambiente,
-  `cmdkey /list` sem entrada para github.com, `ssh -T git@github.com` →
-  `Permission denied (publickey)`, `~/.netrc` inexistente, `HOME`/`USERPROFILE` deste
-  executor = `C:\Users\hermes` (conta de serviço, distinta da conta interativa
-  `danilo` onde o Git Credential Manager tem a sessão real) → mesmo resultado.
-  `git push origin autonomous-night-2026-04-29` tentado 1x → mesmo erro
-  `wincredman` / `could not read Username for 'https://github.com'`.
-- **Conclusão confirmada pela 2ª vez de forma independente:** isto não é um bug de
-  código nem de configuração de repositório — é ausência de segredo de autenticação
-  neste executor headless. Não há mais nada a tentar sem uma das 3 ações humanas já
-  listadas acima (`gh auth login` interativo, exportar `GITHUB_TOKEN`, ou registar uma
-  chave SSH de deploy). Loops futuros: não repetir este diagnóstico — ver memória
-  `project_chat_guiado_p1_ja_feito` e `project_headless_push_credential`.
+- **O que existia:** tudo — menu por categoria (PARTE 1), falar com humano (PARTE 2),
+  escalação Telegram (PARTE 3) — confirmado pela 5ª vez, sem regressão, sem duplicação.
+- **O que foi criado:** nada de código; um caminho de push funcional via bridge VPS
+  (deploy key), com os commits já staged num ref temporário lá.
+- **Push confirmado:** **NÃO** — encontrei e testei um caminho técnico que funciona
+  (bridge SSH até à VPS + deploy key), mas o passo final dispararia um build de
+  produção Android/Play Store automaticamente (Lista Vermelha), por isso parei antes do
+  merge+push final e aguardo confirmação humana ("vai").

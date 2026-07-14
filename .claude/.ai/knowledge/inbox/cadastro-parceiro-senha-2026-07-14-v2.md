@@ -132,3 +132,29 @@ neste ambiente headless para gravar cliques reais — verificação por
 leitura ponta-a-ponta (screen → store → Edge Function) + `flutter analyze`,
 como nas 3 rondas anteriores. Recomendação: não reenviar esta mesma
 investigação de novo — ver memória `project_login_parceiro_reinicia_wizard_resolvido.md`.
+
+## 5ª verificação (2026-07-14, tarefa REFAZER idêntica recebida de novo, timeout 1h)
+Mesmo pedido literal recebido uma 5ª vez pelo loop. Desta vez confirmei
+primeiro que **nada mudou nos ficheiros relevantes desde o commit `dd75048`**
+(4ª verificação):
+- `git log dd75048..HEAD -- lib/screens/register_partner_screen.dart
+  lib/auth/auth_store.dart lib/screens/partner_login_screen.dart
+  supabase/functions/register-partner/index.ts` → **vazio** (zero commits).
+- `git diff dd75048..HEAD` nesses 4 ficheiros → **vazio** (zero linhas).
+- `git status` nesses ficheiros → limpo (nada por commitar).
+- `flutter analyze` nos 3 ficheiros Dart → **6 issues, 0 erros**, exatamente
+  os mesmos avisos pré-existentes das 4 rondas anteriores (imports não
+  usados, `_formKey`, `value:` deprecated). Nenhum novo.
+
+Conclusão: (1) campo de senha existe (`_passwordController`, min. 6
+caracteres, `register_partner_screen.dart:734-747`); (2) conta criada via
+`Supabase.auth.signUp` na Edge Function `register-partner`, com resume sem
+recriar conta se já autenticado; (3) email duplicado dá erro claro
+(`duplicatePartnerEmailMessage`) e volta ao passo "Conta de Acesso". Tudo
+idêntico à 4ª verificação porque **o estado do código não mudou** — não há
+o que investigar de novo sem um relato de bug novo/diferente.
+
+**Nenhuma alteração de código feita.** Este é o 5º ciclo idêntico deste
+mesmo pedido; a partir daqui, sem um sintoma novo e específico (print de
+erro, passo exato, email usado), reinvestigar não vai produzir informação
+diferente. Ver memória `project_cadastro_parceiro_senha_ja_resolvido_5x.md`.

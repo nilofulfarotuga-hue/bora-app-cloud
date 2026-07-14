@@ -46,6 +46,8 @@ import 'admin_referrals_screen.dart';
 import 'admin_search_kpi_screen.dart';
 import 'admin_send_notification_screen.dart';
 import 'admin_settlements_screen.dart';
+import 'admin_support_categories_screen.dart';
+import 'admin_support_escalations_screen.dart';
 import 'admin_support_stats_screen.dart';
 import 'admin_knowledge_screen.dart';
 import 'admin_pending_actions_screen.dart';
@@ -1111,6 +1113,30 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       MaterialPageRoute(
                           builder: (_) =>
                               const AdminSupportTicketsScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.forum_outlined,
+                  title: 'Suporte — Escalações',
+                  subtitle: 'Chat guiado: perguntas que a Thayline/Thabyta passou',
+                  color: Colors.indigo,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminSupportEscalationsScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.menu_book_outlined,
+                  title: 'Suporte — Menu do Chat',
+                  subtitle: 'Editar categorias/perguntas do chat guiado',
+                  color: Colors.indigo,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminSupportCategoriesScreen())),
                 ),
                 const SizedBox(height: 10),
                 _NavCard(

@@ -457,6 +457,10 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
       body: SafeArea(
         child: SingleChildScrollView(
           child: Stepper(
+            // Nested dentro de SingleChildScrollView — sem isto, o ListView
+            // interno do Stepper disputa o gesto de arrastar com o scroll
+            // externo e a tela fica presa (não desce até ao botão de submeter).
+            physics: const NeverScrollableScrollPhysics(),
             currentStep: _currentStep,
             onStepContinue: () {
             if (_currentStep == 0 && !_validateStep1()) return;

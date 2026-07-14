@@ -79,3 +79,38 @@ push para `autonomous-night-2026-04-29` dispara `build_android.yml`
 (build de produção / Play Store) — Lista Vermelha para o executor headless.
 Commit local (reconfirmação) fica pronto; push aguarda "vai" do Danilo ou
 janela de sync explícita.
+
+## Reconfirmação (3ª vez, mesma sessão de loop, 2026-07-14)
+Tarefa recebida de novo, texto idêntico ao original. `physics: const
+NeverScrollableScrollPhysics()` no `Stepper` (linha 508, código moveu por
+causa de trabalho não relacionado em curso no ficheiro) continua presente,
+com o comentário explicativo intacto. `flutter analyze
+lib/screens/register_partner_screen.dart` → 0 erros, mesmos 6
+warnings/infos pré-existentes (imports não usados + `_formKey` + `value:`
+deprecated), nenhum novo.
+
+Havia alterações não commitadas no ficheiro no início desta sessão (fluxo
+"parceiro já autenticado retoma cadastro" — feature separada, em curso),
+não relacionadas com o scroll — não tocadas nesta verificação.
+
+Nenhum commit criado (nada mudou no fix). Ver [[cadastro_parceiro_scroll_resolvido]]
+na memória permanente — este pedido já é a 3ª repetição idêntica do loop.
+
+## Reconfirmação (4ª vez, mesma sessão de loop, 2026-07-14)
+Tarefa recebida de novo, texto idêntico ao original (incluindo o pedido de
+verificar os wizards de estafeta e limpeza). Confirmado outra vez:
+- `lib/screens/register_partner_screen.dart` — `SingleChildScrollView` em
+  torno do `Stepper` com `physics: const NeverScrollableScrollPhysics()`
+  continua presente (linha 508), ficheiro sem alterações desde a última
+  reconfirmação (`git status` limpo para este ficheiro).
+- `lib/screens/driver_signup_screen.dart` — `Stepper` continua direto em
+  `body: Form(child: Stepper(...))`, sem aninhamento de scroll; não precisa
+  do fix.
+- `lib/screens/cleaner/cleaner_apply_screen.dart` — continua sem `Stepper`
+  (ListView simples); não precisa do fix.
+- `flutter analyze lib/screens/register_partner_screen.dart` → 0 erros,
+  mesmos 6 warnings/infos pré-existentes, nenhum novo.
+
+Nenhum commit de código criado (nada mudou no fix). Push de código continua
+sem sentido aqui — nada por enviar além desta doc. Este pedido já é a 4ª
+repetição idêntica do loop; ver [[cadastro_parceiro_scroll_resolvido]].

@@ -18,6 +18,12 @@ Cópias versionadas dos artefactos que correm em produção. Onde cada um vive:
 - `carteiro.sh` — dispatcher determinístico. T5 kill switch → T3 zona-vermelha → T1 (5) →
   `pc-loop` (executor) → escreve `saida` → `pc-judge` → veredito → aprovada/corrigir/travada →
   `hermes send -t telegram`. `flock` serializa.
+  **Guarda (2026-07-14):** este ficheiro tem 7 chamadas `notify "..."` (conclusão/passo travado/
+  tarefa travada/zona vermelha/rate-limit/conclusão/terminal-limpo). Qualquer edição feita
+  diretamente na VPS tem de ser copiada de volta para este ficheiro (fonte git) — nunca o
+  contrário — e `grep -c 'notify "' carteiro.sh` deve continuar ≥7 antes de dar a alteração
+  por fechada. Verificação rápida: `sha256sum` local vs `/root/orquestracao/carteiro.sh` têm de
+  bater certo.
 - `campainha.sh` — watcher **inotify** (event-driven, NÃO polling) da fila → corre o carteiro.
 - `/etc/systemd/system/orq-campainha.service` — corre a campainha (Restart=always, enabled).
 - cron `17 * * * *` — fallback lento (rede de segurança).

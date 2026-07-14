@@ -111,3 +111,18 @@ não havia nada para corrigir. Não vou repetir esta investigação uma 4ª vez 
 (ex.: log a mostrar "notify(best-effort) falhou", ou hash a divergir). Se o Danilo continua sem
 ver as mensagens no telemóvel, o problema está confirmado do lado do dispositivo/app Telegram,
 não do código — ele precisa de checar isso diretamente.
+
+## Addendum — 4ª ocorrência (mesma ordem, sem evidência nova) — NÃO reinvestigada
+
+Ordem do loop repetiu a mesma alegação genérica ("os vários deploys de hoje podem ter
+sobrescrito as chamadas Telegram") pela 4ª vez, sem citar nenhum sintoma novo (nenhum trecho de
+log com "falhou", nenhum hash divergente, nenhuma mensagem de teste que não chegou). Conforme
+decidido explicitamente na 3ª confirmação acima, **não fiz SSH nem reabri a investigação** — o
+custo de reverificar já não se justifica sem sinal novo.
+
+**Zero alterações, zero SSH, zero commit de código.** Isto já não é um problema técnico — é a
+mesma instrução a repetir-se no loop autónomo (padrão idêntico ao já catalogado em
+`procedural/zona_vermelha_gate_pressure_pattern`). Se a fonte da ordem continuar a gerar esta
+alegação, o passo seguinte não é investigar de novo — é o Danilo (a) confirmar diretamente na
+app Telegram se as notificações chegam (bot pode estar silenciado no telemóvel, não no código),
+e (b) revisar/desativar a origem que continua a reenviar esta mesma instrução ao loop.

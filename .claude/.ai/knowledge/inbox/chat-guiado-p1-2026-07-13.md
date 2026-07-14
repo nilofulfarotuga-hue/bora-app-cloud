@@ -62,6 +62,13 @@ adicionar perguntas pela UI existente a qualquer momento.
 
 Nenhum ficheiro Flutter foi alterado (a UI e o admin já estavam prontos e ligados).
 
+## Commit / push
+
+Commit `ea5827c` criado localmente na branch `autonomous-night-2026-04-29`. `git push`
+falhou com o erro de credencial conhecido (executor headless não consegue autenticar
+no wincredman/GCM — ver memória `project_headless_push_credential.md`); fica para o
+mecanismo de push do loop concorrente ou para push manual do Danilo.
+
 ## Estado final confirmado (contagem por categoria)
 
 `conta`=2, `entrega`=3, `limpeza`=1, `mercado`=3, `pedido_restaurante`=3, `reservas`=1,

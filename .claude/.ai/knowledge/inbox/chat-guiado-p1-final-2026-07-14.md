@@ -79,3 +79,32 @@ recomendo tratar isto como pendência de infraestrutura, não repetir o diagnós
 - **Push confirmado:** **NÃO** — falha estrutural de credencial no ambiente headless
   (sem PAT/gh-auth/SSH key acessível); commits continuam só locais, 18 à frente de
   `origin/autonomous-night-2026-04-29`.
+
+## Reconfirmação independente (2026-07-14, 2ª corrida com a mesma ordem "REFAZER")
+
+Ordem recebida de novo pedindo para refazer do zero PARTE 1 + push. Antes de recodar,
+segui a LEI DO PRE-VOO e verifiquei o estado atual em vez de assumir:
+
+- `git log --oneline -1` já mostrava `bf2d97b` (este mesmo relatório) como topo da
+  branch local — ou seja, a corrida anterior já tinha terminado com sucesso e este
+  ficheiro já existia com o diagnóstico completo.
+- Reli os 7 ficheiros-chave (`support_guided_menu_screen.dart`,
+  `support_human_chat_screen.dart`, `bora_support_sheet.dart`,
+  `support-human-chat/index.ts`, `admin_support_categories_screen.dart`,
+  `admin_support_escalations_screen.dart`, `hermes-suporte-escalacao.sh`) — todos
+  presentes, com o tamanho esperado, e `bora_support_sheet.dart:73` continua a apontar
+  para `SupportGuidedMenuScreen`. **Nada foi recriado.**
+- Repeti o diagnóstico de credencial do zero (independentemente do relatório anterior):
+  `gh auth status` (não autenticado), sem `GITHUB_TOKEN`/`GH_TOKEN` no ambiente,
+  `cmdkey /list` sem entrada para github.com, `ssh -T git@github.com` →
+  `Permission denied (publickey)`, `~/.netrc` inexistente, `HOME`/`USERPROFILE` deste
+  executor = `C:\Users\hermes` (conta de serviço, distinta da conta interativa
+  `danilo` onde o Git Credential Manager tem a sessão real) → mesmo resultado.
+  `git push origin autonomous-night-2026-04-29` tentado 1x → mesmo erro
+  `wincredman` / `could not read Username for 'https://github.com'`.
+- **Conclusão confirmada pela 2ª vez de forma independente:** isto não é um bug de
+  código nem de configuração de repositório — é ausência de segredo de autenticação
+  neste executor headless. Não há mais nada a tentar sem uma das 3 ações humanas já
+  listadas acima (`gh auth login` interativo, exportar `GITHUB_TOKEN`, ou registar uma
+  chave SSH de deploy). Loops futuros: não repetir este diagnóstico — ver memória
+  `project_chat_guiado_p1_ja_feito` e `project_headless_push_credential`.

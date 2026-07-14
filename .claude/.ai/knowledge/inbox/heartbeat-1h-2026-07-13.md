@@ -165,3 +165,50 @@ relatório.
 
 **HEARTBEAT 1H ATIVO + mensagem rica + entrega provada — reconfirmado 2026-07-14 02:17, sem
 regressão.**
+
+## 8. Reconfirmação (2026-07-14 04:xx, terceira corrida do loop — mesma instrução recebida de novo)
+
+A instrução "diagnosticar + mudar para 1h + mensagem rica + testar + commit/push" chegou uma
+terceira vez a este loop. Repeti a verificação ao vivo em vez de redigir tudo de novo — estado
+continua intacto, nenhuma regressão:
+
+```
+schtasks /Query /TN "Bora-heartbeat-desktop" /V /FO LIST
+  Tipo de Agendamento:         Somente uma vez, Horária
+  Repetir: a cada:             1 hora(s), 0 minuto(s)
+  Horário da última execução:  14/07/2026 04:17:01   Último resultado: 3
+  Hora da próxima execução:    14/07/2026 05:17:00
+  Estado de tarefa agendada:   Habilitado
+  Executar como Usuário:       danil
+```
+
+Resultado `3` no ciclo das 04:17 **não é falha** — é o Peça 1 (detetor `heartbeat-browser.py`,
+watermark anti-spam) a decidir corretamente que não há mudança de estado nova para reportar desde
+o ciclo das 03:17 (que entregou `exit=0`). Confirma a hipótese original do diagnóstico: o sistema
+*por vezes* pula por design (sem mudança real) — só que a causa do "parou de vez" investigada nos
+§1–§7 era outra (RAM + exit code mascarado), já corrigida e sem repetição desde então.
+
+Log mostra a sequência completa desta madrugada, alternando `exit=0` (entregou) com `exit=3`
+(nada novo para reportar) — nenhum `exit=9` (watchdog matou processo preso) nem `exit=4/5/7`
+(falha real) desde a correção:
+
+```
+[14/07/2026 00:17:03] exit=3   (sem mudança)
+[14/07/2026 01:17:02] exit=0   (entregue, trigger consumido)
+[14/07/2026 02:17:03] exit=0   (entregue, trigger consumido)
+[14/07/2026 03:17:02] exit=0   (entregue, trigger consumido)
+[14/07/2026 04:17:02] exit=3   (sem mudança)
+```
+
+`FRASE_FIXA` confirmada verbatim igual ao pedido (verificada no último trigger consumido,
+`consumido-20260714T021718Z.trigger`, 273 chars, texto idêntico ao §3). Não repeti o disparo
+manual (já provado em §5/§5b/entregas automáticas 01:17-03:17) nem toquei nos ficheiros já
+commitados — trabalho duplicado seria desperdício. `git status`: branch **ahead 7 / behind 1** de
+`origin/autonomous-night-2026-04-29` — push automático continua bloqueado neste executor headless
+(ver `[[project_headless_push_credential]]`); só commit local, o loop concorrente/humano
+sincroniza. Nenhum ficheiro de código tocado nesta reconfirmação, só este relatório.
+
+---
+
+**HEARTBEAT 1H ATIVO + mensagem rica + entrega provada — reconfirmado 2026-07-14 04:17, sem
+regressão (3ª confirmação consecutiva).**

@@ -21,6 +21,12 @@ REM    -- auto-limpeza-ram.cmd corre no FIM de cada ciclo (zumbis claude/cmd/pyt
 REM    limpeza de temp se RAM < 300MB). Complementa o cleanorphans acima (que so corre ANTES);
 REM    esta corre DEPOIS, apanhando o que sobrou do proprio ciclo. Ver auto-limpeza-ram.ps1 +
 REM    inbox/auto-limpeza-ram-2026-07-13.md.
+REM  - FASE 1.8 (2026-07-14, lock orfao definitivo): "PID vivo?" sozinho nao chega -- o Windows
+REM    recicla PIDs, e um lock cujo dono morreu podia ficar "vivo para sempre" se o numero
+REM    calhasse noutro processo (travou a fila 2x no mesmo dia). executor-lock.ps1 agora grava
+REM    pid+timestamp+start-time do dono e so considera o lock vivo se AMBOS baterem; cleanorphans
+REM    tambem apaga o executor.lock orfao logo no arranque do ciclo (nao so no 'acquire' a
+REM    seguir). Ver inbox/lock-orfao-definitivo-2026-07-14.md.
 REM ===========================================================================
 set "CLAUDE_CONFIG_DIR=C:\Users\danil\.claude"
 set "CLAUDE_EXE=C:\Users\danil\AppData\Roaming\npm\node_modules\@anthropic-ai\claude-code\bin\claude.exe"

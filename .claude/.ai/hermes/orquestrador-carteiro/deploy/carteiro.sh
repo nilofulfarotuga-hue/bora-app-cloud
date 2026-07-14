@@ -57,6 +57,9 @@ resultado_1linha(){ # $1=saida -> "Uma linha final: X" se existir, senão a últ
   [ -n "$r" ] && { echo "$r"; return; }
   printf '%s' "$1" | grep -vE '^[[:space:]]*$' | tail -1 | tr -d '\r'
 }
+resumo_tarefa(){ # $1=tarefa completa -> resumo curto p/ Telegram (sem prefixos [MODELO:.../[PROPOSE-ONLY:...])
+  printf '%s' "$1" | sed -E 's/^(\[MODELO:[^]]*\] *)?(\[PROPOSE-ONLY:[^]]*\] *)?//' | cut -c1-160
+}
 ts(){ date -u +%Y-%m-%dT%H:%M:%SZ; }
 log(){ echo "[$(ts)] $*" >> "$LOG"; }
 get(){ grep -E "^$1:" "$2" 2>/dev/null | head -1 | sed "s/^$1: *//" | tr -d '\r'; }
@@ -257,6 +260,15 @@ if [ "${1:-}" = "--selftest" ]; then
   grep -E '^passo: *B' "$tmf" | grep -qi 'estado: *concluida' && ok "set_passo B->concluida" || bad "set_passo B"
   grep -E '^passo: *A' "$tmf" | grep -qi 'estado: *concluida' && ok "set_passo não tocou A" || bad "set_passo tocou A errado"
   rm -f "$tmf"
+  # aviso-espera-telegram (2026-07-14): resumo_tarefa() tira os prefixos de máquina e corta
+  # a mensagem — é o texto que vai para o Telegram no aviso de zona vermelha.
+  r1=$(resumo_tarefa "[MODELO: SONNET] Atualizar o platform_settings stripe_enabled para true")
+  [ "$r1" = "Atualizar o platform_settings stripe_enabled para true" ] && ok "resumo_tarefa tira [MODELO: ...]" || bad "resumo_tarefa tira [MODELO: ...] (got: $r1)"
+  r2=$(resumo_tarefa "[MODELO: OPUS] [PROPOSE-ONLY: prepara o fix completo mas NÃO apliques] Corrigir o refund cap")
+  [ "$r2" = "Corrigir o refund cap" ] && ok "resumo_tarefa tira [MODELO:...] + [PROPOSE-ONLY:...]" || bad "resumo_tarefa tira os dois prefixos (got: $r2)"
+  longa=$(printf 'x%.0s' $(seq 1 300))
+  r3=$(resumo_tarefa "$longa")
+  [ "${#r3}" -eq 160 ] && ok "resumo_tarefa corta em 160 chars" || bad "resumo_tarefa corta em 160 chars (len=${#r3})"
   [ "$fail" = 0 ] && echo "SELFTEST: TODOS OK" || echo "SELFTEST: HÁ FALHAS"
   exit "$fail"
 fi
@@ -315,7 +327,14 @@ for f in "$FILA"/*.md; do
   if zona_vermelha "$tarefa"; then
     setf estado zona_vermelha "$f"; setf nota "🔴 ZONA VERMELHA — precisa de decisão humana (dinheiro)" "$f"
     log "ordem $id: 🔴 ZONA VERMELHA -> aprovacao humana"
-    notify "🔴 Bora/orquestração: ordem $id toca zona vermelha (dinheiro) — precisa de ti."
+    # 2026-07-14 (aviso-espera-telegram): antes o aviso só dizia "toca zona vermelha — precisa
+    # de ti", sem dizer O QUE a ordem faz nem como desbloquear — o Danilo ficava a saber que
+    # algo esperava, mas preso sem contexto nem ação direta. Agora leva o resumo da tarefa +
+    # o comando exato de desbloqueio (a skill desbloqueio-zona-vermelha do Hermes trata o "vai $id").
+    resumo=$(resumo_tarefa "$tarefa")
+    notify "🔴 Bora/orquestração: ordem $id EM ESPERA (zona vermelha — toca dinheiro/pagamento).
+Resumo: ${resumo:-(sem resumo)}
+Para libertar para a fila normal, responde aqui: vai $id"
     [ -n "$missao" ] && { mf=$(missao_path "$missao"); [ -f "$mf" ] && missao_set_passo "$mf" "$passo" "zona_vermelha"; }
     continue
   fi

@@ -24,9 +24,26 @@ Cópias versionadas dos artefactos que correm em produção. Onde cada um vive:
   contrário — e `grep -c 'notify "' carteiro.sh` deve continuar ≥7 antes de dar a alteração
   por fechada. Verificação rápida: `sha256sum` local vs `/root/orquestracao/carteiro.sh` têm de
   bater certo.
+  **2026-07-14 (aviso-espera-telegram):** o aviso de zona vermelha agora leva `resumo_tarefa()`
+  (resumo curto da ordem, sem prefixos `[MODELO:.../[PROPOSE-ONLY:...]`) + o comando exato de
+  desbloqueio (`vai <id>`). Testes do `resumo_tarefa()`: `--selftest`. Teste end-to-end sintético
+  (ordem entra em zona_vermelha → aviso → `vai <id>` desbloqueia): `_teste_aviso_espera.sh`
+  (não é deployado — só corre local/CI, fonte única = funções reais de `carteiro.sh`).
 - `campainha.sh` — watcher **inotify** (event-driven, NÃO polling) da fila → corre o carteiro.
 - `/etc/systemd/system/orq-campainha.service` — corre a campainha (Restart=always, enabled).
 - cron `17 * * * *` — fallback lento (rede de segurança).
+
+## Container Hermes — skill `desbloqueio-zona-vermelha` (2026-07-14)
+- Fonte canónica: `bora_app/.claude/.ai/hermes/orquestrador-carteiro/skill-desbloqueio-vai/SKILL.md`.
+- Deploy: copiar a pasta para `/opt/data/skills/hermes-agent/desbloqueio-zona-vermelha/` (mesmo
+  padrão de `hermes-operacao-confiavel`/`hermes-auto-configuracao` — descoberta automática por
+  pasta, sem passo extra de registo).
+- Ensina o Hermes a reagir a **"vai `<id>`"** no Telegram: se a ordem estiver `estado:
+  zona_vermelha`, edita para `estado: aberta` (limpa `nota:`) — a campainha inotify acorda o
+  carteiro sozinha a partir daí. Não decide nada sozinho; só executa a confirmação explícita que
+  o Danilo já deu ao escrever "vai". Não toca em ordens que não estejam em zona vermelha.
+  **NÃO substitui a Trava nem a T3 do carteiro** — só encurta o "como confirmar", a decisão de
+  entrar em zona vermelha continua 100% do classificador determinístico `zona_vermelha()`.
 
 ## Fila + kill switch (`/opt/data/cortex-brain/orquestracao/`, = `/brain/orquestracao/`)
 - `_controlo.md` → `orquestracao_enabled: true|false` (**KILL SWITCH**).

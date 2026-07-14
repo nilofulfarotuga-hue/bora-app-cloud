@@ -107,3 +107,30 @@ ficheiro.
 
 Uma linha final: LOCK ORFAO corrigido de vez - PID morto e sempre ignorado, fila
 nunca mais trava por isso.
+
+## Reconfirmação (2026-07-14, mesma tarde — tarefa repetida na fila)
+
+A fila voltou a pedir exatamente esta correção, com a mesma descrição e os mesmos
+PIDs de exemplo (14592 e 8172) já citados acima — ou seja, é a mesma ordem a
+reentrar, não um incidente novo. Verificado antes de repetir qualquer trabalho:
+
+- `Test-LockAlive`, `Get-ProcStartEpoch`, a limpeza preventiva em `cleanorphans` e o
+  comentário FASE 1.8 no `.cmd` continuam intactos em `executor-lock.ps1` (sem
+  regressão, `git log` confirma commit `89fda72` já na branch).
+- Não há `executor.lock` preso neste momento (`find` não encontrou nenhum ficheiro).
+- Reteste ao vivo (não só o histórico do commit anterior), com locks falsos em
+  `%TEMP%`, nunca no lock real:
+  - PID morto (999999) → `[loop-lock] lock orfao assumido (... vivo=False idade_s=1)
+    ACQUIRED` — órfão assumido na hora, sem esperar tolerância.
+  - PID vivo mas `start` falso (simula reciclagem) → mesmo resultado, `vivo=False`,
+    `ACQUIRED` imediato — confirma que a checagem de identidade continua a funcionar,
+    não só a de existência.
+- Nenhum ficheiro alterado desta vez além deste relatório — não há regressão a
+  corrigir, o fix de `89fda72` já cobre 100% do pedido.
+
+Commit local; push segue com a mesma limitação conhecida (executor headless não
+empurra diretamente — ver `project_headless_push_credential.md`), sem relação com
+Lista Vermelha aqui (não é ficheiro financeiro).
+
+Uma linha final: LOCK ORFAO corrigido de vez - PID morto e sempre ignorado, fila
+nunca mais trava por isso (reconfirmado, nenhuma mudança de código necessária).

@@ -1,3 +1,38 @@
+# Chat guiado PARTE 1 — 8ª corrida: reconfirmação sem regressão, push continua bloqueado por Lista Vermelha (2026-07-14)
+
+## Corrida 2026-07-14 (8ª confirmação, ordem "REFAZER" repetida pela 8ª vez)
+
+Ordem idêntica às 7 anteriores. Verificação mínima (não reinvestigação completa, por
+LEI DO PRE-VOO — repetir a mesma investigação 8x não muda o resultado):
+
+- `git log --oneline -1` → `4c1e131` (topo atual, acima de `04cf9ba`/`ff176d7`/etc.).
+- `git status --porcelain` nos 5 ficheiros do chat guiado (menu, admin categorias,
+  human chat, migrations) → **vazio**. Zero regressão, zero divergência.
+- `ls` confirma os 3 ecrãs em disco: `support_guided_menu_screen.dart`,
+  `support_human_chat_screen.dart`, `admin_support_categories_screen.dart`.
+- `.github/workflows/build_android.yml` confirmado de novo: `on: push: branches:
+  [autonomous-night-2026-04-29]` — qualquer push a esta branch continua a disparar
+  build Android de produção + upload Google Play automaticamente.
+
+**Não repeti** o diagnóstico de credencial local nem a tentativa de push (já feito
+identicamente nas corridas 1-7, mesma causa raiz confirmada todas as vezes: sem
+`gh auth`, sem token, `wincredman` sem sessão interativa). **Não repeti** a exploração
+da ponte SSH→VPS — o ref `refs/heads/from-pc-2026-07-14` já ficou staged desde a 5ª
+corrida (`8cb04e4`) e continua o caminho pronto para quando vier o "vai".
+
+⚠️ ISTO DISPARA UM BUILD DE PRODUÇÃO (Android/Play Store) AO EMPURRAR PARA O GITHUB.
+Está tudo pronto desde a 5ª corrida — confirma que eu aplico o merge+push final.
+
+## CHAT-GUIADO-P1 (8ª corrida)
+- **O que existia:** tudo — menu por categoria (PARTE 1), falar com humano (PARTE 2),
+  escalação Telegram (PARTE 3) — confirmado pela 8ª vez, sem regressão, sem duplicação.
+- **O que foi criado:** nada (nem código, nem novo caminho de push — os anteriores já
+  bastam).
+- **Push confirmado:** **NÃO** — bloqueado por Lista Vermelha (build de produção),
+  aguarda "vai" do Danilo. Ver corrida 5ª (abaixo) para o caminho técnico já pronto.
+
+---
+
 # Chat guiado PARTE 1 — 7ª corrida: reconfirmação sem regressão, push continua bloqueado (2026-07-14)
 
 ## Corrida 2026-07-14 (7ª confirmação, ordem "REFAZER" repetida)

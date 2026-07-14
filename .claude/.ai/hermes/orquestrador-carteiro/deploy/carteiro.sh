@@ -11,7 +11,7 @@
 #   T2/T4          budget/turns/tools nos .cmd do PC
 #
 # REENGENHARIA 2026-07-12 (ver inbox/reengenharia-esteira-2026-07-12.md):
-#   • nota NUNCA vazia — todo ramo de falha grava causa (RATE-LIMIT/TIMEOUT-2400s/SAIDA-VAZIA/
+#   • nota NUNCA vazia — todo ramo de falha grava causa (RATE-LIMIT/TIMEOUT-3600s/SAIDA-VAZIA/
 #     JUIZ-SEM-VEREDITO). Antes: falha do juiz -> nota "" e a causa perdia-se.
 #   • rate-limit inteligente — "hit your session limit" NÃO gasta tentativa; pausa a fila até ao
 #     reset (.pausa-rate-limit), avisa 1x no Telegram, retoma sozinho.
@@ -73,7 +73,9 @@ pc_exec(){ printf '%s' "$1" > "$HOSTDATA/orq_task.txt"
   # o orcamento de "1 ordem <=15min" ja documentado acima.
   # 2026-07-13 (pedido Danilo): alargado 900->2400s (40min) para dar tempo a ordens grandes
   # legitimas terminarem sem serem cortadas. A cura real continua a ser o fix do parser (acima).
-  docker exec -u hermes "$C" sh -lc 'export PATH=/opt/data/.local/bin:$PATH; timeout 2400 pc-loop "$(cat /opt/data/orq_task.txt)"' 2>&1 | clean; }
+  # 2026-07-14 (pedido Danilo): timeout 3600 = 1h, decisao do Danilo para deixar tarefas grandes
+  # rodarem a vontade; so cortar de verdade acima disso.
+  docker exec -u hermes "$C" sh -lc 'export PATH=/opt/data/.local/bin:$PATH; timeout 3600 pc-loop "$(cat /opt/data/orq_task.txt)"' 2>&1 | clean; }
 pc_judge(){ printf '%s' "$1" > "$HOSTDATA/orq_judge.txt"
   docker exec -u hermes "$C" sh -lc 'export PATH=/opt/data/.local/bin:$PATH; timeout 400 pc-judge "$(cat /opt/data/orq_judge.txt)"' 2>&1 | clean; }
 
@@ -373,7 +375,7 @@ for f in "$FILA"/*.md; do
     # ---- NOTA NUNCA VAZIA — causa explícita por construção ----
     motivo=$(printf '%s' "$vline" | sed 's/.*CORRIGIR: *//')
     if [ "$vazio" -eq 1 ]; then
-      nota="⏱️ TIMEOUT-2400s / SAIDA-VAZIA — executor não devolveu texto (tarefa grande demais? dividir em passos menores — ver convencoes.md)"
+      nota="⏱️ TIMEOUT-3600s / SAIDA-VAZIA — executor não devolveu texto (tarefa grande demais? dividir em passos menores — ver convencoes.md)"
     elif [ -z "$vline" ]; then
       nota="⚖️ JUIZ-SEM-VEREDITO — juiz não devolveu linha VEREDITO (ver $id.saida.txt; possível rate-limit/erro do juiz)"
     elif [ -n "$motivo" ] && [ "$motivo" != "$vline" ]; then
@@ -385,7 +387,7 @@ for f in "$FILA"/*.md; do
 
     if [ "$vazio" -eq 1 ] && [ "$tent" -ge 2 ]; then   # TIMEOUT não re-tenta 5x
       setf estado travada "$f"
-      setf nota "⏱️ TIMEOUT-2400s x$tent — tarefa grande demais; DIVIDIR em passos menores (convencoes.md). Não re-tento a mesma coisa." "$f"
+      setf nota "⏱️ TIMEOUT-3600s x$tent — tarefa grande demais; DIVIDIR em passos menores (convencoes.md). Não re-tento a mesma coisa." "$f"
       log "ordem $id: TRAVADA-TIMEOUT (não re-tenta tarefa grande)"; missao_travada_ou_silencio "$f" "$missao" "$passo"
     elif [ "$tent" -ge 5 ]; then
       setf estado travada "$f"; log "ordem $id: TRAVADA (5 tentativas) — nota: $nota"; missao_travada_ou_silencio "$f" "$missao" "$passo"

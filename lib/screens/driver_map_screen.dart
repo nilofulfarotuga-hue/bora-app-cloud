@@ -1032,15 +1032,13 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
             });
           }
         } else {
-          // API failed: preserve last real polyline and ETA to avoid flicker
-          // and ETA reset. Show straight-line only on the very first load.
-          if (isFirstLoad) {
-            setState(() {
-              _routePoints = [origin, ...stops.map((s) => s.location)];
-              // _routeDurationMinutes left null — no ETA yet.
-            });
-          }
-          // else: keep existing polyline and existing _routeDurationMinutes.
+          // API failed. Update seguinte (isFirstLoad=false) → mantém a
+          // última polyline real e ETA (evita flicker). Primeiro load → não
+          // mexe em _routePoints; fica vazio e o build já desenha o
+          // fallback TRACEJADO (linha ~745) entre driver e o próximo stop.
+          // Antes isto punha aqui uma linha reta SÓLIDA (mesma cor/largura
+          // da rota real) que ficava presa assim até o Directions responder
+          // — o motorista via uma "rota" a cortar por cima de praças/jardins.
         }
       });
     }

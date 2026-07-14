@@ -158,3 +158,23 @@ o que investigar de novo sem um relato de bug novo/diferente.
 mesmo pedido; a partir daqui, sem um sintoma novo e específico (print de
 erro, passo exato, email usado), reinvestigar não vai produzir informação
 diferente. Ver memória `project_cadastro_parceiro_senha_ja_resolvido_5x.md`.
+
+## 6ª verificação (2026-07-14, tarefa REFAZER idêntica recebida de novo)
+Mesmo pedido literal recebido pela 6ª vez. Checagem rápida conforme
+recomendado na memória (sem reler tudo do zero):
+- `git log bf9414a..HEAD -- lib/screens/register_partner_screen.dart
+  lib/auth/auth_store.dart lib/screens/partner_login_screen.dart
+  supabase/functions/register-partner/index.ts` → **vazio**.
+- `git diff bf9414a..HEAD` nesses 4 ficheiros → **vazio**.
+- `git status` nesses ficheiros → limpo.
+- `flutter analyze` nos 3 ficheiros Dart → **6 issues, 0 erros**, idênticos
+  às 5 rondas anteriores (imports não usados, `_formKey`, `value:`
+  deprecated). Nenhum novo.
+
+Conclusão inalterada: (1) campo de senha existe e valida mín. 6 caracteres;
+(2) conta criada via `Supabase.auth.signUp`, com resume sem recriar conta
+se já autenticado; (3) email duplicado dá erro claro e volta ao passo
+"Conta de Acesso". **Nenhuma alteração de código necessária.** Ver memória
+`project_cadastro_parceiro_senha_ja_resolvido_5x.md` — a partir da 6ª
+repetição idêntica, recomendo ao Danilo que o loop pare de reenviar esta
+mesma tarefa sem um sintoma novo e concreto.

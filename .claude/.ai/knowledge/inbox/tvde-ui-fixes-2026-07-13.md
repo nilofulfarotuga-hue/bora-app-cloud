@@ -60,4 +60,18 @@ proposta:
   script hermes-aprovador-vermelho) que **não pertencem a esta tarefa** — não foram
   tocados nem commitados aqui.
 
+## Reconfirmação (2026-07-14, loop repetiu a instrução)
+
+A ordem voltou a disparar (retoma da 9016) já com o commit `34e12a8` desta tarefa
+presente na branch. Reverifiquei ponta-a-ponta antes de mexer em qualquer coisa:
+- `git show 34e12a8` nos dois ficheiros — diff idêntico ao descrito acima, nada por
+  commitar (`git status` limpo nos 3 ficheiros desta tarefa).
+- `flutter analyze` nos 2 ficheiros: **0 issues** (39.2s), sem regressão.
+- `tvde_finish_ride` / `tvde_driver_store.dart` / `supabase/` continuam intocados.
+
+Nenhuma alteração de código adicional necessária — apenas este registo de
+reconfirmação. `git push` não tentado: sessão headless deste executor não consegue
+autenticar (ver memória `project_headless_push_credential`); o loop concorrente
+autenticado empurra o commit local.
+
 TVDE-UI ok - autocomplete + A2 corrigidos.

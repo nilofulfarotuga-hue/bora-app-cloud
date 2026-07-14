@@ -134,3 +134,81 @@ Lista Vermelha aqui (não é ficheiro financeiro).
 
 Uma linha final: LOCK ORFAO corrigido de vez - PID morto e sempre ignorado, fila
 nunca mais trava por isso (reconfirmado, nenhuma mudança de código necessária).
+
+## Causa real da recorrência encontrada (2026-07-14, 3ª entrada na fila) — GAP DE DEPLOY
+
+A tarefa reentrou pela 3ª vez no mesmo dia. As duas reconfirmações anteriores só
+verificaram o ficheiro do **repo**
+(`.claude/.ai/hermes/orquestrador-carteiro/deploy/executor-lock.ps1`) e concluíram
+"sem regressão" — e de facto não havia regressão *nesse* ficheiro. O problema real é
+outro: **o loop não executa a partir do repo**. `run-claude-loop.cmd` e
+`executor-lock.ps1` têm uma cópia **fora do git**, em
+`C:\Users\danil\Desktop\produtividade-ia\hermes-bridge\` (pasta plana, sem `.git`) —
+é essa cópia que o executor real corre. O commit `89fda72` (fix FASE 1.8) só tinha
+sido aplicado ao ficheiro do repo; **nunca foi sincronizado para o `hermes-bridge`**.
+
+Prova encontrada ao vivo: o `.claude\executor.lock` real (não um teste) continha
+`{"pid":10888,"ts":1784023382}` — **sem o campo `"start"`**. A `Write-Lock` da versão
+corrigida grava sempre `start` (mesmo que `null`); um lock sem essa chave de todo só
+pode ter sido escrito pela versão **antiga** (`Is-Alive`, sem `Test-LockAlive`). `diff`
+confirmou: a cópia em `hermes-bridge` datava de 13/07 11:17/11:18 — anterior ao fix de
+14/07 — e não tinha `Test-LockAlive`, `Get-ProcStartEpoch`, nem a limpeza preventiva no
+`cleanorphans`. Ou seja: o fix estava correto, testado e commitado — mas **nunca
+chegou ao caminho que o loop realmente executa**. Por isso a tarefa continuava a
+reaparecer apesar de o repo "estar certo".
+
+### Correção aplicada
+
+- Backup dos ficheiros antigos em `hermes-bridge`:
+  `executor-lock.ps1.bak_20260714_111102`, `run-claude-loop.cmd.bak_20260714_111102`.
+- Cópia 1:1 do repo para `hermes-bridge/executor-lock.ps1` e
+  `hermes-bridge/run-claude-loop.cmd` — `diff` confirma ficheiros agora **idênticos**
+  ao repo.
+- `run-claude-loop.cmd` do repo chama `%~dp0auto-limpeza-ram.cmd` (FASE 1.6), que ainda
+  não existe em `hermes-bridge` — a chamada é protegida por `if exist`, portanto não
+  quebra nada; fica só sem esse hook extra de limpeza de RAM até ser sincronizado
+  também (fora do escopo desta tarefa, é uma feature diferente).
+- Não toquei no `executor.lock` real (o com `pid=10888`, já morto) — a
+  limpeza preventiva do `cleanorphans`, agora presente na cópia ao vivo, remove-o
+  sozinha no arranque do próximo ciclo (comportamento comprovado nos testes abaixo);
+  mexer manualmente no lock ativo enquanto outro ciclo pode estar em curso era o único
+  risco desnecessário a evitar aqui.
+
+### Testes na cópia deployada (hermes-bridge), locks isolados em ficheiros `.testX`, nunca no lock real
+
+1. PID morto (888888) → `lock orfao assumido (... vivo=False ...)` → `ACQUIRED`.
+2. PID vivo real mas `start` falso (simula reciclagem) → `vivo=False` → `ACQUIRED`
+   imediato.
+3. Lock legítimo (PID vivo + `start` real) → `outro executor a correr ... - a espera`
+   → `TIMEOUT` (não regride).
+4. `cleanorphans` isolado com PID morto → remove o ficheiro sozinho, log
+   `limpeza preventiva: executor.lock orfao removido no arranque do ciclo`.
+
+Os 4 cenários batem com os mesmos resultados já obtidos no repo — confirma que a
+cópia ao vivo agora tem exatamente a mesma lógica.
+
+### Ficheiros tocados (esta entrada)
+
+- `C:\Users\danil\Desktop\produtividade-ia\hermes-bridge\executor-lock.ps1` (substituído
+  pela versão do repo)
+- `C:\Users\danil\Desktop\produtividade-ia\hermes-bridge\run-claude-loop.cmd`
+  (substituído pela versão do repo)
+- Backups `.bak_20260714_111102` criados na mesma pasta (fora do git, não versionados)
+- Este relatório (repo)
+
+Nenhum ficheiro do repo `bora_app` mudou de lógica (o fix já lá estava, só a cópia
+deployada estava desatualizada) — nada na Lista Vermelha tocado.
+
+### Nota para o Bibliotecário — atualizar a memória existente
+
+A memória `project_lock_orfao_definitivo_resolvido.md` precisa de uma correção: não
+basta verificar o ficheiro do repo para reconfirmar este fix — é preciso também
+verificar se `C:\Users\danil\Desktop\produtividade-ia\hermes-bridge\executor-lock.ps1`
+e `run-claude-loop.cmd` continuam idênticos ao repo (`diff` entre os dois caminhos).
+Se esta tarefa reaparecer uma 4ª vez, o primeiro passo é esse `diff`, não reler o
+código do repo isoladamente.
+
+Uma linha final: LOCK ORFAO corrigido de vez - a lógica já estava certa no repo desde
+89fda72, mas a cópia que o loop realmente executa (fora do git, em
+produtividade-ia\hermes-bridge) estava desatualizada e foi agora sincronizada; fila
+nunca mais trava por isso.

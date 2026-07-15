@@ -60,3 +60,12 @@ A verificação foi feita por leitura de código (estrutura de widgets + git
 history), confirmando que a árvore de widgets está correta para o
 comportamento esperado. Recomenda-se confirmação visual num device pequeno
 (ex.: emulador 5") na próxima sessão com toolchain disponível.
+
+## Re-verificação (mesmo dia, execução seguinte)
+Pedido chegou de novo ao loop autónomo (mesmo BUG3). Repeti a investigação de
+forma independente: `lib/screens/register_partner_screen.dart` continua com o
+`Stepper` (4 passos) dentro do único `SingleChildScrollView` externo com
+`physics: NeverScrollableScrollPhysics`, sem diff pendente (`git status`/`git
+diff` limpos no ficheiro; HEAD `3116e61`). Ambiente ainda sem `flutter` no
+PATH. Conclusão inalterada: fix já presente para os 4 passos, nada a
+alterar/commitar em código.

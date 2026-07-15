@@ -94,3 +94,19 @@ scroll no dispositivo, a causa provavelmente NÃO está em
 se refere a outro ecrã (ex.: uma versão antiga do APK ainda instalada, ou um
 wizard diferente do "cadastro de parceiro"), porque a análise estática deste
 ficheiro não encontra mais nada para corrigir sem acesso a um device real.
+
+## Re-verificação #4 (2026-07-15, execução seguinte)
+Quarto pedido idêntico chegou ao loop autónomo (mesmo texto: BUG3 scroll do
+Passo 4, verificar outros passos, commit+push). Desta vez consultei primeiro a
+memória (`feedback_bug3_scroll_cadastro_ja_resolvido.md`), que já apontava
+para este relatório e para a instrução de não repetir a investigação completa
+sem checar o memo. Confirmação rápida em vez de reanálise total:
+`git log --oneline -- lib/screens/register_partner_screen.dart` mostra
+`494f1c0` ainda no histórico (agora com `f169f96` e `3c19043` por cima, ambos
+sem tocar na estrutura do scroll); `git status`/`git diff` no ficheiro estão
+limpos (HEAD `2ab9e5f`, branch `autonomous-night-2026-04-29`); grep confirma
+`SingleChildScrollView` (linha 512) → `Stepper(` (linha 513) →
+`NeverScrollableScrollPhysics()` (linha 517) inalterados. Ambiente continua
+sem SDK Flutter (`which flutter` falha) — sem teste visual possível.
+**Nenhuma alteração de código feita; nada para commitar/push.** Conclusão
+inalterada pela 4ª vez.

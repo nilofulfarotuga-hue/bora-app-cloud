@@ -75,3 +75,13 @@ estado: atual
   Nenhuma alteração de código em nenhuma das duas repetições — só notas.
   Se a tarefa voltar uma 3ª vez, ver [[cadastro-parceiro-register-partner-idempotencia]]
   e o memo `feedback_logo_capa_cadastro_ja_resolvido.md` antes de investigar de novo.
+- **3ª vez (esta nota):** tarefa chegou idêntica outra vez. Confirmado de novo:
+  `7e2c63f` cobre os 5 pontos pedidos (dois seletores logo/capa com placeholder
+  120×120 e 110×full-width, upload via `upload-restaurant-asset` kind=logo/cover
+  antes do submit, payload `register-partner` com `photoUrl`/`coverUrl`, Edge
+  Function grava `photo_url`/`cover_url`, ambos opcionais); branch local == origin
+  (`autonomous-night-2026-04-29`, nada por enviar). Nenhuma alteração de código —
+  3 pedidos idênticos no mesmo dia sugerem item duplicado preso no backlog do
+  loop autónomo (`autonomy_backlog_items` / `robot_suggestions`). Sinalizado ao
+  Danilo abaixo; recomenda-se verificar/depurar essa fila em vez de repetir a
+  tarefa uma 4ª vez.

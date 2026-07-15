@@ -137,7 +137,6 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
     final picked = await showModalBottomSheet<_PickedStop>(
       context: context,
       isScrollControlled: true,
-      useSafeArea: true,
       backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -1168,8 +1167,7 @@ class _AddStopSheetState extends State<_AddStopSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final media = MediaQuery.of(context);
-    final bottomInset = media.viewInsets.bottom;
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     // O overlay de sugestões do AddressAutocompleteField abre SEMPRE para baixo
     // (maxHeight 260) e o "campo sobe ao focar" depende de Scrollable.ensureVisible
     // — que é NO-OP sem um Scrollable ancestral. Antes, esta folha usava
@@ -1177,9 +1175,7 @@ class _AddStopSheetState extends State<_AddStopSheet> {
     // ficava colado ao teclado e a lista saía cortada/não-clicável. Fix igual ao
     // ecrã de pedido: folha com altura fixa generosa + SingleChildScrollView, para
     // o campo poder subir ao topo e deixar os 260px da lista acima do teclado.
-    // Preenche exatamente o espaço acima do teclado (o 0.7 fixo cortava a lista
-    // em ecrãs pequenos / teclados altos, deixando o topo do viewport off-screen).
-    final maxSheet = media.size.height - bottomInset - media.padding.top;
+    final maxSheet = MediaQuery.of(context).size.height * 0.7;
     return Padding(
       padding: EdgeInsets.only(bottom: bottomInset),
       child: SizedBox(

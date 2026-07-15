@@ -264,6 +264,25 @@ class RestaurantStore extends ChangeNotifier {
         .any((restaurant) => restaurant.email.toLowerCase() == normalized);
   }
 
+  /// Checks for a restaurant owned by [userId] regardless of approval_status
+  /// (pending/rejected included) — deliberately NOT merged into `_restaurants`
+  /// (that list stays approved-only for client browsing). Used by
+  /// PartnerEntryScreen to recognise an in-review signup after logout/login
+  /// instead of restarting the wizard from zero.
+  Future<String?> ownRestaurantApprovalStatus(String userId) async {
+    try {
+      final record = await supabase
+          .from('restaurants')
+          .select('approval_status')
+          .eq('user_id', userId)
+          .maybeSingle();
+      return record?['approval_status'] as String?;
+    } catch (e) {
+      debugPrint('RestaurantStore: ownRestaurantApprovalStatus error => $e');
+      return null;
+    }
+  }
+
   // ─── Load from Supabase ───────────────────────────────────────────────────
 
   Future<void> loadRestaurantsFromSupabase() async {
@@ -274,7 +293,8 @@ class RestaurantStore extends ChangeNotifier {
       List<dynamic> response = await supabase
           .from('restaurants')
           .select()
-          .eq('is_active_admin', true);
+          .eq('is_active_admin', true)
+          .eq('approval_status', 'approved');
 
       // Seed defaults only when the DB table is empty (first run).
       if (response.isEmpty) {
@@ -282,7 +302,8 @@ class RestaurantStore extends ChangeNotifier {
         response = await supabase
             .from('restaurants')
             .select()
-            .eq('is_active_admin', true);
+            .eq('is_active_admin', true)
+            .eq('approval_status', 'approved');
       }
 
       _restaurants.clear();

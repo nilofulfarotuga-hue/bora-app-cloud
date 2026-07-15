@@ -49,8 +49,10 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
   // Step 3: Conta de Acesso
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
   bool _acceptedTerms = false;
   bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
   String? _emailInlineError;
 
   // Step 4: Logo/Confirmação
@@ -101,6 +103,7 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
     _phoneController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     _cuisineController.dispose();
     _nifController.dispose();
     _ibanController.dispose();
@@ -277,6 +280,12 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
       if (_passwordController.text.length < 6) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Senha mínima de 6 caracteres')),
+        );
+        return false;
+      }
+      if (_confirmPasswordController.text != _passwordController.text) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('As senhas não coincidem')),
         );
         return false;
       }
@@ -745,6 +754,27 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
                           onPressed: () {
                             setState(() {
                               _obscurePassword = !_obscurePassword;
+                            });
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _confirmPasswordController,
+                      obscureText: _obscureConfirmPassword,
+                      decoration: InputDecoration(
+                        labelText: 'Confirmar senha',
+                        prefixIcon: const Icon(Icons.lock_outline),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscureConfirmPassword
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscureConfirmPassword = !_obscureConfirmPassword;
                             });
                           },
                         ),

@@ -24,15 +24,6 @@ param(
 # isso cleanorphans agora tambem mata se o LIVELOG nao tiver escrita nova ha > StaleOutputMin
 # (default 15min) -- independente da amostra de CPU. Ver .claude/.ai/knowledge/inbox/
 # disco-e-deteccao-preso-2026-07-13.md.
-#
-# FASE 1.8 (2026-07-14, lock orfao definitivo): a checagem "PID vivo?" sozinha NAO chega --
-# o Windows RECICLA numeros de PID. Se o dono do lock morre e minutos/horas depois o SO da
-# esse mesmo numero a outro processo qualquer (ja visto no .loop-noturno.lock do E2E, ver
-# .claude/.ai/knowledge/inbox e memoria project_e2e_loop_ram_stall.md), Get-Process -Id
-# devolve "vivo" para sempre e o lock NUNCA mais e considerado orfao -- foi o que travou a
-# fila 2x no mesmo dia (PID 14592 e 8172, ambos na verdade mortos). Fix: o lock agora grava
-# tambem o start-time (epoch) do processo dono; a validacao exige PID vivo E start-time igual
-# -- discrepancia = PID reciclado = orfao IMEDIATO, sem esperar tolerancia nenhuma.
 $ErrorActionPreference = 'SilentlyContinue'
 
 function Now-Epoch { [DateTimeOffset]::UtcNow.ToUnixTimeSeconds() }
@@ -42,30 +33,14 @@ function Read-Lock([string]$path) {
   try { Get-Content -LiteralPath $path -Raw | ConvertFrom-Json } catch { return $null }
 }
 
-function Get-ProcStartEpoch([int]$processId) {
-  if ($processId -le 0) { return $null }
-  $p = Get-Process -Id $processId -ErrorAction SilentlyContinue
-  if ($null -eq $p) { return $null }
-  try { return [int64][DateTimeOffset]::new($p.StartTime.ToUniversalTime()).ToUnixTimeSeconds() } catch { return $null }
-}
-
 function Write-Lock([string]$path, [int]$pid_, [long]$ts) {
-  $startEpoch = Get-ProcStartEpoch $pid_
-  $obj = [pscustomobject]@{ pid = $pid_; ts = $ts; start = $startEpoch }
+  $obj = [pscustomobject]@{ pid = $pid_; ts = $ts }
   ($obj | ConvertTo-Json -Compress) | Set-Content -LiteralPath $path -Encoding UTF8 -NoNewline
 }
 
-# Confirma que o dono gravado no lock e REALMENTE o mesmo processo -- nao so um PID vivo
-# qualquer que por acaso calhou no mesmo numero (reciclagem de PID pelo Windows). Locks
-# escritos por uma versao anterior deste script (sem campo "start") sao tratados so pela
-# existencia do PID, para nao quebrar um lock legitimo a meio de um deploy.
-function Test-LockAlive($info) {
-  if ($null -eq $info) { return $false }
-  $curStart = Get-ProcStartEpoch ([int]$info.pid)
-  if ($null -eq $curStart) { return $false }
-  $hasStart = ($info.PSObject.Properties.Name -contains 'start') -and (-not [string]::IsNullOrWhiteSpace($info.start))
-  if (-not $hasStart) { return $true }
-  return ([int64]$curStart -eq [int64]$info.start)
+function Is-Alive([int]$processId) {
+  if ($processId -le 0) { return $false }
+  return ($null -ne (Get-Process -Id $processId -ErrorAction SilentlyContinue))
 }
 
 # Arvore de processos (root + descendentes) do dono do lock atual -- usado por cleanorphans
@@ -104,7 +79,7 @@ switch ($Action) {
         break
       }
       $age = (Now-Epoch) - [int64]$info.ts
-      $alive = Test-LockAlive $info
+      $alive = Is-Alive ([int]$info.pid)
       if ((-not $alive) -or ($age -gt ($LockOrphanMin * 60))) {
         Write-Output "[loop-lock] lock orfao assumido (pid_anterior=$($info.pid) vivo=$alive idade_s=$age)"
         Write-Lock $LockFile $OwnerPid (Now-Epoch)
@@ -141,20 +116,9 @@ switch ($Action) {
       $lockInfo = Read-Lock $LockFile
       if ($null -ne $lockInfo) {
         $lockAge = (Now-Epoch) - [int64]$lockInfo.ts
-        if ((Test-LockAlive $lockInfo) -and ($lockAge -le ($LockOrphanMin * 60))) {
+        if ((Is-Alive ([int]$lockInfo.pid)) -and ($lockAge -le ($LockOrphanMin * 60))) {
           foreach ($treePid in (Get-ProcessTree ([int]$lockInfo.pid))) { $protected[$treePid] = $true }
         }
-      }
-    }
-    # Limpeza preventiva do proprio executor.lock -- corre no INICIO de cada ciclo (antes do
-    # 'acquire'), para nunca depender so do proximo 'acquire' reparar um lock orfao (PID morto
-    # OU PID reciclado pelo Windows, fingerprint start-time nao bate). Log explicito para o
-    # LIVELOG mostrar sempre que isto aconteceu.
-    if (-not [string]::IsNullOrWhiteSpace($LockFile) -and (Test-Path -LiteralPath $LockFile)) {
-      $preInfo = Read-Lock $LockFile
-      if ($null -ne $preInfo -and -not (Test-LockAlive $preInfo)) {
-        Remove-Item -LiteralPath $LockFile -Force -ErrorAction SilentlyContinue
-        Write-Output "[loop-lock] limpeza preventiva: executor.lock orfao removido no arranque do ciclo (pid_anterior=$($preInfo.pid))"
       }
     }
     # Sinal de "preso": LIVELOG (stream-json em texto) sem escrita nova ha > StaleOutputMin.

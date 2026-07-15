@@ -10,7 +10,6 @@ import '../config/app_colors.dart';
 import '../providers/support_settings_provider.dart';
 import '../screens/support_chat_screen.dart';
 import '../screens/support_email_form_screen.dart';
-import '../screens/support_guided_menu_screen.dart';
 
 class BoraSupportSheet extends StatelessWidget {
   const BoraSupportSheet({
@@ -60,22 +59,6 @@ class BoraSupportSheet extends StatelessWidget {
                 style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
               ),
             const SizedBox(height: 16),
-            if (showAgentCard)
-              _ContactCard(
-                icon: Icons.forum_outlined,
-                color: AppColors.primary,
-                title: 'Sobre o que queres falar?',
-                subtitle: 'Menu por categoria · respostas rápidas',
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => SupportGuidedMenuScreen(orderId: orderId),
-                    ),
-                  );
-                },
-              ),
-            if (showAgentCard) const SizedBox(height: 12),
             if (showAgentCard && provider.shouldShowAiCard)
               _ContactCard(
                 icon: Icons.smart_toy_outlined,

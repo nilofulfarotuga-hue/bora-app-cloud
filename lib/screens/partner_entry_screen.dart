@@ -9,6 +9,7 @@ import '../stores/restaurant_store.dart';
 import 'partner/services/partner_services_hub_screen.dart';
 import 'partner_dashboard_screen.dart';
 import 'partner_login_screen.dart';
+import 'pending_approval_screen.dart';
 import 'register_partner_screen.dart';
 
 class PartnerEntryScreen extends StatelessWidget {
@@ -76,6 +77,7 @@ class _PartnerNoRestaurantRouter extends StatefulWidget {
 class _PartnerNoRestaurantRouterState
     extends State<_PartnerNoRestaurantRouter> {
   late Future<ServiceProviderModel?> _future;
+  late Future<String?> _restaurantStatusFuture;
 
   @override
   void initState() {
@@ -83,6 +85,14 @@ class _PartnerNoRestaurantRouterState
     // Idempotent + cached in the store, so the fresh-login path (which already
     // loaded the provider in PartnerLoginScreen) resolves instantly.
     _future = context.read<PartnerAppointmentsStore>().loadMyProvider();
+    // BUG 1 (cadastro parceiro 2026-07-14): sem isto, um parceiro com
+    // candidatura 'pending' que faz logout/login caía sempre no wizard do
+    // zero (a lista pública de restaurants só inclui approved). Verifica a
+    // própria linha (qualquer status) via RLS owner-read dedicada.
+    final userId = context.read<AuthStore>().userId;
+    _restaurantStatusFuture = userId == null
+        ? Future.value(null)
+        : context.read<RestaurantStore>().ownRestaurantApprovalStatus(userId);
   }
 
   @override
@@ -96,7 +106,18 @@ class _PartnerNoRestaurantRouterState
         if (snap.data != null) {
           return const PartnerServicesHubScreen();
         }
-        return const RegisterPartnerScreen();
+        return FutureBuilder<String?>(
+          future: _restaurantStatusFuture,
+          builder: (context, statusSnap) {
+            if (statusSnap.connectionState != ConnectionState.done) {
+              return const _PartnerLoading();
+            }
+            if (statusSnap.data == 'pending') {
+              return const PendingApprovalScreen();
+            }
+            return const RegisterPartnerScreen();
+          },
+        );
       },
     );
   }

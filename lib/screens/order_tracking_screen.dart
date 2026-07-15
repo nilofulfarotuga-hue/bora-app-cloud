@@ -224,16 +224,11 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         .fetchRoute(origin: origin, destination: destination)
         .then((route) {
       if (!mounted || _routeRequestId != requestId) return;
-      if (route != null && route.points.isNotEmpty) {
-        setState(() => _routePoints = route.points);
-      } else if (_routePoints.isNotEmpty) {
-        // Directions falhou (rede/quota) — NÃO substitui uma rota real por uma
-        // linha reta (origin/destination podem já ter mudado desde a última
-        // rota boa). Limpa para o fallback ao vivo (linha tracejada no build)
-        // desenhar reto até ao alvo ATUAL, nunca uma linha sólida a fingir
-        // ser rota real.
-        setState(() => _routePoints = <ll.LatLng>[]);
-      }
+      setState(() {
+        _routePoints = (route != null && route.points.isNotEmpty)
+            ? route.points
+            : <ll.LatLng>[origin, destination];
+      });
     });
   }
 
@@ -347,15 +342,11 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         points: _routePoints.toGMaps(),
       ));
     } else if (driverPosition != null && target != null) {
-      // Fallback só enquanto a rota real (ruas) ainda não chegou/falhou —
-      // tracejada de propósito para nunca parecer uma rua real (linha reta
-      // sólida cortando praças/jardins).
       polylines.add(Polyline(
         polylineId: const PolylineId('route'),
         color: const Color(0xFF1A73E8),
         width: 4,
         points: [driverPosition.toGMaps(), target.toGMaps()],
-        patterns: [PatternItem.dash(20), PatternItem.gap(10)],
       ));
     }
 

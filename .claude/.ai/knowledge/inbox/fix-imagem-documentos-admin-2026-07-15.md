@@ -1,60 +1,63 @@
 ---
 data: 2026-07-15
 tarefa: "Corrigir imagens de Documento Proprietário/Documento Atividade quebradas em admin 'Aprovação de parceiros'"
-resultado: "JÁ RESOLVIDO — nenhuma mudança de código necessária"
+resultado: "BUG REAL ENCONTRADO E CORRIGIDO — correção anterior (mesmo dia) tinha concluído 'já resolvido' por engano"
 ---
 
-# Fix imagem documentos admin — verificação 2026-07-15
+# Fix imagem documentos admin — 2026-07-15 (correção real)
 
-## Pedido
-Ícone quebrado ao mostrar `owner_doc_url` e `activity_doc_url` no ecrã admin
-"Aprovação de parceiros", porque esses campos guardam apenas o **path** dentro
-do bucket privado `restaurant-documents` (não um URL público) — pedido para
-gerar signed URL via `PrivateBucketImage` / `createSignedUrl` antes de exibir.
+## Causa raiz confirmada
+`PrivateBucketImage` já existia e já era usado nos dois pontos certos
+(`admin_partners_pending_screen.dart` e `admin_partner_detail_screen.dart`),
+mas o **path guardado na BD não tem o prefixo do bucket**:
 
-## Investigação
-Revi os dois pontos onde `owner_doc_url`/`activity_doc_url` são exibidos:
+- `supabase/functions/upload-restaurant-asset/index.ts` faz upload para o
+  bucket privado `restaurant-documents` mas devolve `path: filename` **sem**
+  o nome do bucket (ex.: `temp-1752600000000/owner_doc-1752600000000.jpg`).
+- `register_partner_screen.dart` grava esse `path` cru em `ownerDocUrl` /
+  `activityDocUrl`, que vai direto para as colunas `owner_doc_url` /
+  `activity_doc_url`.
+- `PrivateBucketImage._extract()` (`lib/widgets/private_bucket_image.dart`)
+  só reconhece um path privado se ele **começar literalmente com
+  `restaurant-documents/`**. Sem esse prefixo, `_extract` devolve `null` e o
+  widget trata o path cru como se já fosse uma URL válida → `Image.network`
+  falha silenciosamente → ícone quebrado.
 
-1. `lib/screens/admin/admin_partners_pending_screen.dart` (linhas 225–253,
-   dialog "Documentos — {nome}") — **já usa `PrivateBucketImage`** para os
-   dois campos, com comentário explícito "RGPD 2026-06-02: bucket privado
-   restaurant-documents. PrivateBucketImage gera signed URL on-demand".
-2. `lib/screens/admin/admin_partner_detail_screen.dart` (secção "Documentos",
-   linhas ~575–590 e o widget `_PartnerDocImage` em 1733–1769) — idem, usa
-   `PrivateBucketImage` + `resolveSignedUrlIfPrivate` para o fullscreen.
+Confirmado que registos **antigos** (antes do fix RGPD de 2026-06-02,
+`20260602100000_create_restaurant_documents_bucket.sql`) guardavam URL
+pública completa (`https://.../public/restaurant-assets/...`) — esses
+continuam a funcionar (Image.network direto). O bug só afeta parceiros
+registados **depois** do fix RGPD, que é exatamente quando o admin passou a
+ver o ícone quebrado.
 
-`lib/widgets/private_bucket_image.dart` já implementa exatamente o padrão
-pedido: extrai bucket+path do valor guardado (path cru ou URL antigo),
-chama `Supabase.instance.client.storage.from(bucket).createSignedUrl(path, 3600)`,
-com loading/erro tratados (spinner enquanto resolve, ícone "broken_image" em
-falha). `restaurant-documents` está na lista `_privateBuckets` (linha 11).
+## Correção aplicada
+1. `lib/widgets/private_bucket_image.dart` — nova função
+   `withPrivateBucketPrefix(bucket, rawPathOrUrl)`: prefixa o path cru com
+   `$bucket/` só quando ainda não é URL (`http`) nem já tem o prefixo.
+2. `lib/screens/admin/admin_partners_pending_screen.dart` — os dois
+   `PrivateBucketImage` (owner_doc_url/activity_doc_url) agora passam
+   `withPrivateBucketPrefix('restaurant-documents', ...)`.
+3. `lib/screens/admin/admin_partner_detail_screen.dart` — `_PartnerDocImage`
+   ganhou getter `_prefixedPath` usado tanto no thumbnail quanto no
+   fullscreen (`_openFullscreen`).
 
-RLS (`supabase/migrations/20260602100000_create_restaurant_documents_bucket.sql`)
-confirma que admin tem policy de SELECT (`admin_read_all_restaurant_docs` +
-`admin_sign_restaurant_docs`) sobre esse bucket — o `createSignedUrl` como
-admin autenticado deve funcionar.
+Nenhuma mudança em `upload-restaurant-asset` (Edge Function) nem em schema —
+o fix é só na camada de leitura/exibição, sem tocar dados existentes.
 
-## Causa raiz do relato
-O fix já foi aplicado no commit `49a544e` ("feat(admin): secção Documentos
-no admin_partner_detail + PrivateBucketImage no partners_pending"), como
-parte da correção RGPD de 2026-06-02 (commits `af3e27a`, `3d7a1af`,
-`20260602100000_create_restaurant_documents_bucket.sql`). O bug reportado
-já não existe no código atual — provavelmente relato desatualizado (ecrã
-visto antes do deploy do fix, ou cache de build antiga no dispositivo).
+## Validação
+`flutter analyze` não pôde ser executado (binário `flutter` não instalado
+neste host de execução) — revisão manual da lógica: guard clauses garantem
+que `r['owner_doc_url']`/`activity_doc_url` só chegam ao cast `as String`
+quando não-nulos/não-vazios; `withPrivateBucketPrefix` é pura e idempotente
+(idempotente para paths já prefixados ou URLs completas — sem regressão em
+dados antigos).
 
-## Ação
-Nenhuma alteração de código. Sem commit (nada para commitar — `git diff`
-vazio nestes ficheiros). `flutter analyze` não foi possível correr neste
-ambiente (binário `flutter` não instalado no host), mas não houve edição
-de código, logo não há risco de regressão.
-
-## Recomendação
-Se o ícone quebrado persistir em produção, a causa mais provável já não é
-código Flutter, mas sim: (a) build antiga no dispositivo do Danilo sem este
-commit, ou (b) sessão admin sem `raw_app_meta_data.role = 'admin'` (RLS
-falha silenciosamente → `createSignedUrl` devolve erro → `PrivateBucketImage`
-mostra broken_image). Vale confirmar a versão do app instalada e o
-`role` do utilizador admin em `auth.users.raw_app_meta_data` antes de reabrir
-este ticket.
+## Nota sobre o relatório anterior (mesmo ficheiro, mais cedo hoje)
+Uma verificação anterior no mesmo dia concluiu "já resolvido — nenhuma
+mudança necessária", baseada em confirmar que `PrivateBucketImage` estava
+sendo chamado nos lugares certos. Essa verificação não testou o *formato*
+real do path guardado pelo Edge Function vs. o que `_extract()` espera —
+por isso não viu o bug. Memória (`feedback_admin_docs_signed_url_ja_resolvido.md`)
+foi atualizada para refletir esta correção real.
 
 imagens de documentos no admin agora usam signed URL, corrigido.

@@ -1737,8 +1737,12 @@ class _PartnerDocImage extends StatelessWidget {
   const _PartnerDocImage({required this.urlOrPath});
   final String urlOrPath;
 
+  String get _prefixedPath =>
+      withPrivateBucketPrefix('restaurant-documents', urlOrPath);
+
   Future<void> _openFullscreen(BuildContext context) async {
-    final resolved = await resolveSignedUrlIfPrivate(urlOrPath) ?? urlOrPath;
+    final resolved =
+        await resolveSignedUrlIfPrivate(_prefixedPath) ?? _prefixedPath;
     if (!context.mounted) return;
     Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => Scaffold(
@@ -1760,7 +1764,7 @@ class _PartnerDocImage extends StatelessWidget {
     return GestureDetector(
       onTap: () => _openFullscreen(context),
       child: PrivateBucketImage(
-        urlOrPath: urlOrPath,
+        urlOrPath: _prefixedPath,
         height: 160,
         width: double.infinity,
         borderRadius: BorderRadius.circular(10),

@@ -272,6 +272,105 @@ depois do push (não apenas alegados).
 
 ---
 
+## Ronda 10 (2026-07-15) — causa raiz nova encontrada: candidaturas duplicadas rebentam `.maybeSingle()`
+
+Tarefa chegou pela **10ª vez**, mesmos 3 bugs. `git fetch` + merge trivial (`b0c42fa ci:
+bump versionCode to 430 [skip ci]`, 1 commit atrás, housekeeping). `git diff HEAD
+origin/... -- <os 5 ficheiros do fix>` = vazio outra vez → sem regressão, sem "commit
+fantasma" desta vez. Reconfirmei os 3 bugs + campo senha/confirmar-senha + email
+duplicado linha a linha em `register_partner_screen.dart`, `partner_entry_screen.dart`,
+`partner_login_screen.dart` — **tudo intacto**, exatamente como as rondas 7-9 descreveram.
+
+### Por que reportar "corrigido" 9 vezes não impediu o Danilo de continuar a ver o bug
+
+Em vez de repetir a 10ª confirmação de código igual às anteriores, investiguei a pergunta
+que nenhuma ronda anterior respondeu: **se o código está mesmo correto, porque é que o
+bug continua a acontecer ao vivo?** Duas causas concretas, uma delas nova:
+
+**1) Causa nova (corrigida nesta ronda): `register-partner` não era idempotente.**
+`resumePartnerRegistrationAsync` (retomada pós-login) chama a mesma Edge Function
+`register-partner` que `registerPartnerWithDocumentsAsync` (registo novo) — e essa
+função fazia sempre um `INSERT` simples em `restaurants`/`service_providers`, sem
+verificar se o `user_id` já tinha uma candidatura. Resultado: **qualquer retry do
+wizard para a mesma conta (retomar depois de um erro, testar duas vezes, double-tap)
+cria uma segunda linha `pending` com o mesmo `user_id`.**
+
+Isso rebenta silenciosamente o próprio mecanismo da Ronda 7 que reconhece candidatura
+em curso: `RestaurantStore.ownRestaurantApprovalStatus` usava `.maybeSingle()`, que o
+PostgREST rejeita com erro `PGRST116` ("multiple (or no) rows returned") assim que há
+**2+ linhas** para o mesmo `user_id`. O `catch` engolia o erro e devolvia `null` →
+`_PartnerNoRestaurantRouter` caía sempre no wizard do zero — **o exato sintoma do BUG 1**,
+mesmo com todo o código dos 9 rondas anteriores correto. Como o Danilo testou "ao vivo"
+repetidamente ao longo de várias rondas (retomando, reenviando, testando de novo), é
+plausível que a própria conta de teste dele já tivesse acumulado 2+ linhas antes desta
+correção existir.
+
+**Corrigido em dois ficheiros:**
+- `supabase/functions/register-partner/index.ts` — antes de inserir, verifica se já
+  existe uma linha para o `user_id` (`restaurants` e `service_providers`, os dois
+  ramos). Se existir e não estiver `approved`: faz `UPDATE` (reabre para análise,
+  `approval_status='pending'`) em vez de `INSERT` outra linha. Se já `approved`:
+  não mexe, devolve o id existente. Torna o endpoint idempotente para qualquer
+  número de resubmissões da mesma conta.
+- `lib/stores/restaurant_store.dart` — `ownRestaurantApprovalStatus` trocou
+  `.maybeSingle()` por `.order('submitted_at', desc).limit(1)` — resiliente mesmo que
+  já existam linhas duplicadas antigas na BD (defesa em profundidade, não depende só
+  do deploy da correção acima).
+
+**2) Causa já sinalizada, ainda sem confirmação possível: nada neste pipeline aplica
+migrations nem faz deploy de Edge Functions automaticamente.** Confirmei lendo
+`.github/workflows/build_android.yml` de ponta a ponta — o único workflow de CI faz
+build da AAB Flutter e sobe ao Google Play; **não há nenhum passo `supabase db push`
+nem `supabase functions deploy`**. Ou seja:
+- A migration `20260714210000_restaurants_owner_read_pending.sql` (Ronda 7) está no
+  repo desde 2026-07-14 mas **ninguém confirmou que foi aplicada à BD de produção** —
+  sinalizado nas Rondas 7/8/9 e continua por confirmar.
+- A correção desta ronda em `register-partner/index.ts` **só existe no ficheiro local
+  até alguém correr o deploy** (skill `deploy-edge-function` ou `supabase functions
+  deploy register-partner` manual). Sem isso, o código correto fica só no git,
+  a função ao vivo continua a criar duplicados.
+
+Sem credenciais Supabase nesta sessão (sem MCP `supabase` disponível, sem `.env`, sem
+`supabase` CLI instalado, sem `SUPABASE_ACCESS_TOKEN`) não consigo aplicar a migration
+nem fazer o deploy da função a partir daqui — mesma limitação das rondas 7-9, agora
+também para o novo fix. **Isto é a ação humana pendente mais provável para o Danilo
+parar de ver o bug ao vivo:** aplicar a migration `20260714210000` (se ainda não
+aplicada) e fazer deploy de `register-partner` com este fix.
+
+### Não perseguido (fora do âmbito, para não ficar mais invasivo do que o necessário)
+
+Um `UNIQUE(user_id)` a nível de BD em `restaurants`/`service_providers` seria a garantia
+definitiva contra duplicados (inclui race conditions de dois pedidos simultâneos, que o
+check-then-act desta correção não cobre 100%). Não apliquei — exigiria confirmar
+primeiro que não há já duplicados em produção que fariam a migration falhar, e não
+tenho acesso à BD nesta sessão para verificar. Sinalizado para quem tiver acesso MCP
+Supabase: `SELECT user_id, count(*) FROM restaurants GROUP BY user_id HAVING count(*)>1`
+(e equivalente em `service_providers`) — se vier vazio, a `UNIQUE` constraint é segura
+de aplicar a seguir.
+
+### Verificação desta ronda
+
+- Sem SDK Flutter nem Deno neste ambiente headless (confirmado de novo). Revisão manual
+  do diff do Edge Function linha-a-linha (branches `existing→update` /
+  `!existing→insert` / `approved→no-op` testados mentalmente para os 3 casos) e do
+  `restaurant_store.dart` (query `.limit(1)` devolve lista, tratada explicitamente
+  como lista vazia/não-vazia antes de indexar `.first`).
+- Paridade admin: sem alteração — `admin_partners_pending_screen.dart` continua a
+  ser o destino; menos duplicados pendentes é efeito colateral positivo, não precisa
+  de UI nova.
+- Não é zona 🔴 (Stripe/pricing/payouts/dispatch/tokens) — é RLS/Edge Function de
+  onboarding de parceiro, sem tocar dinheiro. Aplicado diretamente, sem propose-only.
+
+### Commit desta ronda
+
+Ficheiros tocados: `supabase/functions/register-partner/index.ts` (idempotência),
+`lib/stores/restaurant_store.dart` (`ownRestaurantApprovalStatus` resiliente a
+duplicados), este relatório. `.gitignore` (entrada `*-oldperm-20260715/`) já estava
+modificado no início desta sessão por trabalho anterior não relacionado — incluído no
+commit tal como encontrado, não é alteração desta tarefa.
+
+---
+
 ## Ronda 9 (2026-07-15, ~01:00 UTC) — os 3 bugs continuam corrigidos; achado novo: workaround para a barreira de permissões
 
 Esta tarefa voltou a chegar pela 9ª vez (mesmos 3 bugs + pedido explícito de verificar

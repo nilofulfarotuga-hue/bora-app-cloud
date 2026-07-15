@@ -271,11 +271,19 @@ class RestaurantStore extends ChangeNotifier {
   /// instead of restarting the wizard from zero.
   Future<String?> ownRestaurantApprovalStatus(String userId) async {
     try {
-      final record = await supabase
+      // .limit(1) em vez de .maybeSingle(): se existirem linhas duplicadas
+      // para o mesmo user_id (candidaturas antigas submetidas antes da
+      // Edge Function register-partner passar a ser idempotente),
+      // .maybeSingle() lança PGRST116 ("multiple rows") e o catch abaixo
+      // devolvia null — reabrindo o wizard do zero em vez de reconhecer a
+      // candidatura já em curso.
+      final records = await supabase
           .from('restaurants')
           .select('approval_status')
           .eq('user_id', userId)
-          .maybeSingle();
+          .order('submitted_at', ascending: false)
+          .limit(1);
+      final record = (records as List).isEmpty ? null : records.first;
       return record?['approval_status'] as String?;
     } catch (e) {
       debugPrint('RestaurantStore: ownRestaurantApprovalStatus error => $e');

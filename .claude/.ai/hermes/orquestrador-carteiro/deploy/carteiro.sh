@@ -31,7 +31,6 @@ FILA="$HOSTDATA/cortex-brain/orquestracao"
 CTRL="$FILA/_controlo.md"
 LOG=/root/orquestracao/carteiro.log
 LOCK=/root/orquestracao/.carteiro.lock
-DANILO_CHAT_ID=6731890157
 PAUSA_TOTAL="$FILA/.pausa-total"           # STOP global (Danilo)
 PAUSA_RL="$FILA/.pausa-rate-limit"         # pausa automática por rate-limit (guarda epoch de retoma)
 RL_AVISADO=/root/orquestracao/.rate-limit.avisado
@@ -341,17 +340,8 @@ for f in "$FILA"/*.md; do
   missao=$(get missao "$f"); passo=$(get passo "$f")
   log "ordem $id: aberta (tentativa=$tent)${missao:+ [missão $missao/$passo]}"
 
-  # ---- CAMADA DE AUTORIZAÇÃO HUMANA (2026-07-15, persistência do "vai") — SÓ LEITURA ----
-  # autorizado_por/autorizado_em só são escritos por porta-vai.sh, depois de validar o
-  # chat_id contra o gateway.log real (ver deploy/porta-vai.sh). Sem isto, uma ordem
-  # destravada pelo Danilo era marcada zona_vermelha outra vez no ciclo seguinte, porque o
-  # texto da tarefa não muda. zona_vermelha() abaixo NÃO é alterada — só ganha um guard
-  # ANTES dela, por ordem específica.
-  autorizado_por=$(get autorizado_por "$f")
-  if [ "$autorizado_por" = "$DANILO_CHAT_ID" ]; then
-    log "ordem $id: autorizada por Danilo, salta T3"
   # T3 — zona vermelha (dinheiro + intenção de escrita)
-  elif zona_vermelha "$tarefa"; then
+  if zona_vermelha "$tarefa"; then
     setf estado zona_vermelha "$f"; setf nota "🔴 ZONA VERMELHA — precisa de decisão humana (dinheiro)" "$f"
     log "ordem $id: 🔴 ZONA VERMELHA -> aprovacao humana"
     notify "🔴 Bora/orquestração: ordem $id toca zona vermelha (dinheiro) — precisa de ti."

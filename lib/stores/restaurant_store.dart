@@ -264,6 +264,33 @@ class RestaurantStore extends ChangeNotifier {
         .any((restaurant) => restaurant.email.toLowerCase() == normalized);
   }
 
+  /// Checks for a restaurant owned by [userId] regardless of approval_status
+  /// (pending/rejected included) — deliberately NOT merged into `_restaurants`
+  /// (that list stays approved-only for client browsing). Used by
+  /// PartnerEntryScreen to recognise an in-review signup after logout/login
+  /// instead of restarting the wizard from zero.
+  Future<String?> ownRestaurantApprovalStatus(String userId) async {
+    try {
+      // .limit(1) em vez de .maybeSingle(): se existirem linhas duplicadas
+      // para o mesmo user_id (candidaturas antigas submetidas antes da
+      // Edge Function register-partner passar a ser idempotente),
+      // .maybeSingle() lança PGRST116 ("multiple rows") e o catch abaixo
+      // devolvia null — reabrindo o wizard do zero em vez de reconhecer a
+      // candidatura já em curso.
+      final records = await supabase
+          .from('restaurants')
+          .select('approval_status')
+          .eq('user_id', userId)
+          .order('submitted_at', ascending: false)
+          .limit(1);
+      final record = (records as List).isEmpty ? null : records.first;
+      return record?['approval_status'] as String?;
+    } catch (e) {
+      debugPrint('RestaurantStore: ownRestaurantApprovalStatus error => $e');
+      return null;
+    }
+  }
+
   // ─── Load from Supabase ───────────────────────────────────────────────────
 
   Future<void> loadRestaurantsFromSupabase() async {
@@ -274,7 +301,8 @@ class RestaurantStore extends ChangeNotifier {
       List<dynamic> response = await supabase
           .from('restaurants')
           .select()
-          .eq('is_active_admin', true);
+          .eq('is_active_admin', true)
+          .eq('approval_status', 'approved');
 
       // Seed defaults only when the DB table is empty (first run).
       if (response.isEmpty) {
@@ -282,7 +310,8 @@ class RestaurantStore extends ChangeNotifier {
         response = await supabase
             .from('restaurants')
             .select()
-            .eq('is_active_admin', true);
+            .eq('is_active_admin', true)
+            .eq('approval_status', 'approved');
       }
 
       _restaurants.clear();

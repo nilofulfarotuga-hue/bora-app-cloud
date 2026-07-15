@@ -764,12 +764,39 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
       badgeIcon = isOpen ? Icons.check_circle : Icons.cancel;
     }
 
+    final isOnline = _restaurant?['is_online'] as bool? ?? false;
+
     return RefreshIndicator(
       onRefresh: _loadAll,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16),
         children: [
+          Card(
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(Radii.lg),
+              side: const BorderSide(color: AppColors.divider),
+            ),
+            child: SwitchListTile.adaptive(
+              value: isOnline,
+              onChanged: _setAdminIsOnline,
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              title: const Text(
+                'Loja Online/Offline',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              subtitle: Text(
+                isOnline
+                    ? 'Visível e disponível para clientes (dentro do horário).'
+                    : 'Indisponível para clientes, mesmo dentro do horário configurado.',
+                style: const TextStyle(fontSize: 12),
+              ),
+              activeColor: AppColors.success,
+            ),
+          ),
+          const SizedBox(height: 16),
           Card(
             child: Padding(
               padding: const EdgeInsets.all(20),
@@ -832,6 +859,27 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
         ],
       ),
     );
+  }
+
+  // ─── Loja Online/Offline (manual, independente da aprovação) ────────────
+  Future<void> _setAdminIsOnline(bool online) async {
+    try {
+      await Supabase.instance.client
+          .from('restaurants')
+          .update({'is_online': online})
+          .eq('id', widget.restaurantId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(online ? 'Loja colocada Online' : 'Loja colocada Offline'),
+        ));
+      }
+      _loadAll();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Erro: $e')));
+      }
+    }
   }
 
   // ─── Takeaway admin actions (PROMPT C, PT-BR) ───────────────────────────
@@ -1737,8 +1785,12 @@ class _PartnerDocImage extends StatelessWidget {
   const _PartnerDocImage({required this.urlOrPath});
   final String urlOrPath;
 
+  String get _prefixedPath =>
+      withPrivateBucketPrefix('restaurant-documents', urlOrPath);
+
   Future<void> _openFullscreen(BuildContext context) async {
-    final resolved = await resolveSignedUrlIfPrivate(urlOrPath) ?? urlOrPath;
+    final resolved =
+        await resolveSignedUrlIfPrivate(_prefixedPath) ?? _prefixedPath;
     if (!context.mounted) return;
     Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => Scaffold(
@@ -1760,7 +1812,7 @@ class _PartnerDocImage extends StatelessWidget {
     return GestureDetector(
       onTap: () => _openFullscreen(context),
       child: PrivateBucketImage(
-        urlOrPath: urlOrPath,
+        urlOrPath: _prefixedPath,
         height: 160,
         width: double.infinity,
         borderRadius: BorderRadius.circular(10),

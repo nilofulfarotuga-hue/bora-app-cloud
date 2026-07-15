@@ -11,7 +11,7 @@
 #   T2/T4          budget/turns/tools nos .cmd do PC
 #
 # REENGENHARIA 2026-07-12 (ver inbox/reengenharia-esteira-2026-07-12.md):
-#   • nota NUNCA vazia — todo ramo de falha grava causa (RATE-LIMIT/TIMEOUT-3600s/SAIDA-VAZIA/
+#   • nota NUNCA vazia — todo ramo de falha grava causa (RATE-LIMIT/TIMEOUT-2400s/SAIDA-VAZIA/
 #     JUIZ-SEM-VEREDITO). Antes: falha do juiz -> nota "" e a causa perdia-se.
 #   • rate-limit inteligente — "hit your session limit" NÃO gasta tentativa; pausa a fila até ao
 #     reset (.pausa-rate-limit), avisa 1x no Telegram, retoma sozinho.
@@ -31,6 +31,7 @@ FILA="$HOSTDATA/cortex-brain/orquestracao"
 CTRL="$FILA/_controlo.md"
 LOG=/root/orquestracao/carteiro.log
 LOCK=/root/orquestracao/.carteiro.lock
+DANILO_CHAT_ID=6731890157
 PAUSA_TOTAL="$FILA/.pausa-total"           # STOP global (Danilo)
 PAUSA_RL="$FILA/.pausa-rate-limit"         # pausa automática por rate-limit (guarda epoch de retoma)
 RL_AVISADO=/root/orquestracao/.rate-limit.avisado
@@ -57,9 +58,6 @@ resultado_1linha(){ # $1=saida -> "Uma linha final: X" se existir, senão a últ
   [ -n "$r" ] && { echo "$r"; return; }
   printf '%s' "$1" | grep -vE '^[[:space:]]*$' | tail -1 | tr -d '\r'
 }
-resumo_tarefa(){ # $1=tarefa completa -> resumo curto p/ Telegram (sem prefixos [MODELO:.../[PROPOSE-ONLY:...])
-  printf '%s' "$1" | sed -E 's/^(\[MODELO:[^]]*\] *)?(\[PROPOSE-ONLY:[^]]*\] *)?//' | cut -c1-160
-}
 ts(){ date -u +%Y-%m-%dT%H:%M:%SZ; }
 log(){ echo "[$(ts)] $*" >> "$LOG"; }
 get(){ grep -E "^$1:" "$2" 2>/dev/null | head -1 | sed "s/^$1: *//" | tr -d '\r'; }
@@ -76,33 +74,7 @@ pc_exec(){ printf '%s' "$1" > "$HOSTDATA/orq_task.txt"
   # o orcamento de "1 ordem <=15min" ja documentado acima.
   # 2026-07-13 (pedido Danilo): alargado 900->2400s (40min) para dar tempo a ordens grandes
   # legitimas terminarem sem serem cortadas. A cura real continua a ser o fix do parser (acima).
-  # 2026-07-14 (pedido Danilo): timeout 3600 = 1h, decisao do Danilo para deixar tarefas grandes
-  # rodarem a vontade; so cortar de verdade acima disso.
-  #
-  # CARTEIRO-NA-VPS (2026-07-14, pedido Danilo — tirar a dependência do PC de 4GB): tenta
-  # primeiro o executor LOCAL da VPS (wrapper /root/claude-vps-exec.sh — source do token
-  # /root/.claude-vps-token + claude -p, já testado e a funcionar) em vez de saltar por
-  # SSH/Tailscale para o PC (esse salto era o gargalo do Elo 6: PC 4GB + pipe Windows frágil).
-  # Corre localhost, no próprio HOST — sem docker exec, sem pipe Windows para fechar. Mesmo
-  # teto de 3600s (1h) do PC, para o limite continuar a valer nos dois caminhos.
-  # FALLBACK: se a VPS falhar (token inválido, exit != 0, saída vazia) ou o wrapper não
-  # existir, cai para o caminho antigo (pc-loop/PC) e avisa no Telegram. O caminho antigo
-  # fica intacto — não foi apagado.
-  local vps_out vps_ec
-  if [ -x /root/claude-vps-exec.sh ]; then
-    vps_out=$(printf '%s' "$1" | timeout 3600 /root/claude-vps-exec.sh 2>&1); vps_ec=$?
-    vps_out=$(printf '%s' "$vps_out" | clean)
-    if [ "$vps_ec" -eq 0 ] && [ -n "$(printf '%s' "$vps_out" | tr -d '[:space:]')" ]; then
-      log "pc_exec: executado via VPS-LOCAL (claude-vps-exec.sh, exit=0)"
-      printf '%s' "$vps_out"
-      return
-    fi
-    log "pc_exec: VPS-LOCAL falhou (exit=$vps_ec, saida vazia=$([ -z "$(printf '%s' "$vps_out" | tr -d '[:space:]')" ] && echo sim || echo nao)) -- fallback PC"
-    notify "⚠️ Bora/orquestração: execução local na VPS falhou (exit=$vps_ec) — caiu para fallback PC (SSH/Tailscale)."
-  else
-    log "pc_exec: /root/claude-vps-exec.sh ausente/não-executável -- fallback PC"
-  fi
-  docker exec -u hermes "$C" sh -lc 'export PATH=/opt/data/.local/bin:$PATH; timeout 3600 pc-loop "$(cat /opt/data/orq_task.txt)"' 2>&1 | clean; }
+  docker exec -u hermes "$C" sh -lc 'export PATH=/opt/data/.local/bin:$PATH; timeout 2400 pc-loop "$(cat /opt/data/orq_task.txt)"' 2>&1 | clean; }
 pc_judge(){ printf '%s' "$1" > "$HOSTDATA/orq_judge.txt"
   docker exec -u hermes "$C" sh -lc 'export PATH=/opt/data/.local/bin:$PATH; timeout 400 pc-judge "$(cat /opt/data/orq_judge.txt)"' 2>&1 | clean; }
 
@@ -315,15 +287,6 @@ if [ "${1:-}" = "--selftest" ]; then
   grep -E '^passo: *B' "$tmf" | grep -qi 'estado: *concluida' && ok "set_passo B->concluida" || bad "set_passo B"
   grep -E '^passo: *A' "$tmf" | grep -qi 'estado: *concluida' && ok "set_passo não tocou A" || bad "set_passo tocou A errado"
   rm -f "$tmf"
-  # aviso-espera-telegram (2026-07-14): resumo_tarefa() tira os prefixos de máquina e corta
-  # a mensagem — é o texto que vai para o Telegram no aviso de zona vermelha.
-  r1=$(resumo_tarefa "[MODELO: SONNET] Atualizar o platform_settings stripe_enabled para true")
-  [ "$r1" = "Atualizar o platform_settings stripe_enabled para true" ] && ok "resumo_tarefa tira [MODELO: ...]" || bad "resumo_tarefa tira [MODELO: ...] (got: $r1)"
-  r2=$(resumo_tarefa "[MODELO: OPUS] [PROPOSE-ONLY: prepara o fix completo mas NÃO apliques] Corrigir o refund cap")
-  [ "$r2" = "Corrigir o refund cap" ] && ok "resumo_tarefa tira [MODELO:...] + [PROPOSE-ONLY:...]" || bad "resumo_tarefa tira os dois prefixos (got: $r2)"
-  longa=$(printf 'x%.0s' $(seq 1 300))
-  r3=$(resumo_tarefa "$longa")
-  [ "${#r3}" -eq 160 ] && ok "resumo_tarefa corta em 160 chars" || bad "resumo_tarefa corta em 160 chars (len=${#r3})"
   [ "$fail" = 0 ] && echo "SELFTEST: TODOS OK" || echo "SELFTEST: HÁ FALHAS"
   exit "$fail"
 fi
@@ -378,18 +341,20 @@ for f in "$FILA"/*.md; do
   missao=$(get missao "$f"); passo=$(get passo "$f")
   log "ordem $id: aberta (tentativa=$tent)${missao:+ [missão $missao/$passo]}"
 
+  # ---- CAMADA DE AUTORIZAÇÃO HUMANA (2026-07-15, persistência do "vai") — SÓ LEITURA ----
+  # autorizado_por/autorizado_em só são escritos por porta-vai.sh, depois de validar o
+  # chat_id contra o gateway.log real (ver deploy/porta-vai.sh). Sem isto, uma ordem
+  # destravada pelo Danilo era marcada zona_vermelha outra vez no ciclo seguinte, porque o
+  # texto da tarefa não muda. zona_vermelha() abaixo NÃO é alterada — só ganha um guard
+  # ANTES dela, por ordem específica.
+  autorizado_por=$(get autorizado_por "$f")
+  if [ "$autorizado_por" = "$DANILO_CHAT_ID" ]; then
+    log "ordem $id: autorizada por Danilo, salta T3"
   # T3 — zona vermelha (dinheiro + intenção de escrita)
-  if zona_vermelha "$tarefa"; then
+  elif zona_vermelha "$tarefa"; then
     setf estado zona_vermelha "$f"; setf nota "🔴 ZONA VERMELHA — precisa de decisão humana (dinheiro)" "$f"
     log "ordem $id: 🔴 ZONA VERMELHA -> aprovacao humana"
-    # 2026-07-14 (aviso-espera-telegram): antes o aviso só dizia "toca zona vermelha — precisa
-    # de ti", sem dizer O QUE a ordem faz nem como desbloquear — o Danilo ficava a saber que
-    # algo esperava, mas preso sem contexto nem ação direta. Agora leva o resumo da tarefa +
-    # o comando exato de desbloqueio (a skill desbloqueio-zona-vermelha do Hermes trata o "vai $id").
-    resumo=$(resumo_tarefa "$tarefa")
-    notify "🔴 Bora/orquestração: ordem $id EM ESPERA (zona vermelha — toca dinheiro/pagamento).
-Resumo: ${resumo:-(sem resumo)}
-Para libertar para a fila normal, responde aqui: vai $id"
+    notify "🔴 Bora/orquestração: ordem $id toca zona vermelha (dinheiro) — precisa de ti."
     [ -n "$missao" ] && { mf=$(missao_path "$missao"); [ -f "$mf" ] && missao_set_passo "$mf" "$passo" "zona_vermelha"; }
     continue
   fi
@@ -449,7 +414,7 @@ Para libertar para a fila normal, responde aqui: vai $id"
     # ---- NOTA NUNCA VAZIA — causa explícita por construção ----
     motivo=$(printf '%s' "$vline" | sed 's/.*CORRIGIR: *//')
     if [ "$vazio" -eq 1 ]; then
-      nota="⏱️ TIMEOUT-3600s / SAIDA-VAZIA — executor não devolveu texto (tarefa grande demais? dividir em passos menores — ver convencoes.md)"
+      nota="⏱️ TIMEOUT-2400s / SAIDA-VAZIA — executor não devolveu texto (tarefa grande demais? dividir em passos menores — ver convencoes.md)"
     elif [ -z "$vline" ]; then
       nota="⚖️ JUIZ-SEM-VEREDITO — juiz não devolveu linha VEREDITO (ver $id.saida.txt; possível rate-limit/erro do juiz)"
     elif [ -n "$motivo" ] && [ "$motivo" != "$vline" ]; then
@@ -461,7 +426,7 @@ Para libertar para a fila normal, responde aqui: vai $id"
 
     if [ "$vazio" -eq 1 ] && [ "$tent" -ge 2 ]; then   # TIMEOUT não re-tenta 5x
       setf estado travada "$f"
-      setf nota "⏱️ TIMEOUT-3600s x$tent — tarefa grande demais; DIVIDIR em passos menores (convencoes.md). Não re-tento a mesma coisa." "$f"
+      setf nota "⏱️ TIMEOUT-2400s x$tent — tarefa grande demais; DIVIDIR em passos menores (convencoes.md). Não re-tento a mesma coisa." "$f"
       log "ordem $id: TRAVADA-TIMEOUT (não re-tenta tarefa grande)"; missao_travada_ou_silencio "$f" "$missao" "$passo"
     elif [ "$tent" -ge 5 ]; then
       setf estado travada "$f"; log "ordem $id: TRAVADA (5 tentativas) — nota: $nota"; missao_travada_ou_silencio "$f" "$missao" "$passo"

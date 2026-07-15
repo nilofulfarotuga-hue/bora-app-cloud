@@ -1,47 +1,63 @@
-# Imagens de documentos no admin (Aprovação de parceiros) — já corrigido
+---
+data: 2026-07-15
+tarefa: "Corrigir imagens de Documento Proprietário/Documento Atividade quebradas em admin 'Aprovação de parceiros'"
+resultado: "BUG REAL ENCONTRADO E CORRIGIDO — correção anterior (mesmo dia) tinha concluído 'já resolvido' por engano"
+---
 
-**Pedido (2026-07-15):** owner_doc_url / activity_doc_url não aparecem (ícone quebrado)
-no ecrã `Aprovação de parceiros` porque o bucket `restaurant-documents` é privado e a BD
-só guarda o path, não um URL público — sugestão: gerar signed URL antes de mostrar.
+# Fix imagem documentos admin — 2026-07-15 (correção real)
 
-## Diagnóstico
+## Causa raiz confirmada
+`PrivateBucketImage` já existia e já era usado nos dois pontos certos
+(`admin_partners_pending_screen.dart` e `admin_partner_detail_screen.dart`),
+mas o **path guardado na BD não tem o prefixo do bucket**:
 
-Este fix **já existe no código, commitado, no HEAD atual da branch**. Não é regressão nova.
+- `supabase/functions/upload-restaurant-asset/index.ts` faz upload para o
+  bucket privado `restaurant-documents` mas devolve `path: filename` **sem**
+  o nome do bucket (ex.: `temp-1752600000000/owner_doc-1752600000000.jpg`).
+- `register_partner_screen.dart` grava esse `path` cru em `ownerDocUrl` /
+  `activityDocUrl`, que vai direto para as colunas `owner_doc_url` /
+  `activity_doc_url`.
+- `PrivateBucketImage._extract()` (`lib/widgets/private_bucket_image.dart`)
+  só reconhece um path privado se ele **começar literalmente com
+  `restaurant-documents/`**. Sem esse prefixo, `_extract` devolve `null` e o
+  widget trata o path cru como se já fosse uma URL válida → `Image.network`
+  falha silenciosamente → ícone quebrado.
 
-- `lib/screens/admin/admin_partners_pending_screen.dart` (título `'Aprovação de parceiros'`,
-  linha 330) já usa `PrivateBucketImage(urlOrPath: r['owner_doc_url'] ...)` e o mesmo para
-  `activity_doc_url` (linhas 228–253), com comentário explícito `RGPD 2026-06-02: bucket
-  privado restaurant-documents. PrivateBucketImage gera signed URL on-demand`.
-- `lib/widgets/private_bucket_image.dart` já implementa exatamente o padrão pedido: detecta
-  se o path pertence a um bucket privado (inclui `restaurant-documents`), chama
-  `Supabase.instance.client.storage.from(bucket).createSignedUrl(path, 3600)` e só depois
-  renderiza `Image.network` — com loading (`CircularProgressIndicator`) e erro
-  (`Icons.broken_image`) tratados.
-- `admin_partner_detail_screen.dart` (ecrã de detalhe, pós-aprovação) tem o mesmo padrão
-  desde a mesma correção.
+Confirmado que registos **antigos** (antes do fix RGPD de 2026-06-02,
+`20260602100000_create_restaurant_documents_bucket.sql`) guardavam URL
+pública completa (`https://.../public/restaurant-assets/...`) — esses
+continuam a funcionar (Image.network direto). O bug só afeta parceiros
+registados **depois** do fix RGPD, que é exatamente quando o admin passou a
+ver o ícone quebrado.
 
-Histórico: `relatorios/CORRECAO_FOTOS_ADMIN_2026-06-02.md` documenta a correção original
-(commit `49a544e`, 2026-06-02) — migrou os docs do bucket público `restaurant-assets` para
-o privado `restaurant-documents` e trocou `Image.network(path_cru)` por `PrivateBucketImage`
-em `admin_partners_pending_screen.dart` (Passo 5b) e `admin_partner_detail_screen.dart`
-(Passo 4). Confirmado via `git log` que ambos os ficheiros seguem intactos nesse estado —
-`git status` não mostra diferenças.
+## Correção aplicada
+1. `lib/widgets/private_bucket_image.dart` — nova função
+   `withPrivateBucketPrefix(bucket, rawPathOrUrl)`: prefixa o path cru com
+   `$bucket/` só quando ainda não é URL (`http`) nem já tem o prefixo.
+2. `lib/screens/admin/admin_partners_pending_screen.dart` — os dois
+   `PrivateBucketImage` (owner_doc_url/activity_doc_url) agora passam
+   `withPrivateBucketPrefix('restaurant-documents', ...)`.
+3. `lib/screens/admin/admin_partner_detail_screen.dart` — `_PartnerDocImage`
+   ganhou getter `_prefixedPath` usado tanto no thumbnail quanto no
+   fullscreen (`_openFullscreen`).
 
-## Verificação feita agora
+Nenhuma mudança em `upload-restaurant-asset` (Edge Function) nem em schema —
+o fix é só na camada de leitura/exibição, sem tocar dados existentes.
 
-- `git status --short` nos 3 ficheiros: sem alterações pendentes (código já é o do commit
-  `49a544e`).
-- `flutter analyze` nos 3 ficheiros: **0 erros** — 14 infos pré-existentes (mesmas do
-  relatório de 2026-06-02: `use_build_context_synchronously`, `curly_braces_in_flow_control`,
-  `activeColor` deprecated, nomes de classe privada), nenhuma delas nos blocos de imagem.
+## Validação
+`flutter analyze` não pôde ser executado (binário `flutter` não instalado
+neste host de execução) — revisão manual da lógica: guard clauses garantem
+que `r['owner_doc_url']`/`activity_doc_url` só chegam ao cast `as String`
+quando não-nulos/não-vazios; `withPrivateBucketPrefix` é pura e idempotente
+(idempotente para paths já prefixados ou URLs completas — sem regressão em
+dados antigos).
 
-## Se o Danilo ainda vê ícone quebrado no dispositivo
+## Nota sobre o relatório anterior (mesmo ficheiro, mais cedo hoje)
+Uma verificação anterior no mesmo dia concluiu "já resolvido — nenhuma
+mudança necessária", baseada em confirmar que `PrivateBucketImage` estava
+sendo chamado nos lugares certos. Essa verificação não testou o *formato*
+real do path guardado pelo Edge Function vs. o que `_extract()` espera —
+por isso não viu o bug. Memória (`feedback_admin_docs_signed_url_ja_resolvido.md`)
+foi atualizada para refletir esta correção real.
 
-Não é bug de código — provável causa é **APK desatualizado** (ver
-`[[project_autocomplete_guarda_stale_apk]]`, o mesmo padrão já visto noutro bug: código
-correto no repo, app instalada é build anterior). Recomendação: build+install novo APK para
-confirmar visualmente.
-
-## Ficheiros tocados
-
-Nenhum ficheiro de código alterado (nada para corrigir). Só este relatório.
+imagens de documentos no admin agora usam signed URL, corrigido.

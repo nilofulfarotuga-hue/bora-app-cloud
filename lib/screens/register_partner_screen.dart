@@ -49,8 +49,10 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
   // Step 3: Conta de Acesso
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
   bool _acceptedTerms = false;
   bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
   String? _emailInlineError;
 
   // Step 4: Logo/Confirmação
@@ -89,8 +91,10 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
         _ownerDocFile = file;
       } else if (_activityDocFile == null) {
         _activityDocFile = file;
-      } else {
+      } else if (_logoFile == null) {
         _logoFile = file;
+      } else {
+        _coverFile = file;
       }
     });
   }
@@ -102,6 +106,7 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
     _phoneController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     _cuisineController.dispose();
     _nifController.dispose();
     _ibanController.dispose();
@@ -325,6 +330,12 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
       if (_passwordController.text.length < 6) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Senha mínima de 6 caracteres')),
+        );
+        return false;
+      }
+      if (_confirmPasswordController.text != _passwordController.text) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('As senhas não coincidem')),
         );
         return false;
       }
@@ -830,6 +841,27 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
                         ),
                       ),
                     ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _confirmPasswordController,
+                      obscureText: _obscureConfirmPassword,
+                      decoration: InputDecoration(
+                        labelText: 'Confirmar senha',
+                        prefixIcon: const Icon(Icons.lock_outline),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscureConfirmPassword
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscureConfirmPassword = !_obscureConfirmPassword;
+                            });
+                          },
+                        ),
+                      ),
+                    ),
                   ],
                   const SizedBox(height: Spacing.xl),
                   CheckboxListTile(
@@ -852,137 +884,107 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
               state: _currentStep > 3 ? StepState.complete : StepState.indexed,
               content: Column(
                 children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          children: [
-                            GestureDetector(
-                              onTap: _isSubmitting ? null : _showLogoOptions,
-                              child: Container(
-                                height: 110,
-                                width: 110,
-                                decoration: BoxDecoration(
-                                  color: Colors.grey.shade100,
-                                  borderRadius: BorderRadius.circular(12),
-                                  border:
-                                      Border.all(color: Colors.grey.shade300),
-                                  image: _logoFile != null
-                                      ? DecorationImage(
-                                          image:
-                                              FileImage(File(_logoFile!.path)),
-                                          fit: BoxFit.cover,
-                                        )
-                                      : null,
-                                ),
-                                alignment: Alignment.center,
-                                child: _logoFile == null
-                                    ? Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Icon(Icons.add_a_photo_outlined,
-                                              color: Colors.grey.shade600,
-                                              size: 28),
-                                          const SizedBox(height: 6),
-                                          Text(
-                                            'Logo\n(quadrado)',
-                                            textAlign: TextAlign.center,
-                                            style: TextStyle(
-                                                fontSize: 12,
-                                                color: Colors.grey.shade700),
-                                          ),
-                                        ],
-                                      )
-                                    : const Align(
-                                        alignment: Alignment.bottomRight,
-                                        child: Padding(
-                                          padding: EdgeInsets.all(6),
-                                          child: Icon(Icons.check_circle,
-                                              color: Colors.green, size: 24),
-                                        ),
-                                      ),
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              'Logo (opcional)',
-                              style: TextStyle(
-                                  fontSize: 11, color: Colors.grey.shade600),
-                            ),
-                          ],
+                  Center(
+                    child: GestureDetector(
+                      onTap: _isSubmitting ? null : _showLogoOptions,
+                      child: Container(
+                        height: 120,
+                        width: 120,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.grey.shade300),
+                          image: _logoFile != null
+                              ? DecorationImage(
+                                  image: FileImage(File(_logoFile!.path)),
+                                  fit: BoxFit.cover,
+                                )
+                              : null,
                         ),
-                      ),
-                      const SizedBox(width: Spacing.lg),
-                      Expanded(
-                        flex: 2,
-                        child: Column(
-                          children: [
-                            GestureDetector(
-                              onTap: _isSubmitting ? null : _showCoverOptions,
-                              child: Container(
-                                height: 110,
-                                width: double.infinity,
-                                decoration: BoxDecoration(
-                                  color: Colors.grey.shade100,
-                                  borderRadius: BorderRadius.circular(12),
-                                  border:
-                                      Border.all(color: Colors.grey.shade300),
-                                  image: _coverFile != null
-                                      ? DecorationImage(
-                                          image: FileImage(
-                                              File(_coverFile!.path)),
-                                          fit: BoxFit.cover,
-                                        )
-                                      : null,
+                        alignment: Alignment.center,
+                        child: _logoFile == null
+                            ? Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.add_a_photo_outlined,
+                                      color: Colors.grey.shade600, size: 28),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    'Logo\n(quadrada)',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey.shade700),
+                                  ),
+                                ],
+                              )
+                            : const Align(
+                                alignment: Alignment.bottomRight,
+                                child: Padding(
+                                  padding: EdgeInsets.all(6),
+                                  child: Icon(Icons.check_circle,
+                                      color: Colors.green, size: 24),
                                 ),
-                                alignment: Alignment.center,
-                                child: _coverFile == null
-                                    ? Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Icon(Icons.add_photo_alternate_outlined,
-                                              color: Colors.grey.shade600,
-                                              size: 28),
-                                          const SizedBox(height: 6),
-                                          Text(
-                                            'Capa\n(retangular)',
-                                            textAlign: TextAlign.center,
-                                            style: TextStyle(
-                                                fontSize: 12,
-                                                color: Colors.grey.shade700),
-                                          ),
-                                        ],
-                                      )
-                                    : const Align(
-                                        alignment: Alignment.bottomRight,
-                                        child: Padding(
-                                          padding: EdgeInsets.all(6),
-                                          child: Icon(Icons.check_circle,
-                                              color: Colors.green, size: 24),
-                                        ),
-                                      ),
                               ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              'Capa (opcional)',
-                              style: TextStyle(
-                                  fontSize: 11, color: Colors.grey.shade600),
-                            ),
-                          ],
-                        ),
                       ),
-                    ],
+                    ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 6),
                   Text(
-                    'Logo: aparece nas listas e no ícone da loja. '
-                    'Capa: aparece no topo da página do estabelecimento.',
+                    'Logo do estabelecimento (opcional) — aparece nas listas '
+                    'e no ícone',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  ),
+                  const SizedBox(height: Spacing.lg),
+                  GestureDetector(
+                    onTap: _isSubmitting ? null : _showCoverOptions,
+                    child: Container(
+                      height: 110,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.shade300),
+                        image: _coverFile != null
+                            ? DecorationImage(
+                                image: FileImage(File(_coverFile!.path)),
+                                fit: BoxFit.cover,
+                              )
+                            : null,
+                      ),
+                      alignment: Alignment.center,
+                      child: _coverFile == null
+                          ? Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.panorama_outlined,
+                                    color: Colors.grey.shade600, size: 28),
+                                const SizedBox(height: 6),
+                                Text(
+                                  'Capa\n(retangular)',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                      color: Colors.grey.shade700),
+                                ),
+                              ],
+                            )
+                          : const Align(
+                              alignment: Alignment.bottomRight,
+                              child: Padding(
+                                padding: EdgeInsets.all(8),
+                                child: Icon(Icons.check_circle,
+                                    color: Colors.green, size: 28),
+                              ),
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Capa do estabelecimento (opcional) — aparece no topo da '
+                    'página',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                   ),
                   const SizedBox(height: Spacing.xl),
                   Card(

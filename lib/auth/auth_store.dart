@@ -1317,11 +1317,17 @@ class AuthStore extends ChangeNotifier {
       if (response.status != 201) {
         debugPrint('[AuthStore] register-partner EF returned ${response.status}: ${response.data}');
         // A conta de acesso (email+senha) JÁ foi criada no passo anterior —
-        // não é um problema de email/password. Diz isso, para não confundir
-        // o utilizador a duvidar da senha que acabou de definir.
+        // não é um problema de email/password. O backend já devolve uma
+        // mensagem específica em `error` (ex.: "NIF formato inválido") —
+        // mostra-a em vez do texto genérico, para o utilizador saber o que
+        // corrigir sem contactar o suporte.
+        final responseData = response.data;
+        final backendError =
+            responseData is Map ? responseData['error']?.toString() : null;
         return {
-          'error':
-              'A tua conta de acesso foi criada, mas houve um erro ao registar o estabelecimento. Contacta o suporte — não precisas de repetir o email/senha.',
+          'error': (backendError != null && backendError.trim().isNotEmpty)
+              ? backendError
+              : 'A tua conta de acesso foi criada, mas houve um erro ao registar o estabelecimento. Contacta o suporte — não precisas de repetir o email/senha.',
           'isDuplicateEmail': false,
         };
       }

@@ -56,6 +56,19 @@ Future<String?> _signed(_Resolved r) async {
   }
 }
 
+/// Some callers persist bare storage paths (no bucket prefix) — e.g.
+/// `upload-restaurant-asset` returns `path` without the bucket name. Prepend
+/// the bucket so `_extract` recognizes it as a private-bucket reference;
+/// leaves full URLs and already-prefixed paths untouched.
+String withPrivateBucketPrefix(String bucket, String rawPathOrUrl) {
+  if (rawPathOrUrl.isEmpty ||
+      rawPathOrUrl.startsWith('http') ||
+      rawPathOrUrl.startsWith('$bucket/')) {
+    return rawPathOrUrl;
+  }
+  return '$bucket/$rawPathOrUrl';
+}
+
 /// Re-signs URLs that point to private Supabase buckets (driver-documents,
 /// order-photos, receipts). Returns the input unchanged for public-bucket URLs
 /// or unparsable strings. Returns null if signing failed.

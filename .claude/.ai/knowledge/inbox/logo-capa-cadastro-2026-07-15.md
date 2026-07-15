@@ -1,53 +1,87 @@
-# Logo + Capa no cadastro de parceiro (2026-07-15)
+---
+tarefa: adicionar upload de LOGO e CAPA no wizard de cadastro de parceiro
+data: 2026-07-15
+estado: atual
+---
 
-## Contexto
-Passo "Logo & Confirmação" do wizard de cadastro de parceiro só mostrava a marca
-do Bora como confirmação — não deixava o parceiro carregar imagens próprias.
-Todo parceiro novo aparecia com ícone genérico. `restaurants.cover_url` já
-existia no banco (text, nullable) mas não estava sendo usado pela app nem pela
-Edge Function.
+# Logo & capa no wizard de cadastro de parceiro
+
+## O que existia
+- O passo "Logo & Confirmação" já tinha um seletor de LOGO (upload via
+  `upload-restaurant-asset`, kind='logo') — não estava "só a marca do Bora"
+  como o pedido descrevia, mas faltava mesmo a CAPA.
+- `restaurants.cover_url` (TEXT, nullable) não estava em nenhuma migration
+  do repo nem em `schema.sql` — assumido já aplicado em prod conforme
+  contexto da tarefa; adicionei a migration em falta (idempotente) para o
+  repo não ficar dessincronizado da BD real.
 
 ## O que foi feito
-1. `lib/screens/register_partner_screen.dart` — passo 4 agora tem DOIS
-   seletores de imagem lado a lado: Logo (quadrado, ícone/listas) e Capa
-   (retangular, topo da página), ambos opcionais com placeholder explicando o
-   formato esperado. Novo estado `_coverFile` + `_pickCover`/`_showCoverOptions`
-   espelhando o padrão já existente do logo.
-2. `_submit()` faz upload da capa via `upload-restaurant-asset`
-   (kind='cover', bucket público `restaurant-assets`) antes do submit final,
-   igual ao logo já fazia.
-3. `lib/auth/auth_store.dart` — `registerPartnerWithDocumentsAsync`,
-   `resumePartnerRegistrationAsync` e `_submitRestaurantEdgeFunction` agora
-   aceitam `photoUrl`/`coverUrl` e incluem no payload enviado a `register-partner`.
-4. `supabase/functions/register-partner/index.ts` — aceita `photoUrl`/`coverUrl`
-   no body e grava `photo_url`/`cover_url` no insert de `restaurants` (antes
-   `photo_url` ia sempre `""` fixo). Para `service_providers` (categoria
-   beauty) também passou a gravar `photo_url` (coluna já existe; `cover_url`
-   não existe nessa tabela, não foi tocado).
-5. **Gotcha descoberto:** a versão deployed do `register-partner` (v6) já
-   estava à frente do ficheiro no repo — tinha a regra "só email+telefone
-   obrigatórios" (2026-07-15) que o ficheiro local não tinha (ainda validava
-   NIF/IBAN/nome/morada). Sincronizei o ficheiro local com a versão deployed
-   ANTES de acrescentar photo/cover, para não reintroduzir a validação antiga.
-   Deploy feito via MCP Supabase → v7, `verify_jwt=false` preservado.
+1. **`lib/screens/register_partner_screen.dart`** — passo "Logo & Confirmação":
+   - Logo agora num placeholder quadrado (120×120) rotulado "Logo (quadrada)".
+   - Novo seletor de CAPA, placeholder retangular (110×full-width) rotulado
+     "Capa (retangular)", com câmara/galeria via `SafeImagePicker` — mesmo
+     padrão do logo (`_pickCover` / `_showCoverOptions`).
+   - Upload da capa antes do submit final via `upload-restaurant-asset`
+     (bucket público `restaurant-assets`, `kind: 'cover'`) — mesmo padrão
+     do logo. Ambos opcionais; nenhum bloqueia o submit.
+   - `_recoverLostImage` (Android low-memory kill do image picker) estendido
+     para incluir a capa como 4º fallback, mesma lógica já existente.
+2. **`lib/auth/auth_store.dart`** — `photoUrl`/`coverUrl` passados por
+   `registerPartnerWithDocumentsAsync` → `resumePartnerRegistrationAsync` →
+   `_submitRestaurantEdgeFunction` → body do invoke de `register-partner`.
+3. **`supabase/functions/register-partner/index.ts`** — aceita `photoUrl` e
+   `coverUrl` no body; `restaurantPayload` agora inclui
+   `photo_url: body.photoUrl || ""` (mantém default da coluna NOT NULL) e
+   `cover_url: body.coverUrl || null` (coluna nullable). Só afeta o ramo
+   `restaurants` (não o ramo `beauty`/`service_providers`, que não tem
+   `cover_url`).
+4. **`supabase/migrations/20260715130000_restaurants_cover_url.sql`** +
+   `supabase/schema.sql` — `ADD COLUMN IF NOT EXISTS cover_url TEXT`
+   (aditivo, não-destrutivo).
 
-## Sem imagens
-Se o parceiro não escolher logo nem capa, o cadastro segue normalmente —
-`photo_url` cai para `""` (comportamento antigo) e `cover_url` fica `null`.
-Continua só email+telefone obrigatórios.
+## O que NÃO mudou
+- A atualização pós-criação de `photo_url` via `.update()` direto na tabela
+  (linha ~530 do wizard) ficou intacta — agora é redundante para o caso de
+  criação nova (o `photo_url` já vem no insert), mas continua necessária
+  como está para não arriscar quebrar o fluxo já validado.
+- Não toquei em `RestaurantModel`/exibição da capa na página do
+  restaurante — fora do escopo pedido (só o wizard).
 
-## Testado
-- `flutter analyze` nos 2 ficheiros Dart tocados: 0 erros (só 6 avisos
-  pré-existentes, não relacionados — unused imports/field, 1 deprecated
-  `value:` no Step 3, todos já existiam antes desta mudança).
-- Sem emulador disponível neste ambiente headless — não foi possível correr o
-  fluxo visual end-to-end. Revisão lógica: upload de logo/capa segue
-  exatamente o padrão já usado e testado para owner_doc/activity_doc (mesma
-  Edge Function `upload-restaurant-asset`, só muda `kind`).
+## Verificação
+- `flutter` não está instalado neste ambiente (`flutter: command not found`)
+  — não foi possível correr `flutter analyze`. Revisão manual: parênteses/
+  chaves/colchetes balanceados (contagem automática), assinaturas dos 3
+  métodos do `auth_store.dart` conferidas ponta-a-ponta, variáveis
+  `logoUrl`/`coverUrl` no escopo correto em `_submit()`.
+- Fluxo COM imagens: upload logo → upload capa → submit com
+  `photoUrl`/`coverUrl` preenchidos → Edge Function grava ambos no insert.
+- Fluxo SEM imagens: `_logoFile`/`_coverFile` ficam `null` → nenhum upload
+  ocorre → `photoUrl`/`coverUrl` chegam `null` ao Edge Function →
+  `photo_url` fica `""` (default), `cover_url` fica `null` — cadastro segue
+  normalmente (só email+telefone continuam obrigatórios).
 
-## Pendências
-- Nenhuma migration criada para `cover_url` (coluna já existia direto no
-  banco, fora do repo — schema drift pré-existente, não desta tarefa).
-- `_recoverLostImage()` (recuperação de imagem perdida no Android após
-  picker) só tem 3 slots (ownerDoc→activityDoc→logo); não inclui `_coverFile`
-  — caso extremo, não crítico, deixado como estava (fora do escopo pedido).
+## Pendente (ação humana)
+- Confirmar que `cover_url` existe mesmo em prod (a tarefa afirmou que sim)
+  e fazer deploy da Edge Function `register-partner` atualizada — a
+  pipeline de CI não aplica migrations nem faz deploy de Edge Functions
+  (gap já registado em memória anterior sobre este mesmo wizard).
+
+## Re-verificações (mesmo dia, 2026-07-15)
+- A mesma tarefa chegou repetida pelo menos duas vezes pelo loop autónomo
+  (esta é a 2ª nota). Confirmado de novo via `git log` que `7e2c63f` cobre
+  os 5 pontos pedidos, `flutter` continua indisponível neste ambiente
+  (`flutter: command not found`, mesmo erro de antes), e o commit continua
+  em `origin/autonomous-night-2026-04-29` sem nada pendente de push.
+  Nenhuma alteração de código em nenhuma das duas repetições — só notas.
+  Se a tarefa voltar uma 3ª vez, ver [[cadastro-parceiro-register-partner-idempotencia]]
+  e o memo `feedback_logo_capa_cadastro_ja_resolvido.md` antes de investigar de novo.
+- **3ª vez (esta nota):** tarefa chegou idêntica outra vez. Confirmado de novo:
+  `7e2c63f` cobre os 5 pontos pedidos (dois seletores logo/capa com placeholder
+  120×120 e 110×full-width, upload via `upload-restaurant-asset` kind=logo/cover
+  antes do submit, payload `register-partner` com `photoUrl`/`coverUrl`, Edge
+  Function grava `photo_url`/`cover_url`, ambos opcionais); branch local == origin
+  (`autonomous-night-2026-04-29`, nada por enviar). Nenhuma alteração de código —
+  3 pedidos idênticos no mesmo dia sugerem item duplicado preso no backlog do
+  loop autónomo (`autonomy_backlog_items` / `robot_suggestions`). Sinalizado ao
+  Danilo abaixo; recomenda-se verificar/depurar essa fila em vez de repetir a
+  tarefa uma 4ª vez.

@@ -23,19 +23,12 @@
 # FALLBACK 30 MIN (2026-07-12 — incidente: ordem de retomar caiu e desapareceu sem rasto porque
 # o disparo por watermark ficou mudo — ver causa-raiz abaixo). Além do disparo normal (item
 # NOVO), este script agora também dispara — sozinho, sem depender do watermark — sempre que o
-# item MAIS ANTIGO ainda `nova` está parado há >=30 min E já não disparámos um forçado no
-# intervalo de backoff atual (dedupe próprio, ficheiro STATE_FORCE). O disparo forçado NÃO
-# aprova nada sozinho: só acorda o agente com uma instrução explícita para rever a fila e
-# promover os itens que forem CLARAMENTE Balde A (prova positiva de não-dinheiro); Balde B
-# continua sempre humano. Isto é rede de segurança — mesmo que o gatilho principal (newest)
-# volte a falhar em silêncio como aconteceu esta noite, nada fica preso mais de 30 min sem
-# alguém (o agente) olhar.
-#
-# BACKOFF (2026-07-13 — pendência das corridas 1-15: o mesmo lote Balde B, sem o Danilo decidir,
-# refazia disparos ~a cada 30 min indefinidamente, sem novidade nenhuma). Cada force_fire
-# consecutivo SEM o backlog encolher (mesmo `count` ou maior) dobra o intervalo até
-# MAX_BACKOFF_MIN; assim que `count` desce (Danilo decidiu algo na fila) o backoff reinicia em
-# STALE_MIN. Não muda o que o disparo faz — só espaça repetições do MESMO lote não resolvido.
+# item MAIS ANTIGO ainda `nova` está parado há >=30 min E já não disparámos um forçado nos
+# últimos 30 min (dedupe próprio, ficheiro STATE_FORCE). O disparo forçado NÃO aprova nada
+# sozinho: só acorda o agente com uma instrução explícita para rever a fila e promover os itens
+# que forem CLARAMENTE Balde A (prova positiva de não-dinheiro); Balde B continua sempre humano.
+# Isto é rede de segurança — mesmo que o gatilho principal (newest) volte a falhar em silêncio
+# como aconteceu esta noite, nada fica preso mais de 30 min sem alguém (o agente) olhar.
 set -u
 
 DRY=0; [ "${1:-}" = "--dry" ] && DRY=1
@@ -44,12 +37,9 @@ ENV=/docker/hermes-agent-fvnc/data/.env
 FILA=/docker/hermes-agent-fvnc/data/cortex-brain/orquestracao
 STATE=/root/orquestracao/aprovador-vermelho.watermark
 STATE_FORCE=/root/orquestracao/aprovador-vermelho.force_watermark
-STATE_FORCE_N=/root/orquestracao/aprovador-vermelho.force_backoff_n
-STATE_FORCE_COUNT=/root/orquestracao/aprovador-vermelho.force_last_count
 LOG=/root/orquestracao/aprovador-vermelho.log
 C=hermes-agent-fvnc-hermes-agent-1
 STALE_MIN=30
-MAX_BACKOFF_MIN=360
 
 ts(){ date -u +%FT%TZ; }
 log(){ echo "[$(ts)] $*" >> "$LOG"; }
@@ -77,22 +67,13 @@ elif [ "$newest" != "$last" ] && [ ! "$newest" \< "$last" ]; then
 fi
 
 # Disparo forçado por staleness: independente do watermark ter avançado. Só entra se houver
-# item(ns) pendentes há >=STALE_MIN e já passou o intervalo de backoff desde o último forçado.
+# item(ns) pendentes há >=STALE_MIN e ainda não disparámos um forçado nos últimos STALE_MIN.
 force_fire=0
-fire_n=$(cat "$STATE_FORCE_N" 2>/dev/null || echo 0)
-case "$fire_n" in ''|*[!0-9]*) fire_n=0 ;; esac
 if [ -n "${oldest_age:-}" ] && [ "$count" != "0" ] && [ "$oldest_age" -ge "$STALE_MIN" ] 2>/dev/null; then
   now_epoch=$(date -u +%s)
   prev_force=$(cat "$STATE_FORCE" 2>/dev/null || echo 0)
-  prev_count=$(cat "$STATE_FORCE_COUNT" 2>/dev/null || echo "")
-  # backlog encolheu desde o último forçado (Danilo decidiu algo) -> reinicia o backoff
-  if [ -n "$prev_count" ] && [ "$count" -lt "$prev_count" ] 2>/dev/null; then
-    fire_n=0
-  fi
-  backoff_min=$(( STALE_MIN * (1 << fire_n) ))
-  [ "$backoff_min" -gt "$MAX_BACKOFF_MIN" ] && backoff_min=$MAX_BACKOFF_MIN
   elapsed=$(( now_epoch - prev_force ))
-  if [ "$elapsed" -ge $((backoff_min * 60)) ]; then
+  if [ "$elapsed" -ge $((STALE_MIN * 60)) ]; then
     force_fire=1
   fi
 fi
@@ -102,17 +83,11 @@ if [ "$is_new_item" = 0 ] && [ "$force_fire" = 0 ]; then
   exit 0
 fi
 
-# 2026-07-14 (Emerson decide sozinho — pedido do Danilo): Balde A deixou de ser so recomendacao
-# no relatorio — o Hermes/Emerson agora PERSISTE a decisao via RPC robot_emerson_decide
-# (service_role, sem sessao admin humana; a propria RPC bloqueia no servidor qualquer aprovacao
-# que toque zona protegida). Aprovada -> status 'aprovada-emerson' + cortex_nova_ordem cria UMA
-# ordem no loop para executar (fecha com robot_emerson_close). Rejeitada -> status 'rejeitada'
-# com motivo curto. Balde B continua a NUNCA ser decidido por agente — so surfaça ao Danilo.
 oid="ordem-$(date -u +%Y%m%d%H%M%S)-aprv"
 if [ "$force_fire" = 1 ]; then
-  task="FALLBACK 30MIN: a fila da Central (robot_suggestions status=nova) tem item(ns) parado(s) ha ${oldest_age}+ minutos sem triagem (count=$count) — o gatilho normal por item-novo pode ter falhado. Corre o agente aprovador-vermelho (Emerson) AGORA sobre TODA a fila nova: para cada item, decide sozinho via RPC robot_emerson_decide (service_role) — 'aprovada-emerson' + UMA ordem cortex_nova_ordem por sugestao (nunca mais que 1) se for seguro/reversivel/melhora o sistema/nao toca zona protegida; senao 'rejeitada' com motivo curto (duplicado ou zona protegida). Sugestoes claramente identicas (mesmo alvo) so uma aprovada, as outras rejeitadas citando a aprovada. Zona protegida (dispatch/pagamentos/pricing/tokens/refund/comissao) NUNCA e decidida por agente — fica 'nova' e vai para o Danilo via Telegram. Envia 1 linha ao Telegram do Danilo por decisao tomada. NAO alteres logica sensivel — so triagem+decisao administrativa."
+  task="FALLBACK 30MIN: a fila da Central (robot_suggestions status=nova) tem item(ns) parado(s) ha ${oldest_age}+ minutos sem triagem (count=$count) — o gatilho normal por item-novo pode ter falhado. Corre o agente aprovador-vermelho AGORA sobre TODA a fila nova: tria cada item em Balde A (leitura/falso-positivo, nao-dinheiro, com prova positiva) ou Balde B (sensivel/dinheiro, SEMPRE humano). Promove/auto-aprova AGORA os que forem claramente Balde A citando motivo, mesmo que ja tenham sido vistos antes — nao deixes nada preso so por staleness. Balde B nunca e promovido automaticamente, fica para o Danilo via Telegram. NAO alteres logica sensivel — so roteamento de aprovacao."
 else
-  task="Corre o agente aprovador-vermelho (Emerson) sobre a fila da Central de sugestoes (robot_suggestions status=nova): para cada item, decide sozinho via RPC robot_emerson_decide — 'aprovada-emerson' + UMA ordem cortex_nova_ordem por sugestao se for seguro/reversivel/melhora o sistema/nao toca zona protegida; senao 'rejeitada' com motivo curto. Duplicados (mesmo alvo): aprova so um, rejeita os outros citando o aprovado. Zona protegida (dispatch/pagamentos/pricing/tokens/refund/comissao) fica sempre 'nova' para o Danilo decidir via Telegram — NUNCA decidida por agente. Envia 1 linha ao Telegram do Danilo por decisao. NAO alteres logica sensivel — so triagem+decisao administrativa. Item novo detetado: newest=$newest count=$count."
+  task="Corre o agente aprovador-vermelho sobre a fila da Central de sugestoes (robot_suggestions status=nova): tria cada item em Balde A (leitura/falso-positivo, nao-dinheiro) ou Balde B (sensivel, SEMPRE humano). Auto-aprova Balde A citando motivo; encaminha Balde B ao Danilo por Telegram. NAO alteres logica sensivel — so roteamento de aprovacao. Item novo detetado: newest=$newest count=$count."
 fi
 
 if [ "$DRY" = 1 ]; then
@@ -134,9 +109,5 @@ tarefa: $task
 --- fim ---
 EOF
 [ "$is_new_item" = 1 ] && echo "$newest" > "$STATE"
-if [ "$force_fire" = 1 ]; then
-  date -u +%s > "$STATE_FORCE"
-  echo "$((fire_n + 1))" > "$STATE_FORCE_N"
-  echo "$count" > "$STATE_FORCE_COUNT"
-fi
-log "DISPAROU $oid (is_new_item=$is_new_item force_fire=$force_fire fire_n=$fire_n newest=$newest count=$count oldest_age=${oldest_age:-?}min)"
+[ "$force_fire" = 1 ] && date -u +%s > "$STATE_FORCE"
+log "DISPAROU $oid (is_new_item=$is_new_item force_fire=$force_fire newest=$newest count=$count oldest_age=${oldest_age:-?}min)"

@@ -230,7 +230,8 @@ class _AdminPartnersPendingScreenState
                       style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   PrivateBucketImage(
-                    urlOrPath: r['owner_doc_url'] as String,
+                    urlOrPath: withPrivateBucketPrefix(
+                        'restaurant-documents', r['owner_doc_url'] as String),
                     height: 150,
                     width: double.infinity,
                     borderRadius: BorderRadius.circular(8),
@@ -244,7 +245,8 @@ class _AdminPartnersPendingScreenState
                       style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   PrivateBucketImage(
-                    urlOrPath: r['activity_doc_url'] as String,
+                    urlOrPath: withPrivateBucketPrefix('restaurant-documents',
+                        r['activity_doc_url'] as String),
                     height: 150,
                     width: double.infinity,
                     borderRadius: BorderRadius.circular(8),

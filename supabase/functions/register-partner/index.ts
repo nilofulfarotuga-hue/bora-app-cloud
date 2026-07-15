@@ -22,6 +22,23 @@ interface RegisterPartnerRequest {
   coverUrl?: string;
 }
 
+function validateNif(nif: string): boolean {
+  if (!nif || nif.length !== 9) return false;
+  const digits = nif.split("").map((d) => parseInt(d, 10));
+  let sum = 0;
+  for (let i = 0; i < 8; i++) {
+    sum += digits[i] * (9 - i);
+  }
+  const checkDigit = (11 - (sum % 11)) % 11;
+  return checkDigit === 10 ? digits[8] === 0 : digits[8] === checkDigit;
+}
+
+function validateIban(iban: string): boolean {
+  if (!iban) return false;
+  // Portuguese IBAN: PT + 23 digits (25 chars total: 2 check digits + 21-digit NIB)
+  return /^PT\d{23}$/.test(iban.toUpperCase().replace(/\s/g, ""));
+}
+
 Deno.serve(async (req: Request) => {
   try {
     if (req.method === "OPTIONS") {
@@ -77,10 +94,21 @@ Deno.serve(async (req: Request) => {
 
     const body = (await req.json()) as RegisterPartnerRequest;
 
-    // REGRA DO DANILO (2026-07-15): so email e telefone sao obrigatorios.
-    // NIF, IBAN, nome, morada - aceita o que vier, sem validar formato.
-    // Quem decide o que falta e o Danilo na aprovacao manual (approval_status=pending),
-    // nao o sistema. O sistema so regista e deixa pendente.
+    // Validações de entrada
+    if (!body.restaurantName?.trim()) {
+      return new Response(
+        JSON.stringify({ error: "restaurantName obrigatório" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!body.address?.trim()) {
+      return new Response(
+        JSON.stringify({ error: "address obrigatório" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
     if (!body.email?.trim()) {
       return new Response(
         JSON.stringify({ error: "email obrigatório" }),
@@ -88,101 +116,164 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    if (!body.phone?.trim()) {
+    // Validações NIF e IBAN (opcionais, mas validar formato se preenchidos)
+    if (body.nif && !validateNif(body.nif)) {
       return new Response(
-        JSON.stringify({ error: "telefone obrigatório" }),
+        JSON.stringify({ error: "NIF formato inválido (9 dígitos)" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    if (body.iban && !validateIban(body.iban)) {
+      return new Response(
+        JSON.stringify({
+          error: "IBAN formato inválido (PT + 23 dígitos)",
+        }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
 
     // ── beauty / salão → service_providers ──────────────────────────────
     if (body.category === "beauty") {
-      const providerId = crypto.randomUUID();
-      const { error: spError } = await supabase
+      // Idempotência: um user_id que já tem candidatura (pending/rejected)
+      // atualiza-a em vez de inserir outra linha — sem isto, cada retry do
+      // wizard (retomada após login, double-submit, etc.) criava uma linha
+      // nova, e queries que assumem "no máximo 1 candidatura por user_id"
+      // (ex.: RestaurantStore.ownRestaurantApprovalStatus) rebentavam.
+      const { data: existingProviders } = await supabase
         .from("service_providers")
-        .insert({
-          id: providerId,
-          user_id: userId,
-          name: body.restaurantName || "",
-          category: "beauty",
-          address: body.address || "",
-          phone: body.phone,
-          lat: body.lat || null,
-          lng: body.lng || null,
-          nif: body.nif || null,
-          iban: body.iban || null,
-          photo_url: body.photoUrl || null,
-          approval_status: "pending",
-        });
+        .select("id, approval_status")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(1);
+      const existingProvider = existingProviders?.[0];
+
+      const providerId = existingProvider?.id ?? crypto.randomUUID();
+      const providerPayload = {
+        name: body.restaurantName,
+        category: "beauty",
+        address: body.address || null,
+        phone: body.phone || null,
+        lat: body.lat || null,
+        lng: body.lng || null,
+        nif: body.nif || null,
+        iban: body.iban || null,
+      };
+
+      const spError = existingProvider && existingProvider.approval_status !== "approved"
+        ? (await supabase
+            .from("service_providers")
+            .update({ ...providerPayload, approval_status: "pending", rejection_reason: null })
+            .eq("id", providerId)).error
+        : existingProvider
+        ? null // já aprovado — não mexe, só devolve o id existente
+        : (await supabase
+            .from("service_providers")
+            .insert({ id: providerId, user_id: userId, approval_status: "pending", ...providerPayload })).error;
+
       if (spError) {
-        console.error("Register beauty provider insert error:", spError);
+        console.error("Register beauty provider upsert error:", spError);
         return new Response(
           JSON.stringify({ error: `Erro ao inserir prestador: ${spError.message}` }),
           { status: 500, headers: { "Content-Type": "application/json" } }
         );
       }
-      console.log(`[register-partner] New beauty provider submitted: ${providerId} (${body.email})`);
+      // Status devolvido reflete o estado PÓS-operação: "approved" só no caso
+      // de no-op (já era aprovado); update/insert acabaram de pôr 'pending'.
+      const providerStatus = existingProvider?.approval_status === "approved" ? "approved" : "pending";
+      console.log(`[register-partner] Beauty provider ${existingProvider ? "resubmitted" : "submitted"}: ${providerId} (${body.email})`);
       return new Response(
         JSON.stringify({
           success: true,
           provider_id: providerId,
-          status: "pending",
+          status: providerStatus,
           message: "Registo submetido. Aguardando análise do admin (24-48h).",
         }),
         { status: 201, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    // Gera UUID para restaurant.id
-    const restaurantId = crypto.randomUUID();
-
-    // INSERT em restaurants com approval_status='pending'
-    // Danilo decide na aprovacao manual o que falta - sistema so regista.
-    const { data: restaurantData, error: insertError } = await supabase
+    // Idempotência: mesma lógica do ramo beauty acima, para `restaurants`.
+    const { data: existingRestaurants } = await supabase
       .from("restaurants")
-      .insert({
-        id: restaurantId,
-        user_id: userId,
-        name: body.restaurantName || "",
-        address: body.address || "",
-        phone: body.phone,
-        email: body.email,
-        photo_url: body.photoUrl || "",
-        cover_url: body.coverUrl || null,
-        cuisine_type: body.cuisineType || "",
-        category: body.category || "restaurant",
-        is_partner: true,
-        is_online: false,
-        lat: body.lat || null,
-        lng: body.lng || null,
-        nif: body.nif || null,
-        iban: body.iban || null,
-        owner_doc_url: body.ownerDocUrl || null,
-        activity_doc_url: body.activityDocUrl || null,
-        approval_status: "pending",
-        rejection_reason: null,
-        submitted_at: new Date().toISOString(),
-        reviewed_at: null,
-        approved_at: null,
-      })
-      .select()
-      .single();
+      .select("id, approval_status")
+      .eq("user_id", userId)
+      .order("submitted_at", { ascending: false })
+      .limit(1);
+    const existingRestaurant = existingRestaurants?.[0];
+
+    const restaurantId = existingRestaurant?.id ?? crypto.randomUUID();
+    const restaurantPayload = {
+      name: body.restaurantName,
+      address: body.address,
+      phone: body.phone,
+      email: body.email,
+      cuisine_type: body.cuisineType || "",
+      category: body.category || "restaurant",
+      lat: body.lat || null,
+      lng: body.lng || null,
+      nif: body.nif || null,
+      iban: body.iban || null,
+      owner_doc_url: body.ownerDocUrl || null,
+      activity_doc_url: body.activityDocUrl || null,
+      photo_url: body.photoUrl || "",
+      cover_url: body.coverUrl || null,
+    };
+
+    let insertError;
+    if (existingRestaurant && existingRestaurant.approval_status !== "approved") {
+      // Candidatura pending/rejected já existe: atualiza + reabre para análise.
+      ({ error: insertError } = await supabase
+        .from("restaurants")
+        .update({
+          ...restaurantPayload,
+          approval_status: "pending",
+          rejection_reason: null,
+          submitted_at: new Date().toISOString(),
+          reviewed_at: null,
+          approved_at: null,
+        })
+        .eq("id", restaurantId));
+    } else if (!existingRestaurant) {
+      // BUG-2 FIX: define user_id para permitir RLS em products
+      ({ error: insertError } = await supabase
+        .from("restaurants")
+        .insert({
+          id: restaurantId,
+          user_id: userId,
+          photo_url: "",
+          is_partner: true,
+          is_online: false,
+          approval_status: "pending",
+          rejection_reason: null,
+          submitted_at: new Date().toISOString(),
+          reviewed_at: null,
+          approved_at: null,
+          ...restaurantPayload,
+        }));
+    } else {
+      // Já aprovado — não mexe, só devolve o id existente.
+      insertError = null;
+    }
 
     if (insertError) {
-      console.error("Register partner insert error:", insertError);
+      console.error("Register partner upsert error:", insertError);
       return new Response(
         JSON.stringify({ error: `Erro ao inserir restaurante: ${insertError.message}` }),
         { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    console.log(`[register-partner] New partner submitted: ${restaurantId} (${body.email})`);
+    // Status devolvido reflete o estado PÓS-operação: "approved" só no caso
+    // de no-op (já era aprovado); update/insert acabaram de pôr 'pending'.
+    const restaurantStatus = existingRestaurant?.approval_status === "approved" ? "approved" : "pending";
+    console.log(`[register-partner] Partner ${existingRestaurant ? "resubmitted" : "submitted"}: ${restaurantId} (${body.email})`);
 
     return new Response(
       JSON.stringify({
         success: true,
         restaurant_id: restaurantId,
-        status: "pending",
+        status: restaurantStatus,
         message: "Restaurante criado. Aguardando análise do admin (24-48h).",
       }),
       {

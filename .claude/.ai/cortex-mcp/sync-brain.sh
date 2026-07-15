@@ -8,10 +8,13 @@
 # MODOS:
 #   hard  (default) — cron de madrugada (06h30): fetch + reset --hard. Autoritário / rede de
 #                     segurança. Descarta edições locais (inclui a fila orquestracao/) — OK à noite.
-#   fast            — por-tarefa (carteiro após cada push): fetch + merge --ff-only. PRESERVA a
-#                     fila orquestracao/ que o carteiro edita localmente (não a rebobina → não
-#                     re-executa ordens). Se não der ff (árvore suja no caminho) refresca só o
-#                     knowledge/ (o Claude.ai lê CONTEÚDO, não o SHA) e deixa o cron reconciliar.
+#   fast            — por-tarefa (carteiro após cada push): fetch --depth 1 + checkout direto da
+#                     árvore de FETCH_HEAD (SEM merge — um fetch --depth 1 novo a cada chamada gera
+#                     sempre um shallow tip desligado do anterior, logo 'merge --ff-only' falha
+#                     SEMPRE com "unrelated histories"; corrigido 2026-07-15, ver run cura-20260715-1
+#                     em e2e_log). PRESERVA a fila orquestracao/ (16 ficheiros TRACKED — alguns com
+#                     edições locais não commitadas — mais o resto untracked; excluída inteira do
+#                     checkout) para o carteiro não a ver rebobinada → não re-executa ordens.
 #
 # Auth: SEMPRE deploy key SSH (/opt/data/.secrets/cortex_deploy_ed25519) — NUNCA PAT em URL.
 set -e
@@ -29,11 +32,8 @@ else
   git -C "$DST" remote set-url origin "$REMOTE"   # garante SSH deploy key (nunca PAT), idempotente
   git -C "$DST" fetch --depth 1 origin "$BR"
   if [ "$MODE" = "fast" ]; then
-    if ! git -C "$DST" merge --ff-only "origin/$BR" 2>/dev/null; then
-      # ff falhou (fila/knowledge local sujo no caminho) — refresca o conteúdo do knowledge na mesma
-      git -C "$DST" checkout -f "origin/$BR" -- .claude/.ai/knowledge 2>/dev/null \
-        || echo "[sync fast] ff falhou; cron de madrugada reconcilia"
-    fi
+    git -C "$DST" checkout -f FETCH_HEAD -- . ':(exclude)orquestracao'
+    git -C "$DST" update-ref "refs/heads/$BR" FETCH_HEAD
   else
     git -C "$DST" reset --hard "origin/$BR"
   fi

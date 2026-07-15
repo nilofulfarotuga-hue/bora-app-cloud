@@ -160,3 +160,9 @@ graphify-out/
 .graphify/
 .graphify_analysis.json
 .graphify_labels.json
+
+# ── Órfãos root-owned (workaround de permissões hermes-exec, ver
+#    .claude/.ai/reports/hermes-exec-permissoes-reais-2026-07-14.md) — cópias
+#    root:root que não conseguimos apagar sem sudo; conteúdo já duplicado e
+#    corrigido no caminho original. Não tocar sem root disponível.
+*-oldperm-20260715/

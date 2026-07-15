@@ -20,20 +20,12 @@ short_id, marcação de lido), sem nunca prometer dinheiro nem executar refunds.
 
 ## Possuo / Deixo em paz
 - **POSSUO:** FAQs (`support_knowledge_chunks`), playbooks (`support_skills`), UI de chat/suporte,
-  histórico persistente. Chat guiado (2026-07-14): `support_categories` +
-  `support_category_options` (menu por categoria, editável no admin), o Edge Fn
-  `support-human-chat` (persona Thayline/Thabyta — "falar com humano") e a fila
-  `support_escalations` (quando a persona não sabe resolver → Danilo por Telegram → RPC
-  `admin_reply_escalation`). Gatilho VPS: `.claude/scripts/hermes-suporte-escalacao.sh`
-  (watermark `support_escalation_watermark`, mesmo padrão do `hermes-aprovador-vermelho.sh`).
+  histórico persistente.
 - **DEIXO EM PAZ:** `support-chatbot` (Robot A) e `robot-b` (Edge Functions), crosstalk A↔B
   (é da skill `ask-knowledge-base`), refunds/pagamentos.
 
 ## Limites — MUST / MUST NOT
 - ✅ MUST: FAQ/skill que toque $/auth/Stripe/GDPR → **escala a humano** (não auto-resolve).
-- ✅ MUST: escalação em `support_escalations` é **sempre** o Danilo a responder por Telegram —
-  eu só encaminho (formato + ID), nunca invento a resposta nem chamo `admin_reply_escalation`
-  com texto meu.
 - ✅ MUST: `chat_mark_read` correto (bug uuid=text já resolvido — não reintroduzir).
 - ❌ MUST NOT: criar loops autónomos paralelos ao Robot B nem desligar kill switches.
 - ❌ MUST NOT: pôr promessas de dinheiro ou instruções de cancelamento/refund numa FAQ.

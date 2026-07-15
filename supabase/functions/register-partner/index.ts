@@ -18,23 +18,8 @@ interface RegisterPartnerRequest {
   lng?: number;
   ownerDocUrl?: string;
   activityDocUrl?: string;
-}
-
-function validateNif(nif: string): boolean {
-  if (!nif || nif.length !== 9) return false;
-  const digits = nif.split("").map((d) => parseInt(d, 10));
-  let sum = 0;
-  for (let i = 0; i < 8; i++) {
-    sum += digits[i] * (9 - i);
-  }
-  const checkDigit = (11 - (sum % 11)) % 11;
-  return checkDigit === 10 ? digits[8] === 0 : digits[8] === checkDigit;
-}
-
-function validateIban(iban: string): boolean {
-  if (!iban) return false;
-  // Portuguese IBAN: PT + 23 digits (25 chars total: 2 check digits + 21-digit NIB)
-  return /^PT\d{23}$/.test(iban.toUpperCase().replace(/\s/g, ""));
+  photoUrl?: string;
+  coverUrl?: string;
 }
 
 Deno.serve(async (req: Request) => {
@@ -92,21 +77,10 @@ Deno.serve(async (req: Request) => {
 
     const body = (await req.json()) as RegisterPartnerRequest;
 
-    // Validações de entrada
-    if (!body.restaurantName?.trim()) {
-      return new Response(
-        JSON.stringify({ error: "restaurantName obrigatório" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
-    }
-
-    if (!body.address?.trim()) {
-      return new Response(
-        JSON.stringify({ error: "address obrigatório" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
-    }
-
+    // REGRA DO DANILO (2026-07-15): so email e telefone sao obrigatorios.
+    // NIF, IBAN, nome, morada - aceita o que vier, sem validar formato.
+    // Quem decide o que falta e o Danilo na aprovacao manual (approval_status=pending),
+    // nao o sistema. O sistema so regista e deixa pendente.
     if (!body.email?.trim()) {
       return new Response(
         JSON.stringify({ error: "email obrigatório" }),
@@ -114,19 +88,9 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Validações NIF e IBAN (opcionais, mas validar formato se preenchidos)
-    if (body.nif && !validateNif(body.nif)) {
+    if (!body.phone?.trim()) {
       return new Response(
-        JSON.stringify({ error: "NIF formato inválido (9 dígitos)" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
-    }
-
-    if (body.iban && !validateIban(body.iban)) {
-      return new Response(
-        JSON.stringify({
-          error: "IBAN formato inválido (PT + 23 dígitos)",
-        }),
+        JSON.stringify({ error: "telefone obrigatório" }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
@@ -139,14 +103,15 @@ Deno.serve(async (req: Request) => {
         .insert({
           id: providerId,
           user_id: userId,
-          name: body.restaurantName,
+          name: body.restaurantName || "",
           category: "beauty",
-          address: body.address || null,
-          phone: body.phone || null,
+          address: body.address || "",
+          phone: body.phone,
           lat: body.lat || null,
           lng: body.lng || null,
           nif: body.nif || null,
           iban: body.iban || null,
+          photo_url: body.photoUrl || null,
           approval_status: "pending",
         });
       if (spError) {
@@ -172,17 +137,18 @@ Deno.serve(async (req: Request) => {
     const restaurantId = crypto.randomUUID();
 
     // INSERT em restaurants com approval_status='pending'
-    // BUG-2 FIX: define user_id para permitir RLS em products
+    // Danilo decide na aprovacao manual o que falta - sistema so regista.
     const { data: restaurantData, error: insertError } = await supabase
       .from("restaurants")
       .insert({
         id: restaurantId,
         user_id: userId,
-        name: body.restaurantName,
-        address: body.address,
+        name: body.restaurantName || "",
+        address: body.address || "",
         phone: body.phone,
         email: body.email,
-        photo_url: "",
+        photo_url: body.photoUrl || "",
+        cover_url: body.coverUrl || null,
         cuisine_type: body.cuisineType || "",
         category: body.category || "restaurant",
         is_partner: true,
@@ -210,8 +176,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Trigger notificação admin (via Edge Function notify-admin-urgent se existir)
-    // Para simplicidade, apenas log aqui — admin vê em dashboard quando load partners
     console.log(`[register-partner] New partner submitted: ${restaurantId} (${body.email})`);
 
     return new Response(

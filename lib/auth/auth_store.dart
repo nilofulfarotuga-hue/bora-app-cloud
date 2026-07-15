@@ -1183,6 +1183,8 @@ class AuthStore extends ChangeNotifier {
     String? iban,
     String? ownerDocUrl,
     String? activityDocUrl,
+    String? photoUrl,
+    String? coverUrl,
     DateTime? consentAcceptedAt,
   }) async {
     // Step 1: Cria auth user via registerPartnerAsync
@@ -1218,6 +1220,8 @@ class AuthStore extends ChangeNotifier {
       iban: iban,
       ownerDocUrl: ownerDocUrl,
       activityDocUrl: activityDocUrl,
+      photoUrl: photoUrl,
+      coverUrl: coverUrl,
     );
   }
 
@@ -1241,6 +1245,8 @@ class AuthStore extends ChangeNotifier {
     String? iban,
     String? ownerDocUrl,
     String? activityDocUrl,
+    String? photoUrl,
+    String? coverUrl,
   }) async {
     final partner = _currentPartner;
     if (partner == null) {
@@ -1262,6 +1268,8 @@ class AuthStore extends ChangeNotifier {
       iban: iban,
       ownerDocUrl: ownerDocUrl,
       activityDocUrl: activityDocUrl,
+      photoUrl: photoUrl,
+      coverUrl: coverUrl,
     );
   }
 
@@ -1282,6 +1290,8 @@ class AuthStore extends ChangeNotifier {
     String? iban,
     String? ownerDocUrl,
     String? activityDocUrl,
+    String? photoUrl,
+    String? coverUrl,
   }) async {
     try {
       final response = await _supabase.functions.invoke(
@@ -1299,6 +1309,8 @@ class AuthStore extends ChangeNotifier {
           'iban': iban,
           'ownerDocUrl': ownerDocUrl,
           'activityDocUrl': activityDocUrl,
+          'photoUrl': photoUrl,
+          'coverUrl': coverUrl,
         },
       );
 

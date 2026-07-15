@@ -55,6 +55,7 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
 
   // Step 4: Logo/Confirmação
   XFile? _logoFile;
+  XFile? _coverFile;
 
   int _currentStep = 0;
   bool _isSubmitting = false;
@@ -241,6 +242,53 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
     );
   }
 
+  Future<void> _pickCover(ImageSource source) async {
+    try {
+      final picked = await SafeImagePicker.pickImage(
+        source: source,
+        maxWidth: 1600,
+        imageQuality: 85,
+      );
+      if (picked != null && mounted) setState(() => _coverFile = picked);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao seleccionar imagem: $e')),
+        );
+      }
+    }
+  }
+
+  void _showCoverOptions() {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt, color: AppColors.accent),
+              title: const Text('Tirar foto'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickCover(ImageSource.camera);
+              },
+            ),
+            ListTile(
+              leading:
+                  const Icon(Icons.photo_library, color: AppColors.accent),
+              title: const Text('Escolher da galeria'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickCover(ImageSource.gallery);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   bool _validateStep1() {
     if (_nameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -326,6 +374,34 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
         }
       }
 
+      // Upload capa se selecionada
+      String? coverUrl;
+      if (_coverFile != null) {
+        try {
+          final bytes = await _coverFile!.readAsBytes();
+          final ext = _coverFile!.path.contains('.')
+              ? _coverFile!.path.split('.').last.toLowerCase()
+              : 'jpg';
+          final response = await Supabase.instance.client.functions.invoke(
+            'upload-restaurant-asset',
+            body: {
+              'restaurantId': 'temp-${DateTime.now().millisecondsSinceEpoch}',
+              'kind': 'cover',
+              'fileBase64': base64Encode(bytes),
+              'contentType': 'image/$ext',
+            },
+          );
+          if (response.status == 200 && response.data is Map) {
+            final data = Map<String, dynamic>.from(response.data as Map);
+            if (data['success'] == true) {
+              coverUrl = data['public_url'] as String;
+            }
+          }
+        } catch (e) {
+          debugPrint('RegisterPartnerScreen: cover upload failed => $e');
+        }
+      }
+
       // Upload documentos se selecionados
       String? ownerDocUrl;
       String? activityDocUrl;
@@ -397,6 +473,8 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
               iban: _ibanController.text.isEmpty ? null : _ibanController.text,
               ownerDocUrl: ownerDocUrl,
               activityDocUrl: activityDocUrl,
+              photoUrl: logoUrl,
+              coverUrl: coverUrl,
             )
           : await authStore.registerPartnerWithDocumentsAsync(
               restaurantName: _nameController.text,
@@ -412,6 +490,8 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
               iban: _ibanController.text.isEmpty ? null : _ibanController.text,
               ownerDocUrl: ownerDocUrl,
               activityDocUrl: activityDocUrl,
+              photoUrl: logoUrl,
+              coverUrl: coverUrl,
               consentAcceptedAt: DateTime.now().toUtc(),
             );
 
@@ -772,47 +852,137 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
               state: _currentStep > 3 ? StepState.complete : StepState.indexed,
               content: Column(
                 children: [
-                  GestureDetector(
-                    onTap: _isSubmitting ? null : _showLogoOptions,
-                    child: Container(
-                      height: 140,
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.shade300),
-                        image: _logoFile != null
-                            ? DecorationImage(
-                                image: FileImage(File(_logoFile!.path)),
-                                fit: BoxFit.cover,
-                              )
-                            : null,
-                      ),
-                      alignment: Alignment.center,
-                      child: _logoFile == null
-                              ? Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.add_a_photo_outlined,
-                                        color: Colors.grey.shade600, size: 32),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      'Logo do estabelecimento\n(opcional)',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                          color: Colors.grey.shade700),
-                                    ),
-                                  ],
-                                )
-                              : const Align(
-                                  alignment: Alignment.bottomRight,
-                                  child: Padding(
-                                    padding: EdgeInsets.all(8),
-                                    child: Icon(Icons.check_circle,
-                                        color: Colors.green, size: 28),
-                                  ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          children: [
+                            GestureDetector(
+                              onTap: _isSubmitting ? null : _showLogoOptions,
+                              child: Container(
+                                height: 110,
+                                width: 110,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade100,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border:
+                                      Border.all(color: Colors.grey.shade300),
+                                  image: _logoFile != null
+                                      ? DecorationImage(
+                                          image:
+                                              FileImage(File(_logoFile!.path)),
+                                          fit: BoxFit.cover,
+                                        )
+                                      : null,
                                 ),
-                    ),
+                                alignment: Alignment.center,
+                                child: _logoFile == null
+                                    ? Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Icon(Icons.add_a_photo_outlined,
+                                              color: Colors.grey.shade600,
+                                              size: 28),
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            'Logo\n(quadrado)',
+                                            textAlign: TextAlign.center,
+                                            style: TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.grey.shade700),
+                                          ),
+                                        ],
+                                      )
+                                    : const Align(
+                                        alignment: Alignment.bottomRight,
+                                        child: Padding(
+                                          padding: EdgeInsets.all(6),
+                                          child: Icon(Icons.check_circle,
+                                              color: Colors.green, size: 24),
+                                        ),
+                                      ),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Logo (opcional)',
+                              style: TextStyle(
+                                  fontSize: 11, color: Colors.grey.shade600),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: Spacing.lg),
+                      Expanded(
+                        flex: 2,
+                        child: Column(
+                          children: [
+                            GestureDetector(
+                              onTap: _isSubmitting ? null : _showCoverOptions,
+                              child: Container(
+                                height: 110,
+                                width: double.infinity,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade100,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border:
+                                      Border.all(color: Colors.grey.shade300),
+                                  image: _coverFile != null
+                                      ? DecorationImage(
+                                          image: FileImage(
+                                              File(_coverFile!.path)),
+                                          fit: BoxFit.cover,
+                                        )
+                                      : null,
+                                ),
+                                alignment: Alignment.center,
+                                child: _coverFile == null
+                                    ? Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Icon(Icons.add_photo_alternate_outlined,
+                                              color: Colors.grey.shade600,
+                                              size: 28),
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            'Capa\n(retangular)',
+                                            textAlign: TextAlign.center,
+                                            style: TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.grey.shade700),
+                                          ),
+                                        ],
+                                      )
+                                    : const Align(
+                                        alignment: Alignment.bottomRight,
+                                        child: Padding(
+                                          padding: EdgeInsets.all(6),
+                                          child: Icon(Icons.check_circle,
+                                              color: Colors.green, size: 24),
+                                        ),
+                                      ),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Capa (opcional)',
+                              style: TextStyle(
+                                  fontSize: 11, color: Colors.grey.shade600),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Logo: aparece nas listas e no ícone da loja. '
+                    'Capa: aparece no topo da página do estabelecimento.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
                   ),
                   const SizedBox(height: Spacing.xl),
                   Card(

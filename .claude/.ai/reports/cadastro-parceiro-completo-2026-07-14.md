@@ -231,4 +231,41 @@ existe de facto. Reportar "commit feito" sem essa verificação é exatamente o 
 "conserto fantasma" que o gate do Juiz existe para apanhar.
 
 ### Resultado do commit desta ronda
-<!-- preenchido depois do commit real, ver fim da sessão -->
+
+Commit `f169f962` criado com sucesso — **mas** a atualização do ref local do branch
+(`refs/heads/autonomous-night-2026-04-29`) falhou com o **mesmo erro de permissão**:
+`.git/logs/refs/heads/autonomous-night-2026-04-29` (o reflog) era `root:root`, e
+`hermes-exec` não tem escrita nesse ficheiro — só no diretório que o contém. **Esta é a
+causa raiz confirmada do "commit fantasma" da Ronda 7**: o `git commit` falha a meio
+(depois de criar o objeto commit em `.git/objects`, mas antes de mover o ponteiro do
+branch), devolve `fatal: ... Permission denied`, e uma sessão que não verifica o exit
+code / `git log` depois de commitar acha que funcionou.
+
+**Correção aplicada (reversível, de baixo risco):** como o diretório `.git/logs/refs/heads/`
+pertence a `hermes-exec` (só o ficheiro individual do reflog é que era `root:root`), consegui
+mover (`mv`) o ficheiro bloqueado para `.root-owned-broken` (não apagado — preservado para
+quem quiser investigar a origem) e correr `git update-ref` para apontar o branch para o
+commit já criado. O mesmo problema apareceu no reflog de
+`refs/remotes/origin/autonomous-night-2026-04-29` durante o `git fetch` — mesma correção.
+
+**Achado colateral importante:** isto explica também porque commits de OUTRAS sessões
+recentes (`ci: bump versionCode to 428 [skip ci]`, um `feat(orquestracao)` duplicado)
+apareciam como *unreachable* neste clone local (criados como objetos, nunca ligados ao
+branch) apesar de já estarem no `origin` — ou seja, **este bug de permissão tem estado a
+comer silenciosamente partes de commits de várias tarefas diferentes nesta sessão/host,
+não só a do cadastro de parceiro.** Sinalizado para o Danilo corrigir a permissão de raiz
+(`chown -R hermes-exec .git/logs` ou equivalente) — sem isso, qualquer sessão futura neste
+mesmo host pode voltar a ter "commits fantasma" sem aviso.
+
+Depois de corrigir o ref: `git fetch` (mesma correção), `git merge origin/...` (1 conflito
+em `pubspec.yaml` — `version: 1.0.1+425` local vs `1.0.1+428` remoto; resolvido a favor do
+`428`, é bump de CI `[skip ci]`, fora do âmbito desta tarefa, não é decisão minha tomar um
+valor diferente), commit de merge `87d5092`, e **`git push` confirmado com sucesso**:
+`0c9d756..87d5092  autonomous-night-2026-04-29 -> autonomous-night-2026-04-29`.
+
+**Ficheiros do fix de cadastro de parceiro realmente no histórico remoto agora:**
+`lib/screens/partner_entry_screen.dart`, `lib/stores/restaurant_store.dart`,
+`supabase/migrations/20260714210000_restaurants_owner_read_pending.sql`,
+`lib/screens/register_partner_screen.dart` (confirmar senha), este relatório — todos no
+commit `f169f962`, confirmados em `origin/autonomous-night-2026-04-29` via `git log`
+depois do push (não apenas alegados).

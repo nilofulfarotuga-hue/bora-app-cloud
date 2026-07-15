@@ -74,6 +74,7 @@ knowledge/
 | ↳ cron que dispara ordem na fila a cada sinal = spam por construção | `permanente/procedural/licoes/licao-spam-ordens-autoreferencial.md` | desenhar/religar qualquer agente reativo (evolution-engine e futuros) |
 | ↳ 5 causas-raiz de robustez do loop autónomo (pipe SSH, rate-limit falso, RAM/lock, juiz mudo, timeout) | `permanente/procedural/licoes/licao-robustez-loop-autonomo-2026-07-13.md` | mexer no carteiro/executor headless/Juiz |
 | Aprovador-vermelho — conhecimento de triagem (Balde A/B) | `permanente/procedural/aprovador-vermelho-triagem.md` | antes de triar a fila `robot_suggestions`; staleness de item Balde B não é bug |
+| ⛔ Modo de trabalho 2026-07-15 — fila autónoma DESLIGADA; prova = git/disco, nunca `e2e_log` | `permanente/procedural/modo-de-trabalho-2026-07-15.md` | antes de tocar carteiro/campainha/VPS ou confiar em `e2e_log` |
 
 ---
 

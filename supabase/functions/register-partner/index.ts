@@ -18,6 +18,8 @@ interface RegisterPartnerRequest {
   lng?: number;
   ownerDocUrl?: string;
   activityDocUrl?: string;
+  photoUrl?: string;
+  coverUrl?: string;
 }
 
 function validateNif(nif: string): boolean {
@@ -214,6 +216,8 @@ Deno.serve(async (req: Request) => {
       iban: body.iban || null,
       owner_doc_url: body.ownerDocUrl || null,
       activity_doc_url: body.activityDocUrl || null,
+      photo_url: body.photoUrl || "",
+      cover_url: body.coverUrl || null,
     };
 
     let insertError;

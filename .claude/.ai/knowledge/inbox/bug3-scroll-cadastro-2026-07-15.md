@@ -69,3 +69,28 @@ forma independente: `lib/screens/register_partner_screen.dart` continua com o
 diff` limpos no ficheiro; HEAD `3116e61`). Ambiente ainda sem `flutter` no
 PATH. Conclusão inalterada: fix já presente para os 4 passos, nada a
 alterar/commitar em código.
+
+## Re-verificação #3 (2026-07-15, execução seguinte)
+Terceiro pedido idêntico chegou ao loop autónomo. Repeti a investigação uma
+vez mais, linha a linha: `lib/screens/register_partner_screen.dart`
+(HEAD `a6e2c7b`, branch `autonomous-night-2026-04-29`) — `build()` continua
+com `body: SafeArea(child: SingleChildScrollView(child: Stepper(physics:
+const NeverScrollableScrollPhysics(), ...))))` (linhas 511-517), fechando só
+no fim do `Stepper` (linha 883/884). Os 4 `Step`s (Dados do Estabelecimento,
+Documentos, Conta de Acesso, Logo & Confirmação) estão todos dentro dessa
+única árvore — confirmado por leitura completa do ficheiro (888 linhas), não
+só da zona do `build()`. Nenhum `controlsBuilder` custom, nenhum `SizedBox`/
+`Container` de altura fixa a cortar o botão "Continuar". `git status`/`git
+diff --stat` no ficheiro continuam limpos. Ambiente ainda sem SDK Flutter
+(`which flutter` falha) — não foi possível correr a app num device/emulador
+pequeno para confirmação visual real; a verificação permanece por leitura
+estrutural de código. Conclusão inalterada pela 3ª vez: fix já presente e
+cobre os 4 passos, nada a alterar/commitar em código Dart.
+
+**Nota para o Danilo:** este pedido já foi processado 3 vezes com a mesma
+conclusão (mesmo código, mesmo resultado). Se ainda houver um bug real de
+scroll no dispositivo, a causa provavelmente NÃO está em
+`register_partner_screen.dart` — vale a pena verificar se o pedido original
+se refere a outro ecrã (ex.: uma versão antiga do APK ainda instalada, ou um
+wizard diferente do "cadastro de parceiro"), porque a análise estática deste
+ficheiro não encontra mais nada para corrigir sem acesso a um device real.

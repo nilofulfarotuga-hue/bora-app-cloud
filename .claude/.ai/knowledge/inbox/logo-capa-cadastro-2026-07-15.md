@@ -65,3 +65,13 @@ estado: atual
   e fazer deploy da Edge Function `register-partner` atualizada — a
   pipeline de CI não aplica migrations nem faz deploy de Edge Functions
   (gap já registado em memória anterior sobre este mesmo wizard).
+
+## Re-verificações (mesmo dia, 2026-07-15)
+- A mesma tarefa chegou repetida pelo menos duas vezes pelo loop autónomo
+  (esta é a 2ª nota). Confirmado de novo via `git log` que `7e2c63f` cobre
+  os 5 pontos pedidos, `flutter` continua indisponível neste ambiente
+  (`flutter: command not found`, mesmo erro de antes), e o commit continua
+  em `origin/autonomous-night-2026-04-29` sem nada pendente de push.
+  Nenhuma alteração de código em nenhuma das duas repetições — só notas.
+  Se a tarefa voltar uma 3ª vez, ver [[cadastro-parceiro-register-partner-idempotencia]]
+  e o memo `feedback_logo_capa_cadastro_ja_resolvido.md` antes de investigar de novo.

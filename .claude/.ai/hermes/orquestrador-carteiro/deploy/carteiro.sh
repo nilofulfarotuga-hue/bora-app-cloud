@@ -139,13 +139,6 @@ exec_ordem(){ # $1=tarefa -> PC-ONLY (2026-07-15 missao religar-loop): despacha 
 # Deteta isto ANTES do juiz: não gasta tentativa, não chama o juiz, reabre para a próxima volta.
 is_lock_busy(){ printf '%s' "$1" | grep -iqE "outro executor Bora ja em curso|ERRO: lock ocupado"; }
 
-# --- Guarda anti-conserto-fantasma (2026-07-15): NAO aprovar sobre falha declarada ---
-# Se a SAIDA do executor DECLARA falha/recusa/impossibilidade, bloqueia a aprovacao
-# mesmo que o juiz diga APROVADA. Ancorado a formas de DECLARACAO (inicio de linha),
-# nao substring solto: a licao a73d (is_rate_limit) provou que match solto bate em
-# relatorios de SUCESSO que apenas CITAM a palavra. So transforma APROVADA -> reaberta.
-mentions_failure(){ printf '%s' "$1" | grep -iqE "confirmacao necessaria|confirmação necessária|(^|[[:space:]>*#-])(nao|não) (foi possivel|foi possível|consegui|consigo|concluida|concluída)|(^|[[:space:]>*#-])(impossivel|impossível|falhou|falhei|falhada|recuso|recusei|recusada|bloqueado|bloqueada)|tarefa (falhou|incompleta|nao concluida|não concluída)"; }
-
 # ---------------- RATE-LIMIT: deteção + cálculo de retoma ----------------
 # 2026-07-13 (ordem a73d, falso rate-limit): a regex batia em QUALQUER saída que
 # contivesse a frase, mesmo um relatório de sucesso que a CITA (ex.: tarefa cujo
@@ -464,14 +457,12 @@ Para libertar para a fila normal, responde aqui: vai $id"
   vline=$(printf '%s' "$veredito" | grep -iE 'VEREDITO:' | head -1)
   log "ordem $id: ${vline:-<juiz sem veredito>}"
 
+  # 2026-07-16: guarda anti-conserto-fantasma antiga (mentions_failure) removida — grep de
+  # palavras na saida do executor reabria ordens que reportavam falha honestamente (mesmo
+  # tendo feito o trabalho certo), o MESMO defeito ja corrigido no juiz-mecanico esta manha
+  # (recusa honesta != falha real). O juiz JA distingue os dois casos no seu VEREDITO; reabrir
+  # e' decisao EXCLUSIVA dele (CORRIGIR), nunca de um grep paralelo sobre o texto do executor.
   if printf '%s' "$vline" | grep -iq 'APROVADA'; then
-    if mentions_failure "$saida"; then
-      setf estado aberta "$f"
-      setf nota "🚫 BLOQUEADO-FALHA-DECLARADA — a saida do executor declara falha/recusa/impossibilidade apesar do VEREDITO APROVADA do juiz; reaberta sem aprovar (ver $id.saida.txt). Teto de 5 tentativas trava se persistir." "$f"
-      log "ordem $id: 🚫 BLOQUEADO-FALHA-DECLARADA — juiz aprovou sobre saida de falha; reaberta (nao aprova)"
-      ultima_veredito="BLOQUEADO-FALHA-DECLARADA"
-      continue
-    fi
     setf estado aprovada "$f"; setf nota "" "$f"; log "ordem $id: APROVADA"
     ultima_veredito="APROVADA"; n_aprovadas=$((n_aprovadas+1))
     if [ -n "$missao" ]; then

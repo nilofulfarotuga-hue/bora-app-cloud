@@ -110,6 +110,15 @@ class _S extends State<AdminRobotSuggestionsScreen> {
     if (msg.contains('motivo_rejeicao_obrigatorio')) {
       return 'Motivo obrigatório (mín. 3 caracteres).';
     }
+    if (msg.contains('proposta_nao_encontrada_ou_ja_decidida')) {
+      return 'Esta proposta já foi decidida ou não existe mais — atualiza a lista.';
+    }
+    if (msg.contains('proposta_nao_encontrada')) {
+      return 'Proposta não encontrada — atualiza a lista.';
+    }
+    if (msg.contains('ordem_ja_despachada_em')) {
+      return 'Já foi criada uma ordem para esta proposta — reverter aqui não a cancela.';
+    }
     return 'Não foi possível concluir. Detalhe técnico: $msg';
   }
 
@@ -238,6 +247,44 @@ class _S extends State<AdminRobotSuggestionsScreen> {
     }
   }
 
+  // Aprovação real: exige a tua sessão autenticada com app_metadata.role='admin' — a RPC
+  // recusa qualquer chamada sem esse JWT. Só marca (quem/quando/audit id); a ordem entra na
+  // fila separadamente (sync da VPS) e passa pela zona_vermelha() própria do carteiro — texto
+  // de dinheiro volta a exigir "vai <id>" no Telegram mesmo depois de aprovado aqui.
+  Future<void> _confirmCortexApprove(String pid) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Aprovar e enviar para a fila'),
+        content: const Text(
+            'Esta proposta vai ser marcada como aprovada por ti e entra na fila normal de '
+            'orquestração (próxima sincronização, até 10 min). Se o texto ainda tocar em '
+            'dinheiro/tokens, o carteiro volta a pedir a tua confirmação no Telegram — isto '
+            'não contorna essa barreira.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Voltar')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Aprovar')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      final res = await Supabase.instance.client
+          .rpc('cortex_proposal_approve', params: {'p_pid': pid});
+      if (mounted) {
+        final auditId = (res is Map) ? res['audit_id'] : null;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Aprovada — audit id ${auditId ?? '?'}. Entra na fila em até 10 min.')));
+        await _load();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(_friendlyError(e))));
+      }
+    }
+  }
+
   Future<void> _confirmCortexDecidido(String pid) async {
     final ctrl = TextEditingController();
     final ok = await showDialog<bool>(
@@ -327,6 +374,7 @@ class _S extends State<AdminRobotSuggestionsScreen> {
     final (color, label) = switch (status) {
       'nova' => (AppColors.error, 'NOVA'),
       'vista' => (const Color(0xFFFF8F00), 'VISTA'),
+      'aprovada_danilo' => (AppColors.primary, 'APROVADA — NA FILA'),
       _ => (Colors.grey, 'DECIDIDA FORA'),
     };
     return Chip(
@@ -536,19 +584,28 @@ class _S extends State<AdminRobotSuggestionsScreen> {
                     style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
               ],
               const SizedBox(height: 16),
-              const Text('Rever aqui não executa nada — só regista a tua decisão. '
-                  'Se quiseres que isto seja feito, fala com o Claude Code diretamente.',
+              const Text('Marcar vista/decidida fora nunca executa nada. "Aprovar e enviar '
+                  'para a fila" entra no loop normal — se o texto ainda tocar dinheiro/tokens, '
+                  'o carteiro volta a pedir a tua confirmação no Telegram.',
                   style: TextStyle(fontSize: 11, color: AppColors.textSecondary, fontStyle: FontStyle.italic)),
               const SizedBox(height: 16),
-              if (status == 'nova') ...[
+              if (status == 'nova' || status == 'vista') ...[
                 FilledButton.icon(
+                  icon: const Icon(Icons.rocket_launch_outlined),
+                  label: const Text('Aprovar e enviar para a fila'),
+                  onPressed: () { Navigator.pop(ctx); _confirmCortexApprove(pid); },
+                ),
+                const SizedBox(height: 8),
+              ],
+              if (status == 'nova') ...[
+                OutlinedButton.icon(
                   icon: const Icon(Icons.visibility_outlined),
                   label: const Text('Marcar vista'),
                   onPressed: () { Navigator.pop(ctx); _markCortexStatus(pid, 'vista'); },
                 ),
                 const SizedBox(height: 8),
               ],
-              if (status != 'decidida_fora')
+              if (status != 'decidida_fora' && status != 'aprovada_danilo')
                 OutlinedButton.icon(
                   icon: const Icon(Icons.check_circle_outline),
                   label: const Text('Marcar decidida fora'),
@@ -1018,6 +1075,7 @@ class _S extends State<AdminRobotSuggestionsScreen> {
           items: const [
             DropdownMenuItem(value: 'nova', child: Text('Novas (por rever)')),
             DropdownMenuItem(value: 'vista', child: Text('Vistas')),
+            DropdownMenuItem(value: 'aprovada_danilo', child: Text('Aprovadas — na fila')),
             DropdownMenuItem(value: 'decidida_fora', child: Text('Decididas fora')),
             DropdownMenuItem(value: null, child: Text('Todas')),
           ],

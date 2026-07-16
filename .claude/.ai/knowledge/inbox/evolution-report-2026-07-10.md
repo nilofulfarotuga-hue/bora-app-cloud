@@ -14,6 +14,29 @@ confianca: auto
 
 Skills analisadas: **50** · Propostas novas: **26** · Rejeitadas (não repropostas): 0
 
+> **Atualização 2026-07-16 (circuito fechado, avaliação das 26 propostas 🟢 pendentes):**
+> revistas uma a uma contra o estado atual do repo (skills existentes, memória, missões
+> fechadas). Nenhuma passou o crivo — todas **rejeitadas** e registadas em
+> `scripts/state/propostas.json` (não se repropõem). Resumo por categoria:
+> - **Duplicadas** (já cobertas por skill existente): `continente` (weekly-market-prices +
+>   market-data-sync), `reservas` (reservation-ops), `glovo` (market-data-sync), `campaign`
+>   (diretor-criativo + social-publisher + marketing-loop, criadas na mesma missão 2026-07-10),
+>   `updater` (3 skills update-* já existem).
+> - **Histórico/já resolvido** (bug fechado ou feature já shipada): `autocomplete`, `bug1`,
+>   `bug4`, `paragem` (TVDE-CAMPO-02).
+> - **Artefacto de nomenclatura de missão/relatório** (não é capacidade real): `verde`, `tudo`,
+>   `phase0`, `phase1`, `exec`, `3of5`, `4of5`.
+> - **Genérico demais** (sem alvo de automação claro, sobreposto a skills de auditoria já
+>   existentes): `bugs`, `plan`, `investigation`, `validacao`, `cliente`, `autonomous`.
+> - **Zona vermelha/sensível** (dinheiro ou pressão adversária sobre o gate — fora do mandato
+>   de auto-aplicar): `tokens`, `finalize` (finalizePurchase), `redlist` (já coberto pelo
+>   próprio gate + memória `project_zona_vermelha_gate_pressure_pattern`).
+> - **Evidência insuficiente**: `pvpr` (acrónimo obscuro, sem contexto claro nos reports).
+>
+> Nenhum draft de skill nova foi criado — a avaliação em si é o produto desta corrida (não há
+> código a passar pelo Juiz). Ver `scripts/state/propostas.json` para a nota individual de
+> cada uma.
+
 | Capacidade | Zona | Alvo | Evidência | Ação recomendada |
 |---|---|---|---|---|
 | Detetar padrão | 🟢 | `(skill nova?) tópico 'tokens'` | 13 reports com 'tokens' no nome e nenhuma skill correspondente | avaliar skill nova com draft (agente redige, Juiz avalia) |

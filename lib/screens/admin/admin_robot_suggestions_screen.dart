@@ -29,6 +29,11 @@ class _S extends State<AdminRobotSuggestionsScreen> {
   bool _loading = true;
   String? _error;
 
+  // Córtex 🔴 — propostas zona-vermelha (cortex-mcp), fila SEPARADA de robot_suggestions,
+  // sem ligação nenhuma ao loop automático. Só revisão humana; nunca executa nada.
+  String? _cortexStatusFilter = 'nova';
+  List<Map<String, dynamic>> _cortexProposals = const [];
+
   @override
   void initState() { super.initState(); _load(); }
 
@@ -50,6 +55,10 @@ class _S extends State<AdminRobotSuggestionsScreen> {
         'p_goal_slug': 'paridade-admin-360',
         'p_limit': 200, 'p_offset': 0,
       });
+      final cortex = await Supabase.instance.client.rpc('cortex_list_red_proposals', params: {
+        'p_status': _cortexStatusFilter,
+        'p_limit': 200, 'p_offset': 0,
+      });
       if (mounted) {
         setState(() {
           _rows = ((sugs as List?) ?? []).map((e) => (e as Map).cast<String, dynamic>()).toList();
@@ -57,6 +66,8 @@ class _S extends State<AdminRobotSuggestionsScreen> {
           _metrics = ((metrics as Map?) ?? {}).cast<String, dynamic>();
           _autonomy = ((autonomy as Map?) ?? {}).cast<String, dynamic>();
           _backlog = ((backlog as List?) ?? []).map((e) => (e as Map).cast<String, dynamic>()).toList();
+          _cortexProposals =
+              ((cortex as List?) ?? []).map((e) => (e as Map).cast<String, dynamic>()).toList();
         });
       }
     } catch (e) {
@@ -212,6 +223,46 @@ class _S extends State<AdminRobotSuggestionsScreen> {
     }
   }
 
+  // ── Córtex 🔴 — marcar revisão (nunca executa nada) ──────────────────────────
+  Future<void> _markCortexStatus(String pid, String status, {String? nota}) async {
+    try {
+      await Supabase.instance.client.rpc('cortex_proposal_mark_status', params: {
+        'p_pid': pid, 'p_status': status, 'p_nota': nota,
+      });
+      if (mounted) await _load();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(_friendlyError(e))));
+      }
+    }
+  }
+
+  Future<void> _confirmCortexDecidido(String pid) async {
+    final ctrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Marcar como decidida fora'),
+        content: TextField(
+          controller: ctrl,
+          maxLines: 2,
+          decoration: const InputDecoration(
+            labelText: 'Nota (opcional)',
+            helperText: 'Ex.: já resolvido noutro fluxo, duplicado, não aplicável.',
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Voltar')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Confirmar')),
+        ],
+      ),
+    );
+    if (ok == true) {
+      await _markCortexStatus(pid, 'decidida_fora', nota: ctrl.text.trim());
+    }
+  }
+
   // ── controlo da autonomia (kill switch + dial) — Fase 5 ──────────────────────
   Future<void> _setSwitch(String key, bool enabled) async {
     try {
@@ -262,6 +313,21 @@ class _S extends State<AdminRobotSuggestionsScreen> {
       'aplicada' => (AppColors.primary, 'APLICADA'),
       'rejeitada' => (AppColors.error, 'REJEITADA'),
       _ => (Colors.grey, 'EXPIRADA'),
+    };
+    return Chip(
+      label: Text(label, style: const TextStyle(fontSize: 10, color: Colors.white)),
+      backgroundColor: color,
+      padding: EdgeInsets.zero,
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      visualDensity: VisualDensity.compact,
+    );
+  }
+
+  Widget _cortexStatusChip(String status) {
+    final (color, label) = switch (status) {
+      'nova' => (AppColors.error, 'NOVA'),
+      'vista' => (const Color(0xFFFF8F00), 'VISTA'),
+      _ => (Colors.grey, 'DECIDIDA FORA'),
     };
     return Chip(
       label: Text(label, style: const TextStyle(fontSize: 10, color: Colors.white)),
@@ -420,6 +486,78 @@ class _S extends State<AdminRobotSuggestionsScreen> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Fechar')),
         ],
+      ),
+    );
+  }
+
+  void _showCortexDetail(Map<String, dynamic> p) {
+    final status = p['status']?.toString() ?? 'nova';
+    final pid = p['pid']?.toString() ?? '';
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.75,
+        maxChildSize: 0.95,
+        builder: (_, scroll) => Padding(
+          padding: const EdgeInsets.all(16),
+          child: ListView(
+            controller: scroll,
+            children: [
+              Row(children: [
+                _cortexStatusChip(status),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(pid,
+                      style: const TextStyle(fontFamily: 'monospace', fontSize: 12,
+                          color: AppColors.textSecondary)),
+                ),
+              ]),
+              const SizedBox(height: 8),
+              Text('${p['ordem_id'] ?? '—'} · criada ${_fmtDate(p['criada_em'])} · ${p['who'] ?? '—'}',
+                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+              const Divider(height: 22),
+              const Text('Tarefa completa', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(top: 4),
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.surface2,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(p['tarefa']?.toString() ?? '', style: const TextStyle(fontSize: 13, height: 1.4)),
+              ),
+              if (p['nota_revisao'] != null && (p['nota_revisao'] as String).isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Text('Nota: ${p['nota_revisao']}', style: const TextStyle(fontSize: 13)),
+                Text('por ${p['revisada_por_email'] ?? '—'} em ${_fmtDate(p['revisada_em'])}',
+                    style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+              ],
+              const SizedBox(height: 16),
+              const Text('Rever aqui não executa nada — só regista a tua decisão. '
+                  'Se quiseres que isto seja feito, fala com o Claude Code diretamente.',
+                  style: TextStyle(fontSize: 11, color: AppColors.textSecondary, fontStyle: FontStyle.italic)),
+              const SizedBox(height: 16),
+              if (status == 'nova') ...[
+                FilledButton.icon(
+                  icon: const Icon(Icons.visibility_outlined),
+                  label: const Text('Marcar vista'),
+                  onPressed: () { Navigator.pop(ctx); _markCortexStatus(pid, 'vista'); },
+                ),
+                const SizedBox(height: 8),
+              ],
+              if (status != 'decidida_fora')
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.check_circle_outline),
+                  label: const Text('Marcar decidida fora'),
+                  onPressed: () { Navigator.pop(ctx); _confirmCortexDecidido(pid); },
+                ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -706,7 +844,7 @@ class _S extends State<AdminRobotSuggestionsScreen> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         backgroundColor: AppColors.background,
         appBar: const BoraScreenAppBar(title: 'Sugestões do Robot'),
@@ -715,7 +853,8 @@ class _S extends State<AdminRobotSuggestionsScreen> {
             labelColor: AppColors.primary,
             unselectedLabelColor: AppColors.textSecondary,
             indicatorColor: AppColors.primary,
-            tabs: [Tab(text: 'Sugestões'), Tab(text: 'Auto-execuções')],
+            isScrollable: true,
+            tabs: [Tab(text: 'Sugestões'), Tab(text: 'Auto-execuções'), Tab(text: 'Córtex 🔴')],
           ),
           Expanded(
             child: _loading
@@ -726,7 +865,7 @@ class _S extends State<AdminRobotSuggestionsScreen> {
                         Text(_error!, style: const TextStyle(color: AppColors.error)),
                         TextButton(onPressed: _load, child: const Text('Tentar novamente')),
                       ]))
-                    : TabBarView(children: [_suggestionsTab(), _auditTab()]),
+                    : TabBarView(children: [_suggestionsTab(), _auditTab(), _cortexTab()]),
           ),
         ]),
       ),
@@ -854,5 +993,66 @@ class _S extends State<AdminRobotSuggestionsScreen> {
               },
             ),
     );
+  }
+
+  Widget _cortexTab() {
+    return Column(children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+        child: Row(children: [
+          const Expanded(
+            child: Text(
+              'Propostas zona-vermelha do Córtex (dinheiro/escrita sensível). '
+              'Fila separada — rever aqui nunca executa nada sozinho.',
+              style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+            ),
+          ),
+        ]),
+      ),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+        child: DropdownButtonFormField<String?>(
+          value: _cortexStatusFilter,
+          decoration: const InputDecoration(
+              labelText: 'Status', isDense: true, border: OutlineInputBorder()),
+          items: const [
+            DropdownMenuItem(value: 'nova', child: Text('Novas (por rever)')),
+            DropdownMenuItem(value: 'vista', child: Text('Vistas')),
+            DropdownMenuItem(value: 'decidida_fora', child: Text('Decididas fora')),
+            DropdownMenuItem(value: null, child: Text('Todas')),
+          ],
+          onChanged: (v) { setState(() => _cortexStatusFilter = v); _load(); },
+        ),
+      ),
+      Expanded(
+        child: RefreshIndicator(
+          onRefresh: _load,
+          child: _cortexProposals.isEmpty
+              ? ListView(children: const [
+                  SizedBox(height: 80),
+                  Center(child: Text('Sem propostas nesta vista',
+                      style: TextStyle(color: AppColors.textSecondary))),
+                ])
+              : ListView.separated(
+                  itemCount: _cortexProposals.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.divider),
+                  itemBuilder: (_, i) {
+                    final p = _cortexProposals[i];
+                    return ListTile(
+                      leading: const Icon(Icons.shield_outlined, color: AppColors.error),
+                      title: Text(p['tarefa']?.toString() ?? '',
+                          maxLines: 2, overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                      subtitle: Text('${p['ordem_id'] ?? '—'} · ${_fmtDate(p['criada_em'])}',
+                          maxLines: 1, overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 12)),
+                      trailing: _cortexStatusChip(p['status']?.toString() ?? 'nova'),
+                      onTap: () => _showCortexDetail(p),
+                    );
+                  },
+                ),
+        ),
+      ),
+    ]);
   }
 }

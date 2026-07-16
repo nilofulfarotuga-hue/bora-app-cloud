@@ -386,7 +386,7 @@ for f in "$FILA"/*.md; do
   log "ordem $id: aberta (tentativa=$tent)${missao:+ [missão $missao/$passo]}"
 
   # T3 — zona vermelha (dinheiro + intenção de escrita)
-  if zona_vermelha "$tarefa"; then
+  if zona_vermelha "$tarefa" && [ "$(get vai "$f")" != "sim" ]; then
     setf estado zona_vermelha "$f"; setf nota "🔴 ZONA VERMELHA — precisa de decisão humana (dinheiro)" "$f"
     log "ordem $id: 🔴 ZONA VERMELHA -> aprovacao humana"
     # 2026-07-14 (aviso-espera-telegram): antes o aviso só dizia "toca zona vermelha — precisa

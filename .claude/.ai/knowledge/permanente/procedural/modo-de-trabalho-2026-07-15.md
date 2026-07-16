@@ -1,6 +1,12 @@
 # Modo de trabalho — 2026-07-15 (fila autónoma DESLIGADA)
 
-> Estado: **atual** · Decisão do Danilo, sessão live de 2026-07-15 ~19h40.
+> Estado: **superado** (secções de desligamento) · Decisão do Danilo, sessão live de 2026-07-15 ~19h40.
+>
+> **⚠️ SUPERADO na mesma noite (~21h): o Danilo decidiu RELIGAR o loop com verificação real** —
+> transporte PC-only + Juiz com chão mecânico (`juiz-mecanico.ps1`: prova por git/disco antes de
+> qualquer veredito). Ver `permanente/episodica/diario-2026-07-15-caca-mentiras.md`.
+> **A REGRA DE PROVA continua ATUAL e reforçada: `e2e_log` NUNCA é fonte de prova; prova =
+> `git log` + ficheiro em disco + teste que corre.** A Lista Vermelha continua intacta.
 
 ## O que mudou
 

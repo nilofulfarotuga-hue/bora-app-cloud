@@ -32,7 +32,13 @@ de conclusão da própria missão.
 
 ## As 5 capacidades (regra única de governança em todas)
 1. **Detetar padrões** — varre `orquestracao/`, `.claude/.ai/reports/`, git log; tarefa
-   repetida ≥3× sem skill → propõe skill nova COM draft.
+   repetida ≥3× sem skill → propõe skill nova COM draft. **Leitura obrigatória:**
+   `permanente/episodica/diario-2026-07-15-caca-mentiras.md` — o padrão "executor inventa
+   trabalho / juiz aprova sem verificar" faz parte da base de padrões; qualquer proposta de
+   verificação tem de exigir prova por git/disco, nunca texto do executor nem `e2e_log`.
+   **Circuito fechado (2026-07-15):** proposta verde nova/alterada no report → vira ORDEM real
+   na fila via `hermes-evolution-ordens.sh` (VPS, 1×/dia, dedupe report+sha — TPROVA-4 por
+   construção) → executada e julgada pelo Juiz como qualquer ordem. Nunca mais relatório-gaveta.
 2. **Reescrever** — `falhas/execucoes > 30%` na telemetria OU 2 rejeições do Juiz pelo mesmo
    motivo → draft v+1; o Juiz compara v atual vs v+1.
 3. **Arquivar** — 90 dias sem uso → mover para `_arquivo/` (NUNCA apagar).

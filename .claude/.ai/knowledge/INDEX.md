@@ -59,6 +59,7 @@ knowledge/
 | Bugs resolvidos (sagas + causa-raiz) | `permanente/episodica/bugs-resolvidos.md` | antes de "corrigir" algo já corrigido |
 | Decisões arquiteturais | `permanente/episodica/decisoes.md` | refactors, mudanças de estrutura |
 | Auditoria 360° (5 P0 + placar admin) | `permanente/episodica/auditoria-360.md` | prioridades de produto/gaps |
+| 🕵️ Diário 2026-07-15 caça-mentiras (executor inventava, juiz não julgava; loop religado com Juiz mecânico) | `permanente/episodica/diario-2026-07-15-caca-mentiras.md` | antes de mexer no carteiro/Juiz/e2e_log; regra: prova = git+disco |
 
 ### Procedural — como-fazer & lições
 | Tema | Ficheiro | Quando ler |
@@ -74,7 +75,7 @@ knowledge/
 | ↳ cron que dispara ordem na fila a cada sinal = spam por construção | `permanente/procedural/licoes/licao-spam-ordens-autoreferencial.md` | desenhar/religar qualquer agente reativo (evolution-engine e futuros) |
 | ↳ 5 causas-raiz de robustez do loop autónomo (pipe SSH, rate-limit falso, RAM/lock, juiz mudo, timeout) | `permanente/procedural/licoes/licao-robustez-loop-autonomo-2026-07-13.md` | mexer no carteiro/executor headless/Juiz |
 | Aprovador-vermelho — conhecimento de triagem (Balde A/B) | `permanente/procedural/aprovador-vermelho-triagem.md` | antes de triar a fila `robot_suggestions`; staleness de item Balde B não é bug |
-| ⛔ Modo de trabalho 2026-07-15 — fila autónoma DESLIGADA; prova = git/disco, nunca `e2e_log` | `permanente/procedural/modo-de-trabalho-2026-07-15.md` | antes de tocar carteiro/campainha/VPS ou confiar em `e2e_log` |
+| ⛔ Modo de trabalho 2026-07-15 — [superado: fila religada na mesma noite c/ Juiz mecânico] mas a REGRA DE PROVA fica: git/disco, nunca `e2e_log` | `permanente/procedural/modo-de-trabalho-2026-07-15.md` | antes de tocar carteiro/campainha/VPS ou confiar em `e2e_log` |
 
 ---
 

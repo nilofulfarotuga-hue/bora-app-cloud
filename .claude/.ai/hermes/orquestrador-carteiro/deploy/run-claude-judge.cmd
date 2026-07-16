@@ -25,8 +25,11 @@ if /I "%~1"=="--b64" (
   set "MRC=!ERRORLEVEL!"
   if "!MRC!"=="2" exit /b 0
   if not "!MRC!"=="0" ( echo VEREDITO: CORRIGIR: juiz-mecanico falhou rc=!MRC! - fail-closed, nada aprovado sem chao mecanico & exit /b 0 )
-  "%CLAUDE_EXE%" -p --append-system-prompt "%GUARD%" --output-format text %MODEL% --disallowedTools "Bash Edit Write MultiEdit WebFetch WebSearch Task" --max-turns 3 --max-budget-usd 1 < "%TEMP%\bora_judge_task.txt"
-  exit /b %ERRORLEVEL%
+  REM ---- juiz textual (Haiku) com 1 retry se nao devolver linha VEREDITO ----
+  "%CLAUDE_EXE%" -p --append-system-prompt "%GUARD%" --output-format text %MODEL% --disallowedTools "Bash Edit Write MultiEdit WebFetch WebSearch Task" --max-turns 5 --max-budget-usd 1 < "%TEMP%\bora_judge_task.txt" > "%TEMP%\bora_judge_verdict.txt" 2>&1
+  findstr /I "VEREDITO:" "%TEMP%\bora_judge_verdict.txt" >NUL || "%CLAUDE_EXE%" -p --append-system-prompt "%GUARD%" --output-format text %MODEL% --disallowedTools "Bash Edit Write MultiEdit WebFetch WebSearch Task" --max-turns 5 --max-budget-usd 1 < "%TEMP%\bora_judge_task.txt" > "%TEMP%\bora_judge_verdict.txt" 2>&1
+  type "%TEMP%\bora_judge_verdict.txt"
+  exit /b 0
 )
 echo [juiz] ERRO: uso: run-claude-judge.cmd --b64 ^<BASE64^>
 exit /b 2

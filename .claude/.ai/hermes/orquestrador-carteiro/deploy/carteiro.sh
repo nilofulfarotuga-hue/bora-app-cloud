@@ -11,7 +11,7 @@
 #   T2/T4          budget/turns/tools nos .cmd do PC
 #
 # REENGENHARIA 2026-07-12 (ver inbox/reengenharia-esteira-2026-07-12.md):
-#   • nota NUNCA vazia — todo ramo de falha grava causa (RATE-LIMIT/TIMEOUT-2400s/SAIDA-VAZIA/
+#   • nota NUNCA vazia — todo ramo de falha grava causa (RATE-LIMIT/TIMEOUT-3600s/SAIDA-VAZIA/
 #     JUIZ-SEM-VEREDITO). Antes: falha do juiz -> nota "" e a causa perdia-se.
 #   • rate-limit inteligente — "hit your session limit" NÃO gasta tentativa; pausa a fila até ao
 #     reset (.pausa-rate-limit), avisa 1x no Telegram, retoma sozinho.
@@ -57,6 +57,9 @@ resultado_1linha(){ # $1=saida -> "Uma linha final: X" se existir, senão a últ
   [ -n "$r" ] && { echo "$r"; return; }
   printf '%s' "$1" | grep -vE '^[[:space:]]*$' | tail -1 | tr -d '\r'
 }
+resumo_tarefa(){ # $1=tarefa completa -> resumo curto p/ Telegram (sem prefixos [MODELO:.../[PROPOSE-ONLY:...])
+  printf '%s' "$1" | sed -E 's/^(\[MODELO:[^]]*\] *)?(\[PROPOSE-ONLY:[^]]*\] *)?//' | cut -c1-160
+}
 ts(){ date -u +%Y-%m-%dT%H:%M:%SZ; }
 log(){ echo "[$(ts)] $*" >> "$LOG"; }
 get(){ grep -E "^$1:" "$2" 2>/dev/null | head -1 | sed "s/^$1: *//" | tr -d '\r'; }
@@ -73,7 +76,9 @@ pc_exec(){ printf '%s' "$1" > "$HOSTDATA/orq_task.txt"
   # o orcamento de "1 ordem <=15min" ja documentado acima.
   # 2026-07-13 (pedido Danilo): alargado 900->2400s (40min) para dar tempo a ordens grandes
   # legitimas terminarem sem serem cortadas. A cura real continua a ser o fix do parser (acima).
-  docker exec -u hermes "$C" sh -lc 'export PATH=/opt/data/.local/bin:$PATH; timeout 2400 pc-loop "$(cat /opt/data/orq_task.txt)"' 2>&1 | clean; }
+  # 2026-07-14 (pedido Danilo): timeout 3600 = 1h, decisao do Danilo para deixar tarefas grandes
+  # rodarem a vontade; so cortar de verdade acima disso.
+  docker exec -u hermes "$C" sh -lc 'export PATH=/opt/data/.local/bin:$PATH; timeout 3600 pc-loop "$(cat /opt/data/orq_task.txt)"' 2>&1 | clean; }
 pc_judge(){ printf '%s' "$1" > "$HOSTDATA/orq_judge.txt"
   docker exec -u hermes "$C" sh -lc 'export PATH=/opt/data/.local/bin:$PATH; timeout 400 pc-judge "$(cat /opt/data/orq_judge.txt)"' 2>&1 | clean; }
 
@@ -92,7 +97,10 @@ vps_exec(){ # $1=tarefa -> saida (stdout+stderr do wrapper); grava rc em $VPS_RC
   echo $? > "$VPS_RC_FILE"
   printf '%s' "$out"
 }
-exec_ordem(){ # $1=tarefa -> tenta VPS local; só cai para pc_exec em falha real do wrapper
+exec_ordem(){ # $1=tarefa -> PC-ONLY (2026-07-15 missao religar-loop): despacha SEMPRE pela ponte
+  # SSH do PC. A rota VPS-local (vps_exec) fica definida mas DESATIVADA — a VPS foi abandonada
+  # como executor (1 core/4GB, token ~2h). Reverter: apagar as 2 linhas seguintes.
+  pc_exec "$1"; return
   local out rc
   out=$(vps_exec "$1" | clean)
   rc=$(cat "$VPS_RC_FILE" 2>/dev/null); rc=${rc:-1}
@@ -115,6 +123,13 @@ exec_ordem(){ # $1=tarefa -> tenta VPS local; só cai para pc_exec em falha real
 # em cima dessa mensagem de erro (sem sentido para avaliar), devolvendo lixo sem "VEREDITO:".
 # Deteta isto ANTES do juiz: não gasta tentativa, não chama o juiz, reabre para a próxima volta.
 is_lock_busy(){ printf '%s' "$1" | grep -iqE "outro executor Bora ja em curso|ERRO: lock ocupado"; }
+
+# --- Guarda anti-conserto-fantasma (2026-07-15): NAO aprovar sobre falha declarada ---
+# Se a SAIDA do executor DECLARA falha/recusa/impossibilidade, bloqueia a aprovacao
+# mesmo que o juiz diga APROVADA. Ancorado a formas de DECLARACAO (inicio de linha),
+# nao substring solto: a licao a73d (is_rate_limit) provou que match solto bate em
+# relatorios de SUCESSO que apenas CITAM a palavra. So transforma APROVADA -> reaberta.
+mentions_failure(){ printf '%s' "$1" | grep -iqE "confirmacao necessaria|confirmação necessária|(^|[[:space:]>*#-])(nao|não) (foi possivel|foi possível|consegui|consigo|concluida|concluída)|(^|[[:space:]>*#-])(impossivel|impossível|falhou|falhei|falhada|recuso|recusei|recusada|bloqueado|bloqueada)|tarefa (falhou|incompleta|nao concluida|não concluída)"; }
 
 # ---------------- RATE-LIMIT: deteção + cálculo de retoma ----------------
 # 2026-07-13 (ordem a73d, falso rate-limit): a regex batia em QUALQUER saída que
@@ -286,6 +301,15 @@ if [ "${1:-}" = "--selftest" ]; then
   grep -E '^passo: *B' "$tmf" | grep -qi 'estado: *concluida' && ok "set_passo B->concluida" || bad "set_passo B"
   grep -E '^passo: *A' "$tmf" | grep -qi 'estado: *concluida' && ok "set_passo não tocou A" || bad "set_passo tocou A errado"
   rm -f "$tmf"
+  # aviso-espera-telegram (2026-07-14): resumo_tarefa() tira os prefixos de máquina e corta
+  # a mensagem — é o texto que vai para o Telegram no aviso de zona vermelha.
+  r1=$(resumo_tarefa "[MODELO: SONNET] Atualizar o platform_settings stripe_enabled para true")
+  [ "$r1" = "Atualizar o platform_settings stripe_enabled para true" ] && ok "resumo_tarefa tira [MODELO: ...]" || bad "resumo_tarefa tira [MODELO: ...] (got: $r1)"
+  r2=$(resumo_tarefa "[MODELO: OPUS] [PROPOSE-ONLY: prepara o fix completo mas NÃO apliques] Corrigir o refund cap")
+  [ "$r2" = "Corrigir o refund cap" ] && ok "resumo_tarefa tira [MODELO:...] + [PROPOSE-ONLY:...]" || bad "resumo_tarefa tira os dois prefixos (got: $r2)"
+  longa=$(printf 'x%.0s' $(seq 1 300))
+  r3=$(resumo_tarefa "$longa")
+  [ "${#r3}" -eq 160 ] && ok "resumo_tarefa corta em 160 chars" || bad "resumo_tarefa corta em 160 chars (len=${#r3})"
   [ "$fail" = 0 ] && echo "SELFTEST: TODOS OK" || echo "SELFTEST: HÁ FALHAS"
   exit "$fail"
 fi
@@ -344,7 +368,14 @@ for f in "$FILA"/*.md; do
   if zona_vermelha "$tarefa"; then
     setf estado zona_vermelha "$f"; setf nota "🔴 ZONA VERMELHA — precisa de decisão humana (dinheiro)" "$f"
     log "ordem $id: 🔴 ZONA VERMELHA -> aprovacao humana"
-    notify "🔴 Bora/orquestração: ordem $id toca zona vermelha (dinheiro) — precisa de ti."
+    # 2026-07-14 (aviso-espera-telegram): antes o aviso só dizia "toca zona vermelha — precisa
+    # de ti", sem dizer O QUE a ordem faz nem como desbloquear — o Danilo ficava a saber que
+    # algo esperava, mas preso sem contexto nem ação direta. Agora leva o resumo da tarefa +
+    # o comando exato de desbloqueio (a skill desbloqueio-zona-vermelha do Hermes trata o "vai $id").
+    resumo=$(resumo_tarefa "$tarefa")
+    notify "🔴 Bora/orquestração: ordem $id EM ESPERA (zona vermelha — toca dinheiro/pagamento).
+Resumo: ${resumo:-(sem resumo)}
+Para libertar para a fila normal, responde aqui: vai $id"
     [ -n "$missao" ] && { mf=$(missao_path "$missao"); [ -f "$mf" ] && missao_set_passo "$mf" "$passo" "zona_vermelha"; }
     continue
   fi
@@ -354,6 +385,12 @@ for f in "$FILA"/*.md; do
     log "ordem $id: TRAVADA (5 tentativas)"; missao_travada_ou_silencio "$f" "$missao" "$passo"; continue; fi
 
   tent=$((tent+1)); setf tentativa "$tent" "$f"; setf estado executando "$f"
+  # inicio da ORDEM = campo criada: (nao o relogio da tentativa) — commit feito numa tentativa
+  # anterior CONTA como trabalho novo (fix 2026-07-15: a 1a corrida real travou a ordem reborn
+  # porque o t0 por-tentativa excluia o commit da tentativa 1). Fallback: agora.
+  criada_ts=$(grep -m1 '^criada:' "$f" | sed 's/criada: *//' | tr -d '\r')
+  t0=""; [ -n "$criada_ts" ] && t0=$(date -d "$criada_ts" +%s 2>/dev/null)
+  t0=${t0:-$(date +%s)}
   saida=$(exec_ordem "$tarefa"); printf '%s\n' "$saida" > "$FILA/$id.saida.txt"
   setf estado respondida "$f"; log "ordem $id: respondida (tentativa $tent)"
   vazio=0; [ -z "$(printf '%s' "$saida" | tr -d '[:space:]')" ] && vazio=1
@@ -382,13 +419,22 @@ for f in "$FILA"/*.md; do
     break                                             # não processa mais nada até ao reset
   fi
 
-  # juiz
-  jinput=$(printf 'TAREFA:\n%s\n\nSAIDA DO EXECUTOR:\n%s\n' "$tarefa" "$(printf '%s' "$saida" | tail -50)")
+  # juiz — META_JUIZ leva o inicio_epoch p/ o chao mecanico do PC (juiz-mecanico.ps1) verificar
+  # commit novo/ficheiro em disco. O veredito completo (com as linhas PROVA-JUIZ) fica auditavel
+  # em $id.veredito.txt — prova no proprio veredito, nunca no e2e_log.
+  jinput=$(printf 'TAREFA:\n%s\nMETA_JUIZ: inicio_epoch=%s\n\nSAIDA DO EXECUTOR:\n%s\n' "$tarefa" "${t0:-}" "$(printf '%s' "$saida" | tail -50)")
   veredito=$(pc_judge "$jinput")
+  printf '%s\n' "$veredito" > "$FILA/$id.veredito.txt"
   vline=$(printf '%s' "$veredito" | grep -iE 'VEREDITO:' | head -1)
   log "ordem $id: ${vline:-<juiz sem veredito>}"
 
   if printf '%s' "$vline" | grep -iq 'APROVADA'; then
+    if mentions_failure "$saida"; then
+      setf estado aberta "$f"
+      setf nota "🚫 BLOQUEADO-FALHA-DECLARADA — a saida do executor declara falha/recusa/impossibilidade apesar do VEREDITO APROVADA do juiz; reaberta sem aprovar (ver $id.saida.txt). Teto de 5 tentativas trava se persistir." "$f"
+      log "ordem $id: 🚫 BLOQUEADO-FALHA-DECLARADA — juiz aprovou sobre saida de falha; reaberta (nao aprova)"
+      continue
+    fi
     setf estado aprovada "$f"; setf nota "" "$f"; log "ordem $id: APROVADA"
     if [ -n "$missao" ]; then
       missao_avanca "$missao" "$passo"
@@ -404,7 +450,7 @@ for f in "$FILA"/*.md; do
     # ---- NOTA NUNCA VAZIA — causa explícita por construção ----
     motivo=$(printf '%s' "$vline" | sed 's/.*CORRIGIR: *//')
     if [ "$vazio" -eq 1 ]; then
-      nota="⏱️ TIMEOUT-2400s / SAIDA-VAZIA — executor não devolveu texto (tarefa grande demais? dividir em passos menores — ver convencoes.md)"
+      nota="⏱️ TIMEOUT-3600s / SAIDA-VAZIA — executor não devolveu texto (tarefa grande demais? dividir em passos menores — ver convencoes.md)"
     elif [ -z "$vline" ]; then
       nota="⚖️ JUIZ-SEM-VEREDITO — juiz não devolveu linha VEREDITO (ver $id.saida.txt; possível rate-limit/erro do juiz)"
     elif [ -n "$motivo" ] && [ "$motivo" != "$vline" ]; then
@@ -416,7 +462,7 @@ for f in "$FILA"/*.md; do
 
     if [ "$vazio" -eq 1 ] && [ "$tent" -ge 2 ]; then   # TIMEOUT não re-tenta 5x
       setf estado travada "$f"
-      setf nota "⏱️ TIMEOUT-2400s x$tent — tarefa grande demais; DIVIDIR em passos menores (convencoes.md). Não re-tento a mesma coisa." "$f"
+      setf nota "⏱️ TIMEOUT-3600s x$tent — tarefa grande demais; DIVIDIR em passos menores (convencoes.md). Não re-tento a mesma coisa." "$f"
       log "ordem $id: TRAVADA-TIMEOUT (não re-tenta tarefa grande)"; missao_travada_ou_silencio "$f" "$missao" "$passo"
     elif [ "$tent" -ge 5 ]; then
       setf estado travada "$f"; log "ordem $id: TRAVADA (5 tentativas) — nota: $nota"; missao_travada_ou_silencio "$f" "$missao" "$passo"

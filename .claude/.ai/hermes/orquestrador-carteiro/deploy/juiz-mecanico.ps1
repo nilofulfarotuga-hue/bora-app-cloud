@@ -47,22 +47,42 @@ function Reprova([string]$motivo) {
   exit 2
 }
 
+# python: a conta SSH da ponte nao tem python no PATH (descoberto 2026-07-15 na 1a corrida real)
+# -> resolve por candidatos, incluindo caminho absoluto da instalacao do Danilo.
+$pyExe = $null
+foreach ($cand in @('python', 'py', 'C:\Users\danil\AppData\Local\Programs\Python\Python312\python.exe', 'C:\Users\danil\AppData\Local\Programs\Python\Launcher\py.exe')) {
+  $c = Get-Command $cand -ErrorAction SilentlyContinue
+  if ($c) { $pyExe = $c.Source; break }
+}
+
+# base para os checks de diff: o commit em que o repo estava quando a ordem arrancou
+$base = 'HEAD'
+if ($inicio) {
+  $b = (git rev-list -1 --before="@$inicio" HEAD 2>$null)
+  if ($b) { $base = $b.Trim() }
+}
+
 # ---- (d) anti_trapaca.py - SEMPRE primeiro, chao deterministico (se existir e aplicavel) ----
 $at = Join-Path $Proj '.claude\juiz\anti_trapaca.py'
-$py = Get-Command python -ErrorAction SilentlyContinue
-if ((Test-Path $at) -and $py) {
-  $base = 'HEAD'
-  if ($inicio) {
-    $b = (git rev-list -1 --before="@$inicio" HEAD 2>$null)
-    if ($b) { $base = $b.Trim() }
-  }
-  $atOut = (& python $at --base $base 2>&1) -join ' | '
+if ((Test-Path $at) -and $pyExe) {
+  $atOut = (& $pyExe $at --base $base 2>&1) -join ' | '
   $atRc = $LASTEXITCODE
   Proof "python anti_trapaca.py --base $base (rc=$atRc)" $atOut
   if ($atRc -eq 2) { Reprova "anti_trapaca REJEITA (batota de teste detetada por git diff; base=$base)" }
   if ($atRc -eq 1) { Proof 'anti_trapaca' 'ATENCAO rc=1 - precisa olho humano (nao bloqueia sozinho, juiz textual decide)' }
 } else {
   Proof 'anti_trapaca' 'saltado (python ou script ausente nesta maquina)'
+}
+
+# ---- (e) zonas protegidas (13c da missao religar-loop): o diff COMMITADO desde o arranque da
+# ordem NUNCA pode tocar a Lista Vermelha. O aprovador-vermelho julga a INTENCAO (Balde A/B);
+# aqui o Juiz confere o DIFF real. head=HEAD (so commits) para nao apanhar ruido da working tree.
+$zd = Join-Path $Proj '.claude\juiz\zonas_diff.py'
+if ((Test-Path $zd) -and $pyExe -and $inicio) {
+  $zdOut = (& $pyExe $zd --base $base --head HEAD 2>&1) -join ' | '
+  $zdRc = $LASTEXITCODE
+  Proof "python zonas_diff.py --base $base --head HEAD (rc=$zdRc)" $zdOut
+  if ($zdRc -eq 2) { Reprova 'o diff commitado desde o arranque da ordem toca ZONA PROTEGIDA (Lista Vermelha) - nada disso passa pelo loop; volta para decisao humana' }
 }
 
 # ---- (a) recusa/impossibilidade declarada pelo executor (regex ASCII sobre texto de-acentuado) ----
@@ -85,16 +105,23 @@ if ($tarefa -match '(?i)\b(commit|push|comita|commita)\b') {
     }
   }
   $claimed = $claimed | Select-Object -Unique -First 5
+  $hashNovoOk = $false
   foreach ($h in $claimed) {
     $t = (git cat-file -t $h 2>&1); $rc = $LASTEXITCODE
     Proof "git cat-file -t $h (rc=$rc)" "$t"
     if ($rc -ne 0) { Reprova "a saida alega o commit $h mas ele NAO existe no repo (trabalho inventado)" }
+    if ($inicio) {
+      $ct = [int64]((git show -s --format=%ct $h 2>$null) | Select-Object -First 1)
+      Proof "git show -s --format=%ct $h" "committer_epoch=$ct (inicio=$inicio)"
+      if ($ct -ge $inicio) { $hashNovoOk = $true }
+    }
   }
-  # b2: tem de haver commit NOVO desde o arranque da ordem
+  # b2: tem de haver commit NOVO desde o arranque da ordem (criada:), OU um hash alegado
+  # verificado com committer-date >= inicio (cinto extra contra falso-negativo do --since)
   if ($inicio) {
     $novo = (git log --all --oneline --since="@$inicio" 2>&1) -join ' | '
     Proof "git log --all --oneline --since=@$inicio" $(if ($novo) { $novo } else { '(vazio)' })
-    if (-not $novo) { Reprova 'a ordem pedia commit/push e NAO ha nenhum commit novo desde o arranque da ordem' }
+    if ((-not $novo) -and (-not $hashNovoOk)) { Reprova 'a ordem pedia commit/push e NAO ha nenhum commit novo desde o arranque da ordem' }
   } elseif ($claimed.Count -eq 0) {
     $novo = (git log --all --oneline --since='3 hours ago' 2>&1) -join ' | '
     Proof "git log --all --oneline --since='3 hours ago' (sem META inicio_epoch)" $(if ($novo) { $novo } else { '(vazio)' })

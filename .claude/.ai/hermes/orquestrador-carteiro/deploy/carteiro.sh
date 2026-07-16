@@ -34,7 +34,8 @@ LOCK=/root/orquestracao/.carteiro.lock
 PAUSA_TOTAL="$FILA/.pausa-total"           # STOP global (Danilo)
 PAUSA_RL="$FILA/.pausa-rate-limit"         # pausa automática por rate-limit (guarda epoch de retoma)
 RL_AVISADO=/root/orquestracao/.rate-limit.avisado
-FILA_VAZIA_AVISADO=/root/orquestracao/.fila-vazia.avisado   # f523: 1 aviso só quando a fila esvazia
+FILA_ESTADO=/root/orquestracao/.fila-estado   # transição ocupado<->vazio (2026-07-16, substitui f523):
+                                               # linha1=ocupada|vazia, linha2=epoch do último aviso (cooldown 30min)
 
 # T3 money-filter. -iE (case-insensitive). 2026-07-11: menos sensível a PALAVRAS
 # (ver wiki/licoes/classificador-zona-menos-sensivel-a-palavras.md). Vermelho exige INTENÇÃO
@@ -356,12 +357,17 @@ fi
 enabled=$(get orquestracao_enabled "$CTRL"); enabled=$(echo "${enabled:-false}" | tr 'A-Z' 'a-z')
 if [ "$enabled" != "true" ]; then log "T5: kill switch OFF (enabled=$enabled) — nada a fazer"; exit 0; fi
 
+# resumo do ciclo (aviso de fila vazia por evento, 2026-07-16) — conta aprovadas/corrigir
+# e guarda a última ordem processada, para a mensagem de transição ocupado->vazio no fim.
+n_aprovadas=0; n_corrigir=0; ultima_id=""; ultima_veredito=""
+
 for f in "$FILA"/*.md; do
   [ -f "$f" ] || continue
   case "$f" in */_controlo.md) continue;; esac
   [ "$(get estado "$f")" = "aberta" ] || continue
   id=$(get id "$f"); tarefa=$(get tarefa "$f"); tent=$(get tentativa "$f"); tent=${tent:-0}
   missao=$(get missao "$f"); passo=$(get passo "$f")
+  ultima_id="$id"
   log "ordem $id: aberta (tentativa=$tent)${missao:+ [missão $missao/$passo]}"
 
   # T3 — zona vermelha (dinheiro + intenção de escrita)
@@ -377,12 +383,13 @@ for f in "$FILA"/*.md; do
 Resumo: ${resumo:-(sem resumo)}
 Para libertar para a fila normal, responde aqui: vai $id"
     [ -n "$missao" ] && { mf=$(missao_path "$missao"); [ -f "$mf" ] && missao_set_passo "$mf" "$passo" "zona_vermelha"; }
+    ultima_veredito="ZONA_VERMELHA"
     continue
   fi
   # T1 — teto 5
   if [ "$tent" -ge 5 ]; then setf estado travada "$f"
     [ -z "$(get nota "$f")" ] && setf nota "⛔ TRAVADA nas 5 tentativas" "$f"
-    log "ordem $id: TRAVADA (5 tentativas)"; missao_travada_ou_silencio "$f" "$missao" "$passo"; continue; fi
+    log "ordem $id: TRAVADA (5 tentativas)"; ultima_veredito="TRAVADA"; missao_travada_ou_silencio "$f" "$missao" "$passo"; continue; fi
 
   tent=$((tent+1)); setf tentativa "$tent" "$f"; setf estado executando "$f"
   # inicio da ORDEM = campo criada: (nao o relogio da tentativa) — commit feito numa tentativa
@@ -403,6 +410,7 @@ Para libertar para a fila normal, responde aqui: vai $id"
     setf estado aberta "$f"
     setf nota "🔒 LOCK-OCUPADO — outro executor Bora já em curso no PC; reagendado sem gastar tentativa." "$f"
     log "ordem $id: 🔒 LOCK-OCUPADO — reaberta sem gastar tentativa"
+    ultima_veredito="LOCK-OCUPADO"
     continue
   fi
 
@@ -416,6 +424,7 @@ Para libertar para a fila normal, responde aqui: vai $id"
     if [ ! -f "$RL_AVISADO" ]; then
       notify "🚫 Bora/orquestração: conta Claude Code no limite de sessão. Fila PAUSADA até $(hhmm "$resume") UTC — retomo sozinho, sem gastar tentativas."; touch "$RL_AVISADO"
     fi
+    ultima_veredito="RATE-LIMIT"
     break                                             # não processa mais nada até ao reset
   fi
 
@@ -433,9 +442,11 @@ Para libertar para a fila normal, responde aqui: vai $id"
       setf estado aberta "$f"
       setf nota "🚫 BLOQUEADO-FALHA-DECLARADA — a saida do executor declara falha/recusa/impossibilidade apesar do VEREDITO APROVADA do juiz; reaberta sem aprovar (ver $id.saida.txt). Teto de 5 tentativas trava se persistir." "$f"
       log "ordem $id: 🚫 BLOQUEADO-FALHA-DECLARADA — juiz aprovou sobre saida de falha; reaberta (nao aprova)"
+      ultima_veredito="BLOQUEADO-FALHA-DECLARADA"
       continue
     fi
     setf estado aprovada "$f"; setf nota "" "$f"; log "ordem $id: APROVADA"
+    ultima_veredito="APROVADA"; n_aprovadas=$((n_aprovadas+1))
     if [ -n "$missao" ]; then
       missao_avanca "$missao" "$passo"
     else
@@ -463,32 +474,44 @@ Para libertar para a fila normal, responde aqui: vai $id"
     if [ "$vazio" -eq 1 ] && [ "$tent" -ge 2 ]; then   # TIMEOUT não re-tenta 5x
       setf estado travada "$f"
       setf nota "⏱️ TIMEOUT-3600s x$tent — tarefa grande demais; DIVIDIR em passos menores (convencoes.md). Não re-tento a mesma coisa." "$f"
-      log "ordem $id: TRAVADA-TIMEOUT (não re-tenta tarefa grande)"; missao_travada_ou_silencio "$f" "$missao" "$passo"
+      log "ordem $id: TRAVADA-TIMEOUT (não re-tenta tarefa grande)"; ultima_veredito="TRAVADA-TIMEOUT"; missao_travada_ou_silencio "$f" "$missao" "$passo"
     elif [ "$tent" -ge 5 ]; then
-      setf estado travada "$f"; log "ordem $id: TRAVADA (5 tentativas) — nota: $nota"; missao_travada_ou_silencio "$f" "$missao" "$passo"
+      setf estado travada "$f"; log "ordem $id: TRAVADA (5 tentativas) — nota: $nota"; ultima_veredito="TRAVADA"; missao_travada_ou_silencio "$f" "$missao" "$passo"
     else
-      setf estado aberta "$f"; log "ordem $id: CORRIGIR -> reaberta (nota: $nota)"
+      setf estado aberta "$f"; log "ordem $id: CORRIGIR -> reaberta (nota: $nota)"; ultima_veredito="CORRIGIR"; n_corrigir=$((n_corrigir+1))
     fi
   fi
   sync_espelho
 done
 
-# ---- FILA VAZIA / TERMINAL LIMPO (ordem f523) — avisa 1x quando não sobra nada
-# pendente (aberta/executando/respondida); não repete a cada ciclo ocioso; volta a
-# armar assim que aparecer trabalho novo. Não corre se saímos mais cedo por
-# STOP-TOTAL/kill-switch/PAUSA-RL (nesses casos não houve ciclo real).
+# ---- FILA VAZIA / TERMINAL LIMPO (2026-07-16, substitui o aviso f523 por relógio) ----
+# Gatilho por EVENTO: dispara 1x na TRANSIÇÃO ocupado->vazio (o heartbeat-desktop por relógio
+# já foi desativado pelo Danilo). Estado em $FILA_ESTADO (linha1=ocupada|vazia, linha2=epoch
+# do último aviso ENVIADO) para (a) só notificar na transição real, nunca a cada ciclo ocioso
+# com a fila já vazia, e (b) cooldown de 30min — se a fila esvaziar/encher várias vezes numa
+# janela curta (ex.: encadeamento de missão rápido), só a primeira notifica; o timestamp só
+# avança quando uma notificação é REALMENTE enviada (fica parado enquanto suprimida).
 pendentes=0
 for f in "$FILA"/*.md; do
   [ -f "$f" ] || continue
   case "$f" in */_controlo.md) continue;; esac
   case "$(get estado "$f")" in aberta|executando|respondida) pendentes=$((pendentes+1));; esac
 done
+estado_ant=$(sed -n '1p' "$FILA_ESTADO" 2>/dev/null)
+ultimo_aviso=$(sed -n '2p' "$FILA_ESTADO" 2>/dev/null); ultimo_aviso=${ultimo_aviso:-0}
+agora=$(date +%s)
 if [ "$pendentes" -eq 0 ]; then
-  if [ ! -f "$FILA_VAZIA_AVISADO" ]; then
-    notify "🧹 Bora: todas as tarefas concluídas, terminal limpo e livre."
-    touch "$FILA_VAZIA_AVISADO"
+  if [ "$estado_ant" != "vazia" ]; then
+    if [ $((agora - ultimo_aviso)) -ge 1800 ]; then
+      notify "🧹 Fila vazia — todas as tarefas terminadas. Última: ${ultima_id:-(nenhuma)} (${ultima_veredito:-sem veredito}). Resumo do ciclo: ${n_aprovadas} aprovadas, ${n_corrigir} corrigir."
+      log "FILA-VAZIA: transição ocupado->vazio -> Telegram (última=${ultima_id:-?}/${ultima_veredito:-?}, ciclo=${n_aprovadas}a/${n_corrigir}c)"
+      ultimo_aviso="$agora"
+    else
+      log "FILA-VAZIA: transição ocupado->vazio dentro do cooldown de 30min — silêncio"
+    fi
   fi
+  printf 'vazia\n%s\n' "$ultimo_aviso" > "$FILA_ESTADO"
 else
-  rm -f "$FILA_VAZIA_AVISADO"
+  printf 'ocupada\n%s\n' "$ultimo_aviso" > "$FILA_ESTADO"
 fi
 log "ciclo terminado"

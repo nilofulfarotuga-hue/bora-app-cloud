@@ -85,18 +85,65 @@ if ((Test-Path $zd) -and $pyExe -and $inicio) {
   if ($zdRc -eq 2) { Reprova 'o diff commitado desde o arranque da ordem toca ZONA PROTEGIDA (Lista Vermelha) - nada disso passa pelo loop; volta para decisao humana' }
 }
 
+# ---- de-acentuar tarefa+saida e padroes de ESCAPE/DIAGNOSTICO (defeitos A+B, 2026-07-16) ----
+$saidaAscii  = DeAccent $saida
+$tarefaAscii = DeAccent $tarefa
+
+# ESCAPE-CLAUSE na ORDEM: a propria ordem preve "se nao for possivel, reporta / para e diz /
+# diz o que falta". Quando existe, uma impossibilidade REPORTADA COM DIAGNOSTICO e resposta
+# valida (nao se pune a honestidade que a ordem pediu). Regex ASCII sobre texto de-acentuado.
+$escapeRe1 = '(?is)\bse\b[^.!?\n]{0,80}?\b(nao (for|e|seja) possivel|nao consegu\w*|nao der|nao houver|falha\w*|bloquea\w*|correr mal|houver (problema|erro|bloqueio)|precisar|impossivel)\b[^.!?\n]{0,80}?\b(reporta\w*|report|para e|parar e|diz\w*|avisa\w*|explica\w*|pede|pedir|indica\w*|escreve\w*|documenta\w*|sinaliza\w*)\b'
+$escapeRe2 = '(?is)\b(diz\w*|reporta\w*|indica\w*|escreve\w*|explica\w*|avisa\w*)\b[^.!?\n]{0,50}?\bo que\b[^.!?\n]{0,50}?\b(falta|faltou|falhou|bloqueou|tem de|tem que|precisa\w*|e preciso|fazer|resolver)\b'
+$escapeRe3 = '(?i)\bpara e (reporta|diz|avisa|explica)\w*\b|\bparar e (reportar|dizer|avisar)\w*\b|\bnad[ao] (for|e|seja) possivel\b|\bnada disso for possivel\b'
+$temEscape = ($tarefaAscii -match $escapeRe1) -or ($tarefaAscii -match $escapeRe2) -or ($tarefaAscii -match $escapeRe3)
+
+# DIAGNOSTICO na SAIDA: a saida EXPLICA a impossibilidade (nao e so "nao deu"). Token explicativo
+# OU corpo substancial (>=200 chars uteis). "nao deu" cru -> sem diagnostico -> continua a reprovar.
+$diagRe = '(?i)\b(porque|porqu\w*|devido|falta\w*|precis\w*|necessari\w*|erro|falhou|credencial|permissao|token|bloquead\w*|motivo|causa|nao existe|em falta|tens de|tem de|tem que|e preciso|configura\w*|instala\w*|autoriza\w*|aprova\w*|manualmente|o danilo|passo\b|passos\b)\b'
+$saidaUtil = ($saida -replace '\s+', ' ').Trim()
+$temDiag = ($saidaAscii -match $diagRe) -or ($saidaUtil.Length -ge 200)
+
+$recusaValida = $false
+
 # ---- (a) recusa/impossibilidade declarada pelo executor (regex ASCII sobre texto de-acentuado) ----
-$saidaAscii = DeAccent $saida
-$recusaRe = '(?im)^[\s>*#-]*nao (foi possivel|consegui|consigo|executei|fiz)\b|^[\s>*#-]*(impossivel|recuso|recusei|recusada)\b|confirmacao necessaria|preciso de confirmacao'
+# DEFEITO B (2026-07-16): se a ORDEM tem escape-clause E o executor reportou COM diagnostico,
+# a impossibilidade e resposta valida -> passa ao juiz textual. Mantem CORRIGIR quando a ordem
+# NAO previa escape OU o executor so diz "nao deu" sem diagnostico. (Mentira de trabalho
+# inexistente continua a ser apanhada nos blocos b1/b2 - intocados.)
+$recusaRe = '(?im)^[\s>*#-]*nao (foi possivel|consegui|consigo|executei|fiz)\b|^[\s>*#-]*(impossivel|recuso|recusei|recusada|falhei|desisti)\b|^[\s>*#-]*nao deu\b(?!\s+(erro|problema|falha|falhas|conflito|conflitos|bug|bugs|mal|nada))|^[\s>*#-]*(sem sucesso|nao rolou)\b|confirmacao necessaria|preciso de confirmacao'
 $mRec = [regex]::Match($saidaAscii, $recusaRe)
 if ($mRec.Success) {
   Proof 'regex recusa na SAIDA' ("match: '" + $mRec.Value.Trim() + "'")
-  Reprova 'o executor declara recusa/falha/impossibilidade na propria saida - nada a aprovar'
+  Proof 'escape-clause na ORDEM' "$temEscape"
+  Proof 'diagnostico na SAIDA'   "$temDiag"
+  if ($temEscape -and $temDiag) {
+    $recusaValida = $true
+    Proof 'recusa VALIDA' 'a ordem previa escape e o executor reportou com diagnostico -> segue para o juiz textual'
+  } else {
+    Reprova 'o executor declara recusa/falha/impossibilidade e a ordem nao previa escape (ou faltou diagnostico) - nada a aprovar'
+  }
+} else {
+  Proof 'regex recusa na SAIDA' 'sem declaracao de recusa/falha'
 }
-Proof 'regex recusa na SAIDA' 'sem declaracao de recusa/falha'
 
-# ---- (b) ordem pedia commit/push -> exigir commit REAL no repo ----
-if ($tarefa -match '(?i)\b(commit|push|comita|commita)\b') {
+# ---- (b) ordem pedia commit/push -> exigir commit REAL no repo (defeito A: negacao-aware) ----
+# DEFEITO A (2026-07-16): so exigir commit quando a ordem MANDA commitar/pushar. Se a mencao
+# a commit/push esta dentro de uma PROIBICAO ("NAO commitar", "sem push", "nao facas push"),
+# nao se exige nada; se a ordem PROIBE e o executor committou algo atribuivel, isso e violacao.
+$kwRe  = '(?i)\b(commit|commits|committ\w*|commitar|commites|commitares|comit|comita|comitar|comitei|commitei|commitou|push|pushar|pushes|pusha|pushei)\b'
+$negRe = '(?i)\b(nao|sem|nunca|jamais|proibid[oa]|evita\w*|nada de|nem)\b'
+$mandaCommit = $false; $proibeCommit = $false
+foreach ($km in [regex]::Matches($tarefaAscii, $kwRe)) {
+  $start = [Math]::Max(0, $km.Index - 24)                # janela de proximidade da negacao
+  $win = $tarefaAscii.Substring($start, $km.Index - $start)
+  $cut = [regex]::Match($win, '[.!?\n][^.!?\n]*$')       # nao atravessar fronteira de frase
+  if ($cut.Success) { $win = $win.Substring($cut.Index + 1) }
+  if ($win -match $negRe) { $proibeCommit = $true } else { $mandaCommit = $true }
+}
+
+if ($recusaValida) {
+  Proof 'commit-check' 'dispensado: recusa valida (a ordem previa escape e o executor reportou)'
+} elseif ($mandaCommit) {
   # b1: hash alegado na SAIDA (linhas que falam de commit) tem de EXISTIR no repo
   $claimed = @()
   foreach ($ln in ($saida -split "`n")) {
@@ -127,10 +174,34 @@ if ($tarefa -match '(?i)\b(commit|push|comita|commita)\b') {
     Proof "git log --all --oneline --since='3 hours ago' (sem META inicio_epoch)" $(if ($novo) { $novo } else { '(vazio)' })
     if (-not $novo) { Reprova 'a ordem pedia commit/push, sem commit novo nas ultimas 3h e sem hash alegado verificavel' }
   }
+} elseif ($proibeCommit) {
+  # ordem PROIBE commit/push: violacao SO se o executor committou algo ATRIBUIVEL (hash alegado
+  # na saida que existe e e novo). Nao uso git-log cru para nao apanhar commits de executores
+  # concorrentes no mesmo working dir (licao commit_concorrente_colateral 2026-07-14).
+  $claimedP = @()
+  foreach ($ln in ($saida -split "`n")) {
+    if ($ln -match '(?i)commit') {
+      foreach ($m in [regex]::Matches($ln, '\b[0-9a-f]{7,40}\b')) { $claimedP += $m.Value }
+    }
+  }
+  $claimedP = $claimedP | Select-Object -Unique -First 5
+  $violou = $false; $badH = ''
+  foreach ($h in $claimedP) {
+    $t = (git cat-file -t $h 2>&1); $rc = $LASTEXITCODE
+    if ($rc -eq 0) {
+      $ct = if ($inicio) { [int64]((git show -s --format=%ct $h 2>$null) | Select-Object -First 1) } else { 0 }
+      Proof "git cat-file -t $h (ordem PROIBE commit)" "existe; committer_epoch=$ct (inicio=$inicio)"
+      if ((-not $inicio) -or ($ct -ge $inicio)) { $violou = $true; $badH = $h }
+    }
+  }
+  if ($violou) { Reprova "a ordem PROIBIA commit/push mas o executor committou $badH (existe no repo)" }
+  Proof 'ordem PROIBE commit/push' 'sem commit atribuivel na saida - conforme a proibicao'
 }
 
 # ---- (c) ordem pedia criar/escrever ficheiro -> tem de existir em disco ----
-if ($tarefa -match '(?i)\b(cria|criar|escreve|escrever|gera|gerar|adiciona|adicionar)\b') {
+if ($recusaValida) {
+  Proof 'ficheiro-check' 'dispensado: recusa valida (a ordem previa escape e o executor reportou)'
+} elseif ($tarefa -match '(?i)\b(cria|criar|escreve|escrever|gera|gerar|adiciona|adicionar)\b') {
   $paths = @()
   foreach ($m in [regex]::Matches($tarefa, '(?<![\w])(?:[A-Za-z0-9_.\-]+[/\\])+[A-Za-z0-9_.\-]+\.[A-Za-z0-9]{1,10}')) { $paths += $m.Value }
   $paths = $paths | Select-Object -Unique -First 5

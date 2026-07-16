@@ -24,6 +24,16 @@
 #   1 ordem = 1 objetivo pequeno (≤15 min de trabalho). Trabalho grande = PÁGINA DE MISSÃO
 #   com passos pequenos encadeados. Tarefa que estoura 900s -> TIMEOUT + sugestão de dividir,
 #   NUNCA a mesma coisa 5x.
+#
+# PARTE A (2026-07-16, pos-morte ordem 7838, pedido Danilo): o `timeout 3600` fixo do pc_exec
+#   matou a 7838 2x nos testes finais enquanto ela ainda produzia output real — o relógio total
+#   não distingue "morta" de "grande mas viva". A deteção real de INATIVIDADE agora corre do
+#   lado do PC (stale-output-watchdog.ps1, em paralelo ao claude.exe): só mata se o LIVELOG
+#   ficar 20min SEM crescer; teto duro de 4h fica como rede de segurança final. O `timeout`
+#   aqui no VPS passou a ser só a rede de segurança EXTERNA (bridge/SSH pendurado), alargado
+#   para acompanhar o teto duro de 4h + folga — nunca deve disparar primeiro. Quando o vigia do
+#   PC mata, devolve "MOTIVO_KILL:INATIVIDADE:Xmin" ou "MOTIVO_KILL:TETO-DURO:Xmin" no stdout;
+#   ver pc_exec() e a leitura de $motivo_kill mais abaixo — nunca mais "TIMEOUT-3600s" genérico.
 set -u
 C=hermes-agent-fvnc-hermes-agent-1
 HOSTDATA=/docker/hermes-agent-fvnc/data
@@ -79,7 +89,11 @@ pc_exec(){ printf '%s' "$1" > "$HOSTDATA/orq_task.txt"
   # legitimas terminarem sem serem cortadas. A cura real continua a ser o fix do parser (acima).
   # 2026-07-14 (pedido Danilo): timeout 3600 = 1h, decisao do Danilo para deixar tarefas grandes
   # rodarem a vontade; so cortar de verdade acima disso.
-  docker exec -u hermes "$C" sh -lc 'export PATH=/opt/data/.local/bin:$PATH; timeout 3600 pc-loop "$(cat /opt/data/orq_task.txt)"' 2>&1 | clean; }
+  # 2026-07-16 (PARTE A, superado): o timeout fixo acima matava execucoes vivas (ordem 7838).
+  # A deteccao real de inatividade agora e' do stale-output-watchdog.ps1 no PC (ve cabecalho do
+  # ficheiro); este timeout so fica como rede de seguranca externa (bridge/SSH pendurado) —
+  # 14700s = 4h10min, sempre por CIMA do teto duro do PC (4h) para nunca disparar primeiro.
+  docker exec -u hermes "$C" sh -lc 'export PATH=/opt/data/.local/bin:$PATH; timeout 14700 pc-loop "$(cat /opt/data/orq_task.txt)"' 2>&1 | clean; }
 pc_judge(){ printf '%s' "$1" > "$HOSTDATA/orq_judge.txt"
   docker exec -u hermes "$C" sh -lc 'export PATH=/opt/data/.local/bin:$PATH; timeout 400 pc-judge "$(cat /opt/data/orq_judge.txt)"' 2>&1 | clean; }
 
@@ -248,7 +262,8 @@ missao_travada_ou_silencio(){ # $1=of $2=mid $3=passo
   local of="$1" mid="$2" p="$3" mf oid nota
   if [ -n "$mid" ]; then
     mf=$(missao_path "$mid"); [ -f "$mf" ] && missao_set_passo "$mf" "$p" "travada"
-    notify "⛔ Bora/missão $mid: passo $p TRAVOU. Precisa de ti."
+    nota=$(get nota "$of")
+    notify "⛔ Bora/missão $mid: passo $p TRAVOU — ${nota:-precisa de ti}."
     log "missão $mid: passo $p travado -> Telegram"
   else
     # 2026-07-13 (ordem f523): avisos de travamento restaurados — antes ficava
@@ -311,6 +326,13 @@ if [ "${1:-}" = "--selftest" ]; then
   longa=$(printf 'x%.0s' $(seq 1 300))
   r3=$(resumo_tarefa "$longa")
   [ "${#r3}" -eq 160 ] && ok "resumo_tarefa corta em 160 chars" || bad "resumo_tarefa corta em 160 chars (len=${#r3})"
+  # PARTE A (2026-07-16): extração do marcador MOTIVO_KILL devolvido pelo vigia de inatividade do PC
+  mk1=$(printf 'MOTIVO_KILL:INATIVIDADE:23\n' | grep -oE '^MOTIVO_KILL:(INATIVIDADE|TETO-DURO):[0-9]+' | head -1)
+  [ "$mk1" = "MOTIVO_KILL:INATIVIDADE:23" ] && ok "motivo_kill extrai INATIVIDADE:23" || bad "motivo_kill extrai INATIVIDADE (got: $mk1)"
+  mk2=$(printf 'MOTIVO_KILL:TETO-DURO:240\n' | grep -oE '^MOTIVO_KILL:(INATIVIDADE|TETO-DURO):[0-9]+' | head -1)
+  [ "$mk2" = "MOTIVO_KILL:TETO-DURO:240" ] && ok "motivo_kill extrai TETO-DURO:240" || bad "motivo_kill extrai TETO-DURO (got: $mk2)"
+  mk3=$(printf 'texto normal sem marcador\n' | grep -oE '^MOTIVO_KILL:(INATIVIDADE|TETO-DURO):[0-9]+' | head -1)
+  [ -z "$mk3" ] && ok "motivo_kill vazio quando não há marcador" || bad "motivo_kill deveria ser vazio (got: $mk3)"
   [ "$fail" = 0 ] && echo "SELFTEST: TODOS OK" || echo "SELFTEST: HÁ FALHAS"
   exit "$fail"
 fi
@@ -400,7 +422,12 @@ Para libertar para a fila normal, responde aqui: vai $id"
   t0=${t0:-$(date +%s)}
   saida=$(exec_ordem "$tarefa"); printf '%s\n' "$saida" > "$FILA/$id.saida.txt"
   setf estado respondida "$f"; log "ordem $id: respondida (tentativa $tent)"
-  vazio=0; [ -z "$(printf '%s' "$saida" | tr -d '[:space:]')" ] && vazio=1
+  # PARTE A (2026-07-16): se o vigia de inatividade do PC matou o executor, o run-claude-loop.cmd
+  # devolve esta linha no stdout — conta como saida vazia (nao houve resultado real), mas o
+  # MOTIVO fica preservado para a nota nunca dizer "timeout" generico.
+  motivo_kill=$(printf '%s' "$saida" | grep -oE '^MOTIVO_KILL:(INATIVIDADE|TETO-DURO):[0-9]+' | head -1)
+  vazio=0; [ -z "$(printf '%s' "$saida" | grep -vE '^MOTIVO_KILL:' | tr -d '[:space:]')" ] && vazio=1
+  [ -n "$motivo_kill" ] && vazio=1
 
   # ---- LOCK-OCUPADO: executor nem chegou a arrancar (outro claude.exe vivo no PC) — não
   # gasta tentativa nem chama o juiz (não há nada real para avaliar); reabre para a próxima
@@ -461,7 +488,19 @@ Para libertar para a fila normal, responde aqui: vai $id"
     # ---- NOTA NUNCA VAZIA — causa explícita por construção ----
     motivo=$(printf '%s' "$vline" | sed 's/.*CORRIGIR: *//')
     if [ "$vazio" -eq 1 ]; then
-      nota="⏱️ TIMEOUT-3600s / SAIDA-VAZIA — executor não devolveu texto (tarefa grande demais? dividir em passos menores — ver convencoes.md)"
+      # PARTE A (2026-07-16): distingue morte por INATIVIDADE real (vigia do PC) / TETO-DURO-4h
+      # de uma saida vazia comum — nunca mais "TIMEOUT-3600s" generico (ver cabecalho do ficheiro).
+      case "$motivo_kill" in
+        MOTIVO_KILL:INATIVIDADE:*)
+          nota="💤 MORTA-POR-INATIVIDADE (${motivo_kill#MOTIVO_KILL:INATIVIDADE:}min sem output) — não é timeout de relógio; o executor parou de produzir texto (ver $id.saida.txt)."
+          ;;
+        MOTIVO_KILL:TETO-DURO:*)
+          nota="⏱️ TETO-DURO-4h (${motivo_kill#MOTIVO_KILL:TETO-DURO:}min corridos) — output ainda saía mas ultrapassou o teto máximo de segurança; DIVIDIR em passos menores (convencoes.md)."
+          ;;
+        *)
+          nota="⏱️ SAIDA-VAZIA — executor não devolveu texto (tarefa grande demais? dividir em passos menores — ver convencoes.md)"
+          ;;
+      esac
     elif [ -z "$vline" ]; then
       nota="⚖️ JUIZ-SEM-VEREDITO — juiz não devolveu linha VEREDITO (ver $id.saida.txt; possível rate-limit/erro do juiz)"
     elif [ -n "$motivo" ] && [ "$motivo" != "$vline" ]; then
@@ -471,10 +510,10 @@ Para libertar para a fila normal, responde aqui: vai $id"
     fi
     setf nota "$nota" "$f"
 
-    if [ "$vazio" -eq 1 ] && [ "$tent" -ge 2 ]; then   # TIMEOUT não re-tenta 5x
+    if [ "$vazio" -eq 1 ] && [ "$tent" -ge 2 ]; then   # saida vazia não re-tenta 5x
       setf estado travada "$f"
-      setf nota "⏱️ TIMEOUT-3600s x$tent — tarefa grande demais; DIVIDIR em passos menores (convencoes.md). Não re-tento a mesma coisa." "$f"
-      log "ordem $id: TRAVADA-TIMEOUT (não re-tenta tarefa grande)"; ultima_veredito="TRAVADA-TIMEOUT"; missao_travada_ou_silencio "$f" "$missao" "$passo"
+      setf nota "$nota (x$tent — não re-tento a mesma coisa)" "$f"
+      log "ordem $id: TRAVADA (não re-tenta tarefa vazia/inativa) — $nota"; ultima_veredito="TRAVADA-VAZIA"; missao_travada_ou_silencio "$f" "$missao" "$passo"
     elif [ "$tent" -ge 5 ]; then
       setf estado travada "$f"; log "ordem $id: TRAVADA (5 tentativas) — nota: $nota"; ultima_veredito="TRAVADA"; missao_travada_ou_silencio "$f" "$missao" "$passo"
     else

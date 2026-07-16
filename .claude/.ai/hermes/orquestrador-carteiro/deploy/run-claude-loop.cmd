@@ -21,6 +21,19 @@ REM    -- auto-limpeza-ram.cmd corre no FIM de cada ciclo (zumbis claude/cmd/pyt
 REM    limpeza de temp se RAM < 300MB). Complementa o cleanorphans acima (que so corre ANTES);
 REM    esta corre DEPOIS, apanhando o que sobrou do proprio ciclo. Ver auto-limpeza-ram.ps1 +
 REM    inbox/auto-limpeza-ram-2026-07-13.md.
+REM  - FASE 1.8 (2026-07-14, lock orfao definitivo): "PID vivo?" sozinho nao chega -- o Windows
+REM    recicla PIDs, e um lock cujo dono morreu podia ficar "vivo para sempre" se o numero
+REM    calhasse noutro processo (travou a fila 2x no mesmo dia). executor-lock.ps1 agora grava
+REM    pid+timestamp+start-time do dono e so considera o lock vivo se AMBOS baterem; cleanorphans
+REM    tambem apaga o executor.lock orfao logo no arranque do ciclo (nao so no 'acquire' a
+REM    seguir). Ver inbox/lock-orfao-definitivo-2026-07-14.md.
+REM  - FASE 1.9 (2026-07-16, pos-morte ordem 7838, pedido Danilo): o teto fixo `timeout 3600`
+REM    do lado VPS (carteiro.sh) matou a 7838 2x enquanto ela ainda produzia output real nos
+REM    testes finais -- relogio total nao distingue "morta" de "grande mas viva". Agora corre
+REM    stale-output-watchdog.ps1 EM PARALELO ao claude.exe: so mata por INATIVIDADE real (o
+REM    LIVELOG sem crescer ha 20min); teto duro de 4h fica como rede de seguranca final. Se o
+REM    watchdog matar, grava o motivo em STALESTAMP e este .cmd devolve "MOTIVO_KILL:..." no
+REM    stdout (carteiro.sh le isto e avisa "morta por inatividade", nunca "timeout" generico).
 REM ===========================================================================
 set "CLAUDE_CONFIG_DIR=C:\Users\danil\.claude"
 set "CLAUDE_EXE=C:\Users\danil\AppData\Roaming\npm\node_modules\@anthropic-ai\claude-code\bin\claude.exe"
@@ -32,6 +45,8 @@ set "LOCKFILE=%PROJ%\.claude\executor.lock"
 set "LOCKPS=%~dp0executor-lock.ps1"
 set "LOCK_MAXWAIT=480"
 set "AUTOLIMPEZA=%~dp0auto-limpeza-ram.cmd"
+set "WATCHDOGPS=%~dp0stale-output-watchdog.ps1"
+set "STALESTAMP=%TEMP%\bora_stale_stamp.txt"
 if not exist "%CLAUDE_EXE%" ( echo [loop] ERRO: claude.exe nao encontrado & exit /b 4 )
 
 set "PERM=--dangerously-skip-permissions"
@@ -92,9 +107,24 @@ REM FASE 1.3 -- modelo por tarefa (default sonnet; [MODELO: OPUS] sobe para opus
 set "MODEL=--model sonnet"
 findstr /I /C:"[MODELO: OPUS]" "%TASKFILE%" >NUL 2>&1 && set "MODEL=--model opus"
 echo [%date% %time%] ==== nova ordem :: %MODEL% ==== >> "%LIVELOG%"
+REM FASE 1.9 -- vigia de inatividade em paralelo (so mata se o LIVELOG parar de crescer 20min;
+REM teto duro 4h). Auto-termina sozinho (~30s) se o claude.exe ja tiver acabado antes disso.
+del /f /q "%STALESTAMP%" >nul 2>&1
+if exist "%WATCHDOGPS%" (
+  start "" /B powershell -NoProfile -ExecutionPolicy Bypass -File "%WATCHDOGPS%" -LiveLog "%LIVELOG%" -StampFile "%STALESTAMP%" -StaleMinutes 20 -HardCeilingMinutes 240 -PollSeconds 30
+)
 REM FASE 1.4 -- stream legivel no LIVELOG + resultado final no stdout (via parser)
 "%CLAUDE_EXE%" -p --append-system-prompt "%GUARD%" --output-format stream-json --verbose %MODEL% %PERM% %TURNS% %BUDGET% < "%TASKFILE%" 2>&1 | powershell -NoProfile -ExecutionPolicy Bypass -File "%PARSER%" "%LIVELOG%"
 set "CLAUDE_RC=%ERRORLEVEL%"
+REM FASE 1.9 -- se o vigia matou o executor, o motivo (INATIVIDADE:Xmin | TETO-DURO:Xmin) vai
+REM no stdout para o carteiro.sh distinguir de uma saida vazia normal e nunca dizer "timeout".
+if exist "%STALESTAMP%" (
+  set "MOTIVO_KILL="
+  set /p MOTIVO_KILL=<"%STALESTAMP%"
+  echo [%date% %time%] [loop] vigia-inatividade matou o executor: !MOTIVO_KILL! >> "%LIVELOG%"
+  echo MOTIVO_KILL:!MOTIVO_KILL!
+  del /f /q "%STALESTAMP%" >nul 2>&1
+)
 powershell -NoProfile -ExecutionPolicy Bypass -File "%LOCKPS%" -Action release -LockFile "%LOCKFILE%" -OwnerPid %MYPID% >> "%LIVELOG%" 2>&1
 if exist "%AUTOLIMPEZA%" ( call "%AUTOLIMPEZA%" hook >> "%LIVELOG%" 2>&1 )
 exit /b %CLAUDE_RC%

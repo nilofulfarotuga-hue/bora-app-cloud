@@ -26,6 +26,8 @@ const clients = new Map();   // client_id -> {redirect_uris:[]}
 const codes = new Map();     // code -> {client_id, redirect_uri, challenge, exp}
 const tokens = new Map();    // access_token -> {exp}
 const refresh = new Map();   // refresh_token -> {exp}
+const ACCESS_TTL = 2592000;  // 30d (era 3600=1h — causava "cai de hora em hora"; agora igual ao refresh)
+const REFRESH_TTL = 2592000; // 30d
 const b64url = (b) => Buffer.from(b).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const rand = (n = 32) => b64url(crypto.randomBytes(n));
 const sha256 = (s) => crypto.createHash('sha256').update(s).digest();
@@ -148,13 +150,13 @@ const server = http.createServer(async (req, res) => {
       if (!rec || rec.exp < now()) return json(res, 400, { error: 'invalid_grant' });
       if (rec.redirect_uri && b.redirect_uri && rec.redirect_uri !== b.redirect_uri) return json(res, 400, { error: 'invalid_grant', detail: 'redirect_uri' });
       if (b64url(sha256(b.code_verifier || '')) !== rec.challenge) return json(res, 400, { error: 'invalid_grant', detail: 'pkce' });
-      const at = rand(32), rt = rand(32); tokens.set(at, { exp: now() + 3600 }); refresh.set(rt, { exp: now() + 2592000 });
-      return json(res, 200, { access_token: at, token_type: 'Bearer', expires_in: 3600, refresh_token: rt, scope: 'cortex' }, { 'cache-control': 'no-store' });
+      const at = rand(32), rt = rand(32); tokens.set(at, { exp: now() + ACCESS_TTL }); refresh.set(rt, { exp: now() + REFRESH_TTL });
+      return json(res, 200, { access_token: at, token_type: 'Bearer', expires_in: ACCESS_TTL, refresh_token: rt, scope: 'cortex' }, { 'cache-control': 'no-store' });
     }
     if (b.grant_type === 'refresh_token') {
       const r = refresh.get(b.refresh_token); if (!r || r.exp < now()) return json(res, 400, { error: 'invalid_grant' });
-      const at = rand(32); tokens.set(at, { exp: now() + 3600 });
-      return json(res, 200, { access_token: at, token_type: 'Bearer', expires_in: 3600, scope: 'cortex' }, { 'cache-control': 'no-store' });
+      const at = rand(32); tokens.set(at, { exp: now() + ACCESS_TTL });
+      return json(res, 200, { access_token: at, token_type: 'Bearer', expires_in: ACCESS_TTL, scope: 'cortex' }, { 'cache-control': 'no-store' });
     }
     return json(res, 400, { error: 'unsupported_grant_type' });
   }

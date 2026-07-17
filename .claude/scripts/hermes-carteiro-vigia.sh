@@ -36,6 +36,7 @@ CARTEIRO="${VIGIA_CARTEIRO:-/root/orquestracao/carteiro.sh}"
 CARTEIRO_LOG="${VIGIA_CARTEIRO_LOG:-/root/orquestracao/carteiro.log}"
 LOCK="${VIGIA_LOCK:-/root/orquestracao/.carteiro.lock}"
 NOTIFIED="${VIGIA_NOTIFIED:-/root/orquestracao/.carteiro-vigia.avisado}"
+NOTIFIED_FAIL="${VIGIA_NOTIFIED_FAIL:-/root/orquestracao/.carteiro-vigia.falha-avisada}"
 STALL_MIN="${VIGIA_STALL_MIN:-15}"
 PAUSA_RL="${VIGIA_PAUSA_RL:-$FILA/.pausa-rate-limit}"
 C=hermes-agent-fvnc-hermes-agent-1
@@ -67,6 +68,20 @@ restart_campainha(){ [ "$SELFTEST" = 1 ] && { echo "[RESTART campainha]"; return
   [ "$DRY" = 1 ] && { echo "DRY: restart campainha (mata duplicados + relança)"; return 0; }
   pkill -f "inotifywait.*$(basename "$FILA")" 2>/dev/null || true; sleep 1
   nohup bash "$CAMPAINHA" >> "$CAMPAINHA_LOG" 2>&1 & disown 2>/dev/null || true; sleep 1; }
+
+# confirma_carteiro_vivo (2026-07-17, FASE 1): depois de um nudge, verifica que um carteiro
+# REALMENTE arrancou (liveness). Poll curto por processo. Se nada aparecer, o nudge falhou.
+# FAIL-SAFE p/ selftest: VIGIA_ASSUME_CARTEIRO_VIVO=0/1 força o resultado sem tocar em processos.
+confirma_carteiro_vivo(){
+  [ -n "${VIGIA_ASSUME_CARTEIRO_VIVO:-}" ] && { [ "$VIGIA_ASSUME_CARTEIRO_VIVO" = 1 ]; return; }
+  [ "$SELFTEST" = 1 ] && return 0
+  local i
+  for i in 1 2 3 4 5; do
+    pgrep -f "orquestracao/carteiro\.sh" >/dev/null 2>&1 && return 0
+    sleep 1
+  done
+  return 1
+}
 
 campainha_viva(){
   [ -n "${VIGIA_ASSUME_VIVA:-}" ] && { [ "$VIGIA_ASSUME_VIVA" = 1 ]; return; }
@@ -201,7 +216,16 @@ decide(){
     log "ZUMBI: ordem $zumbi presa em 'executando' com o executor parado (bora-live stale) -> mato ponte/pc-loop, limpo lock, reponho 'aberta' e NUDGE."
     reclamar_zumbi "$zfile"
     nudge_carteiro
-    [ -f "$NOTIFIED" ] || { notify "🧟 Bora/carteiro: uma ordem ficou presa em 'executando' com o executor morto (ponte pendurada) — limpei o zombie e retomei a fila sozinho ($zumbi)."; touch "$NOTIFIED" 2>/dev/null || true; }
+    # 2026-07-17 (FASE 1): confirmar que a ressurreição PEGOU. Se o carteiro não voltou a
+    # arrancar, o nudge falhou (provável ponte partida) -> alerta REAL ao Danilo, não "sucesso".
+    if confirma_carteiro_vivo; then
+      log "ZUMBI: carteiro RESSUSCITADO e vivo após reclaim de $zumbi."
+      rm -f "$NOTIFIED_FAIL" 2>/dev/null || true
+      [ -f "$NOTIFIED" ] || { notify "🧟 Bora/carteiro: uma ordem ficou presa em 'executando' com o executor morto (ponte pendurada) — limpei o zombie e retomei a fila sozinho ($zumbi)."; touch "$NOTIFIED" 2>/dev/null || true; }
+    else
+      log "ZUMBI: FALHA — reclamei $zumbi mas o carteiro NÃO voltou a arrancar (nudge sem processo vivo)."
+      [ -f "$NOTIFIED_FAIL" ] || { notify "⛔ Bora/carteiro: reclamei um zombie ($zumbi) mas o carteiro NÃO voltou a arrancar sozinho. A ponte para o PC pode estar partida — precisa de ti."; touch "$NOTIFIED_FAIL" 2>/dev/null || true; }
+    fi
     return 0
   fi
 
@@ -219,6 +243,7 @@ decide(){
     log "OK: ordem parada ($estag) mas carteiro OCUPADO (executando/lock preso) — vai drenar. Não ajo."
   else
     log "OK: campainha viva, sem ordens estagnadas."
+    rm -f "$NOTIFIED_FAIL" 2>/dev/null || true
   fi
   rm -f "$NOTIFIED" 2>/dev/null || true
   return 0
@@ -231,6 +256,7 @@ selftest(){
   # (o limiar de idade é aritmética trivial; o que se testa aqui é a DECISÃO). Sobrescrevo os
   # globais JÁ resolvidos (o topo do script fixa-os antes daqui) para apontar à fila temporária.
   FILA="$tmp"; LOG="$tmp/vigia.log"; LOCK="$tmp/.lock"; STALL_MIN=0; PAUSA_RL="$tmp/.pausa-rate-limit"
+  NOTIFIED="$tmp/.avisado"; NOTIFIED_FAIL="$tmp/.falha-avisada"
   chk(){ if eval "$2"; then echo "  [OK] $1"; ok=$((ok+1)); else echo "  [X ] $1"; fail=$((fail+1)); fi; }
   mkstuck(){ printf 'id: %s\nestado: aberta\ntentativa: 0\ntarefa: x\n' "$1" > "$tmp/$1.md"; }
 
@@ -285,6 +311,23 @@ selftest(){
   out=$(VIGIA_ASSUME_VIVA=1 VIGIA_ASSUME_EXECUTOR=0 VIGIA_ZUMBI_MIN=999 SELFTEST=1 decide 2>&1)
   chk "não reclamou (ordem recente, dentro da grace)" '! echo "$out" | grep -q "\[RECLAMA zumbi"'
   rm -f "$tmp/zmb3.md"
+
+  echo "== T10: ZUMBI (FASE 1) — reclamado MAS carteiro NÃO ressuscita (nudge falhou) -> ALERTA de FALHA, não 'sucesso' =="
+  rm -f "$NOTIFIED" "$NOTIFIED_FAIL" 2>/dev/null
+  printf 'id: zmb4\nestado: executando\ntentativa: 2\ntarefa: z\n' > "$tmp/zmb4.md"
+  out=$(VIGIA_ASSUME_VIVA=1 VIGIA_ASSUME_EXECUTOR=0 VIGIA_ZUMBI_MIN=0 VIGIA_ASSUME_CARTEIRO_VIVO=0 SELFTEST=1 decide 2>&1)
+  chk "reclamou o zombie" 'echo "$out" | grep -q "\[RECLAMA zumbi zmb4\]"'
+  chk "alertou FALHA (carteiro não voltou a arrancar)" 'echo "$out" | grep -q "NÃO voltou a arrancar"'
+  chk "NÃO mandou msg de sucesso" '! echo "$out" | grep -q "retomei a fila sozinho"'
+  rm -f "$tmp/zmb4.md"
+
+  echo "== T11: ZUMBI reclamado E carteiro ressuscita (nudge pegou) -> msg de SUCESSO, sem alerta de falha =="
+  rm -f "$NOTIFIED" "$NOTIFIED_FAIL" 2>/dev/null
+  printf 'id: zmb5\nestado: executando\ntentativa: 2\ntarefa: z\n' > "$tmp/zmb5.md"
+  out=$(VIGIA_ASSUME_VIVA=1 VIGIA_ASSUME_EXECUTOR=0 VIGIA_ZUMBI_MIN=0 VIGIA_ASSUME_CARTEIRO_VIVO=1 SELFTEST=1 decide 2>&1)
+  chk "mandou sucesso (retomei a fila)" 'echo "$out" | grep -q "retomei a fila sozinho"'
+  chk "NÃO alertou falha" '! echo "$out" | grep -q "NÃO voltou a arrancar"'
+  rm -f "$tmp/zmb5.md"
 
   rm -rf "$tmp"
   echo "-- selftest vigia: $ok OK, $fail FALHAS --"

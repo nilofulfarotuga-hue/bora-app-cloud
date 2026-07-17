@@ -20,6 +20,8 @@ interface RegisterPartnerRequest {
   activityDocUrl?: string;
   photoUrl?: string;
   coverUrl?: string;
+  reservationsEnabled?: boolean;
+  takeawayEnabled?: boolean;
 }
 
 function validateNif(nif: string): boolean {
@@ -218,6 +220,10 @@ Deno.serve(async (req: Request) => {
       activity_doc_url: body.activityDocUrl || null,
       photo_url: body.photoUrl || "",
       cover_url: body.coverUrl || null,
+      // Parte 5 — só restaurantes enviam estes toggles (switches no registo);
+      // ligam os cartões "Reservar mesa" / "Ir buscar" no RestaurantOptionsScreen.
+      reservations_enabled: body.reservationsEnabled ?? false,
+      takeaway_enabled: body.takeawayEnabled ?? false,
     };
 
     let insertError;

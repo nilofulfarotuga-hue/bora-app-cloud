@@ -1639,6 +1639,52 @@ class _PartnerCatalogTabState extends State<_PartnerCatalogTab> {
     }
   }
 
+  /// Parte 5 — edita a categoria do produto (mesmo padrão do _editPrice).
+  /// UPDATE de products.category via RPC admin_update_product_category. PT-BR.
+  Future<void> _editCategory(String productId, String current) async {
+    final controller = TextEditingController(text: current);
+    final newCategory = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Editar categoria'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            labelText: 'Categoria',
+            hintText: 'Ex.: Entradas, Bebidas, Sobremesas…',
+          ),
+          autofocus: true,
+          textCapitalization: TextCapitalization.sentences,
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancelar')),
+          FilledButton(
+            onPressed: () {
+              final v = controller.text.trim();
+              if (v.isNotEmpty) Navigator.pop(ctx, v);
+            },
+            child: const Text('Salvar'),
+          ),
+        ],
+      ),
+    );
+    if (newCategory == null) return;
+    try {
+      await Supabase.instance.client.rpc('admin_update_product_category',
+          params: {
+            'p_product_id': productId,
+            'p_new_category': newCategory,
+          });
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao salvar categoria: $e')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return RefreshIndicator(
@@ -1672,8 +1718,24 @@ class _PartnerCatalogTabState extends State<_PartnerCatalogTab> {
                     return Card(
                       child: ListTile(
                         title: Text(p['name'] as String? ?? '—'),
-                        subtitle: Text(
-                            'Categoria: ${p['category'] ?? '—'}'),
+                        subtitle: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                  'Categoria: ${p['category'] ?? '—'}'),
+                            ),
+                            InkWell(
+                              onTap: () => _editCategory(
+                                  id, (p['category'] as String?) ?? ''),
+                              borderRadius: BorderRadius.circular(4),
+                              child: const Padding(
+                                padding: EdgeInsets.all(4),
+                                child: Icon(Icons.edit,
+                                    size: 16, color: Colors.blueGrey),
+                              ),
+                            ),
+                          ],
+                        ),
                         trailing: Column(
                           mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.end,

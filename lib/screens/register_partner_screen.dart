@@ -51,6 +51,10 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   bool _acceptedTerms = false;
+  // Parte 5 — só restaurantes escolhem aceitar reservas de mesa e/ou takeaway.
+  // Gravados em reservations_enabled/takeaway_enabled; ligam os cartões do cliente.
+  bool _acceptReservations = false;
+  bool _acceptTakeaway = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   String? _emailInlineError;
@@ -486,6 +490,8 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
               activityDocUrl: activityDocUrl,
               photoUrl: logoUrl,
               coverUrl: coverUrl,
+              reservationsEnabled: _acceptReservations,
+              takeawayEnabled: _acceptTakeaway,
             )
           : await authStore.registerPartnerWithDocumentsAsync(
               restaurantName: _nameController.text,
@@ -503,6 +509,8 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
               activityDocUrl: activityDocUrl,
               photoUrl: logoUrl,
               coverUrl: coverUrl,
+              reservationsEnabled: _acceptReservations,
+              takeawayEnabled: _acceptTakeaway,
               consentAcceptedAt: DateTime.now().toUtc(),
             );
 
@@ -862,6 +870,32 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
                           },
                         ),
                       ),
+                    ),
+                  ],
+                  // Parte 5 — toggles opcionais só para restaurantes.
+                  if (_selectedCategory == BusinessCategory.restaurant) ...[
+                    const SizedBox(height: Spacing.md),
+                    SwitchListTile(
+                      value: _acceptReservations,
+                      onChanged: _isSubmitting
+                          ? null
+                          : (v) => setState(() => _acceptReservations = v),
+                      controlAffinity: ListTileControlAffinity.leading,
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Aceito reservas de mesa'),
+                      subtitle: const Text(
+                          'Os clientes podem reservar mesa no teu restaurante.'),
+                    ),
+                    SwitchListTile(
+                      value: _acceptTakeaway,
+                      onChanged: _isSubmitting
+                          ? null
+                          : (v) => setState(() => _acceptTakeaway = v),
+                      controlAffinity: ListTileControlAffinity.leading,
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Aceito ir buscar (takeaway)'),
+                      subtitle: const Text(
+                          'Os clientes podem levantar o pedido no balcão.'),
                     ),
                   ],
                   const SizedBox(height: Spacing.xl),

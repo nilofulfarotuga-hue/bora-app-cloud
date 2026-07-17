@@ -1185,6 +1185,8 @@ class AuthStore extends ChangeNotifier {
     String? activityDocUrl,
     String? photoUrl,
     String? coverUrl,
+    bool reservationsEnabled = false,
+    bool takeawayEnabled = false,
     DateTime? consentAcceptedAt,
   }) async {
     // Step 1: Cria auth user via registerPartnerAsync
@@ -1222,6 +1224,8 @@ class AuthStore extends ChangeNotifier {
       activityDocUrl: activityDocUrl,
       photoUrl: photoUrl,
       coverUrl: coverUrl,
+      reservationsEnabled: reservationsEnabled,
+      takeawayEnabled: takeawayEnabled,
     );
   }
 
@@ -1247,6 +1251,8 @@ class AuthStore extends ChangeNotifier {
     String? activityDocUrl,
     String? photoUrl,
     String? coverUrl,
+    bool reservationsEnabled = false,
+    bool takeawayEnabled = false,
   }) async {
     final partner = _currentPartner;
     if (partner == null) {
@@ -1270,6 +1276,8 @@ class AuthStore extends ChangeNotifier {
       activityDocUrl: activityDocUrl,
       photoUrl: photoUrl,
       coverUrl: coverUrl,
+      reservationsEnabled: reservationsEnabled,
+      takeawayEnabled: takeawayEnabled,
     );
   }
 
@@ -1292,6 +1300,8 @@ class AuthStore extends ChangeNotifier {
     String? activityDocUrl,
     String? photoUrl,
     String? coverUrl,
+    bool reservationsEnabled = false,
+    bool takeawayEnabled = false,
   }) async {
     try {
       final response = await _supabase.functions.invoke(
@@ -1311,6 +1321,8 @@ class AuthStore extends ChangeNotifier {
           'activityDocUrl': activityDocUrl,
           'photoUrl': photoUrl,
           'coverUrl': coverUrl,
+          'reservationsEnabled': reservationsEnabled,
+          'takeawayEnabled': takeawayEnabled,
         },
       );
 
@@ -1373,7 +1385,12 @@ class AuthStore extends ChangeNotifier {
       _currentClient = null;
       _currentDriver = null;
       notifyListeners();
-      _signInBackground(
+      // BUG 3 (2026-07-17): esperar a sessão real do Supabase Auth aqui —
+      // sem isto, o dashboard do parceiro abre com auth.uid() ainda nulo e
+      // os toggles (reservationsEnabled/takeawayEnabled/curbsideEnabled)
+      // falham em silêncio contra a RLS "auth.uid() IS NOT NULL" da tabela
+      // restaurants, revertendo ao reabrir a app.
+      await _signInBackground(
           email: normalizedEmail,
           password: password,
           tag: 'loginPartnerAsync-local');

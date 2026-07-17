@@ -160,6 +160,14 @@
       "estado": "aprovada",
       "primeira_vez": "2026-07-10",
       "nota": "v2 restricoes pre-geracao; Juiz anti-trapaca CLEAN; aplicada 2026-07-10"
+    },
+    "padrao:aprovador": {
+      "estado": "proposta",
+      "primeira_vez": "2026-07-18"
+    },
+    "padrao:vermelho": {
+      "estado": "proposta",
+      "primeira_vez": "2026-07-18"
     }
   }
 }

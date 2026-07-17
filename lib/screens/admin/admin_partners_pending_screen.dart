@@ -98,10 +98,13 @@ class _AdminPartnersPendingScreenState
       ),
     );
     if (confirm != true) return;
+    final isServiceProvider = r['source'] == 'service_provider';
     try {
       await Supabase.instance.client.rpc(
-        'approve_partner',
-        params: {'p_restaurant_id': r['id']},
+        isServiceProvider ? 'approve_service_provider' : 'approve_partner',
+        params: isServiceProvider
+            ? {'p_provider_id': r['id']}
+            : {'p_restaurant_id': r['id']},
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -154,10 +157,13 @@ class _AdminPartnersPendingScreenState
       ctrl.dispose();
     }
     if (reason == null || reason.isEmpty) return;
+    final isServiceProvider = r['source'] == 'service_provider';
     try {
       await Supabase.instance.client.rpc(
-        'reject_partner',
-        params: {'p_restaurant_id': r['id'], 'p_reason': reason},
+        isServiceProvider ? 'reject_service_provider' : 'reject_partner',
+        params: isServiceProvider
+            ? {'p_provider_id': r['id'], 'p_reason': reason}
+            : {'p_restaurant_id': r['id'], 'p_reason': reason},
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -270,6 +276,26 @@ class _AdminPartnersPendingScreenState
             child: const Text('Fechar'),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Badge do tipo de candidatura — restaurante (🍽️) vs serviço/beleza (💇).
+  /// A candidatura de beleza vive em `service_providers`; a `source` vem do RPC.
+  Widget _typeBadge(String? source) {
+    final isService = source == 'service_provider';
+    final color = isService ? Colors.purple : Colors.teal;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Text(
+        isService ? '💇 Serviço' : '🍽️ Restaurante',
+        style: TextStyle(
+            fontSize: 10, fontWeight: FontWeight.w700, color: color.shade700),
       ),
     );
   }
@@ -418,6 +444,8 @@ class _AdminPartnersPendingScreenState
           children: [
             Row(
               children: [
+                _typeBadge(r['source'] as String?),
+                const SizedBox(width: 6),
                 Expanded(
                   child: Text(
                     r['name'] as String? ?? '(sem nome)',

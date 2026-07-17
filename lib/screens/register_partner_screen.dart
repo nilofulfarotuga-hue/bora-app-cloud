@@ -560,7 +560,8 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
       // oferece opção de "Gerir a Minha Loja" que chama setRole quando necessário)
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (_) => const PendingApprovalScreen(),
+          builder: (_) =>
+              PendingApprovalScreen(categoryName: _selectedCategory.name),
         ),
       );
     } catch (e) {

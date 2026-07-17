@@ -14,7 +14,30 @@ import 'partner_login_screen.dart';
 /// - Botão "Gerir a minha loja" leva direto ao painel partner (com badge "Pendente")
 /// - Não apenas "Voltar ao Login"
 class PendingApprovalScreen extends StatelessWidget {
-  const PendingApprovalScreen({super.key});
+  /// Nome da categoria escolhida no registo (`BusinessCategory.name`: restaurant,
+  /// store, pharmacy, supermarket, beauty). Usado só para o texto refletir o tipo
+  /// de negócio. Null → texto genérico ("O teu negócio").
+  final String? categoryName;
+
+  const PendingApprovalScreen({super.key, this.categoryName});
+
+  /// PT-PT: "O teu salão / A tua loja / …" conforme a categoria.
+  static String _businessNoun(String? category) {
+    switch (category) {
+      case 'beauty':
+        return 'O teu salão';
+      case 'store':
+        return 'A tua loja';
+      case 'pharmacy':
+        return 'A tua farmácia';
+      case 'supermarket':
+        return 'O teu supermercado';
+      case 'restaurant':
+        return 'O teu restaurante';
+      default:
+        return 'O teu negócio';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -79,7 +102,7 @@ class PendingApprovalScreen extends StatelessWidget {
                           const SizedBox(width: Spacing.sm),
                           Expanded(
                             child: Text(
-                              'O teu restaurante está sob análise',
+                              '${_businessNoun(categoryName)} está sob análise',
                               style: theme.textTheme.bodyMedium?.copyWith(
                                 fontWeight: FontWeight.w600,
                               ),

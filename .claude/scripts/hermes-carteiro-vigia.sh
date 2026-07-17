@@ -51,6 +51,19 @@ NOTIFIED_FAIL="${VIGIA_NOTIFIED_FAIL:-/root/orquestracao/.carteiro-vigia.falha-a
 STALL_MIN="${VIGIA_STALL_MIN:-15}"
 ORFAO_MIN="${VIGIA_ORFAO_MIN:-25}"        # ver "ORDEM ÓRFÃ" abaixo (2026-07-17)
 PAUSA_RL="${VIGIA_PAUSA_RL:-$FILA/.pausa-rate-limit}"
+# HEARTBEAT (2026-07-17, investigação "fila trava"): o CASO 3 abaixo já provava que o carteiro
+# fica genuinamente OCUPADO (lock preso, a drenar) por 1h+ várias vezes por noite — mas ficava
+# em SILÊNCIO total enquanto isso (só log, nunca Telegram). Sem sinal de vida, o Danilo reinicia
+# `orq-campainha.service` à mão a meio de um processamento real — o restart MATA o trabalho em
+# curso (systemd KillMode padrão apanha o carteiro.sh + a ponte SSH ao PC), desperdiça a
+# tentativa, e a impressão de "morreu, precisa de restart" reforça-se sozinha. Prova real
+# (journalctl+carteiro-vigia.log, 2026-07-17): restarts manuais às 05:22:12 e 07:16:08 UTC
+# caíram exatamente quando o vigia tinha acabado de logar "carteiro OCUPADO ... vai drenar. Não
+# ajo." — não havia nada morto para reviver. 1 aviso por hora corrigido isto sem tocar na lógica
+# de retomada (zero mudança de comportamento, só visibilidade).
+HEARTBEAT_MIN="${VIGIA_HEARTBEAT_MIN:-60}"        # só avisa se a ordem estagnada já espera >= isto (min)
+HEARTBEAT_COOLDOWN="${VIGIA_HEARTBEAT_COOLDOWN:-3600}"  # 1 aviso por hora, nunca span
+HEARTBEAT_FILE="${VIGIA_HEARTBEAT_FILE:-/root/orquestracao/.carteiro-vigia.heartbeat}"
 C=hermes-agent-fvnc-hermes-agent-1
 # ZUMBI (2026-07-17): ordem presa em `estado: executando` mas o EXECUTOR MORREU — o caso da
 # ponte/SSH pendurada DEPOIS de um FIM limpo: o stale-output-watchdog do PC não dispara (não há
@@ -237,6 +250,22 @@ marcar_travada_orfa(){  # $1 = ficheiro da ordem
   : > "$LOCK" 2>/dev/null || true
 }
 
+# heartbeat de visibilidade (2026-07-17): $1 = "$estag" (formato "id (Nmin, tent=X)"). Só entra
+# no CASO 3 (carteiro genuinamente ocupado, não morto) — nunca substitui os reclaims ZUMBI/ÓRFÃ
+# acima, que continuam a agir primeiro quando há prova de morte. Aqui não há prova de morte
+# nenhuma, só demora — o aviso existe para o Danilo NÃO reiniciar à cegas um processo vivo.
+heartbeat_ocupado(){
+  local estag="$1" mins hnow hlast
+  mins=$(printf '%s' "$estag" | grep -oE '\([0-9]+min' | grep -oE '[0-9]+')
+  [ -n "$mins" ] && [ "$mins" -ge "$HEARTBEAT_MIN" ] || return 0
+  [ "$SELFTEST" = 1 ] && { echo "[HEARTBEAT ${mins}min]"; return 0; }
+  [ "$DRY" = 1 ] && { echo "DRY: heartbeat ${mins}min"; return 0; }
+  hnow=$(date +%s); hlast=$(cat "$HEARTBEAT_FILE" 2>/dev/null || echo 0)
+  [ $(( hnow - hlast )) -ge "$HEARTBEAT_COOLDOWN" ] || return 0
+  notify "⏳ Bora/carteiro: VIVO e a trabalhar (fila com espera, ordem $estag) — não é falha, não precisas reiniciar. Reiniciar agora perderia o trabalho em curso."
+  echo "$hnow" > "$HEARTBEAT_FILE" 2>/dev/null || true
+}
+
 decide(){
   local viva=0 estag ocup=0
   campainha_viva && viva=1
@@ -318,6 +347,7 @@ decide(){
   # CASO 3 — saudável: sem estagnada, OU carteiro OCUPADO (a drenar). Não age.
   if [ -n "$estag" ] && [ "$ocup" = 1 ]; then
     log "OK: ordem parada ($estag) mas carteiro OCUPADO (executando/lock preso) — vai drenar. Não ajo."
+    heartbeat_ocupado "$estag"
   else
     log "OK: campainha viva, sem ordens estagnadas."
     rm -f "$NOTIFIED_FAIL" 2>/dev/null || true

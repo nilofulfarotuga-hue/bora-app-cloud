@@ -79,6 +79,24 @@ notify(){ docker exec -u hermes "$C" hermes send -t telegram "$1" >/dev/null 2>&
 clean(){ grep -vE '^\[ponte\]|^\[loop\]|^\[juiz\]|Permission deny rule|matches no known tool' ; }
 sync_espelho(){ docker exec -u hermes -e HOME=/opt/data -i "$C" sh -s fast < /root/cortex-mcp/sync-brain.sh >> "$LOG" 2>&1 && log "espelho sincronizado (fast)" || log "sync espelho (best-effort) falhou"; }
 
+# FASE 4 (2026-07-17): ao marcar zona_vermelha, surfaca a ordem VERMELHA NOVA na Central (tab Cortex)
+# escrevendo uma linha em proposals.jsonl -- o MESMO caminho do claude.ai/cortex_propor (nao inventa
+# caminho novo). NAO toca zona_vermelha()/classificador/Lista Vermelha; so torna a ordem aprovavel.
+# Salvaguardas: (1) salta ids -aprovado (ja vieram da Central -> decisao 7398), (2) idempotente por
+# pid deterministico + grep (nao duplica a cada re-marcacao), (3) JSON via python (tarefa tem aspas/emoji).
+PROPOSALS_JSONL="${PROPOSALS_JSONL:-$HOSTDATA/cortex-brain/.claude/.ai/knowledge/inbox/_reports/proposals.jsonl}"
+surfacar_na_central(){  # $1=order_id  $2=tarefa
+  local oid="$1" pid="prop-carteiro-$1"
+  case "$oid" in *-aprovado) return 0;; esac
+  [ -f "$PROPOSALS_JSONL" ] || { log "ordem $oid: proposals.jsonl ausente -- nao surfaco na Central"; return 0; }
+  grep -q "\"pid\": *\"$pid\"" "$PROPOSALS_JSONL" 2>/dev/null && return 0
+  if OID="$oid" PID="$pid" TAREFA="$2" python3 -c 'import json,os,datetime; print(json.dumps({"pid":os.environ["PID"],"id":os.environ["OID"],"tipo":"ordem_orquestracao","zona":"vermelha","tarefa":os.environ["TAREFA"],"who":"carteiro","ts":datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.000Z")}, ensure_ascii=False))' >> "$PROPOSALS_JSONL" 2>>"$LOG"; then
+    log "ordem $oid: surfada na Central (proposta $pid em proposals.jsonl)"
+  else
+    log "ordem $oid: FALHA ao surfar na Central (proposals.jsonl)"
+  fi
+}
+
 pc_exec(){ printf '%s' "$1" > "$HOSTDATA/orq_task.txt"
   # FASE 1.6 (2026-07-13, elo 6): a causa raiz do bloqueio era bora-live-parser.ps1 preso sem
   # EOF (ver inbox/investigacao-cadeia-ordens-2026-07-13.md) -- corrigido com StreamReader.
@@ -406,6 +424,7 @@ for f in "$FILA"/*.md; do
     notify "🔴 Bora/orquestração: ordem $id EM ESPERA (zona vermelha — toca dinheiro/pagamento).
 Resumo: ${resumo:-(sem resumo)}
 Para libertar para a fila normal, responde aqui: vai $id"
+    surfacar_na_central "$id" "$tarefa"
     [ -n "$missao" ] && { mf=$(missao_path "$missao"); [ -f "$mf" ] && missao_set_passo "$mf" "$passo" "zona_vermelha"; }
     ultima_veredito="ZONA_VERMELHA"
     continue

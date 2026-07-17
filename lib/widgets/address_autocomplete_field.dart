@@ -319,6 +319,10 @@ class _AddressAutocompleteFieldState extends State<AddressAutocompleteField> {
         focusNode: _focusNode,
         onChanged: _onChanged,
         validator: widget.validator,
+        // Parte 9 — dentro de bottom-sheets/scrollables, mantém o campo bem acima
+        // do teclado deixando espaço para a lista de sugestões (abre para baixo,
+        // ~260px) para nunca ficar atrás do teclado. Ver licao-autocomplete-teclado.
+        scrollPadding: const EdgeInsets.only(bottom: 320),
         decoration: InputDecoration(
           labelText: widget.labelText,
           prefixIcon:

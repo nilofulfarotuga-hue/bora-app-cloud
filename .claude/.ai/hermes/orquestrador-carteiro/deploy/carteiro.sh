@@ -97,6 +97,15 @@ pc_exec(){ printf '%s' "$1" > "$HOSTDATA/orq_task.txt"
 pc_judge(){ printf '%s' "$1" > "$HOSTDATA/orq_judge.txt"
   docker exec -u hermes "$C" sh -lc 'export PATH=/opt/data/.local/bin:$PATH; timeout 400 pc-judge "$(cat /opt/data/orq_judge.txt)"' 2>&1 | clean; }
 
+# ---- ACORDAR O CLAUDE.AI DESKTOP na fila vazia (2026-07-17, PEÇA 2) ----
+# Mesma ponte SSH do pc_exec/pc-loop (container -> tailscale nc -> hermes@PC), mas para o
+# schtask Bora-heartbeat-desktop (agora "Somente sob demanda", sem horário — só corre quando
+# chamado). fila-vazia-wake.cmd semeia o pending.trigger do heartbeat-desktop com a frase
+# curta e chama schtasks /run; se falhar (UAC, sessão do Danilo fechada, etc.) só regista o
+# erro — NUNCA força, o Telegram (acima) já notificou de qualquer forma.
+pc_wake_heartbeat(){
+  docker exec -u hermes "$C" sh -lc 'ssh -o ProxyCommand="tailscale nc %h %p" -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 hermes@100.71.105.7 "C:\\Users\\danil\\Desktop\\projetosflutter\\bora_app\\.claude\\.ai\\hermes\\heartbeat-desktop\\fila-vazia-wake.cmd"' 2>&1; }
+
 # ---------------- EXECUÇÃO LOCAL NA VPS (2026-07-14, tira a dependência do PC de 4GB) ----------------
 # claude -p corre diretamente no host da VPS (wrapper /root/claude-vps-exec.sh, tarefa por
 # stdin) em vez de saltar por SSH/Tailscale até ao PC — o pc_exec acima fica como FALLBACK,
@@ -535,6 +544,12 @@ if [ "$pendentes" -eq 0 ]; then
     if [ $((agora - ultimo_aviso)) -ge 1800 ]; then
       notify "🧹 Fila vazia — todas as tarefas terminadas. Última: ${ultima_id:-(nenhuma)} (${ultima_veredito:-sem veredito}). Resumo do ciclo: ${n_aprovadas} aprovadas, ${n_corrigir} corrigir."
       log "FILA-VAZIA: transição ocupado->vazio -> Telegram (última=${ultima_id:-?}/${ultima_veredito:-?}, ciclo=${n_aprovadas}a/${n_corrigir}c)"
+      wake_out=$(pc_wake_heartbeat); wake_rc=$?
+      if [ "$wake_rc" -eq 0 ]; then
+        log "FILA-VAZIA: schtask Bora-heartbeat-desktop disparado via ponte PC (rc=0)"
+      else
+        log "FILA-VAZIA: schtask Bora-heartbeat-desktop falhou (rc=$wake_rc), Telegram já notificou — saída: $(printf '%s' "$wake_out" | tr '\n' ' ' | cut -c1-300)"
+      fi
       ultimo_aviso="$agora"
     else
       log "FILA-VAZIA: transição ocupado->vazio dentro do cooldown de 30min — silêncio"

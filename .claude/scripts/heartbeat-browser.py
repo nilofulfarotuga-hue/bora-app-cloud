@@ -212,6 +212,19 @@ def main():
         log("sem mudanca — silencio (anti-spam)")
         return 0
 
+    # Ha um pending.trigger ainda por consumir (ex: fila-vazia-wake.cmd acabou de semear o
+    # dele, ou o operador falhou no ciclo anterior) -> NAO sobrescrever. Sem isto, este
+    # detetor corre sempre ANTES do operador (run-heartbeat-desktop.cmd) e clobbers a frase
+    # de quem escreveu primeiro (visto ao vivo 2026-07-17T03:24Z: e2e_latest mudou no mesmo
+    # instante do gatilho de fila-vazia e a frase certa nunca chegou a ser enviada). Nao
+    # gravamos state.json aqui de proposito: a mudanca real fica por notificar e este mesmo
+    # diff volta a aparecer no proximo ciclo, assim que o trigger atual for consumido.
+    if TRIGGER_FILE.exists():
+        if dry:
+            print(f"DRY: trigger pendente por consumir — nao sobrescrevo. diffs={diffs}")
+        log("trigger pendente por consumir (nao e meu) — nao sobrescrevo, guardo o diff p/ proximo ciclo")
+        return 0
+
     # Ha mudanca real -> deixa o pedido para o browser-operador.
     if dry:
         print("DRY: DISPARARIA browser-operador. Motivo:\n  - " + "\n  - ".join(diffs))

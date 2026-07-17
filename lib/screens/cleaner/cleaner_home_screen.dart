@@ -695,6 +695,38 @@ class _AgendaCardState extends State<_AgendaCard> {
               CleaningStatus.inProgress,
               CleaningStatus.done,
             ].contains(b.status)) ...[
+              // Parte 7 — durante o serviço (a caminho / em curso / concluir), se
+              // for dinheiro, lembrete GRANDE de cobrar (antes era uma linha tímida).
+              if (b.paymentMethod == 'cash')
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: Spacing.sm),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(Radii.lg),
+                    border:
+                        Border.all(color: Colors.orange.shade400, width: 1.5),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.payments,
+                          color: Colors.orange.shade900, size: 26),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'RECEBER ${CleaningLabels.euro(b.totalCents)} EM DINHEIRO',
+                          style: TextStyle(
+                            color: Colors.orange.shade900,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               Row(
                 children: [
                   CircleAvatar(

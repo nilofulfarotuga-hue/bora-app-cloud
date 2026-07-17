@@ -189,3 +189,28 @@ da ponte VPS (`id_ed25519_vps`), **não** a deploy key do GitHub → `git push` 
 Os 4 commits (`61b60cb`, `8076bff`, `bf45404`, `5e7c1c8`) estão **locais** na branch. Para publicar,
 corre no teu terminal: `! git push origin autonomous-night-2026-04-29` (ou deixa o executor com a
 deploy key empurrar). ⚠️ o push dispara build de produção.
+
+---
+
+# FASE 2 — "Sim a tudo" (aplicado LIVE, 2026-07-17)
+
+Depois do "Sim a tudo" do Danilo (interativo), com re-verificação por SQL:
+
+| Item | Estado | Prova |
+|---|---|---|
+| 1. PARTE D aplicada + ecrã admin | ✅ LIVE | RPCs `tvde_mark_noshow`/`tvde_admin_revert_noshow`/`admin_list_tvde_noshows` aplicadas (existem por SQL); ecrã `AdminTvdeNoShowsScreen` + rota `/admin/tvde/noshows` (commit) |
+| 2. PARTE B live | ✅ LIVE + PROVADO | auth re-verificada (4 props aprovada_danilo, 2 audits); scripts deployados no VPS (backup+atómico+`bash -n` OK); teste ao vivo `audit real→true / falso→false`; ordens 370c/7495/7398/2e9f → `respondida` (commit 8076bff) |
+| 3. BUG 1 admin coords | ✅ | RPC `admin_update_partner_coords` aplicada + cartão de coords no `admin_partner_detail_screen` (commit) |
+| 4. PUSH HTTPS | ✅ | `git fetch`+`rebase --autostash`+`push` HTTPS → `eaab0cc..3fe2387` (exit 0), sem --force |
+| 5. CI | ✅ causa REAL corrigida | log real: faltava `lib/screens/reset_password_screen.dart` (main.dart importava-o); NÃO era o race do versionCode. Ficheiro committado; build seguinte a confirmar |
+| 6. Fila Córtex | ✅ | f70e→respondida (vigia+ponte, fac12c9/d82f820/64fe36b/331db13); e2c8→respondida (Fase 4, 318a81f); **f8cc OAuth já LIVE** — container `cortex-mcp` corre `ACCESS_TTL=2592000` (30d, era 1h) + `CORTEX_TOKEN` estático; health: com token 200 / sem 401; commit 0e89757 → respondida |
+
+**Diagnóstico f8cc (para o Danilo, passos numerados):**
+1. Causa do "cai de hora em hora": o OAuth do cortex-mcp emitia `access_token` com `expires_in=3600` (1h). ✅ já corrigido para `2592000` (30d) no `server.mjs` (commit 0e89757) e **já a correr** no container (processo confirmado).
+2. Token estático (alternativa que nunca expira): o código lê `CORTEX_TOKEN` (server.mjs:14) e o container **já tem** essa env setada (via deploy.sh). Health-check com esse token = HTTP 200.
+3. Para ti não teres de reconectar: o teu conector "Córtex Bora" no claude.ai agora recebe tokens OAuth de **30 dias** — deixa de cair de hora em hora. Se algum dia quiseres zero-expiração para clientes programáticos, usa o `CORTEX_TOKEN` como `Authorization: Bearer` (fica só na VPS, não o exponho aqui).
+4. Nada a fazer da tua parte além de, se ainda estiver a cair, desconectar+reconectar UMA última vez para apanhar um token novo de 30d.
+
+Commits FASE 2 (todos em origin via HTTPS): Parte B `55bd28f`, Parte D proposta `5e21c4f`,
+Parte C `05b7744`, relatório `d17a2ba`, CI-fix `4f09a6c`, ecrãs admin `3fe2387` (+ Parte D RPC/Bug1
+RPC aplicadas direto na base via MCP).

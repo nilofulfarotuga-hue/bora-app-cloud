@@ -40,6 +40,14 @@ while ($null -ne ($line = $stdinReader.ReadLine())) {
       Add-Content -LiteralPath $Live -Value "[$(TS)] FIM   (turns=$($o.num_turns) custo=`$$($o.total_cost_usd))"
       if ($o.result) { Write-Output $o.result }
       elseif ($o.error) { Write-Output "ERRO: $($o.error)" }
+      else {
+        # FASE 1.10 (2026-07-17): type:result sem .result nem .error acontece quando o claude.exe
+        # para por --max-turns/--max-budget-usd (o stream acaba sem produzir resultado). Antes
+        # isto deixava o parser MUDO (0 bytes no stdout) e o carteiro.sh registava a causa errada
+        # "SAIDA-VAZIA -- tarefa grande demais?" e retentava 5x a mesma tarefa contra o mesmo teto.
+        # Regra dura: o parser nunca pode devolver 0 bytes -- se nao sabe o que dizer, diz o que aconteceu.
+        Write-Output "EXECUTOR-PAROU: subtype=$($o.subtype) turns=$($o.num_turns) custo=$($o.total_cost_usd)"
+      }
     }
   }
 }

@@ -184,6 +184,16 @@ exec_ordem(){ # $1=tarefa -> PC-ONLY (2026-07-15 missao religar-loop): despacha 
 # Deteta isto ANTES do juiz: não gasta tentativa, não chama o juiz, reabre para a próxima volta.
 is_lock_busy(){ printf '%s' "$1" | grep -iqE "outro executor Bora ja em curso|ERRO: lock ocupado"; }
 
+# ---------------- EXECUTOR-PAROU: claude.exe parou por --max-turns/--max-budget-usd ----------------
+# FASE 1.10 (2026-07-17): causa raiz da "SAIDA-VAZIA -- tarefa grande demais?" era o claude.exe a
+# parar por atingir --max-turns/--max-budget-usd; o stream-json emitia type:result sem .result nem
+# .error e o bora-live-parser.ps1 ficava mudo (0 bytes). Fixado o parser (emite sempre esta linha) e
+# subidos os tetos em run-claude-loop.cmd (40->150 turnos, $10->$25). Aqui: grava a linha EXATA como
+# nota (nunca a nota generica) e trava JA a ordem -- reter igual contra o mesmo teto so repetiria o
+# mesmo estouro e queimaria as 5 tentativas as cegas (prova: ordem 94b1 vazia 3x / eba8 passou só
+# porque era menor). Ver inbox/fix-executor-max-turns-parser-mudo-2026-07-17.md.
+executor_parou_linha(){ printf '%s' "$1" | grep -E '^EXECUTOR-PAROU:' | head -1 | tr -d '\r'; }
+
 # ---------------- RATE-LIMIT: deteção + cálculo de retoma ----------------
 # 2026-07-13 (ordem a73d, falso rate-limit): a regex batia em QUALQUER saída que
 # contivesse a frase, mesmo um relatório de sucesso que a CITA (ex.: tarefa cujo
@@ -371,6 +381,12 @@ if [ "${1:-}" = "--selftest" ]; then
   [ "$mk2" = "MOTIVO_KILL:TETO-DURO:240" ] && ok "motivo_kill extrai TETO-DURO:240" || bad "motivo_kill extrai TETO-DURO (got: $mk2)"
   mk3=$(printf 'texto normal sem marcador\n' | grep -oE '^MOTIVO_KILL:(INATIVIDADE|TETO-DURO):[0-9]+' | head -1)
   [ -z "$mk3" ] && ok "motivo_kill vazio quando não há marcador" || bad "motivo_kill deveria ser vazio (got: $mk3)"
+  # FASE 1.10 (2026-07-17): extração da linha EXECUTOR-PAROU devolvida pelo parser quando o
+  # claude.exe para por max-turns/max-budget sem .result/.error (fix da SAIDA-VAZIA fantasma).
+  ep1=$(executor_parou_linha "$(printf 'EXECUTOR-PAROU: subtype=error_max_turns turns=150 custo=25.0\n')")
+  [ "$ep1" = "EXECUTOR-PAROU: subtype=error_max_turns turns=150 custo=25.0" ] && ok "executor_parou_linha extrai a linha exata" || bad "executor_parou_linha extrai (got: $ep1)"
+  ep2=$(executor_parou_linha "$(printf 'texto normal sem marcador\n')")
+  [ -z "$ep2" ] && ok "executor_parou_linha vazio quando não há marcador" || bad "executor_parou_linha deveria ser vazio (got: $ep2)"
   [ "$fail" = 0 ] && echo "SELFTEST: TODOS OK" || echo "SELFTEST: HÁ FALHAS"
   exit "$fail"
 fi
@@ -501,6 +517,18 @@ Para libertar para a fila normal, responde aqui: vai $id
     setf nota "🔒 LOCK-OCUPADO — outro executor Bora já em curso no PC; reagendado sem gastar tentativa." "$f"
     log "ordem $id: 🔒 LOCK-OCUPADO — reaberta sem gastar tentativa"
     ultima_veredito="LOCK-OCUPADO"
+    continue
+  fi
+
+  # ---- EXECUTOR-PAROU: claude.exe parou por max-turns/max-budget (Fix FASE 1.10) — nota EXATA,
+  # trava já sem chamar o juiz nem gastar as 5 tentativas às cegas (repetir dá sempre o mesmo estouro).
+  linha_parou=$(executor_parou_linha "$saida")
+  if [ -n "$linha_parou" ]; then
+    setf estado travada "$f"
+    setf nota "$linha_parou" "$f"
+    log "ordem $id: TRAVADA (EXECUTOR-PAROU) — $linha_parou"
+    ultima_veredito="TRAVADA-EXECUTOR-PAROU"
+    missao_travada_ou_silencio "$f" "$missao" "$passo"
     continue
   fi
 

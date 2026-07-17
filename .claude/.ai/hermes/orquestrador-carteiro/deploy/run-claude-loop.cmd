@@ -4,7 +4,10 @@ chcp 65001 >NUL
 REM ===========================================================================
 REM  PONTE BORA :: EXECUTOR do loop de orquestracao (carteiro -> pc-loop -> aqui)
 REM  Isolado do run-claude.cmd partilhado. Tetos T2/T4 do loop vivem AQUI.
-REM  - T2 custo: --max-turns 40 + --max-budget-usd 10 (teto por tentativa)
+REM  - T2 custo: --max-turns 150 + --max-budget-usd 25 (teto por tentativa; subido de 40/10 em
+REM    2026-07-17, FASE 1.10 -- tarefas reais do Bora nao cabiam em 40 turnos/$10, o claude.exe
+REM    parava a meio e o stream-json emitia type:result sem campo .result, deixando o parser
+REM    mudo (0 bytes) -- ver bora-live-parser.ps1 e inbox/fix-executor-max-turns-parser-mudo-2026-07-17.md)
 REM  - FASE 1.3 (2026-07-12): MODELO por tarefa. [MODELO: OPUS] no texto -> opus;
 REM    senao SONNET (default economico). Antes era opus fixo -> queimava a conta.
 REM  - FASE 1.4 (2026-07-12): stream-json --verbose -> bora-live-parser.ps1 escreve
@@ -50,8 +53,8 @@ set "STALESTAMP=%TEMP%\bora_stale_stamp.txt"
 if not exist "%CLAUDE_EXE%" ( echo [loop] ERRO: claude.exe nao encontrado & exit /b 4 )
 
 set "PERM=--dangerously-skip-permissions"
-set "BUDGET=--max-budget-usd 10"
-set "TURNS=--max-turns 40"
+set "BUDGET=--max-budget-usd 25"
+set "TURNS=--max-turns 150"
 
 set "GUARD=Estas a correr como EXECUTOR de um loop autonomo do Bora (headless, sem canal com o Danilo). Faz a tarefa toda sozinho, decisoes REVERSIVEIS por conta propria. NUNCA facas git commit nem git push (a menos que a tarefa peca explicitamente). Se a tarefa comecar com [PROPOSE-ONLY], prepara tudo mas NAO apliques nem facas commit - devolve a proposta e para. PARA e responde SO com uma linha 'CONFIRMACAO NECESSARIA: <o que>' se a tarefa tocar Lista Vermelha (Stripe/pagamentos/payouts/pricing/dispatch_engine/finalizePurchase/bora_tokens/RLS de orders-wallets-ledger/migrations destrutivas/force-push/disparos em massa/builds de producao). Nunca imprimas segredos. No fim devolve RESULTADO conciso PT-BR: o que fizeste + ficheiros tocados."
 

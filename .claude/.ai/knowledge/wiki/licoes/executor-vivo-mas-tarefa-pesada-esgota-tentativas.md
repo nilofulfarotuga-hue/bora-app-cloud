@@ -2,7 +2,7 @@
 id: licao-executor-vivo-mas-tarefa-pesada-esgota-tentativas
 tipo: licao
 origem: [orquestracao/carteiro.sh · hermes-bridge/run-claude-loop.cmd · missão "automação total" 2026-07-11]
-ultima_confirmacao: 2026-07-11
+ultima_confirmacao: 2026-07-17
 zona: verde
 confianca: verificado
 ---
@@ -50,3 +50,33 @@ dois da mesma forma (reiniciar tudo) esconde a causa real e não resolve nada (a
 falha pela mesma razão). Antes de assumir "morreu", separar: **o mensageiro está vivo?** vs **a
 mensagem cabe no orçamento de uma entrega?** São dois problemas com soluções diferentes — o
 primeiro pede reviver o processo; o segundo pede encolher a tarefa.
+
+## Atualização 2026-07-17 (FASE 1.10) — causa raiz mais precisa, o texto acima ficou parcialmente desatualizado
+
+O diagnóstico de 2026-07-11 ("timeout 900s mata o processo a meio → 0 bytes") apontava a direção
+certa mas o mecanismo descrito já não é o real: os tetos evoluíram (900s → 3600s → vigia de
+inatividade real da FASE 1.9) e o executor passou a usar `--output-format stream-json` +
+`bora-live-parser.ps1`, não `text` puro. O mecanismo EXATO agora provado é outro: quando o
+`claude.exe` para por atingir **`--max-turns`/`--max-budget-usd`** (tetos do
+`run-claude-loop.cmd`, não o timeout do carteiro), o stream-json emite um evento final
+`type:"result"` **sem** `.result` nem `.error`. O parser só escrevia stdout se um desses campos
+existisse — nesse caso ficava **mudo (0 bytes)** — e o `carteiro.sh` registava a causa genérica e
+ERRADA "SAIDA-VAZIA — tarefa grande demais?", reabrindo e retentando a MESMA tarefa contra o
+MESMO teto 5x seguidas (sempre o mesmo resultado, orçamento queimado à toa).
+
+**Prova:** ordem `94b1` (3 tarefas empacotadas numa ordem só) deu saída vazia 3x seguidas sem
+tocar em nenhum ficheiro; a ordem `eba8` — a MESMA tarefa, mas só com o Bug 1 isolado — passou e
+produziu o commit real `71bdbc6`. O problema nunca foi "o mensageiro morreu" nem "o relógio
+esgotou" — foi o **teto de turnos/orçamento por tentativa** (40 turnos / $10) baixo demais para
+tarefas reais do Bora, combinado com o parser ficar silencioso exatamente nesse caso.
+
+**Fix aplicado:**
+1. `bora-live-parser.ps1` — no ramo `'result'`, sem `.result` nem `.error` → emite sempre
+   `EXECUTOR-PAROU: subtype=... turns=... custo=...` (nunca mais 0 bytes).
+2. `run-claude-loop.cmd` — `--max-turns` 40→150, `--max-budget-usd` 10→25.
+3. `carteiro.sh` — deteta a linha `EXECUTOR-PAROU:`, grava-a EXATA como nota (nunca a genérica) e
+   trava a ordem já (sem repetir as 5 tentativas às cegas contra o mesmo teto).
+
+**Regra afinada:** "SAIDA-VAZIA" não é uma causa, é um SINTOMA de causas distintas (timeout de
+relógio, teto de turnos/orçamento, lock ocupado, rate-limit...). Cada uma precisa do seu próprio
+diagnóstico explícito na nota da ordem — nunca reduzir todas ao mesmo rótulo genérico.

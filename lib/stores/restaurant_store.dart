@@ -707,6 +707,7 @@ class RestaurantStore extends ChangeNotifier {
     required double price,
     required String photoUrl,
     required bool isAvailable,
+    String category = '',
     List<String> allergens = const [],
   }) async {
     final trimmedName = name.trim();
@@ -723,6 +724,7 @@ class RestaurantStore extends ChangeNotifier {
       price: price,
       photoUrl: normalizedPhoto,
       isAvailable: isAvailable,
+      category: category.trim(),
       source: ProductSource.api,
       allergens: allergens,
     );
@@ -742,6 +744,9 @@ class RestaurantStore extends ChangeNotifier {
         'price': product.price,
         'photo_url': product.photoUrl,
         'is_available': product.isAvailable,
+        // BUG 1 (2026-07-17): categoria declarada pelo parceiro no formulário
+        // — sem isto o menu do parceiro cai todo em "Outros".
+        'category': product.category,
         // B6: alergénios UE 1169/2011 (vazio = não declarado).
         'allergens': product.allergens,
       });
@@ -766,6 +771,7 @@ class RestaurantStore extends ChangeNotifier {
     double? price,
     String? photoUrl,
     bool? isAvailable,
+    String? category,
     List<String>? allergens,
   }) async {
     final list = _productsByRestaurant[restaurantId];
@@ -787,6 +793,9 @@ class RestaurantStore extends ChangeNotifier {
           ? current.photoUrl
           : photoUrl?.trim(),
       isAvailable: isAvailable,
+      category: category?.trim().isEmpty == true
+          ? current.category
+          : category?.trim(),
       allergens: allergens,
     );
 
@@ -803,6 +812,7 @@ class RestaurantStore extends ChangeNotifier {
             'price': updated.price,
             'photo_url': updated.photoUrl,
             'is_available': updated.isAvailable,
+            'category': updated.category,
             'allergens': updated.allergens,
           })
           .eq('id', productId);
@@ -893,6 +903,7 @@ class RestaurantStore extends ChangeNotifier {
   Future<void> toggleReservationsEnabled(
       String restaurantId, bool enabled) async {
     final index = _restaurants.indexWhere((r) => r.id == restaurantId);
+    final previous = index != -1 ? _restaurants[index].reservationsEnabled : null;
     if (index != -1) {
       _restaurants[index] =
           _restaurants[index].copyWith(reservationsEnabled: enabled);
@@ -904,6 +915,16 @@ class RestaurantStore extends ChangeNotifier {
           .update({'reservations_enabled': enabled}).eq('id', restaurantId);
     } catch (e) {
       debugPrint('RestaurantStore: toggleReservationsEnabled error => $e');
+      // BUG 3 (2026-07-17) — reverter o optimistic update: sem isto o UI
+      // mostra "ligado" mesmo quando a escrita na DB falhou (ex.: RLS por
+      // sessão Supabase Auth ainda não estabelecida), e o valor volta a
+      // "desligado" silenciosamente no próximo login.
+      final revertIndex = _restaurants.indexWhere((r) => r.id == restaurantId);
+      if (revertIndex != -1 && previous != null) {
+        _restaurants[revertIndex] =
+            _restaurants[revertIndex].copyWith(reservationsEnabled: previous);
+        notifyListeners();
+      }
     }
   }
 
@@ -911,6 +932,10 @@ class RestaurantStore extends ChangeNotifier {
   Future<void> toggleTakeawayEnabled(
       String restaurantId, bool enabled) async {
     final index = _restaurants.indexWhere((r) => r.id == restaurantId);
+    final previousTakeaway =
+        index != -1 ? _restaurants[index].takeawayEnabled : null;
+    final previousCurbside =
+        index != -1 ? _restaurants[index].curbsideEnabled : null;
     if (index != -1) {
       _restaurants[index] =
           _restaurants[index].copyWith(takeawayEnabled: enabled);
@@ -931,6 +956,14 @@ class RestaurantStore extends ChangeNotifier {
           .eq('id', restaurantId);
     } catch (e) {
       debugPrint('RestaurantStore: toggleTakeawayEnabled error => $e');
+      final revertIndex = _restaurants.indexWhere((r) => r.id == restaurantId);
+      if (revertIndex != -1 && previousTakeaway != null) {
+        _restaurants[revertIndex] = _restaurants[revertIndex].copyWith(
+          takeawayEnabled: previousTakeaway,
+          curbsideEnabled: previousCurbside ?? false,
+        );
+        notifyListeners();
+      }
     }
   }
 
@@ -940,6 +973,7 @@ class RestaurantStore extends ChangeNotifier {
   Future<void> toggleCurbsideEnabled(
       String restaurantId, bool enabled) async {
     final index = _restaurants.indexWhere((r) => r.id == restaurantId);
+    final previous = index != -1 ? _restaurants[index].curbsideEnabled : null;
     if (index != -1) {
       _restaurants[index] =
           _restaurants[index].copyWith(curbsideEnabled: enabled);
@@ -951,6 +985,12 @@ class RestaurantStore extends ChangeNotifier {
           .update({'curbside_enabled': enabled}).eq('id', restaurantId);
     } catch (e) {
       debugPrint('RestaurantStore: toggleCurbsideEnabled error => $e');
+      final revertIndex = _restaurants.indexWhere((r) => r.id == restaurantId);
+      if (revertIndex != -1 && previous != null) {
+        _restaurants[revertIndex] =
+            _restaurants[revertIndex].copyWith(curbsideEnabled: previous);
+        notifyListeners();
+      }
     }
   }
 

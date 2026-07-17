@@ -62,6 +62,53 @@ class _PartnerProductsScreenState extends State<PartnerProductsScreen> {
     }
   }
 
+  /// BUG 1 (2026-07-17): permite corrigir a categoria de um produto já
+  /// criado (antes do formulário ter este campo, ficavam todos sem categoria).
+  Future<void> _editCategory(PartnerProduct product) async {
+    final controller = TextEditingController(text: product.category);
+    final newCategory = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Editar categoria'),
+        content: TextField(
+          controller: controller,
+          textCapitalization: TextCapitalization.sentences,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'Categoria',
+            hintText: 'Ex.: Pizzas, Sobremesas, Bebidas...',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+    if (newCategory == null || newCategory.isEmpty || !mounted) return;
+
+    final store = context.read<PartnerProductStore>();
+    final success = await store.updateProduct(
+      restaurantId: widget.restaurant.id,
+      productId: product.id,
+      category: newCategory,
+    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(success
+            ? 'Categoria atualizada.'
+            : 'Não foi possível atualizar a categoria.'),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final productStore = context.watch<PartnerProductStore>();
@@ -91,6 +138,7 @@ class _PartnerProductsScreenState extends State<PartnerProductsScreen> {
                         product: product,
                         onToggleAvailability: (value) =>
                             _toggleAvailability(product, value),
+                        onEditCategory: () => _editCategory(product),
                       );
                     },
                   ),
@@ -115,10 +163,12 @@ class _ProductTile extends StatelessWidget {
   const _ProductTile({
     required this.product,
     required this.onToggleAvailability,
+    required this.onEditCategory,
   });
 
   final PartnerProduct product;
   final ValueChanged<bool> onToggleAvailability;
+  final VoidCallback onEditCategory;
 
   @override
   Widget build(BuildContext context) {
@@ -183,6 +233,27 @@ class _ProductTile extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 4),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    product.category.trim().isEmpty
+                        ? 'Sem categoria'
+                        : 'Categoria: ${product.category}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.textTheme.bodySmall?.color,
+                      fontStyle: product.category.trim().isEmpty
+                          ? FontStyle.italic
+                          : FontStyle.normal,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: onEditCategory,
+                  child: const Text('Editar'),
+                ),
+              ],
+            ),
             Align(
               alignment: Alignment.centerLeft,
               child: TextButton.icon(

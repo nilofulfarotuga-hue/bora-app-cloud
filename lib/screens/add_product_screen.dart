@@ -12,6 +12,10 @@ import '../config/app_colors.dart';
 import '../models/restaurant_model.dart';
 import '../stores/partner_product_store.dart';
 
+/// Sentinel do dropdown de categoria — seleciona-lo abre o campo livre para
+/// criar uma categoria nova (BUG 1, 2026-07-17).
+const String _kNewCategorySentinel = '__nova_categoria__';
+
 class AddProductScreen extends StatefulWidget {
   const AddProductScreen({super.key, required this.restaurant});
 
@@ -26,8 +30,13 @@ class _AddProductScreenState extends State<AddProductScreen> {
   late final TextEditingController _nameController;
   late final TextEditingController _descriptionController;
   late final TextEditingController _priceController;
+  late final TextEditingController _newCategoryController;
   bool _isAvailable = true;
   bool _isSaving = false;
+
+  // BUG 1 (2026-07-17): categoria do produto — dropdown com as categorias já
+  // usadas por esta loja + opção de criar uma nova.
+  String? _selectedCategoryOption;
 
   // B6 (2026-06-12): alergénios UE 1169/2011 selecionados pelo parceiro.
   final Set<String> _selectedAllergens = {};
@@ -42,6 +51,31 @@ class _AddProductScreenState extends State<AddProductScreen> {
     _nameController = TextEditingController();
     _descriptionController = TextEditingController();
     _priceController = TextEditingController();
+    _newCategoryController = TextEditingController();
+  }
+
+  /// Categorias distintas já usadas pelos produtos desta loja (ordem alfabética).
+  List<String> get _existingCategories {
+    final products = context
+        .read<PartnerProductStore>()
+        .productsForRestaurant(widget.restaurant.id);
+    final set = <String>{};
+    for (final product in products) {
+      final category = product.category.trim();
+      if (category.isNotEmpty) set.add(category);
+    }
+    final list = set.toList()..sort();
+    return list;
+  }
+
+  /// Categoria final a gravar: a selecionada no dropdown, ou o texto livre
+  /// quando a loja não tem categorias ainda / o parceiro escolheu criar nova.
+  String _resolveCategory(List<String> existingCategories) {
+    if (existingCategories.isEmpty ||
+        _selectedCategoryOption == _kNewCategorySentinel) {
+      return _newCategoryController.text.trim();
+    }
+    return _selectedCategoryOption?.trim() ?? '';
   }
 
   @override
@@ -49,6 +83,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
     _nameController.dispose();
     _descriptionController.dispose();
     _priceController.dispose();
+    _newCategoryController.dispose();
     super.dispose();
   }
 
@@ -63,6 +98,14 @@ class _AddProductScreenState extends State<AddProductScreen> {
     if (parsedPrice == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Introduza um preço válido.')),
+      );
+      return;
+    }
+
+    final category = _resolveCategory(_existingCategories);
+    if (category.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Indique a categoria do produto.')),
       );
       return;
     }
@@ -84,6 +127,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
             price: parsedPrice,
             photoUrl: imageUrl ?? '',
             isAvailable: _isAvailable,
+            category: category,
             allergens: _selectedAllergens.toList(),
           );
     } catch (error) {
@@ -225,6 +269,57 @@ class _AddProductScreenState extends State<AddProductScreen> {
     } finally {
       if (mounted) setState(() => _uploading = false);
     }
+  }
+
+  /// BUG 1 (2026-07-17): campo de categoria — dropdown com as categorias já
+  /// usadas por esta loja + "Criar nova categoria"; se a loja ainda não tiver
+  /// nenhuma, mostra logo o campo livre. Obrigatório.
+  Widget _buildCategorySection() {
+    final existingCategories = _existingCategories;
+    final showFreeText = existingCategories.isEmpty ||
+        _selectedCategoryOption == _kNewCategorySentinel;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Categoria',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
+        const SizedBox(height: 8),
+        if (existingCategories.isNotEmpty)
+          DropdownButtonFormField<String>(
+            value: _selectedCategoryOption,
+            decoration: const InputDecoration(
+              labelText: 'Categoria do produto',
+              prefixIcon: Icon(Icons.category_outlined),
+            ),
+            hint: const Text('Selecione a categoria'),
+            items: [
+              for (final category in existingCategories)
+                DropdownMenuItem(value: category, child: Text(category)),
+              const DropdownMenuItem(
+                value: _kNewCategorySentinel,
+                child: Text('+ Criar nova categoria'),
+              ),
+            ],
+            onChanged: (value) =>
+                setState(() => _selectedCategoryOption = value),
+          ),
+        if (showFreeText) ...[
+          if (existingCategories.isNotEmpty) const SizedBox(height: 12),
+          TextFormField(
+            controller: _newCategoryController,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: const InputDecoration(
+              labelText: 'Nome da categoria',
+              hintText: 'Ex.: Pizzas, Sobremesas, Bebidas...',
+              prefixIcon: Icon(Icons.new_label_outlined),
+            ),
+          ),
+        ],
+      ],
+    );
   }
 
   Widget _buildPhotoSection() {
@@ -461,6 +556,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
                       return null;
                     },
                   ),
+                  const SizedBox(height: 16),
+                  _buildCategorySection(),
                   const SizedBox(height: 16),
                   // B6 (2026-06-12): alergénios UE 1169/2011 — declaração
                   // pelo parceiro (opcional; vazio mostra disclaimer na app).

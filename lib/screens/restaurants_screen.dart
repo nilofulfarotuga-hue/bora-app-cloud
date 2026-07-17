@@ -167,10 +167,13 @@ class RestaurantsScreen extends StatelessWidget {
 
     // BUG #9+10 (2026-05-13) + D1/D2 (2026-05-14) — mostra ecrã de opções
     // se houver pelo menos uma opção além do menu directo. Cartões são
-    // condicionais individualmente em RestaurantOptionsScreen. Sem reservas
-    // e sem takeaway → directo ao menu (menos cliques).
-    final showOptions = business.isPartner &&
-        (business.reservationsEnabled || business.takeawayEnabled);
+    // condicionais individualmente em RestaurantOptionsScreen.
+    // PARTE C BUG 2 (2026-07-17): antes a condição saltava o ecrã de opções
+    // para parceiros SEM reservas/takeaway → entrada inconsistente (uns viam
+    // Entrega/Ir buscar/Reservar, outros iam direto ao cardápio). Agora TODO
+    // parceiro entra pelo ecrã de opções, que mostra SEMPRE exatamente os
+    // serviços activados (Entrega sempre + Ir buscar/Reservar se ligados).
+    final showOptions = business.isPartner;
 
     Navigator.push(
       context,

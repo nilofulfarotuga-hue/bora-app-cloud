@@ -39,6 +39,16 @@ NOTIFIED="${VIGIA_NOTIFIED:-/root/orquestracao/.carteiro-vigia.avisado}"
 STALL_MIN="${VIGIA_STALL_MIN:-15}"
 PAUSA_RL="${VIGIA_PAUSA_RL:-$FILA/.pausa-rate-limit}"
 C=hermes-agent-fvnc-hermes-agent-1
+# ZUMBI (2026-07-17): ordem presa em `estado: executando` mas o EXECUTOR MORREU — o caso da
+# ponte/SSH pendurada DEPOIS de um FIM limpo: o stale-output-watchdog do PC não dispara (não há
+# executor vivo a vigiar) e o timeout externo (14700s=4h10) só cai horas depois. Enquanto isso o
+# `carteiro_ocupado` vê a ordem `executando` e mascara tudo como "a drenar" para SEMPRE. Sinal
+# fiável de liveness: o `bora-live.log` no bora-pc pára de ser tocado (o parser só escreve
+# enquanto o executor produz). O vigia lê esse mtime via o mesmo ssh que o pc-loop usa.
+ZUMBI_MIN="${VIGIA_ZUMBI_MIN:-15}"           # idade mín. (min) de `executando` p/ ser candidato
+STALE_LIVE_MIN="${VIGIA_STALE_LIVE_MIN:-12}" # bora-live.log parado >= isto (min) => executor morto
+BORAPC="${VIGIA_BORAPC:-bora-pc}"            # alias ssh (config do hermes no container) p/ o PC
+LIVE_LOG_PC="${VIGIA_LIVE_LOG_PC:-C:/Users/danil/Desktop/projetosflutter/bora_app/.claude/bora-live.log}"
 
 DRY=0; SELFTEST=0
 case "${1:-}" in --dry) DRY=1;; --selftest) SELFTEST=1;; esac
@@ -103,6 +113,53 @@ ordem_estagnada(){
   return 1
 }
 
+# --- ZUMBI (2026-07-17): executor morto mas ordem presa em `executando` ----------------------
+# minutos desde que o executor tocou o bora-live.log no PC (via o mesmo ssh do pc-loop). Devolve
+# "" se o ssh falhar, "-1" se o ficheiro não existir. É a única leitura cara — só é chamada quando
+# já existe uma ordem `executando` estagnada (não faz ssh em cada tique à toa).
+live_stale_min(){
+  docker exec -u hermes "$C" sh -lc "ssh -o ConnectTimeout=12 $BORAPC powershell -NoProfile -Command \"try{[int]((Get-Date)-(Get-Item $LIVE_LOG_PC).LastWriteTime).TotalMinutes}catch{-1}\"" 2>/dev/null | tr -dc '0-9-' | head -c 9
+}
+
+# executor GENUINAMENTE vivo = bora-live.log tocado há < STALE_LIVE_MIN.
+# FAIL-SAFE (regra de ouro): ssh falhou / ficheiro ausente / valor não-numérico -> assume VIVO
+# (return 0), para NUNCA matar um executor real por engano. Só mata com prova positiva de morte.
+executor_vivo(){
+  [ -n "${VIGIA_ASSUME_EXECUTOR:-}" ] && { [ "$VIGIA_ASSUME_EXECUTOR" = 1 ]; return; }
+  [ "$SELFTEST" = 1 ] && return 0
+  local m; m="$(live_stale_min)"
+  case "$m" in ''|-*|*[!0-9-]*) return 0;; esac   # vazio / -1 / lixo -> fail-safe: VIVO
+  [ "$m" -lt "$STALE_LIVE_MIN" ]                   # fresco -> vivo(0); stale -> morto(1)
+}
+
+# ordem ZUMBI = `executando` há >= ZUMBI_MIN E o executor parou de produzir (bora-live stale).
+ordem_zumbi(){
+  local now g age cand="" zmin="${VIGIA_ZUMBI_MIN:-$ZUMBI_MIN}"; now=$(date +%s)
+  for g in "$FILA"/*.md; do
+    [ -f "$g" ] || continue
+    case "$g" in */_controlo.md) continue;; esac
+    [ "$(get estado "$g")" = "executando" ] || continue
+    age=$(( (now - $(stat -c %Y "$g")) / 60 ))
+    [ "$age" -ge "$zmin" ] && { cand="$(basename "$g" .md) (${age}min)"; break; }
+  done
+  [ -n "$cand" ] || return 1        # nenhuma `executando` estagnada -> nada a fazer (sem ssh)
+  executor_vivo && return 1         # bridge vivo e a produzir -> NÃO é zumbi
+  echo "$cand"; return 0
+}
+
+# reclama a ordem zumbi: mata o carteiro bloqueado na ponte + o pc-loop/ssh pendurado no container
+# (poupando os túneis tailscale persistentes), limpa o lock e repõe a ordem em `aberta` para o
+# carteiro a re-apanhar (re-corre como retry de crash — o carteiro aplica a sua conta de tentativas).
+reclamar_zumbi(){  # $1 = ficheiro da ordem
+  local f="$1"
+  [ "$SELFTEST" = 1 ] && { echo "[RECLAMA zumbi $(basename "$f" .md)]"; return 0; }
+  [ "$DRY" = 1 ] && { echo "DRY: reclama zumbi $(basename "$f" .md)"; return 0; }
+  pkill -f "orquestracao/carteiro\.sh" 2>/dev/null || true
+  docker exec "$C" sh -lc 'P=$(pgrep -x pc-loop | head -1); [ -n "$P" ] && { pkill -TERM -P "$P" 2>/dev/null; kill -TERM "$P" 2>/dev/null; sleep 2; pkill -KILL -P "$P" 2>/dev/null; kill -KILL "$P" 2>/dev/null; }' 2>/dev/null || true
+  rm -f "$LOCK" 2>/dev/null || true
+  [ -f "$f" ] && sed -i 's/^estado:.*/estado: aberta/' "$f" 2>/dev/null || true
+}
+
 decide(){
   local viva=0 estag ocup=0
   campainha_viva && viva=1
@@ -129,6 +186,22 @@ decide(){
     log "RATE-LIMIT EXPIROU: $PAUSA_RL já passou e carteiro LIVRE -> NUDGE (retoma sozinho, sem Danilo)"
     nudge_carteiro
     [ -f "$NOTIFIED" ] || { notify "🔄 Bora/carteiro: o limite de sessão do Claude já renovou — retomei a fila sozinho, sem esperar por ti."; touch "$NOTIFIED" 2>/dev/null || true; }
+    return 0
+  fi
+
+  # CASO ZUMBI (2026-07-17) — ordem presa em `executando` mas o executor MORREU (ponte pendurada
+  # após FIM limpo). Sem isto, `carteiro_ocupado` vê a ordem `executando` e o CASO 3 mascara-a como
+  # "a drenar" para sempre — a fila fica parada até ao timeout externo de 4h. Reclama: mata a ponte,
+  # limpa o lock, repõe `aberta` e dá o toque. Só age com PROVA de morte (bora-live stale); se o
+  # bora-pc estiver inalcançável, `executor_vivo` assume vivo e isto NÃO dispara (rede 4h trata).
+  local zumbi zfile
+  zumbi="$(ordem_zumbi || true)"
+  if [ -n "$zumbi" ]; then
+    zfile="$FILA/${zumbi%% *}.md"
+    log "ZUMBI: ordem $zumbi presa em 'executando' com o executor parado (bora-live stale) -> mato ponte/pc-loop, limpo lock, reponho 'aberta' e NUDGE."
+    reclamar_zumbi "$zfile"
+    nudge_carteiro
+    [ -f "$NOTIFIED" ] || { notify "🧟 Bora/carteiro: uma ordem ficou presa em 'executando' com o executor morto (ponte pendurada) — limpei o zombie e retomei a fila sozinho ($zumbi)."; touch "$NOTIFIED" 2>/dev/null || true; }
     return 0
   fi
 
@@ -193,6 +266,25 @@ selftest(){
   out=$(VIGIA_ASSUME_VIVA=1 SELFTEST=1 decide 2>&1)
   chk "não deu nudge (pausa ainda válida)" '! echo "$out" | grep -q "\[NUDGE carteiro\]"'
   rm -f "$tmp/.pausa-rate-limit"
+
+  echo "== T7: ZUMBI 2026-07-17 — ordem 'executando' + executor MORTO (bora-live stale) + idade>=ZUMBI_MIN -> RECLAMA + NUDGE =="
+  printf 'id: zmb1\nestado: executando\ntentativa: 2\ntarefa: z\n' > "$tmp/zmb1.md"
+  out=$(VIGIA_ASSUME_VIVA=1 VIGIA_ASSUME_EXECUTOR=0 VIGIA_ZUMBI_MIN=0 SELFTEST=1 decide 2>&1)
+  chk "reclamou o zombie" 'echo "$out" | grep -q "\[RECLAMA zumbi zmb1\]"'
+  chk "e deu o toque (nudge)" 'echo "$out" | grep -q "\[NUDGE carteiro\]"'
+  rm -f "$tmp/zmb1.md"
+
+  echo "== T8: ordem 'executando' MAS executor VIVO (bora-live fresco) -> NÃO reclama (drenagem real) =="
+  printf 'id: zmb2\nestado: executando\ntentativa: 2\ntarefa: z\n' > "$tmp/zmb2.md"
+  out=$(VIGIA_ASSUME_VIVA=1 VIGIA_ASSUME_EXECUTOR=1 VIGIA_ZUMBI_MIN=0 SELFTEST=1 decide 2>&1)
+  chk "não reclamou (executor vivo => fail-safe)" '! echo "$out" | grep -q "\[RECLAMA zumbi"'
+  rm -f "$tmp/zmb2.md"
+
+  echo "== T9: ordem 'executando' recente (idade<ZUMBI_MIN) -> NÃO reclama (janela de arranque do executor) =="
+  printf 'id: zmb3\nestado: executando\ntentativa: 2\ntarefa: z\n' > "$tmp/zmb3.md"
+  out=$(VIGIA_ASSUME_VIVA=1 VIGIA_ASSUME_EXECUTOR=0 VIGIA_ZUMBI_MIN=999 SELFTEST=1 decide 2>&1)
+  chk "não reclamou (ordem recente, dentro da grace)" '! echo "$out" | grep -q "\[RECLAMA zumbi"'
+  rm -f "$tmp/zmb3.md"
 
   rm -rf "$tmp"
   echo "-- selftest vigia: $ok OK, $fail FALHAS --"

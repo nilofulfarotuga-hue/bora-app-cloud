@@ -420,17 +420,10 @@ for f in "$FILA"/*.md; do
     # de ti", sem dizer O QUE a ordem faz nem como desbloquear — o Danilo ficava a saber que
     # algo esperava, mas preso sem contexto nem ação direta. Agora leva o resumo da tarefa +
     # o comando exato de desbloqueio (a skill desbloqueio-zona-vermelha do Hermes trata o "vai $id").
-    # 2026-07-17 (surface na Central, ver surfacar_na_central abaixo): a ordem passa a ficar
-    # também rastreável na Central de Autonomia. NÃO diz "aprova lá" — sem a PARTE B (parada em
-    # 7398, Lista Vermelha, aguarda "vai" humano com diff revisto) uma aprovação só na Central
-    # NÃO liberta a ordem (o carteiro reavalia zona_vermelha() outra vez ao reabrir); prometer
-    # isso recriaria o mesmo deadlock que esta mudança devia resolver. O "vai $id" aqui continua
-    # a ser o único desbloqueio real.
     resumo=$(resumo_tarefa "$tarefa")
     notify "🔴 Bora/orquestração: ordem $id EM ESPERA (zona vermelha — toca dinheiro/pagamento).
 Resumo: ${resumo:-(sem resumo)}
-Para libertar para a fila normal, responde aqui: vai $id
-(rastreável também em Perfil > Painel Admin > Central de Autonomia > tab Cortex)"
+Para libertar para a fila normal, responde aqui: vai $id"
     surfacar_na_central "$id" "$tarefa"
     [ -n "$missao" ] && { mf=$(missao_path "$missao"); [ -f "$mf" ] && missao_set_passo "$mf" "$passo" "zona_vermelha"; }
     ultima_veredito="ZONA_VERMELHA"

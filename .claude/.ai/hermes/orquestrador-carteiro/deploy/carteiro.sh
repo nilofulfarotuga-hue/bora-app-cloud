@@ -79,6 +79,24 @@ notify(){ docker exec -u hermes "$C" hermes send -t telegram "$1" >/dev/null 2>&
 clean(){ grep -vE '^\[ponte\]|^\[loop\]|^\[juiz\]|Permission deny rule|matches no known tool' ; }
 sync_espelho(){ docker exec -u hermes -e HOME=/opt/data -i "$C" sh -s fast < /root/cortex-mcp/sync-brain.sh >> "$LOG" 2>&1 && log "espelho sincronizado (fast)" || log "sync espelho (best-effort) falhou"; }
 
+# PARTE B (2026-07-17) — verifica, CONTRA A BASE (nunca contra o ficheiro), que um
+# audit_id do frontmatter existe MESMO como aprovação de proposta vermelha. Usa a
+# RPC read-only cortex_verify_audit_id (anon) via o container (mesmas creds do sync).
+# Devolve 0 (ok) só se a base disser "true". Qualquer falha/dúvida -> 1 (não autoriza).
+audit_id_valido(){ # $1=audit_id
+  local aid="$1" r
+  case "$aid" in ''|*[!0-9a-fA-F-]*) return 1;; esac   # sanidade: só uuid-like
+  r=$(docker exec -u hermes -e AID="$aid" "$C" sh -lc '
+    U=$(sed -n "s/^SUPABASE_URL=//p" /opt/data/.env | head -1 | tr -d "\r\"")
+    K=$(sed -n "s/^SUPABASE_ANON_KEY=//p" /opt/data/.env | head -1 | tr -d "\r\"")
+    [ -n "$U" ] && [ -n "$K" ] || exit 3
+    curl -s --max-time 12 -X POST "$U/rest/v1/rpc/cortex_verify_audit_id" \
+      -H "apikey: $K" -H "Authorization: Bearer $K" -H "Content-Type: application/json" \
+      -d "{\"p_audit_id\":\"$AID\"}"
+  ' 2>/dev/null)
+  [ "$r" = "true" ]
+}
+
 # FASE 4 (2026-07-17): ao marcar zona_vermelha, surfaca a ordem VERMELHA NOVA na Central (tab Cortex)
 # escrevendo uma linha em proposals.jsonl -- o MESMO caminho do claude.ai/cortex_propor (nao inventa
 # caminho novo). NAO toca zona_vermelha()/classificador/Lista Vermelha; so torna a ordem aprovavel.
@@ -412,8 +430,25 @@ for f in "$FILA"/*.md; do
   ultima_id="$id"
   log "ordem $id: aberta (tentativa=$tent)${missao:+ [missão $missao/$passo]}"
 
+  # PARTE B (2026-07-17) — RESPEITAR uma autorização humana já verificável na base.
+  # BARREIRA: os campos autorizado_por_admin/audit_id SÓ podem ser escritos pelo passo 2
+  # do sync (hermes-cortex-proposals-sync.sh), a partir de uma linha aprovada_danilo na
+  # Central. Nenhum executor/agente/processo-da-ordem os escreve. E mesmo escritos, o
+  # carteiro NUNCA confia no ficheiro: re-verifica o audit_id contra admin_audit_log
+  # (audit_id_valido). NÃO altera zona_vermelha()/classificador/Lista Vermelha/Juiz/
+  # zonas_diff.py — só evita re-gatilhar T3 numa ordem que o Danilo JÁ autorizou (fim do loop).
+  autz_admin=$(get autorizado_por_admin "$f"); autz_audit=$(get audit_id "$f"); autz_ok=0
+  if [ -n "$autz_admin" ] && [ -n "$autz_audit" ]; then
+    if audit_id_valido "$autz_audit"; then
+      autz_ok=1
+      log "ordem $id: autorizada por admin $autz_admin (audit $autz_audit valido na base) -> salta T3"
+    else
+      log "ordem $id: campo autorizado presente mas audit $autz_audit NAO existe na base -> ignora, trata normal"
+    fi
+  fi
+
   # T3 — zona vermelha (dinheiro + intenção de escrita)
-  if zona_vermelha "$tarefa" && [ "$(get vai "$f")" != "sim" ]; then
+  if [ "$autz_ok" != 1 ] && zona_vermelha "$tarefa" && [ "$(get vai "$f")" != "sim" ]; then
     setf estado zona_vermelha "$f"; setf nota "🔴 ZONA VERMELHA — precisa de decisão humana (dinheiro)" "$f"
     log "ordem $id: 🔴 ZONA VERMELHA -> aprovacao humana"
     # 2026-07-14 (aviso-espera-telegram): antes o aviso só dizia "toca zona vermelha — precisa

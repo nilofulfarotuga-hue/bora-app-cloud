@@ -108,6 +108,28 @@ def log(msg):
     with open(logpath, 'a', encoding='utf-8') as f:
         f.write(f"[{ts}] {msg}\n")
 
+def fetch_auth(pid):
+    # PARTE B (2026-07-17) — lê a autorização AUTORITATIVA da base (RPC
+    # cortex_get_auth_for_pid), NUNCA do texto/ficheiro. BARREIRA: só ESTE passo
+    # (o sync) escreve autorizado_por_admin/audit_id no frontmatter, e só a partir
+    # de uma linha aprovada_danilo com trilho de auditoria real. O carteiro depois
+    # RE-VERIFICA o audit_id contra a base antes de saltar o T3.
+    try:
+        p = subprocess.run(
+            ["curl", "-s", "--max-time", "15", "-X", "POST",
+             f"{url}/rest/v1/rpc/cortex_get_auth_for_pid",
+             "-H", f"apikey: {key}", "-H", f"Authorization: Bearer {key}",
+             "-H", "Content-Type: application/json",
+             "-d", json.dumps({"p_pid": pid})],
+            capture_output=True, text=True, timeout=20,
+        )
+        data = json.loads(p.stdout or "null")
+        if isinstance(data, dict) and data.get("audit_id") and data.get("autorizado_por_admin"):
+            return data
+    except Exception as e:
+        log(f"aprovada pid={pid}: fetch_auth falhou: {e}")
+    return None
+
 try:
     approved = json.loads(sys.stdin.read() or '[]')
 except Exception:
@@ -149,6 +171,16 @@ for pid in pids:
     ts = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
 
     if not os.path.exists(destino):
+        # PARTE B (2026-07-17): autorização AUTORITATIVA da base (nunca do ficheiro).
+        autz = fetch_auth(pid)
+        autz_lines = ""
+        if autz:
+            autz_lines = (
+                f"autorizado_por_admin: {autz['autorizado_por_admin']}\n"
+                f"autorizado_em: {autz['autorizado_em']}\n"
+                f"audit_id: {autz['audit_id']}\n"
+            )
+            log(f"aprovada pid={pid}: autorizacao real gravada (admin {autz['autorizado_por_admin']}, audit {autz['audit_id']})")
         conteudo = (
             "--- ordem ---\n"
             f"id: {oid_safe}-aprovado\n"
@@ -158,15 +190,27 @@ for pid in pids:
             "zona: verde\n"
             "tentativa: 1\n"
             "teto_tentativas: 5\n"
+            f"{autz_lines}"
             f"tarefa: {tarefa}\n"
             "--- fim ---\n"
-            f"nota: aprovada pelo Danilo via Central em {ts}, pid original {pid} - "
-            "mesmo aprovada aqui, o carteiro reavalia zona_vermelha() no texto; conteudo de "
+            f"nota: aprovada pelo Danilo via Central em {ts}, pid original {pid}. "
+            "Se tem autorizado_por_admin/audit_id (autorizacao verificavel na base), o carteiro "
+            "RESPEITA-a e nao re-gatilha zona_vermelha(); senao reavalia normalmente e conteudo de "
             'dinheiro volta a esperar humano (Telegram "vai <id>").\n'
         )
         with open(destino, 'w', encoding='utf-8') as f:
             f.write(conteudo)
         log(f"aprovada pid={pid}: ordem criada em {destino}")
+        titulo_curto = tarefa[:70] + ('…' if len(tarefa) > 70 else '')
+        msg = f"Recebido: {titulo_curto} -> ordem {oid_safe} criada e na fila"
+        try:
+            subprocess.run(
+                ["docker", "exec", "-u", "hermes", "hermes-agent-fvnc-hermes-agent-1",
+                 "hermes", "send", "-t", "telegram", msg],
+                capture_output=True, text=True, timeout=15,
+            )
+        except Exception as e:
+            log(f"aprovada pid={pid}: notify telegram falhou: {e}")
     else:
         log(f"aprovada pid={pid}: {destino} ja existe - so confirmo")
 

@@ -21,6 +21,17 @@
 # idempotente via flock — se afinal estiver ocupado, o carteiro só loga "outro a correr" e sai).
 # Se o inotifywait estiver mesmo morto, reinicia a campainha (mata duplicados) E varre o backlog.
 #
+# ENDURECIMENTO 2026-07-17 (pedido Danilo, "a fila NUNCA pode parar por causa de UMA ordem
+# presa"): até aqui `carteiro_ocupado()` só perguntava "o lock está preso OU há alguma ordem
+# `executando`?" — nunca verificava se o PROCESSO DONO do lock estava mesmo vivo, só se o
+# ficheiro de lock existia. Agora há um teste ÓRFÃ separado (ver "ORDEM ÓRFÃ" antes do decide()):
+# se o `flock -n` consegue o lock (ninguém o detém) mas uma ordem continua em `executando`, é
+# prova de que o carteiro.sh morreu a meio — a ordem é marcada `travada` de imediato (nota clara,
+# tentativa preservada) e o carteiro segue já para a próxima `aberta`, sem esperar pela presa.
+# Aviso Telegram dedicado por ordem travada por timeout. Ver também o CASO ZUMBI (mais abaixo),
+# que cobre o caso irmão — o executor do PC morreu mas o carteiro.sh na VPS ainda está vivo,
+# preso na ponte SSH — aí sim vale a pena reclamar e RETENTAR automaticamente.
+#
 # Corre no HOST do VPS (cron a cada 5 min). Canónico: bora_app/.claude/scripts/. Instala em
 # /usr/local/bin/. Dono: Hermes(host). Ver permanente/semantica/loops.md.
 #
@@ -38,6 +49,7 @@ LOCK="${VIGIA_LOCK:-/root/orquestracao/.carteiro.lock}"
 NOTIFIED="${VIGIA_NOTIFIED:-/root/orquestracao/.carteiro-vigia.avisado}"
 NOTIFIED_FAIL="${VIGIA_NOTIFIED_FAIL:-/root/orquestracao/.carteiro-vigia.falha-avisada}"
 STALL_MIN="${VIGIA_STALL_MIN:-15}"
+ORFAO_MIN="${VIGIA_ORFAO_MIN:-25}"        # ver "ORDEM ÓRFÃ" abaixo (2026-07-17)
 PAUSA_RL="${VIGIA_PAUSA_RL:-$FILA/.pausa-rate-limit}"
 C=hermes-agent-fvnc-hermes-agent-1
 # ZUMBI (2026-07-17): ordem presa em `estado: executando` mas o EXECUTOR MORREU — o caso da
@@ -175,6 +187,56 @@ reclamar_zumbi(){  # $1 = ficheiro da ordem
   [ -f "$f" ] && sed -i 's/^estado:.*/estado: aberta/' "$f" 2>/dev/null || true
 }
 
+# --- ORDEM ÓRFÃ (2026-07-17, pedido Danilo) ---------------------------------------------------
+# Diferente do ZUMBI acima (que assume o carteiro.sh ainda VIVO mas preso na ponte SSH/PC — aí o
+# lock continua PRESO, por isso o reclaim mata processos e RETENTA a mesma ordem). Aqui o sinal é
+# mais forte e 100% LOCAL — não depende de SSH até ao bora-pc (que pode estar em baixo e faria o
+# ZUMBI falhar-aberto por "regra de ouro"): se `flock -n` CONSEGUE o lock (ninguém o detém agora)
+# mas alguma ordem continua em `executando`, é PROVA — não suposição — de que o carteiro.sh que a
+# marcou já morreu (o kernel só liberta um flock quando o processo dono termina ou fecha o fd).
+# Não vale a pena repetir a mesma ordem às cegas (o processo pode ter morrido POR CAUSA dela) —
+# marca `travada` já, preserva a `tentativa:` para quem quiser retomar à mão, avisa no Telegram
+# e deixa o carteiro seguir IMEDIATAMENTE para a próxima `aberta` (nunca fica à espera da presa).
+lock_livre(){
+  [ -n "${VIGIA_ASSUME_LOCK_LIVRE:-}" ] && { [ "$VIGIA_ASSUME_LOCK_LIVRE" = 1 ]; return; }
+  command -v flock >/dev/null 2>&1 || return 1
+  ( flock -n 9 ) 9>>"$LOCK" 2>/dev/null
+}
+
+# ordem ÓRFÃ = `executando` há >= ORFAO_MIN E o lock está LIVRE (ninguém o detém agora).
+ordem_executando_orfa(){
+  local now g age cand="" omin="${VIGIA_ORFAO_MIN:-$ORFAO_MIN}"
+  now=$(date +%s)
+  lock_livre || return 1        # lock preso -> dono ainda vivo -> não é órfã (é o caso ZUMBI)
+  for g in "$FILA"/*.md; do
+    [ -f "$g" ] || continue
+    case "$g" in */_controlo.md) continue;; esac
+    [ "$(get estado "$g")" = "executando" ] || continue
+    age=$(( (now - $(stat -c %Y "$g")) / 60 ))
+    [ "$age" -ge "$omin" ] && { cand="$(basename "$g" .md) (${age}min, tent=$(get tentativa "$g"))"; break; }
+  done
+  [ -n "$cand" ] || return 1
+  echo "$cand"; return 0
+}
+
+# marca a ordem TRAVADA (não retenta às cegas). Preserva `tentativa:` tal como está — pedido
+# explícito do Danilo, quem retomar à mão sabe quantas vezes já foi tentada. Também trunca o
+# ficheiro de lock: não é preciso para o flock em si (o kernel já libertou), mas limpa qualquer
+# resíduo visível, como pedido ("o vigia tem de limpar o lock sozinho").
+marcar_travada_orfa(){  # $1 = ficheiro da ordem
+  local f="$1" tent
+  tent="$(get tentativa "$f")"
+  [ "$SELFTEST" = 1 ] && { echo "[TRAVADA-ORFA $(basename "$f" .md)]"; return 0; }
+  [ "$DRY" = 1 ] && { echo "DRY: marca travada-orfa $(basename "$f" .md)"; return 0; }
+  sed -i 's/^estado:.*/estado: travada/' "$f" 2>/dev/null || true
+  if grep -qE '^nota:' "$f"; then
+    sed -i "s|^nota:.*|nota: 🪦 ÓRFÃ — processo dono morreu sem concluir, tentativa ${tent} preservada para retomar|" "$f"
+  else
+    printf 'nota: 🪦 ÓRFÃ — processo dono morreu sem concluir, tentativa %s preservada para retomar\n' "$tent" >> "$f"
+  fi
+  : > "$LOCK" 2>/dev/null || true
+}
+
 decide(){
   local viva=0 estag ocup=0
   campainha_viva && viva=1
@@ -201,6 +263,21 @@ decide(){
     log "RATE-LIMIT EXPIROU: $PAUSA_RL já passou e carteiro LIVRE -> NUDGE (retoma sozinho, sem Danilo)"
     nudge_carteiro
     [ -f "$NOTIFIED" ] || { notify "🔄 Bora/carteiro: o limite de sessão do Claude já renovou — retomei a fila sozinho, sem esperar por ti."; touch "$NOTIFIED" 2>/dev/null || true; }
+    return 0
+  fi
+
+  # CASO ÓRFÃ (2026-07-17) — checagem LOCAL, corre antes do ZUMBI (que depende de SSH ao bora-pc):
+  # ordem `executando` há >= ORFAO_MIN com o lock genuinamente LIVRE = o carteiro.sh que a
+  # marcou já morreu. Marca travada, avisa, e o NUDGE seguinte já processa a próxima `aberta`.
+  local orfa oid ofile resumo
+  orfa="$(ordem_executando_orfa || true)"
+  if [ -n "$orfa" ]; then
+    oid="${orfa%% *}"; ofile="$FILA/$oid.md"
+    resumo="$(get tarefa "$ofile" | cut -c1-140)"
+    log "ÓRFÃ: ordem $orfa em 'executando' com o lock LIVRE (processo dono morreu) -> marco travada e sigo para a próxima."
+    marcar_travada_orfa "$ofile"
+    nudge_carteiro
+    notify "⛔ Bora/carteiro: Ordem $oid travada por timeout - fila avancou para a proxima. ${resumo:-(sem resumo)}"
     return 0
   fi
 
@@ -328,6 +405,32 @@ selftest(){
   chk "mandou sucesso (retomei a fila)" 'echo "$out" | grep -q "retomei a fila sozinho"'
   chk "NÃO alertou falha" '! echo "$out" | grep -q "NÃO voltou a arrancar"'
   rm -f "$tmp/zmb5.md"
+
+  echo "== T12: ÓRFÃ 2026-07-17 — ordem 'executando' + LOCK REALMENTE LIVRE (flock genuíno contra"
+  echo "== ficheiro de lock de verdade, ninguém o detém) -> TRAVADA de imediato + NUDGE p/ a próxima =="
+  rm -f "$NOTIFIED" "$NOTIFIED_FAIL" 2>/dev/null
+  printf 'id: orf1\nestado: executando\ntentativa: 3\ntarefa: tarefa de teste orfa\n' > "$tmp/orf1.md"
+  out=$(VIGIA_ASSUME_VIVA=1 VIGIA_ORFAO_MIN=0 SELFTEST=1 decide 2>&1)
+  chk "marcou travada-orfa (prova real: flock não-simulado)" 'echo "$out" | grep -q "\[TRAVADA-ORFA orf1\]"'
+  chk "deu o toque (nudge) — fila avança para a próxima" 'echo "$out" | grep -q "\[NUDGE carteiro\]"'
+  rm -f "$tmp/orf1.md"
+
+  echo "== T13: ÓRFÃ mas idade < ORFAO_MIN -> NÃO marca (ainda dentro da janela de graça) =="
+  printf 'id: orf2\nestado: executando\ntentativa: 1\ntarefa: z\n' > "$tmp/orf2.md"
+  out=$(VIGIA_ASSUME_VIVA=1 VIGIA_ORFAO_MIN=999 SELFTEST=1 decide 2>&1)
+  chk "não marcou (idade insuficiente)" '! echo "$out" | grep -q "\[TRAVADA-ORFA"'
+  rm -f "$tmp/orf2.md"
+
+  echo "== T14: lock REALMENTE OCUPADO (segurado por outro processo, flock genuíno) -> NÃO marca"
+  echo "== órfã — dono ainda vivo, é o caso ZUMBI (SSH ao bora-pc) que trata este cenário =="
+  ( flock 9; sleep 4 ) 9>"$tmp/.lock" &
+  heldpid=$!
+  sleep 0.3
+  printf 'id: orf3\nestado: executando\ntentativa: 1\ntarefa: z\n' > "$tmp/orf3.md"
+  out=$(VIGIA_ASSUME_VIVA=1 VIGIA_ORFAO_MIN=0 VIGIA_ASSUME_EXECUTOR=1 SELFTEST=1 decide 2>&1)
+  chk "não marcou órfã (lock genuinamente preso por outro processo)" '! echo "$out" | grep -q "\[TRAVADA-ORFA"'
+  wait "$heldpid" 2>/dev/null
+  rm -f "$tmp/orf3.md"
 
   rm -rf "$tmp"
   echo "-- selftest vigia: $ok OK, $fail FALHAS --"

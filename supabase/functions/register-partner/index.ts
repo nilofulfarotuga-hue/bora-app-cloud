@@ -227,6 +227,10 @@ Deno.serve(async (req: Request) => {
         .from("restaurants")
         .update({
           ...restaurantPayload,
+          // Espelha o dono nas DUAS colunas (as RPCs de parceiro leem `user_`,
+          // o cadastro histórico gravava `user_id`). Ver licao-dual-owner-column.
+          user_: userId,
+          user_id: userId,
           approval_status: "pending",
           rejection_reason: null,
           submitted_at: new Date().toISOString(),
@@ -240,7 +244,11 @@ Deno.serve(async (req: Request) => {
         .from("restaurants")
         .insert({
           id: restaurantId,
+          // BUG-2 FIX: define user_id para permitir RLS em products.
+          // user_ é a coluna que as RPCs de parceiro leem — gravar AMBAS
+          // (ver licao-dual-owner-column). O trigger de espelho é a rede de segurança.
           user_id: userId,
+          user_: userId,
           photo_url: "",
           is_partner: true,
           is_online: false,

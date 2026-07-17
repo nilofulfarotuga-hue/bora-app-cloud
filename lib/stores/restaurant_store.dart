@@ -621,6 +621,12 @@ class RestaurantStore extends ChangeNotifier {
 
   // ─── Mutations ────────────────────────────────────────────────────────────
 
+  /// Código morto — o cadastro de parceiro passou a ser feito pela Edge Function
+  /// `register-partner` (supabase/functions/register-partner/index.ts), que grava o
+  /// dono nas DUAS colunas (`user_` + `user_id`), valida NIF/IBAN e trata idempotência.
+  /// Esta versão gravava só `user_` e gerava um id `partner-<micros>` legado. Sem
+  /// chamadores no `lib/`. Mantida só para histórico. Ver licao-dual-owner-column.
+  @Deprecated('Usar a Edge Function register-partner; grava user_ + user_id e valida tudo.')
   Future<RestaurantModel> registerPartnerRestaurant({
     required String name,
     required String address,

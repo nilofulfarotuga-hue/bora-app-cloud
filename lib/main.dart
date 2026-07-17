@@ -26,6 +26,12 @@ import 'auth/auth_store.dart';
 import 'dispatch/dispatch_engine.dart';
 import 'screens/admin/admin_crosstalk_screen.dart';
 import 'screens/admin/admin_dashboard_screen.dart';
+// PARTE A (2026-07-17) — deep links dos pushes admin persistentes
+import 'screens/admin/admin_robot_suggestions_screen.dart';
+import 'screens/admin/admin_driver_approval_screen.dart';
+import 'screens/admin/admin_partners_pending_screen.dart';
+import 'screens/admin/admin_tvde_access_requests_screen.dart';
+import 'screens/admin/admin_cleaning_cleaners_screen.dart';
 import 'screens/admin/admin_ratings_screen.dart';
 import 'screens/admin/admin_skill_suggestions_metrics_screen.dart';
 import 'screens/admin/admin_weekly_settlements_screen.dart';
@@ -38,6 +44,7 @@ import 'screens/driver_login_screen.dart';
 import 'screens/driver_signup_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/partner_entry_screen.dart';
+import 'screens/reset_password_screen.dart';
 import 'screens/role_screen.dart';
 import 'stores/cart_store.dart';
 import 'stores/chat_store.dart';
@@ -140,10 +147,26 @@ Future<void> _setupForegroundAndUrgentChannel() async {
       showBadge: true,
     );
     final localPlugin = FlutterLocalNotificationsPlugin();
-    await localPlugin
+    final androidLocalPlugin = localPlugin
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(urgentChannel);
+            AndroidFlutterLocalNotificationsPlugin>();
+    await androidLocalPlugin?.createNotificationChannel(urgentChannel);
+
+    // 1b) PARTE A (2026-07-17) — canal de alta prioridade para AÇÕES PENDENTES
+    //     do admin. A Edge Fn notify-admin-urgent envia channel_id
+    //     'bora_admin_urgent'; sem este canal criado no device, o Android
+    //     descartava/rebaixava o push. Importance.max = heads-up + som, e o
+    //     push generic vem com sticky=true (server-side) → fica no ecrã.
+    const adminUrgentChannel = AndroidNotificationChannel(
+      'bora_admin_urgent',
+      'Bora Admin — Ações pendentes',
+      description: 'Aprovações e propostas que aguardam o admin.',
+      importance: Importance.max,
+      playSound: true,
+      enableVibration: true,
+      showBadge: true,
+    );
+    await androidLocalPlugin?.createNotificationChannel(adminUrgentChannel);
 
     // 2) Init flutter_foreground_task — regista também o canal LOW
     //    'bora_service' para a notificação persistente.
@@ -198,6 +221,19 @@ Future<void> main() async {
     url: _supabaseUrl,
     anonKey: _supabaseAnonKey,
   );
+
+  // Recuperação de palavra-passe — o link do email abre o deep link
+  // pt.boraapp.bora://reset-password, o Supabase cria uma sessão de
+  // recovery e emite AuthChangeEvent.passwordRecovery. AuthStore ignora
+  // este evento de propósito (não "loga" o utilizador); aqui é onde se
+  // abre de facto o ecrã para definir a nova palavra-passe.
+  Supabase.instance.client.auth.onAuthStateChange.listen((state) {
+    if (state.event == AuthChangeEvent.passwordRecovery) {
+      NotificationService.navigatorKey.currentState?.push(
+        MaterialPageRoute(builder: (_) => const ResetPasswordScreen()),
+      );
+    }
+  });
 
   // TODO: remover após diagnóstico — handlers globais de crash.
   final originalOnError = FlutterError.onError;
@@ -482,6 +518,13 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           // Fechos Semanais (2026-06-12) — deep link do push de 2ª-feira
           // (run_weekly_closeout → notify-admin-urgent route '/admin/settlements').
           '/admin/settlements': (_) => const AdminWeeklySettlementsScreen(),
+          // PARTE A (2026-07-17) — deep links dos 5 pushes admin persistentes
+          '/admin/robot': (_) => const AdminRobotSuggestionsScreen(),
+          '/admin/drivers/approval': (_) => const AdminDriverApprovalScreen(),
+          '/admin/partners/pending': (_) => const AdminPartnersPendingScreen(),
+          '/admin/tvde/access-requests': (_) =>
+              const AdminTvdeAccessRequestsScreen(),
+          '/admin/cleaning/cleaners': (_) => const AdminCleaningCleanersScreen(),
         },
         onGenerateRoute: (settings) {
           // §44 — deep link da push low_rating: /partner/ratings precisa

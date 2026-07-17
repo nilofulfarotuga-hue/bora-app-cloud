@@ -80,9 +80,12 @@ class AdminPushService {
     }
   }
 
-  /// Sets up listeners that route a `crosstalk_critical` push notification
-  /// to `/admin/crosstalk` when the user taps it. Idempotent — calling
-  /// multiple times during widget rebuilds is safe.
+  /// Sets up listeners that route an admin push notification to the right
+  /// screen when the user taps it. Idempotent — calling multiple times during
+  /// widget rebuilds is safe. Handles:
+  ///   • `crosstalk_critical` → `/admin/crosstalk`
+  ///   • `admin_generic` (PARTE A) → the `route` field carried in `data`
+  ///     (e.g. `/admin/drivers/approval`, `/admin/robot`, …).
   static void setupDeepLinks(BuildContext context) {
     if (_deepLinksWired) return;
     _deepLinksWired = true;
@@ -90,20 +93,28 @@ class AdminPushService {
     final navigator = Navigator.of(context);
 
     FirebaseMessaging.onMessageOpenedApp.listen((msg) {
-      final type = msg.data['type'];
-      if (type == 'crosstalk_critical') {
-        navigator.pushNamed('/admin/crosstalk');
-      }
+      final route = _routeForMessage(msg);
+      if (route != null) navigator.pushNamed(route);
     });
 
     // Cold-start: tap on push that launched the app.
     FirebaseMessaging.instance.getInitialMessage().then((msg) {
       if (msg == null) return;
-      final type = msg.data['type'];
-      if (type == 'crosstalk_critical') {
-        navigator.pushNamed('/admin/crosstalk');
-      }
+      final route = _routeForMessage(msg);
+      if (route != null) navigator.pushNamed(route);
     });
+  }
+
+  /// Maps an incoming admin push to a named route (or null when unhandled).
+  static String? _routeForMessage(RemoteMessage msg) {
+    final type = msg.data['type'];
+    if (type == 'crosstalk_critical') return '/admin/crosstalk';
+    if (type == 'admin_generic') {
+      final route = msg.data['route']?.toString();
+      if (route != null && route.startsWith('/admin')) return route;
+      return '/admin';
+    }
+    return null;
   }
 
   /// Best-effort device label without taking a `device_info_plus` dependency.

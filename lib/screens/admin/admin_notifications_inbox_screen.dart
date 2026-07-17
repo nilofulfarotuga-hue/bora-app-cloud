@@ -117,6 +117,17 @@ class _AdminNotificationsInboxScreenState
     }
   }
 
+  /// PARTE A (2026-07-17) — tocar numa notificação marca-a lida E navega para
+  /// o `deep_link` (ex.: /admin/drivers/approval). Antes o tap só marcava lida.
+  Future<void> _openRow(Map<String, dynamic> row) async {
+    await _markRead(row);
+    if (!mounted) return;
+    final link = row['deep_link']?.toString();
+    if (link != null && link.startsWith('/admin')) {
+      Navigator.of(context).pushNamed(link);
+    }
+  }
+
   Future<void> _archive(Map<String, dynamic> row) async {
     final id = row['id']?.toString();
     if (id == null) return;
@@ -431,7 +442,7 @@ class _AdminNotificationsInboxScreenState
               ],
             ],
           ),
-          onTap: () => _markRead(r),
+          onTap: () => _openRow(r),
         ),
       ),
     );

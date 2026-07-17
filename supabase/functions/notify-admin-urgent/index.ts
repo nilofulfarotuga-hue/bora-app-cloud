@@ -145,7 +145,7 @@ Deno.serve(async (req) => {
 
       const results = await Promise.allSettled(
         tokenList.map((t) =>
-          sendFcmV1(fcmUrl, accessToken!, t.fcm_token, pushTitle, pushBody, pushData)
+          sendFcmV1(fcmUrl, accessToken!, t.fcm_token, pushTitle, pushBody, pushData, kind === 'generic')
             .then((res) => ({ token: t, res }))
         ),
       )
@@ -253,6 +253,7 @@ async function sendFcmV1(
   title: string,
   bodyText: string,
   data: Record<string, string>,
+  sticky = false, // PARTE A (2026-07-17): admin generic → notificação persistente
 ): Promise<{ ok: boolean; stale: boolean; status: number; body: any }> {
   const message = {
     message: {
@@ -267,6 +268,8 @@ async function sendFcmV1(
         notification: {
           channel_id: 'bora_admin_urgent',
           sound:      'default',
+          // sticky=true → não se apaga ao tocar; fica no ecrã até o admin agir.
+          ...(sticky ? { sticky: true, notification_priority: 'PRIORITY_MAX' } : {}),
         },
       },
       apns: {

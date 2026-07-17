@@ -31,6 +31,7 @@ import 'screens/admin/admin_robot_suggestions_screen.dart';
 import 'screens/admin/admin_driver_approval_screen.dart';
 import 'screens/admin/admin_partners_pending_screen.dart';
 import 'screens/admin/admin_tvde_access_requests_screen.dart';
+import 'screens/admin/admin_tvde_noshows_screen.dart';
 import 'screens/admin/admin_cleaning_cleaners_screen.dart';
 import 'screens/admin/admin_ratings_screen.dart';
 import 'screens/admin/admin_skill_suggestions_metrics_screen.dart';
@@ -524,6 +525,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           '/admin/partners/pending': (_) => const AdminPartnersPendingScreen(),
           '/admin/tvde/access-requests': (_) =>
               const AdminTvdeAccessRequestsScreen(),
+          '/admin/tvde/noshows': (_) => const AdminTvdeNoShowsScreen(),
           '/admin/cleaning/cleaners': (_) => const AdminCleaningCleanersScreen(),
         },
         onGenerateRoute: (settings) {

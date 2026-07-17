@@ -71,6 +71,7 @@ import 'admin_weekly_settlements_screen.dart';
 import 'admin_cleaning_bookings_screen.dart';
 import 'admin_cleaning_cleaners_screen.dart';
 import 'admin_tvde_access_requests_screen.dart';
+import 'admin_tvde_noshows_screen.dart';
 import 'admin_tvde_rides_screen.dart';
 import 'admin_tvde_cancellations_screen.dart';
 import 'admin_tvde_drivers_screen.dart';
@@ -980,6 +981,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       MaterialPageRoute(
                           builder: (_) =>
                               const AdminTvdeAccessRequestsScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.person_off,
+                  title: 'No-shows TVDE',
+                  subtitle: 'Ver/reverter',
+                  color: const Color(0xFF0EA5E9),
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminTvdeNoShowsScreen())),
                 ),
                 const SizedBox(height: 10),
                 _NavCard(

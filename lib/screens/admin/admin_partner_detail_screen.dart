@@ -50,6 +50,10 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
   // restaurant-documents). Guardamos só o path; render via PrivateBucketImage.
   String? _ownerDocPath;
   String? _activityDocPath;
+  // Coordenadas editáveis pelo admin (Bug 1) — lat/lng do restaurante.
+  final TextEditingController _latCtrl = TextEditingController();
+  final TextEditingController _lngCtrl = TextEditingController();
+  bool _savingCoords = false;
 
   static const _days = <({int weekday, String label, String key})>[
     (weekday: DateTime.monday,    label: 'Segunda-feira', key: 'mon'),
@@ -71,6 +75,8 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
   @override
   void dispose() {
     _tab.dispose();
+    _latCtrl.dispose();
+    _lngCtrl.dispose();
     super.dispose();
   }
 
@@ -82,7 +88,7 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
           .select(
               'id, name, category, address, phone, email, is_partner, is_online, is_active_admin, business_hours, '
               'takeaway_enabled, curbside_enabled, takeaway_default_prep_minutes, hero_image_url, photo_url, '
-              'owner_doc_url, activity_doc_url')
+              'owner_doc_url, activity_doc_url, lat, lng')
           .eq('id', widget.restaurantId)
           .single();
       final openData = await Supabase.instance.client.rpc('is_partner_open', params: {
@@ -100,6 +106,8 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
           _logoImageUrl = r['photo_url'] as String?;
           _ownerDocPath = r['owner_doc_url'] as String?;
           _activityDocPath = r['activity_doc_url'] as String?;
+          _latCtrl.text = (r['lat'] as num?)?.toString() ?? '';
+          _lngCtrl.text = (r['lng'] as num?)?.toString() ?? '';
           _openStatus = results[1] is Map
               ? Map<String, dynamic>.from(results[1] as Map)
               : {'is_open': results[1]};
@@ -592,6 +600,68 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
               ),
             ),
           const SizedBox(height: 16),
+          // ── Coordenadas (lat/lng) — editável pelo admin (Bug 1) ─────────
+          Card(
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(Radii.lg),
+              side: const BorderSide(color: AppColors.divider),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(children: [
+                    Icon(Icons.my_location, size: 20),
+                    SizedBox(width: 8),
+                    Text('Coordenadas (localização no mapa)',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w700, fontSize: 15)),
+                  ]),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Latitude e longitude usadas para posicionar o parceiro no mapa. Use ponto decimal (ex: 40.6405, -8.6538).',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _latCtrl,
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true, signed: true),
+                        decoration: const InputDecoration(
+                          labelText: 'Latitude',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _lngCtrl,
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true, signed: true),
+                        decoration: const InputDecoration(
+                          labelText: 'Longitude',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                  ]),
+                  const SizedBox(height: 12),
+                  BoraPrimaryButton(
+                    label: 'Guardar coordenadas',
+                    icon: Icons.save,
+                    loading: _savingCoords,
+                    onPressed: _savingCoords ? null : _saveCoords,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
           BoraPrimaryButton(
             label: 'Editar dados',
             icon: Icons.edit,
@@ -612,6 +682,43 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
         ],
       ),
     );
+  }
+
+  // ─── Coordenadas (Bug 1) ──────────────────────────────────────────────────
+  Future<void> _saveCoords() async {
+    final latText = _latCtrl.text.trim().replaceAll(',', '.');
+    final lngText = _lngCtrl.text.trim().replaceAll(',', '.');
+    final lat = double.tryParse(latText);
+    final lng = double.tryParse(lngText);
+    if (lat == null || lng == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text(
+                'Latitude/Longitude inválida. Use números (ex: 40.6405, -8.6538).')),
+      );
+      return;
+    }
+    setState(() => _savingCoords = true);
+    try {
+      await Supabase.instance.client.rpc('admin_update_partner_coords', params: {
+        'p_restaurant_id': widget.restaurantId,
+        'p_lat': lat,
+        'p_lng': lng,
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Coordenadas guardadas.')),
+        );
+      }
+      await _loadAll();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Erro ao guardar coordenadas: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _savingCoords = false);
+    }
   }
 
   Widget _infoRow(IconData icon, String label, String value) {

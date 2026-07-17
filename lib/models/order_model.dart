@@ -207,6 +207,16 @@ class OrderModel {
   /// Dinheiro recebido do cliente na paragem em casa (modo dinheiro). Estafeta
   /// regista na recolha. Em cents. NULL se não aplicável.
   final int? errandHomeStopCashCents;
+  /// Parte 8 — morada + coords da paragem em casa (antes eram geocodificadas no
+  /// form e DESCARTADAS: o estafeta ia para o sítio errado). Primeira paragem.
+  final String? errandHomeStopAddress;
+  final double? errandHomeStopLat;
+  final double? errandHomeStopLng;
+  /// Se o favor implica voltar a casa no fim (devolver troco/comprovativo).
+  final bool errandReturnLeg;
+  final DateTime? errandReturnDoneAt;
+  /// Perna atual: 0=por-iniciar, 1=em-casa, 2=no-favor, 3=de-volta.
+  final int errandLeg;
   /// 'normal' | 'express'
   final String? errandSpeed;
   final bool errandHasPurchase;
@@ -334,6 +344,12 @@ class OrderModel {
     this.errandHomeStop = false,
     this.errandHomeStopReason,
     this.errandHomeStopCashCents,
+    this.errandHomeStopAddress,
+    this.errandHomeStopLat,
+    this.errandHomeStopLng,
+    this.errandReturnLeg = false,
+    this.errandReturnDoneAt,
+    this.errandLeg = 0,
     this.errandSpeed,
     this.errandHasPurchase = false,
     this.errandEstimatedPurchaseCents = 0,
@@ -541,6 +557,14 @@ class OrderModel {
       errandHomeStopReason: data['errand_home_stop_reason'] as String?,
       errandHomeStopCashCents:
           (data['errand_home_stop_cash_cents'] as num?)?.toInt(),
+      errandHomeStopAddress: data['errand_home_stop_address'] as String?,
+      errandHomeStopLat: (data['errand_home_stop_lat'] as num?)?.toDouble(),
+      errandHomeStopLng: (data['errand_home_stop_lng'] as num?)?.toDouble(),
+      errandReturnLeg: data['errand_return_leg'] as bool? ?? false,
+      errandReturnDoneAt: data['errand_return_done_at'] != null
+          ? DateTime.tryParse(data['errand_return_done_at'].toString())
+          : null,
+      errandLeg: (data['errand_leg'] as num?)?.toInt() ?? 0,
       errandSpeed: data['errand_speed'] as String?,
       errandHasPurchase: data['errand_has_purchase'] as bool? ?? false,
       errandEstimatedPurchaseCents:
@@ -634,6 +658,14 @@ class OrderModel {
         if (errandHomeStopReason != null) 'errand_home_stop_reason': errandHomeStopReason,
         if (errandHomeStopCashCents != null)
           'errand_home_stop_cash_cents': errandHomeStopCashCents,
+        if (errandHomeStopAddress != null)
+          'errand_home_stop_address': errandHomeStopAddress,
+        if (errandHomeStopLat != null) 'errand_home_stop_lat': errandHomeStopLat,
+        if (errandHomeStopLng != null) 'errand_home_stop_lng': errandHomeStopLng,
+        'errand_return_leg': errandReturnLeg,
+        if (errandReturnDoneAt != null)
+          'errand_return_done_at': errandReturnDoneAt!.toIso8601String(),
+        'errand_leg': errandLeg,
         if (errandSpeed != null) 'errand_speed': errandSpeed,
         'errand_has_purchase': errandHasPurchase,
         if (errandEstimatedPurchaseCents > 0)

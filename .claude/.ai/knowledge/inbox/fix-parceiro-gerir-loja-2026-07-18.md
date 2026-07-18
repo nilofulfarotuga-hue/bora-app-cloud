@@ -91,10 +91,11 @@ Prestador `corte teste` com `approval_status='approved'`, `is_active_admin=true`
 
 ## Commit
 ```
-99a5220 fix(parceiro-servicos): reconsulta approval_status fresco antes de navegar
+e36495a fix(parceiro-servicos): reconsulta approval_status fresco antes de navegar
 2 files changed, 97 insertions(+), 15 deletions(-)
 ```
-(branch `autonomous-night-2026-04-29`)
+(branch `autonomous-night-2026-04-29`, pushed em `6e407b241652f7724586165d11c47bbab2c78eb6`;
+hash mudou de `99a5220` para `e36495a` por causa de `git pull --rebase` antes do push)
 
 ## Notas
 - Não mexeu em dinheiro, pricing, dispatch nem admin (o fluxo de aprovação

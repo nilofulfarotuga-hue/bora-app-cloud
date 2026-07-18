@@ -168,4 +168,33 @@ write já persiste; a leitura/badge é o passo seguinte.
 - `lib/screens/add_product_screen.dart`, `lib/stores/partner_product_store.dart`,
   `lib/stores/restaurant_store.dart`
 
+**Commit:** `07345ef` · **Push:** OK (`9e01d17..07345ef`).
+
+---
+
+## PARTE 6 — Beleza: rotear parceiro aprovado ao dashboard de serviços
+
+**Estado: VERIFICADO — o routing JÁ está correto (sem bug). Conta "teste" APROVADA para o teste
+ponta-a-ponta.**
+
+Segui o caminho completo no código e confirmei que já está ligado:
+- `partner_login_screen._finishPartnerLogin`: se não há `restaurants` para o email → faz
+  `appointmentsStore.loadMyProvider()` (pré-aquece) e segue com `setRole(partner)` (linhas 354-368,
+  com comentário a explicar exatamente o caso Serviços/Barbearias).
+- `PartnerEntryScreen`: sem `partnerRestaurant` e sem restaurante por email →
+  `_PartnerNoRestaurantRouter` → `loadMyProvider()` (por `service_providers.user_id = auth.uid()`,
+  sem filtro de aprovação) → **`PartnerServicesHubScreen`** (o dashboard de serviços/marcações).
+- Prova viva: **Barbearia Nobre** (approved, user_id definido) já cai no hub por este caminho.
+
+Dados confirmados: a conta **"teste"** (beauty) tem `user_id` (b69da1b3…) — logo o `loadMyProvider`
+encontra-a. **Aprovei-a via admin** (approval_status pending→approved) para exercitar o caminho
+candidatura→aprovação→dashboard de ponta a ponta. O microSaaS de agenda (`lib/screens/partner/
+services/`) já existe e é para onde o hub aponta.
+
+**Conclusão:** não era preciso "corrigir" — a ligação já existe e está correta; o que faltava era
+**aprovar** a candidatura de teste (feito). Nenhuma mudança de código.
+
+### Ficheiros tocados
+- (nenhum código; ação de dados: `service_providers` "teste" → approved)
+
 ---

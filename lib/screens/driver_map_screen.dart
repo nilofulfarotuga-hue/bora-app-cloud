@@ -2811,6 +2811,21 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                       ),
+                                      // Quantidade × preço unitário — visível mesmo
+                                      // quando o nome acima é cortado pelo ellipsis
+                                      // (nome longo escondia o "× qty" fundido nele).
+                                      if (item.quantity > 1)
+                                        Padding(
+                                          padding:
+                                              const EdgeInsets.only(top: 2),
+                                          child: Text(
+                                            '${item.quantity} × €${(_isExtraItem(item) ? item.price : (item.basePrice ?? item.price)).toStringAsFixed(2)}',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.grey.shade600,
+                                            ),
+                                          ),
+                                        ),
                                       // Opções escolhidas pelo cliente (bebida,
                                       // acompanhamento, molhos...) — o estafeta
                                       // precisa de as ver para pedir certo.

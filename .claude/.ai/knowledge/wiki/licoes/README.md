@@ -29,3 +29,5 @@ confianca: auto
 | [[licao-heartbeat-fantasma]] | `is_online=true` sem TTL = dispatch para mortos — presença precisa de cron de expiração por heartbeat |
 | [[licao-parser-mudo]] | Parser nunca devolve 0 bytes — "SAIDA-VAZIA" é sintoma, não causa; diz sempre o que aconteceu |
 | [[licao-autocomplete-teclado]] | Dropdown atrás do teclado em bottom-sheet — fix no widget partilhado (`viewInsets`/`isScrollControlled`), não por ecrã |
+| [[licao-casca-sem-fio]] | Serviço/widget novo com ZERO chamadores é casca, não "feito" — `git grep` os call sites antes de declarar vitória |
+| [[licao-check-constraint-antes-de-semear]] | Antes de semear dados, lê as CHECK constraints (zona/shape/status) e corre a função UMA vez de verdade |

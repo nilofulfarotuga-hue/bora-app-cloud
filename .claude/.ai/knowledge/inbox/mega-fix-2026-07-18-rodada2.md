@@ -277,4 +277,37 @@ admin (mutar `cleaners.equipment`) seria um fluxo novo (RPC admin + diálogo) �
 ### Ficheiros tocados
 - `lib/screens/admin/admin_order_detail_screen.dart`
 
+**Commit:** `3f0a3cb` · **Push:** OK (`df8dfe6..3f0a3cb`).
+
 ---
+
+## PARTE 10 — FECHO
+
+**Lições novas** (`wiki/licoes/` + índice):
+- `licao-casca-sem-fio` — serviço criado mas com 0 chamadores é casca (o furo do `IncomingJobAlert`).
+- `licao-check-constraint-antes-de-semear` — ler CHECK constraints + correr a função de verdade
+  antes de dar por feito (o gotcha `zona`).
+
+### RESUMO FINAL DA RODADA 2
+
+| Parte | Estado | Commit |
+|---|---|---|
+| 1 — Ligar IncomingJobAlert (3 sítios) | ✅ (wiring; confirmação em device) | `742d3fe` |
+| 2 — Destravar 2 ficheiros TVDE + defesas | ✅ (revisão crítica de dinheiro passou) | `89d3d72` |
+| 3 — Favores: wiring errand_set_home_stop | ✅ persistência (3 pay paths); sheet bloqueada por permissão | `ac23a20` |
+| 4 — Wizard ramificado por tipo | ✅ | `9e01d17` |
+| 5 — Retalho mínimo (alergénios/receita) | ✅ núcleo; CSV import admin deferido | `07345ef` |
+| 6 — Beleza routing ao dashboard serviços | ✅ verificado (já correto) + teste aprovado | `525dc7c` |
+| 7 — Reservas auto-setup | ✅ verificado ao vivo | `71c4bca` |
+| 8 — No-show TVDE ponta do motorista | ✅ verificado + confirmação add | `df8dfe6` |
+| 9 — Espelho admin (favores/utensílios/beauty) | ✅ | `3f0a3cb` |
+| 10 — Fecho | ✅ (este) | (este) |
+
+**Perímetro protegido respeitado:** não toquei em `pricing_service`, `dispatch_engine`,
+`finalizePurchase`, `create_order`, webhook Stripe nem RLS financeira. Na Parte 2 (tokens TVDE) a
+revisão crítica confirmou que o Dart só ENVIA o parâmetro + MOSTRA o desconto (cálculo server-side);
+na Parte 8 confirmei que não mexi em valores de no-show.
+
+**Bloqueios honestos:** (3) `errand_execution_sheet.dart` bloqueado por permissões (morada+banner
+cash — dados já no modelo); (5) importador CSV admin deferido (ecrã novo).
+

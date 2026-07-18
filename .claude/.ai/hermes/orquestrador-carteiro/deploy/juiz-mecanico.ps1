@@ -144,7 +144,11 @@ foreach ($km in [regex]::Matches($tarefaAscii, $kwRe)) {
 if ($recusaValida) {
   Proof 'commit-check' 'dispensado: recusa valida (a ordem previa escape e o executor reportou)'
 } elseif ($mandaCommit) {
-  # b1: hash alegado na SAIDA (linhas que falam de commit) tem de EXISTIR no repo
+  # b1: hash alegado na SAIDA (linhas que falam de commit) - so AUDITORIA (Proof), NUNCA motivo
+  # de reprova sozinho. FIX 2026-07-18 (falso-alarme ordem b439): o executor escreveu
+  # "commit 29636612139" no TEXTO do relatorio (erro de transcricao/digitacao - o commit real
+  # era 458326c) e o juiz reprovava so por esse hash de texto nao bater no repo, mesmo havendo
+  # commit real e novo no git log. Quem decide agora e SEMPRE o git log real (b2), nunca o texto.
   $claimed = @()
   foreach ($ln in ($saida -split "`n")) {
     if ($ln -match '(?i)commit') {
@@ -152,27 +156,34 @@ if ($recusaValida) {
     }
   }
   $claimed = $claimed | Select-Object -Unique -First 5
+  $hashExisteOk = $false
   $hashNovoOk = $false
   foreach ($h in $claimed) {
     $t = (git cat-file -t $h 2>&1); $rc = $LASTEXITCODE
     Proof "git cat-file -t $h (rc=$rc)" "$t"
-    if ($rc -ne 0) { Reprova "a saida alega o commit $h mas ele NAO existe no repo (trabalho inventado)" }
+    if ($rc -ne 0) {
+      Proof 'hash alegado diverge do git' "$h nao bate no repo - pode ser erro de digitacao/transcricao do executor; nao reprova sozinho, decide o git log real na b2"
+      continue
+    }
+    $hashExisteOk = $true
     if ($inicio) {
       $ct = [int64]((git show -s --format=%ct $h 2>$null) | Select-Object -First 1)
       Proof "git show -s --format=%ct $h" "committer_epoch=$ct (inicio=$inicio)"
       if ($ct -ge $inicio) { $hashNovoOk = $true }
     }
   }
-  # b2: tem de haver commit NOVO desde o arranque da ordem (criada:), OU um hash alegado
-  # verificado com committer-date >= inicio (cinto extra contra falso-negativo do --since)
+  # b2: PROVA REAL - tem de haver commit NOVO desde o arranque da ordem no git log (fonte unica
+  # de verdade), OU um hash alegado verificado com committer-date >= inicio (cinto extra contra
+  # falso-negativo do --since), OU (sem META inicio_epoch) pelo menos um hash alegado que exista
+  # mesmo no repo.
   if ($inicio) {
     $novo = (git log --all --oneline --since="@$inicio" 2>&1) -join ' | '
     Proof "git log --all --oneline --since=@$inicio" $(if ($novo) { $novo } else { '(vazio)' })
-    if ((-not $novo) -and (-not $hashNovoOk)) { Reprova 'a ordem pedia commit/push e NAO ha nenhum commit novo desde o arranque da ordem' }
-  } elseif ($claimed.Count -eq 0) {
+    if ((-not $novo) -and (-not $hashNovoOk)) { Reprova 'a ordem pedia commit/push e NAO ha nenhum commit novo desde o arranque da ordem (prova = git log real, nunca o texto do executor)' }
+  } else {
     $novo = (git log --all --oneline --since='3 hours ago' 2>&1) -join ' | '
     Proof "git log --all --oneline --since='3 hours ago' (sem META inicio_epoch)" $(if ($novo) { $novo } else { '(vazio)' })
-    if (-not $novo) { Reprova 'a ordem pedia commit/push, sem commit novo nas ultimas 3h e sem hash alegado verificavel' }
+    if ((-not $novo) -and (-not $hashExisteOk)) { Reprova 'a ordem pedia commit/push, sem commit novo nas ultimas 3h e sem hash alegado verificavel no repo (prova = git log real, nunca o texto do executor)' }
   }
 } elseif ($proibeCommit) {
   # ordem PROIBE commit/push: violacao SO se o executor committou algo ATRIBUIVEL (hash alegado
@@ -199,6 +210,12 @@ if ($recusaValida) {
 }
 
 # ---- (c) ordem pedia criar/escrever ficheiro -> tem de existir em disco ----
+# FIX 2026-07-18 (falso-alarme ordens 7ab2/02ec/ebcc): a ordem referia so "inbox/relatorio-x.md"
+# (caminho curto) mas o executor grava sempre sob o espelho do cortex ".claude\.ai\knowledge\...".
+# O caminho literal extraido da ordem nao existe na raiz do repo -> falso "NAO existe em disco"
+# mesmo com o relatorio commitado. Agora aceita: (1) caminho literal (como ja fazia), (2) o mesmo
+# caminho sob ".claude\.ai\knowledge\" (espelho do cortex), (3) na falta de disco, um commit REAL
+# desde o arranque da ordem cujo diff toca um ficheiro com o mesmo nome (git, nunca o texto).
 if ($recusaValida) {
   Proof 'ficheiro-check' 'dispensado: recusa valida (a ordem previa escape e o executor reportou)'
 } elseif ($tarefa -match '(?i)\b(cria|criar|escreve|escrever|gera|gerar|adiciona|adicionar)\b') {
@@ -209,7 +226,29 @@ if ($recusaValida) {
     $pp = $p -replace '/', '\'
     $ex = Test-Path (Join-Path $Proj $pp)
     Proof "Test-Path $pp" "$ex"
-    if (-not $ex) { Reprova "a ordem pedia criar/alterar o ficheiro $p e ele NAO existe em disco" }
+    if ($ex) { continue }
+
+    $ppMirror = Join-Path '.claude\.ai\knowledge' $pp
+    $exMirror = Test-Path (Join-Path $Proj $ppMirror)
+    Proof "Test-Path $ppMirror (espelho cortex)" "$exMirror"
+    if ($exMirror) {
+      Proof 'ficheiro-check' "$p nao esta no caminho literal mas existe no espelho do cortex ($ppMirror) - divergencia de caminho, nao trabalho em falta"
+      continue
+    }
+
+    $exGit = $false
+    if ($inicio) {
+      $bn = Split-Path $p -Leaf
+      $gitOut = (git log "$base..HEAD" --name-only --pretty=format: -- "*$bn" 2>&1) -join ' | '
+      $exGit = ($gitOut.Trim().Length -gt 0)
+      Proof "git log $base..HEAD --name-only -- *$bn" $(if ($exGit) { $gitOut } else { '(vazio)' })
+    }
+    if ($exGit) {
+      Proof 'ficheiro-check' "$p nao esta em nenhum caminho literal mas ha commit real desde o arranque da ordem que toca um ficheiro *$bn - divergencia de caminho, nao trabalho em falta"
+      continue
+    }
+
+    Reprova "a ordem pedia criar/alterar o ficheiro $p e ele NAO existe em disco (nem no caminho literal, nem no espelho do cortex) nem ha commit real que o toque"
   }
 }
 

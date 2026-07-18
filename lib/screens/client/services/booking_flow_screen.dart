@@ -10,6 +10,7 @@ import '../../../stores/services_store.dart';
 import '../../../widgets/bora/bora_accent_button.dart';
 import '../../../widgets/bora/bora_primary_button.dart';
 import '../../../widgets/bora/bora_screen_app_bar.dart';
+import '../../../widgets/services/staff_avatar.dart';
 import '../reservation/reservation_payment_method_sheet.dart';
 import 'appointment_mbway_waiting_dialog.dart';
 import 'booking_success_screen.dart';
@@ -451,7 +452,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
             },
             child: Row(
               children: [
-                _StaffAvatar(staff: st),
+                StaffAvatar(staff: st),
                 const SizedBox(width: Spacing.md),
                 Expanded(
                   child: Column(
@@ -820,31 +821,6 @@ class _SelectableCard extends StatelessWidget {
               : null,
         ),
         child: child,
-      ),
-    );
-  }
-}
-
-class _StaffAvatar extends StatelessWidget {
-  const _StaffAvatar({required this.staff});
-  final StaffMemberModel staff;
-
-  @override
-  Widget build(BuildContext context) {
-    final url = staff.photoUrl;
-    if (url != null && url.isNotEmpty) {
-      return CircleAvatar(radius: 22, backgroundImage: NetworkImage(url));
-    }
-    final initial = staff.name.isNotEmpty ? staff.name[0].toUpperCase() : '?';
-    return CircleAvatar(
-      radius: 22,
-      backgroundColor: AppColors.primaryLight,
-      child: Text(
-        initial,
-        style: const TextStyle(
-          color: AppColors.primary,
-          fontWeight: FontWeight.w700,
-        ),
       ),
     );
   }

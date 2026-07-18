@@ -2,7 +2,8 @@
 // Beleza). Espelha `admin_partner_detail_screen.dart` (restaurantes) mas para a
 // tabela `service_providers` + `provider_services`. PT-BR.
 //
-// Abas: Dados (editar + logo + capa) · Horários · Serviços & Preços · Estado.
+// Abas: Dados (editar + logo + capa) · Horários · Serviços & Preços · Equipe
+// (staff com foto) · Estado.
 //
 // Reutiliza:
 //  - `BusinessHours`/`DayHours` (models/restaurant_model.dart) para os horários.
@@ -24,8 +25,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../models/restaurant_model.dart' show BusinessHours, DayHours;
+import '../../models/staff_member_model.dart';
 import '../../utils/safe_image_picker.dart';
 import '../../widgets/bora/bora_primary_button.dart';
+import '../../widgets/services/staff_avatar.dart';
 
 class AdminServiceProviderDetailScreen extends StatefulWidget {
   const AdminServiceProviderDetailScreen({
@@ -73,6 +76,10 @@ class _AdminServiceProviderDetailScreenState
   List<Map<String, dynamic>> _services = const [];
   bool _servicesLoading = true;
 
+  // Equipe (staff_members)
+  List<Map<String, dynamic>> _staff = const [];
+  bool _staffLoading = true;
+
   // Estado
   bool _deleting = false;
 
@@ -103,7 +110,7 @@ class _AdminServiceProviderDetailScreenState
   @override
   void initState() {
     super.initState();
-    _tab = TabController(length: 4, vsync: this);
+    _tab = TabController(length: 5, vsync: this);
     _loadAll();
   }
 
@@ -144,6 +151,7 @@ class _AdminServiceProviderDetailScreenState
         _loading = false;
       });
       await _loadServices();
+      await _loadStaff();
     } catch (e) {
       if (!mounted) return;
       setState(() => _loading = false);
@@ -172,6 +180,29 @@ class _AdminServiceProviderDetailScreenState
       if (!mounted) return;
       setState(() => _servicesLoading = false);
       _toast('Erro ao carregar serviços: $e');
+    }
+  }
+
+  Future<void> _loadStaff() async {
+    setState(() => _staffLoading = true);
+    try {
+      // Admin vê TODA a equipa (activos e inactivos).
+      final res = await _supabase
+          .from('staff_members')
+          .select()
+          .eq('provider_id', widget.providerId)
+          .order('sort_order', ascending: true);
+      if (!mounted) return;
+      setState(() {
+        _staff = (res as List)
+            .map((e) => Map<String, dynamic>.from(e as Map))
+            .toList();
+        _staffLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _staffLoading = false);
+      _toast('Erro ao carregar equipe: $e');
     }
   }
 
@@ -921,6 +952,484 @@ class _AdminServiceProviderDetailScreenState
     );
   }
 
+  // ─── EQUIPE (staff_members — CRUD directo, RLS is_admin) ────────────────────
+
+  /// Escolhe (câmara/galeria) e sobe uma foto de profissional via a Edge
+  /// Function `upload-restaurant-asset` (kind='staff_photo' → bucket público).
+  /// Devolve o public_url ou lança em erro.
+  Future<String?> _uploadStaffPhoto() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Tirar foto'),
+              onTap: () => Navigator.pop(context, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Escolher da galeria'),
+              onTap: () => Navigator.pop(context, ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null) return null;
+    final file = await SafeImagePicker.pickImage(
+      source: source,
+      imageQuality: 85,
+      maxWidth: 1000,
+    );
+    if (file == null) return null;
+    final bytes = await File(file.path).readAsBytes();
+    if (bytes.length > 10 * 1024 * 1024) {
+      _toast('Imagem muito grande (máx 10 MB).');
+      return null;
+    }
+    final ext = file.path.split('.').last.toLowerCase();
+    final safeExt = ['jpg', 'jpeg', 'png', 'webp'].contains(ext) ? ext : 'jpg';
+    final response = await _supabase.functions.invoke(
+      'upload-restaurant-asset',
+      body: {
+        'restaurantId': widget.providerId,
+        'kind': 'staff_photo',
+        'fileBase64': base64Encode(bytes),
+        'contentType': 'image/${safeExt == 'jpg' ? 'jpeg' : safeExt}',
+      },
+    );
+    if (response.status != 200 || response.data is! Map) {
+      throw Exception('upload-restaurant-asset HTTP ${response.status}');
+    }
+    final data = Map<String, dynamic>.from(response.data as Map);
+    if (data['success'] != true || data['public_url'] == null) {
+      throw Exception(data['error']?.toString() ?? 'upload falhou');
+    }
+    return data['public_url'] as String;
+  }
+
+  Future<void> _staffDialog({Map<String, dynamic>? existing}) async {
+    final nameCtrl =
+        TextEditingController(text: existing?['name'] as String? ?? '');
+    final bioCtrl =
+        TextEditingController(text: existing?['bio'] as String? ?? '');
+    final specialtiesCtrl = TextEditingController(
+        text: ((existing?['specialties'] as List?)
+                ?.map((e) => e.toString())
+                .join(', ')) ??
+            '');
+    String? photoUrl = existing?['photo_url'] as String?;
+    final formKey = GlobalKey<FormState>();
+    bool saving = false;
+    bool uploading = false;
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSt) => AlertDialog(
+          title: Text(
+              existing == null ? 'Adicionar profissional' : 'Editar profissional'),
+          content: SingleChildScrollView(
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Center(
+                    child: GestureDetector(
+                      onTap: uploading
+                          ? null
+                          : () async {
+                              setSt(() => uploading = true);
+                              try {
+                                final url = await _uploadStaffPhoto();
+                                if (url != null) setSt(() => photoUrl = url);
+                              } catch (e) {
+                                _toast('Erro ao enviar foto: $e');
+                              } finally {
+                                setSt(() => uploading = false);
+                              }
+                            },
+                      child: Stack(
+                        children: [
+                          CircleAvatar(
+                            radius: 40,
+                            backgroundColor: AppColors.primaryLight,
+                            backgroundImage:
+                                (photoUrl != null && photoUrl!.isNotEmpty)
+                                    ? NetworkImage(photoUrl!)
+                                    : null,
+                            child: uploading
+                                ? const CircularProgressIndicator()
+                                : ((photoUrl == null || photoUrl!.isEmpty)
+                                    ? const Icon(Icons.person,
+                                        size: 36, color: AppColors.primary)
+                                    : null),
+                          ),
+                          Positioned(
+                            right: 0,
+                            bottom: 0,
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: const BoxDecoration(
+                                color: AppColors.accent,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.camera_alt,
+                                  size: 16, color: Colors.white),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: Spacing.md),
+                  TextFormField(
+                    controller: nameCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Nome',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (v) => (v == null || v.trim().isEmpty)
+                        ? 'Obrigatório'
+                        : null,
+                  ),
+                  const SizedBox(height: Spacing.md),
+                  TextFormField(
+                    controller: bioCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Função / Bio (ex.: Cabeleireira)',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: Spacing.md),
+                  TextFormField(
+                    controller: specialtiesCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Especialidades (separadas por vírgula)',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: saving ? null : () => Navigator.pop(ctx),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: (saving || uploading)
+                  ? null
+                  : () async {
+                      if (!(formKey.currentState?.validate() ?? false)) return;
+                      setSt(() => saving = true);
+                      final specialties = specialtiesCtrl.text
+                          .split(',')
+                          .map((s) => s.trim())
+                          .where((s) => s.isNotEmpty)
+                          .toList();
+                      try {
+                        if (existing == null) {
+                          final nextOrder = _staff.isEmpty
+                              ? 0
+                              : ((_staff.last['sort_order'] as num?)?.toInt() ??
+                                      _staff.length - 1) +
+                                  1;
+                          await _supabase.from('staff_members').insert({
+                            'provider_id': widget.providerId,
+                            'name': nameCtrl.text.trim(),
+                            'bio': bioCtrl.text.trim(),
+                            'photo_url': photoUrl,
+                            'specialties': specialties,
+                            'is_active': true,
+                            'sort_order': nextOrder,
+                          });
+                        } else {
+                          await _supabase.from('staff_members').update({
+                            'name': nameCtrl.text.trim(),
+                            'bio': bioCtrl.text.trim(),
+                            'photo_url': photoUrl,
+                            'specialties': specialties,
+                          }).eq('id', existing['id']);
+                        }
+                        if (ctx.mounted) Navigator.pop(ctx);
+                        _toast(existing == null
+                            ? 'Profissional adicionado.'
+                            : 'Profissional actualizado.');
+                        await _loadStaff();
+                      } catch (e) {
+                        setSt(() => saving = false);
+                        _toast('Erro ao guardar profissional: $e');
+                      }
+                    },
+              child: saving
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Text('Salvar'),
+            ),
+          ],
+        ),
+      ),
+    );
+    nameCtrl.dispose();
+    bioCtrl.dispose();
+    specialtiesCtrl.dispose();
+  }
+
+  Future<void> _toggleStaffActive(Map<String, dynamic> s) async {
+    final current = (s['is_active'] as bool?) ?? true;
+    try {
+      await _supabase
+          .from('staff_members')
+          .update({'is_active': !current}).eq('id', s['id']);
+      _toast(!current ? 'Profissional activado.' : 'Profissional desactivado.');
+      await _loadStaff();
+    } catch (e) {
+      _toast('Erro: $e');
+    }
+  }
+
+  Future<void> _deleteStaff(Map<String, dynamic> s) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Apagar profissional'),
+        content: Text(
+            'Apagar "${s['name']}"? Esta ação não pode ser desfeita.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Apagar'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      // `appointments.staff_id` → staff_members: se houver marcações, o DELETE
+      // falha. Verificamos antes e, nesse caso, desactivamos (mantém histórico).
+      final linked = await _supabase
+          .from('appointments')
+          .select('id')
+          .eq('staff_id', s['id'])
+          .limit(1);
+      if ((linked as List).isNotEmpty) {
+        await _supabase
+            .from('staff_members')
+            .update({'is_active': false}).eq('id', s['id']);
+        _toast(
+            'Profissional tem marcações no histórico — foi DESACTIVADO em vez de apagado.');
+        await _loadStaff();
+        return;
+      }
+      await _supabase.from('staff_members').delete().eq('id', s['id']);
+      _toast('Profissional apagado.');
+      await _loadStaff();
+    } catch (e) {
+      _toast('Erro ao apagar profissional: $e');
+    }
+  }
+
+  Future<void> _moveStaff(int index, int delta) async {
+    final j = index + delta;
+    if (j < 0 || j >= _staff.length) return;
+    final list = [..._staff];
+    final tmp = list[index];
+    list[index] = list[j];
+    list[j] = tmp;
+    setState(() => _staff = list);
+    try {
+      for (var i = 0; i < list.length; i++) {
+        await _supabase
+            .from('staff_members')
+            .update({'sort_order': i}).eq('id', list[i]['id']);
+      }
+      await _loadStaff();
+    } catch (e) {
+      _toast('Erro ao reordenar: $e');
+      await _loadStaff();
+    }
+  }
+
+  Widget _buildEquipeTab() {
+    if (_staffLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    return Column(
+      children: [
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: _loadStaff,
+            child: _staff.isEmpty
+                ? ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    children: const [
+                      Padding(
+                        padding: EdgeInsets.all(Spacing.xxxl),
+                        child: Center(
+                            child: Text('Nenhum profissional cadastrado.',
+                                style:
+                                    TextStyle(color: AppColors.textSecondary))),
+                      ),
+                    ],
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.all(Spacing.md),
+                    itemCount: _staff.length,
+                    itemBuilder: (ctx, i) => _staffRow(_staff[i], i),
+                  ),
+          ),
+        ),
+        SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.all(Spacing.md),
+            child: BoraPrimaryButton(
+              label: 'Adicionar profissional',
+              icon: Icons.add,
+              onPressed: () => _staffDialog(),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _staffRow(Map<String, dynamic> s, int index) {
+    final active = (s['is_active'] as bool?) ?? true;
+    final specialties = (s['specialties'] as List?)
+            ?.map((e) => e.toString())
+            .where((e) => e.isNotEmpty)
+            .toList() ??
+        const <String>[];
+    final model = StaffMemberModel.fromSupabase(s);
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: Spacing.xs),
+      child: Padding(
+        padding: const EdgeInsets.all(Spacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                StaffAvatar(staff: model, radius: 24),
+                const SizedBox(width: Spacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        s['name'] as String? ?? '(sem nome)',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                          color: active ? null : AppColors.textSecondary,
+                          decoration:
+                              active ? null : TextDecoration.lineThrough,
+                        ),
+                      ),
+                      if ((s['bio'] as String?)?.isNotEmpty ?? false) ...[
+                        const SizedBox(height: 2),
+                        Text(s['bio'] as String,
+                            style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondary)),
+                      ],
+                      if (!active) ...[
+                        const SizedBox(height: 2),
+                        const Text('inactivo',
+                            style: TextStyle(
+                                fontSize: 12, color: AppColors.textSecondary)),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            if (specialties.isNotEmpty) ...[
+              const SizedBox(height: Spacing.xs),
+              Wrap(
+                spacing: 4,
+                runSpacing: 4,
+                children: [for (final sp in specialties) _adminChip(sp)],
+              ),
+            ],
+            const SizedBox(height: Spacing.xs),
+            Row(
+              children: [
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  tooltip: 'Subir',
+                  icon: const Icon(Icons.arrow_upward, size: 18),
+                  onPressed: index == 0 ? null : () => _moveStaff(index, -1),
+                ),
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  tooltip: 'Descer',
+                  icon: const Icon(Icons.arrow_downward, size: 18),
+                  onPressed: index == _staff.length - 1
+                      ? null
+                      : () => _moveStaff(index, 1),
+                ),
+                const Spacer(),
+                TextButton.icon(
+                  icon: Icon(
+                      active ? Icons.toggle_on : Icons.toggle_off_outlined,
+                      size: 18),
+                  label: Text(active ? 'Desactivar' : 'Activar'),
+                  style: TextButton.styleFrom(
+                      foregroundColor:
+                          active ? AppColors.warning : AppColors.success),
+                  onPressed: () => _toggleStaffActive(s),
+                ),
+                IconButton(
+                  tooltip: 'Editar',
+                  icon: const Icon(Icons.edit, size: 18, color: AppColors.info),
+                  onPressed: () => _staffDialog(existing: s),
+                ),
+                IconButton(
+                  tooltip: 'Apagar',
+                  icon: const Icon(Icons.delete_outline,
+                      size: 18, color: AppColors.error),
+                  onPressed: () => _deleteStaff(s),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _adminChip(String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: AppColors.primaryLight,
+        borderRadius: BorderRadius.circular(Radii.pill),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: AppColors.primary,
+        ),
+      ),
+    );
+  }
+
   // ─── ESTADO / AÇÕES ─────────────────────────────────────────────────────────
 
   Future<void> _approve() async {
@@ -1383,6 +1892,7 @@ class _AdminServiceProviderDetailScreenState
             Tab(icon: Icon(Icons.info_outline), text: 'Dados'),
             Tab(icon: Icon(Icons.schedule), text: 'Horários'),
             Tab(icon: Icon(Icons.content_cut), text: 'Serviços'),
+            Tab(icon: Icon(Icons.groups_outlined), text: 'Equipe'),
             Tab(icon: Icon(Icons.toggle_on), text: 'Estado'),
           ],
         ),
@@ -1395,6 +1905,7 @@ class _AdminServiceProviderDetailScreenState
                 _buildDadosTab(),
                 _buildHorariosTab(),
                 _buildServicosTab(),
+                _buildEquipeTab(),
                 _buildEstadoTab(),
               ],
             ),

@@ -148,7 +148,7 @@ sem erros.
 Output de `git log -1` após o commit desta correção:
 
 ```
-commit df2ab1539b4b2e1b76f243b0402f8f7999a670bc
+commit ff9c1a7be75d2dda8785f0724fffc47f9fafd910
 Author: Danilo (Hermes autonomous) <nilofulfarotuga@gmail.com>
 Date:   Sat Jul 18 12:23:25 2026 +0100
 

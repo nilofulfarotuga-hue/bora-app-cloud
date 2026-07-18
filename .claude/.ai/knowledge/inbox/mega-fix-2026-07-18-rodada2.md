@@ -41,4 +41,34 @@ caminho de código está completo e verificado por analyze + lógica.
 - `lib/stores/cleaner_store.dart`, `lib/screens/partner_dashboard_screen.dart`,
   `lib/screens/driver/tvde/tvde_driver_home_screen.dart`
 
+**Commit:** `742d3fe` · **Push:** OK (`a17480f..742d3fe`).
+
+---
+
+## PARTE 2 — TVDE: destravar os 2 ficheiros retidos (revisão crítica de dinheiro feita)
+
+**Estado: FEITA. Backend confirmado LIVE + revisão crítica passou → os 2 ficheiros commitados.**
+
+Verificação de backend (SQL, agora): `tvde_rides.tokens_applied_count` +
+`tokens_applied_value_cents` existem; `tvde_finish_ride` processa tokens; `tvde_request_ride` e
+`tvde_finish_ride` aceitam `tokens_to_apply`. → O Dart é só o fecho de algo JÁ aplicado.
+
+**Revisão crítica do `tokensUsed` (condição 1 — dinheiro):**
+- `tvde_store.dart`: envia `p_tokens_to_apply: tokensUsed` (param, default 0). **Nenhum cálculo.**
+- `tvde_request_ride_screen.dart`: `_calculateTokensToUse()` calcula a **contagem** de tokens (o
+  parâmetro, limitada a `_tokenMaxPct%` da tarifa para UX — o servidor RE-VALIDA); `tokenDiscount
+  = tokensToUse * 0.005` é **só display** (subtítulo "-€X", linha 969). **NADA calcula o valor
+  cobrado nem o ganho** — isso é server-side (`tvde_request_ride`/`tvde_finish_ride`). Ou seja: só
+  ENVIA o parâmetro e MOSTRA o desconto (exatamente o permitido). Não houve linha para parar.
+- **Condição 2 (default idêntico):** `_useTokens` arranca false → `tokensUsed=0` → `p_tokens_to_apply:0`
+  → corrida sem tokens IDÊNTICA à de antes.
+- **Condição 3 (incluídos no mesmo commit):** `activeRoundtripCredit()` valida `res['id'] != null`
+  (defesa dupla) + card "Planos Bora Motorista" com padding inferior safe-area (não cortado).
+
+`flutter analyze` dos 2 → **0 erros** (3 info pré-existentes). Autorização: Danilo mandou "tudo" +
+verificação de que não há cálculo de preço/ganho no Dart.
+
+### Ficheiros tocados
+- `lib/stores/tvde_store.dart`, `lib/screens/client/tvde/tvde_request_ride_screen.dart`
+
 ---

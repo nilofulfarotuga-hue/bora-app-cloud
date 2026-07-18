@@ -170,6 +170,8 @@ class TvdeStore extends ChangeNotifier {
     // antigo e fluxo dinheiro continuam iguais. Com o kill switch
     // (tvde_card_payments_enabled) desligado, a RPC rejeita card/mbway.
     String paymentMethod = 'cash',
+    // Bora Tokens a aplicar no desconto (max 50% da tarifa, igual ao delivery).
+    int tokensUsed = 0,
   }) async {
     _setBusy(true);
     try {
@@ -182,6 +184,7 @@ class TvdeStore extends ChangeNotifier {
         'p_dest_label': destLabel,
         'p_est_distance_km': distanceKm,
         'p_payment_method': paymentMethod,
+        'p_tokens_to_apply': tokensUsed,
       });
       final ride = TvdeRide.fromMap(_asMap(res));
       _activeRide = ride;
@@ -710,10 +713,17 @@ class TvdeStore extends ChangeNotifier {
   Future<Map<String, dynamic>?> activeRoundtripCredit() async {
     try {
       final res = await _sb.rpc('tvde_active_roundtrip_credit');
+      // Defesa dupla contra "linha de NULLs" (ver licao-rpc-composite-null-row):
+      // um vale só é real se tiver id. Sem isto, um composto vazio ({id:null,…})
+      // fazia o banner "Tens uma volta garantida" aparecer sem vale nenhum.
       if (res is List && res.isNotEmpty) {
-        return Map<String, dynamic>.from(res.first as Map);
+        final first = Map<String, dynamic>.from(res.first as Map);
+        return first['id'] != null ? first : null;
       }
-      if (res is Map) return Map<String, dynamic>.from(res);
+      if (res is Map) {
+        final m = Map<String, dynamic>.from(res);
+        return m['id'] != null ? m : null;
+      }
       return null;
     } catch (e) {
       debugPrint('TvdeStore.activeRoundtripCredit error => $e');

@@ -347,6 +347,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
           destLabel: _destLabel,
           distanceKm: km,
           paymentMethod: 'cash',
+          tokensUsed: tokensUsed,
         );
       }
       // Nota do cliente para o motorista (não-financeiro): grava após a corrida
@@ -502,7 +503,14 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(Spacing.lg),
+        // Parte 9 — respiro no fundo (safe-area + extra) para o card "Planos Bora
+        // Motorista" (último item) não ficar cortado no fundo do ecrã.
+        padding: EdgeInsets.fromLTRB(
+          Spacing.lg,
+          Spacing.lg,
+          Spacing.lg,
+          Spacing.lg + Spacing.xl + MediaQuery.of(context).padding.bottom,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -595,6 +603,15 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
               priceCents: _roundtripPriceCents,
               onChanged: (v) => setState(() => _roundtrip = v),
             ),
+            // Parte 9 — prazo do vale bem claro (validade = 12h, aplicada em prod).
+            if (_roundtrip)
+              const Padding(
+                padding: EdgeInsets.only(top: Spacing.xs),
+                child: Text(
+                  'Válida por 12 horas após a compra — depois disso perdes a volta.',
+                  style: TextStyle(fontSize: 12, color: AppColors.textSubtle),
+                ),
+              ),
             const SizedBox(height: Spacing.xl),
             BoraAccentButton(
               label: _roundtrip

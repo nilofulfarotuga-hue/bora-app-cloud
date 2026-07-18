@@ -197,4 +197,33 @@ services/`) já existe e é para onde o hub aponta.
 ### Ficheiros tocados
 - (nenhum código; ação de dados: `service_providers` "teste" → approved)
 
+**Commit:** `525dc7c` · **Push:** OK (`07345ef..525dc7c`).
+
+---
+
+## PARTE 7 — Reservas: parceiro nasce montado (auto-setup)
+
+**Estado: FEITA e VERIFICADA (pura DB).**
+
+Migration `20260718008000`: função idempotente `_reservas_pro_autosetup(restaurant_id)` + trigger
+`trg_reservas_autosetup`.
+- Se o restaurante não tem floor plan, cria: **"Sala Principal"** (default) + **6 mesas** (4×2 +
+  2×4 lugares) + **turn times** (2p=90, 4p=120, 6+=150 min, todos os dias 0-6) + **pacing** razoável
+  (todos os dias, 12:00-23:00, 40 covers / 15 reservas / 25% walk-in).
+- Idempotente: se já há floor plan → `skipped`.
+- Trigger `AFTER INSERT OR UPDATE OF reservations_enabled, approval_status ON restaurants` chama-a
+  quando `reservations_enabled IS TRUE` → cobre (a) reservas ligadas e (b) aprovação com reservas.
+- SECURITY DEFINER (contexto de trigger) → insere direto (sem o `assert_partner` do
+  `partner_create_floor_plan`, que exige o próprio parceiro como caller).
+
+Gotcha resolvido: `restaurant_tables.zona` tem check constraint (interior/esplanada/balcao/privé/
+terraço/bar/outdoor) — 'Sala' rejeitado → usei 'interior'.
+
+**Teste ao vivo** (restaurante `12aa2cbb…`): 1 plano, 6 mesas, 21 turn_times, 7 pacing; 2ª chamada
+= `skipped` (idempotente). "Sem planos de sala / Sem tempos definidos" deixa de aparecer a parceiro
+novo com reservas.
+
+### Ficheiros tocados
+- `supabase/migrations/20260718008000_reservas_pro_autosetup.sql` (novo, aplicado)
+
 ---

@@ -1,10 +1,16 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
 import '../../../models/staff_member_model.dart';
 import '../../../stores/partner_appointments_store.dart';
+import '../../../utils/safe_image_picker.dart';
 import '../../../utils/staff_terminology.dart';
 import '../../../widgets/bora/bora_primary_button.dart';
 import '../../../widgets/bora/bora_screen_app_bar.dart';
@@ -293,8 +299,10 @@ class _StaffForm extends StatefulWidget {
 class _StaffFormState extends State<_StaffForm> {
   late final TextEditingController _name;
   late final TextEditingController _bio;
-  late final TextEditingController _photo;
   late final TextEditingController _specialties;
+  String? _photoUrl;
+  XFile? _localPhoto;
+  bool _uploadingPhoto = false;
   bool _saving = false;
 
   @override
@@ -303,7 +311,7 @@ class _StaffFormState extends State<_StaffForm> {
     final e = widget.existing;
     _name = TextEditingController(text: e?.name ?? '');
     _bio = TextEditingController(text: e?.bio ?? '');
-    _photo = TextEditingController(text: e?.photoUrl ?? '');
+    _photoUrl = e?.photoUrl;
     _specialties =
         TextEditingController(text: (e?.specialties ?? const []).join(', '));
   }
@@ -312,13 +320,107 @@ class _StaffFormState extends State<_StaffForm> {
   void dispose() {
     _name.dispose();
     _bio.dispose();
-    _photo.dispose();
     _specialties.dispose();
     super.dispose();
   }
 
+  Future<ImageSource?> _chooseImageSource() {
+    return showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_camera),
+              title: const Text('Tirar foto'),
+              onTap: () => Navigator.of(ctx).pop(ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Escolher da galeria'),
+              onTap: () => Navigator.of(ctx).pop(ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Reaproveita o Edge Function `upload-restaurant-asset` (mesmo caminho do
+  /// logo/capa do parceiro em register_partner_screen — service_role bypassa
+  /// RLS de storage). `kind: 'staff_photo'` vai para o bucket público
+  /// `restaurant-assets` (só owner_doc/activity_doc vão para bucket privado).
+  Future<void> _pickAndUploadPhoto() async {
+    if (_uploadingPhoto) return;
+    final providerId = context.read<PartnerAppointmentsStore>().providerId;
+    if (providerId == null) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final source = await _chooseImageSource();
+    if (source == null || !mounted) return;
+    XFile? picked;
+    try {
+      picked = await SafeImagePicker.pickImage(
+        source: source,
+        maxWidth: 1200,
+        imageQuality: 85,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text('Erro ao seleccionar imagem: $e')),
+      );
+      return;
+    }
+    if (picked == null || !mounted) return;
+
+    setState(() {
+      _localPhoto = picked;
+      _uploadingPhoto = true;
+    });
+
+    try {
+      final bytes = await picked.readAsBytes();
+      final ext = picked.path.contains('.')
+          ? picked.path.split('.').last.toLowerCase()
+          : 'jpg';
+      final contentType = 'image/${ext == 'jpg' ? 'jpeg' : ext}';
+      final response = await Supabase.instance.client.functions.invoke(
+        'upload-restaurant-asset',
+        body: {
+          'restaurantId': providerId,
+          'kind': 'staff_photo',
+          'fileBase64': base64Encode(bytes),
+          'contentType': contentType,
+        },
+      );
+      if (response.status != 200 || response.data is! Map) {
+        throw Exception('upload falhou (HTTP ${response.status})');
+      }
+      final data = Map<String, dynamic>.from(response.data as Map);
+      if (data['success'] != true || data['public_url'] == null) {
+        throw Exception(data['error']?.toString() ?? 'upload falhou');
+      }
+      if (!mounted) return;
+      setState(() {
+        _photoUrl = data['public_url'] as String;
+        _uploadingPhoto = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _uploadingPhoto = false;
+        _localPhoto = null;
+      });
+      messenger.showSnackBar(SnackBar(
+        content: Text('Erro ao enviar foto: $e'),
+        backgroundColor: AppColors.error,
+      ));
+    }
+  }
+
   Future<void> _save() async {
-    if (_saving) return;
+    if (_saving || _uploadingPhoto) return;
     final messenger = ScaffoldMessenger.of(context);
     final category = context.read<PartnerAppointmentsStore>().provider?.category;
     final name = _name.text.trim();
@@ -343,7 +445,7 @@ class _StaffFormState extends State<_StaffForm> {
         await store.createStaff(
           name: name,
           bio: _bio.text.trim(),
-          photoUrl: _photo.text.trim(),
+          photoUrl: _photoUrl,
           specialties: specialties,
         );
       } else {
@@ -351,7 +453,7 @@ class _StaffFormState extends State<_StaffForm> {
           staffId: widget.existing!.id,
           name: name,
           bio: _bio.text.trim(),
-          photoUrl: _photo.text.trim(),
+          photoUrl: _photoUrl,
           specialties: specialties,
         );
       }
@@ -373,6 +475,8 @@ class _StaffFormState extends State<_StaffForm> {
     final category =
         context.watch<PartnerAppointmentsStore>().provider?.category;
     final term = StaffTerminology.singular(category);
+    final hasLocalPhoto = _localPhoto != null;
+    final hasNetworkPhoto = (_photoUrl ?? '').isNotEmpty;
     return Padding(
       padding: EdgeInsets.only(
         left: Spacing.lg,
@@ -390,6 +494,44 @@ class _StaffFormState extends State<_StaffForm> {
               fontSize: 18,
               fontWeight: FontWeight.w800,
               color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: Spacing.lg),
+          Center(
+            child: GestureDetector(
+              onTap: _uploadingPhoto ? null : _pickAndUploadPhoto,
+              child: Stack(
+                children: [
+                  CircleAvatar(
+                    radius: 44,
+                    backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                    backgroundImage: hasLocalPhoto
+                        ? FileImage(File(_localPhoto!.path))
+                        : (hasNetworkPhoto
+                            ? NetworkImage(_photoUrl!) as ImageProvider
+                            : null),
+                    child: _uploadingPhoto
+                        ? const CircularProgressIndicator()
+                        : (!hasLocalPhoto && !hasNetworkPhoto
+                            ? const Icon(Icons.person,
+                                size: 40, color: AppColors.primary)
+                            : null),
+                  ),
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: const BoxDecoration(
+                        color: AppColors.accent,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.camera_alt,
+                          size: 16, color: Colors.white),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: Spacing.lg),
@@ -415,15 +557,6 @@ class _StaffFormState extends State<_StaffForm> {
             maxLines: 2,
             decoration: const InputDecoration(
               labelText: 'Bio (opcional)',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: Spacing.md),
-          TextField(
-            controller: _photo,
-            keyboardType: TextInputType.url,
-            decoration: const InputDecoration(
-              labelText: 'URL da foto (opcional)',
               border: OutlineInputBorder(),
             ),
           ),

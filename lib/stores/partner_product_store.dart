@@ -60,6 +60,7 @@ class PartnerProductStore extends ChangeNotifier {
     required bool isAvailable,
     required String category,
     List<String> allergens = const [],
+    bool requiresPrescription = false,
   }) async {
     final store = _restaurantStore;
     if (store == null) {
@@ -75,6 +76,7 @@ class PartnerProductStore extends ChangeNotifier {
       isAvailable: isAvailable,
       category: category,
       allergens: allergens,
+      requiresPrescription: requiresPrescription,
     );
     notifyListeners();
     return product;

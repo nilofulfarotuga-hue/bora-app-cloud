@@ -135,4 +135,37 @@ existiam de rodadas anteriores e reagem à escolha:
 ### Ficheiros tocados
 - `lib/screens/register_partner_screen.dart`
 
+**Commit:** `9e01d17` · **Push:** OK (`ac23a20..9e01d17`).
+
+---
+
+## PARTE 5 — Retalho mínimo viável (super/loja/farmácia)
+
+**Estado: núcleo FEITO (alergénios condicionais + receita); toggle esgotado JÁ existia;
+importador CSV admin + badge cliente DOCUMENTADOS como follow-up.**
+
+1. **Alergénios só restaurante + receita farmácia** — migration `20260718007000`:
+   `products.requires_prescription boolean default false` (aplicada). `add_product_screen.dart`:
+   a secção de alergénios (comida) agora só aparece se `widget.restaurant.category ==
+   BusinessCategory.restaurant` (farmácia/loja deixam de ver comida — bug provado nas fotos); e
+   para `pharmacy` há um switch "Requer receita médica". Threading completo do write:
+   `add_product → PartnerProductStore.addProduct → RestaurantStore.addPartnerProduct → insert`
+   (`requires_prescription`). `flutter analyze` → **0 erros**.
+2. **Toggle "Esgotado"** — **JÁ existia**: `partner_products_screen._toggleAvailability` +
+   `store.toggleAvailability` + `Switch` (→ `products.is_available`). Coluna confirmada existente.
+   Nada a criar.
+3. **Importação CSV no admin** — **DEFERIDO**: é um ecrã novo de admin (colar CSV
+   nome;descrição;preço;categoria → insert em `products` + pré-visualização + relatório de linhas
+   rejeitadas). É trabalho de um ecrã completo; adiado para caber sem cortar as Partes 6–10.
+   Fundação pronta (o insert de `products` já aceita os campos).
+
+**Follow-up documentado:** badge de receita + esmaecer indisponível no cartão do CLIENTE precisam
+do campo `requires_prescription` no modelo `PartnerProduct` (leitura) + no cartão do cliente. O
+write já persiste; a leitura/badge é o passo seguinte.
+
+### Ficheiros tocados
+- `supabase/migrations/20260718007000_products_requires_prescription.sql` (novo, aplicado)
+- `lib/screens/add_product_screen.dart`, `lib/stores/partner_product_store.dart`,
+  `lib/stores/restaurant_store.dart`
+
 ---

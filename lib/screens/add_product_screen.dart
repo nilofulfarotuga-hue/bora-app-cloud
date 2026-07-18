@@ -40,6 +40,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
   // B6 (2026-06-12): alergénios UE 1169/2011 selecionados pelo parceiro.
   final Set<String> _selectedAllergens = {};
+  // Parte 5 (rodada 2) — farmácia: produto exige receita médica.
+  bool _requiresPrescription = false;
 
   File? _selectedImage;
   String? _existingImageUrl;
@@ -129,6 +131,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
             isAvailable: _isAvailable,
             category: category,
             allergens: _selectedAllergens.toList(),
+            requiresPrescription: _requiresPrescription,
           );
     } catch (error) {
       if (mounted) {
@@ -559,41 +562,59 @@ class _AddProductScreenState extends State<AddProductScreen> {
                   const SizedBox(height: 16),
                   _buildCategorySection(),
                   const SizedBox(height: 16),
-                  // B6 (2026-06-12): alergénios UE 1169/2011 — declaração
-                  // pelo parceiro (opcional; vazio mostra disclaimer na app).
-                  Text(
-                    'Alergénios',
-                    style: theme.textTheme.bodyMedium
-                        ?.copyWith(fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Seleciona os alergénios presentes neste produto '
-                    '(Reg. UE 1169/2011).',
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(color: AppColors.textSubtle),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: [
-                      for (final entry in kAllergenLabels.entries)
-                        FilterChip(
-                          label: Text(entry.value,
-                              style: const TextStyle(fontSize: 12)),
-                          selected: _selectedAllergens.contains(entry.key),
-                          onSelected: (sel) => setState(() {
-                            if (sel) {
-                              _selectedAllergens.add(entry.key);
-                            } else {
-                              _selectedAllergens.remove(entry.key);
-                            }
-                          }),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
+                  // Parte 5 (rodada 2) — alergénios (comida) SÓ para restaurante.
+                  // Uma farmácia/loja não vê declaração de alergénios de comida.
+                  if (widget.restaurant.category ==
+                      BusinessCategory.restaurant) ...[
+                    Text(
+                      'Alergénios',
+                      style: theme.textTheme.bodyMedium
+                          ?.copyWith(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Seleciona os alergénios presentes neste produto '
+                      '(Reg. UE 1169/2011).',
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: AppColors.textSubtle),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        for (final entry in kAllergenLabels.entries)
+                          FilterChip(
+                            label: Text(entry.value,
+                                style: const TextStyle(fontSize: 12)),
+                            selected: _selectedAllergens.contains(entry.key),
+                            onSelected: (sel) => setState(() {
+                              if (sel) {
+                                _selectedAllergens.add(entry.key);
+                              } else {
+                                _selectedAllergens.remove(entry.key);
+                              }
+                            }),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  // Parte 5 (rodada 2) — farmácia: marca produtos que exigem
+                  // receita médica (badge no cliente; só OTC devem ser vendidos).
+                  if (widget.restaurant.category ==
+                      BusinessCategory.pharmacy) ...[
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Requer receita médica'),
+                      subtitle: const Text(
+                          'Só medicamentos não sujeitos a receita (OTC) devem ser vendidos aqui.'),
+                      value: _requiresPrescription,
+                      onChanged: (v) =>
+                          setState(() => _requiresPrescription = v),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                   _buildPhotoSection(),
                   const SizedBox(height: 16),
                   SwitchListTile.adaptive(

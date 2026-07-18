@@ -715,6 +715,7 @@ class RestaurantStore extends ChangeNotifier {
     required bool isAvailable,
     String category = '',
     List<String> allergens = const [],
+    bool requiresPrescription = false,
   }) async {
     final trimmedName = name.trim();
     final trimmedDescription = description.trim();
@@ -755,6 +756,8 @@ class RestaurantStore extends ChangeNotifier {
         'category': product.category,
         // B6: alergénios UE 1169/2011 (vazio = não declarado).
         'allergens': product.allergens,
+        // Parte 5 (rodada 2) — farmácia: produto que exige receita médica.
+        'requires_prescription': requiresPrescription,
       });
       debugPrint('RestaurantStore: product saved to Supabase');
     } catch (e) {

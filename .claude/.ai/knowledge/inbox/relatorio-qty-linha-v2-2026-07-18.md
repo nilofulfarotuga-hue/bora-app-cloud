@@ -91,3 +91,19 @@ Não aplicável — mudança 100% visual no app do estafeta.
 Handoff: reforçar `project_qty_linha_compra_estafeta_ja_resolvido.md` — este
 é o 2º pedido idêntico reconfirmado no mesmo dia 2026-07-18 (memória já
 registava padrão de repetição). Nenhuma acção adicional necessária.
+
+## 3ª reconfirmação (mesmo dia, 2026-07-18, execução "RE-EXECUÇÃO limpa")
+
+Terceiro pedido idêntico no mesmo dia. Ordens `7ab2`/`02ec` desta tarefa
+foram ignoradas conforme instrução. Havia um `.claude/executor.lock` com
+`pid:4716` — confirmado órfão (`Get-Process -Id 4716` não devolveu
+processo vivo) e removido antes de continuar.
+
+Verificação repetida: `git log -1` = `1d1f556` (commit da 2ª reconfirmação),
+`git rev-parse HEAD` == `git rev-parse origin/autonomous-night-2026-04-29`
+— sem divergência. `lib/screens/driver_map_screen.dart` continua com o
+bloco `if (item.quantity > 1)` → `'${item.quantity} × €${...}'` intacto
+(linhas ~2799-2821), idêntico ao commit `6b84d36`. `git diff HEAD --
+lib/screens/driver_map_screen.dart` vazio. Nenhum código alterado nesta
+sessão; nenhum novo commit de fix necessário — só este apontamento
+documental.

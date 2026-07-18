@@ -627,6 +627,30 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
               state: _currentStep > 0 ? StepState.complete : StepState.indexed,
               content: Column(
                 children: [
+                  // Parte 4 (rodada 2) — o TIPO é o 1º campo: os campos seguintes
+                  // (tipo de cozinha, reservas/takeaway) só aparecem para
+                  // restaurante; farmácia/loja/supermercado não veem comida.
+                  DropdownButtonFormField<BusinessCategory>(
+                    value: _selectedCategory,
+                    decoration: const InputDecoration(
+                      labelText: 'Tipo de negócio',
+                      prefixIcon: Icon(Icons.category_outlined),
+                    ),
+                    items: BusinessCategory.values
+                        .map(
+                          (category) => DropdownMenuItem(
+                            value: category,
+                            child: Text(category.label),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      if (value == null) return;
+                      setState(() => _selectedCategory = value);
+                      _saveDraft();
+                    },
+                  ),
+                  const SizedBox(height: 16),
                   TextFormField(
                     controller: _nameController,
                     onChanged: (_) => _saveDraft(),
@@ -665,26 +689,6 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
                     ),
                     const SizedBox(height: 16),
                   ],
-                  DropdownButtonFormField<BusinessCategory>(
-                    value: _selectedCategory,
-                    decoration: const InputDecoration(
-                      labelText: 'Categoria',
-                      prefixIcon: Icon(Icons.category_outlined),
-                    ),
-                    items: BusinessCategory.values
-                        .map(
-                          (category) => DropdownMenuItem(
-                            value: category,
-                            child: Text(category.label),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (value) {
-                      if (value == null) return;
-                      setState(() => _selectedCategory = value);
-                      _saveDraft();
-                    },
-                  ),
                 ],
               ),
             ),

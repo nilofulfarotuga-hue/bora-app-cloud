@@ -111,4 +111,28 @@ adição à sheet fica no mesmo bloqueio de permissão.
   `lib/screens/payment_method_screen.dart`
 - (bloqueado por permissões: `lib/widgets/errand_execution_sheet.dart`)
 
+**Commit:** `ac23a20` · **Push:** OK (`89d3d72..ac23a20`).
+
+---
+
+## PARTE 4 — Wizard de cadastro ramificado por tipo
+
+**Estado: FEITA.**
+
+Causa (fotos do Danilo): o dropdown "Categoria" estava no FIM do passo 1, e `_selectedCategory`
+arranca em `restaurant` → uma farmácia via "Tipo de cozinha" até rolar até ao fim e trocar.
+
+Fix mínimo e limpo em `register_partner_screen.dart`: movido o `DropdownButtonFormField`
+("Tipo de negócio") para o **1º campo** do passo 1 (antes do nome). Os campos condicionais já
+existiam de rodadas anteriores e reagem à escolha:
+- "Tipo de cozinha" → só `BusinessCategory.restaurant`.
+- Switches "Aceito reservas de mesa"/"Aceito ir buscar" → só restaurante (rodada 1 Parte 5).
+- Beleza → a Edge Fn `register-partner` já roteia para `service_providers` (rodada 1 Parte 4).
+- Supermercado/Loja/Farmácia → sem campos de comida.
+
+`flutter analyze` → **0 erros** (6 info pré-existentes).
+
+### Ficheiros tocados
+- `lib/screens/register_partner_screen.dart`
+
 ---

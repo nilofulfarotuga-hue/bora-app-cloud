@@ -164,3 +164,46 @@ Nenhuma acção adicional necessária. Recomendação para o Bibliotecário:
 se um 6º pedido idêntico chegar, considerar que o padrão de duplicação em
 si (não o código) é o que precisa de investigação — possível reprocessamento
 da mesma ordem na fila do loop autónomo.
+
+## 6ª reconfirmação (mesmo dia, 2026-07-18, execução "RE-EXECUÇÃO limpa")
+
+Sexto pedido idêntico no mesmo dia — a recomendação da 5ª reconfirmação
+concretizou-se. Ordens `7ab2`/`02ec` desta tarefa continuam ignoradas
+conforme instrução. Havia um `.claude/executor.lock` com `pid:15280` —
+confirmado órfão (`Get-Process -Id 15280` sem retorno + `tasklist /FI "PID
+eq 15280"` → "nenhuma tarefa em execução correspondente") e removido antes
+de continuar.
+
+Verificação repetida: `git log -1` = `1438a82` (commit da 5ª
+reconfirmação), `git diff HEAD -- lib/screens/driver_map_screen.dart` vazio,
+`git rev-list --left-right --count HEAD...origin/autonomous-night-2026-04-29`
+= `0 0` (zero divergência). Leitura directa de
+`lib/screens/driver_map_screen.dart` linha 2822 confirma o bloco intacto:
+`Text('${item.quantity} × €${(_isExtraItem(item) ? item.price :
+(item.basePrice ?? item.price)).toStringAsFixed(2)}')`, idêntico ao commit
+`6b84d36`. Nenhum código alterado nesta sessão; nenhum novo commit de fix
+necessário.
+
+**Testes (idênticos às 5 verificações anteriores, mesma lógica desde a
+1ª):**
+- qty = 1 → bloco secundário não renderiza (sem regressão).
+- qty > 1 (ex. 8, "Iced Tea de Manga" 8 × €1,37 = €10,95) → bloco mostra
+  `8 × €1.37`; total da linha continua a vir da mesma expressão →
+  `qty × unitário = total` por construção; soma das linhas bate com
+  "Subtotal comprado".
+
+**Padrão de duplicação — 6ª ocorrência confirmada.** Este é o 6º pedido
+idêntico no mesmo dia (2026-07-18), cada um chegando com o mesmo texto
+completo do prompt original e cada um removendo um `executor.lock` órfão
+diferente (pids 4716, 4828, 13400, 15280 nas últimas 4 rondas). Isto sugere
+fortemente que a mesma ordem está a ser reprocessada/reenfileirada no loop
+autónomo em vez de ser marcada como concluída — o lock órfão em si é
+provavelmente sintoma (execuções anteriores a morrer sem libertar o lock
+correctamente, o que pode estar a fazer o orquestrador assumir falha e
+reenviar a ordem). Recomendação forte ao Bibliotecário/maestro-autonomia:
+investigar por que esta ordem específica (qty×unitário linha compra
+estafeta) continua a ser reenfileirada apesar de já resolvida e confirmada
+5x antes desta — verificar se o mecanismo que marca ordens como
+`estado:concluída` está a falhar para este item, e se a limpeza do
+`executor.lock` no fim de cada execução está de facto a acontecer (parece
+não estar, dado o lock órfão em toda ronda).

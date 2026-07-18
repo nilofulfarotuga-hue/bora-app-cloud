@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - autonomous-night-2026-04-29
+    paths-ignore:
+      - "**.md"
+      - ".claude/**"
   workflow_dispatch:
 
 # Evita corridas em paralelo da mesma ref (a 2ª espera/cancela a 1ª).
@@ -121,9 +124,15 @@ jobs:
           EOF
 
       # 7. Incrementar versionCode (build number depois do "+") no pubspec.yaml
+      #    Le a versao do HEAD remoto mais recente (nao do SHA que disparou esta run) —
+      #    evita colisao de versionCode quando 2 pushes seguidos enfileiram 2 runs e a
+      #    2a ainda esta "presa" no snapshot antigo (causou "Version code X has already
+      #    been used" no Google Play em 2026-07-13, commit 8035d7e).
       - name: Bump versionCode
         id: bump
         run: |
+          git fetch origin autonomous-night-2026-04-29
+          git checkout origin/autonomous-night-2026-04-29 -- pubspec.yaml
           current=$(grep -E '^version:' pubspec.yaml | head -n1 | sed 's/version:[[:space:]]*//')
           name="${current%+*}"
           code="${current#*+}"

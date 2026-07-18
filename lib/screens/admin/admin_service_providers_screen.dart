@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
+import 'admin_service_provider_detail_screen.dart';
 
 /// Admin — Barbearias / Prestadores de serviços (vertical Serviços).
 ///
@@ -183,84 +184,19 @@ class _AdminServiceProvidersScreenState
     }
   }
 
-  /// Perfil: serviços + barbeiros (SELECT directo).
-  Future<void> _showProfile(Map<String, dynamic> r) async {
-    final messenger = ScaffoldMessenger.of(context);
-    List<Map<String, dynamic>> services = const [];
-    List<Map<String, dynamic>> staff = const [];
-    try {
-      final svc = await Supabase.instance.client
-          .from('provider_services')
-          .select('name, price_cents, duration_minutes, is_active')
-          .eq('provider_id', r['id'])
-          .order('name', ascending: true);
-      services = (svc as List).cast<Map<String, dynamic>>();
-      final stf = await Supabase.instance.client
-          .from('staff_members')
-          .select('name, is_active')
-          .eq('provider_id', r['id'])
-          .order('name', ascending: true);
-      staff = (stf as List).cast<Map<String, dynamic>>();
-    } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('Erro a carregar perfil: $e')));
-    }
-    if (!mounted) return;
-    await showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Perfil — ${r['name']}'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('Serviços',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-                const SizedBox(height: Spacing.xs),
-                if (services.isEmpty)
-                  const Text('Nenhum serviço cadastrado.',
-                      style: TextStyle(color: AppColors.textSecondary))
-                else
-                  ...services.map((s) => Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 2),
-                        child: Text(
-                          '• ${s['name']} · '
-                          '€${(((s['price_cents'] as num?) ?? 0) / 100).toStringAsFixed(2)} · '
-                          '${(s['duration_minutes'] as num?)?.toInt() ?? 0} min'
-                          '${((s['is_active'] as bool?) ?? true) ? '' : ' (inactivo)'}',
-                          style: const TextStyle(fontSize: 13),
-                        ),
-                      )),
-                const SizedBox(height: Spacing.md),
-                const Text('Barbeiros',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-                const SizedBox(height: Spacing.xs),
-                if (staff.isEmpty)
-                  const Text('Nenhum barbeiro cadastrado.',
-                      style: TextStyle(color: AppColors.textSecondary))
-                else
-                  ...staff.map((s) => Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 2),
-                        child: Text(
-                          '• ${s['name']}'
-                          '${((s['is_active'] as bool?) ?? true) ? '' : ' (inactivo)'}',
-                          style: const TextStyle(fontSize: 13),
-                        ),
-                      )),
-              ],
-            ),
-          ),
+  /// Abre a tela de gestão TOTAL do prestador (editar dados/logo/capa/horários/
+  /// serviços & preços/estado/apagar). Ao voltar, recarrega a lista para
+  /// reflectir quaisquer alterações.
+  Future<void> _openDetail(Map<String, dynamic> r) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => AdminServiceProviderDetailScreen(
+          providerId: r['id'] as String,
+          initialName: r['name'] as String? ?? '',
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Fechar'),
-          ),
-        ],
       ),
     );
+    _load();
   }
 
   Color _statusColor(String? s) => switch (s) {
@@ -456,11 +392,11 @@ class _AdminServiceProvidersScreenState
               runSpacing: Spacing.xs,
               children: [
                 OutlinedButton.icon(
-                  icon: const Icon(Icons.visibility_outlined, size: 18),
-                  label: const Text('Ver perfil'),
+                  icon: const Icon(Icons.settings_outlined, size: 18),
+                  label: const Text('Gerir'),
                   style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.info),
-                  onPressed: () => _showProfile(r),
+                  onPressed: () => _openDetail(r),
                 ),
                 OutlinedButton.icon(
                   icon: Icon(

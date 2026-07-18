@@ -48,4 +48,19 @@ aceitavam `photoUrl` como `String?` — nenhuma alteração necessária aí.
   por leitura de código, ponta-a-ponta.
 
 ## Commit
-Ver `git log -1` colado abaixo (preenchido após o commit real).
+```
+commit fed08837bcd9d3668439f12058b37a64d5c7ae88
+Author: Danilo (Hermes autonomous) <nilofulfarotuga@gmail.com>
+Date:   Sat Jul 18 23:26:25 2026 +0100
+
+    feat(parceiro-servicos): upload real de foto do profissional (câmara/galeria)
+
+    Substitui o campo "URL da foto (opcional)" por um seletor de foto real no
+    formulário de adicionar/editar profissional, reutilizando o mesmo padrão de
+    upload do logo/capa do parceiro (Edge Function upload-restaurant-asset,
+    SafeImagePicker, bucket restaurant-assets, kind staff_photo).
+
+    Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+```
+Pushed para `origin/autonomous-night-2026-04-29` (rebase fast-forward; hash
+final após rebase automático do loop: `fed0883`).

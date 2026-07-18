@@ -71,4 +71,44 @@ verificação de que não há cálculo de preço/ganho no Dart.
 ### Ficheiros tocados
 - `lib/stores/tvde_store.dart`, `lib/screens/client/tvde/tvde_request_ride_screen.dart`
 
+**Commit:** `89d3d72` · **Push:** OK (`742d3fe..89d3d72`).
+
+---
+
+## PARTE 3 — Favores: o wiring que faltava (fundação da rodada 1 → ligada)
+
+**Estado: FEITA a persistência (o bug de dados provado); a display do estafeta na execution
+sheet ficou BLOQUEADA por permissões; coreografia multi-perna documentada.**
+
+### Item 1 — persistência (RESOLVE o bug b7867337: morada da casa deitada fora)
+Encontrei o ponto de integração ideal: a `payment_method_screen` já obtém o `orderId`
+(`waitForOrderFromDraft` / `lastCreatedOrderId`) e já chama uma RPC pós-pedido para o favor
+(`client_set_errand_request_photo`). Liguei ali:
+- `cart_store.dart` `ErrandSession` + `configureErrandSession` → campos novos `homeStopAddress`,
+  `homeStopCashCents`, `returnLeg`.
+- `errand_form_screen._goToCheckout` → passa `_homeCtrl.text` (morada, antes descartada),
+  `homeStopCashCents` (= orçamento levado em cash quando motivo=dinheiro), `returnLeg` (true para
+  pagar-conta). **Validação:** motivo dinheiro → cash > €0 obrigatório.
+- `payment_method_screen` → helper `_persistErrandHomeStop(cart, orderId)` chama a RPC
+  **`errand_set_home_stop`** (não-financeira, da rodada 1) nos **3 caminhos** (cartão, MBWay,
+  dinheiro), ANTES do `clearCart`. **NÃO toca no create_order que cobra** (Lista Vermelha intacta).
+- `flutter analyze` dos 3 → **0 erros**.
+
+### Item 2 — coreografia do estafeta
+A `errand_execution_sheet.dart` JÁ tem máquina de fases (`_phase`: recolha em casa → compra →
+…) com motivo + cash. Com os dados agora populados, a fase de recolha já funciona e o mapa pode
+rotear às coords da casa. **Tentei acrescentar a MORADA + banner "PEGAR €X EM DINHEIRO" na fase de
+recolha, mas o ficheiro está BLOQUEADO por permissões nesta sessão** ("directory denied by
+permission settings") — respeitei a recusa, não insisti. Fica como próximo passo (edição simples,
+os dados já lá estão no OrderModel: `errandHomeStopAddress`, `errandHomeStopCashCents`,
+`errandReturnLeg`, `errandLeg`).
+
+A 3ª perna (volta à casa) usa `errand_return_leg`/`errand_leg` (já no schema+modelo) — a sua
+adição à sheet fica no mesmo bloqueio de permissão.
+
+### Ficheiros tocados
+- `lib/stores/cart_store.dart`, `lib/screens/errand_form_screen.dart`,
+  `lib/screens/payment_method_screen.dart`
+- (bloqueado por permissões: `lib/widgets/errand_execution_sheet.dart`)
+
 ---

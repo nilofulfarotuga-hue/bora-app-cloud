@@ -313,7 +313,10 @@ class CartStore extends ChangeNotifier {
     required LatLng locationCoords,
     required LatLng dropoff,
     LatLng? home,
+    String? homeStopAddress,
     String? homeStopReason,
+    int? homeStopCashCents,
+    bool returnLeg = false,
     required String speed, // 'normal' | 'express'
     required bool hasPurchase,
     required int estimatedCents,
@@ -348,7 +351,10 @@ class CartStore extends ChangeNotifier {
       location: location,
       locationCoords: locationCoords,
       home: home,
+      homeStopAddress: homeStopAddress,
       homeStopReason: homeStopReason,
+      homeStopCashCents: homeStopCashCents,
+      returnLeg: returnLeg,
       speed: speed,
       hasPurchase: hasPurchase,
       estimatedCents: estimatedCents,
@@ -787,7 +793,10 @@ class ErrandSession {
     required this.location,
     required this.locationCoords,
     this.home,
+    this.homeStopAddress,
     this.homeStopReason,
+    this.homeStopCashCents,
+    this.returnLeg = false,
     required this.speed,
     required this.hasPurchase,
     required this.estimatedCents,
@@ -798,7 +807,12 @@ class ErrandSession {
   final String location;
   final LatLng locationCoords;
   final LatLng? home;
+  // Parte 3 (rodada 2) — morada textual da paragem em casa (antes descartada),
+  // dinheiro a pegar em casa (motivo dinheiro) e se há perna de volta no fim.
+  final String? homeStopAddress;
   final String? homeStopReason;
+  final int? homeStopCashCents;
+  final bool returnLeg;
   final String speed; // 'normal' | 'express'
   final bool hasPurchase;
   final int estimatedCents;

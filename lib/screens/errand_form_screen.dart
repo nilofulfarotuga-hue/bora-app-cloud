@@ -459,6 +459,14 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
       _showFriendlyCashDialog();
       return;
     }
+    // Parte 3 (rodada 2) — motivo dinheiro exige valor a pegar em casa (> €0):
+    // sem isto o estafeta ia sem saber quanto levar (bug do talão b7867337).
+    if (_homeActive && _homeStopReason == 'dinheiro' && _estimatedCents <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text(
+              'Diz quanto dinheiro o estafeta leva de tua casa (valor acima de €0).')));
+      return;
+    }
     final cart = context.read<CartStore>();
     cart.configureErrandSession(
       description: _descCtrl.text.trim(),
@@ -466,7 +474,14 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
       locationCoords: _errandLocation!,
       dropoff: _dropoff!,
       home: _homeActive ? _home : null,
+      // Parte 3 (rodada 2) — a morada da paragem em casa (antes geocodificada e
+      // DEITADA FORA), o dinheiro a pegar (motivo dinheiro = orçamento levado em
+      // cash) e a perna de volta (pagar conta → devolver troco/comprovativo).
+      homeStopAddress: _homeActive ? _homeCtrl.text.trim() : null,
       homeStopReason: _homeActive ? _homeStopReason : null,
+      homeStopCashCents:
+          (_homeActive && _homeStopReason == 'dinheiro') ? _estimatedCents : null,
+      returnLeg: _homeActive && _homeStopReason == 'dinheiro',
       speed: _speed,
       hasPurchase: _hasPurchase,
       estimatedCents: _estimatedCents,

@@ -687,6 +687,27 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
+  /// Parte 3 (rodada 2) — grava a paragem em casa do favor (morada + coords +
+  /// dinheiro a pegar + perna de volta) via RPC NÃO-financeira, SEM tocar no
+  /// create_order (checkout que cobra). Best-effort — falha não quebra o checkout.
+  Future<void> _persistErrandHomeStop(CartStore cart, String orderId) async {
+    final es = cart.errandSession;
+    final home = es?.home;
+    if (es == null || home == null) return;
+    try {
+      await Supabase.instance.client.rpc('errand_set_home_stop', params: {
+        'p_order_id': orderId,
+        'p_address': es.homeStopAddress,
+        'p_lat': home.latitude,
+        'p_lng': home.longitude,
+        'p_cash_cents': es.homeStopCashCents,
+        'p_return_leg': es.returnLeg,
+      });
+    } catch (e) {
+      debugPrint('[Checkout] errand_set_home_stop failed (non-fatal): $e');
+    }
+  }
+
   Future<void> _confirmPayment(
     BuildContext context,
     double amount, {
@@ -924,6 +945,9 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
           debugPrint('[Checkout] set errand photo failed (non-fatal): $e');
         }
       }
+      // Parte 3 (rodada 2) — persistir a paragem em casa (morada+coords+cash+volta)
+      // ANTES de clearCart (que apaga a errandSession).
+      await _persistErrandHomeStop(cartStore, orderId);
       cartStore.clearCart();
       await _consumeTokensAndNavigate(tokensUsed);
       return;
@@ -1000,6 +1024,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
           await _bailOutAndCancel(mbwayOrderId);
           return;
         }
+        await _persistErrandHomeStop(cartStore, mbwayOrderId);
         await _consumeTokensAndNavigate(tokensUsed);
         return;
       case PaymentMethod.cash:
@@ -1048,6 +1073,10 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       return;
     }
 
+    final cashOrderId = orderStore.lastCreatedOrderId;
+    if (cashOrderId != null) {
+      await _persistErrandHomeStop(cartStore, cashOrderId);
+    }
     await _consumeTokensAndNavigate(tokensUsed);
   }
 

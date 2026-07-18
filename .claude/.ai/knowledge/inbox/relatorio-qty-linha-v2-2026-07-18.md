@@ -107,3 +107,22 @@ bloco `if (item.quantity > 1)` → `'${item.quantity} × €${...}'` intacto
 lib/screens/driver_map_screen.dart` vazio. Nenhum código alterado nesta
 sessão; nenhum novo commit de fix necessário — só este apontamento
 documental.
+
+## 4ª reconfirmação (mesmo dia, 2026-07-18, execução "RE-EXECUÇÃO limpa")
+
+Quarto pedido idêntico no mesmo dia. Ordens `7ab2`/`02ec` desta tarefa
+continuam ignoradas conforme instrução. Havia um `.claude/executor.lock`
+com `pid:4828` — confirmado órfão (`Get-Process -Id 4828` no PowerShell
+não devolveu processo vivo; PID da própria sessão é outro) e removido
+antes de continuar.
+
+Verificação repetida: `git log -1` = `611ecf4` (commit da 3ª
+reconfirmação), `git rev-parse HEAD` == `git rev-parse
+origin/autonomous-night-2026-04-29` — sem divergência. Leitura directa de
+`lib/screens/driver_map_screen.dart` (linhas 2794-2828) confirma o bloco
+`if (item.quantity > 1)` → `Text('${item.quantity} × €${(_isExtraItem(item)
+? item.price : (item.basePrice ?? item.price)).toStringAsFixed(2)}')`
+intacto e idêntico ao commit `6b84d36`. `git diff HEAD --
+lib/screens/driver_map_screen.dart` vazio. Nenhum código alterado nesta
+sessão; nenhum novo commit de fix necessário — só este apontamento
+documental + a limpeza do lock órfão.

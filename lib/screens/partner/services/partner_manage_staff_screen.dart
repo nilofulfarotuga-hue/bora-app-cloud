@@ -5,10 +5,13 @@ import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
 import '../../../models/staff_member_model.dart';
 import '../../../stores/partner_appointments_store.dart';
+import '../../../utils/staff_terminology.dart';
 import '../../../widgets/bora/bora_primary_button.dart';
 import '../../../widgets/bora/bora_screen_app_bar.dart';
 
-/// Gestão de barbeiros (foto, nome, especialidades). Criar/editar via
+/// Gestão de profissionais (foto, nome, especialidades) — "Barbeiro" só
+/// quando `category == 'barbershop'`, senão termo genérico "Profissional"
+/// (cabeleireiro, manicure, esteticista, etc.). Criar/editar via
 /// bottom-sheet, desactivar (soft delete), editar disponibilidade semanal.
 class PartnerManageStaffScreen extends StatefulWidget {
   const PartnerManageStaffScreen({super.key});
@@ -54,11 +57,12 @@ class _PartnerManageStaffScreenState extends State<PartnerManageStaffScreen> {
 
   Future<void> _confirmDeactivate(StaffMemberModel s) async {
     final store = context.read<PartnerAppointmentsStore>();
+    final term = StaffTerminology.singular(store.provider?.category);
     final messenger = ScaffoldMessenger.of(context);
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Desactivar barbeiro'),
+        title: Text('Desactivar ${term.toLowerCase()}'),
         content: Text('Remover "${s.name}" da equipa? O histórico mantém-se.'),
         actions: [
           TextButton(
@@ -77,8 +81,8 @@ class _PartnerManageStaffScreenState extends State<PartnerManageStaffScreen> {
     try {
       await store.deactivateStaff(s.id);
       if (!mounted) return;
-      messenger.showSnackBar(const SnackBar(
-        content: Text('Barbeiro desactivado.'),
+      messenger.showSnackBar(SnackBar(
+        content: Text('$term desactivado.'),
         backgroundColor: AppColors.success,
       ));
       _refresh();
@@ -93,15 +97,16 @@ class _PartnerManageStaffScreenState extends State<PartnerManageStaffScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final category = context.watch<PartnerAppointmentsStore>().provider?.category;
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const BoraScreenAppBar(title: 'Barbeiros'),
+      appBar: BoraScreenAppBar(title: StaffTerminology.plural(category)),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openForm(),
         backgroundColor: AppColors.accent,
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add),
-        label: const Text('Novo barbeiro'),
+        label: Text('Novo ${StaffTerminology.singular(category).toLowerCase()}'),
       ),
       body: FutureBuilder<List<StaffMemberModel>>(
         future: _future,
@@ -114,7 +119,7 @@ class _PartnerManageStaffScreenState extends State<PartnerManageStaffScreen> {
           }
           final items = snap.data ?? const <StaffMemberModel>[];
           if (items.isEmpty) {
-            return _empty();
+            return _empty(category);
           }
           return RefreshIndicator(
             onRefresh: () async => _refresh(),
@@ -156,28 +161,32 @@ class _PartnerManageStaffScreenState extends State<PartnerManageStaffScreen> {
         ),
       );
 
-  Widget _empty() => const Center(
-        child: Padding(
-          padding: EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.people_alt_outlined, size: 64, color: Colors.grey),
-              SizedBox(height: 16),
-              Text(
-                'Sem barbeiros',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
-              ),
-              SizedBox(height: 6),
-              Text(
-                'Adiciona o primeiro barbeiro no botão "Novo barbeiro".',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.textSecondary),
-              ),
-            ],
-          ),
+  Widget _empty(String? category) {
+    final pluralLower = StaffTerminology.plural(category).toLowerCase();
+    final singularLower = StaffTerminology.singular(category).toLowerCase();
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.people_alt_outlined, size: 64, color: Colors.grey),
+            const SizedBox(height: 16),
+            Text(
+              'Sem $pluralLower',
+              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Adiciona o primeiro $singularLower no botão "Novo $singularLower".',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: AppColors.textSecondary),
+            ),
+          ],
         ),
-      );
+      ),
+    );
+  }
 }
 
 class _StaffTile extends StatelessWidget {
@@ -311,10 +320,14 @@ class _StaffFormState extends State<_StaffForm> {
   Future<void> _save() async {
     if (_saving) return;
     final messenger = ScaffoldMessenger.of(context);
+    final category = context.read<PartnerAppointmentsStore>().provider?.category;
     final name = _name.text.trim();
     if (name.isEmpty) {
       messenger.showSnackBar(
-        const SnackBar(content: Text('Indica o nome do barbeiro.')),
+        SnackBar(
+          content: Text(
+              'Indica o nome do ${StaffTerminology.singular(category).toLowerCase()}.'),
+        ),
       );
       return;
     }
@@ -357,6 +370,9 @@ class _StaffFormState extends State<_StaffForm> {
   @override
   Widget build(BuildContext context) {
     final isEdit = widget.existing != null;
+    final category =
+        context.watch<PartnerAppointmentsStore>().provider?.category;
+    final term = StaffTerminology.singular(category);
     return Padding(
       padding: EdgeInsets.only(
         left: Spacing.lg,
@@ -369,7 +385,7 @@ class _StaffFormState extends State<_StaffForm> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            isEdit ? 'Editar barbeiro' : 'Novo barbeiro',
+            isEdit ? 'Editar ${term.toLowerCase()}' : 'Novo ${term.toLowerCase()}',
             style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w800,
@@ -380,9 +396,9 @@ class _StaffFormState extends State<_StaffForm> {
           TextField(
             controller: _name,
             textCapitalization: TextCapitalization.words,
-            decoration: const InputDecoration(
-              labelText: 'Nome',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: 'Nome do ${term.toLowerCase()}',
+              border: const OutlineInputBorder(),
             ),
           ),
           const SizedBox(height: Spacing.md),
@@ -423,7 +439,7 @@ class _StaffFormState extends State<_StaffForm> {
   }
 }
 
-/// Editor de disponibilidade semanal de um barbeiro (staff_availability).
+/// Editor de disponibilidade semanal de um profissional (staff_availability).
 /// day_of_week: 0=Dom..6=Sáb.
 class _StaffAvailabilityScreen extends StatefulWidget {
   const _StaffAvailabilityScreen({required this.staff});

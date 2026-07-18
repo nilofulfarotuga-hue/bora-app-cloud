@@ -7,6 +7,7 @@ import '../../../models/service_provider_model.dart';
 import '../../../services/notification_service.dart';
 import '../../../stores/partner_appointments_store.dart';
 import '../../../stores/session_store.dart';
+import '../../../utils/staff_terminology.dart';
 import '../../../widgets/biometric_login_tile.dart';
 import '../../../widgets/bora/bora_screen_app_bar.dart';
 import '../../../widgets/partner_weekly_closeout_card.dart';
@@ -104,9 +105,9 @@ class _PartnerServicesHubScreenState extends State<PartnerServicesHubScreen> {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    const Text(
-                      'Agenda, serviços, barbeiros e financeiro.',
-                      style: TextStyle(color: AppColors.textSecondary),
+                    Text(
+                      'Agenda, serviços, ${StaffTerminology.plural(provider.category).toLowerCase()} e financeiro.',
+                      style: const TextStyle(color: AppColors.textSecondary),
                     ),
                   ],
                 ),
@@ -128,7 +129,8 @@ class _PartnerServicesHubScreenState extends State<PartnerServicesHubScreen> {
               _Tile(
                 icon: Icons.block,
                 title: 'Bloquear horário',
-                subtitle: 'Pausas e folgas de um barbeiro',
+                subtitle:
+                    'Pausas e folgas de um ${StaffTerminology.singular(provider.category).toLowerCase()}',
                 onTap: () => _push(context, const PartnerBlockSlotScreen()),
               ),
               _Tile(
@@ -140,7 +142,7 @@ class _PartnerServicesHubScreenState extends State<PartnerServicesHubScreen> {
               ),
               _Tile(
                 icon: Icons.people_alt_outlined,
-                title: 'Barbeiros',
+                title: StaffTerminology.plural(provider.category),
                 subtitle: 'Equipa e disponibilidade',
                 onTap: () => _push(context, const PartnerManageStaffScreen()),
               ),

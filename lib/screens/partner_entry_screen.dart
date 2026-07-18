@@ -82,9 +82,13 @@ class _PartnerNoRestaurantRouterState
   @override
   void initState() {
     super.initState();
-    // Idempotent + cached in the store, so the fresh-login path (which already
-    // loaded the provider in PartnerLoginScreen) resolves instantly.
-    _future = context.read<PartnerAppointmentsStore>().loadMyProvider();
+    // BUG (parceiro-serviços preso em "Submetido para Análise", 2026-07-18):
+    // `force: true` — este router decide entre o hub de gestão e o ecrã de
+    // análise, por isso NUNCA pode confiar num `service_providers` cacheado
+    // de uma leitura anterior (ex.: pré-aquecido no login enquanto ainda
+    // estava pending). Sempre reconsulta o estado atual no Supabase.
+    _future =
+        context.read<PartnerAppointmentsStore>().loadMyProvider(force: true);
     // BUG 1 (cadastro parceiro 2026-07-14): sem isto, um parceiro com
     // candidatura 'pending' que faz logout/login caía sempre no wizard do
     // zero (a lista pública de restaurants só inclui approved). Verifica a
@@ -103,8 +107,24 @@ class _PartnerNoRestaurantRouterState
         if (snap.connectionState != ConnectionState.done) {
           return const _PartnerLoading();
         }
-        if (snap.data != null) {
-          return const PartnerServicesHubScreen();
+        final provider = snap.data;
+        if (provider != null) {
+          // BUG (parceiro-serviços preso em "Submetido para Análise",
+          // 2026-07-18): antes só se verificava "existe uma linha", nunca o
+          // seu `approval_status` — um prestador pending ou rejected entrava
+          // directo no hub de gestão, e um aprovado podia ficar preso no
+          // ecrã de análise se essa mesma linha tivesse sido lida antes da
+          // aprovação. Agora o gate é sempre o status fresco.
+          if (provider.approvalStatus == 'approved') {
+            return const PartnerServicesHubScreen();
+          }
+          if (provider.approvalStatus == 'pending') {
+            return PendingApprovalScreen(categoryName: provider.category);
+          }
+          // rejected (ou status desconhecido) — cai para a verificação de
+          // `restaurants` abaixo, igual ao ramo já existente para
+          // restaurantes: deixa o parceiro refazer a candidatura em vez de
+          // lhe dar acesso ao hub com uma candidatura recusada.
         }
         return FutureBuilder<String?>(
           future: _restaurantStatusFuture,

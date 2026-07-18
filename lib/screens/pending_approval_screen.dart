@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
+import '../stores/partner_appointments_store.dart';
+import '../stores/restaurant_store.dart';
 import '../stores/session_store.dart';
 import '../widgets/bora/bora_primary_button.dart';
 import 'partner_login_screen.dart';
@@ -13,7 +16,13 @@ import 'partner_login_screen.dart';
 /// Correcção Sessão 2026-05-26:
 /// - Botão "Gerir a minha loja" leva direto ao painel partner (com badge "Pendente")
 /// - Não apenas "Voltar ao Login"
-class PendingApprovalScreen extends StatelessWidget {
+///
+/// Correcção 2026-07-18 (BUG parceiro-serviços preso neste ecrã pós-aprovação):
+/// - O botão nunca confiava num valor local — agora reconsulta sempre o
+///   `approval_status` fresco (service_providers ou restaurants, conforme a
+///   categoria) antes de decidir se navega para o painel ou se avisa que
+///   ainda está em análise/foi recusado.
+class PendingApprovalScreen extends StatefulWidget {
   /// Nome da categoria escolhida no registo (`BusinessCategory.name`: restaurant,
   /// store, pharmacy, supermarket, beauty). Usado só para o texto refletir o tipo
   /// de negócio. Null → texto genérico ("O teu negócio").
@@ -40,9 +49,67 @@ class PendingApprovalScreen extends StatelessWidget {
   }
 
   @override
+  State<PendingApprovalScreen> createState() => _PendingApprovalScreenState();
+}
+
+class _PendingApprovalScreenState extends State<PendingApprovalScreen> {
+  bool _isChecking = false;
+
+  /// Reconsulta o estado de aprovação FRESCO (nunca confia num valor local
+  /// antigo) e só navega para o painel de gestão se estiver realmente
+  /// aprovado. Se ainda pending/rejected, avisa e mantém o utilizador aqui.
+  Future<void> _handleManageStore() async {
+    setState(() => _isChecking = true);
+
+    try {
+      final isRestaurant =
+          widget.categoryName == null || widget.categoryName == 'restaurant';
+
+      String? status;
+      if (isRestaurant) {
+        final userId = context.read<AuthStore>().userId;
+        if (userId != null) {
+          status =
+              await context.read<RestaurantStore>().ownRestaurantApprovalStatus(userId);
+        }
+      } else {
+        final provider = await context
+            .read<PartnerAppointmentsStore>()
+            .loadMyProvider(force: true);
+        status = provider?.approvalStatus;
+      }
+
+      if (!mounted) return;
+
+      if (status == 'approved') {
+        await context.read<SessionStore>().setRole(UserRole.partner);
+        if (!mounted) return;
+        Navigator.of(context).popUntil((route) => route.isFirst);
+        return;
+      }
+
+      setState(() => _isChecking = false);
+      final message = status == 'rejected'
+          ? 'A candidatura foi recusada. Contacta o suporte para mais informação.'
+          : 'Ainda em análise. Tenta novamente dentro de algum tempo.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isChecking = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Não foi possível verificar o estado. Tenta novamente.'),
+        ),
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final sessionStore = context.watch<SessionStore>();
+    final categoryName = widget.categoryName;
 
     return Scaffold(
       backgroundColor: AppColors.surface,
@@ -102,7 +169,7 @@ class PendingApprovalScreen extends StatelessWidget {
                           const SizedBox(width: Spacing.sm),
                           Expanded(
                             child: Text(
-                              '${_businessNoun(categoryName)} está sob análise',
+                              '${PendingApprovalScreen._businessNoun(categoryName)} está sob análise',
                               style: theme.textTheme.bodyMedium?.copyWith(
                                 fontWeight: FontWeight.w600,
                               ),
@@ -132,14 +199,9 @@ class PendingApprovalScreen extends StatelessWidget {
 
               // Botão: Gerir a minha loja
               BoraPrimaryButton(
-                label: 'Gerir a Minha Loja',
+                label: _isChecking ? 'A verificar...' : 'Gerir a Minha Loja',
                 color: AppColors.primary,
-                onPressed: () async {
-                  await sessionStore.setRole(UserRole.partner);
-                  if (context.mounted) {
-                    Navigator.of(context).popUntil((route) => route.isFirst);
-                  }
-                },
+                onPressed: _isChecking ? null : _handleManageStore,
               ),
               const SizedBox(height: Spacing.md),
 

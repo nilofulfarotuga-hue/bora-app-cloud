@@ -17,6 +17,8 @@ import '../../../models/driver_model.dart';
 import '../../../services/driver_location_ping_service.dart';
 import '../../../services/heartbeat_service.dart';
 import '../../../services/notification_service.dart';
+import '../../../services/incoming_job_alert.dart';
+import '../../../models/order_model.dart';
 import '../../../services/permission_gate_service.dart';
 import '../../../stores/driver_store.dart';
 import '../../../stores/order_store.dart';
@@ -45,6 +47,9 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
   Position? _lastPos;
   Timer? _offerPoll;
   bool _offerOpen = false;
+  // Parte 1 (rodada 2) — dedup do alerta sonoro de oferta de entrega/favor que
+  // chega enquanto o motorista está no mapa TVDE (era silenciosa — ordem 9016).
+  final Set<String> _alertedDeliveryOfferIds = <String>{};
   bool _activeOpen = false;
   bool _deliveryOpen = false;
 
@@ -269,6 +274,33 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
     Navigator.of(context)
         .push(MaterialPageRoute<void>(builder: (_) => const DriverHomeScreen()))
         .then((_) => _deliveryOpen = false);
+  }
+
+  /// Parte 1 (rodada 2) — oferta de entrega/favor a chegar enquanto o motorista
+  /// está no mapa TVDE aparece como overlay MAS era SILENCIOSA (ordem 9016).
+  /// Juntamos o alerta sonoro/heads-up (canal urgente). Tipo próprio para não
+  /// colidir com o roteamento do gate do estafeta. Dedup + dispensa ao sair.
+  void _maybeAlertDeliveryOffers(List<OrderModel> offers) {
+    final currentIds = <String>{};
+    for (final o in offers) {
+      currentIds.add(o.id);
+    }
+    for (final id in _alertedDeliveryOfferIds.toList()) {
+      if (!currentIds.contains(id)) {
+        IncomingJobAlert.dismiss(id);
+        _alertedDeliveryOfferIds.remove(id);
+      }
+    }
+    for (final o in offers) {
+      if (!_alertedDeliveryOfferIds.add(o.id)) continue;
+      IncomingJobAlert.show(
+        id: o.id,
+        type: 'tvde_incoming_delivery',
+        title: '🛵 Nova entrega/favor!',
+        body: 'Toca para abrir e responder.',
+        extraPayload: {'orderId': o.id},
+      );
+    }
   }
 
   /// M12 — ecrã de ganhos (dia/semana) + histórico de corridas do motorista.
@@ -529,6 +561,7 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _syncNav();
       _maybeResumeDeliveryFlow();
+      _maybeAlertDeliveryOffers(deliveryOffers);
     });
 
     final status = context.watch<AuthStore>().currentDriverStatus;

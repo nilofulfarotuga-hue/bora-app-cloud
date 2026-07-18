@@ -20,6 +20,7 @@ import '../stores/restaurant_store.dart';
 import '../services/notification_service.dart';
 import '../widgets/notification_bell.dart';
 import '../services/sound_service.dart';
+import '../services/incoming_job_alert.dart';
 import '../stores/session_store.dart';
 import '../widgets/address_text.dart';
 import '../widgets/biometric_login_tile.dart';
@@ -455,11 +456,29 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
           createdIds.any((id) => !_knownCreatedOrderIds.contains(id));
       if (hasNewOrders) {
         unawaited(_startSoundAndVibration());
+        // Parte 1 (rodada 2) — alerta insistente full-screen (canal urgente) por
+        // cada pedido NOVO; tocar abre a app (type 'new_order' já roteado pelo
+        // handler de tap). Complementa o som in-app com heads-up do sistema.
+        for (final order in orders) {
+          if (order.status != OrderStatus.created) continue;
+          if (_knownCreatedOrderIds.contains(order.id)) continue;
+          IncomingJobAlert.show(
+            id: order.id,
+            type: 'new_order',
+            title: '🔔 Novo pedido!',
+            body: 'Toca para abrir e aceitar o pedido.',
+            extraPayload: {'orderId': order.id},
+          );
+        }
       }
     } else {
       _stopSoundAndVibration();
     }
 
+    // Pedidos que saíram de 'created' (aceites/expirados) → dispensa o alerta.
+    for (final id in _knownCreatedOrderIds) {
+      if (!createdIds.contains(id)) IncomingJobAlert.dismiss(id);
+    }
     _knownCreatedOrderIds
       ..clear()
       ..addAll(createdIds);

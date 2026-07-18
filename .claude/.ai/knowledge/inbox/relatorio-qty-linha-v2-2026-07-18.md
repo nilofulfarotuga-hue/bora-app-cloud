@@ -126,3 +126,41 @@ intacto e idêntico ao commit `6b84d36`. `git diff HEAD --
 lib/screens/driver_map_screen.dart` vazio. Nenhum código alterado nesta
 sessão; nenhum novo commit de fix necessário — só este apontamento
 documental + a limpeza do lock órfão.
+
+## 5ª reconfirmação (mesmo dia, 2026-07-18, execução "RE-EXECUÇÃO limpa")
+
+Quinto pedido idêntico no mesmo dia. Ordens `7ab2`/`02ec` desta tarefa
+continuam ignoradas conforme instrução. Havia um `.claude/executor.lock`
+com `pid:13400` — confirmado órfão (`tasklist /FI "PID eq 13400"` devolveu
+"nenhuma tarefa em execução correspondente"; comparado também contra a
+lista completa de `claude.exe` vivos, nenhum tinha esse PID) e removido
+antes de continuar.
+
+Verificação repetida: `git log -1` = `b11c8e7` (commit da 4ª reconfirmação),
+`git rev-list --left-right --count HEAD...origin/autonomous-night-2026-04-29`
+= `0 0` (zero divergência em ambos os sentidos). Leitura directa de
+`lib/screens/driver_map_screen.dart` (linhas 2794-2828, 3087-3103) confirma:
+- Bloco `if (item.quantity > 1)` → `Text('${item.quantity} × €${(_isExtraItem(item)
+  ? item.price : (item.basePrice ?? item.price)).toStringAsFixed(2)}')`
+  intacto, idêntico ao commit `6b84d36`.
+- `_SummaryRow(label: 'Subtotal comprado', value: boughtTotal)`,
+  `_SummaryRow(label: 'Adicionados', ...)` e `'Total na caixa:'` /
+  `adjustedTotal` também intactos — nenhum cálculo tocado.
+
+`git diff HEAD -- lib/screens/driver_map_screen.dart` vazio. Nenhum código
+alterado nesta sessão; nenhum novo commit de fix necessário — só este
+apontamento documental + a limpeza do lock órfão (pid 13400).
+
+**Testes (reconfirmados por leitura do código, mesma lógica desde a 1ª
+verificação):**
+- qty = 1 → bloco secundário não renderiza (comportamento pré-existente,
+  sem regressão).
+- qty > 1 (ex. 8, caso real "Iced Tea de Manga" 8 × €1,37 = €10,95) → bloco
+  secundário mostra `8 × €1.37`; total da linha continua a vir da mesma
+  expressão (`basePrice ?? price) × quantity`) → `qty × unitário = total`
+  por construção; soma das linhas continua a bater com "Subtotal comprado".
+
+Nenhuma acção adicional necessária. Recomendação para o Bibliotecário:
+se um 6º pedido idêntico chegar, considerar que o padrão de duplicação em
+si (não o código) é o que precisa de investigação — possível reprocessamento
+da mesma ordem na fila do loop autónomo.

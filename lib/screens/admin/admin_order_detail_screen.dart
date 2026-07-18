@@ -67,6 +67,8 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen>
               // FAVORES (errand) — campos do favor + foto + valor real
               'service_type, errand_description, errand_location, '
               'errand_speed, errand_home_stop, errand_estimated_purchase_cents, '
+              'errand_home_stop_address, errand_home_stop_reason, '
+              'errand_home_stop_cash_cents, errand_return_leg, errand_leg, '
               'final_purchase_value, errand_request_photo_url')
           .eq('id', widget.orderId)
           .maybeSingle();
@@ -256,8 +258,29 @@ class _SummaryTab extends StatelessWidget {
                       order['errand_location'] ?? '—'),
                   _row(Icons.flash_on, 'Velocidade',
                       order['errand_speed'] ?? '—'),
-                  if (order['errand_home_stop'] == true)
-                    _row(Icons.house_outlined, 'Parada em casa', 'Sim'),
+                  // Parte 9 (rodada 2) — paragem em casa completa (PT-BR).
+                  if (order['errand_home_stop'] == true) ...[
+                    _row(Icons.house_outlined, 'Passa em casa',
+                        order['errand_home_stop_address'] ?? 'Sim (sem morada)'),
+                    if (order['errand_home_stop_reason'] != null)
+                      _row(Icons.info_outline, 'Motivo da parada',
+                          order['errand_home_stop_reason'].toString()),
+                    if (order['errand_home_stop_cash_cents'] != null &&
+                        (order['errand_home_stop_cash_cents'] as num) > 0)
+                      _row(Icons.payments_outlined, 'Dinheiro a pegar em casa',
+                          '€${((order['errand_home_stop_cash_cents'] as num) / 100).toStringAsFixed(2)}'),
+                    _row(Icons.replay, 'Perna de volta',
+                        order['errand_return_leg'] == true ? 'Sim' : 'Não'),
+                    _row(
+                        Icons.timeline,
+                        'Estado da perna',
+                        switch ((order['errand_leg'] as num?)?.toInt() ?? 0) {
+                          1 => 'Em casa do cliente',
+                          2 => 'No local do favor',
+                          3 => 'De volta a casa',
+                          _ => 'Por iniciar',
+                        }),
+                  ],
                   _row(
                       Icons.shopping_bag_outlined,
                       'Compra estimada',

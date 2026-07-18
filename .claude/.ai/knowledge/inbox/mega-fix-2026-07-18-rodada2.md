@@ -250,4 +250,31 @@ de espera foi creditada a ti") — sem hardcode do valor (a setting manda), só 
 ### Ficheiros tocados
 - `lib/screens/driver/tvde/tvde_ride_active_screen.dart` (só o snackbar de confirmação)
 
+**Commit:** `df8dfe6` · **Push:** OK (`71c4bca..df8dfe6`).
+
+---
+
+## PARTE 9 — Espelho admin do que nasceu nas 2 rodadas
+
+**Estado: FEITA — (b) favores home-stop adicionado; (a) utensílios já visíveis; (c) beauty verificado.**
+
+**(b) Paragem em casa dos Favores no detalhe do pedido** (`admin_order_detail_screen.dart`, PT-BR):
+o `SELECT` passou a trazer `errand_home_stop_address/reason/cash_cents`, `errand_return_leg`,
+`errand_leg`; o bloco do favor mostra agora — quando `errand_home_stop` — a **morada** ("Passa em
+casa"), **motivo**, **dinheiro a pegar em casa** (€), **perna de volta** (Sim/Não) e **estado da
+perna** (Por iniciar / Em casa / No favor / De volta). `flutter analyze` → **0 erros**.
+
+**(a) Utensílios (`cleaners.equipment`)** — **já visíveis**: `admin_cleaning_cleaners_screen`
+mostra `_MaterialsRow(docs)` a ler `docs.materials_list`, que a rodada 1 Parte 7 espelha para
+`cleaners.equipment` (mesma lista). Logo o admin já vê os utensílios confirmados. *Editar* pelo
+admin (mutar `cleaners.equipment`) seria um fluxo novo (RPC admin + diálogo) — deferido (pequeno).
+
+**(c) Aprovar/rejeitar beauty** — **verificado**: construído na rodada 1 Parte 4
+(`admin_partners_pending_screen` com badge 🍽️/💇 por `source` + rota para
+`approve_service_provider`/`reject_service_provider`). RPCs confirmados existentes; a conta "teste"
+(beauty) foi aprovada na Parte 6 desta rodada → o caminho candidatura→aprovação está exercitado.
+
+### Ficheiros tocados
+- `lib/screens/admin/admin_order_detail_screen.dart`
+
 ---

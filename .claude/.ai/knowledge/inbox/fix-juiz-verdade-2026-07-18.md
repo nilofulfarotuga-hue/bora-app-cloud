@@ -145,8 +145,27 @@ sem erros.
 
 ## Commit real do fix
 
-```
-hash_completo=<preenchido após o commit — ver abaixo>
-```
+Output de `git log -1` após o commit desta correção:
 
-(output de `git log -1` colado após o commit desta correção, conforme pedido)
+```
+commit df2ab1539b4b2e1b76f243b0402f8f7999a670bc
+Author: Danilo (Hermes autonomous) <nilofulfarotuga@gmail.com>
+Date:   Sat Jul 18 12:23:25 2026 +0100
+
+    fix(juiz-mecanico): para de reprovar por hash de texto e caminho literal divergentes
+
+    Duas causas-raiz dos falsos "TRAVOU" de hoje (b439, 7ab2, ebcc):
+    (a) commit-check rejeitava so por um hash citado no TEXTO da saida nao bater
+        no repo, mesmo com commit real e novo no git log (b439: executor escreveu
+        29636612139 por erro de transcricao, commit real era 458326c). Agora a
+        decisao e sempre o git log real; o hash de texto e so auditoria.
+    (b) ficheiro-check testava so o caminho literal citado na ordem, que diverge
+        do caminho real onde o executor grava (espelho do cortex
+        .claude/.ai/knowledge/...). Agora aceita tambem esse espelho e, na falta
+        de disco, um commit real que toque um ficheiro com o mesmo nome.
+
+    Simulado: b439/7ab2/ebcc passam a APROVADA; controlo negativo (sem commit
+    real algum) continua REPROVADO - gate anti-trapaca nao foi enfraquecido.
+
+    Relatorio: .claude/.ai/knowledge/inbox/fix-juiz-verdade-2026-07-18.md
+```

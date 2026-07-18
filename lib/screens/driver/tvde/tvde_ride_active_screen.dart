@@ -599,6 +599,14 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
       final store = context.read<TvdeDriverStore>();
       await store.cancelRide(ride.id, noShow: noShow);
       if (!mounted) return;
+      // Parte 8 (rodada 2) — confirma ao motorista o resultado do no-show: a taxa
+      // de espera é creditada server-side (tvde_cancel_ride actor=no_show). Sem
+      // hardcode do valor (a setting manda) — só informa que foi creditada.
+      if (noShow) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text(
+                'Registado: passageiro não compareceu. A taxa de espera foi creditada a ti.')));
+      }
       // Back-to-back: se a fila foi ativada pelo cancelamento, fica no ecrã
       // (a corrida ativada é renderizada); caso contrário volta à home.
       final next = store.activeRide;

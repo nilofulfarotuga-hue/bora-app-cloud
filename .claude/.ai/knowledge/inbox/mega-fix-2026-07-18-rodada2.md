@@ -226,4 +226,28 @@ novo com reservas.
 ### Ficheiros tocados
 - `supabase/migrations/20260718008000_reservas_pro_autosetup.sql` (novo, aplicado)
 
+**Commit:** `71c4bca` · **Push:** OK (`525dc7c..71c4bca`).
+
+---
+
+## PARTE 8 — No-show TVDE: fechar a ponta do motorista
+
+**Estado: VERIFICADO — a ponta do motorista JÁ existe; só faltava a confirmação do resultado (add).**
+
+A UI do motorista já estava completa (`tvde_ride_active_screen.dart`):
+- Item de menu **"Passageiro não compareceu?"** (`_cancel(ride, noShow: true)`), **gated** por
+  `_noShowUnlocked(ride)` = só ≥5 min após `arrivedAt` (janela default 5 min, configurável no admin)
+  + chip de temporizador de espera no pickup (padrão Uber).
+- Chama `store.cancelRide(ride.id, noShow: true)` → RPC `tvde_cancel_ride(p_actor:'no_show')`.
+- **Verificação de dinheiro (SQL):** tanto `tvde_cancel_ride` como `tvde_mark_noshow` creditam o
+  motorista usando a setting `noshow_fee` (os €3.50) — o caminho do botão (`tvde_cancel_ride`
+  no_show) JÁ credita. **NÃO mexi em valores** (settings intactas).
+
+Único acréscimo: um **snackbar de confirmação** após o no-show ("passageiro não compareceu; a taxa
+de espera foi creditada a ti") — sem hardcode do valor (a setting manda), só informa o resultado.
+`flutter analyze` → **0 erros**.
+
+### Ficheiros tocados
+- `lib/screens/driver/tvde/tvde_ride_active_screen.dart` (só o snackbar de confirmação)
+
 ---

@@ -171,6 +171,22 @@ class ServicesStore extends ChangeNotifier {
     }
   }
 
+  /// Limite de dias de antecedência para marcação (platform_settings via RPC
+  /// `get_setting`). Deixa o Danilo ajustar sem rebuild. Fallback seguro = 365
+  /// se a leitura falhar ou vier inválida.
+  Future<int> fetchMaxAdvanceDays() async {
+    try {
+      final res = await _supabase
+          .rpc('get_setting', params: {'p_key': 'appointment_max_advance_days'});
+      final n = res == null ? null : int.tryParse(res.toString());
+      if (n == null || n <= 0) return 365;
+      return n;
+    } catch (e) {
+      debugPrint('[ServicesStore] fetchMaxAdvanceDays: $e');
+      return 365;
+    }
+  }
+
   /// Slots disponíveis para um colaborador/serviço numa data (RPC).
   /// Devolve a lista de DateTime (locais) dos inícios de slot disponíveis.
   Future<List<DateTime>> getAvailableSlots({

@@ -36,9 +36,6 @@ class BookingFlowScreen extends StatefulWidget {
 /// Sentinela para a opção "Qualquer profissional disponível".
 const String _kAnyStaffId = '__any__';
 
-/// Janela máxima de marcação (appointment_max_advance_days = 30).
-const int _kMaxAdvanceDays = 30;
-
 class _BookingFlowScreenState extends State<BookingFlowScreen> {
   final _pageController = PageController();
   int _step = 0;
@@ -47,6 +44,16 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
   late Future<void> _loadFuture;
   List<ProviderServiceModel> _services = const [];
   List<StaffMemberModel> _staff = const [];
+
+  // Janela de marcação: lida de platform_settings (appointment_max_advance_days)
+  // para o Danilo ajustar sem rebuild; default seguro = 365 dias (1 ano).
+  int _maxAdvanceDays = 365;
+
+  // Nomes completos dos meses em PT-PT (cabeçalhos de secção no passo do dia).
+  static const _ptMonths = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+  ];
 
   // Seleções.
   ProviderServiceModel? _service;
@@ -83,11 +90,13 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
     final results = await Future.wait([
       store.fetchServices(widget.provider.id),
       store.fetchStaff(widget.provider.id),
+      store.fetchMaxAdvanceDays(),
     ]);
     if (!mounted) return;
     setState(() {
       _services = results[0] as List<ProviderServiceModel>;
       _staff = results[1] as List<StaffMemberModel>;
+      _maxAdvanceDays = results[2] as int;
       // Se o serviço pré-seleccionado não está na lista activa, ignora.
       if (_service != null &&
           !_services.any((s) => s.id == _service!.id)) {
@@ -493,41 +502,85 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
   // ─── Passo 3: dia ──────────────────────────────────────────────────────────
 
   Widget _dayStep() {
-    final today = DateTime.now();
-    final days = List.generate(
-      _kMaxAdvanceDays,
-      (i) => DateTime(today.year, today.month, today.day).add(Duration(days: i)),
-    );
-    return Column(
-      children: [
-        Expanded(
-          child: GridView.builder(
-            padding: const EdgeInsets.all(Spacing.lg),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 4,
-              crossAxisSpacing: Spacing.sm,
-              mainAxisSpacing: Spacing.sm,
-              childAspectRatio: 0.82,
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    // Aritmética de calendário (não Duration) → imune a mudanças de hora (DST).
+    final span = (_maxAdvanceDays - 1).clamp(0, 3660);
+    final lastDay = DateTime(today.year, today.month, today.day + span);
+
+    // Agrupa os dias por mês (de hoje até ao limite). Cada mês é uma secção com
+    // cabeçalho "Mês Ano" seguido da grelha de 4 colunas de _DayCell.
+    final sections = <_MonthSection>[];
+    var cursor = DateTime(today.year, today.month, 1);
+    final lastMonth = DateTime(lastDay.year, lastDay.month, 1);
+    while (!cursor.isAfter(lastMonth)) {
+      final monthEnd = DateTime(cursor.year, cursor.month + 1, 0);
+      final rangeStart = today.isAfter(cursor) ? today : cursor;
+      final rangeEnd = lastDay.isBefore(monthEnd) ? lastDay : monthEnd;
+      final days = <DateTime>[
+        for (var d = rangeStart;
+            !d.isAfter(rangeEnd);
+            d = DateTime(d.year, d.month, d.day + 1))
+          d,
+      ];
+      if (days.isNotEmpty) {
+        sections.add(_MonthSection(
+          label: '${_ptMonths[cursor.month - 1]} ${cursor.year}',
+          days: days,
+        ));
+      }
+      cursor = DateTime(cursor.year, cursor.month + 1, 1);
+    }
+
+    return CustomScrollView(
+      slivers: [
+        for (final section in sections) ...[
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(
+                Spacing.lg, Spacing.lg, Spacing.lg, Spacing.sm),
+            sliver: SliverToBoxAdapter(
+              child: Text(
+                section.label,
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                ),
+              ),
             ),
-            itemCount: days.length,
-            itemBuilder: (_, i) {
-              final d = days[i];
-              final selected = _day != null &&
-                  d.year == _day!.year &&
-                  d.month == _day!.month &&
-                  d.day == _day!.day;
-              return _DayCell(
-                date: d,
-                selected: selected,
-                onTap: () {
-                  setState(() => _day = d);
-                  _next();
-                  _loadSlotsForDay(d);
-                },
-              );
-            },
           ),
-        ),
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: Spacing.lg),
+            sliver: SliverGrid(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 4,
+                crossAxisSpacing: Spacing.sm,
+                mainAxisSpacing: Spacing.sm,
+                childAspectRatio: 0.82,
+              ),
+              delegate: SliverChildBuilderDelegate(
+                (context, i) {
+                  final d = section.days[i];
+                  final selected = _day != null &&
+                      d.year == _day!.year &&
+                      d.month == _day!.month &&
+                      d.day == _day!.day;
+                  return _DayCell(
+                    date: d,
+                    selected: selected,
+                    onTap: () {
+                      setState(() => _day = d);
+                      _next();
+                      _loadSlotsForDay(d);
+                    },
+                  );
+                },
+                childCount: section.days.length,
+              ),
+            ),
+          ),
+        ],
+        const SliverToBoxAdapter(child: SizedBox(height: Spacing.xxxl)),
       ],
     );
   }
@@ -761,6 +814,13 @@ class _SlotOption {
   _SlotOption({required this.start, required this.staffId});
   final DateTime start;
   final String staffId;
+}
+
+/// Secção de um mês no passo "Escolher dia" (cabeçalho + dias desse mês).
+class _MonthSection {
+  _MonthSection({required this.label, required this.days});
+  final String label;
+  final List<DateTime> days;
 }
 
 // ─── Widgets de apoio ────────────────────────────────────────────────────────

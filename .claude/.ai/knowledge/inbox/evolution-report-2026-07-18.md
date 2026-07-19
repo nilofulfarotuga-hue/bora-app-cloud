@@ -27,3 +27,12 @@ Telemetria de loops (custo_acumulado × retorno) ainda sem dados — o economy c
 | Detetar padrão | 🟢 | `(skill nova?) tópico 'vermelho'` | 5 reports com 'vermelho' no nome e nenhuma skill correspondente | avaliar skill nova com draft (agente redige, Juiz avalia) |
 
 *Estado de propostas em `.claude/skills/evolution-engine/scripts/state/propostas.json` — marcar `"estado": "rejeitada"` para não repropor.*
+
+## ✅ Avaliação (2026-07-19)
+
+Ambas as propostas foram **rejeitadas** — falso-positivo do motor: ele só varre `.claude/skills/`
+para checar se já existe capacidade correspondente, mas essa capacidade já existe como **agente**
+(`.claude/agents/aprovador-vermelho.md`, 🟡). Os 8 reports que geraram os tokens 'aprovador' e
+'vermelho' são os próprios relatórios de operação desse agente (`aprovador-vermelho-2026-07-*.md`).
+Não há lacuna de skill a preencher — mesmo padrão da rejeição anterior de `padrao:autonomous`
+(coberto por infraestrutura de agente, não é skill isolada). Detalhe em `propostas.json`.

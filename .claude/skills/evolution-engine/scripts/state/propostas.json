@@ -162,12 +162,16 @@
       "nota": "v2 restricoes pre-geracao; Juiz anti-trapaca CLEAN; aplicada 2026-07-10"
     },
     "padrao:aprovador": {
-      "estado": "proposta",
-      "primeira_vez": "2026-07-18"
+      "estado": "rejeitada",
+      "primeira_vez": "2026-07-18",
+      "avaliada_em": "2026-07-19",
+      "nota": "Falso-positivo: o motor so varre .claude/skills/, mas a capacidade ja existe como AGENTE (aprovador-vermelho, .claude/agents/aprovador-vermelho.md). Os 8 reports que geraram o token sao os proprios relatorios de operacao desse agente. Nao e lacuna de skill (mesmo padrao de padrao:autonomous)."
     },
     "padrao:vermelho": {
-      "estado": "proposta",
-      "primeira_vez": "2026-07-18"
+      "estado": "rejeitada",
+      "primeira_vez": "2026-07-18",
+      "avaliada_em": "2026-07-19",
+      "nota": "Mesma causa de padrao:aprovador: coberto pelo agente aprovador-vermelho ja existente; sem lacuna de skill a preencher."
     }
   }
 }

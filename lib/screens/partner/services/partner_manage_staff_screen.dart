@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:table_calendar/table_calendar.dart';
 
 import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
@@ -583,7 +584,8 @@ class _StaffAvailabilityScreen extends StatefulWidget {
       _StaffAvailabilityScreenState();
 }
 
-class _StaffAvailabilityScreenState extends State<_StaffAvailabilityScreen> {
+class _StaffAvailabilityScreenState extends State<_StaffAvailabilityScreen>
+    with SingleTickerProviderStateMixin {
   static const _dayNames = [
     'Domingo',
     'Segunda',
@@ -594,6 +596,7 @@ class _StaffAvailabilityScreenState extends State<_StaffAvailabilityScreen> {
     'Sábado',
   ];
 
+  late final TabController _tab;
   late Future<void> _future;
   // dayOfWeek -> (isWorking, start, end)
   final Map<int, _DayConfig> _config = {};
@@ -602,7 +605,14 @@ class _StaffAvailabilityScreenState extends State<_StaffAvailabilityScreen> {
   @override
   void initState() {
     super.initState();
+    _tab = TabController(length: 2, vsync: this);
     _future = _load();
+  }
+
+  @override
+  void dispose() {
+    _tab.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -687,31 +697,61 @@ class _StaffAvailabilityScreenState extends State<_StaffAvailabilityScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: BoraScreenAppBar(title: widget.staff.name),
-      body: FutureBuilder<void>(
-        future: _future,
-        builder: (context, snap) {
-          if (snap.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snap.hasError) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text(
-                  snap.error.toString().replaceFirst('Exception: ', ''),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            );
-          }
-          return ListView(
-            padding: const EdgeInsets.all(Spacing.lg),
-            children: [
-              for (var dow = 0; dow < 7; dow++) _dayCard(dow),
-            ],
-          );
-        },
+      body: Column(
+        children: [
+          Material(
+            color: AppColors.card,
+            child: TabBar(
+              controller: _tab,
+              labelColor: AppColors.primary,
+              unselectedLabelColor: AppColors.textSecondary,
+              indicatorColor: AppColors.primary,
+              tabs: const [
+                Tab(text: 'Padrão semanal'),
+                Tab(text: 'Calendário do mês'),
+              ],
+            ),
+          ),
+          Expanded(
+            child: TabBarView(
+              controller: _tab,
+              children: [
+                _buildWeeklyTab(),
+                _StaffMonthCalendar(staff: widget.staff),
+              ],
+            ),
+          ),
+        ],
       ),
+    );
+  }
+
+  /// Editor do padrão semanal (inalterado — apenas movido para uma aba).
+  Widget _buildWeeklyTab() {
+    return FutureBuilder<void>(
+      future: _future,
+      builder: (context, snap) {
+        if (snap.connectionState != ConnectionState.done) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snap.hasError) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(
+                snap.error.toString().replaceFirst('Exception: ', ''),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          );
+        }
+        return ListView(
+          padding: const EdgeInsets.all(Spacing.lg),
+          children: [
+            for (var dow = 0; dow < 7; dow++) _dayCard(dow),
+          ],
+        );
+      },
     );
   }
 
@@ -814,4 +854,499 @@ class _DayConfig {
         start: start ?? this.start,
         end: end ?? this.end,
       );
+}
+
+/// Tipo de marcador de um dia no calendário mensal.
+enum _DayMark { none, pattern, dayOff, custom }
+
+/// Aba "Calendário do mês" — o profissional marca EXCEÇÕES ao padrão semanal em
+/// datas específicas (folgas, feriados, horário diferente), guardadas em
+/// `staff_availability_exceptions`. O padrão semanal continua a ser o modelo
+/// base: dias sem exceção seguem-no (ponto verde discreto nos dias de trabalho
+/// do padrão). `get_available_slots` dá prioridade à exceção quando existe.
+class _StaffMonthCalendar extends StatefulWidget {
+  const _StaffMonthCalendar({required this.staff});
+
+  final StaffMemberModel staff;
+
+  @override
+  State<_StaffMonthCalendar> createState() => _StaffMonthCalendarState();
+}
+
+class _StaffMonthCalendarState extends State<_StaffMonthCalendar> {
+  static const _monthsPt = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+  ];
+  // Indexado por DateTime.weekday - 1 (Seg=1 → 0 … Dom=7 → 6).
+  static const _dowShortPt = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+
+  late DateTime _focused;
+  DateTime? _selected;
+  bool _loading = true;
+  String? _error;
+
+  // 'YYYY-MM-DD' -> linha de exceção (is_working, start_time, end_time).
+  final Map<String, Map<String, dynamic>> _exceptions = {};
+  // tableDow (0=Dom … 6=Sáb) -> is_working no padrão semanal.
+  final Map<int, bool> _weekly = {};
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _focused = DateTime(now.year, now.month, now.day);
+    _load();
+  }
+
+  String _ymd(DateTime d) => '${d.year.toString().padLeft(4, '0')}-'
+      '${d.month.toString().padLeft(2, '0')}-'
+      '${d.day.toString().padLeft(2, '0')}';
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    final store = context.read<PartnerAppointmentsStore>();
+    try {
+      final results = await Future.wait([
+        store.fetchAvailabilityExceptions(
+            staffId: widget.staff.id, month: _focused),
+        store.fetchStaffAvailability(widget.staff.id),
+      ]);
+      final exceptions = results[0];
+      final weekly = results[1];
+      _exceptions.clear();
+      for (final e in exceptions) {
+        final dateStr = (e['date'] as String?)?.split('T').first;
+        if (dateStr != null) _exceptions[dateStr] = e;
+      }
+      _weekly.clear();
+      for (final w in weekly) {
+        final dow = w['day_of_week'] as int?;
+        if (dow != null) _weekly[dow] = (w['is_working'] as bool?) ?? false;
+      }
+      if (!mounted) return;
+      setState(() => _loading = false);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = e.toString().replaceFirst('Exception: ', '');
+      });
+    }
+  }
+
+  _DayMark _markFor(DateTime day) {
+    final ex = _exceptions[_ymd(day)];
+    if (ex != null) {
+      final working = (ex['is_working'] as bool?) ?? false;
+      return working ? _DayMark.custom : _DayMark.dayOff;
+    }
+    final tableDow = day.weekday % 7; // Dom(7)→0, Seg(1)→1 … Sáb(6)→6.
+    if (_weekly[tableDow] == true) return _DayMark.pattern;
+    return _DayMark.none;
+  }
+
+  TimeOfDay? _timeOf(Object? v) {
+    if (v is! String || v.isEmpty) return null;
+    final parts = v.split(':');
+    if (parts.length < 2) return null;
+    final h = int.tryParse(parts[0]);
+    final m = int.tryParse(parts[1]);
+    if (h == null || m == null) return null;
+    return TimeOfDay(hour: h, minute: m);
+  }
+
+  String _fmt(TimeOfDay t) =>
+      '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+
+  void _snack(String msg, {bool error = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg),
+      backgroundColor: error ? AppColors.error : AppColors.success,
+    ));
+  }
+
+  Future<void> _save(Future<void> Function() op, String successMsg) async {
+    try {
+      await op();
+      if (!mounted) return;
+      _snack(successMsg);
+      await _load();
+    } catch (e) {
+      _snack(e.toString().replaceFirst('Exception: ', ''), error: true);
+    }
+  }
+
+  Future<TimeOfDay?> _pickTime(TimeOfDay initial, String help) {
+    return showTimePicker(
+      context: context,
+      initialTime: initial,
+      helpText: help,
+      builder: (ctx, child) => MediaQuery(
+        data: MediaQuery.of(ctx).copyWith(alwaysUse24HourFormat: true),
+        child: child ?? const SizedBox.shrink(),
+      ),
+    );
+  }
+
+  Future<void> _openDaySheet(DateTime day) async {
+    final ex = _exceptions[_ymd(day)];
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                  Spacing.lg, Spacing.lg, Spacing.lg, Spacing.xs),
+              child: Text(
+                '${day.day} de ${_monthsPt[day.month - 1]}',
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(Spacing.lg, 0, Spacing.lg, Spacing.sm),
+              child: Text(_statusLabel(day, ex),
+                  style: const TextStyle(
+                      fontSize: 13, color: AppColors.textSecondary)),
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.event_available, color: AppColors.primary),
+              title: const Text('Seguir o padrão semanal'),
+              subtitle: const Text('Remove qualquer exceção deste dia'),
+              onTap: () => Navigator.pop(ctx, 'pattern'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.block, color: AppColors.error),
+              title: const Text('Marcar como folga / indisponível'),
+              subtitle: const Text('Sem horários disponíveis neste dia'),
+              onTap: () => Navigator.pop(ctx, 'off'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.schedule, color: AppColors.accent),
+              title: const Text('Horário diferente neste dia'),
+              subtitle: const Text('Define início e fim só para esta data'),
+              onTap: () => Navigator.pop(ctx, 'custom'),
+            ),
+            const SizedBox(height: Spacing.sm),
+          ],
+        ),
+      ),
+    );
+    if (action == null || !mounted) return;
+    switch (action) {
+      case 'pattern':
+        await _applyPattern(day);
+        break;
+      case 'off':
+        await _applyDayOff(day);
+        break;
+      case 'custom':
+        await _applyCustom(day, ex);
+        break;
+    }
+  }
+
+  String _statusLabel(DateTime day, Map<String, dynamic>? ex) {
+    if (ex != null) {
+      final working = (ex['is_working'] as bool?) ?? false;
+      if (!working) return 'Estado atual: folga (exceção).';
+      final s = _timeOf(ex['start_time']);
+      final e = _timeOf(ex['end_time']);
+      if (s != null && e != null) {
+        return 'Estado atual: horário especial ${_fmt(s)}–${_fmt(e)}.';
+      }
+      return 'Estado atual: horário especial.';
+    }
+    return 'Estado atual: segue o padrão semanal.';
+  }
+
+  Future<void> _applyPattern(DateTime day) async {
+    if (_exceptions[_ymd(day)] == null) {
+      _snack('Este dia já segue o padrão semanal.');
+      return;
+    }
+    await _save(
+      () => context.read<PartnerAppointmentsStore>().deleteAvailabilityException(
+            staffId: widget.staff.id,
+            date: day,
+          ),
+      'Dia voltou ao padrão semanal.',
+    );
+  }
+
+  Future<void> _applyDayOff(DateTime day) async {
+    await _save(
+      () => context.read<PartnerAppointmentsStore>().upsertAvailabilityException(
+            staffId: widget.staff.id,
+            date: day,
+            isWorking: false,
+          ),
+      'Dia marcado como folga.',
+    );
+  }
+
+  Future<void> _applyCustom(DateTime day, Map<String, dynamic>? ex) async {
+    final start = await _pickTime(
+      _timeOf(ex?['start_time']) ?? const TimeOfDay(hour: 9, minute: 0),
+      'Hora de início',
+    );
+    if (start == null || !mounted) return;
+    final end = await _pickTime(
+      _timeOf(ex?['end_time']) ?? const TimeOfDay(hour: 18, minute: 0),
+      'Hora de fim',
+    );
+    if (end == null || !mounted) return;
+    if (end.hour * 60 + end.minute <= start.hour * 60 + start.minute) {
+      _snack('A hora de fim tem de ser depois da de início.', error: true);
+      return;
+    }
+    await _save(
+      () => context.read<PartnerAppointmentsStore>().upsertAvailabilityException(
+            staffId: widget.staff.id,
+            date: day,
+            isWorking: true,
+            startTime: _fmt(start),
+            endTime: _fmt(end),
+          ),
+      'Horário especial guardado.',
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(_error!, textAlign: TextAlign.center),
+              const SizedBox(height: Spacing.md),
+              ElevatedButton(
+                onPressed: _load,
+                child: const Text('Tentar de novo'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    final now = DateTime.now();
+    return ListView(
+      padding: const EdgeInsets.all(Spacing.lg),
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            borderRadius: BorderRadius.circular(Radii.lg),
+            boxShadow: AppColors.shadowCard,
+          ),
+          padding: const EdgeInsets.symmetric(
+              horizontal: Spacing.sm, vertical: Spacing.md),
+          child: TableCalendar<Object>(
+            firstDay: DateTime(now.year - 1, 1, 1),
+            lastDay: DateTime(now.year + 1, 12, 31),
+            focusedDay: _focused,
+            currentDay: DateTime(now.year, now.month, now.day),
+            startingDayOfWeek: StartingDayOfWeek.monday,
+            calendarFormat: CalendarFormat.month,
+            availableGestures: AvailableGestures.horizontalSwipe,
+            daysOfWeekHeight: 24,
+            rowHeight: 52,
+            selectedDayPredicate: (day) =>
+                _selected != null && isSameDay(_selected, day),
+            headerStyle: HeaderStyle(
+              titleCentered: true,
+              formatButtonVisible: false,
+              titleTextFormatter: (date, _) =>
+                  '${_monthsPt[date.month - 1]} ${date.year}',
+              titleTextStyle: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary,
+              ),
+              leftChevronIcon:
+                  const Icon(Icons.chevron_left, color: AppColors.textPrimary),
+              rightChevronIcon:
+                  const Icon(Icons.chevron_right, color: AppColors.textPrimary),
+            ),
+            onPageChanged: (focused) {
+              _focused = focused;
+              _load();
+            },
+            onDaySelected: (selected, focused) {
+              setState(() {
+                _selected = selected;
+                _focused = focused;
+              });
+              _openDaySheet(selected);
+            },
+            calendarBuilders: CalendarBuilders<Object>(
+              dowBuilder: (context, day) => Center(
+                child: Text(
+                  _dowShortPt[day.weekday - 1],
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textSubtle,
+                  ),
+                ),
+              ),
+              defaultBuilder: (context, day, focused) => _cell(day),
+              todayBuilder: (context, day, focused) =>
+                  _cell(day, isToday: true),
+              selectedBuilder: (context, day, focused) =>
+                  _cell(day, isSelected: true),
+              outsideBuilder: (context, day, focused) =>
+                  _cell(day, isOutside: true),
+              disabledBuilder: (context, day, focused) =>
+                  _cell(day, isOutside: true),
+            ),
+          ),
+        ),
+        const SizedBox(height: Spacing.lg),
+        _legend(),
+        const SizedBox(height: Spacing.md),
+        _hint(),
+      ],
+    );
+  }
+
+  Widget _cell(DateTime day,
+      {bool isToday = false, bool isSelected = false, bool isOutside = false}) {
+    final mark = isOutside ? _DayMark.none : _markFor(day);
+    final dotColor = switch (mark) {
+      _DayMark.dayOff => AppColors.error,
+      _DayMark.custom => AppColors.accent,
+      _DayMark.pattern => AppColors.primary,
+      _DayMark.none => Colors.transparent,
+    };
+    final dot = isSelected
+        ? (mark == _DayMark.none ? Colors.transparent : Colors.white)
+        : dotColor;
+    return Container(
+      margin: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: isSelected
+            ? AppColors.primary
+            : (isToday ? AppColors.primaryLight : null),
+      ),
+      alignment: Alignment.center,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '${day.day}',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight:
+                  (isToday || isSelected) ? FontWeight.w800 : FontWeight.w500,
+              color: isSelected
+                  ? Colors.white
+                  : (isOutside ? AppColors.textSubtle : AppColors.textPrimary),
+            ),
+          ),
+          const SizedBox(height: 2),
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(shape: BoxShape.circle, color: dot),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _legend() {
+    return Container(
+      padding: const EdgeInsets.all(Spacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(Radii.lg),
+        boxShadow: AppColors.shadowCard,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Legenda',
+              style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary)),
+          const SizedBox(height: Spacing.sm),
+          _legendRow(AppColors.primary, 'Trabalha (segue o padrão semanal)'),
+          _legendRow(AppColors.accent, 'Horário diferente neste dia'),
+          _legendRow(AppColors.error, 'Folga / indisponível'),
+        ],
+      ),
+    );
+  }
+
+  Widget _legendRow(Color color, String label) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        children: [
+          Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+          ),
+          const SizedBox(width: Spacing.sm),
+          Expanded(
+            child: Text(label,
+                style: const TextStyle(
+                    fontSize: 13, color: AppColors.textSecondary)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _hint() {
+    return Container(
+      padding: const EdgeInsets.all(Spacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(Radii.md),
+      ),
+      child: const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.info_outline, size: 18, color: AppColors.info),
+          SizedBox(width: Spacing.sm),
+          Expanded(
+            child: Text(
+              'Toca num dia para marcar folga, um horário diferente, ou voltar '
+              'ao padrão semanal. O padrão semanal continua a valer nos dias '
+              'sem exceção.',
+              style: TextStyle(
+                fontSize: 13,
+                height: 1.4,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

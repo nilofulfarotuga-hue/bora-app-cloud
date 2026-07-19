@@ -5,6 +5,7 @@ import '../models/appointment_model.dart';
 import '../models/provider_service_model.dart';
 import '../models/service_provider_model.dart';
 import '../models/staff_member_model.dart';
+import '../utils/staff_terminology.dart';
 
 /// Store partner-side da vertical Serviços / Barbearias.
 ///
@@ -180,7 +181,7 @@ class PartnerAppointmentsStore extends ChangeNotifier {
     }
   }
 
-  /// Bloqueia um intervalo de um barbeiro (pausa, folga). Devolve
+  /// Bloqueia um intervalo de um profissional (pausa, folga). Devolve
   /// {appointment_id}.
   Future<Map<String, dynamic>> blockSlot({
     required String staffId,
@@ -361,7 +362,10 @@ class PartnerAppointmentsStore extends ChangeNotifier {
       });
     } catch (e) {
       debugPrint('[PartnerAppointmentsStore] createStaff: $e');
-      throw Exception('Não foi possível criar o barbeiro.');
+      throw Exception(
+        'Não foi possível criar o '
+        '${StaffTerminology.singular(_provider?.category).toLowerCase()}.',
+      );
     }
   }
 
@@ -382,7 +386,10 @@ class PartnerAppointmentsStore extends ChangeNotifier {
       await _supabase.from('staff_members').update(update).eq('id', staffId);
     } catch (e) {
       debugPrint('[PartnerAppointmentsStore] updateStaff: $e');
-      throw Exception('Não foi possível actualizar o barbeiro.');
+      throw Exception(
+        'Não foi possível actualizar o '
+        '${StaffTerminology.singular(_provider?.category).toLowerCase()}.',
+      );
     }
   }
 
@@ -393,13 +400,16 @@ class PartnerAppointmentsStore extends ChangeNotifier {
           .update({'is_active': false}).eq('id', staffId);
     } catch (e) {
       debugPrint('[PartnerAppointmentsStore] deactivateStaff: $e');
-      throw Exception('Não foi possível desactivar o barbeiro.');
+      throw Exception(
+        'Não foi possível desactivar o '
+        '${StaffTerminology.singular(_provider?.category).toLowerCase()}.',
+      );
     }
   }
 
   // ───────────── DISPONIBILIDADE SEMANAL (CRUD direto) ─────────────
 
-  /// Linhas de `staff_availability` de um barbeiro. day_of_week: 0=Dom..6=Sáb.
+  /// Linhas de `staff_availability` de um profissional. day_of_week: 0=Dom..6=Sáb.
   Future<List<Map<String, dynamic>>> fetchStaffAvailability(
     String staffId,
   ) async {
@@ -444,6 +454,77 @@ class PartnerAppointmentsStore extends ChangeNotifier {
     } catch (e) {
       debugPrint('[PartnerAppointmentsStore] upsertAvailability: $e');
       throw Exception('Não foi possível guardar a disponibilidade.');
+    }
+  }
+
+  // ───────────── EXCEÇÕES DE DISPONIBILIDADE (calendário mensal) ─────────────
+  // Datas específicas que fogem ao padrão semanal (folgas, feriados, horário
+  // diferente). O padrão semanal (staff_availability) continua a ser o modelo
+  // base; get_available_slots dá prioridade à exceção quando existe.
+
+  /// Exceções de um profissional dentro do mês de `month`.
+  Future<List<Map<String, dynamic>>> fetchAvailabilityExceptions({
+    required String staffId,
+    required DateTime month,
+  }) async {
+    final first = DateTime(month.year, month.month, 1);
+    final last = DateTime(month.year, month.month + 1, 0);
+    try {
+      final res = await _supabase
+          .from('staff_availability_exceptions')
+          .select()
+          .eq('staff_id', staffId)
+          .gte('date', _formatDate(first))
+          .lte('date', _formatDate(last))
+          .order('date', ascending: true);
+      return (res as List)
+          .map((r) => Map<String, dynamic>.from(r as Map))
+          .toList();
+    } catch (e) {
+      debugPrint('[PartnerAppointmentsStore] fetchAvailabilityExceptions: $e');
+      throw Exception('Não foi possível carregar as exceções do calendário.');
+    }
+  }
+
+  /// Cria/actualiza a exceção de UMA data (upsert on_conflict staff_id,date).
+  /// `startTime`/`endTime` em 'HH:mm' — só relevantes quando isWorking=true.
+  Future<void> upsertAvailabilityException({
+    required String staffId,
+    required DateTime date,
+    required bool isWorking,
+    String? startTime,
+    String? endTime,
+    String? note,
+  }) async {
+    try {
+      await _supabase.from('staff_availability_exceptions').upsert({
+        'staff_id': staffId,
+        'date': _formatDate(date),
+        'is_working': isWorking,
+        'start_time': isWorking ? (startTime ?? '09:00') : null,
+        'end_time': isWorking ? (endTime ?? '18:00') : null,
+        if (note != null) 'note': note,
+      }, onConflict: 'staff_id,date');
+    } catch (e) {
+      debugPrint('[PartnerAppointmentsStore] upsertAvailabilityException: $e');
+      throw Exception('Não foi possível guardar a exceção do dia.');
+    }
+  }
+
+  /// Remove a exceção de uma data → o dia volta a seguir o padrão semanal.
+  Future<void> deleteAvailabilityException({
+    required String staffId,
+    required DateTime date,
+  }) async {
+    try {
+      await _supabase
+          .from('staff_availability_exceptions')
+          .delete()
+          .eq('staff_id', staffId)
+          .eq('date', _formatDate(date));
+    } catch (e) {
+      debugPrint('[PartnerAppointmentsStore] deleteAvailabilityException: $e');
+      throw Exception('Não foi possível remover a exceção do dia.');
     }
   }
 
@@ -524,7 +605,9 @@ class PartnerAppointmentsStore extends ChangeNotifier {
       return 'Método de pagamento inválido.';
     }
     if (e.contains('service_not_found')) return 'Serviço não encontrado.';
-    if (e.contains('staff_not_found')) return 'Barbeiro não encontrado.';
+    if (e.contains('staff_not_found')) {
+      return '${StaffTerminology.singular(_provider?.category)} não encontrado.';
+    }
     if (e.contains('slot_taken') || e.contains('slot_unavailable')) {
       return 'Horário indisponível. Escolhe outro.';
     }

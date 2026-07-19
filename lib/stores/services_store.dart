@@ -187,6 +187,68 @@ class ServicesStore extends ChangeNotifier {
     }
   }
 
+  /// Padrão semanal (staff_availability) de um ou mais profissionais.
+  /// Devolve staffId -> conjunto de day_of_week (0=Dom..6=Sáb) com is_working=true.
+  /// Usado só para pré-marcar dias no cliente; a verdade final continua a ser a
+  /// função get_available_slots no servidor. Leitura pública (RLS sa_select=true).
+  Future<Map<String, Set<int>>> fetchWeeklyWorkingDays(
+      List<String> staffIds) async {
+    if (staffIds.isEmpty) return const {};
+    try {
+      final res = await _supabase
+          .from('staff_availability')
+          .select('staff_id, day_of_week, is_working')
+          .inFilter('staff_id', staffIds);
+      final out = <String, Set<int>>{};
+      for (final r in (res as List)) {
+        final m = Map<String, dynamic>.from(r as Map);
+        if ((m['is_working'] as bool?) ?? false) {
+          final sid = m['staff_id'] as String?;
+          final dow = m['day_of_week'] as int?;
+          if (sid != null && dow != null) {
+            out.putIfAbsent(sid, () => <int>{}).add(dow);
+          }
+        }
+      }
+      return out;
+    } catch (e) {
+      debugPrint('[ServicesStore] fetchWeeklyWorkingDays: $e');
+      throw Exception('Não foi possível carregar a disponibilidade.');
+    }
+  }
+
+  /// Exceções (staff_availability_exceptions) de profissionais num intervalo.
+  /// Devolve staffId -> (yyyy-MM-dd -> is_working). Leitura pública.
+  Future<Map<String, Map<String, bool>>> fetchExceptionsRange({
+    required List<String> staffIds,
+    required DateTime from,
+    required DateTime to,
+  }) async {
+    if (staffIds.isEmpty) return const {};
+    try {
+      final res = await _supabase
+          .from('staff_availability_exceptions')
+          .select('staff_id, date, is_working')
+          .inFilter('staff_id', staffIds)
+          .gte('date', _formatDate(from))
+          .lte('date', _formatDate(to));
+      final out = <String, Map<String, bool>>{};
+      for (final r in (res as List)) {
+        final m = Map<String, dynamic>.from(r as Map);
+        final sid = m['staff_id'] as String?;
+        final date = (m['date'] as String?)?.split('T').first;
+        if (sid != null && date != null) {
+          out.putIfAbsent(sid, () => <String, bool>{})[date] =
+              (m['is_working'] as bool?) ?? false;
+        }
+      }
+      return out;
+    } catch (e) {
+      debugPrint('[ServicesStore] fetchExceptionsRange: $e');
+      throw Exception('Não foi possível carregar as exceções.');
+    }
+  }
+
   /// Slots disponíveis para um colaborador/serviço numa data (RPC).
   /// Devolve a lista de DateTime (locais) dos inícios de slot disponíveis.
   Future<List<DateTime>> getAvailableSlots({

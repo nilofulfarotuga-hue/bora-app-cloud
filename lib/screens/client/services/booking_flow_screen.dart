@@ -55,6 +55,16 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
   ];
 
+  // Disponibilidade do profissional escolhido — pré-marcação VISUAL dos dias
+  // (o servidor continua a ser a verdade final via get_available_slots).
+  // Carregada 1x ao entrar no passo do dia. _availReady só fica true após um
+  // load bem-sucedido; em falha/loading, todos os dias ficam disponíveis.
+  bool _loadingAvail = false;
+  bool _availReady = false;
+  String? _availLoadedForStaffId;
+  Map<String, Set<int>> _weeklyByStaff = const {};
+  Map<String, Map<String, bool>> _exceptionsByStaff = const {};
+
   // Seleções.
   ProviderServiceModel? _service;
   String _staffId = _kAnyStaffId; // _kAnyStaffId = "qualquer"
@@ -103,6 +113,70 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
         _service = null;
       }
     });
+  }
+
+  /// Carrega (1x por seleção de profissional) o padrão semanal + exceções do
+  /// staff escolhido — ou de TODOS, se "Qualquer disponível". Fail-safe: em
+  /// erro, deixa todos os dias disponíveis (não bloqueia a marcação).
+  Future<void> _loadAvailability() async {
+    if (_availLoadedForStaffId == _staffId) return;
+    final staffIds = _staffId == _kAnyStaffId
+        ? _staff.map((s) => s.id).toList()
+        : <String>[_staffId];
+    if (staffIds.isEmpty) return;
+    setState(() {
+      _loadingAvail = true;
+      _availReady = false;
+    });
+    final store = context.read<ServicesStore>();
+    final now = DateTime.now();
+    final from = DateTime(now.year, now.month, now.day);
+    final to = DateTime(from.year, from.month, from.day + _maxAdvanceDays);
+    try {
+      final results = await Future.wait([
+        store.fetchWeeklyWorkingDays(staffIds),
+        store.fetchExceptionsRange(staffIds: staffIds, from: from, to: to),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        _weeklyByStaff = results[0] as Map<String, Set<int>>;
+        _exceptionsByStaff = results[1] as Map<String, Map<String, bool>>;
+        _availLoadedForStaffId = _staffId;
+        _availReady = true;
+        _loadingAvail = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      // Não bloquear: sem dados, todos os dias ficam disponíveis (como antes).
+      setState(() {
+        _availReady = false;
+        _loadingAvail = false;
+      });
+    }
+  }
+
+  String _ymd(DateTime d) => '${d.year.toString().padLeft(4, '0')}-'
+      '${d.month.toString().padLeft(2, '0')}-'
+      '${d.day.toString().padLeft(2, '0')}';
+
+  /// O profissional escolhido trabalha nesse dia? (pré-marcação visual)
+  /// Exceção da data tem prioridade sobre o padrão semanal; "Qualquer" = pelo
+  /// menos um profissional. Sem dados carregados → true (não desativa nada).
+  bool _dayAvailable(DateTime day) {
+    if (!_availReady) return true;
+    final ymd = _ymd(day);
+    final tableDow = day.weekday % 7; // Dom(7)→0 … Sáb(6)→6.
+    bool worksForStaff(String sid) {
+      final ex = _exceptionsByStaff[sid]?[ymd];
+      if (ex != null) return ex;
+      return _weeklyByStaff[sid]?.contains(tableDow) ?? false;
+    }
+
+    if (_staffId == _kAnyStaffId) {
+      if (_staff.isEmpty) return true;
+      return _staff.any((s) => worksForStaff(s.id));
+    }
+    return worksForStaff(_staffId);
   }
 
   // ─── Navegação entre passos ───────────────────────────────────────────────
@@ -428,6 +502,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
           selected: _staffId == _kAnyStaffId,
           onTap: () {
             setState(() => _staffId = _kAnyStaffId);
+            _loadAvailability();
             _next();
           },
           child: const Row(
@@ -457,6 +532,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
             selected: _staffId == st.id,
             onTap: () {
               setState(() => _staffId = st.id);
+              _loadAvailability();
               _next();
             },
             child: Row(
@@ -534,6 +610,28 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
 
     return CustomScrollView(
       slivers: [
+        if (_loadingAvail)
+          const SliverToBoxAdapter(
+            child: Padding(
+              padding:
+                  EdgeInsets.fromLTRB(Spacing.lg, Spacing.sm, Spacing.lg, 0),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  SizedBox(width: Spacing.sm),
+                  Text(
+                    'A verificar disponibilidade…',
+                    style:
+                        TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
+            ),
+          ),
         for (final section in sections) ...[
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(
@@ -565,14 +663,18 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
                       d.year == _day!.year &&
                       d.month == _day!.month &&
                       d.day == _day!.day;
+                  final available = _dayAvailable(d);
                   return _DayCell(
                     date: d,
                     selected: selected,
-                    onTap: () {
-                      setState(() => _day = d);
-                      _next();
-                      _loadSlotsForDay(d);
-                    },
+                    available: available,
+                    onTap: available
+                        ? () {
+                            setState(() => _day = d);
+                            _next();
+                            _loadSlotsForDay(d);
+                          }
+                        : null,
                   );
                 },
                 childCount: section.days.length,
@@ -891,16 +993,64 @@ class _DayCell extends StatelessWidget {
     required this.date,
     required this.selected,
     required this.onTap,
+    this.available = true,
   });
   final DateTime date;
   final bool selected;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
+  final bool available;
 
   static const _weekdays = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
 
   @override
   Widget build(BuildContext context) {
     final wd = _weekdays[(date.weekday - 1).clamp(0, 6)];
+
+    // Dia em que o profissional não trabalha: cinza, número esbatido, rótulo
+    // "Indisponível" e SEM toque (onTap ignorado).
+    if (!available) {
+      return Container(
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(Radii.md),
+          border: Border.all(color: AppColors.divider),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              wd,
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSubtle,
+              ),
+            ),
+            const SizedBox(height: Spacing.xxs),
+            Text(
+              '${date.day}',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textSubtle.withValues(alpha: 0.6),
+              ),
+            ),
+            const SizedBox(height: 2),
+            const Text(
+              'Indisponível',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 8.5,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSubtle,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(Radii.md),

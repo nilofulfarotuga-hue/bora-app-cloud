@@ -70,6 +70,7 @@ import 'admin_wallets_screen.dart';
 import 'admin_weekly_settlements_screen.dart';
 import 'admin_cleaning_bookings_screen.dart';
 import 'admin_cleaning_cleaners_screen.dart';
+import 'admin_cleaner_settlements_screen.dart';
 import 'admin_tvde_access_requests_screen.dart';
 import 'admin_tvde_noshows_screen.dart';
 import 'admin_tvde_rides_screen.dart';
@@ -1089,6 +1090,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       MaterialPageRoute(
                           builder: (_) =>
                               const AdminCleaningCleanersScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.payments_outlined,
+                  title: 'Fechamento Semanal — Limpeza',
+                  subtitle: 'Repasses por profissional · marcar pagos · recalcular',
+                  color: const Color(0xFF0EA5E9),
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminCleanerSettlementsScreen())),
                 ),
                 const SizedBox(height: 18),
                 // ── Ferramentas (ecrãs anteriormente órfãos) ──

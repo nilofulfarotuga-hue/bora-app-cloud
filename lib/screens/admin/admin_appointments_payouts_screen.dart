@@ -505,6 +505,23 @@ class _AdminAppointmentsPayoutsScreenState
     );
   }
 
+  Widget _chip(String label, Color color) => Container(
+        padding: const EdgeInsets.symmetric(
+            horizontal: Spacing.xs + 2, vertical: Spacing.xxs),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+      );
+
   Widget _stat(String label, String v, {String? sub, Color? color}) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -649,6 +666,13 @@ class _AdminAppointmentsPayoutsScreenState
     final count = (r['total_appointments'] as num?)?.toInt() ?? 0;
     final paidAt = r['paid_at']?.toString();
     final providerName = r['provider_name'] as String?;
+    // Saldo negativo = o parceiro DEVE à Bora (walk-ins > repasse). A coluna
+    // direction vem da RPC; caímos no sinal do net se ausente (compat).
+    final direction = (r['direction'] as String?) ??
+        (net < 0 ? 'partner_to_bora' : 'bora_to_partner');
+    final partnerOwes = direction == 'partner_to_bora' || net < 0;
+    final walkins = (r['total_walkins'] as num?)?.toInt() ?? 0;
+    final walkinFees = (r['total_walkin_fees_cents'] as num?)?.toInt() ?? 0;
 
     return Card(
       margin: const EdgeInsets.symmetric(
@@ -664,7 +688,9 @@ class _AdminAppointmentsPayoutsScreenState
               width: 10,
               height: 48,
               decoration: BoxDecoration(
-                color: isPending ? AppColors.warning : AppColors.primary,
+                color: partnerOwes
+                    ? AppColors.error
+                    : (isPending ? AppColors.warning : AppColors.primary),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -673,37 +699,26 @@ class _AdminAppointmentsPayoutsScreenState
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
+                  Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: Spacing.sm,
+                    runSpacing: Spacing.xxs,
                     children: [
                       Text(
-                        _euros(net),
-                        style: const TextStyle(
+                        partnerOwes ? '−${_euros(net.abs())}' : _euros(net),
+                        style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
-                          color: AppColors.textPrimary,
+                          color: partnerOwes
+                              ? AppColors.error
+                              : AppColors.textPrimary,
                         ),
                       ),
-                      const SizedBox(width: Spacing.sm),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: Spacing.xs + 2, vertical: Spacing.xxs),
-                        decoration: BoxDecoration(
-                          color: isPending
-                              ? AppColors.warning.withValues(alpha: 0.15)
-                              : AppColors.primary.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          isPending ? 'PENDENTE' : 'PAGO',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: isPending
-                                ? AppColors.warning
-                                : AppColors.primary,
-                          ),
-                        ),
-                      ),
+                      _chip(isPending ? 'PENDENTE' : 'PAGO',
+                          isPending ? AppColors.warning : AppColors.primary),
+                      _chip(
+                          partnerOwes ? 'A PAGAR À BORA' : 'A RECEBER DA BORA',
+                          partnerOwes ? AppColors.error : AppColors.primary),
                     ],
                   ),
                   const SizedBox(height: Spacing.xxs),
@@ -718,6 +733,13 @@ class _AdminAppointmentsPayoutsScreenState
                     style: const TextStyle(
                         fontSize: 11, color: AppColors.textSecondary),
                   ),
+                  if (walkins > 0)
+                    Text(
+                      '$walkins walk-in${walkins == 1 ? '' : 's'} · '
+                      '−${_euros(walkinFees)} (uso do sistema)',
+                      style: const TextStyle(
+                          fontSize: 11, color: AppColors.error),
+                    ),
                   if (paidAt != null)
                     Text('Pago ${_fmtDateTime(paidAt)}',
                         style: const TextStyle(

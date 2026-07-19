@@ -241,7 +241,12 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         enableVibration: true,
         category: AndroidNotificationCategory.call,
         fullScreenIntent: true,
-        autoCancel: true,
+        // [Fix persistência 2026-07-19] faltava ongoing:true/autoCancel:false
+        // — sem isso a notif cai no comportamento swipeable/auto-cancel
+        // normal do Android em vez de ficar presa até o motorista tocar,
+        // igual ao padrão já correto do delivery (postWakeActivityNotification).
+        ongoing: true,
+        autoCancel: false,
         onlyAlertOnce: false,
         ticker: title,
         visibility: fln.NotificationVisibility.public,
@@ -262,6 +267,14 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     } catch (e) {
       debugPrint('[BORA-TVDE] BG offer notif error: $e');
     }
+    return;
+  }
+
+  // ── [Fix notificações persistentes 2026-07-19] Categorias sem tratamento
+  // explícito (auditoria Claude.ai) caíam no auto-display nativo do Android,
+  // que não é persistente (some sozinho). Notificação local ongoing:true.
+  if (_kPersistentCategoryTypes.contains(data['type'])) {
+    await _showPersistentCategoryNotification(message);
     return;
   }
 
@@ -741,6 +754,208 @@ Future<void> postWakeActivityNotification({
   }
 }
 
+// ── [Fix notificações persistentes 2026-07-19] ──────────────────────────────
+// Auditoria Claude.ai (2026-07-19, confirmada ao vivo pelo Danilo): várias
+// categorias de push não tinham NENHUM tratamento em notification_service.dart
+// — caíam no auto-display nativo do Android (background, não-persistente,
+// desaparece sozinho) ou no catch-all `_sound.playOnce()` silencioso em
+// foreground. Dispatcher único (usado pelo handler BG e pelo listener FG)
+// que gera uma notificação local ongoing:true/autoCancel:false — fica presa
+// até o utilizador tocar, igual ao padrão já correto do delivery/TVDE-oferta.
+
+const Set<String> _kPersistentCategoryTypes = <String>{
+  'tvde_ride_status',
+  'cleaning_offer',
+  'cleaning_status',
+  'tvde_chat',
+  'admin_generic',
+  'crosstalk_critical',
+  'appointment_new',
+  'low_rating',
+  'purchase_finalized',
+  // Backend emite `admin_reimbursement`; `reimbursement` fica como alias
+  // defensivo caso alguma Edge Function envie o nome curto.
+  'admin_reimbursement',
+  'reimbursement',
+};
+
+@pragma('vm:entry-point')
+Future<void> _showPersistentCategoryNotification(RemoteMessage message) async {
+  final data = message.data;
+  final type = data['type']?.toString() ?? '';
+  final notif = message.notification;
+  switch (type) {
+    case 'tvde_ride_status':
+      final rideId = data['rideId']?.toString() ?? '';
+      await _showPersistentStatusNotification(
+        type: type,
+        title: data['title']?.toString() ?? notif?.title ?? '🚗 Corrida',
+        body: data['body']?.toString() ?? notif?.body ?? '',
+        notificationId: rideId.isNotEmpty ? rideId.hashCode : type.hashCode,
+        payload: {'rideId': rideId},
+      );
+      return;
+    case 'cleaning_offer':
+    case 'cleaning_status':
+      final bookingId = data['bookingId']?.toString() ?? '';
+      await _showPersistentStatusNotification(
+        type: type,
+        title: notif?.title ?? '🧹 Bora Limpeza',
+        body: notif?.body ?? '',
+        notificationId: bookingId.isNotEmpty ? bookingId.hashCode : type.hashCode,
+        payload: {'bookingId': bookingId},
+        urgent: type == 'cleaning_offer',
+      );
+      return;
+    case 'tvde_chat':
+      // Mensagem de chat da corrida — antes caía no beep silencioso. Notif
+      // local persistente (canal normal, sem som em loop) com o nome do
+      // remetente no título. O tap abre a app (launchApp em _onLocalNotifTap).
+      final rideId =
+          data['rideId']?.toString() ?? data['ride_id']?.toString() ?? '';
+      final sender = data['sender_name']?.toString() ?? '';
+      await _showPersistentStatusNotification(
+        type: type,
+        title: sender.isNotEmpty
+            ? '💬 $sender'
+            : notif?.title ?? '💬 Mensagem da corrida',
+        body: data['body']?.toString() ?? notif?.body ?? '',
+        notificationId: rideId.isNotEmpty ? rideId.hashCode : type.hashCode,
+        payload: {
+          'rideId': rideId,
+          'conversation_type': data['conversation_type']?.toString() ?? '',
+        },
+      );
+      return;
+    case 'admin_generic':
+    case 'crosstalk_critical':
+      final ref =
+          data['ref']?.toString() ?? data['crosstalk_id']?.toString() ?? '';
+      await _showPersistentStatusNotification(
+        type: type,
+        title: notif?.title ?? '🔴 Bora Admin',
+        body: notif?.body ?? '',
+        notificationId: ref.isNotEmpty ? ref.hashCode : type.hashCode,
+        payload: {'route': data['route']?.toString() ?? '/admin'},
+      );
+      return;
+    case 'appointment_new':
+      final appointmentId = data['appointmentId']?.toString() ?? '';
+      await _showPersistentStatusNotification(
+        type: type,
+        title: notif?.title ?? '🔔 Nova marcação',
+        body: notif?.body ?? '',
+        notificationId:
+            appointmentId.isNotEmpty ? appointmentId.hashCode : type.hashCode,
+        payload: {
+          'appointmentId': appointmentId,
+          'providerId': data['providerId']?.toString() ?? '',
+        },
+      );
+      return;
+    case 'low_rating':
+      final ratingId = data['rating_id']?.toString() ?? '';
+      await _showPersistentStatusNotification(
+        type: type,
+        title: notif?.title ?? '⭐ Avaliação baixa',
+        body: notif?.body ?? '',
+        notificationId: ratingId.isNotEmpty ? ratingId.hashCode : type.hashCode,
+        payload: {'restaurantId': data['restaurant_id']?.toString() ?? ''},
+      );
+      return;
+    case 'purchase_finalized':
+      final orderId = data['order_id']?.toString() ?? '';
+      await _showPersistentStatusNotification(
+        type: type,
+        title: notif?.title ?? '✅ Compra finalizada',
+        body: notif?.body ?? '',
+        notificationId: orderId.isNotEmpty ? orderId.hashCode : type.hashCode,
+        payload: {'orderId': orderId},
+      );
+      return;
+    case 'admin_reimbursement':
+    case 'reimbursement':
+      final orderId = data['order_id']?.toString() ?? '';
+      await _showPersistentStatusNotification(
+        type: type,
+        title: notif?.title ?? '💶 Reembolso pendente',
+        body: notif?.body ?? '',
+        notificationId: orderId.isNotEmpty ? orderId.hashCode : type.hashCode,
+        payload: {
+          'orderId': orderId,
+          'driverId': data['driver_id']?.toString() ?? '',
+        },
+      );
+      return;
+  }
+}
+
+/// Notificação local genérica e PERSISTENTE (ongoing:true + autoCancel:false)
+/// para categorias sem UI dedicada. `urgent` reusa o canal insistente v3
+/// (ofertas); as restantes usam o canal 'bora_orders' (importance high, sem
+/// som em loop).
+@pragma('vm:entry-point')
+Future<void> _showPersistentStatusNotification({
+  required String type,
+  required String title,
+  required String body,
+  required int notificationId,
+  required Map<String, String> payload,
+  bool urgent = false,
+}) async {
+  final channelId = urgent ? 'bora_orders_urgent_v3' : 'bora_orders';
+  try {
+    final plugin = FlutterLocalNotificationsPlugin();
+    final androidImpl = plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    await androidImpl?.createNotificationChannel(
+      AndroidNotificationChannel(
+        channelId,
+        urgent ? 'Bora — Novos pedidos' : 'Bora — Notificações',
+        description: urgent
+            ? 'Som contínuo + vibração para novos pedidos urgentes.'
+            : 'Notificações do Bora App.',
+        importance: urgent ? Importance.max : Importance.high,
+        playSound: true,
+        sound: urgent
+            ? const RawResourceAndroidNotificationSound('bora_alert')
+            : null,
+        enableVibration: true,
+        showBadge: true,
+      ),
+    );
+    final androidDetails = AndroidNotificationDetails(
+      channelId,
+      urgent ? 'Bora — Novos pedidos' : 'Bora — Notificações',
+      channelDescription: 'Toca para abrir.',
+      importance: urgent ? Importance.max : Importance.high,
+      priority: urgent ? Priority.max : Priority.high,
+      playSound: true,
+      sound: urgent
+          ? const RawResourceAndroidNotificationSound('bora_alert')
+          : null,
+      enableVibration: true,
+      category: AndroidNotificationCategory.status,
+      ongoing: true,
+      autoCancel: false,
+      onlyAlertOnce: false,
+      visibility: fln.NotificationVisibility.public,
+      styleInformation: BigTextStyleInformation(body, contentTitle: title),
+    );
+    await plugin.show(
+      notificationId,
+      title,
+      body,
+      NotificationDetails(android: androidDetails),
+      payload: jsonEncode({'type': type, ...payload}),
+    );
+    debugPrint(
+        '[NotificationService] persistent notif posted type=$type id=$notificationId');
+  } catch (e) {
+    debugPrint('[NotificationService] persistent notif error type=$type: $e');
+  }
+}
+
 /// Wraps Firebase Cloud Messaging for BORA APP.
 ///
 /// Responsibilities:
@@ -1022,6 +1237,14 @@ class NotificationService {
         // Força o store a reler a oferta do servidor — não depende só do
         // realtime; a tela de oferta abre via _syncNav mal offeredRide muda.
         tvdeOfferReload?.call();
+        return;
+      }
+      // [Fix notificações persistentes 2026-07-19] Sem isto, estas categorias
+      // caíam no catch-all `_sound.playOnce()` — em foreground o utilizador
+      // só ouvia um beep e nunca via nada (a msg.notification do FCM não é
+      // auto-exibida pelo sistema quando a app está aberta).
+      if (_kPersistentCategoryTypes.contains(type)) {
+        unawaited(_showPersistentCategoryNotification(msg));
         return;
       }
       _sound.playOnce();
@@ -1735,7 +1958,11 @@ class NotificationService {
         enableVibration: true,
         category: AndroidNotificationCategory.call,
         fullScreenIntent: true,
-        autoCancel: true,
+        // [Fix persistência 2026-07-19] ver nota igual no handler BG — sem
+        // ongoing/autoCancel:false a notif desaparecia sozinha em vez de
+        // ficar presa até o motorista tocar.
+        ongoing: true,
+        autoCancel: false,
         onlyAlertOnce: false,
         ticker: title,
         visibility: fln.NotificationVisibility.public,

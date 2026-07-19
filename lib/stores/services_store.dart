@@ -473,6 +473,14 @@ class ServicesStore extends ChangeNotifier {
   /// Lê marcações do cliente (RLS filtra por client_user_id = auth.uid())
   /// com JOIN ao prestador/serviço/staff para mostrar nomes nos cards.
   Future<void> fetchMyAppointments() async {
+    final uid = _supabase.auth.currentUser?.id;
+    if (uid == null) {
+      _myAppointments = const [];
+      _loadingAppointments = false;
+      _appointmentsError = null;
+      notifyListeners();
+      return;
+    }
     _loadingAppointments = true;
     _appointmentsError = null;
     notifyListeners();
@@ -483,6 +491,12 @@ class ServicesStore extends ChangeNotifier {
             '*, service_providers(id, name, photo_url, hero_image_url), '
             'provider_services(id, name), staff_members(id, name)',
           )
+          // Só as marcações em que o utilizador é o CLIENTE (não as do seu
+          // próprio provider, caso também seja parceiro — a RLS ap_select
+          // permite ler ambos) e NUNCA walk-ins do balcão (is_walk_in=true é
+          // agenda interna do barbeiro, sem client_user_id).
+          .eq('client_user_id', uid)
+          .eq('is_walk_in', false)
           .order('scheduled_at', ascending: false)
           .limit(100);
       _myAppointments = (response as List).map((r) {
@@ -517,7 +531,12 @@ class ServicesStore extends ChangeNotifier {
         .order('scheduled_at', ascending: false)
         .listen((rows) {
       final byId = {for (final a in _myAppointments) a.id: a};
-      _myAppointments = rows.map((row) {
+      _myAppointments = rows
+          // Defensivo: o stream já filtra client_user_id=uid (walk-ins têm
+          // client_user_id=null, logo nunca entram), mas garantimos que
+          // nenhum walk-in do balcão aparece na tela do cliente.
+          .where((row) => row['is_walk_in'] != true)
+          .map((row) {
         final fresh =
             AppointmentModel.fromSupabase(Map<String, dynamic>.from(row));
         // .stream() não traz joins — recupera de cache ou do estado anterior.

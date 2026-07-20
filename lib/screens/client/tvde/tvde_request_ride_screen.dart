@@ -304,7 +304,9 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: AppColors.surface,
-      // Sem isto o botão de confirmar fica atrás da barra de gestos do sistema.
+      // Protege o topo (notch). O FUNDO não vem daqui — `useSafeArea` aplica
+      // `SafeArea(bottom: false)`; quem trata da barra do sistema é o
+      // `padding.bottom` somado dentro de `_TvdePaymentSheet`.
       useSafeArea: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -486,7 +488,9 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: AppColors.surface,
-      // Sem isto o botão de confirmar fica atrás da barra de gestos do sistema.
+      // Protege o topo (notch). O FUNDO não vem daqui — `useSafeArea` aplica
+      // `SafeArea(bottom: false)`; quem trata da barra do sistema é o
+      // `padding.bottom` somado dentro de `_TvdePaymentSheet`.
       useSafeArea: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -708,6 +712,12 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: AppColors.surface,
+      // [Ronda 2] Fechar a folha só pelo "X". Antes, tocar fora para esconder o
+      // teclado fazia barrier-tap → `pop(null)` → o ecrã por baixo voltava ao
+      // botão "Solicitar corrida" e o cliente pedia uma corrida normal de €5 a
+      // pensar que estava a chamar a volta que já tinha pago.
+      isDismissible: false,
+      enableDrag: false,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -716,7 +726,15 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
         initialOrigin: origin,
       ),
     );
-    if (picked == null || !mounted) return;
+    if (!mounted) return;
+    if (picked == null) {
+      // Desistiu de propósito (X): o vale não se perde — dizer-lho, para não
+      // ficar com a ideia de que tem de pedir (e pagar) outra corrida.
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('A tua volta continua disponível — podes chamá-la '
+              'quando quiseres.')));
+      return;
+    }
 
     final from = LatLng(picked.originLat, picked.originLng);
     final to = LatLng(picked.lat, picked.lng);
@@ -1283,16 +1301,26 @@ class _TvdePaymentSheetState extends State<_TvdePaymentSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final inset = MediaQuery.of(context).viewInsets.bottom;
+    final media = MediaQuery.of(context);
+    final inset = media.viewInsets.bottom; // teclado
+    final safeBottom = media.padding.bottom; // barra de navegação do sistema
     final eur = '€${(widget.amountCents / 100).toStringAsFixed(2)}';
     // Rolável: com MB Way escolhido aparece o campo do número e o teclado, e
     // sem scroll o conteúdo estoura em ecrãs baixos (o botão fica inalcançável).
+    //
+    // [Ronda 2] Porque é que o `useSafeArea: true` da folha NÃO chegava: no
+    // Flutter esse flag aplica `SafeArea(bottom: false)` — protege o topo e
+    // **exclui o fundo de propósito**. E `viewInsets.bottom` é o TECLADO, que
+    // vale 0 com o teclado fechado; a barra de navegação do sistema é outra
+    // coisa (`padding.bottom`) e ninguém a compensava — o botão de confirmar
+    // ficava por baixo dela. Somam-se as duas: o `padding.bottom` já vem a 0
+    // quando o teclado tapa a barra, por isso nunca há espaço a dobrar.
     return SingleChildScrollView(
       padding: EdgeInsets.only(
           left: Spacing.lg,
           right: Spacing.lg,
           top: Spacing.lg,
-          bottom: Spacing.lg + inset),
+          bottom: Spacing.lg + inset + safeBottom),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1578,14 +1606,23 @@ class _ReturnSheetState extends State<_ReturnSheet> {
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
     final inset = media.viewInsets.bottom;
-    return SizedBox(
-      height: media.size.height * 0.72 - inset,
+    // [Ronda 2] O teclado era descontado DUAS vezes — à altura (`0.72h - inset`)
+    // e ao padding (`+ inset`) — e nada levantava a folha. Como a folha está
+    // ancorada ao fundo, com um teclado normal (~0.4h) ela ficava INTEIRA por
+    // baixo dele: o campo ganhava foco (o teclado subia) mas não se via o texto
+    // nem se conseguia tocar nas sugestões do autocomplete.
+    // O `margin` faz o que o padding interno não podia fazer: sobe a caixa toda
+    // acima do teclado (mesmo efeito do `_AddStopSheet`, que já funcionava).
+    final maxSheet = media.size.height - inset - media.padding.top;
+    final desired = media.size.height * 0.72;
+    return Container(
+      margin: EdgeInsets.only(bottom: inset),
+      height: desired < maxSheet ? desired : maxSheet,
       child: SingleChildScrollView(
-        padding: EdgeInsets.only(
-            left: Spacing.lg,
-            right: Spacing.lg,
-            top: Spacing.lg,
-            bottom: Spacing.lg + inset),
+        // Arrastar a folha fecha o teclado sem fechar a folha — o cliente já
+        // não precisa de tocar fora (que agora nem fecha).
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        padding: const EdgeInsets.all(Spacing.lg),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,

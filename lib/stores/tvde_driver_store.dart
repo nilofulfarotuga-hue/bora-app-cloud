@@ -204,7 +204,13 @@ class TvdeDriverStore extends ChangeNotifier {
           }
         },
       )
-      ..subscribe();
+      // [Ronda 2] Cada (re)ligação do canal puxa a linha fresca. Sem isto, tudo
+      // o que mudou enquanto o canal esteve em baixo (app em background durante
+      // a viagem) ficava por saber: a corrida em memória mantinha
+      // `extra_stops_fee_cents = 0` e o badge mandava cobrar €8 em vez de €10.
+      ..subscribe((status, _) {
+        if (status == RealtimeSubscribeStatus.subscribed) loadCurrent();
+      });
   }
 
   void _onRideChange(Map<String, dynamic>? record) {

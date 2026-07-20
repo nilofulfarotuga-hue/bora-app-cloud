@@ -1395,15 +1395,20 @@ class _StopPayConfirmSheetState extends State<_StopPayConfirmSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final inset = MediaQuery.of(context).viewInsets.bottom;
+    final media = MediaQuery.of(context);
+    final inset = media.viewInsets.bottom; // teclado
+    final safeBottom = media.padding.bottom; // barra de navegação do sistema
     final eur = '€${(widget.feeCents / 100).toStringAsFixed(2)}';
     final isMbway = widget.method == 'mbway';
+    // [Ronda 2] Mesmo defeito da folha do pedido: `useSafeArea` só protege o
+    // topo (aplica `SafeArea(bottom: false)`) e `viewInsets` só conta o teclado
+    // — sem `padding.bottom` o botão fica atrás da barra do sistema.
     return SingleChildScrollView(
       padding: EdgeInsets.only(
           left: Spacing.lg,
           right: Spacing.lg,
           top: Spacing.lg,
-          bottom: Spacing.lg + inset),
+          bottom: Spacing.lg + inset + safeBottom),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,

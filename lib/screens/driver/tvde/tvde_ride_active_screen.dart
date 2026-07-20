@@ -13,6 +13,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
+import '../../../models/tvde_fare_view.dart';
 import '../../../models/tvde_ride.dart';
 import '../../../services/directions_service.dart';
 import '../../../services/navigation_service.dart';
@@ -22,6 +23,8 @@ import '../../../stores/tvde_driver_store.dart';
 import '../../../stores/tvde_store.dart';
 import '../../../utils/map_utils.dart';
 import '../../../widgets/bora/bora.dart';
+import '../../../widgets/payments/collect_badge.dart';
+import '../../../widgets/payments/collect_reminder_dialog.dart';
 import '../../../widgets/tvde/tvde_pay_badge.dart';
 import '../../../widgets/tvde/tvde_roundtrip_driver_notice.dart';
 import '../../shared/tvde_chat_screen.dart';
@@ -39,6 +42,10 @@ class TvdeRideActiveScreen extends StatefulWidget {
 
 class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   bool _navigatedToRate = false;
+
+  /// [Ronda 2] Enquanto true, a corrida já está 'finalizada' mas o ecrã NÃO
+  /// avança para a avaliação — falta o motorista ver o lembrete de cobrança.
+  bool _collectReminderPending = false;
 
   /// Corrida atualmente renderizada — quando muda (back-to-back: finalizar
   /// ativa a corrida em fila no MESMO ecrã), o estado por-corrida reinicia.
@@ -66,6 +73,11 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   /// Assinatura (id + nº de paradas) da última lista carregada — evita refetch
   /// a cada rebuild; muda quando o cliente adiciona/remove parada (realtime).
   String? _stopsKey;
+
+  /// Assinatura do último desacordo lista-vs-linha já reparado. Impede que uma
+  /// discordância persistente (servidor mesmo assim diferente) vire um ciclo de
+  /// refetches.
+  String? _staleFixKey;
 
   /// Ticker 1s enquanto houver parada alcançada com contagem a decorrer.
   Timer? _stopsTicker;
@@ -427,11 +439,10 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   /// Recarrega as paradas quando muda a corrida ou o nº de paradas (o cliente
   /// adicionou/removeu — chega pelo realtime da corrida, mesmo gancho do build).
   void _maybeReloadStops(TvdeRide ride) {
-    if (!ride.hasExtraStops) {
-      if (_stops.isNotEmpty && mounted) setState(() => _stops = const []);
-      _stopsKey = '${ride.id}|0';
-      return;
-    }
+    // [Ronda 2] Carrega SEMPRE a lista à primeira vez que se vê a corrida, mesmo
+    // com `extraStopsCount == 0`. Antes saía-se já aqui — e era exactamente no
+    // caso em que a linha estava velha (a dizer 0 paradas) que mais fazia falta
+    // ir ver ao servidor. Sem lista não havia como perceber que a linha mentia.
     final key = '${ride.id}|${ride.extraStopsCount}';
     if (key == _stopsKey) return;
     _stopsKey = key;
@@ -443,6 +454,15 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
       final stops = await context.read<TvdeStore>().fetchRideStops(ride.id);
       if (!mounted || _rideId != ride.id) return;
       setState(() => _stops = stops);
+      // [Ronda 2] A lista vem do servidor agora; a linha da corrida vem do
+      // realtime e pode ter ficado para trás (app em background quando o cliente
+      // pagou a parada). É da LINHA que sai o "COBRAR EM DINHEIRO" — se as duas
+      // discordarem, quem manda é o servidor: puxa a linha outra vez. É esta a
+      // diferença entre o motorista recolher €8 e recolher os €10 que são devidos.
+      if (stops.length != ride.extraStopsCount && _staleFixKey != _stopsKey) {
+        _staleFixKey = _stopsKey;
+        unawaited(context.read<TvdeDriverStore>().loadCurrent());
+      }
     } catch (_) {/* best-effort — UI fica sem lista, nunca crasha */}
   }
 
@@ -573,8 +593,14 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
           // mantém a estimativa guardada; volta a tentar se ainda houver tentativa
         }
       }
+      // [Ronda 2] Segura a ida para a avaliação até o lembrete de cobrança ser
+      // visto. Sem isto o `pushReplacement` do `_goToRate` (post-frame, assim
+      // que a corrida fica 'finalizada') trocava a rota por baixo do diálogo.
+      _collectReminderPending = true;
       final finished =
           await store.finishRide(ride.id, km, distanceSource: source);
+      if (!mounted) return;
+      await _showCollectReminder(finished);
       if (!mounted) return;
       // Back-to-back: se o backend ativou a corrida em fila, o ecrã transita
       // para ela (mesma tela) — mostra o ganho num aviso e NÃO vai à avaliação.
@@ -587,8 +613,33 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
                 'Corrida finalizada — ganhaste €$earn. Próxima corrida ativada.')));
       }
     } catch (e) {
+      if (mounted) setState(() => _collectReminderPending = false);
       _err(e);
     }
+  }
+
+  /// [Ronda 2] Lembrete impossível de ignorar, no único momento que interessa:
+  /// o passageiro ainda está no carro. O valor sai de [TvdeFareView] — a MESMA
+  /// fonte do badge e do ecrã do cliente — e nunca de `final_fare_cents`, que
+  /// numa perna do pacote €8 traz só as paradas (mostraria €2 em vez de €10).
+  Future<void> _showCollectReminder(TvdeRide finished) async {
+    try {
+      final pkg = finished.isRoundtripLeg
+          ? await TvdeRoundtripPrice.load(context.read<TvdeStore>())
+          : TvdeRoundtripPrice.cents;
+      if (!mounted) return;
+      final fare = TvdeFareView.of(finished, packageCents: pkg);
+      await showCollectReminderDialog(
+        context,
+        state: fare.driverCollectCents > 0
+            ? CollectState.collectCash
+            : (fare.coveredByPlan
+                ? CollectState.coveredByPlan
+                : CollectState.paidOnline),
+        amountCents: fare.driverCollectCents,
+      );
+    } catch (_) {/* o lembrete nunca pode impedir o fecho da corrida */}
+    if (mounted) setState(() => _collectReminderPending = false);
   }
 
   Future<void> _cancel(TvdeRide ride, {required bool noShow}) async {
@@ -690,7 +741,8 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     }
 
     // Finalizada → avaliar passageiro (sem fila; com fila o _finish transita).
-    if (ride.isFinished) {
+    // [Ronda 2] Espera pelo lembrete de cobrança — só depois se muda de ecrã.
+    if (ride.isFinished && !_collectReminderPending) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _goToRate(ride));
     } else if (ride.isCancelled) {
       WidgetsBinding.instance.addPostFrameCallback((_) {

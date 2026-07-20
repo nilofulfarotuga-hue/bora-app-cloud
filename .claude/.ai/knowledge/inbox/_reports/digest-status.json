@@ -1,0 +1,13 @@
+{
+  "gerado_em": "2026-07-20T17:23:04",
+  "tamanho_bytes": 9092,
+  "licoes": 27,
+  "armadilhas": 13,
+  "em_aberto": 1,
+  "regras": 15,
+  "cortadas": 11,
+  "toggle": "ok",
+  "cadencia": "2x",
+  "slot": "manual",
+  "digest": "permanente/procedural/estado-atual-consolidado.md"
+}

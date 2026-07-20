@@ -1,20 +1,19 @@
 // @ts-nocheck
 // supabase/functions/notify-tvde-driver/index.ts
 //
-// TVDE — Bora Motorista. Envia push FCM a um motorista de passageiros com a
-// oferta de corrida. Clone ISOLADO de notify-driver (NÃO altera notify-driver).
+// TVDE — Bora Motorista. Envia push FCM a um motorista de passageiros.
+// v5: alem da OFERTA de corrida (caminho original, intacto), trata
+// kind='stop_added' — aviso de parada adicionada pelo cliente, com o total
+// a cobrar atualizado (decisao Danilo 2026-07-20).
 //
-// Required Supabase secrets:
-//   FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT
+// Required Supabase secrets: FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT
 // Auto-injected: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 //
-// Chamado por: trigger fn_notify_tvde_driver_on_offer (net.http_post), quando
-// tvde_rides.current_offer_driver_id muda para um motorista.
+// Chamado por:
+//  - trigger fn_notify_tvde_driver_on_offer (oferta; sem kind)
+//  - RPC tvde_add_stop (kind='stop_added', stopPaidOnline bool)
 //
-// ⚠️ Os action buttons da notificação NÃO disparam handler em background — o
-// motorista TOCA na notificação → abre o app → aceita (tvde_accept_ride).
-//
-// Retorna 200 sempre (fire-and-forget) para o caller nunca precisar de retry.
+// Retorna 200 sempre (fire-and-forget).
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -34,7 +33,7 @@ Deno.serve(async (req) => {
   const supabaseUrl         = Deno.env.get('SUPABASE_URL')!
   const serviceKey          = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
-  console.log('[notify-tvde-driver] ── INVOKED ── (Firebase configured:', !!firebaseProjectId, ')')
+  console.log('[notify-tvde-driver] INVOKED (Firebase configured:', !!firebaseProjectId, ')')
 
   if (!firebaseProjectId || !firebaseServiceAcct) {
     console.warn('[notify-tvde-driver] Firebase env vars not set — skipping push')
@@ -43,10 +42,14 @@ Deno.serve(async (req) => {
 
   let driverId: string
   let rideId: string
+  let kind: string
+  let stopPaidOnline = false
   try {
     const body = await req.json()
     driverId = body.driverId
     rideId   = body.rideId
+    kind     = String(body.kind ?? 'offer')
+    stopPaidOnline = body.stopPaidOnline === true
   } catch (_e) {
     return json({ ok: false, error: 'Invalid JSON body' }, 400)
   }
@@ -56,9 +59,7 @@ Deno.serve(async (req) => {
 
   const supabase = createClient(supabaseUrl, serviceKey)
 
-  // ── FCM token (drivers.fcm_token → driver_push_tokens fallback) ─────────────
-  // driverId = tvde_rides.current_offer_driver_id = drivers.user_id (auth.uid).
-  // Nos motoristas reais id <> user_id, por isso resolve-se SEMPRE por user_id.
+  // FCM token (drivers.fcm_token -> driver_push_tokens fallback).
   const { data: driver } = await supabase
     .from('drivers').select('fcm_token, name').eq('user_id', driverId).maybeSingle()
 
@@ -76,11 +77,102 @@ Deno.serve(async (req) => {
   }
   if (!fcmToken) {
     console.log(`[notify-tvde-driver] No FCM token for driver ${driverId} — skipping`)
-    await logPushEvent(supabase, rideId, false, { reason: 'no_fcm_token', driver_id: driverId })
+    await logPushEvent(supabase, rideId, false, { reason: 'no_fcm_token', driver_id: driverId, kind })
     return json({ ok: false, reason: 'no_fcm_token' }, 200)
   }
 
-  // ── Detalhes da corrida para o cartão de oferta ─────────────────────────────
+  // Firebase OAuth2 access token.
+  let accessToken: string
+  try {
+    accessToken = await getFirebaseAccessToken(JSON.parse(firebaseServiceAcct))
+  } catch (e) {
+    console.error('[notify-tvde-driver] Firebase auth error:', e)
+    await logPushEvent(supabase, rideId, false, { reason: 'firebase_auth_error', kind })
+    return json({ ok: false, reason: 'firebase_auth_error' }, 200)
+  }
+
+  const fcmUrl = `https://fcm.googleapis.com/v1/projects/${firebaseProjectId}/messages:send`
+
+  // ============ kind = stop_added: aviso de parada (v5) ============
+  if (kind === 'stop_added') {
+    // Detalhes para montar o total a cobrar.
+    let stopFeeCents = 200
+    try {
+      const { data: s } = await supabase.from('platform_settings')
+        .select('value').eq('key', 'tvde_stop_fee_cents').maybeSingle()
+      const v = Number(String(s?.value ?? '200').replace(/\"/g, ''))
+      if (Number.isFinite(v) && v > 0) stopFeeCents = v
+    } catch (_e) { /* default 200 */ }
+
+    let title = '📍 Parada adicionada'
+    let body = `Nova parada (+€${eur(stopFeeCents)}).`
+    try {
+      const { data: ride } = await supabase
+        .from('tvde_rides')
+        .select('payment_method, est_fare_cents, extra_stops_fee_cents, roundtrip_credit_id, is_return_leg')
+        .eq('id', rideId).maybeSingle()
+      if (ride) {
+        const stopsFee = Number(ride.extra_stops_fee_cents ?? 0)
+        if (stopPaidOnline) {
+          body = `Nova parada ja paga na app (+€${eur(stopFeeCents)}). Nao cobres a parada.`
+        } else if (ride.roundtrip_credit_id) {
+          // Perna do pacote €8 — ver se o vale e dinheiro ou online
+          const { data: credit } = await supabase
+            .from('tvde_roundtrip_credits').select('payment_intent_id')
+            .eq('id', ride.roundtrip_credit_id).maybeSingle()
+          const creditCash = credit && credit.payment_intent_id == null
+          if (creditCash && !ride.is_return_leg) {
+            let rtPrice = 800
+            try {
+              const { data: p } = await supabase.from('platform_settings')
+                .select('value').eq('key', 'tvde_roundtrip_price_cents').maybeSingle()
+              const v = Number(String(p?.value ?? '800').replace(/\"/g, ''))
+              if (Number.isFinite(v) && v > 0) rtPrice = v
+            } catch (_e) { /* default */ }
+            body = `Nova parada (+€${eur(stopFeeCents)}). Total a cobrar em dinheiro: €${eur(rtPrice + stopsFee)}.`
+          } else {
+            body = `Nova parada (+€${eur(stopFeeCents)} em dinheiro). Paradas a cobrar: €${eur(stopsFee)}.`
+          }
+        } else if ((ride.payment_method ?? 'cash') === 'cash') {
+          const total = Number(ride.est_fare_cents ?? 0) + stopsFee
+          body = `Nova parada (+€${eur(stopFeeCents)}). Total a cobrar em dinheiro: €${eur(total)}.`
+        } else {
+          body = `Nova parada (+€${eur(stopFeeCents)} em dinheiro). Paradas a cobrar: €${eur(stopsFee)}.`
+        }
+      }
+    } catch (_e) { /* mantem fallback */ }
+
+    const message = {
+      message: {
+        token: fcmToken,
+        notification: { title, body },
+        data: { rideId: String(rideId), type: 'tvde_stop_added', title, body },
+        android: { priority: 'high' },
+        apns: {
+          headers: { 'apns-priority': '10' },
+          payload: { aps: { sound: 'default', 'interruption-level': 'time-sensitive' } },
+        },
+      },
+    }
+
+    const fcmRes = await fetch(fcmUrl, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(message),
+    })
+    const fcmBody = await fcmRes.json().catch(() => ({}))
+    if (!fcmRes.ok) {
+      console.error(`[notify-tvde-driver] stop_added FCM error ${fcmRes.status}:`, JSON.stringify(fcmBody))
+      await logPushEvent(supabase, rideId, false, { kind, fcm_status: fcmRes.status })
+      return json({ ok: false, reason: 'fcm_error' }, 200)
+    }
+    console.log(`[notify-tvde-driver] stop_added push sent to driver ${driverId} ride ${rideId}`)
+    await logPushEvent(supabase, rideId, true, { kind, driver_id: driverId })
+    return json({ ok: true }, 200)
+  }
+
+  // ============ caminho original: OFERTA de corrida (intacto) ============
+  // Detalhes da corrida para o cartao de oferta.
   let originLabel = 'Recolha', destLabel = 'Destino', fareEur = '0.00', distanceKm = '0'
   try {
     const { data: ride } = await supabase
@@ -95,32 +187,12 @@ Deno.serve(async (req) => {
       const km = Number(ride.est_distance_km ?? 0)
       if (Number.isFinite(km) && km > 0) distanceKm = km.toFixed(1)
     }
-  } catch (_e) { /* mantém fallbacks — não bloqueia o push */ }
+  } catch (_e) { /* mantem fallbacks */ }
 
-  // ── Firebase OAuth2 access token ────────────────────────────────────────────
-  let accessToken: string
-  try {
-    accessToken = await getFirebaseAccessToken(JSON.parse(firebaseServiceAcct))
-  } catch (e) {
-    console.error('[notify-tvde-driver] Firebase auth error:', e)
-    await logPushEvent(supabase, rideId, false, { reason: 'firebase_auth_error' })
-    return json({ ok: false, reason: 'firebase_auth_error' }, 200)
-  }
-
-  const fcmUrl = `https://fcm.googleapis.com/v1/projects/${firebaseProjectId}/messages:send`
-  const headsUpBody = `${originLabel} → ${destLabel} • €${fareEur}` +
+  const headsUpBody = `${originLabel} -> ${destLabel} • €${fareEur}` +
     (distanceKm !== '0' ? ` • ${distanceKm}km` : '')
 
-  // ── A1 FIX (turno noite 2026-07-04): DATA-ONLY, idêntico a notify-driver ────
-  // ROOT CAUSE do "TVDE não toca/não sobrepõe em background": o bloco
-  // `notification` (title/body) fazia o FCM SDK mostrar a notificação SOZINHO
-  // quando a app estava em background / ecrã bloqueado / app morta → o handler
-  // Flutter `_firebaseMessagingBackgroundHandler` (que constrói o fullScreenIntent
-  // + FLAG_INSISTENT + som em loop no canal urgente v3) NUNCA corria; só corria
-  // ao TOCAR na notificação. O delivery funciona porque é DATA-ONLY: sem bloco
-  // `notification`, o handler corre SEMPRE (mesmo app morta) e desenha o overlay.
-  // Removidos os blocos `notification` e `android.notification`; o canal/som/
-  // fullScreenIntent passam a ser 100% responsabilidade do handler Flutter.
+  // A1 FIX (turno noite 2026-07-04): DATA-ONLY, identico a notify-driver.
   const message = {
     message: {
       token: fcmToken,
@@ -158,18 +230,14 @@ Deno.serve(async (req) => {
         await supabase.from('drivers').update({ fcm_token: null }).eq('user_id', driverId)
       }
     }
-    // P0 2026-07-02: o caller recebe SEMPRE 200 (fire-and-forget) — sem este
-    // evento, um push falhado era invisível ("200 mas o telemóvel não tocou").
     await logPushEvent(supabase, rideId, false, { fcm_status: fcmRes.status, error_code: errorCode })
     return json({ ok: false, reason: 'fcm_error', detail: fcmBody }, 200)
   }
 
-  console.log(`[notify-tvde-driver] ✓ Push sent to driver ${driverId} ride ${rideId}`)
+  console.log(`[notify-tvde-driver] Push sent to driver ${driverId} ride ${rideId}`)
   await logPushEvent(supabase, rideId, true, { driver_id: driverId })
 
-  // P0 2026-07-02: o TTL da oferta (25s) contava desde a criação — o tempo do
-  // trigger + FCM comia o prazo do motorista. Reancora o relógio AGORA que o
-  // FCM aceitou a mensagem (só se a oferta ainda for deste motorista).
+  // Reancora o TTL da oferta agora que o FCM aceitou (so se ainda for deste motorista).
   try {
     const { data: ttlRow } = await supabase
       .from('platform_settings').select('value').eq('key', 'tvde_offer_ttl_seconds').maybeSingle()
@@ -188,7 +256,10 @@ Deno.serve(async (req) => {
   return json({ ok: true }, 200)
 })
 
-// Auditoria do resultado FCM em tvde_ride_events (o HTTP 200 não prova entrega).
+function eur(cents: number): string {
+  return (Number(cents || 0) / 100).toFixed(2).replace('.', ',')
+}
+
 async function logPushEvent(supabase: any, rideId: string, ok: boolean, meta: Record<string, unknown>) {
   try {
     await supabase.from('tvde_ride_events').insert({
@@ -208,7 +279,6 @@ function json(obj: unknown, status: number): Response {
   })
 }
 
-// ── Firebase OAuth2 helpers (idênticos a notify-driver) ─────────────────────
 async function getFirebaseAccessToken(serviceAccount: any): Promise<string> {
   const now = Math.floor(Date.now() / 1000)
   const header  = { alg: 'RS256', typ: 'JWT' }

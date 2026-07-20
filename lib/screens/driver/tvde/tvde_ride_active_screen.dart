@@ -86,6 +86,13 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   /// refazer o pedido Directions a cada rebuild/movimento pequeno.
   String? _routeKey;
 
+  /// [Perf] Já há um pedido de rota em voo (evita rajada de pedidos ao
+  /// Directions quando um deles é lento ou falha).
+  bool _routeFetchInFlight = false;
+
+  /// [Perf] Já há uma callback de pós-frame agendada (uma de cada vez).
+  bool _afterFrameScheduled = false;
+
   /// [Item N] Seta verde rotativa do motorista (paridade com a home). Fallback
   /// à bolinha azul nativa enquanto não carrega e sempre na Web.
   BitmapDescriptor? _driverArrowIcon;
@@ -271,6 +278,11 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     // transitória do Directions prendia a chave e a rota NUNCA voltava a
     // desenhar (o "sumiu depois do build"). Sem polyline ainda → retenta.
     if (key == _routeKey && _routePolys.isNotEmpty) return;
+    // [Perf] Trava de concorrência: sem isto, uma chamada lenta ou falhada ao
+    // Directions deixava passar um pedido novo por frame — dezenas de pedidos
+    // HTTP em voo ao mesmo tempo (custo Google e frames perdidos a sério).
+    if (_routeFetchInFlight) return;
+    _routeFetchInFlight = true;
     try {
       final route =
           await _directions.fetchRoute(origin: fromLl, destination: target);
@@ -295,6 +307,8 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
       });
     } catch (_) {
       // Falha (offline/sem chave) → mantém o mapa sem rota; haversine é fallback.
+    } finally {
+      _routeFetchInFlight = false;
     }
   }
 
@@ -661,11 +675,19 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     // B2/B6 — mantém a rota real + ETA atualizados (idempotente por _routeKey).
     // [Item N] + atualiza o bearing da seta do motorista.
     // [CAMPO-02 · F1] + recarrega as paradas se o cliente as mudou (realtime).
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _maybeFetchRoute(ride, driverPos);
-      _updateBearing(driverPos);
-      _maybeReloadStops(ride);
-    });
+    // [Perf] UMA callback pendente de cada vez. Antes registava-se uma por
+    // build — com o store a notificar muitas vezes por segundo, isto corria
+    // dezenas de vezes por segundo e mantinha o frame sempre ocupado.
+    if (!_afterFrameScheduled) {
+      _afterFrameScheduled = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _afterFrameScheduled = false;
+        if (!mounted) return;
+        _maybeFetchRoute(ride, driverPos);
+        _updateBearing(driverPos);
+        _maybeReloadStops(ride);
+      });
+    }
 
     // Finalizada → avaliar passageiro (sem fila; com fila o _finish transita).
     if (ride.isFinished) {
@@ -708,7 +730,11 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
       ),
       body: Stack(
         children: [
-          GoogleMap(
+          // [Perf] RepaintBoundary: isola a camada do mapa do resto do ecrã —
+          // os contadores de 1 s (espera/paradas) repintam o texto sem forçar
+          // repintura da textura do mapa por baixo.
+          RepaintBoundary(
+            child: GoogleMap(
             initialCameraPosition: CameraPosition(target: center, zoom: 13),
             markers: _markers(ride, driverPos),
             polylines: _routePolys, // B2 — rota real grossa
@@ -726,6 +752,7 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
               }
             },
             onCameraIdle: () => _progCamMove = false,
+            ),
           ),
           // B5 — botão mira (recentra no motorista), igual ao estafeta.
           Positioned(

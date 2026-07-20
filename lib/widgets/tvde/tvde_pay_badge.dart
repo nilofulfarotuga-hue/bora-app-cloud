@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../models/tvde_fare_view.dart';
 import '../../models/tvde_ride.dart';
 import '../../stores/tvde_store.dart';
 import '../payments/collect_badge.dart';
@@ -42,29 +43,21 @@ class _TvdePayBadgeState extends State<TvdePayBadge> {
     final ride = widget.ride;
     final dense = widget.dense;
 
-    if (ride.isRoundtripLeg) {
-      // Volta (sempre grátis para o cliente) ou pacote já pago online.
-      if (ride.isReturnLeg || ride.isPaidOnline) {
-        return CollectBadge(state: CollectState.paidOnline, dense: dense);
-      }
-      // Ida do pacote em dinheiro: recolhe os €8 do pacote, uma vez só.
+    // Fonte única partilhada com o ecrã do cliente — os dois nunca discordam.
+    final fare = TvdeFareView.of(ride, packageCents: _packageCents);
+
+    if (fare.driverCollectCents <= 0) {
       return CollectBadge(
-        state: CollectState.collectCash,
-        amountCents: _packageCents,
+        state: fare.coveredByPlan
+            ? CollectState.coveredByPlan
+            : CollectState.paidOnline,
         dense: dense,
       );
     }
-
-    if (ride.usedSubscriptionRide) {
-      return CollectBadge(state: CollectState.coveredByPlan, dense: dense);
-    }
-    if (ride.isPaidOnline) {
-      return CollectBadge(state: CollectState.paidOnline, dense: dense);
-    }
     return CollectBadge(
       state: CollectState.collectCash,
-      amountCents: ride.finalFareCents ?? ride.estFareCents,
-      approx: ride.finalFareCents == null,
+      amountCents: fare.driverCollectCents,
+      approx: fare.approx,
       dense: dense,
     );
   }

@@ -11,14 +11,18 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
+import '../../../models/tvde_fare_view.dart';
 import '../../../models/tvde_ride.dart';
 import '../../../services/directions_service.dart';
+import '../../../services/payment_service.dart';
 import '../../../stores/tvde_chat_store.dart';
 import '../../../stores/tvde_store.dart';
 import '../../../utils/map_utils.dart';
 import '../../../widgets/address_autocomplete_field.dart';
 import '../../../widgets/bora/bora.dart';
+import '../../../widgets/tvde/tvde_roundtrip_driver_notice.dart';
 import '../../shared/tvde_chat_screen.dart';
+import 'ride_mbway_waiting_dialog.dart';
 import 'tvde_rate_screen.dart';
 
 /// TVDE — Mapa em tempo real do estado da corrida (reusa google_maps_flutter,
@@ -78,6 +82,7 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
   int _stopFeeCents = 200; // taxa cliente por parada (fallback)
   int _stopTimerSeconds = 120; // espera gratuita informativa por parada
   int _cancelGraceSeconds = 180; // [F2] janela grátis de cancelamento (fallback)
+  int _packageCents = TvdeRoundtripPrice.cents; // preço do pacote ida-e-volta
   Timer? _stopsTicker; // 1s: repinta countdowns + recarrega paradas a cada 5s
   int _stopsTick = 0;
   bool _addingStop = false;
@@ -114,12 +119,14 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
     final fee = await store.getSettingInt('tvde_stop_fee_cents', 200);
     final timer = await store.getSettingInt('tvde_stop_timer_seconds', 120);
     final grace = await store.getSettingInt('cancel_grace_seconds', 180);
+    final pkg = await TvdeRoundtripPrice.load(store);
     if (mounted) {
       setState(() {
         _maxStops = max;
         _stopFeeCents = fee;
         _stopTimerSeconds = timer;
         _cancelGraceSeconds = grace;
+        _packageCents = pkg;
       });
     }
   }
@@ -145,6 +152,14 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
       builder: (_) => const _AddStopSheet(),
     );
     if (picked == null || !mounted) return;
+
+    // Corrida paga no app: os €2 pagam-se NA HORA e a parada só entra depois de
+    // o pagamento confirmar. Em dinheiro o motorista cobra tudo no fim.
+    if (ride.isPaidOnline) {
+      await _addStopPaid(ride, picked);
+      return;
+    }
+
     setState(() => _addingStop = true);
     try {
       await context.read<TvdeStore>().addStop(
@@ -165,6 +180,118 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
     } finally {
       if (mounted) setState(() => _addingStop = false);
     }
+  }
+
+  /// Parada numa corrida **paga online** (cartão ou MB Way): confirma o valor,
+  /// cobra, e só adiciona a parada quando o pagamento passar.
+  Future<void> _addStopPaid(TvdeRide ride, _PickedStop picked) async {
+    final method = ride.paymentMethod == 'mbway' ? 'mbway' : 'card';
+
+    // 1. Folha de confirmação (com o número MB Way quando é esse o método).
+    final confirmed = await showModalBottomSheet<_StopPayConfirm>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _StopPayConfirmSheet(
+        label: picked.label,
+        feeCents: _stopFeeCents,
+        method: method,
+        initialPhone: Supabase.instance.client.auth.currentUser?.phone ?? '',
+      ),
+    );
+    if (confirmed == null || !mounted) return;
+
+    setState(() => _addingStop = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final store = context.read<TvdeStore>();
+      final res = await store.chargeStop(
+        ride.id,
+        method: method,
+        lat: picked.lat,
+        lng: picked.lng,
+        label: picked.label,
+        mbwayPhone: method == 'mbway' ? confirmed.phone : null,
+      );
+      final piId = res['paymentIntentId'] as String?;
+      if (piId == null) throw Exception('sem_payment_intent');
+      final amountEur = ((res['amountCents'] as num?)?.toInt() ?? _stopFeeCents) / 100;
+
+      Map<String, dynamic>? outcome;
+      bool paid = false;
+
+      if (method == 'card') {
+        // Cartão: folha da Stripe → uma única confirmação.
+        final clientSecret = res['clientSecret'] as String?;
+        if (clientSecret == null) throw Exception('sem_client_secret');
+        await PaymentService().processPayment(clientSecret);
+        outcome = await store.confirmStopPayment(piId);
+        paid = outcome?['succeeded'] == true;
+      } else {
+        // MB Way: sem folha da Stripe — confirma-se na app do banco e nós
+        // fazemos poll (3 s até 120 s), igual ao da corrida.
+        if (!mounted) return;
+        final ok = await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => TvdeRideMbwayWaitingDialog.forStop(
+            paymentIntentId: piId,
+            amountEur: amountEur,
+            onResponse: (r) => outcome = r,
+          ),
+        );
+        paid = ok == true;
+      }
+
+      await _loadStops();
+      if (!mounted) return;
+
+      if (paid) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Parada adicionada.')),
+        );
+      } else if (outcome?['refunded'] == true) {
+        messenger.showSnackBar(SnackBar(
+          content: Text('Pagamento devolvido — não foi possível adicionar a '
+              'parada. ${_stopErrorPt(outcome?['error']?.toString())}'),
+        ));
+      } else {
+        messenger.showSnackBar(const SnackBar(
+          content: Text('Não recebemos a confirmação do pagamento. '
+              'A parada não foi adicionada.'),
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(content: Text(_stopErrorPt(e.toString()))),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _addingStop = false);
+    }
+  }
+
+  /// Traduz os códigos de erro da Edge Function para PT-PT.
+  String _stopErrorPt(String? raw) {
+    final e = raw ?? '';
+    if (e.contains('max_stops_reached')) {
+      return 'Já atingiste o máximo de $_maxStops paradas.';
+    }
+    if (e.contains('invalid_ride_state_for_stop')) {
+      return 'A corrida já não permite adicionar paradas.';
+    }
+    if (e.contains('card_payments_not_enabled')) {
+      return 'Os pagamentos no cartão estão desativados de momento.';
+    }
+    if (e.contains('below_minimum')) {
+      return 'Valor abaixo do mínimo aceite pelo pagamento.';
+    }
+    return 'Não foi possível adicionar a parada.';
   }
 
   Future<void> _removeStop(TvdeRide ride, TvdeRideStop stop) async {
@@ -493,7 +620,11 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
     final elapsed =
         created == null ? 0 : DateTime.now().difference(created).inSeconds;
     final withinGrace = elapsed <= _cancelGraceSeconds;
-    final feeCents = withinGrace ? 0 : ride.estFareCents;
+    // Preview pelo memo partilhado: numa perna do pacote €8 a "corrida toda"
+    // é o pacote, não a tarifa base (que o cliente nunca chega a pagar).
+    final feeCents = withinGrace
+        ? 0
+        : TvdeFareView.of(ride, packageCents: _packageCents).clientTotalCents;
     final graceMin = (_cancelGraceSeconds / 60).round();
 
     final ok = await showDialog<bool>(
@@ -656,6 +787,7 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
               maxStops: _maxStops,
               stopFeeCents: _stopFeeCents,
               stopTimerSeconds: _stopTimerSeconds,
+              packageCents: _packageCents,
               addingStop: _addingStop,
               onAddStop: () => _addStop(ride),
               onRemoveStop: (stop) => _removeStop(ride, stop),
@@ -692,6 +824,7 @@ class _StatusPanel extends StatelessWidget {
     required this.maxStops,
     required this.stopFeeCents,
     required this.stopTimerSeconds,
+    required this.packageCents,
     required this.addingStop,
     required this.onAddStop,
     required this.onRemoveStop,
@@ -723,6 +856,7 @@ class _StatusPanel extends StatelessWidget {
   final int maxStops;
   final int stopFeeCents;
   final int stopTimerSeconds;
+  final int packageCents;
   final bool addingStop;
   final VoidCallback onAddStop;
   final void Function(TvdeRideStop) onRemoveStop;
@@ -745,6 +879,7 @@ class _StatusPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final fare = TvdeFareView.of(ride, packageCents: packageCents);
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.all(Spacing.md),
@@ -884,7 +1019,7 @@ class _StatusPanel extends StatelessWidget {
                         fontWeight: FontWeight.w700,
                         color: AppColors.textPrimary)),
               ),
-              if (ride.usedSubscriptionRide)
+              if (fare.coveredByPlan && fare.clientTotalCents == 0)
                 // [Item B] corrida coberta pelo plano → cliente paga €0.
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -908,11 +1043,17 @@ class _StatusPanel extends StatelessWidget {
                   ),
                 )
               else
-                Text('€${(ride.displayFareCents / 100).toStringAsFixed(2)}',
-                    style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.primary)),
+                // Fonte única partilhada com o badge do motorista: numa perna
+                // do pacote €8 mostra o preço do PACOTE (nunca a tarifa base),
+                // e soma sempre as paradas já adicionadas.
+                Flexible(
+                  child: Text(fare.clientLabel,
+                      textAlign: TextAlign.end,
+                      style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary)),
+                ),
             ],
           ),
           const SizedBox(height: Spacing.sm),
@@ -983,15 +1124,15 @@ class _StatusPanel extends StatelessWidget {
   /// a caminho / chegou / em viagem (estados em que faz sentido "passa aqui").
   Widget _buildStops(BuildContext context) {
     final canManage = ride.isOnTheWay || ride.hasArrived || ride.isInProgress;
-    // Corrida paga no app = preço FECHADO (MVP): esconde as paradas extra
-    // (não se pode acrescentar valor a uma cobrança já feita).
-    if (stops.isEmpty && (!canManage || ride.isPaidOnline)) {
+    // Corrida paga no app já não esconde as paradas: a parada é cobrada na hora
+    // (cartão/MB Way) e só entra quando o pagamento confirma.
+    if (stops.isEmpty && !canManage) {
       return const SizedBox.shrink();
     }
 
     final feePerStopEur =
         (stops.isNotEmpty ? stops.first.feeCents : stopFeeCents) / 100;
-    final canAdd = canManage && stops.length < maxStops && !ride.isPaidOnline;
+    final canAdd = canManage && stops.length < maxStops;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1016,7 +1157,8 @@ class _StatusPanel extends StatelessWidget {
         const SizedBox(height: 2),
         Text(
           'Passa por outro sítio a caminho — €${feePerStopEur.toStringAsFixed(2)} por parada. '
-          'A parada não está incluída no plano.',
+          'A parada não está incluída no plano.'
+          '${ride.isPaidOnline ? ' Pagas a parada na hora.' : ' Pagas ao motorista no fim.'}',
           style: const TextStyle(color: AppColors.textSubtle, fontSize: 11.5),
         ),
         for (final s in stops) ...[
@@ -1186,6 +1328,139 @@ class _StopRow extends StatelessWidget {
               icon: const Icon(Icons.close, size: 18, color: AppColors.textSecondary),
               tooltip: 'Remover parada',
             ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Resultado da folha de confirmação de parada paga.
+class _StopPayConfirm {
+  const _StopPayConfirm({required this.phone});
+
+  /// 9 dígitos, só preenchido quando o método é MB Way.
+  final String phone;
+}
+
+/// Confirmação do pagamento de uma parada extra numa corrida paga online.
+/// Cartão → só confirma; MB Way → pede o número (obrigatório, 9 dígitos).
+class _StopPayConfirmSheet extends StatefulWidget {
+  const _StopPayConfirmSheet({
+    required this.label,
+    required this.feeCents,
+    required this.method,
+    required this.initialPhone,
+  });
+
+  final String label;
+  final int feeCents;
+  final String method; // 'card' | 'mbway'
+  final String initialPhone;
+
+  @override
+  State<_StopPayConfirmSheet> createState() => _StopPayConfirmSheetState();
+}
+
+class _StopPayConfirmSheetState extends State<_StopPayConfirmSheet> {
+  late final TextEditingController _phone;
+  String? _phoneError;
+
+  @override
+  void initState() {
+    super.initState();
+    // Pré-preenche com o telefone do perfil (só os 9 dígitos nacionais).
+    final digits = widget.initialPhone.replaceAll(RegExp(r'\D'), '');
+    _phone = TextEditingController(
+        text: digits.length >= 9 ? digits.substring(digits.length - 9) : '');
+  }
+
+  @override
+  void dispose() {
+    _phone.dispose();
+    super.dispose();
+  }
+
+  void _confirm() {
+    if (widget.method == 'mbway') {
+      final digits = _phone.text.replaceAll(RegExp(r'\D'), '');
+      if (digits.length != 9) {
+        setState(() => _phoneError = 'Indica um número com 9 dígitos.');
+        return;
+      }
+      Navigator.pop(context, _StopPayConfirm(phone: digits));
+      return;
+    }
+    Navigator.pop(context, const _StopPayConfirm(phone: ''));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final inset = MediaQuery.of(context).viewInsets.bottom;
+    final eur = '€${(widget.feeCents / 100).toStringAsFixed(2)}';
+    final isMbway = widget.method == 'mbway';
+    return SingleChildScrollView(
+      padding: EdgeInsets.only(
+          left: Spacing.lg,
+          right: Spacing.lg,
+          top: Spacing.lg,
+          bottom: Spacing.lg + inset),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.add_location_alt_outlined,
+                  color: AppColors.primary),
+              const SizedBox(width: Spacing.sm),
+              Expanded(
+                child: Text('Parada extra — $eur',
+                    style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary)),
+              ),
+              IconButton(
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.close, color: AppColors.textSecondary),
+                tooltip: 'Fechar',
+              ),
+            ],
+          ),
+          const SizedBox(height: Spacing.xs),
+          Text(widget.label,
+              style: const TextStyle(color: AppColors.textSecondary)),
+          const SizedBox(height: Spacing.md),
+          Text(
+            isMbway
+                ? 'Esta corrida foi paga por MB Way. A parada é cobrada agora — '
+                    'só é adicionada depois de confirmares no MB Way.'
+                : 'Esta corrida foi paga no cartão. A parada é cobrada agora — '
+                    'só é adicionada depois de o pagamento passar.',
+            style: const TextStyle(color: AppColors.textSecondary),
+          ),
+          if (isMbway) ...[
+            const SizedBox(height: Spacing.md),
+            TextField(
+              key: const Key('tvde_stop_mbway_phone'),
+              controller: _phone,
+              keyboardType: TextInputType.phone,
+              decoration: InputDecoration(
+                labelText: 'Número MBWay',
+                hintText: '9XXXXXXXX',
+                prefixText: '+351 ',
+                errorText: _phoneError,
+                border: const OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+          ],
+          const SizedBox(height: Spacing.lg),
+          BoraAccentButton(
+            key: const Key('tvde_stop_pay_confirm'),
+            label: 'Pagar $eur e adicionar',
+            onPressed: _confirm,
+          ),
         ],
       ),
     );

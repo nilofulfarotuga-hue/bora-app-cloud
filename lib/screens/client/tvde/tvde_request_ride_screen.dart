@@ -304,6 +304,8 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: AppColors.surface,
+      // Sem isto o botão de confirmar fica atrás da barra de gestos do sistema.
+      useSafeArea: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -484,6 +486,8 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: AppColors.surface,
+      // Sem isto o botão de confirmar fica atrás da barra de gestos do sistema.
+      useSafeArea: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -680,33 +684,55 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
   /// [F3] Dispara a corrida de VOLTA usando o vale ativo (pede o destino).
   Future<void> _callReturn() async {
     final credit = _activeCredit;
-    if (credit == null || _pickup == null) return;
+    // Sem vale não há volta. A falta de GPS já NÃO trava — a folha deixa
+    // escrever a origem à mão (antes o botão não fazia nada, em silêncio).
+    if (credit == null) return;
     final store = context.read<TvdeStore>();
+
+    // Relê a localização AGORA: a volta parte de onde o cliente está neste
+    // momento, não de onde estava quando pediu a ida.
+    var origin = _pickup;
+    var originLabel = _pickupLabel;
+    try {
+      final now = await LocationService.getCurrentLocation();
+      if (now != null) {
+        origin = now;
+        final addr = await LocationService.reverseGeocode(now, googleApiKey);
+        if (addr != null && addr.isNotEmpty) originLabel = addr;
+      }
+    } catch (_) {/* fica o da ida; o cliente pode editar na folha */}
+    if (!mounted) return;
+
     final picked = await showModalBottomSheet<_ReturnDest>(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => const _ReturnSheet(),
+      builder: (_) => _ReturnSheet(
+        initialOriginLabel: originLabel,
+        initialOrigin: origin,
+      ),
     );
     if (picked == null || !mounted) return;
-    // distância por rota real (fallback haversine) da recolha atual até ao destino.
-    double km = const Distance()
-        .as(LengthUnit.Kilometer, _pickup!, LatLng(picked.lat, picked.lng));
+
+    final from = LatLng(picked.originLat, picked.originLng);
+    final to = LatLng(picked.lat, picked.lng);
+    // distância por rota real (fallback haversine) da origem escolhida ao destino.
+    double km = const Distance().as(LengthUnit.Kilometer, from, to);
     try {
-      final route = await _directions.fetchRoute(
-          origin: _pickup!, destination: LatLng(picked.lat, picked.lng));
+      final route = await _directions.fetchRoute(origin: from, destination: to);
       if (route != null && route.distanceKm > 0) km = route.distanceKm;
     } catch (_) {}
     if (!mounted) return;
     try {
       await store.requestReturnRide(
         creditId: credit['id'] as String,
-        originLat: _pickup!.latitude,
-        originLng: _pickup!.longitude,
-        originLabel: _pickupLabel,
+        originLat: picked.originLat,
+        originLng: picked.originLng,
+        originLabel: picked.originLabel,
         destLat: picked.lat,
         destLng: picked.lng,
         destLabel: picked.label,
@@ -1259,7 +1285,9 @@ class _TvdePaymentSheetState extends State<_TvdePaymentSheet> {
   Widget build(BuildContext context) {
     final inset = MediaQuery.of(context).viewInsets.bottom;
     final eur = '€${(widget.amountCents / 100).toStringAsFixed(2)}';
-    return Padding(
+    // Rolável: com MB Way escolhido aparece o campo do número e o teclado, e
+    // sem scroll o conteúdo estoura em ecrãs baixos (o botão fica inalcançável).
+    return SingleChildScrollView(
       padding: EdgeInsets.only(
           left: Spacing.lg,
           right: Spacing.lg,
@@ -1463,75 +1491,179 @@ class _ReturnCreditCard extends StatelessWidget {
 
 /// Destino escolhido para a corrida de volta.
 class _ReturnDest {
-  const _ReturnDest({required this.label, required this.lat, required this.lng});
+  const _ReturnDest({
+    required this.label,
+    required this.lat,
+    required this.lng,
+    required this.originLabel,
+    required this.originLat,
+    required this.originLng,
+  });
   final String label;
   final double lat;
   final double lng;
+
+  /// Origem escolhida pelo cliente (pré-preenchida com a localização atual,
+  /// mas editável — a volta pode partir de outro sítio que não o da ida).
+  final String originLabel;
+  final double originLat;
+  final double originLng;
 }
 
-/// [F3] Folha para escolher o destino da volta (reusa AddressAutocompleteField).
+/// [F3] Folha da volta: **de onde sais** (pré-preenchido com a localização
+/// atual, editável) e **destino**. Ocupa mais de meio ecrã de propósito — o
+/// overlay de sugestões do autocomplete tem ~260 px e numa folha baixa ficava
+/// cortado (mesmo motivo do `_AddStopSheet` no ecrã de tracking).
 class _ReturnSheet extends StatefulWidget {
-  const _ReturnSheet();
+  const _ReturnSheet({
+    required this.initialOriginLabel,
+    required this.initialOrigin,
+  });
+
+  final String initialOriginLabel;
+  final LatLng? initialOrigin;
+
   @override
   State<_ReturnSheet> createState() => _ReturnSheetState();
 }
 
 class _ReturnSheetState extends State<_ReturnSheet> {
-  final TextEditingController _c = TextEditingController();
+  late final TextEditingController _origin;
+  final TextEditingController _dest = TextEditingController();
+
+  LatLng? _originCoords;
+  double? _destLat;
+  double? _destLng;
+  String? _destLabel;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _origin = TextEditingController(text: widget.initialOriginLabel);
+    _originCoords = widget.initialOrigin;
+  }
+
   @override
   void dispose() {
-    _c.dispose();
+    _origin.dispose();
+    _dest.dispose();
     super.dispose();
+  }
+
+  void _confirm() {
+    final o = _originCoords;
+    if (o == null) {
+      setState(() => _error = 'Escolhe de onde sais na lista de sugestões.');
+      return;
+    }
+    if (_destLat == null || _destLng == null) {
+      setState(() => _error = 'Escolhe o destino na lista de sugestões.');
+      return;
+    }
+    Navigator.pop(
+      context,
+      _ReturnDest(
+        label: _destLabel ?? _dest.text,
+        lat: _destLat!,
+        lng: _destLng!,
+        originLabel: _origin.text,
+        originLat: o.latitude,
+        originLng: o.longitude,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final inset = MediaQuery.of(context).viewInsets.bottom;
-    return Padding(
-      padding: EdgeInsets.only(
-          left: Spacing.lg,
-          right: Spacing.lg,
-          top: Spacing.lg,
-          bottom: Spacing.lg + inset),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.sync_alt, color: AppColors.primary),
-              const SizedBox(width: Spacing.sm),
-              const Expanded(
-                child: Text('Chamar a minha volta',
-                    style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary)),
-              ),
-              IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close)),
+    final media = MediaQuery.of(context);
+    final inset = media.viewInsets.bottom;
+    return SizedBox(
+      height: media.size.height * 0.72 - inset,
+      child: SingleChildScrollView(
+        padding: EdgeInsets.only(
+            left: Spacing.lg,
+            right: Spacing.lg,
+            top: Spacing.lg,
+            bottom: Spacing.lg + inset),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.sync_alt, color: AppColors.primary),
+                const SizedBox(width: Spacing.sm),
+                const Expanded(
+                  child: Text('Chamar a minha volta',
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary)),
+                ),
+                IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close)),
+              ],
+            ),
+            const SizedBox(height: Spacing.xs),
+            const Text(
+                'A volta já está paga. Confirma de onde sais e para onde vais.',
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+            const SizedBox(height: Spacing.md),
+            AddressAutocompleteField(
+              key: const Key('tvde_return_origin'),
+              controller: _origin,
+              labelText: 'De onde sais',
+              prefixIcon: const Icon(Icons.my_location, size: 20),
+              onSelected: (address, coords) {
+                if (coords == null) return;
+                setState(() {
+                  _originCoords = LatLng(coords.latitude, coords.longitude);
+                  _error = null;
+                });
+              },
+              // Editar à mão invalida as coordenadas antigas: sem escolher uma
+              // sugestão não há coordenadas, e o botão avisa em vez de mandar
+              // o cliente para o sítio errado.
+              onChanged: (_) => setState(() => _originCoords = null),
+            ),
+            const SizedBox(height: Spacing.md),
+            AddressAutocompleteField(
+              key: const Key('tvde_return_dest'),
+              controller: _dest,
+              labelText: 'Destino da volta',
+              prefixIcon: const Icon(Icons.place_outlined, size: 20),
+              onSelected: (address, coords) {
+                if (coords == null) return;
+                setState(() {
+                  _destLat = coords.latitude;
+                  _destLng = coords.longitude;
+                  _destLabel = address;
+                  _error = null;
+                });
+              },
+              onChanged: (_) => setState(() {
+                _destLat = null;
+                _destLng = null;
+              }),
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: Spacing.sm),
+              Text(_error!,
+                  style: const TextStyle(color: AppColors.error, fontSize: 12.5)),
             ],
-          ),
-          const SizedBox(height: Spacing.xs),
-          const Text('Para onde vais agora? A recolha é a tua localização atual.',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
-          const SizedBox(height: Spacing.md),
-          AddressAutocompleteField(
-            controller: _c,
-            labelText: 'Destino da volta',
-            onSelected: (address, coords) {
-              if (coords == null) return;
-              Navigator.pop(
-                  context,
-                  _ReturnDest(
-                      label: address,
-                      lat: coords.latitude,
-                      lng: coords.longitude));
-            },
-          ),
-          const SizedBox(height: Spacing.sm),
-        ],
+            const SizedBox(height: Spacing.lg),
+            BoraAccentButton(
+              key: const Key('tvde_return_confirm'),
+              label: 'Chamar a volta',
+              onPressed: _confirm,
+            ),
+            // Espaço para o overlay de sugestões do autocomplete não ficar
+            // cortado quando o campo está perto do fundo.
+            const SizedBox(height: 260),
+          ],
+        ),
       ),
     );
   }

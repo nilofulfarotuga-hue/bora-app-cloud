@@ -3,9 +3,11 @@ import 'package:provider/provider.dart';
 
 import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
+import '../../../models/tvde_fare_view.dart';
 import '../../../models/tvde_ride.dart';
 import '../../../stores/tvde_store.dart';
 import '../../../widgets/bora/bora.dart';
+import '../../../widgets/tvde/tvde_roundtrip_driver_notice.dart';
 
 /// TVDE — Avaliação do motorista pelo passageiro (tvde_rate, subject 'driver').
 class TvdeRateScreen extends StatefulWidget {
@@ -19,6 +21,16 @@ class TvdeRateScreen extends StatefulWidget {
 class _TvdeRateScreenState extends State<TvdeRateScreen> {
   int _stars = 5;
   final _comment = TextEditingController();
+  int _packageCents = TvdeRoundtripPrice.cents;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final pkg = await TvdeRoundtripPrice.load(context.read<TvdeStore>());
+      if (mounted) setState(() => _packageCents = pkg);
+    });
+  }
 
   @override
   void dispose() {
@@ -47,8 +59,10 @@ class _TvdeRateScreenState extends State<TvdeRateScreen> {
   @override
   Widget build(BuildContext context) {
     final store = context.watch<TvdeStore>();
-    final covered = widget.ride.usedSubscriptionRide;
-    final fare = widget.ride.displayFareCents / 100;
+    final fareView =
+        TvdeFareView.of(widget.ride, packageCents: _packageCents);
+    final covered = fareView.clientTotalCents == 0;
+    final fare = fareView.clientTotalCents / 100;
 
     return Scaffold(
       appBar: const BoraScreenAppBar(title: 'Avaliar viagem'),
@@ -68,8 +82,11 @@ class _TvdeRateScreenState extends State<TvdeRateScreen> {
             const SizedBox(height: Spacing.xs),
             Text(
                 covered
-                    ? 'Corrida incluída no teu plano — não pagaste nada.'
-                    : 'Pagaste €${fare.toStringAsFixed(2)} em dinheiro.',
+                    ? (widget.ride.isRoundtripLeg
+                        ? 'Volta incluída no pacote — não pagaste nada.'
+                        : 'Corrida incluída no teu plano — não pagaste nada.')
+                    : 'Pagaste €${fare.toStringAsFixed(2)}'
+                        '${fareView.isPaidOnline ? ' no app.' : ' em dinheiro.'}',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: AppColors.textSecondary)),
             const SizedBox(height: Spacing.xl),

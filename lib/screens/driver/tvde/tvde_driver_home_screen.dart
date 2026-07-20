@@ -575,7 +575,12 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
         context.select<DriverStore, LatLng?>((d) => d.currentDriver?.location);
     final gmaps.LatLng? mePos =
         locLl == null ? null : gmaps.LatLng(locLl.latitude, locLl.longitude);
-    if (mePos != null) {
+    // [Perf] Este ecrã fica MONTADO por baixo quando a corrida ativa é aberta
+    // com Navigator.push. Continuar a animar a câmara de um mapa invisível é
+    // trabalho puro no platform channel e roubava frames ao mapa que está à
+    // frente. Só segue a câmara quando esta rota é a de cima.
+    final isTopRoute = ModalRoute.of(context)?.isCurrent ?? true;
+    if (mePos != null && isTopRoute) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _followCamera(mePos));
     }
 

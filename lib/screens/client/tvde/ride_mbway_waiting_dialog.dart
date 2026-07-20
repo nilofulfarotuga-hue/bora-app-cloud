@@ -15,7 +15,7 @@ typedef MbwayPaidCheck = Future<bool?> Function(TvdeStore store);
 /// (`barrierDismissible:false`) — evita que um re-toque dispare uma 2.ª cobrança.
 ///
 /// [checkPaid] corre a cada 3 s; timeout de 120 s → pop(false).
-/// Fábricas: [TvdeRideMbwayWaitingDialog.forRide] e [.forRoundtrip].
+/// Fábricas: [TvdeRideMbwayWaitingDialog.forRide], [.forRoundtrip] e [.forStop].
 class TvdeRideMbwayWaitingDialog extends StatefulWidget {
   const TvdeRideMbwayWaitingDialog({
     super.key,
@@ -71,6 +71,40 @@ class TvdeRideMbwayWaitingDialog extends StatefulWidget {
       message: 'Abre o MBWay e confirma para garantir a tua volta.',
       checkPaid: (store) =>
           store.activateRoundtrip(outboundRideId, paymentIntentId),
+    );
+  }
+
+  /// Espera a confirmação MB Way de uma **parada extra** numa corrida paga
+  /// online. O confirmador é `confirm_stop_payment`: quando o PaymentIntent
+  /// está `succeeded` é o próprio backend que adiciona a parada (chama a
+  /// `tvde_add_stop` com o PI ligado). A parada só existe depois disso.
+  ///
+  /// [onResponse] recebe cada resposta do servidor para o ecrã poder distinguir
+  /// "devolvido" de "expirou" — o `bool` do pop não chega para isso.
+  factory TvdeRideMbwayWaitingDialog.forStop({
+    Key? key,
+    required String paymentIntentId,
+    required double amountEur,
+    void Function(Map<String, dynamic> res)? onResponse,
+  }) {
+    // Estados da Stripe em que o pagamento já não vai acontecer.
+    const failed = {'canceled', 'requires_payment_method'};
+    return TvdeRideMbwayWaitingDialog(
+      key: key,
+      amountEur: amountEur,
+      message: 'Abre o MBWay e confirma para adicionar a parada.',
+      checkPaid: (store) async {
+        final res = await store.confirmStopPayment(paymentIntentId);
+        // Sem resposta do servidor (rede) → continuar a tentar, não desistir.
+        if (res == null) return false;
+        onResponse?.call(res);
+        if (res['succeeded'] == true) return true;
+        // Pagou mas a parada não entrou e o dinheiro já voltou — é terminal.
+        if (res['refunded'] == true) return null;
+        final status = res['status'] as String?;
+        if (status != null && failed.contains(status)) return null;
+        return false;
+      },
     );
   }
 

@@ -776,6 +776,25 @@ class DriverStore extends ChangeNotifier {
     }
     final isOnlineRaw = record['is_online'] as bool?;
     if (isOnlineRaw != null) driver.isOnline = isOnlineRaw;
+
+    // [Perf] O próprio motorista NÃO se anima a si mesmo.
+    //
+    // Ele escreve a sua posição em `drivers` (updateDriverLocation) e o realtime
+    // devolve-lhe o seu próprio UPDATE. Animar isso disparava um
+    // Timer.periodic(80ms) × 12 com notifyListeners() a cada passo — ~12
+    // rebuilds/segundo de toda a árvore, com dois GoogleMap montados. Era a
+    // causa dominante do mapa a travar ao aceitar corrida.
+    //
+    // A interpolação suave existe para o mapa do CLIENTE ver o carro dos
+    // OUTROS deslizar; para o próprio, o GPS local já é a fonte melhor e mais
+    // fresca — aqui basta assentar a posição sem animação.
+    if (id == _primaryDriverId) {
+      driver.location = target;
+      _locationAnimations.remove(driver.id)?.cancel();
+      notifyListeners();
+      return;
+    }
+
     _animateDriverTowards(driver, target);
   }
 

@@ -449,6 +449,75 @@ class TvdeStore extends ChangeNotifier {
     }
   }
 
+  /// Parada numa corrida paga ONLINE: cobra os €2 **antes** de a adicionar.
+  ///
+  /// A parada NÃO entra aqui — só no [confirmStopPayment], quando o
+  /// PaymentIntent passar. Sem pagamento não há parada (regra do Danilo).
+  ///
+  /// Devolve `{paymentIntentId, clientSecret (só cartão), status, amountCents}`.
+  /// Erros conhecidos da EF (lançados como Exception com o código lá dentro):
+  /// `stop_cash_flow`, `max_stops_reached`, `invalid_ride_state_for_stop`,
+  /// `card_payments_not_enabled`.
+  Future<Map<String, dynamic>> chargeStop(
+    String rideId, {
+    required String method, // 'card' | 'mbway'
+    required double lat,
+    required double lng,
+    String? label,
+    double segmentKm = 0,
+    String? mbwayPhone,
+  }) async {
+    _setBusy(true);
+    try {
+      final res = await _sb.functions.invoke('tvde-payment', body: {
+        'action': 'charge_stop',
+        'ride_id': rideId,
+        'method': method,
+        'lat': lat,
+        'lng': lng,
+        if (label != null) 'label': label,
+        'segment_km': segmentKm,
+        if (mbwayPhone != null) 'phone': mbwayPhone,
+      });
+      final data = (res.data is Map)
+          ? Map<String, dynamic>.from(res.data as Map)
+          : <String, dynamic>{};
+      if (data['error'] != null) throw Exception(data['error'].toString());
+      return data;
+    } catch (e) {
+      debugPrint('TvdeStore.chargeStop error => $e');
+      rethrow;
+    } finally {
+      _setBusy(false);
+    }
+  }
+
+  /// Pergunta ao servidor se o pagamento da parada passou. Quando
+  /// `succeeded:true` a parada **já foi adicionada** pelo backend (é ele que
+  /// chama a `tvde_add_stop` com o PaymentIntent ligado).
+  ///
+  /// Se vier `refunded:true`, o pagamento passou mas a parada não entrou
+  /// (máximo atingido, corrida terminou) e o dinheiro **já foi devolvido**.
+  ///
+  /// Devolve **null** quando nem se conseguiu falar com o servidor — o poll do
+  /// MB Way continua, em vez de concluir "não pagou" por causa de rede.
+  Future<Map<String, dynamic>?> confirmStopPayment(
+      String paymentIntentId) async {
+    try {
+      final res = await _sb.functions.invoke('tvde-payment', body: {
+        'action': 'confirm_stop_payment',
+        'payment_intent_id': paymentIntentId,
+      });
+      if (res.data is Map) {
+        return Map<String, dynamic>.from(res.data as Map);
+      }
+      return null;
+    } catch (e) {
+      debugPrint('TvdeStore.confirmStopPayment error => $e');
+      return null;
+    }
+  }
+
   /// Cliente remove uma parada (só antes de o motorista lá chegar).
   Future<void> removeStop(String rideId, String stopId) async {
     _setBusy(true);

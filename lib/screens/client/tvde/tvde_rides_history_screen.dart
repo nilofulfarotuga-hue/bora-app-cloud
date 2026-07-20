@@ -3,9 +3,11 @@ import 'package:provider/provider.dart';
 
 import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
+import '../../../models/tvde_fare_view.dart';
 import '../../../models/tvde_ride.dart';
 import '../../../stores/tvde_store.dart';
 import '../../../widgets/bora/bora.dart';
+import '../../../widgets/tvde/tvde_roundtrip_driver_notice.dart';
 
 /// TVDE — Histórico de corridas do passageiro.
 class TvdeRidesHistoryScreen extends StatefulWidget {
@@ -16,11 +18,16 @@ class TvdeRidesHistoryScreen extends StatefulWidget {
 }
 
 class _TvdeRidesHistoryScreenState extends State<TvdeRidesHistoryScreen> {
+  int _packageCents = TvdeRoundtripPrice.cents;
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<TvdeStore>().loadHistory();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final store = context.read<TvdeStore>();
+      store.loadHistory();
+      final pkg = await TvdeRoundtripPrice.load(store);
+      if (mounted) setState(() => _packageCents = pkg);
     });
   }
 
@@ -35,15 +42,17 @@ class _TvdeRidesHistoryScreenState extends State<TvdeRidesHistoryScreen> {
               padding: const EdgeInsets.all(Spacing.lg),
               itemCount: rides.length,
               separatorBuilder: (_, __) => const SizedBox(height: Spacing.sm),
-              itemBuilder: (_, i) => _RideTile(ride: rides[i]),
+              itemBuilder: (_, i) =>
+                  _RideTile(ride: rides[i], packageCents: _packageCents),
             ),
     );
   }
 }
 
 class _RideTile extends StatelessWidget {
-  const _RideTile({required this.ride});
+  const _RideTile({required this.ride, required this.packageCents});
   final TvdeRide ride;
+  final int packageCents;
 
   @override
   Widget build(BuildContext context) {
@@ -90,7 +99,8 @@ class _RideTile extends StatelessWidget {
               ],
             ),
           ),
-          Text('€${(ride.displayFareCents / 100).toStringAsFixed(2)}',
+          Text(
+              '€${(TvdeFareView.of(ride, packageCents: packageCents).clientTotalCents / 100).toStringAsFixed(2)}',
               style: const TextStyle(
                   fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
         ],

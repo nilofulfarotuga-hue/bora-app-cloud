@@ -343,13 +343,21 @@ licao_de_falha(){ # $1=ficheiro da ordem — best-effort, nunca falha para fora
   # comando interno"). A 1ª versão só caía para PENDENTE se a saída fosse VAZIA, por isso
   # plantou uma mensagem de erro como se fosse regra dentro do Cérebro. Agora: filtrar erros
   # conhecidos E exigir uma frase com corpo. Lixo -> PENDENTE, nunca ao Cérebro.
-  certo=$(pc_judge "Uma ordem do loop autónomo do Bora morreu de vez (travada).
+  local bruto
+  bruto=$(pc_judge "Uma ordem do loop autónomo do Bora morreu de vez (travada).
 TAREFA: $(resumo_tarefa "$tarefa")
 MOTIVO DA MORTE: $nota
 Responde SÓ com UMA frase: a regra generalizável que evitaria repetir isto. Sem preâmbulo." \
-    2>/dev/null | tr -d '\r' | grep -v '^[[:space:]]*$' \
-    | grep -viE "não é reconhecido|nao e reconhecido|is not recognized|command not found|comando interno|^ *ERRO|^ *ERROR|permission denied|^ *fatal:|cmd\.exe|the system cannot find" \
-    | head -1)
+    2>/dev/null | tr -d '\r')
+  # 2ª correção (2026-07-20): a 1ª filtrava LINHA A LINHA — e o erro do cmd tem 2 linhas
+  # ("'PONTE' não é reconhecido..." / "ou externo, um programa operável..."), por isso ao
+  # cortar a 1ª o head apanhava a 2ª: o mesmo erro, outro pedaço. Um blob de erro não se
+  # salva por pedaços — ou a saída INTEIRA é limpa, ou não se aproveita nada dela.
+  if printf '%s' "$bruto" | grep -qiE "não é reconhecido|nao e reconhecido|is not recognized|command not found|comando interno|programa operável|arquivo em lotes|permission denied|^ *fatal:|cmd\.exe|the system cannot find|não foi possível|nao foi possivel"; then
+    certo=""
+  else
+    certo=$(printf '%s' "$bruto" | grep -v '^[[:space:]]*$' | head -1)
+  fi
   # uma regra útil tem corpo; um fragmento de 5 palavras é quase sempre resto de erro
   [ "${#certo}" -ge 30 ] || certo=""
   [ -n "$certo" ] || certo="PENDENTE — a completar pelo bibliotecario-cerebro (o juiz não devolveu uma regra utilizável)."
@@ -491,7 +499,8 @@ if [ "${1:-}" = "--selftest" ]; then
     # REGRESSÃO (defeito real de 2026-07-20): a ponte do juiz avariada devolve um erro do cmd,
     # não uma regra — e isso NÃO pode entrar no Cérebro disfarçado de lição.
     rm -f "$_td"/licao-pendente-*.md
-    pc_judge(){ echo \"'PONTE' não é reconhecido como um comando interno\"; }
+    # o erro REAL do cmd tem 2 linhas — a 2ª passava o filtro linha-a-linha da 1ª correção
+    pc_judge(){ printf \"'PONTE' não é reconhecido como um comando interno\\nou externo, um programa operável ou um arquivo em lotes.\\n\"; }
     printf 'id: ordem-teste-erro\ntarefa: tarefa com ponte avariada\nnota: SAIDA-VAZIA\nestado: travada\n' > "$_td/o2.md"
     licao_de_falha "$_td/o2.md"
     grep -q "PENDENTE" "$_td/licao-pendente-ordem-teste-erro.md" 2>/dev/null \

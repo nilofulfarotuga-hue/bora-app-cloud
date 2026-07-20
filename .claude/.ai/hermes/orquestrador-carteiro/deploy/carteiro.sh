@@ -306,8 +306,72 @@ missao_avanca(){ # $1=mid $2=passo (que acabou aprovado)
   n=$(missao_fire_next "$mid")
   [ "${n:-0}" -eq 0 ] && log "missão $mid: sem próximos passos elegíveis agora (deps pendentes)"
 }
+# ---------------- C4: falha -> LIÇÃO (fecha o ciclo do aprendizado) ----------------
+# Até 2026-07-20 o loop travava ordens e não aprendia NADA: o `.claude/juiz/reflexao.py`
+# existia mas nenhum script o invocava (código morto — confirmado por grep em todos os
+# .sh/.cmd/.ps1). As 28 lições do Cérebro vieram de commits manuais em lote. Com isto o
+# ciclo fecha-se: erro -> lição -> consolidador (2x/dia) -> injeção no executor -> menos erro.
+#
+# Regras, todas com motivo:
+#  - SÓ em TRAVADA (ordem morta de vez). Em CORRIGIR geraria um rascunho por tentativa
+#    -> exatamente a `licao-spam-ordens-autoreferencial` que já está registada.
+#  - DEDUPE por hash de tarefa+nota: o mesmo erro não gera dois rascunhos.
+#  - BEST-EFFORT: nenhum caminho aqui pode travar o loop — tudo devolve 0.
+#  - Rascunho vai para o INBOX. Quem promove a lição permanente continua a ser o
+#    `bibliotecario-cerebro` (regra do escritor único do Cérebro, não a quebro aqui).
+# Sobrescrevíveis por ambiente SÓ para o auto-teste poder correr contra um inbox
+# temporário — em produção ficam sempre nestes valores.
+REFLEXAO="${REFLEXAO:-$HOSTDATA/cortex-brain/.claude/juiz/reflexao.py}"
+LICOES_INBOX="${LICOES_INBOX:-$HOSTDATA/cortex-brain/.claude/.ai/knowledge/inbox}"
+
+licao_de_falha(){ # $1=ficheiro da ordem — best-effort, nunca falha para fora
+  local of="$1" oid tarefa nota chave alvo certo
+  [ -f "$REFLEXAO" ] && [ -d "$LICOES_INBOX" ] || return 0
+  oid=$(get id "$of"); tarefa=$(get tarefa "$of"); nota=$(get nota "$of")
+  [ -n "$tarefa" ] || return 0
+
+  chave=$(printf '%s|%s' "$tarefa" "$nota" | sha256sum | cut -c1-10)
+  if grep -rlq "licao-chave: $chave" "$LICOES_INBOX" 2>/dev/null; then
+    log "licao: chave $chave já registada — não duplico"; return 0
+  fi
+
+  # O "o certo é Z" exige juízo — um shell não o inventa. Reusa o pc-judge que o loop
+  # JÁ tem (haiku, barato, só leitura). Se não responder, fica PENDENTE: melhor um
+  # campo por preencher do que uma regra fabricada a entrar no Cérebro.
+  certo=$(pc_judge "Uma ordem do loop autónomo do Bora morreu de vez (travada).
+TAREFA: $(resumo_tarefa "$tarefa")
+MOTIVO DA MORTE: $nota
+Responde SÓ com UMA frase: a regra generalizável que evitaria repetir isto. Sem preâmbulo." \
+    2>/dev/null | tr -d '\r' | grep -v '^[[:space:]]*$' | head -1)
+  [ -n "$certo" ] || certo="PENDENTE — a completar pelo bibliotecario-cerebro (o juiz não respondeu)."
+
+  alvo="$LICOES_INBOX/licao-pendente-$oid.md"
+  {
+    printf -- '---\n'
+    printf 'tema: licao-falha-%s · escopo: projeto · estado: rascunho · atualizado: %s\n' "$oid" "$(date -u +%F)"
+    printf 'tipo: licao\norigem: [loop de orquestracao · ordem %s]\nzona: verde\nconfianca: auto\n' "$oid"
+    printf 'licao-chave: %s\n' "$chave"
+    printf -- '---\n\n'
+    # PROVENIÊNCIA HONESTA: o reflexao.py traz hardcoded "(evidência: veredito determinístico
+    # do Juiz — git diff mecânico, não opinião de IA.)". Nesta via isso é FALSO: o "certo"
+    # saiu de um haiku. Num projeto com anti_trapaca e a regra de nunca inventar prova, deixar
+    # essa frase entrar no Cérebro era plantar uma alegação errada. Trocamo-la pela verdade.
+    python3 "$REFLEXAO" --tentei "$(resumo_tarefa "$tarefa")" --falhou "${nota:-motivo desconhecido}" \
+            --certo "$certo" --codigo ORDEM_TRAVADA 2>/dev/null \
+      | sed 's|(evidência: veredito determinístico do Juiz.*|(proveniência: "Tentei" e "Falhou" são factos mecânicos do loop — id da ordem + nota do veredito. "O certo é" é SUGESTÃO de IA (juiz haiku), POR VALIDAR pelo bibliotecario-cerebro.)|'
+  } > "$alvo" 2>/dev/null || { log "licao: falhei a escrever o rascunho (ignorado)"; return 0; }
+
+  log "licao: rascunho gerado -> $(basename "$alvo") (chave $chave)"
+  notify "🧠 Bora: a ordem $oid travou e virou lição — rascunho em inbox/$(basename "$alvo"). O Bibliotecário promove."
+  return 0
+}
+
 missao_travada_ou_silencio(){ # $1=of $2=mid $3=passo
   local of="$1" mid="$2" p="$3" mf oid nota
+  # C4: este é o funil ÚNICO por onde passam os 4 caminhos de TRAVADA (teto de 5,
+  # EXECUTOR-PAROU, saída vazia, e 5 tentativas pós-juiz). Enganchar aqui cobre todos
+  # sem tocar em nenhum deles.
+  licao_de_falha "$of"
   if [ -n "$mid" ]; then
     mf=$(missao_path "$mid"); [ -f "$mf" ] && missao_set_passo "$mf" "$p" "travada"
     nota=$(get nota "$of")
@@ -387,6 +451,38 @@ if [ "${1:-}" = "--selftest" ]; then
   [ "$ep1" = "EXECUTOR-PAROU: subtype=error_max_turns turns=150 custo=25.0" ] && ok "executor_parou_linha extrai a linha exata" || bad "executor_parou_linha extrai (got: $ep1)"
   ep2=$(executor_parou_linha "$(printf 'texto normal sem marcador\n')")
   [ -z "$ep2" ] && ok "executor_parou_linha vazio quando não há marcador" || bad "executor_parou_linha deveria ser vazio (got: $ep2)"
+  # C4 (2026-07-20): falha -> lição. Corre contra um inbox TEMPORÁRIO com o pc_judge e o
+  # notify substituídos — zero Telegram, zero toque no Cérebro real.
+  if [ -f "$REFLEXAO" ] && command -v python3 >/dev/null 2>&1; then
+    _td=$(mktemp -d); LICOES_INBOX="$_td"
+    notify(){ :; }                                   # sem Telegram no teste
+    pc_judge(){ echo "REGRA DE TESTE: nunca repetir X sem verificar Y."; }
+    printf 'id: ordem-teste-c4\ntarefa: [MODELO: SONNET] tarefa de teste do C4\nnota: SAIDA-VAZIA -- teste\nestado: travada\n' > "$_td/ordem.md"
+    licao_de_falha "$_td/ordem.md"
+    _lf="$_td/licao-pendente-ordem-teste-c4.md"
+    [ -f "$_lf" ] && ok "licao_de_falha gera o rascunho" || bad "licao_de_falha NÃO gerou rascunho"
+    grep -q "HANDOFF → bibliotecario-cerebro" "$_lf" 2>/dev/null \
+      && ok "rascunho traz o bloco de handoff do reflexao.py" || bad "rascunho sem bloco de handoff"
+    grep -q "REGRA DE TESTE" "$_lf" 2>/dev/null \
+      && ok "o 'certo' vem do juiz, não é inventado" || bad "o 'certo' não chegou ao rascunho"
+    grep -q "tarefa de teste do C4" "$_lf" 2>/dev/null \
+      && ok "rascunho traz a tarefa real" || bad "rascunho sem a tarefa"
+    grep -q "SUGESTÃO de IA" "$_lf" 2>/dev/null \
+      && ok "proveniência honesta: marca o 'certo' como sugestão de IA" || bad "rascunho sem a nota de proveniência"
+    grep -q "não opinião de IA" "$_lf" 2>/dev/null \
+      && bad "rascunho ainda alega 'não opinião de IA' (falso nesta via)" || ok "alegação falsa de proveniência removida"
+    # dedupe: segunda passagem com a MESMA tarefa+nota não pode criar outro ficheiro
+    _antes=$(ls -1 "$_td"/licao-pendente-*.md 2>/dev/null | wc -l)
+    licao_de_falha "$_td/ordem.md"
+    _depois=$(ls -1 "$_td"/licao-pendente-*.md 2>/dev/null | wc -l)
+    [ "$_antes" = "$_depois" ] && ok "dedupe: mesmo erro não gera 2º rascunho" || bad "dedupe falhou ($_antes -> $_depois)"
+    # fail-safe: sem reflexao.py, devolve 0 e não escreve nada
+    REFLEXAO=/caminho/que/nao/existe licao_de_falha "$_td/ordem.md" >/dev/null 2>&1
+    [ "$?" = 0 ] && ok "licao_de_falha é best-effort (sem reflexao.py devolve 0)" || bad "licao_de_falha devolveu erro"
+    rm -rf "$_td"
+  else
+    ok "licao_de_falha: teste saltado (reflexao.py/python3 ausentes nesta máquina)"
+  fi
   [ "$fail" = 0 ] && echo "SELFTEST: TODOS OK" || echo "SELFTEST: HÁ FALHAS"
   exit "$fail"
 fi

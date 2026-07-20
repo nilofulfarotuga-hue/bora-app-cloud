@@ -102,10 +102,24 @@ jobs:
             web-build
           echo "build publicado na branch web-build"
 
+      # O contexto `secrets` não pode ser usado em `if:` de um step — tem de
+      # passar primeiro por um output. (Foi isto que rebentou o parse do
+      # workflow na 1.ª tentativa.)
+      - name: Verificar se o token da Cloudflare existe
+        id: cf
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if [ -n "$TOKEN" ]; then
+            echo "tem=sim" >> "$GITHUB_OUTPUT"
+          else
+            echo "tem=nao" >> "$GITHUB_OUTPUT"
+          fi
+
       # Só corre quando o secret existir. Enquanto não existir, o passo é
       # saltado e o deploy faz-se do PC com o deploy-web.sh.
       - name: Deploy para Cloudflare Pages
-        if: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
+        if: steps.cf.outputs.tem == 'sim'
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -113,7 +127,7 @@ jobs:
           command: pages deploy build/web --project-name=bora-app-web --branch=main
 
       - name: Aviso se o secret faltar
-        if: ${{ secrets.CLOUDFLARE_API_TOKEN == '' }}
+        if: steps.cf.outputs.tem == 'nao'
         run: |
           echo "::warning::CLOUDFLARE_API_TOKEN não está definido — deploy automático saltado." \
                "O build está na branch web-build; publica com ./deploy-web.sh a partir do PC."

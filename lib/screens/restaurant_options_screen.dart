@@ -12,16 +12,18 @@ import '../widgets/bora/bora_tile_card.dart';
 import 'client/reservation/reservation_availability_screen.dart';
 import 'restaurant_menu_screen.dart';
 
-/// BUG #9+10 (2026-05-13) + D1 (2026-05-14) — ecrã intermédio com 1-3 cartões
+/// BUG #9+10 (2026-05-13) + D1 (2026-05-14) — ecrã intermédio com 3 cartões
 /// antes do cardápio.
 ///
 /// Apresentado entre a lista de restaurantes e o `RestaurantMenuScreen`:
-/// só para `isPartner==true && (reservationsEnabled || takeawayEnabled)`.
+/// sempre que `isPartner==true` (ver `restaurants_screen.dart`).
 ///
-/// Cartões (condicionais individualmente):
-///   1. Entrega         → serviceType=restaurant + RestaurantMenuScreen (sempre visível)
-///   2. Ir buscar       → serviceType=takeaway  + RestaurantMenuScreen (se takeawayEnabled)
-///   3. Reservar mesa   → ReservationAvailabilityScreen (se reservationsEnabled)
+/// Cartões — SEMPRE OS 3 (BUG 2, 2026-07-17): os serviços desligados não
+/// desaparecem, aparecem apagados (opacidade + toque bloqueado) com a
+/// etiqueta "Não disponível", para o parceiro perceber que pode ativá-los.
+///   1. Entrega         → serviceType=restaurant + RestaurantMenuScreen (sempre ativo)
+///   2. Ir buscar       → serviceType=takeaway  + RestaurantMenuScreen (ativo se takeawayEnabled)
+///   3. Reservar mesa   → ReservationAvailabilityScreen (ativo se reservationsEnabled)
 ///
 /// R5 (2026-05-14): Ao chegar via este ecrã, `cameFromOptions=true` é
 /// propagado ao menu/cart para esconder o switch "Ir buscar" no cart_screen
@@ -80,36 +82,78 @@ class RestaurantOptionsScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: Spacing.lg),
-          // Cartão "Entrega" — sempre presente (todos os parceiros aceitam
-          // delivery enquanto isPartner=true).
+          // Cartão "Entrega" — sempre presente e ativo (todos os parceiros
+          // aceitam delivery enquanto isPartner=true).
           BoraTileCard.image(
             label: 'Entrega',
             gradient: AppColors.tileRestaurants,
             imageAsset: 'assets/categories/btn_entrega.png',
             onTap: () => _openMenu(context, OrderServiceType.restaurant),
           ),
-          // D1 — "Ir buscar" só se restaurante aceita takeaway.
-          if (business.takeawayEnabled) ...[
-            const SizedBox(height: Spacing.md),
-            BoraTileCard.image(
-              label: 'Ir buscar',
-              gradient: AppColors.tileCarryGroceries,
-              imageAsset: 'assets/categories/btn_buscar.png',
-              onTap: () => _openMenu(context, OrderServiceType.takeaway),
-            ),
-          ],
-          // D1 — "Reservar mesa" só se restaurante aceita reservas.
-          if (business.reservationsEnabled) ...[
-            const SizedBox(height: Spacing.md),
-            BoraTileCard.image(
-              label: 'Reservar mesa',
-              gradient: AppColors.tileReserveTable,
-              imageAsset: 'assets/categories/btn_reservar.png',
-              onTap: () => _openReservation(context),
-            ),
-          ],
+          const SizedBox(height: Spacing.md),
+          // BUG 2 (2026-07-17): "Ir buscar" nunca desaparece — fica apagado
+          // e sem toque quando o parceiro ainda não ativou takeaway.
+          _buildOptionCard(
+            label: 'Ir buscar',
+            gradient: AppColors.tileCarryGroceries,
+            imageAsset: 'assets/categories/btn_buscar.png',
+            enabled: business.takeawayEnabled,
+            onTap: () => _openMenu(context, OrderServiceType.takeaway),
+          ),
+          const SizedBox(height: Spacing.md),
+          // BUG 2 (2026-07-17): idem para "Reservar mesa".
+          _buildOptionCard(
+            label: 'Reservar mesa',
+            gradient: AppColors.tileReserveTable,
+            imageAsset: 'assets/categories/btn_reservar.png',
+            enabled: business.reservationsEnabled,
+            onTap: () => _openReservation(context),
+          ),
         ],
       ),
+    );
+  }
+
+  /// Cartão sempre visível: quando `enabled=false`, fica apagado (opacidade
+  /// 0.4) e bloqueado ao toque (`IgnorePointer`), com etiqueta "Não
+  /// disponível" — nunca desaparece do ecrã (BUG 2, 2026-07-17).
+  Widget _buildOptionCard({
+    required String label,
+    required Gradient gradient,
+    required String imageAsset,
+    required bool enabled,
+    required VoidCallback onTap,
+  }) {
+    final card = BoraTileCard.image(
+      label: label,
+      gradient: gradient,
+      imageAsset: imageAsset,
+      onTap: onTap,
+    );
+    if (enabled) return card;
+    return Stack(
+      children: [
+        Opacity(opacity: 0.4, child: IgnorePointer(child: card)),
+        Positioned(
+          top: 8,
+          right: 8,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.black54,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Text(
+              'Não disponível',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

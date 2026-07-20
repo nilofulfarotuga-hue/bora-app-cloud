@@ -1,4 +1,4 @@
-import 'dart:io';
+import '../../utils/io_compat.dart';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -288,7 +288,7 @@ class _CleanerApplyScreenState extends State<CleanerApplyScreen> {
                   radius: 48,
                   backgroundColor: AppColors.primaryWash,
                   backgroundImage: _photo != null
-                      ? FileImage(File(_photo!.path)) as ImageProvider
+                      ? boraLocalImage(_photo!.path)
                       : (_prefillPhotoUrl.isNotEmpty
                           ? NetworkImage(_prefillPhotoUrl)
                           : null),

@@ -1,4 +1,4 @@
-import 'dart:io';
+import '../utils/io_compat.dart';
 
 import 'package:csv/csv.dart';
 import 'package:flutter/foundation.dart';

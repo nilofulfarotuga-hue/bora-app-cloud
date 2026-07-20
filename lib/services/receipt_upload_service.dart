@@ -12,7 +12,7 @@
 // Feature flag `_USE_EDGE_FN` para rollback rápido se necessário.
 
 import 'dart:convert';
-import 'dart:io';
+import '../utils/io_compat.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 

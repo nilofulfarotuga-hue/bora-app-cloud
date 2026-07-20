@@ -1,0 +1,119 @@
+name: Build & Deploy Web (Cloudflare Pages)
+
+# Paridade Android ↔ Web (regra do Danilo, 2026-07-20):
+# toda a atualização que vai para a Play Store atualiza também o site, sozinha.
+#
+# Workflow SEPARADO de propósito — o build_android.yml não é tocado.
+# O build web local é impossível nesta máquina (4 GB de RAM: o dart2js não
+# consegue arrancar as threads de trabalho), por isso o CI é o caminho oficial.
+
+on:
+  push:
+    branches:
+      - autonomous-night-2026-04-29
+    paths-ignore:
+      - '**.md'
+      - '.claude/**'
+      - 'docs/**'
+  workflow_dispatch:
+
+# Nunca dois deploys ao mesmo tempo; se chegar um push novo a meio, o antigo
+# é cancelado (o que interessa é sempre o último estado da branch).
+concurrency:
+  group: web-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write # necessário para publicar o build na branch `web-build`
+
+jobs:
+  build-deploy:
+    name: Build web + deploy para bora-app-web
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.41.2
+          channel: stable
+          cache: true
+
+      # Mesmo mecanismo do build_android.yml e do e2e-web.yml:
+      # o .dart_defines vive num secret base64, nunca no repo.
+      - name: Decode .dart_defines
+        env:
+          DART_DEFINES_FILE_B64: ${{ secrets.DART_DEFINES_FILE_B64 }}
+        run: |
+          echo "$DART_DEFINES_FILE_B64" | base64 --decode > .dart_defines
+          if [ ! -s .dart_defines ]; then
+            echo "ERRO: .dart_defines vazio apos decode"; exit 1
+          fi
+          echo "OK: .dart_defines criado ($(wc -l < .dart_defines) linhas)"
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Build web (release)
+        run: flutter build web --release --dart-define-from-file=.dart_defines
+
+      # Marcador de versão servido em /versao.json — é o que prova, por fetch,
+      # que a web no ar corresponde a este commit.
+      - name: Carimbar versão
+        run: |
+          printf '{"commit":"%s","branch":"%s","data":"%s","run":"%s"}\n' \
+            "$GITHUB_SHA" "$GITHUB_REF_NAME" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$GITHUB_RUN_NUMBER" \
+            > build/web/versao.json
+          cat build/web/versao.json
+
+      # Artifact para o caso de o deploy falhar (ou para deploy manual local
+      # via `gh run download` + deploy-web.sh).
+      - name: Upload build/web como artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bora-web-build
+          path: build/web
+          retention-days: 7
+
+      # Publica o build compilado numa branch órfã de 1 commit (`web-build`).
+      #
+      # Porquê: esta máquina não consegue compilar para web (4 GB de RAM), e o
+      # `gh` não está autenticado aqui, por isso não dá para ir buscar
+      # artifacts. Com o build numa branch, o PC faz `git fetch` e consegue
+      # fazer o deploy manual com o token Cloudflare local — sem depender de
+      # nenhum secret no GitHub.
+      #
+      # Órfã e com --force para o repositório não crescer sem fim: fica sempre
+      # só o último build.
+      - name: Publicar build na branch web-build
+        run: |
+          cd build/web
+          git init -q
+          git config user.email "ci@bora.app"
+          git config user.name "Bora CI"
+          git checkout -q -b web-build
+          git add -A
+          git commit -q -m "build web de $GITHUB_SHA (run $GITHUB_RUN_NUMBER)"
+          git push -q --force \
+            "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" \
+            web-build
+          echo "build publicado na branch web-build"
+
+      # Só corre quando o secret existir. Enquanto não existir, o passo é
+      # saltado e o deploy faz-se do PC com o deploy-web.sh.
+      - name: Deploy para Cloudflare Pages
+        if: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: 2cd0212b0f5e5c8284aa227f629c050a
+          command: pages deploy build/web --project-name=bora-app-web --branch=main
+
+      - name: Aviso se o secret faltar
+        if: ${{ secrets.CLOUDFLARE_API_TOKEN == '' }}
+        run: |
+          echo "::warning::CLOUDFLARE_API_TOKEN não está definido — deploy automático saltado." \
+               "O build está na branch web-build; publica com ./deploy-web.sh a partir do PC."

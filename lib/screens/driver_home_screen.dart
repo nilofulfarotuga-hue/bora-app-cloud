@@ -16,7 +16,7 @@ import '../config/app_colors.dart';
 import '../widgets/bora_support_fab.dart';
 import '../widgets/cancel_blocked_pickup_sheet.dart';
 import '../widgets/payments/collect_badge.dart';
-import '../widgets/errand_execution_sheet.dart';
+import '../widgets/errand_execution_sheet_compat.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../utils/constants.dart';
 import '../utils/map_utils.dart';

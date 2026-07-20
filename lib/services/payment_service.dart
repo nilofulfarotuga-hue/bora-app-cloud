@@ -4,8 +4,40 @@ import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/saved_card.dart';
+import 'web_checkout.dart';
+
+/// Chave pública do Stripe usada pelo checkout web (`web/pay.html`).
+///
+/// É a **mesma** do telemóvel — chave publicável é pública por definição. Vem
+/// do `.dart_defines` no build, nunca hardcoded.
+const String _webPublishableKey =
+    String.fromEnvironment('STRIPE_PUBLISHABLE_KEY');
 
 class PaymentService {
+  /// Kill switch de emergência dos pagamentos com cartão pelo site
+  /// (`platform_settings.web_card_payments_enabled`).
+  ///
+  /// Default **ligado**: se a chave não existir ou a leitura falhar, o
+  /// pagamento segue. Serve para o Danilo poder desligar o cartão na web sem
+  /// fazer deploy — MB Way e dinheiro continuam a funcionar à mesma.
+  static Future<bool> isWebCardPaymentEnabled() async {
+    try {
+      final res = await Supabase.instance.client
+          .from('platform_settings')
+          .select('value')
+          .eq('key', 'web_card_payments_enabled')
+          .maybeSingle();
+      final v = res?['value'];
+      if (v is bool) return v;
+      if (v is Map) return (v['enabled'] as bool?) ?? true;
+      if (v is String) return v.toLowerCase() != 'false';
+      return true;
+    } catch (e) {
+      debugPrint('[PaymentService] kill switch ilegível ($e) — a manter ligado');
+      return true;
+    }
+  }
+
   // ─── Primary API (called by OrderStore) ──────────────────────────────────
 
   /// Creates a Stripe PaymentIntent via the Supabase Edge Function.
@@ -20,8 +52,9 @@ class PaymentService {
     required String orderId,
     required double amount,
   }) async {
-    if (kIsWeb) throw StateError('Card payments are only supported on mobile.');
-
+    // Web (2026-07-20): sem guard. Isto é só um invoke da Edge Function, que
+    // continua a fechar o preço server-side — o browser recebe exactamente o
+    // mesmo PaymentIntent que o telemóvel recebe.
     final response = await Supabase.instance.client.functions.invoke(
       'create-payment-intent',
       body: {'order_id': orderId, 'amount': amount},
@@ -43,7 +76,28 @@ class PaymentService {
   /// Throws [StripeException] if the user cancels or the card is declined.
   /// Throws [StateError] on web (unsupported).
   Future<void> processPayment(String clientSecret) async {
-    if (kIsWeb) throw StateError('Card payments are only supported on mobile.');
+    // Web (2026-07-20) — o PaymentSheet nativo não é fiável no browser, por
+    // isso a web usa o Payment Element do Stripe.js em `web/pay.html`. Mesmo
+    // clientSecret, mesmo PaymentIntent, mesmo webhook.
+    //
+    // Este Future completa em sucesso e lança em cancelamento/recusa, tal como
+    // o PaymentSheet — é isso que mantém os fluxos a seguir ao pagamento (TVDE,
+    // limpeza, reservas, marcações, dívida) iguais aos do telemóvel.
+    if (kIsWeb) {
+      if (!await isWebCardPaymentEnabled()) {
+        throw StateError(
+          'Os pagamentos com cartão pelo site estão temporariamente '
+          'indisponíveis. Escolhe MB Way ou dinheiro.',
+        );
+      }
+      await startWebCardCheckout(
+        clientSecret: clientSecret,
+        publishableKey: _webPublishableKey,
+        label: 'Pagamento Bora',
+      );
+      debugPrint('[PaymentService] pagamento web concluído');
+      return;
+    }
 
     await Stripe.instance.initPaymentSheet(
       paymentSheetParameters: SetupPaymentSheetParameters(
@@ -194,7 +248,12 @@ class PaymentService {
     required String orderId,
     required String phone,
   }) async {
-    if (kIsWeb) return null;
+    // Web (2026-07-20): MB Way funciona no browser sem alteração nenhuma —
+    // este método não usa o SDK do Stripe, só invoca a Edge Function, que
+    // confirma o PaymentIntent server-side e faz o Stripe empurrar a
+    // notificação para a app MB WAY do telemóvel do cliente. O ecrã depois faz
+    // poll a `orders.payment_status` até o webhook marcar 'paid', igual ao
+    // telemóvel.
     try {
       final response = await Supabase.instance.client.functions.invoke(
         'create-mbway-payment-intent',
@@ -233,7 +292,8 @@ class PaymentService {
     required String paymentMethod, // 'card' | 'mbway'
     String? mbwayPhone,
   }) async {
-    if (kIsWeb) throw StateError('Card payments are only supported on mobile.');
+    // Web: o ramo 'card' cai no processPayment, que já sabe usar o Payment
+    // Element; o ramo 'mbway' é confirmado server-side. Ambos funcionam.
     try {
       final body = <String, dynamic>{
         'amount_cents': amountCents,

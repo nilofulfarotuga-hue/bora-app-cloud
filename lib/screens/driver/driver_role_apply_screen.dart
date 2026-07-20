@@ -1,4 +1,4 @@
-import 'dart:io';
+import '../../utils/io_compat.dart';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -276,8 +276,11 @@ class _DocPicker extends StatelessWidget {
             if (preview != null && picked)
               ClipRRect(
                 borderRadius: BorderRadius.circular(6),
-                child: Image.file(File(preview!.path),
-                    width: 36, height: 36, fit: BoxFit.cover),
+                child: Image(
+                    image: boraLocalImage(preview!.path),
+                    width: 36,
+                    height: 36,
+                    fit: BoxFit.cover),
               )
             else
               Icon(picked ? Icons.check_circle : Icons.upload_file,

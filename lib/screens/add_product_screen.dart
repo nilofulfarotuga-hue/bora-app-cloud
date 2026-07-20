@@ -1,4 +1,4 @@
-import 'dart:io';
+import '../utils/io_compat.dart';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -339,8 +339,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: Image.file(
-                  _selectedImage!,
+                child: Image(
+                  image: boraLocalImage(_selectedImage!.path),
                   height: 180,
                   width: double.infinity,
                   fit: BoxFit.cover,

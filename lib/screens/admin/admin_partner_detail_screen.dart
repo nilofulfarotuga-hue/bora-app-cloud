@@ -2,7 +2,7 @@
 // Requires partner_hours_system migration (T4 of sessão nocturna 2026-04-29).
 
 import 'dart:convert';
-import 'dart:io';
+import '../../utils/io_compat.dart';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';

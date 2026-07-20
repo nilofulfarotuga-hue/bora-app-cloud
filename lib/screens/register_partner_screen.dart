@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:io';
+import '../utils/io_compat.dart';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -935,7 +935,7 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
                           border: Border.all(color: Colors.grey.shade300),
                           image: _logoFile != null
                               ? DecorationImage(
-                                  image: FileImage(File(_logoFile!.path)),
+                                  image: boraLocalImage(_logoFile!.path),
                                   fit: BoxFit.cover,
                                 )
                               : null,
@@ -987,7 +987,7 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
                         border: Border.all(color: Colors.grey.shade300),
                         image: _coverFile != null
                             ? DecorationImage(
-                                image: FileImage(File(_coverFile!.path)),
+                                image: boraLocalImage(_coverFile!.path),
                                 fit: BoxFit.cover,
                               )
                             : null,

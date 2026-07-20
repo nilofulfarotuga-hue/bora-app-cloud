@@ -15,7 +15,7 @@
 // (registered in main.dart as a named route).
 
 import 'dart:async';
-import 'dart:io' show Platform;
+import '../utils/io_compat.dart' show Platform;
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';

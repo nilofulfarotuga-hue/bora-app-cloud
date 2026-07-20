@@ -11,7 +11,7 @@
 //   • distância multi-segmento real (casa→favor→entrega) via MapsService
 //   • guard de submissão + geocode fallback (texto livre) antes de submeter
 //   • 8.4 atalhos de favores · 8.1 foto opcional "do que comprar"
-import 'dart:io';
+import '../utils/io_compat.dart';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -759,7 +759,11 @@ class _RequestPhoto extends StatelessWidget {
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(10),
-          child: Image.file(file!, width: 64, height: 64, fit: BoxFit.cover),
+          child: Image(
+              image: boraLocalImage(file!.path),
+              width: 64,
+              height: 64,
+              fit: BoxFit.cover),
         ),
         const SizedBox(width: 12),
         Expanded(

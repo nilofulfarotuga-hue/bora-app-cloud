@@ -847,7 +847,7 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                     icon: Icons.calendar_month,
                     label: 'Agenda de Marcações',
                     description:
-                        'Gerir marcações, serviços, barbeiros e financeiro do teu negócio de serviços.',
+                        'Gerir marcações, serviços, profissionais e financeiro do teu negócio de serviços.',
                     onPressed: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(

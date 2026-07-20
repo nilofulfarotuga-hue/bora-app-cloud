@@ -16,7 +16,7 @@
 // (chamada server-side pelas Edge Fns; nunca pelo cliente).
 
 import 'dart:async';
-import 'dart:io' show Platform;
+import '../utils/io_compat.dart' show Platform;
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';

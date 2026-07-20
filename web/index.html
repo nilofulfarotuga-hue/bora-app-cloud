@@ -1,29 +1,139 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-PT">
 <head>
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="description" content="Bora — entregas, mercados, boleias, limpeza, reservas e marcações na Guarda. Pede pelo site, sem instalar nada.">
+  <meta name="theme-color" content="#16A34A">
 
-  <!-- iOS meta tags & icons -->
+  <!-- iOS: permite guardar no ecrã principal como app -->
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="bora_app">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Bora">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>bora_app</title>
+  <title>Bora</title>
   <link rel="manifest" href="manifest.json">
 
   <!-- ✅ GOOGLE MAPS + PLACES (CORRETO) -->
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBYLjK1RtPdi4WM7pMGmupesBgUIWMkfkw&libraries=places,directions"></script>
 
+  <style>
+    html, body { margin:0; padding:0; height:100%; background:#fff; }
+
+    /* Arrancar o Flutter Web demora uns segundos — nunca deixar ecrã branco. */
+    #bora-splash {
+      position:fixed; inset:0; z-index:9998;
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      background:#fff;
+      font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+      transition:opacity .35s ease;
+    }
+    #bora-splash.sai { opacity:0; pointer-events:none; }
+    #bora-splash img { width:96px; height:96px; border-radius:22px; }
+    #bora-splash .nome {
+      margin-top:18px; font-size:26px; font-weight:800;
+      color:#16A34A; letter-spacing:-.6px;
+    }
+    #bora-splash .barra {
+      margin-top:26px; width:132px; height:3px; border-radius:2px;
+      background:#E5E7EB; overflow:hidden;
+    }
+    #bora-splash .barra i {
+      display:block; width:40%; height:100%; background:#16A34A; border-radius:2px;
+      animation:corre 1.1s ease-in-out infinite;
+    }
+    @keyframes corre {
+      0%   { transform:translateX(-100%); }
+      100% { transform:translateX(330%); }
+    }
+
+    /* Banner "adicionar ao ecrã principal" — só iPhone, só no browser. */
+    #bora-ios {
+      position:fixed; left:12px; right:12px; bottom:calc(12px + env(safe-area-inset-bottom));
+      z-index:9999; display:none;
+      background:#fff; border:1px solid #E5E7EB; border-radius:16px;
+      box-shadow:0 10px 34px rgba(0,0,0,.16);
+      padding:14px 16px;
+      font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+      color:#111827;
+    }
+    #bora-ios .t { font-size:15px; font-weight:700; margin-bottom:4px; }
+    #bora-ios .p { font-size:13px; line-height:1.5; color:#6B7280; }
+    #bora-ios .x {
+      position:absolute; top:8px; right:10px;
+      background:none; border:0; font-size:22px; line-height:1;
+      color:#9CA3AF; cursor:pointer; padding:4px 8px;
+    }
+    #bora-ios .quad {
+      display:inline-block; vertical-align:-2px; width:15px; height:15px;
+      border:1.6px solid #16A34A; border-radius:4px; position:relative; margin:0 2px;
+    }
+    #bora-ios .quad::after {
+      content:''; position:absolute; left:5.7px; top:2px;
+      width:1.6px; height:8px; background:#16A34A;
+    }
+    #bora-ios .quad::before {
+      content:''; position:absolute; left:3.4px; top:3.4px;
+      width:5px; height:5px; border-top:1.6px solid #16A34A;
+      border-left:1.6px solid #16A34A; transform:rotate(45deg);
+    }
+  </style>
 </head>
 <body>
+
+  <div id="bora-splash">
+    <img src="icons/Icon-192.png" alt="Bora">
+    <div class="nome">Bora</div>
+    <div class="barra"><i></i></div>
+  </div>
+
+  <div id="bora-ios" role="dialog" aria-label="Adicionar o Bora ao ecrã principal">
+    <button class="x" aria-label="Fechar" onclick="boraFecharIos()">&times;</button>
+    <div class="t">Adiciona o Bora ao ecrã principal</div>
+    <div class="p">
+      1. Toca em <span class="quad" aria-hidden="true"></span> Partilhar, em baixo.<br>
+      2. Escolhe <b>Adicionar ao ecrã principal</b>.
+    </div>
+  </div>
+
+  <script>
+    // Tira o splash assim que o Flutter pinta o primeiro frame.
+    window.addEventListener('flutter-first-frame', function () {
+      var s = document.getElementById('bora-splash');
+      if (!s) return;
+      s.classList.add('sai');
+      setTimeout(function () { s.remove(); }, 400);
+    });
+
+    function boraFecharIos() {
+      document.getElementById('bora-ios').style.display = 'none';
+      try { localStorage.setItem('bora_ios_banner', 'fechado'); } catch (e) {}
+    }
+
+    (function () {
+      var ua = window.navigator.userAgent;
+      var eIos = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+      // Dentro do PWA já instalado não faz sentido convidar a instalar.
+      var jaInstalado = window.navigator.standalone === true ||
+                        window.matchMedia('(display-mode: standalone)').matches;
+      var dispensado = false;
+      try { dispensado = localStorage.getItem('bora_ios_banner') === 'fechado'; } catch (e) {}
+
+      if (eIos && !jaInstalado && !dispensado) {
+        setTimeout(function () {
+          document.getElementById('bora-ios').style.display = 'block';
+        }, 3200);
+      }
+    })();
+  </script>
 
   <script src="flutter_bootstrap.js" async></script>
 

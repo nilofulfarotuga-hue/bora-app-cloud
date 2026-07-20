@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:io' show File;
+import '../utils/io_compat.dart' show File, boraLocalImage;
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -3508,7 +3508,9 @@ class _ReceiptCaptureSheetState extends State<_ReceiptCaptureSheet> {
                     : ClipRRect(
                         borderRadius: BorderRadius.circular(10),
                         child:
-                            Image.file(_photo!, fit: BoxFit.cover),
+                            Image(
+                                image: boraLocalImage(_photo!.path),
+                                fit: BoxFit.cover),
                       ),
               ),
             ),

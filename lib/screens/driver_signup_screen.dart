@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:io';
+import '../utils/io_compat.dart';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -739,8 +739,8 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
                         ),
                         child: _selfieFile != null
                             ? ClipOval(
-                                child: Image.file(
-                                  File(_selfieFile!.path),
+                                child: Image(
+                                  image: boraLocalImage(_selfieFile!.path),
                                   fit: BoxFit.cover,
                                   width: 120,
                                   height: 120,
@@ -955,8 +955,10 @@ class _PhotoPicker extends StatelessWidget {
         ),
         clipBehavior: Clip.hardEdge,
         child: file != null
-            ? Image.file(File(file!.path),
-                fit: BoxFit.cover, width: double.infinity)
+            ? Image(
+                image: boraLocalImage(file!.path),
+                fit: BoxFit.cover,
+                width: double.infinity)
             : Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [

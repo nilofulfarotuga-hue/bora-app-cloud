@@ -5,11 +5,12 @@ import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
 import '../../../models/staff_member_model.dart';
 import '../../../stores/partner_appointments_store.dart';
+import '../../../utils/staff_terminology.dart';
 import '../../../widgets/bora/bora_accent_button.dart';
 import '../../../widgets/bora/bora_screen_app_bar.dart';
 
-/// Bloquear um intervalo de um barbeiro (pausa, folga). Escolher barbeiro +
-/// data + hora início/fim + motivo → partner_block_slot.
+/// Bloquear um intervalo de um profissional (pausa, folga). Escolher
+/// profissional + data + hora início/fim + motivo → partner_block_slot.
 class PartnerBlockSlotScreen extends StatefulWidget {
   const PartnerBlockSlotScreen({super.key});
 
@@ -99,8 +100,11 @@ class _PartnerBlockSlotScreenState extends State<PartnerBlockSlotScreen> {
     final staff = _staffMember;
     final messenger = ScaffoldMessenger.of(context);
     if (staff == null) {
+      final term = StaffTerminology.singular(
+              context.read<PartnerAppointmentsStore>().provider?.category)
+          .toLowerCase();
       messenger.showSnackBar(
-        const SnackBar(content: Text('Escolhe um barbeiro.')),
+        SnackBar(content: Text('Escolhe um $term.')),
       );
       return;
     }
@@ -143,6 +147,8 @@ class _PartnerBlockSlotScreenState extends State<PartnerBlockSlotScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final category =
+        context.watch<PartnerAppointmentsStore>().provider?.category;
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: const BoraScreenAppBar(title: 'Bloquear horário'),
@@ -152,13 +158,13 @@ class _PartnerBlockSlotScreenState extends State<PartnerBlockSlotScreen> {
             : _loadError != null
                 ? _errorState()
                 : _staff.isEmpty
-                    ? _noStaffState()
-                    : _form(),
+                    ? _noStaffState(category)
+                    : _form(category),
       ),
     );
   }
 
-  Widget _form() {
+  Widget _form(String? category) {
     return Column(
       children: [
         Expanded(
@@ -168,7 +174,7 @@ class _PartnerBlockSlotScreenState extends State<PartnerBlockSlotScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _Section(
-                  title: 'Barbeiro',
+                  title: StaffTerminology.singular(category),
                   child: DropdownButtonFormField<StaffMemberModel>(
                     initialValue: _staffMember,
                     isExpanded: true,
@@ -271,23 +277,25 @@ class _PartnerBlockSlotScreenState extends State<PartnerBlockSlotScreen> {
         ),
       );
 
-  Widget _noStaffState() => const Center(
+  Widget _noStaffState(String? category) => Center(
         child: Padding(
-          padding: EdgeInsets.all(32),
+          padding: const EdgeInsets.all(32),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.info_outline, size: 64, color: Colors.grey),
-              SizedBox(height: 16),
+              const Icon(Icons.info_outline, size: 64, color: Colors.grey),
+              const SizedBox(height: 16),
               Text(
-                'Sem barbeiros',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+                'Sem ${StaffTerminology.plural(category).toLowerCase()}',
+                style: const TextStyle(
+                    fontSize: 17, fontWeight: FontWeight.w700),
               ),
-              SizedBox(height: 6),
+              const SizedBox(height: 6),
               Text(
-                'Cria um barbeiro primeiro para poder bloquear horários.',
+                'Cria um ${StaffTerminology.singular(category).toLowerCase()} '
+                'primeiro para poder bloquear horários.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.textSecondary),
+                style: const TextStyle(color: AppColors.textSecondary),
               ),
             ],
           ),

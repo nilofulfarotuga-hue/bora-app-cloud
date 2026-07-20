@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
+import '../utils/io_compat.dart';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -812,7 +812,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildAvatar({required String initial}) {
     ImageProvider? bgImage;
     if (_localPreview != null) {
-      bgImage = FileImage(File(_localPreview!.path));
+      bgImage = boraLocalImage(_localPreview!.path);
     } else if (_photoUrl != null && _photoUrl!.isNotEmpty) {
       // ValueKey on the CircleAvatar forces rebuild when URL changes (bust).
       bgImage = NetworkImage(_photoUrl!);

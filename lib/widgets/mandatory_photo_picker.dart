@@ -1,4 +1,4 @@
-import 'dart:io';
+import '../utils/io_compat.dart';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -126,7 +126,7 @@ class _MandatoryPhotoPickerState extends State<MandatoryPhotoPicker> {
               border: Border.all(color: Colors.grey.shade300),
               image: hasLocal
                   ? DecorationImage(
-                      image: FileImage(File(_local!.path)),
+                      image: boraLocalImage(_local!.path),
                       fit: BoxFit.cover,
                     )
                   : null,

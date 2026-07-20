@@ -6,11 +6,12 @@ import '../../../config/app_spacing.dart';
 import '../../../models/provider_service_model.dart';
 import '../../../models/staff_member_model.dart';
 import '../../../stores/partner_appointments_store.dart';
+import '../../../utils/staff_terminology.dart';
 import '../../../widgets/bora/bora_accent_button.dart';
 import '../../../widgets/bora/bora_screen_app_bar.dart';
 
 /// Adicionar marcação sem reserva prévia (host stand). Form: nome cliente,
-/// serviço, barbeiro, data/hora (slot livre). Submit → partner_add_walk_in.
+/// serviço, profissional, data/hora (slot livre). Submit → partner_add_walk_in.
 class PartnerAddWalkInScreen extends StatefulWidget {
   const PartnerAddWalkInScreen({super.key});
 
@@ -131,8 +132,11 @@ class _PartnerAddWalkInScreenState extends State<PartnerAddWalkInScreen> {
     final staff = _staffMember;
     final messenger = ScaffoldMessenger.of(context);
     if (service == null || staff == null) {
+      final term = StaffTerminology.singular(
+              context.read<PartnerAppointmentsStore>().provider?.category)
+          .toLowerCase();
       messenger.showSnackBar(
-        const SnackBar(content: Text('Escolhe serviço e barbeiro.')),
+        SnackBar(content: Text('Escolhe serviço e $term.')),
       );
       return;
     }
@@ -178,6 +182,8 @@ class _PartnerAddWalkInScreenState extends State<PartnerAddWalkInScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final category =
+        context.watch<PartnerAppointmentsStore>().provider?.category;
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: const BoraScreenAppBar(title: 'Adicionar marcação'),
@@ -187,13 +193,13 @@ class _PartnerAddWalkInScreenState extends State<PartnerAddWalkInScreen> {
             : _loadError != null
                 ? _errorState()
                 : (_services.isEmpty || _staff.isEmpty)
-                    ? _missingSetupState()
-                    : _form(),
+                    ? _missingSetupState(category)
+                    : _form(category),
       ),
     );
   }
 
-  Widget _form() {
+  Widget _form(String? category) {
     return Column(
       children: [
         Expanded(
@@ -239,7 +245,7 @@ class _PartnerAddWalkInScreenState extends State<PartnerAddWalkInScreen> {
                 ),
                 const SizedBox(height: Spacing.md),
                 _Section(
-                  title: 'Barbeiro',
+                  title: StaffTerminology.singular(category),
                   child: DropdownButtonFormField<StaffMemberModel>(
                     initialValue: _staffMember,
                     isExpanded: true,
@@ -347,23 +353,24 @@ class _PartnerAddWalkInScreenState extends State<PartnerAddWalkInScreen> {
         ),
       );
 
-  Widget _missingSetupState() => const Center(
+  Widget _missingSetupState(String? category) => Center(
         child: Padding(
-          padding: EdgeInsets.all(32),
+          padding: const EdgeInsets.all(32),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.info_outline, size: 64, color: Colors.grey),
-              SizedBox(height: 16),
-              Text(
+              const Icon(Icons.info_outline, size: 64, color: Colors.grey),
+              const SizedBox(height: 16),
+              const Text(
                 'Configuração em falta',
                 style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
               ),
-              SizedBox(height: 6),
+              const SizedBox(height: 6),
               Text(
-                'Cria pelo menos um serviço e um barbeiro primeiro.',
+                'Cria pelo menos um serviço e um '
+                '${StaffTerminology.singular(category).toLowerCase()} primeiro.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.textSecondary),
+                style: const TextStyle(color: AppColors.textSecondary),
               ),
             ],
           ),

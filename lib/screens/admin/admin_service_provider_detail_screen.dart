@@ -16,7 +16,7 @@
 // permitem is_admin() → UPDATE/DELETE directo funciona para o admin.
 
 import 'dart:convert';
-import 'dart:io';
+import '../../utils/io_compat.dart';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';

@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:io';
+import '../../../utils/io_compat.dart';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -507,7 +507,7 @@ class _StaffFormState extends State<_StaffForm> {
                     radius: 44,
                     backgroundColor: AppColors.primary.withValues(alpha: 0.1),
                     backgroundImage: hasLocalPhoto
-                        ? FileImage(File(_localPhoto!.path))
+                        ? boraLocalImage(_localPhoto!.path)
                         : (hasNetworkPhoto
                             ? NetworkImage(_photoUrl!) as ImageProvider
                             : null),

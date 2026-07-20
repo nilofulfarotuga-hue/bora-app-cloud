@@ -20,7 +20,7 @@
 // vivem em src/ e o package não os re-exporta (decisão deles, ver
 // floating_bubble_overlay.dart). O example oficial faz import idêntico.
 
-import 'dart:io';
+import '../utils/io_compat.dart';
 
 import 'package:flutter/widgets.dart';
 import 'package:floating_bubble_overlay/floating_bubble_overlay.dart';

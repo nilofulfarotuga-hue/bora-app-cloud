@@ -18,7 +18,6 @@ import '../../../widgets/address_autocomplete_field.dart';
 import '../../../widgets/bora/bora.dart';
 import '../../../widgets/customer_note_field.dart';
 import '../../../widgets/tvde/tvde_payment_selector.dart';
-import '../reservation/reservation_payment_method_sheet.dart';
 import 'ride_mbway_waiting_dialog.dart';
 import 'tvde_plans_screen.dart';
 import 'tvde_rides_history_screen.dart';
@@ -469,31 +468,120 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     return false;
   }
 
-  /// [F3] Pedido "garantir a volta": paga €8 (**cartão OU MB Way**, mesmo picker
-  /// das Reservas/Planos) → cria a corrida de IDA → liga-a ao vale-volta. A volta
-  /// é disparada depois pelo cliente (desacoplada).
+  /// [F3 · Fase B] Pedido "garantir a volta": os €8 são o preço TOTAL das DUAS
+  /// pernas. A folha é a mesma do pedido normal, por isso tem **Dinheiro** além
+  /// de cartão/MB Way. A volta é disparada depois pelo cliente (desacoplada).
+  ///
+  /// Em qualquer dos caminhos a ida TEM de acabar ligada ao vale
+  /// (`tvde_rides.roundtrip_credit_id`): é essa ligação que faz o
+  /// `tvde_finish_ride` tratá-la como prepaga. Uma ida do pacote sem vale
+  /// cobraria a tarifa por cima dos €8 — o "€13" que não pode acontecer.
   Future<void> _solicitarRoundtrip() async {
-    final store = context.read<TvdeStore>();
     final km = _effectiveKm;
     if (_pickup == null || _dest == null || km == null) return;
-    final messenger = ScaffoldMessenger.of(context);
-    final priceEur = _roundtripPriceCents / 100;
 
-    // Picker cartão/MB Way (sem dinheiro — o pacote é pré-pago online).
-    final choice = await showModalBottomSheet<ReservationPaymentChoice>(
+    final result = await showModalBottomSheet<_TvdePayResult>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => ReservationPaymentMethodSheet(
-          amountEur: priceEur, title: 'Garantir ida e volta'),
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _TvdePaymentSheet(
+        amountCents: _roundtripPriceCents,
+        message: 'Preço total da ida + volta. A volta é grátis — chamas quando '
+            'quiseres, dentro do prazo.',
+        allowOnline: _cardEnabled,
+        // Tokens fora: o preço do pacote é server-side e as RPCs do vale não
+        // os recebem — mostrar o toggle prometia um desconto que não existe.
+        allowTokens: false,
+      ),
     );
-    if (choice == null || !mounted) return;
+    if (result == null || !mounted) return;
 
-    final isMbway = choice.method == ReservationPaymentMethod.mbway;
+    if (result.method == 'cash') {
+      await _solicitarRoundtripCash(km, note: result.note);
+    } else {
+      await _solicitarRoundtripOnline(km,
+          isMbway: result.method == 'mbway',
+          mbwayPhone: result.mbwayPhone,
+          note: result.note);
+    }
+  }
+
+  /// [Fase B] €8 em **DINHEIRO** — zero Stripe. A ida nasce cash e despacha na
+  /// hora (o motorista recolhe os €8 em mão por conta da Bora); logo a seguir a
+  /// RPC nova cria o vale e liga-lhe a ida.
+  Future<void> _solicitarRoundtripCash(double km, {String? note}) async {
+    final store = context.read<TvdeStore>();
+    final messenger = ScaffoldMessenger.of(context);
+
+    TvdeRide? ida;
+    try {
+      ida = await store.requestRide(
+        originLat: _pickup!.latitude,
+        originLng: _pickup!.longitude,
+        originLabel: _pickupLabel,
+        destLat: _dest!.latitude,
+        destLng: _dest!.longitude,
+        destLabel: _destLabel,
+        distanceKm: km,
+        paymentMethod: 'cash',
+      );
+    } catch (e) {
+      debugPrint('_solicitarRoundtripCash requestRide error => $e');
+    }
+    if (!mounted) return;
+    if (ida == null) {
+      messenger.showSnackBar(const SnackBar(
+          content: Text('Não foi possível pedir a corrida.')));
+      return;
+    }
+
+    // Ligar ao vale. Idempotente por ida, por isso o retry é seguro.
+    Map<String, dynamic>? vale;
+    for (var i = 0; i < 3 && vale == null; i++) {
+      vale = await store.createRoundtripCreditCash(ida.id);
+      if (!mounted) return;
+      if (vale == null && i < 2) {
+        await Future.delayed(const Duration(seconds: 2));
+        if (!mounted) return;
+      }
+    }
+
+    if (vale == null) {
+      // A ida ficou por ligar: seria uma corrida cash normal a cobrar a tarifa
+      // ao cliente por cima dos €8. Cancelar é a única saída honesta — nada foi
+      // cobrado (é dinheiro), por isso não há refund nenhum a pedir.
+      try {
+        await store.cancelRide(ida.id,
+            reason: 'roundtrip_credit_failed', skipRefund: true);
+      } catch (_) {/* o cron limpa; o admin vê a ida sem vale */}
+      if (!mounted) return;
+      messenger.showSnackBar(const SnackBar(
+          content: Text('Não foi possível garantir a volta. A corrida não foi '
+              'pedida — tenta outra vez.')));
+      return;
+    }
+
+    final trimmed = note?.trim() ?? '';
+    if (trimmed.isNotEmpty) await store.setRideNote(ida.id, trimmed);
+    if (!mounted) return;
+    _openTracking();
+  }
+
+  /// [Fase B] €8 em **CARTÃO / MB Way** — o contrato que já existia, intacto:
+  /// PaymentIntent dos €8 → cria a ida → `activate_roundtrip` liga-a ao vale.
+  Future<void> _solicitarRoundtripOnline(double km,
+      {required bool isMbway, String? mbwayPhone, String? note}) async {
+    final store = context.read<TvdeStore>();
+    final messenger = ScaffoldMessenger.of(context);
+    final priceEur = _roundtripPriceCents / 100;
 
     // 1) PaymentIntent dos €8 (preço server-side). MB Way confirma-se na app do
     //    banco; cartão confirma-se já a seguir.
     final created = isMbway
-        ? await store.createRoundtripPaymentMbway(choice.mbwayPhone!)
+        ? await store.createRoundtripPaymentMbway(mbwayPhone!)
         : await store.createRoundtripPayment();
     if (!mounted) return;
     final paymentIntentId = created?['paymentIntentId'] as String?;
@@ -526,6 +614,11 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     //    ela que fica ligada ao vale (`tvde_rides.roundtrip_credit_id`). Sem essa
     //    ligação o `tvde_finish_ride` não a trata como pré-paga e o cliente
     //    pagaria a ida outra vez.
+    //    O `paymentMethod` fica no default: o PaymentIntent dos €8 está no VALE,
+    //    não nesta corrida — marcá-la 'card' faria o backend procurar um PI dela
+    //    que não existe. [Fase B] Se o backend a fizer nascer 'aguarda_pagamento',
+    //    quem a liberta é o `activate_roundtrip` (gancho do lado do servidor); o
+    //    Flutter é tolerante aos dois mundos e não força nada.
     TvdeRide? ida;
     try {
       ida = await store.requestRide(
@@ -561,15 +654,25 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
       );
       if (!mounted) return;
       if (ok != true) {
-        // Sem confirmação o vale não é criado: a corrida segue como corrida
-        // normal (o cliente paga a tarifa ao motorista). Não há cobrança dupla.
+        // [Fase B] Sem confirmação o vale não é criado e a ida ficaria solta, a
+        // cobrar a tarifa ao cliente. Antes seguia "como corrida normal" — agora
+        // cancela-se. Nada foi cobrado, por isso não se pede refund.
+        try {
+          await store.cancelRide(ida.id,
+              reason: 'payment_failed', skipRefund: true);
+        } catch (_) {/* o cron limpa (payment_timeout) */}
+        if (!mounted) return;
         messenger.showSnackBar(const SnackBar(
-            content: Text('Não recebemos a confirmação MBWay — esta corrida '
-                'segue como corrida normal, sem a volta garantida.')));
+            content: Text('Não recebemos a confirmação MBWay. A corrida não '
+                'foi pedida e não foste cobrado.')));
+        return;
       }
     } else {
       await store.activateRoundtrip(ida.id, paymentIntentId);
     }
+
+    final trimmed = note?.trim() ?? '';
+    if (trimmed.isNotEmpty) await store.setRideNote(ida.id, trimmed);
     if (!mounted) return;
     _openTracking();
   }
@@ -1014,10 +1117,16 @@ class _TvdePaymentSheet extends StatefulWidget {
     required this.amountCents,
     required this.message,
     required this.allowOnline,
+    this.allowTokens = true,
   });
   final int amountCents;
   final String? message;
   final bool allowOnline;
+
+  /// [Fase B] Desconto em Bora Tokens. **false no pacote €8**: o preço do pacote
+  /// é server-side (`tvde_roundtrip_price_cents`) e as RPCs do vale não recebem
+  /// tokens — deixar o toggle aparecer prometeria um desconto que não acontece.
+  final bool allowTokens;
 
   @override
   State<_TvdePaymentSheet> createState() => _TvdePaymentSheetState();
@@ -1041,7 +1150,7 @@ class _TvdePaymentSheetState extends State<_TvdePaymentSheet> {
   @override
   void initState() {
     super.initState();
-    _loadTokens();
+    if (widget.allowTokens) _loadTokens();
     final profilePhone = context.read<AuthStore>().currentClient?.phone;
     if (profilePhone != null && profilePhone.isNotEmpty) {
       final digits = profilePhone.replaceAll(RegExp(r'\D'), '');
@@ -1208,7 +1317,7 @@ class _TvdePaymentSheetState extends State<_TvdePaymentSheet> {
           ),
 
           // ── Token discount toggle ──────────────────────────
-          if (_tokensLoaded && _availableTokens > 0) ...[
+          if (widget.allowTokens && _tokensLoaded && _availableTokens > 0) ...[
             const SizedBox(height: Spacing.md),
             _buildTokenToggle(),
           ],

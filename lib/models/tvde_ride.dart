@@ -31,6 +31,8 @@ class TvdeRide {
     this.extraStopsDriverCents = 0,
     this.paymentMethod = 'cash',
     this.paymentStatus,
+    this.roundtripCreditId,
+    this.isReturnLeg = false,
   });
 
   final String id;
@@ -91,6 +93,15 @@ class TvdeRide {
   /// Null nas corridas em dinheiro (nunca há PaymentIntent).
   final String? paymentStatus;
 
+  /// [Fase B] Vale do pacote ida-e-volta (€8) a que esta corrida está ligada.
+  /// **Não-nulo = perna PREPAGA**: o `tvde_finish_ride` não cobra a tarifa ao
+  /// cliente (só paradas, se houver). É esta ligação — e só ela — que separa
+  /// "€8 pelas duas pernas" de "€8 + €5 = €13".
+  final String? roundtripCreditId;
+
+  /// [Fase B] Esta corrida é a VOLTA do pacote (chamada com o vale), não a ida.
+  final bool isReturnLeg;
+
   factory TvdeRide.fromMap(Map<String, dynamic> m) {
     double d(dynamic v) => (v as num?)?.toDouble() ?? 0;
     return TvdeRide(
@@ -130,6 +141,8 @@ class TvdeRide {
           (m['extra_stops_driver_cents'] as num?)?.toInt() ?? 0,
       paymentMethod: m['payment_method'] as String? ?? 'cash',
       paymentStatus: m['payment_status'] as String?,
+      roundtripCreditId: m['roundtrip_credit_id'] as String?,
+      isReturnLeg: m['is_return_leg'] as bool? ?? false,
     );
   }
 
@@ -142,6 +155,10 @@ class TvdeRide {
   bool get isSearching => status == 'solicitada';
   /// Pago online (cartão/MB Way) — o motorista NÃO cobra nada ao passageiro.
   bool get isPaidOnline => paymentMethod == 'card' || paymentMethod == 'mbway';
+
+  /// [Fase B] Perna (ida OU volta) do pacote €8 — está ligada a um vale, logo é
+  /// PREPAGA. O motorista ganha a sua parte, mas o valor do pacote não é dele.
+  bool get isRoundtripLeg => roundtripCreditId != null;
   bool get isNoDriver => status == 'sem_motorista';
   bool get isAssigned => status == 'motorista_atribuido' ||
       status == 'motorista_a_caminho' ||

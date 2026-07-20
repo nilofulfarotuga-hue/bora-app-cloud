@@ -705,6 +705,38 @@ class TvdeStore extends ChangeNotifier {
     }
   }
 
+  /// [Fase B] Vale-volta do pacote €8 pago em **DINHEIRO** — sem Stripe nenhum.
+  /// Cria o vale, liga-lhe a corrida de ida (mete `roundtrip_credit_id`) e usa o
+  /// preço do `platform_settings`. Idempotente por ida.
+  ///
+  /// O motorista da ida recolhe os €8 em mão por conta da Bora; o acerto
+  /// (ida deve €4 à Bora, Bora deve €3,50 à volta) é do backend, no fecho.
+  ///
+  /// Devolve a linha do vale, ou **null** se não deu. Null é grave: significa
+  /// que a ida ficou por ligar e cobraria a tarifa ao cliente — quem chama TEM
+  /// de a cancelar (ver `_solicitarRoundtripCash`).
+  Future<Map<String, dynamic>?> createRoundtripCreditCash(
+      String outboundRideId) async {
+    try {
+      final res = await _sb.rpc('tvde_create_roundtrip_credit_cash',
+          params: {'p_outbound_ride_id': outboundRideId});
+      // Mesma defesa do `activeRoundtripCredit`: um composto vazio
+      // ({id:null,…}) não é vale (ver licao-rpc-composite-null-row).
+      if (res is List && res.isNotEmpty) {
+        final first = Map<String, dynamic>.from(res.first as Map);
+        return first['id'] != null ? first : null;
+      }
+      if (res is Map) {
+        final m = Map<String, dynamic>.from(res);
+        return m['id'] != null ? m : null;
+      }
+      return null;
+    } catch (e) {
+      debugPrint('TvdeStore.createRoundtripCreditCash error => $e');
+      return null;
+    }
+  }
+
   /// Ativa o vale-volta após o pagamento: liga a corrida de ida ao vale.
   Future<bool> activateRoundtrip(
       String outboundRideId, String paymentIntentId) async {

@@ -23,6 +23,7 @@ import '../../../stores/tvde_store.dart';
 import '../../../utils/map_utils.dart';
 import '../../../widgets/bora/bora.dart';
 import '../../../widgets/tvde/tvde_pay_badge.dart';
+import '../../../widgets/tvde/tvde_roundtrip_driver_notice.dart';
 import '../../shared/tvde_chat_screen.dart';
 import 'tvde_driver_rate_screen.dart';
 
@@ -865,6 +866,11 @@ class _ActionPanel extends StatelessWidget {
           // com o estafeta do delivery). Hoje as corridas são todas em dinheiro.
           const SizedBox(height: Spacing.sm),
           TvdePayBadge(ride: ride),
+          // [Fase B] Pacote €8: separar o que ele GANHA do que o cliente PAGA.
+          if (ride.isRoundtripLeg) ...[
+            const SizedBox(height: Spacing.xs),
+            TvdeRoundtripDriverNotice(ride: ride),
+          ],
           // [CAMPO-02 · F1] ganho extra por paradas (some ao líquido do motorista).
           if (ride.extraStopsDriverCents > 0) ...[
             const SizedBox(height: Spacing.xs),

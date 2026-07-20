@@ -12,6 +12,7 @@ import '../../../stores/driver_store.dart';
 import '../../../stores/tvde_driver_store.dart';
 import '../../../widgets/bora/bora.dart';
 import '../../../widgets/tvde/tvde_pay_badge.dart';
+import '../../../widgets/tvde/tvde_roundtrip_driver_notice.dart';
 
 /// TVDE — Ecrã de OFERTA ao motorista (passageiros). Aceite por TOCAR aqui
 /// (nunca pelos botões de ação da notificação — bug conhecido em background).
@@ -193,6 +194,12 @@ class _TvdeOfferScreenState extends State<TvdeOfferScreen> {
                       // PART2 — método de pagamento visível já na oferta.
                       const SizedBox(height: Spacing.sm),
                       Center(child: TvdePayBadge(ride: ride)),
+                      // [Fase B] Pacote €8: o motorista tem de saber, ANTES de
+                      // aceitar, que os €8 do cliente não são o ganho dele.
+                      if (ride.isRoundtripLeg) ...[
+                        const SizedBox(height: Spacing.sm),
+                        TvdeRoundtripDriverNotice(ride: ride),
+                      ],
                       if (toPickup != null) ...[
                         const SizedBox(height: 2),
                         Center(

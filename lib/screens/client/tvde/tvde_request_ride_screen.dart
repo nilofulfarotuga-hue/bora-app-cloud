@@ -4,6 +4,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../auth/auth_store.dart';
 import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
 import '../../../config/maps_config.dart';
@@ -17,6 +18,8 @@ import '../../../widgets/address_autocomplete_field.dart';
 import '../../../widgets/bora/bora.dart';
 import '../../../widgets/customer_note_field.dart';
 import '../../../widgets/tvde/tvde_payment_selector.dart';
+import '../reservation/reservation_payment_method_sheet.dart';
+import 'ride_mbway_waiting_dialog.dart';
 import 'tvde_plans_screen.dart';
 import 'tvde_rides_history_screen.dart';
 import 'tvde_ride_tracking_screen.dart';
@@ -312,10 +315,14 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
       ),
     );
     if (result == null || !mounted) return;
-    await _solicitar(result.method, note: result.note, tokensUsed: result.tokensUsed);
+    await _solicitar(result.method,
+        note: result.note,
+        tokensUsed: result.tokensUsed,
+        mbwayPhone: result.mbwayPhone);
   }
 
-  Future<void> _solicitar(String method, {String? note, int tokensUsed = 0}) async {
+  Future<void> _solicitar(String method,
+      {String? note, int tokensUsed = 0, String? mbwayPhone}) async {
     final store = context.read<TvdeStore>();
     final km = _effectiveKm;
     if (_pickup == null || _dest == null || km == null) return;
@@ -333,10 +340,32 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
           destLabel: _destLabel,
           distanceKm: km,
           method: method,
+          mbwayPhone: mbwayPhone,
           tokensUsed: tokensUsed,
           confirmCard: (clientSecret) =>
               PaymentService().processPayment(clientSecret),
         );
+        // MB Way confirma-se na app do banco: o PaymentIntent volta em
+        // `requires_action`/`processing`. Espera a confirmação antes de seguir,
+        // como no plano — sem isto o cliente nunca sabe se pagou.
+        if (method == 'mbway' && ride != null && mounted) {
+          final paid = await showDialog<bool>(
+            context: context,
+            barrierDismissible: false,
+            builder: (_) => TvdeRideMbwayWaitingDialog.forRide(
+              rideId: ride!.id,
+              amountEur: _payableCents / 100,
+            ),
+          );
+          if (!mounted) return;
+          if (paid != true) {
+            // A corrida já existe (a Edge Function criou-a); segue para o
+            // tracking, mas o cliente fica avisado de que falta a confirmação.
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text('Ainda não recebemos a confirmação MBWay. '
+                    'Se já confirmaste, aparece dentro de momentos.')));
+          }
+        }
       } else {
         ride = await store.requestRide(
           originLat: _pickup!.latitude,
@@ -373,31 +402,63 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     }
   }
 
-  /// [F3] Pedido "garantir a volta": paga €8 (cartão, mesmo PaymentService do
-  /// plano) → cria a corrida de IDA → liga-a ao vale-volta. A volta é disparada
-  /// depois pelo cliente (desacoplada). MB Way reusa a Edge Fn (create_roundtrip_mbway).
+  /// [F3] Pedido "garantir a volta": paga €8 (**cartão OU MB Way**, mesmo picker
+  /// das Reservas/Planos) → cria a corrida de IDA → liga-a ao vale-volta. A volta
+  /// é disparada depois pelo cliente (desacoplada).
   Future<void> _solicitarRoundtrip() async {
     final store = context.read<TvdeStore>();
     final km = _effectiveKm;
     if (_pickup == null || _dest == null || km == null) return;
     final messenger = ScaffoldMessenger.of(context);
+    final priceEur = _roundtripPriceCents / 100;
 
-    final created = await store.createRoundtripPayment();
+    // Picker cartão/MB Way (sem dinheiro — o pacote é pré-pago online).
+    final choice = await showModalBottomSheet<ReservationPaymentChoice>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => ReservationPaymentMethodSheet(
+          amountEur: priceEur, title: 'Garantir ida e volta'),
+    );
+    if (choice == null || !mounted) return;
+
+    final isMbway = choice.method == ReservationPaymentMethod.mbway;
+
+    // 1) PaymentIntent dos €8 (preço server-side). MB Way confirma-se na app do
+    //    banco; cartão confirma-se já a seguir.
+    final created = isMbway
+        ? await store.createRoundtripPaymentMbway(choice.mbwayPhone!)
+        : await store.createRoundtripPayment();
     if (!mounted) return;
-    if (created == null || created['clientSecret'] == null) {
-      messenger.showSnackBar(const SnackBar(
-          content: Text('Não foi possível iniciar o pagamento da volta.')));
+    final paymentIntentId = created?['paymentIntentId'] as String?;
+    if (created == null || paymentIntentId == null) {
+      messenger.showSnackBar(SnackBar(
+          content: Text(isMbway
+              ? 'Não foi possível iniciar o MBWay. Confirma o número e tenta '
+                  'de novo.'
+              : 'Não foi possível iniciar o pagamento da volta.')));
       return;
     }
-    try {
-      await PaymentService().processPayment(created['clientSecret'] as String);
-    } catch (_) {
-      if (!mounted) return;
-      messenger
-          .showSnackBar(const SnackBar(content: Text('Pagamento cancelado.')));
-      return;
+    if (!isMbway) {
+      if (created['clientSecret'] == null) {
+        messenger.showSnackBar(const SnackBar(
+            content: Text('Não foi possível iniciar o pagamento da volta.')));
+        return;
+      }
+      try {
+        await PaymentService()
+            .processPayment(created['clientSecret'] as String);
+      } catch (_) {
+        if (!mounted) return;
+        messenger.showSnackBar(
+            const SnackBar(content: Text('Pagamento cancelado.')));
+        return;
+      }
     }
 
+    // 2) Corrida de IDA — tem de existir ANTES do `activate_roundtrip`, porque é
+    //    ela que fica ligada ao vale (`tvde_rides.roundtrip_credit_id`). Sem essa
+    //    ligação o `tvde_finish_ride` não a trata como pré-paga e o cliente
+    //    pagaria a ida outra vez.
     TvdeRide? ida;
     try {
       ida = await store.requestRide(
@@ -417,8 +478,31 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
               Text('Pago, mas falhou criar a corrida. Fala com o suporte.')));
       return;
     }
-    await store.activateRoundtrip(
-        ida.id, created['paymentIntentId'] as String);
+
+    // 3) Liga a ida ao vale. O `activate_roundtrip` só passa com o PaymentIntent
+    //    em 'succeeded' — no MB Way é isso que o dialog espera (poll), no cartão
+    //    já está confirmado.
+    if (isMbway) {
+      final ok = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => TvdeRideMbwayWaitingDialog.forRoundtrip(
+          outboundRideId: ida!.id,
+          paymentIntentId: paymentIntentId,
+          amountEur: priceEur,
+        ),
+      );
+      if (!mounted) return;
+      if (ok != true) {
+        // Sem confirmação o vale não é criado: a corrida segue como corrida
+        // normal (o cliente paga a tarifa ao motorista). Não há cobrança dupla.
+        messenger.showSnackBar(const SnackBar(
+            content: Text('Não recebemos a confirmação MBWay — esta corrida '
+                'segue como corrida normal, sem a volta garantida.')));
+      }
+    } else {
+      await store.activateRoundtrip(ida.id, paymentIntentId);
+    }
     if (!mounted) return;
     _openTracking();
   }
@@ -847,12 +931,15 @@ class _EstimateCard extends StatelessWidget {
 /// Frente 3 — folha de pagamento (aparece SÓ depois de "Solicitar corrida",
 /// como no checkout do delivery): mostra o valor final + os métodos e confirma.
 /// Dinheiro sempre; Cartão/MB Way só se [allowOnline] (switch on + tarifa normal).
-/// Resultado da folha de pagamento TVDE: método escolhido + nota opcional + tokens usados.
+/// Resultado da folha de pagamento TVDE: método escolhido + nota opcional +
+/// tokens usados + número MB Way (só preenchido quando o método é 'mbway').
 class _TvdePayResult {
-  const _TvdePayResult(this.method, this.note, this.tokensUsed);
+  const _TvdePayResult(this.method, this.note, this.tokensUsed,
+      {this.mbwayPhone});
   final String method;
   final String? note;
   final int tokensUsed;
+  final String? mbwayPhone;
 }
 
 class _TvdePaymentSheet extends StatefulWidget {
@@ -873,6 +960,11 @@ class _TvdePaymentSheetState extends State<_TvdePaymentSheet> {
   String _method = 'cash';
   final TextEditingController _noteController = TextEditingController();
 
+  // MB Way — número do cliente. Sem isto a Edge Function recebe `phone` vazio e
+  // a Stripe recusa. Pré-preenchido do perfil, tal como no picker das Reservas.
+  final TextEditingController _phoneController = TextEditingController();
+  String? _phoneError;
+
   // ── Token discount state ───────────────────────────────────────────────────
   int _availableTokens = 0;
   bool _useTokens = false;
@@ -883,11 +975,18 @@ class _TvdePaymentSheetState extends State<_TvdePaymentSheet> {
   void initState() {
     super.initState();
     _loadTokens();
+    final profilePhone = context.read<AuthStore>().currentClient?.phone;
+    if (profilePhone != null && profilePhone.isNotEmpty) {
+      final digits = profilePhone.replaceAll(RegExp(r'\D'), '');
+      _phoneController.text =
+          digits.startsWith('351') ? digits.substring(3) : digits;
+    }
   }
 
   @override
   void dispose() {
     _noteController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
@@ -1026,7 +1125,12 @@ class _TvdePaymentSheetState extends State<_TvdePaymentSheet> {
           TvdePaymentSelector(
             current: _method,
             cardEnabled: widget.allowOnline,
-            onChanged: (m) => setState(() => _method = m),
+            onChanged: (m) => setState(() {
+              _method = m;
+              _phoneError = null;
+            }),
+            phoneController: _phoneController,
+            phoneError: _phoneError,
           ),
           const SizedBox(height: Spacing.md),
           // Nota opcional para o MOTORISTA — mesmo widget/limite do delivery.
@@ -1049,10 +1153,24 @@ class _TvdePaymentSheetState extends State<_TvdePaymentSheet> {
                 : 'Pagar $eur',
             icon: Icons.check,
             onPressed: () {
+              // MB Way exige o número (9 dígitos PT) — mesma validação do
+              // picker das Reservas. Sem ele a Stripe recusa o PaymentIntent.
+              String? phone;
+              if (_method == 'mbway') {
+                final digits =
+                    _phoneController.text.replaceAll(RegExp(r'\D'), '');
+                if (digits.length != 9) {
+                  setState(() =>
+                      _phoneError = 'Número MBWay inválido (9 dígitos).');
+                  return;
+                }
+                phone = digits;
+              }
               final tokensToUse = _useTokens ? _calculateTokensToUse() : 0;
               Navigator.pop(
                 context,
-                _TvdePayResult(_method, _noteController.text, tokensToUse),
+                _TvdePayResult(_method, _noteController.text, tokensToUse,
+                    mbwayPhone: phone),
               );
             },
           ),

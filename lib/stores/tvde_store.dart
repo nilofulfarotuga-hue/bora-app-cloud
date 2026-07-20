@@ -709,6 +709,23 @@ class TvdeStore extends ChangeNotifier {
     }
   }
 
+  /// Lê o `payment_status` de uma corrida (SELECT read-only). Serve o poll do
+  /// MB Way: a Edge Function grava aqui o estado do PaymentIntent, e o cliente
+  /// espera até `succeeded`. Devolve null se não conseguir ler (o poll continua).
+  Future<String?> fetchRidePaymentStatus(String rideId) async {
+    try {
+      final res = await _sb
+          .from('tvde_rides')
+          .select('payment_status')
+          .eq('id', rideId)
+          .maybeSingle();
+      return res?['payment_status'] as String?;
+    } catch (e) {
+      debugPrint('TvdeStore.fetchRidePaymentStatus error => $e');
+      return null;
+    }
+  }
+
   /// Lê o vale-volta ativo do cliente ({} se não houver). Para "Chamar a volta".
   Future<Map<String, dynamic>?> activeRoundtripCredit() async {
     try {

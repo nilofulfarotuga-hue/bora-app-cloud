@@ -77,6 +77,8 @@ import 'admin_tvde_rides_screen.dart';
 import 'admin_tvde_cancellations_screen.dart';
 import 'admin_tvde_drivers_screen.dart';
 import 'admin_tvde_subscriptions_screen.dart';
+import 'admin_tvde_roundtrips_screen.dart';
+import 'admin_tvde_driver_debts_screen.dart';
 import 'admin_tvde_plan_requests_screen.dart';
 
 /// In-app admin dashboard.
@@ -1041,6 +1043,29 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       MaterialPageRoute(
                           builder: (_) =>
                               const AdminTvdeSubscriptionsScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.sync_alt,
+                  title: 'Ida e volta',
+                  subtitle: 'Pacotes €8 · vale por usar / usado / expirado',
+                  color: Colors.teal,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminTvdeRoundtripsScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.account_balance_wallet,
+                  title: 'Dívidas em dinheiro',
+                  subtitle:
+                      'Quanto cada motorista deve à Bora das corridas em dinheiro',
+                  color: Colors.brown,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminTvdeDriverDebtsScreen())),
                 ),
                 const SizedBox(height: 10),
                 _NavCard(

@@ -25,6 +25,7 @@ class _S extends State<AdminRobotSuggestionsScreen> {
   List<Map<String, dynamic>> _audit = const [];
   Map<String, dynamic> _metrics = const {};
   Map<String, dynamic> _autonomy = const {};
+  Map<String, dynamic> _knowledge = const {};   // C3 — Motor de Conhecimento
   List<Map<String, dynamic>> _backlog = const [];
   bool _loading = true;
   String? _error;
@@ -59,8 +60,19 @@ class _S extends State<AdminRobotSuggestionsScreen> {
         'p_status': _cortexStatusFilter,
         'p_limit': 200, 'p_offset': 0,
       });
+      // C3 — Motor de Conhecimento. TOLERANTE de propósito: enquanto a migration
+      // não estiver aplicada esta RPC não existe, e um erro aqui não pode derrubar
+      // o resto da Central (que é a superfície única de aprovação).
+      Map<String, dynamic> knowledge = const {};
+      try {
+        final k = await Supabase.instance.client.rpc('admin_knowledge_digest_status');
+        knowledge = ((k as Map?) ?? {}).cast<String, dynamic>();
+      } catch (_) {
+        knowledge = const {};
+      }
       if (mounted) {
         setState(() {
+          _knowledge = knowledge;
           _rows = ((sugs as List?) ?? []).map((e) => (e as Map).cast<String, dynamic>()).toList();
           _audit = ((audit as List?) ?? []).map((e) => (e as Map).cast<String, dynamic>()).toList();
           _metrics = ((metrics as Map?) ?? {}).cast<String, dynamic>();
@@ -659,6 +671,137 @@ class _S extends State<AdminRobotSuggestionsScreen> {
     );
   }
 
+  // ── C3 — Motor de Conhecimento ───────────────────────────────────────────────
+  // O digest (lições + regras + pendências) é consolidado no PC 2x/dia e injetado
+  // no contexto de TODA sessão via hook SessionStart. Aqui o Danilo vê se está
+  // fresco e pode desligar. Se a migration ainda não foi aplicada, _knowledge vem
+  // vazio e o cartão não aparece — nada rebenta.
+  Future<void> _setKnowledgeSwitch(bool on) async {
+    try {
+      await Supabase.instance.client.rpc('admin_knowledge_set_switch',
+          params: {'p_key': 'knowledge_consolidator_enabled', 'p_enabled': on});
+      if (mounted) await _load();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
+    }
+  }
+
+  Future<void> _setKnowledgeCadence(String c) async {
+    try {
+      await Supabase.instance.client.rpc('admin_knowledge_set_cadence', params: {'p_cadence': c});
+      if (mounted) await _load();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
+    }
+  }
+
+  Widget _knowledgeCard() {
+    if (_knowledge.isEmpty) return const SizedBox.shrink();
+    final on = _knowledge['ligado'] == true;
+    final cad = (_knowledge['cadencia'] as String?) ?? '2x';
+    final bytes = (_knowledge['tamanho_bytes'] as num?)?.toInt();
+    final geradoEm = DateTime.tryParse('${_knowledge['gerado_em'] ?? ''}')?.toLocal();
+    final horas = geradoEm == null
+        ? null
+        : DateTime.now().difference(geradoEm).inMinutes / 60.0;
+    // >24h = o consolidador pode estar parado; o próprio digest também se auto-avisa.
+    final velho = horas != null && horas > 24;
+    final frescura = horas == null
+        ? 'nunca consolidado'
+        : horas < 1
+            ? 'há ${(horas * 60).round()} min'
+            : 'há ${horas.toStringAsFixed(0)}h';
+
+    Widget num_(String label, Object? v) => Expanded(
+          child: Column(children: [
+            Text('${v ?? '—'}',
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+            Text(label,
+                style: const TextStyle(fontSize: 10, color: AppColors.textSecondary),
+                textAlign: TextAlign.center),
+          ]),
+        );
+
+    return Card(
+      margin: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            const Icon(Icons.psychology_alt, size: 18, color: AppColors.primary),
+            const SizedBox(width: 6),
+            const Text('Motor de Conhecimento',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+            const Spacer(),
+            Switch(value: on, onChanged: (v) => _setKnowledgeSwitch(v)),
+          ]),
+          Row(children: [
+            Icon(velho ? Icons.warning_amber_rounded : Icons.check_circle,
+                size: 14, color: velho ? AppColors.error : AppColors.primary),
+            const SizedBox(width: 4),
+            Text(
+              'Consolidado $frescura'
+              '${bytes == null ? '' : ' · ${(bytes / 1024).toStringAsFixed(1)} KB'}',
+              style: TextStyle(
+                  fontSize: 11,
+                  color: velho ? AppColors.error : AppColors.textSecondary),
+            ),
+          ]),
+          const Divider(height: 16),
+          Row(children: [
+            num_('Lições', _knowledge['licoes']),
+            num_('Armadilhas', _knowledge['armadilhas']),
+            num_('Em aberto', _knowledge['em_aberto']),
+            num_('Regras', _knowledge['regras']),
+          ]),
+          if ((_knowledge['cortadas'] as num?) != null &&
+              (_knowledge['cortadas'] as num).toInt() > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                  '${_knowledge['cortadas']} itens não couberam no teto de 12 KB '
+                  '(cortados por ordem de criticidade)',
+                  style: const TextStyle(fontSize: 10, color: AppColors.textSecondary)),
+            ),
+          const Divider(height: 16),
+          Row(children: [
+            const Text('Cadência', style: TextStyle(fontSize: 11)),
+            const SizedBox(width: 8),
+            ChoiceChip(
+              label: const Text('2×/dia', style: TextStyle(fontSize: 11)),
+              selected: cad == '2x',
+              onSelected: (_) => _setKnowledgeCadence('2x'),
+            ),
+            const SizedBox(width: 6),
+            ChoiceChip(
+              label: const Text('1×/dia', style: TextStyle(fontSize: 11)),
+              selected: cad == '1x',
+              onSelected: (_) => _setKnowledgeCadence('1x'),
+            ),
+          ]),
+          if ((_knowledge['preview'] as String?)?.isNotEmpty == true)
+            Theme(
+              data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+              child: ExpansionTile(
+                tilePadding: EdgeInsets.zero,
+                title: const Text('Ver o que está a ser injetado',
+                    style: TextStyle(fontSize: 12)),
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(8),
+                    color: Colors.black.withValues(alpha: 0.04),
+                    child: SelectableText('${_knowledge['preview']}',
+                        style: const TextStyle(fontSize: 10, height: 1.35)),
+                  ),
+                ],
+              ),
+            ),
+        ]),
+      ),
+    );
+  }
+
   // ── cabeçalho de progresso da autonomia (Fase 5) ─────────────────────────────
   // autonomy_goals = SÓ o cabeçalho (barra + placar + kill switch + dial).
   // A aprovação continua a ser esta MESMA superfície (uma só caixa).
@@ -934,6 +1077,7 @@ class _S extends State<AdminRobotSuggestionsScreen> {
       _parityHeader(),
       _proofSection(),
       _metricsCard(),
+      _knowledgeCard(),   // C3 — Motor de Conhecimento (some sozinho se não houver dados)
       Padding(
         padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
         child: Row(children: [

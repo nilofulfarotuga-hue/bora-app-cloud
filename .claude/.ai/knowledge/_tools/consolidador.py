@@ -341,6 +341,41 @@ def env_de(path, chaves):
     return got
 
 
+def publica_estado(estado, preview):
+    """C3: o digest vive no disco do PC — o app Flutter nunca lhe chega. Esta e' a
+    ponte: grava o estado numa tabela para a Central de Autonomia o mostrar.
+    BEST-EFFORT: se a rede/credencial falhar, o digest local ja esta escrito e
+    valido; so o cartao do admin fica desatualizado. Nunca rebenta a corrida."""
+    cfg = env_de(os.path.join(REPO, "backend", ".env"),
+                 {"SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"})
+    url = os.environ.get("SUPABASE_URL") or cfg.get("SUPABASE_URL")
+    key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or cfg.get("SUPABASE_SERVICE_ROLE_KEY")
+    if not url or not key:
+        return "sem credenciais"
+    linha = {
+        "id": True,
+        "gerado_em": estado["gerado_em"],
+        "tamanho_bytes": estado["tamanho_bytes"],
+        "licoes": estado["licoes"], "armadilhas": estado["armadilhas"],
+        "em_aberto": estado["em_aberto"], "regras": estado["regras"],
+        "cortadas": estado["cortadas"], "cadencia": estado["cadencia"],
+        "preview": preview[:2000],
+        "atualizado_em": datetime.now().isoformat(timespec="seconds"),
+    }
+    req = urllib.request.Request(
+        "%s/rest/v1/knowledge_digest_status?on_conflict=id" % url.rstrip("/"),
+        data=json.dumps(linha).encode("utf-8"),
+        headers={"apikey": key, "Authorization": "Bearer " + key,
+                 "Content-Type": "application/json",
+                 "Prefer": "resolution=merge-duplicates,return=minimal"},
+        method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=20) as r:
+            return "ok (%s)" % r.status
+    except (urllib.error.URLError, OSError) as e:
+        return "falhou (%s)" % type(e).__name__
+
+
 def le_settings():
     """Le as 2 chaves em platform_settings. RLS: SELECT so para `authenticated`,
     logo usa a service_role do backend/.env (gitignored). Devolve (dict, nota)."""
@@ -472,8 +507,10 @@ def main():
         "digest": os.path.relpath(OUT, KNOW).replace("\\", "/"),
     }
     escreve_atomico(STATUS, json.dumps(estado, ensure_ascii=False, indent=2))
-    print("OK: %s (%d bytes) · %d armadilhas · %d licoes · %d abertos · %d regras"
-          % (estado["digest"], tam, u1, u2, u3, u4))
+    estado["admin"] = publica_estado(estado, doc)      # C3: ponte para o painel
+    escreve_atomico(STATUS, json.dumps(estado, ensure_ascii=False, indent=2))
+    print("OK: %s (%d bytes) · %d armadilhas · %d licoes · %d abertos · %d regras · admin=%s"
+          % (estado["digest"], tam, u1, u2, u3, u4, estado["admin"]))
     return 0
 
 

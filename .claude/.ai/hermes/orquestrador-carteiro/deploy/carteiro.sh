@@ -338,12 +338,21 @@ licao_de_falha(){ # $1=ficheiro da ordem — best-effort, nunca falha para fora
   # O "o certo é Z" exige juízo — um shell não o inventa. Reusa o pc-judge que o loop
   # JÁ tem (haiku, barato, só leitura). Se não responder, fica PENDENTE: melhor um
   # campo por preencher do que uma regra fabricada a entrar no Cérebro.
+  # 2026-07-20, apanhado pela 1ª prova real ponta-a-ponta: quando a ponte do juiz falha, ela
+  # devolve texto NÃO-VAZIO — um erro do cmd do Windows ("'PONTE' não é reconhecido como um
+  # comando interno"). A 1ª versão só caía para PENDENTE se a saída fosse VAZIA, por isso
+  # plantou uma mensagem de erro como se fosse regra dentro do Cérebro. Agora: filtrar erros
+  # conhecidos E exigir uma frase com corpo. Lixo -> PENDENTE, nunca ao Cérebro.
   certo=$(pc_judge "Uma ordem do loop autónomo do Bora morreu de vez (travada).
 TAREFA: $(resumo_tarefa "$tarefa")
 MOTIVO DA MORTE: $nota
 Responde SÓ com UMA frase: a regra generalizável que evitaria repetir isto. Sem preâmbulo." \
-    2>/dev/null | tr -d '\r' | grep -v '^[[:space:]]*$' | head -1)
-  [ -n "$certo" ] || certo="PENDENTE — a completar pelo bibliotecario-cerebro (o juiz não respondeu)."
+    2>/dev/null | tr -d '\r' | grep -v '^[[:space:]]*$' \
+    | grep -viE "não é reconhecido|nao e reconhecido|is not recognized|command not found|comando interno|^ *ERRO|^ *ERROR|permission denied|^ *fatal:|cmd\.exe|the system cannot find" \
+    | head -1)
+  # uma regra útil tem corpo; um fragmento de 5 palavras é quase sempre resto de erro
+  [ "${#certo}" -ge 30 ] || certo=""
+  [ -n "$certo" ] || certo="PENDENTE — a completar pelo bibliotecario-cerebro (o juiz não devolveu uma regra utilizável)."
 
   alvo="$LICOES_INBOX/licao-pendente-$oid.md"
   {
@@ -479,6 +488,22 @@ if [ "${1:-}" = "--selftest" ]; then
     # fail-safe: sem reflexao.py, devolve 0 e não escreve nada
     REFLEXAO=/caminho/que/nao/existe licao_de_falha "$_td/ordem.md" >/dev/null 2>&1
     [ "$?" = 0 ] && ok "licao_de_falha é best-effort (sem reflexao.py devolve 0)" || bad "licao_de_falha devolveu erro"
+    # REGRESSÃO (defeito real de 2026-07-20): a ponte do juiz avariada devolve um erro do cmd,
+    # não uma regra — e isso NÃO pode entrar no Cérebro disfarçado de lição.
+    rm -f "$_td"/licao-pendente-*.md
+    pc_judge(){ echo \"'PONTE' não é reconhecido como um comando interno\"; }
+    printf 'id: ordem-teste-erro\ntarefa: tarefa com ponte avariada\nnota: SAIDA-VAZIA\nestado: travada\n' > "$_td/o2.md"
+    licao_de_falha "$_td/o2.md"
+    grep -q "PENDENTE" "$_td/licao-pendente-ordem-teste-erro.md" 2>/dev/null \
+      && ok "erro da ponte vira PENDENTE, não vira regra" || bad "erro da ponte passou como se fosse regra"
+    grep -q "não é reconhecido" "$_td/licao-pendente-ordem-teste-erro.md" 2>/dev/null \
+      && bad "mensagem de erro do cmd entrou no rascunho" || ok "mensagem de erro do cmd filtrada"
+    # fragmento curto (resto de erro) também não serve como regra
+    pc_judge(){ echo "usa o flag -x"; }
+    printf 'id: ordem-teste-curto\ntarefa: tarefa curta\nnota: SAIDA-VAZIA\nestado: travada\n' > "$_td/o3.md"
+    licao_de_falha "$_td/o3.md"
+    grep -q "PENDENTE" "$_td/licao-pendente-ordem-teste-curto.md" 2>/dev/null \
+      && ok "fragmento curto vira PENDENTE" || bad "fragmento curto passou como regra"
     rm -rf "$_td"
   else
     ok "licao_de_falha: teste saltado (reflexao.py/python3 ausentes nesta máquina)"

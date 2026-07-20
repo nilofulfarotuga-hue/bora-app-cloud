@@ -483,7 +483,7 @@ class _RideCard extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(
-                  'Cancelamento: $cancelReason'
+                  'Cancelamento: ${_cancelReasonLabel(cancelReason)}'
                   '${cancelFee > 0 ? ' · taxa ${_eur(cancelFee)}' : ''}',
                   style: const TextStyle(
                       fontSize: 12, color: AppColors.error),
@@ -797,6 +797,9 @@ class _RideStatusChip extends StatelessWidget {
 
 // ── Helpers partilhados ──
 (String, Color) _statusStyle(String? s) => switch (s) {
+      // Corrida criada mas estacionada: o dispatch IGNORA este estado, por isso
+      // NÃO está a chamar motorista. Rótulo distinto de "Solicitada" de propósito.
+      'aguarda_pagamento' => ('Aguardando pagamento', Colors.orange),
       'solicitada' => ('Solicitada', AppColors.warning),
       'motorista_atribuido' => ('Motorista atribuído', Colors.blue),
       'motorista_a_caminho' => ('A caminho', Colors.blue),
@@ -811,6 +814,16 @@ class _RideStatusChip extends StatelessWidget {
     };
 
 String _statusLabel(String? s) => _statusStyle(s).$1;
+
+/// Motivos de cancelamento gravados por máquina — traduzidos para o admin
+/// (PT-BR) em vez de aparecer a string crua. `payment_failed` vem do app
+/// (cliente recusou/não concluiu); `payment_timeout` vem do cron que limpa as
+/// corridas presas em `aguarda_pagamento`.
+String _cancelReasonLabel(String reason) => switch (reason) {
+      'payment_failed' => 'Pagamento não concluído',
+      'payment_timeout' => 'Pagamento expirou (limpeza automática)',
+      _ => reason,
+    };
 
 String _eur(int cents) => '€${(cents / 100).toStringAsFixed(2)}';
 

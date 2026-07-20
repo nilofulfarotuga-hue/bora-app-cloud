@@ -217,6 +217,7 @@ class TvdeStore extends ChangeNotifier {
     String? mbwayPhone,
     int tokensUsed = 0,
     Future<void> Function(String clientSecret)? confirmCard,
+    void Function(TvdeRide ride)? onRideCreated,
   }) async {
     _setBusy(true);
     try {
@@ -237,20 +238,27 @@ class TvdeStore extends ChangeNotifier {
           ? Map<String, dynamic>.from(res.data as Map)
           : <String, dynamic>{};
       if (data['error'] != null) throw Exception(data['error'].toString());
+
+      // A corrida JÁ existe neste ponto — a Edge Function cria-a antes de cobrar.
+      // Entregá-la ao chamador ANTES de confirmar o cartão é o que permite ao
+      // ecrã cancelá-la se o cliente recusar o pagamento: de outro modo a
+      // exceção do `confirmCard` levaria a referência e ficava uma corrida órfã.
+      TvdeRide? ride;
+      final rideMap = data['ride'];
+      if (rideMap is Map) {
+        ride = TvdeRide.fromMap(Map<String, dynamic>.from(rideMap));
+        _activeRide = ride;
+        _subscribeRide(ride.id);
+        notifyListeners();
+        onRideCreated?.call(ride);
+      }
+
       // Cartão → confirma o hold (autoriza a captura manual do valor final).
       final clientSecret = data['clientSecret'] as String?;
       if (method == 'card' && clientSecret != null && confirmCard != null) {
         await confirmCard(clientSecret);
       }
-      final rideMap = data['ride'];
-      if (rideMap is Map) {
-        final ride = TvdeRide.fromMap(Map<String, dynamic>.from(rideMap));
-        _activeRide = ride;
-        _subscribeRide(ride.id);
-        notifyListeners();
-        return ride;
-      }
-      return null;
+      return ride;
     } catch (e) {
       debugPrint('TvdeStore.requestRidePaid error => $e');
       rethrow;
@@ -343,7 +351,11 @@ class TvdeStore extends ChangeNotifier {
     );
   }
 
-  Future<void> cancelRide(String rideId, {String? reason}) async {
+  /// [skipRefund] para o cancelamento por pagamento falhado: aí **não há nada
+  /// cobrado** para devolver, e pedir um refund de um PaymentIntent que nunca
+  /// passou só gera erro e ruído na Stripe.
+  Future<void> cancelRide(String rideId,
+      {String? reason, bool skipRefund = false}) async {
     _setBusy(true);
     try {
       final res = await _sb.rpc('tvde_cancel_ride', params: {
@@ -355,7 +367,7 @@ class TvdeStore extends ChangeNotifier {
       // (capado ao pago, menos a taxa) via Edge Function. Best-effort: se
       // falhar, o cancelamento já foi feito. Só corre com o switch ligado.
       final ride = _activeRide;
-      if (ride != null && ride.id == rideId && ride.isPaidOnline) {
+      if (!skipRefund && ride != null && ride.id == rideId && ride.isPaidOnline) {
         int feeCents = 0;
         try {
           feeCents = (_asMap(res)['cancel_fee_cents'] as num?)?.toInt() ?? 0;
@@ -706,6 +718,31 @@ class TvdeStore extends ChangeNotifier {
     } catch (e) {
       debugPrint('TvdeStore.activateRoundtrip error => $e');
       return false;
+    }
+  }
+
+  /// Manda o servidor **reverificar o PaymentIntent na Stripe** e, se estiver
+  /// `succeeded`, destravar a corrida (`aguarda_pagamento` → `solicitada`, que é
+  /// o que faz o dispatch começar). É a única fonte de verdade sobre "está pago":
+  /// o cliente nunca decide isso sozinho.
+  ///
+  /// Devolve o corpo da resposta (`{succeeded, payment_status, status}`) ou
+  /// **null** quando nem sequer se conseguiu falar com o servidor (rede, ou a
+  /// ação ainda não existir no backend). Distinguir os dois casos importa:
+  /// "não pagou" cancela a corrida, "não consegui perguntar" **não** cancela.
+  Future<Map<String, dynamic>?> confirmRidePayment(String rideId) async {
+    try {
+      final res = await _sb.functions.invoke('tvde-payment', body: {
+        'action': 'confirm_ride_payment',
+        'ride_id': rideId,
+      });
+      if (res.data is Map) {
+        return Map<String, dynamic>.from(res.data as Map);
+      }
+      return null;
+    } catch (e) {
+      debugPrint('TvdeStore.confirmRidePayment error => $e');
+      return null;
     }
   }
 

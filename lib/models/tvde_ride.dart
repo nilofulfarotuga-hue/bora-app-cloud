@@ -30,6 +30,7 @@ class TvdeRide {
     this.extraStopsFeeCents = 0,
     this.extraStopsDriverCents = 0,
     this.paymentMethod = 'cash',
+    this.paymentStatus,
   });
 
   final String id;
@@ -85,6 +86,11 @@ class TvdeRide {
   /// existem com o kill switch `tvde_card_payments_enabled` ligado.
   final String paymentMethod;
 
+  /// Estado do PaymentIntent na Stripe, espelhado em `tvde_rides.payment_status`
+  /// ('succeeded' / 'processing' / 'requires_action' / 'not_charged' / …).
+  /// Null nas corridas em dinheiro (nunca há PaymentIntent).
+  final String? paymentStatus;
+
   factory TvdeRide.fromMap(Map<String, dynamic> m) {
     double d(dynamic v) => (v as num?)?.toDouble() ?? 0;
     return TvdeRide(
@@ -123,10 +129,16 @@ class TvdeRide {
       extraStopsDriverCents:
           (m['extra_stops_driver_cents'] as num?)?.toInt() ?? 0,
       paymentMethod: m['payment_method'] as String? ?? 'cash',
+      paymentStatus: m['payment_status'] as String?,
     );
   }
 
   // ── Helpers de estado ───────────────────────────────────────────────────
+  /// Corrida criada mas **estacionada**: nasceu paga-online e o cron de dispatch
+  /// IGNORA este estado, por isso NÃO está a chamar motorista. Só passa a
+  /// 'solicitada' quando o pagamento confirma (`confirm_ride_payment`).
+  /// Nunca mostrar "à procura de motorista" aqui.
+  bool get isAwaitingPayment => status == 'aguarda_pagamento';
   bool get isSearching => status == 'solicitada';
   /// Pago online (cartão/MB Way) — o motorista NÃO cobra nada ao passageiro.
   bool get isPaidOnline => paymentMethod == 'card' || paymentMethod == 'mbway';
@@ -149,7 +161,12 @@ class TvdeRide {
   /// Estado "ativo/retomável": corrida que ainda decorre e deve reabrir o
   /// tracking ao voltar à app. Espelha EXATAMENTE o conjunto "em curso" do
   /// backend — `sem_motorista` fica de fora (é terminal para o resume).
-  bool get isLive => isSearching || isAssigned || isInProgress;
+  /// Inclui `aguarda_pagamento` de propósito: se o cliente sair da app a meio do
+  /// MB Way, tem de reencontrar o ecrã da corrida — senão fica sem saber o que
+  /// aconteceu ao dinheiro. Quem a limpa é o cron (cancel_reason
+  /// 'payment_timeout'), não o resume.
+  bool get isLive =>
+      isAwaitingPayment || isSearching || isAssigned || isInProgress;
 
   /// Valor a apresentar ao cliente (cêntimos): final se já houver, senão est.
   int get displayFareCents => finalFareCents ?? estFareCents;
@@ -162,6 +179,8 @@ class TvdeRide {
 
   String get statusLabel {
     switch (status) {
+      case 'aguarda_pagamento':
+        return 'A aguardar pagamento…';
       case 'solicitada':
         return 'À procura de motorista…';
       case 'sem_motorista':

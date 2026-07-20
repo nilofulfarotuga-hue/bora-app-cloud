@@ -446,6 +446,46 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
   }
 
   Future<void> _cancel(TvdeRide ride) async {
+    // Corrida estacionada à espera do pagamento: nunca foi cobrada e nunca
+    // chamou motorista, por isso desistir é grátis e imediato — mostrar a
+    // janela de taxa aqui seria mentira.
+    if (ride.isAwaitingPayment) {
+      final desistir = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Desistir da corrida?'),
+          content: const Text(
+              'Ainda não foste cobrado e nenhum motorista foi chamado. Podes '
+              'desistir sem custo.'),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Continuar a aguardar')),
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Sim, desistir')),
+          ],
+        ),
+      );
+      if (desistir != true || !mounted) return;
+      try {
+        await context
+            .read<TvdeStore>()
+            .cancelRide(ride.id, reason: 'payment_failed', skipRefund: true);
+        if (!mounted) return;
+        // Mesma saída determinística do cancelamento normal (P0-3).
+        context.read<TvdeStore>().clearActiveRide();
+        Navigator.pop(context);
+      } catch (_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Não foi possível cancelar.')),
+          );
+        }
+      }
+      return;
+    }
+
     // [F2] Preview da taxa por tempo (o backend é a fonte de verdade e respeita
     // o kill-switch tvde_cancel_full_after_grace). Grátis dentro da janela; depois,
     // antes do pickup, o cliente paga o valor TOTAL da corrida.
@@ -829,7 +869,7 @@ class _StatusPanel extends StatelessWidget {
           ],
           Row(
             children: [
-              if (ride.isSearching)
+              if (ride.isSearching || ride.isAwaitingPayment)
                 const SizedBox(
                     width: 22,
                     height: 22,
@@ -880,6 +920,18 @@ class _StatusPanel extends StatelessWidget {
             '${ride.originLabel ?? 'Recolha'} → ${ride.destLabel ?? 'Destino'}',
             style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
           ),
+          // Corrida estacionada à espera do pagamento: NÃO está a chamar
+          // motorista nenhum. Dizê-lo por palavras, para o cliente não pensar
+          // que já vem alguém a caminho.
+          if (ride.isAwaitingPayment) ...[
+            const SizedBox(height: Spacing.sm),
+            const Text(
+              'Ainda não começámos a procurar motorista — estamos à espera da '
+              'confirmação do pagamento. Se já confirmaste, aparece dentro de '
+              'momentos.',
+              style: TextStyle(color: AppColors.textSubtle, fontSize: 12),
+            ),
+          ],
           // Back-to-back — passageiro em fila: contexto claro, sem spinner.
           if (ride.isQueued && ride.isAssigned) ...[
             const SizedBox(height: Spacing.sm),

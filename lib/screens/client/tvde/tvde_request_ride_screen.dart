@@ -326,11 +326,16 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     final store = context.read<TvdeStore>();
     final km = _effectiveKm;
     if (_pickup == null || _dest == null || km == null) return;
+    // Guardada assim que a corrida nasce, para a podermos cancelar se o
+    // pagamento falhar — inclusive quando o `confirmCard` lança.
+    TvdeRide? criada;
     try {
       TvdeRide? ride;
       if (method == 'card' || method == 'mbway') {
-        // Pagamento online ANTES de criar a corrida (a Edge Function autoriza/
-        // cobra no Stripe e só então cria a ride). Só chega aqui com o switch on.
+        // A Edge Function cria a corrida e cobra. Com o backend novo ela nasce
+        // em 'aguarda_pagamento' e NÃO despacha até o pagamento confirmar; com
+        // o backend antigo nasce 'solicitada' e já despacha. Os dois casos são
+        // suportados — ver `_aguardarPagamentoOnline`.
         ride = await store.requestRidePaid(
           originLat: _pickup!.latitude,
           originLng: _pickup!.longitude,
@@ -342,29 +347,16 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
           method: method,
           mbwayPhone: mbwayPhone,
           tokensUsed: tokensUsed,
+          onRideCreated: (r) => criada = r,
           confirmCard: (clientSecret) =>
               PaymentService().processPayment(clientSecret),
         );
-        // MB Way confirma-se na app do banco: o PaymentIntent volta em
-        // `requires_action`/`processing`. Espera a confirmação antes de seguir,
-        // como no plano — sem isto o cliente nunca sabe se pagou.
-        if (method == 'mbway' && ride != null && mounted) {
-          final paid = await showDialog<bool>(
-            context: context,
-            barrierDismissible: false,
-            builder: (_) => TvdeRideMbwayWaitingDialog.forRide(
-              rideId: ride!.id,
-              amountEur: _payableCents / 100,
-            ),
-          );
-          if (!mounted) return;
-          if (paid != true) {
-            // A corrida já existe (a Edge Function criou-a); segue para o
-            // tracking, mas o cliente fica avisado de que falta a confirmação.
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                content: Text('Ainda não recebemos a confirmação MBWay. '
-                    'Se já confirmaste, aparece dentro de momentos.')));
-          }
+        if (!mounted) return;
+        // Corrida estacionada → só segue para o tracking depois de o SERVIDOR
+        // confirmar o pagamento. Nunca mostrar "à procura de motorista" antes.
+        if (ride != null && ride.isAwaitingPayment) {
+          final libertada = await _aguardarPagamentoOnline(store, ride, method);
+          if (!mounted || !libertada) return;
         }
       } else {
         ride = await store.requestRide(
@@ -388,6 +380,16 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
       if (!mounted) return;
       _openTracking();
     } catch (e) {
+      // O cliente recusou/cancelou o cartão (ou a cobrança rebentou) com a
+      // corrida já criada e estacionada → cancelá-la, senão fica pendurada até
+      // o cron a apanhar. Nada foi cobrado, por isso não se pede refund.
+      final orfa = criada;
+      if (orfa != null && orfa.isAwaitingPayment) {
+        try {
+          await store.cancelRide(orfa.id,
+              reason: 'payment_failed', skipRefund: true);
+        } catch (_) {/* o cron limpa (payment_timeout) */}
+      }
       if (!mounted) return;
       final s = e.toString();
       final msg = s.contains('ride_in_progress')
@@ -395,11 +397,76 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
           : s.contains('card_payments_not_enabled')
               ? 'Pagamento por cartão ainda não está disponível.'
               : s.contains('cancel') || s.contains('Cancel')
-                  ? 'Pagamento cancelado.'
+                  ? 'Pagamento não concluído. A corrida não foi pedida.'
                   : 'Não foi possível pedir a corrida.';
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(msg)));
     }
+  }
+
+  /// Espera que o SERVIDOR liberte a corrida (`aguarda_pagamento` →
+  /// `solicitada`). Devolve true se pode seguir para o tracking.
+  ///
+  /// Cartão: já foi confirmado no cliente, falta o servidor revalidar o
+  /// PaymentIntent — tenta 3 vezes. MB Way: confirma-se na app do banco, por
+  /// isso faz poll até 120 s com o diálogo de espera.
+  ///
+  /// Regra de segurança: só cancela quando o servidor **responde** que não está
+  /// pago. Se não se conseguir falar com o servidor, NÃO cancela — seguir para
+  /// o tracking (que mostra "a aguardar pagamento") é melhor do que cancelar às
+  /// cegas uma corrida que pode ter sido cobrada. O cron limpa se ficar presa.
+  Future<bool> _aguardarPagamentoOnline(
+      TvdeStore store, TvdeRide ride, String method) async {
+    Future<void> cancelar() async {
+      try {
+        await store.cancelRide(ride.id,
+            reason: 'payment_failed', skipRefund: true);
+      } catch (_) {/* o cron limpa (payment_timeout) */}
+    }
+
+    if (method == 'mbway') {
+      final paid = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => TvdeRideMbwayWaitingDialog.forRide(
+          rideId: ride.id,
+          amountEur: _payableCents / 100,
+        ),
+      );
+      if (paid == true) return true;
+      await cancelar();
+      if (!mounted) return false;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Não recebemos a confirmação MBWay. A corrida foi '
+              'cancelada e não foste cobrado.')));
+      return false;
+    }
+
+    // Cartão.
+    bool respondeu = false;
+    for (var i = 0; i < 3; i++) {
+      final res = await store.confirmRidePayment(ride.id);
+      if (!mounted) return false;
+      if (res != null) {
+        respondeu = true;
+        if (res['succeeded'] == true) return true;
+      }
+      if (i < 2) await Future.delayed(const Duration(seconds: 2));
+      if (!mounted) return false;
+    }
+
+    if (!respondeu) {
+      // Nunca se conseguiu perguntar. Não cancelar às cegas.
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Não conseguimos confirmar o pagamento agora. Vê o '
+              'estado no ecrã da corrida.')));
+      return true;
+    }
+    await cancelar();
+    if (!mounted) return false;
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Pagamento não concluído. A corrida não foi pedida.')));
+    return false;
   }
 
   /// [F3] Pedido "garantir a volta": paga €8 (**cartão OU MB Way**, mesmo picker

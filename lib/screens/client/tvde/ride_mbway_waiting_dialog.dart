@@ -24,8 +24,13 @@ class TvdeRideMbwayWaitingDialog extends StatefulWidget {
     required this.checkPaid,
   });
 
-  /// Espera o `payment_status` da corrida em `tvde_rides` chegar a 'succeeded'
-  /// — a Edge Function `tvde-payment` grava lá o estado do PaymentIntent.
+  /// Espera a confirmação MB Way de uma **corrida**.
+  ///
+  /// O confirmador é a ação `confirm_ride_payment` da Edge Function
+  /// `tvde-payment`: ela relê o PaymentIntent na Stripe e, quando está
+  /// `succeeded`, liberta a corrida (`aguarda_pagamento` → `solicitada`, que é
+  /// o que faz o dispatch arrancar). Ler só o `payment_status` da tabela não
+  /// chegava — ninguém o atualizava sozinho.
   factory TvdeRideMbwayWaitingDialog.forRide({
     Key? key,
     required String rideId,
@@ -38,8 +43,11 @@ class TvdeRideMbwayWaitingDialog extends StatefulWidget {
       amountEur: amountEur,
       message: 'Abre o MBWay e confirma para a corrida seguir.',
       checkPaid: (store) async {
-        final status = await store.fetchRidePaymentStatus(rideId);
-        if (status == 'succeeded') return true;
+        final res = await store.confirmRidePayment(rideId);
+        // Sem resposta do servidor (rede) → continuar a tentar, não desistir.
+        if (res == null) return false;
+        if (res['succeeded'] == true) return true;
+        final status = res['payment_status'] as String?;
         if (status != null && failed.contains(status)) return null;
         return false;
       },

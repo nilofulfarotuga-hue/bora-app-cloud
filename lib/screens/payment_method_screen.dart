@@ -1106,7 +1106,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     setState(() => _isProcessing = false);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-          content: Text('Pedido criado. Aguardando confirmação de pagamento.')),
+          content: Text('Pedido criado. A aguardar confirmação de pagamento.')),
     );
     Navigator.pop(context, true);
   }

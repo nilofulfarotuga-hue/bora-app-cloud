@@ -22,8 +22,12 @@
   <title>Bora</title>
   <link rel="manifest" href="manifest.json">
 
-  <!-- ✅ GOOGLE MAPS + PLACES (CORRETO) -->
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBYLjK1RtPdi4WM7pMGmupesBgUIWMkfkw&libraries=places,directions"></script>
+  <!-- Google Maps + Places.
+       `directions` NÃO é uma biblioteca da Maps JavaScript API (as válidas são
+       places, geometry, drawing, visualization, marker, routes) — estava a dar
+       erro na consola. As Directions fazem parte da API base, não precisam de
+       ser pedidas aqui. `loading=async` é o padrão recomendado pela Google. -->
+  <script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBYLjK1RtPdi4WM7pMGmupesBgUIWMkfkw&libraries=places&loading=async"></script>
 
   <style>
     html, body { margin:0; padding:0; height:100%; background:#fff; }

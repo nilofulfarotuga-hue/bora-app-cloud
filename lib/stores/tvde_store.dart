@@ -3,9 +3,45 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/tvde_ride.dart';
 import '../models/tvde_subscription.dart';
+import '../services/payment_service.dart';
 
 /// TVDE — Bora Motorista. Store reativo do cliente (passageiro).
 /// Camada read-only: todas as transições passam por RPC no backend.
+/// Corpo do pedido `charge` da Edge Fn `tvde-payment`.
+///
+/// Funcao pura para fixar em teste a regra que mais custa se partir: o
+/// `saved_pm_id` SO pode ir quando o metodo e cartao. Enviado num pagamento
+/// MB Way, seria um id de cartao a viajar num fluxo que nao o usa.
+Map<String, dynamic> buildTvdeChargeBody({
+  required double originLat,
+  required double originLng,
+  String? originLabel,
+  required double destLat,
+  required double destLng,
+  String? destLabel,
+  required double distanceKm,
+  required String method,
+  String? mbwayPhone,
+  int tokensUsed = 0,
+  String? savedPmId,
+}) {
+  return {
+    'action': 'charge',
+    'origin_lat': originLat,
+    'origin_lng': originLng,
+    'origin_label': originLabel,
+    'dest_lat': destLat,
+    'dest_lng': destLng,
+    'dest_label': destLabel,
+    'distance_km': distanceKm,
+    'method': method,
+    if (mbwayPhone != null) 'phone': mbwayPhone,
+    if (tokensUsed > 0) 'tokens_used': tokensUsed,
+    // A EF so respeita saved_pm_id em method:'card'.
+    if (method == 'card' && savedPmId != null) 'saved_pm_id': savedPmId,
+  };
+}
+
 class TvdeStore extends ChangeNotifier {
   SupabaseClient get _sb => Supabase.instance.client;
   String? get _uid => _sb.auth.currentUser?.id;
@@ -205,6 +241,11 @@ class TvdeStore extends ChangeNotifier {
   /// — a UI esconde card/mbway quando `tvde_card_payments_enabled` está OFF.
   /// [confirmCard] confirma o clientSecret (autoriza o hold de captura manual).
   /// [tokensUsed] quantidade de Bora Tokens a aplicar no desconto.
+  ///
+  /// Carteira Unica (2026-07-21): com [savedPmId] (so faz sentido em
+  /// `method:'card'`) a Edge Fn cria o PI ja confirmado off_session — 1 toque.
+  /// Nesse caso a confirmacao e feita aqui via confirmSavedCardPayment e o
+  /// [confirmCard] nao chega a ser chamado. A biometria e do ecra, ANTES.
   Future<TvdeRide?> requestRidePaid({
     required double originLat,
     required double originLng,
@@ -216,24 +257,28 @@ class TvdeStore extends ChangeNotifier {
     required String method, // 'card' | 'mbway'
     String? mbwayPhone,
     int tokensUsed = 0,
+    String? savedPmId,
     Future<void> Function(String clientSecret)? confirmCard,
     void Function(TvdeRide ride)? onRideCreated,
   }) async {
     _setBusy(true);
     try {
-      final res = await _sb.functions.invoke('tvde-payment', body: {
-        'action': 'charge',
-        'origin_lat': originLat,
-        'origin_lng': originLng,
-        'origin_label': originLabel,
-        'dest_lat': destLat,
-        'dest_lng': destLng,
-        'dest_label': destLabel,
-        'distance_km': distanceKm,
-        'method': method,
-        if (mbwayPhone != null) 'phone': mbwayPhone,
-        if (tokensUsed > 0) 'tokens_used': tokensUsed,
-      });
+      final res = await _sb.functions.invoke(
+        'tvde-payment',
+        body: buildTvdeChargeBody(
+          originLat: originLat,
+          originLng: originLng,
+          originLabel: originLabel,
+          destLat: destLat,
+          destLng: destLng,
+          destLabel: destLabel,
+          distanceKm: distanceKm,
+          method: method,
+          mbwayPhone: mbwayPhone,
+          tokensUsed: tokensUsed,
+          savedPmId: savedPmId,
+        ),
+      );
       final data = (res.data is Map)
           ? Map<String, dynamic>.from(res.data as Map)
           : <String, dynamic>{};
@@ -254,9 +299,23 @@ class TvdeStore extends ChangeNotifier {
       }
 
       // Cartão → confirma o hold (autoriza a captura manual do valor final).
+      // clientSecret vem null quando a EF responde 'not_charged' (valor <= 0,
+      // ex.: perna de ida-e-volta já paga) — nesse caso não há nada a confirmar.
       final clientSecret = data['clientSecret'] as String?;
-      if (method == 'card' && clientSecret != null && confirmCard != null) {
-        await confirmCard(clientSecret);
+      if (method == 'card' && clientSecret != null) {
+        if (savedPmId != null) {
+          // Cartão guardado: PI já confirmado off_session no servidor; só
+          // abrimos o sheet se o banco exigir 3DS.
+          final ok = await PaymentService().confirmSavedCardPayment(
+            clientSecret: clientSecret,
+            requiresAction: (data['requiresAction'] as bool?) ?? false,
+          );
+          // 'cancel' no texto: o ecrã já mapeia isto para "Pagamento não
+          // concluído. A corrida não foi pedida." e cancela a corrida órfã.
+          if (!ok) throw Exception('saved_card_payment_cancelled');
+        } else if (confirmCard != null) {
+          await confirmCard(clientSecret);
+        }
       }
       return ride;
     } catch (e) {

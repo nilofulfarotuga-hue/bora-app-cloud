@@ -12,6 +12,7 @@ import '../../../models/tvde_ride.dart';
 import '../../../services/directions_service.dart';
 import '../../../services/location_service.dart';
 import '../../../services/payment_service.dart';
+import '../../../services/saved_card_checkout.dart';
 import '../../../stores/tvde_store.dart';
 import '../../../utils/map_utils.dart';
 import '../../../widgets/address_autocomplete_field.dart';
@@ -334,6 +335,19 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     TvdeRide? criada;
     try {
       TvdeRide? ride;
+      // Carteira Unica (2026-07-21): so o cartao usa cartao guardado +
+      // biometria. MB Way confirma-se na app do banco e dinheiro nao cobra.
+      String? savedPmId;
+      if (method == 'card') {
+        final auth = await SavedCardCheckout.instance.authorize();
+        if (!mounted) return;
+        if (auth.cancelled) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('Pagamento cancelado. A corrida não foi pedida.')));
+          return;
+        }
+        savedPmId = auth.savedPmId;
+      }
       if (method == 'card' || method == 'mbway') {
         // A Edge Function cria a corrida e cobra. Com o backend novo ela nasce
         // em 'aguarda_pagamento' e NÃO despacha até o pagamento confirmar; com
@@ -350,6 +364,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
           method: method,
           mbwayPhone: mbwayPhone,
           tokensUsed: tokensUsed,
+          savedPmId: savedPmId,
           onRideCreated: (r) => criada = r,
           confirmCard: (clientSecret) =>
               PaymentService().processPayment(clientSecret),

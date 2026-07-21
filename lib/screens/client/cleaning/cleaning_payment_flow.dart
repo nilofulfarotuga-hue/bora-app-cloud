@@ -7,6 +7,7 @@ import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
 import '../../../models/cleaning_models.dart';
 import '../../../services/payment_service.dart';
+import '../../../services/saved_card_checkout.dart';
 import '../../../stores/cleaning_store.dart';
 
 /// LIMPEZA — fluxo de pagamento partilhado (wizard + tracking).
@@ -45,14 +46,38 @@ class CleaningPaymentFlow {
       _snack(context, 'O pagamento por cartão está disponível na app móvel.');
       return false;
     }
-    final created = await store.createCardPayment(booking.id);
+    // Carteira Unica (2026-07-21): cartao padrao + digital/rosto ANTES de
+    // criar o PaymentIntent. Recusar nao cobra nada.
+    final auth = await SavedCardCheckout.instance
+        .authorize(amountEur: booking.totalCents / 100.0);
+    if (!context.mounted) return false;
+    if (auth.cancelled) {
+      _snack(context, 'Pagamento cancelado. Não foi cobrado nada.');
+      return false;
+    }
+
+    final created =
+        await store.createCardPayment(booking.id, savedPmId: auth.savedPmId);
     if (!context.mounted) return false;
     if (created == null) {
       _snack(context, 'Não foi possível iniciar o pagamento.');
       return false;
     }
     try {
-      await PaymentService().processPayment(created['clientSecret'] as String);
+      final clientSecret = created['clientSecret'] as String;
+      if (auth.usesSavedCard) {
+        // PI ja confirmado off_session; so abre o sheet se o banco pedir 3DS.
+        final ok = await PaymentService().confirmSavedCardPayment(
+          clientSecret: clientSecret,
+          requiresAction: (created['requiresAction'] as bool?) ?? false,
+        );
+        if (!ok) {
+          if (context.mounted) _snack(context, 'Pagamento não concluído.');
+          return false;
+        }
+      } else {
+        await PaymentService().processPayment(clientSecret);
+      }
     } catch (_) {
       if (context.mounted) _snack(context, 'Pagamento não concluído.');
       return false;

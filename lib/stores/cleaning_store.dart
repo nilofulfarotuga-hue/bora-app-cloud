@@ -307,11 +307,20 @@ class CleaningStore extends ChangeNotifier {
   // ══════════════════════════════════════════════════════════════════════════
 
   /// Cria o PaymentIntent do CARTÃO (cobra na reserva). Devolve
-  /// {clientSecret, paymentIntentId, amountCents} ou null em erro.
-  Future<Map<String, dynamic>?> createCardPayment(String bookingId) async {
+  /// {clientSecret, paymentIntentId, amountCents, status, requiresAction}
+  /// ou null em erro.
+  ///
+  /// Carteira Unica (2026-07-21): com [savedPmId] a Edge Fn cria o PI ja
+  /// confirmado off_session (1 toque) e devolve `requiresAction` quando o
+  /// banco ainda exige 3DS.
+  Future<Map<String, dynamic>?> createCardPayment(String bookingId,
+      {String? savedPmId}) async {
     try {
-      final res = await _sb.functions.invoke('cleaning-checkout',
-          body: {'action': 'create', 'bookingId': bookingId});
+      final res = await _sb.functions.invoke('cleaning-checkout', body: {
+        'action': 'create',
+        'bookingId': bookingId,
+        if (savedPmId != null) 'saved_pm_id': savedPmId,
+      });
       final data = res.data;
       if (data is Map && data['clientSecret'] != null) {
         return Map<String, dynamic>.from(data);

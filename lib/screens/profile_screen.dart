@@ -32,6 +32,7 @@ import 'orders_screen.dart';
 import 'client_addresses_screen.dart';
 import 'client_promo_code_screen.dart';
 import 'driver_permissions_screen.dart';
+import 'my_cards_screen.dart';
 import 'referral_screen.dart';
 import 'support_screen.dart';
 import 'wallet_history_screen.dart';
@@ -649,6 +650,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       context,
                       MaterialPageRoute(
                           builder: (_) => const WalletHistoryScreen()),
+                    ),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.credit_card_outlined,
+                        color: AppColors.primary),
+                    title: const Text('Meus Cartões'),
+                    subtitle: const Text('Cartões guardados para pagar num toque'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const MyCardsScreen()),
                     ),
                   ),
                   ListTile(

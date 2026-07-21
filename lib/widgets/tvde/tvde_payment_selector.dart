@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
+import '../card_mandate_notice.dart';
 
 /// Selector de pagamento do pedido TVDE. **Dinheiro** está SEMPRE visível e é
 /// o default. **Cartão** e **MB Way** só aparecem com [cardEnabled] = true
@@ -71,6 +72,8 @@ class TvdePaymentSelector extends StatelessWidget {
             ],
           ],
         ),
+        // Mandato PSD2 — só no cartão e só até o 1.º ficar guardado.
+        if (cardEnabled && current == 'card') const CardMandateNotice(),
         if (cardEnabled && current == 'mbway' && phoneController != null) ...[
           const SizedBox(height: Spacing.sm),
           TextField(

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
+import '../../../widgets/card_mandate_notice.dart';
 import '../../../models/cleaning_models.dart';
 import '../../../stores/cart_store.dart';
 import '../../../stores/cleaning_store.dart';
@@ -646,6 +647,8 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
           enabled: store.stripeEnabled,
           onTap: () => setState(() => _paymentMethod = 'mbway'),
         ),
+        // Mandato PSD2 — só no cartão e só até o 1.º ficar guardado.
+        if (_paymentMethod == 'card') const CardMandateNotice(),
         const SizedBox(height: Spacing.lg),
         _sectionTitle('Resumo'),
         Container(

@@ -5,6 +5,7 @@ import '../../../auth/auth_store.dart';
 import '../../../config/app_colors.dart';
 import '../../../models/saved_card.dart';
 import '../../../services/card_wallet_service.dart';
+import '../../../widgets/card_mandate_notice.dart';
 
 /// Métodos de pagamento aceites para pré-pagamento de reserva.
 /// CASH é deliberadamente excluído — reserva exige pré-pagamento online.
@@ -175,6 +176,9 @@ class _ReservationPaymentMethodSheetState
                 groupValue: _selected,
                 onChanged: (v) => setState(() => _selected = v!),
               ),
+              // Mandato PSD2 — só no cartão e só até o 1.º ficar guardado.
+              if (_selected == ReservationPaymentMethod.card)
+                const CardMandateNotice(),
               if (_selected == ReservationPaymentMethod.mbway) ...[
                 const SizedBox(height: 8),
                 TextField(

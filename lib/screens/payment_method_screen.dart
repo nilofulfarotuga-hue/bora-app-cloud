@@ -20,6 +20,7 @@ import '../models/saved_card.dart';
 import '../services/card_wallet_service.dart';
 import '../services/payment_service.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
+import '../widgets/card_mandate_notice.dart';
 import '../widgets/customer_note_field.dart';
 import '../widgets/unified_checkout_button.dart';
 
@@ -588,6 +589,11 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                     ),
                   ),
                 ],
+                // Mandato PSD2 — fora do bloco acima de proposito: esse so
+                // aparece quando JA ha cartoes guardados, e a frase e para
+                // quem ainda nao tem nenhum. O widget esconde-se sozinho.
+                if (_selectedMethod == PaymentMethod.card)
+                  const CardMandateNotice(),
                 if (_selectedMethod == PaymentMethod.mbway) ...[
                   const SizedBox(height: 12),
                   Container(

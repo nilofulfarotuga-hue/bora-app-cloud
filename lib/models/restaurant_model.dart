@@ -150,6 +150,7 @@ class RestaurantModel {
     required this.cuisineType,
     required this.isPartner,
     required this.category,
+    this.extraCategories = const <BusinessCategory>{},
     this.isOnline = true,
     this.lat,
     this.lng,
@@ -172,6 +173,12 @@ class RestaurantModel {
   final String cuisineType;
   final bool isPartner;
   final BusinessCategory category;
+
+  /// Secções adicionais onde o negócio também aparece (coluna
+  /// `restaurants.extra_categories`). A loja é sempre a MESMA (mesmo id, mesmo
+  /// catálogo) — só passa a ser listada em mais do que uma secção do cliente.
+  final Set<BusinessCategory> extraCategories;
+
   final bool isOnline;
   final double? lat;
   final double? lng;
@@ -204,6 +211,29 @@ class RestaurantModel {
   /// Gerida via admin → bucket restaurant-assets/hero/<id>.<ext>.
   /// Null quando ainda não configurada — UI usa fallback em cascata.
   final String? heroImageUrl;
+
+  /// True quando o negócio pertence à secção [section] — pela sua categoria
+  /// principal OU por [extraCategories].
+  bool belongsTo(BusinessCategory section) =>
+      category == section || extraCategories.contains(section);
+
+  /// Converte o array `extra_categories` do Supabase em categorias válidas
+  /// (valores desconhecidos são ignorados; a categoria principal nunca duplica).
+  static Set<BusinessCategory> parseExtraCategories(
+    dynamic raw,
+    BusinessCategory mainCategory,
+  ) {
+    if (raw is! List) return const <BusinessCategory>{};
+    final result = <BusinessCategory>{};
+    for (final item in raw) {
+      final name = item?.toString().trim();
+      if (name == null || name.isEmpty) continue;
+      for (final value in BusinessCategory.values) {
+        if (value.name == name && value != mainCategory) result.add(value);
+      }
+    }
+    return result;
+  }
 
   /// Returns a [LatLng] when both coordinates are stored; null otherwise.
   LatLng? get location =>
@@ -268,6 +298,7 @@ class RestaurantModel {
       cuisineType: cuisineType,
       isPartner: isPartner,
       category: category,
+      extraCategories: extraCategories,
       isOnline: isOnline ?? this.isOnline,
       lat: lat ?? this.lat,
       lng: lng ?? this.lng,

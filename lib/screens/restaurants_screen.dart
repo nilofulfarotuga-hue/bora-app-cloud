@@ -12,6 +12,7 @@ import '../stores/cart_store.dart';
 import '../stores/favorite_store.dart';
 import '../stores/restaurant_store.dart';
 import '../utils/business_mapper.dart';
+import '../utils/business_opener.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora_support_fab.dart';
 import 'reservation_flow_screen.dart';
@@ -28,7 +29,9 @@ class RestaurantsScreen extends StatelessWidget {
     final restaurantStore = context.watch<RestaurantStore>();
     final restaurants = restaurantStore.restaurants
         .where((business) =>
-            business.category == BusinessCategory.restaurant &&
+            // Inclui também os negócios cuja `extra_categories` contém
+            // `restaurant` (mesma loja listada em mais do que uma secção).
+            business.belongsTo(BusinessCategory.restaurant) &&
             (!reservationsOnly ||
                 (business.isPartner && business.reservationsEnabled)))
         .toList()
@@ -56,19 +59,28 @@ class RestaurantsScreen extends StatelessWidget {
                 final business = restaurants[index];
                 return _RestaurantTile(
                   business: business,
-                  onTap: () =>
-                      _openRestaurant(context, restaurantStore, business),
+                  onTap: () => openBusiness(
+                    context,
+                    restaurantStore,
+                    business,
+                    reservationsOnly: reservationsOnly,
+                  ),
                 );
               },
             ),
     );
   }
+}
 
-  Future<void> _openRestaurant(
-    BuildContext context,
-    RestaurantStore restaurantStore,
-    RestaurantModel business,
-  ) async {
+/// Abre o negócio com o layout de restaurante (cardápio / ecrã de opções).
+/// Top-level para poder ser reutilizada pelo router `openBusiness`, que atende
+/// também as secções onde a loja entra por `extra_categories`.
+Future<void> openRestaurantBusiness(
+  BuildContext context,
+  RestaurantStore restaurantStore,
+  RestaurantModel business, {
+  bool reservationsOnly = false,
+}) async {
     // Closed restaurants cannot receive orders.
     if (!business.isOpenNow() && !reservationsOnly) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -190,7 +202,6 @@ class RestaurantsScreen extends StatelessWidget {
               ),
       ),
     );
-  }
 }
 
 class _EmptyState extends StatelessWidget {

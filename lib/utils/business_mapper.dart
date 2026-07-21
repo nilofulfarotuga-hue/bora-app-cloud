@@ -36,18 +36,22 @@ class BusinessMapper {
   }
 
   /// Builds a [RetailStore] view-model (metadata only — no products).
-  /// Returns null only for [BusinessCategory.restaurant] entries.
+  /// [sectionCategory] é a secção onde o negócio está a ser listado — pode
+  /// diferir da categoria principal quando vem de `extra_categories`.
+  /// Returns null only for [BusinessCategory.restaurant] sections.
   /// Products are loaded on-demand by [StoreProductsScreen] via [RestaurantStore].
   static RetailStore? buildRetailStore({
     required RestaurantStore restaurantStore,
     required RestaurantModel business,
+    BusinessCategory? sectionCategory,
   }) {
-    if (business.category == BusinessCategory.restaurant) return null;
+    final effective = sectionCategory ?? business.category;
+    if (effective == BusinessCategory.restaurant) return null;
 
     return RetailStore(
       name: business.name,
       isPartner: business.isPartner,
-      category: _mapStoreCategory(business.category),
+      category: _mapStoreCategory(effective),
     );
   }
 

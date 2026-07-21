@@ -9,6 +9,7 @@ import '../models/restaurant_model.dart';
 import '../stores/cart_store.dart';
 import '../stores/restaurant_store.dart';
 import '../utils/business_mapper.dart';
+import '../utils/business_opener.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora_support_fab.dart';
 import 'store_categories_screen.dart';
@@ -105,10 +106,12 @@ class _StoresScreenState extends State<StoresScreen> {
     final restaurantStore = context.watch<RestaurantStore>();
     final relevantBusinesses = restaurantStore.restaurants
         .where(
+          // belongsTo = categoria principal OU `extra_categories` — a mesma
+          // loja pode ser listada em mais do que uma secção.
           (business) =>
-              business.category == BusinessCategory.supermarket ||
-              business.category == BusinessCategory.store ||
-              business.category == BusinessCategory.pharmacy,
+              business.belongsTo(BusinessCategory.supermarket) ||
+              business.belongsTo(BusinessCategory.store) ||
+              business.belongsTo(BusinessCategory.pharmacy),
         )
         .toList();
 
@@ -234,7 +237,11 @@ class _StoresScreenState extends State<StoresScreen> {
           padding: const EdgeInsets.only(bottom: 12),
           child: _StoreTile(
             entry: entry,
-            onTap: () => _openStore(context, entry),
+            onTap: () => openBusiness(
+              context,
+              context.read<RestaurantStore>(),
+              entry.business,
+            ),
           ),
         ),
       ),
@@ -249,15 +256,20 @@ class _StoresScreenState extends State<StoresScreen> {
   }) {
     final entries = <_StoreEntry>[];
     for (final business in businesses) {
-      if (business.category != category) continue;
+      if (!business.belongsTo(category)) continue;
       final retailStore = BusinessMapper.buildRetailStore(
         restaurantStore: restaurantStore,
         business: business,
+        sectionCategory: category,
       );
-      // null means the business is a restaurant (wrong category) — skip it.
+      // null means the section itself is `restaurant` (never here) — skip it.
       // Empty-product stores still appear; StoreProductsScreen shows a message.
       if (retailStore == null) continue;
-      entries.add(_StoreEntry(business: business, store: retailStore));
+      entries.add(_StoreEntry(
+        business: business,
+        store: retailStore,
+        section: category,
+      ));
     }
 
     // C2 — filtro de pesquisa por nome + ordenação (só sobre a lista já carregada).
@@ -286,89 +298,95 @@ class _StoresScreenState extends State<StoresScreen> {
     });
     return filtered;
   }
+}
 
-  Future<void> _openStore(BuildContext context, _StoreEntry entry) async {
-    // 2026-05-21 — fecho automático fora do horário.
-    // Parceiros com business_hours configurado: bloqueia entrada.
-    // Não-parceiros sem horário: isOpenNow() retorna true (default).
-    if (!entry.business.isOpenNow()) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(entry.business.statusLabel()),
-          duration: const Duration(seconds: 3),
-        ),
-      );
-      return;
-    }
-    // BUG #6 (2026-05-13) — se há carrinho activo de OUTRA loja, pedir
-    // confirmação antes de descartar.  configureSession() ainda tem o
-    // silent-clear como defesa em profundidade.
-    final cart = context.read<CartStore>();
-    final differentVendor = cart.items.isNotEmpty &&
-        cart.vendorName != null &&
-        cart.vendorName != entry.store.name;
-    if (differentVendor) {
-      final confirm = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Carrinho activo'),
-          content: Text(
-            'Tens itens no carrinho de ${cart.vendorName}. '
-            'Queres cancelar e começar novo pedido em ${entry.store.name}?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Voltar'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Sim, novo pedido'),
-            ),
-          ],
-        ),
-      );
-      if (confirm != true) return;
-      if (!context.mounted) return;
-      cart.clearCart();
-    }
-
-    // Prefer the store's real coordinates (now present in DB for non-partners
-    // too) so distance_km reflects the actual pickup→dropoff route. Fallback
-    // to the client's delivery location if missing.
-    final pickupLocation = entry.business.location ?? cart.deliveryLocation;
-
-    cart.configureSession(
-      serviceType: OrderServiceType.storeShopping,
-      isPartnerStore: entry.business.isPartner,
-      vendorName: entry.store.name,
-      pickupLocation: pickupLocation,
-      pickupStreet: entry.business.address,
-      pickupCity: null,
-      pickupPostalCode: null,
-    );
-
-    final isLargeStore =
-        entry.business.category == BusinessCategory.supermarket ||
-            entry.business.category == BusinessCategory.store;
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => isLargeStore
-            ? StoreCategoriesScreen(
-                restaurantId: entry.business.id,
-                storeName: entry.store.name,
-                isPartnerStore: entry.business.isPartner,
-              )
-            : StoreProductsScreen(
-                restaurantId: entry.business.id,
-                storeName: entry.store.name,
-                isPartnerStore: entry.business.isPartner,
-              ),
+/// Abre o negócio com o layout de mercado/loja (categorias ou grelha de
+/// produtos). Top-level para ser reutilizada pelo router `openBusiness`, que
+/// atende também as secções onde a loja entra por `extra_categories`.
+Future<void> openRetailBusiness(
+  BuildContext context,
+  RestaurantModel business,
+  RetailStore store,
+) async {
+  // 2026-05-21 — fecho automático fora do horário.
+  // Parceiros com business_hours configurado: bloqueia entrada.
+  // Não-parceiros sem horário: isOpenNow() retorna true (default).
+  if (!business.isOpenNow()) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(business.statusLabel()),
+        duration: const Duration(seconds: 3),
       ),
     );
+    return;
   }
+  // BUG #6 (2026-05-13) — se há carrinho activo de OUTRA loja, pedir
+  // confirmação antes de descartar.  configureSession() ainda tem o
+  // silent-clear como defesa em profundidade.
+  final cart = context.read<CartStore>();
+  final differentVendor = cart.items.isNotEmpty &&
+      cart.vendorName != null &&
+      cart.vendorName != store.name;
+  if (differentVendor) {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Carrinho activo'),
+        content: Text(
+          'Tens itens no carrinho de ${cart.vendorName}. '
+          'Queres cancelar e começar novo pedido em ${store.name}?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Voltar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Sim, novo pedido'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    if (!context.mounted) return;
+    cart.clearCart();
+  }
+
+  // Prefer the store's real coordinates (now present in DB for non-partners
+  // too) so distance_km reflects the actual pickup→dropoff route. Fallback
+  // to the client's delivery location if missing.
+  final pickupLocation = business.location ?? cart.deliveryLocation;
+
+  cart.configureSession(
+    serviceType: OrderServiceType.storeShopping,
+    isPartnerStore: business.isPartner,
+    vendorName: store.name,
+    pickupLocation: pickupLocation,
+    pickupStreet: business.address,
+    pickupCity: null,
+    pickupPostalCode: null,
+  );
+
+  final isLargeStore = business.category == BusinessCategory.supermarket ||
+      business.category == BusinessCategory.store;
+
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => isLargeStore
+          ? StoreCategoriesScreen(
+              restaurantId: business.id,
+              storeName: store.name,
+              isPartnerStore: business.isPartner,
+            )
+          : StoreProductsScreen(
+              restaurantId: business.id,
+              storeName: store.name,
+              isPartnerStore: business.isPartner,
+            ),
+    ),
+  );
 }
 
 class _StoreTile extends StatelessWidget {
@@ -418,7 +436,7 @@ class _StoreTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cat = entry.business.category;
+    final cat = entry.section;
     final bannerColor = _bannerColor(cat);
 
     return GestureDetector(
@@ -591,8 +609,13 @@ class _StoreEntry {
   const _StoreEntry({
     required this.business,
     required this.store,
+    required this.section,
   });
 
   final RestaurantModel business;
   final RetailStore store;
+
+  /// Secção onde esta entrada está a ser mostrada (pode diferir da categoria
+  /// principal do negócio quando vem de `extra_categories`).
+  final BusinessCategory section;
 }

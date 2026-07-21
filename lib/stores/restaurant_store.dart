@@ -390,7 +390,7 @@ class RestaurantStore extends ChangeNotifier {
       // inteira on-demand ao abrir (loadFullStoreProducts).
       final includeIds = _restaurants
           .where((r) =>
-              r.isPartner || r.category == BusinessCategory.restaurant)
+              r.isPartner || r.belongsTo(BusinessCategory.restaurant))
           .map((r) => r.id)
           .toList();
       if (includeIds.isEmpty) {
@@ -1137,6 +1137,7 @@ class RestaurantStore extends ChangeNotifier {
             ? BusinessCategory.values.firstWhere((e) => e.name == category,
                 orElse: () => old.category)
             : old.category,
+        extraCategories: old.extraCategories,
         isOnline: old.isOnline,
         lat: old.lat,
         lng: old.lng,
@@ -1236,6 +1237,12 @@ class RestaurantStore extends ChangeNotifier {
       cuisineType: data['cuisine_type'] ?? '',
       isPartner: data['is_partner'] ?? true,
       category: category,
+      // 2026-07-21 — mesma loja pode aparecer em mais do que uma secção do
+      // cliente (ex.: restaurant + supermarket). Ver RestaurantModel.belongsTo.
+      extraCategories: RestaurantModel.parseExtraCategories(
+        data['extra_categories'],
+        category,
+      ),
       isOnline: data['is_online'] ?? true,
       lat: (data['lat'] as num?)?.toDouble(),
       lng: (data['lng'] as num?)?.toDouble(),

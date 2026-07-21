@@ -53,6 +53,7 @@ import 'admin_skill_suggestions_screen.dart';
 import 'admin_robot_suggestions_screen.dart';
 import 'admin_support_tickets_screen.dart';
 import 'admin_orphan_payments_screen.dart';
+import 'admin_payments_cards_screen.dart';
 import 'admin_receipts_screen.dart';
 import 'admin_ai_assistant_screen.dart';
 import '../../widgets/admin_closed_partners_card.dart';
@@ -1161,6 +1162,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       MaterialPageRoute(
                           builder: (_) =>
                               const AdminSupportTicketsScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.credit_card,
+                  title: 'Pagamentos/Cartões',
+                  subtitle: 'Cobranças de todas as verticais · estorno · cartões',
+                  color: const Color(0xFF1565C0),
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminPaymentsCardsScreen())),
                 ),
                 const SizedBox(height: 10),
                 _NavCard(

@@ -10,6 +10,7 @@ import '../models/appointment_model.dart';
 import '../models/provider_service_model.dart';
 import '../models/service_provider_model.dart';
 import '../models/staff_member_model.dart';
+import '../services/payment_service.dart';
 
 /// Resultado do fluxo `bookAndPay` — informa o ecrã de sucesso/erro.
 class BookingResult {
@@ -347,12 +348,17 @@ class ServicesStore extends ChangeNotifier {
   /// 2) invoke create-appointment-payment-intent → clientSecret
   /// 3) Stripe initPaymentSheet + presentPaymentSheet
   /// 4) rpc client_confirm_appointment_payment
+  /// Carteira Unica (2026-07-21): com [savedPmId] a Edge Fn v2 cria o PI ja
+  /// confirmado off_session (1 toque) e o PaymentSheet so abre se o banco
+  /// exigir 3DS. Sem cartao guardado, o fluxo e exactamente o de antes.
+  /// A biometria e feita pelo ecra ANTES de chamar este metodo.
   Future<BookingResult> bookAndPay({
     required String serviceId,
     required String staffId,
     required DateTime scheduledAt,
     String? notes,
     required BuildContext context,
+    String? savedPmId,
   }) async {
     if (kIsWeb) {
       return BookingResult(
@@ -377,7 +383,10 @@ class ServicesStore extends ChangeNotifier {
       // 2) Criar PaymentIntent do sinal.
       final response = await _supabase.functions.invoke(
         'create-appointment-payment-intent',
-        body: {'appointment_id': appointmentId},
+        body: {
+          'appointment_id': appointmentId,
+          if (savedPmId != null) 'saved_pm_id': savedPmId,
+        },
       );
       if (response.data == null) {
         throw Exception('Resposta vazia do servidor.');
@@ -391,25 +400,42 @@ class ServicesStore extends ChangeNotifier {
         throw Exception('Resposta inválida do servidor.');
       }
 
-      // 3) Payment Sheet — PADRÃO CANÓNICO BORA APP.
-      await Stripe.instance.initPaymentSheet(
-        paymentSheetParameters: SetupPaymentSheetParameters(
-          paymentIntentClientSecret: clientSecret,
-          merchantDisplayName: 'BORA APP',
-          style: ThemeMode.system,
-          billingDetailsCollectionConfiguration:
-              const BillingDetailsCollectionConfiguration(
-            name: CollectionMode.always,
+      // 3) Cobranca.
+      if (savedPmId != null) {
+        // Cartao guardado: PI ja confirmado off_session; sheet so para 3DS.
+        final ok = await PaymentService().confirmSavedCardPayment(
+          clientSecret: clientSecret,
+          requiresAction: (data['requiresAction'] as bool?) ?? false,
+        );
+        if (!ok) {
+          return BookingResult(
+            success: false,
+            cancelled: true,
+            errorMessage:
+                'Pagamento com cartão guardado não foi concluído. Tenta de novo.',
+          );
+        }
+      } else {
+        // Payment Sheet — PADRÃO CANÓNICO BORA APP.
+        await Stripe.instance.initPaymentSheet(
+          paymentSheetParameters: SetupPaymentSheetParameters(
+            paymentIntentClientSecret: clientSecret,
+            merchantDisplayName: 'BORA APP',
+            style: ThemeMode.system,
+            billingDetailsCollectionConfiguration:
+                const BillingDetailsCollectionConfiguration(
+              name: CollectionMode.always,
+            ),
+            applePay: const PaymentSheetApplePay(merchantCountryCode: 'PT'),
+            googlePay: const PaymentSheetGooglePay(
+              merchantCountryCode: 'PT',
+              currencyCode: 'EUR',
+              testEnv: false,
+            ),
           ),
-          applePay: const PaymentSheetApplePay(merchantCountryCode: 'PT'),
-          googlePay: const PaymentSheetGooglePay(
-            merchantCountryCode: 'PT',
-            currencyCode: 'EUR',
-            testEnv: false,
-          ),
-        ),
-      );
-      await Stripe.instance.presentPaymentSheet();
+        );
+        await Stripe.instance.presentPaymentSheet();
+      }
 
       // 4) Confirmar pagamento (RPC fallback — webhook pode já ter confirmado).
       try {

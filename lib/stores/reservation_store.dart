@@ -330,7 +330,12 @@ class ReservationStore extends ChangeNotifier {
   /// Cria PaymentIntent Stripe para reserva via Edge Function.
   /// Edge Fn `create-reservation-payment-intent` v3 aceita: restaurant_id,
   /// people, reserved_for, client_name, client_phone, notes (combinado).
-  /// Resposta: { reservation_id, paymentIntentId, clientSecret, amount_cents }.
+  /// Resposta: { reservation_id, paymentIntentId, clientSecret, amount_cents,
+  /// status, requiresAction }.
+  ///
+  /// Carteira Unica (2026-07-21): com [savedPmId] a Edge Fn v14 cria o PI ja
+  /// confirmado off_session (1 toque). Nesse caso `requiresAction` diz se o
+  /// banco ainda exige 3DS — ver PaymentService.confirmSavedCardPayment.
   Future<Map<String, dynamic>> createReservationPaymentIntent({
     required String restaurantId,
     required int people,
@@ -338,6 +343,7 @@ class ReservationStore extends ChangeNotifier {
     String? combinedNotes,
     String? clientName,
     String? clientPhone,
+    String? savedPmId,
   }) async {
     try {
       final response = await _supabase.functions.invoke(
@@ -352,6 +358,7 @@ class ReservationStore extends ChangeNotifier {
             'client_name': clientName,
           if (clientPhone != null && clientPhone.isNotEmpty)
             'client_phone': clientPhone,
+          if (savedPmId != null) 'saved_pm_id': savedPmId,
         },
       );
       if (response.data == null) {

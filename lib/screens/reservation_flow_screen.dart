@@ -4,6 +4,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/app_colors.dart';
 import '../models/restaurant_model.dart';
+import '../services/payment_service.dart';
+import '../services/saved_card_checkout.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import 'client/reservation/reservation_mbway_waiting_dialog.dart';
 import 'client/reservation/reservation_payment_method_sheet.dart';
@@ -116,6 +118,18 @@ class _ReservationFlowScreenState extends State<ReservationFlowScreen> {
     String? reservationId;
     String? paymentIntentId;
     try {
+      // Carteira Unica (2026-07-21): cartao padrao + digital/rosto antes de
+      // criar o PaymentIntent. Recusar a biometria nao cobra nada.
+      final auth =
+          await SavedCardCheckout.instance
+              .authorize(amountEur: _kReservationPrepaymentEur);
+      if (auth.cancelled) {
+        if (!mounted) return;
+        messenger.showSnackBar(const SnackBar(
+            content: Text('Pagamento cancelado. Não foi cobrado nada.')));
+        return;
+      }
+
       // T2.E (BR §18): Edge Fn v9 cria reservation pending_payment + PI card-only.
       final res = await client.functions.invoke(
         'create-reservation-payment-intent',
@@ -127,6 +141,7 @@ class _ReservationFlowScreenState extends State<ReservationFlowScreen> {
           'client_phone': _phoneController.text.trim(),
           if (_notesController.text.trim().isNotEmpty)
             'notes': _notesController.text.trim(),
+          if (auth.savedPmId != null) 'saved_pm_id': auth.savedPmId,
         },
       );
       if (res.status >= 400) {
@@ -138,23 +153,38 @@ class _ReservationFlowScreenState extends State<ReservationFlowScreen> {
       // Stripe clientSecret format: pi_xxx_secret_yyy → extract PI id for cleanup.
       paymentIntentId = clientSecret.split('_secret_').first;
 
-      await Stripe.instance.initPaymentSheet(
-        paymentSheetParameters: SetupPaymentSheetParameters(
-          paymentIntentClientSecret: clientSecret,
-          merchantDisplayName: 'Bora App',
-          billingDetailsCollectionConfiguration:
-              const BillingDetailsCollectionConfiguration(
-            name: CollectionMode.always,
+      if (auth.usesSavedCard) {
+        // PI ja confirmado off_session no servidor; so abre sheet se 3DS.
+        final ok = await PaymentService().confirmSavedCardPayment(
+          clientSecret: clientSecret,
+          requiresAction: (data['requiresAction'] as bool?) ?? false,
+        );
+        if (!ok) {
+          if (!mounted) return;
+          messenger.showSnackBar(const SnackBar(
+              content: Text(
+                  'Pagamento com cartão guardado não foi concluído. Tenta de novo.')));
+          return;
+        }
+      } else {
+        await Stripe.instance.initPaymentSheet(
+          paymentSheetParameters: SetupPaymentSheetParameters(
+            paymentIntentClientSecret: clientSecret,
+            merchantDisplayName: 'Bora App',
+            billingDetailsCollectionConfiguration:
+                const BillingDetailsCollectionConfiguration(
+              name: CollectionMode.always,
+            ),
+            applePay: const PaymentSheetApplePay(merchantCountryCode: 'PT'),
+            googlePay: const PaymentSheetGooglePay(
+              merchantCountryCode: 'PT',
+              currencyCode: 'EUR',
+              testEnv: false,
+            ),
           ),
-          applePay: const PaymentSheetApplePay(merchantCountryCode: 'PT'),
-          googlePay: const PaymentSheetGooglePay(
-            merchantCountryCode: 'PT',
-            currencyCode: 'EUR',
-            testEnv: false,
-          ),
-        ),
-      );
-      await Stripe.instance.presentPaymentSheet();
+        );
+        await Stripe.instance.presentPaymentSheet();
+      }
 
       await client.rpc('client_confirm_reservation_payment',
           params: {'p_reservation_id': reservationId});

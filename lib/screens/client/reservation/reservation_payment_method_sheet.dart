@@ -3,10 +3,22 @@ import 'package:provider/provider.dart';
 
 import '../../../auth/auth_store.dart';
 import '../../../config/app_colors.dart';
+import '../../../models/saved_card.dart';
+import '../../../services/card_wallet_service.dart';
 
 /// Métodos de pagamento aceites para pré-pagamento de reserva.
 /// CASH é deliberadamente excluído — reserva exige pré-pagamento online.
 enum ReservationPaymentMethod { card, mbway }
+
+/// Legenda da opção "Cartão" (Carteira Única, 2026-07-21).
+///
+/// Com cartão guardado diz qual é, para o cliente saber o que vai ser cobrado
+/// antes de confirmar. Só marca + últimos 4 dígitos — nunca o número completo.
+/// Função pura de propósito: o sheet exige um AuthStore com Supabase
+/// inicializado, o que impede um teste de widget; assim o texto fica testável.
+String cardOptionSubtitle(SavedCard? defaultCard) => defaultCard == null
+    ? 'Pague com cartão de crédito ou débito.'
+    : '${defaultCard.prettyBrand} •••• ${defaultCard.last4} · pagas num toque';
 
 class ReservationPaymentChoice {
   const ReservationPaymentChoice({
@@ -56,6 +68,11 @@ class _ReservationPaymentMethodSheetState
   final TextEditingController _phoneCtrl = TextEditingController();
   String? _phoneError;
 
+  /// Carteira Unica (2026-07-21) — cartao guardado que vai ser cobrado, para o
+  /// cliente ver ANTES de confirmar qual o cartao em causa. `null` = ainda a
+  /// carregar ou nao ha cartao guardado (cai no PaymentSheet, como sempre).
+  SavedCard? _defaultCard;
+
   @override
   void initState() {
     super.initState();
@@ -64,6 +81,13 @@ class _ReservationPaymentMethodSheetState
       final digits = profilePhone.replaceAll(RegExp(r'\D'), '');
       _phoneCtrl.text = digits.startsWith('351') ? digits.substring(3) : digits;
     }
+    _loadDefaultCard();
+  }
+
+  Future<void> _loadDefaultCard() async {
+    final card = await CardWalletService.instance.defaultCard();
+    if (!mounted) return;
+    setState(() => _defaultCard = card);
   }
 
   @override
@@ -137,7 +161,7 @@ class _ReservationPaymentMethodSheetState
               const SizedBox(height: 12),
               _OptionTile(
                 title: 'Cartão (Stripe)',
-                subtitle: 'Pague com cartão de crédito ou débito.',
+                subtitle: cardOptionSubtitle(_defaultCard),
                 icon: Icons.credit_card,
                 value: ReservationPaymentMethod.card,
                 groupValue: _selected,

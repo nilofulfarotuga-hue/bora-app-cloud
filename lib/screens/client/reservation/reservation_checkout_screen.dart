@@ -4,6 +4,8 @@ import 'package:flutter_stripe/flutter_stripe.dart' hide Card;
 import 'package:provider/provider.dart';
 
 import '../../../config/app_colors.dart';
+import '../../../services/payment_service.dart';
+import '../../../services/saved_card_checkout.dart';
 import '../../../stores/reservation_store.dart';
 import '../../../widgets/bora/bora_screen_app_bar.dart';
 import 'reservation_mbway_waiting_dialog.dart';
@@ -113,15 +115,30 @@ class _ReservationCheckoutScreenState extends State<ReservationCheckoutScreen> {
   Future<void> _payWithCard() async {
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
+    // Lido ANTES do primeiro await — o gate biometrico e assincrono e o
+    // context nao pode ser usado depois dele.
+    final reservationStore = context.read<ReservationStore>();
     try {
+      // Carteira Unica (2026-07-21): resolve o cartao padrao e pede
+      // digital/rosto ANTES de criar o PaymentIntent — nada e cobrado se o
+      // cliente recusar.
+      final auth = await SavedCardCheckout.instance
+          .authorize(amountEur: _kReservationPrepaymentEur);
+      if (auth.cancelled) {
+        if (!mounted) return;
+        messenger.showSnackBar(const SnackBar(
+            content: Text('Pagamento cancelado. Não foi cobrado nada.')));
+        return;
+      }
+
       // a) Criar PaymentIntent (notes combinado). Edge Fn v9 → payment_method_types: ['card'].
-      final pi =
-          await context.read<ReservationStore>().createReservationPaymentIntent(
-                restaurantId: widget.restaurantId,
-                people: widget.partySize,
-                reservedFor: widget.selectedDateTime,
-                combinedNotes: _buildCombinedNotes(),
-              );
+      final pi = await reservationStore.createReservationPaymentIntent(
+        restaurantId: widget.restaurantId,
+        people: widget.partySize,
+        reservedFor: widget.selectedDateTime,
+        combinedNotes: _buildCombinedNotes(),
+        savedPmId: auth.savedPmId,
+      );
 
       // Edge Fn shape: clientSecret (camel) + reservation_id (snake).
       final clientSecret = pi['clientSecret'] as String?;
@@ -130,27 +147,43 @@ class _ReservationCheckoutScreenState extends State<ReservationCheckoutScreen> {
         throw Exception('Resposta inválida do servidor.');
       }
 
-      // b) Inicializar Payment Sheet — PADRÃO CANÓNICO BORA APP.
-      await Stripe.instance.initPaymentSheet(
-        paymentSheetParameters: SetupPaymentSheetParameters(
-          paymentIntentClientSecret: clientSecret,
-          merchantDisplayName: 'BORA APP',
-          style: ThemeMode.system,
-          billingDetailsCollectionConfiguration:
-              const BillingDetailsCollectionConfiguration(
-            name: CollectionMode.always,
+      if (auth.usesSavedCard) {
+        // Cartao guardado: o PI ja foi confirmado off_session no servidor. So
+        // abrimos o sheet se o banco exigir 3DS (requiresAction).
+        final ok = await PaymentService().confirmSavedCardPayment(
+          clientSecret: clientSecret,
+          requiresAction: (pi['requiresAction'] as bool?) ?? false,
+        );
+        if (!ok) {
+          if (!mounted) return;
+          messenger.showSnackBar(const SnackBar(
+              content: Text(
+                  'Pagamento com cartão guardado não foi concluído. Tenta de novo.')));
+          return;
+        }
+      } else {
+        // b) Inicializar Payment Sheet — PADRÃO CANÓNICO BORA APP.
+        await Stripe.instance.initPaymentSheet(
+          paymentSheetParameters: SetupPaymentSheetParameters(
+            paymentIntentClientSecret: clientSecret,
+            merchantDisplayName: 'BORA APP',
+            style: ThemeMode.system,
+            billingDetailsCollectionConfiguration:
+                const BillingDetailsCollectionConfiguration(
+              name: CollectionMode.always,
+            ),
+            applePay: const PaymentSheetApplePay(merchantCountryCode: 'PT'),
+            googlePay: const PaymentSheetGooglePay(
+              merchantCountryCode: 'PT',
+              currencyCode: 'EUR',
+              testEnv: false,
+            ),
           ),
-          applePay: const PaymentSheetApplePay(merchantCountryCode: 'PT'),
-          googlePay: const PaymentSheetGooglePay(
-            merchantCountryCode: 'PT',
-            currencyCode: 'EUR',
-            testEnv: false,
-          ),
-        ),
-      );
+        );
 
-      // c) Apresentar Payment Sheet.
-      await Stripe.instance.presentPaymentSheet();
+        // c) Apresentar Payment Sheet.
+        await Stripe.instance.presentPaymentSheet();
+      }
 
       // d) Sucesso — confirmar via RPC fallback.
       if (!mounted) return;

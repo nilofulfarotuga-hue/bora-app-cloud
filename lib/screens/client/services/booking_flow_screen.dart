@@ -6,6 +6,7 @@ import '../../../config/app_spacing.dart';
 import '../../../models/provider_service_model.dart';
 import '../../../models/service_provider_model.dart';
 import '../../../models/staff_member_model.dart';
+import '../../../services/saved_card_checkout.dart';
 import '../../../stores/services_store.dart';
 import '../../../widgets/bora/bora_accent_button.dart';
 import '../../../widgets/bora/bora_primary_button.dart';
@@ -282,6 +283,16 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
         await _payWithMbway(choice.mbwayPhone!, staffId, messenger, navigator);
         return;
       }
+      // Carteira Unica (2026-07-21): cartao padrao + digital/rosto antes de
+      // criar a marcacao e o PaymentIntent. Recusar nao cobra nada.
+      final auth =
+          await SavedCardCheckout.instance.authorize(amountEur: _kDepositEur);
+      if (!mounted) return;
+      if (auth.cancelled) {
+        messenger.showSnackBar(const SnackBar(
+            content: Text('Pagamento cancelado. Não foi cobrado nada.')));
+        return;
+      }
       final result = await context.read<ServicesStore>().bookAndPay(
             serviceId: _service!.id,
             staffId: staffId,
@@ -290,6 +301,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
                 ? null
                 : _notesCtrl.text.trim(),
             context: context,
+            savedPmId: auth.savedPmId,
           );
       if (!mounted) return;
       if (result.success) {

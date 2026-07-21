@@ -17,10 +17,11 @@ import '../stores/order_store.dart';
 import 'package:flutter_stripe/flutter_stripe.dart' show StripeException, FailureCode;
 
 import '../models/saved_card.dart';
+import '../services/card_wallet_service.dart';
 import '../services/payment_service.dart';
-import '../widgets/bora/bora_primary_button.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/customer_note_field.dart';
+import '../widgets/unified_checkout_button.dart';
 
 class PaymentMethodScreen extends StatefulWidget {
   const PaymentMethodScreen({super.key});
@@ -107,11 +108,15 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
 
   /// 2026-05-14 — busca cartoes guardados via Edge Fn list-saved-cards.
   /// Pre-selecciona o cartao default (is_default=true) se existir.
+  ///
+  /// 2026-07-21 (Carteira Unica, Parte 2) — passa pela CardWalletService para
+  /// respeitar o cartao que o cliente marcou como principal em "Meus Cartoes";
+  /// so na ausencia dessa escolha e que vale o predefinido do Stripe.
   Future<void> _loadSavedCards() async {
     if (kIsWeb) return;
     setState(() => _loadingCards = true);
     try {
-      final cards = await PaymentService().fetchSavedCards();
+      final cards = await CardWalletService.instance.listCards();
       if (!mounted) return;
       setState(() {
         _savedCards = cards;
@@ -634,16 +639,25 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
           SafeArea(
             top: false,
             minimum: const EdgeInsets.all(16),
-            child: BoraPrimaryButton(
+            // Carteira Unica, Parte 2 (2026-07-21): o botao passou a ser o
+            // UnifiedCheckoutButton — pede digital/rosto antes de cobrar
+            // quando o pagamento vai num cartao guardado (1 toque, sem
+            // PaymentSheet pelo meio). showSavedCard=false porque este ecra ja
+            // tem a lista de cartoes guardados acima; useOverride=true porque
+            // a escolha feita nessa lista manda sobre o padrao da carteira.
+            child: UnifiedCheckoutButton(
               label: 'Confirmar pagamento',
-              loading: _isProcessing,
-              onPressed: _isProcessing
-                  ? null
-                  : () => _confirmPayment(
-                        context,
-                        finalPrice,
-                        tokensUsed: _useTokens ? tokensToUse : 0,
-                      ),
+              amount: finalPrice,
+              busy: _isProcessing,
+              showSavedCard: false,
+              useOverride: true,
+              savedPmIdOverride:
+                  _selectedMethod == PaymentMethod.card ? _selectedSavedPmId : null,
+              onPay: (_) => _confirmPayment(
+                context,
+                finalPrice,
+                tokensUsed: _useTokens ? tokensToUse : 0,
+              ),
             ),
           ),
         ],

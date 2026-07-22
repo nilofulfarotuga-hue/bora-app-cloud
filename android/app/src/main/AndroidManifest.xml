@@ -108,6 +108,16 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- Recuperação de palavra-passe (2026-07-14) — deep link de volta
+                 ao app depois do clique no email de reset do Supabase Auth.
+                 Tem de bater certo com o redirectTo em auth_store.dart e estar
+                 na allow-list "Redirect URLs" do Supabase Auth (dashboard). -->
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="pt.boraapp.bora" android:host="reset-password"/>
+            </intent-filter>
         </activity>
         <!-- flutter_foreground_task v8.17 — service DEVE ser declarado manualmente
              aqui (o próprio package SÓ declara receivers — RebootReceiver,

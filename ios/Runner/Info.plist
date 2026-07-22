@@ -98,5 +98,19 @@
 	<array>
 		<string>tel</string>
 	</array>
+	<!-- Recuperação de palavra-passe (2026-07-14) — deep link de volta ao app
+	     depois do clique no email de reset do Supabase Auth. Tem de bater
+	     certo com o redirectTo em auth_store.dart. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>pt.boraapp.bora.reset-password</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>pt.boraapp.bora</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

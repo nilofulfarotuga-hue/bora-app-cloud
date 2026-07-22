@@ -1073,56 +1073,59 @@ class _S extends State<AdminRobotSuggestionsScreen> {
   }
 
   Widget _suggestionsTab() {
-    return Column(children: [
-      _parityHeader(),
-      _proofSection(),
-      _metricsCard(),
-      _knowledgeCard(),   // C3 — Motor de Conhecimento (some sozinho se não houver dados)
-      Padding(
-        padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
-        child: Row(children: [
-          Expanded(
-            child: DropdownButtonFormField<String?>(
-              value: _statusFilter,
-              decoration: const InputDecoration(
-                  labelText: 'Status', isDense: true, border: OutlineInputBorder()),
-              items: const [
-                DropdownMenuItem(value: null, child: Text('Todas')),
-                DropdownMenuItem(value: 'nova', child: Text('Novas')),
-                DropdownMenuItem(value: 'aplicada', child: Text('Aplicadas')),
-                DropdownMenuItem(value: 'rejeitada', child: Text('Rejeitadas')),
-                DropdownMenuItem(value: 'expirada', child: Text('Expiradas')),
-              ],
-              onChanged: (v) { setState(() => _statusFilter = v); _load(); },
-            ),
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Column(children: [
+          _parityHeader(),
+          _proofSection(),
+          _metricsCard(),
+          _knowledgeCard(),   // C3 — Motor de Conhecimento (some sozinho se não houver dados)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+            child: Row(children: [
+              Expanded(
+                child: DropdownButtonFormField<String?>(
+                  value: _statusFilter,
+                  decoration: const InputDecoration(
+                      labelText: 'Status', isDense: true, border: OutlineInputBorder()),
+                  items: const [
+                    DropdownMenuItem(value: null, child: Text('Todas')),
+                    DropdownMenuItem(value: 'nova', child: Text('Novas')),
+                    DropdownMenuItem(value: 'aplicada', child: Text('Aplicadas')),
+                    DropdownMenuItem(value: 'rejeitada', child: Text('Rejeitadas')),
+                    DropdownMenuItem(value: 'expirada', child: Text('Expiradas')),
+                  ],
+                  onChanged: (v) { setState(() => _statusFilter = v); _load(); },
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: DropdownButtonFormField<int?>(
+                  value: _nivelFilter,
+                  decoration: const InputDecoration(
+                      labelText: 'Nível', isDense: true, border: OutlineInputBorder()),
+                  items: const [
+                    DropdownMenuItem(value: null, child: Text('Todos')),
+                    DropdownMenuItem(value: 1, child: Text('🟢 Nível 1')),
+                    DropdownMenuItem(value: 2, child: Text('🟡 Nível 2')),
+                    DropdownMenuItem(value: 3, child: Text('🔴 Nível 3')),
+                  ],
+                  onChanged: (v) { setState(() => _nivelFilter = v); _load(); },
+                ),
+              ),
+            ]),
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: DropdownButtonFormField<int?>(
-              value: _nivelFilter,
-              decoration: const InputDecoration(
-                  labelText: 'Nível', isDense: true, border: OutlineInputBorder()),
-              items: const [
-                DropdownMenuItem(value: null, child: Text('Todos')),
-                DropdownMenuItem(value: 1, child: Text('🟢 Nível 1')),
-                DropdownMenuItem(value: 2, child: Text('🟡 Nível 2')),
-                DropdownMenuItem(value: 3, child: Text('🔴 Nível 3')),
-              ],
-              onChanged: (v) { setState(() => _nivelFilter = v); _load(); },
-            ),
-          ),
-        ]),
-      ),
-      Expanded(
-        child: RefreshIndicator(
-          onRefresh: _load,
-          child: _rows.isEmpty
-              ? ListView(children: const [
-                  SizedBox(height: 80),
-                  Center(child: Text('Sem sugestões — o robô está em dia 🤖',
+          _rows.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.only(top: 80, bottom: 24),
+                  child: Center(child: Text('Sem sugestões — o robô está em dia 🤖',
                       style: TextStyle(color: AppColors.textSecondary))),
-                ])
+                )
               : ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
                   itemCount: _rows.length,
                   separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.divider),
                   itemBuilder: (_, i) {
@@ -1154,9 +1157,9 @@ class _S extends State<AdminRobotSuggestionsScreen> {
                     );
                   },
                 ),
-        ),
+        ]),
       ),
-    ]);
+    );
   }
 
   Widget _auditTab() {

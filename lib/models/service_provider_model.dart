@@ -21,6 +21,10 @@ class ServiceProviderModel {
     this.businessHours,
     this.avgRating = 0,
     this.ratingsCount = 0,
+    this.aboutText,
+    this.galleryUrls = const [],
+    this.socialInstagram,
+    this.socialFacebook,
   });
 
   final String id;
@@ -40,6 +44,10 @@ class ServiceProviderModel {
   final Map<String, dynamic>? businessHours;
   final double avgRating;
   final int ratingsCount;
+  final String? aboutText;
+  final List<String> galleryUrls;
+  final String? socialInstagram;
+  final String? socialFacebook;
 
   factory ServiceProviderModel.fromSupabase(Map<String, dynamic> row) {
     // PostgREST serializa colunas `numeric` (ex.: avg_rating) como String para
@@ -69,6 +77,12 @@ class ServiceProviderModel {
           : null,
       avgRating: toD(row['avg_rating']) ?? 0,
       ratingsCount: (row['ratings_count'] as int?) ?? 0,
+      aboutText: row['about_text'] as String?,
+      galleryUrls: row['gallery_urls'] is List
+          ? (row['gallery_urls'] as List).map((e) => e.toString()).toList()
+          : const [],
+      socialInstagram: row['social_instagram'] as String?,
+      socialFacebook: row['social_facebook'] as String?,
     );
   }
 
@@ -90,5 +104,9 @@ class ServiceProviderModel {
         if (businessHours != null) 'business_hours': businessHours,
         'avg_rating': avgRating,
         'ratings_count': ratingsCount,
+        if (aboutText != null) 'about_text': aboutText,
+        'gallery_urls': galleryUrls,
+        if (socialInstagram != null) 'social_instagram': socialInstagram,
+        if (socialFacebook != null) 'social_facebook': socialFacebook,
       };
 }

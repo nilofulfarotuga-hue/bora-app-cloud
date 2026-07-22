@@ -68,6 +68,19 @@ class _AdminServiceProviderDetailScreenState
   bool _uploadingLogo = false;
   bool _uploadingHero = false;
 
+  // Sobre (about_text)
+  final _aboutCtrl = TextEditingController();
+  bool _savingAbout = false;
+
+  // Redes sociais
+  final _instagramCtrl = TextEditingController();
+  final _facebookCtrl = TextEditingController();
+  bool _savingSocial = false;
+
+  // Galeria (gallery_urls)
+  List<String> _galleryUrls = const [];
+  bool _uploadingGallery = false;
+
   // Horários
   BusinessHours _hours = const BusinessHours();
   bool _savingHours = false;
@@ -121,6 +134,9 @@ class _AdminServiceProviderDetailScreenState
     _addressCtrl.dispose();
     _phoneCtrl.dispose();
     _descCtrl.dispose();
+    _aboutCtrl.dispose();
+    _instagramCtrl.dispose();
+    _facebookCtrl.dispose();
     super.dispose();
   }
 
@@ -147,6 +163,12 @@ class _AdminServiceProviderDetailScreenState
             : 'barbershop';
         _logoUrl = r['photo_url'] as String?;
         _heroUrl = r['hero_image_url'] as String?;
+        _aboutCtrl.text = r['about_text'] as String? ?? '';
+        _instagramCtrl.text = r['social_instagram'] as String? ?? '';
+        _facebookCtrl.text = r['social_facebook'] as String? ?? '';
+        _galleryUrls = r['gallery_urls'] is List
+            ? (r['gallery_urls'] as List).map((e) => e.toString()).toList()
+            : const [];
         _hours = BusinessHours.fromJson(r['business_hours']);
         _loading = false;
       });
@@ -336,6 +358,198 @@ class _AdminServiceProviderDetailScreenState
             onUpload: () => _pickAndUpload('hero'),
             onRemove: () => _removeImage('hero'),
           ),
+          const SizedBox(height: Spacing.md),
+          _sectionCard(
+            icon: Icons.menu_book_outlined,
+            title: 'Sobre (história do prestador)',
+            children: [
+              TextField(
+                controller: _aboutCtrl,
+                maxLines: 8,
+                decoration: const InputDecoration(
+                  labelText: 'Texto "Sobre"',
+                  helperText:
+                      'Aparece no perfil do cliente (aba/secção "Sobre"). Deixe vazio para não mostrar a secção.',
+                  alignLabelWithHint: true,
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: Spacing.md),
+              BoraPrimaryButton(
+                label: 'Guardar "Sobre"',
+                icon: Icons.save,
+                loading: _savingAbout,
+                onPressed: _savingAbout ? null : _saveAbout,
+              ),
+            ],
+          ),
+          const SizedBox(height: Spacing.md),
+          _galleryCard(),
+          const SizedBox(height: Spacing.md),
+          _sectionCard(
+            icon: Icons.share_outlined,
+            title: 'Redes sociais',
+            children: [
+              TextField(
+                controller: _instagramCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Instagram',
+                  helperText: 'Handle (@nome) ou URL completo. Opcional.',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: Spacing.md),
+              TextField(
+                controller: _facebookCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Facebook',
+                  helperText: 'Handle ou URL completo. Opcional.',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: Spacing.md),
+              BoraPrimaryButton(
+                label: 'Guardar redes sociais',
+                icon: Icons.save,
+                loading: _savingSocial,
+                onPressed: _savingSocial ? null : _saveSocial,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _galleryCard() {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Radii.lg),
+        side: const BorderSide(color: AppColors.divider),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(Spacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              const Icon(Icons.photo_library_outlined,
+                  size: 20, color: AppColors.primary),
+              const SizedBox(width: Spacing.sm),
+              const Text('Galeria',
+                  style:
+                      TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+            ]),
+            const SizedBox(height: 4),
+            const Text(
+              'Fotos do espaço/trabalhos. Aparece no perfil do cliente. Use as setas para reordenar.',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+            const SizedBox(height: Spacing.md),
+            if (_galleryUrls.isEmpty)
+              Container(
+                height: 80,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: const Center(
+                    child: Text('Sem fotos na galeria',
+                        style: TextStyle(color: Colors.grey))),
+              )
+            else
+              Wrap(
+                spacing: Spacing.sm,
+                runSpacing: Spacing.sm,
+                children: [
+                  for (var i = 0; i < _galleryUrls.length; i++)
+                    _galleryThumb(i),
+                ],
+              ),
+            const SizedBox(height: Spacing.md),
+            OutlinedButton.icon(
+              onPressed: _uploadingGallery ? null : _addGalleryPhoto,
+              icon: _uploadingGallery
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.add_photo_alternate_outlined),
+              label: const Text('Adicionar foto'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _galleryThumb(int index) {
+    final url = _galleryUrls[index];
+    return SizedBox(
+      width: 100,
+      child: Column(
+        children: [
+          Stack(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.network(
+                  url,
+                  width: 100,
+                  height: 100,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    width: 100,
+                    height: 100,
+                    color: Colors.grey.shade200,
+                    child: const Icon(Icons.broken_image),
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 2,
+                right: 2,
+                child: InkWell(
+                  onTap: () => _removeGalleryPhoto(index),
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: const BoxDecoration(
+                      color: Colors.black54,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.close,
+                        size: 16, color: Colors.white),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 2),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                iconSize: 18,
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                onPressed:
+                    index == 0 ? null : () => _moveGalleryPhoto(index, -1),
+                icon: const Icon(Icons.arrow_back),
+              ),
+              IconButton(
+                iconSize: 18,
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                onPressed: index == _galleryUrls.length - 1
+                    ? null
+                    : () => _moveGalleryPhoto(index, 1),
+                icon: const Icon(Icons.arrow_forward),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -475,6 +689,169 @@ class _AdminServiceProviderDetailScreenState
       _toast(isLogo ? 'Logo removido.' : 'Capa removida.');
     } catch (e) {
       _toast('Erro ao remover: $e');
+    }
+  }
+
+  // ─── SOBRE (about_text) ─────────────────────────────────────────────────────
+
+  Future<void> _saveAbout() async {
+    setState(() => _savingAbout = true);
+    try {
+      final text = _aboutCtrl.text.trim();
+      await _supabase
+          .from('service_providers')
+          .update({'about_text': text.isEmpty ? null : text}).eq(
+              'id', widget.providerId);
+      _toast('Texto "Sobre" guardado.');
+    } catch (e) {
+      _toast('Erro ao guardar: $e');
+    } finally {
+      if (mounted) setState(() => _savingAbout = false);
+    }
+  }
+
+  // ─── REDES SOCIAIS ──────────────────────────────────────────────────────────
+
+  Future<void> _saveSocial() async {
+    setState(() => _savingSocial = true);
+    try {
+      final ig = _instagramCtrl.text.trim();
+      final fb = _facebookCtrl.text.trim();
+      await _supabase.from('service_providers').update({
+        'social_instagram': ig.isEmpty ? null : ig,
+        'social_facebook': fb.isEmpty ? null : fb,
+      }).eq('id', widget.providerId);
+      _toast('Redes sociais guardadas.');
+    } catch (e) {
+      _toast('Erro ao guardar: $e');
+    } finally {
+      if (mounted) setState(() => _savingSocial = false);
+    }
+  }
+
+  // ─── GALERIA (gallery_urls) via Edge Function upload-restaurant-asset ───────
+
+  Future<void> _saveGalleryUrls(List<String> urls) async {
+    await _supabase
+        .from('service_providers')
+        .update({'gallery_urls': urls}).eq('id', widget.providerId);
+  }
+
+  Future<void> _addGalleryPhoto() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Tirar foto'),
+              onTap: () => Navigator.pop(context, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Escolher da galeria'),
+              onTap: () => Navigator.pop(context, ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null || !mounted) return;
+    final file = await SafeImagePicker.pickImage(
+      source: source,
+      imageQuality: 85,
+      maxWidth: 1200,
+    );
+    if (file == null || !mounted) return;
+    final bytes = await File(file.path).readAsBytes();
+    if (bytes.length > 10 * 1024 * 1024) {
+      _toast('Imagem muito grande (máx 10 MB).');
+      return;
+    }
+    final ext = file.path.split('.').last.toLowerCase();
+    if (!['jpg', 'jpeg', 'png', 'webp'].contains(ext)) {
+      _toast('Formato inválido. Use JPEG, PNG ou WebP.');
+      return;
+    }
+    setState(() => _uploadingGallery = true);
+    try {
+      // Pasta `{providerId}/gallery/...` — a Edge Function concatena
+      // `{restaurantId}/{kind}-{timestamp}.{ext}`, por isso `kind` inclui a
+      // subpasta 'gallery/photo'.
+      final response = await _supabase.functions.invoke(
+        'upload-restaurant-asset',
+        body: {
+          'restaurantId': widget.providerId,
+          'kind': 'gallery/photo',
+          'fileBase64': base64Encode(bytes),
+          'contentType': 'image/$ext',
+        },
+      );
+      if (response.status != 200 || response.data is! Map) {
+        throw Exception(
+            'upload-restaurant-asset HTTP ${response.status}: ${response.data}');
+      }
+      final data = Map<String, dynamic>.from(response.data as Map);
+      if (data['success'] != true) {
+        throw Exception('Upload falhou: ${data['error'] ?? 'desconhecido'}');
+      }
+      final publicUrl = data['public_url'] as String;
+      final updated = [..._galleryUrls, publicUrl];
+      await _saveGalleryUrls(updated);
+      if (!mounted) return;
+      setState(() => _galleryUrls = updated);
+      _toast('Foto adicionada à galeria.');
+    } catch (e) {
+      _toast('Erro ao enviar foto: $e');
+    } finally {
+      if (mounted) setState(() => _uploadingGallery = false);
+    }
+  }
+
+  Future<void> _removeGalleryPhoto(int index) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Remover foto?'),
+        content: const Text('Esta foto será removida da galeria. Continuar?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar')),
+          FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Remover')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    final updated = [..._galleryUrls]..removeAt(index);
+    try {
+      await _saveGalleryUrls(updated);
+      if (!mounted) return;
+      setState(() => _galleryUrls = updated);
+      _toast('Foto removida.');
+    } catch (e) {
+      _toast('Erro ao remover: $e');
+    }
+  }
+
+  Future<void> _moveGalleryPhoto(int index, int delta) async {
+    final target = index + delta;
+    if (target < 0 || target >= _galleryUrls.length) return;
+    final updated = [..._galleryUrls];
+    final item = updated.removeAt(index);
+    updated.insert(target, item);
+    final previous = _galleryUrls;
+    setState(() => _galleryUrls = updated);
+    try {
+      await _saveGalleryUrls(updated);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _galleryUrls = previous);
+      _toast('Erro ao reordenar: $e');
     }
   }
 

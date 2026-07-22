@@ -1,5 +1,7 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
@@ -11,6 +13,7 @@ import '../../../widgets/bora/bora_accent_button.dart';
 import '../../../widgets/bora/bora_screen_app_bar.dart';
 import '../../../widgets/services/staff_avatar.dart';
 import 'booking_flow_screen.dart';
+import 'gallery_viewer_screen.dart';
 
 /// Vertical Serviços — detalhe de uma barbearia.
 /// Hero, nome, rating, descrição, morada, lista de serviços (preço+duração),
@@ -127,7 +130,10 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                               ),
                             ),
                           ],
+                          _socialRow(p),
+                          _aboutSection(p),
                           _teamSection(),
+                          _gallerySection(p),
                           const SizedBox(height: Spacing.xl),
                           const Text(
                             'Serviços',
@@ -213,7 +219,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
             ),
             const SizedBox(height: Spacing.md),
             SizedBox(
-              height: 200,
+              height: 220,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 padding: EdgeInsets.zero,
@@ -225,6 +231,142 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
           ],
         );
       },
+    );
+  }
+
+  /// Ícones discretos de Instagram/Facebook — só aparecem se o prestador tiver
+  /// preenchido o respetivo link no admin. Aceita handle (@nome) ou URL completo.
+  Widget _socialRow(ServiceProviderModel p) {
+    final ig = p.socialInstagram?.trim() ?? '';
+    final fb = p.socialFacebook?.trim() ?? '';
+    if (ig.isEmpty && fb.isEmpty) return const SizedBox.shrink();
+
+    Uri? toUri(String value, String base) {
+      if (value.isEmpty) return null;
+      final normalized = value.startsWith('http')
+          ? value
+          : '$base${value.startsWith('@') ? value.substring(1) : value}';
+      return Uri.tryParse(normalized);
+    }
+
+    Future<void> open(Uri? uri) async {
+      if (uri == null) return;
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: Spacing.sm),
+      child: Row(
+        children: [
+          if (ig.isNotEmpty)
+            IconButton(
+              onPressed: () => open(toUri(ig, 'https://instagram.com/')),
+              icon: const Icon(Icons.camera_alt_outlined,
+                  color: AppColors.textSecondary, size: 22),
+              tooltip: 'Instagram',
+              visualDensity: VisualDensity.compact,
+            ),
+          if (fb.isNotEmpty)
+            IconButton(
+              onPressed: () => open(toUri(fb, 'https://facebook.com/')),
+              icon: const Icon(Icons.facebook,
+                  color: AppColors.textSecondary, size: 22),
+              tooltip: 'Facebook',
+              visualDensity: VisualDensity.compact,
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// Secção "Sobre" — história do prestador (`about_text`). Fallback
+  /// silencioso: sem texto, sem secção.
+  Widget _aboutSection(ServiceProviderModel p) {
+    final about = p.aboutText?.trim() ?? '';
+    if (about.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: Spacing.xl),
+        const Text(
+          'Sobre',
+          style: TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: Spacing.md),
+        Text(
+          about,
+          style: const TextStyle(
+            fontSize: 14,
+            height: 1.5,
+            color: AppColors.textSecondary,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Secção "Galeria" — fotos do prestador (`gallery_urls`). Fallback
+  /// silencioso: sem fotos, sem secção. Tap abre visualizador em ecrã cheio.
+  Widget _gallerySection(ServiceProviderModel p) {
+    final photos = p.galleryUrls;
+    if (photos.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: Spacing.xl),
+        const Text(
+          'Galeria',
+          style: TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: Spacing.md),
+        SizedBox(
+          height: 110,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: EdgeInsets.zero,
+            itemCount: photos.length,
+            separatorBuilder: (_, __) => const SizedBox(width: Spacing.sm),
+            itemBuilder: (_, i) => InkWell(
+              borderRadius: BorderRadius.circular(Radii.md),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => GalleryViewerScreen(
+                    imageUrls: photos,
+                    initialIndex: i,
+                  ),
+                ),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(Radii.md),
+                child: CachedNetworkImage(
+                  imageUrl: photos[i],
+                  width: 110,
+                  height: 110,
+                  fit: BoxFit.cover,
+                  placeholder: (_, __) => Container(color: AppColors.surface),
+                  errorWidget: (_, __, ___) => Container(
+                    color: AppColors.surface,
+                    alignment: Alignment.center,
+                    child: const Icon(Icons.broken_image,
+                        color: AppColors.textSubtle),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -353,7 +495,7 @@ class _StaffCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 148,
+      width: 164,
       padding: const EdgeInsets.all(Spacing.md),
       decoration: BoxDecoration(
         color: AppColors.card,
@@ -362,7 +504,7 @@ class _StaffCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          StaffAvatar(staff: staff, radius: 34),
+          StaffAvatar(staff: staff, radius: 44),
           const SizedBox(height: Spacing.sm),
           Text(
             staff.name,

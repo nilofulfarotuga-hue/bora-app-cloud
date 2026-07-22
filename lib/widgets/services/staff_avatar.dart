@@ -5,15 +5,33 @@ import '../../models/staff_member_model.dart';
 
 /// Avatar redondo de um profissional da vertical Serviços / Beleza.
 ///
-/// Mostra a foto (`photo_url`) quando existe. Em fallback, desenha as iniciais
-/// sobre um gradiente suave do design system (escolhido de forma determinística
-/// pelo nome, para o mesmo profissional ter sempre a mesma cor). Reutilizado no
-/// cliente (detalhe do prestador + fluxo de marcação) e no admin.
-class StaffAvatar extends StatelessWidget {
+/// Mostra a foto (`photo_url`) quando existe, sempre circular e `BoxFit.cover`
+/// (sem fundo branco, sem letterbox — `CircleAvatar.backgroundImage` já cobre
+/// o círculo por baixo). Em fallback (sem foto OU foto que falha a carregar),
+/// desenha as iniciais sobre um gradiente suave do design system (escolhido de
+/// forma determinística pelo nome, para o mesmo profissional ter sempre a
+/// mesma cor). Reutilizado no cliente (detalhe do prestador + fluxo de
+/// marcação) e no admin.
+class StaffAvatar extends StatefulWidget {
   const StaffAvatar({super.key, required this.staff, this.radius = 22});
 
   final StaffMemberModel staff;
   final double radius;
+
+  @override
+  State<StaffAvatar> createState() => _StaffAvatarState();
+}
+
+class _StaffAvatarState extends State<StaffAvatar> {
+  bool _loadFailed = false;
+
+  @override
+  void didUpdateWidget(covariant StaffAvatar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.staff.photoUrl != widget.staff.photoUrl) {
+      _loadFailed = false;
+    }
+  }
 
   /// Paleta de gradientes (topo-esquerda → fundo-direita). Verde Bora primeiro,
   /// depois teal, rosa-poeira, dourado e índigo suave.
@@ -30,12 +48,13 @@ class StaffAvatar extends StatelessWidget {
   };
 
   String get _initials {
-    final tokens = staff.name
+    final name = widget.staff.name;
+    final tokens = name
         .split(RegExp(r'\s+'))
         .where((t) => t.trim().isNotEmpty && !_stopWords.contains(t.toLowerCase()))
         .toList();
     if (tokens.isEmpty) {
-      return staff.name.isNotEmpty ? staff.name[0].toUpperCase() : '?';
+      return name.isNotEmpty ? name[0].toUpperCase() : '?';
     }
     if (tokens.length == 1) {
       final t = tokens.first;
@@ -45,20 +64,23 @@ class StaffAvatar extends StatelessWidget {
   }
 
   List<Color> get _gradient {
-    final key = staff.name.isEmpty
-        ? 0
-        : staff.name.codeUnits.fold<int>(0, (a, b) => a + b);
+    final name = widget.staff.name;
+    final key = name.isEmpty ? 0 : name.codeUnits.fold<int>(0, (a, b) => a + b);
     return _gradients[key % _gradients.length];
   }
 
   @override
   Widget build(BuildContext context) {
-    final url = staff.photoUrl;
-    if (url != null && url.isNotEmpty) {
+    final radius = widget.radius;
+    final url = widget.staff.photoUrl;
+    if (url != null && url.isNotEmpty && !_loadFailed) {
       return CircleAvatar(
         radius: radius,
         backgroundColor: AppColors.primaryLight,
         backgroundImage: NetworkImage(url),
+        onBackgroundImageError: (_, __) {
+          if (mounted) setState(() => _loadFailed = true);
+        },
       );
     }
     final colors = _gradient;

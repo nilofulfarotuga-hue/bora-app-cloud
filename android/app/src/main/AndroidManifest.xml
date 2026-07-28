@@ -47,8 +47,10 @@
 <uses-permission android:name="android.permission.FOREGROUND_SERVICE_REMOTE_MESSAGING"/>
 <!-- Camera: profile photo, sendPackage photo, carryGroceries photo (BR §7.5/§7.6), partner product photo -->
 <uses-permission android:name="android.permission.CAMERA"/>
-<!-- Gallery access for partner product photo: Android 13+ uses READ_MEDIA_IMAGES, older uses READ_EXTERNAL_STORAGE -->
-<uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
+<!-- Gallery access for partner product photo: Android 13+ usa o Android Photo Picker
+     (image_picker ^1.1.2 — sem permissão). READ_MEDIA_IMAGES removido para cumprir a
+     Google Play "Photo and Video Permissions policy" (usar seletor de sistema).
+     Android <=12 continua a usar READ_EXTERNAL_STORAGE. -->
 <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
 <!-- L3 (2026-06-12) — login com biometria (digital/rosto) via local_auth/
      BiometricPrompt. USE_FINGERPRINT cobre Android <9 (deprecated mas

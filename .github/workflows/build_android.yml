@@ -180,3 +180,9 @@ jobs:
           releaseFiles: build/app/outputs/bundle/release/app-release.aab
           track: alpha
           status: completed
+          # Quando a app tem um lançamento rejeitado/pendente (ex.: produção recusada
+          # pela politica de fotos), a API do Google recusa o envio-para-revisao
+          # automatico e a edicao inteira e' descartada (o AAB novo nao persiste).
+          # Com isto, a edicao faz COMMIT sem enviar para revisao -> o bundle fica
+          # disponivel na biblioteca e a revisao e' enviada manualmente pela UI.
+          changesNotSentForReview: true

@@ -62,7 +62,6 @@ class _RefundChoiceDialogState extends State<_RefundChoiceDialog> {
 
   // Split preview (lê platform_settings.wallet_split_free_pct)
   double _splitFreePct = 0.80;
-  int _tokenValueCentsX100 = 50; // 1 token = €0.005 (100 tokens = €0.50)
 
   @override
   void initState() {
@@ -78,11 +77,9 @@ class _RefundChoiceDialogState extends State<_RefundChoiceDialog> {
     try {
       final supa = Supabase.instance.client;
       final pct = await supa.rpc('get_setting', params: {'p_key': 'wallet_split_free_pct'});
-      final tv = await supa.rpc('get_setting', params: {'p_key': 'token_value_cents_x100'});
       if (!mounted) return;
       setState(() {
         if (pct != null) _splitFreePct = double.tryParse(pct.toString()) ?? 0.80;
-        if (tv != null) _tokenValueCentsX100 = int.tryParse(tv.toString()) ?? 50;
       });
     } catch (_) {/* keeps defaults */}
   }

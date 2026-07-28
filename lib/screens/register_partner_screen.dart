@@ -355,6 +355,7 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
 
   Future<void> _submit() async {
     if (_isSubmitting) return;
+    if (!(_formKey.currentState?.validate() ?? true)) return;
 
     setState(() => _isSubmitting = true);
 
@@ -601,7 +602,9 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          child: Stepper(
+          child: Form(
+            key: _formKey,
+            child: Stepper(
             // Nested dentro de SingleChildScrollView — sem isto, o ListView
             // interno do Stepper disputa o gesto de arrastar com o scroll
             // externo e a tela fica presa (não desce até ao botão de submeter).
@@ -1061,6 +1064,7 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
               ),
             ),
           ],
+          ),
           ),
         ),
       ),

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
+import '../../../models/appointment_model.dart';
 import '../../../models/provider_service_model.dart';
 import '../../../models/service_provider_model.dart';
 import '../../../models/staff_member_model.dart';
@@ -25,10 +26,18 @@ class BookingFlowScreen extends StatefulWidget {
     super.key,
     required this.provider,
     this.preselectedService,
+    this.rescheduleOf,
   });
 
   final ServiceProviderModel provider;
   final ProviderServiceModel? preselectedService;
+
+  /// BLOCO E (2026-07-28) — quando preenchido, o ecrã corre em MODO
+  /// REAGENDAMENTO: mesmo serviço, mesmo profissional, salta directo para a
+  /// escolha do dia e, no fim, chama `client_reschedule_appointment`. NÃO cria
+  /// marcação nova e NÃO passa pelo Stripe — o valor já pago fica na mesma
+  /// linha (mesmo `deposit_pi`).
+  final AppointmentModel? rescheduleOf;
 
   @override
   State<BookingFlowScreen> createState() => _BookingFlowScreenState();
@@ -38,8 +47,11 @@ class BookingFlowScreen extends StatefulWidget {
 const String _kAnyStaffId = '__any__';
 
 class _BookingFlowScreenState extends State<BookingFlowScreen> {
-  final _pageController = PageController();
-  int _step = 0;
+  late final PageController _pageController;
+  late int _step;
+
+  /// Índice do passo "Escolher dia" — porta de entrada do reagendamento.
+  static const int _kDayStep = 2;
 
   // Catálogo carregado.
   late Future<void> _loadFuture;
@@ -82,10 +94,23 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
 
   final _notesCtrl = TextEditingController();
 
+  /// MODO REAGENDAMENTO (BLOCO E).
+  bool get _isReschedule => widget.rescheduleOf != null;
+
   @override
   void initState() {
     super.initState();
     _service = widget.preselectedService;
+    if (_isReschedule) {
+      // Mesmo profissional por defeito; o serviço é resolvido no _loadCatalog
+      // (só lá temos a lista para casar pelo id).
+      _staffId = widget.rescheduleOf!.staffId ?? _kAnyStaffId;
+    }
+    // Reagendar entra directo na escolha do dia (serviço/profissional vêm da
+    // marcação original). initialPage em vez de animateToPage: o PageView só
+    // existe depois de _loadFuture resolver.
+    _step = _isReschedule ? _kDayStep : 0;
+    _pageController = PageController(initialPage: _step);
     _loadFuture = _loadCatalog();
   }
 
@@ -113,7 +138,27 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
           !_services.any((s) => s.id == _service!.id)) {
         _service = null;
       }
+      // Reagendamento: bloqueia serviço + profissional da marcação original e
+      // arranca já no passo do dia.
+      final appt = widget.rescheduleOf;
+      if (appt != null) {
+        for (final s in _services) {
+          if (s.id == appt.serviceId) _service = s;
+        }
+        if (appt.staffId != null &&
+            _staff.any((st) => st.id == appt.staffId)) {
+          _staffId = appt.staffId!;
+          _resolvedStaffId = appt.staffId;
+        }
+      }
     });
+    // Defensivo: se o serviço original já não estiver activo, o reagendamento
+    // não tem base — cai no passo 0 para o cliente escolher de novo.
+    if (_isReschedule && mounted && _service == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _goTo(0);
+      });
+    }
   }
 
   /// Carrega (1x por seleção de profissional) o padrão semanal + exceções do
@@ -193,19 +238,23 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
 
   void _next() => _goTo(_step + 1);
 
+  /// Primeiro passo navegável — em reagendamento o serviço/profissional já
+  /// estão fixos, por isso o passo do dia é o início.
+  int get _firstStep => _isReschedule ? _kDayStep : 0;
+
   Future<bool> _onWillPop() async {
-    if (_step == 0) return true;
+    if (_step <= _firstStep) return true;
     _goTo(_step - 1);
     return false;
   }
 
-  static const _titles = [
-    'Escolher serviço',
-    'Escolher profissional',
-    'Escolher dia',
-    'Escolher hora',
-    'Confirmar e pagar',
-  ];
+  List<String> get _titles => [
+        'Escolher serviço',
+        'Escolher profissional',
+        'Escolher dia',
+        'Escolher hora',
+        _isReschedule ? 'Confirmar reagendamento' : 'Confirmar e pagar',
+      ];
 
   // ─── Passo 3 → 4: carregar slots ───────────────────────────────────────────
 
@@ -253,13 +302,29 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
 
   // ─── Passo 5: marcar + pagar ────────────────────────────────────────────────
 
-  /// Valor do sinal mostrado no sheet (o servidor lê deposit_cents real).
+  /// Valor do sinal por defeito da plataforma (`appointment_deposit_cents`).
   static const double _kDepositEur = 3.0;
+
+  /// BLOCO B (2026-07-28) — quanto é cobrado AGORA, por parceiro:
+  ///   • `booking_payment_mode = 'deposit'` (default) → sinal de €3,00;
+  ///   • `booking_payment_mode = 'full'` → preço cheio do serviço escolhido.
+  /// Espelha o que o servidor grava em `appointments.deposit_cents`; a Edge
+  /// `create-appointment-payment-intent` cobra sempre esse valor.
+  double get _amountDueEur {
+    if (widget.provider.isFullPaymentMode && _service != null) {
+      return _service!.priceCents / 100.0;
+    }
+    return _kDepositEur;
+  }
+
+  String get _amountDueLabel => '€${_amountDueEur.toStringAsFixed(2)}';
 
   Future<void> _confirmAndPay() async {
     if (_booking || _slot == null || _service == null) return;
     final staffId = _resolvedStaffId;
     if (staffId == null) return;
+
+    final isFull = widget.provider.isFullPaymentMode;
 
     // M7: paridade com reservas — escolha Cartão | MBWay, NUNCA dinheiro.
     final choice = await showModalBottomSheet<ReservationPaymentChoice>(
@@ -268,9 +333,9 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => const ReservationPaymentMethodSheet(
-        amountEur: _kDepositEur,
-        title: 'Sinal da marcação',
+      builder: (_) => ReservationPaymentMethodSheet(
+        amountEur: _amountDueEur,
+        title: isFull ? 'Pagamento da marcação' : 'Sinal da marcação',
       ),
     );
     if (choice == null || !mounted) return;
@@ -286,7 +351,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
       // Carteira Unica (2026-07-21): cartao padrao + digital/rosto antes de
       // criar a marcacao e o PaymentIntent. Recusar nao cobra nada.
       final auth =
-          await SavedCardCheckout.instance.authorize(amountEur: _kDepositEur);
+          await SavedCardCheckout.instance.authorize(amountEur: _amountDueEur);
       if (!mounted) return;
       if (auth.cancelled) {
         messenger.showSnackBar(const SnackBar(
@@ -329,6 +394,51 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
     }
   }
 
+  /// BLOCO E (2026-07-28) — confirma o REAGENDAMENTO. Uma única chamada à RPC
+  /// `client_reschedule_appointment`: sem marcação nova, sem PaymentIntent,
+  /// sem Stripe. O `deposit_pi` da marcação original fica intacto.
+  Future<void> _confirmReschedule() async {
+    final appt = widget.rescheduleOf;
+    if (_booking || _slot == null || appt == null) return;
+    setState(() => _booking = true);
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    try {
+      final result = await context.read<ServicesStore>().rescheduleAppointment(
+            appointmentId: appt.id,
+            newScheduledAt: _slot!,
+            staffId: _resolvedStaffId,
+          );
+      if (!mounted) return;
+      final left = (result['reschedules_left'] as num?)?.toInt();
+      final extra = switch (left) {
+        0 => '\nJá não podes reagendar esta marcação.',
+        1 => '\nPodes reagendar mais 1 vez.',
+        _ => '',
+      };
+      navigator.pop(true);
+      messenger.showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.success,
+          duration: const Duration(seconds: 6),
+          content: Text(
+            'Marcação reagendada para ${_formatDayLong(_slot!)} às '
+            '${_formatTime(_slot!)}. Não há nada a pagar — o valor já está '
+            'reservado.$extra',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(
+        content: Text(e.toString().replaceFirst('Exception: ', '')),
+        backgroundColor: AppColors.error,
+      ));
+    } finally {
+      if (mounted) setState(() => _booking = false);
+    }
+  }
+
   /// Ramo MBWay (M7): cria a marcação + PI mb_way (push para o telemóvel) e
   /// aguarda a confirmação no AppointmentMBWayWaitingDialog. Em timeout ou
   /// cancelamento, cancela a marcação órfã (best-effort).
@@ -362,7 +472,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
       barrierDismissible: false,
       builder: (_) => AppointmentMBWayWaitingDialog(
         appointmentId: result.appointmentId!,
-        amount: _kDepositEur,
+        amount: _amountDueEur,
       ),
     );
     if (!mounted) return;
@@ -396,7 +506,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      canPop: _step == 0,
+      canPop: _step <= _firstStep,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) _onWillPop();
       },
@@ -813,10 +923,11 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
           minimum: const EdgeInsets.fromLTRB(
               Spacing.lg, Spacing.sm, Spacing.lg, Spacing.lg),
           child: BoraAccentButton(
-            label: 'Confirmar e Pagar',
-            icon: Icons.lock,
+            label: _isReschedule ? 'Confirmar Reagendamento' : 'Confirmar e Pagar',
+            icon: _isReschedule ? Icons.event_repeat : Icons.lock,
             loading: _booking,
-            onPressed: _booking ? null : _confirmAndPay,
+            onPressed:
+                _booking ? null : (_isReschedule ? _confirmReschedule : _confirmAndPay),
           ),
         ),
       ],
@@ -878,23 +989,37 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
     );
   }
 
+  /// Explicação do que vai ser cobrado. Três textos possíveis:
+  ///   • reagendamento → nada a pagar (o valor já pago acompanha a marcação);
+  ///   • modo `full`   → paga já o valor TOTAL do serviço;
+  ///   • modo `deposit`→ sinal de €3,00 (texto de sempre, intocado).
   Widget _depositCard() {
+    final String text;
+    if (_isReschedule) {
+      text = 'Não há nada a pagar — o valor que já pagaste fica reservado '
+          'para esta marcação.';
+    } else if (widget.provider.isFullPaymentMode) {
+      text = 'Pagas agora $_amountDueLabel — valor total do serviço.\n'
+          'Não há mais nada a pagar na loja.';
+    } else {
+      text = 'Sinal de €3,00 agora — restante na barbearia.\n'
+          'Reembolso se cancelares com antecedência.';
+    }
     return Container(
       padding: const EdgeInsets.all(Spacing.md),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(Radii.md),
       ),
-      child: const Row(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.info_outline, size: 18, color: AppColors.info),
-          SizedBox(width: Spacing.sm),
+          const Icon(Icons.info_outline, size: 18, color: AppColors.info),
+          const SizedBox(width: Spacing.sm),
           Expanded(
             child: Text(
-              'Sinal de €3,00 agora — restante na barbearia.\n'
-              'Reembolso se cancelares com antecedência.',
-              style: TextStyle(
+              text,
+              style: const TextStyle(
                 fontSize: 13,
                 height: 1.4,
                 color: AppColors.textSecondary,

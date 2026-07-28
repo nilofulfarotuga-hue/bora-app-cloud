@@ -367,6 +367,13 @@ class _PartnerLoginScreenState extends State<PartnerLoginScreen> {
       try {
         await appointmentsStore.loadMyProvider();
       } catch (_) {}
+      // [Serviços 2026-07-28] Registo do token FCM TAMBÉM neste ramo. Até aqui
+      // o parceiro só-serviços só era registado no initState do hub — quem
+      // ficasse noutro ecrã (ou em análise) nunca aparecia em
+      // `partner_push_tokens` e a Edge notify-service-provider não tinha
+      // destino nenhum para o push de marcação. Verificado por SQL: 3 dos 5
+      // prestadores tinham zero tokens.
+      NotificationService.instance.savePushTokenForServicePartner().ignore();
       if (!mounted) return;
     }
 

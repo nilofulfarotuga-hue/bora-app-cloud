@@ -45,6 +45,7 @@ import 'screens/driver_login_screen.dart';
 import 'screens/driver_signup_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/partner_entry_screen.dart';
+import 'screens/qr_client_signup_screen.dart';
 import 'screens/reset_password_screen.dart';
 import 'screens/role_screen.dart';
 import 'stores/cart_store.dart';
@@ -527,6 +528,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
               const AdminTvdeAccessRequestsScreen(),
           '/admin/tvde/noshows': (_) => const AdminTvdeNoShowsScreen(),
           '/admin/cleaning/cleaners': (_) => const AdminCleaningCleanersScreen(),
+          // BLOCO D (2026-07-28) — QR codes impressos apontam para
+          // https://bora-app-web.pages.dev/#/registo-cliente. URL CANÓNICA:
+          // não renomear. Cai directo no registo de cliente (quem lê o cartaz
+          // é cliente); com sessão activa, redirecciona para a home.
+          QrClientSignupScreen.routeName: (_) => const QrClientSignupScreen(),
         },
         onGenerateRoute: (settings) {
           // §44 — deep link da push low_rating: /partner/ratings precisa

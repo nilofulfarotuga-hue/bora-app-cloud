@@ -24,11 +24,14 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
-import '../../models/restaurant_model.dart' show BusinessHours, DayHours;
 import '../../models/staff_member_model.dart';
+// Prefixo `wh`: `DayHours` também existe em restaurant_model.dart (horários de
+// restaurante). Aqui é o horário da vertical Serviços (staff_availability).
+import '../../models/weekly_hours.dart' as wh;
 import '../../utils/safe_image_picker.dart';
 import '../../widgets/bora/bora_primary_button.dart';
 import '../../widgets/services/staff_avatar.dart';
+import '../../widgets/services/weekly_hours_editor.dart';
 
 class AdminServiceProviderDetailScreen extends StatefulWidget {
   const AdminServiceProviderDetailScreen({
@@ -81,9 +84,20 @@ class _AdminServiceProviderDetailScreenState
   List<String> _galleryUrls = const [];
   bool _uploadingGallery = false;
 
-  // Horários
-  BusinessHours _hours = const BusinessHours();
+  // Horários — BLOCO C (2026-07-28).
+  // FONTE DA VERDADE: `staff_availability` (por profissional × day_of_week),
+  // que é o que a RPC `get_available_slots` lê. Até aqui esta aba escrevia só
+  // em `service_providers.business_hours` — vitrine da ficha, ZERO efeito nos
+  // horários que o cliente consegue marcar.
+  Map<int, wh.DayHours> _week = wh.defaultWeek();
+  String? _hoursStaffId;
+  bool _hoursApplyToAll = true;
   bool _savingHours = false;
+
+  // Modo de cobrança + política de cancelamento (BLOCO B / BLOCO E).
+  String _paymentMode = 'deposit';
+  String _cancellationPolicy = 'refund';
+  bool _savingPolicy = false;
 
   // Serviços
   List<Map<String, dynamic>> _services = const [];
@@ -109,16 +123,6 @@ class _AdminServiceProviderDetailScreenState
     'tattoo': 'Tatuagem / Piercing',
     'other': 'Outro',
   };
-
-  static const _days = <({int weekday, String label, String key})>[
-    (weekday: DateTime.monday, label: 'Segunda-feira', key: 'mon'),
-    (weekday: DateTime.tuesday, label: 'Terça-feira', key: 'tue'),
-    (weekday: DateTime.wednesday, label: 'Quarta-feira', key: 'wed'),
-    (weekday: DateTime.thursday, label: 'Quinta-feira', key: 'thu'),
-    (weekday: DateTime.friday, label: 'Sexta-feira', key: 'fri'),
-    (weekday: DateTime.saturday, label: 'Sábado', key: 'sat'),
-    (weekday: DateTime.sunday, label: 'Domingo', key: 'sun'),
-  ];
 
   @override
   void initState() {
@@ -169,11 +173,14 @@ class _AdminServiceProviderDetailScreenState
         _galleryUrls = r['gallery_urls'] is List
             ? (r['gallery_urls'] as List).map((e) => e.toString()).toList()
             : const [];
-        _hours = BusinessHours.fromJson(r['business_hours']);
+        _paymentMode = (r['booking_payment_mode'] as String?) ?? 'deposit';
+        _cancellationPolicy =
+            (r['booking_cancellation_policy'] as String?) ?? 'refund';
         _loading = false;
       });
       await _loadServices();
       await _loadStaff();
+      await _loadWeeklyHours();
     } catch (e) {
       if (!mounted) return;
       setState(() => _loading = false);
@@ -857,51 +864,92 @@ class _AdminServiceProviderDetailScreenState
 
   // ─── HORÁRIOS ───────────────────────────────────────────────────────────────
 
-  void _updateDay(int weekday, DayHours day) {
-    setState(() => _hours = _hours.copyWithDay(weekday, day));
+  /// Lê o horário real (staff_availability) do profissional seleccionado.
+  Future<void> _loadWeeklyHours({String? staffId}) async {
+    final id = staffId ??
+        _hoursStaffId ??
+        (_staff.isNotEmpty ? _staff.first['id'] as String? : null);
+    if (id == null) return;
+    try {
+      final res = await _supabase
+          .from('staff_availability')
+          .select()
+          .eq('staff_id', id);
+      final week = wh.defaultWeek();
+      for (final r in (res as List)) {
+        final row = Map<String, dynamic>.from(r as Map);
+        final dow = (row['day_of_week'] as num?)?.toInt();
+        if (dow == null || dow < 0 || dow > 6) continue;
+        week[dow] = wh.DayHours.fromAvailabilityRow(row);
+      }
+      if (!mounted) return;
+      setState(() {
+        _hoursStaffId = id;
+        _week = week;
+      });
+    } catch (e) {
+      _toast('Erro ao carregar horário: $e');
+    }
   }
 
-  Future<void> _pickTime(int weekday, bool isOpen) async {
-    final current = _hours.dayFor(weekday);
-    final raw = isOpen ? current.open : current.close;
-    final parts = raw.split(':');
-    final initial = parts.length == 2
-        ? TimeOfDay(
-            hour: int.tryParse(parts[0]) ?? 9,
-            minute: int.tryParse(parts[1]) ?? 0)
-        : const TimeOfDay(hour: 9, minute: 0);
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: initial,
-      builder: (ctx, child) => MediaQuery(
-        data: MediaQuery.of(ctx).copyWith(alwaysUse24HourFormat: true),
-        child: child ?? const SizedBox.shrink(),
-      ),
-    );
-    if (picked == null) return;
-    final h = picked.hour.toString().padLeft(2, '0');
-    final m = picked.minute.toString().padLeft(2, '0');
-    final formatted = '$h:$m';
-    _updateDay(
-      weekday,
-      isOpen
-          ? current.copyWith(open: formatted)
-          : current.copyWith(close: formatted),
-    );
-  }
-
-  Future<void> _saveHours() async {
+  /// Grava nos DOIS sítios: `staff_availability` (motor de slots) e
+  /// `business_hours` (vitrine). RLS `sa_write`/`sp_update` já permitem admin.
+  Future<void> _saveWeeklyHours() async {
+    if (_hoursStaffId == null) return;
+    for (final entry in _week.entries) {
+      final err = entry.value.validate(ptBr: true);
+      if (err != null) {
+        _toast('${wh.kWeekdayNamesPt[entry.key]}: $err');
+        return;
+      }
+    }
     setState(() => _savingHours = true);
     try {
+      final targets = _hoursApplyToAll
+          ? _staff.map((s) => s['id'] as String).toList()
+          : [_hoursStaffId!];
+      final rows = <Map<String, dynamic>>[
+        for (final staffId in targets)
+          for (final entry in _week.entries)
+            entry.value.toAvailabilityRow(staffId, entry.key),
+      ];
       await _supabase
-          .from('service_providers')
-          .update({'business_hours': _hours.toJson()}).eq(
-              'id', widget.providerId);
-      _toast('Horário guardado.');
+          .from('staff_availability')
+          .upsert(rows, onConflict: 'staff_id,day_of_week');
+      await _supabase.from('service_providers').update({
+        'business_hours': {
+          for (final entry in _week.entries)
+            wh.kBusinessHoursKeys[entry.key]: entry.value.toBusinessHoursEntry(),
+        },
+      }).eq('id', widget.providerId);
+      _toast('Horário salvo. Já vale para as próximas marcações.');
     } catch (e) {
-      _toast('Erro ao guardar horário: $e');
+      _toast('Erro ao salvar horário: $e');
     } finally {
       if (mounted) setState(() => _savingHours = false);
+    }
+  }
+
+  /// BLOCO B + E — alterna o modo de cobrança e a política de cancelamento.
+  /// NÃO toca em `platform_settings` (o sinal de €3 e o split continuam a
+  /// valer para todos os parceiros em modo `deposit`).
+  Future<void> _savePolicy({String? paymentMode, String? cancellation}) async {
+    setState(() => _savingPolicy = true);
+    try {
+      await _supabase.from('service_providers').update({
+        if (paymentMode != null) 'booking_payment_mode': paymentMode,
+        if (cancellation != null) 'booking_cancellation_policy': cancellation,
+      }).eq('id', widget.providerId);
+      if (!mounted) return;
+      setState(() {
+        if (paymentMode != null) _paymentMode = paymentMode;
+        if (cancellation != null) _cancellationPolicy = cancellation;
+      });
+      _toast('Configuração salva.');
+    } catch (e) {
+      _toast('Erro ao salvar: $e');
+    } finally {
+      if (mounted) setState(() => _savingPolicy = false);
     }
   }
 
@@ -909,60 +957,158 @@ class _AdminServiceProviderDetailScreenState
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
     }
+    if (_staff.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(Spacing.xl),
+          child: Text(
+            'Cadastre primeiro um profissional na aba Equipe.\n'
+            'O horário é definido por profissional (staff_availability).',
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
     return ListView(
       padding: const EdgeInsets.all(Spacing.md),
       children: [
-        ..._days.map((d) {
-          final dh = _hours.dayFor(d.weekday);
-          return Card(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: Spacing.md, vertical: Spacing.xs),
-              child: Column(children: [
-                Row(children: [
-                  Expanded(
-                    child: Text(d.label,
-                        style: const TextStyle(fontWeight: FontWeight.w600)),
-                  ),
-                  Switch(
-                    value: !dh.closed,
-                    onChanged: (v) =>
-                        _updateDay(d.weekday, dh.copyWith(closed: !v)),
-                  ),
-                  Text(dh.closed ? 'Fechado' : 'Aberto',
-                      style: TextStyle(
-                          color: dh.closed ? Colors.grey : AppColors.primary,
-                          fontSize: 13)),
-                ]),
-                if (!dh.closed)
-                  Row(children: [
-                    Expanded(
-                      child: TextButton.icon(
-                        icon: const Icon(Icons.access_time, size: 18),
-                        label: Text('Abre: ${dh.open}'),
-                        onPressed: () => _pickTime(d.weekday, true),
-                      ),
-                    ),
-                    Expanded(
-                      child: TextButton.icon(
-                        icon: const Icon(Icons.access_time_filled, size: 18),
-                        label: Text('Fecha: ${dh.close}'),
-                        onPressed: () => _pickTime(d.weekday, false),
-                      ),
-                    ),
-                  ]),
-              ]),
+        const Card(
+          color: AppColors.surface,
+          child: Padding(
+            padding: EdgeInsets.all(Spacing.md),
+            child: Text(
+              'Este é o horário REAL — é dele que saem os horários que o '
+              'cliente consegue marcar (staff_availability → '
+              'get_available_slots). A vitrine da ficha (business_hours) é '
+              'atualizada em espelho ao salvar. Nenhuma marcação pode começar '
+              'nem terminar dentro da pausa.',
+              style: TextStyle(fontSize: 12.5, height: 1.4),
             ),
-          );
-        }),
+          ),
+        ),
+        const SizedBox(height: Spacing.md),
+        if (_staff.length > 1) ...[
+          Wrap(
+            spacing: Spacing.sm,
+            runSpacing: Spacing.xs,
+            children: [
+              for (final s in _staff)
+                ChoiceChip(
+                  label: Text(s['name'] as String? ?? '—'),
+                  selected: s['id'] == _hoursStaffId,
+                  onSelected: (_) =>
+                      _loadWeeklyHours(staffId: s['id'] as String),
+                ),
+            ],
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            value: _hoursApplyToAll,
+            onChanged: (v) => setState(() => _hoursApplyToAll = v),
+            title: const Text('Aplicar a toda a equipe'),
+            subtitle: const Text('Salva este horário para todos os profissionais.'),
+          ),
+          const SizedBox(height: Spacing.sm),
+        ],
+        WeeklyHoursEditor(
+          week: _week,
+          ptBr: true,
+          enabled: !_savingHours,
+          onChanged: (w) => setState(() => _week = w),
+        ),
         const SizedBox(height: Spacing.md),
         BoraPrimaryButton(
           label: 'Salvar horários',
           icon: Icons.save,
           loading: _savingHours,
-          onPressed: _savingHours ? null : _saveHours,
+          onPressed: _savingHours ? null : _saveWeeklyHours,
         ),
+        const SizedBox(height: Spacing.xl),
+        _buildPolicyCard(),
       ],
+    );
+  }
+
+  /// BLOCO B + BLOCO E — controlos por parceiro, com o efeito de cada opção
+  /// escrito por extenso (PT-BR, painel do Danilo).
+  Widget _buildPolicyCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(Spacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Cobrança e cancelamento',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+            ),
+            const SizedBox(height: Spacing.md),
+            const Text('Modo de cobrança da marcação',
+                style: TextStyle(fontWeight: FontWeight.w600)),
+            RadioListTile<String>(
+              contentPadding: EdgeInsets.zero,
+              value: 'deposit',
+              groupValue: _paymentMode,
+              onChanged: _savingPolicy
+                  ? null
+                  : (v) => _savePolicy(paymentMode: v),
+              title: const Text('Sinal (padrão)'),
+              subtitle: const Text(
+                'Cobra os €3,00 de sinal (platform_settings). O resto o '
+                'cliente paga na loja.',
+              ),
+            ),
+            RadioListTile<String>(
+              contentPadding: EdgeInsets.zero,
+              value: 'full',
+              groupValue: _paymentMode,
+              onChanged: _savingPolicy
+                  ? null
+                  : (v) => _savePolicy(paymentMode: v),
+              title: const Text('Valor cheio'),
+              subtitle: const Text(
+                'Cobra o preço TOTAL do serviço na hora de marcar. O dinheiro '
+                'entra 100% na Bora; o acerto com o parceiro é fora do app.',
+              ),
+            ),
+            const Divider(height: Spacing.xl),
+            const Text('Política de cancelamento',
+                style: TextStyle(fontWeight: FontWeight.w600)),
+            RadioListTile<String>(
+              contentPadding: EdgeInsets.zero,
+              value: 'refund',
+              groupValue: _cancellationPolicy,
+              onChanged: _savingPolicy
+                  ? null
+                  : (v) => _savePolicy(cancellation: v),
+              title: const Text('Cancelamento com reembolso (padrão)'),
+              subtitle: const Text(
+                'O cliente pode cancelar. Dentro da janela de 24h recebe o '
+                'valor de volta; fora dela, fica retido.',
+              ),
+            ),
+            RadioListTile<String>(
+              contentPadding: EdgeInsets.zero,
+              value: 'reschedule_only',
+              groupValue: _cancellationPolicy,
+              onChanged: _savingPolicy
+                  ? null
+                  : (v) => _savePolicy(cancellation: v),
+              title: const Text('Somente reagendamento'),
+              subtitle: const Text(
+                'O cliente NÃO cancela uma marcação já paga — só reagenda '
+                '(mesma cobrança, sem reembolso). Se não reagendar e não '
+                'aparecer, perde o valor (no-show).',
+              ),
+            ),
+            if (_savingPolicy)
+              const Padding(
+                padding: EdgeInsets.only(top: Spacing.sm),
+                child: LinearProgressIndicator(),
+              ),
+          ],
+        ),
+      ),
     );
   }
 

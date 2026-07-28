@@ -5,6 +5,7 @@ import '../models/appointment_model.dart';
 import '../models/provider_service_model.dart';
 import '../models/service_provider_model.dart';
 import '../models/staff_member_model.dart';
+import '../models/weekly_hours.dart';
 import '../utils/staff_terminology.dart';
 
 /// Store partner-side da vertical Serviços / Barbearias.
@@ -58,6 +59,85 @@ class PartnerAppointmentsStore extends ChangeNotifier {
     }
   }
 
+  // ───────────── HORÁRIO SEMANAL (BLOCO C) ─────────────
+
+  /// Lê o horário semanal de um profissional a partir de `staff_availability`
+  /// — a tabela que a RPC `get_available_slots` consulta de facto. Dias sem
+  /// linha caem no default (aberto 09:00–18:00, domingo fechado).
+  ///
+  /// **Não** ler de `service_providers.business_hours`: esse campo é a vitrine
+  /// da ficha e não gera um único slot.
+  Future<Map<int, DayHours>> fetchWeeklyHours(String staffId) async {
+    try {
+      final res = await _supabase
+          .from('staff_availability')
+          .select()
+          .eq('staff_id', staffId);
+      final week = defaultWeek();
+      for (final r in (res as List)) {
+        final row = Map<String, dynamic>.from(r as Map);
+        final dow = (row['day_of_week'] as num?)?.toInt();
+        if (dow == null || dow < 0 || dow > 6) continue;
+        week[dow] = DayHours.fromAvailabilityRow(row);
+      }
+      return week;
+    } catch (e) {
+      debugPrint('[PartnerAppointmentsStore] fetchWeeklyHours: $e');
+      throw Exception('Não foi possível carregar o horário.');
+    }
+  }
+
+  /// Grava o horário semanal.
+  ///
+  /// 1. UPSERT das 7 linhas de `staff_availability` (motor de slots) para cada
+  ///    profissional em [staffIds] — chave única (staff_id, day_of_week).
+  /// 2. Actualiza `service_providers.business_hours` (vitrine) para os dois
+  ///    contarem a mesma história.
+  ///
+  /// RLS: `sa_write` já permite ao dono do prestador (e ao admin) escrever.
+  Future<void> saveWeeklyHours({
+    required List<String> staffIds,
+    required Map<int, DayHours> week,
+    String? providerIdOverride,
+  }) async {
+    final pid = providerIdOverride ?? _provider?.id;
+    if (staffIds.isEmpty) {
+      throw Exception('Este negócio ainda não tem profissionais.');
+    }
+    for (final entry in week.entries) {
+      final err = entry.value.validate();
+      if (err != null) {
+        throw Exception('${kWeekdayNamesPt[entry.key]}: $err');
+      }
+    }
+    try {
+      final rows = <Map<String, dynamic>>[
+        for (final staffId in staffIds)
+          for (final entry in week.entries)
+            entry.value.toAvailabilityRow(staffId, entry.key),
+      ];
+      await _supabase
+          .from('staff_availability')
+          .upsert(rows, onConflict: 'staff_id,day_of_week');
+
+      if (pid != null) {
+        final businessHours = <String, dynamic>{
+          for (final entry in week.entries)
+            kBusinessHoursKeys[entry.key]: entry.value.toBusinessHoursEntry(),
+        };
+        await _supabase
+            .from('service_providers')
+            .update({'business_hours': businessHours}).eq('id', pid);
+        if (providerIdOverride == null && _provider != null) {
+          await loadMyProvider(force: true);
+        }
+      }
+    } catch (e) {
+      debugPrint('[PartnerAppointmentsStore] saveWeeklyHours: $e');
+      throw Exception('Não foi possível guardar o horário. Tenta de novo.');
+    }
+  }
+
   // ───────────── AGENDA ─────────────
 
   /// Marcações de um intervalo. `day` (vista Hoje) ou `from`/`to` (vista
@@ -83,7 +163,12 @@ class PartnerAppointmentsStore extends ChangeNotifier {
       final res = await _supabase
           .from('appointments')
           .select(
-            '*, provider_services(id, name), staff_members(id, name)',
+            // BLOCO B (2026-07-28): o modo de pagamento do parceiro entra pelo
+            // JOIN — é o que decide se o card diz "Sinal: €3" ou
+            // "Pago pela app: €15 (valor total)".
+            '*, provider_services(id, name), staff_members(id, name), '
+            'service_providers(id, name, booking_payment_mode, '
+            'booking_cancellation_policy)',
           )
           .eq('provider_id', pid)
           .gte('scheduled_at', start.toUtc().toIso8601String())

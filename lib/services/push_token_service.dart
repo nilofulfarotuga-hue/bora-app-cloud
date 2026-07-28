@@ -32,6 +32,13 @@ class PushTokenService {
   static String? _lastRegisteredToken;
   static String? _lastRegisteredRole;
 
+  /// [Serviços 2026-07-28] BUG: o dedup de sessão era só (token, role). Num
+  /// device partilhado — logout do parceiro A, login do parceiro B — o token
+  /// FCM e o role são os mesmos, o UPSERT era saltado, e o parceiro B nunca
+  /// chegava a `partner_push_tokens` (ficava sem pushes de marcação). A chave
+  /// de dedup passa a incluir o utilizador autenticado.
+  static String? _lastRegisteredUserId;
+
   /// BUG E (sessão exec 2026-05-12) — Log helper visível em release builds.
   /// debugPrint é stripped em release; usar print() para sair em logcat/Xcode.
   static void _log(String msg) {
@@ -130,8 +137,11 @@ class PushTokenService {
     required String role,
     required String token,
   }) async {
-    // Skip duplicate registration if same role+token within session.
-    if (_lastRegisteredToken == token && _lastRegisteredRole == role) {
+    // Skip duplicate registration if same user+role+token within session.
+    final uid = Supabase.instance.client.auth.currentUser?.id;
+    if (_lastRegisteredToken == token &&
+        _lastRegisteredRole == role &&
+        _lastRegisteredUserId == uid) {
       return;
     }
     try {
@@ -146,6 +156,7 @@ class PushTokenService {
       );
       _lastRegisteredToken = token;
       _lastRegisteredRole = role;
+      _lastRegisteredUserId = Supabase.instance.client.auth.currentUser?.id;
       _log('✓ token registered for $role (table: ${role}_push_tokens)');
     } catch (e) {
       _log('✗ register_push_token RPC failed for role=$role: $e');
@@ -162,6 +173,7 @@ class PushTokenService {
   static void resetSessionState() {
     _lastRegisteredToken = null;
     _lastRegisteredRole = null;
+    _lastRegisteredUserId = null;
   }
 
   static String? _deviceLabel() {

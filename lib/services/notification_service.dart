@@ -23,6 +23,7 @@ import '../models/chat_message.dart';
 import '../models/order_model.dart';
 import '../screens/chat_screen.dart';
 import '../screens/notifications_screen.dart';
+import '../screens/partner/services/partner_agenda_screen.dart';
 import 'offer_presentation_gate.dart';
 import 'push_token_service.dart';
 import 'sound_service.dart';
@@ -506,6 +507,17 @@ void _onLocalNotifTap(NotificationResponse response) {
       NotificationService.tvdeOfferReload?.call();
       return;
     }
+    // [Serviços 2026-07-28] Tocar num push de marcação abre a AGENDA do
+    // parceiro (não só a home) — padrão do delivery, que abre o pedido.
+    const apptTypes = {
+      'appointment_new',
+      'appointment_cancelled',
+      'appointment_rescheduled',
+    };
+    if (apptTypes.contains(data['type'])) {
+      NotificationService.instance.openPartnerAgendaFromNotification();
+      return;
+    }
     if (data['type'] != 'chat') return;
     final orderId = data['orderId']?.toString() ?? '';
     if (orderId.isEmpty) return;
@@ -771,6 +783,12 @@ const Set<String> _kPersistentCategoryTypes = <String>{
   'admin_generic',
   'crosstalk_critical',
   'appointment_new',
+  // [Serviços 2026-07-28] `_appt_notify_partner()` emite também
+  // `appointment_cancelled` (cliente cancela) e `appointment_rescheduled`
+  // (BLOCO E). Sem estas entradas o push caía no auto-display nativo do
+  // Android (some sozinho) ou no beep silencioso em foreground.
+  'appointment_cancelled',
+  'appointment_rescheduled',
   'low_rating',
   'purchase_finalized',
   // Backend emite `admin_reimbursement`; `reimbursement` fica como alias
@@ -840,17 +858,38 @@ Future<void> _showPersistentCategoryNotification(RemoteMessage message) async {
       );
       return;
     case 'appointment_new':
-      final appointmentId = data['appointmentId']?.toString() ?? '';
+    case 'appointment_cancelled':
+    case 'appointment_rescheduled':
+      // [Serviços 2026-07-28] notify-service-provider v3 passou a DATA-ONLY
+      // (foi essa a causa raiz do parceiro não receber nada: com bloco
+      // `notification`, o Android desenhava a notif efémera e o handler
+      // Flutter nunca corria). `title`/`body` vêm agora dentro de `data`;
+      // notif?.* fica como fallback defensivo para versões antigas da Edge.
+      final isNew = type == 'appointment_new';
+      final appointmentId = data['appointmentId']?.toString() ??
+          data['appointment_id']?.toString() ??
+          '';
       await _showPersistentStatusNotification(
         type: type,
-        title: notif?.title ?? '🔔 Nova marcação',
-        body: notif?.body ?? '',
+        title: data['title']?.toString() ??
+            notif?.title ??
+            switch (type) {
+              'appointment_new' => '🔔 Nova marcação',
+              'appointment_rescheduled' => '🔄 Marcação reagendada',
+              _ => '❌ Marcação cancelada',
+            },
+        body: data['body']?.toString() ?? notif?.body ?? '',
         notificationId:
             appointmentId.isNotEmpty ? appointmentId.hashCode : type.hashCode,
         payload: {
           'appointmentId': appointmentId,
-          'providerId': data['providerId']?.toString() ?? '',
+          'providerId': data['providerId']?.toString() ??
+              data['provider_id']?.toString() ??
+              '',
         },
+        // Marcação nova é oferta de trabalho a chegar → canal insistente v3
+        // (som em loop), igual ao delivery. Cancelamento é informativo.
+        urgent: isNew,
       );
       return;
     case 'low_rating':
@@ -1121,6 +1160,15 @@ class NotificationService {
             openChatFromNotification(
                 orderId, (conv == null || conv.isEmpty) ? null : conv);
           }
+        }
+        // [Serviços 2026-07-28] Mesmo caminho para as marcações: app morta +
+        // tap na notif persistente → abre a agenda do parceiro.
+        if (data['type'] == 'appointment_new' ||
+            data['type'] == 'appointment_cancelled' ||
+            data['type'] == 'appointment_rescheduled') {
+          debugPrint('[NotificationService] cold start de notif de marcação → '
+              'abrir agenda do parceiro');
+          openPartnerAgendaFromNotification();
         }
       }
     } catch (e) {
@@ -1677,8 +1725,14 @@ class NotificationService {
   /// é daí que a Edge notify-service-provider lê os destinos do push de
   /// marcação nova. Refresh de token coberto pelo listener interno do
   /// PushTokenService.
+  ///
+  /// [Serviços 2026-07-28] Passou a ligar `_boundRole='partner'`: sem isso o
+  /// parceiro só-serviços ficava com role nulo e os deep links que dependem
+  /// dele (chat) desistiam nos retries. `_boundId` fica null de propósito —
+  /// não há linha em `restaurants` para limpar no logout.
   Future<void> savePushTokenForServicePartner() async {
     if (!_consentGranted) return;
+    _boundRole = 'partner';
     await PushTokenService.registerForRole('partner');
   }
 
@@ -2017,6 +2071,33 @@ class NotificationService {
   /// Abre a conversa a partir do TAP numa notificação de chat (app em
   /// background ou morta). Retries: ao voltar de background o navigator e o
   /// _boundRole podem demorar a estar prontos; em cold start ainda mais.
+  /// [Serviços 2026-07-28] Abre a AGENDA do parceiro depois do tap num push de
+  /// marcação (`appointment_new` / `_cancelled` / `_rescheduled`). Espera pelo
+  /// navigator (cold start pode demorar) com os mesmos retries do chat.
+  /// Idempotente: nunca empilha duas agendas seguidas.
+  Future<void> openPartnerAgendaFromNotification() async {
+    if (_openingPartnerAgenda) return;
+    _openingPartnerAgenda = true;
+    try {
+      for (var attempt = 0; attempt < 6; attempt++) {
+        final ctx = navigatorKey.currentContext;
+        if (ctx != null && ctx.mounted) {
+          Navigator.of(ctx).push(MaterialPageRoute<void>(
+            builder: (_) => const PartnerAgendaScreen(),
+          ));
+          return;
+        }
+        await Future.delayed(const Duration(milliseconds: 900));
+      }
+      debugPrint('[NotificationService] openPartnerAgenda DESISTIU — '
+          'navigator nunca ficou pronto');
+    } finally {
+      _openingPartnerAgenda = false;
+    }
+  }
+
+  bool _openingPartnerAgenda = false;
+
   Future<void> openChatFromNotification(
       String orderId, String? conversationType) async {
     for (var attempt = 0; attempt < 6; attempt++) {

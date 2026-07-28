@@ -6,6 +6,7 @@ import '../../../config/app_spacing.dart';
 import '../../../models/appointment_model.dart';
 import '../../../stores/services_store.dart';
 import '../../../widgets/bora/bora_screen_app_bar.dart';
+import 'booking_flow_screen.dart';
 
 /// Vertical Serviços — "As Minhas Marcações".
 /// 3 tabs: Próximas / Passadas / Canceladas. Cancelar com aviso se <24h.
@@ -22,15 +23,21 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
 
+  /// `appointment_reschedule_max_count` — para dizer ao cliente quantos
+  /// reagendamentos lhe restam. Fallback 2 até a leitura chegar.
+  int _rescheduleMaxCount = 2;
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       final store = context.read<ServicesStore>();
       store.fetchMyAppointments();
       store.subscribeMyAppointments();
+      final max = await store.fetchRescheduleMaxCount();
+      if (mounted) setState(() => _rescheduleMaxCount = max);
     });
   }
 
@@ -54,14 +61,50 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen>
       ),
       builder: (_) => _AppointmentDetailSheet(
         appointment: a,
-        onCancel: a.isUpcoming
+        rescheduleMaxCount: _rescheduleMaxCount,
+        onCancel: (a.isUpcoming && !a.isRescheduleOnly)
             ? () {
                 Navigator.pop(context);
                 _cancel(a);
               }
             : null,
+        onReschedule: (a.isUpcoming && a.isRescheduleOnly)
+            ? () {
+                Navigator.pop(context);
+                _reschedule(a);
+              }
+            : null,
       ),
     );
+  }
+
+  /// BLOCO E (2026-07-28) — abre o MESMO fluxo de marcação em modo
+  /// reagendamento (serviço e profissional já fixos). Não cria marcação nova
+  /// nem toca no Stripe: no fim é só `client_reschedule_appointment`.
+  Future<void> _reschedule(AppointmentModel a) async {
+    final store = context.read<ServicesStore>();
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    try {
+      final provider = await store.fetchProviderDetail(a.providerId);
+      if (!mounted || provider == null) {
+        messenger.showSnackBar(const SnackBar(
+          content: Text('Não foi possível abrir o reagendamento.'),
+          backgroundColor: AppColors.error,
+        ));
+        return;
+      }
+      await navigator.push<bool>(MaterialPageRoute(
+        builder: (_) => BookingFlowScreen(provider: provider, rescheduleOf: a),
+      ));
+      if (mounted) await _refresh();
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(
+        content: Text(e.toString().replaceFirst('Exception: ', '')),
+        backgroundColor: AppColors.error,
+      ));
+    }
   }
 
   /// Cancela marcação via RPC. Aviso especial se faltarem <24h.
@@ -70,6 +113,8 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen>
         a.scheduledAt.difference(DateTime.now()).inMinutes / 60.0;
     final lessThan24h = hoursUntil < 24.0;
     final depositEur = (a.depositCents / 100).toStringAsFixed(2);
+    // BLOCO B: em modo `full` o cobrado é o valor total, não um sinal.
+    final noun = a.isFullPaymentMode ? 'o valor pago' : 'o sinal';
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -80,10 +125,10 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen>
         content: Text(
           lessThan24h
               ? 'Faltam ${hoursUntil.toStringAsFixed(1)}h para a marcação '
-                  '(menos de 24 horas).\n\nRegra: o sinal de €$depositEur '
+                  '(menos de 24 horas).\n\nRegra: $noun de €$depositEur '
                   'NÃO é reembolsado.'
               : 'Faltam ${hoursUntil.toStringAsFixed(1)}h para a marcação '
-                  '(mais de 24 horas).\n\nRegra: reembolso TOTAL do sinal '
+                  '(mais de 24 horas).\n\nRegra: reembolso TOTAL de $noun '
                   'de €$depositEur (5–10 dias úteis no cartão).',
         ),
         actions: [
@@ -115,6 +160,21 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen>
           content: Text(willRefund
               ? 'Marcação cancelada. Reembolso a caminho.'
               : 'Marcação cancelada.'),
+        ),
+      );
+    } on RescheduleOnlyException catch (e) {
+      // BLOCO E: caminho antigo (ou política mudada entretanto). Em vez de um
+      // erro seco, encaminha para o reagendamento.
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: AppColors.accent,
+          duration: const Duration(seconds: 8),
+          action: SnackBarAction(
+            label: 'Reagendar',
+            textColor: Colors.white,
+            onPressed: () => _reschedule(a),
+          ),
         ),
       );
     } catch (e) {
@@ -173,8 +233,14 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen>
                           'Ainda não tens marcações\nExplora serviços e marca a tua!',
                       buildCard: (a) => _AppointmentCard(
                         appointment: a,
+                        rescheduleMaxCount: _rescheduleMaxCount,
                         onTap: () => _showDetail(a),
-                        onCancel: () => _cancel(a),
+                        // BLOCO E: em `reschedule_only` o cliente não cancela
+                        // uma marcação paga — reagenda.
+                        onCancel:
+                            a.isRescheduleOnly ? null : () => _cancel(a),
+                        onReschedule:
+                            a.isRescheduleOnly ? () => _reschedule(a) : null,
                       ),
                     ),
                     _AppointmentList(
@@ -265,11 +331,19 @@ class _AppointmentList extends StatelessWidget {
 }
 
 class _AppointmentCard extends StatelessWidget {
-  const _AppointmentCard({required this.appointment, this.onTap, this.onCancel});
+  const _AppointmentCard({
+    required this.appointment,
+    this.onTap,
+    this.onCancel,
+    this.onReschedule,
+    this.rescheduleMaxCount = 2,
+  });
 
   final AppointmentModel appointment;
   final VoidCallback? onTap;
   final VoidCallback? onCancel;
+  final VoidCallback? onReschedule;
+  final int rescheduleMaxCount;
 
   @override
   Widget build(BuildContext context) {
@@ -350,22 +424,54 @@ class _AppointmentCard extends StatelessWidget {
                         color: AppColors.textPrimary,
                       ),
                     ),
+                    if (a.wasRescheduled && a.originalScheduledAt != null) ...[
+                      const SizedBox(height: Spacing.xxs),
+                      Text(
+                        'Reagendada · era '
+                        '${_formatDateTimePt(a.originalScheduledAt!.toLocal())}',
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          color: AppColors.textSubtle,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
               _StatusBadge(appointment: a),
             ],
           ),
-          if (onCancel != null) ...[
+          // BLOCO E — texto de apoio da política "só reagendamento".
+          if (onReschedule != null) ...[
+            const SizedBox(height: Spacing.xs),
+            Text(
+              _rescheduleHint(a, rescheduleMaxCount),
+              style: const TextStyle(
+                fontSize: 12,
+                height: 1.35,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+          if (onCancel != null || onReschedule != null) ...[
             const SizedBox(height: Spacing.sm),
             Align(
               alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: onCancel,
-                icon: const Icon(Icons.cancel_outlined, size: 18),
-                label: const Text('Cancelar'),
-                style: TextButton.styleFrom(foregroundColor: AppColors.error),
-              ),
+              child: onReschedule != null
+                  ? TextButton.icon(
+                      onPressed: onReschedule,
+                      icon: const Icon(Icons.event_repeat, size: 18),
+                      label: const Text('Reagendar'),
+                      style: TextButton.styleFrom(
+                          foregroundColor: AppColors.primary),
+                    )
+                  : TextButton.icon(
+                      onPressed: onCancel,
+                      icon: const Icon(Icons.cancel_outlined, size: 18),
+                      label: const Text('Cancelar'),
+                      style:
+                          TextButton.styleFrom(foregroundColor: AppColors.error),
+                    ),
             ),
           ],
           ],
@@ -461,32 +567,54 @@ class _StatusBadge extends StatelessWidget {
   }
 }
 
+/// BLOCO E (2026-07-28) — texto de apoio da política "só reagendamento".
+/// Quando resta 1 (ou 0) reagendamento, avisa explicitamente.
+String _rescheduleHint(AppointmentModel a, int maxCount) {
+  final left = (maxCount - a.rescheduleCount).clamp(0, maxCount);
+  const base = 'Não podes vir? Reagenda para outro dia — o valor que pagaste '
+      'fica reservado para a tua marcação.';
+  if (left == 0) return 'Já não podes reagendar esta marcação.';
+  if (left == 1) return '$base\nPodes reagendar mais 1 vez.';
+  return base;
+}
+
 /// Estado do sinal em PT-PT (valores reais da coluna deposit_status).
+/// BLOCO B (2026-07-28): em `booking_payment_mode = 'full'` o que foi cobrado
+/// NÃO é um sinal — é o valor total do serviço. Chamar-lhe "sinal" mentia ao
+/// cliente ("restante na barbearia" quando já não há restante nenhum).
 String _depositLabel(AppointmentModel a) {
   final eur = (a.depositCents / 100).toStringAsFixed(2);
+  final noun = a.isFullPaymentMode ? 'Total €$eur' : 'Sinal €$eur';
   switch (a.depositStatus) {
     case 'paid':
-      return 'Sinal €$eur pago';
+      return '$noun pago';
     case 'pending':
-      return 'Sinal €$eur pendente';
+      return '$noun pendente';
     case 'refunded':
-      return 'Sinal €$eur reembolsado';
+      return '$noun reembolsado';
     case 'retained':
-      return 'Sinal €$eur retido';
+      return '$noun retido';
     case 'waived':
-      return 'Sem sinal';
+      return a.isFullPaymentMode ? 'Sem pagamento' : 'Sem sinal';
     default:
-      return 'Sinal €$eur';
+      return noun;
   }
 }
 
 /// Sessão 2026-06-11 — detalhe da marcação ao tocar no card (padrão
 /// Fresha/Booksy). Cancelar disponível só em marcações futuras.
 class _AppointmentDetailSheet extends StatelessWidget {
-  const _AppointmentDetailSheet({required this.appointment, this.onCancel});
+  const _AppointmentDetailSheet({
+    required this.appointment,
+    this.onCancel,
+    this.onReschedule,
+    this.rescheduleMaxCount = 2,
+  });
 
   final AppointmentModel appointment;
   final VoidCallback? onCancel;
+  final VoidCallback? onReschedule;
+  final int rescheduleMaxCount;
 
   @override
   Widget build(BuildContext context) {
@@ -566,9 +694,16 @@ class _AppointmentDetailSheet extends StatelessWidget {
           ),
           _DetailRow(
             icon: Icons.savings_outlined,
-            label: 'Sinal',
+            label: a.isFullPaymentMode ? 'Pago pela app' : 'Sinal',
             value: _depositLabel(a),
           ),
+          if (a.wasRescheduled && a.originalScheduledAt != null)
+            _DetailRow(
+              icon: Icons.event_repeat,
+              label: 'Reagendada',
+              value: 'Horário original: '
+                  '${_AppointmentCard._formatDateTimePt(a.originalScheduledAt!.toLocal())}',
+            ),
           if (a.clientNotes != null && a.clientNotes!.isNotEmpty)
             _DetailRow(
               icon: Icons.notes_outlined,
@@ -583,6 +718,30 @@ class _AppointmentDetailSheet extends StatelessWidget {
               label: 'Cancelamento',
               value: a.cancelReason!,
             ),
+          if (onReschedule != null) ...[
+            const SizedBox(height: Spacing.md),
+            Text(
+              _rescheduleHint(a, rescheduleMaxCount),
+              style: const TextStyle(
+                fontSize: 13,
+                height: 1.35,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: Spacing.sm),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: onReschedule,
+                icon: const Icon(Icons.event_repeat, size: 18),
+                label: const Text('Reagendar marcação'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: const BorderSide(color: AppColors.primary),
+                ),
+              ),
+            ),
+          ],
           if (onCancel != null) ...[
             const SizedBox(height: Spacing.md),
             SizedBox(

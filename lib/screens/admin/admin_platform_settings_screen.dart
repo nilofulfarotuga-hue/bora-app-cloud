@@ -76,6 +76,16 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
     // é ação 🔴 que escala a pagamentos-wallet.
     const tvdeStopOperational = {'tvde_max_stops', 'tvde_stop_timer_seconds'};
     if (tvdeStopOperational.contains(key)) return true;
+    // BLOCO E (2026-07-28) — reagendamento de marcações. São chaves
+    // OPERACIONAIS (horas de antecedência, nº de reagendamentos, janela de
+    // dias): não mexem em nenhum valor cobrado, por isso são editáveis aqui.
+    // O sinal (`appointment_deposit_cents`) e o split continuam blindados.
+    const appointmentRescheduleOperational = {
+      'appointment_reschedule_min_hours',
+      'appointment_reschedule_max_count',
+      'appointment_reschedule_max_days',
+    };
+    if (appointmentRescheduleOperational.contains(key)) return true;
     return false;
   }
 

@@ -25,6 +25,8 @@ class ServiceProviderModel {
     this.galleryUrls = const [],
     this.socialInstagram,
     this.socialFacebook,
+    this.bookingPaymentMode = 'deposit',
+    this.bookingCancellationPolicy = 'refund',
   });
 
   final String id;
@@ -48,6 +50,22 @@ class ServiceProviderModel {
   final List<String> galleryUrls;
   final String? socialInstagram;
   final String? socialFacebook;
+
+  /// `service_providers.booking_payment_mode` — 'deposit' (sinal, default da
+  /// plataforma) | 'full' (cobra o preço cheio do serviço na marcação).
+  /// Decidido por parceiro; NÃO altera `platform_settings`.
+  final String bookingPaymentMode;
+
+  /// `service_providers.booking_cancellation_policy` — 'refund' (o cliente
+  /// cancela, com as regras de reembolso de sempre) | 'reschedule_only' (o
+  /// cliente não cancela uma marcação já paga; só reagenda).
+  final String bookingCancellationPolicy;
+
+  /// Cobra o valor total do serviço no acto da marcação (Ouro e Prata).
+  bool get isFullPaymentMode => bookingPaymentMode == 'full';
+
+  /// O cliente só pode reagendar (não cancelar) uma marcação já paga.
+  bool get isRescheduleOnly => bookingCancellationPolicy == 'reschedule_only';
 
   factory ServiceProviderModel.fromSupabase(Map<String, dynamic> row) {
     // PostgREST serializa colunas `numeric` (ex.: avg_rating) como String para
@@ -83,6 +101,10 @@ class ServiceProviderModel {
           : const [],
       socialInstagram: row['social_instagram'] as String?,
       socialFacebook: row['social_facebook'] as String?,
+      bookingPaymentMode:
+          (row['booking_payment_mode'] as String?) ?? 'deposit',
+      bookingCancellationPolicy:
+          (row['booking_cancellation_policy'] as String?) ?? 'refund',
     );
   }
 
@@ -108,5 +130,7 @@ class ServiceProviderModel {
         'gallery_urls': galleryUrls,
         if (socialInstagram != null) 'social_instagram': socialInstagram,
         if (socialFacebook != null) 'social_facebook': socialFacebook,
+        'booking_payment_mode': bookingPaymentMode,
+        'booking_cancellation_policy': bookingCancellationPolicy,
       };
 }

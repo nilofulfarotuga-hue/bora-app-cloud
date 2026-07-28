@@ -61,7 +61,9 @@ class _AdminAppointmentsScreenState extends State<AdminAppointmentsScreen> {
     final rows = await Supabase.instance.client
         .from('appointments')
         .select(
-            '*, service_providers(name, photo_url, hero_image_url), provider_services(name), staff_members(name)')
+            '*, service_providers(name, photo_url, hero_image_url, '
+            'booking_payment_mode, booking_cancellation_policy), '
+            'provider_services(name), staff_members(name)')
         .order('scheduled_at', ascending: false)
         .limit(200);
     return (rows as List)
@@ -300,6 +302,69 @@ class _AdminAppointmentsScreenState extends State<AdminAppointmentsScreen> {
       ),
     );
     reasonCtrl.dispose();
+  }
+
+  static String _dmyHm(DateTime utc) {
+    final d = utc.toLocal();
+    String two(int v) => v.toString().padLeft(2, '0');
+    return '${two(d.day)}/${two(d.month)}/${d.year} ${two(d.hour)}:${two(d.minute)}';
+  }
+
+  /// BLOCO E (2026-07-28) — auditoria de reagendamentos (`appointment_reschedules`).
+  /// RLS: o admin lê tudo. Read-only — o admin continua acima da política e
+  /// pode cancelar em nome do cliente pelo botão ao lado.
+  Future<void> _showRescheduleHistory(AppointmentModel a) async {
+    final outerContext = context;
+    List<Map<String, dynamic>> rows = const [];
+    String? error;
+    try {
+      final res = await Supabase.instance.client
+          .from('appointment_reschedules')
+          .select()
+          .eq('appointment_id', a.id)
+          .order('created_at', ascending: true);
+      rows = (res as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    } catch (e) {
+      error = e.toString();
+    }
+    if (!mounted) return;
+    await showDialog<void>(
+      context: outerContext,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Histórico de reagendamentos'),
+        content: SizedBox(
+          width: 420,
+          child: error != null
+              ? Text('Erro: $error')
+              : rows.isEmpty
+                  ? const Text('Sem registos.')
+                  : Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (final r in rows)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: Spacing.sm),
+                            child: Text(
+                              '${_dmyHm(DateTime.parse(r['old_scheduled_at'] as String))}'
+                              '  →  '
+                              '${_dmyHm(DateTime.parse(r['new_scheduled_at'] as String))}'
+                              '\npor ${r['changed_by'] ?? '—'}'
+                              '${r['old_staff_id'] != r['new_staff_id'] ? ' · trocou de profissional' : ''}',
+                              style: const TextStyle(fontSize: 12.5),
+                            ),
+                          ),
+                      ],
+                    ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Fechar'),
+          ),
+        ],
+      ),
+    );
   }
 
   Color _statusColor(String s) => switch (s) {
@@ -567,19 +632,38 @@ class _AdminAppointmentsScreenState extends State<AdminAppointmentsScreen> {
                     style:
                         TextStyle(fontSize: 11, color: AppColors.textSubtle)),
               ),
-            if (canCancel) ...[
-              const SizedBox(height: Spacing.xs),
-              Align(
-                alignment: Alignment.centerRight,
-                child: OutlinedButton.icon(
-                  icon: const Icon(Icons.cancel_outlined, size: 18),
-                  label: const Text('Cancelar'),
-                  style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.error),
-                  onPressed: () => _cancelOne(a),
+            // BLOCO E (2026-07-28) — reagendamento visível no admin.
+            if (a.wasRescheduled)
+              Padding(
+                padding: const EdgeInsets.only(top: Spacing.xs),
+                child: Text(
+                  'Reagendada ${a.rescheduleCount}x'
+                  '${a.originalScheduledAt != null ? ' · original: ${_dmyHm(a.originalScheduledAt!)}' : ''}',
+                  style: const TextStyle(
+                      fontSize: 11, color: AppColors.info),
                 ),
               ),
-            ],
+            const SizedBox(height: Spacing.xs),
+            Wrap(
+              alignment: WrapAlignment.end,
+              spacing: Spacing.sm,
+              children: [
+                if (a.wasRescheduled)
+                  TextButton.icon(
+                    icon: const Icon(Icons.history, size: 18),
+                    label: const Text('Histórico'),
+                    onPressed: () => _showRescheduleHistory(a),
+                  ),
+                if (canCancel)
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.cancel_outlined, size: 18),
+                    label: const Text('Cancelar'),
+                    style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.error),
+                    onPressed: () => _cancelOne(a),
+                  ),
+              ],
+            ),
           ],
         ),
       ),

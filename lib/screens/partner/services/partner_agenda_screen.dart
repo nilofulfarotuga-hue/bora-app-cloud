@@ -278,6 +278,22 @@ class _AppointmentCard extends StatelessWidget {
     return '${_two(dt.day)}/${_two(dt.month)} · $time';
   }
 
+  String _dateTimeLabel(DateTime utc) {
+    final dt = utc.toLocal();
+    return '${_two(dt.day)}/${_two(dt.month)} ${_two(dt.hour)}:${_two(dt.minute)}';
+  }
+
+  /// BLOCO B (2026-07-28) — o parceiro tem de perceber quanto já entrou pela
+  /// app: em `booking_payment_mode = 'full'` o cliente pagou TUDO; em
+  /// `deposit` pagou só o sinal e o resto é cobrado na loja.
+  String _paymentLabel(AppointmentModel a) {
+    final deposit = '€${(a.depositCents / 100).toStringAsFixed(2)}';
+    if (a.isFullPaymentMode) {
+      return '${a.servicePriceLabel} · Pago pela app: $deposit (valor total)';
+    }
+    return '${a.servicePriceLabel} · Sinal: $deposit';
+  }
+
   @override
   Widget build(BuildContext context) {
     final a = appointment;
@@ -352,6 +368,11 @@ class _AppointmentCard extends StatelessWidget {
                 Expanded(
                   child: Text(clientName, style: titleStyle),
                 ),
+                if (a.wasRescheduled) ...[
+                  const _StatusChip(
+                      label: 'Reagendada', color: AppColors.primary),
+                  const SizedBox(width: Spacing.xs),
+                ],
                 _StatusChip(label: statusLabel, color: statusColor),
               ],
             ),
@@ -365,8 +386,15 @@ class _AppointmentCard extends StatelessWidget {
                 _MetaRow(icon: Icons.person_outline, text: a.staffName!),
               _MetaRow(
                 icon: Icons.euro,
-                text: a.servicePriceLabel,
+                text: _paymentLabel(a),
               ),
+              // BLOCO E (2026-07-28) — o cliente reagendou: o barbeiro tem de
+              // ver que este horário mudou e qual era o original.
+              if (a.wasRescheduled && a.originalScheduledAt != null)
+                _MetaRow(
+                  icon: Icons.event_repeat,
+                  text: 'Reagendada · era ${_dateTimeLabel(a.originalScheduledAt!)}',
+                ),
             ],
             if (showActions) ...[
               const Divider(height: Spacing.xl, color: AppColors.divider),

@@ -17,6 +17,7 @@ import 'partner_appointments_finance_screen.dart';
 import 'partner_block_slot_screen.dart';
 import 'partner_manage_services_screen.dart';
 import 'partner_manage_staff_screen.dart';
+import 'partner_service_hours_screen.dart';
 
 /// Hub central do painel de marcações (vertical Serviços / Barbearias).
 ///
@@ -125,6 +126,15 @@ class _PartnerServicesHubScreenState extends State<PartnerServicesHubScreen> {
                 title: 'Adicionar marcação',
                 subtitle: 'Cliente sem marcação prévia',
                 onTap: () => _push(context, const PartnerAddWalkInScreen()),
+              ),
+              // BLOCO C (2026-07-28) — o parceiro passa a editar o próprio
+              // horário (abertura/fecho/pausa/dias fechados).
+              _Tile(
+                icon: Icons.schedule,
+                title: 'Horário de atendimento',
+                subtitle: 'Abertura, fecho, pausa e dias fechados',
+                onTap: () =>
+                    _push(context, const PartnerServiceHoursScreen()),
               ),
               _Tile(
                 icon: Icons.block,

@@ -40,12 +40,17 @@ class AppointmentModel {
     this.clientNotes,
     this.partnerNotes,
     this.isWalkIn = false,
+    this.rescheduleCount = 0,
+    this.originalScheduledAt,
+    this.lastRescheduledAt,
     DateTime? createdAt,
     // JOIN extras opcionais (populados quando fetch faz JOIN).
     this.providerName,
     this.serviceName,
     this.staffName,
     this.providerPhotoUrl,
+    this.providerCancellationPolicy,
+    this.providerPaymentMode,
   }) : createdAt = createdAt ?? DateTime.now();
 
   final String id;
@@ -78,6 +83,16 @@ class AppointmentModel {
   final String? clientNotes;
   final String? partnerNotes;
   final bool isWalkIn;
+
+  /// BLOCO E (2026-07-28) — reagendamento. A marcação é sempre a MESMA linha
+  /// (mesmo `deposit_pi`): reagendar nunca cobra nem reembolsa.
+  final int rescheduleCount;
+  final DateTime? originalScheduledAt;
+  final DateTime? lastRescheduledAt;
+
+  /// Foi reagendada pelo menos uma vez (mostra etiqueta na agenda).
+  bool get wasRescheduled => rescheduleCount > 0;
+
   final DateTime createdAt;
 
   // JOIN extras (não no schema appointments).
@@ -85,6 +100,20 @@ class AppointmentModel {
   final String? serviceName;
   final String? staffName;
   final String? providerPhotoUrl;
+
+  /// JOIN extras do parceiro (BLOCO B/E, 2026-07-28) — vêm do
+  /// `select('*, service_providers(...)')`. Decidem o que o ecrã do cliente
+  /// mostra: cancelar vs reagendar, e sinal vs valor total.
+  final String? providerCancellationPolicy;
+  final String? providerPaymentMode;
+
+  /// O parceiro só aceita reagendamento (não cancelamento) — e esta marcação
+  /// já está paga, portanto o dinheiro está preso a ela.
+  bool get isRescheduleOnly =>
+      providerCancellationPolicy == 'reschedule_only' && depositStatus == 'paid';
+
+  /// O parceiro cobra o preço cheio do serviço na marcação.
+  bool get isFullPaymentMode => providerPaymentMode == 'full';
 
   /// Preço total do serviço formatado: '€18,00'.
   String get servicePriceLabel =>
@@ -97,11 +126,15 @@ class AppointmentModel {
     // provider_services(...), staff_members(...)')).
     String? providerName;
     String? providerPhotoUrl;
+    String? providerCancellationPolicy;
+    String? providerPaymentMode;
     final p = row['service_providers'];
     if (p is Map) {
       providerName = p['name'] as String?;
       providerPhotoUrl =
           (p['photo_url'] as String?) ?? (p['hero_image_url'] as String?);
+      providerCancellationPolicy = p['booking_cancellation_policy'] as String?;
+      providerPaymentMode = p['booking_payment_mode'] as String?;
     }
     String? serviceName;
     final s = row['provider_services'];
@@ -136,11 +169,16 @@ class AppointmentModel {
       clientNotes: row['client_notes'] as String?,
       partnerNotes: row['partner_notes'] as String?,
       isWalkIn: (row['is_walk_in'] as bool?) ?? false,
+      rescheduleCount: (row['reschedule_count'] as int?) ?? 0,
+      originalScheduledAt: parseTs(row['original_scheduled_at']),
+      lastRescheduledAt: parseTs(row['last_rescheduled_at']),
       createdAt: parseTs(row['created_at']) ?? DateTime.now(),
       providerName: providerName,
       providerPhotoUrl: providerPhotoUrl,
       serviceName: serviceName,
       staffName: staffName,
+      providerCancellationPolicy: providerCancellationPolicy,
+      providerPaymentMode: providerPaymentMode,
     );
   }
 
@@ -166,6 +204,8 @@ class AppointmentModel {
     String? providerPhotoUrl,
     String? serviceName,
     String? staffName,
+    String? providerCancellationPolicy,
+    String? providerPaymentMode,
   }) =>
       AppointmentModel(
         id: id,
@@ -193,11 +233,17 @@ class AppointmentModel {
         clientNotes: clientNotes,
         partnerNotes: partnerNotes,
         isWalkIn: isWalkIn,
+        rescheduleCount: rescheduleCount,
+        originalScheduledAt: originalScheduledAt,
+        lastRescheduledAt: lastRescheduledAt,
         createdAt: createdAt,
         providerName: providerName ?? this.providerName,
         providerPhotoUrl: providerPhotoUrl ?? this.providerPhotoUrl,
         serviceName: serviceName ?? this.serviceName,
         staffName: staffName ?? this.staffName,
+        providerCancellationPolicy:
+            providerCancellationPolicy ?? this.providerCancellationPolicy,
+        providerPaymentMode: providerPaymentMode ?? this.providerPaymentMode,
       );
 
   // ─── Helpers de estado (consumidos por screens cliente) ───────────────────

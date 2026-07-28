@@ -12,6 +12,16 @@ import '../models/service_provider_model.dart';
 import '../models/staff_member_model.dart';
 import '../services/payment_service.dart';
 
+/// BLOCO E (2026-07-28) — o parceiro está em `reschedule_only` e a marcação já
+/// está paga: cancelar não é opção, reagendar é. O ecrã apanha este tipo para
+/// oferecer o botão "Reagendar" em vez de só mostrar um erro.
+class RescheduleOnlyException implements Exception {
+  const RescheduleOnlyException();
+  @override
+  String toString() =>
+      'Esta marcação não pode ser cancelada, mas podes reagendá-la.';
+}
+
 /// Resultado do fluxo `bookAndPay` — informa o ecrã de sucesso/erro.
 class BookingResult {
   BookingResult({
@@ -105,7 +115,7 @@ class ServicesStore extends ChangeNotifier {
       debugPrint(
           '[SERVICOS] fetchProviders raw=${rows.length} parsed=${parsed.length}');
     } on PostgrestException catch (e) {
-      _providersError = _mapErrorPtPt(e.code ?? e.message);
+      _providersError = _mapErrorPtPt('${e.code} ${e.message}');
       debugPrint('[ServicesStore] fetchProviders Postgrest: ${e.code} ${e.message}');
     } catch (e) {
       _providersError = 'Não foi possível carregar os serviços. Tenta de novo.';
@@ -185,6 +195,21 @@ class ServicesStore extends ChangeNotifier {
     } catch (e) {
       debugPrint('[ServicesStore] fetchMaxAdvanceDays: $e');
       return 365;
+    }
+  }
+
+  /// Nº máximo de reagendamentos por marcação
+  /// (`platform_settings.appointment_reschedule_max_count`). Fallback 2.
+  Future<int> fetchRescheduleMaxCount() async {
+    try {
+      final res = await _supabase.rpc('get_setting',
+          params: {'p_key': 'appointment_reschedule_max_count'});
+      final n = res == null ? null : int.tryParse(res.toString());
+      if (n == null || n < 0) return 2;
+      return n;
+    } catch (e) {
+      debugPrint('[ServicesStore] fetchRescheduleMaxCount: $e');
+      return 2;
     }
   }
 
@@ -278,7 +303,7 @@ class ServicesStore extends ChangeNotifier {
       return out;
     } on PostgrestException catch (e) {
       debugPrint('[ServicesStore] getAvailableSlots Postgrest: ${e.code} ${e.message}');
-      throw Exception(_mapErrorPtPt(e.code ?? e.message));
+      throw Exception(_mapErrorPtPt('${e.code} ${e.message}'));
     } catch (e) {
       debugPrint('[ServicesStore] getAvailableSlots error: $e');
       throw Exception('Erro ao procurar horários. Tenta de novo.');
@@ -331,7 +356,7 @@ class ServicesStore extends ChangeNotifier {
       debugPrint('[ServicesStore] bookMbway Postgrest: ${e.code} ${e.message}');
       return BookingResult(
         success: false,
-        errorMessage: _mapErrorPtPt(e.code ?? e.message),
+        errorMessage: _mapErrorPtPt('${e.code} ${e.message}'),
       );
     } catch (e) {
       debugPrint('[ServicesStore] bookMbway error: $e');
@@ -462,7 +487,7 @@ class ServicesStore extends ChangeNotifier {
       debugPrint('[ServicesStore] bookAndPay Postgrest: ${e.code} ${e.message}');
       return BookingResult(
         success: false,
-        errorMessage: _mapErrorPtPt(e.code ?? e.message),
+        errorMessage: _mapErrorPtPt('${e.code} ${e.message}'),
       );
     } catch (e) {
       debugPrint('[ServicesStore] bookAndPay error: $e');
@@ -487,10 +512,50 @@ class ServicesStore extends ChangeNotifier {
       return (map['will_refund'] as bool?) ?? false;
     } on PostgrestException catch (e) {
       debugPrint('[ServicesStore] cancelAppointment Postgrest: ${e.code} ${e.message}');
-      throw Exception(_mapErrorPtPt(e.code ?? e.message));
+      // BLOCO E: política reschedule_only + sinal já pago → o ecrã oferece
+      // reagendar em vez de mostrar um erro seco.
+      if ('${e.code} ${e.message}'
+          .contains('cancellation_not_allowed_reschedule_only')) {
+        throw const RescheduleOnlyException();
+      }
+      throw Exception(_mapErrorPtPt('${e.code} ${e.message}'));
     } catch (e) {
       debugPrint('[ServicesStore] cancelAppointment error: $e');
       throw Exception('Não foi possível cancelar a marcação. Tenta de novo.');
+    }
+  }
+
+  /// BLOCO E (2026-07-28) — REAGENDAR em vez de cancelar.
+  ///
+  /// É a MESMA linha de `appointments` (mesmo `deposit_pi`): a RPC muda só o
+  /// `scheduled_at`. **Nunca** cria marcação nova, **nunca** chama
+  /// `create-appointment-payment-intent`, **nunca** toca no Stripe — não há
+  /// cobrança nem reembolso no reagendamento.
+  ///
+  /// Devolve o mapa da RPC (`scheduled_at`, `reschedule_count`,
+  /// `reschedules_left`). Lança `Exception` com a mensagem PT-PT já traduzida.
+  Future<Map<String, dynamic>> rescheduleAppointment({
+    required String appointmentId,
+    required DateTime newScheduledAt,
+    String? staffId,
+  }) async {
+    try {
+      final result = await _supabase.rpc('client_reschedule_appointment',
+          params: {
+            'p_appointment_id': appointmentId,
+            'p_new_scheduled_at': newScheduledAt.toUtc().toIso8601String(),
+            'p_staff_id': staffId,
+          });
+      final map = Map<String, dynamic>.from(result as Map);
+      await fetchMyAppointments();
+      return map;
+    } on PostgrestException catch (e) {
+      debugPrint(
+          '[ServicesStore] rescheduleAppointment Postgrest: ${e.code} ${e.message}');
+      throw Exception(_mapErrorPtPt('${e.code} ${e.message}'));
+    } catch (e) {
+      debugPrint('[ServicesStore] rescheduleAppointment error: $e');
+      throw Exception('Não foi possível reagendar. Tenta de novo.');
     }
   }
 
@@ -514,7 +579,11 @@ class ServicesStore extends ChangeNotifier {
       final response = await _supabase
           .from('appointments')
           .select(
-            '*, service_providers(id, name, photo_url, hero_image_url), '
+            // BLOCO B/E (2026-07-28): a política de cancelamento e o modo de
+            // pagamento do parceiro vêm no JOIN — é o que decide se o cliente
+            // vê "Cancelar" ou "Reagendar", e se pagou sinal ou valor total.
+            '*, service_providers(id, name, photo_url, hero_image_url, '
+            'booking_cancellation_policy, booking_payment_mode), '
             'provider_services(id, name), staff_members(id, name)',
           )
           // Só as marcações em que o utilizador é o CLIENTE (não as do seu
@@ -531,7 +600,7 @@ class ServicesStore extends ChangeNotifier {
         return a;
       }).toList();
     } on PostgrestException catch (e) {
-      _appointmentsError = _mapErrorPtPt(e.code ?? e.message);
+      _appointmentsError = _mapErrorPtPt('${e.code} ${e.message}');
       debugPrint('[ServicesStore] fetchMyAppointments Postgrest: ${e.code} ${e.message}');
     } catch (e) {
       _appointmentsError = 'Não foi possível carregar as marcações. Tenta de novo.';
@@ -573,6 +642,8 @@ class ServicesStore extends ChangeNotifier {
             providerPhotoUrl: cached.providerPhotoUrl,
             serviceName: cached.serviceName,
             staffName: cached.staffName,
+            providerCancellationPolicy: cached.providerCancellationPolicy,
+            providerPaymentMode: cached.providerPaymentMode,
           );
         }
         return fresh;
@@ -602,23 +673,50 @@ class ServicesStore extends ChangeNotifier {
       '${d.month.toString().padLeft(2, '0')}-'
       '${d.day.toString().padLeft(2, '0')}';
 
-  String _mapErrorPtPt(String code) {
+  /// Traduz um erro do servidor para PT-PT.
+  ///
+  /// BUG corrigido em 2026-07-28: as RPCs sinalizam com
+  /// `RAISE EXCEPTION 'slot_taken'`, e o PostgREST devolve isso em
+  /// `message` com `code = 'P0001'`. Como só se procurava por chave exacta
+  /// (e as chamadas passavam `e.code ?? e.message`), TODAS estas mensagens
+  /// caíam no genérico "Ocorreu um erro". Agora procura-se também por
+  /// ocorrência dentro do texto.
+  String _mapErrorPtPt(String raw) {
     const mapping = <String, String>{
       'auth_required': 'Sessão expirada. Volta a entrar.',
       'provider_not_found': 'Prestador não encontrado.',
       'service_not_found': 'Serviço não encontrado.',
       'staff_not_found': 'Profissional não encontrado.',
       'slot_taken': 'Esse horário já foi reservado. Escolhe outro.',
-      'slot_unavailable': 'Horário indisponível. Escolhe outro.',
+      'slot_unavailable': 'Esse horário já não está disponível. Escolhe outro.',
+      'slot_in_past': 'Data inválida (no passado).',
+      'new_slot_in_past': 'Data inválida (no passado).',
       'date_in_past': 'Data inválida (no passado).',
       'date_too_far': 'Data muito distante. Tenta uma data mais próxima.',
+      'too_far_in_advance':
+          'Data muito distante. Tenta uma data mais próxima.',
       'appointment_not_found': 'Marcação não encontrada.',
       'not_your_appointment': 'Esta marcação não é tua.',
       'already_cancelled': 'Esta marcação já foi cancelada.',
       'cannot_cancel': 'Não é possível cancelar esta marcação.',
       'client_blocked': 'Não podes marcar neste prestador.',
+      // BLOCO E (2026-07-28) — reagendamento.
+      'reschedule_window_closed':
+          'Já não é possível reagendar. Faltam menos de 3 horas para a tua marcação.',
+      'reschedule_limit_reached':
+          'Já reagendaste esta marcação o número máximo de vezes.',
+      'reschedule_too_far': 'Escolhe uma data mais próxima.',
+      'cannot_reschedule_status':
+          'Esta marcação já não pode ser reagendada.',
+      'cancellation_not_allowed_reschedule_only':
+          'Esta marcação não pode ser cancelada, mas podes reagendá-la.',
     };
-    if (mapping.containsKey(code)) return mapping[code]!;
+    final hit = mapping[raw];
+    if (hit != null) return hit;
+    for (final entry in mapping.entries) {
+      if (raw.contains(entry.key)) return entry.value;
+    }
     return 'Ocorreu um erro. Tenta de novo.';
   }
+
 }

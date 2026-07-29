@@ -23,6 +23,7 @@ import '../../../services/permission_gate_service.dart';
 import '../../../stores/driver_store.dart';
 import '../../../stores/order_store.dart';
 import '../../../stores/tvde_driver_store.dart';
+import '../../../widgets/background_location_disclosure.dart';
 import '../../../widgets/bora_support_sheet.dart';
 import '../../driver_home_screen.dart';
 import 'tvde_driver_earnings_screen.dart';
@@ -346,6 +347,12 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
   Future<void> _toggleOnline(bool value) async {
     final driverStore = context.read<DriverStore>();
     final id = driverStore.currentDriverId;
+    // Declaração em destaque (Google Play) de LOCALIZAÇÃO EM SEGUNDO PLANO —
+    // antes de ficar Online (o GPS transmite enquanto Online + app minimizada).
+    if (value && !await BackgroundLocationDisclosure.ensureAccepted(context)) {
+      return; // Recusou — não fica Online.
+    }
+    if (!mounted) return;
     final ok = driverStore.toggleAvailability(id, value);
     if (!ok) {
       if (mounted) {

@@ -13,6 +13,7 @@ import 'package:supabase_flutter/supabase_flutter.dart' show Supabase;
 
 import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
+import '../widgets/background_location_disclosure.dart';
 import '../widgets/bora_support_fab.dart';
 import '../widgets/cancel_blocked_pickup_sheet.dart';
 import '../widgets/payments/collect_badge.dart';
@@ -238,6 +239,12 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       unawaited(NotificationService.instance.closeOverlayIfActive());
       return;
     }
+    // Declaração em destaque (Google Play) de LOCALIZAÇÃO EM SEGUNDO PLANO —
+    // obrigatória ANTES de qualquer acesso à localização em background (o stream
+    // de GPS continua enquanto Online + app minimizada). Recusar = não fica
+    // Online; o switch reflecte o estado da store (currentDriver.isOnline).
+    if (!await BackgroundLocationDisclosure.ensureAccepted(context)) return;
+    if (!mounted) return;
     // Going ONLINE: gate MÍNIMO estilo Uber/Glovo — NUNCA bloqueia em
     // telemóveis fracos / Android antigo. Só garante notificações (best-effort
     // para a notificação persistente do FGS); overlay / ecrã-inteiro / bateria

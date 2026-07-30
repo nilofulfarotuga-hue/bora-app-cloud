@@ -166,19 +166,23 @@ jobs:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=512m"
         run: flutter build appbundle --release --dart-define-from-file=.dart_defines --no-tree-shake-icons
 
-      # 11. Upload para Google Play — Teste FECHADO (track 'alpha').
-      #     É o track ligado ao grupo bora-app-testers@googlegroups.com (os 12
-      #     testadores do requisito 12×14 dias). Estava parado na build 370
-      #     (promovida à mão) — agora o CI publica aqui automaticamente.
+      # 11. Upload para Google Play — Teste FECHADO ('alpha') + Teste INTERNO ('internal').
+      #     'alpha' e' o track ligado ao grupo bora-app-testers@googlegroups.com (os 12
+      #     testadores do requisito 12×14 dias).
+      #     'internal' foi RE-ADICIONADO a 2026-07-30: com changesNotSentForReview=true
+      #     (ver nota abaixo) o alpha fica "por enviar para revisao" e a Google NAO o
+      #     distribui -> o build nao chega ao telemovel. O Teste Interno NAO passa por
+      #     revisao, por isso e' o unico caminho que entrega enquanto houver uma
+      #     rejeicao de producao pendente. 'tracks' (plural, separado por virgula)
+      #     faz UM upload atribuido aos dois tracks; 'track' singular esta deprecated.
       #     status: completed = rollout 100% (senão os testadores não recebem).
-      #     Deixou de publicar no 'internal' (o Danilo também é tester do fechado).
-      - name: Upload to Google Play (Closed Testing — alpha)
+      - name: Upload to Google Play (alpha + internal)
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: pt.boraapp.bora
           releaseFiles: build/app/outputs/bundle/release/app-release.aab
-          track: alpha
+          tracks: alpha,internal
           status: completed
           # Quando a app tem um lançamento rejeitado/pendente (ex.: produção recusada
           # pela politica de fotos), a API do Google recusa o envio-para-revisao

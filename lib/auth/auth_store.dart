@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../config/auth_links.dart';
 import '../models/driver_model.dart';
 import '../models/restaurant_model.dart';
 import '../services/biometric_auth_service.dart';
@@ -13,6 +14,24 @@ import '../services/secure_credentials_store.dart';
 import '../utils/constants.dart';
 
 enum AuthRole { client, driver, partner }
+
+/// Desfecho de um pedido de email de recuperação de palavra-passe.
+///
+/// [ok] NÃO significa "a conta existe" — o Supabase responde 200 mesmo para
+/// emails desconhecidos, de propósito, para não revelar quem tem conta.
+enum PasswordResetOutcome {
+  /// Pedido aceite pelo servidor. Mostrar sempre a mesma frase neutra.
+  ok,
+
+  /// 429 — o utilizador pediu outra vez cedo demais.
+  rateLimited,
+
+  /// O servidor aceitou o pedido mas falhou a enviar o email (SMTP).
+  emailNotSent,
+
+  /// Falha genérica (rede, servidor em baixo).
+  failed,
+}
 
 class ClientAccount {
   const ClientAccount({
@@ -950,31 +969,46 @@ class AuthStore extends ChangeNotifier {
     }
   }
 
-  /// Deep link para onde o Supabase reencaminha depois do clique no email de
-  /// recuperação. Tem de bater certo com o intent-filter do AndroidManifest
-  /// e estar na allow-list "Redirect URLs" do Supabase Auth (dashboard).
-  static const String _passwordResetRedirect = 'pt.boraapp.bora://reset-password';
+  /// Página para onde o Supabase reencaminha depois do clique no email de
+  /// recuperação. Fonte única em `lib/config/auth_links.dart` — tem de estar
+  /// na allow-list "Redirect URLs" do Supabase Auth (dashboard).
+  static const String _passwordResetRedirect = passwordResetRedirect;
 
-  Future<void> resetDriverPassword(String email) async {
+  Future<PasswordResetOutcome> resetDriverPassword(String email) =>
+      resetPassword(email);
+
+  /// Pede o email de recuperação. Serve os três papéis (cliente, estafeta,
+  /// parceiro) — do lado do Supabase é sempre a mesma operação `/recover`.
+  ///
+  /// Devolve o desfecho em vez de o engolir: o ecrã precisa de distinguir
+  /// "pedimos demasiadas vezes seguidas" de "o servidor de email está em
+  /// baixo", senão o utilizador fica à espera de um email que nunca chega
+  /// sem perceber porquê. Nunca revela se a conta existe — isso é decidido
+  /// pelo ecrã, que mostra sempre a mesma frase em [PasswordResetOutcome.ok].
+  Future<PasswordResetOutcome> resetPassword(String email) async {
     try {
       await _supabase.auth.resetPasswordForEmail(
         email.trim().toLowerCase(),
         redirectTo: _passwordResetRedirect,
       );
-    } catch (e) {
-      debugPrint('AuthStore: resetDriverPassword error => $e');
-    }
-  }
-
-  /// Generic password-reset email — works for any role (partner + driver).
-  Future<void> resetPassword(String email) async {
-    try {
-      await _supabase.auth.resetPasswordForEmail(
-        email.trim().toLowerCase(),
-        redirectTo: _passwordResetRedirect,
-      );
+      return PasswordResetOutcome.ok;
+    } on AuthException catch (e) {
+      debugPrint('AuthStore: resetPassword AuthException => ${e.statusCode} ${e.message}');
+      // 429 = demasiados pedidos seguidos (limite do Supabase Auth).
+      if (e.statusCode == '429' ||
+          e.message.toLowerCase().contains('rate limit') ||
+          e.message.toLowerCase().contains('security purposes')) {
+        return PasswordResetOutcome.rateLimited;
+      }
+      // 500 + "error sending" = SMTP mal configurado no dashboard. Para o
+      // utilizador é indistinguível de avaria — mas o log diz a verdade.
+      if (e.message.toLowerCase().contains('sending')) {
+        return PasswordResetOutcome.emailNotSent;
+      }
+      return PasswordResetOutcome.failed;
     } catch (e) {
       debugPrint('AuthStore: resetPassword error => $e');
+      return PasswordResetOutcome.failed;
     }
   }
 

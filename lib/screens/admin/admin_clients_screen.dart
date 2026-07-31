@@ -9,6 +9,7 @@ import '../../config/app_spacing.dart';
 import '../../services/admin_export_service.dart';
 import '../../widgets/admin/admin_user_roles_sheet.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
+import '_admin_password_reset_dialog.dart';
 
 class AdminClientsScreen extends StatefulWidget {
   const AdminClientsScreen({super.key});
@@ -680,6 +681,14 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
                                               .toString(),
                                     );
                                   }
+                                  if (action == 'reset_password') {
+                                    showAdminPasswordResetDialog(
+                                      context,
+                                      userId: c['user_id'] as String,
+                                      email: (c['email'] ?? '').toString(),
+                                      displayName: (c['name'] ?? '').toString(),
+                                    );
+                                  }
                                   if (action == 'ban') _ban(c);
                                   if (action == 'unban') _unban(c);
                                   if (action == 'block') _block(c);
@@ -690,6 +699,10 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
                                   const PopupMenuItem(
                                       value: 'roles',
                                       child: Text('Papéis do usuário')),
+                                  if ((c['email'] ?? '').toString().isNotEmpty)
+                                    const PopupMenuItem(
+                                        value: 'reset_password',
+                                        child: Text('Enviar link de redefinição de senha')),
                                   if (!banned)
                                     const PopupMenuItem(value: 'ban', child: Text('Banir da app')),
                                   if (banned)

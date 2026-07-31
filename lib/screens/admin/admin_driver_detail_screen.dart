@@ -5,6 +5,7 @@ import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../services/admin/admin_driver_service.dart';
 import '../../widgets/private_bucket_image.dart';
+import '_admin_password_reset_dialog.dart';
 
 /// Full-screen admin detail for an approved driver. Pushed from
 /// `admin_drivers_screen` and from the "Aprovados" tab of
@@ -283,6 +284,19 @@ class _OverviewTab extends StatelessWidget {
             color: AppColors.warning,
             onTap: () => onAction(_runForceLogout),
           ),
+          // drivers.id É o auth.users.id (confirmado em prod) — dá para pedir
+          // o reset direto, sem lookup extra.
+          if ((driver['email'] as String?)?.isNotEmpty ?? false)
+            _ActionButton(
+              icon: Icons.lock_reset,
+              label: 'Enviar link de redefinição de senha',
+              onTap: () => showAdminPasswordResetDialog(
+                context,
+                userId: driver['id'].toString(),
+                email: driver['email'].toString(),
+                displayName: (driver['name'] ?? '').toString(),
+              ),
+            ),
           _ActionButton(
             icon: Icons.delete_forever,
             label: 'Remover (soft delete)',

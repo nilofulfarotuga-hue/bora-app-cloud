@@ -23,6 +23,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
+import '../config/auth_links.dart';
 
 /// A conta já existia e o utilizador autenticou-se com sucesso?
 enum ExistingAccountOutcome {
@@ -99,7 +100,7 @@ Future<ExistingAccountOutcome> promptSignInToAddProfile({
                           await Supabase.instance.client.auth
                               .resetPasswordForEmail(
                             email,
-                            redirectTo: 'pt.boraapp.bora://reset-password',
+                            redirectTo: passwordResetRedirect,
                           );
                         } catch (_) {
                           // Silencioso de propósito: não confirmar nem

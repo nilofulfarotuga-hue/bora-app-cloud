@@ -14,6 +14,7 @@ import '../stores/session_store.dart';
 import '../widgets/biometric_enrollment_dialog.dart';
 import '../widgets/bora/bora_mascot.dart';
 import '../widgets/bora/bora_primary_button.dart';
+import 'forgot_password_screen.dart';
 import 'register_client_screen.dart';
 
 class ClientLoginScreen extends StatefulWidget {
@@ -297,7 +298,7 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
                 Center(
                   child: TextButton(
                     onPressed: _isProcessing ? null : _forgotPassword,
-                    child: const Text('Esqueceu a palavra-passe?'),
+                    child: const Text('Esqueci-me da palavra-passe'),
                   ),
                 ),
                 const SizedBox(height: Spacing.xs),
@@ -339,26 +340,11 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
     sessionStore.clearRole();
   }
 
-  Future<void> _forgotPassword() async {
-    final email = _emailController.text.trim();
-    if (email.isEmpty || !email.contains('@')) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Introduza o seu email no campo acima antes de continuar.'),
-        ),
-      );
-      return;
-    }
-
-    setState(() => _isProcessing = true);
-    await context.read<AuthStore>().resetDriverPassword(email);
-    if (!mounted) return;
-    setState(() => _isProcessing = false);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-            'Se existir uma conta com $email, receberá um email para redefinir a palavra-passe.'),
+  void _forgotPassword() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) =>
+            ForgotPasswordScreen(initialEmail: _emailController.text.trim()),
       ),
     );
   }

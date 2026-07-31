@@ -1,6 +1,12 @@
 // @ts-nocheck
 // supabase/functions/notify-admin-urgent/index.ts
 //
+// v15 (2026-07-31) — DATA-ONLY: removido o bloco `notification` do payload FCM.
+// Com ele, o Android desenhava a notificação pelo tray e o handler Flutter não
+// corria → notificação efémera (sumia sozinha) e nada visível em foreground.
+// Agora title/body viajam em `data` e é o Dart que posta a notificação local
+// persistente (ongoing:true) no canal `bora_admin_urgent`. Ver sendFcmV1().
+//
 // v13 (2026-07-31) — PONTE TELEGRAM: além do push FCM, envia o mesmo aviso
 // para o Telegram do Danilo (sendMessage). Best-effort: envolvido em try/catch,
 // nunca parte o push nem a transação de origem. Credenciais no vault do
@@ -321,29 +327,41 @@ async function sendFcmV1(
   data: Record<string, string>,
   sticky = false, // PARTE A (2026-07-17): admin generic → notificação persistente
 ): Promise<{ ok: boolean; stale: boolean; status: number; body: any }> {
+  // v15 (2026-07-31) — DATA-ONLY. Com bloco `notification`, o Android desenhava
+  // a notificação pelo tray do sistema e o handler Flutter
+  // (_firebaseMessagingBackgroundHandler) NÃO corria — resultado: notificação
+  // efémera que sumia sozinha, sem persistência, e nada visível com a app em
+  // foreground. Mesma causa raiz já corrigida no notify-service-provider v3 e
+  // alinhada com o padrão do notify-partner.
+  //
+  // Sem `notification`, o handler Dart corre SEMPRE (background, app fechada e
+  // foreground) e posta uma notificação local com ongoing:true/autoCancel:false
+  // no canal `bora_admin_urgent` (Importance.max) — fica no ecrã até o admin
+  // agir. `title`/`body` viajam dentro de `data` porque data-only não tem
+  // bloco de notificação de onde os ler.
   const message = {
     message: {
       token: fcmToken,
-      notification: {
-        title,
-        body: bodyText,
+      data: {
+        ...data,
+        title: title,
+        body:  bodyText,
+        // Consumido pelo handler Dart; mantém a semântica do antigo `sticky`.
+        persistent: sticky ? 'true' : 'false',
       },
-      data,
       android: {
         priority: 'high',
-        notification: {
-          channel_id: 'bora_admin_urgent',
-          sound:      'default',
-          // sticky=true → não se apaga ao tocar; fica no ecrã até o admin agir.
-          ...(sticky ? { sticky: true, notification_priority: 'PRIORITY_MAX' } : {}),
-        },
+        // Sem `notification` aqui: é o Dart que desenha, com persistência real.
       },
       apns: {
-        headers: { 'apns-priority': '10' },
+        headers: {
+          'apns-priority':  '10',
+          'apns-push-type': 'background',
+        },
         payload: {
           aps: {
-            sound:               'default',
-            badge:               1,
+            // data-only no iOS: acorda a app; o alerta visível é desenhado
+            // pelo lado Dart, igual ao Android.
             'content-available': 1,
           },
         },

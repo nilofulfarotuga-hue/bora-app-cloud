@@ -170,6 +170,41 @@ Future<void> _setupForegroundAndUrgentChannel() async {
     );
     await androidLocalPlugin?.createNotificationChannel(adminUrgentChannel);
 
+    // 1c) [Auditoria notificações 2026-07-31] Dois canais eram referenciados
+    //     por Edge Functions mas NUNCA criados no arranque:
+    //       • 'bora_orders'         — notify-client, notify-tvde-client,
+    //                                 notify-purchase-finalized, notify-cleaner.
+    //         Só nascia on-demand dentro de _showPersistentStatusNotification,
+    //         ou seja: numa instalação nova ainda não existia quando o primeiro
+    //         push chegava.
+    //       • 'bora_partner_ratings' — notify-partner-low-rating. Não existia
+    //         em lado nenhum (nem Dart nem Kotlin).
+    //     Sem o canal, o push só aparecia por causa do fallback do Manifest
+    //     (default_notification_channel_id = bora_orders_urgent_v3), o que
+    //     dava a estas notificações o som/insistência do canal de OFERTAS.
+    //     Criá-los aqui é idempotente e devolve-lhes o comportamento certo.
+    const ordersChannel = AndroidNotificationChannel(
+      'bora_orders',
+      'Bora — Notificações',
+      description: 'Estado das encomendas e avisos do Bora App.',
+      importance: Importance.high,
+      playSound: true,
+      enableVibration: true,
+      showBadge: true,
+    );
+    await androidLocalPlugin?.createNotificationChannel(ordersChannel);
+
+    const partnerRatingsChannel = AndroidNotificationChannel(
+      'bora_partner_ratings',
+      'Bora — Avaliações',
+      description: 'Avisos de avaliações baixas recebidas pelo parceiro.',
+      importance: Importance.high,
+      playSound: true,
+      enableVibration: true,
+      showBadge: true,
+    );
+    await androidLocalPlugin?.createNotificationChannel(partnerRatingsChannel);
+
     // 2) Init flutter_foreground_task — regista também o canal LOW
     //    'bora_service' para a notificação persistente.
     await BoraForegroundService.init();
@@ -533,8 +568,24 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           // não renomear. Cai directo no registo de cliente (quem lê o cartaz
           // é cliente); com sessão activa, redirecciona para a home.
           QrClientSignupScreen.routeName: (_) => const QrClientSignupScreen(),
+          // Recuperação de palavra-passe — destino do `redirectTo` do email.
+          // URL CANÓNICA: https://bora-app-web.pages.dev/#/redefinir-palavra-passe
+          // (fonte única em lib/config/auth_links.dart). Não renomear: está
+          // gravada nas Redirect URLs do Supabase e nos emails já enviados.
+          ResetPasswordScreen.routeName: (_) => const ResetPasswordScreen(),
         },
         onGenerateRoute: (settings) {
+          // O Supabase acrescenta o token DEPOIS do fragmento que já vem no
+          // redirectTo, pelo que a rota chega suja
+          // (`/redefinir-palavra-passe#access_token=…` ou `…?code=…`).
+          // O ecrã lê o token de `Uri.base` — aqui só é preciso reconhecê-la.
+          final name = settings.name ?? '';
+          if (name.startsWith(ResetPasswordScreen.routeName)) {
+            return MaterialPageRoute<void>(
+              builder: (_) => const ResetPasswordScreen(),
+              settings: settings,
+            );
+          }
           // §44 — deep link da push low_rating: /partner/ratings precisa
           // restaurant_id + restaurant_name nos arguments.
           if (settings.name == '/partner/ratings' ||

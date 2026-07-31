@@ -184,11 +184,31 @@ jobs:
       #        The query parameter changesNotSentForReview must not be set."
       #     Ou seja: o que antes era o fix passou a ser a causa. Nao voltar a por
       #     esta flag sem confirmar primeiro que ha mesmo uma rejeicao pendente.
-      - name: Upload to Google Play (alpha + internal)
+      #     PRODUCAO (2026-07-31, decisao explicita do Danilo): a app esta
+      #     aprovada e publicada, e as atualizacoes passam a chegar a TODOS os
+      #     utilizadores reais, nao so aos testadores. 'internal' fica em
+      #     primeiro lugar na lista porque e por ai que o telemovel dele recebe
+      #     o build mais depressa (entrega sem revisao).
+      #
+      #     ROLLOUT FASEADO — NAO aplicado, e a razao e mecanica:
+      #     r0adkll/upload-google-play@v1 aplica UM unico 'status'/'userFraction'
+      #     a TODOS os tracks do mesmo step. Por 'status: inProgress' +
+      #     'userFraction: 0.1' travaria tambem 'internal' e 'alpha' a 10% — ou
+      #     seja, o telemovel do Danilo e os 12 testadores deixariam de receber
+      #     de forma fiavel, que e exatamente o oposto do pedido. Separar em dois
+      #     steps tambem nao serve: o segundo upload do MESMO versionCode e
+      #     rejeitado pela API ("APK/AAB already exists").
+      #     Para ter faseado a serio e preciso um step extra que fale direto com
+      #     a Play Developer API para atribuir o versionCode ja carregado ao
+      #     track de producao com userFraction. Fica registado como proximo passo.
+      #
+      #     status: completed (NUNCA 'draft' — draft fica parado na consola a
+      #     espera de um clique manual do Danilo).
+      - name: Upload to Google Play (internal + alpha + production)
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: pt.boraapp.bora
           releaseFiles: build/app/outputs/bundle/release/app-release.aab
-          tracks: alpha,internal
+          tracks: internal,alpha,production
           status: completed

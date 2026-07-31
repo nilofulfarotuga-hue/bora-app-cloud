@@ -847,14 +847,22 @@ Future<void> _showPersistentCategoryNotification(RemoteMessage message) async {
       return;
     case 'admin_generic':
     case 'crosstalk_critical':
+      // [Admin push 2026-07-31] notify-admin-urgent v15 passou a DATA-ONLY.
+      // Com bloco `notification`, o Android desenhava a notif efémera pelo
+      // tray e o handler Flutter não corria — a notificação sumia sozinha
+      // (mesma causa raiz já apanhada no notify-service-provider v3).
+      // `title`/`body` vêm agora dentro de `data`; `notif?.*` fica como
+      // fallback defensivo para versões antigas da Edge Function.
       final ref =
           data['ref']?.toString() ?? data['crosstalk_id']?.toString() ?? '';
       await _showPersistentStatusNotification(
         type: type,
-        title: notif?.title ?? '🔴 Bora Admin',
-        body: notif?.body ?? '',
+        title: data['title']?.toString() ?? notif?.title ?? '🔴 Bora Admin',
+        body: data['body']?.toString() ?? notif?.body ?? '',
         notificationId: ref.isNotEmpty ? ref.hashCode : type.hashCode,
         payload: {'route': data['route']?.toString() ?? '/admin'},
+        channelOverride: 'bora_admin_urgent',
+        channelNameOverride: 'Bora Admin — Ações pendentes',
       );
       return;
     case 'appointment_new':
@@ -941,8 +949,17 @@ Future<void> _showPersistentStatusNotification({
   required int notificationId,
   required Map<String, String> payload,
   bool urgent = false,
+  // [Admin push 2026-07-31] Canal dedicado do admin (`bora_admin_urgent`):
+  // Importance.max + som, sem o loop insistente do canal de ofertas v3.
+  String? channelOverride,
+  String? channelNameOverride,
 }) async {
-  final channelId = urgent ? 'bora_orders_urgent_v3' : 'bora_orders';
+  final channelId =
+      channelOverride ?? (urgent ? 'bora_orders_urgent_v3' : 'bora_orders');
+  final channelName = channelNameOverride ??
+      (urgent ? 'Bora — Novos pedidos' : 'Bora — Notificações');
+  // Canal próprio do admin também é heads-up de prioridade máxima.
+  final maxImportance = urgent || channelOverride == 'bora_admin_urgent';
   try {
     final plugin = FlutterLocalNotificationsPlugin();
     final androidImpl = plugin.resolvePlatformSpecificImplementation<
@@ -950,11 +967,11 @@ Future<void> _showPersistentStatusNotification({
     await androidImpl?.createNotificationChannel(
       AndroidNotificationChannel(
         channelId,
-        urgent ? 'Bora — Novos pedidos' : 'Bora — Notificações',
+        channelName,
         description: urgent
             ? 'Som contínuo + vibração para novos pedidos urgentes.'
             : 'Notificações do Bora App.',
-        importance: urgent ? Importance.max : Importance.high,
+        importance: maxImportance ? Importance.max : Importance.high,
         playSound: true,
         sound: urgent
             ? const RawResourceAndroidNotificationSound('bora_alert')
@@ -965,10 +982,10 @@ Future<void> _showPersistentStatusNotification({
     );
     final androidDetails = AndroidNotificationDetails(
       channelId,
-      urgent ? 'Bora — Novos pedidos' : 'Bora — Notificações',
+      channelName,
       channelDescription: 'Toca para abrir.',
-      importance: urgent ? Importance.max : Importance.high,
-      priority: urgent ? Priority.max : Priority.high,
+      importance: maxImportance ? Importance.max : Importance.high,
+      priority: maxImportance ? Priority.max : Priority.high,
       playSound: true,
       sound: urgent
           ? const RawResourceAndroidNotificationSound('bora_alert')

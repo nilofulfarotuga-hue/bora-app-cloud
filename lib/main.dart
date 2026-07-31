@@ -568,24 +568,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           // não renomear. Cai directo no registo de cliente (quem lê o cartaz
           // é cliente); com sessão activa, redirecciona para a home.
           QrClientSignupScreen.routeName: (_) => const QrClientSignupScreen(),
-          // Recuperação de palavra-passe — destino do `redirectTo` do email.
-          // URL CANÓNICA: https://bora-app-web.pages.dev/#/redefinir-palavra-passe
-          // (fonte única em lib/config/auth_links.dart). Não renomear: está
-          // gravada nas Redirect URLs do Supabase e nos emails já enviados.
-          ResetPasswordScreen.routeName: (_) => const ResetPasswordScreen(),
         },
         onGenerateRoute: (settings) {
-          // O Supabase acrescenta o token DEPOIS do fragmento que já vem no
-          // redirectTo, pelo que a rota chega suja
-          // (`/redefinir-palavra-passe#access_token=…` ou `…?code=…`).
-          // O ecrã lê o token de `Uri.base` — aqui só é preciso reconhecê-la.
-          final name = settings.name ?? '';
-          if (name.startsWith(ResetPasswordScreen.routeName)) {
-            return MaterialPageRoute<void>(
-              builder: (_) => const ResetPasswordScreen(),
-              settings: settings,
-            );
-          }
           // §44 — deep link da push low_rating: /partner/ratings precisa
           // restaurant_id + restaurant_name nos arguments.
           if (settings.name == '/partner/ratings' ||

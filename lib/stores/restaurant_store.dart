@@ -1255,6 +1255,8 @@ class RestaurantStore extends ChangeNotifier {
       avgRating: (data['avg_rating'] as num?)?.toDouble(),
       ratingsCount: (data['ratings_count'] as num?)?.toInt() ?? 0,
       heroImageUrl: data['hero_image_url'] as String?,
+      comingSoon: data['coming_soon'] as bool? ?? false,
+      comingSoonText: data['coming_soon_text'] as String?,
     );
   }
 

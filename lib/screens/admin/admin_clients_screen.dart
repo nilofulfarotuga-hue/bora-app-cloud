@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../services/admin_export_service.dart';
+import '../../widgets/admin/admin_user_roles_sheet.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 
 class AdminClientsScreen extends StatefulWidget {
@@ -669,6 +670,16 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
                               trailing: PopupMenuButton<String>(
                                 onSelected: (action) {
                                   if (action == 'history') _showHistory(c);
+                                  if (action == 'roles') {
+                                    // MULTI-PAPEL: ver/adicionar/remover papéis.
+                                    showAdminUserRolesSheet(
+                                      context: context,
+                                      userId: c['user_id'] as String,
+                                      userLabel:
+                                          (c['email'] ?? c['name'] ?? '—')
+                                              .toString(),
+                                    );
+                                  }
                                   if (action == 'ban') _ban(c);
                                   if (action == 'unban') _unban(c);
                                   if (action == 'block') _block(c);
@@ -676,6 +687,9 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
                                 },
                                 itemBuilder: (_) => [
                                   const PopupMenuItem(value: 'history', child: Text('Histórico')),
+                                  const PopupMenuItem(
+                                      value: 'roles',
+                                      child: Text('Papéis do usuário')),
                                   if (!banned)
                                     const PopupMenuItem(value: 'ban', child: Text('Banir da app')),
                                   if (banned)

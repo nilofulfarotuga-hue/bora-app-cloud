@@ -162,6 +162,8 @@ class RestaurantModel {
     this.avgRating,
     this.ratingsCount = 0,
     this.heroImageUrl,
+    this.comingSoon = false,
+    this.comingSoonText,
   });
 
   final String id;
@@ -211,6 +213,21 @@ class RestaurantModel {
   /// Gerida via admin → bucket restaurant-assets/hero/<id>.<ext>.
   /// Null quando ainda não configurada — UI usa fallback em cascata.
   final String? heroImageUrl;
+
+  /// `restaurants.coming_soon` — a loja aparece no catálogo com selo "Em breve"
+  /// e é totalmente navegável, mas NÃO aceita pedidos. O bloqueio real vive no
+  /// servidor (erro `STORE_COMING_SOON`); isto é só a camada de UI.
+  final bool comingSoon;
+
+  /// `restaurants.coming_soon_text` — texto do banner na ficha da loja.
+  /// Null/vazio → usar [comingSoonLabel].
+  final String? comingSoonText;
+
+  /// Texto a mostrar no banner "Em breve" (com fallback).
+  String get comingSoonLabel {
+    final t = comingSoonText?.trim();
+    return (t == null || t.isEmpty) ? 'Em breve' : t;
+  }
 
   /// True quando o negócio pertence à secção [section] — pela sua categoria
   /// principal OU por [extraCategories].
@@ -287,6 +304,8 @@ class RestaurantModel {
     double? avgRating,
     int? ratingsCount,
     String? heroImageUrl,
+    bool? comingSoon,
+    String? comingSoonText,
   }) {
     return RestaurantModel(
       id: id,
@@ -311,6 +330,8 @@ class RestaurantModel {
       avgRating: avgRating ?? this.avgRating,
       ratingsCount: ratingsCount ?? this.ratingsCount,
       heroImageUrl: heroImageUrl ?? this.heroImageUrl,
+      comingSoon: comingSoon ?? this.comingSoon,
+      comingSoonText: comingSoonText ?? this.comingSoonText,
     );
   }
 }

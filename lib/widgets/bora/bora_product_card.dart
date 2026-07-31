@@ -1,8 +1,11 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../config/app_colors.dart';
 import '../../models/partner_product.dart';
+import '../../stores/cart_store.dart';
+import 'coming_soon.dart';
 
 /// Card grande de produto Bora — imagem preenche 62% do card, nome + preço
 /// + botão "+" em baixo. Design consistente para grelhas 2 colunas (aspect 3:4).
@@ -51,6 +54,8 @@ class BoraProductCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasPhoto = product.photoUrl.isNotEmpty;
     final hasPrice = product.price > 0;
+    // Loja em "Em breve" — catálogo navegável, carrinho fechado.
+    final comingSoon = context.watch<CartStore>().vendorComingSoon;
 
     return Material(
       color: Colors.white,
@@ -167,15 +172,18 @@ class BoraProductCard extends StatelessWidget {
                           // Produtos com grupos de opção obrigatórios → "+"
                           // abre o detalhe (escolher opções) em vez de adicionar
                           // direto. Mercados/produtos sem opções: adicionar direto.
-                          onTap: hasPrice
-                              ? (product.hasRequiredOptions ? onTap : onAdd)
-                              : null,
+                          // Loja em "Em breve": botão cinzento + mensagem.
+                          onTap: comingSoon
+                              ? () => showComingSoonBlockedSnackBar(context)
+                              : (hasPrice
+                                  ? (product.hasRequiredOptions ? onTap : onAdd)
+                                  : null),
                           borderRadius: BorderRadius.circular(10),
                           child: Container(
                             width: 34,
                             height: 34,
                             decoration: BoxDecoration(
-                              color: hasPrice
+                              color: (hasPrice && !comingSoon)
                                   ? AppColors.primary
                                   : Colors.grey.shade300,
                               borderRadius: BorderRadius.circular(10),

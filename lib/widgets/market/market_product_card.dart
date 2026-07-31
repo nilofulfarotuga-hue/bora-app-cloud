@@ -10,6 +10,7 @@ import '../../services/pricing_service.dart';
 import '../../stores/cart_store.dart';
 import '../../stores/restaurant_store.dart';
 import '../../utils/cart_feedback.dart';
+import '../bora/coming_soon.dart';
 
 /// Card horizontal estilo Glovo para secções de produtos no interior do mercado.
 /// Largura fixa ~160px, altura ~220px — adequado para scroll horizontal.
@@ -190,18 +191,20 @@ class _AddButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Loja em "Em breve": botão cinzento (não invisível) + mensagem ao toque.
+    final comingSoon = context.watch<CartStore>().vendorComingSoon;
     // identifier estável para o E2E tocar o "+" pequeno do card por id
     // (btn_add_carrinho), em vez de adivinhar a coordenada do ícone sem texto.
     return Semantics(
       identifier: 'btn_add_carrinho',
       button: true,
       child: GestureDetector(
-        onTap: onTap,
+        onTap: comingSoon ? () => showComingSoonBlockedSnackBar(context) : onTap,
         child: Container(
           width: 28,
           height: 28,
-          decoration: const BoxDecoration(
-            color: AppColors.primary,
+          decoration: BoxDecoration(
+            color: comingSoon ? Colors.grey.shade400 : AppColors.primary,
             shape: BoxShape.circle,
           ),
           child: const Icon(Icons.add,

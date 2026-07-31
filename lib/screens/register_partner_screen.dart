@@ -14,6 +14,7 @@ import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
 import '../models/restaurant_model.dart';
+import '../services/multi_role_signup.dart';
 import '../stores/partner_product_store.dart';
 import '../stores/restaurant_store.dart';
 import '../widgets/address_autocomplete_field.dart';
@@ -519,6 +520,28 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
         if (!mounted) return;
         final specificError = result?['error'] as String?;
         final isDuplicateEmail = result?['isDuplicateEmail'] == true;
+
+        // MULTI-PAPEL (2026-07-31): cliente/estafeta que também quer ser
+        // parceiro. Em vez de prender o utilizador no erro "email já
+        // registado", pede a palavra-passe, autentica e RETOMA o registo —
+        // cria só a linha de parceiro que falta. Ver multi_role_signup.dart.
+        if (isDuplicateEmail && !_alreadyAuthenticated) {
+          final outcome = await promptSignInToAddProfile(
+            context: context,
+            email: _emailController.text.trim().toLowerCase(),
+            perfil: 'parceiro',
+          );
+          if (!mounted) return;
+          if (outcome == ExistingAccountOutcome.signedIn) {
+            setState(() {
+              _alreadyAuthenticated = true;
+              _isSubmitting = false;
+            });
+            // Nunca cria perfil sem autenticar — só chega aqui com sessão.
+            await _submit();
+            return;
+          }
+        }
         debugPrint('[RegisterPartnerScreen] registerPartnerWithDocumentsAsync failed => $specificError');
         setState(() {
           _isSubmitting = false;

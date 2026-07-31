@@ -14,6 +14,7 @@ import '../stores/restaurant_store.dart';
 import '../utils/business_mapper.dart';
 import '../utils/business_opener.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
+import '../widgets/bora/coming_soon.dart';
 import '../widgets/bora_support_fab.dart';
 import 'reservation_flow_screen.dart';
 import 'restaurant_menu_screen.dart';
@@ -149,6 +150,8 @@ Future<void> openRestaurantBusiness(
     cart.configureSession(
       serviceType: OrderServiceType.restaurant,
       isPartnerStore: business.isPartner,
+      vendorComingSoon: business.comingSoon,
+      vendorComingSoonText: business.comingSoonLabel,
       vendorName: business.name,
       pickupLocation: pickupLocation,
       pickupStreet: business.address,
@@ -168,6 +171,11 @@ Future<void> openRestaurantBusiness(
     if (reservationsOnly &&
         business.isPartner &&
         business.reservationsEnabled) {
+      // "Em breve": a reserva cobra €3 — não deixar entrar no fluxo.
+      if (business.comingSoon) {
+        showComingSoonBlockedSnackBar(context);
+        return;
+      }
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -294,9 +302,12 @@ class _RestaurantTile extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: Spacing.xs),
-                      Row(
+                      Wrap(
+                        spacing: Spacing.sm,
+                        runSpacing: Spacing.xs,
                         children: [
                           _OpenStatusBadge(business: business),
+                          if (business.comingSoon) const ComingSoonChip(),
                         ],
                       ),
                       const SizedBox(height: 6),

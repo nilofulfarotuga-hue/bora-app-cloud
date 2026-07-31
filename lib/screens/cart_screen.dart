@@ -483,6 +483,35 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
               ),
             ),
             const SizedBox(height: Spacing.lg),
+            // "Em breve": se por alguma via o item chegou ao carrinho, o
+            // Finalizar fica bloqueado com a mesma mensagem. O servidor
+            // rejeita na mesma (STORE_COMING_SOON).
+            if (cartStore.vendorComingSoon) ...[
+              Tooltip(
+                message: kComingSoonBlockedMessage,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => showComingSoonBlockedSnackBar(context),
+                  child: const AbsorbPointer(
+                    child: BoraAccentButton(
+                      label: 'Finalizar pedido',
+                      icon: Icons.shopping_bag_outlined,
+                      onPressed: null,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: Spacing.sm),
+              Text(
+                kComingSoonBlockedMessage,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade700,
+                ),
+              ),
+            ] else
             BoraAccentButton(
               // BUG #1 (2026-05-13) — `isWalletBlocked` deixa de bloquear o
               // botão e o label. Cartão/MBWay liquidam a dívida no checkout;

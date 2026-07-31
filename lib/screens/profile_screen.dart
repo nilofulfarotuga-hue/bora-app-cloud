@@ -19,6 +19,7 @@ import '../config/app_spacing.dart';
 import '../services/roles_service.dart';
 import '../widgets/biometric_login_tile.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
+import '../widgets/profile_switcher_button.dart';
 import '../models/driver_model.dart';
 import '../services/auth_admin_service.dart';
 import '../services/wallet_service.dart';
@@ -392,7 +393,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       floatingActionButton: const BoraSupportFab(),
-      appBar: const BoraScreenAppBar(title: 'Perfil'),
+      // MULTI-PAPEL: o botão só aparece a quem tem mais do que um papel.
+      appBar: const BoraScreenAppBar(
+        title: 'Perfil',
+        actions: [ProfileSwitcherButton()],
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.only(bottom: Spacing.xxxl),
         child: Column(

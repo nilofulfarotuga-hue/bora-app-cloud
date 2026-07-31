@@ -1,4 +1,7 @@
-// supabase/functions/create-mbway-appointment-payment-intent/index.ts — v1
+// supabase/functions/create-mbway-appointment-payment-intent/index.ts — v2
+//
+// v2 (2026-07-31): guarda "Em breve" (STORE_COMING_SOON) antes do Stripe.
+// Nenhum valor cobrado foi alterado.
 //
 // MBWay payment intent para o SINAL de uma MARCAÇÃO (€3 default).
 // Paridade M7 com reservas: espelha create-mbway-reservation-payment-intent v5,
@@ -20,6 +23,11 @@
 
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import {
+  COMING_SOON_BOOKING_MSG,
+  comingSoonResponseBody,
+  isProviderComingSoon,
+} from '../_shared/coming_soon.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -79,6 +87,12 @@ Deno.serve(async (req: Request) => {
     if (appt.client_user_id !== user.id) return json({ error: 'not your appointment' }, 403);
     if (appt.status !== 'pending_payment') {
       return json({ error: 'invalid status: ' + appt.status }, 409);
+    }
+
+    // 2026-07-31 — "Em breve": nunca criar PaymentIntent (nem push MBWay) para
+    // um parceiro que ainda não aceita marcações. Corre ANTES do Stripe.
+    if (await isProviderComingSoon(supabase, appt.provider_id)) {
+      return json(comingSoonResponseBody(COMING_SOON_BOOKING_MSG), 409);
     }
 
     const cents = parseInt(String(appt.deposit_cents ?? 300), 10);

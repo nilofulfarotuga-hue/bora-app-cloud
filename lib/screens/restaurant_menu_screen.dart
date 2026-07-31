@@ -385,6 +385,10 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
       ),
       body: Column(
         children: [
+          // "Em breve": banner fixo por baixo do cabeçalho. O cardápio
+          // continua todo visível e navegável — só não aceita pedidos.
+          if (cart.vendorComingSoon)
+            ComingSoonBanner(text: cart.vendorComingSoonText),
           // ── Search bar (2026-06-05) ─────────────────────────────────────
           Container(
             color: Colors.white,
@@ -1000,6 +1004,7 @@ class _GlovoProductCard extends StatelessWidget {
     // (B1: fonte única PricingService.applyMarkup).
     final displayPrice =
         PricingService.applyMarkup(product.price, isPartnerStore);
+    final comingSoon = context.watch<CartStore>().vendorComingSoon;
 
     void openDetail() => Navigator.push(
           context,
@@ -1080,14 +1085,19 @@ class _GlovoProductCard extends StatelessWidget {
                                 // Com opções obrigatórias o "+" abre o
                                 // detalhe (escolher menu/extras); sem opções
                                 // adiciona direto — regra _SectionProductCard.
-                                onTap: product.hasRequiredOptions
-                                    ? openDetail
-                                    : onAdd,
+                                onTap: comingSoon
+                                    ? () =>
+                                        showComingSoonBlockedSnackBar(context)
+                                    : (product.hasRequiredOptions
+                                        ? openDetail
+                                        : onAdd),
                                 child: Container(
                                   width: 28,
                                   height: 28,
                                   decoration: BoxDecoration(
-                                    color: AppColors.primary,
+                                    color: comingSoon
+                                        ? Colors.grey.shade400
+                                        : AppColors.primary,
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: const Icon(
@@ -1253,6 +1263,7 @@ class _SectionProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final comingSoon = context.watch<CartStore>().vendorComingSoon;
     return Material(
       color: Colors.white,
       borderRadius: BorderRadius.circular(16),
@@ -1312,7 +1323,7 @@ class _SectionProductCard extends StatelessWidget {
                 const SizedBox(width: 10),
                 Container(
                   decoration: BoxDecoration(
-                    color: primaryColor,
+                    color: comingSoon ? Colors.grey.shade400 : primaryColor,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Material(
@@ -1324,7 +1335,9 @@ class _SectionProductCard extends StatelessWidget {
                       // o cliente escolher — não adiciona direto. Produtos sem
                       // opções obrigatórias (mercados, bebidas avulsas) seguem
                       // a adicionar direto.
-                      onTap: product.hasRequiredOptions ? onTap : onAdd,
+                      onTap: comingSoon
+                          ? () => showComingSoonBlockedSnackBar(context)
+                          : (product.hasRequiredOptions ? onTap : onAdd),
                       child: const Padding(
                         padding: EdgeInsets.all(7),
                         child: Icon(Icons.add,
@@ -1409,12 +1422,15 @@ class _LegacyMenuItemCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final comingSoon = context.watch<CartStore>().vendorComingSoon;
+    void tapAdd() =>
+        comingSoon ? showComingSoonBlockedSnackBar(context) : onAdd();
     return Material(
       color: Colors.white,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: onAdd,
+        onTap: tapAdd,
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
@@ -1465,14 +1481,14 @@ class _LegacyMenuItemCard extends StatelessWidget {
                 const SizedBox(width: 12),
                 Container(
                   decoration: BoxDecoration(
-                    color: primaryColor,
+                    color: comingSoon ? Colors.grey.shade400 : primaryColor,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Material(
                     color: Colors.transparent,
                     child: InkWell(
                       borderRadius: BorderRadius.circular(10),
-                      onTap: onAdd,
+                      onTap: tapAdd,
                       child: const Padding(
                         padding: EdgeInsets.all(8),
                         child: Icon(Icons.add, size: 20, color: Colors.white),

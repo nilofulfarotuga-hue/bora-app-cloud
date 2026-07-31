@@ -15,4 +15,5 @@ export 'bora_promo_banner.dart';
 export 'bora_screen_app_bar.dart';
 export 'bora_search_field.dart';
 export 'bora_tile_card.dart';
+export 'coming_soon.dart';
 export 'reservation_card.dart';

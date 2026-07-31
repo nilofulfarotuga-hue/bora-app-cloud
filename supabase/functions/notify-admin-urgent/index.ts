@@ -1,6 +1,12 @@
 // @ts-nocheck
 // supabase/functions/notify-admin-urgent/index.ts
 //
+// v13 (2026-07-31) — PONTE TELEGRAM: além do push FCM, envia o mesmo aviso
+// para o Telegram do Danilo (sendMessage). Best-effort: envolvido em try/catch,
+// nunca parte o push nem a transação de origem. Credenciais no vault do
+// Supabase (telegram_bot_token / telegram_admin_chat_id), lidas pela RPC
+// get_telegram_config() restrita a service_role.
+//
 // v12 (F2 2026-06-12) — modo GENERIC: aceita {kind:'generic', title, body,
 // route, ref} para pushes admin não-crosstalk (ex.: fecho semanal pronto,
 // via run_weekly_closeout()). Sem kind => comportamento crosstalk INTACTO.
@@ -228,6 +234,18 @@ Deno.serve(async (req) => {
     console.log('[notify-admin-urgent] RESEND_API_KEY missing — email skipped')
   }
 
+  // ─── Telegram (v13, 2026-07-31) — best-effort ─────────────────────────────
+  // Segunda via do aviso, para o Danilo saber na hora (ex.: pedido de limpeza
+  // — ele arranja a limpadora à mão nesse momento).
+  //
+  // BEST-EFFORT a sério: tudo dentro de try/catch. Se o Telegram falhar, o
+  // push já foi enviado e a transação de origem (trigger na BD) não pode
+  // partir por causa disto.
+  //
+  // Credenciais: vault do Supabase (telegram_bot_token / telegram_admin_chat_id)
+  // lidas pela RPC get_telegram_config(), restrita a service_role.
+  const telegramSent = await sendTelegramBestEffort(supabase, pushTitle, pushBody)
+
   return new Response(
     JSON.stringify({
       ok:             true,
@@ -237,6 +255,7 @@ Deno.serve(async (req) => {
       push_success:   pushSuccess,
       push_cleaned:   pushCleaned,
       email_sent:     emailSent,
+      telegram_sent:  telegramSent,
     }),
     { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
   )
@@ -245,6 +264,53 @@ Deno.serve(async (req) => {
 // ═══════════════════════════════════════════════════════════════════════════
 // Helpers
 // ═══════════════════════════════════════════════════════════════════════════
+
+/// Envia o mesmo aviso para o Telegram do Danilo. NUNCA lança: qualquer falha
+/// (credenciais em falta, rede, API) é registada e devolve false.
+async function sendTelegramBestEffort(
+  supabase: any,
+  title: string,
+  body: string,
+): Promise<boolean> {
+  try {
+    const { data, error } = await supabase.rpc('get_telegram_config')
+    if (error) {
+      console.error('[notify-admin-urgent] telegram config error:', error.message)
+      return false
+    }
+    const row = Array.isArray(data) ? data[0] : data
+    const botToken = row?.bot_token
+    const chatId   = row?.chat_id
+    if (!botToken || !chatId) {
+      console.log('[notify-admin-urgent] telegram secrets missing — skipped')
+      return false
+    }
+
+    const text = `${title}\n\n${body}`.slice(0, 4000)
+    const res = await fetch(
+      `https://api.telegram.org/bot${botToken}/sendMessage`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text,
+          disable_web_page_preview: true,
+        }),
+      },
+    )
+    if (res.ok) {
+      console.log('[notify-admin-urgent] telegram sent OK')
+      return true
+    }
+    const errBody = await res.text().catch(() => '')
+    console.error(`[notify-admin-urgent] telegram ${res.status}: ${errBody}`)
+    return false
+  } catch (e) {
+    console.error('[notify-admin-urgent] telegram exception:', e)
+    return false
+  }
+}
 
 async function sendFcmV1(
   fcmUrl: string,

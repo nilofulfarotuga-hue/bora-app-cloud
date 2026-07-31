@@ -16,10 +16,18 @@
 // payment_intent.canceled via metadata.purpose='reservation_prepayment'
 // → confirm_reservation_payment_webhook RPC ou cancel_orphan_reservation RPC.
 //
-// verify_jwt = true (deploy) — mantém paridade com create-reservation-payment-intent v8.
+// v6 (2026-07-31): guarda "Em breve" (STORE_COMING_SOON) antes do Stripe e
+// antes de inserir a reserva. Nenhum valor cobrado foi alterado.
+//
+// verify_jwt = true (deploy) — mantém paridade com create-reservation-payment-intent.
 
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import {
+  COMING_SOON_RESERVATION_MSG,
+  comingSoonResponseBody,
+  isRestaurantComingSoon,
+} from '../_shared/coming_soon.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -78,6 +86,12 @@ Deno.serve(async (req: Request) => {
     const e164 = body.phone.startsWith('+')
       ? body.phone
       : `+351${body.phone.replace(/^0/, '')}`;
+
+    // 2026-07-31 — "Em breve": nunca criar PaymentIntent (nem push MBWay) para
+    // uma loja que ainda não aceita reservas. Corre ANTES do Stripe.
+    if (await isRestaurantComingSoon(supabase, body.restaurant_id)) {
+      return json(comingSoonResponseBody(COMING_SOON_RESERVATION_MSG), 409);
+    }
 
     // Lê preço do prepagamento da plataforma (default 300 cents).
     const { data: settingsRow } = await supabase

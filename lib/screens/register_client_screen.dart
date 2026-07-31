@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
+import '../services/multi_role_signup.dart';
 import '../stores/session_store.dart';
 import '../widgets/bora/bora_mascot.dart';
 import '../widgets/bora/bora_primary_button.dart';
@@ -366,12 +367,31 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
     if (!mounted) return;
 
     if (error != null) {
-      setState(() => _isSubmitting = false);
-      final msg = error.contains('already registered')
-          ? 'Este email já está registado.'
-          : error;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-      return;
+      // MULTI-PAPEL (2026-07-31): estafeta/parceiro que também quer ser
+      // cliente. Pede a palavra-passe, autentica e acrescenta só o papel de
+      // cliente (não precisa de aprovação nem de linha em tabela nenhuma).
+      if (isEmailAlreadyRegistered(error)) {
+        final outcome = await promptSignInToAddProfile(
+          context: context,
+          email: email,
+          perfil: 'cliente',
+        );
+        if (!mounted) return;
+        if (outcome != ExistingAccountOutcome.signedIn) {
+          setState(() => _isSubmitting = false);
+          return; // Nunca criar perfil sem autenticar.
+        }
+        try {
+          await Supabase.instance.client.rpc('add_client_role_to_me');
+        } catch (e) {
+          debugPrint('add_client_role_to_me falhou => $e');
+        }
+      } else {
+        setState(() => _isSubmitting = false);
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error)));
+        return;
+      }
     }
 
     // Código de convite (opcional). Falha não bloqueia signup.

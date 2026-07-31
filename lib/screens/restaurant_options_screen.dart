@@ -9,6 +9,7 @@ import '../models/restaurant_model.dart';
 import '../stores/cart_store.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora/bora_tile_card.dart';
+import '../widgets/bora/coming_soon.dart';
 import 'client/reservation/reservation_availability_screen.dart';
 import 'restaurant_menu_screen.dart';
 
@@ -54,6 +55,11 @@ class RestaurantOptionsScreen extends StatelessWidget {
   }
 
   void _openReservation(BuildContext context) {
+    // "Em breve": a reserva cobra €3 de sinal — não entrar no fluxo.
+    if (business.comingSoon) {
+      showComingSoonBlockedSnackBar(context);
+      return;
+    }
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -70,7 +76,14 @@ class RestaurantOptionsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: BoraScreenAppBar(title: business.name),
-      body: ListView(
+      body: Column(
+        children: [
+          // "Em breve": banner fixo por baixo do cabeçalho. As opções e o
+          // cardápio continuam navegáveis — só não fecham pedido.
+          if (business.comingSoon)
+            ComingSoonBanner(text: business.comingSoonLabel),
+          Expanded(
+            child: ListView(
         padding: const EdgeInsets.all(Spacing.lg),
         children: [
           Text(
@@ -108,6 +121,9 @@ class RestaurantOptionsScreen extends StatelessWidget {
             imageAsset: 'assets/categories/btn_reservar.png',
             enabled: business.reservationsEnabled,
             onTap: () => _openReservation(context),
+          ),
+        ],
+            ),
           ),
         ],
       ),

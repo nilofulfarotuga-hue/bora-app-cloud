@@ -12,6 +12,7 @@ import '../../../stores/services_store.dart';
 import '../../../widgets/bora/bora_accent_button.dart';
 import '../../../widgets/bora/bora_primary_button.dart';
 import '../../../widgets/bora/bora_screen_app_bar.dart';
+import '../../../widgets/bora/coming_soon.dart';
 import '../../../widgets/services/staff_avatar.dart';
 import '../reservation/reservation_payment_method_sheet.dart';
 import 'appointment_mbway_waiting_dialog.dart';
@@ -321,6 +322,12 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
 
   Future<void> _confirmAndPay() async {
     if (_booking || _slot == null || _service == null) return;
+    // "Em breve": nunca chegar ao Stripe. O servidor rejeita na mesma
+    // (STORE_COMING_SOON) antes de criar o PaymentIntent.
+    if (widget.provider.comingSoon) {
+      showComingSoonBlockedSnackBar(context);
+      return;
+    }
     final staffId = _resolvedStaffId;
     if (staffId == null) return;
 
@@ -812,6 +819,14 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
   // ─── Passo 4: hora ─────────────────────────────────────────────────────────
 
   Widget _timeStep() {
+    // "Em breve": não deixa escolher horário nem avançar para pagamento.
+    // (O reagendamento de uma marcação já paga não passa por aqui.)
+    if (widget.provider.comingSoon && !_isReschedule) {
+      return const _EmptyStep(
+        icon: Icons.schedule,
+        text: kComingSoonBlockedMessage,
+      );
+    }
     if (_loadingSlots) {
       return const Center(child: CircularProgressIndicator());
     }

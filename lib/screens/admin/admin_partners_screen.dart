@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
+import '../../widgets/admin/admin_coming_soon.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import '../../services/admin_audit_service.dart';
 import '../../services/admin_export_service.dart';
@@ -22,6 +23,16 @@ class _AdminPartnersScreenState extends State<AdminPartnersScreen> {
   bool _loading = true;
   String? _error;
 
+  /// Filtro rápido "Só em breve".
+  bool _onlyComingSoon = false;
+
+  List<Map<String, dynamic>> get _visible => _onlyComingSoon
+      ? _restaurants.where((r) => r['coming_soon'] == true).toList()
+      : _restaurants;
+
+  int get _comingSoonCount =>
+      _restaurants.where((r) => r['coming_soon'] == true).length;
+
   @override
   void initState() {
     super.initState();
@@ -36,7 +47,8 @@ class _AdminPartnersScreenState extends State<AdminPartnersScreen> {
     try {
       final data = await Supabase.instance.client
           .from('restaurants')
-          .select('id, name, category, address, is_active_admin')
+          .select(
+              'id, name, category, address, is_active_admin, coming_soon, coming_soon_text')
           .order('name');
       if (mounted) {
         setState(() {
@@ -122,14 +134,19 @@ class _AdminPartnersScreenState extends State<AdminPartnersScreen> {
       final stamp = DateTime.now().toIso8601String().substring(0, 10);
       await AdminExportService.instance.exportCsv(
         filename: 'bora_parceiros_$stamp.csv',
-        headers: const ['id', 'nome', 'categoria', 'morada', 'ativo'],
-        rows: _restaurants
+        headers: const [
+          'id', 'nome', 'categoria', 'morada', 'ativo', 'em_breve',
+          'texto_em_breve',
+        ],
+        rows: _visible
             .map((r) => [
                   r['id'] ?? '',
                   r['name'] ?? '',
                   r['category'] ?? '',
                   r['address'] ?? '',
                   (r['is_active_admin'] == false) ? 'não' : 'sim',
+                  (r['coming_soon'] == true) ? 'sim' : 'não',
+                  r['coming_soon_text'] ?? '',
                 ])
             .toList(),
         subject: 'Parceiros Bora ($stamp)',
@@ -160,20 +177,29 @@ class _AdminPartnersScreenState extends State<AdminPartnersScreen> {
           ? const Center(child: CircularProgressIndicator())
           : _error != null
               ? Center(child: Text('Erro: $_error'))
-              : RefreshIndicator(
+              : Column(
+                children: [
+                  AdminComingSoonFilterBar(
+                    onlyComingSoon: _onlyComingSoon,
+                    total: _comingSoonCount,
+                    onChanged: (v) => setState(() => _onlyComingSoon = v),
+                  ),
+                  Expanded(
+                    child: RefreshIndicator(
                   onRefresh: _load,
-                  child: _restaurants.isEmpty
+                  child: _visible.isEmpty
                       ? const Center(child: Text('Sem parceiros registados'))
                       : ListView.separated(
                           padding: const EdgeInsets.all(12),
-                          itemCount: _restaurants.length,
+                          itemCount: _visible.length,
                           separatorBuilder: (_, __) =>
                               const SizedBox(height: 8),
                           itemBuilder: (_, i) {
-                            final r = _restaurants[i];
+                            final r = _visible[i];
                             final isActive =
                                 r['is_active_admin'] as bool? ?? true;
                             final category = r['category'] as String?;
+                            final comingSoon = r['coming_soon'] == true;
                             return Card(
                               shape: RoundedRectangleBorder(
                                   borderRadius:
@@ -185,10 +211,19 @@ class _AdminPartnersScreenState extends State<AdminPartnersScreen> {
                                   child: Icon(_categoryIcon(category),
                                       color: AppColors.primary),
                                 ),
-                                title: Text(
-                                  r['name'] as String? ?? '—',
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.w600),
+                                title: Row(
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        r['name'] as String? ?? '—',
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.w600),
+                                      ),
+                                    ),
+                                    if (comingSoon)
+                                      const AdminComingSoonBadge(),
+                                  ],
                                 ),
                                 subtitle: Text(
                                   '${_categoryLabel(category)} · ${r['address'] as String? ?? ''}',
@@ -198,6 +233,16 @@ class _AdminPartnersScreenState extends State<AdminPartnersScreen> {
                                 trailing: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
+                                    IconButton(
+                                      tooltip: 'Em breve',
+                                      icon: Icon(
+                                        Icons.schedule,
+                                        color: comingSoon
+                                            ? const Color(0xFFF97316)
+                                            : AppColors.textSecondary,
+                                      ),
+                                      onPressed: () => _editComingSoon(r),
+                                    ),
                                     Switch(
                                       value: isActive,
                                       onChanged: (_) => _toggleActive(
@@ -221,6 +266,22 @@ class _AdminPartnersScreenState extends State<AdminPartnersScreen> {
                           },
                         ),
                 ),
+                  ),
+                ],
+              ),
     );
+  }
+
+  /// Liga/desliga o "Em breve" e edita o texto do banner do cliente.
+  Future<void> _editComingSoon(Map<String, dynamic> r) async {
+    final changed = await showAdminComingSoonDialog(
+      context: context,
+      table: 'restaurants',
+      id: r['id'] as String,
+      name: r['name'] as String? ?? '—',
+      currentValue: r['coming_soon'] == true,
+      currentText: r['coming_soon_text'] as String?,
+    );
+    if (changed) await _load();
   }
 }

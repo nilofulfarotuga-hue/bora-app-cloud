@@ -100,24 +100,15 @@ class PartnerAccount {
 
 class AuthStore extends ChangeNotifier {
   AuthStore() {
-    _clientsByEmail['cliente@bora.app'] = const ClientAccount(
-      name: 'Cliente Demo',
-      email: 'cliente@bora.app',
-      phone: '910000001',
-      password: '123456',
-    );
-
-    const driverDemo = DriverAccount(
-      name: 'Estafeta Demo',
-      email: 'driver@bora.app',
-      phone: '910000000',
-      vehicleType: VehicleType.car,
-      licensePlate: 'AB-12-CD',
-      password: '123456',
-    );
-    _driversByEmail['driver@bora.app'] = driverDemo;
-    _driversByPhone['910000000'] = driverDemo;
-
+    // 2026-07-31 (varredura de lançamento) — REMOVIDAS as contas de demo
+    // hard-coded `cliente@bora.app` e `driver@bora.app` / telefone 910000000,
+    // ambas com password '123456'. Viviam em memória e funcionavam OFFLINE,
+    // logo eram porta de entrada em RELEASE para quem soubesse as credenciais.
+    //
+    // Continuam válidas (e intocadas) as duas contas de sistema, que são
+    // contas REAIS no Supabase Auth, não hard-coded aqui:
+    //   · guest@bora.com — modo convidado
+    //   · demo@bora.app  — credencial de revisão da Google Play
     _authSubscription =
         _supabase.auth.onAuthStateChange.listen(_onAuthStateChange);
 

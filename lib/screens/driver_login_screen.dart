@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -29,10 +28,10 @@ class DriverLoginScreen extends StatefulWidget {
 class _DriverLoginScreenState extends State<DriverLoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController(
-    text: kDebugMode ? 'driver@bora.app' : '',
+    text: '',
   );
   final _passwordController = TextEditingController(
-    text: kDebugMode ? '123456' : '',
+    text: '',
   );
   bool _isProcessing = false;
   bool _obscurePassword = true;

@@ -11,6 +11,7 @@ import '../stores/restaurant_store.dart';
 import '../utils/business_mapper.dart';
 import '../utils/business_opener.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
+import '../widgets/bora/coming_soon.dart';
 import '../widgets/bora_support_fab.dart';
 import 'store_categories_screen.dart';
 import 'store_products_screen.dart';
@@ -361,6 +362,8 @@ Future<void> openRetailBusiness(
   cart.configureSession(
     serviceType: OrderServiceType.storeShopping,
     isPartnerStore: business.isPartner,
+    vendorComingSoon: business.comingSoon,
+    vendorComingSoonText: business.comingSoonLabel,
     vendorName: store.name,
     pickupLocation: pickupLocation,
     pickupStreet: business.address,
@@ -526,6 +529,7 @@ class _StoreTile extends StatelessWidget {
                     ),
                   ),
                   const Spacer(),
+                  if (entry.business.comingSoon) const ComingSoonChip(),
                 ],
               ),
             ),

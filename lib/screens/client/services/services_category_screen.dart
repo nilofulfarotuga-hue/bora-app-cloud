@@ -6,6 +6,7 @@ import '../../../config/app_spacing.dart';
 import '../../../models/service_provider_model.dart';
 import '../../../stores/services_store.dart';
 import '../../../widgets/bora/bora_screen_app_bar.dart';
+import '../../../widgets/bora/coming_soon.dart';
 import 'my_appointments_screen.dart';
 import 'provider_detail_screen.dart';
 
@@ -167,15 +168,25 @@ class _ProviderCard extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      provider.name,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            provider.name,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (provider.comingSoon) ...[
+                          const SizedBox(width: Spacing.sm),
+                          const ComingSoonChip(dense: true),
+                        ],
+                      ],
                     ),
                     if (provider.ratingsCount > 0) ...[
                       const SizedBox(height: Spacing.xs),

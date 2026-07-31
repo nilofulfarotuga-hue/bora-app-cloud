@@ -1,4 +1,7 @@
-// supabase/functions/create-reservation-payment-intent/index.ts — v9
+// supabase/functions/create-reservation-payment-intent/index.ts — v10
+//
+// v10 (2026-07-31): guarda "Em breve" (STORE_COMING_SOON) antes do Stripe e
+// antes de inserir a reserva. Nenhum valor cobrado foi alterado.
 //
 // PaymentIntent Stripe para PRÉ-PAGAMENTO de RESERVA (€3 default), via cartão.
 //
@@ -17,6 +20,11 @@
 
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import {
+  COMING_SOON_RESERVATION_MSG,
+  comingSoonResponseBody,
+  isRestaurantComingSoon,
+} from '../_shared/coming_soon.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -59,6 +67,14 @@ Deno.serve(async (req: Request) => {
     if (!body.restaurant_id || !body.people || !body.reserved_for) {
       return new Response(JSON.stringify({ error: 'missing fields' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    // 2026-07-31 — "Em breve": nunca criar PaymentIntent para loja fechada a
+    // pedidos. Corre ANTES do Stripe e antes de inserir a reserva.
+    if (await isRestaurantComingSoon(supabase, body.restaurant_id)) {
+      return new Response(
+        JSON.stringify(comingSoonResponseBody(COMING_SOON_RESERVATION_MSG)),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     const { data: settingsRow } = await supabase

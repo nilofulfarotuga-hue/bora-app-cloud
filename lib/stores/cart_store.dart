@@ -20,6 +20,16 @@ class CartStore extends ChangeNotifier {
   OrderServiceType _serviceType = OrderServiceType.restaurant;
   bool _isPartnerStore = true;
   String? _vendorName;
+
+  /// A loja da sessão actual está em "Em breve" (`coming_soon = true`).
+  /// Nesse estado o catálogo é navegável mas o carrinho não aceita itens e o
+  /// checkout fica bloqueado. Defesa em profundidade: o servidor rejeita na
+  /// mesma com `STORE_COMING_SOON`.
+  bool _vendorComingSoon = false;
+
+  /// Texto do banner "Em breve" da loja da sessão (já com fallback aplicado
+  /// pelo chamador — ver `RestaurantModel.comingSoonLabel`).
+  String _vendorComingSoonText = 'Em breve';
   String? _pickupStreet;
   String? _pickupCity;
   String? _pickupPostalCode;
@@ -59,6 +69,8 @@ class CartStore extends ChangeNotifier {
         'serviceType': _serviceType.name,
         'isPartnerStore': _isPartnerStore,
         'vendorName': _vendorName,
+        'vendorComingSoon': _vendorComingSoon,
+        'vendorComingSoonText': _vendorComingSoonText,
         'pickupStreet': _pickupStreet,
         'pickupCity': _pickupCity,
         'pickupPostalCode': _pickupPostalCode,
@@ -95,6 +107,9 @@ class CartStore extends ChangeNotifier {
       );
       _isPartnerStore = map['isPartnerStore'] as bool? ?? true;
       _vendorName = map['vendorName'] as String?;
+      _vendorComingSoon = map['vendorComingSoon'] as bool? ?? false;
+      _vendorComingSoonText =
+          map['vendorComingSoonText'] as String? ?? 'Em breve';
       _pickupStreet = map['pickupStreet'] as String?;
       _pickupCity = map['pickupCity'] as String?;
       _pickupPostalCode = map['pickupPostalCode'] as String?;
@@ -144,6 +159,13 @@ class CartStore extends ChangeNotifier {
   LatLng? get deliveryLocation => _deliveryLocation;
 
   String? get vendorName => _vendorName;
+
+  /// True quando a loja da sessão actual está em "Em breve" — a UI mostra o
+  /// botão de adicionar/finalizar desactivado e [addItem] é ignorado.
+  bool get vendorComingSoon => _vendorComingSoon;
+
+  /// Texto do banner "Em breve" da loja da sessão actual.
+  String get vendorComingSoonText => _vendorComingSoonText;
 
   String? get pickupStreet => _pickupStreet;
   String? get pickupCity => _pickupCity;
@@ -374,6 +396,8 @@ class CartStore extends ChangeNotifier {
     required OrderServiceType serviceType,
     bool isPartnerStore = true,
     bool requiresCar = false,
+    bool vendorComingSoon = false,
+    String vendorComingSoonText = 'Em breve',
     String? vendorName,
     String? pickupStreet,
     String? pickupCity,
@@ -397,6 +421,8 @@ class CartStore extends ChangeNotifier {
     _serviceType = serviceType;
     _isPartnerStore = isPartnerStore;
     _requiresCar = requiresCar;
+    _vendorComingSoon = vendorComingSoon;
+    _vendorComingSoonText = vendorComingSoonText;
     _vendorName = vendorName;
     _pickupStreet = pickupStreet;
     _pickupCity = pickupCity;
@@ -503,6 +529,15 @@ class CartStore extends ChangeNotifier {
     // CartItem via PricingService.applyMarkup (price = exibido/cobrado;
     // basePrice = puro de catálogo). addItem usa o preço tal como vem — itens
     // de reorder/persistência já vêm finais e não podem ser re-marcados.
+    // "Em breve": a loja é navegável mas não aceita pedidos. Trava aqui em vez
+    // de em cada call site — há dezenas espalhados pelos ecrãs de catálogo.
+    if (_vendorComingSoon) {
+      debugPrint(
+        'CartStore.addItem: BLOQUEADO — "$_vendorName" está em Em breve.',
+      );
+      return;
+    }
+
     final cartItem = item;
 
     final index = _items.indexWhere((i) => i.lineKey == cartItem.lineKey);

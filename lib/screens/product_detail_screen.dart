@@ -14,6 +14,7 @@ import '../stores/restaurant_store.dart';
 import '../utils/cart_feedback.dart';
 import '../widgets/bora/bora_accent_button.dart';
 import '../widgets/bora/bora_primary_button.dart';
+import '../widgets/bora/coming_soon.dart';
 import 'cart_screen.dart';
 
 class ProductDetailScreen extends StatefulWidget {
@@ -421,11 +422,33 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   Widget _buildBottomBar(
       BuildContext context, List<ProductVariant> variants, bool hasGroups) {
+    // "Em breve": o produto continua visível e navegável, mas o botão de
+    // adicionar fica cinzento (não invisível) e explica porquê ao toque.
+    final comingSoon = context.watch<CartStore>().vendorComingSoon;
+
     Widget wrap(Widget child) => SafeArea(
           top: false,
           minimum: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-          child: child,
+          child: comingSoon
+              ? Tooltip(
+                  message: kComingSoonBlockedMessage,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => showComingSoonBlockedSnackBar(context),
+                    child: AbsorbPointer(child: child),
+                  ),
+                )
+              : child,
         );
+
+    if (comingSoon) {
+      // Botão desactivado (onPressed: null → cinzento pelo tema).
+      return wrap(const BoraPrimaryButton(
+        label: 'Adicionar ao carrinho',
+        icon: Icons.add_shopping_cart,
+        onPressed: null,
+      ));
+    }
 
     // B1 (2026-06-11): botões exibem o preço COBRADO (markup runtime
     // não-parceiro via applyMarkup; parceiro = preço puro do menu).

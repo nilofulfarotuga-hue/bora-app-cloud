@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../config/app_colors.dart';
 import '../../stores/cart_store.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
+import '../../widgets/bora/coming_soon.dart';
 import '../../stores/restaurant_store.dart';
 import '../../widgets/market/market_bottom_nav.dart';
 import '../../widgets/market/market_categories_tab.dart';
@@ -77,22 +78,34 @@ class _MarketStoreScreenState extends State<MarketStoreScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
-      body: IndexedStack(
-        index: _selectedTab,
+      body: Column(
         children: [
-          MarketStoreTab(
-            restaurant: restaurant,
-            storeName: widget.storeName,
-            isPartnerStore: widget.isPartnerStore,
-          ),
-          MarketCategoriesTab(
-            restaurantId: widget.restaurantId,
-            storeName: widget.storeName,
-            isPartnerStore: widget.isPartnerStore,
-          ),
-          MarketReorderTab(
-            storeName: widget.storeName,
-            isPartnerStore: widget.isPartnerStore,
+          // "Em breve": banner fixo no topo. As 3 tabs continuam navegáveis.
+          if (restaurant.comingSoon)
+            SafeArea(
+              bottom: false,
+              child: ComingSoonBanner(text: restaurant.comingSoonLabel),
+            ),
+          Expanded(
+            child: IndexedStack(
+              index: _selectedTab,
+              children: [
+                MarketStoreTab(
+                  restaurant: restaurant,
+                  storeName: widget.storeName,
+                  isPartnerStore: widget.isPartnerStore,
+                ),
+                MarketCategoriesTab(
+                  restaurantId: widget.restaurantId,
+                  storeName: widget.storeName,
+                  isPartnerStore: widget.isPartnerStore,
+                ),
+                MarketReorderTab(
+                  storeName: widget.storeName,
+                  isPartnerStore: widget.isPartnerStore,
+                ),
+              ],
+            ),
           ),
         ],
       ),

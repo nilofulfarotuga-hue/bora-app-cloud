@@ -11,6 +11,7 @@ import '../../../models/staff_member_model.dart';
 import '../../../stores/services_store.dart';
 import '../../../widgets/bora/bora_accent_button.dart';
 import '../../../widgets/bora/bora_screen_app_bar.dart';
+import '../../../widgets/bora/coming_soon.dart';
 import '../../../widgets/services/staff_avatar.dart';
 import 'booking_flow_screen.dart';
 import 'gallery_viewer_screen.dart';
@@ -40,6 +41,12 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
   }
 
   void _startBooking({ProviderServiceModel? preselected}) {
+    // "Em breve": a ficha e os serviços continuam visíveis, mas não se marca.
+    // O servidor rejeita na mesma (STORE_COMING_SOON) — isto é só a UI.
+    if (widget.provider.comingSoon) {
+      showComingSoonBlockedSnackBar(context);
+      return;
+    }
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -60,6 +67,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
       body: SafeArea(
         child: Column(
           children: [
+            if (p.comingSoon) ComingSoonBanner(text: p.comingSoonLabel),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.only(bottom: Spacing.xxxl),
@@ -157,11 +165,27 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
               top: false,
               minimum: const EdgeInsets.fromLTRB(
                   Spacing.lg, Spacing.sm, Spacing.lg, Spacing.lg),
-              child: BoraAccentButton(
-                label: 'Marcar',
-                icon: Icons.event_available,
-                onPressed: () => _startBooking(),
-              ),
+              // "Em breve": botão cinzento (não invisível) que explica porquê.
+              child: p.comingSoon
+                  ? Tooltip(
+                      message: kComingSoonBlockedMessage,
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => showComingSoonBlockedSnackBar(context),
+                        child: const AbsorbPointer(
+                          child: BoraAccentButton(
+                            label: 'Marcar',
+                            icon: Icons.event_available,
+                            onPressed: null,
+                          ),
+                        ),
+                      ),
+                    )
+                  : BoraAccentButton(
+                      label: 'Marcar',
+                      icon: Icons.event_available,
+                      onPressed: () => _startBooking(),
+                    ),
             ),
           ],
         ),

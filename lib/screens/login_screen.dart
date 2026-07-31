@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -21,13 +20,13 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   // 2026-05-21 — prefill demo credentials só em debug; release vê campos vazios.
   final _clientEmailController =
-      TextEditingController(text: kDebugMode ? 'cliente@bora.app' : '');
+      TextEditingController();
   final _clientPasswordController =
-      TextEditingController(text: kDebugMode ? '123456' : '');
+      TextEditingController();
   final _driverPhoneController =
-      TextEditingController(text: kDebugMode ? '910000000' : '');
+      TextEditingController();
   final _driverPasswordController =
-      TextEditingController(text: kDebugMode ? '123456' : '');
+      TextEditingController();
 
   bool _isProcessing = false;
 

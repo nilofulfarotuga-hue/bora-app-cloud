@@ -14,6 +14,7 @@ import '../stores/restaurant_store.dart';
 import '../utils/cart_feedback.dart';
 import '../widgets/bora/bora_product_card.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
+import '../widgets/bora/coming_soon.dart';
 import '../widgets/bora_support_fab.dart';
 import 'cart_screen.dart';
 import 'product_detail_screen.dart';
@@ -215,6 +216,10 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
       ),
       body: Column(
         children: [
+          // "Em breve": banner por baixo do cabeçalho. Produtos e preços
+          // continuam todos visíveis.
+          if (cartStore.vendorComingSoon)
+            ComingSoonBanner(text: cartStore.vendorComingSoonText),
           // ── Search bar ─────────────────────────────────────────────────────
           Container(
             color: Colors.white,
@@ -1425,16 +1430,21 @@ class _QtyButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Loja em "Em breve": o "+" fica cinzento e explica porquê ao toque.
+    // O "-" (remover) não é afectado.
+    final comingSoon = icon == Icons.add &&
+        context.watch<CartStore>().vendorComingSoon;
+    final effectiveColor = comingSoon ? Colors.grey.shade500 : color;
     final button = InkWell(
-      onTap: onTap,
+      onTap: comingSoon ? () => showComingSoonBlockedSnackBar(context) : onTap,
       borderRadius: BorderRadius.circular(8),
       child: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
+          color: effectiveColor.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Icon(icon, size: 18, color: color),
+        child: Icon(icon, size: 18, color: effectiveColor),
       ),
     );
     return semanticId == null

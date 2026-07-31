@@ -27,6 +27,8 @@ class ServiceProviderModel {
     this.socialFacebook,
     this.bookingPaymentMode = 'deposit',
     this.bookingCancellationPolicy = 'refund',
+    this.comingSoon = false,
+    this.comingSoonText,
   });
 
   final String id;
@@ -63,6 +65,20 @@ class ServiceProviderModel {
 
   /// Cobra o valor total do serviço no acto da marcação (Ouro e Prata).
   bool get isFullPaymentMode => bookingPaymentMode == 'full';
+
+  /// `service_providers.coming_soon` — o parceiro aparece no catálogo com selo
+  /// "Em breve" e é navegável, mas NÃO aceita marcações. O bloqueio real vive
+  /// no servidor (erro `STORE_COMING_SOON`); isto é só a camada de UI.
+  final bool comingSoon;
+
+  /// `service_providers.coming_soon_text` — texto do banner na ficha.
+  final String? comingSoonText;
+
+  /// Texto a mostrar no banner "Em breve" (com fallback).
+  String get comingSoonLabel {
+    final t = comingSoonText?.trim();
+    return (t == null || t.isEmpty) ? 'Em breve' : t;
+  }
 
   /// O cliente só pode reagendar (não cancelar) uma marcação já paga.
   bool get isRescheduleOnly => bookingCancellationPolicy == 'reschedule_only';
@@ -105,6 +121,8 @@ class ServiceProviderModel {
           (row['booking_payment_mode'] as String?) ?? 'deposit',
       bookingCancellationPolicy:
           (row['booking_cancellation_policy'] as String?) ?? 'refund',
+      comingSoon: (row['coming_soon'] as bool?) ?? false,
+      comingSoonText: row['coming_soon_text'] as String?,
     );
   }
 
@@ -132,5 +150,7 @@ class ServiceProviderModel {
         if (socialFacebook != null) 'social_facebook': socialFacebook,
         'booking_payment_mode': bookingPaymentMode,
         'booking_cancellation_policy': bookingCancellationPolicy,
+        'coming_soon': comingSoon,
+        if (comingSoonText != null) 'coming_soon_text': comingSoonText,
       };
 }

@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
+import '../../widgets/admin/admin_coming_soon.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import 'admin_service_provider_detail_screen.dart';
 
@@ -35,6 +36,29 @@ class _AdminServiceProvidersScreenState
   bool _loading = true;
   String? _error;
   List<Map<String, dynamic>> _rows = const [];
+
+  /// Filtro rápido "Só em breve".
+  bool _onlyComingSoon = false;
+
+  List<Map<String, dynamic>> get _visible => _onlyComingSoon
+      ? _rows.where((r) => r['coming_soon'] == true).toList()
+      : _rows;
+
+  int get _comingSoonCount =>
+      _rows.where((r) => r['coming_soon'] == true).length;
+
+  /// Liga/desliga o "Em breve" e edita o texto do banner do cliente.
+  Future<void> _editComingSoon(Map<String, dynamic> r) async {
+    final changed = await showAdminComingSoonDialog(
+      context: context,
+      table: 'service_providers',
+      id: r['id'] as String,
+      name: r['name'] as String? ?? '(sem nome)',
+      currentValue: r['coming_soon'] == true,
+      currentText: r['coming_soon_text'] as String?,
+    );
+    if (changed) _load();
+  }
 
   @override
   void initState() {
@@ -289,26 +313,33 @@ class _AdminServiceProvidersScreenState
                 ),
               ),
             )
-          else if (_rows.isEmpty)
-            const Expanded(
-              child: Center(
-                child: Padding(
-                  padding: EdgeInsets.all(Spacing.xxxl),
-                  child: Text('Nenhum prestador neste estado.'),
-                ),
-              ),
-            )
-          else
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: _load,
-                child: ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: Spacing.md),
-                  itemCount: _rows.length,
-                  itemBuilder: (ctx, i) => _buildRow(_rows[i]),
-                ),
-              ),
+          else ...[
+            AdminComingSoonFilterBar(
+              onlyComingSoon: _onlyComingSoon,
+              total: _comingSoonCount,
+              onChanged: (v) => setState(() => _onlyComingSoon = v),
             ),
+            if (_visible.isEmpty)
+              const Expanded(
+                child: Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(Spacing.xxxl),
+                    child: Text('Nenhum prestador neste estado.'),
+                  ),
+                ),
+              )
+            else
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: _load,
+                  child: ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: Spacing.md),
+                    itemCount: _visible.length,
+                    itemBuilder: (ctx, i) => _buildRow(_visible[i]),
+                  ),
+                ),
+              ),
+          ],
         ],
       ),
     );
@@ -332,10 +363,19 @@ class _AdminServiceProvidersScreenState
             Row(
               children: [
                 Expanded(
-                  child: Text(
-                    r['name'] as String? ?? '(sem nome)',
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w700, fontSize: 16),
+                  child: Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          r['name'] as String? ?? '(sem nome)',
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w700, fontSize: 16),
+                        ),
+                      ),
+                      if (r['coming_soon'] == true)
+                        const AdminComingSoonBadge(),
+                    ],
                   ),
                 ),
                 Container(
@@ -397,6 +437,16 @@ class _AdminServiceProvidersScreenState
                   style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.info),
                   onPressed: () => _openDetail(r),
+                ),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.schedule, size: 18),
+                  label: Text(
+                      r['coming_soon'] == true ? 'Em breve ✓' : 'Em breve'),
+                  style: OutlinedButton.styleFrom(
+                      foregroundColor: r['coming_soon'] == true
+                          ? const Color(0xFFF97316)
+                          : AppColors.textSecondary),
+                  onPressed: () => _editComingSoon(r),
                 ),
                 OutlinedButton.icon(
                   icon: Icon(

@@ -12,6 +12,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
 import '../models/driver_model.dart';
+import '../services/multi_role_signup.dart';
 import '../stores/session_store.dart';
 import '../widgets/address_autocomplete_field.dart';
 import '../widgets/bora/bora_primary_button.dart';
@@ -283,24 +284,42 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
       final phone = _phoneController.text.trim();
       final consentAcceptedAt = DateTime.now().toUtc();
 
-      final res = await supabase.auth.signUp(
-        email: email,
-        password: password,
-        data: {
-          'bora_role': 'driver',
-          'bora_name': name,
-          'bora_phone': phone,
-          'bora_consent_accepted_at': consentAcceptedAt.toIso8601String(),
-          'bora_consent_version': AuthStore.currentConsentVersion,
-        },
-      );
+      // MULTI-PAPEL (2026-07-31): se já existe conta com este email (cliente
+      // ou parceiro), não rebentar — pedir a palavra-passe, autenticar e criar
+      // só a linha de estafeta que falta. Ver services/multi_role_signup.dart.
+      try {
+        final res = await supabase.auth.signUp(
+          email: email,
+          password: password,
+          data: {
+            'bora_role': 'driver',
+            'bora_name': name,
+            'bora_phone': phone,
+            'bora_consent_accepted_at': consentAcceptedAt.toIso8601String(),
+            'bora_consent_version': AuthStore.currentConsentVersion,
+          },
+        );
 
-      final user = res.user;
-      if (user == null) throw Exception('Não foi possível criar a conta.');
+        final user = res.user;
+        if (user == null) throw Exception('Não foi possível criar a conta.');
 
-      if (res.session == null) {
-        await supabase.auth
-            .signInWithPassword(email: email, password: password);
+        if (res.session == null) {
+          await supabase.auth
+              .signInWithPassword(email: email, password: password);
+        }
+      } catch (e) {
+        if (!isEmailAlreadyRegistered(e)) rethrow;
+        if (!mounted) return;
+        final outcome = await promptSignInToAddProfile(
+          context: context,
+          email: email,
+          perfil: 'estafeta',
+        );
+        if (outcome != ExistingAccountOutcome.signedIn) {
+          if (!mounted) return;
+          setState(() => _isProcessing = false);
+          return; // Nunca criar perfil sem autenticar.
+        }
       }
 
       // RPC with basic data to create driver row (approval_status=pending)

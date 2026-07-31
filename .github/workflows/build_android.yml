@@ -169,13 +169,21 @@ jobs:
       # 11. Upload para Google Play — Teste FECHADO ('alpha') + Teste INTERNO ('internal').
       #     'alpha' e' o track ligado ao grupo bora-app-testers@googlegroups.com (os 12
       #     testadores do requisito 12×14 dias).
-      #     'internal' foi RE-ADICIONADO a 2026-07-30: com changesNotSentForReview=true
-      #     (ver nota abaixo) o alpha fica "por enviar para revisao" e a Google NAO o
-      #     distribui -> o build nao chega ao telemovel. O Teste Interno NAO passa por
-      #     revisao, por isso e' o unico caminho que entrega enquanto houver uma
-      #     rejeicao de producao pendente. 'tracks' (plural, separado por virgula)
-      #     faz UM upload atribuido aos dois tracks; 'track' singular esta deprecated.
+      #     'internal' entrega sem passar por revisao — util para ver o build depressa.
+      #     'tracks' (plural, separado por virgula) faz UM upload atribuido aos dois
+      #     tracks; 'track' singular esta deprecated.
       #     status: completed = rollout 100% (senão os testadores não recebem).
+      #
+      #     changesNotSentForReview: REMOVIDO a 2026-07-31 — era um contorno que
+      #     EXPIROU. Foi posto a 2026-07-28 (commit 0d27ced) porque havia uma
+      #     rejeicao de producao PENDENTE: nesse estado a API descartava a edicao
+      #     inteira ao tentar enviar para revisao. Desde que a app passou a estar
+      #     PUBLICADA em producao, a Google envia sempre para revisao sozinha e a
+      #     API REJEITA o parametro. Erro exato da run 30663180518:
+      #       "Changes are sent for review automatically.
+      #        The query parameter changesNotSentForReview must not be set."
+      #     Ou seja: o que antes era o fix passou a ser a causa. Nao voltar a por
+      #     esta flag sem confirmar primeiro que ha mesmo uma rejeicao pendente.
       - name: Upload to Google Play (alpha + internal)
         uses: r0adkll/upload-google-play@v1
         with:
@@ -184,9 +192,3 @@ jobs:
           releaseFiles: build/app/outputs/bundle/release/app-release.aab
           tracks: alpha,internal
           status: completed
-          # Quando a app tem um lançamento rejeitado/pendente (ex.: produção recusada
-          # pela politica de fotos), a API do Google recusa o envio-para-revisao
-          # automatico e a edicao inteira e' descartada (o AAB novo nao persiste).
-          # Com isto, a edicao faz COMMIT sem enviar para revisao -> o bundle fica
-          # disponivel na biblioteca e a revisao e' enviada manualmente pela UI.
-          changesNotSentForReview: true

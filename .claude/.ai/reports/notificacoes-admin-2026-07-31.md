@@ -235,6 +235,20 @@ Separar em dois steps também não serve: o segundo upload do **mesmo versionCod
 step extra que fale direto com a Play Developer API e atribua o versionCode já
 carregado ao track de produção com `userFraction`. Fica como próximo passo.
 
+### Veredito da run — confirmado ao nível do step
+
+Run **30669844090** (commit `fb19ad3`) — `CONCLUSAO=success`:
+
+```
+success  Bump versionCode
+success  Build appbundle (release)
+success  Upload to Google Play (internal + alpha + production)   ← o step pedido
+success  Complete job
+```
+
+O upload para **produção** passou. A partir daqui o track de produção recebe
+cada build desta branch.
+
 ### ⚠️⚠️ AVISO — LER
 
 > **A partir deste push, cada push nesta branch vai para TODOS os utilizadores
@@ -245,6 +259,35 @@ carregado ao track de produção com `userFraction`. Fica como próximo passo.
 > Foi decisão explícita do Danilo nesta sessão.
 
 `changesNotSentForReview` **não voltou** ao workflow.
+
+---
+
+## Incidente durante o push (resolvido)
+
+O primeiro push passou, mas a run **30669276911 falhou no build**:
+
+```
+lib/main.dart:575:31: Error: Member not found: 'routeName'.
+          ResetPasswordScreen.routeName: (_) => const ResetPasswordScreen(),
+Execution failed for task ':app:compileFlutterBuildRelease'.
+```
+
+**Não foi a minha alteração.** Outro executor estava a editar o **mesmo ficheiro**
+(`lib/main.dart`), a acrescentar rotas para `ResetPasswordScreen.routeName`, sem
+ter committado o `reset_password_screen.dart` que define esse membro. Como o
+`git add lib/main.dart` leva o ficheiro **inteiro** — e não só as minhas linhas —
+arrastei metade do trabalho dele.
+
+Isto é a repetição de um erro já registado
+(`project_commit_concorrente_colateral_2026-07-14`), mas por uma via que a lição
+antiga não cobria: lá era `git add -A`; aqui foram caminhos explícitos. A memória
+foi atualizada — **antes de `git add <ficheiro>`, correr `git diff --stat` e
+confirmar que todas as linhas são minhas.**
+
+Recuperado sem destruir o trabalho do outro executor: guardei o working tree,
+reverti `main.dart` para a versão limpa, reapliquei só a minha alteração, commitei
+(`fb19ad3`) e devolvi o WIP dele ao working tree, por committar. Entretanto ele
+publicou — resolvido com `pull --rebase --autostash`, nunca `--force`.
 
 ---
 

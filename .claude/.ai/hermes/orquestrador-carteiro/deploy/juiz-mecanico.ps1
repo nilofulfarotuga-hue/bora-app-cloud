@@ -126,20 +126,32 @@ if ($mRec.Success) {
   Proof 'regex recusa na SAIDA' 'sem declaracao de recusa/falha'
 }
 
-# ---- (b) ordem pedia commit/push -> exigir commit REAL no repo (defeito A: negacao-aware) ----
+# ---- (b) ordem pedia commit/push -> exigir commit REAL no repo (negacao por CLAUSULA) ----
 # DEFEITO A (2026-07-16): so exigir commit quando a ordem MANDA commitar/pushar. Se a mencao
 # a commit/push esta dentro de uma PROIBICAO ("NAO commitar", "sem push", "nao facas push"),
 # nao se exige nada; se a ordem PROIBE e o executor committou algo atribuivel, isso e violacao.
-$kwRe  = '(?i)\b(commit|commits|committ\w*|commitar|commites|commitares|comit|comita|comitar|comitei|commitei|commitou|push|pushar|pushes|pusha|pushei)\b'
-$negRe = '(?i)\b(nao|sem|nunca|jamais|proibid[oa]|evita\w*|nada de|nem)\b'
-$mandaCommit = $false; $proibeCommit = $false
-foreach ($km in [regex]::Matches($tarefaAscii, $kwRe)) {
-  $start = [Math]::Max(0, $km.Index - 24)                # janela de proximidade da negacao
-  $win = $tarefaAscii.Substring($start, $km.Index - $start)
-  $cut = [regex]::Match($win, '[.!?\n][^.!?\n]*$')       # nao atravessar fronteira de frase
-  if ($cut.Success) { $win = $win.Substring($cut.Index + 1) }
-  if ($win -match $negRe) { $proibeCommit = $true } else { $mandaCommit = $true }
+#
+# FIX 2026-08-01 (missao sistema-redondo, ordem-20260801072105-228a): a janela fixa de 24
+# caracteres SO PARA TRAS do termo perdia negacao mais distante ("nao deve, em circunstancia
+# nenhuma, fazer commit") ou DEPOIS do termo ("faz o diagnostico; nao faças commit nem push").
+# ---FUNC:Get-CommitIntent-START--- (extraida p/ ser testavel isolada -- _juiz_mecanico_commit_test.ps1)
+function Get-CommitIntent([string]$tarefaAscii) {
+  $kwRe  = '(?i)\b(commit|commits|committ\w*|commitar|commites|commitares|comit|comita|comitar|comitei|commitei|commitou|push|pushar|pushes|pusha|pushei)\b'
+  $negRe = '(?i)\b(nao|sem|nunca|jamais|proibid[oa]|evita\w*|nada de|nem)\b'
+  # clausula = fronteira de frase OU conjuncao contrastiva (reinicia a polaridade dentro do
+  # mesmo periodo) -- negacao conta em QUALQUER ponto da MESMA clausula, antes ou depois do
+  # termo, sem limite de distancia. Negacao noutra clausula nao apaga termo genuino a seguir.
+  $clauseSplitRe = '[.!?\n]+|\b(mas|porem|porém|contudo|entretanto)\b'
+  $manda = $false; $proibe = $false
+  foreach ($cl in [regex]::Split($tarefaAscii, $clauseSplitRe)) {
+    if ($cl -notmatch $kwRe) { continue }
+    if ($cl -match $negRe) { $proibe = $true } else { $manda = $true }
+  }
+  [pscustomobject]@{ Manda = $manda; Proibe = $proibe }
 }
+# ---FUNC:Get-CommitIntent-END---
+$intent = Get-CommitIntent $tarefaAscii
+$mandaCommit = $intent.Manda; $proibeCommit = $intent.Proibe
 
 if ($recusaValida) {
   Proof 'commit-check' 'dispensado: recusa valida (a ordem previa escape e o executor reportou)'

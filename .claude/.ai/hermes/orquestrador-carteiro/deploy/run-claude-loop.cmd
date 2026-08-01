@@ -138,6 +138,38 @@ REM sugestao do proprio Claude Code sem produzir output novo. Ver executor-lock.
 powershell -NoProfile -ExecutionPolicy Bypass -File "%LOCKPS%" -Action cleanorphans -LockFile "%LOCKFILE%" -LiveLog "%LIVELOG%" -StaleOutputMin 15 > "%TEMP%\bora_lock_clean.txt" 2>&1
 for /f "usebackq delims=" %%L in ("%TEMP%\bora_lock_clean.txt") do echo [%date% %time%] %%L >> "%LIVELOG%"
 
+REM PRE-VOO DE RAM v2 (2026-08-01, tarde) -- METRICA CERTA + LIMIAR MEDIDO.
+REM A v1 (manha do mesmo dia) lia Win32_OperatingSystem.FreePhysicalMemory e travava abaixo de
+REM 800 MB. Errado duas vezes:
+REM  (1) "Free" no Windows e' mantido baixo DE PROPOSITO (o SO prefere paginas na standby list a
+REM      servir de cache); pouca free e' o estado normal e nao diz nada sobre capacidade. A metrica
+REM      que responde a "cabe mais um processo?" e' AVAILABLE (\Memory\Available MBytes = free +
+REM      zero + standby) -- o mesmo numero que o Gestor de Tarefas mostra como "Disponivel".
+REM  (2) 800 MB nunca saiu de medicao nenhuma. Custo real: a ordem-...-ffc9-aprovado foi recusada
+REM      com "769MB livres" enquanto o Danilo corria 5 sessoes a mao no mesmo PC -- e um executor
+REM      completou um ciclo inteiro (23 turnos, $1.16) nessas condicoes as 12:13 do mesmo dia.
+REM Agora: ram-preflight.ps1 le AvailableMBytes + o headroom de COMMIT (commit esgotado e' que faz
+REM a alocacao FALHAR; pouca available so faz PAGINAR -- avarias diferentes, testes separados) e
+REM calibra-se pelo pico REAL gravado por executor-rss-sampler.ps1 em .claude\executor-rss.csv.
+REM Continua a Lei do Pre-Voo: nao havendo memoria, NAO se sobe o claude.exe -- a ordem volta a
+REM fila intacta e sem gastar tentativa (o carteiro le "ERRO: RAM insuficiente no PC").
+set "PREFLIGHTPS=%~dp0ram-preflight.ps1"
+set "RSSCSV=%PROJ%\.claude\executor-rss.csv"
+set "RSSSAMPLERPS=%~dp0executor-rss-sampler.ps1"
+set "RAMLINE="
+if exist "%PREFLIGHTPS%" (
+  for /f "usebackq delims=" %%R in (`powershell -NoProfile -ExecutionPolicy Bypass -File "%PREFLIGHTPS%" -CsvPath "%RSSCSV%" 2^>^&1`) do set "RAMLINE=%%R"
+  echo !RAMLINE! | find "BLOCK" >nul 2>&1
+  if not errorlevel 1 (
+    echo [%date% %time%] [loop] !RAMLINE! - abortar sem subir claude.exe >> "%LIVELOG%"
+    echo ERRO: RAM insuficiente no PC ^(!RAMLINE!^) - tarefa nao executada, o carteiro tenta de novo.
+    exit /b 7
+  )
+  echo [%date% %time%] [loop] !RAMLINE! >> "%LIVELOG%"
+) else (
+  echo [%date% %time%] [loop] AVISO: ram-preflight.ps1 ausente em "%PREFLIGHTPS%" - pre-voo de RAM SALTADO >> "%LIVELOG%"
+)
+
 REM FASE 1.5 -- lock de concorrencia: so 1 claude.exe executor de cada vez. Se outro
 REM executor vivo (<10min) estiver a correr, ESPERA (nunca sobe um segundo); lock orfao e
 REM assumido na hora.
@@ -163,9 +195,27 @@ del /f /q "%STALESTAMP%" >nul 2>&1
 if exist "%WATCHDOGPS%" (
   start "" /B powershell -NoProfile -ExecutionPolicy Bypass -File "%WATCHDOGPS%" -LiveLog "%LIVELOG%" -StampFile "%STALESTAMP%" -StaleMinutes 20 -HardCeilingMinutes 240 -PollSeconds 30
 )
+REM CALIBRACAO DO PRE-VOO (2026-08-01) -- o sampler corre em paralelo e grava o pico REAL deste
+REM executor em .claude\executor-rss.csv. E' o que tira o limiar do dominio da opiniao: a partir da
+REM 1a linha, o ram-preflight.ps1 dimensiona-se pelo pior caso MEDIDO em vez de um numero redondo.
+REM Auto-termina quando o claude.exe desaparece; nao escreve nada se nunca vir um executor.
+set "RSSSTATE=%TEMP%\bora_rss_current.txt"
+del /f /q "%RSSSTATE%" >nul 2>&1
+if exist "%RSSSAMPLERPS%" (
+  start "" /B powershell -NoProfile -ExecutionPolicy Bypass -File "%RSSSAMPLERPS%" -CsvPath "%RSSCSV%" -StateFile "%RSSSTATE%" -PollSeconds 3 -HardCeilingMinutes 260 -Tag loop >> "%TEMP%\bora_rss_sampler.log" 2>&1
+)
 REM FASE 1.4 -- stream legivel no LIVELOG + resultado final no stdout (via parser)
 "%CLAUDE_EXE%" -p --append-system-prompt "%GUARD%" --output-format stream-json --verbose %MODEL% %PERM% %TURNS% %BUDGET% < "%TASKFILE%" 2>&1 | powershell -NoProfile -ExecutionPolicy Bypass -File "%PARSER%" "%LIVELOG%"
 set "CLAUDE_RC=%ERRORLEVEL%"
+REM CALIBRACAO -- grava a linha do CSV AQUI, nao no sampler. Quando este .cmd corre por SSH, o
+REM OpenSSH mata a arvore de processos ao terminar o comando remoto e o `start /B` do sampler
+REM nunca chegava ao seu proprio fim (provado: 2 corridas reais, log do sampler vazio, 0 linhas).
+REM O sampler deixa o pico corrente em %RSSSTATE% a cada amostra; quem persiste e' este passo,
+REM que e' sincrono e corre sempre.
+if exist "%RSSSTATE%" (
+  powershell -NoProfile -ExecutionPolicy Bypass -Command "$s=(Get-Content -LiteralPath $env:RSSSTATE -ErrorAction SilentlyContinue | Select-Object -First 1); if($s){$p=$s.Split(','); if(-not (Test-Path -LiteralPath $env:RSSCSV)){Set-Content -LiteralPath $env:RSSCSV -Value 'ts,peak_ws_mb,peak_private_mb,dur_s,tag' -Encoding UTF8}; Add-Content -LiteralPath $env:RSSCSV -Value ((Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')+','+$p[0]+','+$p[1]+','+$p[2]+',loop') -Encoding UTF8; Write-Output ('[loop] RSS medido: ws='+$p[0]+'MB private='+$p[1]+'MB dur='+$p[2]+'s')}" >> "%LIVELOG%" 2>&1
+  del /f /q "%RSSSTATE%" >nul 2>&1
+)
 REM FASE 1.9 -- se o vigia matou o executor, o motivo (INATIVIDADE:Xmin | TETO-DURO:Xmin) vai
 REM no stdout para o carteiro.sh distinguir de uma saida vazia normal e nunca dizer "timeout".
 if exist "%STALESTAMP%" (

@@ -428,10 +428,25 @@ def screenshot_falha(serial: str, fluxo: str, yaml_rel: str) -> str:
     return ""
 
 
+def fecha_notification_shade(serial: str) -> None:
+    """FIX 2026-07-14: a corrida 07-13/14 travou porque a gaveta de notificações
+    do Android abriu por cima da app ANTES do 1.º extendedWaitUntil do login.yaml
+    (mCurrentFocus=NotificationShade) — nem KEYCODE_HOME nem KEYCODE_BACK a fecham
+    (confirmado à mão nessa sessão). 'cmd statusbar collapse' é o comando dedicado
+    do Android para colapsar a shade (SystemUI), diferente de HOME/BACK. Best-effort,
+    nunca lança — chamado antes de CADA arranque do Maestro (não só no login)."""
+    try:
+        subprocess.run([_adb_bin(), "-s", serial, "shell", "cmd", "statusbar", "collapse"],
+                       capture_output=True, timeout=10)
+    except Exception:
+        pass
+
+
 def corre_maestro(serial: str, yaml_rel: str, env_extra: dict, log_passos: list,
                   fluxo: str = "?") -> dict:
     yaml_path = FLOWS / yaml_rel
     garante_serial_autorizado(serial)  # recupera se a autorização USB caiu a meio
+    fecha_notification_shade(serial)
     e2e_diario.registar(fluxo, f"maestro: {yaml_rel}", "iniciou", device=serial)
     cmd = [_maestro_bin(), "--device", serial, "test", str(yaml_path)]
     for k, v in {**_diario_env(), **_creds_maestro(), **(env_extra or {})}.items():
@@ -512,6 +527,56 @@ def corre_maestro(serial: str, yaml_rel: str, env_extra: dict, log_passos: list,
                         device=serial)
     return {"ok": ok, "rc": r.returncode, "dur_s": round(t1 - t0, 1), "t_fim": t1,
             "tail": tail, "foto": foto}
+
+
+def _delivery_code_from_id(order_id: str) -> str:
+    """4 dígitos calculados deterministicamente do UUID do pedido — replica
+    OrderModel.deliveryCode (lib/models/order_model.dart:673-679): "Deterministic
+    — no DB column needed." FIX 2026-07-14: env_de_db apontava para a coluna
+    `orders.delivery_code`, que NÃO EXISTE (confirmado por leitura directa do
+    schema via REST) — o PIN chegava sempre vazio ao flow do estafeta. Bug
+    silencioso desde a criação de delivery-mercado-cash; corrigido aqui em vez
+    de no YAML porque o cálculo tem de replicar a fórmula Dart exacta."""
+    hexpart = re.sub(r"[^0-9a-fA-F]", "", str(order_id or ""))[:4]
+    if len(hexpart) < 4:
+        return ""
+    try:
+        val = int(hexpart, 16) % 9000 + 1000
+        return str(val)
+    except ValueError:
+        return ""
+
+
+def corre_script(passo: dict, contexto: dict, log_passos: list) -> dict:
+    """Passo 'script': corre um .py desta pasta (não-Maestro) — usado para
+    simular server-side acções que, no rig de teste, não têm um 3º telemóvel
+    de parceiro (README: papel de PARCEIRO = admin/web no PC, nunca telemóvel).
+    Recebe --order-id do guarda 'order' do contexto (poll_db anterior)."""
+    fid = contexto.get("fid", "?")
+    arquivo = passo["arquivo"]
+    script_path = BASE / arquivo
+    e2e_diario.registar(fid, f"script: {arquivo}", "iniciou")
+    order = contexto.get(passo.get("usa_guarda", "order")) or {}
+    cmd = [sys.executable, str(script_path)]
+    if order.get("id"):
+        cmd += ["--order-id", str(order["id"])]
+    t0 = time.time()
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8",
+                           errors="replace", timeout=passo.get("timeout_s", 90))
+        ok = r.returncode == 0
+        tail = ((r.stdout or "")[-1500:] + "\n[stderr]\n" + (r.stderr or "")[-800:]).strip()
+    except subprocess.TimeoutExpired:
+        ok = False
+        tail = f"TIMEOUT {passo.get('timeout_s', 90)}s"
+    except Exception as e:
+        ok = False
+        tail = f"erro a correr script: {e}"
+    t1 = time.time()
+    log_passos.append({"ts": t1, "evento": f"script {arquivo} ok={ok}", "tail": tail})
+    e2e_diario.registar(fid, f"script: {arquivo}", "passou" if ok else "falhou",
+                        detalhe=tail[-1200:])
+    return {"ok": ok, "tail": tail, "t_fim": t1}
 
 
 def poll_db(passo: dict, contexto: dict, log_passos: list) -> dict:
@@ -615,7 +680,12 @@ def corre_fluxo(fluxo: dict, devices: dict, single: bool = True, logout_map: dic
                 env_extra = {}
                 for k, campo in (passo.get("env_de_db") or {}).items():
                     row = contexto.get("order") or {}
-                    env_extra[k] = str(row.get(campo, ""))
+                    if campo == "delivery_code":
+                        # FIX 2026-07-14: coluna não existe — PIN é calculado
+                        # (ver _delivery_code_from_id).
+                        env_extra[k] = _delivery_code_from_id(row.get("id", ""))
+                    else:
+                        env_extra[k] = str(row.get(campo, ""))
                 r = corre_maestro(serial, passo["yaml"], env_extra, log_passos, fluxo=fid)
                 resultado["passos"].append({"tipo": "maestro", "yaml": passo["yaml"], **{k: r[k] for k in ("ok", "rc", "dur_s")}})
                 if not r["ok"]:
@@ -628,6 +698,13 @@ def corre_fluxo(fluxo: dict, devices: dict, single: bool = True, logout_map: dic
                 if r.get("ok") is False:
                     resultado["estado"] = "FALHOU"
                     resultado["falha"] = {"poll_db": passo["tabela"], "t_epoch": time.time(), "erro": r.get("erro")}
+                    break
+            elif passo["tipo"] == "script":
+                r = corre_script(passo, contexto, log_passos)
+                resultado["passos"].append({"tipo": "script", "arquivo": passo["arquivo"], "ok": r["ok"]})
+                if not r["ok"]:
+                    resultado["estado"] = "FALHOU"
+                    resultado["falha"] = {"script": passo["arquivo"], "t_epoch": r["t_fim"], "tail": r["tail"][-1200:]}
                     break
     finally:
         cine.stop_all()

@@ -29,6 +29,19 @@
 - **Frescura:** aplicar só factos `estado: atual`; um facto `superado` fica na história, não se aplica.
 - **Invariante:** índice e cada ficheiro carregam abaixo de ~24 KB. Passou → o Bibliotecário parte.
 
+## Nota: `context-mode` (ctx_*/`/ctx doctor`/`/ctx stats`) não vale no executor headless
+
+A regra "usa sempre `ctx_*` em vez de Bash/Read para output grande" (injetada pelo hook
+`SessionStart` do plugin `context-mode`) só se aplica a **sessões interactivas** (Claude Code
+app/CLI com MCP ligado — confirmado ao vivo 2026-08-01, `ctx_doctor`/`ctx_stats` respondem).
+**Não vale no loop autónomo** (`run-claude-loop.cmd` → `claude -p --output-format stream-json`):
+o modo `-p` não-interactivo não despacha comandos-slash e corre sem `--mcp-config`, logo nenhuma
+ferramenta `ctx_*` existe nesse processo — não é regressão nem falta de instalação, é o desenho
+do modo `-p`. Um agente/ordem a correr dentro do loop autónomo deve continuar a usar
+Bash/Read/Grep directamente; só uma sessão interactiva (Claude.ai, Claude Code app) deve preferir
+`ctx_*`. Ver `.claude/.ai/reports/sistema-redondo-FECHO-2026-08-01.md` §6(d) e
+`.claude/.ai/reports/sistema-redondo-continuacao-2026-08-01.md` (Bloco C.3).
+
 ## Skill Usage Rule
 
 - ALWAYS prefer using skills instead of long prompts

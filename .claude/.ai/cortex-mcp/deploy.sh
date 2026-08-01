@@ -20,11 +20,22 @@ echo "NET=$NET  VOL=$VOL  DOMAIN=$DOMAIN"
 OWN=$(docker exec -u hermes "$HERMES" stat -c '%u:%g' /opt/data/cortex-brain 2>/dev/null || echo 10000:10000)
 echo "OWN(uid:gid do brain)=$OWN  (container corre com este user — não-root)"
 
+# 2b) pasta de ESTADO do OAuth (2026-08-01, missao sistema-redondo parte 8)
+# server.mjs está baked na imagem (Dockerfile: COPY), logo todo o deploy recria o container e o
+# estado OAuth em memória evaporava — o conector do claude.ai ficava deslogado a cada redeploy.
+# Volume próprio de propósito: .secrets está montado :ro e /brain é um clone git (reset --hard
+# nocturno + risco de um `git add -A` alheio arrastar tokens para um commit).
+STATEDIR=$DIR/state
+mkdir -p "$STATEDIR"
+chown -R "${OWN%%:*}:${OWN##*:}" "$STATEDIR"
+chmod 700 "$STATEDIR"
+
 # 3) build + (re)run
 docker build -t cortex-mcp:latest "$DIR"
 docker rm -f cortex-mcp >/dev/null 2>&1 || true
 docker run -d --name cortex-mcp --restart unless-stopped --network "$NET" --user "$OWN" \
   -e CORTEX_TOKEN="$TOKEN" \
+  -e CORTEX_OAUTH_STATE=/state/oauth.json \
   -e CORTEX_ISSUER="https://$DOMAIN" \
   -e CORTEX_BRAIN=/brain/.claude/.ai/knowledge \
   -e CORTEX_WRITE_ENABLED=true \
@@ -32,6 +43,8 @@ docker run -d --name cortex-mcp --restart unless-stopped --network "$NET" --user
   `# escrita LIGADA desde 2026-07-08 (PAT rotacionado p/ deploy key + OAuth live + travas de zona no servidor). Reverter p/ false se o teste falhar.` \
   -v "$VOL/cortex-brain":/brain:rw \
   -v "$VOL/.secrets":/opt/data/.secrets:ro \
+  -v "$STATEDIR":/state:rw \
+  `# /state:rw = SO o estado do OAuth (clientes + tokens). Sobrevive ao redeploy; fora do repo git.` \
   `# .secrets:ro = deploy key + known_hosts p/ o git push via SSH (mesma chave do Hermes; NUNCA PAT). rw no brain: fila+log+páginas verdes.` \
   -l traefik.enable=true \
   -l "traefik.http.routers.cortex.rule=Host(\`$DOMAIN\`)" \

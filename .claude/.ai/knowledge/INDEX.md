@@ -1,5 +1,5 @@
 ---
-tema: indice-cerebro · escopo: projeto · estado: atual · atualizado: 2026-07-12
+tema: indice-cerebro · escopo: projeto · estado: atual · atualizado: 2026-07-27
 ---
 
 # 🧠 CÉREBRO DO BORA — Índice
@@ -75,6 +75,11 @@ knowledge/
 | ↳ cron que dispara ordem na fila a cada sinal = spam por construção | `permanente/procedural/licoes/licao-spam-ordens-autoreferencial.md` | desenhar/religar qualquer agente reativo (evolution-engine e futuros) |
 | ↳ 5 causas-raiz de robustez do loop autónomo (pipe SSH, rate-limit falso, RAM/lock, juiz mudo, timeout) | `permanente/procedural/licoes/licao-robustez-loop-autonomo-2026-07-13.md` | mexer no carteiro/executor headless/Juiz |
 | Aprovador-vermelho — conhecimento de triagem (Balde A/B) | `permanente/procedural/aprovador-vermelho-triagem.md` | antes de triar a fila `robot_suggestions`; staleness de item Balde B não é bug |
+| ↳ Aprovador-vermelho — histórico de corridas ATIVO (2026-07-24 em diante) | `permanente/procedural/aprovador-vermelho-historico-corridas.md` | ver detalhe de uma corrida recente (corridas 2026-07-20/21 movidas para arquivo em 2026-07-27 por tamanho) |
+| ↳ Aprovador-vermelho — anomalia backoff exponencial do script gatilho | `permanente/procedural/aprovador-vermelho-anomalia-backoff-script.md` | investigar disparos repetidos do FALLBACK 30MIN / deploy de `hermes-aprovador-vermelho.sh` (partido de `aprovador-vermelho-triagem.md` em 2026-07-27) |
+| ↳ Aprovador-vermelho — histórico arquivado (2026-07-20 a 2026-07-21) | `permanente/procedural/aprovador-vermelho-historico-corridas-arquivo-2026-07-20-a-21.md` | só para auditoria histórica; não precisa para triagem ativa (partido em 2026-07-27 por tamanho) |
+| ↳ Aprovador-vermelho — histórico arquivado (2026-07-18 a 2026-07-19) | `permanente/procedural/aprovador-vermelho-historico-corridas-arquivo-2026-07-18-a-19.md` | só para auditoria histórica; não precisa para triagem ativa (partido em 2026-07-24 por tamanho) |
+| ↳ Aprovador-vermelho — histórico arquivado (2026-07-10 a 2026-07-16, lotes fechados) | `permanente/procedural/aprovador-vermelho-historico-corridas-arquivo-2026-07-ate-16.md` | só para auditoria histórica; não precisa para triagem ativa (partido em 2026-07-21 por tamanho) |
 | ⛔ Modo de trabalho 2026-07-15 — [superado: fila religada na mesma noite c/ Juiz mecânico] mas a REGRA DE PROVA fica: git/disco, nunca `e2e_log` | `permanente/procedural/modo-de-trabalho-2026-07-15.md` | antes de tocar carteiro/campainha/VPS ou confiar em `e2e_log` |
 
 ---

@@ -56,15 +56,35 @@ FILA_ESTADO=/root/orquestracao/.fila-estado   # transição ocupado<->vazio (202
 # T3 money-filter. -iE (case-insensitive). 2026-07-11: menos sensível a PALAVRAS
 # (ver wiki/licoes/classificador-zona-menos-sensivel-a-palavras.md). Vermelho exige INTENÇÃO
 # DE ESCRITA: RED_ALWAYS = destrutivo por si só; RED_TERMS = domínio $; WRITE_INTENT = verbo de
-# escrita; NEG = tira 'sem corrigir'/'nao alterar' antes do teste. Proteção real intacta.
+# escrita; NEG = negação. Proteção real intacta.
+#
+# FIX 2026-08-01 (missao sistema-redondo, ordem-20260801071337-3cb4): o NEG antigo
+# `(sem|nao|...) +UMA palavra` só apagava a negação + o próximo token — frases reais em PT quase
+# nunca colam o verbo logo a seguir ("não DEVE mexer", "nunca, em circunstância nenhuma, vai
+# ALTERAR") e o verbo de escrita sobrevivia à limpeza, continuando a bater com WRITE_INTENT mesmo
+# sob negação explícita. Agora a negação é por CLÁUSULA: a tarefa é dividida em fronteiras de
+# frase (`. ! ? ; \n`) e em conjunções contrastivas (`mas/porém/contudo/entretanto`, que reiniciam
+# a polaridade dentro do mesmo período) — RED_TERMS + WRITE_INTENT só contam vermelho se não
+# houver NEG em QUALQUER ponto da MESMA cláusula (antes ou depois do termo, sem limite de
+# distância). Uma negação noutra cláusula (separada por "mas" ou por ponto) não apaga um termo
+# genuíno mais à frente — evita o extremo oposto de suprimir tudo por haver "não" em qualquer
+# lugar do texto. RED_ALWAYS continua INCONDICIONAL (design deliberado: comandos destrutivos como
+# --force/reset --hard são vermelho mesmo mencionados sob proibição — ver lição 2026-07-11).
 RED_ALWAYS='disable row level|--force|force.?with.?lease|reset .*--hard|force.?push'
 RED_TERMS='dispatch_engine|pricing_service|finalizePurchase|bora[ _]tokens?|tokens?_applied|tvde[a-z_ ]*tokens?|stripe|payment|webhook|wallet|ledger|refund|payout|commission|platform_settings'
 WRITE_INTENT='mud(a|ar|e|ei|ou|anca|ança)|atualiz|altera|modific|mexer?|edita|reescrev|refator|aplica|grava|escrev|deploy|remov|apaga|dropa|insere|inserir|configura|corrig|ajusta|\b(UPDATE|INSERT|DELETE|ALTER|DROP|TRUNCATE)\b'
-NEG='(sem|nao|não|nunca|jamais) +[a-zàáâãéêíóôõúç]+'
+NEG='\b(sem|nao|não|nunca|jamais|nem)\b'
 zona_vermelha(){ # $1=tarefa -> 0 (vermelho) / 1 (verde)
-  local limpo; limpo=$(printf '%s' "$1" | sed -E "s/$NEG//gi")
   echo "$1" | grep -iqE "$RED_ALWAYS" && return 0
-  echo "$1" | grep -iqE "$RED_TERMS" && echo "$limpo" | grep -iqE "$WRITE_INTENT" && return 0
+  local clausulas clausula
+  clausulas=$(printf '%s' "$1" | sed -E 's/[.!?;]+/\n/g' | sed -E 's/\b(mas|porem|porém|contudo|entretanto)\b/\n/gi')
+  while IFS= read -r clausula; do
+    [ -z "$clausula" ] && continue
+    echo "$clausula" | grep -iqE "$RED_TERMS" || continue
+    echo "$clausula" | grep -iqE "$WRITE_INTENT" || continue
+    echo "$clausula" | grep -iqE "$NEG" && continue   # mesma clausula nega a escrita -> nao conta
+    return 0
+  done <<< "$clausulas"
   return 1
 }
 
@@ -211,6 +231,11 @@ exec_ordem(){ # $1=tarefa -> PC-ONLY (2026-07-15 missao religar-loop): despacha 
 # em cima dessa mensagem de erro (sem sentido para avaliar), devolvendo lixo sem "VEREDITO:".
 # Deteta isto ANTES do juiz: não gasta tentativa, não chama o juiz, reabre para a próxima volta.
 is_lock_busy(){ printf '%s' "$1" | grep -iqE "outro executor Bora ja em curso|ERRO: lock ocupado"; }
+# PRE-VOO DE RAM (2026-08-01, missao sistema-redondo parte 4): o executor recusou-se a arrancar
+# por falta de memoria no PC. Mesmo tratamento do lock ocupado — a ordem volta a fila intacta,
+# sem gastar tentativa e sem chamar o juiz — mas com nota propria, para o log nao mentir sobre
+# a causa (uma coisa e' "outro executor a correr", outra e' "o PC nao tem RAM").
+is_ram_baixa(){ printf '%s' "$1" | grep -iqE "ERRO: RAM insuficiente no PC"; }
 
 # ---------------- EXECUTOR-PAROU: claude.exe parou por --max-turns/--max-budget-usd ----------------
 # FASE 1.10 (2026-07-17): causa raiz da "SAIDA-VAZIA -- tarefa grande demais?" era o claude.exe a
@@ -700,6 +725,16 @@ Para libertar para a fila normal, responde aqui: vai $id
   # ---- LOCK-OCUPADO: executor nem chegou a arrancar (outro claude.exe vivo no PC) — não
   # gasta tentativa nem chama o juiz (não há nada real para avaliar); reabre para a próxima
   # volta tentar de novo, sem queimar o teto T1 nem confundir com falha do juiz.
+  if is_ram_baixa "$saida"; then
+    livres=$(printf '%s' "$saida" | grep -oiE "RAM insuficiente no PC \(([0-9]+)MB livres\)" | grep -oE "[0-9]+MB" | head -1)
+    setf tentativa "$((tent-1))" "$f"
+    setf estado aberta "$f"
+    setf nota "🧠 RAM-BAIXA — o PC não tinha memória (${livres:-?} livres) para subir o executor; reagendada sem gastar tentativa." "$f"
+    log "ordem $id: 🧠 RAM-BAIXA (${livres:-?}) — reaberta sem gastar tentativa"
+    ultima_veredito="RAM-BAIXA"
+    continue
+  fi
+
   if is_lock_busy "$saida"; then
     setf tentativa "$((tent-1))" "$f"
     setf estado aberta "$f"

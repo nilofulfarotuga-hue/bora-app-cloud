@@ -350,9 +350,23 @@ comentário `REM`. A conclusão original mantém-se — `run-claude.cmd` não te
 **Mas a pesquisa apanhou uma coisa nova, de outra forma:** `login.cmd:15` invoca `claude` **nu**,
 a contar com o PATH. E o PATH não tem `claude` — nem sequer para o `danil` (`where claude` não
 devolve nada; a CLI vive em `%APPDATA%\Claude\claude-code\<versão>\` sem shim). Ou seja, o
-`login.cmd` também está partido, pelo mesmo motivo de fundo e sem o saber. **Não o corrigi** —
-está fora do que foi mandado auditar e é o script que o Danilo usa para autenticar à mão; mexer
-nele sem ele saber seria mudar o caminho de recuperação por baixo dos pés.
+`login.cmd` também está partido, pelo mesmo motivo de fundo e sem o saber.
+
+**CORRIGIDO (autorizado pelo Danilo, 2026-08-01)** — com a razão dele: *"um caminho de
+recuperação partido é pior que um caminho alterado. Se a auth voltar a falhar, é por ali que se
+entra, e hoje não entra."* Resolvido pelo mesmo `resolve-claude-exe.ps1`, com erro
+`CLI-NAO-ENCONTRADA` acionável. Backup **antes** (lição L1), em pasta gravável:
+`hermes-bridge/_backup/login.cmd.20260801-pre-resolver.bak` (sha original `37dd1cab24a870a8`).
+
+**Prova:** bloco real extraído do ficheiro e corrido →
+`RESOLVIDO=C:\Users\danil\AppData\Roaming\Claude\claude-code\2.1.219\claude.exe`, e o binário
+responde `2.1.219 (Claude Code)`.
+> Nota de honestidade: o **primeiro** teste deu `RESOLVIDO=O Windows PowerShell` e parecia
+> falha do fix. Era o meu harness — ao extrair o bloco para `%TEMP%`, o `%~dp0` passou a apontar
+> para lá, onde o helper não existe. O ficheiro estava certo; o teste é que estava errado.
+> Quase reportei uma falha falsa.
+
+**Não commitado:** `login.cmd` vive em `hermes-bridge/`, fora do repo. Existe só no PC.
 5. **Backlog de 49 aprovações em quarentena** — intacto de propósito. Precisa de re-triagem
    humana: 8x paridade-admin de 01-02/07, 9x infra_cron desde 19/06, 4x "reatribuir pedidos
    presos" (perigoso — os pedidos de hoje são outros), 1x teste-circuito.

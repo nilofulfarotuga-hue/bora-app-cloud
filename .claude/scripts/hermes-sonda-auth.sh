@@ -81,12 +81,24 @@ case "$novo" in
     exit 0 ;;                          # inconclusivo (ponte/timeout/lock): nao afirma nada
 esac
 
-TG_TOKEN=$(grep -E '^TELEGRAM_BOT_TOKEN=' "$ENV" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"'\''\r')
-TG_CHAT=$(grep -E '^TELEGRAM_CHAT_ID=' "$ENV" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"'\''\r')
-if [ -n "$TG_TOKEN" ] && [ -n "$TG_CHAT" ]; then
-  curl -s --max-time 20 -X POST "https://api.telegram.org/bot$TG_TOKEN/sendMessage" \
-    --data-urlencode "chat_id=$TG_CHAT" --data-urlencode "text=$msg" >/dev/null
-  log "TELEGRAM enviado ($novo)"
+# perda de autenticacao (sem_auth) e o unico caso desta sonda que vale o resumo LLM da Rotina
+# Claude.ai (2026-08-01) — cli_ausente e a recuperacao (ok) continuam pelo Telegram cru direto,
+# como sempre foram: sao mais raros/decorativos, nao vale gastar orcamento da rotina neles.
+NOTIFICAR_ROTINA_BIN="${SONDA_NOTIFICAR_ROTINA:-/usr/local/bin/hermes-notificar-rotina.sh}"
+if [ "$novo" = "sem_auth" ] && [ -x "$NOTIFICAR_ROTINA_BIN" ]; then
+  "$NOTIFICAR_ROTINA_BIN" perda_auth "$msg" || log "notificar_rotina(perda_auth): dispatcher devolveu erro"
+  log "aviso perda_auth encaminhado via rotina/fallback"
 else
-  log "sem credenciais Telegram em $ENV — alerta nao enviado ($novo)"
+  # NOTA (achado 2026-08-01, ao provar o dispatcher da rotina): a chave real neste .env é
+  # TELEGRAM_HOME_CHANNEL, não TELEGRAM_CHAT_ID (essa nunca existiu aqui — o fallback cru
+  # desta sonda nunca tinha entregue mensagem nenhuma). Corrigido junto com a Parte 5.
+  TG_TOKEN=$(grep -E '^TELEGRAM_BOT_TOKEN=' "$ENV" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"'\''\r')
+  TG_CHAT=$(grep -E '^TELEGRAM_HOME_CHANNEL=' "$ENV" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"'\''\r')
+  if [ -n "$TG_TOKEN" ] && [ -n "$TG_CHAT" ]; then
+    curl -s --max-time 20 -X POST "https://api.telegram.org/bot$TG_TOKEN/sendMessage" \
+      --data-urlencode "chat_id=$TG_CHAT" --data-urlencode "text=$msg" >/dev/null
+    log "TELEGRAM enviado ($novo)"
+  else
+    log "sem credenciais Telegram em $ENV — alerta nao enviado ($novo)"
+  fi
 fi

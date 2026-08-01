@@ -1,5 +1,5 @@
 ---
-tema: licao-spam-ordens-autoreferencial · escopo: projeto · estado: atual · atualizado: 2026-07-13
+tema: licao-spam-ordens-autoreferencial · escopo: projeto · estado: atual · atualizado: 2026-07-27
 ---
 # Cron que injeta ordem na fila a cada sinal = spam por construção
 
@@ -26,3 +26,14 @@ tema: licao-spam-ordens-autoreferencial · escopo: projeto · estado: atual · a
   `wiki/skills-metrics.md` (entradas evolution-engine 2026-07-12 "loop auto-referencial");
   `permanente/semantica/loops.md` (linha `evolution-trigger`, `estado: superado`);
   `.claude/agents/evolution-engine.md` (secção "Gatilhos — reativo, NUNCA disparo ordens novas").
+- **Manifestação relacionada (2026-07-27, não idêntica — mesmo tema geral):** o GERADOR de
+  `robot_suggestions` (não um cron de fila de ordens) duplicou 21 sugestões quase-idênticas (17×
+  `marcacoes:ajustar-no-show-rate-threshold[-v2..-v17]` + 4×
+  `marcacoes:resolver-marcacoes-pendentes-orfas[-v2/-v3]`/`2efe0a26901c`) reciclando evidência
+  idêntica/stale em vez de conferir propostas recentes com o mesmo conteúdo antes de criar mais
+  uma linha com `dedup_key` incrementado. Mesmo padrão geral ("gerador que não confere saída
+  recente antes de duplicar"), mecanismo diferente (linhas de sugestão na fila `robot_suggestions`,
+  não ficheiros `ordem-*.md`). Detalhe em `permanente/procedural/aprovador-vermelho-triagem.md`
+  (secção "Achado 2026-07-27"). Fora do mandato do `aprovador-vermelho` corrigir (só roteamento) —
+  candidato a ordem para `maestro-autonomia`/dono do gerador (evolution-engine ou robot-b) avaliar
+  se é a mesma causa-raiz generalizada desta lição ou um bug distinto a documentar à parte.

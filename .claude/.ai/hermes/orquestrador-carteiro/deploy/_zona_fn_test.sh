@@ -28,4 +28,11 @@ check VERMELHA "$FP para a main"
 check VERMELHA "disable row level security na tabela wallet"
 check VERMELHA "Aplicar a migration que altera o refund cap"
 echo
-if [ "$fails" -eq 0 ]; then echo "TODOS OK (12/12)"; else echo "$fails FALHA(S)"; exit 1; fi
+echo "== (c) NEGACAO COM GAP LARGO ate ao verbo (bug real 2026-08-01, ordem 3cb4) -> VERDE =="
+check VERDE "Corrige o bug do dashboard, mas nao deves em circunstancia nenhuma mexer no dispatch_engine ou no pricing_service"
+check VERDE "Nunca, em nenhuma hipotese, deves atualizar o platform_settings de stripe"
+echo
+echo "== (d) negacao NOUTRA clausula nao pode apagar termo genuino na clausula seguinte -> VERMELHA =="
+check VERMELHA "Nao mexas no dashboard, mas atualiza o pricing_service com o novo valor"
+echo
+if [ "$fails" -eq 0 ]; then echo "TODOS OK (15/15)"; else echo "$fails FALHA(S)"; exit 1; fi

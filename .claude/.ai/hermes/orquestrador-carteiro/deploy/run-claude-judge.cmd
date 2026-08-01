@@ -59,9 +59,17 @@ if defined BORA_B64 (
   if "!MRC!"=="2" exit /b 0
   if not "!MRC!"=="0" ( echo VEREDITO: CORRIGIR: juiz-mecanico falhou rc=!MRC! - fail-closed, nada aprovado sem chao mecanico & exit /b 0 )
   REM ---- juiz textual (Haiku) com 1 retry se nao devolver linha VEREDITO ----
-  "%CLAUDE_EXE%" -p --append-system-prompt "%GUARD%" --output-format text %MODEL% --disallowedTools "Bash Edit Write MultiEdit WebFetch WebSearch Task" --max-turns 5 --max-budget-usd 1 < "%TEMP%\bora_judge_task.txt" > "%TEMP%\bora_judge_verdict.txt" 2>&1
-  findstr /I "VEREDITO:" "%TEMP%\bora_judge_verdict.txt" >NUL || "%CLAUDE_EXE%" -p --append-system-prompt "%GUARD%" --output-format text %MODEL% --disallowedTools "Bash Edit Write MultiEdit WebFetch WebSearch Task" --max-turns 5 --max-budget-usd 1 < "%TEMP%\bora_judge_task.txt" > "%TEMP%\bora_judge_verdict.txt" 2>&1
-  type "%TEMP%\bora_judge_verdict.txt"
+  REM 2026-08-01 (missao sistema-redondo, parte 5): cada tentativa escreve no SEU ficheiro. Antes
+  REM as duas partilhavam bora_judge_verdict.txt e a 2a apagava a 1a -- quando ambas falhavam so
+  REM sobrava texto cru sem causa, e o carteiro registava "sem VEREDITO" sem nunca dizer porque.
+  REM O diagnostica-juiz.ps1 escolhe a linha VEREDITO se existir, senao NOMEIA a causa
+  REM (auth / rate-limit / teto-custo / teto-turnos / rede / saida-vazia). Nunca inventa veredito.
+  REM apagar SEMPRE as duas saidas antes de correr: um v2.txt velho de uma corrida anterior
+  REM seria lido como veredito desta -- aprovacao fantasma. Fail-closed comeca por aqui.
+  del /q "%TEMP%\bora_judge_v1.txt" "%TEMP%\bora_judge_v2.txt" 2>NUL
+  "%CLAUDE_EXE%" -p --append-system-prompt "%GUARD%" --output-format text %MODEL% --disallowedTools "Bash Edit Write MultiEdit WebFetch WebSearch Task" --max-turns 5 --max-budget-usd 1 < "%TEMP%\bora_judge_task.txt" > "%TEMP%\bora_judge_v1.txt" 2>&1
+  findstr /I "VEREDITO:" "%TEMP%\bora_judge_v1.txt" >NUL || "%CLAUDE_EXE%" -p --append-system-prompt "%GUARD%" --output-format text %MODEL% --disallowedTools "Bash Edit Write MultiEdit WebFetch WebSearch Task" --max-turns 5 --max-budget-usd 1 < "%TEMP%\bora_judge_task.txt" > "%TEMP%\bora_judge_v2.txt" 2>&1
+  powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0diagnostica-juiz.ps1" -A "%TEMP%\bora_judge_v1.txt" -B "%TEMP%\bora_judge_v2.txt"
   exit /b 0
 )
 echo [juiz] ERRO: base64 vazio

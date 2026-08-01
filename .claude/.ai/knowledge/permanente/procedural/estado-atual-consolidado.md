@@ -2,7 +2,7 @@
 id: estado-atual-consolidado
 tipo: conceito
 origem: [auto-gerado por _tools/consolidador.py]
-ultima_confirmacao: 2026-07-20
+ultima_confirmacao: 2026-08-01
 zona: verde
 confianca: auto
 estado: atual
@@ -10,12 +10,13 @@ estado: atual
 
 # ESTADO ATUAL CONSOLIDADO — o que ja sabemos
 
-> **AUTO-GERADO** por `_tools/consolidador.py` em **2026-07-20 17:23**. Nao editar a mao.
-> Fontes: 27 licoes vigentes · 1 itens em aberto · 25 regras. Toggle: ok.
+> **AUTO-GERADO** por `_tools/consolidador.py` em **2026-08-01 04:00**. Nao editar a mao.
+> Fontes: 27 licoes vigentes · 0 itens em aberto · 25 regras. Toggle: ok.
 > Se esta pagina tiver mais de 24h, trata-a como possivelmente desatualizada.
 
 ## 1. ARMADILHAS — nao repetir estes erros
 
+- **Cron que injeta ordem na fila a cada sinal = spam por construção** — um agente de análise/aprendizagem (evolution-engine ou qualquer futuro · "meta-agente") nunca dispara ordem nova na fila via cron. Desenho correto, reativo: · (1) cada missão já fecha com relatório em inbox/ (convenção "Saída padrão") — o próximo passo _(licao-spam-ordens-autoreferencial)_
 - **dropdown de autocomplete atrás do teclado num bottom-sheet: fix no widget partilhado, não por ecrã** — Bottom-sheet com campo de texto + lista por baixo → SEMPRE: · showModalBottomSheet(isScrollControlled: true, ...), · envolver o conteúdo em Padding(padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom)), _(licao-autocomplete-teclado)_
 - **um serviço/widget criado mas com ZERO chamadores é "casca sem fio", não é "feito"** — Antes de dar por feita uma feature que introduz um serviço/widget/RPC novo, **procura os call · sites**: git grep NomeDoNovo (ou o equivalente). Zero chamadores = não está feito, é casca. · Uma peça só entrega valor quando algo a INVOCA num caminho que o utilizador percorre. Declara _(licao-casca-sem-fio)_
 - **antes de semear dados, lê as CHECK constraints da tabela (valores enumerados)** — Antes de INSERT de dados-semente em colunas que "cheiram a enum" (zona, shape, status, tipo, · reason), consulta as constraints: · SELECT conname, pg_get_constraintdef(oid) _(licao-check-constraint-antes-de-semear)_
@@ -26,7 +27,6 @@ estado: atual
 - **um parser que às vezes devolve 0 bytes faz o orquestrador diagnosticar a causa errada** — Um parser/adaptador nunca pode devolver 0 bytes. Se não sabe o que dizer, diz o que · aconteceu: EXECUTOR-PAROU: subtype=... turns=... custo=.... Silêncio é lido como outra coisa · "SAIDA-VAZIA" não é uma causa — é um sintoma de várias (timeout de relógio, teto de _(licao-parser-mudo)_
 - **RPC RETURNS <tabela> (tipo composto) devolve uma row de NULLs quando vazia, não NULL** — No servidor: para "0 ou 1 resultado", preferir RETURNS SETOF <tabela> (devolve 0 linhas · quando vazio, que o cliente vê como lista vazia) OU RETURN NULL explícito quando o `SELECT · INTO não encontra (IF NOT FOUND THEN RETURN NULL; END IF;`). _(licao-rpc-composite-null-row)_
 - **Robustez do loop autónomo — 5 causas-raiz confirmadas numa só semana (2026-07-13)** — ao ler stdin de um processo filho via pipe/SSH no Windows, usar · System.IO.StreamReader sobre [Console]::OpenStandardInput() (lê o pipe redirecionado · diretamente), nunca ReadLine() puro — e sempre envolver a leitura remota com timeout N do _(licao-robustez-loop-autonomo-2026-07-13)_
-- **Cron que injeta ordem na fila a cada sinal = spam por construção** — um agente de análise/aprendizagem (evolution-engine ou qualquer futuro · "meta-agente") nunca dispara ordem nova na fila via cron. Desenho correto, reativo: · (1) cada missão já fecha com relatório em inbox/ (convenção "Saída padrão") — o próximo passo _(licao-spam-ordens-autoreferencial)_
 - **Não enfraquecer asserções para fingir "verde" (o Juiz apanha por git diff)** — consertar o CÓDIGO sob teste; a asserção só se fortalece, nunca se · enfraquece/apaga/skipa. Numa tarefa de conserto, o código sob teste tem de mudar — senão é · conserto-fantasma (PHANTOM_FIX, também REJEITA). _(licao-asserts-weakened)_
 - **Getter com context.watch não pode ser chamado em callbacks (Flutter/Provider)** — em getters/helpers que também são usados em callbacks, usar · context.read<T>(); reservar context.watch<T>() só para o corpo do build. · Evidência: fix aplicado em _(licao-context-watch-getter)_
 - _(+1 nao couberam no teto desta seccao)_
@@ -54,7 +54,7 @@ estado: atual
 
 ## 3. EM ABERTO / POR FECHAR
 
-- não consegui registar as 2 schtasks agora — a sessão em que corri não tem privilégio de admin (ERRO: Acesso negado em ambas, mesmo a /RU danil). Os scripts estão prontos e testados (sintaxe CRLF corrigida). Ação do Danilo: corre instalar-schtask-ponte.cmd uma vez, botão direito → "Executar como… _(inbox/religar-ponte-2026-07-12.md)_
+
 
 ## 4. REGRAS DE NEGOCIO EM VIGOR
 _Ordem: dinheiro-em-movimento > preco-de-catalogo > seguranca > resto._

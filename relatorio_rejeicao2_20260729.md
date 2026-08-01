@@ -62,3 +62,28 @@ O caminho certo, sem tentativa e erro:
 3. Só depois de (1) e (2) reenviar o **mesmo bundle 501** para revisão.
 
 ⚠️ Isto mexe em LOCALIZAÇÃO (regra tua de não tocar). Está tudo diagnosticado; **confirma como queres avançar**.
+
+---
+## ADENDA — decisão "Constrói e aplica" (autorizado pelo Danilo)
+
+**Investigação extra antes de construir (não adivinhar):**
+- Verifiquei a arquitetura: `driver_location_service.dart` está DEPRECATED (no-ops); o GPS é escrito pela DriverMapScreen no **main isolate**; o FGS task handler **não acede a GPS** (só polling + heartbeat). O serviço foreground está declarado `foregroundServiceType="dataSync|remoteMessaging"` — **NÃO** `location`.
+- Conclusão: `ACCESS_BACKGROUND_LOCATION` **é mesmo usada** (o stream de GPS do main isolate continua enquanto Online + app minimizada, mantido vivo pelo FGS). **Não é sobre-declaração** — removê-la partiria o rastreio. Por isso a via "disclosure + vídeo" é a correta.
+- (Alternativa futura, mais complexa e arriscada, que evitaria o vídeo: re-arquitetar para um foreground service do tipo `location` (while-in-use) + remover `ACCESS_BACKGROUND_LOCATION`. NÃO feita agora — risco de partir o rastreio de fundo.)
+
+**O que foi construído (código):**
+- Novo `lib/widgets/background_location_disclosure.dart` — declaração em destaque modal, wording da Google (recolhe localização **mesmo com a app fechada/não em uso** + finalidade + ação afirmativa Aceitar/Agora não), com persistência em SharedPreferences.
+- Ligada em `lib/screens/driver_home_screen.dart` (`_handleOnlineToggle`) e `lib/screens/driver/tvde/tvde_driver_home_screen.dart` (`_toggleOnline`): mostrada **ANTES** de ficar Online; recusar = não fica Online.
+
+**Verificação (Juiz):**
+- `flutter analyze` (3 ficheiros): **0 erros** (só 15 infos/lints, maioria pré-existente).
+- Chão anti-trapaça (`anti_trapaca.py --base HEAD`): **✅ CLEAN, exit 0** (0 testes tocados, diff mecânico limpo).
+- Zonas protegidas intactas (UX de localização, não dispatch/pricing/tokens/Stripe).
+
+**Commit + push:** `5ef866c feat(estafeta): declaracao em destaque...` → dispara build da CI → **bundle 503** (com a disclosure).
+
+## FALTA (ação humana — só o Danilo):
+1. Esperar o build do **bundle 503** (CI, ~9 min).
+2. **Gravar o vídeo** de demonstração com o 503 instalado: estafeta fica Online → aparece a declaração em destaque → Aceitar → concede a permissão de localização → o rastreio a funcionar. Carregar (YouTube não listado).
+3. Play Console → declaração de permissões (localização em segundo plano) → **atualizar o URL do vídeo** (substituir o `JEyOj7und6M`).
+4. Criar/editar o lançamento de produção com o **bundle 503** (NÃO o 501 — só o 503 tem a disclosure) → enviar para revisão.

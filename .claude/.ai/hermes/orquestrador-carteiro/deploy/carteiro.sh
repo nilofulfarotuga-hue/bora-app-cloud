@@ -44,6 +44,12 @@ LOCK=/root/orquestracao/.carteiro.lock
 PAUSA_TOTAL="$FILA/.pausa-total"           # STOP global (Danilo)
 PAUSA_RL="$FILA/.pausa-rate-limit"         # pausa automática por rate-limit (guarda epoch de retoma)
 RL_AVISADO=/root/orquestracao/.rate-limit.avisado
+# PARIDADE PARTE 2.2 (2026-08-01): ordens que CONCLUÍRAM mas cujo juiz não devolveu veredito.
+# Vão para aqui (revisão humana no daily-pulse) em vez de `travada` + Telegram — não é travamento,
+# é revisão em falta. Formato: <ts>\t<id ordem>\t<motivo>.
+REVISAO_PENDENTE=/root/orquestracao/revisao-pendente.tsv
+# I4: travadas NÃO-vermelhas arquivadas aqui em vez de Telegram (revistas no daily-pulse).
+ARQUIVO_TRAVADAS=/root/orquestracao/travadas-arquivadas.tsv
 FILA_ESTADO=/root/orquestracao/.fila-estado   # transição ocupado<->vazio (2026-07-16, substitui f523):
                                                # linha1=ocupada|vazia, linha2=epoch do último aviso (cooldown 30min)
 
@@ -76,7 +82,29 @@ log(){ echo "[$(ts)] $*" >> "$LOG"; }
 get(){ grep -E "^$1:" "$2" 2>/dev/null | head -1 | sed "s/^$1: *//" | tr -d '\r'; }
 setf(){ if grep -qE "^$1:" "$3"; then sed -i "s|^$1:.*|$1: $2|" "$3"; else echo "$1: $2" >> "$3"; fi; }
 notify(){ docker exec -u hermes "$C" hermes send -t telegram "$1" >/dev/null 2>&1 || log "notify(best-effort) falhou"; }
-clean(){ grep -vE '^\[ponte\]|^\[loop\]|^\[juiz\]|Permission deny rule|matches no known tool' ; }
+# clean() — remove RUÍDO da saída das pontes, NUNCA erros.
+#
+# AUDITORIA 2026-08-01 (ordem do Danilo, depois de o clean() ter apagado a prova do juiz morto):
+# a versão antiga era `grep -vE '^\[ponte\]|^\[loop\]|^\[juiz\]|…'` — descartava a linha INTEIRA
+# por prefixo. Contagem real do que isso comia:
+#   [ponte] 2 linhas vivas -> 2 são ERRO   (projeto não encontrado, falha base64)
+#   [juiz]  4 linhas vivas -> 4 são ERRO   (incl. "claude.exe nao encontrado" — 4 dias escondido)
+#   [loop]  5 linhas vivas -> 4 são ERRO
+# Ou seja: um filtro de ruído que comia quase só diagnóstico. Foi assim que o juiz morto passou
+# despercebido — o erro existia, era emitido, e era apagado antes de chegar ao diagnóstico.
+# É a mesma classe de bug da nota "tarefa grande demais": esconde a causa e manda procurar no
+# sítio errado.
+#
+# Regra nova: linha com prefixo de ponte só é descartada se NÃO contiver ERRO. Tudo o que cheire
+# a erro passa. Os dois padrões de ruído genuíno (avisos de regra de permissão e "matches no
+# known tool") continuam a ser removidos — esses não são diagnóstico de nada.
+clean(){
+  awk '
+    /^\[(ponte|loop|juiz)\]/ { if ($0 ~ /ERRO/) print; next }
+    /Permission deny rule|matches no known tool/ { next }
+    { print }
+  '
+}
 sync_espelho(){ docker exec -u hermes -e HOME=/opt/data -i "$C" sh -s fast < /root/cortex-mcp/sync-brain.sh >> "$LOG" 2>&1 && log "espelho sincronizado (fast)" || log "sync espelho (best-effort) falhou"; }
 
 # PARTE B (2026-07-17) — verifica, CONTRA A BASE (nunca contra o ficheiro), que um
@@ -193,6 +221,28 @@ is_lock_busy(){ printf '%s' "$1" | grep -iqE "outro executor Bora ja em curso|ER
 # mesmo estouro e queimaria as 5 tentativas as cegas (prova: ordem 94b1 vazia 3x / eba8 passou só
 # porque era menor). Ver inbox/fix-executor-max-turns-parser-mudo-2026-07-17.md.
 executor_parou_linha(){ printf '%s' "$1" | grep -E '^EXECUTOR-PAROU:' | head -1 | tr -d '\r'; }
+
+# FASE 1.11 (2026-08-01): IRMÃO da FASE 1.10, do outro lado do arranque. A 1.10 cobre "o executor
+# parou a MEIO"; esta cobre "o executor NUNCA ARRANCOU". Avaria real de 27/07 a 31/07 (4 dias):
+# a app Claude passou a gerir a CLI em %APPDATA%\Claude\claude-code\<versao>\ e a pasta npm global
+# desapareceu; o caminho fixo do run-claude-loop.cmd deixou de existir -> "exit /b 4" -> 0 bytes ->
+# esta função não existia -> caía no ramo genérico e a nota dizia "SAIDA-VAZIA -- tarefa grande
+# demais?". A avaria ficou 4 dias escondida atrás de uma nota que mentia, e ninguém procurou o
+# binário porque a nota culpava o tamanho da tarefa. Agora o .cmd grita uma linha específica e ela
+# vira a nota EXATA (com utilizador e caminhos procurados), travando já — retentar não instala a CLI.
+cli_nao_encontrada_linha(){ printf '%s' "$1" | grep -E '^CLI-NAO-ENCONTRADA:' | head -1 | tr -d '\r'; }
+
+# FASE 1.11 item 4 (2026-08-01): AUTH morta. Terceiro irmão (1.10 = parou a meio, CLI-NAO-ENCONTRADA
+# = nunca arrancou, este = arrancou mas não autentica). Apanha as DUAS formas: a linha do preflight
+# do run-claude-loop.cmd (`claude auth status` sem loggedIn:true) e a mensagem literal que o próprio
+# executor cospe em runtime se o token morrer a meio ("Failed to authenticate: OAuth session
+# expired and could not be refreshed"). Trava à 1.ª: RETENTAR NÃO RENOVA UM TOKEN — só queima
+# tentativas e volta a produzir a nota errada. Renovar é ato do Danilo (`claude setup-token`).
+cli_sem_auth_linha(){
+  printf '%s' "$1" \
+    | grep -iE '^CLI-SEM-AUTH:|Failed to authenticate|OAuth session expired|Invalid API key|not logged in' \
+    | head -1 | tr -d '\r'
+}
 
 # ---------------- RATE-LIMIT: deteção + cálculo de retoma ----------------
 # 2026-07-13 (ordem a73d, falso rate-limit): a regex batia em QUALQUER saída que
@@ -389,18 +439,27 @@ missao_travada_ou_silencio(){ # $1=of $2=mid $3=passo
   # EXECUTOR-PAROU, saída vazia, e 5 tentativas pós-juiz). Enganchar aqui cobre todos
   # sem tocar em nenhum deles.
   licao_de_falha "$of"
+  # I4 (2026-08-01, ordem do Danilo): `travada` NÃO-VERMELHA deixa de chamar o Danilo.
+  # HISTÓRIA (não apagar): a 2026-07-13 (ordem f523) estes avisos foram RESTAURADOS de propósito,
+  # porque antes o loop ficava mudo à espera do watchdog (>12h) e uma travada exigia decisão
+  # humana. O que mudou desde então: o hook passou a criar CONTINUAÇÕES automáticas (a travada
+  # auto-resolve-se na maioria dos casos) e a fila enchia-se de travadas espúrias — o Danilo
+  # apanhou notificação "travou" a cada ~40 min. O aviso deixou de ser sinal e passou a ser ruído.
+  # Agora: arquiva-se em ficheiro, revisto no daily-pulse. Telegram fica RESERVADO à zona vermelha
+  # (ramo `zona_vermelha`, intocado — é a única coisa no sistema que pára e chama o Danilo) e à
+  # missão concluída. Se o daily-pulse deixar de ser lido, isto vira silêncio — é o risco assumido.
+  oid=$(get id "$of"); nota=$(get nota "$of")
   if [ -n "$mid" ]; then
     mf=$(missao_path "$mid"); [ -f "$mf" ] && missao_set_passo "$mf" "$p" "travada"
-    nota=$(get nota "$of")
-    notify "⛔ Bora/missão $mid: passo $p TRAVOU — ${nota:-precisa de ti}."
-    log "missão $mid: passo $p travado -> Telegram"
+    mkdir -p "$(dirname "$ARQUIVO_TRAVADAS")" 2>/dev/null
+    printf '%s\t%s\tmissao=%s passo=%s\t%s\n' "$(date -u +%FT%TZ)" "$oid" "$mid" "$p" "${nota:-—}" >> "$ARQUIVO_TRAVADAS" \
+      || log "ordem $oid: AVISO — não consegui escrever em $ARQUIVO_TRAVADAS"
+    log "missão $mid: passo $p travado -> ARQUIVO (daily-pulse). SEM Telegram (I4)."
   else
-    # 2026-07-13 (ordem f523): avisos de travamento restaurados — antes ficava
-    # mudo à espera do watchdog (>12h). Uma tarefa travada é sinal de que
-    # precisa de decisão humana, não de silêncio.
-    oid=$(get id "$of"); nota=$(get nota "$of")
-    notify "⛔ Bora: tarefa $oid TRAVOU — ${nota:-motivo desconhecido}"
-    log "ordem $oid: travada (sem missão) -> Telegram"
+    mkdir -p "$(dirname "$ARQUIVO_TRAVADAS")" 2>/dev/null
+    printf '%s\t%s\t%s\t%s\n' "$(date -u +%FT%TZ)" "$oid" "sem-missao" "${nota:-motivo desconhecido}" >> "$ARQUIVO_TRAVADAS" \
+      || log "ordem $oid: AVISO — não consegui escrever em $ARQUIVO_TRAVADAS"
+    log "ordem $oid: travada (sem missão) -> ARQUIVO (daily-pulse). SEM Telegram (I4)."
   fi
 }
 
@@ -654,11 +713,21 @@ Para libertar para a fila normal, responde aqui: vai $id
   # trava já sem chamar o juiz nem gastar as 5 tentativas às cegas (repetir dá sempre o mesmo estouro).
   linha_parou=$(executor_parou_linha "$saida")
   if [ -n "$linha_parou" ]; then
+    # PARIDADE PARTE 2.1 (2026-08-01): TETO NÃO É FALHA, É PAUSA.
+    # Quando o Danilo cola o prompt numa sessão interactiva não há teto nenhum — a tarefa vai até
+    # ao fim. Pelo loop havia `--max-turns/--max-budget`, e bater no teto marcava a ordem como
+    # falhada e chamava o Danilo. Isso é a diferença que esta missão veio matar: o mesmo trabalho
+    # tem de acabar pelos dois caminhos. Agora bater no teto gera CONTINUAÇÃO automática (o
+    # mecanismo já existe no hermes-hook-conclusao.sh, ramo TRAVADA + continuacao < teto) e é
+    # SILENCIOSO — `missao_travada_ou_silencio` NÃO é chamado de propósito, zero Telegram.
+    # `pausa_teto: 1` diz ao hook para usar o teto GENEROSO (uma tarefa grande pode precisar de
+    # várias continuações) em vez do teto 2 das travadas genuínas. Continua a haver teto absoluto,
+    # para um loop infinito não correr para sempre — e o hook regista quando lá chega.
     setf estado travada "$f"
-    setf nota "$linha_parou" "$f"
-    log "ordem $id: TRAVADA (EXECUTOR-PAROU) — $linha_parou"
-    ultima_veredito="TRAVADA-EXECUTOR-PAROU"
-    missao_travada_ou_silencio "$f" "$missao" "$passo"
+    setf pausa_teto 1 "$f"
+    setf nota "⏸️ PAUSA-POR-TETO (não é falha): $linha_parou — continuação automática, o trabalho segue de onde parou." "$f"
+    log "ordem $id: PAUSA-POR-TETO -> continuação silenciosa (sem Telegram) — $linha_parou"
+    ultima_veredito="PAUSA-TETO"
     continue
   fi
 
@@ -681,6 +750,21 @@ Para libertar para a fila normal, responde aqui: vai $id
   # em $id.veredito.txt — prova no proprio veredito, nunca no e2e_log.
   jinput=$(printf 'TAREFA:\n%s\nMETA_JUIZ: inicio_epoch=%s\n\nSAIDA DO EXECUTOR:\n%s\n' "$tarefa" "${t0:-}" "$(printf '%s' "$saida" | tail -50)")
   veredito=$(pc_judge "$jinput")
+
+  # PARIDADE PARTE 2.2 (2026-08-01): O JUIZ DEIXA DE MATAR TRABALHO BOM.
+  # Antes: juiz sem veredito -> CORRIGIR -> a ordem REABRIA e a TAREFA corria outra vez do zero,
+  # queimando as 5 tentativas. Provado nesta sessão: a ordem 054224-aplic fez o trabalho todo à 1.ª
+  # (ficheiro escrito, sugestão em `aplicada`) e mesmo assim voltou a correr 3x porque o juiz não
+  # devolvia veredito — cada volta ~4 min de executor a repetir trabalho já feito. Também matou as
+  # ordens a1d2 e 6244 a 22/07. O trabalho JÁ ESTÁ FEITO quando o juiz falha: re-tentar a tarefa é
+  # desperdício e arrisca efeitos repetidos. Portanto: re-tenta SÓ O JUIZ, nunca a tarefa.
+  jtent=1
+  while [ -z "$(printf '%s' "$veredito" | grep -iE 'VEREDITO:')" ] && [ "$jtent" -lt 3 ]; do
+    jtent=$((jtent+1))
+    log "ordem $id: juiz sem veredito — re-tento SÓ o juiz ($jtent/3; a tarefa NÃO volta a correr)"
+    sleep 5
+    veredito=$(pc_judge "$jinput")
+  done
   printf '%s\n' "$veredito" > "$FILA/$id.veredito.txt"
   vline=$(printf '%s' "$veredito" | grep -iE 'VEREDITO:' | head -1)
   log "ordem $id: ${vline:-<juiz sem veredito>}"
@@ -706,7 +790,15 @@ Para libertar para a fila normal, responde aqui: vai $id
   else
     # ---- NOTA NUNCA VAZIA — causa explícita por construção ----
     motivo=$(printf '%s' "$vline" | sed 's/.*CORRIGIR: *//')
-    if [ "$vazio" -eq 1 ]; then
+    # FASE 1.11: arranque falhado tem prioridade sobre TUDO o resto — se a CLI não foi encontrada,
+    # nada correu, logo qualquer outro diagnóstico (vazio/juiz/timeout) seria inventado.
+    cli_line=$(cli_nao_encontrada_linha "$saida")
+    auth_line=$(cli_sem_auth_linha "$saida")
+    if [ -n "$cli_line" ]; then
+      nota="🚫 $cli_line"
+    elif [ -n "$auth_line" ]; then
+      nota="🔑 CLI-SEM-AUTH: $auth_line — sessão do executor caducada; renovar com \`claude setup-token\` (ato do Danilo). Retentar não renova."
+    elif [ "$vazio" -eq 1 ]; then
       # PARTE A (2026-07-16): distingue morte por INATIVIDADE real (vigia do PC) / TETO-DURO-4h
       # de uma saida vazia comum — nunca mais "TIMEOUT-3600s" generico (ver cabecalho do ficheiro).
       case "$motivo_kill" in
@@ -720,8 +812,13 @@ Para libertar para a fila normal, responde aqui: vai $id
           nota="⏱️ SAIDA-VAZIA — executor não devolveu texto (tarefa grande demais? dividir em passos menores — ver convencoes.md)"
           ;;
       esac
+    elif [ -z "$vline" ] && [ "$vazio" -eq 0 ]; then
+      # PARIDADE 2.2: o executor PRODUZIU trabalho e só o juiz falhou. Isto NÃO é falha da tarefa.
+      # Fecha como concluída com revisão pendente (nunca `travada`, nunca Telegram) e entra na
+      # lista revista no daily-pulse. Zona vermelha continua a ser a ÚNICA coisa que chama o Danilo.
+      nota="⚖️ CONCLUÍDA COM REVISÃO PENDENTE — trabalho feito, mas o juiz não devolveu VEREDITO em 3 tentativas (só o juiz foi re-tentado; a tarefa correu 1x). Revisão humana na lista do daily-pulse."
     elif [ -z "$vline" ]; then
-      nota="⚖️ JUIZ-SEM-VEREDITO — juiz não devolveu linha VEREDITO (ver $id.saida.txt; possível rate-limit/erro do juiz)"
+      nota="⚖️ JUIZ-SEM-VEREDITO — juiz não devolveu linha VEREDITO e o executor também não produziu saída (ver $id.saida.txt)"
     elif [ -n "$motivo" ] && [ "$motivo" != "$vline" ]; then
       nota="$motivo"
     else
@@ -729,7 +826,23 @@ Para libertar para a fila normal, responde aqui: vai $id
     fi
     setf nota "$nota" "$f"
 
-    if [ "$vazio" -eq 1 ] && [ "$tent" -ge 2 ]; then   # saida vazia não re-tenta 5x
+    if [ -n "$cli_line" ]; then   # FASE 1.11: CLI ausente — trava À 1.ª, retentar não a instala
+      setf estado travada "$f"
+      log "ordem $id: TRAVADA (CLI do executor nao encontrada — ato humano) — $nota"
+      ultima_veredito="TRAVADA-CLI"; missao_travada_ou_silencio "$f" "$missao" "$passo"
+    elif [ -n "$auth_line" ]; then   # FASE 1.11 item 4: auth morta — trava À 1.ª, retentar não renova
+      setf estado travada "$f"
+      log "ordem $id: TRAVADA (executor sem auth — ato humano: claude setup-token) — $nota"
+      ultima_veredito="TRAVADA-AUTH"; missao_travada_ou_silencio "$f" "$missao" "$passo"
+    elif [ -z "$vline" ] && [ "$vazio" -eq 0 ]; then
+      # PARIDADE 2.2: fecha CONCLUÍDA (o trabalho existe), com revisão pendente. ZERO Telegram —
+      # `missao_travada_ou_silencio` NÃO é chamado de propósito: não é travamento, é revisão em falta.
+      setf estado concluida "$f"
+      setf revisao pendente "$f"
+      printf '%s\t%s\t%s\n' "$(date -u +%FT%TZ)" "$id" "juiz sem veredito em 3 tentativas" >> "$REVISAO_PENDENTE"
+      log "ordem $id: CONCLUÍDA COM REVISÃO PENDENTE (juiz mudo 3x; tarefa correu 1x, não repetida) — sem Telegram"
+      ultima_veredito="REVISAO-PENDENTE"
+    elif [ "$vazio" -eq 1 ] && [ "$tent" -ge 2 ]; then   # saida vazia não re-tenta 5x
       setf estado travada "$f"
       setf nota "$nota (x$tent — não re-tento a mesma coisa)" "$f"
       log "ordem $id: TRAVADA (não re-tenta tarefa vazia/inativa) — $nota"; ultima_veredito="TRAVADA-VAZIA"; missao_travada_ou_silencio "$f" "$missao" "$passo"

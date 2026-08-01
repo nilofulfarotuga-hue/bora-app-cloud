@@ -125,9 +125,11 @@ chão anti-trapaça + 3 camadas **antes** de aceitar (commit/merge). Rejeição 
 `admin` para garantir o ecrã de gestão correspondente (PT-BR). **Escalonamento 🔴:** se o esquadrão
 tocar dinheiro real, `pagamentos-wallet` entra em modo PROPOSE-ONLY e a alteração final espera "vai".
 
-- **Edge Functions (contagem real):** **44 funções locais** em `supabase/functions/*/index.ts`
-  (a skill CEO-AI ainda diz "43 deployed / 38 locais" — **stale**, confirmar deployed via MCP
-  `list_edge_functions` e atualizar `SKILL.md` com aprovação do Danilo).
+- **Edge Functions (contagem real):** **53 funções locais** em `supabase/functions/*/index.ts`
+  (contadas a 2026-08-01; eram 44 na contagem anterior). Dessas, **24 não declaram `verify_jwt`**
+  em nenhum ficheiro da sua pasta — vale a pena auditar quais deviam ser públicas.
+  A skill CEO-AI ainda diz "43 deployed / 38 locais" — **stale**; confirmar deployed via MCP
+  `list_edge_functions` e atualizar `SKILL.md` com aprovação do Danilo.
 
 ## Validation Gate — SÓ DINHEIRO (revisto 2026-07-01)
 

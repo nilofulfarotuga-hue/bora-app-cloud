@@ -40,6 +40,12 @@ STATE_FORCE=/root/orquestracao/aprovador-vermelho.force_watermark
 LOG=/root/orquestracao/aprovador-vermelho.log
 C=hermes-agent-fvnc-hermes-agent-1
 STALE_MIN=30
+# LOTE (missão nunca-mais-travar-2026-07-31, I2): a ordem NUNCA manda triar a fila toda.
+# Causa: com 30 itens o executor devolvia SAIDA-VAZIA -> estado travada -> Telegram "travou",
+# em ciclo. Aqui só se BOUNDA o trabalho; a seleção real (mais antigos primeiro) é do agente,
+# que corre no PC com acesso aos títulos — este cron continua a ver só agregados (sem dinheiro).
+# Se sobrarem itens, o ciclo seguinte (*/10) apanha o resto. NUNCA encadear na mesma ordem.
+LOTE_MAX=8
 
 ts(){ date -u +%FT%TZ; }
 log(){ echo "[$(ts)] $*" >> "$LOG"; }
@@ -84,10 +90,18 @@ if [ "$is_new_item" = 0 ] && [ "$force_fire" = 0 ]; then
 fi
 
 oid="ordem-$(date -u +%Y%m%d%H%M%S)-aprv"
+# Teto do lote: nunca pedir mais do que o executor aguenta numa corrida (I2).
+lote=$count
+[ -n "${lote:-}" ] || lote=$LOTE_MAX
+[ "$lote" -gt "$LOTE_MAX" ] 2>/dev/null && lote=$LOTE_MAX
+sobra=0
+[ -n "${count:-}" ] && [ "$count" -gt "$lote" ] 2>/dev/null && sobra=$((count - lote))
+LOTE_REGRA="LOTE: trata no MAXIMO os $lote itens MAIS ANTIGOS ainda por triar (reviewed_at IS NULL), por created_at ASC. Se sobrarem itens (agora: $sobra), NAO os trates nesta ordem nem encadeies outra chamada — o ciclo seguinte do cron (*/10 min) apanha o resto. Marca SEMPRE reviewed_at em cada item que triares, inclusive nos Balde B (que ficam 'nova' a espera do Danilo) — sem isso o item volta a realimentar o fallback de 30 min."
+
 if [ "$force_fire" = 1 ]; then
-  task="FALLBACK 30MIN: a fila da Central (robot_suggestions status=nova) tem item(ns) parado(s) ha ${oldest_age}+ minutos sem triagem (count=$count) — o gatilho normal por item-novo pode ter falhado. Corre o agente aprovador-vermelho AGORA sobre TODA a fila nova: tria cada item em Balde A (leitura/falso-positivo, nao-dinheiro, com prova positiva) ou Balde B (sensivel/dinheiro, SEMPRE humano). Promove/auto-aprova AGORA os que forem claramente Balde A citando motivo, mesmo que ja tenham sido vistos antes — nao deixes nada preso so por staleness. Balde B nunca e promovido automaticamente, fica para o Danilo via Telegram. NAO alteres logica sensivel — so roteamento de aprovacao."
+  task="FALLBACK 30MIN: a fila da Central (robot_suggestions status=nova) tem item(ns) POR TRIAR parado(s) ha ${oldest_age}+ minutos (count=$count) — o gatilho normal por item-novo pode ter falhado. Corre o agente aprovador-vermelho AGORA. $LOTE_REGRA Tria cada item do lote em Balde A (leitura/falso-positivo, nao-dinheiro, com prova positiva) ou Balde B (sensivel/dinheiro, SEMPRE humano). Promove/auto-aprova AGORA os que forem claramente Balde A citando motivo. Balde B nunca e promovido automaticamente, fica para o Danilo via Telegram. NAO alteres logica sensivel — so roteamento de aprovacao."
 else
-  task="Corre o agente aprovador-vermelho sobre a fila da Central de sugestoes (robot_suggestions status=nova): tria cada item em Balde A (leitura/falso-positivo, nao-dinheiro) ou Balde B (sensivel, SEMPRE humano). Auto-aprova Balde A citando motivo; encaminha Balde B ao Danilo por Telegram. NAO alteres logica sensivel — so roteamento de aprovacao. Item novo detetado: newest=$newest count=$count."
+  task="Corre o agente aprovador-vermelho sobre a fila da Central de sugestoes (robot_suggestions status=nova). $LOTE_REGRA Tria cada item do lote em Balde A (leitura/falso-positivo, nao-dinheiro) ou Balde B (sensivel, SEMPRE humano). Auto-aprova Balde A citando motivo; encaminha Balde B ao Danilo por Telegram. NAO alteres logica sensivel — so roteamento de aprovacao. Item novo detetado: newest=$newest count=$count."
 fi
 
 if [ "$DRY" = 1 ]; then

@@ -39,7 +39,27 @@ REM    watchdog matar, grava o motivo em STALESTAMP e este .cmd devolve "MOTIVO_
 REM    stdout (carteiro.sh le isto e avisa "morta por inatividade", nunca "timeout" generico).
 REM ===========================================================================
 set "CLAUDE_CONFIG_DIR=C:\Users\danil\.claude"
-set "CLAUDE_EXE=C:\Users\danil\AppData\Roaming\npm\node_modules\@anthropic-ai\claude-code\bin\claude.exe"
+REM FASE 1.11 (2026-08-01) -- RESOLUCAO DINAMICA DO BINARIO + PREFLIGHT QUE GRITA.
+REM Avaria de 27/07 a 31/07 (4 dias): ate 22/07 a CLI vinha do npm global e o caminho fixo
+REM %APPDATA%\npm\node_modules\@anthropic-ai\claude-code\bin\claude.exe resolvia. A 27/07 a app
+REM Claude passou a gerir a CLI em %APPDATA%\Claude\claude-code\<versao>\claude.exe e a pasta npm
+REM desapareceu -> o caminho fixo deixou de existir -> "exit /b 4" -> 0 bytes -> o carteiro
+REM inventava "SAIDA-VAZIA -- tarefa grande demais?". A avaria ficou escondida 4 dias atras de
+REM uma nota que mentia. ISOLAMENTO DE PERFIL: o executor entra como `hermes` (ssh/tailscale) mas
+REM a CLI esta sob o perfil do `danil`, logo %APPDATA% do hermes nunca a encontraria, e `where
+REM claude` sob hermes tambem devolve vazio (nao ha shim no PATH dele).
+REM Por isso: GLOB pela versao MAIS RECENTE (nunca versao fixa -- 2.1.219 muda na proxima
+REM atualizacao e partia isto outra vez em silencio), com fallback ao PATH.
+set "CLAUDE_ROOT=C:\Users\danil\AppData\Roaming\Claude\claude-code"
+set "RESOLVEPS=%~dp0resolve-claude-exe.ps1"
+set "CLAUDE_EXE="
+for /f "usebackq delims=" %%I in (`powershell -NoProfile -ExecutionPolicy Bypass -File "%RESOLVEPS%" 2^>nul`) do if not defined CLAUDE_EXE set "CLAUDE_EXE=%%I"
+REM Irmao da FASE 1.10: o parser nunca fica mudo -- e agora o ARRANQUE tambem nao. Linha
+REM especifica e acionavel em vez de 0 bytes, para o carteiro nunca mais adivinhar a causa.
+if not defined CLAUDE_EXE (
+  echo CLI-NAO-ENCONTRADA: procurei em "%CLAUDE_ROOT%\*\claude.exe" e no PATH ^(where claude^) -- utilizador=%USERDOMAIN%\%USERNAME% APPDATA=%APPDATA%
+  exit /b 4
+)
 set "PROJ=C:\Users\danil\Desktop\projetosflutter\bora_app"
 set "LIVELOG=%PROJ%\.claude\bora-live.log"
 set "PARSER=%~dp0bora-live-parser.ps1"
@@ -50,7 +70,34 @@ set "LOCK_MAXWAIT=480"
 set "AUTOLIMPEZA=%~dp0auto-limpeza-ram.cmd"
 set "WATCHDOGPS=%~dp0stale-output-watchdog.ps1"
 set "STALESTAMP=%TEMP%\bora_stale_stamp.txt"
-if not exist "%CLAUDE_EXE%" ( echo [loop] ERRO: claude.exe nao encontrado & exit /b 4 )
+if not exist "%CLAUDE_EXE%" (
+  echo CLI-NAO-ENCONTRADA: resolvido para "%CLAUDE_EXE%" mas o ficheiro nao existe -- utilizador=%USERDOMAIN%\%USERNAME% APPDATA=%APPDATA%
+  exit /b 4
+)
+
+REM ---- PREFLIGHT DE AUTH (FASE 1.11, item 4) -- irmao do CLI-NAO-ENCONTRADA ----
+REM `claude auth status` devolve JSON com "loggedIn" e NAO gasta tokens de modelo. Sem isto, a
+REM sessao OAuth morta so se manifestava DEPOIS de arrancar, e a saida ia parar ao ramo generico
+REM "SAIDA-VAZIA -- tarefa grande demais?" -- a mesma mentira que escondeu a avaria do binario 4
+REM dias. Retentar nao renova um token: quem trata disto e o Danilo, por isso trava-se a 1a.
+REM CUIDADO (2026-08-01): `auth status` le o CREDENTIAL STORE. Quando a auth vem de
+REM CLAUDE_CODE_OAUTH_TOKEN (env var), ha relato de que ele NAO reflete essa origem e pode dizer
+REM loggedIn:false com o executor a funcionar perfeitamente. Se o preflight bloqueasse nesse caso,
+REM eu proprio criava a avaria que vim consertar: loop saudavel travado por um gate que le a fonte
+REM errada. Por isso: token presente => NAO bloquear. Uma auth genuinamente ma continua apanhada
+REM a jusante, pela mensagem literal do executor em runtime (cli_sem_auth_linha no carteiro.sh),
+REM que e' ground truth. O gate por auth status so vale quando NAO ha token no ambiente.
+if defined CLAUDE_CODE_OAUTH_TOKEN (
+  echo [loop] auth via CLAUDE_CODE_OAUTH_TOKEN ^(env^) -- preflight de auth ignorado de proposito
+) else (
+  set "AUTHJSON="
+  for /f "usebackq delims=" %%A in (`"%CLAUDE_EXE%" auth status 2^>^&1`) do set "AUTHJSON=!AUTHJSON!%%A"
+  echo !AUTHJSON! | find /i "\"loggedIn\": true" >nul 2>&1
+  if errorlevel 1 (
+    echo CLI-SEM-AUTH: sem CLAUDE_CODE_OAUTH_TOKEN e `claude auth status` nao confirma sessao -- resposta="!AUTHJSON!" binario="%CLAUDE_EXE%" utilizador=%USERDOMAIN%\%USERNAME% CLAUDE_CONFIG_DIR=%CLAUDE_CONFIG_DIR%
+    exit /b 5
+  )
+)
 
 set "PERM=--dangerously-skip-permissions"
 set "BUDGET=--max-budget-usd 25"

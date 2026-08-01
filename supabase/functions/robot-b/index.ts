@@ -129,7 +129,11 @@ REGRAS:
 - "payload_execucao" SÓ com ids/valores CONCRETOS vindos das observações. Se a evidência é só uma contagem (sem ids), a sugestão é nível 3 com payload null (propõe o processo, não a execução).
 - NÃO sugiras o que os auto-fixes nível 1 deste ciclo já cobrem (produtos sem preço desativados, preços suspeitos marcados para revisão, notificações de teste limpas).
 - NÃO repitas sugestões abertas nem tipos rejeitados (listas no input).
-- "dedup_key": slug minúsculo ESTÁVEL entre ciclos para o mesmo problema (ex.: "catalogo:produtos-sem-categoria"). Sem datas, sem contagens.
+- "dedup_key": ESCOLHE UMA das chaves canónicas listadas em CHAVES CANÓNICAS (input). É um conjunto FECHADO — copia a chave EXATAMENTE como está escrita.
+  * NÃO inventes chave nova. NÃO acrescentes sufixo (-v2, -v19), data, contagem ou variação.
+  * NÃO reformules com sinónimos: "otimizar-cron-queries-lentas", "queries-lentas-cron" e "otimizar-queries-cron-lentas" seriam TRÊS chaves para O MESMO problema — isso é exatamente o que não pode acontecer.
+  * Se o achado NÃO couber em nenhuma chave canónica, devolve "dedup_key": "sem-chave" e explica no "titulo" qual chave nova faria falta. NUNCA inventes uma para contornar.
+  * Uma chave já ocupada NÃO te impede de reportar: o servidor ATUALIZA a linha viva com a tua evidência nova. Repetir a chave certa é o comportamento CORRETO, não um erro.
 - "severidade": 1-5 (5 = crítico).
 - "categoria": catalogo | operacao_pedidos | marcacoes | notificacoes | seguranca | performance | ux_paridade | dados_teste | infra_cron | suporte_padroes | outro.
 - "proposta": PT-BR claro — problema → solução → risco.
@@ -137,6 +141,34 @@ REGRAS:
 
 Responde APENAS com JSON válido (sem markdown):
 {"suggestions":[{"nivel":2,"severidade":3,"categoria":"...","titulo":"...","proposta":"...","evidencia":{},"payload_execucao":{}|null,"benchmark":"...","dedup_key":"..."}]}`;
+
+// CONJUNTO FECHADO de dedup_keys (missão nunca-mais-travar-2026-07-31, I1).
+// Porquê: entregar ao Gemini as chaves ocupadas com "NÃO repetir" fazia-o cumprir à letra —
+// inventava "...-v19"/"...-v24" ou reformulava com sinónimos ("queries lentas de cron" chegou a
+// ter 7 chaves vivas). O dedup do servidor estava correto; era a chave que mudava. Com um
+// conjunto fechado o modelo não tem por onde fugir, e "sem-chave" é a saída honesta.
+// Acrescentar chave aqui é ato humano deliberado — o robô nunca edita esta lista.
+const DEDUP_KEYS_CANONICAS = [
+  'catalogo:produtos-sem-preco',
+  'catalogo:produtos-sem-foto',
+  'catalogo:produtos-sem-categoria',
+  'catalogo:preco-suspeito',
+  'catalogo:backlog-revisao-produtos',
+  'operacao_pedidos:pedidos-presos',
+  'operacao_pedidos:drivers-online-sem-token',
+  'marcacoes:marcacoes-pendentes-orfas',
+  'marcacoes:no-show-rate',
+  'notificacoes:notificacoes-falhadas',
+  'seguranca:rls-desabilitado',
+  'seguranca:secdef-search-path-mutavel',
+  'performance:cron-queries-lentas',
+  'infra_cron:cron-falhado',
+  'infra_cron:http-timeouts-recorrentes',
+  'ux_paridade:paridade-admin-em-falta',
+  'dados_teste:dados-de-teste-em-producao',
+  'suporte_padroes:crosstalk-pendente',
+  'sem-chave',
+];
 
 async function runCycle(admin: any, geminiModel: string, dryRun: boolean): Promise<any> {
   // KILL SWITCH geral
@@ -240,8 +272,13 @@ ${JSON.stringify(obs)}
 AUTO-FIXES NÍVEL 1 ${dryRun ? 'PLANEADOS (dry-run)' : (autoLevel1 ? 'JÁ EXECUTADOS' : 'CONVERTIDOS EM SUGESTÃO (auto OFF)')} NESTE CICLO:
 ${JSON.stringify(planned.map((p) => p.op))}
 
-SUGESTÕES JÁ ABERTAS (NÃO repetir — dedup_keys ocupados):
+CHAVES CANÓNICAS (conjunto FECHADO — o "dedup_key" TEM de ser uma destas, copiada tal e qual):
+${JSON.stringify(DEDUP_KEYS_CANONICAS)}
+
+SUGESTÕES JÁ ABERTAS (contexto — NÃO é proibição de chave):
 ${JSON.stringify(openSugs ?? [])}
+Se o teu achado é o MESMO problema de uma destas, usa a MESMA dedup_key: o servidor atualiza a
+linha existente com a tua evidência nova (é o comportamento correto). Não inventes variação.
 
 TIPOS REJEITADOS NOS ÚLTIMOS 60 DIAS (NÃO repetir — aprende com o motivo):
 ${JSON.stringify(rejected ?? [])}
@@ -277,8 +314,14 @@ Analisa como o Danilo analisaria e retorna JSON.`;
     for (const s of toCreate) {
       const nivel = Number(s.nivel);
       if (![1, 2, 3].includes(nivel)) { skipped.push({ titulo: s.titulo, reason: 'nivel_invalido' }); continue; }
-      const dedup = String(s.dedup_key ?? '').trim().toLowerCase()
-        || (s.categoria + ':' + (await sha256Hex(String(s.titulo ?? ''))).slice(0, 12));
+      // Não confiar na chave do modelo: fora do conjunto fechado -> 'sem-chave' (I1).
+      // Assim uma chave inventada ("...-v20") ou reformulada com sinónimo cai toda no mesmo
+      // balde em vez de gerar linha nova, e o título diz que chave canónica faltou.
+      let dedup = String(s.dedup_key ?? '').trim().toLowerCase();
+      if (!DEDUP_KEYS_CANONICAS.includes(dedup)) {
+        console.log(`dedup_key fora do conjunto canonico: "${dedup}" -> sem-chave (titulo: ${s.titulo})`);
+        dedup = 'sem-chave';
+      }
       const { data: sid, error } = await admin.rpc('robot_create_suggestion', {
         p_run_id: runId,
         p_nivel: nivel,

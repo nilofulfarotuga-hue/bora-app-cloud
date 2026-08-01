@@ -69,11 +69,26 @@ prova positiva obrigatória, Balde B nunca promovido sozinho.
 1. Ler `INDEX.md` → `zonas-protegidas.md` (a Trava) + `business-rules.md` (o que é dinheiro real).
 2. Ler a fila vermelha (Central / `robot_suggestions` estado bloqueado 🔴 + a fila do carteiro
    `estado: zona_vermelha`). **Só LEITURA.**
+   **LOTE (I2):** trata no MÁXIMO **8** itens por corrida — os mais antigos ainda por triar
+   (`reviewed_at IS NULL`), `ORDER BY created_at ASC`. Sobra fica para o ciclo seguinte do cron
+   (*/10 min). **Nunca** triar a fila toda numa corrida: com 30 itens o executor devolvia
+   `SAIDA-VAZIA` → `travada` → Telegram "travou", em ciclo.
 3. Triar cada item em Balde A / Balde B com prova positiva. Dúvida → Balde B.
-4. Surfaçar: relatório `.claude/.ai/reports/aprovador-vermelho-<data>.md` + Telegram por item de B.
-5. Se `aprovador_vermelho_auto_baldeA=true`: marcar Balde A como aprovado citando motivo. Senão:
+4. **Marcar `reviewed_at = now()` em TODO item que triares — inclusive nos Balde B**, que
+   continuam `status='nova'` à espera do Danilo e continuam visíveis na Central.
+   `reviewed_at` significa **"já foi olhado"**, não "já foi decidido".
+   ```sql
+   UPDATE public.robot_suggestions SET reviewed_at = now() WHERE id = '<id>';
+   ```
+   **Porquê (não saltar este passo):** `red_queue_watermark()` mede `oldest_age_min` só sobre
+   linhas com `reviewed_at IS NULL`. Um Balde B legítimo parado dias sem `reviewed_at` mantinha
+   o valor >30 para sempre → o `FALLBACK 30MIN` refiring eterno → a notificação "travou" a cada
+   ~40 min que o Danilo apanhou em 2026-07-31. Sem este passo a migration
+   `red_queue_watermark_oldest_age_only_untriaged` perde o efeito na triagem seguinte. (I3)
+5. Surfaçar: relatório `.claude/.ai/reports/aprovador-vermelho-<data>.md` + Telegram por item de B.
+6. Se `aprovador_vermelho_auto_baldeA=true`: marcar Balde A como aprovado citando motivo. Senão:
    deixar Balde A em "recomendado — aguarda toque".
-6. No fim → HANDOFF ao `bibliotecario-cerebro` (`escopo: agente:aprovador-vermelho`).
+7. No fim → HANDOFF ao `bibliotecario-cerebro` (`escopo: agente:aprovador-vermelho`).
 
 ## Formato de Output
 ```

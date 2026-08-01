@@ -1053,7 +1053,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 _NavCard(
                   icon: Icons.sync_alt,
                   title: 'Ida e volta',
-                  subtitle: 'Pacotes €8 · vale por usar / usado / expirado',
+                  subtitle: 'Pacotes ida + volta · vale por usar / usado / expirado',
                   color: Colors.teal,
                   onTap: () => Navigator.push(
                       context,

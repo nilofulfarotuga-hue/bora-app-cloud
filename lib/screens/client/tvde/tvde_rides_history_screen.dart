@@ -18,16 +18,11 @@ class TvdeRidesHistoryScreen extends StatefulWidget {
 }
 
 class _TvdeRidesHistoryScreenState extends State<TvdeRidesHistoryScreen> {
-  int _packageCents = TvdeRoundtripPrice.cents;
-
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final store = context.read<TvdeStore>();
-      store.loadHistory();
-      final pkg = await TvdeRoundtripPrice.load(store);
-      if (mounted) setState(() => _packageCents = pkg);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<TvdeStore>().loadHistory();
     });
   }
 
@@ -42,20 +37,39 @@ class _TvdeRidesHistoryScreenState extends State<TvdeRidesHistoryScreen> {
               padding: const EdgeInsets.all(Spacing.lg),
               itemCount: rides.length,
               separatorBuilder: (_, __) => const SizedBox(height: Spacing.sm),
-              itemBuilder: (_, i) =>
-                  _RideTile(ride: rides[i], packageCents: _packageCents),
+              itemBuilder: (_, i) => _RideTile(ride: rides[i]),
             ),
     );
   }
 }
 
-class _RideTile extends StatelessWidget {
-  const _RideTile({required this.ride, required this.packageCents});
+/// Cada linha lê o `paid_cents` do SEU vale: no histórico convivem pacotes de
+/// preços diferentes (o preço é dinâmico por distância), por isso um valor
+/// único para a lista toda mostraria o número errado nas linhas antigas.
+class _RideTile extends StatefulWidget {
+  const _RideTile({required this.ride});
   final TvdeRide ride;
-  final int packageCents;
+
+  @override
+  State<_RideTile> createState() => _RideTileState();
+}
+
+class _RideTileState extends State<_RideTile> {
+  int packageCents = TvdeRoundtripPrice.fallbackCents;
+
+  @override
+  void initState() {
+    super.initState();
+    if (!widget.ride.isRoundtripLeg) return;
+    TvdeRoundtripPrice.loadForRide(context.read<TvdeStore>(), widget.ride)
+        .then((v) {
+      if (mounted) setState(() => packageCents = v);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    final ride = widget.ride;
     final d = ride.createdAt;
     final date = d == null
         ? ''

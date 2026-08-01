@@ -12,10 +12,9 @@ import 'tvde_roundtrip_driver_notice.dart';
 /// coberta pelo plano → não cobrar; card/mbway → já pago; senão → cobrar €X.
 /// Antes do finish usa o estimado (`~`), depois usa o valor final real.
 ///
-/// [Fase B] Perna do pacote €8 manda em tudo o resto: a corrida é PREPAGA, por
+/// [Fase B] Perna do pacote manda em tudo o resto: a corrida é PREPAGA, por
 /// isso a tarifa nunca se cobra. Na ida em dinheiro o que se recolhe é o
-/// **pacote** (€8, as duas pernas), não a tarifa desta corrida — sem esta
-/// exceção o badge mandava cobrar os €5 da ida por cima dos €8 (o "€13").
+/// **pacote** (preço dinâmico, as duas pernas), não a tarifa desta corrida.
 class TvdePayBadge extends StatefulWidget {
   const TvdePayBadge({super.key, required this.ride, this.dense = false});
 
@@ -27,13 +26,14 @@ class TvdePayBadge extends StatefulWidget {
 }
 
 class _TvdePayBadgeState extends State<TvdePayBadge> {
-  int _packageCents = TvdeRoundtripPrice.cents;
+  int _packageCents = TvdeRoundtripPrice.fallbackCents;
 
   @override
   void initState() {
     super.initState();
     if (!widget.ride.isRoundtripLeg) return;
-    TvdeRoundtripPrice.load(context.read<TvdeStore>()).then((v) {
+    TvdeRoundtripPrice.loadForRide(context.read<TvdeStore>(), widget.ride)
+        .then((v) {
       if (mounted) setState(() => _packageCents = v);
     });
   }

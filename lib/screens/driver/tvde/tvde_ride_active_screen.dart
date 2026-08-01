@@ -621,12 +621,13 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   /// [Ronda 2] Lembrete impossível de ignorar, no único momento que interessa:
   /// o passageiro ainda está no carro. O valor sai de [TvdeFareView] — a MESMA
   /// fonte do badge e do ecrã do cliente — e nunca de `final_fare_cents`, que
-  /// numa perna do pacote €8 traz só as paradas (mostraria €2 em vez de €10).
+  /// numa perna do pacote traz só as paradas (mostraria €2 em vez do total).
   Future<void> _showCollectReminder(TvdeRide finished) async {
     try {
       final pkg = finished.isRoundtripLeg
-          ? await TvdeRoundtripPrice.load(context.read<TvdeStore>())
-          : TvdeRoundtripPrice.cents;
+          ? await TvdeRoundtripPrice.loadForRide(
+              context.read<TvdeStore>(), finished)
+          : TvdeRoundtripPrice.fallbackCents;
       if (!mounted) return;
       final fare = TvdeFareView.of(finished, packageCents: pkg);
       await showCollectReminderDialog(

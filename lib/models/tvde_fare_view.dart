@@ -7,7 +7,7 @@ import 'tvde_ride.dart';
 ///
 /// A regra subtil (é daqui que nascia o "€13"): a `tvde_finish_ride` faz
 /// `IF v_prepaid THEN v_fare := v_stops_fee`. Ou seja, **numa perna do pacote
-/// €8 o `final_fare_cents` é SÓ as paradas**, não a tarifa. Por isso ali soma-se
+/// o `final_fare_cents` é SÓ as paradas**, não a tarifa. Por isso ali soma-se
 /// `pacote + final`, enquanto numa corrida normal o `final` já inclui as paradas
 /// e somá-las outra vez seria dupla contagem.
 ///
@@ -40,14 +40,14 @@ class TvdeFareView {
 
   static String _eur(int cents) => '€${(cents / 100).toStringAsFixed(2)}';
 
-  /// [packageCents] = `tvde_roundtrip_price_cents` (lido por
-  /// `TvdeRoundtripPrice.load`). Nunca hardcodar aqui.
+  /// [packageCents] = `paid_cents` do vale (lido por
+  /// `TvdeRoundtripPrice.loadForRide`). Nunca hardcodar aqui.
   static TvdeFareView of(TvdeRide ride, {required int packageCents}) {
     final finalCents = ride.finalFareCents;
     final stopsCents = ride.extraStopsFeeCents;
     final paidOnline = ride.isPaidOnline;
 
-    // Perna do pacote €8: a tarifa desta corrida NUNCA se cobra — está prepaga.
+    // Perna do pacote: a tarifa desta corrida NUNCA se cobra — está prepaga.
     // Depois do finish o `final` traz só as paradas; antes dele usamos o
     // acumulado das paradas já adicionadas.
     if (ride.isRoundtripLeg) {

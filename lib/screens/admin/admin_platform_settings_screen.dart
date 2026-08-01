@@ -74,6 +74,10 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
     // aqui. As de dinheiro (tvde_stop_fee_cents = taxa do cliente,
     // tvde_stop_driver_cents = ganho do motorista) ficam blindadas — alterá-las
     // é ação 🔴 que escala a pagamentos-wallet.
+    // `tvde_roundtrip_discount_pct` NÃO entra aqui de propósito: é a % de
+    // desconto aplicada ao pacote ida+volta, ou seja, mexe no que o cliente
+    // paga. Aparece na lista em modo protegido (cadeado + descrição) como
+    // qualquer outra chave de dinheiro; torná-la editável é ação 🔴.
     const tvdeStopOperational = {'tvde_max_stops', 'tvde_stop_timer_seconds'};
     if (tvdeStopOperational.contains(key)) return true;
     // BLOCO E (2026-07-28) — reagendamento de marcações. São chaves

@@ -82,7 +82,7 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
   int _stopFeeCents = 200; // taxa cliente por parada (fallback)
   int _stopTimerSeconds = 120; // espera gratuita informativa por parada
   int _cancelGraceSeconds = 180; // [F2] janela grátis de cancelamento (fallback)
-  int _packageCents = TvdeRoundtripPrice.cents; // preço do pacote ida-e-volta
+  int _packageCents = TvdeRoundtripPrice.fallbackCents;
   Timer? _stopsTicker; // 1s: repinta countdowns + recarrega paradas a cada 5s
   int _stopsTick = 0;
   bool _addingStop = false;
@@ -119,7 +119,10 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
     final fee = await store.getSettingInt('tvde_stop_fee_cents', 200);
     final timer = await store.getSettingInt('tvde_stop_timer_seconds', 120);
     final grace = await store.getSettingInt('cancel_grace_seconds', 180);
-    final pkg = await TvdeRoundtripPrice.load(store);
+    final ride = store.activeRide;
+    final pkg = ride != null
+        ? await TvdeRoundtripPrice.loadForRide(store, ride)
+        : TvdeRoundtripPrice.fallbackCents;
     if (mounted) {
       setState(() {
         _maxStops = max;

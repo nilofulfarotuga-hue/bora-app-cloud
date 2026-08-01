@@ -6,45 +6,31 @@ import '../../config/app_spacing.dart';
 import '../../models/tvde_ride.dart';
 import '../../stores/tvde_store.dart';
 
-/// [Fase B] Preço do pacote ida-e-volta (€8) do lado do MOTORISTA.
+/// [Fase B] Preço do pacote ida-e-volta do lado do MOTORISTA.
 ///
 /// Memo de sessão: o badge de cobrança e o aviso são widgets diferentes mas
-/// TÊM de mostrar o mesmo número — se um dissesse €8 e o outro €9 (porque o
-/// Danilo mudou `tvde_roundtrip_price_cents` a meio), o motorista recolheria o
-/// valor errado em mão. Uma leitura por sessão, partilhada pelos dois.
+/// TÊM de mostrar o mesmo número. Ambos lêem `paid_cents` do vale
+/// (`tvde_roundtrip_credits`) associado à corrida — fonte única por corrida.
 class TvdeRoundtripPrice {
   TvdeRoundtripPrice._();
 
-  /// Mesmo fallback que o cliente usa em `tvde_request_ride_screen`.
   static const int fallbackCents = 800;
 
-  static int _cached = fallbackCents;
-  static Future<int>? _inflight;
-
-  /// Último valor conhecido (fallback até a primeira leitura chegar).
-  static int get cents => _cached;
-
-  static Future<int> load(TvdeStore store) {
-    final pending = _inflight;
-    if (pending != null) return pending;
-    final f = store
-        .getSettingInt('tvde_roundtrip_price_cents', fallbackCents)
-        .then((v) {
-      _cached = v;
-      return v;
-    });
-    _inflight = f;
-    return f;
+  /// Lê o `paid_cents` do vale ligado a esta corrida.
+  static Future<int> loadForRide(TvdeStore store, TvdeRide ride) async {
+    final creditId = ride.roundtripCreditId;
+    if (creditId == null) return fallbackCents;
+    return store.getRoundtripPaidCents(creditId);
   }
 }
 
-/// [Fase B] Aviso ao MOTORISTA numa perna do pacote €8 (ida ou volta).
+/// [Fase B] Aviso ao MOTORISTA numa perna do pacote (ida ou volta).
 ///
 /// Existe por uma razão só: o motorista não pode confundir **o que ganha** com
-/// **o que o cliente paga**. Os €8 são o preço das duas pernas e são da Bora —
-/// na ida em dinheiro ele recolhe-os em mão por conta dela, e a Bora acerta as
-/// contas no fim da semana. Sem este aviso, um motorista que ganha €4 e recebe
-/// €8 em mão assume que os €8 são dele.
+/// **o que o cliente paga**. O preço do pacote é da Bora — na ida em dinheiro
+/// ele recolhe-os em mão por conta dela, e a Bora acerta as contas no fim da
+/// semana. Sem este aviso, um motorista que ganha menos do que recolhe assume
+/// que o valor é dele.
 ///
 /// Não mostra nada fora do pacote (`ride.isRoundtripLeg == false`).
 class TvdeRoundtripDriverNotice extends StatefulWidget {
@@ -76,13 +62,14 @@ class TvdeRoundtripDriverNotice extends StatefulWidget {
 }
 
 class _TvdeRoundtripDriverNoticeState extends State<TvdeRoundtripDriverNotice> {
-  int _packageCents = TvdeRoundtripPrice.cents;
+  int _packageCents = TvdeRoundtripPrice.fallbackCents;
 
   @override
   void initState() {
     super.initState();
     if (!widget.ride.isRoundtripLeg) return;
-    TvdeRoundtripPrice.load(context.read<TvdeStore>()).then((v) {
+    TvdeRoundtripPrice.loadForRide(context.read<TvdeStore>(), widget.ride)
+        .then((v) {
       if (mounted) setState(() => _packageCents = v);
     });
   }

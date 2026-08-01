@@ -72,7 +72,8 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
 
   // [CAMPO-02 · Feature 3] "Garantir a volta": pacote ida+volta pago adiantado.
   bool _roundtrip = false;
-  int _roundtripPriceCents = 800; // fallback; sobrescrito por platform_settings
+  int _roundtripPriceCents = 0;
+  int _roundtripSavingCents = 0;
   Map<String, dynamic>? _activeCredit; // vale-volta ativo (mostra "Chamar a volta")
 
   // Cartão + MB Way só aparecem (na FOLHA de pagamento, depois do botão) se o
@@ -107,8 +108,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
       return;
     }
     await _detectPickup();
-    // [F3] preço do pacote ida-volta + vale ativo (para "Chamar a minha volta").
-    final price = await store.getSettingInt('tvde_roundtrip_price_cents', 800);
+    // [F3] vale ativo (para "Chamar a minha volta").
     final credit = await store.activeRoundtripCredit();
     // Kill switch de card/mbway (falha fechada → só dinheiro).
     final cardEnabled =
@@ -120,7 +120,6 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     final extraRide = await store.getSettingInt('tvde_extra_ride_cents', 450);
     if (mounted) {
       setState(() {
-        _roundtripPriceCents = price;
         _activeCredit = credit;
         _cardEnabled = cardEnabled;
         _perKmCents = perKm;
@@ -210,6 +209,8 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
         _payCase = _PayCase.normal;
         _payableCents = 0;
         _payMessage = null;
+        _roundtripPriceCents = 0;
+        _roundtripSavingCents = 0;
       });
       return;
     }
@@ -286,6 +287,17 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
       _payableCents = payable;
       _payMessage = message;
       _estimating = false;
+    });
+    _fetchRoundtripQuote(km);
+  }
+
+  Future<void> _fetchRoundtripQuote(double km) async {
+    final store = context.read<TvdeStore>();
+    final quote = await store.quoteRoundtrip(km);
+    if (!mounted || quote == null) return;
+    setState(() {
+      _roundtripPriceCents = (quote['price_cents'] as num?)?.toInt() ?? 0;
+      _roundtripSavingCents = (quote['saving_cents'] as num?)?.toInt() ?? 0;
     });
   }
 
@@ -487,9 +499,9 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     return false;
   }
 
-  /// [F3 · Fase B] Pedido "garantir a volta": os €8 são o preço TOTAL das DUAS
-  /// pernas. A folha é a mesma do pedido normal, por isso tem **Dinheiro** além
-  /// de cartão/MB Way. A volta é disparada depois pelo cliente (desacoplada).
+  /// [F3 · Fase B] Pedido "garantir a volta": o preço dinâmico cobre as DUAS
+  /// pernas (ida+volta com desconto). A folha é a mesma do pedido normal, por
+  /// isso tem **Dinheiro** além de cartão/MB Way. A volta é disparada depois.
   ///
   /// Em qualquer dos caminhos a ida TEM de acabar ligada ao vale
   /// (`tvde_rides.roundtrip_credit_id`): é essa ligação que faz o
@@ -512,8 +524,11 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
       ),
       builder: (_) => _TvdePaymentSheet(
         amountCents: _roundtripPriceCents,
-        message: 'Preço total da ida + volta. A volta é grátis — chamas quando '
-            'quiseres, dentro do prazo.',
+        message: _roundtripSavingCents > 0
+            ? 'Ida + volta com desconto. Poupas '
+                '€${(_roundtripSavingCents / 100).toStringAsFixed(2)} '
+                'face a duas corridas separadas.'
+            : 'Preço total da ida + volta — chamas a volta quando quiseres.',
         allowOnline: _cardEnabled,
         // Tokens fora: o preço do pacote é server-side e as RPCs do vale não
         // os recebem — mostrar o toggle prometia um desconto que não existe.
@@ -532,9 +547,9 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     }
   }
 
-  /// [Fase B] €8 em **DINHEIRO** — zero Stripe. A ida nasce cash e despacha na
-  /// hora (o motorista recolhe os €8 em mão por conta da Bora); logo a seguir a
-  /// RPC nova cria o vale e liga-lhe a ida.
+  /// [Fase B] Pacote em **DINHEIRO** — zero Stripe. A ida nasce cash e despacha
+  /// na hora (o motorista recolhe o valor em mão por conta da Bora); logo a
+  /// seguir a RPC cria o vale e liga-lhe a ida.
   Future<void> _solicitarRoundtripCash(double km, {String? note}) async {
     final store = context.read<TvdeStore>();
     final messenger = ScaffoldMessenger.of(context);
@@ -593,16 +608,16 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     _openTracking();
   }
 
-  /// [Fase B] €8 em **CARTÃO / MB Way** — o contrato que já existia, intacto:
-  /// PaymentIntent dos €8 → cria a ida → `activate_roundtrip` liga-a ao vale.
+  /// [Fase B] Pacote em **CARTÃO / MB Way** — o contrato que já existia, intacto:
+  /// PaymentIntent do valor dinâmico → cria a ida → `activate_roundtrip` liga-a.
   Future<void> _solicitarRoundtripOnline(double km,
       {required bool isMbway, String? mbwayPhone, String? note}) async {
     final store = context.read<TvdeStore>();
     final messenger = ScaffoldMessenger.of(context);
     final priceEur = _roundtripPriceCents / 100;
 
-    // 1) PaymentIntent dos €8 (preço server-side). MB Way confirma-se na app do
-    //    banco; cartão confirma-se já a seguir.
+    // 1) PaymentIntent do preço dinâmico (server-side). MB Way confirma-se na
+    //    app do banco; cartão confirma-se já a seguir.
     final created = isMbway
         ? await store.createRoundtripPaymentMbway(mbwayPhone!)
         : await store.createRoundtripPayment();
@@ -897,6 +912,8 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
                     _dest = null;
                     _effectiveKm = null;
                     _payableCents = 0;
+                    _roundtripPriceCents = 0;
+                    _roundtripSavingCents = 0;
                   });
                 }
               },
@@ -914,6 +931,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
             _RoundtripToggle(
               value: _roundtrip,
               priceCents: _roundtripPriceCents,
+              savingCents: _roundtripSavingCents,
               onChanged: (v) => setState(() => _roundtrip = v),
             ),
             // Parte 9 — prazo do vale bem claro (validade = 12h, aplicada em prod).
@@ -928,7 +946,9 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
             const SizedBox(height: Spacing.xl),
             BoraAccentButton(
               label: _roundtrip
-                  ? 'Garantir ida e volta · €${(_roundtripPriceCents / 100).toStringAsFixed(2)}'
+                  ? _roundtripPriceCents > 0
+                      ? 'Garantir ida e volta · €${(_roundtripPriceCents / 100).toStringAsFixed(2)}'
+                      : 'Garantir ida e volta'
                   : 'Solicitar corrida',
               icon: _roundtrip ? Icons.sync_alt : Icons.local_taxi,
               loading: store.busy,
@@ -1182,8 +1202,8 @@ class _TvdePaymentSheet extends StatefulWidget {
   final String? message;
   final bool allowOnline;
 
-  /// [Fase B] Desconto em Bora Tokens. **false no pacote €8**: o preço do pacote
-  /// é server-side (`tvde_roundtrip_price_cents`) e as RPCs do vale não recebem
+  /// [Fase B] Desconto em Bora Tokens. **false no pacote ida-e-volta**: o preço
+  /// é server-side (RPC `tvde_quote_roundtrip`) e as RPCs do vale não recebem
   /// tokens — deixar o toggle aparecer prometeria um desconto que não acontece.
   final bool allowTokens;
 
@@ -1427,16 +1447,21 @@ class _TvdePaymentSheetState extends State<_TvdePaymentSheet> {
   }
 }
 
-/// [F3] Toggle "Garantir a volta" — pacote ida+volta pago adiantado.
+/// [F3] Toggle "Garantir a volta" — pacote ida+volta com desconto dinâmico.
 class _RoundtripToggle extends StatelessWidget {
   const _RoundtripToggle(
-      {required this.value, required this.priceCents, required this.onChanged});
+      {required this.value,
+      required this.priceCents,
+      required this.savingCents,
+      required this.onChanged});
   final bool value;
   final int priceCents;
+  final int savingCents;
   final ValueChanged<bool> onChanged;
 
   @override
   Widget build(BuildContext context) {
+    final hasPrice = priceCents > 0;
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -1446,7 +1471,7 @@ class _RoundtripToggle extends StatelessWidget {
       ),
       child: SwitchListTile(
         value: value,
-        onChanged: onChanged,
+        onChanged: hasPrice ? onChanged : null,
         activeColor: AppColors.primary,
         contentPadding: const EdgeInsets.symmetric(horizontal: Spacing.md),
         title: const Row(
@@ -1461,11 +1486,29 @@ class _RoundtripToggle extends StatelessWidget {
         ),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 4),
-          child: Text(
-            'Pacote ida + volta por €${(priceCents / 100).toStringAsFixed(2)}, pago já. '
-            'Chamas a volta quando quiseres, dentro do prazo.',
-            style: const TextStyle(fontSize: 12, color: AppColors.textSubtle),
-          ),
+          child: hasPrice
+              ? Text.rich(
+                  TextSpan(children: [
+                    TextSpan(
+                      text:
+                          'Ida + volta por €${(priceCents / 100).toStringAsFixed(2)}',
+                    ),
+                    if (savingCents > 0)
+                      TextSpan(
+                        text:
+                            ' · poupas €${(savingCents / 100).toStringAsFixed(2)}',
+                        style: const TextStyle(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w600),
+                      ),
+                  ]),
+                  style: const TextStyle(
+                      fontSize: 12, color: AppColors.textSubtle),
+                )
+              : const Text(
+                  'Escolhe o destino para ver o preço do pacote.',
+                  style: TextStyle(fontSize: 12, color: AppColors.textSubtle),
+                ),
         ),
       ),
     );

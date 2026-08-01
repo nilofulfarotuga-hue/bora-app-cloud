@@ -21,13 +21,14 @@ class TvdeRateScreen extends StatefulWidget {
 class _TvdeRateScreenState extends State<TvdeRateScreen> {
   int _stars = 5;
   final _comment = TextEditingController();
-  int _packageCents = TvdeRoundtripPrice.cents;
+  int _packageCents = TvdeRoundtripPrice.fallbackCents;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final pkg = await TvdeRoundtripPrice.load(context.read<TvdeStore>());
+      final pkg = await TvdeRoundtripPrice.loadForRide(
+          context.read<TvdeStore>(), widget.ride);
       if (mounted) setState(() => _packageCents = pkg);
     });
   }

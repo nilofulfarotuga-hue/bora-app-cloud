@@ -800,7 +800,7 @@ class TvdeStore extends ChangeNotifier {
   // ════════════════════════════════════════════════════════════════════════
 
   /// Cria o PaymentIntent do pacote ida-e-volta (cartão). Preço SERVER-SIDE
-  /// (tvde_roundtrip_price_cents). Reusa a Edge Fn tvde-plan-payment (item A).
+  /// (dinâmico, via `tvde_quote_roundtrip`). Reusa a Edge Fn tvde-plan-payment.
   Future<Map<String, dynamic>?> createRoundtripPayment() async {
     try {
       final res = await _sb.functions
@@ -833,12 +833,12 @@ class TvdeStore extends ChangeNotifier {
     }
   }
 
-  /// [Fase B] Vale-volta do pacote €8 pago em **DINHEIRO** — sem Stripe nenhum.
+  /// [Fase B] Vale-volta do pacote pago em **DINHEIRO** — sem Stripe nenhum.
   /// Cria o vale, liga-lhe a corrida de ida (mete `roundtrip_credit_id`) e usa o
-  /// preço do `platform_settings`. Idempotente por ida.
+  /// preço dinâmico (RPC `tvde_quote_roundtrip`). Idempotente por ida.
   ///
-  /// O motorista da ida recolhe os €8 em mão por conta da Bora; o acerto
-  /// (ida deve €4 à Bora, Bora deve €3,50 à volta) é do backend, no fecho.
+  /// O motorista da ida recolhe o valor em mão por conta da Bora; o acerto
+  /// é do backend, no fecho semanal.
   ///
   /// Devolve a linha do vale, ou **null** se não deu. Null é grave: significa
   /// que a ida ficou por ligar e cobraria a tarifa ao cliente — quem chama TEM
@@ -862,6 +862,40 @@ class TvdeStore extends ChangeNotifier {
     } catch (e) {
       debugPrint('TvdeStore.createRoundtripCreditCash error => $e');
       return null;
+    }
+  }
+
+  /// Cotação dinâmica do pacote ida-e-volta para a distância dada.
+  Future<Map<String, dynamic>?> quoteRoundtrip(double distanceKm) async {
+    try {
+      final res = await _sb.rpc('tvde_quote_roundtrip',
+          params: {'p_distance_km': distanceKm});
+      if (res is Map) return Map<String, dynamic>.from(res);
+      if (res is List && res.isNotEmpty) {
+        return Map<String, dynamic>.from(res.first as Map);
+      }
+      return null;
+    } catch (e) {
+      debugPrint('TvdeStore.quoteRoundtrip error => $e');
+      return null;
+    }
+  }
+
+  /// Lê o `paid_cents` de um vale de ida-e-volta pelo ID do crédito.
+  Future<int> getRoundtripPaidCents(String creditId) async {
+    try {
+      final res = await _sb
+          .from('tvde_roundtrip_credits')
+          .select('paid_cents')
+          .eq('id', creditId)
+          .maybeSingle();
+      if (res != null && res['paid_cents'] != null) {
+        return (res['paid_cents'] as num).toInt();
+      }
+      return 800;
+    } catch (e) {
+      debugPrint('TvdeStore.getRoundtripPaidCents error => $e');
+      return 800;
     }
   }
 

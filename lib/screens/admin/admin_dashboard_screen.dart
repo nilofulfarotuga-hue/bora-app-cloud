@@ -72,6 +72,8 @@ import 'admin_weekly_settlements_screen.dart';
 import 'admin_cleaning_bookings_screen.dart';
 import 'admin_cleaning_cleaners_screen.dart';
 import 'admin_cleaner_settlements_screen.dart';
+// categoria TVDE aberta a todos desde 2026-08-01 — reactivar se voltar ao modo por aprovação
+// ignore: unused_import
 import 'admin_tvde_access_requests_screen.dart';
 import 'admin_tvde_noshows_screen.dart';
 import 'admin_tvde_rides_screen.dart';
@@ -974,19 +976,21 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                         ),
                   ),
                 ),
-                _NavCard(
-                  icon: Icons.how_to_reg,
-                  title: 'Pedidos de acesso',
-                  subtitle:
-                      'Perfil completo do cliente · aprovar/recusar/revogar',
-                  color: const Color(0xFF0EA5E9),
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) =>
-                              const AdminTvdeAccessRequestsScreen())),
-                ),
-                const SizedBox(height: 10),
+                // categoria TVDE aberta a todos desde 2026-08-01 — reactivar
+                // se voltar ao modo por aprovação
+                // _NavCard(
+                //   icon: Icons.how_to_reg,
+                //   title: 'Pedidos de acesso',
+                //   subtitle:
+                //       'Perfil completo do cliente · aprovar/recusar/revogar',
+                //   color: const Color(0xFF0EA5E9),
+                //   onTap: () => Navigator.push(
+                //       context,
+                //       MaterialPageRoute(
+                //           builder: (_) =>
+                //               const AdminTvdeAccessRequestsScreen())),
+                // ),
+                // const SizedBox(height: 10),
                 _NavCard(
                   icon: Icons.person_off,
                   title: 'No-shows TVDE',

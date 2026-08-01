@@ -74,12 +74,17 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
     // aqui. As de dinheiro (tvde_stop_fee_cents = taxa do cliente,
     // tvde_stop_driver_cents = ganho do motorista) ficam blindadas — alterá-las
     // é ação 🔴 que escala a pagamentos-wallet.
-    // `tvde_roundtrip_discount_pct` NÃO entra aqui de propósito: é a % de
-    // desconto aplicada ao pacote ida+volta, ou seja, mexe no que o cliente
-    // paga. Aparece na lista em modo protegido (cadeado + descrição) como
-    // qualquer outra chave de dinheiro; torná-la editável é ação 🔴.
-    const tvdeStopOperational = {'tvde_max_stops', 'tvde_stop_timer_seconds'};
-    if (tvdeStopOperational.contains(key)) return true;
+    // `tvde_roundtrip_discount_pct` (a % de desconto do pacote ida+volta) É
+    // editável aqui por decisão explícita do Danilo (2026-08-01): o painel admin
+    // é a superfície onde o DONO mexe no preço do próprio produto — é a regra da
+    // autoridade total, não um agente a alterar dinheiro sozinho. As chaves em
+    // cêntimos (tvde_stop_fee_cents, tvde_stop_driver_cents) continuam blindadas.
+    const tvdeOperational = {
+      'tvde_max_stops',
+      'tvde_stop_timer_seconds',
+      'tvde_roundtrip_discount_pct',
+    };
+    if (tvdeOperational.contains(key)) return true;
     // BLOCO E (2026-07-28) — reagendamento de marcações. São chaves
     // OPERACIONAIS (horas de antecedência, nº de reagendamentos, janela de
     // dias): não mexem em nenhum valor cobrado, por isso são editáveis aqui.

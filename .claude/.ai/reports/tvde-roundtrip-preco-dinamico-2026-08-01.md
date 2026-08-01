@@ -83,32 +83,32 @@ Confirmado por leitura: **todos** os ecrãs de ganhos do motorista lêem
 Na volta o aviso diz *"Recebes €X desta corrida. A volta já está paga — não
 cobres nada ao cliente."* — €X = `driver_earn_cents` do servidor.
 
-## ⚠️ Item 4 (admin) — feito só até onde NÃO é dinheiro
+## Item 4 (admin) — APLICADO após aprovação explícita do Danilo
 
 Pediste: *"acrescentar o campo `tvde_roundtrip_discount_pct` nas configurações do
 TVDE, com nota 'desconto % aplicado sobre ida+volta'."*
 
-**O campo já aparece** no painel `Configurações da plataforma` sem eu mexer em
-nada: o ecrã lista todas as chaves de `platform_settings` vindas da DB, e as que
-não estão na whitelist aparecem em **modo protegido** (cadeado + descrição).
+**Ficheiro:** `lib/screens/admin/admin_platform_settings_screen.dart` —
+`tvde_roundtrip_discount_pct` entrou na whitelist `_isEditable`, ao lado de
+`tvde_max_stops` e `tvde_stop_timer_seconds`.
 
-O que eu **não** fiz — e quero a tua palavra antes: **torná-lo editável**.
-Cheguei a pô-lo na whitelist e reverti. Razão: essa chave é a % de desconto do
-pacote, ou seja, mexe directamente no que o cliente paga. O próprio ficheiro já
-diz que as chaves de dinheiro *"ficam blindadas — alterá-las é ação 🔴"*, e o
-CLAUDE.md põe "preços/taxas/comissões" na Lista Vermelha. Disseste que a tarefa
-não era Lista Vermelha porque *"o servidor já calcula, o app só lê e mostra"* —
-isso é verdade para o cliente e para o motorista, mas dar-lhe um campo editável
-no admin já é escrita numa alavanca de preço, não leitura.
+**Porque parei primeiro e porque avancei depois.** Numa primeira passagem
+travei isto e sinalizei como 🔴: a chave é a % de desconto do pacote, logo mexe
+no que o cliente paga, e o próprio ficheiro diz que as chaves de dinheiro
+*"ficam blindadas"*. O Danilo respondeu (2026-08-01), e a distinção que fez é a
+que fica registada no código:
 
-> **⚠️ ISTO MEXE EM PAGAMENTO/DINHEIRO. Está tudo pronto — confirma que eu aplico.**
-> Aplicar = 1 linha em `admin_platform_settings_screen.dart` a meter
-> `tvde_roundtrip_discount_pct` na whitelist de editáveis.
+> *"É o dono a mexer no próprio preço pelo painel dele, que é exactamente a
+> regra do projecto (autoridade total no admin) — não é um agente a mexer em
+> dinheiro sozinho."*
 
-Além disso, o texto da nota (*"desconto % aplicado sobre ida+volta"*) vive na
-coluna `description` da tabela `platform_settings` — é **SQL**, que esta ordem
-excluiu explicitamente (*"Não mexer em SQL, migrations, Edge Functions nem
-Stripe nesta ordem. Só Flutter."*). Fica por fazer, é um `UPDATE` de uma linha.
+Ou seja: o gate 🔴 protege contra **o agente** alterar dinheiro por iniciativa
+própria, não contra **o dono** usar o painel que existe para isso. Continuam
+blindadas as chaves em cêntimos (`tvde_stop_fee_cents`, `tvde_stop_driver_cents`).
+
+**Nota descritiva:** já escrita na coluna `description` de `platform_settings`
+pelo Danilo via MCP — não foi preciso SQL nenhum deste lado. O ecrã já a
+renderiza sozinho (`_Setting.description`, lido de `j['description']`).
 
 ## Verificação
 
@@ -117,6 +117,8 @@ Stripe nesta ordem. Só Flutter."*). Fica por fazer, é um `UPDATE` de uma linha
 | `flutter analyze` (11 ficheiros tocados) | **0 erros, 0 warnings** · 17 info |
 | `flutter analyze` (3 ficheiros do 2.º lote) | **0 erros, 0 warnings** · 11 info |
 | `flutter test` (5 ficheiros TVDE) | **45/45 passaram** (`00:15 +45: All tests passed!`) |
+| `flutter analyze` (admin whitelist, 2.º commit) | **`No issues found!` (ran in 20.2s)** |
+| `flutter test` TVDE (re-corrido após a whitelist) | **45/45** (`00:19 +45: All tests passed!`) |
 | `grep tvde_roundtrip_price_cents lib/` | **0 ocorrências** — setting eliminado do app |
 | `grep "€8" lib/` | só em **comentários**; nenhum valor funcional |
 | versionCode | NÃO incrementado (o CI trata) |

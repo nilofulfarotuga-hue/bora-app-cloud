@@ -2,3 +2,4 @@
 # CRLF quebra a execução em bash (erro '\r'). Ver .claude/HOOKS.md.
 *.sh text eol=lf
 .claude/hooks/*.sh text eol=lf
+.claude/githooks/* text eol=lf

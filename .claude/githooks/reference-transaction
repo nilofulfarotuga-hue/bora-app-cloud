@@ -1,0 +1,46 @@
+#!/bin/sh
+# .claude/githooks/reference-transaction
+#
+# Dispara o sync do espelho Cortex (VPS) NA HORA em que refs/remotes/origin/<branch>
+# avanca neste clone — ou seja, assim que um `git push` bem-sucedido (ou fetch/pull)
+# atualiza a ref de tracking local. E o gatilho mais proximo de um "post-push" que o
+# git oferece (nao existe hook nativo pos-push; reference-transaction e' o unico que
+# ve a ref de tracking mudar, ja depois do push ter sido aceite pelo remoto).
+#
+# Substitui o cron cortex-mirror-sync-evento (*/1min) como caminho PRIMARIO — o cron
+# fica como rede de seguranca (cobre pushes de maquinas sem este hook ativo).
+#
+# Ativar 1x por clone/maquina:
+#   git config core.hooksPath .claude/githooks
+#
+# Ver run cura-espelho MOTOR OPUS tentativa=2 (run_id cura-20260801-2), passo 6.
+set +e
+
+# git so chama este hook com "committed"/"aborted"/"prepared" no $1; so nos interessa
+# depois da transacao estar mesmo aplicada.
+[ "$1" = "committed" ] || exit 0
+
+BR="autonomous-night-2026-04-29"
+TARGET="refs/remotes/origin/$BR"
+MATCH=0
+while read -r old new refname; do
+  if [ "$refname" = "$TARGET" ]; then
+    MATCH=1
+  fi
+done
+[ "$MATCH" = "1" ] || exit 0
+
+TOPLEVEL="$(git rev-parse --show-toplevel 2>/dev/null)"
+[ -n "$TOPLEVEL" ] || exit 0
+LOG="$TOPLEVEL/.claude/.ai/cortex-mcp/push-event-sync.log"
+KEY="/c/Users/danil/.ssh/id_ed25519_vps"
+VPS="root@srv1786862.hstgr.cloud"
+TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+{
+  echo "[$TS] reference-transaction: $TARGET avancou -> a disparar sync do espelho (evento real, nao poll)"
+  MSYS_NO_PATHCONV=1 ssh -i "$KEY" -o ConnectTimeout=10 -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$VPS" "/usr/local/bin/hermes-cortex-mirror-sync.sh"
+  echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] reference-transaction: sync disparado, rc=$?"
+} >> "$LOG" 2>&1
+
+exit 0

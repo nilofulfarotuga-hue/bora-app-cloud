@@ -4,6 +4,13 @@
 # (sync_espelho só corre como efeito colateral de cada ordem — fila vazia = espelho parado)
 # ou o cron hard das 06h30. Ver run cura-espelho MOTOR OPUS, tentativa=1, passo 6.
 #
+# ATUALIZAÇÃO (tentativa=2, run_id cura-20260801-2): o Juiz rejeitou o poll de 1x/min como
+# "não verdadeiramente orientado a evento". O gatilho PRIMÁRIO passou a ser o hook local
+# `.claude/githooks/reference-transaction` (dispara na hora em que o `git push` bem-sucedido
+# avança refs/remotes/origin/<branch> neste clone — sem esperar o próximo tick do cron).
+# Este script (chamado pelo cron `* * * * *`) fica como REDE DE SEGURANÇA para pushes vindos
+# de máquinas sem o hook ativo (core.hooksPath não configurado) — nunca foi removido.
+#
 # Master no repo: .claude/.ai/cortex-mcp/hermes-cortex-mirror-sync.sh — deployado ao host em
 # /usr/local/bin/hermes-cortex-mirror-sync.sh, chamado por cron `* * * * *` (1x/min). Sem
 # daemon/systemd: cada invocação faz 1 verificação leve (git ls-remote, sem clone) e sai;

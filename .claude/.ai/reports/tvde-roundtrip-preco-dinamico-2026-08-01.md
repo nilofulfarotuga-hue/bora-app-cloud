@@ -130,5 +130,27 @@ Todos os `info` são lints de estilo pré-existentes (`prefer_const_constructors
 - Fotos de produtos, preços, comissões — nada.
 - `TvdeFareView` — lógica intacta; só documentação.
 
+## Git
+
+| Campo | Valor |
+|---|---|
+| Branch | `autonomous-night-2026-04-29` |
+| Commit | `63aa33ea1fa036550a1c8ed34217fe3087e01fda` |
+| Push | HTTPS ✅ (`294be17..63aa33e`) — SSH falhou (`Permission denied (publickey)`), como esperado nesta máquina |
+| GitHub API | Confirmado ✅ — author `Danilo (Hermes autonomous)`, date `2026-08-01T19:37:09Z`, 12 ficheiros |
+| `git add` | Por caminho explícito (12 ficheiros) — nunca `-A` |
+| `git pull --rebase --autostash` | Rebased (1/1) + autostash aplicado |
+| Commits empurrados | **Apenas 1** (`git log 294be17..63aa33e` = 1 linha) — sem boleia de outro executor |
+
+Output real do push:
+```
+To https://github.com/nilofulfarotuga-hue/bora-app-cloud.git
+   294be17..63aa33e  HEAD -> autonomous-night-2026-04-29
+```
+
+> O push dispara `build_android.yml` (Play alpha) e `build_web_deploy.yml`.
+> Só depois do build instalado é que o cliente deixa de ver €8 fixo — até lá
+> a divergência app↔servidor mantém-se no APK antigo.
+
 ## Bugs encontrados fora do scope
 Nenhum.

@@ -36,6 +36,7 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
           .toList();
       final by = <String, List<_Setting>>{};
       for (final s in list) {
+        if (_obsoleteDepositKeys.contains(s.key)) continue;
         by.putIfAbsent(s.category ?? 'other', () => []).add(s);
       }
       if (mounted) setState(() => _byCategory = by);
@@ -88,15 +89,34 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
     // BLOCO E (2026-07-28) — reagendamento de marcações. São chaves
     // OPERACIONAIS (horas de antecedência, nº de reagendamentos, janela de
     // dias): não mexem em nenhum valor cobrado, por isso são editáveis aqui.
-    // O sinal (`appointment_deposit_cents`) e o split continuam blindados.
     const appointmentRescheduleOperational = {
       'appointment_reschedule_min_hours',
       'appointment_reschedule_max_count',
       'appointment_reschedule_max_days',
     };
     if (appointmentRescheduleOperational.contains(key)) return true;
+    // FIM DO SINAL (2026-08-03) — a taxa por marcação e a taxa de walk-in são
+    // o preço do PRÓPRIO produto da Bora. Editáveis aqui por decisão explícita
+    // do Danilo (mesma regra do `tvde_roundtrip_discount_pct`): o painel admin
+    // é a superfície onde o DONO mexe no preço do seu produto. Um agente
+    // continua sem poder alterar estes valores sozinho.
+    const appointmentFees = {
+      'appointment_booking_fee_cents',
+      'appointment_walkin_fee_cents',
+    };
+    if (appointmentFees.contains(key)) return true;
     return false;
   }
+
+  /// FIM DO SINAL (2026-08-03) — chaves do sinal de €3 que a regra de negócio
+  /// já não usa. `client_book_appointment` deixou de as ler e
+  /// `compute_provider_weekly_payout` deixou de as somar. Ficam na tabela por
+  /// histórico, mas não têm de poluir o painel.
+  static const _obsoleteDepositKeys = <String>{
+    'appointment_deposit_cents',
+    'appointment_deposit_partner_cut_cents',
+    'appointment_deposit_bora_cut_cents',
+  };
 
   void _showProtectedInfo(_Setting s) {
     showDialog<void>(

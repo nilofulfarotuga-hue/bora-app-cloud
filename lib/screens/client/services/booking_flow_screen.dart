@@ -303,20 +303,12 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
 
   // ─── Passo 5: marcar + pagar ────────────────────────────────────────────────
 
-  /// Valor do sinal por defeito da plataforma (`appointment_deposit_cents`).
-  static const double _kDepositEur = 3.0;
-
-  /// BLOCO B (2026-07-28) — quanto é cobrado AGORA, por parceiro:
-  ///   • `booking_payment_mode = 'deposit'` (default) → sinal de €3,00;
-  ///   • `booking_payment_mode = 'full'` → preço cheio do serviço escolhido.
-  /// Espelha o que o servidor grava em `appointments.deposit_cents`; a Edge
-  /// `create-appointment-payment-intent` cobra sempre esse valor.
-  double get _amountDueEur {
-    if (widget.provider.isFullPaymentMode && _service != null) {
-      return _service!.priceCents / 100.0;
-    }
-    return _kDepositEur;
-  }
+  /// FIM DO SINAL (2026-08-03) — a marcação cobra SEMPRE o preço cheio do
+  /// serviço escolhido. Espelha o que o servidor grava em
+  /// `appointments.deposit_cents` (a chave da RPC manteve o nome antigo, mas o
+  /// valor é o total do serviço); a Edge `create-appointment-payment-intent`
+  /// cobra esse valor.
+  double get _amountDueEur => (_service?.priceCents ?? 0) / 100.0;
 
   String get _amountDueLabel => '€${_amountDueEur.toStringAsFixed(2)}';
 
@@ -331,8 +323,6 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
     final staffId = _resolvedStaffId;
     if (staffId == null) return;
 
-    final isFull = widget.provider.isFullPaymentMode;
-
     // M7: paridade com reservas — escolha Cartão | MBWay, NUNCA dinheiro.
     final choice = await showModalBottomSheet<ReservationPaymentChoice>(
       context: context,
@@ -342,7 +332,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
       ),
       builder: (_) => ReservationPaymentMethodSheet(
         amountEur: _amountDueEur,
-        title: isFull ? 'Pagamento da marcação' : 'Sinal da marcação',
+        title: 'Pagamento da marcação',
       ),
     );
     if (choice == null || !mounted) return;
@@ -383,6 +373,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
               providerName: widget.provider.name,
               serviceName: _service!.name,
               scheduledAt: _slot!,
+              paidCents: _service!.priceCents,
             ),
           ),
         );
@@ -491,6 +482,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
             providerName: widget.provider.name,
             serviceName: _service!.name,
             scheduledAt: _slot!,
+            paidCents: _service!.priceCents,
           ),
         ),
       );
@@ -927,7 +919,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
                   ),
                 ),
                 const SizedBox(height: Spacing.sm),
-                _depositCard(),
+                _paymentInfoCard(),
               ],
             ),
           ),
@@ -1004,21 +996,17 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
     );
   }
 
-  /// Explicação do que vai ser cobrado. Três textos possíveis:
+  /// Explicação do que vai ser cobrado. Dois textos possíveis:
   ///   • reagendamento → nada a pagar (o valor já pago acompanha a marcação);
-  ///   • modo `full`   → paga já o valor TOTAL do serviço;
-  ///   • modo `deposit`→ sinal de €3,00 (texto de sempre, intocado).
-  Widget _depositCard() {
+  ///   • marcação nova → paga já o valor TOTAL do serviço (fim do sinal).
+  Widget _paymentInfoCard() {
     final String text;
     if (_isReschedule) {
       text = 'Não há nada a pagar — o valor que já pagaste fica reservado '
           'para esta marcação.';
-    } else if (widget.provider.isFullPaymentMode) {
-      text = 'Pagas agora $_amountDueLabel — valor total do serviço.\n'
-          'Não há mais nada a pagar na loja.';
     } else {
-      text = 'Sinal de €3,00 agora — restante na barbearia.\n'
-          'Reembolso se cancelares com antecedência.';
+      text = 'Paga agora o valor total do serviço: $_amountDueLabel.\n'
+          'Não há mais nada a pagar na loja.';
     }
     return Container(
       padding: const EdgeInsets.all(Spacing.md),

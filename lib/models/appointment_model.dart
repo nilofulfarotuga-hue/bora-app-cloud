@@ -102,8 +102,10 @@ class AppointmentModel {
   final String? providerPhotoUrl;
 
   /// JOIN extras do parceiro (BLOCO B/E, 2026-07-28) — vêm do
-  /// `select('*, service_providers(...)')`. Decidem o que o ecrã do cliente
-  /// mostra: cancelar vs reagendar, e sinal vs valor total.
+  /// `select('*, service_providers(...)')`. `providerCancellationPolicy` decide
+  /// se o ecrã do cliente mostra cancelar ou só reagendar.
+  /// `providerPaymentMode` é hoje sempre 'full' (fim do sinal, 2026-08-03) —
+  /// mantido porque a coluna existe e viaja no JOIN.
   final String? providerCancellationPolicy;
   final String? providerPaymentMode;
 
@@ -111,9 +113,6 @@ class AppointmentModel {
   /// já está paga, portanto o dinheiro está preso a ela.
   bool get isRescheduleOnly =>
       providerCancellationPolicy == 'reschedule_only' && depositStatus == 'paid';
-
-  /// O parceiro cobra o preço cheio do serviço na marcação.
-  bool get isFullPaymentMode => providerPaymentMode == 'full';
 
   /// Preço total do serviço formatado: '€18,00'.
   String get servicePriceLabel =>

@@ -6,18 +6,22 @@ import '../../../widgets/bora/bora_primary_button.dart';
 import '../../../widgets/bora/bora_screen_app_bar.dart';
 import 'my_appointments_screen.dart';
 
-/// Vertical Serviços — ecrã de sucesso pós-pagamento do sinal.
+/// Vertical Serviços — ecrã de sucesso pós-pagamento da marcação.
 class BookingSuccessScreen extends StatelessWidget {
   const BookingSuccessScreen({
     super.key,
     required this.providerName,
     required this.serviceName,
     required this.scheduledAt,
+    required this.paidCents,
   });
 
   final String providerName;
   final String serviceName;
   final DateTime scheduledAt;
+
+  /// FIM DO SINAL (2026-08-03) — valor TOTAL do serviço já cobrado.
+  final int paidCents;
 
   @override
   Widget build(BuildContext context) {
@@ -63,10 +67,12 @@ class BookingSuccessScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: Spacing.lg),
-              const Text(
-                'Pagaste o sinal de €3,00. O restante é pago na barbearia.',
+              Text(
+                'Pago: €${(paidCents / 100).toStringAsFixed(2)} — valor total '
+                'do serviço. Não há mais nada a pagar na loja.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: AppColors.textSubtle),
+                style: const TextStyle(
+                    fontSize: 13, color: AppColors.textSubtle),
               ),
               const Spacer(),
               BoraPrimaryButton(

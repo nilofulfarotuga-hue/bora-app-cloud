@@ -113,15 +113,15 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen>
         a.scheduledAt.difference(DateTime.now()).inMinutes / 60.0;
     final lessThan24h = hoursUntil < 24.0;
     final depositEur = (a.depositCents / 100).toStringAsFixed(2);
-    // BLOCO B: em modo `full` o cobrado é o valor total, não um sinal.
-    final noun = a.isFullPaymentMode ? 'o valor pago' : 'o sinal';
+    // FIM DO SINAL (2026-08-03): o cobrado é sempre o valor total do serviço.
+    const noun = 'o valor pago';
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Cancelar marcação?'),
         // Sessão 2026-06-11 — regra exata visível ANTES de confirmar
-        // (business_rules: >24h refund total; <24h sinal retido).
+        // (business_rules: >24h refund total; <24h valor retido).
         content: Text(
           lessThan24h
               ? 'Faltam ${hoursUntil.toStringAsFixed(1)}h para a marcação '
@@ -416,8 +416,9 @@ class _AppointmentCard extends StatelessWidget {
                     ],
                     const SizedBox(height: Spacing.xxs),
                     Text(
-                      '€${(a.servicePriceCents / 100).toStringAsFixed(2)}'
-                      ' • ${_depositLabel(a)}',
+                      // FIM DO SINAL: preço e valor cobrado são o mesmo — mostrar
+                      // os dois lado a lado era redundante ("€15 • Sinal €3").
+                      _paymentLabel(a),
                       style: const TextStyle(
                         fontSize: 12.5,
                         fontWeight: FontWeight.w600,
@@ -578,13 +579,13 @@ String _rescheduleHint(AppointmentModel a, int maxCount) {
   return base;
 }
 
-/// Estado do sinal em PT-PT (valores reais da coluna deposit_status).
-/// BLOCO B (2026-07-28): em `booking_payment_mode = 'full'` o que foi cobrado
-/// NÃO é um sinal — é o valor total do serviço. Chamar-lhe "sinal" mentia ao
-/// cliente ("restante na barbearia" quando já não há restante nenhum).
-String _depositLabel(AppointmentModel a) {
+/// Estado do pagamento em PT-PT (valores reais da coluna deposit_status).
+/// FIM DO SINAL (2026-08-03): a coluna manteve o nome `deposit_*` mas o que lá
+/// está é o valor TOTAL do serviço, cobrado no acto da marcação. Chamar-lhe
+/// "sinal" mentia ao cliente ("restante na barbearia" quando já não há resto).
+String _paymentLabel(AppointmentModel a) {
   final eur = (a.depositCents / 100).toStringAsFixed(2);
-  final noun = a.isFullPaymentMode ? 'Total €$eur' : 'Sinal €$eur';
+  final noun = 'Total €$eur';
   switch (a.depositStatus) {
     case 'paid':
       return '$noun pago';
@@ -595,7 +596,7 @@ String _depositLabel(AppointmentModel a) {
     case 'retained':
       return '$noun retido';
     case 'waived':
-      return a.isFullPaymentMode ? 'Sem pagamento' : 'Sem sinal';
+      return 'Sem pagamento';
     default:
       return noun;
   }
@@ -694,8 +695,8 @@ class _AppointmentDetailSheet extends StatelessWidget {
           ),
           _DetailRow(
             icon: Icons.savings_outlined,
-            label: a.isFullPaymentMode ? 'Pago pela app' : 'Sinal',
-            value: _depositLabel(a),
+            label: 'Pago pela app',
+            value: _paymentLabel(a),
           ),
           if (a.wasRescheduled && a.originalScheduledAt != null)
             _DetailRow(

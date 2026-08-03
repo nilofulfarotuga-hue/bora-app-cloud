@@ -25,7 +25,7 @@ class ServiceProviderModel {
     this.galleryUrls = const [],
     this.socialInstagram,
     this.socialFacebook,
-    this.bookingPaymentMode = 'deposit',
+    this.bookingPaymentMode = 'full',
     this.bookingCancellationPolicy = 'refund',
     this.comingSoon = false,
     this.comingSoonText,
@@ -53,18 +53,15 @@ class ServiceProviderModel {
   final String? socialInstagram;
   final String? socialFacebook;
 
-  /// `service_providers.booking_payment_mode` — 'deposit' (sinal, default da
-  /// plataforma) | 'full' (cobra o preço cheio do serviço na marcação).
-  /// Decidido por parceiro; NÃO altera `platform_settings`.
+  /// `service_providers.booking_payment_mode` — desde 2026-08-03 é sempre
+  /// 'full': o cliente paga o valor cheio do serviço no acto da marcação.
+  /// O modo 'deposit' (sinal de €3) foi retirado da regra de negócio.
   final String bookingPaymentMode;
 
   /// `service_providers.booking_cancellation_policy` — 'refund' (o cliente
   /// cancela, com as regras de reembolso de sempre) | 'reschedule_only' (o
   /// cliente não cancela uma marcação já paga; só reagenda).
   final String bookingCancellationPolicy;
-
-  /// Cobra o valor total do serviço no acto da marcação (Ouro e Prata).
-  bool get isFullPaymentMode => bookingPaymentMode == 'full';
 
   /// `service_providers.coming_soon` — o parceiro aparece no catálogo com selo
   /// "Em breve" e é navegável, mas NÃO aceita marcações. O bloqueio real vive
@@ -118,7 +115,7 @@ class ServiceProviderModel {
       socialInstagram: row['social_instagram'] as String?,
       socialFacebook: row['social_facebook'] as String?,
       bookingPaymentMode:
-          (row['booking_payment_mode'] as String?) ?? 'deposit',
+          (row['booking_payment_mode'] as String?) ?? 'full',
       bookingCancellationPolicy:
           (row['booking_cancellation_policy'] as String?) ?? 'refund',
       comingSoon: (row['coming_soon'] as bool?) ?? false,

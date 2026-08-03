@@ -283,15 +283,11 @@ class _AppointmentCard extends StatelessWidget {
     return '${_two(dt.day)}/${_two(dt.month)} ${_two(dt.hour)}:${_two(dt.minute)}';
   }
 
-  /// BLOCO B (2026-07-28) — o parceiro tem de perceber quanto já entrou pela
-  /// app: em `booking_payment_mode = 'full'` o cliente pagou TUDO; em
-  /// `deposit` pagou só o sinal e o resto é cobrado na loja.
+  /// FIM DO SINAL (2026-08-03) — o cliente paga SEMPRE o valor cheio na app.
+  /// Nada é cobrado à chegada; o acerto com a Bora é semanal.
   String _paymentLabel(AppointmentModel a) {
-    final deposit = '€${(a.depositCents / 100).toStringAsFixed(2)}';
-    if (a.isFullPaymentMode) {
-      return '${a.servicePriceLabel} · Pago pela app: $deposit (valor total)';
-    }
-    return '${a.servicePriceLabel} · Sinal: $deposit';
+    final paid = '€${(a.depositCents / 100).toStringAsFixed(2)}';
+    return '${a.servicePriceLabel} · Pago pela app: $paid (valor total)';
   }
 
   @override

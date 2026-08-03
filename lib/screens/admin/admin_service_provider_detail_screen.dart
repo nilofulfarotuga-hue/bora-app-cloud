@@ -94,8 +94,8 @@ class _AdminServiceProviderDetailScreenState
   bool _hoursApplyToAll = true;
   bool _savingHours = false;
 
-  // Modo de cobrança + política de cancelamento (BLOCO B / BLOCO E).
-  String _paymentMode = 'deposit';
+  // Política de cancelamento (BLOCO E). O modo de cobrança deixou de ser
+  // escolha do parceiro em 2026-08-03 (fim do sinal — é sempre valor cheio).
   String _cancellationPolicy = 'refund';
   bool _savingPolicy = false;
 
@@ -173,7 +173,6 @@ class _AdminServiceProviderDetailScreenState
         _galleryUrls = r['gallery_urls'] is List
             ? (r['gallery_urls'] as List).map((e) => e.toString()).toList()
             : const [];
-        _paymentMode = (r['booking_payment_mode'] as String?) ?? 'deposit';
         _cancellationPolicy =
             (r['booking_cancellation_policy'] as String?) ?? 'refund';
         _loading = false;
@@ -930,19 +929,17 @@ class _AdminServiceProviderDetailScreenState
     }
   }
 
-  /// BLOCO B + E — alterna o modo de cobrança e a política de cancelamento.
-  /// NÃO toca em `platform_settings` (o sinal de €3 e o split continuam a
-  /// valer para todos os parceiros em modo `deposit`).
-  Future<void> _savePolicy({String? paymentMode, String? cancellation}) async {
+  /// BLOCO E — alterna a política de cancelamento do parceiro.
+  /// NÃO toca em `platform_settings`. O modo de cobrança já não é editável:
+  /// desde 2026-08-03 toda a marcação cobra o valor cheio do serviço.
+  Future<void> _savePolicy({String? cancellation}) async {
     setState(() => _savingPolicy = true);
     try {
       await _supabase.from('service_providers').update({
-        if (paymentMode != null) 'booking_payment_mode': paymentMode,
         if (cancellation != null) 'booking_cancellation_policy': cancellation,
       }).eq('id', widget.providerId);
       if (!mounted) return;
       setState(() {
-        if (paymentMode != null) _paymentMode = paymentMode;
         if (cancellation != null) _cancellationPolicy = cancellation;
       });
       _toast('Configuração salva.');
@@ -1045,31 +1042,18 @@ class _AdminServiceProviderDetailScreenState
             const SizedBox(height: Spacing.md),
             const Text('Modo de cobrança da marcação',
                 style: TextStyle(fontWeight: FontWeight.w600)),
-            RadioListTile<String>(
-              contentPadding: EdgeInsets.zero,
-              value: 'deposit',
-              groupValue: _paymentMode,
-              onChanged: _savingPolicy
-                  ? null
-                  : (v) => _savePolicy(paymentMode: v),
-              title: const Text('Sinal (padrão)'),
-              subtitle: const Text(
-                'Cobra os €3,00 de sinal (platform_settings). O resto o '
-                'cliente paga na loja.',
-              ),
-            ),
-            RadioListTile<String>(
-              contentPadding: EdgeInsets.zero,
-              value: 'full',
-              groupValue: _paymentMode,
-              onChanged: _savingPolicy
-                  ? null
-                  : (v) => _savePolicy(paymentMode: v),
-              title: const Text('Valor cheio'),
-              subtitle: const Text(
-                'Cobra o preço TOTAL do serviço na hora de marcar. O dinheiro '
-                'entra 100% na Bora; o acerto com o parceiro é fora do app.',
-              ),
+            const SizedBox(height: Spacing.xs),
+            const Text(
+              'Valor cheio — regra única desde 03/08/2026 (acabou o sinal de '
+              '€3). O cliente paga o preço TOTAL do serviço no ato da '
+              'marcação. A Bora fica com a taxa por marcação '
+              '(appointment_booking_fee_cents, hoje €0,50) e repassa o resto '
+              'ao parceiro no acerto semanal. Walk-in criado pelo parceiro '
+              'paga a mesma taxa. Falta (no-show) ou cancelamento tardio com '
+              'dinheiro retido fica 100% na Bora e não entra no repasse.\n'
+              'Para mudar as taxas: Configurações → appointment_booking_fee_cents '
+              'e appointment_walkin_fee_cents.',
+              style: TextStyle(fontSize: 12.5, height: 1.4),
             ),
             const Divider(height: Spacing.xl),
             const Text('Política de cancelamento',

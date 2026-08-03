@@ -155,7 +155,7 @@ class _AdminAppointmentsScreenState extends State<AdminAppointmentsScreen> {
               ),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('Reembolsar o sinal ao cliente'),
+                title: const Text('Reembolsar o valor pago ao cliente'),
                 value: refund,
                 onChanged: (v) => setSt(() => refund = v),
               ),
@@ -259,7 +259,7 @@ class _AdminAppointmentsScreenState extends State<AdminAppointmentsScreen> {
               ),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('Reembolsar o sinal'),
+                title: const Text('Reembolsar o valor pago'),
                 value: refund,
                 onChanged: (v) => setSt(() => refund = v),
               ),

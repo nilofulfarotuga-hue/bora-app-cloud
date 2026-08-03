@@ -74,13 +74,13 @@ class _PartnerAppointmentsFinanceScreenState
   List<Widget> _content(_FinanceData data) {
     final p = data.preview;
     final netCents = (p['net_payout_cents'] as num?) ?? 0;
-    final boraCents = (p['bora_revenue_cents'] as num?) ?? 0;
     final totalAppointments = (p['total_appointments'] as num?)?.toInt() ?? 0;
-    // Campos opcionais (preview pode trazê-los; fallback 0).
-    final serviceRevenue =
-        (p['total_service_revenue_cents'] as num?) ?? 0;
-    final depositsRetained =
-        (p['total_deposits_retained_cents'] as num?) ?? 0;
+    // FIM DO SINAL (2026-08-03) — chaves novas de compute_provider_weekly_payout:
+    // recebido − taxa Bora (€0,50/marcação) = a repassar. O retido de faltas
+    // fica 100% na Bora e por isso não entra no repasse.
+    final recebido = (p['revenue_recebida_cents'] as num?) ?? 0;
+    final taxaBora = (p['taxa_bora_cents'] as num?) ?? 0;
+    final retido = (p['retido_no_show_cents'] as num?) ?? 0;
 
     return [
       const _SectionTitle('Esta semana'),
@@ -95,11 +95,11 @@ class _PartnerAppointmentsFinanceScreenState
         children: [
           _kpiCard('Marcações', '$totalAppointments', Icons.event_available,
               AppColors.primary),
-          _kpiCard('Receita serviços', _eur(serviceRevenue),
-              Icons.content_cut, AppColors.primary),
-          _kpiCard('Sinais retidos', _eur(depositsRetained),
-              Icons.savings_outlined, AppColors.primary),
-          _kpiCard('Taxa Bora', _eur(boraCents), Icons.percent,
+          _kpiCard('Recebido', _eur(recebido), Icons.content_cut,
+              AppColors.primary),
+          _kpiCard('Retido (faltas)', _eur(retido), Icons.person_off_outlined,
+              AppColors.primary),
+          _kpiCard('Taxa Bora', _eur(taxaBora), Icons.percent,
               AppColors.accent),
         ],
       ),
@@ -130,11 +130,24 @@ class _PartnerAppointmentsFinanceScreenState
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text(
-            'A receber (estimado)',
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'A repassar (estimado)',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'A Bora transfere no acerto semanal.',
+                  style: TextStyle(
+                      fontSize: 11.5, color: AppColors.textSecondary),
+                ),
+              ],
             ),
           ),
           Text(

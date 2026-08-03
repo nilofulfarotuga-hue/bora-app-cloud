@@ -20,6 +20,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
+import '../../services/admin_export_service.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 
 class AdminAppointmentsPayoutsScreen extends StatefulWidget {
@@ -223,6 +224,55 @@ class _AdminAppointmentsPayoutsScreenState
     }
   }
 
+  // ─── Export CSV (autoridade total: ver · editar · exportar · auditar) ──────
+
+  /// FIM DO SINAL (2026-08-03) — exporta exactamente as colunas do acerto novo.
+  Future<void> _exportCsv() async {
+    if (_rows.isEmpty) {
+      _toast('Nada para exportar.', AppColors.warning);
+      return;
+    }
+    const headers = [
+      'provider_id',
+      'barbearia',
+      'semana_inicio',
+      'semana_fim',
+      'marcacoes',
+      'walkins',
+      'recebido_cents',
+      'taxa_bora_cents',
+      'retido_no_show_cents',
+      'a_repassar_cents',
+      'direcao',
+      'status',
+      'pago_em',
+    ];
+    final stamp = DateTime.now().toIso8601String().substring(0, 10);
+    final rows = _rows
+        .map((r) => [
+              _providerId(r) ?? '',
+              r['provider_name']?.toString() ?? '',
+              r['week_start_at']?.toString() ?? '',
+              r['week_end_at']?.toString() ?? '',
+              (r['total_appointments'] as num?)?.toInt().toString() ?? '0',
+              (r['total_walkins'] as num?)?.toInt().toString() ?? '0',
+              _recebido(r).toString(),
+              _taxaBora(r).toString(),
+              _retido(r).toString(),
+              _net(r).toString(),
+              r['direction']?.toString() ?? '',
+              _rowStatus(r),
+              r['paid_at']?.toString() ?? '',
+            ])
+        .toList();
+    await AdminExportService.instance.exportCsv(
+      filename: 'bora_repasses_servicos_$stamp.csv',
+      headers: headers,
+      rows: rows,
+      subject: 'Bora — Repasses Serviços ($_statusFilter) $stamp',
+    );
+  }
+
   // ─── Helpers ────────────────────────────────────────────────────────────────
 
   void _toast(String msg, Color bg) {
@@ -244,6 +294,21 @@ class _AdminAppointmentsPayoutsScreenState
 
   int _net(Map<String, dynamic> r) =>
       (r['net_payout_cents'] as num?)?.toInt() ?? 0;
+
+  // FIM DO SINAL (2026-08-03) — as 4 grandezas do acerto de Serviços. Os nomes
+  // das colunas de `appointment_payouts` são os antigos, mas o significado é o
+  // novo: Recebido − Taxa Bora = A repassar; o Retido fica todo na Bora.
+  //   revenue_recebida_cents  → total_service_revenue_cents
+  //   taxa_bora_cents         → bora_booking_fees_cents
+  //   retido_no_show_cents    → total_deposits_retained_cents
+  int _recebido(Map<String, dynamic> r) =>
+      (r['total_service_revenue_cents'] as num?)?.toInt() ?? 0;
+
+  int _taxaBora(Map<String, dynamic> r) =>
+      (r['bora_booking_fees_cents'] as num?)?.toInt() ?? 0;
+
+  int _retido(Map<String, dynamic> r) =>
+      (r['total_deposits_retained_cents'] as num?)?.toInt() ?? 0;
 
   int _sumNet(Iterable<Map<String, dynamic>> rows) =>
       rows.fold<int>(0, (s, r) => s + _net(r));
@@ -336,6 +401,11 @@ class _AdminAppointmentsPayoutsScreenState
       appBar: BoraScreenAppBar(
         title: 'Fechamento Semanal — Barbearias',
         actions: [
+          IconButton(
+            icon: const Icon(Icons.download),
+            tooltip: 'Exportar CSV',
+            onPressed: _loading || _rows.isEmpty ? null : _exportCsv,
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Recarregar',
@@ -472,13 +542,13 @@ class _AdminAppointmentsPayoutsScreenState
             Row(
               children: [
                 Expanded(
-                  child: _stat('Pendentes', _euros(pending),
+                  child: _stat('A repassar (pendente)', _euros(pending),
                       sub: '$countPending repasses',
                       color: AppColors.warning),
                 ),
                 const SizedBox(width: Spacing.sm),
                 Expanded(
-                  child: _stat('Já pagos', _euros(paid),
+                  child: _stat('Já repassado', _euros(paid),
                       sub: '$countPaid repasses', color: AppColors.primary),
                 ),
               ],
@@ -542,16 +612,17 @@ class _AdminAppointmentsPayoutsScreenState
         ],
       );
 
-  /// Gráfico: receita Bora (booking fees + corte do sinal) por semana.
+  /// Gráfico: receita Bora por semana = Taxa Bora (€0,50 por marcação/walk-in)
+  /// + o dinheiro Retido de faltas/cancelamentos tardios, que fica 100% na
+  /// Bora e não entra no repasse. (Fim do sinal, 2026-08-03 — a coluna
+  /// `bora_deposit_cut_cents` ficou sempre a 0 e saiu da conta.)
   Widget _buildChart() {
     // Agrega por week_start_at.
     final byWeek = <String, int>{};
     for (final r in _rows) {
       final wk = r['week_start_at']?.toString();
       if (wk == null) continue;
-      final fees = (r['bora_booking_fees_cents'] as num?)?.toInt() ?? 0;
-      final cut = (r['bora_deposit_cut_cents'] as num?)?.toInt() ?? 0;
-      byWeek[wk] = (byWeek[wk] ?? 0) + fees + cut;
+      byWeek[wk] = (byWeek[wk] ?? 0) + _taxaBora(r) + _retido(r);
     }
     if (byWeek.isEmpty) return const SizedBox.shrink();
     final weeks = byWeek.keys.toList()..sort();
@@ -730,6 +801,18 @@ class _AdminAppointmentsPayoutsScreenState
                             color: AppColors.textSecondary)),
                   Text(
                     'Semana ${_fmtDate(weekStart)} → ${_fmtDate(weekEnd)} · $count marcações',
+                    style: const TextStyle(
+                        fontSize: 11, color: AppColors.textSecondary),
+                  ),
+                  // FIM DO SINAL (2026-08-03) — as 4 colunas do acerto.
+                  // Recebido (dinheiro que entrou pela app) − Taxa Bora
+                  // (€0,50 por marcação concluída e por walk-in) = A repassar.
+                  // Retido (faltas/cancelamento tardio) fica 100% na Bora.
+                  Text(
+                    'Recebido ${_euros(_recebido(r))} · '
+                    'Taxa Bora ${_euros(_taxaBora(r))} · '
+                    'Retido (no-show) ${_euros(_retido(r))} · '
+                    'A repassar ${partnerOwes ? '−${_euros(net.abs())}' : _euros(net)}',
                     style: const TextStyle(
                         fontSize: 11, color: AppColors.textSecondary),
                   ),

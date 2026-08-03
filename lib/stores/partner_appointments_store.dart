@@ -163,9 +163,9 @@ class PartnerAppointmentsStore extends ChangeNotifier {
       final res = await _supabase
           .from('appointments')
           .select(
-            // BLOCO B (2026-07-28): o modo de pagamento do parceiro entra pelo
-            // JOIN — é o que decide se o card diz "Sinal: €3" ou
-            // "Pago pela app: €15 (valor total)".
+            // `booking_payment_mode` entra pelo JOIN por compatibilidade;
+            // desde 2026-08-03 (fim do sinal) é sempre 'full' e o card diz
+            // sempre "Pago pela app: €15 (valor total)".
             '*, provider_services(id, name), staff_members(id, name), '
             'service_providers(id, name, booking_payment_mode, '
             'booking_cancellation_policy)',

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// Dialog modal exibido enquanto se aguarda confirmação MBWay do SINAL de uma
-/// MARCAÇÃO (M7 — paridade com ReservationMBWayWaitingDialog).
+/// Dialog modal exibido enquanto se aguarda confirmação MBWay do PAGAMENTO de
+/// uma MARCAÇÃO (M7 — paridade com ReservationMBWayWaitingDialog).
 ///
 /// Diferença vs reservas: o stripe-webhook não trata appointment_deposit, por
 /// isso o polling é à Edge Fn `confirm-mbway-appointment-payment`, que verifica

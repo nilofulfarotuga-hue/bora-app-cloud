@@ -437,7 +437,7 @@ class _AdminSettlementsScreenState extends State<AdminSettlementsScreen> {
           if (n('appointment_deposits') > 0) ...[
             const SizedBox(height: 4),
             Text(
-              'Sinais de marcações ${_fmtEur(n('appointment_deposits'))}',
+              'Marcações — recebido ${_fmtEur(n('appointment_deposits'))}',
               style: const TextStyle(
                   fontSize: 12, color: AppColors.textSecondary),
             ),

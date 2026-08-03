@@ -312,7 +312,7 @@ class ServicesStore extends ChangeNotifier {
 
   // ─── Marcar + pagar (orquestra os 4 passos) ────────────────────────────────
 
-  /// Fluxo MBWay do sinal (M7 — paridade com reservas, sem PaymentSheet):
+  /// Fluxo MBWay do pagamento (M7 — paridade com reservas, sem PaymentSheet):
   /// 1) rpc client_book_appointment → appointment_id
   /// 2) invoke create-mbway-appointment-payment-intent {appointment_id, phone}
   ///    → Stripe envia push à app MBWay do cliente.
@@ -405,7 +405,7 @@ class ServicesStore extends ChangeNotifier {
         throw Exception('Resposta inválida do servidor.');
       }
 
-      // 2) Criar PaymentIntent do sinal.
+      // 2) Criar PaymentIntent do valor total do serviço (fim do sinal).
       final response = await _supabase.functions.invoke(
         'create-appointment-payment-intent',
         body: {
@@ -579,9 +579,10 @@ class ServicesStore extends ChangeNotifier {
       final response = await _supabase
           .from('appointments')
           .select(
-            // BLOCO B/E (2026-07-28): a política de cancelamento e o modo de
-            // pagamento do parceiro vêm no JOIN — é o que decide se o cliente
-            // vê "Cancelar" ou "Reagendar", e se pagou sinal ou valor total.
+            // BLOCO E (2026-07-28): a política de cancelamento do parceiro vem
+            // no JOIN — decide se o cliente vê "Cancelar" ou "Reagendar".
+            // `booking_payment_mode` viaja junto por compatibilidade; desde
+            // 2026-08-03 é sempre 'full' (o cliente paga o valor total).
             '*, service_providers(id, name, photo_url, hero_image_url, '
             'booking_cancellation_policy, booking_payment_mode), '
             'provider_services(id, name), staff_members(id, name)',

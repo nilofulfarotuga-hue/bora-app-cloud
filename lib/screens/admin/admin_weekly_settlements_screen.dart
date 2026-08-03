@@ -544,8 +544,8 @@ class _AdminWeeklySettlementsScreenState
                     child: _totalStat('Sacos', bagFees,
                         hint: 'taxas de saco')),
                 Expanded(
-                    child: _totalStat('Sinais de marcações', deposits,
-                        hint: 'reservas/serviços (€3)')),
+                    child: _totalStat('Marcações (recebido)', deposits,
+                        hint: 'valor total cobrado nas marcações')),
               ],
             ),
           ],

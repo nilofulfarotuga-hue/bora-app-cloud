@@ -628,6 +628,10 @@ class _PaymentTab extends StatelessWidget {
             ]),
           ),
         ),
+        _CashBreakdownCard(
+          orderId: order['id'] as String,
+          paymentMethod: method,
+        ),
       ],
     );
   }
@@ -638,6 +642,157 @@ class _PaymentTab extends StatelessWidget {
       child: Row(children: [
         SizedBox(width: 110, child: Text(label, style: const TextStyle(color: AppColors.textSecondary))),
         Expanded(child: Text(value, style: const TextStyle(fontSize: 13))),
+      ]),
+    );
+  }
+}
+
+// Bloco "Acerto de Caixa" — chama admin_order_cash_breakdown(p_order_id) e só
+// aparece para pagamento em dinheiro ou quando há talão de loja (>0).
+class _CashBreakdownCard extends StatefulWidget {
+  const _CashBreakdownCard({required this.orderId, required this.paymentMethod});
+  final String orderId;
+  final String? paymentMethod;
+
+  @override
+  State<_CashBreakdownCard> createState() => _CashBreakdownCardState();
+}
+
+class _CashBreakdownCardState extends State<_CashBreakdownCard> {
+  Map<String, dynamic>? _data;
+  bool _loading = true;
+  bool _permissionError = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final res = await Supabase.instance.client.rpc(
+        'admin_order_cash_breakdown',
+        params: {'p_order_id': widget.orderId},
+      );
+      Map<String, dynamic>? map;
+      if (res is Map) {
+        map = Map<String, dynamic>.from(res);
+      } else if (res is List && res.isNotEmpty && res.first is Map) {
+        map = Map<String, dynamic>.from(res.first as Map);
+      }
+      if (!mounted) return;
+      setState(() {
+        _data = map;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _permissionError = true;
+      });
+    }
+  }
+
+  double _num(String key) {
+    final v = _data?[key];
+    if (v is num) return v.toDouble();
+    if (v is String) return double.tryParse(v) ?? 0;
+    return 0;
+  }
+
+  bool _bool(String key) => _data?[key] == true;
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) return const SizedBox.shrink();
+
+    final isCash = widget.paymentMethod == 'cash';
+
+    if (_permissionError) {
+      if (!isCash) return const SizedBox.shrink();
+      return Padding(
+        padding: const EdgeInsets.only(top: 12),
+        child: Card(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Radii.lg)),
+          child: const Padding(
+            padding: EdgeInsets.all(12),
+            child: Text(
+              'Acerto de caixa indisponível (sem permissão).',
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final talao = _num('talao_loja');
+    if (_data == null || (!isCash && talao <= 0)) {
+      return const SizedBox.shrink();
+    }
+
+    final lucroBora = _num('lucro_bora');
+    final gap = _num('gap_preco_catalogo');
+    final direcao = _data!['direcao'] as String? ??
+        (_bool('bora_deve_ao_estafeta')
+            ? 'Bora deve ao entregador'
+            : _bool('estafeta_deve_a_bora')
+                ? 'Entregador deve à Bora'
+                : 'Quitado');
+
+    String eur(double v) => '€${v.toStringAsFixed(2)}';
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Card(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Radii.lg)),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(children: [
+                Icon(Icons.point_of_sale, size: 18, color: AppColors.primary),
+                SizedBox(width: 8),
+                Text('Acerto de Caixa',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+              ]),
+              const SizedBox(height: 8),
+              _kv('Cliente pagou', eur(_num('cliente_pagou'))),
+              _kv('Produtos', eur(_num('produtos'))),
+              _kv('Entrega', eur(_num('entrega'))),
+              _kv('Taxa de serviço', eur(_num('taxa_servico'))),
+              _kv('Sacos', eur(_num('sacos'))),
+              _kv('Ganho do entregador', eur(_num('ganho_estafeta'))),
+              _kv('Valor do talão da loja', eur(talao)),
+              const Divider(),
+              _kv('Saldo do entregador', eur(_num('saldo_estafeta'))),
+              _kv('Direção', direcao),
+              _kv('Lucro da Bora', eur(lucroBora),
+                  valueColor: lucroBora < 0 ? AppColors.error : null),
+              if (gap != 0)
+                _kv('Diferença de preço do catálogo', eur(gap),
+                    valueColor: gap > 0 ? AppColors.error : null),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _kv(String label, String value, {Color? valueColor}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(children: [
+        SizedBox(
+          width: 170,
+          child: Text(label, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+        ),
+        Expanded(
+          child: Text(value,
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: valueColor)),
+        ),
       ]),
     );
   }

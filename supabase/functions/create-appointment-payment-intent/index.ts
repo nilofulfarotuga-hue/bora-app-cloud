@@ -1,14 +1,19 @@
-// supabase/functions/create-appointment-payment-intent/index.ts — v2
+// supabase/functions/create-appointment-payment-intent/index.ts — v3
 //
+// v3 (2026-08-03): FIM DO SINAL. Removido o fallback `?? 300`: se
+// `deposit_cents` vier null/undefined/inválido/<50, a função NÃO cria o
+// PaymentIntent — devolve 400 `invalid_charge_amount` com log. Nunca se cobra
+// um valor por omissão. Nenhum valor cobrado foi alterado.
 // v2 (2026-07-31): guarda "Em breve" (STORE_COMING_SOON) antes do Stripe.
-// Nenhum valor cobrado foi alterado.
 //
-// PaymentIntent Stripe para o SINAL de uma MARCAÇÃO de barbearia (€3 default),
-// via cartão. Clone de create-reservation-payment-intent (v9).
+// PaymentIntent Stripe para o PAGAMENTO de uma MARCAÇÃO de barbearia, via
+// cartão. Clone de create-reservation-payment-intent (v9).
+// `appointments.deposit_cents` mantém o nome antigo mas guarda o valor TOTAL do
+// serviço, escrito por `client_book_appointment`.
 //
 // Fluxo: a marcação já foi criada por `client_book_appointment` (RPC, que valida
 // disponibilidade/colisão com auth.uid() do cliente). Esta função recebe o
-// appointment_id, valida ownership + estado, e cria o PaymentIntent do sinal.
+// appointment_id, valida ownership + estado, e cria o PaymentIntent.
 //
 // Card-only (PaymentSheet ainda mostra Apple Pay / Google Pay como wallets de cartão).
 // A confirmação client-side é feita por `client_confirm_appointment_payment` (RPC).
@@ -83,10 +88,22 @@ Deno.serve(async (req: Request) => {
         { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const cents = parseInt(String(appt.deposit_cents ?? 300), 10);
-    if (cents < 50) {
-      return new Response(JSON.stringify({ error: 'deposit too small (Stripe min 0.50 EUR)' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    // v3 (2026-08-03) — NUNCA cobrar um valor por omissão. Até aqui havia um
+    // `?? 300`: com `deposit_cents` a null, o cliente era cobrado €3 em silêncio
+    // em vez do valor total do serviço, e a diferença nunca aparecia no acerto.
+    // Agora null/undefined/não-inteiro/<50 (mínimo Stripe) => 400, sem Stripe.
+    const rawCents = appt.deposit_cents;
+    const cents = typeof rawCents === 'number'
+      ? rawCents
+      : Number.parseInt(String(rawCents ?? ''), 10);
+    if (!Number.isInteger(cents) || cents < 50) {
+      console.error('[create-appointment-payment-intent] invalid_charge_amount:',
+        `appointment=${appt.id}`, `deposit_cents=${JSON.stringify(rawCents)}`);
+      return new Response(JSON.stringify({
+        error: 'invalid_charge_amount',
+        message: 'A marcação não tem um valor válido para cobrar.',
+        appointment_id: appt.id,
+      }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     const idempotencyKey = body.idempotency_key ?? `appt_${appt.id}`;

@@ -92,24 +92,75 @@ Não foi encontrado nenhum texto a dizer que o parceiro recebe o sinal ou descon
 
 ## 5. Varredura global — bugs e pontas soltas encontradas
 
-### 🔴 BUG-1 (crítico, DINHEIRO) — fallback de €3 nas Edge Functions de pagamento
+### 🔴 BUG-1 (crítico, DINHEIRO) — fallback de €3 nas Edge Functions — ✅ **CORRIGIDO E DEPLOYADO**
 
-`supabase/functions/create-appointment-payment-intent/index.ts:86`
-`supabase/functions/create-mbway-appointment-payment-intent/index.ts:98`
+**Aprovado pelo Danilo ("vai no BUG-1") e aplicado a 2026-08-03.**
+
+`supabase/functions/create-appointment-payment-intent/index.ts`
+`supabase/functions/create-mbway-appointment-payment-intent/index.ts`
+
+Antes:
 
 ```ts
 const cents = parseInt(String(appt.deposit_cents ?? 300), 10);
+if (cents < 50) { ...400 'deposit too small'... }
 ```
 
-Se `deposit_cents` vier `NULL`, a função **cobra €3,00** em vez do valor do serviço — em silêncio.
-Hoje `client_book_appointment` grava sempre o preço cheio, por isso não dispara; mas é uma mina:
-qualquer caminho futuro que insira uma marcação sem `deposit_cents` cobra €3 ao cliente e a
-diferença nunca aparece no acerto. Os cabeçalhos destas funções também ainda dizem
-*"PaymentIntent para o SINAL de uma MARCAÇÃO (€3 default)"*.
+Com `deposit_cents` a `NULL` a função **cobrava €3,00** em vez do valor do serviço, em silêncio
+— e a diferença nunca aparecia no acerto. No fluxo MB Way, o cliente chegava a receber o push
+de €3 no telemóvel.
 
-**Não foi corrigido** — são Edge Functions que cobram no Stripe (Lista Vermelha) e o âmbito
-desta tarefa era só Flutter + admin. Correcção proposta: trocar o `?? 300` por rejeição
-explícita (`400 missing_deposit_cents`) e actualizar os comentários.
+Depois (v3 nas duas funções):
+
+```ts
+const rawCents = appt.deposit_cents;
+const cents = typeof rawCents === 'number'
+  ? rawCents
+  : Number.parseInt(String(rawCents ?? ''), 10);
+if (!Number.isInteger(cents) || cents < 50) {
+  console.error('[<fn>] invalid_charge_amount:',
+    `appointment=${appt.id}`, `deposit_cents=${JSON.stringify(rawCents)}`);
+  return json({
+    error: 'invalid_charge_amount',
+    message: 'A marcação não tem um valor válido para cobrar.',
+    appointment_id: appt.id,
+  }, 400);
+}
+```
+
+- **Zero valor por omissão.** `null`, `undefined`, não-numérico, não-inteiro e `< 50`
+  (mínimo Stripe) caem todos no mesmo ramo — `Number.isInteger(NaN)` é `false`, por isso
+  `null`/`undefined`/lixo ficam cobertos pela mesma condição.
+- **Nada chega ao Stripe** nesse caminho: a verificação corre antes de
+  `paymentIntents.create`, logo no MB Way também não há push.
+- **Log explícito** com `appointment_id` e o valor cru recebido, para dar para investigar.
+- A marcação fica em `pending_payment` — nada é cobrado, o cliente pode tentar outra vez.
+- Cabeçalhos das duas funções actualizados: já não dizem "SINAL … (€3 default)".
+
+Complemento no Flutter (`lib/stores/services_store.dart`): `invalid_charge_amount` foi
+adicionado ao `_mapErrorPtPt`, para o cliente ver *"Não foi possível apurar o valor deste
+serviço. Não te cobrámos nada — tenta de novo ou fala com o suporte."* em vez do código cru.
+
+**Contexto da coluna:** o Danilo já mudou por MCP o default de `appointments.deposit_cents`
+de `300` para `0` (confirmado: `column_default = 0`, `is_nullable = NO`). Com default `0`, uma
+marcação inserida sem valor cai em `0 < 50` → 400. Sem migration, como instruído.
+
+**Prova do deploy** (MCP `deploy_edge_function`, projecto `ojykpzwqrtusfeakzrna`):
+
+| Função | Versão | Estado | `verify_jwt` | `ezbr_sha256` |
+|---|---|---|---|---|
+| `create-appointment-payment-intent` | 3 → **4** | ACTIVE | `true` (preservado) | `87963de7429239018d74ee542bcd653e3c38b6d230ba3e345046e52a0ed5bd94` |
+| `create-mbway-appointment-payment-intent` | 2 → **3** | ACTIVE | `true` (preservado) | `e985a654c9f9e793c7516d5f12fd74f7032b3bdcbe44fb54fa6a0b9e77eb9a6c` |
+
+`verify_jwt` foi lido do deployed **antes** do deploy (`get_edge_function` → `true` nas duas) e
+reenviado igual — não houve alteração de superfície de autenticação.
+
+Smoke test pós-deploy (não custa dinheiro, não cria PaymentIntent):
+
+```
+create-appointment-payment-intent -> OPTIONS=200
+create-mbway-appointment-payment-intent -> OPTIONS=200
+```
 
 ### 🟡 BUG-2 (médio, já corrigido nesta ronda) — KPIs do parceiro a zero
 
@@ -164,22 +215,37 @@ nenhum. O parceiro só descobre no ecrã financeiro, na linha de walk-ins. Suges
 
 ---
 
-## 6. ⚠️ ISTO MEXE EM PAGAMENTO/DINHEIRO — confirma que eu aplico
+## 6. Zona 🔴 (dinheiro) — o que foi aprovado e aplicado
 
-Duas coisas ficam à tua ordem. **Nenhum valor cobrado foi alterado** nesta ronda.
+**Nenhum valor cobrado foi alterado** em nenhum momento desta ronda. Preços, taxas, comissões
+e splits ficaram exactamente onde estavam.
 
-**(a) Tornei editáveis no painel `appointment_booking_fee_cents` e `appointment_walkin_fee_cents`** —
-foi exactamente o que pediste, e segue o precedente do `tvde_roundtrip_discount_pct` (01/08): o
-painel admin é onde o **dono** mexe no preço do próprio produto; um agente continua sem poder
-alterar isto sozinho. Os valores continuam em €0,50. Se preferires que voltem a ser só-leitura,
-é uma linha a remover — diz e eu tiro.
+**(a) `appointment_booking_fee_cents` e `appointment_walkin_fee_cents` editáveis no painel** —
+pedido explícito do Danilo, mesmo precedente do `tvde_roundtrip_discount_pct` (01/08): o painel
+admin é onde o **dono** mexe no preço do próprio produto; um agente continua sem poder alterar
+isto sozinho. **Confirmado por ele para ficar como está.** Os valores continuam em €0,50.
 
-**(b) BUG-1, o fallback `?? 300`** nas duas Edge Functions de pagamento. Está diagnosticado e a
-correcção é pequena, mas **não lhe toquei** — é código que cobra no Stripe. Diz "vai" e eu aplico.
+**(b) BUG-1 — fallback `?? 300` nas duas Edge Functions de pagamento** — apresentado em relatório,
+**aprovado pelo Danilo ("vai no BUG-1")** e aplicado. Detalhe técnico, código antes/depois e prova
+do deploy em §5. Resumo do que ele pediu e do que foi feito, ponto a ponto:
+
+| Pedido | Estado |
+|---|---|
+| Tirar o `?? 300` nos dois ficheiros | ✅ removido |
+| `null` / `undefined` / `< 50` → não criar o PaymentIntent | ✅ (mais `NaN` e não-inteiro, pela mesma condição) |
+| Erro explícito `invalid_charge_amount` | ✅ literal, mais `message` PT-PT e `appointment_id` |
+| Devolver 400 com log | ✅ `console.error` com `appointment_id` + valor cru |
+| Nunca cobrar um valor por omissão | ✅ não há caminho que chegue ao Stripe sem valor válido |
+| Deploy das duas Edge Functions | ✅ v4 e v3, ACTIVE, `verify_jwt` preservado |
+| Taxas editáveis ficam como estão | ✅ não mexi |
+| Sem migration para o default da coluna | ✅ nenhuma criada (confirmado por leitura: `column_default = 0`) |
+
+**Nada fica pendente de aprovação nesta área.** Os restantes achados da varredura (BUG-3 a BUG-7)
+são de limpeza/cosmética e nenhum cobra dinheiro — ficam registados, não bloqueiam.
 
 ---
 
-## 7. Ficheiros tocados (17)
+## 7. Ficheiros tocados (20)
 
 ```
 lib/models/appointment_model.dart
@@ -198,8 +264,12 @@ lib/screens/partner/services/partner_agenda_screen.dart
 lib/screens/partner/services/partner_appointments_finance_screen.dart
 lib/stores/partner_appointments_store.dart
 lib/stores/services_store.dart
+supabase/functions/create-appointment-payment-intent/index.ts          (BUG-1, v3)
+supabase/functions/create-mbway-appointment-payment-intent/index.ts    (BUG-1, v3)
 relatorios/fim-do-sinal-servicos-2026-08-03.md  (este ficheiro)
 ```
+
+Commits: `d2d4ee2` (Flutter + admin) e o commit do BUG-1 (Edge Functions + `_mapErrorPtPt`).
 
 Nenhum ficheiro de outra tarefa foi incluído no commit (havia trabalho TVDE por commitar na
 árvore — `tvde_request_ride_screen.dart`, `tvde_store.dart`, `tvde-payment`, `tvde-plan-payment`

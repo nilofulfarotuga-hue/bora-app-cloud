@@ -711,6 +711,11 @@ class ServicesStore extends ChangeNotifier {
           'Esta marcação já não pode ser reagendada.',
       'cancellation_not_allowed_reschedule_only':
           'Esta marcação não pode ser cancelada, mas podes reagendá-la.',
+      // FIM DO SINAL (2026-08-03) — a Edge Fn recusa-se a cobrar quando
+      // `deposit_cents` não é um valor válido, em vez de cobrar €3 por omissão.
+      'invalid_charge_amount':
+          'Não foi possível apurar o valor deste serviço. Não te cobrámos nada — '
+              'tenta de novo ou fala com o suporte.',
     };
     final hit = mapping[raw];
     if (hit != null) return hit;

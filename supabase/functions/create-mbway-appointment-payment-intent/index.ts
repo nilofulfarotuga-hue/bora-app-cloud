@@ -1,9 +1,14 @@
-// supabase/functions/create-mbway-appointment-payment-intent/index.ts — v2
+// supabase/functions/create-mbway-appointment-payment-intent/index.ts — v3
 //
+// v3 (2026-08-03): FIM DO SINAL. Removido o fallback `?? 300`: se
+// `deposit_cents` vier null/undefined/inválido/<50, a função NÃO cria o
+// PaymentIntent nem dispara push MBWay — devolve 400 `invalid_charge_amount`
+// com log. Nunca se cobra um valor por omissão. Nenhum valor cobrado foi alterado.
 // v2 (2026-07-31): guarda "Em breve" (STORE_COMING_SOON) antes do Stripe.
-// Nenhum valor cobrado foi alterado.
 //
-// MBWay payment intent para o SINAL de uma MARCAÇÃO (€3 default).
+// MBWay payment intent para o PAGAMENTO de uma MARCAÇÃO. A coluna
+// `appointments.deposit_cents` mantém o nome antigo mas guarda o valor TOTAL do
+// serviço, escrito por `client_book_appointment`.
 // Paridade M7 com reservas: espelha create-mbway-reservation-payment-intent v5,
 // mas a marcação JÁ FOI criada por client_book_appointment (RPC com validação
 // de colisão) — recebe appointment_id em vez de criar a row.
@@ -95,9 +100,22 @@ Deno.serve(async (req: Request) => {
       return json(comingSoonResponseBody(COMING_SOON_BOOKING_MSG), 409);
     }
 
-    const cents = parseInt(String(appt.deposit_cents ?? 300), 10);
-    if (cents < 50) {
-      return json({ error: 'deposit too small (Stripe min 0.50 EUR)' }, 400);
+    // v3 (2026-08-03) — NUNCA cobrar um valor por omissão. Até aqui havia um
+    // `?? 300`: com `deposit_cents` a null, o cliente recebia um push MBWay de
+    // €3 em vez do valor total do serviço. Agora null/undefined/não-inteiro/<50
+    // (mínimo Stripe) => 400, antes de qualquer chamada ao Stripe.
+    const rawCents = appt.deposit_cents;
+    const cents = typeof rawCents === 'number'
+      ? rawCents
+      : Number.parseInt(String(rawCents ?? ''), 10);
+    if (!Number.isInteger(cents) || cents < 50) {
+      console.error('[create-mbway-appointment-payment-intent] invalid_charge_amount:',
+        `appointment=${appt.id}`, `deposit_cents=${JSON.stringify(rawCents)}`);
+      return json({
+        error: 'invalid_charge_amount',
+        message: 'A marcação não tem um valor válido para cobrar.',
+        appointment_id: appt.id,
+      }, 400);
     }
 
     const idempotencyKey = body.idempotency_key ?? `mbway_appt_${appt.id}`;

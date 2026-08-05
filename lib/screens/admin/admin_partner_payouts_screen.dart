@@ -724,10 +724,103 @@ class _AdminPartnerPayoutsScreenState extends State<AdminPartnerPayoutsScreen> {
     return Column(
       children: [
         _buildSummaryCard(),
+        _buildFormulaCard(),
         Expanded(child: _buildList()),
       ],
     );
   }
+
+  /// Explica de onde sai o número do repasse (PT-BR, painel admin).
+  ///
+  /// Espelha a fórmula de `post_order_to_ledger` (migration
+  /// fix_partner_ledger_hidden_markup_2026_08_05): o preço do catálogo já
+  /// carrega o markup escondido, por isso ele sai primeiro; só depois entra
+  /// a comissão visível.
+  Widget _buildFormulaCard() {
+    return Card(
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 4),
+      shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(Radii.lg)),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(children: [
+              Icon(Icons.calculate_outlined,
+                  size: 18, color: AppColors.textSecondary),
+              SizedBox(width: 6),
+              Text('Como esse número é calculado',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+            ]),
+            const SizedBox(height: 8),
+            _formulaStep('1', 'Preço do catálogo',
+                'O que o cliente vê no app (já inclui os 5% embutidos).'),
+            _formulaStep('2', 'Tira os 5% de markup embutido',
+                'preço ÷ 1,05 = preço real da loja.'),
+            _formulaStep('3', 'Tira os 10% de comissão visível',
+                'preço da loja × 0,90 = repasse à loja.'),
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text(
+                'Exemplo: pedido de € 20,00 em produtos\n'
+                '20,00 ÷ 1,05 = 19,05  →  × 0,90 = € 17,15 para a loja\n'
+                'A Bora fica com € 2,85 (os 5% + os 10%).',
+                style: TextStyle(fontSize: 12, height: 1.5),
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'A taxa de serviço, a entrega e o saco não entram nessa conta — '
+              'elas nunca foram da loja.',
+              style: TextStyle(fontSize: 11, color: AppColors.textSubtle),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _formulaStep(String n, String title, String detail) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 3),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 18,
+              height: 18,
+              alignment: Alignment.center,
+              decoration: const BoxDecoration(
+                  color: AppColors.primary, shape: BoxShape.circle),
+              child: Text(n,
+                  style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white)),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w600)),
+                  Text(detail,
+                      style: const TextStyle(
+                          fontSize: 11, color: AppColors.textSecondary)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
 
   Widget _buildSummaryCard() {
     final pending = _readCents(_summary, 'total_pending_cents') ??

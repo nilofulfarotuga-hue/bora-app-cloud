@@ -54,6 +54,9 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
   final TextEditingController _latCtrl = TextEditingController();
   final TextEditingController _lngCtrl = TextEditingController();
   bool _savingCoords = false;
+  // Quem suporta a comissão visível de 10% (registo do acordo comercial).
+  // NÃO entra em nenhum cálculo — ver _saveCommissionBilling.
+  bool _savingBilling = false;
 
   static const _days = <({int weekday, String label, String key})>[
     (weekday: DateTime.monday,    label: 'Segunda-feira', key: 'mon'),
@@ -88,7 +91,7 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
           .select(
               'id, name, category, address, phone, email, is_partner, is_online, is_active_admin, business_hours, '
               'takeaway_enabled, curbside_enabled, takeaway_default_prep_minutes, hero_image_url, photo_url, '
-              'owner_doc_url, activity_doc_url, lat, lng')
+              'owner_doc_url, activity_doc_url, lat, lng, partner_commission_billing')
           .eq('id', widget.restaurantId)
           .single();
       final openData = await Supabase.instance.client.rpc('is_partner_open', params: {
@@ -385,6 +388,10 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
               r['is_partner'] == true ? 'Parceiro' : 'Não-parceiro', ''),
           _infoRow(Icons.toggle_on,
               r['is_active_admin'] != false ? 'Activo no admin' : 'DESACTIVADO', ''),
+          if (r['is_partner'] == true) ...[
+            const SizedBox(height: 24),
+            _commissionBillingCard(),
+          ],
           const SizedBox(height: 24),
           // ── Banner do mercado (hero) ────────────────────────────────────
           Card(
@@ -719,6 +726,133 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
     } finally {
       if (mounted) setState(() => _savingCoords = false);
     }
+  }
+
+  /// Grava quem suporta a comissão visível de 10% para esta loja.
+  ///
+  /// ATENÇÃO: isto é só o REGISTO do acordo comercial. Nenhum cálculo do app
+  /// lê esta coluna — os preços do catálogo já foram gravados com o acordo
+  /// em vigor e não são recalculados aqui.
+  Future<void> _saveCommissionBilling(String value) async {
+    setState(() => _savingBilling = true);
+    try {
+      await Supabase.instance.client
+          .from('restaurants')
+          .update({'partner_commission_billing': value})
+          .eq('id', widget.restaurantId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                'Acordo de comissão atualizado. Os preços do catálogo NÃO '
+                'foram recalculados.'),
+          ),
+        );
+      }
+      await _loadAll();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Erro ao guardar o acordo de comissão: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _savingBilling = false);
+    }
+  }
+
+  /// Cartão PT-BR: quem paga os 10% de comissão visível.
+  Widget _commissionBillingCard() {
+    final current =
+        (_restaurant?['partner_commission_billing'] as String?) ?? 'partner';
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Radii.lg),
+        side: const BorderSide(color: AppColors.divider),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(children: [
+              Icon(Icons.percent, size: 20),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text('Quem paga a comissão de 10%',
+                    style:
+                        TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+              ),
+            ]),
+            const SizedBox(height: 4),
+            const Text(
+              'Registro do acordo comercial fechado com esta loja. '
+              'Os 5% de markup embutido no preço são do sistema e não mudam aqui.',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+            const SizedBox(height: 12),
+            RadioListTile<String>(
+              value: 'partner',
+              groupValue: current,
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              title: const Text('Comissão paga pelo parceiro',
+                  style: TextStyle(fontSize: 14)),
+              subtitle: const Text(
+                  'Padrão. A loja recebe o preço já descontado dos 10%.',
+                  style: TextStyle(fontSize: 12)),
+              onChanged: _savingBilling
+                  ? null
+                  : (v) => v == null ? null : _saveCommissionBilling(v),
+            ),
+            RadioListTile<String>(
+              value: 'client',
+              groupValue: current,
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              title: const Text('Comissão paga pelo cliente',
+                  style: TextStyle(fontSize: 14)),
+              subtitle: const Text(
+                  'A loja recebe o preço de balcão inteiro; os 10% já estão '
+                  'embutidos no preço cobrado ao cliente.',
+                  style: TextStyle(fontSize: 12)),
+              onChanged: _savingBilling
+                  ? null
+                  : (v) => v == null ? null : _saveCommissionBilling(v),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.warning.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                    color: AppColors.warning.withValues(alpha: 0.40)),
+              ),
+              child: const Row(children: [
+                Icon(Icons.warning_amber_rounded,
+                    size: 18, color: AppColors.warning),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Trocar esta opção NÃO recalcula os preços do catálogo. '
+                    'Ela só registra o acordo. Se o acordo mudou de verdade, '
+                    'os preços dos produtos precisam ser revistos à parte.',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                ),
+              ]),
+            ),
+            if (_savingBilling)
+              const Padding(
+                padding: EdgeInsets.only(top: 12),
+                child: LinearProgressIndicator(minHeight: 2),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _infoRow(IconData icon, String label, String value) {

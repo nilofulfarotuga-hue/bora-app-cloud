@@ -1004,7 +1004,7 @@ class _GlovoProductCard extends StatelessWidget {
     // (B1: fonte única PricingService.applyMarkup).
     final displayPrice =
         PricingService.applyMarkup(product.price, isPartnerStore);
-    final comingSoon = context.watch<CartStore>().vendorComingSoon;
+    final comingSoon = context.watch<CartStore>().vendorBlocksAddToCart;
 
     void openDetail() => Navigator.push(
           context,
@@ -1263,7 +1263,7 @@ class _SectionProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final comingSoon = context.watch<CartStore>().vendorComingSoon;
+    final comingSoon = context.watch<CartStore>().vendorBlocksAddToCart;
     return Material(
       color: Colors.white,
       borderRadius: BorderRadius.circular(16),
@@ -1422,7 +1422,7 @@ class _LegacyMenuItemCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final comingSoon = context.watch<CartStore>().vendorComingSoon;
+    final comingSoon = context.watch<CartStore>().vendorBlocksAddToCart;
     void tapAdd() =>
         comingSoon ? showComingSoonBlockedSnackBar(context) : onAdd();
     return Material(

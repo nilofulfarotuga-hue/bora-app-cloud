@@ -24,6 +24,57 @@ import '../widgets/card_mandate_notice.dart';
 import '../widgets/customer_note_field.dart';
 import '../widgets/unified_checkout_button.dart';
 
+/// Mensagem única do bloqueio de "Em breve" no pagamento (PT-PT).
+const String _kComingSoonPaymentMessage =
+    'Esta loja ainda está a ser preparada. Em breve poderá finalizar o seu pedido.';
+
+/// Substitui o botão de pagar quando a loja está em "Em breve".
+///
+/// O cliente já pôde escolher tudo; é aqui — e só aqui — que para.
+class _ComingSoonPaymentNotice extends StatelessWidget {
+  const _ComingSoonPaymentNotice({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: _kComingSoonPaymentMessage,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(Radii.lg),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(
+              horizontal: Spacing.lg, vertical: Spacing.lg),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF97316).withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(Radii.lg),
+            border: Border.all(color: const Color(0xFFF97316)),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.schedule, color: Color(0xFFF97316)),
+              const SizedBox(width: Spacing.md),
+              const Expanded(
+                child: Text(
+                  _kComingSoonPaymentMessage,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    height: 1.35,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class PaymentMethodScreen extends StatefulWidget {
   const PaymentMethodScreen({super.key});
 
@@ -651,20 +702,34 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
             // PaymentSheet pelo meio). showSavedCard=false porque este ecra ja
             // tem a lista de cartoes guardados acima; useOverride=true porque
             // a escolha feita nessa lista manda sobre o padrao da carteira.
-            child: UnifiedCheckoutButton(
-              label: 'Confirmar pagamento',
-              amount: finalPrice,
-              busy: _isProcessing,
-              showSavedCard: false,
-              useOverride: true,
-              savedPmIdOverride:
-                  _selectedMethod == PaymentMethod.card ? _selectedSavedPmId : null,
-              onPay: (_) => _confirmPayment(
-                context,
-                finalPrice,
-                tokensUsed: _useTokens ? tokensToUse : 0,
-              ),
-            ),
+            // Loja em "Em breve" (2026-08-05): o cliente percorre tudo — loja,
+            // opcoes, carrinho, checkout — e so e travado AQUI. O servidor
+            // rejeita na mesma (trigger `trg_payment_draft_coming_soon`), isto
+            // e a camada de UI para ele perceber porque nao consegue avancar.
+            child: context.watch<CartStore>().vendorComingSoon
+                ? _ComingSoonPaymentNotice(
+                    onTap: () => ScaffoldMessenger.of(context)
+                      ..hideCurrentSnackBar()
+                      ..showSnackBar(const SnackBar(
+                        content: Text(_kComingSoonPaymentMessage),
+                        duration: Duration(seconds: 4),
+                      )),
+                  )
+                : UnifiedCheckoutButton(
+                    label: 'Confirmar pagamento',
+                    amount: finalPrice,
+                    busy: _isProcessing,
+                    showSavedCard: false,
+                    useOverride: true,
+                    savedPmIdOverride: _selectedMethod == PaymentMethod.card
+                        ? _selectedSavedPmId
+                        : null,
+                    onPay: (_) => _confirmPayment(
+                      context,
+                      finalPrice,
+                      tokensUsed: _useTokens ? tokensToUse : 0,
+                    ),
+                  ),
           ),
         ],
       ),

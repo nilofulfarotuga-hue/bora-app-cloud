@@ -486,7 +486,7 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
             // "Em breve": se por alguma via o item chegou ao carrinho, o
             // Finalizar fica bloqueado com a mesma mensagem. O servidor
             // rejeita na mesma (STORE_COMING_SOON).
-            if (cartStore.vendorComingSoon) ...[
+            if (cartStore.vendorBlocksAddToCart) ...[
               Tooltip(
                 message: kComingSoonBlockedMessage,
                 child: GestureDetector(

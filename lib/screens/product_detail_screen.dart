@@ -424,7 +424,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       BuildContext context, List<ProductVariant> variants, bool hasGroups) {
     // "Em breve": o produto continua visível e navegável, mas o botão de
     // adicionar fica cinzento (não invisível) e explica porquê ao toque.
-    final comingSoon = context.watch<CartStore>().vendorComingSoon;
+    final comingSoon = context.watch<CartStore>().vendorBlocksAddToCart;
 
     Widget wrap(Widget child) => SafeArea(
           top: false,

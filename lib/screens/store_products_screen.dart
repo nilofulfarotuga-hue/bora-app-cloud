@@ -1433,7 +1433,7 @@ class _QtyButton extends StatelessWidget {
     // Loja em "Em breve": o "+" fica cinzento e explica porquê ao toque.
     // O "-" (remover) não é afectado.
     final comingSoon = icon == Icons.add &&
-        context.watch<CartStore>().vendorComingSoon;
+        context.watch<CartStore>().vendorBlocksAddToCart;
     final effectiveColor = comingSoon ? Colors.grey.shade500 : color;
     final button = InkWell(
       onTap: comingSoon ? () => showComingSoonBlockedSnackBar(context) : onTap,

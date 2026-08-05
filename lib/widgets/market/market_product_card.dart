@@ -192,7 +192,7 @@ class _AddButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Loja em "Em breve": botão cinzento (não invisível) + mensagem ao toque.
-    final comingSoon = context.watch<CartStore>().vendorComingSoon;
+    final comingSoon = context.watch<CartStore>().vendorBlocksAddToCart;
     // identifier estável para o E2E tocar o "+" pequeno do card por id
     // (btn_add_carrinho), em vez de adivinhar a coordenada do ícone sem texto.
     return Semantics(

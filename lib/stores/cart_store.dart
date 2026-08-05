@@ -22,9 +22,13 @@ class CartStore extends ChangeNotifier {
   String? _vendorName;
 
   /// A loja da sessão actual está em "Em breve" (`coming_soon = true`).
-  /// Nesse estado o catálogo é navegável mas o carrinho não aceita itens e o
-  /// checkout fica bloqueado. Defesa em profundidade: o servidor rejeita na
-  /// mesma com `STORE_COMING_SOON`.
+  ///
+  /// Desde 2026-08-05 o cliente pode percorrer TUDO — abrir a loja, escolher
+  /// produtos e opções, encher o carrinho e seguir para o checkout. A travagem
+  /// acontece só no ecrã de pagamento (ver `vendorBlocksAddToCart`).
+  /// Defesa em profundidade: o servidor rejeita na mesma com
+  /// `STORE_COMING_SOON` e o trigger `trg_payment_draft_coming_soon` garante
+  /// que ninguém é cobrado.
   bool _vendorComingSoon = false;
 
   /// Texto do banner "Em breve" da loja da sessão (já com fallback aplicado
@@ -163,6 +167,14 @@ class CartStore extends ChangeNotifier {
   /// True quando a loja da sessão actual está em "Em breve" — a UI mostra o
   /// botão de adicionar/finalizar desactivado e [addItem] é ignorado.
   bool get vendorComingSoon => _vendorComingSoon;
+
+  /// Se o estado "Em breve" deve travar o cliente ANTES do pagamento.
+  ///
+  /// Passou a `false` em 2026-08-05: a loja em "Em breve" deixa o cliente
+  /// escolher produtos, opções e chegar ao checkout. O único sítio onde ele é
+  /// travado é o ecrã de pagamento — ver `payment_method_screen.dart`.
+  /// Os selos e o banner "Em breve" continuam a usar `vendorComingSoon`.
+  bool get vendorBlocksAddToCart => false;
 
   /// Texto do banner "Em breve" da loja da sessão actual.
   String get vendorComingSoonText => _vendorComingSoonText;

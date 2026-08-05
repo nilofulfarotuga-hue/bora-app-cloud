@@ -55,7 +55,7 @@ class BoraProductCard extends StatelessWidget {
     final hasPhoto = product.photoUrl.isNotEmpty;
     final hasPrice = product.price > 0;
     // Loja em "Em breve" — catálogo navegável, carrinho fechado.
-    final comingSoon = context.watch<CartStore>().vendorComingSoon;
+    final comingSoon = context.watch<CartStore>().vendorBlocksAddToCart;
 
     return Material(
       color: Colors.white,

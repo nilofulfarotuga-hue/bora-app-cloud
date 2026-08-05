@@ -287,6 +287,30 @@ substituir (a função usa `upsert: false`). Vale a pena arrumar um dia.
 
 ---
 
+## Prova do push
+
+Commit `9c42ac63086321e1f9d664d1cf0349842772b8d2`, confirmado pela API do GitHub:
+
+```
+sha:       9c42ac63086321e1f9d664d1cf0349842772b8d2
+msg:       feat(admin): acordo de comissao + explicacao do repasse (Mr Kebab)
+data:      2026-08-05T17:42:53Z
+ficheiros: RELATORIO_mister_kebab_2026-08-05.md
+           lib/screens/admin/admin_partner_detail_screen.dart
+           lib/screens/admin/admin_partner_payouts_screen.dart
+```
+
+Foram exactamente estes 3 ficheiros — usei `git add` por caminho, nunca `git add -A`.
+O push por SSH falhou (chave), como já está registado; passou por HTTPS com o
+`credential.helper=manager`. O remoto tinha avançado 2 commits do executor autónomo —
+resolvi com `rebase --autostash`, **nunca** `--force`.
+
+**Nota sobre o build:** como este commit mexe em `lib/`, o CI vai correr e publicar
+build Android + web. Vai de boleia o commit `adfaa7a` (docs do evolution-engine),
+que já estava por enviar.
+
+---
+
 > ⚠️ **ISTO MEXE EM PAGAMENTO/DINHEIRO.** Os pontos 3 e 4 da lista de pendentes
 > (o cêntimo do arredondamento e a `apply_order_financial_split`) estão diagnosticados
 > e prontos. **Confirma que eu aplico** — respondes "vai" e eu trato.

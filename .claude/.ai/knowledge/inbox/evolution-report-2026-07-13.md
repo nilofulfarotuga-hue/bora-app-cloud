@@ -166,3 +166,31 @@ Reverificado: `missao-plano-mestre-2026-07-12.md` linha 9 continua com o texto o
 commit `2026-07-12 19:25`); `hermes-evolution-trigger.sh` local continua sem `NOTA_STATE`/
 `NOTA_COOLDOWN`. Mesmo caso, TPROVA-2/4 continuam pendentes de aplicação pelo Danilo/Juiz — **sem
 proposta nova** (dedupe mantido, para não inchar este ficheiro com repetições idênticas).
+
+## 🎯 Fecho — revisão 2026-08-05 (circuito evolution-engine)
+
+Revisão do circuito-fechado evolution-engine (aplicar zona verde pendente / deixar zona sensível
+só como proposta). Verificação direta antes de decidir:
+
+- **Zero propostas de zona verde neste relatório.** TPROVA-1/2/3/4 estão todas explicitamente
+  marcadas 🟡 (governança/orquestração), `propose-only`, texto do próprio relatório repete
+  "fora do mandato de aplicar deste agente" e "precisa do `juiz-revisor` + 'vai' do Danilo". Não
+  há nada aqui que este agente deva aplicar sozinho — nem hoje, nem em nenhuma das corridas
+  anteriores.
+- `missao-plano-mestre-2026-07-12.md` linha 9 (git log da pasta) — ainda não editada; o patch
+  TPROVA-2 literal continua só como diff proposto, não aplicado.
+- `.claude/scripts/hermes-evolution-trigger.sh` (`git log` do ficheiro) — 2 commits desde
+  07-13 (`10ea1b8`, `c6f4218`), nenhum deles introduz `NOTA_STATE`/`NOTA_COOLDOWN` (`grep` sem
+  resultado no HEAD atual) — TPROVA-4 continua só como diff proposto, não aplicado.
+- **Causa-raiz já não se manifesta:** `grep -rl "TIMEOUT-900s"` no inbox só devolve ficheiros de
+  07-12/07-13 — nenhuma recorrência desde então. `git log` de
+  `.claude/.ai/hermes/orquestrador-carteiro/` mostra reengenharia substancial da esteira depois
+  desta data (`d41e532` watchdog de inatividade substitui timeout de relógio, `f6cbc4a`
+  "nunca-mais-travar", `996d962` consolidação de 27+ commits) — o padrão "provar N min síncrono
+  numa ordem de 900s" parece ter sido resolvido por essa via estrutural, não pela edição literal
+  dos dois ficheiros acima. Fica registado para o Danilo decidir se ainda quer o patch literal
+  aplicado (TPROVA-2/4 continuam válidos como diff, caso o padrão volte a aparecer).
+
+**Nada aplicado por este agente** (nem TPROVA-2 nem TPROVA-4 — ambas 🟡, fora do mandato de
+zona-verde). Report fechado; próxima corrida do evolution-engine não precisa reanalisar este
+ficheiro a menos que o padrão TIMEOUT-900s volte a repetir-se.

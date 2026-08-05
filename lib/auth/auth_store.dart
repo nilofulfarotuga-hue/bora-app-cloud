@@ -1464,6 +1464,73 @@ class AuthStore extends ChangeNotifier {
   DriverAccount? driverAccountByEmail(String email) =>
       _driversByEmail[email.trim().toLowerCase()];
 
+  // ─── Troca de papel (multi-papel) ──────────────────────────────────────────
+
+  /// MULTI-PAPEL (2026-08-05) — activa [role] na sessão Supabase Auth já
+  /// aberta, SEM signOut/signIn novo: `user_roles` permite que a mesma conta
+  /// tenha várias linhas (ex.: cliente + parceiro), e o JWT actual já serve
+  /// para todas. Só troca qual conta local (`_currentClient` /
+  /// `_currentDriver` / `_currentPartner`) fica activa — `PartnerEntryScreen`
+  /// e `_RootNavigator` resolvem o resto sozinhos a partir daí.
+  /// Devolve false se não houver sessão activa (não devia acontecer, quem
+  /// chama já veio de um login bem-sucedido) ou, para `driver`, se este
+  /// dispositivo nunca carregou os dados desse papel (precisa de matrícula/
+  /// veículo, que não vêm do `user_metadata` genérico).
+  Future<bool> switchToRole(AuthRole role) async {
+    final user = _supabase.auth.currentUser;
+    if (user == null) return false;
+    final email = (user.email ?? '').trim().toLowerCase();
+    final meta = user.userMetadata ?? {};
+
+    switch (role) {
+      case AuthRole.client:
+        final account = _clientsByEmail[email] ??
+            ClientAccount(
+              name: meta[_kName] as String? ?? '',
+              email: email,
+              phone: meta[_kPhone] as String? ?? '',
+              password: '',
+              photoUrl: meta[_kPhotoUrl] as String? ?? '',
+            );
+        _currentClient = account;
+        _currentDriver = null;
+        _currentPartner = null;
+        _clientsByEmail[email] = account;
+        notifyListeners();
+        _persistClient(account);
+        return true;
+
+      case AuthRole.partner:
+        final account = _partnersByEmail[email] ??
+            PartnerAccount(
+              restaurantName: meta[_kRestaurantName] as String? ?? '',
+              address: meta[_kAddress] as String? ?? '',
+              phone: meta[_kPhone] as String? ?? '',
+              email: email,
+              password: '',
+              photoUrl: meta[_kPhotoUrl] as String? ?? '',
+              cuisineType: meta[_kCuisineType] as String? ?? '',
+            );
+        _currentPartner = account;
+        _currentClient = null;
+        _currentDriver = null;
+        _partnersByEmail[email] = account;
+        notifyListeners();
+        _persistPartner(account);
+        return true;
+
+      case AuthRole.driver:
+        final account = _driversByEmail[email];
+        if (account == null) return false;
+        _currentDriver = account;
+        _currentClient = null;
+        _currentPartner = null;
+        notifyListeners();
+        _persistDriver(account);
+        return true;
+    }
+  }
+
   // ─── Logout ───────────────────────────────────────────────────────────────
 
   /// [wipeBiometrics]: true (default) em logout explícito ("Sair"/"Terminar

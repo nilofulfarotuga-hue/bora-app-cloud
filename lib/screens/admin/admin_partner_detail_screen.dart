@@ -15,6 +15,7 @@ import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../models/restaurant_model.dart';
 import '../../stores/restaurant_store.dart';
+import '../../widgets/admin/admin_user_roles_sheet.dart';
 import '../../widgets/bora/bora_primary_button.dart';
 import '../../widgets/private_bucket_image.dart';
 import '_admin_partner_edit_dialog.dart';
@@ -57,6 +58,14 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
   // Quem suporta a comissão visível de 10% (registo do acordo comercial).
   // NÃO entra em nenhum cálculo — ver _saveCommissionBilling.
   bool _savingBilling = false;
+  // BLOCO 7 (2026-08-05) — perfil público editável pelo admin, para
+  // QUALQUER loja: WhatsApp/redes sociais/texto "sobre".
+  final TextEditingController _whatsappCtrl = TextEditingController();
+  final TextEditingController _facebookCtrl = TextEditingController();
+  final TextEditingController _instagramCtrl = TextEditingController();
+  final TextEditingController _aboutCtrl = TextEditingController();
+  bool _savingProfile = false;
+  bool _savingReservations = false;
 
   static const _days = <({int weekday, String label, String key})>[
     (weekday: DateTime.monday,    label: 'Segunda-feira', key: 'mon'),
@@ -80,6 +89,10 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
     _tab.dispose();
     _latCtrl.dispose();
     _lngCtrl.dispose();
+    _whatsappCtrl.dispose();
+    _facebookCtrl.dispose();
+    _instagramCtrl.dispose();
+    _aboutCtrl.dispose();
     super.dispose();
   }
 
@@ -90,8 +103,9 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
           .from('restaurants')
           .select(
               'id, name, category, address, phone, email, is_partner, is_online, is_active_admin, business_hours, '
-              'takeaway_enabled, curbside_enabled, takeaway_default_prep_minutes, hero_image_url, photo_url, '
-              'owner_doc_url, activity_doc_url, lat, lng, partner_commission_billing')
+              'takeaway_enabled, reservations_enabled, curbside_enabled, takeaway_default_prep_minutes, hero_image_url, photo_url, '
+              'owner_doc_url, activity_doc_url, lat, lng, partner_commission_billing, user_id, '
+              'whatsapp, social_facebook, social_instagram, about_text')
           .eq('id', widget.restaurantId)
           .single();
       final openData = await Supabase.instance.client.rpc('is_partner_open', params: {
@@ -111,6 +125,10 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
           _activityDocPath = r['activity_doc_url'] as String?;
           _latCtrl.text = (r['lat'] as num?)?.toString() ?? '';
           _lngCtrl.text = (r['lng'] as num?)?.toString() ?? '';
+          _whatsappCtrl.text = r['whatsapp'] as String? ?? '';
+          _facebookCtrl.text = r['social_facebook'] as String? ?? '';
+          _instagramCtrl.text = r['social_instagram'] as String? ?? '';
+          _aboutCtrl.text = r['about_text'] as String? ?? '';
           _openStatus = results[1] is Map
               ? Map<String, dynamic>.from(results[1] as Map)
               : {'is_open': results[1]};
@@ -392,6 +410,8 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
             const SizedBox(height: 24),
             _commissionBillingCard(),
           ],
+          const SizedBox(height: 24),
+          _storeProfileCard(),
           const SizedBox(height: 24),
           // ── Banner do mercado (hero) ────────────────────────────────────
           Card(
@@ -686,7 +706,92 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
               if (res != null && res['success'] == true) _loadAll();
             },
           ),
+          if ((r['user_id'] as String?)?.isNotEmpty == true) ...[
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: () => showAdminUserRolesSheet(
+                context: context,
+                userId: r['user_id'] as String,
+                userLabel: r['name'] as String? ?? 'esta loja',
+              ),
+              icon: const Icon(Icons.badge_outlined),
+              label: const Text('Papéis do utilizador (cliente/parceiro/...)'),
+            ),
+          ],
         ],
+      ),
+    );
+  }
+
+  /// BLOCO 7 (2026-08-05) — WhatsApp/redes sociais/texto "sobre", editável
+  /// pelo admin para QUALQUER loja. Campos descritivos: não entram em nenhum
+  /// cálculo de preço/comissão/dispatch.
+  Widget _storeProfileCard() {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Radii.lg),
+        side: const BorderSide(color: AppColors.divider),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(children: [
+              Icon(Icons.contact_page_outlined, size: 20),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text('Contacto e redes sociais',
+                    style:
+                        TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+              ),
+            ]),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _whatsappCtrl,
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(
+                labelText: 'WhatsApp',
+                border: OutlineInputBorder(),
+                hintText: '+351 9XX XXX XXX',
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _facebookCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Facebook (URL)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _instagramCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Instagram (URL ou @handle)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _aboutCtrl,
+              maxLines: 4,
+              decoration: const InputDecoration(
+                labelText: 'Sobre a loja',
+                border: OutlineInputBorder(),
+                alignLabelWithHint: true,
+              ),
+            ),
+            const SizedBox(height: 12),
+            BoraPrimaryButton(
+              label: 'Guardar perfil da loja',
+              icon: Icons.save,
+              loading: _savingProfile,
+              onPressed: _savingProfile ? null : _saveStoreProfile,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -725,6 +830,59 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
       }
     } finally {
       if (mounted) setState(() => _savingCoords = false);
+    }
+  }
+
+  /// BLOCO 7 — WhatsApp/redes sociais/texto "sobre", para QUALQUER loja.
+  /// Campos descritivos: não mexem em preço, comissão nem dispatch.
+  Future<void> _saveStoreProfile() async {
+    setState(() => _savingProfile = true);
+    try {
+      await Supabase.instance.client.from('restaurants').update({
+        'whatsapp': _whatsappCtrl.text.trim(),
+        'social_facebook': _facebookCtrl.text.trim(),
+        'social_instagram': _instagramCtrl.text.trim(),
+        'about_text': _aboutCtrl.text.trim(),
+      }).eq('id', widget.restaurantId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Perfil da loja actualizado.')),
+        );
+      }
+      await _loadAll();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Erro ao guardar: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _savingProfile = false);
+    }
+  }
+
+  /// BLOCO 7 — activar/desactivar reservas para QUALQUER loja (mesmo padrão
+  /// já usado para takeaway/curbside em _setAdminTakeawayEnabled).
+  Future<void> _setAdminReservationsEnabled(bool enabled) async {
+    setState(() => _savingReservations = true);
+    try {
+      await Supabase.instance.client
+          .from('restaurants')
+          .update({'reservations_enabled': enabled}).eq(
+              'id', widget.restaurantId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content:
+              Text(enabled ? 'Reservas habilitadas' : 'Reservas desabilitadas'),
+        ));
+      }
+      await _loadAll();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Erro: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _savingReservations = false);
     }
   }
 
@@ -1033,6 +1191,30 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
                     ? 'Visível e disponível para clientes (dentro do horário).'
                     : 'Indisponível para clientes, mesmo dentro do horário configurado.',
                 style: const TextStyle(fontSize: 12),
+              ),
+              activeColor: AppColors.success,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Card(
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(Radii.lg),
+              side: const BorderSide(color: AppColors.divider),
+            ),
+            child: SwitchListTile.adaptive(
+              value: _restaurant?['reservations_enabled'] as bool? ?? false,
+              onChanged:
+                  _savingReservations ? null : _setAdminReservationsEnabled,
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              title: const Text(
+                'Reservas de mesa',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              subtitle: const Text(
+                'Loja aceita reservas com pré-pagamento (BR §14.10).',
+                style: TextStyle(fontSize: 12),
               ),
               activeColor: AppColors.success,
             ),

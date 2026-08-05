@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
+import '../services/role_switch_helper.dart';
 import '../stores/session_store.dart';
 
 /// MULTI-PAPEL (2026-07-31) — botão de troca de perfil no cabeçalho.
@@ -29,50 +29,10 @@ class _ProfileSwitcherButtonState extends State<ProfileSwitcherButton> {
   }
 
   Future<void> _load() async {
-    try {
-      final res = await Supabase.instance.client.rpc('my_roles');
-      if (!mounted) return;
-      setState(() {
-        _roles = (res as List?)
-                ?.map((e) => Map<String, dynamic>.from(e as Map))
-                .where((r) => _uiRoleFor(r['role'] as String?) != null)
-                .toList() ??
-            const [];
-      });
-    } catch (e) {
-      debugPrint('ProfileSwitcherButton: my_roles falhou => $e');
-    }
+    final roles = await fetchUiRoles();
+    if (!mounted) return;
+    setState(() => _roles = roles);
   }
-
-  /// Só client/driver/partner têm um separador próprio no `_RootNavigator`.
-  static UserRole? _uiRoleFor(String? role) => switch (role) {
-        'client' => UserRole.client,
-        'driver' => UserRole.driver,
-        'partner' => UserRole.partner,
-        _ => null,
-      };
-
-  static String _label(String? role) => switch (role) {
-        'client' => 'Cliente',
-        'driver' => 'Estafeta',
-        'partner' => 'Parceiro',
-        _ => role ?? '—',
-      };
-
-  static IconData _icon(String? role) => switch (role) {
-        'client' => Icons.shopping_bag_outlined,
-        'driver' => Icons.two_wheeler_outlined,
-        'partner' => Icons.storefront_outlined,
-        _ => Icons.person_outline,
-      };
-
-  static (String, bool) _statusLabel(String? status) => switch (status) {
-        'approved' => ('', true),
-        'pending' => ('Em análise', false),
-        'rejected' => ('Recusado', false),
-        null => ('', true),
-        _ => (status, false),
-      };
 
   @override
   Widget build(BuildContext context) {
@@ -86,6 +46,7 @@ class _ProfileSwitcherButtonState extends State<ProfileSwitcherButton> {
 
   void _openSheet() {
     final sessionStore = context.read<SessionStore>();
+    final messenger = ScaffoldMessenger.of(context);
     final current = sessionStore.role;
 
     showModalBottomSheet<void>(
@@ -104,16 +65,16 @@ class _ProfileSwitcherButtonState extends State<ProfileSwitcherButton> {
             for (final r in _roles)
               Builder(builder: (_) {
                 final role = r['role'] as String?;
-                final uiRole = _uiRoleFor(role)!;
+                final uiRole = uiRoleFor(role)!;
                 final (statusText, enabled) =
-                    _statusLabel(r['approval_status'] as String?);
+                    roleStatusLabel(r['approval_status'] as String?);
                 final isCurrent = uiRole == current;
                 return ListTile(
                   leading: Icon(
-                    _icon(role),
+                    roleIcon(role),
                     color: enabled ? AppColors.primary : AppColors.textSubtle,
                   ),
-                  title: Text(_label(role)),
+                  title: Text(roleLabel(role)),
                   subtitle: statusText.isEmpty ? null : Text(statusText),
                   trailing: isCurrent
                       ? const Icon(Icons.check, color: AppColors.primary)
@@ -123,9 +84,17 @@ class _ProfileSwitcherButtonState extends State<ProfileSwitcherButton> {
                       ? null
                       : () async {
                           Navigator.pop(ctx);
-                          // _RootNavigator observa o SessionStore e reconstrói
-                          // sozinho — não há push/pushReplacement aqui.
-                          await sessionStore.setRole(uiRole);
+                          // Troca a conta activa (client/driver/partner) na
+                          // mesma sessão Supabase Auth — sem logout — e só
+                          // depois muda o SessionStore. _RootNavigator
+                          // observa o SessionStore e reconstrói sozinho.
+                          final ok = await activateRole(context, uiRole);
+                          if (!ok) {
+                            messenger.showSnackBar(const SnackBar(
+                              content: Text(
+                                  'Não foi possível trocar de perfil. Tenta novamente.'),
+                            ));
+                          }
                         },
                 );
               }),

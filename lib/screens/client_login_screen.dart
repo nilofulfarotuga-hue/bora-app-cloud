@@ -10,12 +10,14 @@ import '../config/app_spacing.dart';
 import '../services/biometric_auth_service.dart';
 import '../services/login_prefs.dart';
 import '../services/notification_service.dart';
+import '../services/role_switch_helper.dart';
 import '../stores/session_store.dart';
 import '../widgets/biometric_enrollment_dialog.dart';
 import '../widgets/bora/bora_mascot.dart';
 import '../widgets/bora/bora_primary_button.dart';
 import 'forgot_password_screen.dart';
 import 'register_client_screen.dart';
+import 'role_choice_screen.dart';
 
 class ClientLoginScreen extends StatefulWidget {
   const ClientLoginScreen({super.key});
@@ -65,7 +67,6 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
 
     final bio = BiometricAuthService.instance;
     final authStore = context.read<AuthStore>();
-    final sessionStore = context.read<SessionStore>();
     final messenger = ScaffoldMessenger.of(context);
 
     final ok =
@@ -115,10 +116,7 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
       NotificationService.instance.saveTokenForClient(authUser.id).ignore();
     }
 
-    await sessionStore.setRole(UserRole.client);
-    if (!mounted) return;
-    setState(() => _isProcessing = false);
-    // No Navigator call — RootNavigator reacts automatically.
+    await _finishClientLogin();
   }
 
   /// L1 — pré-preenche o campo de email com o último login bem-sucedido.
@@ -355,7 +353,6 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
     setState(() => _isProcessing = true);
 
     final authStore = context.read<AuthStore>();
-    final sessionStore = context.read<SessionStore>();
 
     final success = await authStore.loginClientAsync(
       _emailController.text,
@@ -389,6 +386,27 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
     // porque o _RootNavigator troca o ecrã assim que o papel muda).
     await maybeOfferBiometricEnrollment(context, 'client');
     if (!mounted) return;
+
+    await _finishClientLogin();
+  }
+
+  /// Pós-login partilhado (palavra-passe + biometria). MULTI-PAPEL
+  /// (2026-08-05): se `my_roles()` devolver mais do que um papel utilizável
+  /// (ex.: mr.kebab@bora.app é parceiro E cliente), mostra o ecrã de escolha
+  /// em vez de entrar direto como cliente.
+  Future<void> _finishClientLogin() async {
+    final sessionStore = context.read<SessionStore>();
+
+    final roles = await fetchUiRoles();
+    if (!mounted) return;
+
+    if (roles.length >= 2) {
+      setState(() => _isProcessing = false);
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => RoleChoiceScreen(roles: roles)),
+      );
+      return;
+    }
 
     await sessionStore.setRole(UserRole.client);
     if (!mounted) return;

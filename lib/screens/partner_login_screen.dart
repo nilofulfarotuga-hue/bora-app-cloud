@@ -10,11 +10,13 @@ import '../stores/restaurant_store.dart';
 import '../services/biometric_auth_service.dart';
 import '../services/login_prefs.dart';
 import '../services/notification_service.dart';
+import '../services/role_switch_helper.dart';
 import '../stores/session_store.dart';
 import '../widgets/biometric_enrollment_dialog.dart';
 import '../widgets/bora/bora_primary_button.dart';
 import 'forgot_password_screen.dart';
 import 'register_partner_screen.dart';
+import 'role_choice_screen.dart';
 
 class PartnerLoginScreen extends StatefulWidget {
   const PartnerLoginScreen({super.key});
@@ -367,6 +369,20 @@ class _PartnerLoginScreenState extends State<PartnerLoginScreen> {
     // porque o _RootNavigator troca o ecrã assim que o papel muda).
     await maybeOfferBiometricEnrollment(context, 'partner');
     if (!mounted) return;
+
+    // MULTI-PAPEL (2026-08-05): se `my_roles()` devolver mais do que um
+    // papel utilizável (ex.: mr.kebab@bora.app é parceiro E cliente), mostra
+    // o ecrã de escolha em vez de entrar direto como parceiro.
+    final roles = await fetchUiRoles();
+    if (!mounted) return;
+
+    if (roles.length >= 2) {
+      setState(() => _isProcessing = false);
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => RoleChoiceScreen(roles: roles)),
+      );
+      return;
+    }
 
     await sessionStore.setRole(UserRole.partner);
 

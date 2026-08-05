@@ -37,6 +37,13 @@ class _PartnerLoginScreenState extends State<PartnerLoginScreen> {
 
   // L3 — true quando o aparelho tem biometria E há sessão guardada.
   bool _biometricAvailable = false;
+  // MULTI-PAPEL (2026-08-06) — quando `my_roles()` devolve 2+ papéis, o
+  // ecrã de escolha é renderizado INLINE (não via Navigator.push): esta
+  // tela é devolvida directamente por `PartnerEntryScreen`/`_RootNavigator`
+  // (sem Navigator próprio), então um `pushReplacement` removeria o
+  // `_RootNavigator` da árvore e travava a app depois de escolher o papel
+  // (ver CLAUDE.md, "Navigation: _RootNavigator").
+  List<Map<String, dynamic>>? _roleChoices;
 
   @override
   void initState() {
@@ -145,6 +152,10 @@ class _PartnerLoginScreenState extends State<PartnerLoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final roleChoices = _roleChoices;
+    if (roleChoices != null) {
+      return RoleChoiceScreen(roles: roleChoices);
+    }
     final theme = Theme.of(context);
     return Scaffold(
       backgroundColor: AppColors.surface,
@@ -377,10 +388,10 @@ class _PartnerLoginScreenState extends State<PartnerLoginScreen> {
     if (!mounted) return;
 
     if (roles.length >= 2) {
-      setState(() => _isProcessing = false);
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => RoleChoiceScreen(roles: roles)),
-      );
+      setState(() {
+        _isProcessing = false;
+        _roleChoices = roles;
+      });
       return;
     }
 

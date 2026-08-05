@@ -126,3 +126,128 @@ O que faltava mesmo, implementei:
 - `flutter test test/multirole_test.dart`: **9/9 verdes**.
 - Build/instalação no dispositivo real: sucesso (confirmado pelos logs do
   `DriverStore` a correr com o binário novo), sem crash da app.
+
+---
+
+## CONTINUAÇÃO — 2026-08-06 (fecho dos BLOCOS 6+7)
+
+Sessão seguinte, sem tocar em código antes de reler tudo o que já existia (o
+commit `3bedf07` acima já estava commitado E pushed). Encontrei e corrigi um
+bug crítico antes de considerar o BLOCO 6 fechado.
+
+### 🐛 Bug crítico encontrado e corrigido — `Navigator.pushReplacement` matava o `_RootNavigator`
+
+O `RoleChoiceScreen` era mostrado via
+`Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) =>
+RoleChoiceScreen(...)))`, chamado de dentro de `ClientLoginScreen` e
+`PartnerLoginScreen`. Essas duas telas são devolvidas **directamente** pelo
+`_RootNavigator` (via `PartnerEntryScreen` no caso do parceiro) — nenhuma das
+duas vive dentro de um `Navigator` próprio. Um `pushReplacement` chamado daí
+resolve para o Navigator **raiz** do `MaterialApp` e substitui a rota
+inicial (que contém o `_RootNavigator` inteiro) por uma rota nova só com o
+`RoleChoiceScreen`. Isto é exactamente o anti-padrão descrito no
+`CLAUDE.md` ("Navigation: `_RootNavigator`" — "Breaking this pattern...
+removes `_RootNavigator` from the widget tree and makes auto-navigation
+stop working entirely").
+
+**Efeito prático:** depois de escolher um papel no ecrã "Como queres
+entrar?", nada reagia — `activateRole()` continuava a mudar
+`SessionStore`/`AuthStore`, mas já não havia nenhum `_RootNavigator` vivo
+para reconstruir a árvore. O utilizador ficava preso no `RoleChoiceScreen`
+(ou num estado intermédio) até fechar a app. **O login duplo, tal como
+estava commitado, não funcionava de facto** — só parecia funcionar porque
+nunca tinha sido testado ao vivo (a razão documentada acima: motorista real
+online no único dispositivo ligado).
+
+**Fix aplicado** (`lib/screens/client_login_screen.dart`,
+`lib/screens/partner_login_screen.dart`): troquei o `Navigator.push` por
+renderização **inline** — um campo `List<Map<String,dynamic>>? _roleChoices`
+no `State`; quando `my_roles()` devolve 2+ papéis, `setState` guarda a lista
+em vez de navegar, e o `build()` devolve `RoleChoiceScreen(roles:
+_roleChoices!)` directamente no lugar do formulário de login, sem tocar no
+Navigator. O `_RootNavigator` nunca sai da árvore, e a reacção automática
+via `Provider` (que já funcionava correctamente no botão "Trocar de perfil")
+volta a funcionar aqui também.
+
+### Gap fechado — faltava a opção permanente do lado do parceiro
+
+O "botão permanente em Perfil para trocar de papel" (`ProfileSwitcherButton`)
+só estava ligado em `profile_screen.dart` (lado cliente). Um utilizador cujo
+papel principal é **parceiro** (como `mr.kebab@bora.app`) não tinha
+nenhuma forma permanente de voltar a Cliente sem usar "Mudar modo"/"Teste"
+(que faz logout completo e exige login de novo) — só o ecrã de escolha
+pós-login (mostrado uma única vez). Adicionei `ProfileSwitcherButton()` à
+AppBar de `lib/screens/partner_dashboard_screen.dart` (o dashboard real do
+parceiro — confirmei por `PartnerEntryScreen` que é este ficheiro, não
+`restaurant_dashboard_screen.dart`, que está morto/sem nenhuma chamada em
+todo o repo — não toquei nesse por já não fazer parte de nenhum fluxo).
+
+### BLOCO 7 — reconfirmado por leitura de código (sem DB)
+
+- **Contacto/redes sociais + "sobre" + toggle de reservas**
+  (`admin_partner_detail_screen.dart`, migration
+  `20260805170000_admin_partner_profile_fields.sql`): implementação
+  correcta, `_setAdminReservationsEnabled` está de facto ligado a um
+  `Switch` na aba Estado (não é "casca sem fio").
+- **`partner_commission_billing`**: confirmado o aviso exacto "Trocar esta
+  opção NÃO recalcula os preços do catálogo." presente no código.
+- **Controlo de papéis (`admin_list_user_roles`/`admin_add_user_role`/
+  `admin_remove_user_role`)**: `admin_user_roles_sheet.dart` usa as 3 RPCs
+  certas; ligado tanto em `admin_clients_screen.dart` como (novo, sessão
+  anterior) em `admin_partner_detail_screen.dart`.
+- **Pendência #4 do relatório anterior, agora respondida por leitura de
+  código (não precisei de DB):** `mr.kebab@bora.app` **não aparece** em
+  `admin_clients_screen` — a RPC `admin_list_clients`
+  (`20260526000000_admin_list_clients_photo_url.sql`) filtra por
+  `COALESCE(auth.users.raw_user_meta_data->>'bora_role', 'client') =
+  'client'`, e a conta da mr.kebab tem `bora_role='partner'` (criada como
+  parceiro). Isso é **esperado** — o botão "Papéis do utilizador" que a
+  sessão anterior acrescentou à ficha do parceiro é precisamente o caminho
+  alternativo para este caso, e cobre-o.
+
+### Porque NÃO tentei o teste ao vivo no dispositivo (decisão, não esquecimento)
+
+Confirmei — sem tocar em nada, só lendo estado — que o `RZGYB1XQD2P` (o
+único Android ligado) continua com uma sessão real e activa de motorista:
+`adb shell dumpsys notification` mostra a notificação persistente
+"Online — toca para voltar à app" (canal `bora_bubble`,
+`FOREGROUND_SERVICE`). É o mesmo dispositivo e o mesmo problema da sessão
+anterior — não fiz login nele, não abri a app, não toquei em nada.
+
+Além disso, a RAM da máquina estava no limite calibrado do próprio projecto
+(`Available` ~180–470 MB ao longo da sessão, o piso é 300 MB — ver nota de
+memória "Pré-voo de RAM v2"), com 6 processos `claude` concorrentes (outros
+executores do loop autónomo desta mesma noite) a ocupar >1 GB. Não há
+emulador instalado (`emulator -list-avds` falha) nem `flutter devices`
+mostra outro Android. Só haveria dois caminhos: usar o telemóvel real do
+Danilo (arriscando o turno real dele) ou correr um build local pesado numa
+máquina já no limiar de OOM (arriscando derrubar os outros executores da
+mesma noite autónoma). Nenhum dos dois é uma troca aceitável para validar
+uma migration reversível de UI — por isso troquei de abordagem: revisão de
+código linha-a-linha (que encontrou o bug real acima, algo que só "correr e
+ver" teria confirmado tarde demais) + `flutter analyze` correu com sucesso
+desta vez (56.9s, RAM ainda acima do piso): **21 issues, 0 erros**, todos
+`info` pré-existentes fora das linhas tocadas.
+
+### ⚠️ Pendências para o Danilo (actualizado)
+
+1. **Aplicar a migration** `20260805170000_admin_partner_profile_fields.sql`
+   — continua por aplicar; esta sessão também não tinha
+   `SUPABASE_ACCESS_TOKEN` (`supabase link` falhou por falta de
+   credenciais). Sem isto o cartão novo do admin dá erro ao gravar.
+2. **Teste ao vivo do login duplo + screenshots** — continua pendente, pelo
+   motivo acima. Recomendo correr numa altura em que o telemóvel do Danilo
+   não tenha motorista online, ou com um emulador Android instalado nesta
+   máquina (não há nenhum hoje).
+3. **Senha da `saboresde.casa@bora.app`** — continua desconhecida; não
+   inventei nenhuma.
+4. Pendência #4 anterior: **respondida** (ver secção acima) — não precisa
+   de mais investigação.
+
+### Ficheiros tocados nesta continuação
+
+- `lib/screens/client_login_screen.dart` — fix do bug do Navigator.
+- `lib/screens/partner_login_screen.dart` — fix do bug do Navigator.
+- `lib/screens/partner_dashboard_screen.dart` — `ProfileSwitcherButton` na
+  AppBar do parceiro.
+- Este relatório.

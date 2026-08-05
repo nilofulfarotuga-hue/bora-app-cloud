@@ -25,6 +25,7 @@ import '../stores/session_store.dart';
 import '../widgets/address_text.dart';
 import '../widgets/biometric_login_tile.dart';
 import '../widgets/partner_weekly_closeout_card.dart';
+import '../widgets/profile_switcher_button.dart';
 import 'partner/reservations/partner_reservations_home_screen.dart';
 import 'partner/services/partner_services_hub_screen.dart';
 import 'partner_call_driver_screen.dart';
@@ -601,6 +602,9 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
         ),
         actions: [
           const NotificationBell(),
+          // MULTI-PAPEL (2026-08-06) — só aparece com 2+ papéis; troca para
+          // Cliente sem sair da sessão (ver `ProfileSwitcherButton`).
+          const ProfileSwitcherButton(),
           TextButton.icon(
             onPressed: () => restaurantStore.toggleRestaurantOnline(
                 widget.restaurant.id, !currentRestaurant.isOnline),

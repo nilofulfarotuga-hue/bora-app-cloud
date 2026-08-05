@@ -251,3 +251,98 @@ desta vez (56.9s, RAM ainda acima do piso): **21 issues, 0 erros**, todos
 - `lib/screens/partner_dashboard_screen.dart` — `ProfileSwitcherButton` na
   AppBar do parceiro.
 - Este relatório.
+
+---
+
+## FECHO — 2026-08-06 (nova sessão, sem escrever código novo)
+
+Sessão dedicada só a **fechar** os BLOCOS 6+7: reler tudo o que já estava
+commitado E pushed (`3bedf07`, `29e3388`), tentar destravar as duas
+pendências reais (teste ao vivo + aplicar a migration), e só então decidir
+se ficava fechado ou se havia mais trabalho de código.
+
+### Teste ao vivo — tentado de novo, continua bloqueado (motivo diferente desta vez)
+
+`adb devices` mostrou o único Android ligado (`RZGYB1XQD2P`) como
+**`unauthorized`** — desta vez não é sessão de motorista a ocupar o
+aparelho, é o diálogo "Permitir depuração USB?" nunca aceite (ou a
+autorização anterior expirou). `adb kill-server && adb start-server` não
+resolve — esse diálogo só se aceita tocando fisicamente no ecrã do
+telemóvel, que não posso fazer numa sessão headless. `flutter devices`
+confirma: só `Windows (desktop)` e `Chrome (web)` disponíveis, nenhum
+emulador Android instalado. Não tentei instalar um emulador nem correr
+`flutter run -d chrome` como substituto — ambos pesados para os 4GB RAM da
+máquina (nota de memória "Pré-voo de RAM"), e já é a mesma classe de
+bloqueio reportada nas duas sessões anteriores (motivos diferentes, mesma
+raiz: falta de um dispositivo Android livre e autorizado). Não fabriquei
+screenshots — sem o dispositivo real não há prova, e inventar uma seria
+pior do que reportar o bloqueio.
+
+### Migration — tentado de novo, continua bloqueado (confirmado, não credenciais novas)
+
+Sem `SUPABASE_ACCESS_TOKEN` no ambiente, `supabase projects list` falha por
+falta de token, e não há `supabase/.temp/project-ref` (projecto não
+linkado nesta sessão). Verifiquei se `backend/.env` ou
+`scripts/scraper/.env` tinham uma connection string Postgres directa —
+só têm `SUPABASE_URL` + chave de serviço (REST), que **não** dá para correr
+DDL (`ALTER TABLE ADD COLUMN`) — isso exige ou o Management API da
+Supabase (token pessoal, que não existe aqui) ou uma ligação Postgres
+directa (password, que também não existe aqui). Confirmado: aplicar a
+migration `20260805170000_admin_partner_profile_fields.sql` continua a
+exigir o Danilo (SQL Editor do painel Supabase ou `supabase login && supabase
+db push` na máquina dele).
+
+### Reauditoria de código — tudo conferido linha a linha, nada por corrigir
+
+Reli (não só grep, o ficheiro inteiro nos pontos-chave) e confirmei
+coerente ponta-a-ponta:
+- `role_choice_screen.dart` — renderização inline confirmada, sem
+  `Navigator`, com estado de loading e erro tratados.
+- `role_switch_helper.dart` — `fetchUiRoles()`/`activateRole()` mapeiam
+  certo client/driver/partner; falha de rede em `my_roles()` devolve lista
+  vazia (fail-safe, sem crash).
+- `auth_store.dart` `switchToRole()` — os três casos (client/partner/driver)
+  reconstroem a conta a partir da cache local ou do `user_metadata`, e
+  `_driversByEmail`/`_driversByPhone` são escritos em par em todos os
+  pontos do ficheiro (não é um mapa órfão — confirmei os 8 sítios que
+  escrevem lá).
+- `client_login_screen.dart` / `partner_login_screen.dart` — `_roleChoices`
+  guardado em `State`, `build()` devolve `RoleChoiceScreen` inline quando
+  preenchido; sem `Navigator.push` em lado nenhum deste caminho.
+- `profile_switcher_button.dart` — ligado em `profile_screen.dart` (lado
+  cliente) E `partner_dashboard_screen.dart` (lado parceiro, o dashboard
+  real confirmado por `PartnerEntryScreen`).
+- `admin_partner_detail_screen.dart` — os 4 campos novos
+  (`whatsapp`/`social_facebook`/`social_instagram`/`about_text`) lidos no
+  `select` e gravados no `.update()`; `reservations_enabled` ligado a um
+  `Switch` real (não casca-sem-fio); `partner_commission_billing` com o
+  aviso exacto pedido; botão "Papéis do utilizador" abre
+  `admin_user_roles_sheet.dart`, que usa mesmo `admin_list_user_roles`
+  (+ `admin_add_user_role`/`admin_remove_user_role`) — RPC certa.
+
+`flutter analyze` (9 ficheiros tocados pelos BLOCOS 6+7): **0 erros**, 21
+`info` pré-existentes (BuildContext-across-async-gaps, deprecated
+`activeColor`/`groupValue`/`onChanged`, chavetas em `if` — nenhum das
+linhas dos BLOCOS 6/7, todos no resto do ficheiro
+`admin_partner_detail_screen.dart`/`partner_dashboard_screen.dart` que já
+existiam antes). `flutter test test/multirole_test.dart`: **9/9 verdes**.
+
+### Conclusão — BLOCOS 6+7 fechados do lado do código; 2 pendências só o Danilo resolve
+
+Não havia código por escrever — as duas sessões anteriores já cobriram
+tudo, incluindo um bug real (o `Navigator` partido) que só a leitura
+cuidadosa apanhou. Esta sessão confirmou por reauditoria completa que não
+ficou nada por trás, e tentou (sem sucesso, por falta de acesso que só o
+Danilo tem) destravar as duas últimas pendências. Sem alterações de código
+para commitar — só este relatório.
+
+**Pendências finais (ambas exigem acção do Danilo, não código):**
+1. Aplicar `supabase/migrations/20260805170000_admin_partner_profile_fields.sql`
+   (SQL Editor do painel Supabase, ou `supabase login && supabase db push`
+   na máquina dele — 4 colunas TEXT novas em `restaurants`, idempotente,
+   zona verde).
+2. Teste ao vivo + screenshots — precisa de um Android autorizado e livre
+   (destravar o diálogo "Permitir depuração USB?" no telemóvel ligado, ou
+   instalar um emulador — este PC não tem nenhum e tem só 4GB RAM).
+3. Senha de `saboresde.casa@bora.app` continua desconhecida (nunca
+   inventada).

@@ -122,17 +122,61 @@ warnings pré-existentes no repo). Ficheiros novos:
 (malformed array literal). Corrigido para `array_append` na BD e no ficheiro da
 migration ANTES do commit.
 
+## 2-bis. ADENDA (mesmo dia, após o Danilo dar o signing secret) — E2E REAL ✅
+
+O Danilo passou o `whsec_...` do webhook Connect. O `npx supabase` não tem binário
+win32-x64 (erro "No matching Supabase CLI binary package found"), mas existe
+`C:\supabase\supabase.exe` já autenticado → usei esse.
+
+**Secret gravado e confirmado:**
+```
+supabase secrets list | grep -i connect
+STRIPE_CONNECT_WEBHOOK_SECRET | 05a93b34de45b29881d5229c5c5ee5bf88109b082113dfe9dcf20072e447b19f
+```
+
+**E2E do webhook por HTTP real** (evento assinado com HMAC-SHA256 do próprio
+secret, como a Stripe faz — `t=<ts>,v1=<hmac>`):
+```
+1) assinatura VÁLIDA   → {"received":true}                  HTTP 200
+2) MESMO evento repetido → {"received":true,"duplicate":true} HTTP 200  ← idempotência
+3) assinatura FALSA     → "Webhook signature error: No signatures found
+                           matching the expected signature for payload"  HTTP 400
+```
+
+**E2E a alterar mesmo a base de dados** (cleaner fictício com
+`stripe_account_id='acct_PROVA_E2E_20260806'`, 2 eventos `account.updated`
+assinados enviados por HTTP):
+```
+antes:  {"status":"pending","payouts":false,"onboarded_at":null}
+evento A (currently_due com 2 itens, payouts=false) → HTTP 200
+evento B (currently_due vazio, payouts=true)        → HTTP 200
+depois: {"status":"enabled","charges":true,"payouts":true,"due":[],
+         "onboarded_at":"2026-08-06T13:42:43.597577+00:00"}
+```
+Cadeia inteira provada: assinatura → `stripe_connect_events` → RPC espelho →
+linha atualizada → `stripe_onboarded_at` carimbado sozinho.
+
+**Connect já está ATIVO na conta Stripe:** `GET /v1/accounts` devolveu
+`{"object":"list","data":[],"has_more":false}` — lista vazia em vez de erro
+"only Connect platforms can…", ou seja o passo 1 do guia já está feito, com 0
+contas ligadas até agora.
+
+**Limpeza:** cleaner demo, user auth demo e os 3 eventos de prova apagados
+(contagens 0/0/0; `stripe_connect_events` vazia; ficam as 5 linhas reais do
+backfill).
+
+**Estado atualizado das pendências:** só falta um parceiro real passar pelo
+onboarding. Os passos 1–3 do guia estão satisfeitos.
+
 ## 3. O que NÃO foi possível (e porquê)
 
-1. **Conta Connect real em modo TESTE na Stripe** — bloqueado em ação humana:
-   - `STRIPE_TEST_SECRET_KEY` não existe nos secrets do Supabase (não consigo
-     criar secrets por MCP);
-   - o MCP da Stripe é a conta live "bora app" e as escritas exigem aprovação
-     humana por link;
-   - o Connect ainda nem está ativado no dashboard (passo 1 do guia).
-   Em vez disso provei o caminho completo do lado nosso (2a–2d acima). Quando o
-   Danilo fizer os passos 1–3 do guia, o E2E com a Stripe fica testável em
-   minutos.
+1. ~~**Conta Connect real em modo TESTE na Stripe**~~ — **RESOLVIDO na adenda
+   §2-bis**: com o secret gravado, o webhook foi provado ponta-a-ponta por HTTP
+   real (assinatura válida/falsa/repetida + linha da BD a mudar para `enabled`).
+   Falta apenas um **parceiro real** percorrer o onboarding — isso é do Danilo,
+   presencialmente (secção 4 do guia).
+   Nota: `STRIPE_TEST_SECRET_KEY` continua por criar; enquanto não existir, o
+   modo teste (`BORA_STRIPE_MODE=test`) não funciona — o sistema corre em live.
 2. **Screenshot do ecrã de extrato** — `adb devices` vazio (telemóvel não está
    ligado por USB) e este PC (4 GB RAM) não compila o app localmente. O ecrã
    compila limpo (analyze) e a RPC que o alimenta está provada em 2b.
@@ -173,8 +217,16 @@ DROP TABLE IF EXISTS public.stripe_connect_events;
 - Página `/connect/return|refresh` no web app com mensagem bonita de regresso.
 - Reconciliação payout ↔ linhas (marcar settlement_id nos payouts Stripe).
 
-## 8. Passos humanos pendentes (do guia)
-1. Ativar Connect + aceitar termos de plataforma (dashboard Stripe).
-2. Criar o webhook novo e colar `STRIPE_CONNECT_WEBHOOK_SECRET` no Supabase.
-3. (Para testar) `STRIPE_TEST_SECRET_KEY` + `BORA_STRIPE_MODE=test` → testar →
-   voltar a `live`.
+## 8. Passos humanos — estado final
+1. ✅ Connect ativado no dashboard (confirmado: `/v1/accounts` responde).
+2. ✅ Webhook criado + `STRIPE_CONNECT_WEBHOOK_SECRET` gravado e **provado a
+   funcionar** (§2-bis).
+3. ⬜ **Único passo que falta:** cadastrar um parceiro real (ex.: Gilberto,
+   Ouro e Prata) — secção 4 do guia. O estado dele muda sozinho no app e no
+   painel quando a Stripe verificar.
+4. (Opcional) `STRIPE_TEST_SECRET_KEY` se quiseres um ambiente de testes
+   separado; sem ela tudo corre em live.
+
+⚠️ O `whsec_` do webhook passou pelo chat desta sessão. Se quiseres ser
+rigoroso, dá **"Roll secret"** no endpoint do dashboard da Stripe e regrava —
+leva 1 minuto e eu volto a provar.

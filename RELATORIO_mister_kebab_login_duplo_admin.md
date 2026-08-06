@@ -346,3 +346,52 @@ para commitar — só este relatório.
    instalar um emulador — este PC não tem nenhum e tem só 4GB RAM).
 3. Senha de `saboresde.casa@bora.app` continua desconhecida (nunca
    inventada).
+
+---
+
+## 4ª CONFIRMAÇÃO — 2026-08-06 (sessão autónoma nocturna, sem alterações de código)
+
+Mesma missão recebida pela 4ª vez (as 3 anteriores estão documentadas acima).
+Antes de repetir qualquer tentativa, apliquei a "LEI DO PRE-VOO" do `CLAUDE.md`
+("2 falhas iguais → muda de abordagem, nunca uma 3ª tentativa igual") — isto já
+tinha falhado 3 vezes pelo mesmo motivo, por isso simulei mentalmente cada
+bloqueio antes de agir, em vez de repetir os mesmos comandos.
+
+**Verificações feitas nesta sessão (todas read-only, sem tocar no dispositivo):**
+- `git rev-parse HEAD` == `origin/autonomous-night-2026-04-29` (`3143da3`) — nada
+  para reauditar, o código dos BLOCOS 6+7 está exactamente como as 3 sessões
+  anteriores o deixaram, já commitado e já pushed.
+- `adb devices -l` → `RZGYB1XQD2P  unauthorized` — mesmo estado da sessão
+  "FECHO" anterior; o diálogo "Permitir depuração USB?" continua por aceitar
+  fisicamente no telemóvel.
+- `flutter devices` → só `Windows (desktop)` e `Chrome (web)`; sem emulador
+  Android instalado (`emulator -list-avds` → comando não existe nesta máquina).
+- RAM: `Get-Process` mostrou **9 processos `claude.exe` concorrentes** (outros
+  executores da mesma noite autónoma) já a consumir ~560 MB, com só ~495 MB
+  livres de 3,9 GB totais — abaixo do piso de segurança documentado em
+  "Pré-voo de RAM v2". Simulação mental: arrancar `flutter run -d chrome`
+  (Dart VM + Chrome + DDC) ou instalar um emulador Android nestas condições
+  tem alta probabilidade de OOM e de derrubar os outros executores desta
+  mesma noite — o mesmo tipo de troca inaceitável já identificado na sessão
+  "FECHO" anterior. Por isso **não tentei correr o app** (nem Android nem
+  Chrome) nesta sessão.
+- `supabase projects list` → continua sem `SUPABASE_ACCESS_TOKEN`; procurei
+  também por `SUPABASE_DB_URL`/`DATABASE_URL`/`POSTGRES_URL` em todos os
+  `.env*` do repo — só existem `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`
+  (REST, não dá para DDL) em `backend/.env`. Migration continua por aplicar.
+- Procurei por qualquer registo da password de `saboresde.casa@bora.app` em
+  `.md`/`.sql`/`.yaml`/`.env*` do repo — não existe; continua desconhecida.
+
+**Conclusão desta sessão:** zero código novo (nada ficou por escrever nas 3
+sessões anteriores) e os 2 bloqueios reais — telemóvel `unauthorized` +
+ausência de credencial Supabase de escrita de schema — são **idênticos aos
+já reportados 3 vezes**, não regrediram nem progrediram. Repetir esta missão
+tal como está redigida numa 5ª sessão autónoma vai produzir o mesmo relatório
+outra vez, sem valor novo, e continua a arriscar RAM/OOM se algum executor
+tentar "só mais uma vez" correr o app. **Recomendação:** tirar este item da
+fila de repetição automática e só voltar a despachá-lo quando UMA das duas
+condições mudar por acção humana do Danilo — (a) tocar "Permitir" no diálogo
+USB do telemóvel livre (ou disponibilizar um dispositivo/emulador), OU
+(b) colar `SUPABASE_ACCESS_TOKEN` (ou aplicar a migration `20260805170000`
+directamente no SQL Editor). Sem alterações de ficheiros de código nesta
+sessão — só este relatório.

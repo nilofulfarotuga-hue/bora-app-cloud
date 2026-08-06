@@ -32,6 +32,8 @@ import 'client_reservations_screen.dart';
 import 'orders_screen.dart';
 import 'client_addresses_screen.dart';
 import 'client_promo_code_screen.dart';
+import 'connect/connect_payments_screen.dart';
+import 'connect/connect_statement_screen.dart';
 import 'driver_permissions_screen.dart';
 import 'my_cards_screen.dart';
 import 'referral_screen.dart';
@@ -588,6 +590,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ).then((_) {
                       if (mounted) _loadRoles();
                     }),
+                  ),
+                  // Stripe Connect Fase 1 (2026-08-06).
+                  ListTile(
+                    leading: const Icon(Icons.account_balance_outlined,
+                        color: AppColors.primary),
+                    title: const Text('Receber pagamentos'),
+                    subtitle: const Text('Configura como recebes pelo Bora'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ConnectPaymentsScreen(
+                            connectRole: 'driver'),
+                      ),
+                    ),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.receipt_long_outlined,
+                        color: AppColors.primary),
+                    title: const Text('Extrato'),
+                    subtitle:
+                        const Text('Movimentos, comissões e pagamentos'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ConnectStatementScreen(),
+                      ),
+                    ),
                   ),
                 ],
               ),

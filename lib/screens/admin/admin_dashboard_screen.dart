@@ -27,6 +27,7 @@ import 'admin_businesses_screen.dart';
 import 'admin_catalog_screen.dart';
 import 'admin_clients_screen.dart';
 import 'admin_complaints_screen.dart';
+import 'admin_connect_payments_screen.dart';
 import 'admin_continente_prices_screen.dart';
 import 'admin_crosstalk_screen.dart';
 import 'admin_driver_approval_screen.dart';
@@ -474,6 +475,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       context,
                       MaterialPageRoute(
                           builder: (_) => const AdminSettlementsScreen())),
+                ),
+                const SizedBox(height: 10),
+                // Stripe Connect Fase 1 (2026-08-06).
+                _NavCard(
+                  icon: Icons.account_balance_wallet,
+                  title: 'Pagamentos Connect',
+                  subtitle:
+                      'Contas Stripe Connect de parceiros, estafetas e limpeza',
+                  color: Colors.deepPurple,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminConnectPaymentsScreen())),
                 ),
                 const SizedBox(height: 10),
                 _NavCard(

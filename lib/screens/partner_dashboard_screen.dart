@@ -27,6 +27,8 @@ import '../widgets/biometric_login_tile.dart';
 import '../widgets/partner_weekly_closeout_card.dart';
 import '../widgets/profile_switcher_button.dart';
 import 'partner/reservations/partner_reservations_home_screen.dart';
+import 'connect/connect_payments_screen.dart';
+import 'connect/connect_statement_screen.dart';
 import 'partner/services/partner_services_hub_screen.dart';
 import 'partner_call_driver_screen.dart';
 import 'partner_earnings_screen.dart';
@@ -674,6 +676,35 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                     ),
                     icon: const Icon(Icons.bar_chart),
                     label: const Text('Ver detalhe de ganhos'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                // Stripe Connect Fase 1 (2026-08-06) — para o parceiro isto é
+                // "receber pelo Bora"; o onboarding abre no browser externo.
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const ConnectPaymentsScreen(
+                            connectRole: 'partner'),
+                      ),
+                    ),
+                    icon: const Icon(Icons.account_balance_outlined),
+                    label: const Text('Receber pagamentos'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const ConnectStatementScreen(),
+                      ),
+                    ),
+                    icon: const Icon(Icons.receipt_long_outlined),
+                    label: const Text('Extrato'),
                   ),
                 ),
                 const SizedBox(height: 8),

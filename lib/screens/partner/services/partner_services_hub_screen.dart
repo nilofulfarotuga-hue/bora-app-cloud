@@ -13,6 +13,8 @@ import '../../../widgets/bora/bora_screen_app_bar.dart';
 import '../../../widgets/partner_weekly_closeout_card.dart';
 import 'partner_add_walk_in_screen.dart';
 import 'partner_agenda_screen.dart';
+import '../../connect/connect_payments_screen.dart';
+import '../../connect/connect_statement_screen.dart';
 import 'partner_appointments_finance_screen.dart';
 import 'partner_block_slot_screen.dart';
 import 'partner_manage_services_screen.dart';
@@ -162,6 +164,21 @@ class _PartnerServicesHubScreenState extends State<PartnerServicesHubScreen> {
                 subtitle: 'Receita e liquidações',
                 onTap: () =>
                     _push(context, const PartnerAppointmentsFinanceScreen()),
+              ),
+              // Stripe Connect Fase 1 (2026-08-06).
+              _Tile(
+                icon: Icons.account_balance_outlined,
+                title: 'Receber pagamentos',
+                subtitle: 'Configura como recebes pelo Bora',
+                onTap: () => _push(context,
+                    const ConnectPaymentsScreen(connectRole: 'provider')),
+              ),
+              _Tile(
+                icon: Icons.receipt_long_outlined,
+                title: 'Extrato',
+                subtitle: 'Movimentos, comissões e pagamentos',
+                onTap: () =>
+                    _push(context, const ConnectStatementScreen()),
               ),
               // L3 — login com biometria (esconde-se sem biometria).
               const BiometricLoginTile(role: 'partner'),

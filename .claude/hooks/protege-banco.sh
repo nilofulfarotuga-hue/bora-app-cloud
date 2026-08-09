@@ -48,7 +48,7 @@ deny() {
 }
 
 MONEYFN='enforce_financial_immutability|create_order|apply_order_financial_split|quote_order_pricing|pricing_calculate|pricing_calculate_errand|compute_refund_split|_enforce_refund_cap|wallet_credit_refund_split|wallet_credit_refund_full|wallet_debit_for_order|wallet_debit_cancel_fee|wallet_credit_generic|wallet_apply_post_delivery_adjustment|add_tokens|consume_tokens|mark_token_failed|fn_award_tokens_on_delivery|trg_award_tokens_on_delivery|driver_convert_tokens|client_redeem_promo_tokens|finalize_errand_purchase|finalize_storeshopping_purchase|finalize_storeshopping_purchase_v2|compute_partner_weekly_settlement|compute_driver_settlement|compute_provider_weekly_payout|create_payout|auto_payout_pending'
-FINTABLE='orders|wallets|ledger|ledger_entries|bora_tokens|wallet_transactions|tvde_driver_balances|driver_balances|order_financials|order_financial_transactions|driver_weekly_settlements|partner_weekly_settlements|appointment_payouts|partner_reservation_payouts|pending_charges'
+FINTABLE='orders|wallets|ledger|ledger_entries|bora_tokens|wallet_transactions|tvde_driver_balances|driver_balances|order_financials|order_financial_transactions|driver_weekly_settlements|partner_weekly_settlements|appointment_payouts|partner_reservation_payouts|pending_charges|cortex_tasks|cortex_task_messages|cortex_task_consensus_meta|llm_call_log|agent_events|worktree_registry'
 PROTSLUG='stripe-webhook|dispatch-engine|finalize-order-from-intent|create-payment-intent|create-mbway-payment-intent|reprocess-refund|charge-extra|(^|[^-])refund'
 
 # ---- 1) Git destrutivo (SEMPRE) ------------------------------------------

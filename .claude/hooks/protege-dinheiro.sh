@@ -55,5 +55,10 @@ has '(^|/)\.claude/hooks/'                              && deny ".claude/hooks/*
 has '(^|/)\.claude/settings\.json'                      && deny ".claude/settings.json (config da trava)"
 has '(^|/)\.claude/settings\.local\.json'               && deny ".claude/settings.local.json (config da trava)"
 
+# --- Guardiões multiagente (F1 — RED_MODEL §2: workers não se automodifiquem) ---
+has '(^|/)\.claude/agents/critic\.md'                   && deny "agents/critic.md (guardião multiagente)"
+has '(^|/)\.claude/agents/consensus\.md'                && deny "agents/consensus.md (guardião multiagente)"
+has '(^|/)\.claude/\.ai/cortex-mcp/router\.mjs'          && deny ".ai/cortex-mcp/router.mjs (router multiagente)"
+
 # Nada bateu -> deixa passar
 exit 0

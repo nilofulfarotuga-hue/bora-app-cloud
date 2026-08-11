@@ -194,3 +194,17 @@ só como proposta). Verificação direta antes de decidir:
 **Nada aplicado por este agente** (nem TPROVA-2 nem TPROVA-4 — ambas 🟡, fora do mandato de
 zona-verde). Report fechado; próxima corrida do evolution-engine não precisa reanalisar este
 ficheiro a menos que o padrão TIMEOUT-900s volte a repetir-se.
+
+## 🎯 Reconfirmação 2026-08-11 (circuito-fechado evolution-engine, sem mudança)
+
+Reverificado ao vivo, sem reabrir análise:
+- `missao-plano-mestre-2026-07-12.md` linha 9 — texto **idêntico** ao original (powercfg/adb-key
+  + "provar 30 min sem queda" ainda na mesma tarefa síncrona). TPROVA-2 continua não aplicado.
+- `hermes-evolution-trigger.sh` local — `grep NOTA_STATE\|NOTA_COOLDOWN` **sem resultado**;
+  `git log` do ficheiro sem commits novos desde `c6f4218` (já citado no fecho de 08-05).
+  TPROVA-4 continua não aplicado.
+- `grep -rl "TIMEOUT-900s"` no inbox continua a só devolver ficheiros de 07-12/07-13 — nenhuma
+  recorrência do padrão desde então.
+
+**Zero propostas de zona verde pendentes neste report** — nada para este agente aplicar
+(TPROVA-1/2/3/4 seguem 🟡 propose-only). Nada mais foi editado; só esta reconfirmação.

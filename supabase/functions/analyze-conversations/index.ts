@@ -207,7 +207,8 @@ Deno.serve(async (req: Request) => {
     .from('skill_suggestions').select('pattern_summary').eq('status', 'pending');
   const pendingSummaries = (pendingRows ?? []).map((r: any) => r.pattern_summary as string);
 
-  const geminiModel = (settingsRow?.gemini_model as string) ?? 'gemini-1.5-flash';
+  // 2026-08-12: fallback era gemini-1.5-flash (retirado). Só usado se a BD não responder.
+  const geminiModel = (settingsRow?.gemini_model as string) ?? 'gemini-3.1-flash-lite';
 
   // 5E system prompt: 3 tipos
   const systemPrompt =

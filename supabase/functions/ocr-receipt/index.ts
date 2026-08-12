@@ -92,7 +92,9 @@ Deno.serve(async (req) => {
   let rawResponse: unknown = null
   try {
     const b64 = base64Encode(photoBytes)
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`
+    // 2026-08-12: era gemini-2.5-flash — retirado para projectos novos (404) depois de
+    // a GEMINI_API_KEY passar para um projecto sem faturação. thinkingBudget=0 continua válido.
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${geminiKey}`
     const prompt =
       'Lê este talão de compra e devolve JSON ESTRITO (sem markdown, sem prosa). ' +
       'Schema: {"store": string|null, "total_cents": integer|null, ' +

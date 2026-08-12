@@ -32,7 +32,9 @@ const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
 
-const DEFAULT_MODEL = 'gemini-2.5-flash';
+// 2026-08-12: era gemini-2.5-flash — retirado para projectos novos (404) depois de a
+// GEMINI_API_KEY passar para um projecto sem faturação. Só usado se a BD não responder.
+const DEFAULT_MODEL = 'gemini-3.1-flash-lite';
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -673,9 +675,15 @@ Deno.serve(async (req: Request) => {
   const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
   // modelo Gemini das settings (fallback default)
+  // gemini_model_robot_b é só do Robot B: ele escreve diagnósticos e precisa do Flash
+  // completo, enquanto o support-chatbot e o analyze-conversations partilham o
+  // gemini_model e vivem bem com um modelo mais leve.
+  // NULL nessa coluna = comportamento idêntico ao de sempre.
   const { data: settingsRow } = await admin
-    .from('support_settings').select('gemini_model').eq('id', 1).maybeSingle();
-  const geminiModel = (settingsRow?.gemini_model as string) || DEFAULT_MODEL;
+    .from('support_settings').select('gemini_model, gemini_model_robot_b').eq('id', 1).maybeSingle();
+  const geminiModel = (settingsRow?.gemini_model_robot_b as string)
+    || (settingsRow?.gemini_model as string)
+    || DEFAULT_MODEL;
 
   const triggeredBy = isService ? 'service' : 'admin';
 

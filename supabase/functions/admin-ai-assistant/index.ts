@@ -1,7 +1,9 @@
-// admin-ai-assistant — chat IA do painel admin com Gemini 2.5 Flash + function calling
+// admin-ai-assistant — chat IA do painel admin com Gemini Flash Lite + function calling
 // Requer secret no Supabase: GEMINI_API_KEY (já configurado para Robot B)
 //
-// Modelo: gemini-2.5-flash (gratuito até quota).
+// Modelo: gemini-3.1-flash-lite (tier gratuito).
+// 2026-08-12: era gemini-2.5-flash — retirado para projectos novos (404 "no longer
+// available to new users") após mover a GEMINI_API_KEY para um projecto sem faturação.
 // Tools v1 (read-only):
 //   - sql_select: SELECT arbitrário em public (banlist DML/DDL)
 //   - get_platform_setting: lê platform_settings por chave
@@ -12,7 +14,7 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") ?? "";
-const MODEL = "gemini-2.5-flash";
+const MODEL = "gemini-3.1-flash-lite";
 const MAX_TOOL_ITERS = 4;
 const MAX_OUTPUT_TOKENS = 2048;
 

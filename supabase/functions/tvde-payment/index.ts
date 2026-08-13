@@ -61,6 +61,19 @@ async function getSettingInt(key: string, fallback: number): Promise<number> {
   return Number.isFinite(v) && v > 0 ? v : fallback;
 }
 
+/**
+ * O JWT que chegou é de um admin? Corre `public.is_admin()` no contexto do
+ * utilizador — a mesma funcao que as RPCs `admin_*` usam, por isso nao ha
+ * segunda definicao de "quem e admin" a divergir desta.
+ */
+async function callerIsAdmin(
+  userClient: ReturnType<typeof createClient>,
+): Promise<boolean> {
+  const { data, error } = await userClient.rpc('is_admin');
+  if (error) return false;
+  return data === true;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   try {
@@ -91,6 +104,16 @@ Deno.serve(async (req) => {
       }
       const distanceKm = Number(body.distance_km ?? 0);
       if (!(distanceKm > 0)) return json({ error: 'invalid_distance' }, 400);
+      // Bora Tokens (desconto, igual ao delivery) — TvdeStore.buildTvdeChargeBody()
+      // ja envia `tokens_used` no body (lib/stores/tvde_store.dart:39). Faltava
+      // ler aqui e repassar a RPC como p_tokens_to_apply; sem isto o pagamento
+      // ONLINE (cartao/MB Way) nunca aplicava o desconto escolhido no toggle da
+      // UI, so o fluxo CASH direto (tvde_store.dart.requestRide) o fazia.
+      // ⚠️ Depende da migration PROPOSTA
+      // 20260717000000_tvde_request_ride_merge_tokens_payment.sql estar aplicada
+      // (funde as 2 overloads de 8 args numa so de 9, aceitando os dois
+      // parametros juntos) — deploy desta function so DEPOIS dessa migration.
+      const tokensUsed = Math.max(0, Math.trunc(Number(body.tokens_used ?? 0)) || 0);
 
       const { data: rideRes, error: rideErr } = await userClient.rpc(
         'tvde_request_ride',
@@ -103,6 +126,7 @@ Deno.serve(async (req) => {
           p_dest_label: body.dest_label ?? null,
           p_est_distance_km: distanceKm,
           p_payment_method: method,
+          p_tokens_to_apply: tokensUsed,
         },
       );
       if (rideErr || !rideRes) {
@@ -201,7 +225,12 @@ Deno.serve(async (req) => {
         .eq('id', rideId)
         .maybeSingle();
       if (!ride) return json({ error: 'ride_not_found' }, 404);
-      if (ride.client_id !== user.id) return json({ error: 'not_ride_owner' }, 403);
+      // 2026-08-13 — o admin tambem pode reconferir (botao "Reconferir na
+      // Stripe" do ecra "Corridas presas no pagamento"). Sem isto o painel
+      // levava 403 em corridas que nao sao dele.
+      if (ride.client_id !== user.id && !(await callerIsAdmin(userClient))) {
+        return json({ error: 'not_ride_owner' }, 403);
+      }
 
       if (!ride.payment_intent_id) {
         return json({
@@ -375,18 +404,30 @@ Deno.serve(async (req) => {
     // -- REFUND — cancelamento (padrao client-cancel-order) --
     if (action === 'refund') {
       const rideId = String(body.ride_id ?? '');
-      const feeCents = Math.max(0, Number(body.cancel_fee_cents ?? 0));
       const { data: ride } = await admin
         .from('tvde_rides')
         .select(
-          'id, payment_intent_id, payment_status, est_fare_cents, final_fare_cents',
+          'id, client_id, payment_intent_id, payment_status, est_fare_cents, final_fare_cents, cancel_fee_cents',
         )
         .eq('id', rideId)
         .maybeSingle();
-      if (!ride?.payment_intent_id) return json({ ok: true, noop: true });
-      if (ride.payment_status === 'refunded' || ride.payment_status === 'partial_refund') {
+      if (!ride) return json({ error: 'ride_not_found' }, 404);
+      // 2026-08-13 — esta accao NAO verificava dono nenhum: qualquer utilizador
+      // autenticado podia mandar reembolsar a corrida de OUTRA pessoa so com o
+      // id. Passa a exigir dono ou admin.
+      if (ride.client_id !== user.id && !(await callerIsAdmin(userClient))) {
+        return json({ error: 'not_ride_owner' }, 403);
+      }
+      if (!ride.payment_intent_id) return json({ ok: true, noop: true });
+      if (ride.payment_status === 'refunded' ||
+          ride.payment_status === 'partial_refund' ||
+          ride.payment_status === 'kept_cancel_fee') {
         return json({ ok: true, already: true });
       }
+      // 2026-08-13 — a taxa vem da CORRIDA (escrita por `tvde_cancel_ride`),
+      // nunca do body: `cancel_fee_cents` vindo do cliente decidia quanto lhe
+      // era devolvido. O servidor e a fonte da verdade.
+      const feeCents = Math.max(0, Number(ride.cancel_fee_cents ?? 0));
       const paidCents = Number(ride.final_fare_cents ?? ride.est_fare_cents ?? 0);
       const refundCents = Math.max(0, Math.min(paidCents - feeCents, paidCents));
       if (refundCents >= 1) {
@@ -395,13 +436,21 @@ Deno.serve(async (req) => {
           { idempotencyKey: `refund-${ride.payment_intent_id}-${refundCents}` },
         );
       }
+      // 2026-08-13 — o registo NUNCA pode mentir. Antes, taxa=100% dava
+      // refundCents=0, a Stripe nem era chamada, e mesmo assim gravava-se
+      // `refunded` — a corrida 09c01c88 (Danilo, 13/08 19:05) diz "reembolsado"
+      // sem que um cêntimo tenha voltado. `refunded` so quando ha dinheiro de
+      // volta; zero devolvido = `kept_cancel_fee`.
+      const newStatus = refundCents <= 0
+        ? 'kept_cancel_fee'
+        : (feeCents > 0 ? 'partial_refund' : 'refunded');
       await admin
         .from('tvde_rides')
-        .update({
-          payment_status: feeCents > 0 && refundCents > 0 ? 'partial_refund' : 'refunded',
-        })
+        .update({ payment_status: newStatus })
         .eq('id', ride.id);
-      return json({ ok: true, refundCents });
+      console.log('[tvde-payment refund]', ride.id, 'paid:', paidCents,
+        'fee:', feeCents, 'refunded:', refundCents, '->', newStatus);
+      return json({ ok: true, refundCents, feeCents, paymentStatus: newStatus });
     }
 
     return json({ error: 'unknown_action' }, 400);

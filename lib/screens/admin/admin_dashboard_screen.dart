@@ -82,6 +82,7 @@ import 'admin_tvde_cancellations_screen.dart';
 import 'admin_tvde_drivers_screen.dart';
 import 'admin_tvde_subscriptions_screen.dart';
 import 'admin_tvde_roundtrips_screen.dart';
+import 'admin_tvde_stuck_payments_screen.dart';
 import 'admin_tvde_driver_debts_screen.dart';
 import 'admin_tvde_plan_requests_screen.dart';
 
@@ -1074,6 +1075,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       context,
                       MaterialPageRoute(
                           builder: (_) => const AdminTvdeRoundtripsScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.hourglass_bottom,
+                  title: 'Corridas presas no pagamento',
+                  subtitle:
+                      'Pagou e ninguém foi chamado · reconferir / cancelar / reembolsar',
+                  color: Colors.redAccent,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminTvdeStuckPaymentsScreen())),
                 ),
                 const SizedBox(height: 10),
                 _NavCard(

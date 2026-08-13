@@ -579,7 +579,13 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
     // Corrida estacionada à espera do pagamento: nunca foi cobrada e nunca
     // chamou motorista, por isso desistir é grátis e imediato — mostrar a
     // janela de taxa aqui seria mentira.
-    if (ride.isAwaitingPayment) {
+    //
+    // 2026-08-13 — `isPaymentSettling` ('processing') fica DE FORA: aí o
+    // cliente já confirmou no banco e o dinheiro vai a caminho. Mandá-lo por
+    // este atalho (`skipRefund: true`) apagava a corrida e deixava o pagamento
+    // órfão na Stripe, sem nada para o devolver. Esse caso segue o caminho
+    // normal, que passa pelo refund.
+    if (ride.isAwaitingPayment && !ride.isPaymentSettling) {
       final desistir = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
@@ -1069,11 +1075,19 @@ class _StatusPanel extends StatelessWidget {
           // que já vem alguém a caminho.
           if (ride.isAwaitingPayment) ...[
             const SizedBox(height: Spacing.sm),
-            const Text(
-              'Ainda não começámos a procurar motorista — estamos à espera da '
-              'confirmação do pagamento. Se já confirmaste, aparece dentro de '
-              'momentos.',
-              style: TextStyle(color: AppColors.textSubtle, fontSize: 12),
+            Text(
+              ride.paymentMethod == 'mbway'
+                  // 2026-08-13 — dizer exactamente onde está a bola. O cliente
+                  // que vê "à espera da confirmação do pagamento" sem saber que
+                  // é ELE que tem de confirmar no banco, fica à espera do nada.
+                  ? 'À espera da confirmação do MB Way. Abre a app do teu banco '
+                      'e confirma o pagamento — só depois começamos a procurar '
+                      'motorista.'
+                  : 'Ainda não começámos a procurar motorista — estamos à '
+                      'espera da confirmação do pagamento. Se já confirmaste, '
+                      'aparece dentro de momentos.',
+              style: const TextStyle(
+                  color: AppColors.textSubtle, fontSize: 12),
             ),
           ],
           // Back-to-back — passageiro em fila: contexto claro, sem spinner.

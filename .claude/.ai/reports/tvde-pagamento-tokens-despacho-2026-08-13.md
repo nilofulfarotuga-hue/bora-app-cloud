@@ -6,6 +6,45 @@
 
 ---
 
+> # ✅ APLICADO EM PRODUÇÃO (2026-08-13, autorizado pelo Danilo)
+>
+> | passo | estado |
+> |---|---|
+> | 1 · migration `20260813200000` (tokens + cancelamento) | ✅ aplicada · 8/8 verificações |
+> | 2 · migration `20260813210000` (BUG 6 + mina) | ✅ aplicada · 1 só assinatura, sem overload |
+> | 3 · `stripe-webhook` | ✅ **v32 → v33**, `verify_jwt:false` preservado, smoke test 400 OK |
+> | 4 · `tvde-payment` | ⛔ **NÃO DEPLOYADO** — ver aviso a seguir |
+> | 5 · app (Flutter) | ⛔ **NÃO PUSHED** — ver secção 9 |
+>
+> **Provas recolhidas (secção 12).** Corrida `09c01c88` corrigida: `cancel_fee_cents`
+> 500 → 0 e `payment_status` `refunded` → `succeeded` (o registo deixou de mentir).
+> **O reembolso dos €5 na Stripe continua por fazer** — o MCP desta sessão é sandbox.
+>
+> ---
+>
+> # ⛔ NÃO DEPLOYAR `tvde-payment` — o ficheiro do repo está DESATUALIZADO
+>
+> O diff pedido pelo Danilo antes de publicar apanhou isto: a **v8 em produção** tem
+> features que o ficheiro do repo **não tem**. Publicar o local **apagava-as**:
+>
+> | na v8 (produção) | no repo |
+> |---|---|
+> | `getOrCreateCustomer` — Carteira Única v5 (cartões guardados) | ausente |
+> | `saved_pm_id` / `off_session` / `setup_future_usage` | ausente |
+> | `requiresAction` — 3DS **sem** cancelar a corrida | ausente |
+> | **`charge_roundtrip`** — pacote ida-e-volta online v6 | ausente |
+> | **`confirm_roundtrip_payment`** | ausente |
+>
+> 461 linhas no repo contra ~700 em produção. **O repo perdeu duas releases inteiras.**
+> Antes de qualquer deploy desta função é preciso trazer a v8 real para o repo e
+> re-aplicar por cima as 4 alterações desta missão.
+>
+> **Isto corrige uma afirmação minha na secção 3:** eu disse que `charge_roundtrip` não
+> existia no `tvde-payment`. Não existe **no repo**; existe **em produção**. O briefing
+> original, ao falar em "duas chamadas a `tvde_request_ride`", estava certo.
+>
+> ---
+>
 > # ⛔ NÃO DEPLOYAR `tvde-plan-payment`
 >
 > **Bloqueado até `20260804000000_PROPOSTA_tvde_roundtrip_tokens.sql` estar aplicada
@@ -551,6 +590,45 @@ FROM tvde_rides ORDER BY created_at DESC LIMIT 1;
 **Verde =** `payment_status='succeeded'` · `current_offer_driver_id` preenchido ·
 `n_tried ≥ 1` · push recebido no telemóvel do motorista ·
 `tokens_consumed_at` preenchido se tiver usado tokens.
+
+---
+
+## 12. Provas depois de aplicado
+
+Corridas **reais** criadas em produção dentro de `BEGIN … ROLLBACK` — mede-se tudo e
+desfaz-se tudo. Cliente: a conta do Danilo (`c9fccf85…`, 2.078 tokens).
+
+| prova | método | tarifa | tokens | desconto | descontados | saldo | **ofertas** | **deferred** |
+|---|---|---|---|---|---|---|---|---|
+| **P1** | mbway | 500 | 0 | 0 | — | — | **0** | **1** |
+| **P2** | cash | 500 | 0 | 0 | — | — | **1** | **0** |
+| **P3** | mbway | **450** | 100 | **50** | **sim** | 2078 → **1978** | 1 | 1 |
+
+**P1 — MB Way não despacha.** Zero ofertas, e o evento `dispatch_deferred=true`.
+É exatamente o inverso da corrida `81d1bd09`, onde a oferta saía no mesmo milissegundo.
+
+**P2 — dinheiro continua a despachar na hora.** 1 oferta, sem `deferred`. Sem regressão.
+
+**P3 — a cadeia inteira, do princípio ao fim.**
+1. Nasce `deferred` (é MB Way) → **nenhum motorista chamado**;
+2. `100 tokens → 50 cêntimos` de desconto (500 → **450**) — a regra dos 0,5 c, provada;
+3. marco `payment_status='succeeded'` (o que o webhook agora faz);
+4. **dispara a oferta** (`ofertas=1`) e **os tokens saem do saldo**: 2078 → **1978**,
+   exatamente −100.
+
+Depois do `ROLLBACK`: saldo de volta a **2078**, **0** corridas de teste persistidas,
+corrida em curso do Danilo intacta.
+
+### O que continua por provar (precisa de ti)
+
+- **MB Way real ponta-a-ponta** — o webhook a marcar pago sozinho. O que falta ver no
+  log é a linha nova `[stripe-webhook] tvde ride paid: <id>` em vez da antiga
+  `missing metadata.draft_id and order_id`.
+- **Push no telemóvel do motorista** — o teste acima prova a oferta na base de dados,
+  não o FCM.
+- **Reembolso dos €5** (`pi_3U43sVGlT3R2jCYp0fulK3tK`): a linha já está pronta
+  (`succeeded`, taxa 0). Falta a Stripe — dashboard, ou o botão do painel admin
+  quando a app for publicada.
 
 ---
 

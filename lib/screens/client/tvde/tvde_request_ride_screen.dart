@@ -530,14 +530,25 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
                 'face a duas corridas separadas.'
             : 'Preço total da ida + volta — chamas a volta quando quiseres.',
         allowOnline: _cardEnabled,
-        // PROPOSTA (não deployado, aguarda migration + deploy da Edge Fn):
-        // tokens ligados também ao pacote, com o mesmo teto de 50% — agora
-        // sobre `_roundtripPriceCents` (o preço FINAL dinâmico do pacote, já
-        // com o desconto ida-e-volta embutido), nunca sobre um preço
-        // hipotético de "duas corridas separadas". Antes ficava `false`
-        // porque o preço do pacote era server-side e as RPCs do vale não
-        // recebiam tokens — isso já não é verdade com a proposta abaixo.
-        allowTokens: true,
+        // 2026-08-13 — DESLIGADO de propósito, e só metade da razão mudou.
+        //
+        // O caminho em DINHEIRO já honra tokens: a
+        // `tvde_create_roundtrip_credit_cash(uuid, integer)` foi aplicada e
+        // abate o desconto ao `paid_cents`.
+        //
+        // O caminho ONLINE **não**: quem o serve é a Edge Fn
+        // `tvde-plan-payment`, que está bloqueada para deploy (chama
+        // `tvde_create_roundtrip_credit` com 6 argumentos e em produção tem 4).
+        // A versão que está no ar ignora `tokens_used` — o cliente escolheria
+        // tokens, veria um preço mais baixo na folha de pagamento, e seria
+        // cobrado o valor cheio. Mostrar o toggle seria prometer um desconto
+        // que não acontece.
+        //
+        // A folha é a mesma para dinheiro e online (o método só se escolhe lá
+        // dentro), por isso não dá para ligar só a metade que funciona.
+        // Passar a `true` assim que a `20260804000000_PROPOSTA_tvde_roundtrip_tokens.sql`
+        // estiver aplicada e a `tvde-plan-payment` deployada.
+        allowTokens: false,
       ),
     );
     if (result == null || !mounted) return;

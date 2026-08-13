@@ -13,7 +13,7 @@
 > | 1 · migration `20260813200000` (tokens + cancelamento) | ✅ aplicada · 8/8 verificações |
 > | 2 · migration `20260813210000` (BUG 6 + mina) | ✅ aplicada · 1 só assinatura, sem overload |
 > | 3 · `stripe-webhook` | ✅ **v32 → v33**, `verify_jwt:false` preservado, smoke test 400 OK |
-> | 4 · `tvde-payment` | ⛔ **NÃO DEPLOYADO** — ver aviso a seguir |
+> | 4 · `tvde-payment` | ✅ **v8 → v9** sobre a base certa · `verify_jwt:true` preservado |
 > | 5 · app (Flutter) | ⛔ **NÃO PUSHED** — ver secção 9 |
 >
 > **Provas recolhidas (secção 12).** Corrida `09c01c88` corrigida: `cancel_fee_cents`
@@ -22,10 +22,10 @@
 >
 > ---
 >
-> # ⛔ NÃO DEPLOYAR `tvde-payment` — o ficheiro do repo está DESATUALIZADO
+> # ✅ RESOLVIDO — `tvde-payment` v8 → v9, sobre a base certa
 >
-> O diff pedido pelo Danilo antes de publicar apanhou isto: a **v8 em produção** tem
-> features que o ficheiro do repo **não tem**. Publicar o local **apagava-as**:
+> O diff pedido pelo Danilo antes de publicar apanhou que a **v8 em produção** tinha
+> features que o ficheiro do repo **não tinha**. Publicar o local **apagava-as**:
 >
 > | na v8 (produção) | no repo |
 > |---|---|
@@ -35,9 +35,14 @@
 > | **`charge_roundtrip`** — pacote ida-e-volta online v6 | ausente |
 > | **`confirm_roundtrip_payment`** | ausente |
 >
-> 461 linhas no repo contra ~700 em produção. **O repo perdeu duas releases inteiras.**
-> Antes de qualquer deploy desta função é preciso trazer a v8 real para o repo e
-> re-aplicar por cima as 4 alterações desta missão.
+> 461 linhas no repo contra 700 em produção. **O repo tinha perdido duas releases.**
+>
+> **Como foi resolvido:** li a v8 de produção por MCP, gravei-a verbatim sobre o
+> ficheiro do repo (commit `44d8a5f`, só isso), e só depois apliquei as 4 alterações
+> por cima dessa base (commit seguinte). Deploy = **v9**, com a v5 e a v6 intactas.
+>
+> **Regra que fica:** `get_edge_function` + diff **antes** de deployar qualquer Edge
+> Function deste repo. Pode haver mais funções desalinhadas.
 >
 > **Isto corrige uma afirmação minha na secção 3:** eu disse que `charge_roundtrip` não
 > existia no `tvde-payment`. Não existe **no repo**; existe **em produção**. O briefing
@@ -618,6 +623,39 @@ desfaz-se tudo. Cliente: a conta do Danilo (`c9fccf85…`, 2.078 tokens).
 
 Depois do `ROLLBACK`: saldo de volta a **2078**, **0** corridas de teste persistidas,
 corrida em curso do Danilo intacta.
+
+### Prova final (pedida pelo Danilo) — MB Way €5 com tokens
+
+Depois do deploy da v9, corrida real em `BEGIN … ROLLBACK`:
+
+| | valor | esperado |
+|---|---|---|
+| `payment_method` | `mbway` | — |
+| **`est_fare_cents`** | **450** | ✅ 450 |
+| `tokens_applied_count` | 100 | — |
+| **`tokens_applied_value_cents`** | **50** | ✅ 50 |
+| `450 + 50` | 500 | ✅ a tarifa cheia |
+| `ofertas` | **0** | ✅ não despacha antes de pagar |
+| `dispatch_deferred` | **1** | ✅ |
+
+100 tokens → 50 cêntimos, `est_fare_cents` líquido, e nenhum motorista chamado.
+
+### 🔒 Grants — duas funções minhas estavam abertas ao `anon`
+
+O Danilo mandou verificar o `anon` no vale; o problema era maior:
+
+| função | estava | agora |
+|---|---|---|
+| `tvde_consume_ride_tokens` | **`PUBLIC` + `anon`** | `postgres`, `service_role` |
+| `admin_tvde_stuck_payments` | `anon` | `postgres`, `authenticated`, `service_role` |
+| `tvde_create_roundtrip_credit_cash` | (já revogado antes) | `postgres`, `authenticated`, `service_role` |
+
+**A primeira era explorável.** `consume_tokens` só bloqueia caller≠dono **quando
+`auth.uid()` não é nulo**; com `anon`, `auth.uid()` é NULL e o guard não dispara —
+qualquer um podia queimar os tokens de uma corrida alheia antes de ela ser paga.
+Vinha das *default privileges* do Supabase, que repõem `anon` depois do meu
+`REVOKE ... FROM PUBLIC`. **Lição: em funções novas, revogar `anon` explicitamente e
+verificar `proacl` depois de aplicar.**
 
 ### O que continua por provar (precisa de ti)
 

@@ -55,7 +55,7 @@ DECLARE v_uid UUID := auth.uid(); v_fare INTEGER; v_ride public.tvde_rides;
   v_cov JSONB; v_covered BOOLEAN; v_sub_id UUID; v_is_member BOOLEAN;
   v_d_base INT; v_d_perkm INT; v_extra_km INT; v_base_km INT; v_perkm_client INT;
   v_driver_normal INT; v_driver_earn INT; v_client_fare INT; v_bora_cut INT;
-  v_tokens_discount_cents INT; v_max_discount_cents INT;
+  v_tokens_discount_cents INT; v_max_discount_cents INT; v_token_value_x100 INT;
 BEGIN
   IF v_uid IS NULL THEN RAISE EXCEPTION 'not_authenticated'; END IF;
   IF p_payment_method NOT IN ('cash','card','mbway') THEN
@@ -100,15 +100,25 @@ BEGIN
   END IF;
 
   -- === DESCONTO DE TOKENS (paridade com tvde_finish_ride) ===
-  -- 1 token = 5 cents; tecto = `token_payment_max_pct` (default 50%).
-  -- 2026-08-13: o tecto estava CRAVADO a 50 aqui, por isso o botao do painel
-  -- admin (`token_payment_max_pct`) nao tinha efeito nenhum no TVDE — so nas
-  -- entregas (`create_order` ja lia a chave). Passa a ler a mesma chave, para
-  -- haver UM tecto no sistema todo.
+  -- Valor e tecto SEMPRE das definicoes. NUNCA cravar numeros aqui.
+  --
+  -- 2026-08-13 — estavam os DOIS cravados: `* 5` (5 centimos/token) e `50`.
+  --   * o tecto cravado fazia o botao `token_payment_max_pct` do painel admin
+  --     nao ter efeito nenhum no TVDE (so nas entregas, que ja liam a chave);
+  --   * o `* 5` dava ao token **10x** o valor documentado: o resto do sistema
+  --     usa `token_value_cents_x100 = 50` -> 0,5 centimos (100 tokens = 0,50 EUR,
+  --     CLAUDE.md §5, `wallet_service.dart:172`, `payment_method_screen.dart:270`).
+  --     Ninguem perdeu dinheiro com isso porque os tokens nunca chegavam a ser
+  --     consumidos (o outro lado desta mesma migration) — mas a partir do
+  --     momento em que passam a sair do saldo real, tinha de ficar certo.
+  --     Exposicao medida antes de alinhar: 3.233 tokens activos em 5 pessoas
+  --     = 16,17 EUR a 0,5c (eram 161,65 EUR a 5c).
+  -- Decisao do Danilo (2026-08-13): 0,5 centimos por token, em todo o lado.
   IF p_tokens_to_apply > 0 AND v_client_fare > 0 THEN
+    v_token_value_x100 := COALESCE((public.get_setting('token_value_cents_x100') #>> '{}')::int, 50);
     v_max_discount_cents := GREATEST(0, (v_client_fare
       * COALESCE((public.get_setting('token_payment_max_pct') #>> '{}')::int, 50)) / 100);
-    v_tokens_discount_cents := LEAST(p_tokens_to_apply * 5, v_max_discount_cents);
+    v_tokens_discount_cents := LEAST((p_tokens_to_apply * v_token_value_x100) / 100, v_max_discount_cents);
     v_client_fare := v_client_fare - v_tokens_discount_cents;
     v_bora_cut := v_bora_cut - v_tokens_discount_cents;
   ELSE
@@ -135,6 +145,148 @@ BEGIN
         'covered', v_covered, 'is_member', v_is_member, 'extra_km', v_extra_km,
         'driver_earn_cents', v_driver_earn, 'payment_method', p_payment_method,
         'tokens_requested', p_tokens_to_apply, 'tokens_discount_cents', v_tokens_discount_cents));
+  RETURN v_ride;
+END; $function$;
+
+
+-- ── 2-bis. `tvde_finish_ride` — o outro sitio com o valor cravado ───────────
+-- Mesma correcao da funcao acima, no fecho da corrida (caminho DINHEIRO).
+-- Unica alteracao face a producao: as 3 linhas do bloco de tokens (declaracao
+-- de `v_token_value_x100` + valor e tecto lidos das definicoes). Todo o resto
+-- — tarifa, pernas do pacote, paradas, liquidacao do saldo do motorista — fica
+-- byte a byte igual. Assinatura identica, por isso CREATE OR REPLACE e seguro
+-- (nao cria overload).
+CREATE OR REPLACE FUNCTION public.tvde_finish_ride(
+  p_ride_id uuid, p_final_distance_km numeric,
+  p_distance_source text DEFAULT NULL::text, p_tokens_to_apply integer DEFAULT 0)
+RETURNS public.tvde_rides
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_uid UUID := auth.uid(); v_ride public.tvde_rides;
+  v_fare INT; v_d_base INT; v_d_perkm INT; v_extra_km INT; v_driver_earn INT; v_bora_cut INT;
+  v_sub JSONB; v_covered BOOLEAN; v_sub_id UUID; v_next UUID; v_is_member BOOLEAN;
+  v_stops_fee INT; v_stops_drv INT; v_prepaid BOOLEAN; v_settle INT;
+  v_tokens_discount_cents INT; v_max_discount_cents INT; v_token_value_x100 INT;
+  v_pm TEXT; v_rt_cash BOOLEAN := false; v_rt_price INT;
+  v_stops_cash INT;
+BEGIN
+  SELECT * INTO v_ride FROM public.tvde_rides WHERE id = p_ride_id FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'ride_not_found'; END IF;
+  IF v_ride.driver_id <> v_uid THEN RAISE EXCEPTION 'not_ride_driver'; END IF;
+  IF v_ride.status <> 'em_andamento' THEN RAISE EXCEPTION 'invalid_transition: %', v_ride.status; END IF;
+
+  v_stops_fee := COALESCE(v_ride.extra_stops_fee_cents, 0);
+  v_stops_drv := COALESCE(v_ride.extra_stops_driver_cents, 0);
+  v_prepaid   := v_ride.roundtrip_credit_id IS NOT NULL;
+  v_pm        := COALESCE(v_ride.payment_method, 'cash');
+
+  SELECT COALESCE(SUM(fee_cents),0) INTO v_stops_cash
+    FROM public.tvde_ride_stops
+   WHERE ride_id = p_ride_id AND payment_intent_id IS NULL;
+
+  v_fare := public.tvde_calculate_fare(p_final_distance_km);
+  IF v_ride.is_return_leg THEN
+    v_d_base := (public.get_setting('tvde_roundtrip_return_driver_cents') #>> '{}')::int;
+  ELSE
+    v_d_base := (public.get_setting('tvde_driver_base_cents') #>> '{}')::int;
+  END IF;
+  v_d_perkm := (public.get_setting('tvde_driver_per_km_cents') #>> '{}')::int;
+  v_extra_km := GREATEST(0, CEIL(p_final_distance_km - (public.get_setting('tvde_base_distance_km') #>> '{}')::int))::int;
+  v_driver_earn := v_d_base + v_extra_km * v_d_perkm;
+
+  v_sub := public.tvde_consume_subscription_ride(v_ride.client_id);
+  v_covered := COALESCE((v_sub->>'covered')::boolean, false);
+  v_sub_id := NULLIF(v_sub->>'subscription_id','')::uuid;
+
+  IF v_prepaid THEN
+    v_fare        := v_stops_fee;
+    v_driver_earn := v_driver_earn + v_stops_drv;
+    v_bora_cut    := v_fare - v_driver_earn;
+  ELSIF v_covered THEN
+    v_bora_cut    := (v_driver_earn - ROUND(v_driver_earn * 0.85)::int) + (v_stops_fee - v_stops_drv);
+    v_driver_earn := ROUND(v_driver_earn * 0.85)::int + v_stops_drv;
+    v_fare        := v_stops_fee;
+  ELSE
+    SELECT EXISTS (SELECT 1 FROM public.tvde_subscriptions
+      WHERE client_id = v_ride.client_id AND active = true AND now() BETWEEN starts_at AND ends_at)
+      INTO v_is_member;
+    IF v_is_member THEN
+      v_fare := (public.get_setting('tvde_extra_ride_cents') #>> '{}')::int;
+    END IF;
+    v_fare        := v_fare + v_stops_fee;
+    v_driver_earn := v_driver_earn + v_stops_drv;
+    v_bora_cut    := v_fare - v_driver_earn;
+  END IF;
+
+  -- ⭐ 2026-08-13 — valor e tecto do token vindos das DEFINICOES.
+  -- Era `p_tokens_to_apply * 5` (10x o valor real) e `(v_fare * 50) / 100`.
+  -- Ver nota extensa em `tvde_request_ride`, mais acima.
+  IF p_tokens_to_apply > 0 AND v_fare > 0 THEN
+    v_token_value_x100 := COALESCE((public.get_setting('token_value_cents_x100') #>> '{}')::int, 50);
+    v_max_discount_cents := GREATEST(0, (v_fare
+      * COALESCE((public.get_setting('token_payment_max_pct') #>> '{}')::int, 50)) / 100);
+    v_tokens_discount_cents := LEAST((p_tokens_to_apply * v_token_value_x100) / 100, v_max_discount_cents);
+    v_fare := v_fare - v_tokens_discount_cents;
+    v_bora_cut := v_bora_cut - v_tokens_discount_cents;
+  ELSE
+    v_tokens_discount_cents := 0;
+  END IF;
+
+  UPDATE public.tvde_rides SET status = 'finalizada', final_distance_km = p_final_distance_km,
+    final_fare_cents = v_fare, driver_earn_cents = v_driver_earn, bora_cut_cents = v_bora_cut,
+    used_subscription_ride = v_covered, subscription_id = v_sub_id,
+    final_distance_source = COALESCE(p_distance_source, final_distance_source),
+    tokens_applied_count = CASE WHEN p_tokens_to_apply > 0 THEN p_tokens_to_apply ELSE tokens_applied_count END,
+    tokens_applied_value_cents = CASE WHEN p_tokens_to_apply > 0 THEN v_tokens_discount_cents ELSE tokens_applied_value_cents END,
+    updated_at = now()
+   WHERE id = p_ride_id RETURNING * INTO v_ride;
+
+  -- Pacote pago em DINHEIRO deteta-se pelo vale SEM payment_intent_id (so na IDA).
+  -- v_rt_price = o valor REAL do vale (varia com a distancia), nao o setting fixo.
+  IF v_prepaid AND NOT COALESCE(v_ride.is_return_leg, false) THEN
+    SELECT (payment_intent_id IS NULL), paid_cents INTO v_rt_cash, v_rt_price
+      FROM public.tvde_roundtrip_credits WHERE id = v_ride.roundtrip_credit_id;
+  END IF;
+
+  -- === LIQUIDACAO DO SALDO DO MOTORISTA (tvde_driver_balances) ===
+  -- +v_settle = motorista DEVE a Bora ; -v_settle = Bora DEVE ao motorista.
+  IF v_pm = 'cash' AND NOT v_prepaid AND NOT v_covered THEN
+    v_settle := v_bora_cut;
+  ELSIF v_prepaid AND COALESCE(v_rt_cash, false) AND NOT COALESCE(v_ride.is_return_leg, false) THEN
+    v_settle := (COALESCE(v_rt_price, (public.get_setting('tvde_roundtrip_price_cents') #>> '{}')::int) + v_stops_cash) - v_driver_earn;
+  ELSE
+    v_settle := v_stops_cash - v_driver_earn;
+  END IF;
+  IF v_settle <> 0 THEN
+    INSERT INTO public.tvde_driver_balances (driver_id, balance, updated_at)
+      VALUES (v_uid, ROUND(v_settle / 100.0, 2), now())
+      ON CONFLICT (driver_id) DO UPDATE
+        SET balance = public.tvde_driver_balances.balance + ROUND(v_settle / 100.0, 2), updated_at = now();
+  END IF;
+
+  INSERT INTO public.tvde_ride_events (ride_id, status, actor, meta)
+    VALUES (p_ride_id, 'finalizada', 'driver', jsonb_build_object('final_distance_km', p_final_distance_km,
+      'final_fare_cents', v_fare, 'driver_earn_cents', v_driver_earn, 'bora_cut_cents', v_bora_cut,
+      'extra_stops_fee_cents', v_stops_fee, 'extra_stops_driver_cents', v_stops_drv,
+      'stops_cash_cents', v_stops_cash,
+      'is_return_leg', v_ride.is_return_leg, 'prepaid', v_prepaid, 'rt_cash', v_rt_cash, 'payment_method', v_pm,
+      'roundtrip_price_cents', v_rt_price,
+      'settle_cents', v_settle,
+      'distance_source', p_distance_source, 'subscription', v_sub,
+      'tokens_applied_count', p_tokens_to_apply, 'tokens_discount_cents', v_tokens_discount_cents));
+
+  UPDATE public.tvde_rides SET is_queued = false, status = 'motorista_a_caminho', updated_at = now()
+   WHERE id = (SELECT r3.id FROM public.tvde_rides r3 WHERE r3.driver_id = v_uid AND r3.is_queued = true
+               AND r3.status = 'motorista_atribuido' ORDER BY r3.created_at ASC LIMIT 1)
+   RETURNING id INTO v_next;
+  IF v_next IS NOT NULL THEN
+    INSERT INTO public.tvde_ride_events (ride_id, status, actor, meta)
+      VALUES (v_next, 'motorista_a_caminho', 'system', jsonb_build_object('queued_activation', true, 'after_ride_id', p_ride_id));
+  END IF;
+
   RETURN v_ride;
 END; $function$;
 

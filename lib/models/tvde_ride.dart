@@ -147,12 +147,42 @@ class TvdeRide {
   }
 
   // ── Helpers de estado ───────────────────────────────────────────────────
-  /// Corrida criada mas **estacionada**: nasceu paga-online e o cron de dispatch
-  /// IGNORA este estado, por isso NÃO está a chamar motorista. Só passa a
-  /// 'solicitada' quando o pagamento confirma (`confirm_ride_payment`).
-  /// Nunca mostrar "à procura de motorista" aqui.
-  bool get isAwaitingPayment => status == 'aguarda_pagamento';
-  bool get isSearching => status == 'solicitada';
+  /// Estados do PaymentIntent em que o dinheiro **ainda não entrou**.
+  /// `requires_action` = MB Way empurrado, à espera do toque no banco.
+  /// `processing`      = confirmado no banco, a liquidar.
+  static const _pendingPaymentStatuses = {'requires_action', 'processing'};
+
+  /// Pagamento online por fechar. Enquanto isto for `true` NÃO há dispatch:
+  /// o motorista só é chamado quando `payment_status` chega a 'succeeded'
+  /// (trigger `tr_tvde_dispatch_on_paid`).
+  bool get isPaymentPending =>
+      isPaidOnline && _pendingPaymentStatuses.contains(paymentStatus);
+
+  /// MB Way empurrado, à espera do toque do cliente na app do banco — o
+  /// dinheiro **ainda não saiu**. Desistir aqui é grátis e não há refund a
+  /// fazer.
+  bool get isPaymentAwaitingClient =>
+      isPaidOnline && paymentStatus == 'requires_action';
+
+  /// Confirmado no banco, a liquidar — o dinheiro **já vai a caminho**.
+  /// Cancelar aqui TEM de passar pelo refund; tratar como "não cobrado"
+  /// deixaria o pagamento órfão na Stripe.
+  bool get isPaymentSettling => isPaidOnline && paymentStatus == 'processing';
+
+  /// Corrida criada mas **estacionada**: nasceu paga-online e ainda NÃO está a
+  /// chamar motorista nenhum. Nunca mostrar "à procura de motorista" aqui.
+  ///
+  /// 2026-08-13 — o `status == 'aguarda_pagamento'` era letra morta: a RPC
+  /// `tvde_request_ride` insere SEMPRE `status = 'solicitada'`, mesmo em
+  /// cartão/MB Way (é o que o `tr_tvde_dispatch_on_paid` exige para despachar).
+  /// Resultado: o ecrã dizia "à procura de motorista" antes sequer de o cliente
+  /// tocar no MB Way. A verdade de "já pagou?" está no `payment_status`, não no
+  /// `status` — é de lá que este getter passa a ler.
+  bool get isAwaitingPayment =>
+      status == 'aguarda_pagamento' || isPaymentPending;
+
+  /// À procura de motorista a sério — pedido em pé E dinheiro já dentro.
+  bool get isSearching => status == 'solicitada' && !isPaymentPending;
   /// Pago online (cartão/MB Way) — o motorista NÃO cobra nada ao passageiro.
   bool get isPaidOnline => paymentMethod == 'card' || paymentMethod == 'mbway';
 

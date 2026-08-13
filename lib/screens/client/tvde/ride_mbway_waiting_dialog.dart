@@ -14,7 +14,7 @@ typedef MbwayPaidCheck = Future<bool?> Function(TvdeStore store);
 /// esperar por um estado terminal em vez de seguir logo. Não-dispensável
 /// (`barrierDismissible:false`) — evita que um re-toque dispare uma 2.ª cobrança.
 ///
-/// [checkPaid] corre a cada 3 s; timeout de 120 s → pop(false).
+/// [checkPaid] corre a cada 3 s; ao fim de [timeoutSeconds] → pop(false).
 /// Fábricas: [TvdeRideMbwayWaitingDialog.forRide], [.forRoundtrip] e [.forStop].
 class TvdeRideMbwayWaitingDialog extends StatefulWidget {
   const TvdeRideMbwayWaitingDialog({
@@ -22,6 +22,7 @@ class TvdeRideMbwayWaitingDialog extends StatefulWidget {
     required this.amountEur,
     required this.message,
     required this.checkPaid,
+    this.timeoutSeconds = 120,
   });
 
   /// Espera a confirmação MB Way de uma **corrida**.
@@ -42,6 +43,12 @@ class TvdeRideMbwayWaitingDialog extends StatefulWidget {
       key: key,
       amountEur: amountEur,
       message: 'Abre o MBWay e confirma para a corrida seguir.',
+      // 2026-08-13 — 120 s não chegava: o MB Way demora regularmente mais do
+      // que isso e o cliente ficava com a corrida por marcar como paga (era o
+      // poll, e não o webhook, o único a marcá-la — ver BUG 1). Com o ramo TVDE
+      // no `stripe-webhook` o servidor deixa de depender deste poll, mas 300 s
+      // dá margem real a quem confirma no banco com o telemóvel na mão.
+      timeoutSeconds: 300,
       checkPaid: (store) async {
         final res = await store.confirmRidePayment(rideId);
         // Sem resposta do servidor (rede) → continuar a tentar, não desistir.
@@ -114,6 +121,10 @@ class TvdeRideMbwayWaitingDialog extends StatefulWidget {
   final String message;
   final MbwayPaidCheck checkPaid;
 
+  /// Quanto tempo esperar antes de desistir. A corrida usa 300 s (MB Way é
+  /// lento); parada e pacote mantêm os 120 s de origem.
+  final int timeoutSeconds;
+
   @override
   State<TvdeRideMbwayWaitingDialog> createState() =>
       _TvdeRideMbwayWaitingDialogState();
@@ -121,9 +132,7 @@ class TvdeRideMbwayWaitingDialog extends StatefulWidget {
 
 class _TvdeRideMbwayWaitingDialogState
     extends State<TvdeRideMbwayWaitingDialog> {
-  static const _timeoutSeconds = 120;
-
-  int _secondsLeft = _timeoutSeconds;
+  late int _secondsLeft = widget.timeoutSeconds;
   bool _done = false;
 
   @override

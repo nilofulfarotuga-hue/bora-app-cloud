@@ -84,6 +84,18 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
       'tvde_max_stops',
       'tvde_stop_timer_seconds',
       'tvde_roundtrip_discount_pct',
+      // 2026-08-13 — o interruptor "passada a graça, cancelar custa a corrida
+      // toda". Foi ele que, combinado com o webhook cego (BUG 1), cobrou €5 ao
+      // Danilo por uma corrida que nunca teve motorista. É booleano e não é um
+      // valor em cêntimos: o dono tem de o poder desligar sem deploy.
+      // A janela em si é `cancel_grace_seconds`, já editável acima (_cancelKeys).
+      'tvde_cancel_full_after_grace',
+      // Tecto do desconto por Bora Tokens (% do valor). Mesma regra de
+      // autoridade total do `tvde_roundtrip_discount_pct`: é o preço do produto
+      // da própria Bora. NOTA: até à migration 20260813200000 o TVDE tinha os
+      // 50% CRAVADOS no SQL e ignorava esta chave — mexer aqui só afeta o TVDE
+      // depois dessa migration estar aplicada.
+      'token_payment_max_pct',
     };
     if (tvdeOperational.contains(key)) return true;
     // BLOCO E (2026-07-28) — reagendamento de marcações. São chaves

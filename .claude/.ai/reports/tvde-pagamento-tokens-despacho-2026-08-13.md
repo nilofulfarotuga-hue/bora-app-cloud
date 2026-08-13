@@ -321,6 +321,61 @@ WHERE ride_id = '<nova corrida MB Way>' ORDER BY at;
 
 ---
 
+## 6-ter. Mina desarmada — `tvde_create_roundtrip_credit_cash`
+
+Na mesma migration e na mesma transação, **`DROP` e só depois `CREATE`**:
+
+```sql
+DROP FUNCTION public.tvde_create_roundtrip_credit_cash(uuid);
+CREATE FUNCTION public.tvde_create_roundtrip_credit_cash(
+  p_outbound_ride_id uuid, p_tokens_to_apply integer DEFAULT 0) ...
+```
+
+O `CREATE OR REPLACE` teria criado um **segundo** `f`; a partir daí a chamada de 1
+argumento casa com os dois e dá `function is not unique` (42725 / PGRST203) — partindo
+exactamente as builds instaladas que se queria proteger. O `DEFAULT 0` é o que as
+mantém a andar. `DROP` **sem** `IF EXISTS` de propósito: se a assinatura antiga não
+estiver lá como esperado, a transação aborta inteira em vez de deixar meio-estado.
+
+O que a função nova faz:
+
+- **`paid_cents` líquido** do desconto — é o que o cliente entrega em mão.
+- Tecto `token_payment_max_pct` (50%) sobre o preço **final** do pacote.
+- **Anti-duplo:** se a ida já levou desconto de tokens na sua própria tarifa, o pacote
+  **não** desconta outra vez; grava `tokens_skipped_on_credit` no evento. (Hoje
+  `_solicitarRoundtripCash` não passa tokens à ida — o guard é para o dia em que
+  alguém mudar o ecrã.)
+- **Idempotência intacta:** o vale existente com `payment_intent_id IS NULL` continua a
+  ser devolvido tal e qual, antes de qualquer cálculo. O Flutter tenta 3×.
+- Os tokens ficam registados **na ida** (o vale não tem colunas para eles), o que os põe
+  no caminho do consumidor **único** — o trigger `tr_tvde_consume_tokens`. Sem segundo
+  consumidor, sem duplo consumo.
+- Grants: o `DROP` levou-os. Reponho `authenticated` + `service_role` e **não** reponho
+  `PUBLIC`/`anon` — a função é `SECURITY DEFINER`, mexe em dinheiro, e rebenta com
+  `not_authenticated` sem sessão. O app chama sempre autenticado.
+
+### 🔴 Achado que preciso que decidas: o token vale 10× no TVDE
+
+Ao escrever a fórmula bati nisto:
+
+| onde | valor por token | 100 tokens |
+|---|---|---|
+| `wallet_service.dart:172` + `payment_method_screen.dart:270` (**regra do app**) | 0,5 cêntimos | **€0,50** |
+| `token_value_cents_x100 = 50` → `50/100` (entregas, pacote online) | 0,5 cêntimos | **€0,50** |
+| **`tvde_request_ride` e `tvde_finish_ride`** (`p_tokens_to_apply * 5`) | **5 cêntimos** | **€5,00** |
+
+As duas RPCs do TVDE dão **10× o valor documentado** ("100 tokens = €0,50", CLAUDE.md §5).
+O tecto de 50% limita o estrago por corrida, mas a direção é toda contra a Bora — e
+até agora nem sequer se notava, porque os tokens **nunca eram descontados** (BUG 2).
+Ao passar a descontá-los, isto passa a sair do saldo real do cliente.
+
+**Não mexi.** É o preço ao vivo e é decisão tua, não minha. Na função nova usei a
+fórmula **correta** (`token_value_cents_x100`), igual à do irmão online do pacote — o
+que deixa, à saída desta migration, o token a valer 0,5 c no pacote e 5 c na corrida
+normal. **Diz qual fica e eu alinho os dois num sítio só.**
+
+---
+
 ## 7. Comparação com as entregas (o que copiar, e o que **não** copiar)
 
 ### 7.1 Tokens — as entregas também têm o buraco
@@ -428,16 +483,20 @@ em dinheiro parte inteiro** ("function not found"). A própria migration
 `20260804000000_PROPOSTA_tvde_roundtrip_tokens.sql` avisa disto no cabeçalho — e
 **não** inclui a versão CASH; ficou por escrever.
 
-**Na 1.ª volta desta missão consegui deixá-los fora do commit. Já não consigo:**
-o BUG 6 vive exatamente nesses dois ficheiros Dart
-(`_solicitarRoundtripOnline` e `retryRide`). Estão agora no commit — com o meu fix
-**e** com a chamada de 2 argumentos.
+**Na 1.ª volta consegui deixá-los fora do commit. Na 2.ª já não:** o BUG 6 vive
+exatamente nesses dois ficheiros Dart (`_solicitarRoundtripOnline` e `retryRide`).
 
-**Consequência prática:** o último bloqueador antes de qualquer deploy é escrever
-`tvde_create_roundtrip_credit_cash(p_outbound_ride_id UUID, p_tokens_to_apply INT
-DEFAULT 0)`. Já tenho o corpo atual da função lido do servidor — é meia hora de
-trabalho, e desarma a mina de vez. **Não a escrevi porque não estava no âmbito
-pedido; digo-o em vez de a deixar caladinha.** Diz e faço.
+### ✅ DESARMADA (2026-08-13, autorizada pelo Danilo)
+
+`20260813210000` passa a incluir, **na mesma transação**, o `DROP FUNCTION ... (uuid)`
+seguido do `CREATE FUNCTION ... (uuid, integer DEFAULT 0)`. Ver secção 6-ter.
+
+**Continua de pé** o outro lado da mina: `tvde-plan-payment/index.ts` (por commitar)
+chama `tvde_create_roundtrip_credit` com **6** argumentos e em produção tem **4**.
+Essa é a `20260804000000_PROPOSTA_tvde_roundtrip_tokens.sql` — que existe, está por
+aplicar, e **tem de levar a linha do `payment_status` da secção 6-bis** se for aplicada
+depois da minha. Enquanto isso não estiver resolvido, **`tvde-plan-payment` não deve
+ser deployado.**
 
 ---
 

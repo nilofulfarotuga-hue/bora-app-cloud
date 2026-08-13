@@ -575,6 +575,30 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
     );
   }
 
+  /// "Tentar de novo" após `sem_motorista`.
+  ///
+  /// BUG 6 (2026-08-13) — em dinheiro repete-se aqui mesmo. Paga online, não:
+  /// a corrida anterior já não tem pagamento aproveitável, e criar outra sem
+  /// cobrar dava uma corrida em **dinheiro** disfarçada (o motorista chegaria a
+  /// pedir o valor em mão a quem julgava já ter pago). Nesse caso o
+  /// `retryRide` devolve `null` e mandamos o cliente ao ecrã de pedido, que
+  /// tem a folha de pagamento.
+  Future<void> _retry(TvdeRide ride, TvdeStore store) async {
+    // Capturar o messenger ANTES do pop — depois o `context` deste ecrã já não
+    // serve para o procurar.
+    final messenger = ScaffoldMessenger.of(context);
+    final novo = await store.retryRide();
+    if (!mounted || novo != null) return;
+    if (ride.isPaidOnline) {
+      store.clearActiveRide();
+      Navigator.pop(context);
+      messenger.showSnackBar(const SnackBar(
+        content: Text('Pede a corrida outra vez para escolheres o pagamento — '
+            'a anterior não chegou a ter motorista e não foi cobrada.'),
+      ));
+    }
+  }
+
   Future<void> _cancel(TvdeRide ride) async {
     // Corrida estacionada à espera do pagamento: nunca foi cobrada e nunca
     // chamou motorista, por isso desistir é grátis e imediato — mostrar a
@@ -803,7 +827,7 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
               onChat: () => _openChat(ride),
               onCall: _call,
               onCancel: () => _cancel(ride),
-              onRetry: () => store.retryRide(),
+              onRetry: () => _retry(ride, store),
               onClose: () {
                 store.clearActiveRide();
                 Navigator.pop(context);

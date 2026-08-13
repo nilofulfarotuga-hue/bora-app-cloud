@@ -6,6 +6,24 @@
 
 ---
 
+> # ⛔ NÃO DEPLOYAR `tvde-plan-payment`
+>
+> **Bloqueado até `20260804000000_PROPOSTA_tvde_roundtrip_tokens.sql` estar aplicada
+> COM a linha do `payment_status` da secção 6-bis.**
+>
+> `tvde-plan-payment/index.ts` (por commitar) chama `tvde_create_roundtrip_credit` com
+> **6 argumentos**; em produção tem **4**. Deploy antes disso parte a ativação do pacote
+> ida-e-volta online.
+>
+> E se essa migration for aplicada **depois** da `20260813210000`, tem de levar
+> `payment_status = 'succeeded'` no `UPDATE` que liga o vale — senão a corrida de ida do
+> pacote online deixa de ser despachada de todo (é essa linha que substitui o despacho
+> no INSERT, ver secção 6-bis).
+>
+> **Ordem obrigatória — 2 e 3 nunca separados:** ver secção 9.
+
+---
+
 ## 0. O essencial em 10 linhas
 
 O briefing estava certo no diagnóstico e na maior parte da prescrição. Duas premissas
@@ -354,7 +372,7 @@ O que a função nova faz:
   `PUBLIC`/`anon` — a função é `SECURITY DEFINER`, mexe em dinheiro, e rebenta com
   `not_authenticated` sem sessão. O app chama sempre autenticado.
 
-### 🔴 Achado que preciso que decidas: o token vale 10× no TVDE
+### ✅ RESOLVIDO — o token valia 10× no TVDE
 
 Ao escrever a fórmula bati nisto:
 
@@ -364,15 +382,30 @@ Ao escrever a fórmula bati nisto:
 | `token_value_cents_x100 = 50` → `50/100` (entregas, pacote online) | 0,5 cêntimos | **€0,50** |
 | **`tvde_request_ride` e `tvde_finish_ride`** (`p_tokens_to_apply * 5`) | **5 cêntimos** | **€5,00** |
 
-As duas RPCs do TVDE dão **10× o valor documentado** ("100 tokens = €0,50", CLAUDE.md §5).
-O tecto de 50% limita o estrago por corrida, mas a direção é toda contra a Bora — e
-até agora nem sequer se notava, porque os tokens **nunca eram descontados** (BUG 2).
-Ao passar a descontá-los, isto passa a sair do saldo real do cliente.
+As duas RPCs do TVDE davam **10× o valor documentado** (CLAUDE.md §5).
+Não se notava porque os tokens **nunca eram descontados** (BUG 2) — mas assim que
+passam a sair do saldo real, tinha de ficar certo.
 
-**Não mexi.** É o preço ao vivo e é decisão tua, não minha. Na função nova usei a
-fórmula **correta** (`token_value_cents_x100`), igual à do irmão online do pacote — o
-que deixa, à saída desta migration, o token a valer 0,5 c no pacote e 5 c na corrida
-normal. **Diz qual fica e eu alinho os dois num sítio só.**
+**Exposição medida antes de alinhar** (confirmada por mim, bate ao cêntimo com a
+medição do Danilo):
+
+```sql
+SELECT count(DISTINCT user_id), SUM(amount) FROM bora_tokens
+WHERE is_used = false AND expires_at > now();
+--  5 pessoas | 3.233 tokens
+--  a 0,5c = €16,17     |     a 5c = €161,65
+```
+
+**Ninguém perde: o desconto nunca chegou a sair.**
+
+**Decisão do Danilo (2026-08-13): 0,5 cêntimos por token, em todo o lado.**
+`tvde_request_ride` e `tvde_finish_ride` passam a ler `token_value_cents_x100` **e**
+`token_payment_max_pct` das definições — como já fazia a função nova do vale.
+
+**Regra que fica:** o valor do token e o tecto **nunca** são cravados no SQL. A
+definição é a fonte única. Verificado mecanicamente: zero ocorrências de
+`* 5` ou `* 50) / 100` fora de comentário na migration; 2 leituras de cada chave
+(uma por função).
 
 ---
 
@@ -528,7 +561,7 @@ FROM tvde_rides ORDER BY created_at DESC LIMIT 1;
 | ficheiro | o quê |
 |---|---|
 | `.claude/.ai/propostas/tvde-pagamento-2026-08-13/aplicar_stripe_webhook.py` | 🔴 BUG 1 — proposta aplicável (4/4 âncoras OK) |
-| `supabase/migrations/20260813200000_PROPOSTA_tvde_tokens_e_cancelamento.sql` | 🔴 BUG 2 + 4a + tecto + RPC do painel |
+| `supabase/migrations/20260813200000_PROPOSTA_tvde_tokens_e_cancelamento.sql` | 🔴 BUG 2 + 4a + valor/tecto do token das definições (`tvde_request_ride` **e** `tvde_finish_ride`) + RPC do painel |
 | `supabase/migrations/20260813210000_PROPOSTA_tvde_bug6_despacho_so_cash.sql` | 🔴 BUG 6 — gate do despacho + válvula do pacote |
 | `lib/stores/tvde_store.dart` | BUG 6 — `retryRide` deixa de virar dinheiro às escondidas |
 | `lib/screens/client/tvde/tvde_request_ride_screen.dart` | BUG 6 — ida do pacote leva o método real |

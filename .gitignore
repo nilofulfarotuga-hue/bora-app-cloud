@@ -166,3 +166,4 @@ graphify-out/
 #    root:root que não conseguimos apagar sem sudo; conteúdo já duplicado e
 #    corrigido no caminho original. Não tocar sem root disponível.
 *-oldperm-20260715/
+supabase/functions/stripe-webhook/index.ts.bak

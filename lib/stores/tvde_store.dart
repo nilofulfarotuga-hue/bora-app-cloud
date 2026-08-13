@@ -396,9 +396,22 @@ class TvdeStore extends ChangeNotifier {
   }
 
   /// Tentar de novo após sem_motorista (cria nova corrida com os mesmos pontos).
+  ///
+  /// BUG 6 (2026-08-13) — só serve corridas em DINHEIRO. Antes caía no default
+  /// `paymentMethod: 'cash'`, por isso quem tinha pago por cartão/MB Way e não
+  /// arranjou motorista recebia, ao tocar em "Tentar de novo", uma corrida em
+  /// **dinheiro** sem o saber — o motorista apareceria a pedir o valor em mão.
+  /// Repetir uma corrida paga online exige um pagamento novo, e isso é o ecrã
+  /// de pedido que faz (folha de pagamento + `requestRidePaid`). Aqui devolve
+  /// `null` e quem chama reencaminha — nunca inventa um método de pagamento.
   Future<TvdeRide?> retryRide() async {
     final r = _activeRide;
     if (r == null) return null;
+    if (r.isPaidOnline) {
+      debugPrint('TvdeStore.retryRide: corrida ${r.paymentMethod} — '
+          'exige pagamento novo, reencaminhar para o ecrã de pedido');
+      return null;
+    }
     return requestRide(
       originLat: r.originLat,
       originLng: r.originLng,
@@ -407,6 +420,7 @@ class TvdeStore extends ChangeNotifier {
       destLng: r.destLng,
       destLabel: r.destLabel,
       distanceKm: r.estDistanceKm,
+      paymentMethod: r.paymentMethod,
     );
   }
 
@@ -801,10 +815,20 @@ class TvdeStore extends ChangeNotifier {
 
   /// Cria o PaymentIntent do pacote ida-e-volta (cartão). Preço SERVER-SIDE
   /// (dinâmico, via `tvde_quote_roundtrip`). Reusa a Edge Fn tvde-plan-payment.
-  Future<Map<String, dynamic>?> createRoundtripPayment() async {
+  /// [distanceKm] é obrigatório: a Edge Fn recomputa o preço a partir dela
+  /// (nunca aceita um valor vindo do cliente) — ver PROPOSTA no index.ts.
+  /// [tokensUsed] (PROPOSTA, não deployado) — nº de Bora Tokens escolhidos no
+  /// toggle da folha de pagamento. A Edge Fn recomputa o desconto em cêntimos
+  /// (nunca aceita um valor de desconto vindo do cliente); aqui só viaja a
+  /// CONTAGEM.
+  Future<Map<String, dynamic>?> createRoundtripPayment(double distanceKm,
+      {int tokensUsed = 0}) async {
     try {
-      final res = await _sb.functions
-          .invoke('tvde-plan-payment', body: {'action': 'create_roundtrip'});
+      final res = await _sb.functions.invoke('tvde-plan-payment', body: {
+        'action': 'create_roundtrip',
+        'distance_km': distanceKm,
+        'tokens_used': tokensUsed,
+      });
       final data = res.data;
       if (data is Map && data['clientSecret'] != null) {
         return Map<String, dynamic>.from(data);
@@ -818,10 +842,18 @@ class TvdeStore extends ChangeNotifier {
   }
 
   /// MB Way do pacote ida-e-volta (server-confirm com phone E.164).
-  Future<Map<String, dynamic>?> createRoundtripPaymentMbway(String phone) async {
+  /// [distanceKm] é obrigatório — ver nota em [createRoundtripPayment].
+  /// [tokensUsed] (PROPOSTA, não deployado) — ver nota em [createRoundtripPayment].
+  Future<Map<String, dynamic>?> createRoundtripPaymentMbway(
+      String phone, double distanceKm,
+      {int tokensUsed = 0}) async {
     try {
-      final res = await _sb.functions.invoke('tvde-plan-payment',
-          body: {'action': 'create_roundtrip_mbway', 'phone': phone});
+      final res = await _sb.functions.invoke('tvde-plan-payment', body: {
+        'action': 'create_roundtrip_mbway',
+        'phone': phone,
+        'distance_km': distanceKm,
+        'tokens_used': tokensUsed,
+      });
       final data = res.data;
       if (data is Map && data['paymentIntentId'] != null) {
         return Map<String, dynamic>.from(data);
@@ -843,11 +875,22 @@ class TvdeStore extends ChangeNotifier {
   /// Devolve a linha do vale, ou **null** se não deu. Null é grave: significa
   /// que a ida ficou por ligar e cobraria a tarifa ao cliente — quem chama TEM
   /// de a cancelar (ver `_solicitarRoundtripCash`).
+  ///
+  /// [tokensUsed] (PROPOSTA, não deployado) — nº de Bora Tokens escolhidos no
+  /// toggle. A RPC recomputa o desconto em cêntimos e o teto de 50% do preço
+  /// FINAL do pacote server-side (nunca aceita um valor de desconto vindo do
+  /// cliente); aqui só viaja a CONTAGEM. Depende da migration PROPOSTA que
+  /// acrescenta `p_tokens_to_apply` a `tvde_create_roundtrip_credit_cash`
+  /// estar aplicada — sem ela, este parâmetro extra faz a RPC falhar com
+  /// "function not found" (a assinatura antiga só tem 1 arg).
   Future<Map<String, dynamic>?> createRoundtripCreditCash(
-      String outboundRideId) async {
+      String outboundRideId,
+      {int tokensUsed = 0}) async {
     try {
-      final res = await _sb.rpc('tvde_create_roundtrip_credit_cash',
-          params: {'p_outbound_ride_id': outboundRideId});
+      final res = await _sb.rpc('tvde_create_roundtrip_credit_cash', params: {
+        'p_outbound_ride_id': outboundRideId,
+        'p_tokens_to_apply': tokensUsed,
+      });
       // Mesma defesa do `activeRoundtripCredit`: um composto vazio
       // ({id:null,…}) não é vale (ver licao-rpc-composite-null-row).
       if (res is List && res.isNotEmpty) {

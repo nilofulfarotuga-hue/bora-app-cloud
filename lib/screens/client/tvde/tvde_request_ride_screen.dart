@@ -530,27 +530,35 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
                 'face a duas corridas separadas.'
             : 'Preço total da ida + volta — chamas a volta quando quiseres.',
         allowOnline: _cardEnabled,
-        // Tokens fora: o preço do pacote é server-side e as RPCs do vale não
-        // os recebem — mostrar o toggle prometia um desconto que não existe.
-        allowTokens: false,
+        // PROPOSTA (não deployado, aguarda migration + deploy da Edge Fn):
+        // tokens ligados também ao pacote, com o mesmo teto de 50% — agora
+        // sobre `_roundtripPriceCents` (o preço FINAL dinâmico do pacote, já
+        // com o desconto ida-e-volta embutido), nunca sobre um preço
+        // hipotético de "duas corridas separadas". Antes ficava `false`
+        // porque o preço do pacote era server-side e as RPCs do vale não
+        // recebiam tokens — isso já não é verdade com a proposta abaixo.
+        allowTokens: true,
       ),
     );
     if (result == null || !mounted) return;
 
     if (result.method == 'cash') {
-      await _solicitarRoundtripCash(km, note: result.note);
+      await _solicitarRoundtripCash(km,
+          note: result.note, tokensUsed: result.tokensUsed);
     } else {
       await _solicitarRoundtripOnline(km,
           isMbway: result.method == 'mbway',
           mbwayPhone: result.mbwayPhone,
-          note: result.note);
+          note: result.note,
+          tokensUsed: result.tokensUsed);
     }
   }
 
   /// [Fase B] Pacote em **DINHEIRO** — zero Stripe. A ida nasce cash e despacha
   /// na hora (o motorista recolhe o valor em mão por conta da Bora); logo a
   /// seguir a RPC cria o vale e liga-lhe a ida.
-  Future<void> _solicitarRoundtripCash(double km, {String? note}) async {
+  Future<void> _solicitarRoundtripCash(double km,
+      {String? note, int tokensUsed = 0}) async {
     final store = context.read<TvdeStore>();
     final messenger = ScaffoldMessenger.of(context);
 
@@ -579,7 +587,8 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     // Ligar ao vale. Idempotente por ida, por isso o retry é seguro.
     Map<String, dynamic>? vale;
     for (var i = 0; i < 3 && vale == null; i++) {
-      vale = await store.createRoundtripCreditCash(ida.id);
+      vale = await store.createRoundtripCreditCash(ida.id,
+          tokensUsed: tokensUsed);
       if (!mounted) return;
       if (vale == null && i < 2) {
         await Future.delayed(const Duration(seconds: 2));
@@ -611,7 +620,10 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
   /// [Fase B] Pacote em **CARTÃO / MB Way** — o contrato que já existia, intacto:
   /// PaymentIntent do valor dinâmico → cria a ida → `activate_roundtrip` liga-a.
   Future<void> _solicitarRoundtripOnline(double km,
-      {required bool isMbway, String? mbwayPhone, String? note}) async {
+      {required bool isMbway,
+      String? mbwayPhone,
+      String? note,
+      int tokensUsed = 0}) async {
     final store = context.read<TvdeStore>();
     final messenger = ScaffoldMessenger.of(context);
     final priceEur = _roundtripPriceCents / 100;
@@ -619,8 +631,9 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     // 1) PaymentIntent do preço dinâmico (server-side). MB Way confirma-se na
     //    app do banco; cartão confirma-se já a seguir.
     final created = isMbway
-        ? await store.createRoundtripPaymentMbway(mbwayPhone!)
-        : await store.createRoundtripPayment();
+        ? await store.createRoundtripPaymentMbway(mbwayPhone!, km,
+            tokensUsed: tokensUsed)
+        : await store.createRoundtripPayment(km, tokensUsed: tokensUsed);
     if (!mounted) return;
     final paymentIntentId = created?['paymentIntentId'] as String?;
     if (created == null || paymentIntentId == null) {
@@ -652,11 +665,20 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     //    ela que fica ligada ao vale (`tvde_rides.roundtrip_credit_id`). Sem essa
     //    ligação o `tvde_finish_ride` não a trata como pré-paga e o cliente
     //    pagaria a ida outra vez.
-    //    O `paymentMethod` fica no default: o PaymentIntent dos €8 está no VALE,
-    //    não nesta corrida — marcá-la 'card' faria o backend procurar um PI dela
-    //    que não existe. [Fase B] Se o backend a fizer nascer 'aguarda_pagamento',
-    //    quem a liberta é o `activate_roundtrip` (gancho do lado do servidor); o
-    //    Flutter é tolerante aos dois mundos e não força nada.
+    //    BUG 6 (2026-08-13) — o `paymentMethod` ficava no DEFAULT ('cash'), e
+    //    isso não era cosmético: `fn_tvde_dispatch_on_request` despacha na hora
+    //    toda a corrida que nasce em dinheiro. Resultado provado na corrida
+    //    81d1bd09 (20:10:43): a ida nasceu 'cash', o motorista foi chamado no
+    //    MESMO milissegundo, aceitou 15 s depois e pôs-se a caminho — tudo com
+    //    o cliente ainda parado no ecrã do MB Way. Aos 20:12 caiu em
+    //    'payment_failed'. O método real TEM de ir aqui.
+    //    O receio antigo ("marcá-la 'card' faz o backend procurar um PI dela
+    //    que não existe") continua válido e continua tratado: o PI dos €8 vive
+    //    no VALE, esta corrida não tem `payment_intent_id`. Quem a liberta
+    //    passa a ser o `activate_roundtrip` → `tvde_create_roundtrip_credit`,
+    //    que marca `payment_status='succeeded'` ao ligar o vale e deixa o
+    //    `tr_tvde_dispatch_on_paid` despachar. Um só mecanismo, o mesmo da
+    //    corrida normal paga online.
     TvdeRide? ida;
     try {
       ida = await store.requestRide(
@@ -667,6 +689,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
         destLng: _dest!.longitude,
         destLabel: _destLabel,
         distanceKm: km,
+        paymentMethod: isMbway ? 'mbway' : 'card',
       );
     } catch (_) {}
     if (!mounted) return;

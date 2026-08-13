@@ -233,6 +233,94 @@ Não o corrigi porque a correção certa (mover a criação do vale para o webho
 
 ---
 
+## 6-bis. BUG 6 — a corrida nascia "cash" e o motorista era chamado antes de pagar
+
+Reportado pelo Danilo a 2026-08-13 20:10 e confirmado por mim nos eventos.
+**É pior do que o reportado: o motorista não foi só chamado — aceitou e pôs-se a caminho.**
+
+```
+20:10:43.398  solicitada           client   payment_method: "cash"   <-- MB Way!
+20:10:43.398  oferta               system   driver 4f61dd31, ttl 40s <-- MESMO ms
+20:10:44.846  push_enviado         system   driver 4f61dd31
+20:10:58.757  motorista_atribuido  driver
+20:10:58.757  motorista_a_caminho  driver                            <-- ACEITOU
+20:12:44.126  cancelada_cliente    admin    payment_failed, elapsed=121
+```
+
+`payment_intent_id = NULL`. Um motorista da Guarda conduziu 2 minutos para uma
+corrida nunca paga, com o cliente ainda parado no ecrã do MB Way.
+
+### As duas causas, encadeadas
+
+**(1) O Flutter não passava o método.** `_solicitarRoundtripOnline` criava a corrida
+de ida com `store.requestRide(...)` **sem `paymentMethod`** → default `'cash'`.
+O comentário no código até explicava o raciocínio (o PaymentIntent dos €8 está no
+*vale*, não na corrida) — o raciocínio estava certo, a consequência é que não foi
+seguida até ao fim.
+
+**(2) `fn_tvde_dispatch_on_request` despacha na hora toda a corrida `'cash'`** — e
+"cash" era, na prática, "o cliente não disse nada":
+
+```sql
+if new.status = 'solicitada' and coalesce(new.payment_method,'cash') = 'cash' then
+```
+
+`payment_method` é `NOT NULL DEFAULT 'cash'` (confirmei em `information_schema`),
+por isso o `COALESCE` nunca fez nada — mas o desenho dizia *"na dúvida, despacha"*.
+
+### Correção
+
+**Servidor** (`20260813210000_PROPOSTA_tvde_bug6_despacho_so_cash.sql`) — o gate fica
+onde não se pode esquecer:
+
+```sql
+if new.status = 'solicitada' and new.payment_method = 'cash' then
+  perform public.tvde_offer_to_next(new.id);
+else
+  -- grava `dispatch_deferred` no evento, para não parecer silêncio
+```
+
+Na dúvida, **não** despacha. Cartão e MB Way passam a depender só de
+`payment_status='succeeded'` → `tr_tvde_dispatch_on_paid`.
+
+**A válvula que substitui o despacho no INSERT.** Verifiquei que *nem*
+`tvde_create_roundtrip_credit` *nem* a variante `_cash` chamavam `tvde_offer_to_next`:
+**o `payment_method='cash'` acidental era a única coisa que despachava a ida do pacote.**
+Tirá-lo sem substituto deixaria o pacote online morto. Por isso
+`tvde_create_roundtrip_credit` passa a marcar `payment_status='succeeded'` na corrida
+de ida ao ligar o vale — o pacote está pago, logo a perna está paga — e o despacho sai
+pelo mesmo trigger de qualquer corrida paga online. Um só mecanismo.
+
+**App:** a ida do pacote passa a nascer com o método real (`'mbway'`/`'card'`).
+
+### Achado extra — o mesmo bug no "Tentar de novo"
+
+`TvdeStore.retryRide()` também caía no default `'cash'`. Quem pagou por MB Way, ficou
+sem motorista e tocou em **"Tentar de novo"** recebia uma corrida em **dinheiro** sem o
+saber — o motorista chegaria a pedir o valor em mão a quem julgava já ter pago.
+Agora `retryRide` leva o método real e **recusa-se** a repetir uma corrida paga online
+(devolve `null`); o ecrã manda o cliente à folha de pagamento com uma mensagem clara.
+
+### Interação a vigiar
+
+`20260804000000_PROPOSTA_tvde_roundtrip_tokens.sql` redefine
+`tvde_create_roundtrip_credit` com **6** argumentos. Se for aplicada **depois** desta,
+tem de levar a mesma linha do `payment_status` — senão a ida do pacote online deixa de
+ser despachada de todo. Está avisado no cabeçalho da migration nova.
+
+### Prova a recolher depois de aplicar
+
+```sql
+SELECT at, status, actor, meta FROM tvde_ride_events
+WHERE ride_id = '<nova corrida MB Way>' ORDER BY at;
+```
+
+**Antes:** `solicitada` e `oferta` no mesmo milissegundo.
+**Depois (verde):** `solicitada` com `meta->>'dispatch_deferred' = 'true'`, **nenhuma**
+`oferta` até o pagamento fechar, e só então `oferta` + `push_enviado`.
+
+---
+
 ## 7. Comparação com as entregas (o que copiar, e o que **não** copiar)
 
 ### 7.1 Tokens — as entregas também têm o buraco
@@ -314,9 +402,14 @@ Nada disto foi aplicado em produção. Por ordem:
 | # | ação | risco se sair fora de ordem |
 |---|---|---|
 | 1 | aplicar `20260813200000_PROPOSTA_tvde_tokens_e_cancelamento.sql` | — |
-| 2 | `python .../aplicar_stripe_webhook.py --aplicar` + deploy `stripe-webhook` | — |
-| 3 | deploy `tvde-payment` | sem o passo 1 o refund não lê `cancel_fee_cents` correto |
-| 4 | build/deploy do app (Flutter + admin) | sem o passo 1 o ecrã novo dá erro tratado |
+| 2 | aplicar `20260813210000_PROPOSTA_tvde_bug6_despacho_so_cash.sql` | — |
+| 3 | `python .../aplicar_stripe_webhook.py --aplicar` + deploy `stripe-webhook` | **sem isto o passo 2 deixa cartão/MB Way sem quem os despache** |
+| 4 | deploy `tvde-payment` | sem o passo 1 o refund não lê `cancel_fee_cents` correto |
+| 5 | build/deploy do app (Flutter + admin) | sem o passo 1 o ecrã novo dá erro tratado |
+
+**Os passos 2 e 3 andam juntos.** O passo 2 tira o despacho no INSERT a cartão/MB Way;
+quem passa a despachá-los é o webhook do passo 3. Aplicar o 2 sozinho deixa as corridas
+online paradas.
 
 **Não fiz `git push`.** Dois motivos, ambos concretos:
 
@@ -326,17 +419,25 @@ Nada disto foi aplicado em produção. Por ordem:
    **e** deploy web. Com o backend por aplicar, publicava-se um app que fala com um
    servidor que ainda não sabe responder.
 
-### 🚨 Mina no working tree — não é minha, mas viaja no mesmo push
+### 🚨 Mina no working tree — e agora está entrançada com o meu trabalho
 
-Ficheiros **por commitar** de uma sessão anterior (`tvde_store.dart`,
-`tvde_request_ride_screen.dart`, `tvde-plan-payment/index.ts`) já chamam
-`tvde_create_roundtrip_credit_cash` com **2 argumentos**. Em produção a função tem **1**.
+Ficheiros de uma sessão anterior (`tvde_store.dart`, `tvde_request_ride_screen.dart`,
+`tvde-plan-payment/index.ts`) chamam `tvde_create_roundtrip_credit_cash` com **2
+argumentos**. Em produção a função tem **1**. Deployado assim, **o pacote ida-e-volta
+em dinheiro parte inteiro** ("function not found"). A própria migration
+`20260804000000_PROPOSTA_tvde_roundtrip_tokens.sql` avisa disto no cabeçalho — e
+**não** inclui a versão CASH; ficou por escrever.
 
-**Se isso for deployado como está, o pacote ida-e-volta em dinheiro parte inteiro**
-("function not found"). A própria migration `20260804000000_PROPOSTA_tvde_roundtrip_tokens.sql`
-avisa disto no cabeçalho — e **não** inclui a versão CASH; ficou por escrever.
+**Na 1.ª volta desta missão consegui deixá-los fora do commit. Já não consigo:**
+o BUG 6 vive exatamente nesses dois ficheiros Dart
+(`_solicitarRoundtripOnline` e `retryRide`). Estão agora no commit — com o meu fix
+**e** com a chamada de 2 argumentos.
 
-→ Deixei esses ficheiros **fora** do que preparei para commit. Não os toquei.
+**Consequência prática:** o último bloqueador antes de qualquer deploy é escrever
+`tvde_create_roundtrip_credit_cash(p_outbound_ride_id UUID, p_tokens_to_apply INT
+DEFAULT 0)`. Já tenho o corpo atual da função lido do servidor — é meia hora de
+trabalho, e desarma a mina de vez. **Não a escrevi porque não estava no âmbito
+pedido; digo-o em vez de a deixar caladinha.** Diz e faço.
 
 ---
 
@@ -369,6 +470,9 @@ FROM tvde_rides ORDER BY created_at DESC LIMIT 1;
 |---|---|
 | `.claude/.ai/propostas/tvde-pagamento-2026-08-13/aplicar_stripe_webhook.py` | 🔴 BUG 1 — proposta aplicável (4/4 âncoras OK) |
 | `supabase/migrations/20260813200000_PROPOSTA_tvde_tokens_e_cancelamento.sql` | 🔴 BUG 2 + 4a + tecto + RPC do painel |
+| `supabase/migrations/20260813210000_PROPOSTA_tvde_bug6_despacho_so_cash.sql` | 🔴 BUG 6 — gate do despacho + válvula do pacote |
+| `lib/stores/tvde_store.dart` | BUG 6 — `retryRide` deixa de virar dinheiro às escondidas |
+| `lib/screens/client/tvde/tvde_request_ride_screen.dart` | BUG 6 — ida do pacote leva o método real |
 | `supabase/functions/tvde-payment/index.ts` | BUG 4b/4c — registo honesto, dono/admin, taxa do servidor |
 | `lib/models/tvde_ride.dart` | BUG 5 — raiz: getters liam `status`, não `payment_status` |
 | `lib/screens/client/tvde/tvde_ride_tracking_screen.dart` | BUG 5 — texto MB Way + cancelar não salta o refund |
@@ -378,5 +482,5 @@ FROM tvde_rides ORDER BY created_at DESC LIMIT 1;
 | `lib/screens/admin/admin_platform_settings_screen.dart` | 2 chaves editáveis |
 
 **NÃO tocados:** `stripe-webhook/index.ts` (Trava) · `tvde_ride_charge_cents`
-(secção 4) · qualquer ramo de entregas/reservas/wallet · `tvde_store.dart` e
-`tvde-plan-payment` (a mina da secção 9).
+(secção 4) · qualquer ramo de entregas/reservas/wallet · `tvde-plan-payment/index.ts`
+· `tvde_create_roundtrip_credit_cash` (a mina da secção 9, por desarmar).

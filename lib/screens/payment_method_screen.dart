@@ -49,13 +49,13 @@ class _ComingSoonPaymentNotice extends StatelessWidget {
           padding: const EdgeInsets.symmetric(
               horizontal: Spacing.lg, vertical: Spacing.lg),
           decoration: BoxDecoration(
-            color: const Color(0xFFF97316).withValues(alpha: 0.10),
+            color: AppColors.accent.withValues(alpha: 0.10),
             borderRadius: BorderRadius.circular(Radii.lg),
-            border: Border.all(color: const Color(0xFFF97316)),
+            border: Border.all(color: AppColors.accent),
           ),
           child: Row(
             children: [
-              const Icon(Icons.schedule, color: Color(0xFFF97316)),
+              const Icon(Icons.schedule, color: AppColors.accent),
               const SizedBox(width: Spacing.md),
               const Expanded(
                 child: Text(

@@ -401,9 +401,9 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                                     v ? _walletAppliedCents() : 0);
                               },
                         contentPadding: EdgeInsets.zero,
-                        activeColor: Colors.green,
+                        activeColor: AppColors.primary,
                         secondary: const Icon(Icons.account_balance_wallet,
-                            color: Colors.green),
+                            color: AppColors.primary),
                         title: const Text(
                           'Usar saldo Bora',
                           style: TextStyle(fontWeight: FontWeight.w600),

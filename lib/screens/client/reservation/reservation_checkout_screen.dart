@@ -508,9 +508,11 @@ class _ReservationCheckoutScreenState extends State<ReservationCheckoutScreen> {
             _TermLine(text: '   • €2 crédito para usar no restaurante.'),
             _TermLine(text: 'Reembolso 100% se cancelares até 2h antes.'),
             _TermLine(
+                isWarning: true,
                 text:
                     'Após esse limite, €3 não reembolsável (política do restaurante).'),
             _TermLine(
+                isWarning: true,
                 text: 'Se não apareceres, €3 ficam para o restaurante.'),
           ],
         ),
@@ -551,8 +553,12 @@ class _ReservationCheckoutScreenState extends State<ReservationCheckoutScreen> {
 }
 
 class _TermLine extends StatelessWidget {
-  const _TermLine({required this.text});
+  const _TermLine({required this.text, this.isWarning = false});
   final String text;
+
+  /// Linhas de penalização usam ícone neutro — um visto verde ao lado de
+  /// "€3 não reembolsável" comunicava o oposto da política.
+  final bool isWarning;
 
   @override
   Widget build(BuildContext context) {
@@ -561,7 +567,11 @@ class _TermLine extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.check_circle, size: 16, color: AppColors.primary),
+          Icon(
+            isWarning ? Icons.info_outline : Icons.check_circle,
+            size: 16,
+            color: isWarning ? AppColors.textSubtle : AppColors.primary,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(

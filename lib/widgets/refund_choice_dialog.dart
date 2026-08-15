@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../config/app_colors.dart';
 import '../services/wallet_service.dart';
 
 /// Diálogo apresentado ao cliente quando cancela um pedido com refund.
@@ -118,7 +119,9 @@ class _RefundChoiceDialogState extends State<_RefundChoiceDialog> {
         Navigator.of(context).pop(RefundChoiceResult(refundMethod: _method, reason: reason));
       }
     } catch (e) {
-      if (mounted) setState(() => _error = e.toString());
+      if (mounted) {
+        setState(() => _error = 'Não foi possível cancelar. Tenta de novo.');
+      }
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -130,7 +133,7 @@ class _RefundChoiceDialogState extends State<_RefundChoiceDialog> {
     final canStripe = widget.originalPaymentMethod == 'card';
 
     return AlertDialog(
-      title: Text('Como queres receber o reembolso de €${widget.refundableEur.toStringAsFixed(2)}?'),
+      title: Text('Como queres receber o reembolso de €${widget.refundableEur.toStringAsFixed(2).replaceAll('.', ',')}?'),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -149,19 +152,19 @@ class _RefundChoiceDialogState extends State<_RefundChoiceDialog> {
               value: 'wallet',
               groupValue: _method,
               onChanged: (v) => setState(() => _method = v!),
-              title: const Text('App — instantâneo'),
+              title: const Text('Saldo Bora — instantâneo'),
               subtitle: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '€${(preview.freeCents / 100).toStringAsFixed(2)} saldo livre + '
-                    '${preview.tokensCount} tokens (≈€${(preview.tokensCents / 100).toStringAsFixed(2)})',
+                    '€${(preview.freeCents / 100).toStringAsFixed(2).replaceAll('.', ',')} saldo livre + '
+                    '${preview.tokensCount} tokens (≈€${(preview.tokensCents / 100).toStringAsFixed(2).replaceAll('.', ',')})',
                     style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 4),
                   const Text(
                     'Saldo livre nunca expira. Tokens dão até 50% desconto no checkout.',
-                    style: TextStyle(fontSize: 11, color: Colors.black54),
+                    style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
                   ),
                 ],
               ),
@@ -177,12 +180,12 @@ class _RefundChoiceDialogState extends State<_RefundChoiceDialog> {
             ),
             if (_error != null) ...[
               const SizedBox(height: 8),
-              Text(_error!, style: const TextStyle(color: Colors.red)),
+              Text(_error!, style: const TextStyle(color: AppColors.error)),
             ],
             const SizedBox(height: 8),
             const Text(
               'Saldo não reembolsável em dinheiro.',
-              style: TextStyle(fontSize: 11, color: Colors.black45),
+              style: TextStyle(fontSize: 11, color: AppColors.textSubtle),
             ),
           ],
         ),
@@ -198,7 +201,7 @@ class _RefundChoiceDialogState extends State<_RefundChoiceDialog> {
               ? const SizedBox(
                   width: 16, height: 16,
                   child: CircularProgressIndicator(strokeWidth: 2))
-              : const Text('Confirmar cancelamento'),
+              : const Text('Confirmar'),
         ),
       ],
     );

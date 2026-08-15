@@ -37,7 +37,10 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
       final b = await WalletService.instance.getBalance();
       if (mounted) setState(() => _balance = b);
     } catch (e) {
-      if (mounted) setState(() => _error = e.toString());
+      if (mounted) {
+        setState(() =>
+            _error = 'Não foi possível carregar o saldo. Tenta de novo.');
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -55,7 +58,7 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
             : _error != null
                 ? ListView(children: [
                     const SizedBox(height: 80),
-                    Center(child: Text(_error!, style: const TextStyle(color: Colors.red))),
+                    Center(child: Text(_error!, style: const TextStyle(color: AppColors.error))),
                   ])
                 : _buildBody(),
       ),
@@ -69,7 +72,7 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
     final cardColor = isNeg ? Colors.red.shade50 : Colors.green.shade50;
     final iconColor = isNeg ? Colors.red.shade700 : Colors.green;
     final subtitle = isBlocked
-        ? 'BLOQUEADO — regularize para fazer pedidos'
+        ? 'BLOQUEADO — regulariza para fazeres pedidos'
         : (isNeg
             ? 'Saldo devedor — descontado na próxima compra'
             : 'Livre, nunca expira');

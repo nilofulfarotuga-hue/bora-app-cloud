@@ -233,6 +233,8 @@ class _StatusBadge extends StatelessWidget {
       ),
       child: Text(
         label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w700,
@@ -247,7 +249,7 @@ class _StatusBadge extends StatelessWidget {
       return ('Concluída', AppColors.primary);
     }
     if (r.isNoShow) {
-      return ('Não compareceu', Colors.red);
+      return ('Não compareceu', AppColors.error);
     }
     if (r.isArrived) {
       return ('Chegou', AppColors.primary);
@@ -267,9 +269,9 @@ class _StatusBadge extends StatelessWidget {
       );
     }
     if (r.isCancelled) {
-      return (_labelForStatus(r.status), Colors.grey);
+      return (_labelForStatus(r.status), AppColors.textSubtle);
     }
-    return (_labelForStatus(r.status), Colors.grey);
+    return (_labelForStatus(r.status), AppColors.textSubtle);
   }
 
   static String _labelForStatus(String status) {
@@ -290,7 +292,7 @@ class _StatusBadge extends StatelessWidget {
       case 'rejected_refunded':    return 'Recusada (reembolso)';
       case 'cancelled':            return 'Cancelada';
       case 'rejected':             return 'Recusada';
-      default:                     return status;
+      default:                     return 'Estado desconhecido';
     }
   }
 }

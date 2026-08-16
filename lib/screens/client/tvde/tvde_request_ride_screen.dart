@@ -410,27 +410,90 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
       if (!mounted) return;
       _openTracking();
     } catch (e) {
-      // O cliente recusou/cancelou o cartão (ou a cobrança rebentou) com a
-      // corrida já criada e estacionada → cancelá-la, senão fica pendurada até
-      // o cron a apanhar. Nada foi cobrado, por isso não se pede refund.
       final orfa = criada;
+      final s = e.toString();
+      final foiDesistencia = s.contains('cancel') || s.contains('Cancel');
+      // Cliente abriu a PaymentSheet e voltou sem pagar (corrida d947b446,
+      // 2026-08-16): a corrida existe mas NUNCA foi cobrada. Em vez de a
+      // cancelar em silêncio, mostrar o estado real com escolha explícita —
+      // "Pagar de novo" (mesmo PaymentIntent) ou "Cancelar corrida".
+      if (orfa != null && orfa.isAwaitingPayment && foiDesistencia && mounted) {
+        final secret = store.cardClientSecretFor(orfa.id);
+        if (secret != null) {
+          await _pagamentoAbandonado(store, orfa, secret);
+          return;
+        }
+      }
+      // Falha a sério (ou desistência sem PI reaproveitável) com a corrida já
+      // criada e estacionada → cancelá-la, senão fica pendurada até o cron a
+      // apanhar. Nada foi cobrado, por isso não se pede refund.
       if (orfa != null && orfa.isAwaitingPayment) {
         try {
           await store.cancelRide(orfa.id,
               reason: 'payment_failed', skipRefund: true);
         } catch (_) {/* o cron limpa (payment_timeout) */}
+        store.clearActiveRide();
       }
       if (!mounted) return;
-      final s = e.toString();
       final msg = s.contains('ride_in_progress')
           ? 'Já tens uma corrida em curso.'
           : s.contains('card_payments_not_enabled')
               ? 'Pagamento por cartão ainda não está disponível.'
-              : s.contains('cancel') || s.contains('Cancel')
+              : foiDesistencia
                   ? 'Pagamento não concluído. A corrida não foi pedida.'
                   : 'Não foi possível pedir a corrida.';
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(msg)));
+    }
+  }
+
+  /// PaymentSheet abandonada com a corrida estacionada em `aguarda pagamento`.
+  /// NUNCA seguir para "à procura de motorista": ficar no checkout, dizer o
+  /// estado real e dar as duas saídas. Repete enquanto o cliente reabrir a
+  /// sheet e voltar a desistir.
+  Future<void> _pagamentoAbandonado(
+      TvdeStore store, TvdeRide orfa, String secret) async {
+    while (mounted) {
+      final pagarDeNovo = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Pagamento não concluído'),
+          content: const Text(
+              'A corrida ainda não foi pedida e não foste cobrado. Queres '
+              'tentar pagar outra vez?'),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancelar corrida')),
+            FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Pagar de novo')),
+          ],
+        ),
+      );
+      if (!mounted) return;
+      if (pagarDeNovo != true) {
+        try {
+          await store.cancelRide(orfa.id,
+              reason: 'payment_failed', skipRefund: true);
+        } catch (_) {/* o cron limpa (payment_timeout) */}
+        store.clearActiveRide();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Corrida cancelada. Não foste cobrado.')));
+        return;
+      }
+      try {
+        await PaymentService().processPayment(secret);
+      } catch (_) {
+        continue; // voltou a desistir → mesma escolha outra vez
+      }
+      if (!mounted) return;
+      final libertada = await _aguardarPagamentoOnline(store, orfa, 'card');
+      if (!mounted) return;
+      if (libertada) _openTracking();
+      return;
     }
   }
 
@@ -740,7 +803,19 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
         return;
       }
     } else {
-      await store.activateRoundtrip(ida.id, paymentIntentId);
+      try {
+        await store.activateRoundtrip(ida.id, paymentIntentId);
+      } catch (_) {
+        // Cartão já cobrado mas o vale não ficou ligado: a ida fica parqueada
+        // em "aguarda pagamento" (payment_status NULL nunca despacha) e o
+        // cliente vê o estado real no tracking em vez de "à procura".
+        if (!mounted) return;
+        messenger.showSnackBar(const SnackBar(
+            content: Text('Pago, mas falhou ativar a ida e volta. Fala com o '
+                'suporte — ninguém foi chamado.')));
+        _openTracking();
+        return;
+      }
     }
 
     final trimmed = note?.trim() ?? '';

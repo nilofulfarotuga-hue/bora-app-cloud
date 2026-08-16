@@ -218,6 +218,32 @@ class CleaningStore extends ChangeNotifier {
       ..subscribe();
   }
 
+  /// Espelho do servidor ao voltar ao foreground (2026-08-16): rebusca a
+  /// reserva acompanhada por id. O realtime pode ter perdido eventos com a
+  /// app em background — a tela nunca assume o estado local como verdade.
+  Future<void> refreshTracked() async {
+    final t = _tracked;
+    if (t == null) return;
+    try {
+      final row = await _sb
+          .from('cleaning_bookings')
+          .select()
+          .eq('id', t.id)
+          .maybeSingle();
+      if (row != null) {
+        final updated =
+            CleaningBooking.fromSupabase(Map<String, dynamic>.from(row));
+        _tracked = updated;
+        _bookings = [
+          for (final b in _bookings) b.id == updated.id ? updated : b
+        ];
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('CleaningStore.refreshTracked error => $e');
+    }
+  }
+
   /// Fecha o acompanhamento (após concluir/cancelar/sair do ecrã).
   void clearTracked() {
     _unsubscribe();

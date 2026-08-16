@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 // `flutter_stripe` exporta `Card` que colide com Material `Card`.
 import 'package:flutter_stripe/flutter_stripe.dart' hide Card;
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../config/app_colors.dart';
 import '../../../services/payment_service.dart';
@@ -118,6 +119,11 @@ class _ReservationCheckoutScreenState extends State<ReservationCheckoutScreen> {
     // Lido ANTES do primeiro await — o gate biometrico e assincrono e o
     // context nao pode ser usado depois dele.
     final reservationStore = context.read<ReservationStore>();
+    // Hoisted p/ o catch poder limpar a reserva orfa pending_payment quando o
+    // cliente abre a PaymentSheet e volta sem pagar (2026-08-16 — mesmo padrao
+    // do reservation_flow_screen; sem isto a orfa ficava na lista do cliente).
+    String? reservationId;
+    String? paymentIntentId;
     try {
       // Carteira Unica (2026-07-21): resolve o cartao padrao e pede
       // digital/rosto ANTES de criar o PaymentIntent — nada e cobrado se o
@@ -142,7 +148,8 @@ class _ReservationCheckoutScreenState extends State<ReservationCheckoutScreen> {
 
       // Edge Fn shape: clientSecret (camel) + reservation_id (snake).
       final clientSecret = pi['clientSecret'] as String?;
-      final reservationId = pi['reservation_id'] as String?;
+      reservationId = pi['reservation_id'] as String?;
+      paymentIntentId = pi['paymentIntentId'] as String?;
       if (clientSecret == null || reservationId == null) {
         throw Exception('Resposta inválida do servidor.');
       }
@@ -200,8 +207,20 @@ class _ReservationCheckoutScreenState extends State<ReservationCheckoutScreen> {
       );
       navigator.popUntil((route) => route.isFirst);
     } on StripeException catch (e) {
-      if (!mounted) return;
       final isCanceled = e.error.code == FailureCode.Canceled;
+      if (isCanceled && reservationId != null && paymentIntentId != null) {
+        // Cancelamento intencional — limpar a reserva orfa pending_payment
+        // (best-effort; o webhook faz cleanup quando o Stripe cancelar o PI).
+        try {
+          await Supabase.instance.client
+              .rpc('cancel_orphan_reservation', params: {
+            'p_reservation_id': reservationId,
+            'p_payment_intent_id': paymentIntentId,
+            'p_reason': 'user_canceled',
+          });
+        } catch (_) {}
+      }
+      if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(
           content: Text(

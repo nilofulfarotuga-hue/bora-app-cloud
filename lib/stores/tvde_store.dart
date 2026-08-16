@@ -58,6 +58,16 @@ class TvdeStore extends ChangeNotifier {
   TvdeRide? _activeRide;
   TvdeRide? get activeRide => _activeRide;
 
+  // clientSecret do PaymentIntent da corrida ativa (só memória, só cartão).
+  // Serve o "Pagar de novo" quando o cliente abre a PaymentSheet e volta sem
+  // pagar (2026-08-16, corrida d947b446): o mesmo PI pode ser re-apresentado.
+  // Perde-se ao reiniciar a app — nesse caso o botão não aparece e o caminho
+  // é cancelar (grátis) e pedir de novo.
+  String? _pendingCardSecret;
+  String? _pendingCardSecretRideId;
+  String? cardClientSecretFor(String rideId) =>
+      _pendingCardSecretRideId == rideId ? _pendingCardSecret : null;
+
   List<TvdeRide> _history = const [];
   List<TvdeRide> get history => _history;
 
@@ -302,6 +312,12 @@ class TvdeStore extends ChangeNotifier {
       // clientSecret vem null quando a EF responde 'not_charged' (valor <= 0,
       // ex.: perna de ida-e-volta já paga) — nesse caso não há nada a confirmar.
       final clientSecret = data['clientSecret'] as String?;
+      if (method == 'card' && clientSecret != null && ride != null) {
+        // Guardar ANTES do confirm: se o cliente desistir da sheet, o ecrã
+        // ainda consegue oferecer "Pagar de novo" com o mesmo PaymentIntent.
+        _pendingCardSecret = clientSecret;
+        _pendingCardSecretRideId = ride.id;
+      }
       if (method == 'card' && clientSecret != null) {
         if (savedPmId != null) {
           // Cartão guardado: PI já confirmado off_session no servidor; só
@@ -371,6 +387,25 @@ class TvdeStore extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       debugPrint('TvdeStore.loadActiveRide error => $e');
+    }
+  }
+
+  /// Rebusca a corrida ativa por id, SEM filtro de status — ao contrário do
+  /// [loadActiveRide], um estado terminal chega ao ecrã (que sai sozinho) em
+  /// vez de ser filtrado. Serve o refetch ao voltar ao foreground: o realtime
+  /// pode ter perdido eventos com a app em background (2026-08-16).
+  Future<void> refreshActiveRide() async {
+    final r = _activeRide;
+    if (r == null) return;
+    try {
+      final row =
+          await _sb.from('tvde_rides').select().eq('id', r.id).maybeSingle();
+      if (row != null) {
+        _activeRide = TvdeRide.fromMap(Map<String, dynamic>.from(row));
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('TvdeStore.refreshActiveRide error => $e');
     }
   }
 
@@ -654,6 +689,8 @@ class TvdeStore extends ChangeNotifier {
   void clearActiveRide() {
     _unsubscribe();
     _activeRide = null;
+    _pendingCardSecret = null;
+    _pendingCardSecretRideId = null;
     notifyListeners();
   }
 

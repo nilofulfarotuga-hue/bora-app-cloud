@@ -1173,6 +1173,24 @@ class _BottomCardState extends State<_BottomCard> {
     } else {
       // Bloco 4 — mensagens PT-PT para os bloqueios do servidor.
       final raw = result.error ?? '';
+      // 2026-08-16: "already_finalized" cobre delivered E cancelled. Se o
+      // pedido JÁ está cancelado (outro device / admin / cron), isso é
+      // sucesso para o cliente — confirmar e sair, nunca o botão ficar mudo.
+      if (raw.contains('already_finalized')) {
+        OrderModel? atual;
+        for (final o in orderStore.orders) {
+          if (o.id == widget.order.id) {
+            atual = o;
+            break;
+          }
+        }
+        if (atual != null && atual.status == OrderStatus.cancelled) {
+          messenger.showSnackBar(
+              const SnackBar(content: Text('O pedido já estava cancelado.')));
+          navigator.pop();
+          return;
+        }
+      }
       final msg = raw.contains('errand_already_purchased')
           ? 'A compra já foi feita pelo estafeta — a entrega vai continuar e não pode ser cancelada.'
           : raw.contains('already_finalized')

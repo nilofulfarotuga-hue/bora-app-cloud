@@ -1,3 +1,8 @@
+// ⚠️ ARQUIVADA (F5, 2026-08-16 — decisão CEO da MISSÃO TOTAL): este era o
+// fluxo LEGACY de reserva de mesa. O tile "Reservar Mesa" aponta agora para
+// a implementação NOVA em client/reservation/ (ReservationAvailabilityScreen,
+// slots reais + estados completos). Ficheiro preservado sem rota — NÃO ligar
+// de volta sem decisão explícita do Danilo.
 import 'package:flutter/material.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';

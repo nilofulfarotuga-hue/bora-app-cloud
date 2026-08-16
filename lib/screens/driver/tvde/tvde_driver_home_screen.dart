@@ -20,6 +20,7 @@ import '../../../services/notification_service.dart';
 import '../../../services/incoming_job_alert.dart';
 import '../../../models/order_model.dart';
 import '../../../services/permission_gate_service.dart';
+import '../../../services/push_token_service.dart';
 import '../../../stores/driver_store.dart';
 import '../../../stores/order_store.dart';
 import '../../../stores/tvde_driver_store.dart';
@@ -98,10 +99,15 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
           context.read<DriverStore>().currentDriver?.isOnline ?? false;
       if (isOnline) {
         unawaited(_heartbeat.start());
+        // F4B (2026-08-16): renovar o token FCM sempre que se retoma online —
+        // motorista aprovado online sem token era invisível ao push.
+        unawaited(PushTokenService.registerForRole('driver'));
         unawaited(_startGps());
         _startOfferPoll();
         _startOnlineClock();
       }
+      // F4B: presença honesta — escuta as falhas de heartbeat para o banner.
+      _heartbeat.serverAck.addListener(_onServerAckChanged);
       _syncNav();
     });
   }
@@ -130,6 +136,7 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
     if (NotificationService.tvdeOfferReload == _reloadOffer) {
       NotificationService.tvdeOfferReload = null;
     }
+    _heartbeat.serverAck.removeListener(_onServerAckChanged);
     _heartbeat.stop();
     _gps?.cancel();
     _offerPoll?.cancel();
@@ -370,6 +377,9 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
       if (!mounted) return;
       unawaited(OverlayPermissionGate.maybeOfferOnce(context));
       unawaited(_heartbeat.start());
+      // F4B (2026-08-16): registar/renovar o token FCM SEMPRE ao ficar online
+      // (regra do Danilo). Idempotente — o PushTokenService deduplica.
+      unawaited(PushTokenService.registerForRole('driver'));
       await _startGps();
       _startOfferPoll();
       _startOnlineClock();
@@ -487,6 +497,32 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
         'p_is_online': false,
       });
     } catch (_) {/* best-effort */}
+  }
+
+  /// F4B (2026-08-16): presença HONESTA. 3 heartbeats falhados (~90s) = o
+  /// servidor já nos marcou offline (expire_stale_driver_presence corre a 90s)
+  /// — proibido verdinho enganoso: banner vermelho + reconectar.
+  void _onServerAckChanged() {
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    if (!_heartbeat.serverAck.value) {
+      messenger.showMaterialBanner(MaterialBanner(
+        backgroundColor: Colors.red.shade700,
+        content: const Text(
+          'Sem ligação ao servidor — podes não estar a receber corridas.',
+          style: TextStyle(color: Colors.white),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => _heartbeat.pingNow(),
+            child:
+                const Text('TENTAR JÁ', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ));
+    } else {
+      messenger.hideCurrentMaterialBanner();
+    }
   }
 
   void _logout() {

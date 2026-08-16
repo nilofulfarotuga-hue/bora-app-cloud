@@ -28,6 +28,15 @@ class HeartbeatService {
 
   bool get isRunning => _running;
 
+  /// F4B (2026-08-16) — presença HONESTA: false após 3 falhas consecutivas do
+  /// heartbeat (~90s sem o servidor confirmar). A UI do motorista escuta isto
+  /// para mostrar "sem ligação" em vez de um verdinho mentiroso.
+  final ValueNotifier<bool> serverAck = ValueNotifier<bool>(true);
+  int _consecutiveFailures = 0;
+
+  /// Tick imediato fora do timer (botão "Tentar já" do banner de reconexão).
+  Future<void> pingNow() => _tick();
+
   Future<void> start() async {
     if (_running) return;
     _running = true;
@@ -40,6 +49,9 @@ class HeartbeatService {
     _timer?.cancel();
     _timer = null;
     _running = false;
+    // Offline intencional não é falha de ligação.
+    _consecutiveFailures = 0;
+    serverAck.value = true;
   }
 
   Future<void> _tick() async {
@@ -51,10 +63,18 @@ class HeartbeatService {
         return;
       }
       await Supabase.instance.client.rpc('driver_heartbeat');
+      _consecutiveFailures = 0;
+      if (!serverAck.value) serverAck.value = true;
     } catch (e) {
       // Swallow: se o app perde rede, próximo tick recupera. Não cancelar
       // o timer aqui — o cron backend já trata staleness se for prolongado.
       debugPrint('[HeartbeatService] tick failed: $e');
+      // F4B: 3 falhas seguidas (~90s) = servidor já nos marcou offline — a UI
+      // tem de dizer a verdade em vez do verdinho.
+      _consecutiveFailures++;
+      if (_consecutiveFailures >= 3 && serverAck.value) {
+        serverAck.value = false;
+      }
     }
   }
 }

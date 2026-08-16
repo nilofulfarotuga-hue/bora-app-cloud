@@ -19,7 +19,12 @@ dependencies:
   vibration: ^3.1.8
   provider: ^6.1.2
   http: ^1.2.0
-  flutter_stripe: ^10.1.1
+# F4/adendo4 (2026-08-16): 10.1.1 embutia stripe-android 20.44.2 — versão com
+  # bug documentado de "blank screen no FlowController com Google Pay ativo"
+  # (aviso do Play Console 16/08; bate com zero pagamentos cartão desde 31/07).
+  # 11.3.0 = a MENOR versão com stripe-android >= 20.47 (traz 20.52.*).
+  # Breaking 11.0.0 não nos toca (IntentMode não usado; Dart >= 3.0 ok).
+  flutter_stripe: ^11.3.0
   supabase_flutter: ^2.5.6
   shared_preferences: ^2.3.2
 

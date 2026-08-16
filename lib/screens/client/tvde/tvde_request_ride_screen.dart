@@ -1256,9 +1256,13 @@ class _TvdePaymentSheetState extends State<_TvdePaymentSheet> {
 
   // ── Token discount state ───────────────────────────────────────────────────
   int _availableTokens = 0;
-  bool _useTokens = false;
   bool _tokensLoaded = false;
   int _tokenMaxPct = 50;
+
+  /// Adendo2.3 (2026-08-16): SLIDER — o cliente escolhe QUANTOS tokens usar;
+  /// o teto é o fim físico do trilho. Conversão lida das settings.
+  int _tokensSelected = 0;
+  double _tokenValueEur = 0.005; // fallback = BR (token_value_cents_x100=50)
 
   @override
   void initState() {
@@ -1305,10 +1309,25 @@ class _TvdePaymentSheetState extends State<_TvdePaymentSheet> {
       } catch (e) {
         debugPrint('[TvdePaymentSheet] token_payment_max_pct fallback: $e');
       }
+      // Adendo2.3: valor do token vem das settings, nunca cravado.
+      double tokenValue = _tokenValueEur;
+      try {
+        final valRes = await Supabase.instance.client.rpc(
+          'get_setting',
+          params: {'p_key': 'token_value_cents_x100'},
+        );
+        final raw = valRes is num
+            ? valRes.toDouble()
+            : double.tryParse('${valRes ?? ''}'.replaceAll('"', ''));
+        if (raw != null && raw > 0) tokenValue = raw / 100.0 / 100.0;
+      } catch (e) {
+        debugPrint('[TvdePaymentSheet] token_value fallback: $e');
+      }
       if (mounted) {
         setState(() {
           _availableTokens = (response as num?)?.toInt() ?? 0;
           _tokenMaxPct = pct;
+          _tokenValueEur = tokenValue;
           _tokensLoaded = true;
         });
       }
@@ -1318,22 +1337,22 @@ class _TvdePaymentSheetState extends State<_TvdePaymentSheet> {
     }
   }
 
-  /// Calcula quantos tokens podem ser usados (limitado a 50% do total).
+  /// Calcula o TETO de tokens usáveis (limitado a _tokenMaxPct% do total).
+  /// Adendo2.3: valor do token vem das settings (_tokenValueEur), não cravado.
   int _calculateTokensToUse() {
-    const double tokenValueEur = 0.005; // TOKEN_VALUE_EUR
     final double maxDiscountEur =
         (widget.amountCents / 100) * (_tokenMaxPct / 100.0);
-    final int tokensToUse = (maxDiscountEur / tokenValueEur).toInt();
+    final int tokensToUse = (maxDiscountEur / _tokenValueEur).toInt();
     return tokensToUse.clamp(0, _availableTokens);
   }
 
-  /// Widget do toggle de tokens (estilo delivery, com cores amber).
+  /// Adendo2.3 (2026-08-16): SLIDER de tokens (estilo delivery) — o cliente
+  /// escolhe QUANTO usar; o teto (_tokenMaxPct%) é o fim físico do trilho,
+  /// com marca escura intransponível no limite.
   Widget _buildTokenToggle() {
-    const double tokenValueEur = 0.005;
-    final tokensToUse = _calculateTokensToUse();
-    final tokenDiscount = tokensToUse * tokenValueEur;
-    final maxDiscountEur =
-        (widget.amountCents / 100) * (_tokenMaxPct / 100.0);
+    final tokensMax = _calculateTokensToUse();
+    final tokensChosen = _tokensSelected.clamp(0, tokensMax);
+    final tokenDiscount = tokensChosen * _tokenValueEur;
 
     return Container(
       decoration: BoxDecoration(
@@ -1341,29 +1360,71 @@ class _TvdePaymentSheetState extends State<_TvdePaymentSheet> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.amber.shade200),
       ),
-      child: SwitchListTile.adaptive(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        secondary:
-            const Icon(Icons.monetization_on, color: Colors.amber),
-        title: const Text(
-          'Usar Bora Tokens',
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 14,
-          ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 2),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.monetization_on,
+                    color: Colors.amber, size: 20),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Bora Tokens',
+                    style:
+                        TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                  ),
+                ),
+                Text(
+                  tokensChosen > 0
+                      ? '$tokensChosen tokens · -€${tokenDiscount.toStringAsFixed(2)}'
+                      : 'não usar',
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.amber.shade900),
+                ),
+              ],
+            ),
+            Text(
+              'Tens €${(_availableTokens * _tokenValueEur).toStringAsFixed(2)} em tokens — '
+              'podes usar até €${(tokensMax * _tokenValueEur).toStringAsFixed(2)} '
+              'nesta corrida (máx. $_tokenMaxPct%).',
+              style: TextStyle(fontSize: 12, color: Colors.amber.shade800),
+            ),
+            Row(
+              children: [
+                Expanded(
+                  child: SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      activeTrackColor: Colors.amber.shade700,
+                      thumbColor: Colors.amber.shade800,
+                      inactiveTrackColor: Colors.amber.shade100,
+                    ),
+                    child: Slider(
+                      value: tokensChosen.toDouble(),
+                      max: tokensMax.toDouble(),
+                      divisions: tokensMax > 0 ? 20 : null,
+                      onChanged: tokensMax > 0
+                          ? (v) => setState(() => _tokensSelected = v.round())
+                          : null,
+                    ),
+                  ),
+                ),
+                Container(
+                  width: 4,
+                  height: 22,
+                  decoration: BoxDecoration(
+                    color: Colors.brown.shade800,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
-        subtitle: Text(
-          '$tokensToUse tokens → -€${tokenDiscount.toStringAsFixed(2)}\n'
-          'Máximo $_tokenMaxPct% em Bora Tokens '
-          '(€${maxDiscountEur.toStringAsFixed(2)})',
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.amber.shade800,
-          ),
-        ),
-        value: _useTokens,
-        onChanged: (v) => setState(() => _useTokens = v),
       ),
     );
   }
@@ -1467,7 +1528,8 @@ class _TvdePaymentSheetState extends State<_TvdePaymentSheet> {
                 }
                 phone = digits;
               }
-              final tokensToUse = _useTokens ? _calculateTokensToUse() : 0;
+              final tokensToUse =
+                  _tokensSelected.clamp(0, _calculateTokensToUse());
               Navigator.pop(
                 context,
                 _TvdePayResult(_method, _noteController.text, tokensToUse,

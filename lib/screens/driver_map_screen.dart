@@ -296,8 +296,11 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
         _mapController?.animateCamera(CameraUpdate.newLatLng(loc.toGMaps()));
         // DO NOT add postFrameCallback here — setState above already triggers
         // rebuild. The GoogleMap's ValueKey(_gpsCenter) detects the change.
-        final driverStore = context.read<DriverStore>();
-        driverStore.updateDriverLocation(driverStore.currentDriverId, loc);
+        // F5.1 (2026-08-16, 1º dia real): getLastKnownPosition é o CACHE do
+        // SO — no pedido 4db5882d devolveu uma posição do Algarve (37.18) numa
+        // entrega na Guarda e envenenou orders.driver_lat. Serve SÓ para
+        // centrar a câmara; NUNCA se propaga ao store/servidor. O stream de
+        // GPS real (abaixo) é quem escreve posição.
       } else if (mounted && _gpsCenter == null) {
         // getLastKnownPosition() returned null (cold start / no OS cache).
         // Attempt to unblock the rendering guard using the last position
@@ -3413,6 +3416,24 @@ class _ReceiptCaptureSheetState extends State<_ReceiptCaptureSheet> {
     super.initState();
     // BUG I — rebuild on total text change para enable/disable Confirmar
     _totalCtrl.addListener(_onTotalChanged);
+    // F4 (2026-08-16, caso real do Valdemir): o Android pode MATAR o processo
+    // enquanto a câmara está aberta ("o aplicativo falhou, reiniciou e
+    // desligou") — a foto NÃO se perde: o SO devolve-a no arranque seguinte
+    // via retrieveLostData e recuperamo-la aqui.
+    unawaited(_recoverLostPhoto());
+  }
+
+  Future<void> _recoverLostPhoto() async {
+    try {
+      final lost = await SafeImagePicker.retrieveLostData();
+      final f = lost.file;
+      if (!lost.isEmpty && f != null && mounted && _photo == null) {
+        setState(() => _photo = File(f.path));
+        debugPrint('[bora-talao] foto recuperada após morte do processo');
+      }
+    } catch (e) {
+      debugPrint('[bora-talao] retrieveLostData falhou: $e');
+    }
   }
 
   void _onTotalChanged() {
@@ -3441,9 +3462,14 @@ class _ReceiptCaptureSheetState extends State<_ReceiptCaptureSheet> {
         setState(() => _photo = File(picked.path));
       }
     } catch (e) {
+      // F4 (2026-08-16): tag estável p/ adb logcat + mensagem com retry.
+      debugPrint('[bora-talao] erro na câmara: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro câmara: $e')),
+          SnackBar(
+            content: Text('Erro na câmara — tenta outra vez. ($e)'),
+            duration: const Duration(seconds: 5),
+          ),
         );
       }
     }

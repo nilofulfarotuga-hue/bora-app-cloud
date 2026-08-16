@@ -12,6 +12,7 @@ import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'services/app_update_service.dart';
 import 'services/floating_bubble_service.dart';
 import 'services/foreground_service.dart';
 import 'services/notification_service.dart';
@@ -621,7 +622,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           }
           return null;
         },
-        home: const ConsentBanner(child: _BackToBackgroundWrapper(child: _RootNavigator())),
+        // Adendo3 (2026-08-16): AppUpdateGate — aviso/bloqueio de atualização
+        // (padrão Glovo/Uber) no arranque e ao voltar ao foreground.
+        home: const AppUpdateGate(
+            child: ConsentBanner(
+                child: _BackToBackgroundWrapper(child: _RootNavigator()))),
       ),
     );
   }

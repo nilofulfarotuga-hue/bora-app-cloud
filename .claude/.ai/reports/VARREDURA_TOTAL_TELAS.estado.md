@@ -6,7 +6,7 @@
 
 ## Plano de áreas
 - [x] **F0 — INVENTÁRIO** (árvore de navegação dos 4 papéis)
-- [ ] **F1 — MOTORISTA/TVDE** (prioridade nº1)
+- [x] **F1 — MOTORISTA/TVDE** (prioridade nº1)
 - [ ] **F2 — CLIENTE TVDE**
 - [ ] **F3 — CLIENTE DELIVERY**
 - [ ] **F4 — ESTAFETA DELIVERY**
@@ -30,6 +30,14 @@ Base de conhecimento: 5 mapas de fluxos do Córtex lidos (mapa-de-fluxos*, 2026-
 inventário funcional; correções a registar no fecho (F7): sinal €3 marcações EXTINTO, TVDE ida-e-volta
 preço dinâmico (fim €8 fixo), carteira única de cartão, tokens TVDE 2/3 caminhos live.
 Contagem por área: driver 28 · cliente 39 · parceiro 29 · partilhados 50 · admin 82 ficheiros.
+
+### MARCO: F1 FEITO — 2026-08-17
+Prova: 7 telas TVDE motorista lidas integralmente (home 968L, store 452L, oferta 295L, ativa 1459L,
+avaliação 113L, ganhos 242L + 2 widgets). 2 correções aplicadas: mini-mapa na oferta (liteMode,
+gap nº1 vs Uber/Bolt/99) + cartão scrollable; estado de erro nos ganhos. `flutter analyze` 0 erros.
+🔴 achado real: RPC `driver_earnings_summary` (BD viva) filtra status='concluida' inexistente →
+TVDE soma 0 nos ganhos unificados. SQL de fix pronto no relatório (P1); aplicação = Claude.ai/`vai`.
+Proposta P2: heatmap de procura. Matriz completa no relatório §F1.
 
 ## Notas de retoma
 - Inventário completo (ficheiro→classes→arestas + BFS caminhos de clique): `.claude/.ai/reports/VARREDURA_TOTAL_TELAS.inventario.md`

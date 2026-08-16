@@ -19,6 +19,7 @@ class TvdeDriverEarningsScreen extends StatefulWidget {
 
 class _TvdeDriverEarningsScreenState extends State<TvdeDriverEarningsScreen> {
   bool _loading = true;
+  bool _error = false;
   List<TvdeRide> _rides = const [];
 
   @override
@@ -48,9 +49,16 @@ class _TvdeDriverEarningsScreenState extends State<TvdeDriverEarningsScreen> {
       setState(() {
         _rides = [for (final r in rows) TvdeRide.fromMap(r)];
         _loading = false;
+        _error = false;
       });
     } catch (_) {
-      if (mounted) setState(() => _loading = false);
+      // Falha de rede ≠ "sem corridas": marca erro para a UI não fingir vazio.
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = true;
+        });
+      }
     }
   }
 
@@ -115,7 +123,31 @@ class _TvdeDriverEarningsScreenState extends State<TvdeDriverEarningsScreen> {
                           .titleMedium
                           ?.copyWith(fontWeight: FontWeight.w800)),
                   const SizedBox(height: Spacing.sm),
-                  if (_rides.isEmpty)
+                  if (_error && _rides.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.all(Spacing.xl),
+                      child: Column(
+                        children: [
+                          const Icon(Icons.wifi_off,
+                              size: 40, color: AppColors.textSubtle),
+                          const SizedBox(height: Spacing.sm),
+                          Text('Não foi possível carregar os ganhos.',
+                              textAlign: TextAlign.center,
+                              style:
+                                  TextStyle(color: AppColors.textSecondary)),
+                          const SizedBox(height: Spacing.sm),
+                          TextButton.icon(
+                            onPressed: () {
+                              setState(() => _loading = true);
+                              _load();
+                            },
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Tentar novamente'),
+                          ),
+                        ],
+                      ),
+                    )
+                  else if (_rides.isEmpty)
                     Padding(
                       padding: const EdgeInsets.all(Spacing.xl),
                       child: Center(

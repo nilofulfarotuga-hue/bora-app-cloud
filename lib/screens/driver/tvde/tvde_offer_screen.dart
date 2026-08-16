@@ -1,6 +1,8 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
@@ -150,7 +152,7 @@ class _TvdeOfferScreenState extends State<TvdeOfferScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: Spacing.lg),
+                const SizedBox(height: Spacing.md),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -169,8 +171,12 @@ class _TvdeOfferScreenState extends State<TvdeOfferScreen> {
                           fontSize: 14,
                           fontWeight: FontWeight.w600)),
                 ),
-                const SizedBox(height: Spacing.xl),
-                Container(
+                const SizedBox(height: Spacing.md),
+                // O cartão rola quando não cabe (ecrãs baixos/teclado) — os
+                // botões Aceitar/Recusar ficam SEMPRE visíveis em baixo.
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Container(
                   padding: const EdgeInsets.all(Spacing.lg),
                   decoration: BoxDecoration(
                     color: AppColors.surface,
@@ -210,7 +216,11 @@ class _TvdeOfferScreenState extends State<TvdeOfferScreen> {
                                   fontWeight: FontWeight.w600)),
                         ),
                       ],
-                      const SizedBox(height: Spacing.lg),
+                      // Mini-mapa recolha→destino (padrão Uber/Bolt/99): o
+                      // motorista vê ONDE é a corrida antes de aceitar.
+                      const SizedBox(height: Spacing.md),
+                      _OfferMiniMap(ride: ride),
+                      const SizedBox(height: Spacing.md),
                       _PointRow(
                         icon: Icons.my_location,
                         color: AppColors.primary,
@@ -226,8 +236,10 @@ class _TvdeOfferScreenState extends State<TvdeOfferScreen> {
                       ),
                     ],
                   ),
+                    ),
+                  ),
                 ),
-                const Spacer(),
+                const SizedBox(height: Spacing.md),
                 BoraAccentButton(
                   label: 'Aceitar',
                   icon: Icons.check,
@@ -245,6 +257,95 @@ class _TvdeOfferScreenState extends State<TvdeOfferScreen> {
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Mini-mapa NÃO interativo da oferta: recolha (verde) → destino (laranja) com
+/// linha tracejada. `liteModeEnabled` (Android) renderiza como bitmap — barato,
+/// não rouba frames ao mapa da home que fica por baixo. Câmara ajustada por
+/// heurística de zoom (fallback) + fit aos bounds no onMapCreated (best-effort).
+class _OfferMiniMap extends StatelessWidget {
+  const _OfferMiniMap({required this.ride});
+  final TvdeRide ride;
+
+  @override
+  Widget build(BuildContext context) {
+    final origin = gmaps.LatLng(ride.originLat, ride.originLng);
+    final dest = gmaps.LatLng(ride.destLat, ride.destLng);
+    final center = gmaps.LatLng(
+      (ride.originLat + ride.destLat) / 2,
+      (ride.originLng + ride.destLng) / 2,
+    );
+    final km = ride.estDistanceKm;
+    final double zoom = km <= 1
+        ? 14
+        : km <= 2
+            ? 13
+            : km <= 4
+                ? 12.2
+                : km <= 8
+                    ? 11.2
+                    : km <= 16
+                        ? 10.2
+                        : 9;
+    final bounds = gmaps.LatLngBounds(
+      southwest: gmaps.LatLng(
+        origin.latitude < dest.latitude ? origin.latitude : dest.latitude,
+        origin.longitude < dest.longitude ? origin.longitude : dest.longitude,
+      ),
+      northeast: gmaps.LatLng(
+        origin.latitude > dest.latitude ? origin.latitude : dest.latitude,
+        origin.longitude > dest.longitude ? origin.longitude : dest.longitude,
+      ),
+    );
+    final compact = MediaQuery.of(context).size.height < 700;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(Radii.md),
+      child: SizedBox(
+        height: compact ? 110 : 150,
+        child: IgnorePointer(
+          child: gmaps.GoogleMap(
+            initialCameraPosition:
+                gmaps.CameraPosition(target: center, zoom: zoom),
+            liteModeEnabled: !kIsWeb,
+            zoomControlsEnabled: false,
+            myLocationButtonEnabled: false,
+            compassEnabled: false,
+            mapToolbarEnabled: false,
+            markers: {
+              gmaps.Marker(
+                markerId: const gmaps.MarkerId('offer_origin'),
+                position: origin,
+                icon: gmaps.BitmapDescriptor.defaultMarkerWithHue(
+                    gmaps.BitmapDescriptor.hueGreen),
+              ),
+              gmaps.Marker(
+                markerId: const gmaps.MarkerId('offer_dest'),
+                position: dest,
+                icon: gmaps.BitmapDescriptor.defaultMarkerWithHue(
+                    gmaps.BitmapDescriptor.hueOrange),
+              ),
+            },
+            polylines: {
+              gmaps.Polyline(
+                polylineId: const gmaps.PolylineId('offer_line'),
+                points: [origin, dest],
+                color: AppColors.primary,
+                width: 4,
+                patterns: [gmaps.PatternItem.dash(18), gmaps.PatternItem.gap(10)],
+              ),
+            },
+            onMapCreated: (c) {
+              // Fit exato aos dois pontos; se o mapa ainda não tiver layout,
+              // fica a heurística de zoom (nunca rebenta a oferta por isto).
+              try {
+                c.moveCamera(gmaps.CameraUpdate.newLatLngBounds(bounds, 36));
+              } catch (_) {}
+            },
           ),
         ),
       ),

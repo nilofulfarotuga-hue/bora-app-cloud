@@ -849,7 +849,21 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     final orderStore = context.read<OrderStore>();
     final authStore = context.read<AuthStore>();
     // Ensure valid Supabase session before inserting order (re-signs as guest if expired).
-    await authStore.ensureSessionForOrder();
+    // F4 (2026-08-16): era o ÚNICO await do funil do cartão fora de try/catch —
+    // se lançasse (refresh de sessão falhado), o handler morria em silêncio com
+    // _isProcessing preso e a Edge nunca era chamada (zero draft, zero PI).
+    try {
+      await authStore.ensureSessionForOrder();
+    } catch (e) {
+      debugPrint('[bora-pay] ensureSessionForOrder falhou: $e');
+      if (!mounted) return;
+      setState(() => _isProcessing = false);
+      messenger.showSnackBar(const SnackBar(
+          content: Text(
+              'Erro de sessão. Verifica a ligação à internet e tenta de novo.'),
+          backgroundColor: Colors.red));
+      return;
+    }
 
     // ── Card: PAYMENT-FIRST flow (BUG 1 / Fase 2, 2026-04-30) ────────────────
     // Order is NOT created until Stripe charge confirms via webhook.
@@ -882,7 +896,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
             tokensUsed: tokensUsed,
           );
         } catch (e) {
-          if (kDebugMode) debugPrint('[Checkout] wallet-only finishOrder error: $e');
+          debugPrint('[bora-pay] wallet-only finishOrder error: $e');
           if (!mounted) return;
           setState(() => _isProcessing = false);
           messenger.showSnackBar(const SnackBar(
@@ -915,11 +929,16 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
           savedPmId: _selectedSavedPmId,
         );
       } catch (e) {
-        if (kDebugMode) debugPrint('[Checkout] startCardPaymentDraft error: $e');
+        // F4 (2026-08-16): log SEMPRE (era só kDebugMode — invisível no build
+        // release do telemóvel) + erro real truncado no ecrã p/ diagnóstico.
+        debugPrint('[bora-pay] startCardPaymentDraft error: $e');
         if (!mounted) return;
         setState(() => _isProcessing = false);
-        messenger.showSnackBar(const SnackBar(
-            content: Text('Erro ao iniciar pagamento. Verifica a ligação e tenta de novo.'),
+        final detail = e.toString();
+        messenger.showSnackBar(SnackBar(
+            content: Text(
+                'Erro ao iniciar pagamento. Verifica a ligação e tenta de novo.\n'
+                '(${detail.length > 120 ? detail.substring(0, 120) : detail})'),
             backgroundColor: Colors.red));
         return;
       }
@@ -982,12 +1001,16 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       } catch (e) {
         if (!mounted) return;
         setState(() => _isProcessing = false);
-        debugPrint('[Checkout] card payment error: $e');
+        // F4 (2026-08-16): tag estável p/ `adb logcat | grep bora-pay` + erro
+        // real truncado no ecrã — o screenshot fecha o diagnóstico.
+        debugPrint('[bora-pay] card payment error: $e');
+        final detail = e.toString();
         messenger.showSnackBar(
-          const SnackBar(
-            content:
-                Text('Pagamento por cartão indisponível. Tente MBWay ou dinheiro.'),
-            duration: Duration(seconds: 5),
+          SnackBar(
+            content: Text(
+                'Pagamento por cartão indisponível. Tente MBWay ou dinheiro.\n'
+                '(${detail.length > 120 ? detail.substring(0, 120) : detail})'),
+            duration: const Duration(seconds: 6),
           ),
         );
         return;

@@ -117,7 +117,11 @@ class PricingService {
   /// na formatação (`toStringAsFixed(2)`).
   static double applyMarkup(double basePrice, bool isPartner) {
     if (isPartner) return basePrice;
-    return basePrice * (1 + _nonPartnerMarkupRate);
+    // F1 (2026-08-16, "vai centimo" do Danilo - pedido 4db5882d): arredondar
+    // AO CENTIMO no momento em que o preco nasce (fonte unica, ~20 call
+    // sites herdam). Exibido = somado = cobrado - fim do 6,98 vs 6,99.
+    return ((basePrice * (1 + _nonPartnerMarkupRate)) * 100).roundToDouble() /
+        100;
   }
 
   static OrderPricingBreakdown calculateBreakdown({

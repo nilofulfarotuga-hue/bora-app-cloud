@@ -60,6 +60,8 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
   // B1 — distância efetiva usada na estimativa/pedido: rota real (Directions,
   // mesma chave) com fallback haversine. `_distanceSource` regista qual foi.
   double? _effectiveKm;
+  // Tempo estimado da viagem (rota real) — só informativo, padrão Uber/Bolt.
+  int? _etaMinutes;
   // ignore: unused_field — [Item D] guardado para futura persistência no ride.
   String _distanceSource = 'route';
 
@@ -206,6 +208,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     if (_pickup == null || _dest == null || fallback == null) {
       setState(() {
         _effectiveKm = null;
+        _etaMinutes = null;
         _payCase = _PayCase.normal;
         _payableCents = 0;
         _payMessage = null;
@@ -217,6 +220,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     setState(() => _estimating = true);
     double km = fallback;
     String source = 'haversine';
+    int? etaMin;
     // [Item D] a rota real é a FONTE do preço. O Directions falha às vezes de
     // forma transitória (rede/limite de QPS) e, ao cair para haversine, o km e o
     // preço ficam SUBESTIMADOS (linha reta << rota real). Uma 2ª tentativa
@@ -230,6 +234,8 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
         if (route != null && route.distanceKm > 0) {
           km = double.parse(route.distanceKm.toStringAsFixed(2));
           source = 'route';
+          final mins = route.durationMinutes.round();
+          if (mins > 0) etaMin = mins;
         }
       } catch (_) {
         // mantém haversine; volta a tentar se ainda houver tentativa
@@ -282,6 +288,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     }
     setState(() {
       _effectiveKm = km;
+      _etaMinutes = etaMin;
       _distanceSource = source;
       _payCase = pc;
       _payableCents = payable;
@@ -945,6 +952,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
                   setState(() {
                     _dest = null;
                     _effectiveKm = null;
+                    _etaMinutes = null;
                     _payableCents = 0;
                     _roundtripPriceCents = 0;
                     _roundtripSavingCents = 0;
@@ -956,6 +964,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
             _EstimateCard(
               payableCents: _payableCents,
               km: _effectiveKm,
+              etaMinutes: _etaMinutes,
               loading: _estimating,
               isFree: _payCase == _PayCase.freeCovered,
               message: _payMessage,
@@ -1137,12 +1146,14 @@ class _EstimateCard extends StatelessWidget {
   const _EstimateCard({
     required this.payableCents,
     required this.km,
+    required this.etaMinutes,
     required this.loading,
     required this.isFree,
     this.message,
   });
   final int payableCents;
   final double? km;
+  final int? etaMinutes; // tempo estimado (rota real) — padrão Uber/Bolt
   final bool loading;
   final bool isFree; // coberta ≤ base_km → cliente paga €0
   final String? message; // linha do porquê (plano/excesso/extra)
@@ -1177,9 +1188,9 @@ class _EstimateCard extends StatelessWidget {
                   Text(
                     !hasKm
                         ? 'Escolhe o destino'
-                        : isFree
-                            ? 'Grátis  ·  ${km!.toStringAsFixed(1)} km'
-                            : '€${(payableCents / 100).toStringAsFixed(2)}  ·  ${km!.toStringAsFixed(1)} km',
+                        : '${isFree ? 'Grátis' : '€${(payableCents / 100).toStringAsFixed(2)}'}'
+                            '  ·  ${km!.toStringAsFixed(1)} km'
+                            '${etaMinutes != null ? '  ·  ~$etaMinutes min' : ''}',
                     style: const TextStyle(
                         color: Colors.white,
                         fontSize: 20,

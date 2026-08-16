@@ -1,4 +1,9 @@
 // supabase/functions/pay-debt-standalone/index.ts
+// v2 (2026-08-16 — F3e MISSAO TOTAL): o caminho "mbway" criava o PI com
+// payment_method_types ['multibanco'] e confirmava com type 'multibanco' —
+// método ERRADO (Multibanco é referência bancária, não é o push MB WAY).
+// Corrigido para 'mb_way' (mesmo padrão de create-mbway-payment-intent) +
+// telefone normalizado para E.164 com '+'. Nenhum valor cobrado foi alterado.
 // v1 (2026-05-12 — BUG #1 frontend): standalone PI para liquidar dívida wallet.
 // Suporta card + MBWay. Webhook stripe-webhook v23 detecta metadata e settle automaticamente.
 
@@ -73,10 +78,15 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // v2 (2026-08-16): MB WAY exige E.164 com '+' — a regex acima aceita sem.
+    const e164Phone = mbwayPhone && !mbwayPhone.startsWith('+')
+      ? '+' + mbwayPhone
+      : mbwayPhone;
+
     const piParams: Stripe.PaymentIntentCreateParams = {
       amount: amountCents!,
       currency: 'eur',
-      payment_method_types: paymentMethod === 'mbway' ? ['multibanco'] : ['card'],
+      payment_method_types: paymentMethod === 'mbway' ? ['mb_way'] : ['card'],
       metadata: {
         standalone_debt_settle: 'true',
         debt_settle_cents: String(amountCents),
@@ -88,11 +98,11 @@ Deno.serve(async (req) => {
       idempotencyKey: `paydebt-${user.id}-${amountCents}-${Date.now()}`,
     });
 
-    if (paymentMethod === 'mbway' && mbwayPhone) {
+    if (paymentMethod === 'mbway' && e164Phone) {
       await stripe.paymentIntents.confirm(pi.id, {
         payment_method_data: {
-          type: 'multibanco',
-          billing_details: { phone: mbwayPhone, email: user.email ?? undefined },
+          type: 'mb_way',
+          billing_details: { phone: e164Phone, email: user.email ?? undefined },
         },
       });
     }

@@ -253,9 +253,14 @@ class _RideTile extends StatelessWidget {
                   }
                   final grossCents = ride.finalFareCents ?? ride.estFareCents;
                   final gross = (grossCents / 100).toStringAsFixed(2);
-                  final cut = ((grossCents - (ride.driverEarnCents ?? 0)) / 100)
-                      .toStringAsFixed(2);
-                  return Text('Cobrado €$gross · Bora €$cut',
+                  final cutCents = grossCents - (ride.driverEarnCents ?? 0);
+                  final cut = (cutCents.abs() / 100).toStringAsFixed(2);
+                  // Corte negativo = a Bora fica a dever ao motorista; em
+                  // palavras, nunca número negativo (confunde o motorista).
+                  return Text(
+                      cutCents < 0
+                          ? 'Cobrado €$gross · Bora deve €$cut'
+                          : 'Cobrado €$gross · Bora €$cut',
                       style: const TextStyle(
                           color: AppColors.textSecondary, fontSize: 11.5));
                 }),

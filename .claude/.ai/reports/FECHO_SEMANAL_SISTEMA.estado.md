@@ -65,7 +65,15 @@
 - **F3.6 PROVA consolidada** (semana 2026-08-09, Valdemir −€0,80): compilador → `to_receive Valdemir €0,80`;
   EF → `admin_push=true` (resumo persistente ao Danilo), Valdemir email `aguarda_dominio` (gate); lista admin
   devolve tudo. ⚠️ Email do Danilo NÃO recebido: `RESEND_API_KEY` não está nas EF secrets (ação humana).
-- **F3 COMPLETO.** Falta F4 (fecho: relatório + vault + platform_settings + Córtex + Hermes + ctx).
+- **F3 COMPLETO.**
+
+### MARCO F4 (fecho) — 2026-08-17 ✓
+- Relatório `FECHO_SEMANAL_SISTEMA.md` + cópia no vault `.obsidian-vault/relatorios/`.
+- `platform_settings.relatorio_fecho_semanal_sistema` (JSON) gravado.
+- Córtex: 2 marcos em hermes-reporte — F3 (grande, ref-2c9204) + F2 (dinheiro, ref-b82730).
+- Digest Hermes (8 linhas) no relatório. ctx doctor/stats no fim.
+- **MISSÃO: F1 ✓ · F2 pronto+provado (aguarda "vai") · F3 ✓ · F4 ✓.** Pendências humanas: F2 "vai";
+  RESEND_API_KEY nas EF secrets; domínio Resend + toggle. Merge F1+F3(+F2 com vai) para produção quando disseres.
 
 ### MARCO F1 (ecrã de ganhos) — 2026-08-17 ✓
 - A tela `DriverEarningsScreen` já existia e já consumia `driver_earnings_summary`, mas só exibia HOJE + ESTA

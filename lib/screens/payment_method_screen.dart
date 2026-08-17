@@ -94,8 +94,16 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
 
   // ── Token discount state ───────────────────────────────────────────────────
   int _availableTokens = 0;
-  bool _useTokens = false;
   bool _tokensLoaded = false;
+
+  /// Adendo2.3 (2026-08-16, pedido do Danilo): SLIDER — o cliente escolhe
+  /// QUANTOS tokens usar (0..teto). O teto (token_payment_max_pct) é o fim
+  /// físico do slider — intransponível por construção.
+  int _tokensSelected = 0;
+
+  /// Valor de 1 token em EUR — lido de token_value_cents_x100 (50 = €0,005).
+  /// NUNCA cravado; fallback = constante das BR (espelho da DB).
+  double _tokenValueEur = BRTokens.TOKEN_VALUE_EUR;
 
   // B3a (2026-06-12): pct máximo do pedido pagável em tokens — lido da DB
   // (platform_settings.token_payment_max_pct) com fallback 50 (BR §4.3).
@@ -216,10 +224,26 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       } catch (e) {
         debugPrint('[PaymentMethodScreen] token_payment_max_pct fallback: $e');
       }
+      // Adendo2.3: conversão lida das settings (token_value_cents_x100=50
+      // ⇒ 1 token = €0,005), nunca cravada.
+      double tokenValue = _tokenValueEur;
+      try {
+        final valRes = await Supabase.instance.client.rpc(
+          'get_setting',
+          params: {'p_key': 'token_value_cents_x100'},
+        );
+        final raw = valRes is num
+            ? valRes.toDouble()
+            : double.tryParse('${valRes ?? ''}'.replaceAll('"', ''));
+        if (raw != null && raw > 0) tokenValue = raw / 100.0 / 100.0;
+      } catch (e) {
+        debugPrint('[PaymentMethodScreen] token_value fallback: $e');
+      }
       if (mounted) {
         setState(() {
           _availableTokens = (response as num?)?.toInt() ?? 0;
           _tokenMaxPct = pct;
+          _tokenValueEur = tokenValue;
           _tokensLoaded = true;
         });
       }
@@ -270,13 +294,13 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     // TOKEN_VALUE_EUR = 0.005 (100 tokens = €0.50 → 1 token = €0.005)
     // BUG 2: maxDiscountEuro calculado sobre totalToPay já SEM wallet.
     final double maxDiscountEuro = totalToPay * (_tokenMaxPct / 100.0);
-    final int maxTokensUsable =
-        (maxDiscountEuro / BRTokens.TOKEN_VALUE_EUR).floor();
+    final int maxTokensUsable = (maxDiscountEuro / _tokenValueEur).floor();
     // FAVORES (§55.3) — cliente não usa/ganha tokens em favores → 0.
     final int tokensToUse =
         isErrand ? 0 : min(_availableTokens, maxTokensUsable);
-    final double tokenDiscount =
-        _useTokens ? (tokensToUse * BRTokens.TOKEN_VALUE_EUR) : 0.0;
+    // Adendo2.3: o slider decide QUANTOS (0..tokensToUse) — teto físico.
+    final int tokensChosen = _tokensSelected.clamp(0, tokensToUse);
+    final double tokenDiscount = tokensChosen * _tokenValueEur;
     final double debtEur = _debtSettleCents / 100.0;
     final double finalPrice =
         (totalToPay - tokenDiscount + debtEur).clamp(0.0, double.infinity);
@@ -460,25 +484,87 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(color: Colors.amber.shade200),
                             ),
-                            child: SwitchListTile.adaptive(
-                              contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 4),
-                              secondary: const Icon(Icons.monetization_on,
-                                  color: Colors.amber),
-                              title: const Text(
-                                'Usar Bora Tokens',
-                                style: TextStyle(
-                                    fontWeight: FontWeight.w600, fontSize: 14),
+                            // Adendo2.3 (2026-08-16): SLIDER — o cliente
+                            // escolhe QUANTO usar; o teto ($_tokenMaxPct%) é o
+                            // fim físico do trilho (intransponível) com marca
+                            // escura no limite.
+                            child: Padding(
+                              padding:
+                                  const EdgeInsets.fromLTRB(12, 10, 12, 2),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.monetization_on,
+                                          color: Colors.amber, size: 20),
+                                      const SizedBox(width: 8),
+                                      const Expanded(
+                                        child: Text(
+                                          'Bora Tokens',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 14),
+                                        ),
+                                      ),
+                                      Text(
+                                        tokensChosen > 0
+                                            ? '$tokensChosen tokens · -€${tokenDiscount.toStringAsFixed(2)}'
+                                            : 'não usar',
+                                        style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w700,
+                                            color: Colors.amber.shade900),
+                                      ),
+                                    ],
+                                  ),
+                                  Text(
+                                    'Tens €${(_availableTokens * _tokenValueEur).toStringAsFixed(2)} em tokens — '
+                                    'podes usar até €${(tokensToUse * _tokenValueEur).toStringAsFixed(2)} '
+                                    'neste pedido (máx. $_tokenMaxPct%).',
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.amber.shade800),
+                                  ),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: SliderTheme(
+                                          data: SliderTheme.of(context)
+                                              .copyWith(
+                                            activeTrackColor:
+                                                Colors.amber.shade700,
+                                            thumbColor: Colors.amber.shade800,
+                                            inactiveTrackColor:
+                                                Colors.amber.shade100,
+                                          ),
+                                          child: Slider(
+                                            value: tokensChosen.toDouble(),
+                                            max: tokensToUse.toDouble(),
+                                            divisions:
+                                                tokensToUse > 0 ? 20 : null,
+                                            onChanged: tokensToUse > 0
+                                                ? (v) => setState(() =>
+                                                    _tokensSelected =
+                                                        v.round())
+                                                : null,
+                                          ),
+                                        ),
+                                      ),
+                                      // marca escura INTRANSPONÍVEL do teto
+                                      Container(
+                                        width: 4,
+                                        height: 22,
+                                        decoration: BoxDecoration(
+                                          color: Colors.brown.shade800,
+                                          borderRadius:
+                                              BorderRadius.circular(2),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
-                              subtitle: Text(
-                                '$tokensToUse tokens → -€${tokenDiscount.toStringAsFixed(2)}\n'
-                                'Máximo $_tokenMaxPct% em Bora Tokens '
-                                '(€${maxDiscountEuro.toStringAsFixed(2)})',
-                                style: TextStyle(
-                                    fontSize: 12, color: Colors.amber.shade800),
-                              ),
-                              value: _useTokens,
-                              onChanged: (v) => setState(() => _useTokens = v),
                             ),
                           ),
                         ] else if (_tokensLoaded && _availableTokens == 0)
@@ -502,7 +588,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                         const Divider(height: 24),
 
                         // Discount row (only when tokens active)
-                        if (_useTokens && tokenDiscount > 0)
+                        if (tokenDiscount > 0)
                           _SummaryRow(
                             label: 'Desconto (tokens)',
                             value: -tokenDiscount,
@@ -727,7 +813,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                     onPay: (_) => _confirmPayment(
                       context,
                       finalPrice,
-                      tokensUsed: _useTokens ? tokensToUse : 0,
+                      tokensUsed: tokensChosen,
                     ),
                   ),
           ),
@@ -849,7 +935,21 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     final orderStore = context.read<OrderStore>();
     final authStore = context.read<AuthStore>();
     // Ensure valid Supabase session before inserting order (re-signs as guest if expired).
-    await authStore.ensureSessionForOrder();
+    // F4 (2026-08-16): era o ÚNICO await do funil do cartão fora de try/catch —
+    // se lançasse (refresh de sessão falhado), o handler morria em silêncio com
+    // _isProcessing preso e a Edge nunca era chamada (zero draft, zero PI).
+    try {
+      await authStore.ensureSessionForOrder();
+    } catch (e) {
+      debugPrint('[bora-pay] ensureSessionForOrder falhou: $e');
+      if (!mounted) return;
+      setState(() => _isProcessing = false);
+      messenger.showSnackBar(const SnackBar(
+          content: Text(
+              'Erro de sessão. Verifica a ligação à internet e tenta de novo.'),
+          backgroundColor: Colors.red));
+      return;
+    }
 
     // ── Card: PAYMENT-FIRST flow (BUG 1 / Fase 2, 2026-04-30) ────────────────
     // Order is NOT created until Stripe charge confirms via webhook.
@@ -882,7 +982,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
             tokensUsed: tokensUsed,
           );
         } catch (e) {
-          if (kDebugMode) debugPrint('[Checkout] wallet-only finishOrder error: $e');
+          debugPrint('[bora-pay] wallet-only finishOrder error: $e');
           if (!mounted) return;
           setState(() => _isProcessing = false);
           messenger.showSnackBar(const SnackBar(
@@ -915,11 +1015,16 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
           savedPmId: _selectedSavedPmId,
         );
       } catch (e) {
-        if (kDebugMode) debugPrint('[Checkout] startCardPaymentDraft error: $e');
+        // F4 (2026-08-16): log SEMPRE (era só kDebugMode — invisível no build
+        // release do telemóvel) + erro real truncado no ecrã p/ diagnóstico.
+        debugPrint('[bora-pay] startCardPaymentDraft error: $e');
         if (!mounted) return;
         setState(() => _isProcessing = false);
-        messenger.showSnackBar(const SnackBar(
-            content: Text('Erro ao iniciar pagamento. Verifica a ligação e tenta de novo.'),
+        final detail = e.toString();
+        messenger.showSnackBar(SnackBar(
+            content: Text(
+                'Erro ao iniciar pagamento. Verifica a ligação e tenta de novo.\n'
+                '(${detail.length > 120 ? detail.substring(0, 120) : detail})'),
             backgroundColor: Colors.red));
         return;
       }
@@ -982,12 +1087,16 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       } catch (e) {
         if (!mounted) return;
         setState(() => _isProcessing = false);
-        debugPrint('[Checkout] card payment error: $e');
+        // F4 (2026-08-16): tag estável p/ `adb logcat | grep bora-pay` + erro
+        // real truncado no ecrã — o screenshot fecha o diagnóstico.
+        debugPrint('[bora-pay] card payment error: $e');
+        final detail = e.toString();
         messenger.showSnackBar(
-          const SnackBar(
-            content:
-                Text('Pagamento por cartão indisponível. Tente MBWay ou dinheiro.'),
-            duration: Duration(seconds: 5),
+          SnackBar(
+            content: Text(
+                'Pagamento por cartão indisponível. Tente MBWay ou dinheiro.\n'
+                '(${detail.length > 120 ? detail.substring(0, 120) : detail})'),
+            duration: const Duration(seconds: 6),
           ),
         );
         return;

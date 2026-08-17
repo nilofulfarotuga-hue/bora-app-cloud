@@ -302,7 +302,10 @@ class _CancelOrderButtonState extends State<_CancelOrderButton> {
   // (100c / 250c / ratio 1.0) e servem de fallback se a leitura falhar.
   // Isto é APENAS a estimativa mostrada ao cliente — o débito real é
   // calculado server-side pela Edge Fn cancel-order-with-choice.
-  double _feeBeforeDispatchEur = 1.00;
+  // Adendo2 (2026-08-16): cancelar ANTES de o estafeta aceitar é GRÁTIS
+  // (cancel_fee_before_dispatch_cents = 0 em produção, padrão Uber/Glovo).
+  // O default espelha a regra nova; a leitura live continua a mandar.
+  double _feeBeforeDispatchEur = 0.0;
   double _feeAfterAcceptEur = 2.50;
   double _afterPickupRatio = 1.0;
 
@@ -387,8 +390,11 @@ class _CancelOrderButtonState extends State<_CancelOrderButton> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                  'Pedido cancelado. Taxa de €${_cancelFeeEur().toStringAsFixed(2)} '
-                  'descontada na próxima compra.',
+                  // Adendo2: sem taxa = mensagem limpa, nada de "€0,00".
+                  _cancelFeeEur() <= 0.009
+                      ? 'Pedido cancelado. Sem qualquer custo.'
+                      : 'Pedido cancelado. Taxa de €${_cancelFeeEur().toStringAsFixed(2)} '
+                          'descontada na próxima compra.',
                 ),
               ),
             );
@@ -453,10 +459,15 @@ Future<String?> _showCashCancelDialog(BuildContext context, double feeEur) async
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  'Pagamento em dinheiro: não há reembolso a fazer.\n\n'
-                  'A tua conta ficará com uma dívida de €${feeEur.toStringAsFixed(2)} '
-                  '(taxa de cancelamento). O valor será descontado '
-                  'automaticamente na tua próxima compra.',
+                  // Adendo2 (2026-08-16): janela grátis NUNCA ameaça taxa.
+                  feeEur <= 0.009
+                      ? 'Pagamento em dinheiro: não há reembolso a fazer.\n\n'
+                          'Cancelamento gratuito — ainda nenhum estafeta '
+                          'aceitou o teu pedido.'
+                      : 'Pagamento em dinheiro: não há reembolso a fazer.\n\n'
+                          'A tua conta ficará com uma dívida de €${feeEur.toStringAsFixed(2)} '
+                          '(taxa de cancelamento). O valor será descontado '
+                          'automaticamente na tua próxima compra.',
                   style: const TextStyle(fontSize: 14),
                 ),
                 const SizedBox(height: 12),

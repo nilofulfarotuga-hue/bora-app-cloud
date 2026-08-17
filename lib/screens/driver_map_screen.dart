@@ -296,8 +296,11 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
         _mapController?.animateCamera(CameraUpdate.newLatLng(loc.toGMaps()));
         // DO NOT add postFrameCallback here — setState above already triggers
         // rebuild. The GoogleMap's ValueKey(_gpsCenter) detects the change.
-        final driverStore = context.read<DriverStore>();
-        driverStore.updateDriverLocation(driverStore.currentDriverId, loc);
+        // F5.1 (2026-08-16, 1º dia real): getLastKnownPosition é o CACHE do
+        // SO — no pedido 4db5882d devolveu uma posição do Algarve (37.18) numa
+        // entrega na Guarda e envenenou orders.driver_lat. Serve SÓ para
+        // centrar a câmara; NUNCA se propaga ao store/servidor. O stream de
+        // GPS real (abaixo) é quem escreve posição.
       } else if (mounted && _gpsCenter == null) {
         // getLastKnownPosition() returned null (cold start / no OS cache).
         // Attempt to unblock the rendering guard using the last position
@@ -1425,8 +1428,12 @@ class _BottomPanelState extends State<_BottomPanel> {
                     _InfoItem(
                       icon: Icons.monetization_on_outlined,
                       label: 'Tokens',
-                      value:
-                          '+${(focusOrder.driverEarnings * BRDriver.DRIVER_TOKENS_PER_EUR).round()}',
+                      // F3 (2026-08-16, 1º dia real): a promessa dizia +52
+                      // (earnings×10 — fórmula que NÃO existe no servidor) e o
+                      // trigger creditou +40. A promessa passa a ser a MESMA
+                      // regra que o fn_award_tokens_on_delivery paga:
+                      // 50 parceiro / 40 não-parceiro.
+                      value: '+${focusOrder.isPartnerStore ? 50 : 40}',
                       valueColor: Colors.amber.shade700,
                     ),
                   ],
@@ -2612,12 +2619,24 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
     final pendingCount = totalCount - boughtCount - unavailableCount;
     final allDecided = pendingCount == 0;
 
-    // B4 (2026-06-12): o estafeta paga PREÇO BASE na caixa — lista e totais
-    // dele em base (basePrice ?? price; em pedidos pré-B1 o price já era
-    // base). Extras: o estafeta digitou o preço da prateleira → sem markup.
+    // B4 (2026-06-12) + F2 (2026-08-16, 1º dia real — pedido 4db5882d): o
+    // estafeta paga PREÇO BASE na caixa. O fallback antigo (basePrice ?? price)
+    // mostrou €7,09 (preços COM markup) ao Valdemir quando o basePrice não
+    // chegou — a caixa real do Auchan cobrou €6,06. Se a base não viajou,
+    // REVERTE-SE o markup (round(price÷1,15) recupera a base exata) em vez de
+    // mostrar o preço do cliente. Extras: prateleira → sem markup.
+    double baseOf(CartItem i) {
+      final b = i.basePrice;
+      if (b != null) return b;
+      if (_isPartnerStore) return i.price; // parceiro não tem markup
+      return ((i.price / (1 + BRBusiness.NON_PARTNER_MARKUP_RATIO)) * 100)
+              .roundToDouble() /
+          100;
+    }
+
     final boughtTotal = canonicalItems
         .where((i) => i.purchaseStatus == 'bought')
-        .fold<double>(0, (s, i) => s + (i.basePrice ?? i.price) * i.quantity);
+        .fold<double>(0, (s, i) => s + baseOf(i) * i.quantity);
 
     final addedFinalTotal =
         extraItems.fold<double>(0, (s, i) => s + i.price * i.quantity);
@@ -2635,7 +2654,9 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
     final clientAdjustedTotal = clientBoughtTotal + _bagFee + clientAddedTotal;
 
     final origTotal = order.paymentBufferTotal;
-    final adjustedTotal = boughtTotal + _bagFee + addedFinalTotal;
+    // F2 (2026-08-16): o saco do Bora NÃO passa na caixa da loja — sai do
+    // total do estafeta (fica só na conta do CLIENTE, clientAdjustedTotal).
+    final adjustedTotal = boughtTotal + addedFinalTotal;
     final diff = clientAdjustedTotal - origTotal;
     // BUG 16+17 — extraToCharge/refundDue retirados; agora exibimos
     // diff directo com texto explicativo distinto por payment_method.
@@ -3083,10 +3104,10 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
               ],
               const SizedBox(height: 12),
               // ── Totals breakdown ──
+              // F2 (2026-08-16): sem linha "Sacos" aqui — o saco é do Bora,
+              // não passa na caixa da loja (aparece na conta do cliente).
               _SummaryRow(
                   label: 'Subtotal comprado', value: boughtTotal),
-              const SizedBox(height: 4),
-              _SummaryRow(label: 'Sacos', value: _bagFee),
               if (addedFinalTotal > 0) ...[
                 const SizedBox(height: 4),
                 _SummaryRow(
@@ -3099,8 +3120,10 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
-                    // B4: total que o estafeta paga na caixa (preços base).
-                    'Total na caixa:',
+                    // B4+F2: total que o estafeta paga na caixa (preços base,
+                    // sem markup e sem o saco do Bora). "Estimado" porque o
+                    // preço de prateleira pode divergir do catálogo.
+                    'Total estimado na caixa:',
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 15,
@@ -3121,6 +3144,8 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                 // BUG H (sessão exec 2026-05-12) — breakdown completo em CASH.
                 // Estafeta cobra ao cliente TOTAL = produtos + sacos +
                 // adicionados + taxa serviço + entrega.
+                // F2: a linha "Sacos" vive AQUI (conta do cliente), não na caixa.
+                _SummaryRow(label: 'Sacos', value: _bagFee),
                 _SummaryRow(
                     label: 'Taxa de serviço', value: order.serviceFee),
                 _SummaryRow(label: 'Entrega', value: order.deliveryFee),
@@ -3391,6 +3416,24 @@ class _ReceiptCaptureSheetState extends State<_ReceiptCaptureSheet> {
     super.initState();
     // BUG I — rebuild on total text change para enable/disable Confirmar
     _totalCtrl.addListener(_onTotalChanged);
+    // F4 (2026-08-16, caso real do Valdemir): o Android pode MATAR o processo
+    // enquanto a câmara está aberta ("o aplicativo falhou, reiniciou e
+    // desligou") — a foto NÃO se perde: o SO devolve-a no arranque seguinte
+    // via retrieveLostData e recuperamo-la aqui.
+    unawaited(_recoverLostPhoto());
+  }
+
+  Future<void> _recoverLostPhoto() async {
+    try {
+      final lost = await SafeImagePicker.retrieveLostData();
+      final f = lost.file;
+      if (!lost.isEmpty && f != null && mounted && _photo == null) {
+        setState(() => _photo = File(f.path));
+        debugPrint('[bora-talao] foto recuperada após morte do processo');
+      }
+    } catch (e) {
+      debugPrint('[bora-talao] retrieveLostData falhou: $e');
+    }
   }
 
   void _onTotalChanged() {
@@ -3419,9 +3462,14 @@ class _ReceiptCaptureSheetState extends State<_ReceiptCaptureSheet> {
         setState(() => _photo = File(picked.path));
       }
     } catch (e) {
+      // F4 (2026-08-16): tag estável p/ adb logcat + mensagem com retry.
+      debugPrint('[bora-talao] erro na câmara: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro câmara: $e')),
+          SnackBar(
+            content: Text('Erro na câmara — tenta outra vez. ($e)'),
+            duration: const Duration(seconds: 5),
+          ),
         );
       }
     }

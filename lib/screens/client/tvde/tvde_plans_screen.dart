@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -32,6 +34,9 @@ class _TvdePlansScreenState extends State<TvdePlansScreen> {
   /// plano → preço em cêntimos (via RPC tvde_plan_price_cents). null = a carregar.
   Map<String, int>? _priceCents;
 
+  /// F5 (2026-08-16): retry do preço — fim do "A carregar…" eterno.
+  Timer? _priceRetry;
+
   @override
   void initState() {
     super.initState();
@@ -42,21 +47,45 @@ class _TvdePlansScreenState extends State<TvdePlansScreen> {
     _loadPrices();
   }
 
+  @override
+  void dispose() {
+    _priceRetry?.cancel();
+    super.dispose();
+  }
+
   Future<void> _loadPrices() async {
     final store = context.read<TvdeStore>();
-    final results = await Future.wait([
-      store.planPriceCents('semanal'),
-      store.planPriceCents('quinzenal'),
-      store.planPriceCents('mensal'),
-    ]);
+    // F5 (2026-08-16): antes, uma RPC a falhar (throw) deixava o ecrã em
+    // "A carregar…" para sempre; e uma RPC a devolver null virava preço 0 com
+    // o mapa NÃO-null — botão Aderir ATIVO com o label ainda "A carregar…".
+    // Agora: qualquer preço em falta/<=0 ⇒ mapa fica null (botão desativado)
+    // e tenta de novo sozinho a cada 8s enquanto o ecrã estiver aberto.
+    List<int?> results;
+    try {
+      results = await Future.wait([
+        store.planPriceCents('semanal'),
+        store.planPriceCents('quinzenal'),
+        store.planPriceCents('mensal'),
+      ]);
+    } catch (e) {
+      debugPrint('[TvdePlans] _loadPrices falhou: $e');
+      results = const [null, null, null];
+    }
     if (!mounted) return;
+    final ok = results.every((c) => c != null && c > 0);
     setState(() {
-      _priceCents = {
-        'semanal': results[0] ?? 0,
-        'quinzenal': results[1] ?? 0,
-        'mensal': results[2] ?? 0,
-      };
+      _priceCents = ok
+          ? {
+              'semanal': results[0]!,
+              'quinzenal': results[1]!,
+              'mensal': results[2]!,
+            }
+          : null;
     });
+    if (!ok) {
+      _priceRetry?.cancel();
+      _priceRetry = Timer(const Duration(seconds: 8), _loadPrices);
+    }
   }
 
   String _priceLabel(String plan) {

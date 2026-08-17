@@ -148,15 +148,33 @@ class TvdeRide {
 
   // ── Helpers de estado ───────────────────────────────────────────────────
   /// Estados do PaymentIntent em que o dinheiro **ainda não entrou**.
-  /// `requires_action` = MB Way empurrado, à espera do toque no banco.
+  /// `requires_payment_method` = PaymentIntent criado mas o cliente ainda não
+  ///   pagou (ou abriu a PaymentSheet e voltou sem pagar — corrida d947b446,
+  ///   2026-08-16: sem este valor aqui o ecrã dizia "à procura de motorista"
+  ///   numa corrida que nunca foi cobrada).
+  /// `requires_confirmation` = cartão anexado, falta o confirm.
+  /// `requires_action` = MB Way empurrado / 3DS, à espera do toque no banco.
   /// `processing`      = confirmado no banco, a liquidar.
-  static const _pendingPaymentStatuses = {'requires_action', 'processing'};
+  static const _pendingPaymentStatuses = {
+    'requires_payment_method',
+    'requires_confirmation',
+    'requires_action',
+    'processing',
+  };
 
   /// Pagamento online por fechar. Enquanto isto for `true` NÃO há dispatch:
   /// o motorista só é chamado quando `payment_status` chega a 'succeeded'
   /// (trigger `tr_tvde_dispatch_on_paid`).
+  ///
+  /// `payment_status` NULL numa corrida online ainda `solicitada` também é
+  /// pendente: sem 'succeeded' o trigger nunca despachou (ex.: ida do pacote
+  /// ida-e-volta antes de o `activate_roundtrip` ligar o vale). Fora de
+  /// `solicitada` um NULL legado não conta — a corrida já foi despachada.
   bool get isPaymentPending =>
-      isPaidOnline && _pendingPaymentStatuses.contains(paymentStatus);
+      isPaidOnline &&
+      (paymentStatus == null
+          ? status == 'solicitada'
+          : _pendingPaymentStatuses.contains(paymentStatus));
 
   /// MB Way empurrado, à espera do toque do cliente na app do banco — o
   /// dinheiro **ainda não saiu**. Desistir aqui é grátis e não há refund a

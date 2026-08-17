@@ -164,7 +164,9 @@ jobs:
       - name: Build appbundle (release)
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=512m"
-        run: flutter build appbundle --release --dart-define-from-file=.dart_defines --no-tree-shake-icons
+        # Adendo3 (2026-08-16): BORA_VERSION_CODE injetado — o AppUpdateGate
+        # compara o instalado com app_latest_version_code (build local = 0 = silencio).
+        run: flutter build appbundle --release --dart-define-from-file=.dart_defines --dart-define=BORA_VERSION_CODE=${{ steps.bump.outputs.new_code }} --no-tree-shake-icons
 
       # 11. Upload para Google Play — Teste FECHADO ('alpha') + Teste INTERNO ('internal').
       #     'alpha' e' o track ligado ao grupo bora-app-testers@googlegroups.com (os 12
@@ -212,3 +214,23 @@ jobs:
           releaseFiles: build/app/outputs/bundle/release/app-release.aab
           tracks: internal,alpha,production
           status: completed
+
+      # 12b. Adendo3 (2026-08-16): liga o AVISO DE ATUALIZACAO sozinho — grava
+      #      o versionCode publicado em platform_settings.app_latest_version_code
+      #      via REST do Supabase. Salta em silencio se o secret nao existir
+      #      (Danilo adiciona SUPABASE_SERVICE_ROLE_KEY nos secrets UMA vez).
+      - name: Publicar app_latest_version_code (aviso de atualizacao)
+        env:
+          SRK: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NEW_CODE: ${{ steps.bump.outputs.new_code }}
+        run: |
+          if [ -z "$SRK" ]; then
+            echo "SUPABASE_SERVICE_ROLE_KEY ausente — aviso de update fica manual (nao fatal)"
+            exit 0
+          fi
+          curl -sf -X PATCH "https://ojykpzwqrtusfeakzrna.supabase.co/rest/v1/platform_settings?key=eq.app_latest_version_code" \
+            -H "apikey: $SRK" -H "Authorization: Bearer $SRK" \
+            -H "Content-Type: application/json" -H "Prefer: return=minimal" \
+            -d "{\"value\": $NEW_CODE}" \
+            && echo "app_latest_version_code=$NEW_CODE gravado" \
+            || echo "AVISO: falha ao gravar app_latest_version_code (nao fatal)"

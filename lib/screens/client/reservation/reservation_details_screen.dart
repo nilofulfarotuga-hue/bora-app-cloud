@@ -255,6 +255,9 @@ class _ReservationDetailsScreenState extends State<ReservationDetailsScreen> {
       case 'cancelled_by_partner': return 'Cancelada pelo restaurante';
       case 'cancelled_by_admin':   return 'Cancelada pela Bora';
       case 'cancelled_refunded':   return 'Cancelada (reembolso)';
+      // F5 (2026-08-16): status novo do fix refund-fantasma — o refund
+      // automático falhou e o admin foi alertado; o registo não mente.
+      case 'cancelled_refund_pending': return 'Cancelada (reembolso a processar)';
       case 'cancelled_no_refund':  return 'Cancelada (sem reembolso)';
       case 'rejected_refunded':    return 'Recusada (reembolso)';
       case 'cancelled':            return 'Cancelada';

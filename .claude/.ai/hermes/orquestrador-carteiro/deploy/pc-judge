@@ -1,4 +1,13 @@
 #!/bin/sh
 # pc-judge — bridge CLAUDE-JUIZ do loop (isolado do pc partilhado)
-B64=$(printf '%s' "$*" | base64 | tr -d '\n=')
-exec ssh -o ProxyCommand="tailscale nc %h %p" -o StrictHostKeyChecking=accept-new -o ConnectTimeout=25 -o ServerAliveInterval=30 -o ServerAliveCountMax=6 hermes@100.71.105.7 "C:\\Users\\danil\\Desktop\\produtividade-ia\\hermes-bridge\\run-claude-judge.cmd --b64 $B64"
+#
+# F7/C4 (2026-08-16): prompt passa por STDIN (--b64stdin), NÃO como argumento
+# da linha de comando remota. Argumentos longos (>~1KB) rebentavam no cmd do
+# Windows — era a causa do erro "'PONTE' não é reconhecido como um comando
+# interno" nas 3 provas reais do C4 (os prompts de lição são grandes), que
+# deixava o campo "O certo é" sempre PENDENTE. O run-claude-judge.cmd aceita
+# --b64stdin desde 2026-08-01 (o pc-loop já usava; este ficou para trás).
+# DEPLOY: copiar para /opt/data/.local/bin/pc-judge no container da VPS
+# (docker cp + chmod +x), como qualquer comando custom do container
+# (lição: master no VOLUME, instalação re-garantida).
+printf '%s' "$*" | base64 | tr -d '=' | ssh -o ProxyCommand="tailscale nc %h %p" -o StrictHostKeyChecking=accept-new -o ConnectTimeout=25 -o ServerAliveInterval=30 -o ServerAliveCountMax=6 hermes@100.71.105.7 "C:\\Users\\danil\\Desktop\\produtividade-ia\\hermes-bridge\\run-claude-judge.cmd --b64stdin"

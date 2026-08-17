@@ -1,28 +1,12 @@
-// supabase/functions/tvde-plan-payment/index.ts — v2 (Item A · TVDE-CAMPO-01)
+// supabase/functions/tvde-plan-payment/index.ts — v3 (Item A + CAMPO-02 F3 roundtrip)
 //
 // Pagamento do PLANO TVDE por cartão OU MB Way (Stripe) + ativação automática,
 // SEM tocar no webhook Stripe existente. Função nova e ISOLADA (regra do Danilo).
-//
-// Fluxo (3 ações numa só função — nova e separada):
-//   { action: 'create',  plan }
-//     → valida plano, lê o preço SERVER-SIDE (tvde_plan_price_cents),
-//       cria PaymentIntent(amount=preço, eur) com metadata {kind,plan,user_id},
-//       devolve { clientSecret, paymentIntentId, amountCents }.
-//   { action: 'create_mbway', plan, phone }
-//     → igual, mas PaymentIntent MB Way confirmado server-side com o telefone
-//       (E.164) — envia o push MB WAY na hora; devolve { paymentIntentId, status }.
-//   { action: 'activate', plan, payment_intent_id }
-//     → RETRIEVE do PI na Stripe, confirma status='succeeded' + dono + valor,
-//       chama tvde_activate_paid_subscription (idempotente) → subscrição ATIVA.
-//       (Serve cartão E MB Way: o cliente faz poll até 'succeeded'.)
-//
-// verify_jwt = true (utilizador autenticado). O webhook Stripe NÃO é usado aqui:
-// a ativação é verificada por retrieve direto do PaymentIntent.
+// v3: +ações roundtrip (create_roundtrip / create_roundtrip_mbway / activate_roundtrip).
 
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-// corsHeaders inline — função ISOLADA e auto-contida (sem dependência partilhada).
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -51,8 +35,6 @@ const json = (body: any, status = 200) =>
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
 
-// Stripe Customer idempotente (mesmo padrão de create-payment-intent v28).
-// Non-blocking: falha → PI segue sem customer.
 // deno-lint-ignore no-explicit-any
 async function getOrCreateCustomer(admin: any, userId: string): Promise<string | null> {
   try {
@@ -88,7 +70,6 @@ Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
-    // ── Auth: user do JWT ──────────────────────────────────────────────────
     const authHeader = req.headers.get('Authorization') ?? '';
     const token = authHeader.replace(/^Bearer\s+/i, '').trim();
     if (!token) return json({ error: 'missing_token' }, 401);
@@ -104,15 +85,11 @@ Deno.serve(async (req: Request) => {
     const body = await req.json() as any;
     const action = typeof body?.action === 'string' ? body.action : null;
 
-    // ══════════════════════════════════════════════════════════════════════
-    // [CAMPO-02 · Feature 3] IDA-E-VOLTA — pacote pré-pago (8 EUR) que reusa
-    // ESTE checkout isolado. Sem plano; preço server-side (tvde_roundtrip_price_cents).
-    // ══════════════════════════════════════════════════════════════════════
+    // ── [CAMPO-02 F3] IDA-E-VOLTA — pacote pré-pago (8 EUR) reusa este checkout ──
     if (action === 'create_roundtrip' || action === 'create_roundtrip_mbway' ||
         action === 'activate_roundtrip') {
       const rtAdmin = createClient(supabaseUrl, serviceKey);
 
-      // Ativação: verifica o PI + cria o vale (liga a corrida de ida).
       if (action === 'activate_roundtrip') {
         const piId = typeof body?.payment_intent_id === 'string' ? body.payment_intent_id : null;
         const outboundRideId = typeof body?.outbound_ride_id === 'string' ? body.outbound_ride_id : null;
@@ -137,7 +114,6 @@ Deno.serve(async (req: Request) => {
         return json({ credit });
       }
 
-      // Preço server-side do pacote (jsonb → número).
       const { data: priceRow } = await rtAdmin
         .from('platform_settings').select('value').eq('key', 'tvde_roundtrip_price_cents').maybeSingle();
       const amountCents = Number(priceRow?.value ?? 800);
@@ -161,7 +137,6 @@ Deno.serve(async (req: Request) => {
         });
       }
 
-      // create_roundtrip_mbway
       const rawPhone = typeof body?.phone === 'string' ? body.phone.trim() : '';
       if (!rawPhone) return json({ error: 'phone_required' }, 400);
       const digits = rawPhone.replace(/[^\d+]/g, '');
@@ -192,9 +167,7 @@ Deno.serve(async (req: Request) => {
 
     const admin = createClient(supabaseUrl, serviceKey);
 
-    // ── Ação CREATE: cria o PaymentIntent do plano ─────────────────────────
     if (action === 'create') {
-      // Preço server-side (o cliente nunca envia o valor).
       const { data: priceData, error: priceErr } =
         await userClient.rpc('tvde_plan_price_cents', { p_plan: plan });
       const amountCents = typeof priceData === 'number' ? priceData : Number(priceData);
@@ -225,20 +198,12 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // ── Ação CREATE_MBWAY: cria + confirma o PaymentIntent MB Way do plano ──
-    // Reaproveita o MESMO padrão de create-mbway-payment-intent (v21):
-    // payment_method_types:['mb_way'] + payment_method_data.billing_details.phone
-    // (E.164) + confirm:true → a Stripe envia o push para a app MB WAY na hora.
-    // A ativação NÃO usa o webhook: o cliente faz poll da ação 'activate', que
-    // faz retrieve do PI e ativa quando status='succeeded' (função isolada).
     if (action === 'create_mbway') {
       const rawPhone = typeof body?.phone === 'string' ? body.phone.trim() : '';
       if (!rawPhone) return json({ error: 'phone_required' }, 400);
-      // Normaliza PT → E.164 (+351XXXXXXXXX), igual ao create-mbway-payment-intent.
       const digits = rawPhone.replace(/[^\d+]/g, '');
       const e164 = digits.startsWith('+') ? digits : `+351${digits.replace(/^0/, '')}`;
 
-      // Preço server-side (o cliente nunca envia o valor).
       const { data: priceData, error: priceErr } =
         await userClient.rpc('tvde_plan_price_cents', { p_plan: plan });
       const amountCents = typeof priceData === 'number' ? priceData : Number(priceData);
@@ -279,7 +244,6 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // ── Ação ACTIVATE: verifica o PI + cria a subscrição ───────────────────
     if (action === 'activate') {
       const piId = typeof body?.payment_intent_id === 'string'
         ? body.payment_intent_id : null;
@@ -293,7 +257,6 @@ Deno.serve(async (req: Request) => {
         return json({ error: 'payment_intent_not_found' }, 404);
       }
 
-      // O PI tem de estar pago, ser deste utilizador e deste plano.
       if (pi.status !== 'succeeded') {
         return json({ error: 'payment_not_completed', status: pi.status }, 402);
       }
@@ -322,7 +285,7 @@ Deno.serve(async (req: Request) => {
       return json({ subscription: sub });
     }
 
-    return json({ error: 'invalid_action', details: "use 'create', 'create_mbway' or 'activate'" }, 400);
+    return json({ error: 'invalid_action', details: "use 'create', 'create_mbway', 'activate' or *_roundtrip" }, 400);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error('[tvde-plan-payment] error:', message);

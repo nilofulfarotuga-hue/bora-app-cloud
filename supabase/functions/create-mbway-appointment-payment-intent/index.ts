@@ -1,5 +1,9 @@
-// supabase/functions/create-mbway-appointment-payment-intent/index.ts — v3
+// supabase/functions/create-mbway-appointment-payment-intent/index.ts — v4
 //
+// v4 (2026-08-16): F3a MISSAO TOTAL — metadata ganha `kind: 'appointment'`
+// (padronizacao do router por kind no stripe-webhook, que passa a ser a
+// GARANTIA do pagamento; o poll confirm-mbway-appointment-payment fica como
+// acelerador). Nenhum valor cobrado foi alterado.
 // v3 (2026-08-03): FIM DO SINAL. Removido o fallback `?? 300`: se
 // `deposit_cents` vier null/undefined/inválido/<50, a função NÃO cria o
 // PaymentIntent nem dispara push MBWay — devolve 400 `invalid_charge_amount`
@@ -22,8 +26,8 @@
 //   4. Return { appointment_id, paymentIntentId, status }.
 //
 // A confirmação é feita por polling do cliente à Edge Fn
-// confirm-mbway-appointment-payment (verifica o PI no Stripe server-side) —
-// o stripe-webhook NÃO trata appointment_deposit (zona protegida, não tocada).
+// confirm-mbway-appointment-payment (verifica o PI no Stripe server-side);
+// desde a v4 o stripe-webhook é a GARANTIA (router kind='appointment').
 // verify_jwt = true (paridade com create-appointment-payment-intent v1).
 
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
@@ -132,6 +136,7 @@ Deno.serve(async (req: Request) => {
         },
         confirm: true,
         metadata: {
+          kind: 'appointment',
           appointment_id: appt.id,
           provider_id: appt.provider_id,
           purpose: 'appointment_deposit',

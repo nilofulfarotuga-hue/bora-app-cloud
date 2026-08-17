@@ -35,7 +35,8 @@ class TvdeRideTrackingScreen extends StatefulWidget {
   State<TvdeRideTrackingScreen> createState() => _TvdeRideTrackingScreenState();
 }
 
-class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
+class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
+    with WidgetsBindingObserver {
   GoogleMapController? _map;
   LatLng? _driverPos;
   String? _driverName;
@@ -90,6 +91,11 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    // Espelho do servidor logo ao abrir: o objeto em memória pode estar velho
+    // (ex.: corrida entretanto cancelada noutro device / pelo cron).
+    WidgetsBinding.instance.addPostFrameCallback(
+        (_) => context.read<TvdeStore>().refreshActiveRide());
     _driverPoll = Timer.periodic(const Duration(seconds: 5), (_) => _pollDriver());
     _stopsTicker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
@@ -103,7 +109,19 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Voltar ao foreground → rebuscar a corrida no servidor. O realtime pode
+    // ter perdido eventos com a app em background; um estado terminal que
+    // chegue por aqui faz a tela sair sozinha (build já trata isCancelled /
+    // isFinished).
+    if (state == AppLifecycleState.resumed && mounted) {
+      context.read<TvdeStore>().refreshActiveRide();
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _driverPoll?.cancel();
     _animTimer?.cancel();
     _stopsTicker?.cancel();
@@ -636,12 +654,8 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
         // Mesma saída determinística do cancelamento normal (P0-3).
         context.read<TvdeStore>().clearActiveRide();
         Navigator.pop(context);
-      } catch (_) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Não foi possível cancelar.')),
-          );
-        }
+      } catch (e) {
+        _cancelFalhou(e);
       }
       return;
     }
@@ -725,13 +739,54 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
       // a tela de destino limpa (a corrida cancelada não é retomável).
       context.read<TvdeStore>().clearActiveRide();
       Navigator.pop(context);
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Não foi possível cancelar.')),
-        );
-      }
+    } catch (e) {
+      _cancelFalhou(e);
     }
+  }
+
+  /// Falha ao cancelar. Se o servidor responder que a corrida JÁ está num
+  /// estado terminal (cancelada noutro device / limpa pelo cron), isso é
+  /// sucesso do ponto de vista do cliente — o botão nunca fica "mudo":
+  /// confirma por palavras, limpa e sai. Qualquer outra falha ressincroniza
+  /// com o servidor (se entretanto ficou terminal, o build sai sozinho).
+  void _cancelFalhou(Object e) {
+    if (!mounted) return;
+    final s = e.toString();
+    if (s.contains('ride_already_terminal')) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(s.contains('finalizada')
+              ? 'A corrida já tinha terminado.'
+              : 'A corrida já estava cancelada.')));
+      context.read<TvdeStore>().clearActiveRide();
+      Navigator.pop(context);
+      return;
+    }
+    context.read<TvdeStore>().refreshActiveRide();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Não foi possível cancelar.')),
+    );
+  }
+
+  /// Corrida estacionada em `aguarda pagamento` (cartão): reapresenta a
+  /// PaymentSheet com o MESMO PaymentIntent e, se o cliente pagar, pede ao
+  /// servidor para revalidar e libertar já — sem depender só do webhook.
+  Future<void> _pagarDeNovo(TvdeRide ride) async {
+    final store = context.read<TvdeStore>();
+    final secret = store.cardClientSecretFor(ride.id);
+    if (secret == null) return;
+    try {
+      await PaymentService().processPayment(secret);
+    } catch (_) {
+      return; // desistiu outra vez — a tela continua a mostrar o estado real
+    }
+    if (!mounted) return;
+    for (var i = 0; i < 3; i++) {
+      final res = await store.confirmRidePayment(ride.id);
+      if (!mounted) return;
+      if (res != null && res['succeeded'] == true) break;
+      if (i < 2) await Future.delayed(const Duration(seconds: 2));
+    }
+    if (mounted) await store.refreshActiveRide();
   }
 
   @override
@@ -827,6 +882,11 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen> {
               onChat: () => _openChat(ride),
               onCall: _call,
               onCancel: () => _cancel(ride),
+              onPayAgain: ride.isAwaitingPayment &&
+                      ride.paymentMethod == 'card' &&
+                      store.cardClientSecretFor(ride.id) != null
+                  ? () => _pagarDeNovo(ride)
+                  : null,
               onRetry: () => _retry(ride, store),
               onClose: () {
                 store.clearActiveRide();
@@ -864,6 +924,7 @@ class _StatusPanel extends StatelessWidget {
     required this.onChat,
     required this.onCall,
     required this.onCancel,
+    this.onPayAgain,
     required this.onRetry,
     required this.onClose,
   });
@@ -897,6 +958,7 @@ class _StatusPanel extends StatelessWidget {
   final VoidCallback onChat;
   final VoidCallback onCall;
   final VoidCallback onCancel;
+  final VoidCallback? onPayAgain;
   final VoidCallback onRetry;
   final VoidCallback onClose;
 
@@ -1107,12 +1169,28 @@ class _StatusPanel extends StatelessWidget {
                   ? 'À espera da confirmação do MB Way. Abre a app do teu banco '
                       'e confirma o pagamento — só depois começamos a procurar '
                       'motorista.'
-                  : 'Ainda não começámos a procurar motorista — estamos à '
-                      'espera da confirmação do pagamento. Se já confirmaste, '
-                      'aparece dentro de momentos.',
+                  : onPayAgain != null
+                      // Sheet aberta e abandonada sem pagar (d947b446): dizer
+                      // a verdade e dar a saída, em vez de prometer que
+                      // "aparece dentro de momentos".
+                      ? 'O pagamento não foi concluído — ainda não começámos '
+                          'a procurar motorista e não foste cobrado. Toca em '
+                          '«Pagar de novo» ou cancela sem custo.'
+                      : 'Ainda não começámos a procurar motorista — estamos à '
+                          'espera da confirmação do pagamento. Se já '
+                          'confirmaste, aparece dentro de momentos.',
               style: const TextStyle(
                   color: AppColors.textSubtle, fontSize: 12),
             ),
+            if (onPayAgain != null) ...[
+              const SizedBox(height: Spacing.md),
+              BoraAccentButton(
+                label: 'Pagar de novo',
+                icon: Icons.credit_card,
+                loading: busy,
+                onPressed: onPayAgain!,
+              ),
+            ],
           ],
           // Back-to-back — passageiro em fila: contexto claro, sem spinner.
           if (ride.isQueued && ride.isAssigned) ...[

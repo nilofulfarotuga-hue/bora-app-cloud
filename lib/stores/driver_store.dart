@@ -585,12 +585,22 @@ class DriverStore extends ChangeNotifier {
     driver.location = location;
     notifyListeners();
 
-    _client.from('drivers').upsert({
-      'id': driverId,
-      'lat': location.latitude,
-      'lng': location.longitude,
-      'updated_at': DateTime.now().toUtc().toIso8601String(),
-    });
+    // F5.1 (2026-08-16): era um UPSERT por `id` — se o id da app fosse o
+    // user_id, criava um motorista FANTASMA; e é um 3º escritor de presença
+    // fora da RPC canónica. Passa a UPDATE (nunca cria) tolerante às duas
+    // chaves (doença id≠user_id, caso Valdemir/Erika).
+    unawaited(_client
+        .from('drivers')
+        .update({
+          'lat': location.latitude,
+          'lng': location.longitude,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .or('id.eq.$driverId,user_id.eq.$driverId')
+        .then((_) {})
+        .catchError((Object e) {
+      debugPrint('[DriverStore] drivers.lat update err: $e');
+    }));
 
     // BUG 4 — também actualiza orders.driver_lat/lng quando há pedido activo
     // em fase em que cliente vê estafeta no mapa. Throttle 5s.

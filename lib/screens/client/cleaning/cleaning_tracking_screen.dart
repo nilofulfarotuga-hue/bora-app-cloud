@@ -124,6 +124,18 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
       );
     } catch (_) {
       if (!mounted) return;
+      // Nunca deixar o botão "mudo" (2026-08-16): ressincroniza com o
+      // servidor — se a reserva já estava cancelada (outro device / backend),
+      // isso é sucesso do ponto de vista do cliente.
+      await store.refreshTracked();
+      if (!mounted) return;
+      final agora = store.tracked;
+      if (agora != null && agora.id == b.id && agora.status.isCancelled) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('A limpeza já estava cancelada.')),
+        );
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Não foi possível cancelar.')),
       );

@@ -16,7 +16,7 @@ import '../utils/business_opener.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora/coming_soon.dart';
 import '../widgets/bora_support_fab.dart';
-import 'reservation_flow_screen.dart';
+import 'client/reservation/reservation_availability_screen.dart';
 import 'restaurant_menu_screen.dart';
 import 'restaurant_options_screen.dart';
 
@@ -166,12 +166,13 @@ Future<void> openRestaurantBusiness(
 
     // BUG 3 (2026-05-15) — se cliente veio do fluxo "Reservar Mesa", saltar
     // o ecrã de opções e ir directamente à reserva.
-    // ReservationFlowScreen espera RestaurantModel (business), não o adaptador
-    // de menu Restaurant (variable `restaurant` acima).
+    // F5 (2026-08-16, decisão CEO): consolidado na implementação NOVA
+    // (client/reservation/* — slots reais, estados completos). A legacy
+    // ReservationFlowScreen fica ARQUIVADA (ficheiro preservado, sem rota).
     if (reservationsOnly &&
         business.isPartner &&
         business.reservationsEnabled) {
-      // "Em breve": a reserva cobra €3 — não deixar entrar no fluxo.
+      // "Em breve": a reserva cobra — não deixar entrar no fluxo.
       if (business.comingSoon) {
         showComingSoonBlockedSnackBar(context);
         return;
@@ -179,7 +180,11 @@ Future<void> openRestaurantBusiness(
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => ReservationFlowScreen(restaurant: business),
+          builder: (_) => ReservationAvailabilityScreen(
+            restaurantId: business.id,
+            restaurantName: business.name,
+            restaurantPhotoUrl: business.photoUrl,
+          ),
         ),
       );
       return;

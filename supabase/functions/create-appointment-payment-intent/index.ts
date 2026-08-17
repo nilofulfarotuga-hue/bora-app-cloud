@@ -1,5 +1,9 @@
-// supabase/functions/create-appointment-payment-intent/index.ts — v3
+// supabase/functions/create-appointment-payment-intent/index.ts — v4
 //
+// v4 (2026-08-16): F3a MISSAO TOTAL — metadata ganha `kind: 'appointment'`
+// (padronizacao do router por kind no stripe-webhook, que passa a ser a
+// GARANTIA do pagamento; o poll do cliente fica como acelerador). Nenhum
+// valor cobrado foi alterado.
 // v3 (2026-08-03): FIM DO SINAL. Removido o fallback `?? 300`: se
 // `deposit_cents` vier null/undefined/inválido/<50, a função NÃO cria o
 // PaymentIntent — devolve 400 `invalid_charge_amount` com log. Nunca se cobra
@@ -112,6 +116,7 @@ Deno.serve(async (req: Request) => {
       currency: 'eur',
       payment_method_types: ['card'],
       metadata: {
+        kind: 'appointment',
         appointment_id: appt.id,
         provider_id: appt.provider_id,
         purpose: 'appointment_deposit',

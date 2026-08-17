@@ -12,6 +12,7 @@ import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'services/app_update_service.dart';
 import 'services/floating_bubble_service.dart';
 import 'services/foreground_service.dart';
 import 'services/notification_service.dart';
@@ -621,7 +622,12 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           }
           return null;
         },
-        home: const ConsentBanner(child: _BackToBackgroundWrapper(child: _RootNavigator())),
+        // Adendo3 (2026-08-16): AppUpdateGate — aviso/bloqueio de atualização
+        // (padrão Glovo/Uber) no arranque e ao voltar ao foreground.
+        home: const AppUpdateGate(
+            child: ConsentBanner(
+                child: _BackToBackgroundWrapper(
+                    child: _ServerMirrorOnResume(child: _RootNavigator())))),
       ),
     );
   }
@@ -633,6 +639,45 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 /// MAS Activity sobrevive → main isolate + WebSocket Supabase continuam vivos.
 /// Sem isto, BACK no driver_home → MaterialApp pop → Activity finish → main
 /// isolate morre → realtime morre → ofertas perdidas.
+/// Espelho do servidor ao voltar ao foreground (2026-08-16, corrida d947b446):
+/// o realtime pode morrer em background sem disparar onError/onDone (Samsung
+/// mata o WebSocket) e as telas de acompanhamento ficavam presas num estado
+/// velho. Ao retomar, rebusca do SERVIDOR os pedidos e a corrida TVDE ativa —
+/// a tela nunca assume o estado local como verdade.
+class _ServerMirrorOnResume extends StatefulWidget {
+  const _ServerMirrorOnResume({required this.child});
+  final Widget child;
+
+  @override
+  State<_ServerMirrorOnResume> createState() => _ServerMirrorOnResumeState();
+}
+
+class _ServerMirrorOnResumeState extends State<_ServerMirrorOnResume>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed || !mounted) return;
+    context.read<OrderStore>().loadOrders();
+    context.read<TvdeStore>().refreshActiveRide();
+    context.read<CleaningStore>().refreshTracked();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
+}
+
 class _BackToBackgroundWrapper extends StatelessWidget {
   const _BackToBackgroundWrapper({required this.child});
   final Widget child;

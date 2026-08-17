@@ -4,6 +4,14 @@
 // PADRAO UNICO (= delivery): cobra NA HORA e faz refund estilo
 // `client-cancel-order` (capado ao pago, menos a taxa). SEM authorize/capture.
 //
+// v9 (2026-08-13) — missao `tvde-pagamento-tokens-despacho`:
+//   - `charge` passa `p_tokens_to_apply` (o desconto do toggle nunca chegava ao
+//     servidor no pagamento ONLINE).
+//   - `confirm_ride_payment` aceita ADMIN (botao do painel "Corridas presas").
+//   - `refund` exige dono/admin, le a taxa da CORRIDA (nao do body) e nunca
+//     grava `refunded` sem dinheiro de volta -> `kept_cancel_fee`.
+//   ADITIVO: v5 e v6 abaixo ficam INTACTAS.
+//
 // v6 (2026-08-01) — PACOTE IDA-E-VOLTA ONLINE. Antes o pacote so existia em
 //   DINHEIRO (RPC tvde_create_roundtrip_credit_cash). Agora cartao e MB Way
 //   tambem funcionam, com o MESMO preco do servidor:
@@ -30,7 +38,7 @@
 //   charge_roundtrip -> v6: cria a corrida de IDA e cobra o PACOTE.
 //   confirm_roundtrip_payment -> v6: PI pago -> cria o vale (idempotente).
 //   confirm_ride_payment -> le o estado REAL do PI no Stripe e grava-o em
-//             tvde_rides.payment_status. A UI faz poll (3s/120s). Idempotente.
+//             tvde_rides.payment_status. A UI faz poll (3s/300s). Idempotente.
 //   charge_stop -> v4: parada em corrida ONLINE. Cobra tvde_stop_fee_cents
 //             (cartao: clientSecret; mbway: confirm server-side c/ phone).
 //             A parada NAO e adicionada aqui — so no confirm_stop_payment.

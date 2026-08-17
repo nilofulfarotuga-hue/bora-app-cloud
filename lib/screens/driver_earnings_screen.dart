@@ -20,6 +20,11 @@ class _DriverEarningsScreenState extends State<DriverEarningsScreen> {
 
   int _tokens = 0;
   int _weeklyTokensConverted = 0;
+
+  /// F6 (2026-08-16): GANHOS UNIFICADOS — vem TUDO da RPC
+  /// driver_earnings_summary (TVDE + entregas + favores + tokens, a MESMA
+  /// fonte dos acertos). O Flutter só exibe, nunca calcula.
+  Map<String, dynamic>? _resumo;
   DateTime? _priorityUntil;
   final Map<String, int> _priorityCosts = {
     '5min': 50,
@@ -69,10 +74,22 @@ class _DriverEarningsScreenState extends State<DriverEarningsScreen> {
       );
       _tokens = (tokenResp as num?)?.toInt() ?? 0;
 
+      // F6 — resumo unificado servidor (nunca calcular no cliente)
+      try {
+        final resp = await supabase.rpc('driver_earnings_summary');
+        if (resp is Map && resp['ok'] == true) {
+          _resumo = Map<String, dynamic>.from(resp);
+        }
+      } catch (e) {
+        debugPrint('[DriverEarnings] driver_earnings_summary: $e');
+      }
+
+      // F5.4 (doença id/user_id): era .eq('id', uid) — conta com id≠user_id
+      // nunca encontrava a própria linha. Tolerante às duas chaves.
       final driverRow = await supabase
           .from('drivers')
           .select('priority_until')
-          .eq('id', uid)
+          .or('id.eq.$uid,user_id.eq.$uid')
           .maybeSingle();
       final pu = driverRow?['priority_until'] as String?;
       _priorityUntil = pu != null ? DateTime.tryParse(pu) : null;
@@ -109,6 +126,93 @@ class _DriverEarningsScreenState extends State<DriverEarningsScreen> {
         });
       }
     }
+  }
+
+  /// F6 — cabeçalho de ganhos unificados + extrato dos últimos 7 dias.
+  Widget _resumoUnificado() {
+    final r = _resumo!;
+    final dia = Map<String, dynamic>.from(r['dia'] as Map? ?? {});
+    final semana = Map<String, dynamic>.from(r['semana'] as Map? ?? {});
+    final itens = List<Map<String, dynamic>>.from(
+        (r['itens'] as List? ?? []).map((e) => Map<String, dynamic>.from(e)));
+    String eur(num? cents) =>
+        '€${((cents ?? 0) / 100).toStringAsFixed(2).replaceAll('.', ',')}';
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Hoje',
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(eur(dia['total_cents'] as num?),
+                    style: const TextStyle(
+                        fontSize: 32, fontWeight: FontWeight.w800)),
+                const SizedBox(width: 10),
+                if ((dia['tokens'] as num? ?? 0) > 0)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Text('+${dia['tokens']} tokens',
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.amber.shade800)),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+                'Esta semana: ${eur(semana['total_cents'] as num?)}'
+                '${(semana['tokens'] as num? ?? 0) > 0 ? ' · +${semana['tokens']} tokens' : ''}',
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade700)),
+            if (itens.isNotEmpty) ...[
+              const Divider(height: 24),
+              ...itens.take(15).map((i) {
+                final tokens = (i['tokens'] as num? ?? 0).toInt();
+                final valor = (i['valor_cents'] as num? ?? 0).toInt();
+                final icone = switch (i['tipo'] as String? ?? '') {
+                  'tvde' => Icons.directions_car_outlined,
+                  'tokens' => Icons.monetization_on_outlined,
+                  'favor_entrega' => Icons.shopping_bag_outlined,
+                  _ => Icons.delivery_dining_outlined,
+                };
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      Icon(icone, size: 18, color: Colors.grey.shade600),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '${i['ts']} · ${i['descricao']}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      ),
+                      Text(
+                        tokens > 0 ? '+$tokens tk' : '+${eur(valor)}',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: tokens > 0
+                              ? Colors.amber.shade800
+                              : Colors.green.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 
   DateTime _weekStart() {
@@ -331,6 +435,13 @@ class _DriverEarningsScreenState extends State<DriverEarningsScreen> {
                   child: ListView(
                     padding: const EdgeInsets.all(16),
                     children: [
+                      // F6 (2026-08-16): GANHOS UNIFICADOS (padrão Uber/Bolt)
+                      // — total do DIA no topo + extrato TVDE/entregas/tokens,
+                      // tudo da RPC driver_earnings_summary (servidor soma).
+                      if (_resumo != null) ...[
+                        _resumoUnificado(),
+                        const SizedBox(height: 20),
+                      ],
                       // FASE 4: card semanal (settlement Lisbon TZ) — fonte
                       // única de saldo, ganhos e detalhe por pedido.
                       const WeeklySettlementCard(),

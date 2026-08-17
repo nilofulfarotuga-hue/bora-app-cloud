@@ -27,7 +27,7 @@ import '../../../stores/tvde_driver_store.dart';
 import '../../../widgets/background_location_disclosure.dart';
 import '../../../widgets/bora_support_sheet.dart';
 import '../../driver_home_screen.dart';
-import 'tvde_driver_earnings_screen.dart';
+import '../../driver_earnings_screen.dart';
 import 'tvde_offer_screen.dart';
 import 'tvde_ride_active_screen.dart';
 
@@ -311,10 +311,12 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
     }
   }
 
-  /// M12 — ecrã de ganhos (dia/semana) + histórico de corridas do motorista.
+  /// Ganhos UNIFICADOS (HOJE/ESTA SEMANA/SEMANA PASSADA/ÚLTIMO ACERTO + extrato
+  /// TVDE/entregas/tokens + settlement), da RPC driver_earnings_summary. O
+  /// motorista TVDE passa a ver o quadro completo, não só o histórico de corridas.
   void _openEarnings() {
     Navigator.of(context).push(MaterialPageRoute<void>(
-        builder: (_) => const TvdeDriverEarningsScreen()));
+        builder: (_) => const DriverEarningsScreen()));
   }
 
   /// F — suporte (reusa a folha de suporte do delivery: Bora IA + WhatsApp + Email).

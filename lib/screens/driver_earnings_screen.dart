@@ -133,10 +133,18 @@ class _DriverEarningsScreenState extends State<DriverEarningsScreen> {
     final r = _resumo!;
     final dia = Map<String, dynamic>.from(r['dia'] as Map? ?? {});
     final semana = Map<String, dynamic>.from(r['semana'] as Map? ?? {});
+    final semanaPassada =
+        Map<String, dynamic>.from(r['semana_passada'] as Map? ?? {});
+    final ultimoAcerto = r['ultimo_acerto'] is Map
+        ? Map<String, dynamic>.from(r['ultimo_acerto'] as Map)
+        : null;
     final itens = List<Map<String, dynamic>>.from(
         (r['itens'] as List? ?? []).map((e) => Map<String, dynamic>.from(e)));
     String eur(num? cents) =>
         '€${((cents ?? 0) / 100).toStringAsFixed(2).replaceAll('.', ',')}';
+    // net_balance do settlement já vem em euros (não cents).
+    String eurRaw(num? v) =>
+        '€${(v ?? 0).toStringAsFixed(2).replaceAll('.', ',')}';
 
     return Card(
       child: Padding(
@@ -164,11 +172,28 @@ class _DriverEarningsScreenState extends State<DriverEarningsScreen> {
                   ),
               ],
             ),
-            const SizedBox(height: 4),
-            Text(
-                'Esta semana: ${eur(semana['total_cents'] as num?)}'
-                '${(semana['tokens'] as num? ?? 0) > 0 ? ' · +${semana['tokens']} tokens' : ''}',
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade700)),
+            const SizedBox(height: 10),
+            // ESTA SEMANA (desde 2.ª feira) + SEMANA PASSADA, lado a lado.
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: _miniSemana('Esta semana',
+                      eur(semana['total_cents'] as num?),
+                      (semana['tokens'] as num? ?? 0).toInt()),
+                ),
+                Expanded(
+                  child: _miniSemana('Semana passada',
+                      eur(semanaPassada['total_cents'] as num?),
+                      (semanaPassada['tokens'] as num? ?? 0).toInt()),
+                ),
+              ],
+            ),
+            // ÚLTIMO ACERTO — settlement fechado mais recente (servidor).
+            if (ultimoAcerto != null) ...[
+              const SizedBox(height: 14),
+              _acertoBlock(ultimoAcerto, eurRaw),
+            ],
             if (itens.isNotEmpty) ...[
               const Divider(height: 24),
               ...itens.take(15).map((i) {
@@ -211,6 +236,83 @@ class _DriverEarningsScreenState extends State<DriverEarningsScreen> {
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _miniSemana(String rotulo, String valor, int tokens) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(rotulo, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+        const SizedBox(height: 2),
+        Text(valor,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+        if (tokens > 0)
+          Text('+$tokens tokens',
+              style: TextStyle(fontSize: 11, color: Colors.amber.shade800)),
+      ],
+    );
+  }
+
+  /// ÚLTIMO ACERTO — a RPC manda a linha do settlement fechado; a tela só exibe.
+  Widget _acertoBlock(Map<String, dynamic> a, String Function(num?) eurRaw) {
+    final dir = a['direction'] as String? ?? 'zero';
+    final net = (a['net_balance'] as num?)?.toDouble() ?? 0;
+    final status = a['status'] as String? ?? 'pending';
+    final ws = DateTime.tryParse(a['week_start_at'] as String? ?? '')?.toLocal();
+    final we = DateTime.tryParse(a['week_end_at'] as String? ?? '')?.toLocal();
+    String pad(int n) => n.toString().padLeft(2, '0');
+    final range = (ws == null || we == null)
+        ? ''
+        : '${pad(ws.day)}/${pad(ws.month)} → ${pad(we.day)}/${pad(we.month)}';
+    final isOwe = dir == 'driver_pays_bora';
+    final isPay = dir == 'bora_pays_driver';
+    final label = isOwe
+        ? 'A entregar à Bora'
+        : isPay
+            ? 'A receber da Bora'
+            : 'Saldo zero';
+    final cor = isOwe ? Colors.orange.shade800 : Colors.green.shade800;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isOwe ? Colors.orange.shade50 : Colors.green.shade50,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.receipt_long_outlined, size: 20, color: cor),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Último acerto',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
+                if (range.isNotEmpty)
+                  Text(range,
+                      style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                (isOwe || isPay) ? '$label ${eurRaw(net.abs())}' : label,
+                style: TextStyle(
+                    fontSize: 14, fontWeight: FontWeight.w800, color: cor),
+              ),
+              Text(status.toUpperCase(),
+                  style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.grey.shade600,
+                      fontWeight: FontWeight.w700)),
+            ],
+          ),
+        ],
       ),
     );
   }

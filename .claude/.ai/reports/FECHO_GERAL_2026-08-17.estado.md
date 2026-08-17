@@ -11,7 +11,7 @@
 - [x] **F2 — P6: PIN validado no SERVIDOR** (servidor FEITO+provado; costura Flutter = PROPOSTA zona 🔴) (RPC driver_validate_delivery_pin + app envia, nunca decide)
 - [x] **F3 — P8: REATRIBUIR no admin** (padrão Isabel/Valdemir: user_id, offer limpo, notify, auditoria)
 - [x] **F4 — C4: pc_judge vivo na VPS** (copiar master→container, restart, prova com travada real)
-- [ ] **F5 — FECHO** (relatório + vault + platform_settings + Córtex + digest Hermes + ctx)
+- [x] **F5 — FECHO** (relatório + vault + platform_settings + Córtex + digest Hermes + ctx)
 
 ## MARCOS
 
@@ -77,6 +77,13 @@ ponta a ponta — chão anti_trapaca.py rc=0 CLEAN → juiz Go (429 rate-limit �
 pipe/stdin e deu "[juiz] ERRO: base64 vazio" — o pc-judge lê "$*" (argumentos), e o carteiro passa
 por argumento; usar stdin é que estava errado (meu), não o deploy. O que caducou é o token do
 EXECUTOR (pc-loop, visto no canário A: CLI-SEM-AUTH) — ação humana `claude setup-token`, NÃO o juiz.
+
+### MARCO F5 (FECHO) — MISSAO COMPLETA — 2026-08-17
+Relatorio FECHO_GERAL_2026-08-17.md escrito + copia no vault + prompt registado no vault +
+platform_settings.relatorio_fecho_geral_20260817 gravado (category reports) + digest Hermes 8 linhas +
+marcos no Cortex (reportes ref-fd100e, ref-d8014b) + ctx doctor/stats. Tudo pushed.
+6 alteracoes servidor/CI aplicadas e provadas; 1 UI admin; 1 proposta Flutter (PIN, order_store 🔴).
+4 pendencias humanas com guia: Gemini spend-cap, papel IAM Test Lab, costura PIN, claude setup-token.
 
 ## Notas de retoma
 - Chave Gemini: GRAVADA como GEMINI_API_KEY em backend/.env (2026-08-17, colada pelo Danilo no chat; NUNCA versionar).

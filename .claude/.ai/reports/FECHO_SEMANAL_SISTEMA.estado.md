@@ -34,6 +34,39 @@
 
 ## MARCOS
 
+### MARCO F3.1–F3.3 (fundação + compilador + EF) — 2026-08-17 ✓
+- **F3.1** aplicado: colunas `mbway_phone` em cleaners/restaurants/service_providers (drivers já tinha);
+  tabela `weekly_digest_log` (RLS admin); settings `bora_mbway_phone`(vazia) + `weekly_digest_emails_enabled`(false).
+- **F3.2** `weekly_closeout_compile(p_week_start)` (RPC): lê os 4 settlements, normaliza net SIGNED
+  (positivo=Bora paga, negativo=deve), breakdown por vertical, upsert em weekly_digest_log.
+  **PROVADO** semana 2026-08-09: `to_receive: Valdemir €0,80 (MB Way +351964235084)`, to_pay [], zerados 0.
+- **F3.3** EF `weekly-closeout-digest` (v2, ACTIVE): chama o compilador → emails individuais com GATE
+  (Valdemir → `aguarda_dominio`, correto) → resumo ao Danilo. **PROVADO**: `admin_push=true` (push
+  persistente via notify-admin-urgent, fix = reencaminhar o authHeader). Telegram via vault (existe).
+- ⚠️ **BLOQUEIO HUMANO — `RESEND_API_KEY` não está nas secrets das EFs** (`resend_key_present=false`;
+  não está no backend/.env). Por isso NENHUM email das EFs sai (nem o da notify-admin-urgent crosstalk).
+  O email está code-complete; falta o Danilo **definir RESEND_API_KEY** nas Edge Function secrets do
+  Supabase. Sem isso: push+Telegram funcionam; emails ficam preparados (aguarda_dominio) e não saem.
+
+### MARCO F3.4 (cron) + F3.5a (RPCs admin) — 2026-08-17 ✓
+- **F3.4** cron `weekly-closeout-digest` `0 9 * * 1` (2.ª 09:00 UTC, depois de todos os settlements) →
+  invoca a EF via pg_net (padrão project_url/service_role_key do vault).
+- **F3.5a** RPCs admin (is_admin guard): `admin_weekly_closeout_list` (lista + join estado pago),
+  `admin_mark_settlement_paid` (muda ESTADO do settlement, não valor + log_admin_action),
+  `admin_update_weekly_closeout_settings` (MB Way + toggle), `admin_resend_weekly_digest` (re-invoca EF).
+  **PROVADO** (identidade admin do Danilo): lista devolve Valdemir −80/owes_bora/pending/aguarda_dominio + breakdown.
+- Migrations aplicadas via MCP; registo em `supabase/migrations/20260817090000_weekly_closeout_system_f3.sql`.
+
+### MARCO F3.5b (tela Flutter) + F3.6 (prova) — 2026-08-17 ✓
+- **F3.5b** `lib/screens/admin/admin_acertos_semana_screen.dart` (PT-BR): seletor de semana, card de config
+  (MB Way do Bora editável + toggle envio externo + reenviar), KPIs, listas "A RECEBER (devem)" e "A PAGAR",
+  cada item com valor/direção/MB Way/estado-email/estado-pago + botão "Marcar pago". Ligada no
+  `admin_dashboard_screen` (import + _NavCard no topo do grupo de fechos). `analyze` 0 erros, 0 issues meus.
+- **F3.6 PROVA consolidada** (semana 2026-08-09, Valdemir −€0,80): compilador → `to_receive Valdemir €0,80`;
+  EF → `admin_push=true` (resumo persistente ao Danilo), Valdemir email `aguarda_dominio` (gate); lista admin
+  devolve tudo. ⚠️ Email do Danilo NÃO recebido: `RESEND_API_KEY` não está nas EF secrets (ação humana).
+- **F3 COMPLETO.** Falta F4 (fecho: relatório + vault + platform_settings + Córtex + Hermes + ctx).
+
 ### MARCO F1 (ecrã de ganhos) — 2026-08-17 ✓
 - A tela `DriverEarningsScreen` já existia e já consumia `driver_earnings_summary`, mas só exibia HOJE + ESTA
   SEMANA. Acrescentei **SEMANA PASSADA** e **ÚLTIMO ACERTO** (helpers `_miniSemana` + `_acertoBlock`), tudo da
@@ -45,6 +78,9 @@
   0 issues novos (driver_earnings_screen limpo; 12 info pré-existentes no tvde_home em linhas não tocadas).
 - Ficheiros: `lib/screens/driver_earnings_screen.dart`, `lib/screens/driver/tvde/tvde_driver_home_screen.dart`.
 
-### F2 (taxa TVDE) — PROPOSTA PRONTA (💰 aguarda "vai")
-- Migration completo + 3 mudanças + plano de prova em `.claude/.ai/reports/F2_TVDE_CANCEL_PROPOSTA.md`.
-  Falta: provar por rollback tx os 3 casos, e (só com "vai") aplicar função + religar `tvde_cancel_full_after_grace`.
+### F2 (taxa TVDE) — PROPOSTA PRONTA + PROVA (💰 aguarda "vai")
+- Migration completo + 3 mudanças em `.claude/.ai/reports/F2_TVDE_CANCEL_PROPOSTA.md`.
+- **PROVA (simulação SQL da lógica proposta com settings reais 250/350/180)**: caso 1 (sem aceite, driver_id
+  NULL) → **0**; caso 2 (pós-aceite, passada a graça) → **250**; caso 3 (no-show) → **350**. ✓
+- ⚠️ **Falta só o "vai"**: aplicar a função (apply_migration) + `UPDATE platform_settings tvde_cancel_full_after_grace=true`.
+  NÃO aplicado (dinheiro real). Nota pendente: cancelar corrida-de-plano pós-aceite passa de 350→250.

@@ -46,6 +46,7 @@ import 'admin_partner_settlements_screen.dart';
 import 'admin_referrals_screen.dart';
 import 'admin_search_kpi_screen.dart';
 import 'admin_send_notification_screen.dart';
+import 'admin_acertos_semana_screen.dart';
 import 'admin_settlements_screen.dart';
 import 'admin_support_stats_screen.dart';
 import 'admin_knowledge_screen.dart';
@@ -465,6 +466,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       context,
                       MaterialPageRoute(
                           builder: (_) => const AdminDriverPaymentsScreen())),
+                ),
+                const SizedBox(height: 10),
+                _NavCard(
+                  icon: Icons.calendar_month,
+                  title: 'Acertos da semana',
+                  subtitle: 'Fecho unificado: quem recebe e quem deve · marcar pago',
+                  color: AppColors.primary,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminAcertosSemanaScreen())),
                 ),
                 const SizedBox(height: 10),
                 _NavCard(

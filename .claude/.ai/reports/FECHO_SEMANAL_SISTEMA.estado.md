@@ -86,9 +86,12 @@
   0 issues novos (driver_earnings_screen limpo; 12 info pré-existentes no tvde_home em linhas não tocadas).
 - Ficheiros: `lib/screens/driver_earnings_screen.dart`, `lib/screens/driver/tvde/tvde_driver_home_screen.dart`.
 
-### F2 (taxa TVDE) — PROPOSTA PRONTA + PROVA (💰 aguarda "vai")
-- Migration completo + 3 mudanças em `.claude/.ai/reports/F2_TVDE_CANCEL_PROPOSTA.md`.
-- **PROVA (simulação SQL da lógica proposta com settings reais 250/350/180)**: caso 1 (sem aceite, driver_id
-  NULL) → **0**; caso 2 (pós-aceite, passada a graça) → **250**; caso 3 (no-show) → **350**. ✓
-- ⚠️ **Falta só o "vai"**: aplicar a função (apply_migration) + `UPDATE platform_settings tvde_cancel_full_after_grace=true`.
-  NÃO aplicado (dinheiro real). Nota pendente: cancelar corrida-de-plano pós-aceite passa de 350→250.
+### MARCO F2 (taxa TVDE) — APLICADO EM PRODUÇÃO 2026-08-17 ✓ ("vai" do Danilo)
+- Função aplicada via MCP `apply_migration` (`tvde_cancel_fee_uber_style_f2`) + religado
+  `tvde_cancel_full_after_grace=true` (UPDATE confirmado com RETURNING).
+- **PROVA REAL pós-apply** (rollback tx a chamar a função de PRODUÇÃO, jwt sub simulado, resíduo=0):
+  caso 1 (sem aceite, driver_id NULL, COM oferta+tentativas, pós-graça) → **fee=0**;
+  caso 2 (pós-aceite, motorista_a_caminho, pós-graça, est_fare=700) → **fee=250** (fixa, não os 700);
+  caso 3 (no-show, motorista_chegou) → **fee=350**.
+- Registo no repo: `supabase/migrations/20260817120000_tvde_cancel_fee_uber_style_f2.sql`.
+- Nota vigente: cancelar corrida-de-plano pós-aceite passa de 350→250 (taxa fixa única).

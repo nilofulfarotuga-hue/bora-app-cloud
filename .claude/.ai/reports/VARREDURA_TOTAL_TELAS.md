@@ -123,13 +123,31 @@ Nota de método: nesta área a leitura foi dirigida (scanner + ecrãs de espera 
 tela-a-tela como F1-F4 — as 3 verticais receberam consolidação pesada há 24h (f3a/f3b/f5 no merge).
 
 
-### F6 — PARCEIRO + ADMIN
-_(pendente)_
+### F6 — PARCEIRO + ADMIN (fechada 2026-08-17)
+
+Parceiro: leitura integral do dashboard (2646L) + verificação dirigida do resto. Admin (82 ecrãs, PT-BR):
+scanner + verificações dirigidas às capacidades nomeadas pela missão. 1 correção aplicada.
+
+| Tela/Área | Estado | Achados / Correções |
+|---|---|---|
+| `PartnerDashboardScreen` | 🟢 corrigida | Pedidos ao vivo c/ som+vibração+timeout 60s, aceitar/rejeitar/ETA-picker takeaway/chamar estafeta, chat+ligar cliente E estafeta, badge reservas realtime, modal REGRA 5 (20min sem estafeta → +10min/cancelar, RPC `partner_dispatch_decision` ✓ em prod), terminais → histórico, Connect (receber/extrato), toggles reservas/takeaway/curbside. **✔ CORRIGIDO: "Teste" c/ bug icon → "Mudar modo"** (3º sítio). 🟡 rejeição sem captura de motivo (gap conhecido do mapa); 🟡 cards de ganhos do topo somados em Dart (aprox.; detalhe real é server-side) |
+| `PartnerEarningsScreen` + fecho semanal | 🟢 | "Comissão" e "Ganho líquido (já descontada a comissão)" do servidor; breakdown 10/5/5 fica server-side POR DESENHO (markup oculto não se mostra ao parceiro — BR §2) |
+| `PartnerProductsScreen` / Hours / CallDriver | 🟢 | CRUD otimista c/ rollback (mapa §6); horários; self-dispatch |
+| Admin — idioma | 🟢 | Scanner nos 82 ficheiros: 0 strings EN reais (5 falsos positivos "no"=em) |
+| Admin — mapa de entregadores | 🟢 | `admin_live_orders_map_screen` usa `admin_live_drivers`+`admin_live_orders` — ambas ✓ na BD viva (a correção referida pela memória está de pé) |
+| Admin — reembolsos/talões | 🟢 | `admin_receipts_screen`, `admin_orphan_payments_screen`, `admin_order_detail` c/ refund+cancel; reconciliador no ar (memória 16/08) |
+| Admin — autoridade total (GAPS) | 🟡 | **Falta: reatribuir pedido a outro estafeta** (0 ocorrências — P8); rejeição de pedido sem motivo → sem campo no admin; ver P6 (PIN server-side) |
+
 
 ### F-OLHO — automação de visão
 _(pendente)_
 
 ## Propostas grandes (fora do perímetro — para Claude.ai/Danilo)
+
+### P8 (F6) — Admin: reatribuir pedido a outro estafeta (autoridade total)
+Não existe em nenhum dos 82 ecrãs. Precisa de RPC `admin_reassign_order(p_order_id, p_driver_id)` (solta
+o atual, limpa offer, atribui novo ou devolve ao dispatch) + botão no admin_order_detail. Toca dispatch
+🔴 → propor à Claude.ai. Esforço: ~3-4h.
 
 ### P6 (F4) — PIN de entrega server-side (P0 conhecido, BUG #15)
 RPC nova `driver_confirm_delivery(p_order_id, p_code)` que valida o código NO SERVIDOR e só então

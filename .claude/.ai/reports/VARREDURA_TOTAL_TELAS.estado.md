@@ -11,7 +11,7 @@
 - [x] **F3 — CLIENTE DELIVERY**
 - [x] **F4 — ESTAFETA DELIVERY**
 - [x] **F5 — MARCAÇÕES + RESERVAS + LIMPEZA + FAVORES**
-- [ ] **F6 — PARCEIRO + ADMIN**
+- [x] **F6 — PARCEIRO + ADMIN**
 - [ ] **F-OLHO — golden tests + juiz de visão + Firebase Test Lab**
 - [ ] **F7 — FECHO** (relatório + Córtex + platform_settings + digest Hermes)
 
@@ -73,6 +73,12 @@ Prova: scanner red-flags em 25 ficheiros (12,4k linhas) + leitura dirigida dos e
 1 correcao: ReservationStore.fetchMyReservations + ServicesStore.fetchMyAppointments adicionados ao
 hook global de resume no main.dart (realtime .stream() ja existia; faltava a metade do foreground).
 Falsos alarmes do scanner documentados (realtime vive nos stores). analyze 0 erros.
+
+### MARCO: F6 FEITO — 2026-08-17
+Prova: partner_dashboard 2646L integral + earnings/products/hours dirigidos; admin 82 ecras via
+scanner (0 EN reais) + verificacoes dirigidas (admin_live_drivers/admin_live_orders confirmadas na
+BD; refund/cancel presentes; REATRIBUIR NAO existe -> P8). 1 correcao: 3o botao Teste->Mudar modo.
+analyze 0 erros.
 
 ## Notas de retoma
 - Inventário completo (ficheiro→classes→arestas + BFS caminhos de clique): `.claude/.ai/reports/VARREDURA_TOTAL_TELAS.inventario.md`

@@ -620,11 +620,12 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                 : Icons.circle_outlined),
             label: Text(currentRestaurant.isOnline ? 'ONLINE' : 'OFFLINE'),
           ),
-          TextButton.icon(
+          // Troca de papel — mesmo padrão do cliente/estafeta (era "Teste"
+          // com ícone de bug, confuso em produção).
+          IconButton(
             onPressed: _handleTestMode,
-            style: TextButton.styleFrom(foregroundColor: appBarForeground),
-            icon: const Icon(Icons.bug_report_outlined),
-            label: const Text('Teste'),
+            tooltip: 'Mudar modo',
+            icon: const Icon(Icons.swap_horiz),
           ),
         ],
       ),

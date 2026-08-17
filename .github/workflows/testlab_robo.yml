@@ -43,6 +43,14 @@ jobs:
           channel: stable
           cache: true
 
+      # google-services.json vem de secret (gitignored) — sem isto o gradle
+      # falha em processDebugGoogleServices (provado no run 32008337431).
+      - name: Decode google-services.json
+        if: steps.gate.outputs.have == 'true'
+        env:
+          GOOGLE_SERVICES_JSON_B64: ${{ secrets.GOOGLE_SERVICES_JSON_B64 }}
+        run: echo "$GOOGLE_SERVICES_JSON_B64" | base64 --decode > android/app/google-services.json
+
       - name: Build APK debug (Robo não precisa de assinatura de release)
         if: steps.gate.outputs.have == 'true'
         env:

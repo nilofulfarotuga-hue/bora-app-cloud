@@ -158,7 +158,11 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen>
               : TabBarView(
                   controller: _tab,
                   children: [
-                    _SummaryTab(order: _order!, onCancel: _openCancelDialog),
+                    _SummaryTab(
+                      order: _order!,
+                      onCancel: _openCancelDialog,
+                      onReassigned: _refresh,
+                    ),
                     _ItemsTab(order: _order!),
                     _PaymentTab(order: _order!),
                     _TimelineTab(orderId: widget.orderId),
@@ -171,9 +175,14 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen>
 // ── TAB 1 — Resumo ──────────────────────────────────────────────────────────
 
 class _SummaryTab extends StatelessWidget {
-  const _SummaryTab({required this.order, required this.onCancel});
+  const _SummaryTab({
+    required this.order,
+    required this.onCancel,
+    required this.onReassigned,
+  });
   final Map<String, dynamic> order;
   final VoidCallback onCancel;
+  final VoidCallback onReassigned;
 
   bool get _canCancel {
     final status = order['status'] as String? ?? '';
@@ -311,9 +320,32 @@ class _SummaryTab extends StatelessWidget {
             enabled: _canCancel,
             onTap: onCancel,
           ),
+          // P8 (2026-08-17) — Reatribuir estafeta. Só em pedido ativo (não
+          // terminal). Chama a RPC admin_reassign_order (user_id, offer limpo,
+          // notifica o novo estafeta, auditoria). A lista de elegíveis vem de
+          // admin_live_drivers (online, aprovado).
+          if (_canReassign) ...[
+            const SizedBox(height: 8),
+            _ReassignButton(
+              orderId: order['id'] as String,
+              onDone: onReassigned,
+            ),
+          ],
         ],
       ),
     );
+  }
+
+  /// Reatribuir só faz sentido enquanto há entrega por concluir (do momento em
+  /// que se chama estafeta até estar a caminho).
+  bool get _canReassign {
+    final status = order['status'] as String? ?? '';
+    return const [
+      'callingDriver',
+      'driverAccepted',
+      'pickedUp',
+      'onTheWay',
+    ].contains(status);
   }
 
   Widget _row(IconData icon, String label, dynamic value) {
@@ -961,6 +993,153 @@ class _ActionButton extends StatelessWidget {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
           side: BorderSide(color: AppColors.divider),
+        ),
+      ),
+    );
+  }
+}
+
+/// P8 (2026-08-17) — botão + fluxo de "Reatribuir estafeta" no admin (PT-BR).
+/// Lista os estafetas elegíveis (RPC admin_live_drivers: online + aprovado),
+/// pede confirmação e chama admin_reassign_order. A RPC faz o padrão provado:
+/// assigned_driver_id = user_id do novo, offer limpo, notifica, auditoria.
+class _ReassignButton extends StatefulWidget {
+  const _ReassignButton({required this.orderId, required this.onDone});
+  final String orderId;
+  final VoidCallback onDone;
+
+  @override
+  State<_ReassignButton> createState() => _ReassignButtonState();
+}
+
+class _ReassignButtonState extends State<_ReassignButton> {
+  bool _busy = false;
+
+  Future<void> _abrir() async {
+    setState(() => _busy = true);
+    List<Map<String, dynamic>> elegiveis = const [];
+    try {
+      final res =
+          await Supabase.instance.client.rpc('admin_live_drivers');
+      if (res is List) {
+        elegiveis = res
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList();
+      }
+    } catch (_) {/* lista vazia — o diálogo mostra o aviso */}
+    if (!mounted) return;
+    setState(() => _busy = false);
+
+    final escolhido = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _ReassignSheet(drivers: elegiveis),
+    );
+    if (escolhido == null || !mounted) return;
+
+    final novoId = (escolhido['user_id'] ?? escolhido['driver_id'] ??
+            escolhido['id'])
+        ?.toString();
+    if (novoId == null || novoId.isEmpty) return;
+
+    setState(() => _busy = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final res = await Supabase.instance.client.rpc(
+        'admin_reassign_order',
+        params: {
+          'p_order_id': widget.orderId,
+          'p_new_driver': novoId,
+          'p_motivo': 'reatribuído pelo admin no painel',
+        },
+      );
+      final data = res is Map ? Map<String, dynamic>.from(res) : const {};
+      if (!mounted) return;
+      setState(() => _busy = false);
+      if (data['ok'] == true) {
+        messenger.showSnackBar(SnackBar(
+            content: Text(
+                'Pedido reatribuído a ${data['estafeta'] ?? 'estafeta'}. Notificação enviada.')));
+        widget.onDone();
+      } else {
+        messenger.showSnackBar(SnackBar(
+            content: Text('Não foi possível reatribuir: ${data['error'] ?? 'erro'}')));
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      messenger.showSnackBar(
+          SnackBar(content: Text('Erro ao reatribuir: $e')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _ActionButton(
+      icon: _busy ? Icons.hourglass_top : Icons.published_with_changes,
+      label: _busy ? 'A reatribuir…' : 'Reatribuir estafeta',
+      color: AppColors.primary,
+      enabled: !_busy,
+      onTap: _abrir,
+    );
+  }
+}
+
+/// Folha de seleção do novo estafeta (elegíveis = online + aprovado).
+class _ReassignSheet extends StatelessWidget {
+  const _ReassignSheet({required this.drivers});
+  final List<Map<String, dynamic>> drivers;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text('Reatribuir a…',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 4),
+            const Text('Estafetas online e aprovados.',
+                style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+            const SizedBox(height: 12),
+            if (drivers.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Text('Nenhum estafeta online no momento.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: AppColors.textSecondary)),
+              )
+            else
+              Flexible(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: drivers.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (_, i) {
+                    final d = drivers[i];
+                    final nome = (d['driver_name'] ?? d['name'] ?? 'Estafeta')
+                        .toString();
+                    final tel =
+                        (d['driver_phone'] ?? d['phone'] ?? '').toString();
+                    return ListTile(
+                      leading: const Icon(Icons.two_wheeler,
+                          color: AppColors.primary),
+                      title: Text(nome),
+                      subtitle: tel.isNotEmpty ? Text(tel) : null,
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.pop(context, d),
+                    );
+                  },
+                ),
+              ),
+          ],
         ),
       ),
     );

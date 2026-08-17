@@ -9,7 +9,7 @@
 - [x] **F0 — LIGAR OS OLHOS 2 e 3** (chave Gemini GRAVADA em backend/.env ✓ gitignored; Test Lab se secret existir)
 - [x] **F1 — BLINDAGEM ANTI-MENTIRA** (5 medidas da ordem-20260811160435-2540 do Córtex)
 - [x] **F2 — P6: PIN validado no SERVIDOR** (servidor FEITO+provado; costura Flutter = PROPOSTA zona 🔴) (RPC driver_validate_delivery_pin + app envia, nunca decide)
-- [ ] **F3 — P8: REATRIBUIR no admin** (padrão Isabel/Valdemir: user_id, offer limpo, notify, auditoria)
+- [x] **F3 — P8: REATRIBUIR no admin** (padrão Isabel/Valdemir: user_id, offer limpo, notify, auditoria)
 - [ ] **F4 — C4: pc_judge vivo na VPS** (copiar master→container, restart, prova com travada real)
 - [ ] **F5 — FECHO** (relatório + vault + platform_settings + Córtex + digest Hermes + ctx)
 
@@ -57,6 +57,16 @@ sem permissão na Testing API do projeto. GUIA 2 CLIQUES (Danilo):
      "Firebase Test Lab Admin" (roles/cloudtestservice.testAdmin). Guardar.
 Depois: Actions → olho-testlab-robo → Run workflow (o build e a autenticação já passam; falta só o papel).
 Download de artefactos endurecido (gs://boraapp-d2bea_test/ + fallback test-lab-*).
+
+### MARCO F3 (reatribuir no admin) — 2026-08-17
+Descoberta: a RPC `admin_reassign_order` JÁ EXISTIA (o gap era só a UI — a varredura viu 0 no Flutter).
+Fazia o padrão certo (user_id, offer limpo, auditoria log_admin_action) mas FALTAVA a notificação ao
+novo estafeta. Acrescentei o notify-driver via pg_net (aditivo, best-effort, WARNING nunca silêncio).
+PROVADO por SQL com identidade admin simulada + rollback: reatribuir a Valdemir (user_id real) →
+status callingDriver→driverAccepted, assigned_driver_id = user_id, current_driver_offer_id=null,
+auditoria gravada. UI aplicada em admin_order_detail_screen.dart: botão "Reatribuir estafeta" (só em
+pedido ativo) → folha de elegíveis (admin_live_drivers: online+aprovado) → confirma → RPC → refresh.
+analyze 0 erros. NÃO é zona 🔴 (reatribuição não cobra/calcula dinheiro).
 
 ## Notas de retoma
 - Chave Gemini: GRAVADA como GEMINI_API_KEY em backend/.env (2026-08-17, colada pelo Danilo no chat; NUNCA versionar).

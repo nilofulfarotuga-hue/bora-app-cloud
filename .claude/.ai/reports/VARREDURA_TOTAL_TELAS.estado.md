@@ -13,7 +13,7 @@
 - [x] **F5 — MARCAÇÕES + RESERVAS + LIMPEZA + FAVORES**
 - [x] **F6 — PARCEIRO + ADMIN**
 - [x] **F-OLHO — golden tests + juiz de visão + Firebase Test Lab**
-- [ ] **F7 — FECHO** (relatório + Córtex + platform_settings + digest Hermes)
+- [x] **F7 — FECHO** (relatório + Córtex + platform_settings + digest Hermes)
 
 ## MARCOS
 
@@ -86,6 +86,14 @@ versionadas, defeito plantado APANHADO (prova da fase), CI olho_golden.yml a cad
 apanhou estouro real -> BoraAccentButton endurecido. Camada 2: vision_judge.py + tabela
 vision_findings (migration aplicada, RLS admin) + alerta 🔴; falta GEMINI_API_KEY (guia no relatorio).
 Camada 3: testlab_robo.yml (boraapp-d2bea, cron util + manual) gated em GCP_SA_KEY com guia 3 cliques.
+
+### MARCO: F7 FEITO — MISSAO COMPLETA — 2026-08-17
+Prova: relatorio fechado (fecho + digest Hermes 8 linhas) + copia no vault
+(.obsidian-vault/relatorios/VARREDURA_TOTAL_TELAS-2026-08-17.md) + prompt registado no vault +
+platform_settings.relatorio_varredura_telas gravado (category reports) + mapas do Cortex:
+atualizacao proposta via cortex_propor (prop-9a8dbc92 indice, prop-ecee30e2 antiregressao c/
+checks 25-29) porque o classificador do servidor marcou a escrita como vermelha (termos de
+dinheiro no conteudo). ctx doctor OK / ctx stats capturado. TUDO pushed.
 
 ## Notas de retoma
 - Inventário completo (ficheiro→classes→arestas + BFS caminhos de clique): `.claude/.ai/reports/VARREDURA_TOTAL_TELAS.inventario.md`

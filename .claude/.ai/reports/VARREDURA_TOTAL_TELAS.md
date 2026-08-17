@@ -39,8 +39,26 @@ filtra corridas TVDE por `status='concluida'`, mas o estado terminal real é `'f
 → **a parte TVDE dos ganhos unificados soma sempre ZERO**. Além disso a linha TVDE usa `final_fare_cents` (bruto)
 enquanto as telas mostram `driver_earn_cents` (líquido) — gémeos desalinhados. SQL pronto (secção Propostas).
 
-### F2 — CLIENTE TVDE
-_(pendente)_
+### F2 — CLIENTE TVDE (fechada 2026-08-17)
+
+Comparação: Uber / Bolt / 99. Veredito: área MUITO FORTE pós-merge da produção — todas as lições do
+1º dia real estão no código (espelho do servidor ao abrir + no resume, "Pagar de novo" para sheet
+abandonada, `ride_already_terminal` tratado como sucesso, retry honesto cash vs online).
+
+| Tela | Estado | Achados / Correções |
+|---|---|---|
+| `TvdeRequestRideScreen` | 🟢 corrigida | **✔ CORRIGIDO: tempo estimado (~min) na estimativa** (rota real já trazia a duração; padrão Uber/Bolt). Já tinha: mapa c/ pin arrastável + autocomplete, estimativa por rota real c/ retry, cobertura do plano em preview (grátis/excesso/extra c/ fim-de-semana), payment-first (corrida estacionada até servidor confirmar), vale-volta, folha de pagamento c/ teclado tratado |
+| `TvdeRideTrackingScreen` | 🟢 | Pós-merge: refetch no abrir + foreground (lifecycle observer), estados terminais tiram a tela sozinha (`_TerminalView`), "Pagar de novo" quando sheet cartão abandonada, cancel c/ preview de taxa (grátis na janela / total depois) e `ride_already_terminal`→sucesso, cartão do motorista completo (foto+carro+matrícula+rating+ligar+chat c/ badge), paradas pagas inline (cartão/MB Way), animação suave do carro, heading-up Waze |
+| `TvdeStore` | 🟢 | 100% RPC/EF; `refreshActiveRide` sem filtro de status; `confirmRidePayment` server-side é a única verdade; `retryRide` recusa online (nunca inventa método); defesas contra linha-de-NULLs |
+| `TvdeRateScreen` | 🟢 | FareView fonte única (pacote/plano/dinheiro no copy) |
+| `TvdeRidesHistoryScreen` | 🟢 | 🟡 menor: sem distinção loading/erro/vazio (flash de "Ainda não tens corridas" durante o load) |
+| `TvdePlansScreen` | 🟢 | Fix F5 já presente (retry de preço 8s, botão desativado até preço real); aviso Seg-Sex; MB Way + cartão |
+| `TvdeRideMbwayWaitingDialog` | 🟢 | 300s corrida / 120s parada+pacote; distingue "não pagou" de "sem rede"; não-dispensável |
+| `TvdeChatScreen` (partilhado) | 🟢 | Badge não-lidas, mark-read, ligar, bolhas limpas |
+| `TvdeFareView` | 🟢 | Fonte única cliente+motorista; regra do pacote (final=só paradas) documentada e testável |
+
+**Superado no mapa do Córtex:** `TvdeUnlockScreen` já não existe — o tile é gated por `users.tvde_access`
+(pedido via RPC `tvde_request_access`); atualizar mapa-de-fluxos-cliente §8 no F7.
 
 ### F3 — CLIENTE DELIVERY
 _(pendente)_

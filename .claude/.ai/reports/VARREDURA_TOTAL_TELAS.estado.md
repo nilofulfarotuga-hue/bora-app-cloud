@@ -7,7 +7,7 @@
 ## Plano de áreas
 - [x] **F0 — INVENTÁRIO** (árvore de navegação dos 4 papéis)
 - [x] **F1 — MOTORISTA/TVDE** (prioridade nº1)
-- [ ] **F2 — CLIENTE TVDE**
+- [x] **F2 — CLIENTE TVDE**
 - [ ] **F3 — CLIENTE DELIVERY**
 - [ ] **F4 — ESTAFETA DELIVERY**
 - [ ] **F5 — MARCAÇÕES + RESERVAS + LIMPEZA + FAVORES**
@@ -38,6 +38,21 @@ gap nº1 vs Uber/Bolt/99) + cartão scrollable; estado de erro nos ganhos. `flut
 🔴 achado real: RPC `driver_earnings_summary` (BD viva) filtra status='concluida' inexistente →
 TVDE soma 0 nos ganhos unificados. SQL de fix pronto no relatório (P1); aplicação = Claude.ai/`vai`.
 Proposta P2: heatmap de procura. Matriz completa no relatório §F1.
+
+### EVENTO DE RUMO — merge da produção (2026-08-17, durante F2)
+A branch da missão estava DIVERGENTE da produção `autonomous-night-2026-04-29` (fixes do 1º dia real
+16/08 — espelho servidor 9d205d0, cêntimo, webhook v34, reconciliador — não estavam cá). Merge feito:
+c86c5fa (3 conflitos resolvidos a favor da produção; EF tvde-payment ficou idêntica à produção).
+CI só dispara na `autonomous-night-2026-04-29` → pushes da varredura NÃO geram builds.
+⚠️ `supabase/functions/tvde-plan-payment/index.ts` tinha alterações de DINHEIRO pendentes de "vai":
+NÃO committadas — guardadas em `git stash` ("tvde-plan-payment v10 tokens PENDENTE-VAI") + backup em
+scratchpad. No fecho: merge varredura→produção arrasta commits tvde-payment v9 → decisão Danilo.
+
+### MARCO: F2 FEITO — 2026-08-17
+Prova: 9 ficheiros do cliente TVDE lidos (request 1810L, tracking 1620L pós-merge, store 1125L,
+rate/history/plans/dialogs/chat/fare_view). 1 correção: ETA (~min) na estimativa (commit c2506e4).
+Pós-merge confirmado no código: espelho no abrir+resume, Pagar de novo, ride_already_terminal→sucesso.
+Superado p/ F7: TvdeUnlockScreen extinto (tile gated por users.tvde_access). Matriz no relatório §F2.
 
 ## Notas de retoma
 - Inventário completo (ficheiro→classes→arestas + BFS caminhos de clique): `.claude/.ai/reports/VARREDURA_TOTAL_TELAS.inventario.md`

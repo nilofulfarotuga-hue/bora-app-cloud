@@ -8,12 +8,20 @@
 ## Plano de fases
 - [x] **F0 — LIGAR OS OLHOS 2 e 3** (chave Gemini GRAVADA em backend/.env ✓ gitignored; Test Lab se secret existir)
 - [x] **F1 — BLINDAGEM ANTI-MENTIRA** (5 medidas da ordem-20260811160435-2540 do Córtex)
-- [x] **F2 — P6: PIN validado no SERVIDOR** (servidor FEITO+provado; costura Flutter = PROPOSTA zona 🔴) (RPC driver_validate_delivery_pin + app envia, nunca decide)
+- [x] **F2 — P6: PIN validado no SERVIDOR** (servidor FEITO+provado; **costura Flutter APLICADA** sob o "vai" do Danilo — commit 78e0b4f, analyze 0 erros) (RPC driver_validate_delivery_pin + app envia, nunca decide)
 - [x] **F3 — P8: REATRIBUIR no admin** (padrão Isabel/Valdemir: user_id, offer limpo, notify, auditoria)
 - [x] **F4 — C4: pc_judge vivo na VPS** (copiar master→container, restart, prova com travada real)
 - [x] **F5 — FECHO** (relatório + vault + platform_settings + Córtex + digest Hermes + ctx)
 
 ## MARCOS
+
+### MARCO MERGE PARA PRODUÇÃO — 2026-08-17 (fecho do "vai merge")
+- Costura Flutter do PIN aplicada em `order_store.dart` (zona 🔴) sob o "vai" explícito + ligada nos 2
+  diálogos de código (driver_map_screen, driver_home_screen) — commit 78e0b4f, `flutter analyze` 0 erros.
+- Merge `dd0c5eb` da branch de trabalho para `autonomous-night-2026-04-29`, **sem `git add -A`**: 8 commits,
+  13 ficheiros, +761/−49; produção só tinha o bump vc530 a mais → **zero conflitos** (ort limpo).
+  Conferido: **nenhuma EF/migration de dinheiro viajou** (as RPCs já estavam na BD de prod via MCP).
+- CI do push `dd0c5eb`: Web ✅, olho-golden ✅, Android (build+deploy Play) → auto-bump 530→**531**.
 
 ### MARCO F0 (olhos) — 2026-08-17
 - Olho 2 (juiz de visão): chave Gemini gravada em backend/.env, MAS a chave está com **Spend cap breached**

@@ -1,7 +1,8 @@
 # FECHO GERAL — 2026-08-17
 
 > Missão noturna (mesma sessão da Varredura Total Telas) · Motor: Fable 5
-> Branch: `autonomous-night/fase2-cortex-tasks` · Produção: `autonomous-night-2026-04-29` (vc530)
+> Branch: `autonomous-night/fase2-cortex-tasks` → **MERGED em produção** `autonomous-night-2026-04-29`
+> (merge `dd0c5eb`, sem conflitos; a produção só tinha o bump vc530 a mais — fast-forward do trabalho)
 > Regra respeitada: NÃO toquei em webhook v34, fix do cêntimo, guardas de dispatch, sweeper de
 > pagamento abandonado, nem em `driver_earnings_summary` (corrigida pela Claude.ai).
 
@@ -92,6 +93,20 @@ Danilo**: `claude setup-token` para o loop voltar a executar ordens (o juiz não
 2. **Papel da service account** no boraapp-d2bea (Test Lab) — ativar 2 APIs + 1 papel IAM (guia acima).
 3. **Costura Flutter do PIN** — `F2_PIN_order_store_PROPOSTA.md` (order_store é 🔴).
 4. **Token do executor** — `claude setup-token` (o loop está a travar honesto por CLI-SEM-AUTH).
+
+## MERGE PARA PRODUÇÃO (fecho do "vai merge" do Danilo)
+
+Trazida a branch de trabalho para `autonomous-night-2026-04-29` **sem `git add -A`**, conferindo o
+que viaja. A produção só tinha 1 commit a mais (o `bump versionCode to 530 [skip ci]` do CI); os
+ficheiros lib/ alterados eram só os meus, logo **zero conflitos** — merge `ort` limpo (só o pubspec
+do bump). **8 commits viajaram, 13 ficheiros, +761/−49**; conferido `git diff --name-only` em
+`supabase/functions` e `supabase/migrations` = **VAZIO** (nenhuma EF/migration de dinheiro viajou —
+as RPCs do PIN e do reatribuir já estavam aplicadas na BD de prod via MCP, não via git).
+
+CI disparado pelo push `dd0c5eb`: **Web ✅** (build_web_deploy, 2m43s) · **olho-golden ✅** (46s) ·
+**Android** (build+deploy Play) a correr → auto-bump `530 → 531`. versionCode de produção: **531**.
+(O `olho-testlab-robo` a falhar às 08:00 é o dispatch manual anterior — papel IAM da SA, pendência
+humana já documentada; **não** é deste merge.)
 
 ## Digest Hermes (8 linhas)
 

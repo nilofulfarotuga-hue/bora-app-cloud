@@ -10,7 +10,7 @@
 - [x] **F1 — BLINDAGEM ANTI-MENTIRA** (5 medidas da ordem-20260811160435-2540 do Córtex)
 - [x] **F2 — P6: PIN validado no SERVIDOR** (servidor FEITO+provado; costura Flutter = PROPOSTA zona 🔴) (RPC driver_validate_delivery_pin + app envia, nunca decide)
 - [x] **F3 — P8: REATRIBUIR no admin** (padrão Isabel/Valdemir: user_id, offer limpo, notify, auditoria)
-- [ ] **F4 — C4: pc_judge vivo na VPS** (copiar master→container, restart, prova com travada real)
+- [x] **F4 — C4: pc_judge vivo na VPS** (copiar master→container, restart, prova com travada real)
 - [ ] **F5 — FECHO** (relatório + vault + platform_settings + Córtex + digest Hermes + ctx)
 
 ## MARCOS
@@ -67,6 +67,16 @@ status callingDriver→driverAccepted, assigned_driver_id = user_id, current_dri
 auditoria gravada. UI aplicada em admin_order_detail_screen.dart: botão "Reatribuir estafeta" (só em
 pedido ativo) → folha de elegíveis (admin_live_drivers: online+aprovado) → confirma → RPC → refresh.
 analyze 0 erros. NÃO é zona 🔴 (reatribuição não cobra/calcula dinheiro).
+
+### MARCO F4 (pc_judge vivo na VPS) — 2026-08-17
+JÁ ESTAVA DEPLOYADO: o pc-judge vivo no container (/docker/.../data/.local/bin/pc-judge) tem conteúdo
+IDÊNTICO ao master local (--b64stdin); a diferença de hash era só CRLF(local) vs LF(vivo). PROVA REAL
+ao vivo: `pc-judge "TAREFA:... SAIDA:..."` como o carteiro o chama (ARGUMENTO, não stdin) correu de
+ponta a ponta — chão anti_trapaca.py rc=0 CLEAN → juiz Go (429 rate-limit → failover) → Claude →
+`VEREDITO: APROVADA`. O juiz está VIVO e julga do início ao fim. Correção de rota: o meu 1º teste usou
+pipe/stdin e deu "[juiz] ERRO: base64 vazio" — o pc-judge lê "$*" (argumentos), e o carteiro passa
+por argumento; usar stdin é que estava errado (meu), não o deploy. O que caducou é o token do
+EXECUTOR (pc-loop, visto no canário A: CLI-SEM-AUTH) — ação humana `claude setup-token`, NÃO o juiz.
 
 ## Notas de retoma
 - Chave Gemini: GRAVADA como GEMINI_API_KEY em backend/.env (2026-08-17, colada pelo Danilo no chat; NUNCA versionar).

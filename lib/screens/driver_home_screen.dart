@@ -718,14 +718,12 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
         ),
         actions: [
           const NotificationBell(),
-          TextButton.icon(
+          // Troca de papel (cliente/estafeta/parceiro) — mesmo padrão do home
+          // do cliente. Era "Teste" com ícone de bug — confuso em produção.
+          IconButton(
             onPressed: _handleTestMode,
-            style: TextButton.styleFrom(
-              foregroundColor: switchModeColor,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-            ),
-            icon: Icon(Icons.bug_report_outlined, color: switchModeColor),
-            label: const Text('Teste'),
+            tooltip: 'Mudar modo',
+            icon: Icon(Icons.swap_horiz, color: switchModeColor),
           ),
           Row(
             children: [
@@ -1064,10 +1062,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                     ),
                   ),
                   const SizedBox(width: 8),
-                  // Test / switch mode
+                  // Troca de papel (mesmo padrão do home do cliente).
                   _FloatingIconButton(
-                    icon: Icons.bug_report_outlined,
-                    tooltip: 'Teste',
+                    icon: Icons.swap_horiz,
+                    tooltip: 'Mudar modo',
                     onTap: _handleTestMode,
                   ),
                 ],
@@ -3041,7 +3039,7 @@ class _ApartmentDeliveryBanner extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              "Apartment delivery requested — +€1 bonus",
+              "Entrega em apartamento — bónus +€1",
               style: textStyle,
             ),
           ),

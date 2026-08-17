@@ -85,8 +85,22 @@ tabs sticky, mercado com 3 tabs, checkout payment-first blindado). 5 correções
 **Propostas F3** (ver secção Propostas): P3 atalho "pedir de novo" na HOME (existe por loja no mercado;
 falta transversal) · P4 pesquisa global da home (hoje só restaurantes) · P5 ETA do mercado por settings.
 
-### F4 — ESTAFETA DELIVERY
-_(pendente)_
+### F4 — ESTAFETA DELIVERY (fechada 2026-08-17)
+
+Comparação: Uber Driver / Glovo courier. Área madura, com TODOS os fixes do 1º dia real presentes
+(recuperação da foto pós-morte do processo, preços base na caixa, tokens honestos 50/40).
+4 correções aplicadas.
+
+| Tela | Estado | Achados / Correções |
+|---|---|---|
+| `DriverHomeScreen` (3086L) | 🟢 corrigida | Idle map estilo Uber, gate mínimo de permissões (nunca bloqueia), heartbeat resiliente, ofertas FIFO c/ dedup e guard oferta-vencida (H6), som gerido, safety-net ban/suspensão. **✔ CORRIGIDO: banner "Apartment delivery requested — +€1 bonus" em INGLÊS** → PT-PT; **✔ botão "Teste" c/ ícone de bug → "Mudar modo"** (2 sítios, paridade c/ cliente). 🟡 `stackedEarnings` replicado em Dart (comentado como espelho da BR — proposta P7); 🟡 '+€3.00 +50 tokens' literal no popup |
+| `DriverMapScreen` (3622L) | 🟢 corrigida | Waze-cam, reroute off-route, multi-stop c/ botão por pedido, banners RECEBER €X / PAGAR AO ESTABELECIMENTO, lista de compras c/ fotos+zoom+adicionar produto+sacos cap 5, **caixa = preços BASE** (F2), talão só-câmara c/ **recuperação pós-crash** (F4) + upload via EF c/ erro PT. **✔ CORRIGIDO: no stacking, o diálogo do código validava contra o focusOrder — código certo do OUTRO pedido era recusado** (agora valida contra o pedido da ação) |
+| `DriverEarningsScreen` | 🟢 corrigida | **JÁ usa a RPC unificada `driver_earnings_summary`** (F6 de 16/08 — o pedido da missão está feito; falta o fix da RPC, ver P1 que fica MAIS urgente). **✔ CORRIGIDO: compra de prioridade consumia tokens mas o UPDATE de `priority_until` usava `.eq('id')`** — conta id≠user_id pagava e não recebia (agora tolera as duas chaves, como o SELECT F5.4). Conversão tokens→€ atómica server-side c/ cap semanal |
+| `driver_order_action_helper` | 🟢 | Resolve ação por estado (52L) |
+| Fluxo de favores | 🔴 só-ler | `errand_execution_sheet` é zona protegida — não tocado |
+
+**🔴 P0 CONHECIDO (continua aberto):** PIN de entrega validado client-side (BUG #15 do mapa anti-regressão)
+— cash até salta o código (BUG 33 deliberado). Exige RPC server-side + mudança no order_store 🔴 → P6.
 
 ### F5 — MARCAÇÕES + RESERVAS + LIMPEZA + FAVORES
 _(pendente)_
@@ -98,6 +112,15 @@ _(pendente)_
 _(pendente)_
 
 ## Propostas grandes (fora do perímetro — para Claude.ai/Danilo)
+
+### P6 (F4) — PIN de entrega server-side (P0 conhecido, BUG #15)
+RPC nova `driver_confirm_delivery(p_order_id, p_code)` que valida o código NO SERVIDOR e só então
+transita para delivered; `order_store` 🔴 passa a chamá-la no lugar da transição direta. Cash hoje
+salta o código (BUG 33) — decidir se mantém. Esforço: ~2-3h + teste 2-devices. Zona 🔴 → Danilo/Claude.ai.
+
+### P7 (F4) — Oferta empilhada: ganho calculado no servidor
+`stackedEarnings` é replicado em Dart no popup de oferta (espelho manual da BR §6.4 — comentário admite).
+O dispatch podia gravar `driver_offer_earnings_cents` na própria oferta. Esforço: ~2h (dispatch 🔴 = propor).
 
 ### P1 (F1) — Corrigir a RPC `driver_earnings_summary` (BD viva) — ⚠️ ISTO MEXE EM NÚMEROS DE DINHEIRO EXIBIDOS. Está tudo pronto — confirma que aplico (ou a Claude.ai aplica por MCP).
 Bug: filtra TVDE por `status='concluida'` (estado que NÃO existe; o real é `'finalizada'`) → ganhos TVDE

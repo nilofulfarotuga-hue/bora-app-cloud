@@ -378,9 +378,13 @@ class _DriverEarningsScreenState extends State<DriverEarningsScreen> {
           : nowUtc;
       final newUntil = base.add(Duration(minutes: minutes));
 
+      // F5.4 (doença id/user_id): o SELECT acima já tolera as duas chaves mas
+      // este UPDATE ficava em .eq('id', uid) — conta com id≠user_id consumia
+      // os tokens e o update não encontrava a linha (prioridade nunca ativava).
       await supabase
           .from('drivers')
-          .update({'priority_until': newUntil.toIso8601String()}).eq('id', uid);
+          .update({'priority_until': newUntil.toIso8601String()})
+          .or('id.eq.$uid,user_id.eq.$uid');
 
       if (!mounted) return;
       final local = newUntil.toLocal();

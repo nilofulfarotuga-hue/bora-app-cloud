@@ -1111,7 +1111,10 @@ class _BottomPanelState extends State<_BottomPanel> {
   /// Shows a 4-digit code dialog before completing the delivery.
   /// Returns `true` if the driver entered the correct code and the order
   /// action succeeded, `false` otherwise (wrong code, cancelled, or failure).
-  Future<bool> _showDeliveryCodeDialog(DriverOrderAction action) async {
+  /// [order] é o pedido DESTA ação — com stacking, validar contra o focusOrder
+  /// recusava o código certo do outro pedido empilhado.
+  Future<bool> _showDeliveryCodeDialog(
+      DriverOrderAction action, OrderModel order) async {
     final controller = TextEditingController();
     final formKey = GlobalKey<FormState>();
     String? errorText;
@@ -1169,7 +1172,7 @@ class _BottomPanelState extends State<_BottomPanel> {
                       setDialogState(() => errorText = 'Digite os 4 dígitos.');
                       return;
                     }
-                    if (entered != widget.focusOrder?.deliveryCode) {
+                    if (entered != order.deliveryCode) {
                       setDialogState(() =>
                           errorText = 'Código incorreto. Tente novamente.');
                       controller.clear();
@@ -1277,7 +1280,7 @@ class _BottomPanelState extends State<_BottomPanel> {
               // cash = real validation). Card/MBWay still require code.
               final isCash = order.paymentMethod == PaymentMethod.cash;
               if (willFinish && !isCash) {
-                await _showDeliveryCodeDialog(action);
+                await _showDeliveryCodeDialog(action, order);
                 return;
               }
               final messenger = ScaffoldMessenger.of(context);

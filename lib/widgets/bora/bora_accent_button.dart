@@ -46,7 +46,15 @@ class BoraAccentButton extends StatelessWidget {
                 Icon(icon, size: 20),
                 const SizedBox(width: 8),
               ],
-              Text(label),
+              // Flexible+ellipsis: com fontes grandes (acessibilidade) um
+              // label comprido estourava a Row para fora do botão (F-OLHO).
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
             ],
           );
 

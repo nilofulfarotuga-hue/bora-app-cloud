@@ -1,0 +1,97 @@
+# F-OLHO · Camada 3 — Robô que clica em telemóveis REAIS na nuvem.
+# Firebase Test Lab (projeto boraapp-d2bea): o Robo do Google percorre o app
+# inteiro sozinho, FILMA vídeo, tira screenshots e reporta crashes (cota
+# grátis diária). Artefactos ficam no run p/ o juiz de visão julgar.
+#
+# GATE: precisa do secret GCP_SA_KEY (service account JSON com o papel
+# "Firebase Test Lab Admin" + "Storage Object Viewer"). Sem o secret, o run
+# explica os 3 cliques do Danilo e termina VERDE (não é falha de código).
+name: olho-testlab-robo
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 1× por dia útil, 04:10 UTC — dentro da cota grátis do Test Lab.
+    - cron: "10 4 * * 1-5"
+
+jobs:
+  robo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verificar segredo GCP
+        id: gate
+        env:
+          TEM_CHAVE: ${{ secrets.GCP_SA_KEY != '' }}
+        run: |
+          if [ "$TEM_CHAVE" != "true" ]; then
+            echo "have=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Falta GCP_SA_KEY::GUIA 3 CLIQUES (Danilo): \
+          1) console.cloud.google.com → projeto boraapp-d2bea → IAM & Admin → Service Accounts → Create ('testlab-ci') com papéis 'Firebase Test Lab Admin' e 'Storage Object Viewer' → Keys → Add key → JSON. \
+          2) GitHub → repo bora-app-cloud → Settings → Secrets and variables → Actions → New secret: nome GCP_SA_KEY, valor = conteúdo do JSON. \
+          3) Actions → olho-testlab-robo → Run workflow."
+          else
+            echo "have=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: subosito/flutter-action@v2
+        if: steps.gate.outputs.have == 'true'
+        with:
+          flutter-version: "3.41.2"
+          channel: stable
+          cache: true
+
+      - name: Build APK debug (Robo não precisa de assinatura de release)
+        if: steps.gate.outputs.have == 'true'
+        env:
+          DART_DEFINES_FILE_B64: ${{ secrets.DART_DEFINES_FILE_B64 }}
+        run: |
+          if [ -n "$DART_DEFINES_FILE_B64" ]; then
+            echo "$DART_DEFINES_FILE_B64" | base64 -d > .dart_defines
+            flutter build apk --debug --dart-define-from-file=.dart_defines
+          else
+            flutter build apk --debug
+          fi
+
+      - name: Autenticar gcloud
+        if: steps.gate.outputs.have == 'true'
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Instalar gcloud
+        if: steps.gate.outputs.have == 'true'
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: boraapp-d2bea
+
+      - name: Robo em aparelhos reais + virtuais
+        if: steps.gate.outputs.have == 'true'
+        run: |
+          gcloud firebase test android run \
+            --type robo \
+            --app build/app/outputs/flutter-apk/app-debug.apk \
+            --device model=MediumPhone.arm,version=33,locale=pt_PT \
+            --timeout 8m \
+            --results-dir "robo-${{ github.run_id }}" \
+            --project boraapp-d2bea || echo "::warning::Robo terminou com falhas — ver artefactos"
+
+      - name: Descarregar screenshots/vídeo do Test Lab
+        if: steps.gate.outputs.have == 'true'
+        run: |
+          BUCKET=$(gcloud firebase test android list-device-capacities >/dev/null 2>&1; \
+            gsutil ls gs:// 2>/dev/null | grep test-lab | head -1 || true)
+          mkdir -p robo_artifacts
+          gsutil -m cp -r "gs://test-lab-*/robo-${{ github.run_id }}/**" robo_artifacts/ 2>/dev/null \
+            || echo "::warning::sem artefactos para descarregar (ver consola Firebase)"
+
+      - name: Publicar artefactos do Robo (p/ juiz de visão)
+        if: steps.gate.outputs.have == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: robo-artefactos
+          path: robo_artifacts/
+          if-no-files-found: warn
+          retention-days: 14

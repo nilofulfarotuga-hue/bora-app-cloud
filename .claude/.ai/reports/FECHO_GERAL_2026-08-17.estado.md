@@ -46,6 +46,18 @@ delivery_pin_attempts, bloqueio à 5.ª + alerta admin via pg_net, idempotente).
 identidade de teste: errado→wrong_pin(4), certo→ok+delivered, repete→already_delivered, 5×→blocked; pedidos
 de teste limpos. Costura Flutter (order_store 🔴) = PROPOSTA em F2_PIN_order_store_PROPOSTA.md.
 
+
+### MARCO F0.3 (Olho 3 — Test Lab, atualizado) — 2026-08-17
+Run 32009467418 (13m13s): gate ✓, google-services ✓, build APK ✓, service account AUTENTICOU ✓.
+Falhou SÓ no gcloud com `403: Not authorized for project boraapp-d2bea` — a SA está autenticada mas
+sem permissão na Testing API do projeto. GUIA 2 CLIQUES (Danilo):
+  1) console.cloud.google.com → projeto boraapp-d2bea → APIs & Services → ativar "Cloud Testing API"
+     e "Cloud Tool Results API" (se ainda não estiverem).
+  2) IAM & Admin → IAM → encontrar a service account do GCP_SA_KEY → Edit → Add role
+     "Firebase Test Lab Admin" (roles/cloudtestservice.testAdmin). Guardar.
+Depois: Actions → olho-testlab-robo → Run workflow (o build e a autenticação já passam; falta só o papel).
+Download de artefactos endurecido (gs://boraapp-d2bea_test/ + fallback test-lab-*).
+
 ## Notas de retoma
 - Chave Gemini: GRAVADA como GEMINI_API_KEY em backend/.env (2026-08-17, colada pelo Danilo no chat; NUNCA versionar).
 - Stash intacto: "tvde-plan-payment v10 tokens PENDENTE-VAI".

@@ -139,8 +139,37 @@ scanner + verificações dirigidas às capacidades nomeadas pela missão. 1 corr
 | Admin — autoridade total (GAPS) | 🟡 | **Falta: reatribuir pedido a outro estafeta** (0 ocorrências — P8); rejeição de pedido sem motivo → sem campo no admin; ver P6 (PIN server-side) |
 
 
-### F-OLHO — automação de visão
-_(pendente)_
+### F-OLHO — automação de visão (fechada 2026-08-17)
+
+O pedido do Danilo: ver a tela e clicar SEM humano, sem monitor, sem cabo. As 3 camadas estão montadas
+e LIGADAS (commit 3c59a38):
+
+**Camada 1 — Fábrica de fotos sem aparelho** (`test/golden/`): telas renderizadas EM MEMÓRIA via
+`flutter test` em 3 tamanhos (320×640/390×844/430×932) + variante teclado (fixture com input);
+fonte Inter REAL carregada (fotos legíveis, sem falsos-positivos da fonte de teste); overflow =
+teste FALHA sozinho; 13 fotos versionadas em `test/golden/_fotos/`. **PROVA DA FASE ✔**: defeito
+plantado (Row 480px em ecrã 320px) apanhado pelo motor (`defeito_plantado_test.dart` verde a
+confirmar a deteção). **Já rendeu à séria**: no 1º run apanhou estouro real no `BoraAccentButton`
+(label + fonte grande estourava a Row) → design system endurecido com Flexible+ellipsis, a beneficiar
+TODOS os ecrãs que o usam. CI: `olho_golden.yml` corre a suíte A CADA push de código.
+
+**Camada 2 — Juiz de visão** (`.claude/juiz/vision_judge.py`): olha as fotos (golden ou Robo),
+classifica verde/amarelo/vermelho via Gemini, grava na tabela nova `vision_findings` (migration
+aplicada, RLS só-admin) e dispara `notify-admin-urgent` nos 🔴. Sem GEMINI_API_KEY → fail-visible
+com guia (nunca silencioso; relatório local sempre gravado). ⚠️ Falta a chave no PC: criar em
+https://aistudio.google.com/apikey e pôr `GEMINI_API_KEY=...` no `backend/.env`.
+
+**Camada 3 — Robô em telemóveis reais** (`testlab_robo.yml`): Firebase Test Lab (boraapp-d2bea),
+`gcloud firebase test android run --type robo` — clica no app inteiro em aparelho real, filma,
+tira screenshots, reporta crashes; cron diário útil + manual; artefactos ficam no run para o juiz.
+**GUIA 3 CLIQUES (Danilo)**: 1) console.cloud.google.com → boraapp-d2bea → IAM → Service Accounts →
+criar `testlab-ci` c/ papéis "Firebase Test Lab Admin" + "Storage Object Viewer" → chave JSON;
+2) GitHub → Settings → Secrets → Actions → novo secret `GCP_SA_KEY` = conteúdo do JSON;
+3) Actions → olho-testlab-robo → Run workflow. (O run sem secret termina VERDE com este guia.)
+
+Crescer a cobertura da Camada 1 = 1 linha por tela segura (ou Fake de store como nos testes já
+existentes) — deixado documentado no cabeçalho da suíte.
+
 
 ## Propostas grandes (fora do perímetro — para Claude.ai/Danilo)
 

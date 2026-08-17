@@ -12,7 +12,7 @@
 - [x] **F4 — ESTAFETA DELIVERY**
 - [x] **F5 — MARCAÇÕES + RESERVAS + LIMPEZA + FAVORES**
 - [x] **F6 — PARCEIRO + ADMIN**
-- [ ] **F-OLHO — golden tests + juiz de visão + Firebase Test Lab**
+- [x] **F-OLHO — golden tests + juiz de visão + Firebase Test Lab**
 - [ ] **F7 — FECHO** (relatório + Córtex + platform_settings + digest Hermes)
 
 ## MARCOS
@@ -79,6 +79,13 @@ Prova: partner_dashboard 2646L integral + earnings/products/hours dirigidos; adm
 scanner (0 EN reais) + verificacoes dirigidas (admin_live_drivers/admin_live_orders confirmadas na
 BD; refund/cancel presentes; REATRIBUIR NAO existe -> P8). 1 correcao: 3o botao Teste->Mudar modo.
 analyze 0 erros.
+
+### MARCO: F-OLHO FEITO — 2026-08-17
+Prova: commit 3c59a38 (20 ficheiros). Camada 1: suite test/golden 14/14 verde, 13 fotos Inter real
+versionadas, defeito plantado APANHADO (prova da fase), CI olho_golden.yml a cada push; 1o run ja
+apanhou estouro real -> BoraAccentButton endurecido. Camada 2: vision_judge.py + tabela
+vision_findings (migration aplicada, RLS admin) + alerta 🔴; falta GEMINI_API_KEY (guia no relatorio).
+Camada 3: testlab_robo.yml (boraapp-d2bea, cron util + manual) gated em GCP_SA_KEY com guia 3 cliques.
 
 ## Notas de retoma
 - Inventário completo (ficheiro→classes→arestas + BFS caminhos de clique): `.claude/.ai/reports/VARREDURA_TOTAL_TELAS.inventario.md`

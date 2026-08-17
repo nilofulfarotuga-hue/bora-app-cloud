@@ -89,10 +89,17 @@ Danilo**: `claude setup-token` para o loop voltar a executar ordens (o juiz não
 
 ## Pendências humanas (nada bloqueia; tudo com guia)
 
-1. **Gemini spend-cap** (olho de visão) — levantar o teto do projeto GCP ou trocar a chave.
+1. **Gemini** (olho de visão) — chave nova do Danilo aplicada; o 403 spend-cap caiu e o juiz de visão
+   está PROVADO a responder. Resta o limite de RPM do free-tier (não corre as 13 fotos seguidas) —
+   limitação de plano, não de código.
 2. **Papel da service account** no boraapp-d2bea (Test Lab) — ativar 2 APIs + 1 papel IAM (guia acima).
-3. **Costura Flutter do PIN** — `F2_PIN_order_store_PROPOSTA.md` (order_store é 🔴).
-4. **Token do executor** — `claude setup-token` (o loop está a travar honesto por CLI-SEM-AUTH).
+3. ✅ **RESOLVIDO — Costura Flutter do PIN** — aplicada sob o "vai" do Danilo (commit 78e0b4f), em
+   produção pelo merge dd0c5eb.
+4. ✅ **RESOLVIDO 2026-08-17 — Token do executor** — o Danilo correu `claude setup-token`; gravado como
+   env var persistente `CLAUDE_CODE_OAUTH_TOKEN` no user Windows `hermes` (via `setx` pela ponte
+   container→PC, porque o danil é não-admin). **Canário VERDE**: sessão fresca do hermes vê o token
+   (gate `if defined` do loop) e `claude.exe -p` como hermes autentica e responde (não `CLI-SEM-AUTH`).
+   NÃO era `/root/.claude-vps-token` (0 bytes, do watchdog). Mecânica em memória.
 
 ## MERGE PARA PRODUÇÃO (fecho do "vai merge" do Danilo)
 

@@ -58,6 +58,8 @@ void main() {
   setUpAll(() async {
     SharedPreferences.setMockInitialValues(<String, Object>{});
     await carregaFonteInter();
+    await carregaFontesSdk();
+    gravaVersaoHarness();
   });
 
   final telas = <String, Widget Function()>{

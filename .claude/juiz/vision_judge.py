@@ -169,6 +169,17 @@ def main() -> int:
     ap.add_argument("--run-ref", default=None)
     args = ap.parse_args()
 
+    # Sem --run-ref explícito, carimba a versão do harness que gerou as fotos
+    # (test/golden/_fotos/_harness_version.txt) — distingue corridas antes/depois
+    # de um fix de fidelidade, tanto local como no CI.
+    if not args.run_ref:
+        _vf = os.path.join(RAIZ, "test", "golden", "_fotos", "_harness_version.txt")
+        try:
+            with open(_vf, "r", encoding="utf-8") as _f:
+                args.run_ref = _f.read().strip() or None
+        except OSError:
+            pass
+
     pngs = sorted(
         os.path.join(args.dir, f) for f in os.listdir(args.dir)
         if f.lower().endswith(".png")) if os.path.isdir(args.dir) else []

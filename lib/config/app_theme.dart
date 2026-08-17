@@ -75,6 +75,7 @@ class AppTheme {
             borderRadius: BorderRadius.all(Radius.circular(14)),
           ),
           textStyle: const TextStyle(
+            fontFamily: 'Inter',
             fontSize: 16,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.3,
@@ -91,6 +92,7 @@ class AppTheme {
             borderRadius: BorderRadius.all(Radius.circular(14)),
           ),
           textStyle: const TextStyle(
+            fontFamily: 'Inter',
             fontSize: 16,
             fontWeight: FontWeight.w600,
           ),

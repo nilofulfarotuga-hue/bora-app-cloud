@@ -81,6 +81,7 @@ class BoraAccentButton extends StatelessWidget {
           borderRadius: BorderRadius.all(Radius.circular(14)),
         )),
         textStyle: WidgetStateProperty.all(const TextStyle(
+          fontFamily: 'Inter',
           fontSize: 16,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.3,

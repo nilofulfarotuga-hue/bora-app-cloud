@@ -28,9 +28,11 @@ Future<void> carregaFonteInter() async {
 }
 
 /// Versão do harness de fotos. Vai no `run_ref` do juiz de visão para distinguir
-/// corridas antes/depois de um fix de fidelidade. Incrementar quando mudar o tema
-/// ou as fontes carregadas. v2 = AppTheme real + icon-font MaterialIcons.
-const String kHarnessVersion = 'v2-apptheme-iconfont';
+/// corridas antes/depois de um fix de fidelidade. Incrementar quando mudar o tema,
+/// as fontes carregadas, ou os estilos que afetam o render das telas.
+/// v2 = AppTheme real + icon-font MaterialIcons.
+/// v3 = botões passam a usar fontFamily 'Inter' (deixam de renderizar bloco).
+const String kHarnessVersion = 'v3-botoes-inter';
 
 /// Carrega as fontes de fallback do SDK do Flutter (MaterialIcons + Roboto) que
 /// o `flutter test` não traz por defeito:

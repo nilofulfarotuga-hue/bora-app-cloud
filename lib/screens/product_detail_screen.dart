@@ -463,9 +463,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     }
 
     if (hasGroups) {
+      // T1: mesmo cálculo do _addWithOptions — (base + extras) com markup.
+      // Antes as opções ficavam de fora do markup e o rótulo divergia do
+      // cobrado em não-parceiro com opções.
       final unit = PricingService.applyMarkup(
-              widget.product.price, widget.isPartnerStore) +
-          _optionsPrice;
+          widget.product.price + _optionsPrice, widget.isPartnerStore);
       final ok = widget.product.price > 0 && _requiredOk;
       // Green primary button keeps the single orange element = the required
       // badge ("1 laranja por ecrã" — badge tem prioridade).

@@ -6,6 +6,7 @@ import '../../config/app_colors.dart';
 import '../../models/partner_product.dart';
 import '../../models/restaurant_model.dart';
 import '../../screens/store_products_screen.dart';
+import '../../services/pricing_service.dart';
 import '../../stores/cart_store.dart';
 import '../../stores/favorite_store.dart';
 import '../../stores/restaurant_store.dart';
@@ -167,11 +168,16 @@ class MarketStoreTab extends StatelessWidget {
         ),
 
         // ── 3. Stats row ──────────────────────────────────────────────────
+        // Taxa de entrega pela MESMA fonte da lista de restaurantes
+        // (PricingService.estimatedDeliveryFee) — antes era '€2,50' fixo no
+        // texto, que ficava errado acima de 4 km e se a setting mudasse.
         SliverToBoxAdapter(
           child: _StatsRow(
             avgRating: restaurant.avgRating,
             ratingsCount: restaurant.ratingsCount,
             etaText: _etaText(cartStore.distanceKm),
+            feeText:
+                '€${PricingService.estimatedDeliveryFee(distanceKm: cartStore.distanceKm, isPartner: isPartnerStore).toStringAsFixed(2)}',
           ),
         ),
 
@@ -250,7 +256,10 @@ class MarketStoreTab extends StatelessWidget {
         ),
 
         // ── Rodapé ────────────────────────────────────────────────────────
-        const SliverToBoxAdapter(child: _Footer()),
+        SliverToBoxAdapter(
+            child: _Footer(
+                feeLabel:
+                    '€${PricingService.estimatedDeliveryFee(distanceKm: cartStore.distanceKm, isPartner: isPartnerStore).toStringAsFixed(2)}')),
         const SliverToBoxAdapter(child: SizedBox(height: 24)),
       ],
     );
@@ -418,11 +427,15 @@ class _StatsRow extends StatelessWidget {
     required this.avgRating,
     required this.ratingsCount,
     required this.etaText,
+    required this.feeText,
   });
 
   final double? avgRating;
   final int ratingsCount;
   final String etaText;
+
+  /// Taxa de entrega calculada (fonte: PricingService) — nunca hardcoded.
+  final String feeText;
 
   @override
   Widget build(BuildContext context) {
@@ -458,7 +471,7 @@ class _StatsRow extends StatelessWidget {
           Expanded(child: _StatCell(
             icon: Icons.delivery_dining,
             iconColor: AppColors.primary,
-            label: '€2,50',
+            label: feeText,
             sublabel: 'Entrega',
           )),
         ],
@@ -706,7 +719,11 @@ class _HorizontalSection extends StatelessWidget {
 // ─── Footer ───────────────────────────────────────────────────────────────────
 
 class _Footer extends StatelessWidget {
-  const _Footer();
+  const _Footer({required this.feeLabel});
+
+  /// Mesma taxa calculada da stats row (fonte: PricingService).
+  final String feeLabel;
+
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
@@ -715,8 +732,8 @@ class _Footer extends StatelessWidget {
             context: context,
             builder: (_) => AlertDialog(
               title: const Text('Taxas e informações'),
-              content: const Text(
-                'Taxa de entrega: €2,50\n'
+              content: Text(
+                'Taxa de entrega: $feeLabel\n'
                 'Taxa de serviço: incluída no preço dos produtos\n'
                 'Taxa de saco: €0,10/saco (cobrada após entrega)',
               ),

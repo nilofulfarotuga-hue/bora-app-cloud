@@ -60,8 +60,30 @@ abandonada, `ride_already_terminal` tratado como sucesso, retry honesto cash vs 
 **Superado no mapa do Córtex:** `TvdeUnlockScreen` já não existe — o tile é gated por `users.tvde_access`
 (pedido via RPC `tvde_request_access`); atualizar mapa-de-fluxos-cliente §8 no F7.
 
-### F3 — CLIENTE DELIVERY
-_(pendente)_
+### F3 — CLIENTE DELIVERY (fechada 2026-08-17)
+
+Comparação: Glovo / Uber Eats / iFood. Veredito: funil ao nível das referências (menu estilo Glovo com
+tabs sticky, mercado com 3 tabs, checkout payment-first blindado). 5 correções aplicadas.
+
+| Tela | Estado | Achados / Correções |
+|---|---|---|
+| `ClientMainScreen` | 🟢 | 4 tabs IndexedStack; auto-push tracking c/ dedup; terminais excluídos |
+| `ClientHomeScreen` | 🟢 | 11 tiles, guard endereço, avaliação pós-entrega anti-spam (2 skips), picker endereços (guardados/GPS/autocomplete). TVDE aberto a todos (superado: "categoria escondida" do mapa Córtex) |
+| `RestaurantsScreen` | 🟢 corrigida | **✔ CORRIGIDO: campo de pesquisa** — a barra da home encaminhava para cá e NÃO havia pesquisa (agora filtra por nome + estado "sem resultados" próprio). Já tinha: abertos-primeiro, ETA, taxa, rating, favoritos, dialog carrinho-ativo |
+| `RestaurantMenuScreen` | 🟢 corrigida | Nível Glovo: header loja, tabs sticky sincronizadas, carrosséis, pesquisa RPC fuzzy, roteio opções-obrigatórias. **✔ CORRIGIDO: fallback legacy mostrava preço PURO mas cobrava com markup** (B1: exibido=cobrado) |
+| `ProductDetailScreen` | 🟢 corrigida | Grupos de opções min/max, alergénios UE, variantes, quantidade. **✔ CORRIGIDO: botão c/ opções somava extras SEM markup** (divergia do cobrado em não-parceiro c/ opções — regra T1) |
+| `StoresScreen` | 🟢 | Pesquisa+ordenar, secções, horário gate, carrinho-ativo |
+| `MarketStoreScreen` + tabs | 🟢 corrigida | 3 tabs Glovo (Loja/Categorias/Pedir de novo — reorder JÁ implementado). **✔ CORRIGIDO: taxa de entrega '€2,50' hardcoded na stats row + rodapé** → agora `PricingService.estimatedDeliveryFee` (lei: dinheiro exibido vem do servidor/fonte única). 🟡 ETA 2,5min/km hardcode c/ TODO (proposta) |
+| `StoreProductsScreen` | 🟢 | Pesquisa RPC full-screen, chips, grelha 2col + variantes stepper, ids E2E. 🟡 `_SkeletonLoader` definido sem uso (dead code, não removido) |
+| `CartScreen` | 🟢 | Takeaway, curbside, apartamento, gorjeta, saldo Bora, dívida, coming-soon, CTA pinado. 🟡 subtítulo entrega c/ '€2.50'/4km literais (menor) |
+| `PaymentMethodScreen` | 🟢 | **Checklist da missão completo**: cartão (payment-first + guardados + 3DS), MB Way (bail-out cancela órfã), dinheiro (gate €40+dívida), wallet, **slider de tokens c/ marca do teto físico**; breakdown de favores próprio; diagnóstico F4 |
+| `OrderTrackingScreen` | 🟢 corrigida | **✔ CORRIGIDO: avaliação do estafeta era '4.9' FIXO** → agora avg_rating real (esconde se não houver — a tela nunca inventa). Já tinha: cancel E1-E4 c/ cortesia ao vivo + escolha reembolso (cartão/carteira 80/20) + "já cancelado=sucesso", breakdown completo, cartão estafeta c/ veículo+matrícula, banners takeaway, textos por service_type |
+| `OrdersScreen` | 🟢 | Pull-to-refresh, anti-wipe loader, chip ajustes carteira, "Pedir de novo" p/ favores |
+| `OrderDetailsScreen` | 🟢 | Verificado por amostragem (grep): sem hardcodes de dinheiro; 16 displays de valores do servidor |
+| `RatingScreen` | 🟢 | RPC idempotente server-side, tags por estrelas, gorjeta escondida em cash, opção privada |
+
+**Propostas F3** (ver secção Propostas): P3 atalho "pedir de novo" na HOME (existe por loja no mercado;
+falta transversal) · P4 pesquisa global da home (hoje só restaurantes) · P5 ETA do mercado por settings.
 
 ### F4 — ESTAFETA DELIVERY
 _(pendente)_
@@ -94,6 +116,17 @@ semântica das telas do motorista (hoje a RPC usa o bruto `final_fare_cents`, co
 Depois de aplicada: ligar `TvdeDriverEarningsScreen` e `driver_earnings_screen` à RPC (follow-up Flutter, eu faço).
 Nota: se preferires manter o BRUTO na linha TVDE (racional: em dinheiro o motorista recolhe o bruto e o acerto
 semanal fecha a taxa), aplica só a correção do status — o bug real é o status.
+
+### P3 (F3) — Atalho "Pedir de novo" na HOME do cliente (Glovo/iFood têm)
+O reorder JÁ existe por loja (`MarketReorderTab` + `ReorderService`) e por favor (OrdersScreen).
+Falta uma fila horizontal na home ("Os teus habituais") reutilizando o ReorderService. Esforço: ~2-3h UI.
+
+### P4 (F3) — Pesquisa global na home (hoje o campo encaminha só para Restaurantes)
+Pesquisar lojas+produtos de todas as lojas (a RPC `search_products` já aceita restaurant_id — precisaria
+de variante global ou fan-out). Esforço: ~1/2 dia (RPC + ecrã de resultados).
+
+### P5 (F3) — ETA do mercado por platform_settings (hoje 2,5 min/km hardcode c/ TODO no código)
+Chave nova `market_eta_min_per_km` + leitura no `MarketStoreTab._etaText`. Esforço: ~1h.
 
 ### P2 (F1) — Zona de calor/demanda no mapa do motorista (paridade Uber Driver/99)
 Requer agregação backend (ex.: RPC `tvde_demand_cells(bbox)` sobre pedidos dos últimos 30-60 min, células ~500 m,

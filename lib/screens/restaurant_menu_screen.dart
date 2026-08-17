@@ -553,6 +553,9 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
                               padding: const EdgeInsets.only(bottom: 10),
                               child: _LegacyMenuItemCard(
                                 item: item,
+                                // B1: exibido = cobrado também no fallback.
+                                displayPrice: PricingService.applyMarkup(
+                                    item.price, widget.restaurant.isPartner),
                                 isFavorite: favorites.isFavorite(favKey),
                                 primaryColor:
                                     Theme.of(context).colorScheme.primary,
@@ -1408,6 +1411,7 @@ class _FoodPlaceholder extends StatelessWidget {
 class _LegacyMenuItemCard extends StatelessWidget {
   const _LegacyMenuItemCard({
     required this.item,
+    required this.displayPrice,
     required this.isFavorite,
     required this.primaryColor,
     required this.onFavorite,
@@ -1415,6 +1419,9 @@ class _LegacyMenuItemCard extends StatelessWidget {
   });
 
   final MenuItem item;
+
+  /// Preço exibido = preço cobrado (markup runtime em não-parceiro — B1).
+  final double displayPrice;
   final bool isFavorite;
   final Color primaryColor;
   final VoidCallback onFavorite;
@@ -1454,7 +1461,7 @@ class _LegacyMenuItemCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '€${item.price.toStringAsFixed(2)}',
+                        '€${displayPrice.toStringAsFixed(2)}',
                         style: TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 14,

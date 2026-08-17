@@ -8,7 +8,7 @@
 - [x] **F0 — INVENTÁRIO** (árvore de navegação dos 4 papéis)
 - [x] **F1 — MOTORISTA/TVDE** (prioridade nº1)
 - [x] **F2 — CLIENTE TVDE**
-- [ ] **F3 — CLIENTE DELIVERY**
+- [x] **F3 — CLIENTE DELIVERY**
 - [ ] **F4 — ESTAFETA DELIVERY**
 - [ ] **F5 — MARCAÇÕES + RESERVAS + LIMPEZA + FAVORES**
 - [ ] **F6 — PARCEIRO + ADMIN**
@@ -53,6 +53,13 @@ Prova: 9 ficheiros do cliente TVDE lidos (request 1810L, tracking 1620L pós-mer
 rate/history/plans/dialogs/chat/fare_view). 1 correção: ETA (~min) na estimativa (commit c2506e4).
 Pós-merge confirmado no código: espelho no abrir+resume, Pagar de novo, ride_already_terminal→sucesso.
 Superado p/ F7: TvdeUnlockScreen extinto (tile gated por users.tvde_access). Matriz no relatório §F2.
+
+### MARCO: F3 FEITO — 2026-08-17
+Prova: funil completo lido (main/home/restaurantes/menu/ficha/lojas/mercado-tabs/grelha/carrinho/
+pagamento/tracking/pedidos/detalhe/avaliacao ~11k linhas). 5 correcoes: pesquisa na lista de
+restaurantes; B1 no fallback legacy do menu; T1 no botao com opcoes; taxa de entrega dinamica no
+mercado (era €2,50 fixo); avaliacao real do estafeta no tracking (era '4.9' fixo). analyze 0 erros.
+Propostas P3-P5. Superado p/ Cortex: reorder por loja JA existe; TVDE aberto a todos.
 
 ## Notas de retoma
 - Inventário completo (ficheiro→classes→arestas + BFS caminhos de clique): `.claude/.ai/reports/VARREDURA_TOTAL_TELAS.inventario.md`

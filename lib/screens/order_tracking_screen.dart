@@ -57,6 +57,8 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   // (padrão Uber/Glovo). Vêm do mesmo fetch best-effort do nome.
   String? _fetchedVehicleType;
   String? _fetchedLicensePlate;
+  // Avaliação REAL do estafeta (era um '4.9' fixo — a tela nunca inventa).
+  double? _fetchedAvgRating;
   String? _fetchedFor;
 
   // ── Waze-style camera (BUG B) — client overview pose ────────────────────
@@ -84,7 +86,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     try {
       final row = await Supabase.instance.client
           .from('drivers')
-          .select('name, vehicle_type, license_plate')
+          .select('name, vehicle_type, license_plate, avg_rating')
           .eq('id', driverId)
           .maybeSingle();
       if (row == null || !mounted) return;
@@ -93,6 +95,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         if (name != null && name.isNotEmpty) _fetchedDriverName = name;
         _fetchedVehicleType = row['vehicle_type'] as String?;
         _fetchedLicensePlate = row['license_plate'] as String?;
+        _fetchedAvgRating = (row['avg_rating'] as num?)?.toDouble();
       });
     } catch (_) {/* silent — falls back to 'Estafeta' */}
   }
@@ -463,6 +466,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
               driverName: driver?.name ?? _fetchedDriverName,
               driverVehicleLabel: driverVehicleLabel,
               driverPlate: driverPlate,
+              driverRating: _fetchedAvgRating ?? driver?.avgRating,
             ),
           ),
         ],
@@ -482,6 +486,7 @@ class _BottomCard extends StatefulWidget {
     required this.driverName,
     this.driverVehicleLabel,
     this.driverPlate,
+    this.driverRating,
   });
 
   final ScrollController scrollController;
@@ -489,6 +494,9 @@ class _BottomCard extends StatefulWidget {
   final String? driverName;
   final String? driverVehicleLabel;
   final String? driverPlate;
+
+  /// Avaliação média REAL do estafeta (null/0 = esconder a linha).
+  final double? driverRating;
 
   @override
   State<_BottomCard> createState() => _BottomCardState();
@@ -679,21 +687,29 @@ class _BottomCardState extends State<_BottomCard> {
                                 ),
                               ),
                               const SizedBox(height: 3),
+                              // Avaliação REAL (era '4.9' fixo). Sem avaliação
+                              // → só a distância, nunca um número inventado.
                               Row(
                                 children: [
-                                  Icon(Icons.star_rounded,
-                                      size: 14, color: Colors.amber.shade600),
-                                  const SizedBox(width: 3),
-                                  Text(
-                                    '4.9',
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.textPrimary,
+                                  if ((widget.driverRating ?? 0) > 0) ...[
+                                    Icon(Icons.star_rounded,
+                                        size: 14,
+                                        color: Colors.amber.shade600),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      widget.driverRating!.toStringAsFixed(1),
+                                      style:
+                                          theme.textTheme.bodySmall?.copyWith(
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.textPrimary,
+                                      ),
                                     ),
-                                  ),
+                                  ],
                                   if (order.distanceKm > 0) ...[
                                     Text(
-                                      '  ·  ${order.distanceKm.toStringAsFixed(1)} km',
+                                      (widget.driverRating ?? 0) > 0
+                                          ? '  ·  ${order.distanceKm.toStringAsFixed(1)} km'
+                                          : '${order.distanceKm.toStringAsFixed(1)} km',
                                       style: theme.textTheme.bodySmall
                                           ?.copyWith(
                                               color: AppColors.textSecondary),

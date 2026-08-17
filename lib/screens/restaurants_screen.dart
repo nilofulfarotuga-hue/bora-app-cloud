@@ -14,16 +14,35 @@ import '../stores/restaurant_store.dart';
 import '../utils/business_mapper.dart';
 import '../utils/business_opener.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
+import '../widgets/bora/bora_search_field.dart';
 import '../widgets/bora/coming_soon.dart';
 import '../widgets/bora_support_fab.dart';
 import 'client/reservation/reservation_availability_screen.dart';
 import 'restaurant_menu_screen.dart';
 import 'restaurant_options_screen.dart';
 
-class RestaurantsScreen extends StatelessWidget {
+class RestaurantsScreen extends StatefulWidget {
   const RestaurantsScreen({super.key, this.reservationsOnly = false});
 
   final bool reservationsOnly;
+
+  @override
+  State<RestaurantsScreen> createState() => _RestaurantsScreenState();
+}
+
+class _RestaurantsScreenState extends State<RestaurantsScreen> {
+  /// Pesquisa local por nome. A barra de pesquisa da home encaminha para este
+  /// ecrã — sem um campo aqui o cliente aterrava numa lista sem pesquisa.
+  final TextEditingController _search = TextEditingController();
+  String _query = '';
+
+  bool get reservationsOnly => widget.reservationsOnly;
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -44,31 +63,78 @@ class RestaurantsScreen extends StatelessWidget {
         return a.name.compareTo(b.name);
       });
 
+    final query = _query.trim().toLowerCase();
+    final visible = query.isEmpty
+        ? restaurants
+        : restaurants
+            .where((b) => b.name.toLowerCase().contains(query))
+            .toList();
+
     return Scaffold(
       backgroundColor: AppColors.background,
       floatingActionButton: const BoraSupportFab(),
       appBar: BoraScreenAppBar(
         title: reservationsOnly ? 'Reservar Mesa' : 'Restaurantes',
       ),
-      body: restaurants.isEmpty
-          ? const _EmptyState()
-          : ListView.builder(
-              padding: const EdgeInsets.fromLTRB(
-                Spacing.lg, Spacing.md, Spacing.lg, Spacing.xxl),
-              itemCount: restaurants.length,
-              itemBuilder: (context, index) {
-                final business = restaurants[index];
-                return _RestaurantTile(
-                  business: business,
-                  onTap: () => openBusiness(
-                    context,
-                    restaurantStore,
-                    business,
-                    reservationsOnly: reservationsOnly,
-                  ),
-                );
-              },
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+                Spacing.lg, Spacing.md, Spacing.lg, 0),
+            child: BoraSearchField(
+              controller: _search,
+              hint: 'Pesquisar restaurantes',
+              onChanged: (v) => setState(() => _query = v),
             ),
+          ),
+          Expanded(
+            child: restaurants.isEmpty
+                ? const _EmptyState()
+                : visible.isEmpty
+                    ? const _NoResults()
+                    : ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(
+                            Spacing.lg, Spacing.md, Spacing.lg, Spacing.xxl),
+                        itemCount: visible.length,
+                        itemBuilder: (context, index) {
+                          final business = visible[index];
+                          return _RestaurantTile(
+                            business: business,
+                            onTap: () => openBusiness(
+                              context,
+                              restaurantStore,
+                              business,
+                              reservationsOnly: reservationsOnly,
+                            ),
+                          );
+                        },
+                      ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Pesquisa sem resultados (diferente de "não há restaurantes").
+class _NoResults extends StatelessWidget {
+  const _NoResults();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.search_off,
+              size: 56, color: AppColors.textSecondary.withValues(alpha: 0.4)),
+          const SizedBox(height: Spacing.md),
+          const Text(
+            'Sem resultados para essa pesquisa.',
+            style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+          ),
+        ],
+      ),
     );
   }
 }

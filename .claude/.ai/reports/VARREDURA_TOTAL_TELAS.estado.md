@@ -95,6 +95,15 @@ atualizacao proposta via cortex_propor (prop-9a8dbc92 indice, prop-ecee30e2 anti
 checks 25-29) porque o classificador do servidor marcou a escrita como vermelha (termos de
 dinheiro no conteudo). ctx doctor OK / ctx stats capturado. TUDO pushed.
 
+### PUBLICADO — merge varredura -> producao (2026-08-17, "vai merge" do Danilo)
+Fast-forward limpo 5c53f22->85021c3 (push direto HEAD:autonomous-night-2026-04-29; sem checkout,
+sem git add, arvore local e stash do dinheiro intactos). Viajaram 26 commits / 78 ficheiros
+(12 da varredura + 14 pre-missao ja na branch; EFs de dinheiro identicas a producao; migration
+cortex_tasks marcada PROPOSTA viaja como ficheiro, CI nao aplica migrations).
+CI: Android VERDE 10m18s (AAB -> Closed Testing alpha) · Web VERDE 2m43s · olho-golden VERDE 45s
+(1o run da suite em producao). versionCode: 530 (bump 8b38f1e). P1 (driver_earnings_summary) NAO
+tocado — ja corrigido em producao pela Claude.ai.
+
 ## Notas de retoma
 - Inventário completo (ficheiro→classes→arestas + BFS caminhos de clique): `.claude/.ai/reports/VARREDURA_TOTAL_TELAS.inventario.md`
 - Relatório principal (matriz 🔴🟡🟢 por área, crescente): `.claude/.ai/reports/VARREDURA_TOTAL_TELAS.md`

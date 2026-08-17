@@ -37,7 +37,12 @@ import urllib.request
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SUPABASE_URL = "https://ojykpzwqrtusfeakzrna.supabase.co"
-GEMINI_MODEL = "gemini-3.6-flash"  # 2.0-flash foi descontinuado (404) 2026-08-17
+# gemini-flash-lite-latest: modelo lite (rápido + cap free-tier DIÁRIO maior),
+# suficiente para classificar telas verde/amarelo/vermelho. O 'gemini-3.6-flash'
+# fixo e mesmo o 'gemini-flash-latest' esgotavam o cap ao correr os 13 goldens
+# várias vezes no mesmo dia (429). A lite aguentou a corrida inteira 2026-08-17.
+# Override por env GEMINI_MODEL (ex.: um flash "cheio" para análise mais fina).
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-flash-lite-latest")
 
 PROMPT = (
     "És o juiz de visão do Bora App (delivery/TVDE na Guarda, Portugal). "
@@ -84,16 +89,24 @@ def _post_json(url: str, payload: dict, headers: dict, timeout: int = 60) -> dic
     return json.loads(corpo) if corpo.strip() else {}
 
 
-def _post_json_retry(url, payload, headers, tentativas=4):
-    """Post com backoff nos 429 (gemini-3.6-flash é mais lento e limita)."""
+def _post_json_retry(url, payload, headers, tentativas=5):
+    """Post com backoff em 429 E erros transitórios (5xx, timeout de leitura).
+    O gemini-flash-latest às vezes devolve 503/timeout sob carga — retentar
+    para não marcar a tela como falso-amarelo por um soluço de infra."""
     ultimo = None
     for i in range(tentativas):
         try:
-            return _post_json(url, payload, headers)
+            return _post_json(url, payload, headers, timeout=120)
         except urllib.error.HTTPError as e:  # type: ignore[attr-defined]
             ultimo = e
-            if e.code == 429 and i < tentativas - 1:
-                time.sleep(6 * (i + 1))
+            if e.code in (429, 500, 502, 503, 504) and i < tentativas - 1:
+                time.sleep(5 * (i + 1))
+                continue
+            raise
+        except (urllib.error.URLError, TimeoutError) as e:  # timeout/rede
+            ultimo = e
+            if i < tentativas - 1:
+                time.sleep(5 * (i + 1))
                 continue
             raise
     if ultimo:

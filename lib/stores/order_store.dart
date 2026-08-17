@@ -1641,6 +1641,50 @@ class OrderStore extends ChangeNotifier {
     return advanced;
   }
 
+  /// P6 (2026-08-17, "vai costura do PIN" do Danilo) — Conclui a entrega
+  /// VALIDANDO O PIN NO SERVIDOR. A app envia o codigo; a RPC
+  /// `driver_validate_delivery_pin` decide (deriva o mesmo PIN do UUID, regista
+  /// tentativas, bloqueia a 5.a e so ela muda para delivered). O cliente NUNCA
+  /// decide localmente. `order` e o pedido DESTA entrega (stacking: o certo).
+  Future<DeliveryPinResult> finishOrderWithPin(
+      OrderModel order, String pin) async {
+    Map<String, dynamic> data;
+    try {
+      final res = await supabase.rpc('driver_validate_delivery_pin',
+          params: {'p_order_id': order.id, 'p_pin': pin});
+      data = res is Map ? Map<String, dynamic>.from(res) : <String, dynamic>{};
+    } catch (e) {
+      // Falha de rede/servidor: NAO fechar localmente. Tenta de novo.
+      return const DeliveryPinResult(ok: false, error: 'network');
+    }
+    if (data['ok'] == true) {
+      // Servidor ja pos delivered. Espelha o estado local (mesmo efeito do
+      // finishOrder, mas sem re-emitir a transicao -- o servidor mandou).
+      final idx = _orders.indexWhere((o) => o.id == order.id);
+      if (idx != -1) {
+        _orders[idx] = OrderModel.fromSupabase({
+          ..._orders[idx].toSupabase(),
+          'status': 'delivered',
+          'delivered_at': DateTime.now().toUtc().toIso8601String(),
+        });
+      }
+      if (order.assignedDriverId != null) {
+        _driverStore.releaseOrderForDriver(order.assignedDriverId!, order.id);
+        _driverStore.stopTracking(order.id);
+        _driverLocationService.stopTracking();
+        order.pickupWarningIssued = false;
+      }
+      _lastDeliveredAt = DateTime.now();
+      notifyListeners();
+      return const DeliveryPinResult(ok: true);
+    }
+    return DeliveryPinResult(
+      ok: false,
+      error: data['error'] as String?,
+      attemptsLeft: (data['attempts_left'] as num?)?.toInt(),
+    );
+  }
+
   /// BUG 6 (Fase 3 / 2026-04-30) — Alarga guard p/ aceitar `driverAccepted`.
   ///
   /// O UI (`driver_map_screen.dart` _FinalizePurchaseButton) já mostra o botão
@@ -3022,4 +3066,13 @@ class ClientCancelResult {
   final bool success;
   final double? feeEur;
   final String? error;
+}
+
+
+/// Resultado da validacao do PIN de entrega server-side (P6, 2026-08-17).
+class DeliveryPinResult {
+  const DeliveryPinResult({required this.ok, this.error, this.attemptsLeft});
+  final bool ok;
+  final String? error;     // wrong_pin | blocked | invalid_status | network | ...
+  final int? attemptsLeft; // preenchido em wrong_pin
 }

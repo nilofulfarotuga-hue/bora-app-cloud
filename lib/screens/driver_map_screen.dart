@@ -1166,19 +1166,36 @@ class _BottomPanelState extends State<_BottomPanel> {
                   child: const Text('Cancelar'),
                 ),
                 ElevatedButton(
-                  onPressed: () {
+                  onPressed: () async {
                     final entered = controller.text.trim();
                     if (entered.length != 4) {
                       setDialogState(() => errorText = 'Digite os 4 dígitos.');
                       return;
                     }
-                    if (entered != order.deliveryCode) {
-                      setDialogState(() =>
-                          errorText = 'Código incorreto. Tente novamente.');
+                    // P6 (2026-08-17) — o SERVIDOR valida o PIN e fecha a
+                    // entrega. A app envia; nunca decide localmente.
+                    final r = await context
+                        .read<OrderStore>()
+                        .finishOrderWithPin(order, entered);
+                    if (r.ok) {
+                      if (dialogContext.mounted) {
+                        Navigator.of(dialogContext).pop(true);
+                      }
+                    } else if (r.error == 'wrong_pin') {
+                      setDialogState(() => errorText =
+                          'Código incorreto. Tentativas restantes: '
+                          '${r.attemptsLeft ?? '-'}.');
                       controller.clear();
-                      return;
+                    } else if (r.error == 'blocked') {
+                      setDialogState(() => errorText =
+                          'Bloqueado após 5 tentativas. O suporte foi avisado.');
+                    } else if (r.error == 'network') {
+                      setDialogState(() => errorText =
+                          'Sem ligação ao servidor. Tenta de novo.');
+                    } else {
+                      setDialogState(() => errorText =
+                          'Não foi possível concluir (${r.error ?? 'erro'}).');
                     }
-                    Navigator.of(dialogContext).pop(true);
                   },
                   child: const Text('Confirmar'),
                 ),
@@ -1189,36 +1206,23 @@ class _BottomPanelState extends State<_BottomPanel> {
       },
     );
 
+    // O PIN é validado e a entrega fechada pelo servidor dentro do diálogo
+    // (finishOrderWithPin). Aqui só reagimos ao resultado — NÃO se chama
+    // action.execute() (o servidor já pôs delivered e libertou o estafeta).
     if (confirmed != true) return false;
-
-    // Code was correct — proceed with the action.
     if (!mounted) return false;
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
-    setState(() => _isLoading = true);
-    final success = await action.execute();
-    if (mounted) setState(() => _isLoading = false);
-    if (success) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(action.successMessage),
-          duration: const Duration(seconds: 2),
-        ),
-      );
-      // Refresh token balance in the background — the trigger already ran on
-      // the DB side, so this fetch will return the updated value.
-      if (mounted) {
-        unawaited(context.read<DriverStore>().loadTokenBalance());
-      }
-      navigator.maybePop();
-    } else {
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Não foi possível atualizar o pedido.'),
-        ),
-      );
-    }
-    return success;
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(action.successMessage),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+    // Saldo de tokens: o trigger de entrega já correu no servidor.
+    unawaited(context.read<DriverStore>().loadTokenBalance());
+    navigator.maybePop();
+    return true;
   }
 
   void _showShoppingListSheet(BuildContext context, OrderModel order) {

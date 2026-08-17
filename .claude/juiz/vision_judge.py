@@ -32,11 +32,12 @@ import os
 import re
 import sys
 import time
+import urllib.error
 import urllib.request
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SUPABASE_URL = "https://ojykpzwqrtusfeakzrna.supabase.co"
-GEMINI_MODEL = "gemini-2.0-flash"
+GEMINI_MODEL = "gemini-3.6-flash"  # 2.0-flash foi descontinuado (404) 2026-08-17
 
 PROMPT = (
     "És o juiz de visão do Bora App (delivery/TVDE na Guarda, Portugal). "
@@ -83,6 +84,23 @@ def _post_json(url: str, payload: dict, headers: dict, timeout: int = 60) -> dic
     return json.loads(corpo) if corpo.strip() else {}
 
 
+def _post_json_retry(url, payload, headers, tentativas=4):
+    """Post com backoff nos 429 (gemini-3.6-flash é mais lento e limita)."""
+    ultimo = None
+    for i in range(tentativas):
+        try:
+            return _post_json(url, payload, headers)
+        except urllib.error.HTTPError as e:  # type: ignore[attr-defined]
+            ultimo = e
+            if e.code == 429 and i < tentativas - 1:
+                time.sleep(6 * (i + 1))
+                continue
+            raise
+    if ultimo:
+        raise ultimo
+    return {}
+
+
 def julga_foto(gem_key: str, png_path: str) -> dict:
     with open(png_path, "rb") as f:
         b64 = base64.b64encode(f.read()).decode("ascii")
@@ -93,15 +111,20 @@ def julga_foto(gem_key: str, png_path: str) -> dict:
             {"text": PROMPT},
             {"inline_data": {"mime_type": "image/png", "data": b64}},
         ]}],
-        "generationConfig": {"temperature": 0.1, "maxOutputTokens": 200},
+        # maxOutputTokens alto: o gemini-3.6-flash "pensa" antes de responder e
+        # com pouco teto devolvia texto vazio. (thinkingConfig dá 400 no 3.6.)
+        "generationConfig": {"temperature": 0.1, "maxOutputTokens": 2000},
     }
-    data = _post_json(url, payload, {})
+    data = _post_json_retry(url, payload, {})
     texto = ""
     try:
         texto = data["candidates"][0]["content"]["parts"][0]["text"]
     except (KeyError, IndexError, TypeError):
         pass
-    m = re.search(r"\{.*\}", texto, re.S)
+    # O gemini-3.6-flash envolve o JSON em ```json ... ``` e às vezes com
+    # texto antes; apanha o objeto JSON mesmo assim (o {...} mais interno).
+    m = re.search(r"\{[^{}]*\"severity\"[^{}]*\}", texto, re.S) \
+        or re.search(r"\{.*\}", texto, re.S)
     if not m:
         return {"severity": "amarelo", "finding": f"juiz sem veredito legível: {texto[:120]}"}
     try:
@@ -166,7 +189,9 @@ def main() -> int:
         relatorio["skipped"] = "sem GEMINI_API_KEY"
     else:
         rows = []
-        for png in pngs:
+        for n_i, png in enumerate(pngs):
+            if n_i > 0:
+                time.sleep(8)  # gemini-3.6-flash free tier ~10-15 RPM
             nome = os.path.splitext(os.path.basename(png))[0]
             try:
                 v = julga_foto(gem, png)

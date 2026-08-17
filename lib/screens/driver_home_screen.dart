@@ -1286,19 +1286,36 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                   child: const Text('Cancelar'),
                 ),
                 ElevatedButton(
-                  onPressed: () {
+                  onPressed: () async {
                     final entered = controller.text.trim();
                     if (entered.length != 4) {
                       setDialogState(() => errorText = 'Digite os 4 dígitos.');
                       return;
                     }
-                    if (entered != order.deliveryCode) {
-                      setDialogState(() =>
-                          errorText = 'Código incorreto. Tente novamente.');
+                    // P6 (2026-08-17) — o SERVIDOR valida o PIN e fecha a
+                    // entrega. A app envia; nunca decide localmente.
+                    final r = await context
+                        .read<OrderStore>()
+                        .finishOrderWithPin(order, entered);
+                    if (r.ok) {
+                      if (dialogContext.mounted) {
+                        Navigator.of(dialogContext).pop(true);
+                      }
+                    } else if (r.error == 'wrong_pin') {
+                      setDialogState(() => errorText =
+                          'Código incorreto. Tentativas restantes: '
+                          '${r.attemptsLeft ?? '-'}.');
                       controller.clear();
-                      return;
+                    } else if (r.error == 'blocked') {
+                      setDialogState(() => errorText =
+                          'Bloqueado após 5 tentativas. O suporte foi avisado.');
+                    } else if (r.error == 'network') {
+                      setDialogState(() => errorText =
+                          'Sem ligação ao servidor. Tenta de novo.');
+                    } else {
+                      setDialogState(() => errorText =
+                          'Não foi possível concluir (${r.error ?? 'erro'}).');
                     }
-                    Navigator.of(dialogContext).pop(true);
                   },
                   child: const Text('Confirmar'),
                 ),
@@ -1309,6 +1326,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       },
     );
 
+    // true = servidor validou o PIN e fechou a entrega (finishOrderWithPin).
     return confirmed == true;
   }
 
@@ -1545,6 +1563,16 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                                 final codeOk =
                                     await _showDeliveryCodeDialog(order);
                                 if (!codeOk) return;
+                                // P6: o servidor JÁ fechou a entrega dentro do
+                                // diálogo (finishOrderWithPin). NÃO chamar
+                                // nextAction.execute() — duplicaria a transição.
+                                if (mounted) {
+                                  messenger.showSnackBar(SnackBar(
+                                    content: Text(nextAction.successMessage),
+                                    duration: const Duration(seconds: 4),
+                                  ));
+                                }
+                                return;
                               }
                             }
                             setState(() => _processingOrderIds.add(order.id));

@@ -672,6 +672,11 @@ class _ServerMirrorOnResumeState extends State<_ServerMirrorOnResume>
     context.read<OrderStore>().loadOrders();
     context.read<TvdeStore>().refreshActiveRide();
     context.read<CleaningStore>().refreshTracked();
+    // Lei da casa (varredura 2026-08-17): reservas e marcações não têm canal
+    // realtime — sem este refetch, quem esperava a confirmação só a via ao
+    // navegar à mão. Best-effort: as duas re-buscam do servidor no foreground.
+    context.read<ReservationStore>().fetchMyReservations();
+    context.read<ServicesStore>().fetchMyAppointments();
   }
 
   @override

@@ -10,7 +10,7 @@
 - [x] **F2 — CLIENTE TVDE**
 - [x] **F3 — CLIENTE DELIVERY**
 - [x] **F4 — ESTAFETA DELIVERY**
-- [ ] **F5 — MARCAÇÕES + RESERVAS + LIMPEZA + FAVORES**
+- [x] **F5 — MARCAÇÕES + RESERVAS + LIMPEZA + FAVORES**
 - [ ] **F6 — PARCEIRO + ADMIN**
 - [ ] **F-OLHO — golden tests + juiz de visão + Firebase Test Lab**
 - [ ] **F7 — FECHO** (relatório + Córtex + platform_settings + digest Hermes)
@@ -67,6 +67,12 @@ banner EN->PT; botao Teste->Mudar modo (2 sitios); codigo de entrega no stacking
 o pedido errado (focusOrder); priority_until UPDATE com .eq(id) falhava em conta id!=user_id
 (pagava tokens sem receber prioridade). analyze 0 erros. DESCOBERTA: ganhos do estafeta JA usam
 a RPC unificada (F6 16/08) -> fix P1 da RPC fica mais urgente. P6 (PIN server-side) e P7 novos.
+
+### MARCO: F5 FEITO — 2026-08-17
+Prova: scanner red-flags em 25 ficheiros (12,4k linhas) + leitura dirigida dos ecras de espera.
+1 correcao: ReservationStore.fetchMyReservations + ServicesStore.fetchMyAppointments adicionados ao
+hook global de resume no main.dart (realtime .stream() ja existia; faltava a metade do foreground).
+Falsos alarmes do scanner documentados (realtime vive nos stores). analyze 0 erros.
 
 ## Notas de retoma
 - Inventário completo (ficheiro→classes→arestas + BFS caminhos de clique): `.claude/.ai/reports/VARREDURA_TOTAL_TELAS.inventario.md`

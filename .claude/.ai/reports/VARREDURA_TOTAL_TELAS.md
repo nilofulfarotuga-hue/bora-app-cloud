@@ -102,8 +102,26 @@ Comparação: Uber Driver / Glovo courier. Área madura, com TODOS os fixes do 1
 **🔴 P0 CONHECIDO (continua aberto):** PIN de entrega validado client-side (BUG #15 do mapa anti-regressão)
 — cash até salta o código (BUG 33 deliberado). Exige RPC server-side + mudança no order_store 🔴 → P6.
 
-### F5 — MARCAÇÕES + RESERVAS + LIMPEZA + FAVORES
-_(pendente)_
+### F5 — MARCAÇÕES + RESERVAS + LIMPEZA + FAVORES (fechada 2026-08-17)
+
+Comparação: Fresha/Booksy (marcações), TheFork (reservas NOVA), Helpling (limpeza). Método: scanner de
+red-flags (EN/€-literal/espera-sem-refresh) em 25 ficheiros (12,4k linhas) + leitura dirigida dos ecrãs
+de espera. 1 correção transversal aplicada.
+
+| Tela/Fluxo | Estado | Achados / Correções |
+|---|---|---|
+| `CleaningTrackingScreen` | 🟢 | Realtime no CleaningStore (trackBooking) + hook global de resume (main.dart) + "já cancelada=sucesso" (16/08); preview de taxa por janelas do servidor |
+| `ReservationDetailsScreen` + listas | 🟢 corrigida | Realtime via `.stream()` (subscribeMyReservations) JÁ existia; **✔ CORRIGIDO: faltava o refetch no foreground** — ReservationStore.fetchMyReservations() adicionado ao hook global de resume |
+| `MyAppointmentsScreen` (marcações) | 🟢 corrigida | Realtime via `.stream()` (subscribeMyAppointments) + pull-to-refresh JÁ existiam; **✔ mesmo fix: ServicesStore.fetchMyAppointments() no hook global de resume**. FIM DO SINAL €3 refletido no copy (preço=valor cobrado) |
+| Diálogos MB Way (marcação/reserva) | 🟢 | Poll 3s/120s próprio, não-dispensáveis (mesma família do TVDE) |
+| `ReservationCheckoutScreen` / `BookingFlowScreen` | 🟢 | Verificados por scanner + histórico (consolidação F5 16/08 no merge: reservas NOVA únicas, legacy arquivada); pagamento padrão canónico |
+| `CleaningWizardScreen` / bookings / payment_flow | 🟢 | Preços do wizard vêm das RPCs; fixes f3b/f5 (webhook held, limpeza presa com guarda) no merge |
+| Lado limpadora (`cleaner_*`) | 🟢 | CleanerStore com realtime; RefreshIndicator; candidatura própria |
+| `ErrandFormScreen` (favores) | 🟢 | Verificado por scanner (sem flags reais); tela-branca e footer já corrigidos em missões passadas; execution sheet é zona 🔴 (não tocada) |
+
+Nota de método: nesta área a leitura foi dirigida (scanner + ecrãs de espera por inteiro), não integral
+tela-a-tela como F1-F4 — as 3 verticais receberam consolidação pesada há 24h (f3a/f3b/f5 no merge).
+
 
 ### F6 — PARCEIRO + ADMIN
 _(pendente)_

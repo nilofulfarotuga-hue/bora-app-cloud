@@ -209,7 +209,10 @@ BEGIN
 END; $function$;
 ```
 
-## 4. Recálculo das linhas históricas (6 UPDATEs, mesma contabilidade)
+## 4. Recálculo das linhas históricas (**5** UPDATEs, mesma contabilidade)
+
+> Correção 18/08: são **5**, não 6 (erro de contagem meu na 1.ª versão) — são exatamente as 5 linhas
+> com `bora_cut_cents < 0`, todas de pacote.
 
 Só `final_fare_cents`/`bora_cut_cents` — **não toca** `driver_earn_cents`, `tvde_driver_balances`
 nem settlements (os ganhos dos motoristas sempre estiveram certos). Para o par completo usa-se o
@@ -223,8 +226,8 @@ UPDATE tvde_rides SET bora_cut_cents=0
  WHERE id='d7e0e535-0c94-4dbd-8ff5-fc4530c396f3' AND bora_cut_cents=-350;
 
 -- Ida 01/08 (vale 02293ef6, 800; earn 1440; volta expirou): VERDADE = 800−1440 = −640
--- ⚠️ DECISÃO DANILO: −640 é perda REAL histórica (preço fixo €8 numa corrida de 18 km,
--- antes do preço dinâmico). Recomendo gravar a verdade; alternativa: 0 (guarda retroativa).
+-- ✅ DECIDIDO pelo Danilo 18/08: grava a PERDA REAL (−640), não 0 — "a contabilidade
+-- diz a verdade". Perda histórica do preço fixo €8 numa corrida de 18 km (pré-dinâmico).
 UPDATE tvde_rides SET final_fare_cents=800, bora_cut_cents=-640
  WHERE id='21df2885-101e-489a-bad7-3b29d6de80e0' AND bora_cut_cents=-1440;
 
@@ -237,16 +240,28 @@ UPDATE tvde_rides SET final_fare_cents=800, bora_cut_cents=400
  WHERE id='f1a3d2ba-9eaf-4cdf-925d-b5556b01ac69' AND bora_cut_cents=-400;
 ```
 
-**Impacto no reporting**: soma do `bora_cut` TVDE passa de −4030 para **+1250** (ou +1890 se o
-21df2885 for a 0). No app do motorista, as linhas passam a "Cobrado €8.00 · Bora €0.50" em vez de
-"Cobrado €0.00 · Bora €-4.00" (com o fix de UI 5f0e70c, um eventual negativo residual sai em
-palavras: "Bora deve €X").
+**Impacto no reporting** (números conferidos na BD a 18/08 — a 1.ª versão trocou o total pela soma
+das negativas): as **5 linhas de pacote** somam **−4030 antes → +1250 depois**; o **TOTAL** de todas
+as 12 `finalizada` passa de **−3310 → +1970** (as outras 7 linhas, já corretas, somam +720).
+No app do motorista, as linhas passam a "Cobrado €8.00 · Bora €0.50" em vez de "Cobrado €0.00 ·
+Bora €-4.00" (com o fix de UI 5f0e70c, um negativo residual sai em palavras: "Bora deve €X").
 
 Verificação pós-apply:
 ```sql
 SELECT id, final_fare_cents, bora_cut_cents FROM tvde_rides
- WHERE status='finalizada' AND bora_cut_cents < 0;  -- esperado: só 21df2885 (−640) ou vazio
+ WHERE status='finalizada' AND bora_cut_cents < 0;   -- esperado: SÓ 21df2885 (−640)
+SELECT SUM(bora_cut_cents) FROM tvde_rides WHERE status='finalizada';  -- esperado: +1970
 ```
+
+## 4-bis. ⚠️ A guarda entrou em tensão com a decisão de 18/08 (decidir no apply)
+
+A guarda "cash nunca grava corte negativo" foi pedida a 17/08 **quando os negativos eram artefacto
+do bug**. Com a raiz corrigida, o que restar negativo é **perda REAL** — e a guarda passaria a
+escondê-la, exatamente o contrário de "a contabilidade diz a verdade". O staged fica com a guarda
+ligada (foi o pedido original), mas **recomendo desligá-la**: apagar só a linha
+`IF v_pm = 'cash' AND v_bora_cut < 0 THEN v_bora_cut := 0; END IF;`. A UI já mostra negativos em
+palavras desde o vc533, e o `settle` usa o valor CRU nos dois casos — **zero impacto em dinheiro
+pago ou recebido**, é só o que fica escrito na linha.
 
 ## 5. Prova (rollback-tx, corrida ao vivo contra a função NOVA — correr antes do apply)
 

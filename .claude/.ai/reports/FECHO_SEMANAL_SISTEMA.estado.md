@@ -75,6 +75,22 @@
 - **MISSÃO: F1 ✓ · F2 pronto+provado (aguarda "vai") · F3 ✓ · F4 ✓.** Pendências humanas: F2 "vai";
   RESEND_API_KEY nas EF secrets; domínio Resend + toggle. Merge F1+F3(+F2 com vai) para produção quando disseres.
 
+### MARCO MERGE PRODUÇÃO (vc533) + 3 tarefas 17-18/08 ✓
+- **Merge → `autonomous-night-2026-04-29`**: remota tinha divergido (2 commits ci testlab via main);
+  merge limpo (conteúdo já idêntico), push `4f73447..3ec63b3`. **CI VERDE**: Android alpha 10m09s +
+  web deploy ✓ + olho-golden ✓. **versionCode 533** (`95c7cdc`). F1 (tela ganhos 4 secções) chega ao
+  telemóvel no 533. Gotcha Trava: `git branch -f` num comando composto = falso-positivo push --force.
+- **Tarefa 3 (UI)**: corte negativo em palavras — `tvde_driver_earnings_screen` linha "Cobrado/Bora"
+  agora mostra "Bora deve €X" quando o corte é negativo (commit 5f0e70c, viaja no 533). As outras
+  superfícies (weekly_settlement_card, _acertoBlock) já usavam palavras + abs.
+- **Tarefa 2 (🔴 bora_cut negativo)**: causa raiz CONFIRMADA = ramo `v_prepaid` do `tvde_finish_ride`
+  ignora `paid_cents` do vale (5 linhas negativas armazenadas, TODAS pacote cash; briefing dizia 10 —
+  essa contagem era o cálculo do APP). Proposta completa + função nova + recálculo 6 UPDATEs + guarda
+  cash≥0 (settle usa o CRU!) em `.claude/.ai/reports/BORACUT_PACOTE_PROPOSTA.md`. PROVADA por
+  rollback-tx (ida 800→cut 50/settle +400; volta cut 0/settle −350; normal intacta) com produção
+  verificada intacta pós-rollback. **PROPOSE-ONLY — apply é da Claude.ai por MCP após "vai".**
+  Decisão pendente do Danilo: 21df2885 (perda real −640 do €8 fixo) → gravar −640 ou 0.
+
 ### MARCO F1 (ecrã de ganhos) — 2026-08-17 ✓
 - A tela `DriverEarningsScreen` já existia e já consumia `driver_earnings_summary`, mas só exibia HOJE + ESTA
   SEMANA. Acrescentei **SEMANA PASSADA** e **ÚLTIMO ACERTO** (helpers `_miniSemana` + `_acertoBlock`), tudo da

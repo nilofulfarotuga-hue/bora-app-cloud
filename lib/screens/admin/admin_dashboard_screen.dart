@@ -79,6 +79,7 @@ import 'admin_cleaner_settlements_screen.dart';
 // ignore: unused_import
 import 'admin_tvde_access_requests_screen.dart';
 import 'admin_tvde_noshows_screen.dart';
+import 'admin_tvde_reservas_screen.dart';
 import 'admin_tvde_rides_screen.dart';
 import 'admin_tvde_cancellations_screen.dart';
 import 'admin_tvde_drivers_screen.dart';
@@ -1089,6 +1090,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       MaterialPageRoute(
                           builder: (_) =>
                               const AdminTvdeSubscriptionsScreen())),
+                ),
+                const SizedBox(height: 10),
+                // [Reserva agendada 2026-08-19] Corridas marcadas para depois.
+                _NavCard(
+                  icon: Icons.event,
+                  title: 'Reservas (corridas agendadas)',
+                  subtitle:
+                      'Ver todas · criar · cancelar · trocar motorista · forçar chamada',
+                  color: Colors.indigo,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminTvdeReservasScreen())),
                 ),
                 const SizedBox(height: 10),
                 _NavCard(

@@ -5,6 +5,14 @@
 // v5: alem da OFERTA de corrida (caminho original, intacto), trata
 // kind='stop_added' — aviso de parada adicionada pelo cliente, com o total
 // a cobrar atualizado (decisao Danilo 2026-07-20).
+// v9 (2026-08-20): kind 'reservation_assigned' — o ADMIN atribuiu a reserva a
+// este motorista a mao (RPC admin_tvde_reservation_set_driver). NAO e oferta:
+// nao ha aceitar/recusar, o texto e afirmativo. Continua data-only.
+// v8 (2026-08-19): kinds de RESERVA (corrida agendada) — reservation_offer,
+// reservation_reminder_early, reservation_start_now, reservation_cancelled,
+// reservation_lost. TODOS data-only (sem bloco `notification`) para o handler
+// do Flutter correr e postar a persistente dos 10 min. Sem `kind` no body o
+// comportamento e exactamente o de hoje (kind = 'offer' -> caminho original).
 //
 // Required Supabase secrets: FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT
 // Auto-injected: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
@@ -12,6 +20,7 @@
 // Chamado por:
 //  - trigger fn_notify_tvde_driver_on_offer (oferta; sem kind)
 //  - RPC tvde_add_stop (kind='stop_added', stopPaidOnline bool)
+//  - RPC tvde_reservation_push (kind='reservation_*')
 //
 // Retorna 200 sempre (fire-and-forget).
 
@@ -171,6 +180,124 @@ Deno.serve(async (req) => {
     return json({ ok: true }, 200)
   }
 
+  // ============ kinds de RESERVA (corrida agendada) — v8, 2026-08-19 ============
+  // DATA-ONLY, SEMPRE. Licao 28/07 + 31/07: com bloco `notification` o Android
+  // auto-mostra o push e o handler do Flutter NAO corre — logo a notificacao
+  // PERSISTENTE dos 10 minutos nunca chegava a ser postada. Mesmo padrao da
+  // oferta de corrida (que ja e data-only desde o A1 FIX de 2026-07-04).
+  if (kind.startsWith('reservation_')) {
+    let originLabel = 'Recolha', destLabel = 'Destino', fareEur = '0.00'
+    let scheduledAt: string | null = null, offerExpiresAt: string | null = null
+    try {
+      const { data: ride } = await supabase
+        .from('tvde_rides')
+        .select('origin_label, dest_label, est_fare_cents, scheduled_at, reservation_offer_expires_at')
+        .eq('id', rideId).maybeSingle()
+      if (ride) {
+        originLabel = ride.origin_label ?? originLabel
+        destLabel   = ride.dest_label ?? destLabel
+        const cents = Number(ride.est_fare_cents ?? 0)
+        if (Number.isFinite(cents) && cents > 0) fareEur = (cents / 100).toFixed(2)
+        scheduledAt    = ride.scheduled_at ?? null
+        offerExpiresAt = ride.reservation_offer_expires_at ?? null
+      }
+    } catch (_e) { /* mantem fallbacks */ }
+
+    const dia  = ptDate(scheduledAt)   // "sabado, 23 de agosto"
+    const hora = ptTime(scheduledAt)   // "14:30"
+    const rota = `${originLabel} -> ${destLabel}`
+
+    let title: string, body: string, type: string, ttl = '600s'
+    switch (kind) {
+      case 'reservation_offer':
+        type  = 'tvde_reservation_offer'
+        title = '📅 Reserva para aceitar'
+        body  = `${dia} as ${hora} • ${rota} • €${fareEur}`
+        ttl   = '300s'
+        break
+      // v9 (2026-08-20) — o ADMIN escolheu este motorista a mao. NAO e uma
+      // oferta: a reserva ja e dele, nao ha nada para aceitar nem recusar.
+      // Por isso o texto e afirmativo e o app nao mostra botoes.
+      case 'reservation_assigned':
+        type  = 'tvde_reservation_assigned'
+        title = '📅 Ficaste com uma reserva'
+        body  = `Ficaste com uma reserva marcada para ${ptShort(scheduledAt)} as ${hora}`
+              + ` • ${rota} • €${fareEur}`
+        break
+      case 'reservation_reminder_early':
+        type  = 'tvde_reservation_reminder'
+        title = '⏰ Reserva daqui a uma hora'
+        body  = `As ${hora} • ${rota}. Prepara-te para a recolha.`
+        break
+      case 'reservation_start_now':
+        type  = 'tvde_reservation_start_now'
+        title = '🚗 A tua reserva comeca em 10 minutos'
+        body  = `As ${hora} • ${rota}. Carrega "A caminho" — se nao confirmares, a reserva passa a outro motorista.`
+        break
+      case 'reservation_cancelled':
+        type  = 'tvde_reservation_cancelled'
+        title = 'Reserva cancelada'
+        body  = `O cliente cancelou a reserva de ${dia} as ${hora}.`
+        break
+      case 'reservation_lost':
+        type  = 'tvde_reservation_lost'
+        title = 'Reserva passou a outro motorista'
+        body  = `Nao confirmaste a tempo a reserva das ${hora}. Foi entregue a outro motorista.`
+        break
+      default:
+        console.warn(`[notify-tvde-driver] kind de reserva desconhecido: ${kind}`)
+        await logPushEvent(supabase, rideId, false, { reason: 'unknown_reservation_kind', kind })
+        return json({ ok: false, reason: 'unknown_reservation_kind' }, 200)
+    }
+
+    const message = {
+      message: {
+        token: fcmToken,
+        data: {
+          rideId:      String(rideId),
+          type,
+          kind,
+          originLabel, destLabel,
+          fare:        fareEur,
+          scheduledAt: scheduledAt ?? '',
+          scheduledDay:  dia,
+          scheduledTime: hora,
+          offerExpiresAt: offerExpiresAt ?? '',
+          title,
+          body,
+        },
+        android: { priority: 'high', ttl },
+        apns: {
+          headers: { 'apns-priority': '10', 'apns-push-type': 'background' },
+          payload: { aps: { 'content-available': 1, sound: 'bora_alert.wav', 'interruption-level': 'time-sensitive' } },
+        },
+      },
+    }
+
+    const fcmRes = await fetch(fcmUrl, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(message),
+    })
+    const fcmBody = await fcmRes.json().catch(() => ({}))
+    if (!fcmRes.ok) {
+      console.error(`[notify-tvde-driver] ${kind} FCM error ${fcmRes.status}:`, JSON.stringify(fcmBody))
+      const errorCode = fcmBody?.error?.details?.[0]?.errorCode ?? ''
+      if (errorCode === 'UNREGISTERED' || errorCode === 'INVALID_ARGUMENT') {
+        if (fallbackTokenId) {
+          await supabase.from('driver_push_tokens').update({ active: false }).eq('id', fallbackTokenId)
+        } else {
+          await supabase.from('drivers').update({ fcm_token: null }).eq('user_id', driverId)
+        }
+      }
+      await logPushEvent(supabase, rideId, false, { kind, fcm_status: fcmRes.status, error_code: errorCode })
+      return json({ ok: false, reason: 'fcm_error' }, 200)
+    }
+    console.log(`[notify-tvde-driver] ${kind} push sent to driver ${driverId} ride ${rideId}`)
+    await logPushEvent(supabase, rideId, true, { kind, driver_id: driverId })
+    return json({ ok: true }, 200)
+  }
+
   // ============ caminho original: OFERTA de corrida (intacto) ============
   // Detalhes da corrida para o cartao de oferta.
   let originLabel = 'Recolha', destLabel = 'Destino', fareEur = '0.00', distanceKm = '0'
@@ -258,6 +385,36 @@ Deno.serve(async (req) => {
 
 function eur(cents: number): string {
   return (Number(cents || 0) / 100).toFixed(2).replace('.', ',')
+}
+
+// Datas da reserva sempre na hora de Portugal — o motorista le "as 14:30",
+// nao UTC. Se a data vier vazia/invalida devolve fallback neutro.
+function ptDate(iso: string | null): string {
+  if (!iso) return 'a data marcada'
+  try {
+    return new Intl.DateTimeFormat('pt-PT', {
+      timeZone: 'Europe/Lisbon', weekday: 'long', day: 'numeric', month: 'long',
+    }).format(new Date(iso))
+  } catch (_e) { return 'a data marcada' }
+}
+
+// Data curta "DD/MM" para o texto de reserva atribuida pelo admin.
+function ptShort(iso: string | null): string {
+  if (!iso) return 'a data marcada'
+  try {
+    return new Intl.DateTimeFormat('pt-PT', {
+      timeZone: 'Europe/Lisbon', day: '2-digit', month: '2-digit',
+    }).format(new Date(iso))
+  } catch (_e) { return 'a data marcada' }
+}
+
+function ptTime(iso: string | null): string {
+  if (!iso) return 'a hora marcada'
+  try {
+    return new Intl.DateTimeFormat('pt-PT', {
+      timeZone: 'Europe/Lisbon', hour: '2-digit', minute: '2-digit', hour12: false,
+    }).format(new Date(iso))
+  } catch (_e) { return 'a hora marcada' }
 }
 
 async function logPushEvent(supabase: any, rideId: string, ok: boolean, meta: Record<string, unknown>) {

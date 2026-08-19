@@ -68,6 +68,7 @@ class TvdeDriverStore extends ChangeNotifier {
     await loadWorkMode();
     await loadTodayEarnings();
     await loadNoshowWait();
+    await loadAgenda();
   }
 
   /// Lê a janela de no-show (best-effort; default 5 min).
@@ -219,6 +220,14 @@ class TvdeDriverStore extends ChangeNotifier {
     if (uid == null) return;
     final ride = TvdeRide.fromMap(record);
 
+    // [Reserva agendada 2026-08-19] Reservas viajam no MESMO canal, mas noutras
+    // colunas (`reservation_*`, não `driver_id`) — por isso são tratadas aqui,
+    // antes do caminho da corrida imediata, e devolvem já.
+    if (ride.status == 'agendada') {
+      _applyReservationChange(ride, uid);
+      return;
+    }
+
     // Corrida ativa minha → atualiza/limpa.
     if (ride.driverId == uid) {
       // Back-to-back: corrida em fila nunca substitui a ativa.
@@ -309,6 +318,145 @@ class TvdeDriverStore extends ChangeNotifier {
   }
 
   /// Recusa a oferta → backend liberta para o próximo motorista (dispatch).
+  // ══ RESERVA AGENDADA (2026-08-19) ═══════════════════════════════════════
+  // O motorista vê 2 coisas: a OFERTA antecipada (aceitar/recusar) e a AGENDA
+  // (as reservas que já são dele). O relógio é todo do cron — aqui só se
+  // responde e se lê.
+
+  TvdeRide? _reservationOffer;
+
+  /// Oferta antecipada de reserva à espera de resposta deste motorista.
+  TvdeRide? get reservationOffer => _reservationOffer;
+
+  List<TvdeRide> _agenda = const [];
+
+  /// Reservas que já são deste motorista, da mais próxima para a mais longe.
+  /// É a "memória" que o Danilo pediu.
+  List<TvdeRide> get agenda => _agenda;
+
+  /// Aplica uma linha `status='agendada'` vinda do realtime.
+  void _applyReservationChange(TvdeRide ride, String uid) {
+    var mudou = false;
+
+    // Oferta antecipada para mim?
+    final ehOfertaMinha = ride.reservationOfferDriverId == uid &&
+        ride.reservationStatus == 'a_procurar';
+    if (ehOfertaMinha) {
+      _reservationOffer = ride;
+      mudou = true;
+    } else if (_reservationOffer?.id == ride.id) {
+      // Deixou de ser minha (aceitei, recusei, ou rodou para o seguinte).
+      _reservationOffer = null;
+      mudou = true;
+    }
+
+    // Agenda: entra se for minha e viva; sai se deixou de ser.
+    final minhaEViva = ride.reservationDriverId == uid &&
+        (ride.reservationStatus == 'atribuida' ||
+            ride.reservationStatus == 'ativada');
+    final lista = List<TvdeRide>.from(_agenda);
+    final idx = lista.indexWhere((r) => r.id == ride.id);
+    if (minhaEViva) {
+      if (idx >= 0) {
+        lista[idx] = ride;
+      } else {
+        lista.add(ride);
+      }
+      lista.sort((a, b) => (a.scheduledAt ?? DateTime(2100))
+          .compareTo(b.scheduledAt ?? DateTime(2100)));
+      _agenda = lista;
+      mudou = true;
+    } else if (idx >= 0) {
+      lista.removeAt(idx);
+      _agenda = lista;
+      mudou = true;
+    }
+
+    if (mudou) notifyListeners();
+  }
+
+  /// Carrega a agenda + a oferta antecipada pendente (arranque e refresh).
+  Future<void> loadAgenda() async {
+    final uid = _uid;
+    if (uid == null) return;
+    try {
+      final agora = DateTime.now().toUtc().toIso8601String();
+      final minhas = await _sb
+          .from('tvde_rides')
+          .select()
+          .eq('reservation_driver_id', uid)
+          .eq('status', 'agendada')
+          .inFilter('reservation_status', const ['atribuida', 'ativada'])
+          .gte('scheduled_at', agora)
+          .order('scheduled_at', ascending: true);
+      _agenda = (minhas as List)
+          .map((r) => TvdeRide.fromMap(Map<String, dynamic>.from(r as Map)))
+          .toList();
+
+      final oferta = await _sb
+          .from('tvde_rides')
+          .select()
+          .eq('reservation_offer_driver_id', uid)
+          .eq('status', 'agendada')
+          .eq('reservation_status', 'a_procurar')
+          .maybeSingle();
+      _reservationOffer = oferta == null
+          ? null
+          : TvdeRide.fromMap(Map<String, dynamic>.from(oferta));
+
+      notifyListeners();
+    } catch (e) {
+      debugPrint('TvdeDriverStore.loadAgenda error => $e');
+    }
+  }
+
+  /// Motorista aceita a oferta antecipada. A reserva passa a ser dele.
+  Future<void> acceptReservation(String rideId) async {
+    _setBusy(true);
+    try {
+      await _sb.rpc('tvde_reservation_accept', params: {'p_ride_id': rideId});
+      _reservationOffer = null;
+      await loadAgenda();
+    } catch (e) {
+      debugPrint('TvdeDriverStore.acceptReservation error => $e');
+      rethrow;
+    } finally {
+      _setBusy(false);
+    }
+  }
+
+  /// Motorista recusa — o servidor passa ao seguinte da rotação.
+  Future<void> rejectReservation(String rideId) async {
+    _setBusy(true);
+    try {
+      await _sb.rpc('tvde_reservation_reject', params: {'p_ride_id': rideId});
+      _reservationOffer = null;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('TvdeDriverStore.rejectReservation error => $e');
+      rethrow;
+    } finally {
+      _setBusy(false);
+    }
+  }
+
+  /// "A caminho" do lembrete dos 10 minutos.
+  ///
+  /// CRÍTICO: sem isto, aos 5 minutos da hora o servidor dá a reserva a outro
+  /// motorista. Idempotente do lado do servidor — pode ser chamada duas vezes
+  /// (pelo botão da notificação e pelo ecrã) sem estragar nada.
+  Future<bool> reservationReady(String rideId) async {
+    try {
+      final res =
+          await _sb.rpc('tvde_reservation_ready', params: {'p_ride_id': rideId});
+      await loadAgenda();
+      return res == true;
+    } catch (e) {
+      debugPrint('TvdeDriverStore.reservationReady error => $e');
+      return false;
+    }
+  }
+
   Future<void> rejectOffer(String rideId) async {
     _setBusy(true);
     try {

@@ -33,6 +33,7 @@ import 'screens/admin/admin_driver_approval_screen.dart';
 import 'screens/admin/admin_partners_pending_screen.dart';
 import 'screens/admin/admin_tvde_access_requests_screen.dart';
 import 'screens/admin/admin_tvde_noshows_screen.dart';
+import 'screens/admin/admin_tvde_reservas_screen.dart';
 import 'screens/admin/admin_cleaning_cleaners_screen.dart';
 import 'screens/admin/admin_ratings_screen.dart';
 import 'screens/admin/admin_skill_suggestions_metrics_screen.dart';
@@ -563,6 +564,10 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           '/admin/tvde/access-requests': (_) =>
               const AdminTvdeAccessRequestsScreen(),
           '/admin/tvde/noshows': (_) => const AdminTvdeNoShowsScreen(),
+          // [Reserva agendada 2026-08-19] O backend já manda os alertas de
+          // reserva para esta rota (notify_admin_urgent_push em
+          // tvde_schedule_ride e tvde_reservation_redispatch).
+          '/admin/tvde/reservas': (_) => const AdminTvdeReservasScreen(),
           '/admin/cleaning/cleaners': (_) => const AdminCleaningCleanersScreen(),
           // BLOCO D (2026-07-28) — QR codes impressos apontam para
           // https://bora-app-web.pages.dev/#/registo-cliente. URL CANÓNICA:

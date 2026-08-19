@@ -42,6 +42,108 @@ Map<String, dynamic> buildTvdeChargeBody({
   };
 }
 
+/// Corpo do pedido `charge_reservation` da Edge Fn `tvde-payment` (v10).
+///
+/// Mesma regra que o `charge`: o `saved_pm_id` SO viaja em cartao. O preco
+/// NAO vai no corpo — quem o fecha e o servidor (`est_fare_cents` da reserva
+/// criada por `tvde_schedule_ride`). Mandar preco daqui seria deixar o cliente
+/// escolher quanto paga.
+Map<String, dynamic> buildTvdeReservationChargeBody({
+  required double originLat,
+  required double originLng,
+  String? originLabel,
+  required double destLat,
+  required double destLng,
+  String? destLabel,
+  required double distanceKm,
+  required DateTime scheduledAt,
+  required String method,
+  String? mbwayPhone,
+  String? note,
+  String? savedPmId,
+}) {
+  return {
+    'action': 'charge_reservation',
+    'origin_lat': originLat,
+    'origin_lng': originLng,
+    'origin_label': originLabel,
+    'dest_lat': destLat,
+    'dest_lng': destLng,
+    'dest_label': destLabel,
+    'distance_km': distanceKm,
+    'scheduled_at': scheduledAt.toUtc().toIso8601String(),
+    'method': method,
+    if (mbwayPhone != null) 'phone': mbwayPhone,
+    if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+    if (method == 'card' && savedPmId != null) 'saved_pm_id': savedPmId,
+  };
+}
+
+/// Traduz para PT-PT os erros das RPCs/Edge Function de reserva.
+///
+/// Funcao pura de proposito: e o unico sitio onde os codigos crus do servidor
+/// viram frase para o cliente, e da para fixar em teste. Codigo desconhecido
+/// devolve uma frase neutra — nunca o codigo cru no ecra.
+String traduzErroReserva(Object erro) {
+  final txt = erro.toString();
+  bool tem(String code) => txt.contains(code);
+
+  if (tem('reservations_disabled')) {
+    return 'As reservas estão desligadas de momento. Podes pedir uma corrida para agora.';
+  }
+  if (tem('too_soon')) {
+    return 'Essa hora está demasiado em cima. Marca com mais antecedência.';
+  }
+  if (tem('too_far')) {
+    return 'Só dá para marcar dentro dos próximos dias. Escolhe uma data mais perto.';
+  }
+  if (tem('reservation_overlap')) {
+    return 'Já tens uma reserva marcada para essa hora.';
+  }
+  if (tem('too_many_reservations')) {
+    return 'Já tens reservas a mais marcadas. Cancela uma antes de marcar outra.';
+  }
+  if (tem('card_payments_not_enabled')) {
+    return 'Os pagamentos online estão desligados. Marca a reserva para pagar em dinheiro.';
+  }
+  if (tem('below_minimum')) {
+    return 'O valor da viagem é baixo demais para pagar online. Escolhe dinheiro.';
+  }
+  if (tem('invalid_distance')) {
+    return 'Não consegui calcular o trajeto. Confirma a recolha e o destino.';
+  }
+  if (tem('missing_scheduled_at')) {
+    return 'Falta escolher o dia e a hora da reserva.';
+  }
+  if (tem('not_authenticated')) {
+    return 'A tua sessão expirou. Entra outra vez para marcar a reserva.';
+  }
+  if (tem('cancelled') || tem('cancel')) {
+    return 'Pagamento não concluído. A reserva não ficou marcada.';
+  }
+  return 'Não consegui marcar a reserva. Tenta de novo daqui a pouco.';
+}
+
+/// Estado da reserva em português simples, para o cliente ler.
+String estadoReservaPt(TvdeRide r) {
+  switch (r.reservationStatus) {
+    case 'aguarda_pagamento':
+      return 'à espera do pagamento';
+    case 'a_procurar':
+      return 'à procura de motorista';
+    case 'atribuida':
+      return 'motorista confirmado';
+    case 'ativada':
+      return 'a caminho';
+    case 'sem_motorista':
+      return 'sem motorista disponível';
+    case 'cancelada':
+      return 'cancelada';
+    default:
+      return 'marcada';
+  }
+}
+
 class TvdeStore extends ChangeNotifier {
   SupabaseClient get _sb => Supabase.instance.client;
   String? get _uid => _sb.auth.currentUser?.id;
@@ -336,6 +438,219 @@ class TvdeStore extends ChangeNotifier {
       return ride;
     } catch (e) {
       debugPrint('TvdeStore.requestRidePaid error => $e');
+      rethrow;
+    } finally {
+      _setBusy(false);
+    }
+  }
+
+  // ══ RESERVA AGENDADA (2026-08-19) ═══════════════════════════════════════
+  // O app é read-only sobre o relógio: quem trata rotação, lembretes, prender
+  // o motorista e re-despacho é o cron `tvde-reservations-sweep`. Aqui só se
+  // marca, se lê e se cancela.
+
+  List<TvdeRide> _reservations = const [];
+
+  /// Reservas do cliente com hora no futuro, da mais próxima para a mais longe.
+  List<TvdeRide> get reservations => _reservations;
+
+  /// Limites da marcação, lidos das definições (nunca cravados no app).
+  /// Chaves: minAdvanceMinutes, maxAdvanceDays, freeCancelHours,
+  /// paymentTimeoutMinutes.
+  Future<Map<String, int>> loadReservationLimits() async {
+    final results = await Future.wait([
+      getSettingInt('tvde_reservation_min_advance_minutes', 30),
+      getSettingInt('tvde_reservation_max_advance_days', 30),
+      getSettingInt('tvde_reservation_free_cancel_hours', 2),
+      getSettingInt('tvde_reservation_payment_timeout_minutes', 15),
+    ]);
+    return {
+      'minAdvanceMinutes': results[0],
+      'maxAdvanceDays': results[1],
+      'freeCancelHours': results[2],
+      'paymentTimeoutMinutes': results[3],
+    };
+  }
+
+  /// As reservas estão ligadas? (kill switch `tvde_reservation_enabled`).
+  Future<bool> reservationsEnabled() =>
+      getSettingBool('tvde_reservation_enabled', false);
+
+  /// Marca uma reserva a pagar EM DINHEIRO ao motorista.
+  /// Chama a RPC direto — a reserva nasce logo `a_procurar`.
+  Future<TvdeRide?> scheduleRideCash({
+    required double originLat,
+    required double originLng,
+    String? originLabel,
+    required double destLat,
+    required double destLng,
+    String? destLabel,
+    required double distanceKm,
+    required DateTime scheduledAt,
+    String? note,
+  }) async {
+    _setBusy(true);
+    try {
+      final res = await _sb.rpc('tvde_schedule_ride', params: {
+        'p_origin_lat': originLat,
+        'p_origin_lng': originLng,
+        'p_origin_label': originLabel,
+        'p_dest_lat': destLat,
+        'p_dest_lng': destLng,
+        'p_dest_label': destLabel,
+        'p_est_distance_km': distanceKm,
+        'p_scheduled_at': scheduledAt.toUtc().toIso8601String(),
+        'p_payment_method': 'cash',
+        'p_note': note,
+      });
+      final row = (res is List && res.isNotEmpty) ? res.first : res;
+      if (row is! Map) return null;
+      final ride = TvdeRide.fromMap(Map<String, dynamic>.from(row));
+      await loadMyReservations();
+      return ride;
+    } catch (e) {
+      debugPrint('TvdeStore.scheduleRideCash error => $e');
+      rethrow;
+    } finally {
+      _setBusy(false);
+    }
+  }
+
+  /// Marca uma reserva paga ONLINE (cartão ou MB Way).
+  ///
+  /// Mesmo caminho da corrida normal: a Edge Function `tvde-payment` cria a
+  /// reserva E cobra o preço fechado por ela. A reserva nasce em
+  /// `aguarda_pagamento` e SÓ procura motorista depois de
+  /// [confirmReservationPayment] devolver `succeeded`.
+  ///
+  /// Devolve o par (reserva, paymentIntentId) — o id serve para o polling.
+  Future<({TvdeRide? ride, String? paymentIntentId})> scheduleRidePaid({
+    required double originLat,
+    required double originLng,
+    String? originLabel,
+    required double destLat,
+    required double destLng,
+    String? destLabel,
+    required double distanceKm,
+    required DateTime scheduledAt,
+    required String method, // 'card' | 'mbway'
+    String? mbwayPhone,
+    String? note,
+    String? savedPmId,
+    Future<void> Function(String clientSecret)? confirmCard,
+  }) async {
+    _setBusy(true);
+    try {
+      final res = await _sb.functions.invoke(
+        'tvde-payment',
+        body: buildTvdeReservationChargeBody(
+          originLat: originLat,
+          originLng: originLng,
+          originLabel: originLabel,
+          destLat: destLat,
+          destLng: destLng,
+          destLabel: destLabel,
+          distanceKm: distanceKm,
+          scheduledAt: scheduledAt,
+          method: method,
+          mbwayPhone: mbwayPhone,
+          note: note,
+          savedPmId: savedPmId,
+        ),
+      );
+      final data = (res.data is Map)
+          ? Map<String, dynamic>.from(res.data as Map)
+          : <String, dynamic>{};
+      if (data['error'] != null) throw Exception(data['error'].toString());
+
+      TvdeRide? ride;
+      final rideMap = data['ride'];
+      if (rideMap is Map) {
+        ride = TvdeRide.fromMap(Map<String, dynamic>.from(rideMap));
+      }
+      final piId = data['paymentIntentId'] as String?;
+
+      // Cartão → confirma exactamente como a corrida normal.
+      final clientSecret = data['clientSecret'] as String?;
+      if (method == 'card' && clientSecret != null) {
+        if (savedPmId != null) {
+          final ok = await PaymentService().confirmSavedCardPayment(
+            clientSecret: clientSecret,
+            requiresAction: (data['requiresAction'] as bool?) ?? false,
+          );
+          if (!ok) throw Exception('saved_card_payment_cancelled');
+        } else if (confirmCard != null) {
+          await confirmCard(clientSecret);
+        }
+      }
+      await loadMyReservations();
+      return (ride: ride, paymentIntentId: piId);
+    } catch (e) {
+      debugPrint('TvdeStore.scheduleRidePaid error => $e');
+      rethrow;
+    } finally {
+      _setBusy(false);
+    }
+  }
+
+  /// Pergunta ao servidor se o pagamento da reserva já entrou.
+  /// Só quando devolve `true` é que a reserva passa a procurar motorista.
+  /// Idempotente — pode ser chamada em polling sem risco.
+  Future<bool> confirmReservationPayment(String paymentIntentId) async {
+    try {
+      final res = await _sb.functions.invoke(
+        'tvde-payment',
+        body: {
+          'action': 'confirm_reservation_payment',
+          'payment_intent_id': paymentIntentId,
+        },
+      );
+      final data = (res.data is Map)
+          ? Map<String, dynamic>.from(res.data as Map)
+          : <String, dynamic>{};
+      return data['succeeded'] == true;
+    } catch (e) {
+      debugPrint('TvdeStore.confirmReservationPayment error => $e');
+      return false;
+    }
+  }
+
+  /// Carrega as reservas do cliente com hora no futuro.
+  Future<void> loadMyReservations() async {
+    final uid = _uid;
+    if (uid == null) return;
+    try {
+      final rows = await _sb
+          .from('tvde_rides')
+          .select()
+          .eq('client_id', uid)
+          .eq('status', 'agendada')
+          .gte('scheduled_at', DateTime.now().toUtc().toIso8601String())
+          .order('scheduled_at', ascending: true);
+      _reservations = (rows as List)
+          .map((r) => TvdeRide.fromMap(Map<String, dynamic>.from(r as Map)))
+          .toList();
+      notifyListeners();
+    } catch (e) {
+      debugPrint('TvdeStore.loadMyReservations error => $e');
+    }
+  }
+
+  /// Cliente cancela a reserva.
+  ///
+  /// O reembolso (cartão/MB Way) é AUTOMÁTICO do lado do servidor — o app
+  /// nunca chama a action `refund` para reservas. Aqui só se cancela e se
+  /// recarrega a lista.
+  Future<void> cancelReservation(String rideId, {String? reason}) async {
+    _setBusy(true);
+    try {
+      await _sb.rpc('tvde_cancel_reservation', params: {
+        'p_ride_id': rideId,
+        'p_reason': reason ?? 'cliente',
+      });
+      await loadMyReservations();
+    } catch (e) {
+      debugPrint('TvdeStore.cancelReservation error => $e');
       rethrow;
     } finally {
       _setBusy(false);

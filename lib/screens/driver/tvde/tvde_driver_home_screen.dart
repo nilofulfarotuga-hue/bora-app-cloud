@@ -14,6 +14,7 @@ import '../../../auth/auth_store.dart';
 import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
 import '../../../models/driver_model.dart';
+import '../../../models/tvde_ride.dart';
 import '../../../services/driver_location_ping_service.dart';
 import '../../../services/heartbeat_service.dart';
 import '../../../services/notification_service.dart';
@@ -26,8 +27,11 @@ import '../../../stores/order_store.dart';
 import '../../../stores/tvde_driver_store.dart';
 import '../../../widgets/background_location_disclosure.dart';
 import '../../../widgets/bora_support_sheet.dart';
+import '../../../services/navigation_service.dart';
+import '../../../widgets/tvde/tvde_reservation_offer_card.dart';
 import '../../driver_home_screen.dart';
 import '../../driver_earnings_screen.dart';
+import 'tvde_driver_agenda_screen.dart';
 import 'tvde_offer_screen.dart';
 import 'tvde_ride_active_screen.dart';
 
@@ -81,6 +85,10 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
     // [TVDE P0] Push de oferta força reload do store → a tela de oferta aparece
     // mesmo que o realtime tenha caído (fallback triplo: push → realtime → poll).
     NotificationService.tvdeOfferReload = _reloadOffer;
+    // [Reserva agendada 2026-08-19] Push de reserva força reload da agenda, e
+    // o botão "A caminho" da notificação dos 10 min cai aqui.
+    NotificationService.tvdeReservationReload = _reloadAgenda;
+    NotificationService.tvdeReservationReadyTap = _onReservationReadyFromPush;
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       // Reflete admin approve/reject pós-login sem relogin (espelha o
@@ -136,6 +144,13 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
     if (NotificationService.tvdeOfferReload == _reloadOffer) {
       NotificationService.tvdeOfferReload = null;
     }
+    if (NotificationService.tvdeReservationReload == _reloadAgenda) {
+      NotificationService.tvdeReservationReload = null;
+    }
+    if (NotificationService.tvdeReservationReadyTap ==
+        _onReservationReadyFromPush) {
+      NotificationService.tvdeReservationReadyTap = null;
+    }
     _heartbeat.serverAck.removeListener(_onServerAckChanged);
     _heartbeat.stop();
     _gps?.cancel();
@@ -152,6 +167,83 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
     context.read<TvdeDriverStore>().loadCurrent().then((_) {
       if (mounted) _syncNav();
     });
+  }
+
+  // ══ RESERVA AGENDADA (2026-08-19) ═══════════════════════════════════════
+
+  void _reloadAgenda() {
+    if (!mounted) return;
+    context.read<TvdeDriverStore>().loadAgenda();
+  }
+
+  /// Botão "A caminho" da notificação persistente dos 10 minutos.
+  ///
+  /// Confirma no servidor e abre já a navegação para a recolha. A RPC também é
+  /// chamada headless quando a notificação é tocada com a app fechada — é
+  /// idempotente, por isso as duas chamadas convivem sem problema.
+  Future<void> _onReservationReadyFromPush(String rideId) async {
+    if (!mounted) return;
+    final store = context.read<TvdeDriverStore>();
+    final ok = await store.reservationReady(rideId);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(ok
+          ? 'Confirmado. Vai a caminho da recolha.'
+          : 'Não consegui confirmar. Abre a agenda e tenta outra vez.'),
+    ));
+    if (!ok) {
+      _openAgenda();
+      return;
+    }
+    // Abre a navegação para a morada de recolha do cliente.
+    TvdeRide? r;
+    for (final x in store.agenda) {
+      if (x.id == rideId) {
+        r = x;
+        break;
+      }
+    }
+    if (r == null || !mounted) {
+      _openAgenda();
+      return;
+    }
+    await NavigationService.openNavigationOptions(
+      context,
+      LatLng(r.originLat, r.originLng),
+    );
+  }
+
+  void _openAgenda() {
+    if (!mounted) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const TvdeDriverAgendaScreen()),
+    );
+  }
+
+  Future<void> _aceitarReserva(String rideId) async {
+    final store = context.read<TvdeDriverStore>();
+    try {
+      await store.acceptReservation(rideId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Reserva aceite. Fica na tua agenda — avisamos-te '
+            'perto da hora.'),
+      ));
+    } catch (e) {
+      if (!mounted) return;
+      final msg = e.toString().contains('offer_no_longer_valid')
+          ? 'Essa reserva já não está disponível.'
+          : 'Não consegui aceitar a reserva. Tenta outra vez.';
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(msg)));
+    }
+  }
+
+  Future<void> _recusarReserva(String rideId) async {
+    try {
+      await context.read<TvdeDriverStore>().rejectReservation(rideId);
+    } catch (_) {/* a rotação do servidor segue de qualquer forma */}
   }
 
   /// Rede de segurança: enquanto online e sem oferta/corrida, relê a cada 10s.
@@ -624,6 +716,9 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
     // com Navigator.push. Continuar a animar a câmara de um mapa invisível é
     // trabalho puro no platform channel e roubava frames ao mapa que está à
     // frente. Só segue a câmara quando esta rota é a de cima.
+    // [Reserva agendada] Oferta antecipada pendente para este motorista.
+    final reservationOffer =
+        context.watch<TvdeDriverStore>().reservationOffer;
     final isTopRoute = ModalRoute.of(context)?.isCurrent ?? true;
     if (mePos != null && isTopRoute) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _followCamera(mePos));
@@ -638,6 +733,42 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
         actions: [
           // [Item F] Removido o atalho separado de "Entregas" — as ofertas de
           // entrega/favor agora aparecem como overlay no próprio mapa (tela única).
+          // [Reserva agendada 2026-08-19] A AGENDA — as corridas marcadas dele.
+          // Badge com o número para ele ver de relance que tem trabalho hoje.
+          IconButton(
+            tooltip: 'Agenda',
+            onPressed: _openAgenda,
+            icon: Builder(builder: (_) {
+              final n = context.watch<TvdeDriverStore>().agenda.length;
+              final icone = const Icon(Icons.event_note);
+              if (n == 0) return icone;
+              return Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  icone,
+                  Positioned(
+                    right: -4,
+                    top: -4,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 5, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: AppColors.accent,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '$n',
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            }),
+          ),
           IconButton(
             tooltip: 'Ganhos',
             onPressed: _openEarnings,
@@ -700,6 +831,21 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
                   },
           ),
           if (mePos == null) const _LocatingBanner(),
+          // [Reserva agendada 2026-08-19] Oferta ANTECIPADA de reserva, sobre
+          // o mapa. Não rouba o ecrã como a oferta imediata (que é a corrida
+          // a começar já) — aqui há tempo, o prazo vem do servidor.
+          if (reservationOffer != null)
+            Positioned(
+              left: 16,
+              right: 16,
+              top: 12,
+              child: TvdeReservationOfferCard(
+                ride: reservationOffer,
+                busy: context.watch<TvdeDriverStore>().busy,
+                onAccept: () => _aceitarReserva(reservationOffer.id),
+                onReject: () => _recusarReserva(reservationOffer.id),
+              ),
+            ),
           // [Item G] Botão centralizar (paridade com o estafeta) — recentra na
           // posição do motorista e volta ao zoom de navegação.
           if (mePos != null)

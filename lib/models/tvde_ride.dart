@@ -33,6 +33,12 @@ class TvdeRide {
     this.paymentStatus,
     this.roundtripCreditId,
     this.isReturnLeg = false,
+    this.scheduledAt,
+    this.reservationStatus,
+    this.reservationDriverId,
+    this.reservationOfferDriverId,
+    this.reservationOfferExpiresAt,
+    this.reservationDriverReadyAt,
   });
 
   final String id;
@@ -102,6 +108,36 @@ class TvdeRide {
   /// [Fase B] Esta corrida é a VOLTA do pacote (chamada com o vale), não a ida.
   final bool isReturnLeg;
 
+  // ── [Reserva agendada 2026-08-19] ───────────────────────────────────────
+  /// Hora marcada pelo cliente. Não-nulo => é uma RESERVA (`status='agendada'`).
+  final DateTime? scheduledAt;
+
+  /// `aguarda_pagamento` | `a_procurar` | `atribuida` | `ativada`
+  /// | `sem_motorista` | `cancelada`. Espelha o servidor — o app nunca calcula.
+  final String? reservationStatus;
+
+  /// Motorista DONO da reserva (já aceitou). Alimenta a Agenda do motorista.
+  final String? reservationDriverId;
+
+  /// Motorista a quem a oferta antecipada está a ser feita AGORA.
+  final String? reservationOfferDriverId;
+
+  /// Prazo para responder à oferta antecipada — vem pronto do servidor,
+  /// o app só conta para trás (nunca decide o TTL).
+  final DateTime? reservationOfferExpiresAt;
+
+  /// Momento em que o motorista carregou "A caminho" no lembrete dos 10 min.
+  /// Nulo perto da hora = o servidor vai passar a reserva a outro.
+  final DateTime? reservationDriverReadyAt;
+
+  /// É uma reserva (corrida marcada para depois), não um pedido imediato.
+  bool get isReservation => status == 'agendada' || scheduledAt != null;
+
+  /// Reserva criada mas ainda por pagar (cartão/MB Way). O servidor cancela
+  /// sozinha ao fim de `tvde_reservation_payment_timeout_minutes` (15 min).
+  bool get reservationAwaitingPayment =>
+      reservationStatus == 'aguarda_pagamento';
+
   factory TvdeRide.fromMap(Map<String, dynamic> m) {
     double d(dynamic v) => (v as num?)?.toDouble() ?? 0;
     return TvdeRide(
@@ -143,6 +179,18 @@ class TvdeRide {
       paymentStatus: m['payment_status'] as String?,
       roundtripCreditId: m['roundtrip_credit_id'] as String?,
       isReturnLeg: m['is_return_leg'] as bool? ?? false,
+      scheduledAt: m['scheduled_at'] == null
+          ? null
+          : DateTime.tryParse(m['scheduled_at'].toString()),
+      reservationStatus: m['reservation_status'] as String?,
+      reservationDriverId: m['reservation_driver_id'] as String?,
+      reservationOfferDriverId: m['reservation_offer_driver_id'] as String?,
+      reservationOfferExpiresAt: m['reservation_offer_expires_at'] == null
+          ? null
+          : DateTime.tryParse(m['reservation_offer_expires_at'].toString()),
+      reservationDriverReadyAt: m['reservation_driver_ready_at'] == null
+          ? null
+          : DateTime.tryParse(m['reservation_driver_ready_at'].toString()),
     );
   }
 

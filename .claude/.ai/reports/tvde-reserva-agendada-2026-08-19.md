@@ -254,12 +254,10 @@ Continua **data-only** (verificado: 0 blocos `notification:` no ramo de reserva)
 Do lado Flutter acrescentei `tvde_reservation_assigned` ao conjunto de tipos de reserva —
 cai no ramo **não-insistente**: sem `fullScreenIntent`, sem som em loop, sem botões. É um aviso.
 
-### 🔴 ATENÇÃO — há uma falha VIVA agora mesmo
-O servidor **já** manda `reservation_assigned`, mas o que está no ar é a **v8**, que não conhece
-esse kind. Ela cai no ramo `default` e devolve `unknown_reservation_kind` — ou seja,
-**quando trocas o motorista à mão, ele não recebe notificação nenhuma.**
-O código que corrige isto está escrito e verificado, mas **não fiz deploy** porque disseste
-"sem deploy". Basta dizeres "vai" e ponho a v9 no ar — é o que fecha o buraco.
+### ✅ A falha viva do `reservation_assigned` — FECHADA (v9 no ar, ver secção 9.6)
+Estava assim: o servidor já mandava `reservation_assigned`, mas no ar estava a **v8**, que não
+conhecia o kind — caía no `default`, devolvia `unknown_reservation_kind` e o motorista **não
+recebia notificação nenhuma** quando trocavas o motorista à mão. Corrigido a 2026-08-20.
 
 ## 9.3 As 2 definições fora da whitelist — quais são e porquê
 
@@ -297,3 +295,90 @@ descrição preenchida, logo todas aparecem na lista.
   (`tvde/reserva-agendada-2026-08-20`), não na branch de trabalho — como pediste.
 - Continua em falta a captura no telemóvel (secção 5, ponto 1) — não há aparelho ligado.
 - Continua em falta o deploy da v9 para fechar a falha viva da secção 9.2.
+
+---
+
+# 10. DEPLOY DA v9 — 2026-08-20
+
+Autorizado por ti ("VAI"). **Só** a `notify-tvde-driver`. A `tvde-payment` e a
+`notify-tvde-client` não foram tocadas.
+
+## 10.1 Versão no ar — confirmada por consulta ao servidor
+
+Não é a resposta do deploy: é `supabase functions list --project-ref ojykpzwqrtusfeakzrna`.
+
+```
+ notify-tvde-driver | ACTIVE | 9 | 2026-08-19 23:38:35
+ notify-tvde-client | ACTIVE | 4 | 2026-08-19 22:27:30
+```
+
+Subiu de **8 → 9**. A do cliente ficou na 4, como mandaste. `verify_jwt: true` preservado.
+
+## 10.2 Conteúdo no ar — descarregado do servidor e conferido
+
+Fiz `functions download` DEPOIS do deploy e comparei o hash com o que enviei:
+
+```
+sha256 enviado : 1f1c01e37481064a933369a3c2a758cb73ff79afa8dcb0e7b4048518cd00346a
+sha256 no ar   : 1f1c01e37481064a933369a3c2a758cb73ff79afa8dcb0e7b4048518cd00346a
+```
+
+Idênticos — byte a byte. O ficheiro no ar contém `reservation_assigned` nas linhas 8, 221 e 222,
+e trata 6 kinds: `offer`, `assigned`, `reminder_early`, `start_now`, `cancelled`, `lost`.
+
+## 10.3 Data-only — verificado com precisão
+
+Primeiro recorte deu-me "1 bloco notification" e **não deixei passar**: o recorte estava errado
+(apanhou 291 linhas, começou no comentário do cabeçalho). Localizado ao certo:
+
+- Existe **uma única** ocorrência de `notification:` em todo o ficheiro, na **linha 157**.
+- Está dentro do ramo `stop_added` (linhas 106–181) — comportamento antigo, nunca tocado.
+- O ramo de reserva vai da **linha 188 à 299** e tem **zero** `notification:` e zero
+  `android.notification`.
+
+Data-only confirmado.
+
+## 10.4 A prova a sério — não simulação
+
+Reserva de teste criada por inserção directa (de propósito: assim não dispara a rotação de
+oferta e nenhum motorista real é incomodado), atribuída à conta do Danilo
+(`4f61dd31-5e9e-4a7c-a557-7d53d2ceded7`), e disparado
+`tvde_reservation_push(..., 'reservation_assigned')`.
+
+Linha em `tvde_ride_events`:
+
+```
+status : push_enviado
+actor  : system
+meta   : {"kind": "reservation_assigned",
+          "driver_id": "4f61dd31-5e9e-4a7c-a557-7d53d2ceded7"}
+```
+
+É prova a sério porque `push_enviado` **só** é escrito depois de `fcmRes.ok` — se o FCM
+recusasse, ficaria `push_falhou`. E **não** deu `no_fcm_token`.
+
+## 10.5 Limpeza — confirmada
+
+```
+RIDE_TESTE_RESTANTE      0
+EVENTOS_TESTE_RESTANTES  0
+QUALQUER_LIXO_COM_TESTE  0
+TOTAL_RESERVAS_NA_TABELA 0
+```
+
+`tvde_rides` não ficou com lixo nenhum.
+
+## 10.6 Nota lateral que vale a pena veres
+
+Ao inserir a reserva de teste, um trigger escreveu um evento `agendada` com
+`{"dispatch_deferred": true, "reason": "aguarda payment_status=succeeded"}` — numa reserva
+que era em **dinheiro**. Foi porque inseri a linha à mão sem `payment_status`, portanto pode
+muito bem ser artefacto do meu teste e não um bug. Fica registado para se olhar com calma:
+se acontecer numa reserva em dinheiro criada pelo caminho normal, é bug e trava o despacho.
+
+## 10.7 Estado
+
+- Deploy feito e provado. **Sem push.** Commit local na mesma branch
+  `tvde/reserva-agendada-2026-08-20`.
+- O repo continua espelho da produção (descarreguei depois do deploy).
+- Continua em falta só a **captura no telemóvel** da persistente dos 10 minutos.

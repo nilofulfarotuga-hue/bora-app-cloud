@@ -49,6 +49,7 @@ import 'admin_send_notification_screen.dart';
 import 'admin_acertos_semana_screen.dart';
 import 'admin_settlements_screen.dart';
 import 'admin_support_stats_screen.dart';
+import 'admin_ai_models_screen.dart';
 import 'admin_knowledge_screen.dart';
 import 'admin_pending_actions_screen.dart';
 import 'admin_skill_suggestions_screen.dart';
@@ -854,6 +855,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       MaterialPageRoute(
                           builder: (_) =>
                               const AdminSupportStatsScreen())),
+                ),
+                const SizedBox(height: 10),
+                // Missão cadeia-gratis-2026-08-19 — trocar o modelo dos robôs
+                _NavCard(
+                  icon: Icons.memory_outlined,
+                  title: 'Modelos de IA',
+                  subtitle: 'Qual Gemini o Robot B e o suporte usam',
+                  color: Colors.deepPurple,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminAiModelsScreen())),
                 ),
                 const SizedBox(height: 10),
                 // Sessão 5C-α — Knowledge Base (RAG)

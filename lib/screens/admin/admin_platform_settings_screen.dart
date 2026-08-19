@@ -117,6 +117,33 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
       'appointment_walkin_fee_cents',
     };
     if (appointmentFees.contains(key)) return true;
+    // RESERVA AGENDADA (2026-08-19) — as 15 chaves `tvde_reservation_*`.
+    // São todas OPERACIONAIS (janelas de tempo, contagens, interruptores):
+    // regulam QUANDO se procura motorista, QUANDO se avisa e QUANDO se prende
+    // a reserva. Nenhuma delas altera um valor cobrado ao cliente nem pago ao
+    // motorista, por isso são editáveis aqui — ao lado do
+    // `tvde_roundtrip_discount_pct`, pela mesma regra de autoridade total.
+    //
+    // Duas exceções que MEXEM EM DINHEIRO e por isso ficam de fora:
+    //   - `tvde_reservation_driver_tokens` (tokens que o motorista ganha)
+    //   - `tvde_reservation_late_cancel_fee_cents` (taxa cobrada ao cliente)
+    // Alterá-las é ação 🔴 que escala a pagamentos-wallet.
+    const reservationOperational = {
+      'tvde_reservation_enabled',
+      'tvde_reservation_min_advance_minutes',
+      'tvde_reservation_max_advance_days',
+      'tvde_reservation_offer_ttl_seconds',
+      'tvde_reservation_retry_minutes',
+      'tvde_reservation_stop_search_minutes',
+      'tvde_reservation_lock_minutes',
+      'tvde_reservation_activate_minutes',
+      'tvde_reservation_force_redispatch_minutes',
+      'tvde_reservation_reminder_minutes',
+      'tvde_reservation_client_ask_hours',
+      'tvde_reservation_free_cancel_hours',
+      'tvde_reservation_payment_timeout_minutes',
+    };
+    if (reservationOperational.contains(key)) return true;
     return false;
   }
 
@@ -129,6 +156,29 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
     'appointment_deposit_partner_cut_cents',
     'appointment_deposit_bora_cut_cents',
   };
+
+  /// Nota do cadeado. As duas chaves de dinheiro da RESERVA AGENDADA ficam
+  /// VISÍVEIS aqui (decisão Danilo 2026-08-20) — antes o risco era ninguém
+  /// saber que existiam. Continuam em leitura: mexer nelas é decisão do dono,
+  /// não de um agente.
+  String _protectedNote(String key) {
+    switch (key) {
+      case 'tvde_reservation_driver_tokens':
+        return '🔒 Somente leitura — mexe em DINHEIRO.\n'
+            'São os Bora Tokens que o motorista ganha por cumprir uma reserva. '
+            'Subir isto aumenta o custo de cada reserva para a Bora.\n'
+            'Muda-se por decisão do Danilo.';
+      case 'tvde_reservation_late_cancel_fee_cents':
+        return '🔒 Somente leitura — mexe em DINHEIRO.\n'
+            'É a taxa cobrada ao CLIENTE quando cancela a reserva fora da '
+            'janela grátis (tvde_reservation_free_cancel_hours). Está a 0, ou '
+            'seja, hoje não se cobra nada.\n'
+            'Muda-se por decisão do Danilo.';
+      default:
+        return '🔒 Chave financeira/protegida — somente leitura.\n'
+            'Alterar requer sessão dedicada com validação de impacto.';
+    }
+  }
 
   void _showProtectedInfo(_Setting s) {
     showDialog<void>(
@@ -149,10 +199,9 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
             Text('Valor atual: ${s.value}',
                 style: const TextStyle(fontWeight: FontWeight.w600)),
             const SizedBox(height: 12),
-            const Text(
-              '🔒 Chave financeira/protegida — somente leitura.\n'
-              'Alterar requer sessão dedicada com validação de impacto.',
-              style: TextStyle(color: AppColors.error, fontSize: 12),
+            Text(
+              _protectedNote(s.key),
+              style: const TextStyle(color: AppColors.error, fontSize: 12),
             ),
           ],
         ),

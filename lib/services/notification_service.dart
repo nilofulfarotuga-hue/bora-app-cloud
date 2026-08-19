@@ -271,6 +271,13 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     return;
   }
 
+  // [Reserva agendada 2026-08-19] Lembretes/ofertas de reserva. O
+  // `reservation_start_now` é o que não pode falhar: persistente + "A caminho".
+  if (_kTvdeReservationTypes.contains(data['type'])) {
+    await showTvdeReservationNotification(Map<String, dynamic>.from(data));
+    return;
+  }
+
   // ── [Fix notificações persistentes 2026-07-19] Categorias sem tratamento
   // explícito (auditoria Claude.ai) caíam no auto-display nativo do Android,
   // que não é persistente (some sozinho). Notificação local ongoing:true.
@@ -507,6 +514,20 @@ void _onLocalNotifTap(NotificationResponse response) {
       NotificationService.tvdeOfferReload?.call();
       return;
     }
+    // [Reserva agendada 2026-08-19] "A caminho" no lembrete dos 10 minutos.
+    // O botão e o corpo da notificação levam ao mesmo sítio: a app abre, a
+    // RPC `tvde_reservation_ready` é chamada e a navegação para a recolha
+    // arranca. Sem esta confirmação o servidor dá a reserva a outro aos 5 min.
+    if (_kTvdeReservationTypes.contains(data['type'])) {
+      final rideId = data['rideId']?.toString() ?? '';
+      if (response.actionId == kTvdeReservationReadyAction &&
+          rideId.isNotEmpty) {
+        NotificationService.tvdeReservationReadyTap?.call(rideId);
+      } else {
+        NotificationService.tvdeReservationReload?.call();
+      }
+      return;
+    }
     // [Serviços 2026-07-28] Tocar num push de marcação abre a AGENDA do
     // parceiro (não só a home) — padrão do delivery, que abre o pedido.
     const apptTypes = {
@@ -529,6 +550,47 @@ void _onLocalNotifTap(NotificationResponse response) {
   }
 }
 
+/// Chama uma RPC do Supabase a partir do isolate de background — sem cliente
+/// Supabase (que não existe aqui), só HTTP cru com o token guardado em prefs.
+/// Mesmo padrão do `accept_order`. Devolve false em qualquer falha; nunca
+/// levanta — uma acção de notificação não pode rebentar o isolate.
+@pragma('vm:entry-point')
+Future<bool> _rpcHeadless(String rpc, Map<String, dynamic> params) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final accessToken = prefs.getString('bora_access_token') ?? '';
+    if (accessToken.isEmpty) {
+      debugPrint('[RPC HEADLESS] bora_access_token vazio — $rpc ignorada');
+      return false;
+    }
+    var supabaseUrl = const String.fromEnvironment('SUPABASE_URL');
+    var anonKey = const String.fromEnvironment('SUPABASE_ANON_KEY');
+    if (supabaseUrl.isEmpty) {
+      supabaseUrl = prefs.getString('bora_supabase_url') ?? '';
+      anonKey = prefs.getString('bora_supabase_anon_key') ?? '';
+    }
+    if (supabaseUrl.isEmpty) {
+      debugPrint('[RPC HEADLESS] supabaseUrl vazio — $rpc ignorada');
+      return false;
+    }
+    final res = await http
+        .post(
+          Uri.parse('$supabaseUrl/rest/v1/rpc/$rpc'),
+          headers: {
+            'apikey': anonKey,
+            'Authorization': 'Bearer $accessToken',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode(params),
+        )
+        .timeout(const Duration(seconds: 5));
+    return res.statusCode >= 200 && res.statusCode < 300;
+  } catch (e) {
+    debugPrint('[RPC HEADLESS] $rpc erro: $e');
+    return false;
+  }
+}
+
 /// Acção nos botões da notificação quando app em background/terminada.
 /// Executa aceitar/rejeitar sem abrir a app (raw HTTP — sem Supabase client).
 @pragma('vm:entry-point')
@@ -544,6 +606,24 @@ Future<void> onBackgroundNotificationAction(NotificationResponse response) async
   }
   try {
     final data = jsonDecode(payload) as Map<String, dynamic>;
+
+    // [Reserva agendada 2026-08-19] "A caminho" — confirma JÁ, sem esperar a
+    // app abrir. A app abre à mesma (showsUserInterface) e trata da navegação,
+    // mas o servidor não pode ficar à espera do arranque: aos 5 minutos da
+    // hora a reserva passa a outro motorista. A RPC é idempotente, por isso
+    // esta chamada e a do ecrã podem coexistir sem estragar nada.
+    if (actionId == kTvdeReservationReadyAction) {
+      final rideId = data['rideId']?.toString() ?? '';
+      if (rideId.isEmpty) return;
+      final ok = await _rpcHeadless(
+        'tvde_reservation_ready',
+        {'p_ride_id': rideId},
+      );
+      // ignore: avoid_print
+      print('[BORA-RESERVA] a_caminho headless ride=$rideId ok=$ok');
+      return;
+    }
+
     final orderId = data['orderId']?.toString() ?? '';
     if (orderId.isEmpty) return;
 
@@ -797,6 +877,125 @@ const Set<String> _kPersistentCategoryTypes = <String>{
   'reimbursement',
 };
 
+// ══ RESERVA AGENDADA (2026-08-19) ═══════════════════════════════════════════
+// Tipos que vêm da Edge Fn `notify-tvde-driver` (v8), sempre DATA-ONLY. Sem
+// bloco `notification` o Android não auto-mostra nada: é ESTE handler que corre
+// e posta a notificação — foi essa a lição de 28/07 e 31/07.
+const String kTvdeReservationReadyAction = 'tvde_reservation_ready';
+
+const Set<String> _kTvdeReservationTypes = <String>{
+  'tvde_reservation_offer',
+  // [2026-08-20] O admin atribuiu a reserva a este motorista à mão. NÃO é
+  // oferta: não leva botões de aceitar/recusar nem alerta insistente — a
+  // reserva já é dele, isto é só o aviso. Cai no ramo não-insistente abaixo.
+  'tvde_reservation_assigned',
+  'tvde_reservation_reminder',
+  'tvde_reservation_start_now',
+  'tvde_reservation_cancelled',
+  'tvde_reservation_lost',
+};
+
+/// Posta o alerta de reserva. Corre tanto no isolate de background como em
+/// foreground — por isso é top-level e não toca em nada do widget tree.
+///
+/// `tvde_reservation_start_now` (lembrete dos 10 min) é o caso crítico:
+/// notificação PERSISTENTE, mesmo canal urgente do estafeta
+/// (`bora_orders_urgent_v3`), som em loop via FLAG_INSISTENT, e botão
+/// "A caminho". Se o motorista não confirmar, o servidor dá a reserva a outro
+/// aos 5 minutos — daí o alerta ser tão insistente como uma oferta de corrida.
+@pragma('vm:entry-point')
+Future<void> showTvdeReservationNotification(Map<String, dynamic> data) async {
+  final type = data['type']?.toString() ?? '';
+  if (!_kTvdeReservationTypes.contains(type)) return;
+
+  final rideId = data['rideId']?.toString() ?? '';
+  final title = data['title']?.toString() ?? 'Reserva';
+  final body = data['body']?.toString() ?? '';
+  final hora = data['scheduledTime']?.toString() ?? '';
+
+  // Só o lembrete dos 10 min é persistente-insistente. Os outros informam.
+  final ehComecarAgora = type == 'tvde_reservation_start_now';
+  final ehOferta = type == 'tvde_reservation_offer';
+  final insistente = ehComecarAgora || ehOferta;
+
+  try {
+    final plugin = FlutterLocalNotificationsPlugin();
+    final androidImpl = plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    // Mesmo canal já provado das ofertas — NÃO criar canal novo.
+    await androidImpl?.createNotificationChannel(
+      const AndroidNotificationChannel(
+        'bora_orders_urgent_v3',
+        'Bora — Novos pedidos',
+        description: 'Som contínuo + vibração para novos pedidos urgentes.',
+        importance: Importance.max,
+        playSound: true,
+        sound: RawResourceAndroidNotificationSound('bora_alert'),
+        enableVibration: true,
+        showBadge: true,
+      ),
+    );
+
+    final androidDetails = AndroidNotificationDetails(
+      'bora_orders_urgent_v3',
+      'Bora — Novos pedidos',
+      channelDescription: ehComecarAgora
+          ? 'Reserva a começar — confirma "A caminho".'
+          : 'Reserva agendada.',
+      importance: Importance.max,
+      priority: Priority.max,
+      playSound: true,
+      sound: const RawResourceAndroidNotificationSound('bora_alert'),
+      enableVibration: true,
+      category: insistente
+          ? AndroidNotificationCategory.call
+          : AndroidNotificationCategory.reminder,
+      fullScreenIntent: ehComecarAgora,
+      // Persistente: fica presa até o motorista responder — igual à oferta.
+      ongoing: insistente,
+      autoCancel: !insistente,
+      onlyAlertOnce: false,
+      ticker: title,
+      visibility: fln.NotificationVisibility.public,
+      // Som em loop (FLAG_INSISTENT) — mesmo padrão da oferta de corrida.
+      additionalFlags:
+          insistente ? Int32List.fromList(<int>[4]) : null,
+      // O lembrete vive os 10 minutos até à hora; a oferta vive o TTL.
+      timeoutAfter: ehComecarAgora ? 600000 : (ehOferta ? 300000 : null),
+      styleInformation: BigTextStyleInformation(body, contentTitle: title),
+      actions: ehComecarAgora
+          ? <AndroidNotificationAction>[
+              const AndroidNotificationAction(
+                kTvdeReservationReadyAction,
+                '🚗 A caminho',
+                // ABRE a app: a seguir ao "A caminho" há navegação para
+                // abrir. Mesma decisão do estafeta (2026-06-10) — o botão
+                // não é headless, a acção completa-se no ecrã.
+                showsUserInterface: true,
+                cancelNotification: true,
+              ),
+            ]
+          : null,
+    );
+
+    await plugin.show(
+      rideId.isNotEmpty ? rideId.hashCode : title.hashCode,
+      title,
+      body,
+      NotificationDetails(android: androidDetails),
+      payload: jsonEncode({
+        'type': type,
+        'rideId': rideId,
+        if (hora.isNotEmpty) 'scheduledTime': hora,
+      }),
+    );
+    debugPrint('[BORA-RESERVA] notif posta type=$type ride=$rideId '
+        'persistente=$insistente');
+  } catch (e) {
+    debugPrint('[BORA-RESERVA] erro a postar notif ($type): $e');
+  }
+}
+
 @pragma('vm:entry-point')
 Future<void> _showPersistentCategoryNotification(RemoteMessage message) async {
   final data = message.data;
@@ -1038,6 +1237,16 @@ class NotificationService {
   /// forçar `TvdeDriverStore.loadCurrent()` — a tela de oferta aparece mesmo que
   /// o realtime tenha caído. Belt-and-suspenders por cima do canal realtime.
   static VoidCallback? tvdeOfferReload;
+
+  /// [Reserva agendada 2026-08-19] Registado pela TvdeDriverHomeScreen. Força
+  /// `TvdeDriverStore.loadAgenda()` quando chega push de reserva — mesma
+  /// lógica belt-and-suspenders do `tvdeOfferReload`.
+  static VoidCallback? tvdeReservationReload;
+
+  /// Chamado quando o motorista carrega "A caminho" na notificação dos 10 min.
+  /// A HomeScreen do motorista liga-se aqui para: confirmar via RPC
+  /// (`tvde_reservation_ready`) e abrir a navegação para a recolha.
+  static void Function(String rideId)? tvdeReservationReadyTap;
 
   final _sound = SoundService();
   bool _initialized = false;
@@ -1302,6 +1511,14 @@ class NotificationService {
         // Força o store a reler a oferta do servidor — não depende só do
         // realtime; a tela de oferta abre via _syncNav mal offeredRide muda.
         tvdeOfferReload?.call();
+        return;
+      }
+      // [Reserva agendada 2026-08-19] Em foreground o Android não mostra nada
+      // sozinho — sem isto o lembrete dos 10 min era só um beep e o motorista
+      // perdia a reserva por não ter onde carregar "A caminho".
+      if (_kTvdeReservationTypes.contains(type)) {
+        unawaited(showTvdeReservationNotification(Map<String, dynamic>.from(msg.data)));
+        tvdeReservationReload?.call();
         return;
       }
       // [Fix notificações persistentes 2026-07-19] Sem isto, estas categorias

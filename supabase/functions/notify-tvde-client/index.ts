@@ -8,6 +8,12 @@
 // Chamado por: trigger fn_notify_tvde_client_on_status (net.http_post), quando
 // tvde_rides.status muda para um estado relevante ao passageiro.
 //
+// v4 (2026-08-19) — RESERVA AGENDADA: aceita `status='agendada'` (reserva
+// marcada) e `status='reserva_confirmar'` (o sweep pergunta ao cliente, 2h
+// antes, se mantem). Estes DOIS vao DATA-ONLY (sem bloco `notification` e sem
+// `android.notification`), para o handler do Flutter correr. Todos os estados
+// ANTIGOS ficam exactamente como estavam.
+//
 // Required Supabase secrets: FIREBASE_PROJECT_ID, FIREBASE_SERVICE_ACCOUNT
 // Auto-injected: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 //
@@ -85,26 +91,44 @@ Deno.serve(async (req) => {
     return json({ ok: false, reason: 'firebase_auth_error' }, 200)
   }
 
+  // [Reserva agendada 2026-08-19] Os estados NOVOS de reserva vao DATA-ONLY
+  // (sem bloco `notification`): com esse bloco o Android auto-mostra o push e
+  // o handler do Flutter nao corre — licao de 28/07 e 31/07. Os estados
+  // ANTIGOS ficam exactamente como estao hoje (nao mexer no que funciona).
+  const RESERVA_STATUSES = new Set(['reserva_confirmar', 'agendada'])
+  const dataOnly = RESERVA_STATUSES.has(String(status))
+  const tipo = dataOnly ? 'tvde_reservation_client' : 'tvde_ride_status'
+
   const fcmUrl = `https://fcm.googleapis.com/v1/projects/${firebaseProjectId}/messages:send`
   const message = {
     message: {
       token: user.fcm_token,
-      notification: { title: msg.title, body: msg.body },
+      ...(dataOnly ? {} : { notification: { title: msg.title, body: msg.body } }),
       data: {
         rideId: String(rideId),
         status: String(status),
-        type: 'tvde_ride_status',
+        type: tipo,
         title: msg.title,
         body: msg.body,
       },
-      android: {
-        priority: 'high',
-        notification: { channel_id: 'bora_orders', sound: 'default' },
-      },
-      apns: {
-        headers: { 'apns-priority': '10' },
-        payload: { aps: { sound: 'default', badge: 1, 'content-available': 1 } },
-      },
+      // DATA-ONLY tem de ser data-only a serio: com `android.notification`
+      // presente o Android volta a auto-mostrar e o handler do Flutter nao
+      // corre. Por isso o bloco de notificacao do Android tambem sai.
+      android: dataOnly
+        ? { priority: 'high' }
+        : {
+            priority: 'high',
+            notification: { channel_id: 'bora_orders', sound: 'default' },
+          },
+      apns: dataOnly
+        ? {
+            headers: { 'apns-priority': '10', 'apns-push-type': 'background' },
+            payload: { aps: { 'content-available': 1 } },
+          }
+        : {
+            headers: { 'apns-priority': '10' },
+            payload: { aps: { sound: 'default', badge: 1, 'content-available': 1 } },
+          },
     },
   }
 
@@ -144,6 +168,19 @@ function statusMessage(status: string, driverName: string): { title: string; bod
       return { title: '😕 Sem motoristas disponíveis', body: 'Não encontrámos motorista agora. Podes tentar de novo.' }
     case 'cancelada_motorista':
       return { title: 'Corrida cancelada', body: 'O motorista cancelou a corrida. Pedimos desculpa — tenta de novo.' }
+    // ── [Reserva agendada 2026-08-19] ──────────────────────────────────────
+    // `agendada` — confirmacao de que a reserva ficou marcada.
+    case 'agendada':
+      return {
+        title: 'Reserva marcada',
+        body: 'A tua viagem ficou marcada. Avisamos-te assim que houver motorista.',
+      }
+    // `reserva_confirmar` — o sweep pergunta ao cliente, 2h antes, se mantem.
+    case 'reserva_confirmar':
+      return {
+        title: 'Ainda queres a tua viagem?',
+        body: 'A tua reserva é daqui a pouco. Abre a app para confirmar ou cancelar.',
+      }
     default:
       return null
   }

@@ -20,9 +20,11 @@ import '../../../widgets/bora/bora.dart';
 import '../../../widgets/customer_note_field.dart';
 import '../../../widgets/tvde/tvde_payment_selector.dart';
 import 'ride_mbway_waiting_dialog.dart';
+import 'tvde_my_reservations_screen.dart';
 import 'tvde_plans_screen.dart';
 import 'tvde_rides_history_screen.dart';
 import 'tvde_ride_tracking_screen.dart';
+import 'tvde_schedule_ride_sheet.dart';
 
 /// Frente 4 — como o cliente paga ESTA corrida, decidido pela cobertura do
 /// plano. Espelha a matemática do `tvde_finish_ride` para mostrar o valor e o
@@ -81,6 +83,13 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
   // Cartão + MB Way só aparecem (na FOLHA de pagamento, depois do botão) se o
   // kill switch estiver ligado (`tvde_card_payments_enabled`). Preços do plano
   // vêm do backend (platform_settings) para a UI bater certo com o finish.
+  // [Reserva agendada 2026-08-19] Kill switch + limites das definições. O app
+  // nunca crava valores: se o servidor disser que as reservas estão desligadas,
+  // o botão "Marcar para depois" nem aparece.
+  bool _reservasLigadas = false;
+  int _minAntecedenciaMin = 30;
+  int _maxAntecedenciaDias = 30;
+
   bool _cardEnabled = false;
   int _perKmCents = 50;
   int _baseKm = 6;
@@ -120,6 +129,9 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     final perKm = await store.getSettingInt('tvde_extra_per_km_cents', 50);
     final baseKm = await store.getSettingInt('tvde_base_distance_km', 6);
     final extraRide = await store.getSettingInt('tvde_extra_ride_cents', 450);
+    // [Reserva agendada] kill switch + limites da marcação.
+    final reservasOn = await store.reservationsEnabled();
+    final limites = await store.loadReservationLimits();
     if (mounted) {
       setState(() {
         _activeCredit = credit;
@@ -127,6 +139,9 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
         _perKmCents = perKm;
         _baseKm = baseKm;
         _extraRideCents = extraRide;
+        _reservasLigadas = reservasOn;
+        _minAntecedenciaMin = limites['minAdvanceMinutes'] ?? 30;
+        _maxAntecedenciaDias = limites['maxAdvanceDays'] ?? 30;
       });
     }
   }
@@ -342,6 +357,177 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
         note: result.note,
         tokensUsed: result.tokensUsed,
         mbwayPhone: result.mbwayPhone);
+  }
+
+  // ══ RESERVA AGENDADA (2026-08-19) ═══════════════════════════════════════
+
+  /// "Marcar para depois": escolhe dia/hora → escolhe como paga (a MESMA folha
+  /// da corrida normal) → marca. Dinheiro vai pela RPC; cartão e MB Way vão
+  /// pela Edge Function, que cria a reserva E cobra o preço fechado no servidor.
+  Future<void> _onSchedulePressed() async {
+    final km = _effectiveKm;
+    if (_pickup == null || _dest == null || km == null) return;
+
+    // 1. Dia e hora.
+    final quando = await showModalBottomSheet<DateTime>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      useSafeArea: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => TvdeScheduleRideSheet(
+        minAdvanceMinutes: _minAntecedenciaMin,
+        maxAdvanceDays: _maxAntecedenciaDias,
+        priceCents: _payableCents,
+        km: km,
+      ),
+    );
+    if (quando == null || !mounted) return;
+
+    // 2. Como paga — reutiliza a folha de pagamento da corrida normal.
+    final allowOnline = _cardEnabled && _payableCents > 0;
+    final pag = await showModalBottomSheet<_TvdePayResult>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      useSafeArea: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _TvdePaymentSheet(
+        amountCents: _payableCents,
+        message: _payMessage,
+        allowOnline: allowOnline,
+      ),
+    );
+    if (pag == null || !mounted) return;
+
+    await _marcarReserva(
+      quando: quando,
+      method: pag.method,
+      note: pag.note,
+      mbwayPhone: pag.mbwayPhone,
+    );
+  }
+
+  Future<void> _marcarReserva({
+    required DateTime quando,
+    required String method,
+    String? note,
+    String? mbwayPhone,
+  }) async {
+    final store = context.read<TvdeStore>();
+    final km = _effectiveKm;
+    if (_pickup == null || _dest == null || km == null) return;
+
+    try {
+      if (method == 'cash') {
+        await store.scheduleRideCash(
+          originLat: _pickup!.latitude,
+          originLng: _pickup!.longitude,
+          originLabel: _pickupLabel,
+          destLat: _dest!.latitude,
+          destLng: _dest!.longitude,
+          destLabel: _destLabel,
+          distanceKm: km,
+          scheduledAt: quando,
+          note: note,
+        );
+        if (!mounted) return;
+        _reservaMarcada('Reserva marcada. Pagas em dinheiro ao motorista.');
+        return;
+      }
+
+      // Cartão / MB Way — mesmo caminho da corrida normal.
+      String? savedPmId;
+      if (method == 'card') {
+        final auth = await SavedCardCheckout.instance.authorize();
+        if (!mounted) return;
+        if (auth.cancelled) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text(
+                  'Pagamento cancelado. A reserva não ficou marcada.')));
+          return;
+        }
+        savedPmId = auth.savedPmId;
+      }
+
+      final res = await store.scheduleRidePaid(
+        originLat: _pickup!.latitude,
+        originLng: _pickup!.longitude,
+        originLabel: _pickupLabel,
+        destLat: _dest!.latitude,
+        destLng: _dest!.longitude,
+        destLabel: _destLabel,
+        distanceKm: km,
+        scheduledAt: quando,
+        method: method,
+        mbwayPhone: mbwayPhone,
+        note: note,
+        savedPmId: savedPmId,
+        confirmCard: (clientSecret) =>
+            PaymentService().processPayment(clientSecret),
+      );
+      if (!mounted) return;
+
+      final piId = res.paymentIntentId;
+      if (piId == null) {
+        _reservaMarcada('Reserva marcada.');
+        return;
+      }
+
+      // Só depois de o SERVIDOR confirmar o pagamento é que a reserva começa
+      // a procurar motorista. Nunca dizer "à procura" antes disso.
+      final pago = await _aguardarPagamentoReserva(store, piId, method);
+      if (!mounted) return;
+      if (pago) {
+        _reservaMarcada('Reserva marcada e paga. Já estamos à procura de '
+            'motorista.');
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Ainda não recebemos a confirmação do pagamento. '
+              'Vê o estado em "As minhas reservas" — se não concluíres em 15 '
+              'minutos, cancelamos sozinhos e não és cobrado.'),
+        ));
+        _abrirReservas();
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(traduzErroReserva(e))));
+    }
+  }
+
+  /// Polling de 3 em 3 segundos até o pagamento da reserva fechar.
+  /// O servidor cancela sozinho aos 15 minutos (`payment_timeout`), por isso
+  /// desistir aqui não deixa lixo — e nunca se chama `refund` para reservas.
+  Future<bool> _aguardarPagamentoReserva(
+      TvdeStore store, String paymentIntentId, String method) async {
+    // MB Way precisa do toque na app do banco — dá-se mais tempo.
+    final tentativas = method == 'mbway' ? 40 : 8;
+    for (var i = 0; i < tentativas; i++) {
+      final ok = await store.confirmReservationPayment(paymentIntentId);
+      if (!mounted) return false;
+      if (ok) return true;
+      await Future.delayed(const Duration(seconds: 3));
+      if (!mounted) return false;
+    }
+    return false;
+  }
+
+  void _reservaMarcada(String msg) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(msg)));
+    _abrirReservas();
+  }
+
+  void _abrirReservas() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const TvdeMyReservationsScreen()),
+    );
   }
 
   Future<void> _solicitar(String method,
@@ -1074,6 +1260,29 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
                   ? (_roundtrip ? _solicitarRoundtrip : _onRequestPressed)
                   : null,
             ),
+            // [Reserva agendada 2026-08-19] "Marcar para depois", ao lado do
+            // pedir agora. Botão SECUNDÁRIO de propósito: o laranja do ecrã já
+            // é do CTA principal (regra "1 laranja por ecrã").
+            if (_reservasLigadas && !_roundtrip) ...[
+              const SizedBox(height: Spacing.md),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: canRequest ? _onSchedulePressed : null,
+                  icon: const Icon(Icons.schedule),
+                  label: const Text('Marcar para depois'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    side: const BorderSide(color: AppColors.primary),
+                    padding:
+                        const EdgeInsets.symmetric(vertical: Spacing.lg),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: Spacing.md),
             Text(
               _payCase == _PayCase.freeCovered
@@ -1082,6 +1291,20 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
               textAlign: TextAlign.center,
               style: const TextStyle(color: AppColors.textSubtle, fontSize: 12),
             ),
+            if (_reservasLigadas) ...[
+              const SizedBox(height: Spacing.sm),
+              Center(
+                child: TextButton.icon(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const TvdeMyReservationsScreen()),
+                  ),
+                  icon: const Icon(Icons.event_note, size: 18),
+                  label: const Text('As minhas reservas'),
+                ),
+              ),
+            ],
             const SizedBox(height: Spacing.lg),
             // C3 — planos visíveis na tela principal (card discreto, clicável).
             _PlansTeaser(

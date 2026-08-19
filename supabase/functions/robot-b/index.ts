@@ -43,6 +43,16 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
+// 2026-08-19: até aqui a função devolvia 200 mesmo quando o ciclo falhava por dentro.
+// Resultado: o robot-b esteve partido de 11/08 a 19/08 (observe_failed: statement timeout)
+// e ninguém deu por isso, porque o log da Edge Function só mostrava "POST | 200".
+// A partir de agora uma falha do ciclo sai com 500 e fica registada em console.error,
+// que é o que aparece em function_logs e o que os alertas conseguem ver.
+function failedResponse(body: unknown, motivo: string): Response {
+  console.error(`[robot-b] cycle_failed: ${motivo}`);
+  return jsonResponse(body, 500);
+}
+
 async function sha256Hex(s: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
   return Array.from(new Uint8Array(buf))
@@ -286,12 +296,17 @@ TIPOS REJEITADOS NOS ÚLTIMOS 60 DIAS (NÃO repetir — aprende com o motivo):
 ${JSON.stringify(rejected ?? [])}
 
 Analisa como o Danilo analisaria e retorna JSON.`;
-    // thinkingBudget 0: o 2.5-flash gasta maxOutputTokens em "thinking" e trunca o
-    // JSON (parse_fail position ~5844 no 1º dry-run). responseMimeType força JSON puro.
+    // responseMimeType força JSON puro (sem cercas ```json), que é o que o parse espera.
+    //
+    // 2026-08-19 — thinkingConfig REMOVIDO. Era `thinkingBudget: 0`, posto no tempo do
+    // 2.5-flash porque ele gastava o maxOutputTokens a "pensar" e truncava o JSON.
+    // MEDIDO hoje: os modelos GA novos rejeitam esse campo com HTTP 400 INVALID_ARGUMENT
+    // (gemini-3.6-flash e gemini-3.5-flash-lite dão 400; gemini-3-flash-preview e
+    // gemini-3.1-flash-lite aceitavam). O maxOutputTokens de 16384 já dá folga para o
+    // raciocínio + JSON, por isso a razão original deixou de se aplicar.
     const { raw, error } = await callGemini(geminiModel, CYCLE_SYSTEM_PROMPT, userPrompt, {
       maxOutputTokens: 16384,
       responseMimeType: 'application/json',
-      thinkingConfig: { thinkingBudget: 0 },
     });
     if (error) {
       geminiError = error;
@@ -694,7 +709,8 @@ Deno.serve(async (req: Request) => {
 
   if (mode === 'cycle') {
     const cycle = await runCycle(admin, geminiModel, dryRun);
-    return jsonResponse({ mode, triggered_by: triggeredBy, model: geminiModel, cycle });
+    const resposta = { mode, triggered_by: triggeredBy, model: geminiModel, cycle };
+    return cycle?.error ? failedResponse(resposta, cycle.error) : jsonResponse(resposta);
   }
 
   if (mode === 'crosstalk') {
@@ -721,5 +737,12 @@ Deno.serve(async (req: Request) => {
     ? await processCrosstalk(admin, geminiModel, limit, dryRun)
     : { error: 'gemini_key_missing' };
   const cycle = await runCycle(admin, geminiModel, dryRun);
-  return jsonResponse({ mode: 'full', triggered_by: triggeredBy, model: geminiModel, crosstalk, cycle });
+  const resposta = { mode: 'full', triggered_by: triggeredBy, model: geminiModel, crosstalk, cycle };
+  // O ciclo é o trabalho real; se ele falha a função falha, mesmo que o crosstalk tenha corrido.
+  // Um erro só de crosstalk fica registado mas não derruba a corrida.
+  if (cycle?.error) return failedResponse(resposta, cycle.error);
+  if ((crosstalk as { error?: string })?.error) {
+    console.error(`[robot-b] crosstalk_failed: ${(crosstalk as { error?: string }).error}`);
+  }
+  return jsonResponse(resposta);
 });

@@ -83,7 +83,15 @@ class _TvdeReservationOfferCardState extends State<TvdeReservationOfferCard> {
     final s = _segundosRestantes;
     final mm = (s ~/ 60).toString().padLeft(2, '0');
     final ss = (s % 60).toString().padLeft(2, '0');
-    final ganho = (widget.ride.estFareCents / 100).toStringAsFixed(2);
+    // [Regra de ouro do motorista, 2026-08-21] O numero GRANDE e o que ELE
+    // ganha. A variavel chamava-se `ganho` mas lia o preco do CLIENTE
+    // (estFareCents) — mostrava-lhe 25,00 EUR quando ele recebe 22,00 EUR.
+    // O total do cliente passa a aparecer so em pequeno, e so em dinheiro.
+    final ganho =
+        ((widget.ride.driverEarnCents ?? 0) / 100).toStringAsFixed(2);
+    final cobra = (widget.ride.estFareCents / 100).toStringAsFixed(2);
+    final mostraCobranca =
+        widget.ride.paymentMethod == 'cash' && widget.ride.estFareCents > 0;
 
     return Material(
       color: Colors.transparent,
@@ -148,6 +156,16 @@ class _TvdeReservationOfferCardState extends State<TvdeReservationOfferCard> {
                         color: AppColors.primary)),
               ],
             ),
+            if (mostraCobranca) ...[
+              const SizedBox(height: 2),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Text('cobras €$cobra ao cliente',
+                    key: const Key('oferta_cobra_cliente'),
+                    style: const TextStyle(
+                        fontSize: 12, color: AppColors.textSubtle)),
+              ),
+            ],
             const SizedBox(height: 8),
             _linha(Icons.trip_origin, widget.ride.originLabel ?? 'Recolha'),
             const SizedBox(height: 4),

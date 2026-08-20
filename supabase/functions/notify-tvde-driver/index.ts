@@ -188,10 +188,11 @@ Deno.serve(async (req) => {
   if (kind.startsWith('reservation_')) {
     let originLabel = 'Recolha', destLabel = 'Destino', fareEur = '0.00'
     let scheduledAt: string | null = null, offerExpiresAt: string | null = null
+    let earnEur = '0.00', mostraCobranca = false
     try {
       const { data: ride } = await supabase
         .from('tvde_rides')
-        .select('origin_label, dest_label, est_fare_cents, scheduled_at, reservation_offer_expires_at')
+        .select('origin_label, dest_label, est_fare_cents, scheduled_at, reservation_offer_expires_at, driver_earn_cents, payment_method')
         .eq('id', rideId).maybeSingle()
       if (ride) {
         originLabel = ride.origin_label ?? originLabel
@@ -200,8 +201,18 @@ Deno.serve(async (req) => {
         if (Number.isFinite(cents) && cents > 0) fareEur = (cents / 100).toFixed(2)
         scheduledAt    = ride.scheduled_at ?? null
         offerExpiresAt = ride.reservation_offer_expires_at ?? null
+        const earnCents = Number(ride.driver_earn_cents ?? 0)
+        if (Number.isFinite(earnCents) && earnCents > 0) earnEur = (earnCents / 100).toFixed(2)
+        const isCash = (ride.payment_method ?? 'cash') === 'cash'
+        mostraCobranca = isCash && Number.isFinite(cents) && cents > 0
       }
     } catch (_e) { /* mantem fallbacks */ }
+
+    // [Regra de ouro do motorista, 2026-08-21] Nos avisos de reserva, o
+    // numero que interessa ao motorista e o QUE ELE GANHA — o total do
+    // cliente so aparece como lembrete de cobranca, e so em dinheiro.
+    const ganhaFrase = `Ganhas €${earnEur}` +
+      (mostraCobranca ? ` · cobras €${fareEur} ao cliente` : '')
 
     const dia  = ptDate(scheduledAt)   // "sabado, 23 de agosto"
     const hora = ptTime(scheduledAt)   // "14:30"
@@ -212,7 +223,7 @@ Deno.serve(async (req) => {
       case 'reservation_offer':
         type  = 'tvde_reservation_offer'
         title = '📅 Reserva para aceitar'
-        body  = `${dia} às ${hora} • ${rota} • €${fareEur}`
+        body  = `${dia} às ${hora} • ${rota} • ${ganhaFrase}`
         ttl   = '300s'
         break
       // v9 (2026-08-20) — o ADMIN escolheu este motorista a mao. NAO e uma
@@ -222,17 +233,17 @@ Deno.serve(async (req) => {
         type  = 'tvde_reservation_assigned'
         title = '📅 Ficaste com uma reserva'
         body  = `Ficaste com uma reserva marcada para ${ptShort(scheduledAt)} às ${hora}`
-              + ` • ${rota} • €${fareEur}`
+              + ` • ${rota} • ${ganhaFrase}`
         break
       case 'reservation_reminder_early':
         type  = 'tvde_reservation_reminder'
         title = '⏰ Reserva daqui a uma hora'
-        body  = `Às ${hora} • ${rota}. Prepara-te para a recolha.`
+        body  = `Às ${hora} • ${rota} • ${ganhaFrase}. Prepara-te para a recolha.`
         break
       case 'reservation_start_now':
         type  = 'tvde_reservation_start_now'
         title = '🚗 A tua reserva começa em 10 minutos'
-        body  = `Às ${hora} • ${rota}. Carrega "A caminho" — se não confirmares, a reserva passa a outro motorista.`
+        body  = `Às ${hora} • ${rota} • ${ganhaFrase}. Carrega "A caminho" — se não confirmares, a reserva passa a outro motorista.`
         break
       case 'reservation_cancelled':
         type  = 'tvde_reservation_cancelled'
@@ -265,6 +276,10 @@ Deno.serve(async (req) => {
           offerExpiresAt: offerExpiresAt ?? '',
           title,
           body,
+          driverEarn:  earnEur,
+          // A especificacao pede o VALOR a cobrar (ou vazio), nao um
+          // booleano — assim o app pode mostrar "cobras EURx" sem contas.
+          collectCash: mostraCobranca ? fareEur : '',
         },
         android: { priority: 'high', ttl },
         apns: {

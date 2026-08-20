@@ -12,13 +12,16 @@ void main() {
     WidgetTester tester, {
     required CollectState state,
     int amountCents = 0,
+    int earnedCents = 0,
   }) async {
     await tester.pumpWidget(MaterialApp(
       home: Builder(
         builder: (context) => Scaffold(
           body: ElevatedButton(
             onPressed: () => showCollectReminderDialog(context,
-                state: state, amountCents: amountCents),
+                state: state,
+                amountCents: amountCents,
+                earnedCents: earnedCents),
             child: const Text('abrir'),
           ),
         ),
@@ -68,4 +71,46 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('COBRAR EM DINHEIRO'), findsNothing);
   });
+
+  // ───────────────────────────────────────────────────────────────────────
+  // [Regra de ouro do motorista, 2026-08-21] O diálogo já dizia quanto COBRAR.
+  // Faltava a outra metade: quanto ele GANHOU. O parâmetro é opcional de
+  // propósito — os chamadores antigos (entregas, limpeza) não mudam nada.
+  // ───────────────────────────────────────────────────────────────────────
+
+  testWidgets('mostra o ganho do motorista quando lho passam', (t) async {
+    await abrir(t,
+        state: CollectState.collectCash,
+        amountCents: 2500,
+        earnedCents: 2200);
+
+    expect(find.byKey(const Key('collect_reminder_earned')), findsOneWidget);
+    expect(find.text('Nesta corrida ganhaste €22,00'.replaceAll(',', '.')),
+        findsOneWidget);
+    // O que ele COBRA continua a ser o número grande — não se troca um pelo
+    // outro.
+    expect(find.text('€25.00'), findsOneWidget);
+  });
+
+  testWidgets('sem ganho passado, o diálogo fica IGUAL ao que era', (t) async {
+    await abrir(t, state: CollectState.collectCash, amountCents: 2500);
+
+    expect(find.byKey(const Key('collect_reminder_earned')), findsNothing);
+    expect(find.text('€25.00'), findsOneWidget);
+  });
+
+  testWidgets('ganho a zero não desenha a linha (evita "ganhaste €0.00")',
+      (t) async {
+    await abrir(t,
+        state: CollectState.collectCash, amountCents: 2500, earnedCents: 0);
+
+    expect(find.byKey(const Key('collect_reminder_earned')), findsNothing);
+  });
+
+  testWidgets('já pago na app também mostra o ganho', (t) async {
+    await abrir(t, state: CollectState.paidOnline, earnedCents: 2200);
+
+    expect(find.byKey(const Key('collect_reminder_earned')), findsOneWidget);
+  });
+
 }

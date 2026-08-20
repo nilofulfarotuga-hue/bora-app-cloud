@@ -18,10 +18,12 @@ Future<void> showCollectReminderDialog(
   BuildContext context, {
   required CollectState state,
   int amountCents = 0,
+  int earnedCents = 0,
 }) {
   final collect = state == CollectState.collectCash;
   final color = collect ? Colors.orange.shade900 : AppColors.primary;
   final eur = '€${(amountCents / 100).toStringAsFixed(2)}';
+  final ganhoEur = '€${(earnedCents / 100).toStringAsFixed(2)}';
 
   final String title;
   final String subtitle;
@@ -85,6 +87,18 @@ Future<void> showCollectReminderDialog(
               style: const TextStyle(
                   color: AppColors.textSecondary, fontSize: 13.5),
             ),
+            if (earnedCents > 0) ...[
+              const SizedBox(height: Spacing.xs),
+              Text(
+                'Nesta corrida ganhaste $ganhoEur',
+                key: const Key('collect_reminder_earned'),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600),
+              ),
+            ],
           ],
         ),
         actions: [

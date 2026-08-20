@@ -672,6 +672,7 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
                 ? CollectState.coveredByPlan
                 : CollectState.paidOnline),
         amountCents: fare.driverCollectCents,
+        earnedCents: finished.driverEarnCents ?? 0,
       );
     } catch (_) {/* o lembrete nunca pode impedir o fecho da corrida */}
     if (mounted) setState(() => _collectReminderPending = false);

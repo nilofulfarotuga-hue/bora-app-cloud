@@ -123,7 +123,7 @@ Deno.serve(async (req) => {
       if (ride) {
         const stopsFee = Number(ride.extra_stops_fee_cents ?? 0)
         if (stopPaidOnline) {
-          body = `Nova parada ja paga na app (+€${eur(stopFeeCents)}). Nao cobres a parada.`
+          body = `Nova parada já paga na app (+€${eur(stopFeeCents)}). Não cobres a parada.`
         } else if (ride.roundtrip_credit_id) {
           // Perna do pacote €8 — ver se o vale e dinheiro ou online
           const { data: credit } = await supabase
@@ -212,7 +212,7 @@ Deno.serve(async (req) => {
       case 'reservation_offer':
         type  = 'tvde_reservation_offer'
         title = '📅 Reserva para aceitar'
-        body  = `${dia} as ${hora} • ${rota} • €${fareEur}`
+        body  = `${dia} às ${hora} • ${rota} • €${fareEur}`
         ttl   = '300s'
         break
       // v9 (2026-08-20) — o ADMIN escolheu este motorista a mao. NAO e uma
@@ -221,28 +221,28 @@ Deno.serve(async (req) => {
       case 'reservation_assigned':
         type  = 'tvde_reservation_assigned'
         title = '📅 Ficaste com uma reserva'
-        body  = `Ficaste com uma reserva marcada para ${ptShort(scheduledAt)} as ${hora}`
+        body  = `Ficaste com uma reserva marcada para ${ptShort(scheduledAt)} às ${hora}`
               + ` • ${rota} • €${fareEur}`
         break
       case 'reservation_reminder_early':
         type  = 'tvde_reservation_reminder'
         title = '⏰ Reserva daqui a uma hora'
-        body  = `As ${hora} • ${rota}. Prepara-te para a recolha.`
+        body  = `Às ${hora} • ${rota}. Prepara-te para a recolha.`
         break
       case 'reservation_start_now':
         type  = 'tvde_reservation_start_now'
-        title = '🚗 A tua reserva comeca em 10 minutos'
-        body  = `As ${hora} • ${rota}. Carrega "A caminho" — se nao confirmares, a reserva passa a outro motorista.`
+        title = '🚗 A tua reserva começa em 10 minutos'
+        body  = `Às ${hora} • ${rota}. Carrega "A caminho" — se não confirmares, a reserva passa a outro motorista.`
         break
       case 'reservation_cancelled':
         type  = 'tvde_reservation_cancelled'
         title = 'Reserva cancelada'
-        body  = `O cliente cancelou a reserva de ${dia} as ${hora}.`
+        body  = `O cliente cancelou a reserva de ${dia} às ${hora}.`
         break
       case 'reservation_lost':
         type  = 'tvde_reservation_lost'
         title = 'Reserva passou a outro motorista'
-        body  = `Nao confirmaste a tempo a reserva das ${hora}. Foi entregue a outro motorista.`
+        body  = `Não confirmaste a tempo a reserva das ${hora}. Foi entregue a outro motorista.`
         break
       default:
         console.warn(`[notify-tvde-driver] kind de reserva desconhecido: ${kind}`)

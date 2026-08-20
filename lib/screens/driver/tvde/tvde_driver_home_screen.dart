@@ -196,6 +196,12 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
       return;
     }
     // Abre a navegação para a morada de recolha do cliente.
+    //
+    // [Fix 2026-08-20] A reserva activada NÃO está na agenda: o sweep, ao
+    // activá-la, põe `status='motorista_atribuido'` e a consulta da agenda
+    // pede `status='agendada'`. Como este push só é enviado depois de
+    // activada, procurar só na agenda falhava SEMPRE e a navegação nunca
+    // abria. Ordem de procura: agenda → corrida activa → servidor.
     TvdeRide? r;
     for (final x in store.agenda) {
       if (x.id == rideId) {
@@ -203,6 +209,10 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
         break;
       }
     }
+    if (r == null && store.activeRide?.id == rideId) {
+      r = store.activeRide;
+    }
+    r ??= await store.fetchRideById(rideId);
     if (r == null || !mounted) {
       _openAgenda();
       return;

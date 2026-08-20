@@ -457,6 +457,27 @@ class TvdeDriverStore extends ChangeNotifier {
     }
   }
 
+  /// Lê uma corrida pelo id, directamente do servidor.
+  ///
+  /// [Fix 2026-08-20] Rede de segurança do "A caminho": quando o sweep activa
+  /// a reserva, muda `status` para 'motorista_atribuido' e ela SAI da agenda
+  /// (que pede `status='agendada'`). Como o push `reservation_start_now` só é
+  /// enviado depois de activada, procurar só na agenda falhava sempre.
+  Future<TvdeRide?> fetchRideById(String rideId) async {
+    try {
+      final row = await _sb
+          .from('tvde_rides')
+          .select()
+          .eq('id', rideId)
+          .maybeSingle();
+      if (row == null) return null;
+      return TvdeRide.fromMap(Map<String, dynamic>.from(row));
+    } catch (e) {
+      debugPrint('TvdeDriverStore.fetchRideById error => $e');
+      return null;
+    }
+  }
+
   Future<void> rejectOffer(String rideId) async {
     _setBusy(true);
     try {

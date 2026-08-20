@@ -16,6 +16,7 @@ import 'services/app_update_service.dart';
 import 'services/floating_bubble_service.dart';
 import 'services/foreground_service.dart';
 import 'services/notification_service.dart';
+import 'services/tvde_reservation_ready_handler.dart';
 import 'services/offer_presentation_gate.dart';
 // Sessão 2026-05-21 — overlay system_alert_window. O import garante que o
 // `@pragma('vm:entry-point') void overlayMain()` ali declarado fica vivo no
@@ -273,6 +274,12 @@ Future<void> main() async {
       );
     }
   });
+
+  // [Fix 2026-08-20] O "A caminho" da notificação de reserva é tratado AQUI, ao
+  // nível da app — não dentro de um ecrã. Estava no initState/dispose da
+  // TvdeDriverHomeScreen, e com o ecrã de corrida por cima o gancho ficava a
+  // null: a RPC corria pelo caminho headless mas a navegação nunca abria.
+  NotificationService.tvdeReservationReadyTap = tvdeConfirmarACaminhoGlobal;
 
   // TODO: remover após diagnóstico — handlers globais de crash.
   final originalOnError = FlutterError.onError;

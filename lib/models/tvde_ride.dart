@@ -362,3 +362,25 @@ class TvdeRideStop {
             : DateTime.tryParse(m['reached_at'].toString()),
       );
 }
+
+/// [Fix 2026-08-20] Linha que o motorista lê enquanto a reserva ainda está em
+/// `motorista_atribuido` (entre os 20 e os 10 minutos da hora): a hora marcada
+/// e quanto falta.
+///
+/// Pura de propósito — dá para testar sem Flutter. `agora` é injectável só
+/// para os testes não dependerem do relógio.
+String avisoDaReserva(DateTime marcada, {DateTime? agora}) {
+  final local = marcada.toLocal();
+  final hh = local.hour.toString().padLeft(2, '0');
+  final mm = local.minute.toString().padLeft(2, '0');
+  final falta = local.difference(agora?.toLocal() ?? DateTime.now());
+
+  if (falta.inMinutes <= 1) return 'Reserva às $hh:$mm · é agora';
+  if (falta.inMinutes < 60) {
+    return 'Reserva às $hh:$mm · faltam ${falta.inMinutes} min';
+  }
+  final horas = falta.inHours;
+  final resto = falta.inMinutes - horas * 60;
+  final restoTxt = resto == 0 ? '' : '${resto}min';
+  return 'Reserva às $hh:$mm · faltam ${horas}h$restoTxt';
+}

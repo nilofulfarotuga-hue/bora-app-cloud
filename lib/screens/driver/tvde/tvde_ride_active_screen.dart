@@ -14,7 +14,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
 import '../../../models/tvde_fare_view.dart';
-import '../../../models/tvde_driver_action_error.dart';
+import '../../../models/falha_de_acao.dart';
 import '../../../models/tvde_ride.dart';
 import '../../../services/directions_service.dart';
 import '../../../services/navigation_service.dart';
@@ -474,7 +474,7 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
       await context
           .read<TvdeStore>()
           .reachStop(ride.id, stop.id)
-          .timeout(TvdeDriverStore.acaoTimeout);
+          .timeout(kAcaoTimeout);
       await _loadStops(ride);
     } catch (e) {
       await _falhouAcao(e, rideId: ride.id);
@@ -708,7 +708,10 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     if (!mounted) return;
     final store = context.read<TvdeDriverStore>();
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(mensagemDeFalhaDeAcao(e))),
+      SnackBar(
+        content: Text(mensagemDeFalhaDeAcao(e,
+            trabalho: TrabalhoEmCurso.corrida)),
+      ),
     );
 
     try {

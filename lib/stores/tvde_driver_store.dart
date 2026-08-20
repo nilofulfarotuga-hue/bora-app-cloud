@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../models/falha_de_acao.dart';
 import '../models/tvde_ride.dart';
 
 /// TVDE — Bora Motorista. Store reativo do MOTORISTA (modo passageiros).
@@ -13,17 +14,6 @@ import '../models/tvde_ride.dart';
 /// - Aceite atómico: `tvde_accept_ride` (Fase 2). Se já foi reivindicada/expirou
 ///   a RPC falha e a UI mostra "oferta já não disponível" — sem crashar.
 class TvdeDriverStore extends ChangeNotifier {
-  /// [Fix botao preso 2026-08-20] Tecto de espera de QUALQUER accao do
-  /// motorista. Sem isto, uma RPC que nunca responde (rede fraca, servidor
-  /// pendurado) deixava o `_setBusy(false)` do `finally` por correr para
-  /// sempre: TODOS os botoes do ecra de corrida ficavam desativados a girar,
-  /// sem mensagem e sem saida. Com o tecto, o `finally` corre sempre.
-  ///
-  /// O ecra NAO assume que a accao falhou quando isto dispara — recarrega o
-  /// estado do servidor, porque a accao pode ter-se aplicado e so a resposta
-  /// se ter perdido.
-  static const Duration acaoTimeout = Duration(seconds: 12);
-
   SupabaseClient get _sb => Supabase.instance.client;
   String? get _uid => _sb.auth.currentUser?.id;
 
@@ -314,7 +304,7 @@ class TvdeDriverStore extends ChangeNotifier {
     try {
       final res = await _sb
           .rpc('tvde_accept_ride', params: {'p_ride_id': rideId})
-          .timeout(acaoTimeout);
+          .timeout(kAcaoTimeout);
       final ride = TvdeRide.fromMap(_asMap(res));
       if (ride.isQueued) {
         // back-to-back: fica em fila; a viagem atual continua ativa.
@@ -496,7 +486,7 @@ class TvdeDriverStore extends ChangeNotifier {
     try {
       await _sb
           .rpc('tvde_reject_ride', params: {'p_ride_id': rideId})
-          .timeout(acaoTimeout);
+          .timeout(kAcaoTimeout);
       _offeredRide = null;
       notifyListeners();
     } finally {
@@ -529,7 +519,7 @@ class TvdeDriverStore extends ChangeNotifier {
         'p_final_distance_km': finalDistanceKm,
         'p_distance_source': distanceSource,
         'p_tokens_to_apply': 0,
-      }).timeout(acaoTimeout);
+      }).timeout(kAcaoTimeout);
       final finished = TvdeRide.fromMap(_asMap(res));
       if (_queuedRide != null) {
         _activeRide = null;
@@ -554,7 +544,7 @@ class TvdeDriverStore extends ChangeNotifier {
         'p_ride_id': rideId,
         'p_actor': noShow ? 'no_show' : 'motorista',
         'p_reason': reason,
-      }).timeout(acaoTimeout);
+      }).timeout(kAcaoTimeout);
       final ride = TvdeRide.fromMap(_asMap(res));
       if (_queuedRide != null && _activeRide?.id == rideId) {
         // back-to-back: a ativa caiu → o backend ativou a corrida em fila.
@@ -590,7 +580,7 @@ class TvdeDriverStore extends ChangeNotifier {
   Future<TvdeRide> _transition(String rpc, Map<String, dynamic> params) async {
     _setBusy(true);
     try {
-      final res = await _sb.rpc(rpc, params: params).timeout(acaoTimeout);
+      final res = await _sb.rpc(rpc, params: params).timeout(kAcaoTimeout);
       final ride = TvdeRide.fromMap(_asMap(res));
       _activeRide = ride;
       notifyListeners();

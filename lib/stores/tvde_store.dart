@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../models/falha_de_acao.dart';
 import '../models/tvde_ride.dart';
 import '../models/tvde_subscription.dart';
 import '../services/payment_service.dart';
@@ -247,7 +248,7 @@ class TvdeStore extends ChangeNotifier {
   Future<void> requestAccess() async {
     _setBusy(true);
     try {
-      await _sb.rpc('tvde_request_access');
+      await _sb.rpc('tvde_request_access').timeout(kAcaoTimeout);
       _accessRequestStatus = 'pendente';
     } catch (e) {
       debugPrint('TvdeStore.requestAccess error => $e');
@@ -265,7 +266,7 @@ class TvdeStore extends ChangeNotifier {
   Future<int> estimateFareCents(double distanceKm) async {
     try {
       final res = await _sb.rpc('tvde_calculate_fare',
-          params: {'p_distance_km': distanceKm});
+          params: {'p_distance_km': distanceKm}).timeout(kAcaoTimeout);
       return (res as num?)?.toInt() ?? -1;
     } catch (e) {
       debugPrint('TvdeStore.estimateFareCents error => $e');
@@ -278,7 +279,7 @@ class TvdeStore extends ChangeNotifier {
   Future<int?> planPriceCents(String plan) async {
     try {
       final res =
-          await _sb.rpc('tvde_plan_price_cents', params: {'p_plan': plan});
+          await _sb.rpc('tvde_plan_price_cents', params: {'p_plan': plan}).timeout(kAcaoTimeout);
       return (res as num?)?.toInt();
     } catch (e) {
       debugPrint('TvdeStore.planPriceCents error => $e');
@@ -293,7 +294,7 @@ class TvdeStore extends ChangeNotifier {
     if (uid == null) return const {};
     try {
       final res =
-          await _sb.rpc('tvde_preview_coverage', params: {'p_client_id': uid});
+          await _sb.rpc('tvde_preview_coverage', params: {'p_client_id': uid}).timeout(kAcaoTimeout);
       return res is Map ? Map<String, dynamic>.from(res) : const {};
     } catch (e) {
       debugPrint('TvdeStore.previewCoverage error => $e');
@@ -647,7 +648,7 @@ class TvdeStore extends ChangeNotifier {
       await _sb.rpc('tvde_cancel_reservation', params: {
         'p_ride_id': rideId,
         'p_reason': reason ?? 'cliente',
-      });
+      }).timeout(kAcaoTimeout);
       await loadMyReservations();
     } catch (e) {
       debugPrint('TvdeStore.cancelReservation error => $e');
@@ -666,7 +667,7 @@ class TvdeStore extends ChangeNotifier {
       await _sb.rpc('tvde_set_ride_note', params: {
         'p_ride_id': rideId,
         'p_note': note,
-      });
+      }).timeout(kAcaoTimeout);
     } catch (e) {
       debugPrint('TvdeStore.setRideNote error => $e');
     }
@@ -785,7 +786,7 @@ class TvdeStore extends ChangeNotifier {
         'p_ride_id': rideId,
         'p_actor': 'cliente',
         'p_reason': reason,
-      });
+      }).timeout(kAcaoTimeout);
       // Corrida paga no app (card/mbway) → refund estilo client-cancel-order
       // (capado ao pago, menos a taxa) via Edge Function. Best-effort: se
       // falhar, o cancelamento já foi feito. Só corre com o switch ligado.
@@ -821,7 +822,7 @@ class TvdeStore extends ChangeNotifier {
   /// (Não há cache central no app — cada call site lê direto, como o resto.)
   Future<int> getSettingInt(String key, int fallback) async {
     try {
-      final res = await _sb.rpc('get_setting', params: {'p_key': key});
+      final res = await _sb.rpc('get_setting', params: {'p_key': key}).timeout(kAcaoTimeout);
       if (res == null) return fallback;
       return int.tryParse(res.toString()) ?? fallback;
     } catch (e) {
@@ -834,7 +835,7 @@ class TvdeStore extends ChangeNotifier {
   /// `tvde_card_payments_enabled`). Falha fechada → devolve [fallback].
   Future<bool> getSettingBool(String key, bool fallback) async {
     try {
-      final res = await _sb.rpc('get_setting', params: {'p_key': key});
+      final res = await _sb.rpc('get_setting', params: {'p_key': key}).timeout(kAcaoTimeout);
       if (res == null) return fallback;
       final s = res.toString().trim().toLowerCase();
       return s == 'true' || s == '1' || s == 't';
@@ -862,7 +863,7 @@ class TvdeStore extends ChangeNotifier {
         'p_lng': lng,
         'p_label': label,
         'p_segment_km': segmentKm,
-      });
+      }).timeout(kAcaoTimeout);
       return res is Map ? Map<String, dynamic>.from(res) : const {};
     } catch (e) {
       debugPrint('TvdeStore.addStop error => $e');
@@ -946,7 +947,7 @@ class TvdeStore extends ChangeNotifier {
     _setBusy(true);
     try {
       await _sb.rpc('tvde_remove_stop',
-          params: {'p_ride_id': rideId, 'p_stop_id': stopId});
+          params: {'p_ride_id': rideId, 'p_stop_id': stopId}).timeout(kAcaoTimeout);
     } catch (e) {
       debugPrint('TvdeStore.removeStop error => $e');
       rethrow;
@@ -959,7 +960,7 @@ class TvdeStore extends ChangeNotifier {
   Future<void> reachStop(String rideId, String stopId) async {
     try {
       await _sb.rpc('tvde_reach_stop',
-          params: {'p_ride_id': rideId, 'p_stop_id': stopId});
+          params: {'p_ride_id': rideId, 'p_stop_id': stopId}).timeout(kAcaoTimeout);
     } catch (e) {
       debugPrint('TvdeStore.reachStop error => $e');
       rethrow;
@@ -991,7 +992,7 @@ class TvdeStore extends ChangeNotifier {
         'p_ride_id': rideId,
         'p_stars': stars,
         'p_comment': comment,
-      });
+      }).timeout(kAcaoTimeout);
     } catch (e) {
       debugPrint('TvdeStore.rateDriver error => $e');
       rethrow;
@@ -1264,7 +1265,7 @@ class TvdeStore extends ChangeNotifier {
   Future<Map<String, dynamic>?> quoteRoundtrip(double distanceKm) async {
     try {
       final res = await _sb.rpc('tvde_quote_roundtrip',
-          params: {'p_distance_km': distanceKm});
+          params: {'p_distance_km': distanceKm}).timeout(kAcaoTimeout);
       if (res is Map) return Map<String, dynamic>.from(res);
       if (res is List && res.isNotEmpty) {
         return Map<String, dynamic>.from(res.first as Map);
@@ -1355,7 +1356,7 @@ class TvdeStore extends ChangeNotifier {
   /// Lê o vale-volta ativo do cliente ({} se não houver). Para "Chamar a volta".
   Future<Map<String, dynamic>?> activeRoundtripCredit() async {
     try {
-      final res = await _sb.rpc('tvde_active_roundtrip_credit');
+      final res = await _sb.rpc('tvde_active_roundtrip_credit').timeout(kAcaoTimeout);
       // Defesa dupla contra "linha de NULLs" (ver licao-rpc-composite-null-row):
       // um vale só é real se tiver id. Sem isto, um composto vazio ({id:null,…})
       // fazia o banner "Tens uma volta garantida" aparecer sem vale nenhum.

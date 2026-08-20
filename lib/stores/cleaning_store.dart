@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../models/falha_de_acao.dart';
 import '../models/cleaning_models.dart';
 
 /// LIMPEZA — store reativo do cliente. Camada read-only: preço e transições
@@ -40,7 +41,7 @@ class CleaningStore extends ChangeNotifier {
   /// Lê um setting via get_setting; devolve [fallback] em erro (padrão TvdeStore).
   Future<int> getSettingInt(String key, int fallback) async {
     try {
-      final res = await _sb.rpc('get_setting', params: {'p_key': key});
+      final res = await _sb.rpc('get_setting', params: {'p_key': key}).timeout(kAcaoTimeout);
       if (res == null) return fallback;
       return int.tryParse(res.toString()) ?? fallback;
     } catch (e) {
@@ -52,7 +53,7 @@ class CleaningStore extends ChangeNotifier {
   Future<void> refreshStripeEnabled() async {
     try {
       final res = await _sb
-          .rpc('get_setting', params: {'p_key': 'cleaning_stripe_enabled'});
+          .rpc('get_setting', params: {'p_key': 'cleaning_stripe_enabled'}).timeout(kAcaoTimeout);
       _stripeEnabled = res?.toString() == 'true';
       notifyListeners();
     } catch (e) {
@@ -81,7 +82,7 @@ class CleaningStore extends ChangeNotifier {
         'p_hours': hours,
         'p_recurrence': recurrence,
         'p_products_by': productsBy,
-      });
+      }).timeout(kAcaoTimeout);
       return CleaningQuote.fromJson(_asMap(res));
     } catch (e) {
       debugPrint('CleaningStore.quote error => $e');
@@ -102,7 +103,7 @@ class CleaningStore extends ChangeNotifier {
         'p_duration_min': durationMin,
         'p_lat': lat,
         'p_lng': lng,
-      });
+      }).timeout(kAcaoTimeout);
       if (res is! List) return const [];
       return res
           .map((m) => AvailableCleaner.fromJson(Map<String, dynamic>.from(m)))
@@ -260,7 +261,7 @@ class CleaningStore extends ChangeNotifier {
     _setBusy(true);
     try {
       final res = await _sb
-          .rpc('client_confirm_cleaning', params: {'p_booking_id': bookingId});
+          .rpc('client_confirm_cleaning', params: {'p_booking_id': bookingId}).timeout(kAcaoTimeout);
       final booking = CleaningBooking.fromSupabase(_asMap(res));
       _applyUpdate(booking);
       return booking;
@@ -281,7 +282,7 @@ class CleaningStore extends ChangeNotifier {
         'p_booking_id': bookingId,
         'p_reason': reason,
         'p_no_show': false,
-      });
+      }).timeout(kAcaoTimeout);
       final booking = CleaningBooking.fromSupabase(_asMap(res));
       _applyUpdate(booking);
       return booking;
@@ -297,7 +298,7 @@ class CleaningStore extends ChangeNotifier {
   Future<void> cancelSeries(String groupId) async {
     _setBusy(true);
     try {
-      await _sb.rpc('cancel_cleaning_series', params: {'p_group_id': groupId});
+      await _sb.rpc('cancel_cleaning_series', params: {'p_group_id': groupId}).timeout(kAcaoTimeout);
       await loadMyBookings();
     } catch (e) {
       debugPrint('CleaningStore.cancelSeries error => $e');
@@ -316,7 +317,7 @@ class CleaningStore extends ChangeNotifier {
         'p_booking_id': bookingId,
         'p_stars': stars,
         'p_comment': comment ?? '',
-      });
+      }).timeout(kAcaoTimeout);
     } catch (e) {
       debugPrint('CleaningStore.rateCleaner error => $e');
       rethrow;

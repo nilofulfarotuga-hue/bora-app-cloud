@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_stripe/flutter_stripe.dart' hide Card;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../models/falha_de_acao.dart';
 import '../models/appointment_model.dart';
 import '../models/provider_service_model.dart';
 import '../models/service_provider_model.dart';
@@ -188,7 +189,7 @@ class ServicesStore extends ChangeNotifier {
   Future<int> fetchMaxAdvanceDays() async {
     try {
       final res = await _supabase
-          .rpc('get_setting', params: {'p_key': 'appointment_max_advance_days'});
+          .rpc('get_setting', params: {'p_key': 'appointment_max_advance_days'}).timeout(kAcaoTimeout);
       final n = res == null ? null : int.tryParse(res.toString());
       if (n == null || n <= 0) return 365;
       return n;
@@ -203,7 +204,7 @@ class ServicesStore extends ChangeNotifier {
   Future<int> fetchRescheduleMaxCount() async {
     try {
       final res = await _supabase.rpc('get_setting',
-          params: {'p_key': 'appointment_reschedule_max_count'});
+          params: {'p_key': 'appointment_reschedule_max_count'}).timeout(kAcaoTimeout);
       final n = res == null ? null : int.tryParse(res.toString());
       if (n == null || n < 0) return 2;
       return n;
@@ -287,7 +288,7 @@ class ServicesStore extends ChangeNotifier {
         'p_staff_id': staffId,
         'p_service_id': serviceId,
         'p_date': _formatDate(day),
-      });
+      }).timeout(kAcaoTimeout);
       if (result is! List) return const [];
       final out = <DateTime>[];
       for (final item in result) {
@@ -506,7 +507,7 @@ class ServicesStore extends ChangeNotifier {
       final result = await _supabase.rpc('client_cancel_appointment', params: {
         'p_appointment_id': appointmentId,
         'p_reason': reason,
-      });
+      }).timeout(kAcaoTimeout);
       final map = Map<String, dynamic>.from(result as Map);
       await fetchMyAppointments();
       return (map['will_refund'] as bool?) ?? false;
@@ -545,7 +546,7 @@ class ServicesStore extends ChangeNotifier {
             'p_appointment_id': appointmentId,
             'p_new_scheduled_at': newScheduledAt.toUtc().toIso8601String(),
             'p_staff_id': staffId,
-          });
+          }).timeout(kAcaoTimeout);
       final map = Map<String, dynamic>.from(result as Map);
       await fetchMyAppointments();
       return map;

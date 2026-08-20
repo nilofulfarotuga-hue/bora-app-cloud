@@ -382,3 +382,213 @@ se acontecer numa reserva em dinheiro criada pelo caminho normal, é bug e trava
   `tvde/reserva-agendada-2026-08-20`.
 - O repo continua espelho da produção (descarreguei depois do deploy).
 - Continua em falta só a **captura no telemóvel** da persistente dos 10 minutos.
+
+---
+
+# 11. RONDA DE 2026-08-20 — Bloco B fechado no telemóvel, bug encontrado e corrigido, publicado
+
+> Sessão "via verde". Telemóvel do Danilo ligado por USB (**Samsung SM-A366B**, Android 16,
+> série `RZGYB1XQD2P`). Ele saiu; tudo o que segue foi feito sozinho.
+
+## 11.1 O passo 1 não correu como estava escrito — e porquê
+
+O plano dizia `flutter build apk --debug` → `adb install -r`. **Isso era impossível**, e vale a
+pena ficar registado porque não é óbvio:
+
+A app instalada veio da **Play Store**, logo está assinada pela chave do **Play App Signing**:
+
+```
+V3.0 Signer: certificate DN: CN=Android, OU=Android, O=Google Inc., L=Mountain View, ST=California, C=US
+V3.0 Signer: certificate SHA-256 digest: 4b767b942f1a9a550673cf58180a1e5a11b9bd10b03da3119fdffa089fdbb780
+```
+
+A keystore local (`android/app/bora-app-release.jks`) é a chave de **upload** — certificado
+diferente. Ou seja: **nenhum** APK construído neste PC (debug ou release) instala por cima. O
+Android recusa por assinatura. A única via seria `adb uninstall`, que apaga os dados da app —
+**incluindo a sessão de motorista do Danilo**, que eu não conseguiria repor (não tenho a password
+dele). Resultado: ficava sem sessão *e* sem prova. `adb backup` também não serve — em Android 16
+já não preserva dados de aplicação.
+
+**Mudei de caminho em vez de forçar:** publiquei primeiro, e a app chegou ao telemóvel pela
+**Play Store**, que actualiza por cima e **preserva a sessão**. Isto inverte a ordem pedida
+(provar → publicar), mas era a única forma física de ter a build nova naquele aparelho.
+
+Confirmação de que a sessão sobreviveu: a app abriu já autenticada como motorista, "Estás online",
+e o token de push re-registou-se sozinho 1m40s depois da actualização.
+
+Também vale a pena saber, porque contraria o que estava na minha memória: o CI publica em
+`tracks: internal,alpha,production` com `status: completed` — ou seja, **vai a produção**, não só
+ao teste fechado. É assim desde `be8c193` (2026-07-31), foi decisão do Danilo, mas não é "só alpha".
+
+## 11.2 BLOCO B — FECHADO. A prova que faltava.
+
+Reserva de teste `8f3da4b9-8eb3-4409-af5f-a07a6da485ce`, disparo à mão de
+`tvde_reservation_push(<uid do Danilo>, <reserva>, 'reservation_start_now')`.
+
+**Captura:** `provas-tvde-reserva-2026-08-20/02-notificacao-persistente-a-caminho.png`
+— notificação com o botão **"A caminho"** visível.
+
+O Android confirma a persistência ao nível do sistema (não é interpretação minha):
+
+```
+flags=ONGOING_EVENT|INSISTENT|HIGH_PRIORITY
+category=call
+actions=1
+channel=bora_orders_urgent_v3
+```
+
+Cadeia de prova, com horas reais (`05-logcat-cadeia-de-prova.txt`):
+
+| Hora | O quê |
+|---|---|
+| 13:13:09.103 | FCM recebido, `kind: reservation_start_now`, ride `8f3da4b9…` |
+| 13:13:09.129 | `[BORA-RESERVA] notif posta type=tvde_reservation_start_now … persistente=true` |
+| 13:14:47.272 | `[NOTIF TAP] FG actionId=tvde_reservation_ready … selectedNotificationAction` ← o **botão**, não o corpo |
+| 13:14:48.280 | Servidor: `reservation_driver_ready_at` preenchido |
+
+**Porque é que esta prova não se pode falsificar:** `tvde_reservation_ready` faz
+`IF v_uid IS NULL THEN RAISE EXCEPTION 'not_authenticated'` e filtra por
+`reservation_driver_id = auth.uid()`. Pelo MCP eu corro como `postgres`, sem `auth.uid()` —
+**não conseguia preencher aquele campo nem que quisesse**. Só um JWT de motorista real o faz.
+
+## 11.3 O bug que só um teste a sério apanha
+
+Na primeira passagem, o botão confirmou no servidor mas **a navegação não abriu** — a app caiu no
+ecrã da Agenda, vazio.
+
+**Causa raiz.** `_onReservationReadyFromPush` procurava a corrida só em `store.agenda`. Mas a
+agenda pede `status='agendada'` e o sweep, ao activar a reserva, faz
+`SET status='motorista_atribuido', reservation_status='ativada'`. Como o push
+`reservation_start_now` **só é enviado depois de activada**, a corrida nunca estava na agenda.
+O `'ativada'` naquele `inFilter` é código morto: a combinação
+`status='agendada' AND reservation_status='ativada'` **nunca existe**.
+
+Não era intermitente — **falhava a 100% das vezes, em produção**.
+
+Contagens reais sobre a mesma reserva:
+
+```
+consulta actual da agenda ......... 0 linhas
+consulta com o status corrigido ... 1 linha
+```
+
+**Correcção** (commit `7291f6c`): ordem de procura **agenda → corrida activa → servidor**, com
+`fetchRideById` novo no store. Deliberadamente **não** mexi no filtro da agenda nem no
+encaminhamento do realtime: ao activar, a reserva passa mesmo a ser a corrida activa do motorista,
+e isso está certo.
+
+**Prova depois da correcção** (build 536, reserva `5564732e-…`, mesmo botão):
+
+- `03-apos-fix-abre-navegacao.png` — abre o selector **"Abrir no Google Maps" / "Abrir no Waze"**.
+- `04-maps-destino-recolha.png` — Google Maps com destino **"R. Alves Roçadas 14, 6300-711 Gu…"**,
+  que são as coordenadas de recolha do teste (40.5373, −7.2676). Percurso de 595 km porque ele
+  está no Algarve.
+- Servidor: `reservation_driver_ready_at = 2026-08-20 13:03:19` — 1 segundo depois do toque.
+
+## 11.4 Segundo achado: PT-PT sem acentos no que o motorista lê
+
+`notify-tvde-driver/index.ts` tinha **zero** bytes acentuados; a `notify-tvde-client` tem 8 linhas
+com acentos. Não é convenção do projecto — é defeito só nesta. Está à vista na captura:
+*"A tua reserva **comeca** em 10 minutos"*, *"**As** 16:11"*, *"se **nao** confirmares"*.
+
+8 strings corrigidas no repo (commit `7291f6c`).
+
+> **NÃO fiz o deploy desta função, de propósito.** O CLI do Supabase está em `/c/supabase/`
+> mas sem `SUPABASE_ACCESS_TOKEN`, e `supabase login` é interactivo. O único caminho que me
+> sobrava era reescrever **472 linhas / 20 KB à mão** para dentro de uma função **viva** de que
+> dependem os motoristas reais. Um erro de transcrição silencioso corta os pushes deles — para um
+> ganho meramente ortográfico, não compensa.
+>
+> Fica pronto no repo. Para subir com segurança basta o token e:
+> `supabase functions deploy notify-tvde-driver --project-ref ojykpzwqrtusfeakzrna`
+>
+> | | sha256 |
+> |---|---|
+> | no ar agora (v9) | `1f1c01e37481064a933369a3c2a758cb73ff79afa8dcb0e7b4048518cd00346a` |
+> | corrigido no repo | `5e677ab4ab5d1c1095e96a74c1c7473f010f12270aedc7ddddb48630194d9b00` |
+>
+> O hash do "no ar agora" bate com o que a ronda anterior registou — o repo era mesmo espelho fiel.
+
+## 11.5 Motoristas reais — nenhum foi acordado
+
+Regra dura cumprida. Não chamei `tvde_reservation_offer_to_next` nem deixei a rotação correr.
+
+**Como garanti (desenho, não sorte).** Li o sweep antes de inserir. As janelas perigosas são todas
+menores ou iguais a 20 min antes da hora, e o redespacho para outros motoristas exige
+`scheduled_at <= now()+5min AND reservation_driver_ready_at IS NULL`. Criei as reservas com
+`scheduled_at = now() + 3 horas` e já em `ativada` com o motorista posto — **inertes para o cron**.
+
+Li também os triggers da tabela antes de escrever. O `AFTER INSERT` só despacha se
+`status='solicitada'`; com `motorista_atribuido` cai no ramo que apenas regista evento. Confirmado
+pelo próprio evento gravado:
+
+```
+meta = {"reason":"aguarda payment_status=succeeded","payment_method":"cash","dispatch_deferred":true}
+```
+
+Os dois triggers de **tokens** só disparam em `finalizada` / `payment_status=succeeded` — nunca lá
+cheguei. Contexto do risco: há **5 contas com push activo**, 4 além da que usei.
+
+**Verificação final:**
+
+```
+reservas_na_tabela ................. 0
+linhas_de_teste ................... 0
+eventos_de_teste .................. 0
+corridas_mexidas_nas_ultimas_3h ... 0
+envolvendo_outro_motorista ........ 0
+```
+
+## 11.6 O que viajou em cada push (a regra da boleia)
+
+**Push 1 — `8410693..3d632e8`.** Estavam **6 commits** pendentes na branch. Medi por conteúdo com
+`git cherry`, não por SHA: o `dea9b5d` (ecrã dos modelos Gemini) **já estava a montante** como
+`b9b6656`. Sobrava **um commit alheio real**: `0116fe7 robot-b: destapar falhas`
+(`supabase/functions/robot-b/index.ts`), de outro executor.
+
+Em vez de empurrar tudo, publiquei numa *worktree* separada apenas os **2 commits desta missão**
+(`ef8ec1e` + `3ed1b38`) por cherry-pick. Verificado: `robot-b` **não viajou**. Os dois cartões do
+painel admin (modelos Gemini + reservas TVDE) **coexistem** no dashboard, nada foi esmagado.
+Ficaram por publicar, de propósito: `0116fe7` (alheio) e os dois commits de docs do `bora_cut`.
+
+**Push 2 — `90154f1..7291f6c`.** Só os 3 ficheiros da correcção.
+
+## 11.7 Builds
+
+| Build | sha | Resultado | versionCode | Duração |
+|---|---|---|---|---|
+| `32365673096` | `3d632e8` | success | **535** | 11:49:12 → 11:59:59 UTC |
+| `32368823667` | `7291f6c` | success | **536** | 12:26:09 → 12:35:03 UTC |
+
+Play (produção **e** alpha): `536`, `status: completed`. Deploy web também verde nos dois pushes
+(`32368823669`), e o bundle publicado contém os textos novos — confirmado por `curl` + `grep`:
+`Marcar para depois`, `A minha agenda`, `"Ainda n\xe3o tens reservas marcadas`.
+
+Telemóvel: `versionCode=536`, `lastUpdateTime=2026-08-20 13:59:29`, pela Play Store, **sessão
+intacta**. `flutter analyze` em `lib/`: **0 erros**, 8 avisos e 220 infos — todos pré-existentes,
+**zero** nos ficheiros da reserva.
+
+## 11.8 O que ficou por fazer
+
+1. **Deploy da `notify-tvde-driver` com os acentos** — ver 11.4. Precisa de
+   `SUPABASE_ACCESS_TOKEN` (1 comando). Não é bloqueante: o que está no ar funciona, só está
+   mal escrito.
+2. **"Marcar para depois" não foi confirmado no ecrã.** Para o ver eu teria de pôr a app em modo
+   cliente, e a **única** forma de trocar de perfil é passar pelo login — `_logout()` chama
+   `AuthStore.logout()` a sério. Não arrisquei a sessão dele. A extensão do Chrome (que me deixaria
+   usar a app web com a conta de demonstração) **não está ligada**. O que consegui provar: a
+   condição no código é `_reservasLigadas && !_roundtrip`, e `tvde_reservation_enabled = true` no
+   servidor; e o texto está no bundle web publicado. **Falta só o olho no ecrã.**
+3. **Cartão e MB Way não testados** — Stripe está LIVE, e a ordem era testar só em dinheiro.
+
+## 11.9 Provas guardadas
+
+`.claude/.ai/reports/provas-tvde-reserva-2026-08-20/`
+
+| Ficheiro | O que prova |
+|---|---|
+| `01-agenda-motorista.png` | Ecrã "A minha agenda" novo, PT-PT |
+| `02-notificacao-persistente-a-caminho.png` | Persistente + botão "A caminho" (Bloco B) |
+| `03-apos-fix-abre-navegacao.png` | Depois da correcção: abre Google Maps / Waze |
+| `04-maps-destino-recolha.png` | Destino = morada de recolha (Guarda, 6300-711) |
+| `05-logcat-cadeia-de-prova.txt` | Linhas cruas do telemóvel, com horas |

@@ -20,7 +20,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 CONFIG = os.path.join(HERE, "monitor_teste_fechado_config.json")
 LOG = os.path.normpath(os.path.join(HERE, "..", ".ai", "reports", "teste-fechado-monitor.log"))
 DESKTOP_ALERT = r"C:\Users\danil\Desktop\ALERTA_TESTADORES.txt"
-KEY_PATH = r"C:/Users/danil/Downloads/boraapp-d2bea-8abf3cc13bb0.json"
+# [Arrumacao 2026-08-20] A chave saiu de Downloads (pasta que se limpa e se
+# partilha por engano) para uma pasta propria, fora do repo e so do dono.
+KEY_PATH = r"C:/Users/danil/.credenciais/bora-play/play-service-account.json"
 PACKAGE = "pt.boraapp.bora"
 SCOPE = "https://www.googleapis.com/auth/androidpublisher"
 

@@ -167,3 +167,6 @@ graphify-out/
 #    corrigido no caminho original. Não tocar sem root disponível.
 *-oldperm-20260715/
 supabase/functions/stripe-webhook/index.ts.bak
+
+# Token pessoal do Supabase CLI (local, nunca commitado) — 2026-08-20
+.supabase-token.env

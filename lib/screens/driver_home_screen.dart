@@ -23,6 +23,7 @@ import '../utils/constants.dart';
 import '../utils/map_utils.dart';
 import 'support_chat_screen.dart';
 
+import '../models/falha_de_acao.dart';
 import '../models/chat_message.dart';
 import '../models/driver_model.dart';
 import '../models/order_model.dart';
@@ -1575,22 +1576,48 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                                 return;
                               }
                             }
+                            // [Fix botão preso 2026-08-20] Antes: `add`,
+                            // `await execute()`, `remove` — SEM try/finally e
+                            // SEM tecto de tempo. Se o execute rebentasse, o
+                            // `remove` nunca corria e o botão ficava morto até
+                            // sair do ecrã; se pendurasse, ficava a girar para
+                            // sempre. E a mensagem de falha era
+                            // "Erro: desconhecido", que não diz nada a ninguém.
                             setState(() => _processingOrderIds.add(order.id));
-                            final success = await nextAction.execute();
-                            if (mounted) {
-                              setState(
-                                  () => _processingOrderIds.remove(order.id));
+                            var success = false;
+                            Object? falha;
+                            try {
+                              success = await nextAction
+                                  .execute()
+                                  .timeout(kAcaoTimeout);
+                            } catch (e) {
+                              falha = e;
+                            } finally {
+                              if (mounted) {
+                                setState(() =>
+                                    _processingOrderIds.remove(order.id));
+                              }
                             }
+                            if (!mounted) return;
                             messenger.showSnackBar(
                               SnackBar(
                                 content: Text(
                                   success
                                       ? nextAction.successMessage
-                                      : 'Erro: ${orderStore.lastUpdateError ?? "desconhecido"}',
+                                      : mensagemDeFalhaDeAcao(
+                                          falha ??
+                                              orderStore.lastUpdateError ??
+                                              '',
+                                          trabalho: TrabalhoEmCurso.pedido),
                                 ),
                                 duration: Duration(seconds: success ? 4 : 6),
                               ),
                             );
+                            // A verdade está no servidor: uma acção pode
+                            // ter-se aplicado e só a resposta ter-se perdido.
+                            if (!success) {
+                              unawaited(orderStore.loadOrders());
+                            }
                           },
                     child: _processingOrderIds.contains(order.id)
                         ? const SizedBox(

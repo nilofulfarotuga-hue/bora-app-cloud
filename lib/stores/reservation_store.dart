@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' show TimeOfDay;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../models/falha_de_acao.dart';
 import '../models/notify_entry.dart';
 import '../models/reservation_model.dart';
 import '../models/waitlist_entry.dart';
@@ -229,7 +230,7 @@ class ReservationStore extends ChangeNotifier {
         '(weekday=${date.weekday} ie ${_weekdayPtPt(date.weekday)})');
     try {
       final result =
-          await _supabase.rpc('client_search_availability', params: params);
+          await _supabase.rpc('client_search_availability', params: params).timeout(kAcaoTimeout);
       debugPrint('[ReservationStore] searchAvailability ← $result');
       return Map<String, dynamic>.from(result as Map);
     } on PostgrestException catch (e) {
@@ -275,7 +276,7 @@ class ReservationStore extends ChangeNotifier {
         if (timeEnd != null) 'p_target_time_end': _formatTime(timeEnd),
         if (notes != null) 'p_notes': notes,
       };
-      final result = await _supabase.rpc('client_join_waitlist', params: params);
+      final result = await _supabase.rpc('client_join_waitlist', params: params).timeout(kAcaoTimeout);
       return Map<String, dynamic>.from(result as Map);
     } on PostgrestException catch (e) {
       debugPrint(
@@ -302,7 +303,7 @@ class ReservationStore extends ChangeNotifier {
         'p_target_time': _formatTime(targetTime),
         'p_people': people,
         'p_flexibility_minutes': flexibilityMinutes,
-      });
+      }).timeout(kAcaoTimeout);
       return Map<String, dynamic>.from(result as Map);
     } on PostgrestException catch (e) {
       throw Exception(_mapErrorPtPt(e.code ?? e.message));
@@ -316,7 +317,7 @@ class ReservationStore extends ChangeNotifier {
     try {
       final result = await _supabase.rpc('client_arrived', params: {
         'p_reservation_id': reservationId,
-      });
+      }).timeout(kAcaoTimeout);
       // Refresh estado local após sucesso.
       await fetchMyReservations();
       return Map<String, dynamic>.from(result as Map);
@@ -430,7 +431,7 @@ class ReservationStore extends ChangeNotifier {
       await _supabase.rpc(
         'client_confirm_reservation_payment',
         params: {'p_reservation_id': reservationId},
-      );
+      ).timeout(kAcaoTimeout);
     } catch (e) {
       debugPrint('[ReservationStore] confirm payment: $e');
     } finally {

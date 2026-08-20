@@ -592,3 +592,138 @@ intacta**. `flutter analyze` em `lib/`: **0 erros**, 8 avisos e 220 infos — to
 | `03-apos-fix-abre-navegacao.png` | Depois da correcção: abre Google Maps / Waze |
 | `04-maps-destino-recolha.png` | Destino = morada de recolha (Guarda, 6300-711) |
 | `05-logcat-cadeia-de-prova.txt` | Linhas cruas do telemóvel, com horas |
+
+---
+
+# 12. ACENTOS DO PUSH DO MOTORISTA — DEPLOY FEITO (v10 no ar)
+
+> Continuação directa do ponto 11.4, que tinha ficado por fazer por falta de token.
+
+## 12.1 O token — obtido sem incomodar o Danilo
+
+A extensão do Claude não estava instalada no Chrome (as únicas duas eram o Adobe Acrobat e a loja).
+Assim que foi instalada, a sessão do Supabase já estava iniciada e **não pediu 2FA** — o redireccionamento
+para `sign-in-mfa` resolveu-se sozinho pela sessão do GitHub.
+
+Token `bora-deploy` gerado (validade 30 dias), guardado em `.supabase-token.env`.
+**Nunca passou por nenhum comando meu:** cliquei em "Copy" na página e passei-o do clipboard
+directamente para o ficheiro (`Get-Clipboard | Set-Content`), limpando o clipboard a seguir.
+
+⚠️ **Achado:** o `.gitignore` **não** protegia este ficheiro. A linha `.env` (linha 120) só apanha
+um ficheiro chamado exactamente `.env`, não `.supabase-token.env`. Acrescentei a regra e confirmei
+pelo próprio git:
+
+```
+$ git check-ignore -v .supabase-token.env
+.gitignore:172:.supabase-token.env      .supabase-token.env
+```
+
+No banner de cookies do Supabase escolhi **"Opt out"**.
+
+## 12.2 Rede de segurança antes de mexer
+
+Descarreguei a v9 que estava no ar para uma pasta à parte (nunca por cima do ficheiro corrigido):
+
+```
+sha256 do que estava NO AR ......... 1f1c01e37481064a933369a3c2a758cb73ff79afa8dcb0e7b4048518cd00346a
+sha256 da versao no git (3d632e8) .. 1f1c01e37481064a933369a3c2a758cb73ff79afa8dcb0e7b4048518cd00346a
+>>> IDENTICOS
+```
+
+Ou seja, o rollback não depende de nenhuma cópia minha: reproduz-se com
+`git show 3d632e8:supabase/functions/notify-tvde-driver/index.ts`, byte-a-byte.
+
+Estado antes: `version 9`, `ACTIVE`, `verify_jwt: True`.
+Não existe `supabase/config.toml`, logo não havia override que pudesse virar o `verify_jwt`.
+
+## 12.3 Deploy
+
+```
+supabase functions deploy notify-tvde-driver --project-ref ojykpzwqrtusfeakzrna
+Uploading asset (notify-tvde-driver): supabase/functions/notify-tvde-driver/index.ts
+Deployed Functions on project ojykpzwqrtusfeakzrna: notify-tvde-driver
+```
+
+Só esta função. Estado depois: **`version 10`**, `ACTIVE`, **`verify_jwt: True`** (preservado).
+
+**Não me fiquei pela mensagem de sucesso** — descarreguei o que ficou no ar e comparei:
+
+```
+sha256 no ar ....... 5e677ab4ab5d1c1095e96a74c1c7473f010f12270aedc7ddddb48630194d9b00
+sha256 local ....... 5e677ab4ab5d1c1095e96a74c1c7473f010f12270aedc7ddddb48630194d9b00
+>>> IDENTICOS
+linhas com acentos no ficheiro em produção: 8
+234:  title = '🚗 A tua reserva começa em 10 minutos'
+235:  body  = `Às ${hora} • ${rota}. Carrega "A caminho" — se não confirmares, …`
+```
+
+## 12.4 Teste de fumo — os DOIS caminhos
+
+Reserva de teste `3fefeaa4-9bad-4e28-bdf0-1371b842eb90`, mesmo desenho seguro de ontem
+(3 h de distância, já `ativada`, atribuída só à conta do Danilo).
+
+**(a) Caminho novo — reserva.** `tvde_reservation_push(…, 'reservation_start_now')`:
+
+```
+tvde_ride_events -> status='push_enviado', meta={"kind":"reservation_start_now",
+                    "driver_id":"4f61dd31-…"}, at=2026-08-20 15:01:40Z
+```
+
+Essa linha **só é escrita depois de `fcmRes.ok`**.
+
+**(b) Caminho antigo — oferta normal de corrida.** Este é o que interessa: é a função que chama os
+motoristas em **todas** as corridas. Reproduzi o corpo **exactamente** como o trigger
+`fn_notify_tvde_driver_on_offer` o envia (`{driverId, rideId}`, **sem `kind`**), via `net.http_post`.
+Não toquei em `current_offer_driver_id` de nenhuma corrida real — logo **sem despacho e sem rotação**.
+
+```
+net._http_response id=4315 -> status_code 200, content {"ok":true}
+```
+
+E porque um 200 não prova o que correu por dentro, fui aos logs da função. **As duas linhas são
+textualmente diferentes — é isso que prova que tomaram ramos diferentes:**
+
+```
+15:01:40.423  [notify-tvde-driver] reservation_start_now push sent to driver 4f61dd31… ride 3fefeaa4…
+15:02:32.845  [notify-tvde-driver] INVOKED (Firebase configured: true )
+15:02:33.124  [notify-tvde-driver] Push sent to driver 4f61dd31… ride 3fefeaa4…
+```
+
+A de baixo é o ramo da oferta (sem prefixo de `kind`). **O caminho antigo continua a tocar na v10.**
+Nenhum rollback foi preciso.
+
+## 12.5 O que NÃO consegui provar — e porquê
+
+**A captura da notificação com acentos no ecrã não existe: o telemóvel foi desligado a meio.**
+
+Quando fui preparar o teste, o `adb` devolveu `no devices/emulators found`, e o próprio Windows
+deixou de ver qualquer dispositivo Android no USB. Não foi falha de cabo minha — o aparelho saiu.
+
+O que fica provado sem ele: o ficheiro **em produção** contém os acentos (sha256 conferido a seguir
+ao deploy) e a função **correu o ramo da reserva com sucesso** (`push_enviado` + log). O texto que o
+telemóvel desenha é gerado por esse ficheiro, portanto vai com acentos. Mas **é dedução, não é o
+olho no ecrã** — fica em falta, honestamente.
+
+⚠️ **Duas notificações reais ficaram no telemóvel do Danilo**, das minhas provas das 15:01 e 15:02:
+uma reserva ("A tua reserva começa em 10 minutos" — já com acentos, é a prova visual que ele pode
+confirmar) e uma **"🚗 Nova corrida!"**. A da reserva desaparece sozinha ao fim de 10 minutos.
+**A corrida de teste já foi apagada da base de dados**, por isso tocar em qualquer uma delas não faz
+nada — não há corrida nenhuma para aceitar. Se ele vir a "Nova corrida!", é minha, não é trabalho.
+
+## 12.6 Limpeza
+
+```
+reservas_na_tabela ........... 0
+linhas_de_teste .............. 0
+eventos_de_teste ............. 0
+envolvendo_outro_motorista ... 0
+```
+
+## 12.7 Estado
+
+| | |
+|---|---|
+| `notify-tvde-driver` | **v10 ACTIVE**, `verify_jwt: true`, sha256 `5e677ab4…9b00` |
+| Rollback | `git show 3d632e8:supabase/functions/notify-tvde-driver/index.ts` → sha256 `1f1c01e3…346a` |
+| Repo vs produção | espelho exacto (o `index.ts` já tinha sido publicado em `7291f6c`) |
+| Token | `bora-deploy`, 30 dias, em `.supabase-token.env`, fora do git |

@@ -14,6 +14,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
 import '../../../models/tvde_fare_view.dart';
+import '../../../models/tvde_driver_action_error.dart';
 import '../../../models/tvde_ride.dart';
 import '../../../services/directions_service.dart';
 import '../../../services/navigation_service.dart';
@@ -470,10 +471,13 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   /// para obter o reached_at do servidor (a fonte da verdade do countdown).
   Future<void> _reachStop(TvdeRide ride, TvdeRideStop stop) async {
     try {
-      await context.read<TvdeStore>().reachStop(ride.id, stop.id);
+      await context
+          .read<TvdeStore>()
+          .reachStop(ride.id, stop.id)
+          .timeout(TvdeDriverStore.acaoTimeout);
       await _loadStops(ride);
     } catch (e) {
-      _err(e);
+      await _falhouAcao(e, rideId: ride.id);
     }
   }
 
@@ -547,7 +551,7 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     try {
       await context.read<TvdeDriverStore>().markArrived(ride.id);
     } catch (e) {
-      _err(e);
+      await _falhouAcao(e, rideId: ride.id);
     }
   }
 
@@ -555,7 +559,7 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     try {
       await context.read<TvdeDriverStore>().startRide(ride.id);
     } catch (e) {
-      _err(e);
+      await _falhouAcao(e, rideId: ride.id);
     }
   }
 
@@ -614,7 +618,7 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
       }
     } catch (e) {
       if (mounted) setState(() => _collectReminderPending = false);
-      _err(e);
+      await _falhouAcao(e, rideId: ride.id);
     }
   }
 
@@ -685,15 +689,65 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
       store.clearActive();
       Navigator.of(context).maybePop();
     } catch (e) {
-      _err(e);
+      await _falhouAcao(e, rideId: ride.id);
     }
   }
 
-  void _err(Object e) {
+  /// [Fix botão preso 2026-08-20] Antes isto era um snackbar com o erro cru
+  /// (`Não foi possível: PostgrestException(...)`) e mais nada: o ecrã ficava
+  /// exactamente como estava, a mostrar um estado que já não era verdade. E se
+  /// a RPC nem chegava a responder, o `busy` do store nunca baixava e todos os
+  /// botões ficavam a girar para sempre.
+  ///
+  /// Agora, em qualquer falha de acção: (1) frase em português simples que diz
+  /// o que aconteceu e o que fazer; (2) o estado é relido do SERVIDOR, porque a
+  /// acção pode ter-se aplicado e só a resposta se ter perdido — o ecrã tem de
+  /// mostrar a verdade, não a suposição; (3) se a corrida já não existe, sai do
+  /// ecrã em vez de deixar o motorista preso.
+  Future<void> _falhouAcao(Object e, {String? rideId}) async {
     if (!mounted) return;
+    final store = context.read<TvdeDriverStore>();
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Não foi possível: $e')),
+      SnackBar(content: Text(mensagemDeFalhaDeAcao(e))),
     );
+
+    try {
+      await store.loadCurrent();
+    } catch (_) {/* best-effort: sem rede, fica o que já estava */}
+    if (!mounted) return;
+
+    // Sair do ecrã quando não há nada para mostrar. Dois casos:
+    //  - o servidor já não devolve corrida activa nenhuma;
+    //  - o servidor disse que ESTA corrida não existe e a recarga não a
+    //    substituiu (ex.: a rede caiu logo a seguir). Sem isto, o motorista
+    //    ficava num ecrã de uma corrida que já não existe.
+    // Nota back-to-back: se a recarga trouxe OUTRA corrida, fica-se aqui —
+    // é a corrida seguinte, e essa é para trabalhar.
+    final activa = store.activeRide;
+    final estaCorridaMorreu =
+        rideId != null && falhaFechaOEcra(e) && activa?.id == rideId;
+    if (activa == null || estaCorridaMorreu) {
+      store.clearActive();
+      Navigator.of(context).maybePop();
+    }
+  }
+
+  /// Relê a corrida do servidor. É a saída do estado "A processar…", que antes
+  /// era um botão morto.
+  Future<void> _recarregarDoServidor() async {
+    final store = context.read<TvdeDriverStore>();
+    try {
+      await store.loadCurrent();
+    } catch (e) {
+      await _falhouAcao(e);
+      return;
+    }
+    if (!mounted) return;
+    if (store.activeRide == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Já não tens nenhuma corrida a decorrer.')));
+      Navigator.of(context).maybePop();
+    }
   }
 
   void _goToRate(TvdeRide ride) {
@@ -910,9 +964,12 @@ class _ActionPanel extends StatelessWidget {
       icon = Icons.flag;
       onPressed = busy ? null : () => actions._finish(ride);
     } else {
-      label = 'A processar…';
-      icon = Icons.hourglass_top;
-      onPressed = null;
+      // [Fix botão preso 2026-08-20] Este ramo apanha estados que o ecrã não
+      // sabe tratar (ex.: 'motorista_atribuido' de uma reserva). Era um botão
+      // MORTO — sem acção, sem explicação, sem saída. Agora relê o servidor.
+      label = 'A processar… toca para atualizar';
+      icon = Icons.refresh;
+      onPressed = busy ? null : () => actions._recarregarDoServidor();
     }
 
     return Padding(

@@ -14,7 +14,6 @@ import '../../../auth/auth_store.dart';
 import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
 import '../../../models/driver_model.dart';
-import '../../../models/tvde_ride.dart';
 import '../../../services/driver_location_ping_service.dart';
 import '../../../services/heartbeat_service.dart';
 import '../../../services/notification_service.dart';
@@ -27,7 +26,6 @@ import '../../../stores/order_store.dart';
 import '../../../stores/tvde_driver_store.dart';
 import '../../../widgets/background_location_disclosure.dart';
 import '../../../widgets/bora_support_sheet.dart';
-import '../../../services/navigation_service.dart';
 import '../../../widgets/tvde/tvde_reservation_offer_card.dart';
 import '../../driver_home_screen.dart';
 import '../../driver_earnings_screen.dart';
@@ -88,7 +86,9 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
     // [Reserva agendada 2026-08-19] Push de reserva força reload da agenda, e
     // o botão "A caminho" da notificação dos 10 min cai aqui.
     NotificationService.tvdeReservationReload = _reloadAgenda;
-    NotificationService.tvdeReservationReadyTap = _onReservationReadyFromPush;
+    // [Fix 2026-08-20] O gancho do "A caminho" NAO se regista aqui. Estava
+    // preso a este ecra (initState/dispose) e com o ecra de corrida por cima
+    // ficava a null — a navegacao nunca abria. Agora e global, no main.dart.
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       // Reflete admin approve/reject pós-login sem relogin (espelha o
@@ -147,10 +147,6 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
     if (NotificationService.tvdeReservationReload == _reloadAgenda) {
       NotificationService.tvdeReservationReload = null;
     }
-    if (NotificationService.tvdeReservationReadyTap ==
-        _onReservationReadyFromPush) {
-      NotificationService.tvdeReservationReadyTap = null;
-    }
     _heartbeat.serverAck.removeListener(_onServerAckChanged);
     _heartbeat.stop();
     _gps?.cancel();
@@ -174,53 +170,6 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
   void _reloadAgenda() {
     if (!mounted) return;
     context.read<TvdeDriverStore>().loadAgenda();
-  }
-
-  /// Botão "A caminho" da notificação persistente dos 10 minutos.
-  ///
-  /// Confirma no servidor e abre já a navegação para a recolha. A RPC também é
-  /// chamada headless quando a notificação é tocada com a app fechada — é
-  /// idempotente, por isso as duas chamadas convivem sem problema.
-  Future<void> _onReservationReadyFromPush(String rideId) async {
-    if (!mounted) return;
-    final store = context.read<TvdeDriverStore>();
-    final ok = await store.reservationReady(rideId);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(ok
-          ? 'Confirmado. Vai a caminho da recolha.'
-          : 'Não consegui confirmar. Abre a agenda e tenta outra vez.'),
-    ));
-    if (!ok) {
-      _openAgenda();
-      return;
-    }
-    // Abre a navegação para a morada de recolha do cliente.
-    //
-    // [Fix 2026-08-20] A reserva activada NÃO está na agenda: o sweep, ao
-    // activá-la, põe `status='motorista_atribuido'` e a consulta da agenda
-    // pede `status='agendada'`. Como este push só é enviado depois de
-    // activada, procurar só na agenda falhava SEMPRE e a navegação nunca
-    // abria. Ordem de procura: agenda → corrida activa → servidor.
-    TvdeRide? r;
-    for (final x in store.agenda) {
-      if (x.id == rideId) {
-        r = x;
-        break;
-      }
-    }
-    if (r == null && store.activeRide?.id == rideId) {
-      r = store.activeRide;
-    }
-    r ??= await store.fetchRideById(rideId);
-    if (r == null || !mounted) {
-      _openAgenda();
-      return;
-    }
-    await NavigationService.openNavigationOptions(
-      context,
-      LatLng(r.originLat, r.originLng),
-    );
   }
 
   void _openAgenda() {

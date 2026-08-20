@@ -547,6 +547,36 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     return _mapMarkers;
   }
 
+  /// [Fix 2026-08-20] Botão "Vou a caminho" do painel, para a reserva que ainda
+  /// está em `motorista_atribuido`. É a MESMA RPC do botão da notificação —
+  /// idempotente, por isso as duas convivem.
+  Future<void> _confirmarReservaACaminho(TvdeRide ride) async {
+    final store = context.read<TvdeDriverStore>();
+    try {
+      final ok = await store.reservationReady(ride.id);
+      if (!mounted) return;
+      if (!ok) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content:
+                Text('Não consegui confirmar. Atualiza e tenta outra vez.')));
+        await _recarregarDoServidor();
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Confirmado. Vai a caminho da recolha.')));
+      // O servidor promove a corrida a 'motorista_a_caminho'; reler para o
+      // painel passar logo ao botão certo.
+      await store.loadCurrent();
+      if (!mounted) return;
+      await NavigationService.openNavigationOptions(
+        context,
+        ll.LatLng(ride.originLat, ride.originLng),
+      );
+    } catch (e) {
+      await _falhouAcao(e, rideId: ride.id);
+    }
+  }
+
   Future<void> _arrived(TvdeRide ride) async {
     try {
       await context.read<TvdeDriverStore>().markArrived(ride.id);
@@ -966,10 +996,23 @@ class _ActionPanel extends StatelessWidget {
       label = 'Finalizar viagem';
       icon = Icons.flag;
       onPressed = busy ? null : () => actions._finish(ride);
+    } else if (ride.status == 'motorista_atribuido' && ride.isReservation) {
+      // [Fix 2026-08-20] A reserva fica NESTE estado entre os 20 e os 10
+      // minutos da hora (o sweep activa aos 20; aos 10 é que promove quem está
+      // vivo a 'motorista_a_caminho'). O painel não tinha ramo para aqui e o
+      // motorista via "A processar…" — sem perceber que só tinha de confirmar.
+      label = 'Vou a caminho';
+      icon = Icons.directions_car_filled;
+      onPressed = busy ? null : () => actions._confirmarReservaACaminho(ride);
+    } else if (ride.status == 'motorista_atribuido' && ride.isQueued) {
+      // Back-to-back: usa o mesmo estado, mas não há nada a confirmar — esta
+      // arranca sozinha quando a viagem actual terminar.
+      label = 'Começa ao terminares esta viagem';
+      icon = Icons.queue;
+      onPressed = null;
     } else {
-      // [Fix botão preso 2026-08-20] Este ramo apanha estados que o ecrã não
-      // sabe tratar (ex.: 'motorista_atribuido' de uma reserva). Era um botão
-      // MORTO — sem acção, sem explicação, sem saída. Agora relê o servidor.
+      // [Fix botão preso 2026-08-20] Rede para estados que o ecrã não sabe
+      // tratar. Era um botão MORTO — sem acção, sem explicação, sem saída.
       label = 'A processar… toca para atualizar';
       icon = Icons.refresh;
       onPressed = busy ? null : () => actions._recarregarDoServidor();
@@ -1002,6 +1045,25 @@ class _ActionPanel extends StatelessWidget {
           const SizedBox(height: Spacing.sm),
           Text('${ride.originLabel ?? 'Recolha'} → ${ride.destLabel ?? 'Destino'}',
               style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+          // [Fix 2026-08-20] Reserva ainda por confirmar: dizer a hora marcada
+          // e quanto falta. Sem isto o motorista via só "Motorista atribuído"
+          // e não sabia que a corrida é para daqui a bocado.
+          if (ride.status == 'motorista_atribuido' &&
+              ride.isReservation &&
+              ride.scheduledAt != null) ...[
+            const SizedBox(height: Spacing.xs),
+            Row(
+              children: [
+                const Icon(Icons.schedule, size: 15, color: AppColors.primary),
+                const SizedBox(width: 6),
+                Text(avisoDaReserva(ride.scheduledAt!),
+                    style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primary)),
+              ],
+            ),
+          ],
           // PART2 — método de pagamento + quanto COBRAR ao passageiro (paridade
           // com o estafeta do delivery). Hoje as corridas são todas em dinheiro.
           const SizedBox(height: Spacing.sm),

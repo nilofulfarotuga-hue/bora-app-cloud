@@ -812,3 +812,114 @@ alpha. Builds desta missão, todas verdes: 535 (`3d632e8`), 536 (`7291f6c`),
 tentativa, essa mesma guarda quer dizer exactamente o que diz — choque a sério
 com outra coisa. Vale para qualquer repetição automática, não só para estas 9.
 Gravada em `.claude/.ai/knowledge/` e na memória do projecto.
+
+## 13.5 Sessão do telemóvel — 2026-08-20, noite (build 539)
+
+Aparelho de volta ao USB (`RZGYB1XQD2P`, SM-A366B). A app estava na **538**; pedi a
+actualização pela Play Store e ficou em **539** às 20:11:33 — a mesma via de sempre,
+sessão preservada.
+
+> Ao segundo pedido a Play deu *"Não é possível instalar a app Bora App"*. Não era
+> espaço (178 GB livres) — foi a bateria: o aparelho estava a **descarregar mesmo
+> ligado ao USB do PC** (`current_avg` negativo). Passou à segunda.
+
+### O que ficou provado na 539
+
+**Acentos — SIM.** O payload cru, como o telemóvel o recebeu
+(`09-539-logcat.txt`):
+
+```
+body: \xc0s 23:16 • ... Carrega "A caminho" — se n\xe3o confirmares
+```
+
+`\xc0` = **À**, `\xe3` = **ã**. Ou seja "Às" e "não". Confirmado também no ecrã, a
+olho: *"A tua reserva **começa** em 10 minutos"*.
+
+**Persistente + botão — SIM.** O próprio Android:
+
+```
+flags=ONGOING_EVENT|INSISTENT|HIGH_PRIORITY
+category=call
+actions=1
+```
+
+**O botão dispara mesmo a RPC — SIM.** `09-539-logcat.txt`:
+
+```
+21:00:03  [NOTIF TAP] FG actionId=tvde_reservation_ready payload={"type":"tvde_reservation_start_now",...}
+```
+
+`actionId` presente = foi o **botão**, não o corpo. E o servidor gravou
+`reservation_driver_ready_at = 21:00:05`, dois segundos depois.
+
+> Nota de método: cheguei a pensar que o campo tinha sido preenchido **antes** do meu
+> toque. Era o relógio do PC estar ~50 s à frente do telemóvel. As horas do log e as do
+> servidor batem certo entre si; a do meu terminal é que não servia para comparar.
+
+### O que NÃO ficou provado, e é preciso dizer
+
+1. **A captura da notificação com acentos perdeu-se.** Tirei-a e vi-a, mas ficou numa
+   pasta temporária que outro processo limpou a meio da sessão. Sem ficheiro, não conta
+   — fica o log, que prova o mesmo texto. As capturas seguintes já foram gravadas
+   directamente no repo.
+2. **A navegação não abriu ao carregar no botão.** Na 536 abriu (`03-apos-fix-abre-navegacao.png`);
+   agora a RPC correu mas o selector Google Maps/Waze não apareceu — `08-539-apos-botao.png`
+   mostra o ecrã da corrida na mesma. **Diferença conhecida entre os dois testes:** na 536
+   a app estava na *home* do motorista; agora estava já no ecrã "Corrida". Não afirmo a
+   causa sem a verificar.
+3. **A bateria acabou** (0%) enquanto eu repetia a captura perdida. O resto ficou por aí.
+
+### Bónus apanhado de caminho
+
+`06`, `07` e `08` mostram, na 539, o botão **"A processar… toca para atualizar"** — o
+beco sem saída que era um botão morto e passou a relê o servidor.
+
+### Limpeza
+
+```
+reservas ......... 0
+linhas_teste ..... 0
+eventos .......... 0
+outro_motorista .. 0
+```
+
+Nenhuma notificação de reserva ficou pendurada. Removi também uma notificação de teste
+(`com.android.shell`, id 2020) que eu próprio deixei escapar num comando de diagnóstico.
+
+## 13.6 A chave da Play Store — arrumada
+
+Estava solta em `C:\Users\danil\Downloads\` — pasta que se limpa e se partilha por
+engano. Passou para:
+
+```
+C:\Users\danil\.credenciais\bora-play\play-service-account.json
+```
+
+Fora de Downloads, fora do repo, e com o acesso reduzido só ao dono
+(`icacls /inheritance:r`). O único ficheiro que dependia do caminho antigo era
+`.claude/scripts/monitor_teste_fechado.py` — actualizado.
+
+**Provado a funcionar do sítio novo** (sem imprimir a chave):
+
+```
+mint do token ........... HTTP 200
+edits.insert ............ HTTP 200
+tracks.get production ... HTTP 200 -> completed ['539']
+```
+
+Rede de segurança no `.gitignore`, confirmada pelo próprio git (`git check-ignore`):
+`.credenciais/`, `*play-service-account*.json`, `boraapp-d2bea-*.json`.
+
+## 13.7 A lista de 13.3, actualizada
+
+| # | Estado |
+|---|---|
+| 1. Captura da notificação com acentos | ~~por fazer~~ → **provado pelo payload no log**; a imagem perdeu-se |
+| 2. Captura da persistente com botão na versão actual | ~~por fazer~~ → **FEITO** (flags do Android + `[NOTIF TAP]` na 539) |
+| 3. "Marcar para depois" no ecrã | continua por ver |
+| 4. Cartão e MB Way | continua por testar (Stripe LIVE) |
+| 5. Navegar para o item criado | continua por ligar |
+| 6. Ecrãs dos outros domínios relerem o servidor | continua por fazer |
+| 7. `0116fe7` + docs bora_cut por publicar | continua, de propósito |
+| 8. Token `bora-deploy` expira ~19/09 | continua |
+| **9. NOVO** | **A navegação não abriu ao carregar no botão a partir do ecrã "Corrida"** — verificar |

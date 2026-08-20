@@ -129,6 +129,8 @@ String mensagemDeFalhaDeAcao(
   Object erro, {
   required TrabalhoEmCurso trabalho,
 }) {
+  if (erro is JaFicouCriado) return erro.mensagem;
+
   if (erro is TimeoutException) {
     return 'O servidor demorou demasiado a responder. Fui verificar como está '
         '${trabalho.comMinuscula} — se continuar igual, tenta outra vez.';
@@ -166,6 +168,7 @@ String mensagemDeFalhaDeAcao(
 /// Rede e timeout NÃO fecham o ecrã de propósito: aí não sabemos o que se
 /// passou, e a acção até pode ter-se aplicado.
 bool falhaFechaOEcra(Object erro) {
+  if (erro is JaFicouCriado) return false; // é sucesso, não falha
   if (erro is TimeoutException) return false;
   final txt = erro.toString();
   return _tem(txt, _naoExiste) ||
@@ -179,3 +182,101 @@ bool falhaFechaOEcra(Object erro) {
 /// deixa o `finally` por correr e o botão fica a girar para sempre — foi
 /// exactamente o defeito de 2026-08-20 no ecrã de corrida do motorista.
 const Duration kAcaoTimeout = Duration(seconds: 12);
+
+// ───────────────────────────────────────────────────────────────────────────
+// AÇÕES QUE CRIAM ALGO
+// ───────────────────────────────────────────────────────────────────────────
+
+/// Marcas de guarda que, **numa repetição a seguir a um tecto de tempo**,
+/// PROVAM que a primeira chamada já se aplicou.
+///
+/// Isto não é adivinhação: cada uma foi lida na função em produção a
+/// 2026-08-20.
+///
+/// | RPC | guarda |
+/// |---|---|
+/// | `tvde_schedule_ride` | `reservation_overlap` (±30 min), `too_many_reservations` |
+/// | `tvde_request_ride` | `ride_in_progress` |
+/// | `tvde_request_return_ride` | `SELECT … FOR UPDATE` + `credit_not_active` |
+/// | `client_book_appointment` | `slot_taken` |
+/// | `create_cleaning_booking` | `cleaner_not_available` |
+/// | `client_confirm_appointment_payment` | `invalid_status` (idempotente) |
+///
+/// `tvde_request_plan` e `tvde_create_roundtrip_credit_cash` não precisam de
+/// marca nenhuma: são **idempotentes por desenho** — procuram o que já existe
+/// e devolvem-no (a segunda tem no próprio código *"Idempotencia INTACTA: vale
+/// ja criado devolve-se tal e qual"*). A repetição devolve sucesso normal.
+const _provamQueJaFoiCriado = <String>[
+  'reservation_overlap',
+  'too_many_reservations',
+  'ride_in_progress',
+  'credit_not_active',
+  'slot_taken',
+  'cleaner_not_available',
+  'invalid_status',
+];
+
+/// `true` quando o erro é uma guarda que só podia ter disparado porque a
+/// primeira tentativa se aplicou.
+///
+/// Só faz sentido consultar isto **na repetição**. À primeira, um
+/// `reservation_overlap` é o que diz: choque com outra reserva.
+bool provaQueJaFoiCriado(Object erro) =>
+    _tem(erro.toString(), _provamQueJaFoiCriado);
+
+/// Não é uma falha — é o contrário. A acção **aplicou-se**, só a resposta é
+/// que se perdeu pelo caminho.
+class JaFicouCriado implements Exception {
+  const JaFicouCriado(this.trabalho);
+
+  final TrabalhoEmCurso trabalho;
+
+  String get mensagem => switch (trabalho) {
+        TrabalhoEmCurso.reserva =>
+          'A reserva já ficou marcada — não marcaste duas. Confirma em '
+              '"As minhas reservas".',
+        TrabalhoEmCurso.corrida =>
+          'A corrida já ficou pedida — não pediste duas. Volta atrás para a '
+              'veres.',
+        TrabalhoEmCurso.limpeza =>
+          'A limpeza já ficou marcada — não marcaste duas. Confirma nas tuas '
+              'limpezas.',
+        TrabalhoEmCurso.marcacao =>
+          'A marcação já ficou feita — não marcaste duas. Confirma nas tuas '
+              'marcações.',
+        TrabalhoEmCurso.pedido =>
+          'O pedido já ficou feito — não fizeste dois. Confirma nos teus '
+              'pedidos.',
+      };
+
+  @override
+  String toString() => mensagem;
+}
+
+/// Corre uma acção que **cria** algo, com tecto de tempo seguro.
+///
+/// O tecto sozinho seria perigoso aqui: se a chamada demora mas **passa** no
+/// servidor, dizer "não ficou marcada" leva a pessoa a repetir — e a duplicar.
+/// Por isso, ao expirar, isto **não assume falha**: repete uma vez. Se a
+/// repetição bater na guarda do servidor, essa guarda é a prova de que a
+/// primeira se aplicou → [JaFicouCriado], que os ecrãs tratam como SUCESSO.
+///
+/// Se a repetição correr bem (RPC idempotente), devolve o resultado normal.
+Future<T> criarComTectoSeguro<T>(
+  Future<T> Function() chamar, {
+  required TrabalhoEmCurso trabalho,
+  Duration tecto = kAcaoTimeout,
+}) async {
+  try {
+    return await chamar().timeout(tecto);
+  } on TimeoutException {
+    try {
+      return await chamar().timeout(tecto);
+    } catch (e) {
+      if (provaQueJaFoiCriado(e)) {
+        throw JaFicouCriado(trabalho);
+      }
+      rethrow;
+    }
+  }
+}

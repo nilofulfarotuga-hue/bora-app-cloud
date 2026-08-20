@@ -196,4 +196,173 @@ void main() {
       expect(kAcaoTimeout.inSeconds, lessThanOrEqualTo(15));
     });
   });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // [Repor o tecto nas RPCs que criam — 2026-08-20]
+  // O medo do duplicado foi verificado no servidor, guarda a guarda. O que
+  // torna o tecto seguro é o padrão: ao expirar NÃO se assume falha —
+  // repete-se; se a repetição bater na guarda, isso PROVA que a primeira se
+  // aplicou, logo é SUCESSO.
+  // ─────────────────────────────────────────────────────────────────────────
+
+  group('guardas que provam que já foi criado', () {
+    test('as 6 marcas reais do servidor contam como prova', () {
+      for (final marca in const [
+        'reservation_overlap', // tvde_schedule_ride
+        'too_many_reservations', // tvde_schedule_ride
+        'ride_in_progress', // tvde_request_ride
+        'credit_not_active', // tvde_request_return_ride
+        'slot_taken', // client_book_appointment
+        'cleaner_not_available', // create_cleaning_booking
+        'invalid_status', // client_confirm_appointment_payment
+      ]) {
+        expect(provaQueJaFoiCriado(doServidor(marca)), isTrue, reason: marca);
+      }
+    });
+
+    test('um erro qualquer NÃO conta como prova', () {
+      for (final marca in const [
+        'not_authenticated',
+        'card_payments_not_enabled',
+        'too_soon',
+        'invalid_plan',
+      ]) {
+        expect(provaQueJaFoiCriado(doServidor(marca)), isFalse, reason: marca);
+      }
+      expect(provaQueJaFoiCriado(TimeoutException('x', kAcaoTimeout)), isFalse);
+    });
+  });
+
+  group('JaFicouCriado é sucesso, não falha', () {
+    test('a frase diz onde ir confirmar, em cada domínio', () {
+      expect(const JaFicouCriado(TrabalhoEmCurso.reserva).mensagem,
+          contains('As minhas reservas'));
+      expect(const JaFicouCriado(TrabalhoEmCurso.reserva).mensagem,
+          contains('já ficou marcada'));
+      expect(const JaFicouCriado(TrabalhoEmCurso.corrida).mensagem,
+          contains('já ficou pedida'));
+      expect(const JaFicouCriado(TrabalhoEmCurso.limpeza).mensagem,
+          contains('já ficou marcada'));
+      expect(const JaFicouCriado(TrabalhoEmCurso.marcacao).mensagem,
+          contains('já ficou feita'));
+      expect(const JaFicouCriado(TrabalhoEmCurso.pedido).mensagem,
+          contains('já ficou feito'));
+    });
+
+    test('nenhuma frase sugere que falhou nem manda repetir', () {
+      for (final t in TrabalhoEmCurso.values) {
+        final msg = JaFicouCriado(t).mensagem;
+        for (final proibido in const [
+          'não consegui',
+          'falhou',
+          'tenta outra vez',
+          'não ficou',
+        ]) {
+          expect(msg.toLowerCase(), isNot(contains(proibido)),
+              reason: '[$t] "$msg" contém "$proibido"');
+        }
+      }
+    });
+
+    test('o tradutor devolve a frase e o ecrã NÃO fecha', () {
+      const e = JaFicouCriado(TrabalhoEmCurso.reserva);
+      expect(mensagemDeFalhaDeAcao(e, trabalho: TrabalhoEmCurso.reserva),
+          e.mensagem);
+      expect(falhaFechaOEcra(e), isFalse);
+    });
+  });
+
+  group('criarComTectoSeguro', () {
+    const tectoCurto = Duration(milliseconds: 50);
+    const demora = Duration(milliseconds: 300);
+
+    test('responde a tempo → devolve o resultado, sem repetir', () async {
+      var chamadas = 0;
+      final r = await criarComTectoSeguro(
+        () async {
+          chamadas++;
+          return 'reserva-1';
+        },
+        trabalho: TrabalhoEmCurso.reserva,
+        tecto: tectoCurto,
+      );
+      expect(r, 'reserva-1');
+      expect(chamadas, 1, reason: 'não pode repetir quando corre bem');
+    });
+
+    test('demorou, mas a RPC é idempotente → devolve o que já existe',
+        () async {
+      // É o caso do tvde_request_plan e do tvde_create_roundtrip_credit_cash:
+      // a 2ª chamada devolve a linha que a 1ª criou.
+      var chamadas = 0;
+      final r = await criarComTectoSeguro(
+        () async {
+          chamadas++;
+          if (chamadas == 1) await Future<void>.delayed(demora);
+          return 'plano-pendente';
+        },
+        trabalho: TrabalhoEmCurso.corrida,
+        tecto: tectoCurto,
+      );
+      expect(r, 'plano-pendente');
+      expect(chamadas, 2, reason: 'tinha de repetir uma vez');
+    });
+
+    test('demorou e a repetição bate na guarda → JaFicouCriado (sucesso)',
+        () async {
+      var chamadas = 0;
+      Future<String> chamar() async {
+        chamadas++;
+        if (chamadas == 1) {
+          await Future<void>.delayed(demora);
+          return 'nunca chega ao ecrã';
+        }
+        throw doServidor('reservation_overlap');
+      }
+
+      expect(
+        () => criarComTectoSeguro(chamar,
+            trabalho: TrabalhoEmCurso.reserva, tecto: tectoCurto),
+        throwsA(isA<JaFicouCriado>().having(
+            (e) => e.mensagem, 'mensagem', contains('As minhas reservas'))),
+      );
+    });
+
+    test('demorou e a repetição dá OUTRO erro → esse erro sobe tal e qual',
+        () async {
+      var chamadas = 0;
+      Future<String> chamar() async {
+        chamadas++;
+        if (chamadas == 1) {
+          await Future<void>.delayed(demora);
+          return 'x';
+        }
+        throw doServidor('too_soon');
+      }
+
+      await expectLater(
+        criarComTectoSeguro(chamar,
+            trabalho: TrabalhoEmCurso.reserva, tecto: tectoCurto),
+        throwsA(predicate((e) => e.toString().contains('too_soon'))),
+      );
+    });
+
+    test('erro à primeira NÃO é repetido — só o tecto manda repetir', () async {
+      var chamadas = 0;
+      await expectLater(
+        criarComTectoSeguro(
+          () async {
+            chamadas++;
+            throw doServidor('reservation_overlap');
+          },
+          trabalho: TrabalhoEmCurso.reserva,
+          tecto: tectoCurto,
+        ),
+        throwsA(predicate((e) => e.toString().contains('reservation_overlap'))),
+      );
+      expect(chamadas, 1,
+          reason: 'à primeira, reservation_overlap é o que diz: choque a sério');
+    });
+  });
+
 }

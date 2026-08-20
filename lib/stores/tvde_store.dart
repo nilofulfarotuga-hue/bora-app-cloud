@@ -86,6 +86,11 @@ Map<String, dynamic> buildTvdeReservationChargeBody({
 /// viram frase para o cliente, e da para fixar em teste. Codigo desconhecido
 /// devolve uma frase neutra — nunca o codigo cru no ecra.
 String traduzErroReserva(Object erro) {
+  // [Fix botão preso 2026-08-20] Não é falha: a marcação aplicou-se e só a
+  // resposta se perdeu. Delegar aqui faz com que TODOS os ecrãs que já usavam
+  // este tradutor mostrem a frase certa, sem os tocar um a um.
+  if (erro is JaFicouCriado) return erro.mensagem;
+
   final txt = erro.toString();
   bool tem(String code) => txt.contains(code);
 
@@ -324,7 +329,7 @@ class TvdeStore extends ChangeNotifier {
   }) async {
     _setBusy(true);
     try {
-      final res = await _sb.rpc('tvde_request_ride', params: {
+      final res = await criarComTectoSeguro(() => _sb.rpc('tvde_request_ride', params: {
         'p_origin_lat': originLat,
         'p_origin_lng': originLng,
         'p_origin_label': originLabel,
@@ -334,7 +339,7 @@ class TvdeStore extends ChangeNotifier {
         'p_est_distance_km': distanceKm,
         'p_payment_method': paymentMethod,
         'p_tokens_to_apply': tokensUsed,
-      });
+      }), trabalho: TrabalhoEmCurso.corrida);
       final ride = TvdeRide.fromMap(_asMap(res));
       _activeRide = ride;
       _subscribeRide(ride.id);
@@ -492,7 +497,7 @@ class TvdeStore extends ChangeNotifier {
   }) async {
     _setBusy(true);
     try {
-      final res = await _sb.rpc('tvde_schedule_ride', params: {
+      final res = await criarComTectoSeguro(() => _sb.rpc('tvde_schedule_ride', params: {
         'p_origin_lat': originLat,
         'p_origin_lng': originLng,
         'p_origin_label': originLabel,
@@ -503,7 +508,7 @@ class TvdeStore extends ChangeNotifier {
         'p_scheduled_at': scheduledAt.toUtc().toIso8601String(),
         'p_payment_method': 'cash',
         'p_note': note,
-      });
+      }), trabalho: TrabalhoEmCurso.reserva);
       final row = (res is List && res.isNotEmpty) ? res.first : res;
       if (row is! Map) return null;
       final ride = TvdeRide.fromMap(Map<String, dynamic>.from(row));
@@ -1061,8 +1066,8 @@ class TvdeStore extends ChangeNotifier {
   Future<void> requestPlan(String plan, String planLabel) async {
     _setBusy(true);
     try {
-      await _sb.rpc('tvde_request_plan',
-          params: {'p_plan': plan, 'p_plan_label': planLabel});
+      await criarComTectoSeguro(() => _sb.rpc('tvde_request_plan',
+          params: {'p_plan': plan, 'p_plan_label': planLabel}), trabalho: TrabalhoEmCurso.corrida);
       _planRequestStatus = 'pendente';
     } catch (e) {
       debugPrint('TvdeStore.requestPlan error => $e');
@@ -1240,10 +1245,10 @@ class TvdeStore extends ChangeNotifier {
       String outboundRideId,
       {int tokensUsed = 0}) async {
     try {
-      final res = await _sb.rpc('tvde_create_roundtrip_credit_cash', params: {
+      final res = await criarComTectoSeguro(() => _sb.rpc('tvde_create_roundtrip_credit_cash', params: {
         'p_outbound_ride_id': outboundRideId,
         'p_tokens_to_apply': tokensUsed,
-      });
+      }), trabalho: TrabalhoEmCurso.corrida);
       // Mesma defesa do `activeRoundtripCredit`: um composto vazio
       // ({id:null,…}) não é vale (ver licao-rpc-composite-null-row).
       if (res is List && res.isNotEmpty) {
@@ -1388,7 +1393,7 @@ class TvdeStore extends ChangeNotifier {
   }) async {
     _setBusy(true);
     try {
-      final res = await _sb.rpc('tvde_request_return_ride', params: {
+      final res = await criarComTectoSeguro(() => _sb.rpc('tvde_request_return_ride', params: {
         'p_credit_id': creditId,
         'p_origin_lat': originLat,
         'p_origin_lng': originLng,
@@ -1397,7 +1402,7 @@ class TvdeStore extends ChangeNotifier {
         'p_dest_lng': destLng,
         'p_dest_label': destLabel,
         'p_est_distance_km': distanceKm,
-      });
+      }), trabalho: TrabalhoEmCurso.corrida);
       final ride = TvdeRide.fromMap(_asMap(res));
       _activeRide = ride;
       _subscribeRide(ride.id);

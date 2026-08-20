@@ -727,3 +727,88 @@ envolvendo_outro_motorista ... 0
 | Rollback | `git show 3d632e8:supabase/functions/notify-tvde-driver/index.ts` → sha256 `1f1c01e3…346a` |
 | Repo vs produção | espelho exacto (o `index.ts` já tinha sido publicado em `7291f6c`) |
 | Token | `bora-deploy`, 30 dias, em `.supabase-token.env`, fora do git |
+
+---
+
+# 13. FECHO DA MISSÃO — 2026-08-20
+
+## 13.1 O que ficou no ar
+
+**Base de dados** (confirmado por consulta, 2026-08-20 18:30):
+
+| | |
+|---|---|
+| RPCs `tvde_reservation*` | 9 |
+| RPCs `admin_tvde_reservation*` | 5 |
+| Colunas `reservation_*` em `tvde_rides` | 12 |
+| Definições `tvde_reservation_*` | 15 |
+| Cron `tvde_reservations_sweep` (jobid 65, `* * * * *`) | **activo** |
+| Reservas na tabela | **0** (nenhum lixo de teste) |
+
+**Edge Functions:**
+
+| Função | Versão | Estado | `verify_jwt` |
+|---|---|---|---|
+| `notify-tvde-driver` | **v10** | ACTIVE | true |
+| `notify-tvde-client` | v4 | ACTIVE | true |
+| `tvde-payment` | v10 | ACTIVE | true |
+
+A v10 da `notify-tvde-driver` é a desta missão (acentos PT-PT). sha256 no ar:
+`5e677ab4ab5d1c1095e96a74c1c7473f010f12270aedc7ddddb48630194d9b00`.
+Rollback: `git show 3d632e8:supabase/functions/notify-tvde-driver/index.ts`
+(sha256 `1f1c01e3…346a`).
+
+**Ecrãs:**
+
+- Cliente — "Marcar para depois" (`tvde_schedule_ride_sheet.dart`), "As minhas
+  reservas" (`tvde_my_reservations_screen.dart`).
+- Motorista — "A minha agenda" (`tvde_driver_agenda_screen.dart`), cartão de
+  oferta antecipada (`tvde_reservation_offer_card.dart`), notificação
+  persistente dos 10 min com "A caminho".
+- Admin (PT-BR) — `/admin/tvde/reservas` (`admin_tvde_reservas_screen.dart`):
+  listar, criar, cancelar, trocar motorista, forçar nova chamada.
+
+**Android/Web:** versionCode **539**, `status: completed` em produção **e**
+alpha. Builds desta missão, todas verdes: 535 (`3d632e8`), 536 (`7291f6c`),
+537 (`dd27b24`), 538 (`6a1cf1c`), 539 (`aac2b22`).
+
+## 13.2 Correcções que entraram no caminho
+
+1. **"A caminho" não abria a navegação** — falhava a 100%: a reserva activada
+   sai da agenda e o ecrã só lá procurava. Apanhado em teste real, não em
+   revisão.
+2. **PT-PT sem acentos** no push do motorista ("comeca", "As", "nao").
+3. **Botão preso a girar** — `busy` sem tecto de tempo, em 6 stores.
+4. **Botão morto** no ramo "A processar…" do ecrã de corrida.
+5. **Estafeta do delivery** — `setState`/`await`/`setState` sem `try/finally`, e
+   "Erro: desconhecido" como mensagem.
+6. **Tecto seguro nas 9 RPCs que criam** — repetição + guarda do servidor como
+   prova, para nunca duplicar uma reserva.
+
+## 13.3 O que ficou POR FAZER
+
+1. Captura no telemóvel da notificação de reserva **já com acentos** — o
+   aparelho foi desligado a meio da sessão.
+2. Captura da persistente dos 10 min com o botão **na versão actual** (a que
+   existe é da 535, antes das correcções).
+3. "Marcar para depois" nunca foi visto no ecrã — só provado no código, no
+   servidor e no bundle web publicado.
+4. Cartão e MB Way não testados ponta-a-ponta — Stripe está LIVE, os testes
+   foram só em dinheiro.
+5. Nos fluxos de criação, o ecrã mostra "já ficou marcada, confirma em X" mas
+   **não navega** para o item criado — falta ligar o passo final.
+6. `tvde_store`, `cleaning_store`, `cleaner_store`, `services_store` e
+   `reservation_store` ganharam tecto de tempo, mas os seus ecrãs ainda não
+   relêem o servidor em caso de falha como o do motorista faz.
+7. Continuam por publicar, de propósito: `0116fe7` (robot-b, de outro executor)
+   e `557d35a` + `6616c61` (docs do bora_cut).
+8. O token `bora-deploy` expira por volta de **2026-09-19**.
+
+## 13.4 Lição registada
+
+**"Erro à primeira não é prova."** Uma guarda do servidor (`reservation_overlap`,
+`ride_in_progress`, `slot_taken`…) só prova que a nossa chamada se aplicou
+**quando aparece numa repetição a seguir a um tecto de tempo**. À primeira
+tentativa, essa mesma guarda quer dizer exactamente o que diz — choque a sério
+com outra coisa. Vale para qualquer repetição automática, não só para estas 9.
+Gravada em `.claude/.ai/knowledge/` e na memória do projecto.

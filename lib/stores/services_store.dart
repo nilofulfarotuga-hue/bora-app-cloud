@@ -327,12 +327,12 @@ class ServicesStore extends ChangeNotifier {
     String? notes,
   }) async {
     try {
-      final booking = await _supabase.rpc('client_book_appointment', params: {
+      final booking = await criarComTectoSeguro(() => _supabase.rpc('client_book_appointment', params: {
         'p_service_id': serviceId,
         'p_staff_id': staffId,
         'p_scheduled_at': scheduledAt.toUtc().toIso8601String(),
         'p_client_notes': notes,
-      });
+      }), trabalho: TrabalhoEmCurso.marcacao);
       final bookingMap = Map<String, dynamic>.from(booking as Map);
       final appointmentId = bookingMap['appointment_id'] as String?;
       if (appointmentId == null) {
@@ -394,12 +394,12 @@ class ServicesStore extends ChangeNotifier {
     }
     try {
       // 1) Criar marcação pending_payment.
-      final booking = await _supabase.rpc('client_book_appointment', params: {
+      final booking = await criarComTectoSeguro(() => _supabase.rpc('client_book_appointment', params: {
         'p_service_id': serviceId,
         'p_staff_id': staffId,
         'p_scheduled_at': scheduledAt.toUtc().toIso8601String(),
         'p_client_notes': notes,
-      });
+      }), trabalho: TrabalhoEmCurso.marcacao);
       final bookingMap = Map<String, dynamic>.from(booking as Map);
       final appointmentId = bookingMap['appointment_id'] as String?;
       if (appointmentId == null) {
@@ -465,8 +465,8 @@ class ServicesStore extends ChangeNotifier {
 
       // 4) Confirmar pagamento (RPC fallback — webhook pode já ter confirmado).
       try {
-        await _supabase.rpc('client_confirm_appointment_payment',
-            params: {'p_appointment_id': appointmentId});
+        await criarComTectoSeguro(() => _supabase.rpc('client_confirm_appointment_payment',
+            params: {'p_appointment_id': appointmentId}), trabalho: TrabalhoEmCurso.marcacao);
       } catch (_) {
         // Webhook já confirmou — não é erro para o utilizador.
       }

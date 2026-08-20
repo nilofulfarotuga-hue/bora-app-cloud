@@ -138,7 +138,7 @@ class CleaningStore extends ChangeNotifier {
   }) async {
     _setBusy(true);
     try {
-      final res = await _sb.rpc('create_cleaning_booking', params: {
+      final res = await criarComTectoSeguro(() => _sb.rpc('create_cleaning_booking', params: {
         'p_cleaning_type': cleaningType,
         'p_pricing_mode': pricingMode,
         'p_home_size': homeSize,
@@ -154,7 +154,7 @@ class CleaningStore extends ChangeNotifier {
         'p_lng': lng,
         'p_notes': notes,
         'p_requested_cleaner_id': requestedCleanerId,
-      });
+      }), trabalho: TrabalhoEmCurso.limpeza);
       final booking = CleaningBooking.fromSupabase(_asMap(res));
       _tracked = booking;
       _subscribeBooking(booking.id);

@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/falha_de_acao.dart';
+import '../services/notification_service.dart';
 import '../models/tvde_ride.dart';
 
 /// TVDE — Bora Motorista. Store reativo do MOTORISTA (modo passageiros).
@@ -180,7 +182,7 @@ class TvdeDriverStore extends ChangeNotifier {
             .limit(1);
         _offeredRide = offer.isEmpty ? null : TvdeRide.fromMap(offer.first);
       } else {
-        _offeredRide = null;
+        _limparOferta();
       }
       notifyListeners();
     } catch (e) {
@@ -234,7 +236,7 @@ class TvdeDriverStore extends ChangeNotifier {
       // Back-to-back: corrida em fila nunca substitui a ativa.
       if (ride.isQueued && ride.status == 'motorista_atribuido') {
         _queuedRide = ride;
-        _offeredRide = null;
+        _limparOferta();
         notifyListeners();
         return;
       }
@@ -242,7 +244,7 @@ class TvdeDriverStore extends ChangeNotifier {
         // Ativação da fila (a_caminho vinda da fila) ou update da ativa.
         if (_queuedRide?.id == ride.id) _queuedRide = null;
         _activeRide = ride;
-        _offeredRide = null;
+        _limparOferta();
       } else if (ride.isTerminal) {
         if (_queuedRide?.id == ride.id) {
           // A corrida em fila caiu (passageiro cancelou) — limpa o indicador.
@@ -264,7 +266,7 @@ class TvdeDriverStore extends ChangeNotifier {
     } else if (_offeredRide?.id == ride.id) {
       // A oferta saiu de mim (expirou/recusada → passou ao próximo) ou mudou
       // de estado. Limpa para fechar o ecrã de oferta.
-      _offeredRide = null;
+      _limparOferta();
       notifyListeners();
     }
   }
@@ -278,7 +280,7 @@ class TvdeDriverStore extends ChangeNotifier {
     if (deletedId == null) return;
     var changed = false;
     if (_offeredRide?.id == deletedId) {
-      _offeredRide = null;
+      _limparOferta();
       changed = true;
     }
     if (_queuedRide?.id == deletedId) {
@@ -299,6 +301,21 @@ class TvdeDriverStore extends ChangeNotifier {
   /// Aceita a oferta (atómico). Devolve a corrida ('motorista_a_caminho' —
   /// ou 'motorista_atribuido' EM FILA se o motorista está em viagem).
   /// Lança em caso de corrida já reivindicada/expirada — a UI traduz.
+  /// [Fix persistente que nao para — 2026-08-21] Limpar a oferta e SEMPRE
+  /// matar tambem a notificacao persistente.
+  ///
+  /// Estavam separados: o `_offeredRide = null` acontecia em 10 sitios e a
+  /// notificacao (ongoing + som em loop) nao morria em nenhum. O Danilo
+  /// RECUSOU uma oferta as 06:41 e o telemovel continuou a tocar. No delivery
+  /// isto ja existia (cancelDriverOfferNotification); no TVDE nao.
+  void _limparOferta() {
+    final id = _offeredRide?.id;
+    _offeredRide = null;
+    if (id != null && id.isNotEmpty) {
+      unawaited(cancelTvdeRideNotification(id));
+    }
+  }
+
   Future<TvdeRide> acceptOffer(String rideId) async {
     _setBusy(true);
     try {
@@ -312,7 +329,7 @@ class TvdeDriverStore extends ChangeNotifier {
       } else {
         _activeRide = ride;
       }
-      _offeredRide = null;
+      _limparOferta();
       notifyListeners();
       return ride;
     } finally {
@@ -487,7 +504,7 @@ class TvdeDriverStore extends ChangeNotifier {
       await _sb
           .rpc('tvde_reject_ride', params: {'p_ride_id': rideId})
           .timeout(kAcaoTimeout);
-      _offeredRide = null;
+      _limparOferta();
       notifyListeners();
     } finally {
       _setBusy(false);
@@ -523,7 +540,7 @@ class TvdeDriverStore extends ChangeNotifier {
       final finished = TvdeRide.fromMap(_asMap(res));
       if (_queuedRide != null) {
         _activeRide = null;
-        _offeredRide = null;
+        _limparOferta();
         await loadCurrent(); // apanha a corrida ativada ('motorista_a_caminho')
       } else {
         _activeRide = finished;
@@ -539,6 +556,10 @@ class TvdeDriverStore extends ChangeNotifier {
   Future<TvdeRide> cancelRide(String rideId,
       {bool noShow = false, String? reason}) async {
     _setBusy(true);
+    // [Fix 2026-08-21] A corrida cancelada pode ser a ACTIVA e nao a oferta —
+    // por isso mata-se a notificacao por id, alem do `_limparOferta()` que
+    // corre mais abaixo. Idempotente.
+    unawaited(cancelTvdeRideNotification(rideId));
     try {
       final res = await _sb.rpc('tvde_cancel_ride', params: {
         'p_ride_id': rideId,
@@ -549,11 +570,11 @@ class TvdeDriverStore extends ChangeNotifier {
       if (_queuedRide != null && _activeRide?.id == rideId) {
         // back-to-back: a ativa caiu → o backend ativou a corrida em fila.
         _activeRide = null;
-        _offeredRide = null;
+        _limparOferta();
         await loadCurrent();
       } else {
         _activeRide = ride;
-        _offeredRide = null;
+        _limparOferta();
       }
       notifyListeners();
       return ride;
@@ -592,7 +613,7 @@ class TvdeDriverStore extends ChangeNotifier {
 
   // ── limpeza de estado ─────────────────────────────────────────────────────
   void clearOffer() {
-    _offeredRide = null;
+    _limparOferta();
     notifyListeners();
   }
 

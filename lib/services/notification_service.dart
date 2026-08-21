@@ -205,6 +205,20 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // a MESMA mecânica do estafeta (mesmo canal urgente v3, fullScreenIntent +
   // category.call para acordar o ecrã por cima de tudo, som em loop). Tocar
   // abre a app, que trata a oferta via realtime (ecrã de oferta).
+  // [Fix 2026-08-21] Corrida cancelada por quem for. O servidor manda
+  // kind='ride_cancelled' (trigger fn_tvde_notify_driver_on_cancel). Aqui:
+  //  1. mata a persistente da oferta — era ela que ficava a tocar;
+  //  2. avisa em PT-PT, SEM botoes (nao ha nada a decidir);
+  //  3. manda o store recarregar, para a corrida sair do ecra.
+  if (data['type'] == 'tvde_ride_cancelled') {
+    final rideId = data['rideId']?.toString() ?? '';
+    await cancelTvdeRideNotification(rideId);
+    await _mostrarAvisoCorridaCancelada(data);
+    NotificationService.tvdeOfferReload?.call();
+    NotificationService.tvdeReservationReload?.call();
+    return;
+  }
+
   if (data['type'] == 'new_tvde_ride_offer') {
     final rideId = data['rideId']?.toString() ?? '';
     final title = data['title']?.toString() ?? '🚗 Nova corrida!';
@@ -738,6 +752,67 @@ Future<void> onBackgroundNotificationAction(NotificationResponse response) async
 ///
 /// Idempotente — chamar duas vezes não dá erro. Usado por OrderStore no
 /// realtime handler (sessão 2026-05-20).
+/// [Fix persistente que nao para — 2026-08-21] O gemeo TVDE do
+/// [cancelDriverOfferNotification].
+///
+/// O Danilo viveu isto as 06:41: RECUSOU a oferta e o telemovel continuou a
+/// tocar. A notificacao do TVDE nasce com `ongoing: true`, `autoCancel: false`
+/// e FLAG_INSISTENT (som em loop) — de proposito, para nao se perder uma
+/// corrida. So que no delivery havia quem a matasse quando a oferta era
+/// tratada, e no TVDE **nao havia ninguem**. Ficava a tocar ate ele a limpar a
+/// mao.
+///
+/// As duas persistentes do TVDE (oferta de corrida e reserva) usam o MESMO id
+/// — `rideId.hashCode` — por isso este cancelador serve as duas.
+///
+/// Idempotente: chamar duas vezes nao da erro.
+/// [Fix 2026-08-21] Aviso de corrida cancelada. Simples de proposito: sem
+/// `ongoing`, sem som em loop e sem botoes — a corrida acabou, nao ha decisao
+/// nenhuma para o motorista tomar.
+Future<void> _mostrarAvisoCorridaCancelada(Map<String, dynamic> data) async {
+  try {
+    final plugin = FlutterLocalNotificationsPlugin();
+    final title = data['title']?.toString() ?? 'Corrida cancelada';
+    final body = data['body']?.toString() ??
+        'A corrida foi cancelada. Nao precisas de ir.';
+    const androidDetails = AndroidNotificationDetails(
+      'bora_orders_urgent_v3',
+      'Bora — Novos pedidos',
+      channelDescription: 'Aviso de corrida cancelada.',
+      importance: Importance.high,
+      priority: Priority.high,
+      playSound: true,
+      ongoing: false,
+      autoCancel: true,
+      category: AndroidNotificationCategory.message,
+    );
+    await plugin.show(
+      ('cancel_${data['rideId'] ?? ''}').hashCode,
+      title,
+      body,
+      const NotificationDetails(android: androidDetails),
+      payload: jsonEncode({'type': 'tvde_ride_cancelled'}),
+    );
+  } catch (e) {
+    debugPrint('[BORA-TVDE] erro no aviso de cancelamento');
+  }
+}
+
+Future<void> cancelTvdeRideNotification(String rideId) async {
+  if (rideId.isEmpty) return;
+  try {
+    await FlutterLocalNotificationsPlugin().cancel(rideId.hashCode);
+    debugPrint('[BORA-TVDE] notif cancelada ride=$rideId');
+  } catch (e) {
+    debugPrint('[BORA-TVDE] erro a cancelar notif: $e');
+  }
+  // Fecha o overlay, se estiver aberto (mesmo cuidado do delivery).
+  try {
+    final active = await fow.FlutterOverlayWindow.isActive();
+    if (active) await fow.FlutterOverlayWindow.closeOverlay();
+  } catch (_) {/* silent */}
+}
+
 Future<void> cancelDriverOfferNotification(String orderId) async {
   if (orderId.isEmpty) return;
   try {
@@ -1506,6 +1581,19 @@ class NotificationService {
       // [TVDE P0 2026-07-02] Oferta de corrida em FOREGROUND: sem isto o push
       // caía no som genérico curto e o motorista fora do ecrã TVDE não via
       // nada. Notificação local heads-up com som contínuo (canal urgente).
+      // [Fix 2026-08-21] Cancelamento com a app aberta: mata a persistente,
+      // avisa e manda reler. Antes disto, recusar ou cancelar deixava o som
+      // em loop preso — foi o que aconteceu ao Danilo as 06:41.
+      if (type == 'tvde_ride_cancelled') {
+        final rideId = msg.data['rideId']?.toString() ?? '';
+        unawaited(cancelTvdeRideNotification(rideId));
+        unawaited(_mostrarAvisoCorridaCancelada(
+            Map<String, dynamic>.from(msg.data)));
+        tvdeOfferReload?.call();
+        tvdeReservationReload?.call();
+        return;
+      }
+
       if (type == 'new_tvde_ride_offer') {
         unawaited(_showTvdeOfferNotification(msg));
         // Força o store a reler a oferta do servidor — não depende só do
@@ -2254,6 +2342,10 @@ class NotificationService {
         onlyAlertOnce: false,
         ticker: title,
         visibility: fln.NotificationVisibility.public,
+        // [Fix 2026-08-21] Rede de seguranca: se a app nao estiver viva para
+        // cancelar, o Android limpa a notif ao fim do TTL da oferta. Sem
+        // isto, uma app morta deixava o som em loop preso no telemovel.
+        timeoutAfter: 45000,
         styleInformation: BigTextStyleInformation(body, contentTitle: title),
       );
       await plugin.show(

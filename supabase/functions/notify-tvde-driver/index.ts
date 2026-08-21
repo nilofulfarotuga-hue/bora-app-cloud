@@ -185,6 +185,61 @@ Deno.serve(async (req) => {
   // auto-mostra o push e o handler do Flutter NAO corre — logo a notificacao
   // PERSISTENTE dos 10 minutos nunca chegava a ser postada. Mesmo padrao da
   // oferta de corrida (que ja e data-only desde o A1 FIX de 2026-07-04).
+  // [Fix 2026-08-21] kind 'ride_cancelled' — o servidor ja o manda (trigger
+  // fn_tvde_notify_driver_on_cancel, que tambem grava o evento
+  // aviso_cancelamento_motorista). Faltava a Edge conhece-lo.
+  //
+  // DATA-ONLY e SEM botoes de proposito: nao ha nada para o motorista decidir,
+  // a corrida ja acabou. O app trata: mata a persistente da oferta, tira a
+  // corrida do ecra e mostra o aviso.
+  if (kind === 'ride_cancelled') {
+    let originLabel = 'Recolha', destLabel = 'Destino'
+    try {
+      const { data: ride } = await supabase
+        .from('tvde_rides')
+        .select('origin_label, dest_label')
+        .eq('id', rideId).maybeSingle()
+      if (ride) {
+        originLabel = ride.origin_label ?? originLabel
+        destLabel   = ride.dest_label ?? destLabel
+      }
+    } catch (_e) { /* mantem fallbacks */ }
+
+    const message = {
+      message: {
+        token: fcmToken,
+        data: {
+          rideId: String(rideId),
+          type:  'tvde_ride_cancelled',
+          kind,
+          originLabel, destLabel,
+          title: 'Corrida cancelada',
+          body:  `A corrida ${originLabel} -> ${destLabel} foi cancelada. Nao precisas de ir.`,
+        },
+        android: { priority: 'high', ttl: '600s' },
+        apns: {
+          headers: { 'apns-priority': '10', 'apns-push-type': 'background' },
+          payload: { aps: { 'content-available': 1, 'interruption-level': 'time-sensitive' } },
+        },
+      },
+    }
+
+    const fcmRes = await fetch(fcmUrl, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(message),
+    })
+    const fcmBody = await fcmRes.json().catch(() => ({}))
+    if (!fcmRes.ok) {
+      console.error(`[notify-tvde-driver] ride_cancelled FCM error ${fcmRes.status}:`, JSON.stringify(fcmBody))
+      await logPushEvent(supabase, rideId, false, { kind, status: fcmRes.status })
+      return json({ ok: false, reason: 'fcm_error' }, 200)
+    }
+    console.log(`[notify-tvde-driver] ride_cancelled push sent to driver ${driverId} ride ${rideId}`)
+    await logPushEvent(supabase, rideId, true, { kind, driver_id: driverId })
+    return json({ ok: true })
+  }
+
   if (kind.startsWith('reservation_')) {
     let originLabel = 'Recolha', destLabel = 'Destino', fareEur = '0.00'
     let scheduledAt: string | null = null, offerExpiresAt: string | null = null

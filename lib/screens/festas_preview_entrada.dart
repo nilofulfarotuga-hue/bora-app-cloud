@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:provider/provider.dart';
 
 import '../stores/session_store.dart';
@@ -19,10 +20,16 @@ class FestasPreviewEntrada extends StatefulWidget {
 
 class _FestasPreviewEntradaState extends State<FestasPreviewEntrada> {
   bool _abriu = false;
+  SemanticsHandle? _semantics;
 
   @override
   void initState() {
     super.initState();
+    // A árvore de semântica ligada desde o arranque: acessibilidade real para
+    // quem usa leitor de ecrã e um DOM legível para as provas automatizadas
+    // (na web o Flutter só a liga quando o placeholder é activado — em
+    // browsers automatizados esse toque não é fiável).
+    _semantics = SemanticsBinding.instance.ensureSemantics();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       // O papel de cliente é o que faz as lojas carregarem. Sem conta: nesta
@@ -37,6 +44,12 @@ class _FestasPreviewEntradaState extends State<FestasPreviewEntrada> {
         MaterialPageRoute(builder: (_) => const FestasScreen()),
       );
     });
+  }
+
+  @override
+  void dispose() {
+    _semantics?.dispose();
+    super.dispose();
   }
 
   @override

@@ -394,7 +394,12 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
       }
     }
 
-    // Código de convite (opcional). Falha não bloqueia signup.
+    // Código (opcional). Falha nunca bloqueia o signup.
+    //
+    // O campo aceita DOIS tipos de código e o utilizador não tem de saber a
+    // diferença: código de amigo (referral) e código promocional (ex.: o
+    // BEMVINDO da publicidade). Tenta-se primeiro o referral; se o código não
+    // existir nessa tabela, tenta-se o promocional antes de desistir.
     final referralCode = _referralCodeController.text.trim().toUpperCase();
     if (referralCode.isNotEmpty) {
       try {
@@ -403,8 +408,10 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
           params: {'p_referral_code': referralCode},
         );
       } catch (e) {
-        debugPrint('[Referral] Erro ao registar código "$referralCode": $e');
-        if (mounted) {
+        debugPrint('[Referral] "$referralCode" não é código de amigo => $e');
+        if (e.toString().contains('invalid_referral_code')) {
+          await _tentarCodigoPromocional(referralCode);
+        } else if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text(
@@ -427,6 +434,60 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (_) => const WelcomeAddressScreen()),
     );
+  }
+
+  /// Segunda tentativa para o código escrito no registo: código promocional.
+  ///
+  /// Usa a MESMA RPC do ecrã "Tenho um código" (Perfil) — não há aqui nenhuma
+  /// lógica de crédito de tokens, só a chamada. Falha nunca bloqueia o signup.
+  Future<void> _tentarCodigoPromocional(String codigo) async {
+    try {
+      final res = await Supabase.instance.client
+          .rpc('client_redeem_promo_tokens', params: {'p_code': codigo});
+      if (!mounted) return;
+
+      final m = res is Map ? res.cast<String, dynamic>() : const <String, dynamic>{};
+      if ((m['valid'] as bool?) ?? false) {
+        final tokens = (m['tokens_granted'] as num?)?.toInt() ?? 0;
+        final euros = (m['euro_value'] as num?)?.toDouble() ?? (tokens * 0.005);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Recebeste $tokens tokens '
+                '(≈€${euros.toStringAsFixed(2)}) — já estão na tua conta.'),
+          ),
+        );
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_motivoEmPortugues(m['reason'] as String?))),
+      );
+    } catch (e) {
+      debugPrint('[Promo] "$codigo" falhou => $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Não foi possível usar o código — conta criada à mesma.'),
+          ),
+        );
+      }
+    }
+  }
+
+  String _motivoEmPortugues(String? motivo) {
+    switch (motivo) {
+      case 'not_found':
+        return 'Código não encontrado — conta criada à mesma.';
+      case 'already_used':
+        return 'Já tinhas usado este código — conta criada à mesma.';
+      case 'expired':
+        return 'Código expirado — conta criada à mesma.';
+      case 'inactive':
+        return 'Código já não está activo — conta criada à mesma.';
+      case 'max_uses_reached':
+        return 'Este código atingiu o limite de utilizações — conta criada à mesma.';
+      default:
+        return 'Não foi possível usar o código — conta criada à mesma.';
+    }
   }
 }
 

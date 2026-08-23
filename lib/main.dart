@@ -48,6 +48,7 @@ import 'screens/driver_login_screen.dart';
 import 'screens/driver_signup_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/partner_entry_screen.dart';
+import 'screens/deep_link_store_screen.dart';
 import 'screens/qr_client_signup_screen.dart';
 import 'screens/reset_password_screen.dart';
 import 'screens/role_screen.dart';
@@ -593,6 +594,24 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           // (`/redefinir-palavra-passe#access_token=…` ou `…?code=…`).
           // O ecrã lê o token de `Uri.base` — aqui só é preciso reconhecê-la.
           final name = settings.name ?? '';
+          // Links vindos de fora (site, QR, WhatsApp) para uma ficha concreta:
+          //   /#/loja/{restaurant_id}      /#/servico/{service_provider_id}
+          // URLs CANÓNICAS — o bora-site aponta para aqui. Não renomear.
+          for (final par in const [
+            (DeepLinkStoreScreen.prefixoLoja, 'loja'),
+            (DeepLinkStoreScreen.prefixoServico, 'servico'),
+          ]) {
+            if (name.startsWith(par.$1)) {
+              final id = Uri.decodeComponent(
+                  name.substring(par.$1.length).split(RegExp(r'[?#]')).first);
+              if (id.isNotEmpty) {
+                return MaterialPageRoute<void>(
+                  builder: (_) => DeepLinkStoreScreen(tipo: par.$2, id: id),
+                  settings: settings,
+                );
+              }
+            }
+          }
           if (name.startsWith(ResetPasswordScreen.routeName)) {
             return MaterialPageRoute<void>(
               builder: (_) => const ResetPasswordScreen(),

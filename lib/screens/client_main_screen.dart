@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/order_model.dart';
+import '../services/destino_pendente.dart';
 import '../stores/order_store.dart';
 import '../widgets/bora/bora.dart';
 import 'client_reservations_screen.dart';
 import 'client_home_screen.dart';
+import 'deep_link_store_screen.dart';
 import 'order_tracking_screen.dart';
 import 'orders_screen.dart';
 import 'profile_screen.dart';
@@ -25,6 +27,27 @@ class ClientMainScreen extends StatefulWidget {
 
 class _ClientMainScreenState extends State<ClientMainScreen> {
   BoraNavTab _currentTab = BoraNavTab.home;
+
+  @override
+  void initState() {
+    super.initState();
+    // Quem chegou de fora a uma ficha (site, QR, WhatsApp) e teve de se
+    // registar para marcar: o registo termina com popUntil(isFirst), portanto
+    // a ficha desapareceu da pilha. Volta-se a ela aqui, mal a home aparece —
+    // senão a pessoa acabava na home genérica, que é o beco que se quer evitar.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _abrirDestinoPendente());
+  }
+
+  Future<void> _abrirDestinoPendente() async {
+    final destino = await DestinoPendente.consumir();
+    if (destino == null || !mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            DeepLinkStoreScreen(tipo: destino.tipo, id: destino.id),
+      ),
+    );
+  }
 
   /// Orders we have already pushed a tracking screen for.
   /// Prevents re-navigation on every rebuild after the user presses back.

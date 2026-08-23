@@ -5,6 +5,8 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
+import '../../../auth/auth_store.dart';
+import '../../../services/destino_pendente.dart';
 import '../../../models/provider_service_model.dart';
 import '../../../models/service_provider_model.dart';
 import '../../../models/staff_member_model.dart';
@@ -13,6 +15,7 @@ import '../../../widgets/bora/bora_accent_button.dart';
 import '../../../widgets/bora/bora_screen_app_bar.dart';
 import '../../../widgets/bora/coming_soon.dart';
 import '../../../widgets/services/staff_avatar.dart';
+import '../../register_client_screen.dart';
 import 'booking_flow_screen.dart';
 import 'gallery_viewer_screen.dart';
 
@@ -40,13 +43,27 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
     _staffFuture = store.fetchStaff(widget.provider.id);
   }
 
-  void _startBooking({ProviderServiceModel? preselected}) {
+  Future<void> _startBooking({ProviderServiceModel? preselected}) async {
     // "Em breve": a ficha e os serviços continuam visíveis, mas não se marca.
     // O servidor rejeita na mesma (STORE_COMING_SOON) — isto é só a UI.
     if (widget.provider.comingSoon) {
       showComingSoonBlockedSnackBar(context);
       return;
     }
+    // Quem chegou de fora (site, QR, link) pode não ter sessão: a ficha é de
+    // leitura pública, mas marcar exige conta. Guarda-se o destino para o
+    // ClientMainScreen trazer a pessoa de volta A ESTA ficha depois do
+    // registo — e não à home genérica.
+    if (context.read<AuthStore>().currentClient == null) {
+      await DestinoPendente.guardar('servico', widget.provider.id);
+      if (!mounted) return;
+      await Navigator.push(
+        context,
+        MaterialPageRoute<void>(builder: (_) => const RegisterClientScreen()),
+      );
+      return;
+    }
+    if (!mounted) return;
     Navigator.push(
       context,
       MaterialPageRoute(

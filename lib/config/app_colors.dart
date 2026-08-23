@@ -118,4 +118,11 @@ class AppColors {
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
+  // Festas — encomenda com antecedência (salgados, doces, bolos).
+  // Laranja da marca, por ordem do Danilo.
+  static const LinearGradient tileFestas = LinearGradient(
+    colors: [Color(0xFFF97316), Color(0xFFFDBA74)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
 }

@@ -63,6 +63,7 @@ class BusinessMapper {
       case BusinessCategory.supermarket:
       case BusinessCategory.store:
       case BusinessCategory.beauty:
+      case BusinessCategory.festas:
         return StoreCategory.market;
     }
   }

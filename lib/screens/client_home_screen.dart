@@ -27,6 +27,7 @@ import 'client/cleaning/cleaning_bookings_screen.dart';
 import 'client/services/services_category_screen.dart';
 import 'client_addresses_screen.dart';
 import 'rating_screen.dart';
+import 'festas_screen.dart';
 import 'restaurants_screen.dart';
 import 'send_package_form_screen.dart';
 import 'errand_form_screen.dart';
@@ -551,6 +552,21 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
       ),
     );
 
+    // Festas — encomenda com antecedência (salgados, doces, bolos).
+    // Ocupa o 12.º lugar da grelha, que estava vazio.
+    tiles.add(
+      _TileData(
+        label: 'Festas',
+        gradient: AppColors.tileFestas,
+        iconData: Icons.celebration_rounded,
+        isNovo: true,
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const FestasScreen()),
+        ),
+      ),
+    );
+
     return GridView.count(
       crossAxisCount: 3,
       shrinkWrap: true,
@@ -566,7 +582,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
           'Favores': 'tile_favores',
           'Limpeza': 'tile_limpeza',
         };
-        final Widget card;
+        Widget card;
         if (t.imageAsset != null) {
           card = BoraTileCard.image(
             label: t.label,
@@ -582,6 +598,42 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
             gradient: t.gradient,
             iconData: t.iconData,
             onTap: t.onTap,
+          );
+        }
+        if (t.isNovo) {
+          card = Stack(
+            clipBehavior: Clip.none,
+            children: [
+              card,
+              Positioned(
+                top: 6,
+                right: 6,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 7, vertical: 2.5),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(999),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x33000000),
+                        blurRadius: 4,
+                        offset: Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                  child: Text(
+                    'NOVO',
+                    style: TextStyle(
+                      fontSize: 8.5,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.4,
+                      color: AppColors.accent,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           );
         }
         final id = semanticsIds[t.label];
@@ -602,12 +654,16 @@ class _TileData {
     required this.onTap,
     this.imageAsset,
     this.iconData,
+    this.isNovo = false,
   }) : assert(imageAsset != null || iconData != null,
             'tile precisa de imageAsset ou iconData');
 
   final String label;
   final Gradient gradient;
   final VoidCallback onTap;
+
+  /// Mostra o selo NOVO no canto — para categorias acabadas de abrir.
+  final bool isNovo;
 
   /// Asset PNG 3D (preferido). Quando ausente, usa [iconData] no tile legacy.
   final String? imageAsset;

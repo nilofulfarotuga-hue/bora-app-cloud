@@ -38,7 +38,9 @@ import 'screens/admin/admin_skill_suggestions_metrics_screen.dart';
 import 'screens/admin/admin_weekly_settlements_screen.dart';
 import 'screens/restaurant_ratings_list_screen.dart';
 import 'screens/client_login_screen.dart';
+import 'config/festas_preview.dart';
 import 'screens/client_main_screen.dart';
+import 'screens/festas_preview_entrada.dart';
 import 'screens/driver_home_screen.dart';
 import 'screens/driver/tvde/tvde_driver_home_screen.dart';
 import 'screens/driver_login_screen.dart';
@@ -672,6 +674,14 @@ class _RootNavigator extends StatelessWidget {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
       );
+    }
+
+    // Preview da categoria Festas: este build abre directamente na categoria,
+    // sem escolha de perfil nem login. A navegação normal fica toda acessível
+    // pelo voltar. Ligado só por --dart-define=FESTAS_PREVIEW=true; num build
+    // normal `kFestasPreview` é false e nada disto corre.
+    if (kFestasPreview) {
+      return const FestasPreviewEntrada();
     }
 
     if (role == null) {

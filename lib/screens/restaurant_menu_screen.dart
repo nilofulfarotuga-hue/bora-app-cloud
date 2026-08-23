@@ -389,6 +389,31 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
           // continua todo visível e navegável — só não aceita pedidos.
           if (cart.vendorComingSoon)
             ComingSoonBanner(text: cart.vendorComingSoonText),
+          // Festas: a casa precisa de aviso prévio. Dizê-lo aqui, antes de a
+          // pessoa escolher, evita a desilusão no fim do checkout.
+          if (cart.vendorIsFestas)
+            Container(
+              width: double.infinity,
+              color: const Color(0xFFFFF7ED),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+              child: Row(
+                children: [
+                  const Icon(Icons.schedule_rounded,
+                      size: 17, color: Color(0xFF9A3412)),
+                  const SizedBox(width: 7),
+                  Expanded(
+                    child: Text(
+                      'Encomenda com $kFestasAvisoHoras horas de antecedência',
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF9A3412),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           // ── Search bar (2026-06-05) ─────────────────────────────────────
           Container(
             color: Colors.white,

@@ -13,6 +13,7 @@ import '../widgets/bora/bora.dart';
 import '../widgets/takeaway/curbside_inputs.dart';
 import '../widgets/tip_selector.dart';
 import 'orders_screen.dart';
+import 'festas_quando_screen.dart';
 import 'payment_method_screen.dart';
 
 class CartScreen extends StatelessWidget {
@@ -538,6 +539,23 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                         walletAppliedCents:
                             _useWalletBalance ? walletAppliedCents : 0,
                       ));
+
+                      // Festas: antes de pagar, o cliente diz o dia e a hora.
+                      // A loja precisa de aviso prévio, por isso este passo é
+                      // obrigatório — mas só para esta categoria.
+                      if (cartStore.vendorIsFestas) {
+                        final quando = await Navigator.push<DateTime>(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => FestasQuandoScreen(
+                              inicial: cartStore.festasQuando,
+                            ),
+                          ),
+                        );
+                        if (quando == null) return; // voltou atrás
+                        cartStore.definirFestasQuando(quando);
+                        if (!context.mounted) return;
+                      }
 
                       final confirmed = await Navigator.push<bool>(
                         context,

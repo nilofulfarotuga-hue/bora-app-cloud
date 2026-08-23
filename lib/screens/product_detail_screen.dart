@@ -380,31 +380,77 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    child: Column(
                       children: [
-                        _StepButton(
-                          icon: Icons.remove,
-                          color: primaryColor,
-                          onTap: _quantity > 1
-                              ? () => setState(() => _quantity--)
-                              : null,
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 24),
-                          child: Text(
-                            '$_quantity',
-                            style: const TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            _StepButton(
+                              icon: Icons.remove,
+                              color: primaryColor,
+                              onTap: _quantity > 1
+                                  ? () => setState(() => _quantity--)
+                                  : null,
                             ),
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 24),
+                              child: Text(
+                                '$_quantity',
+                                style: const TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            _StepButton(
+                              icon: Icons.add,
+                              color: primaryColor,
+                              onTap: () => setState(() => _quantity++),
+                            ),
+                          ],
+                        ),
+                        // Festas: encomenda-se às dezenas ou às centenas.
+                        // Carregar 150 vezes no + não é forma de viver.
+                        if (context.watch<CartStore>().vendorIsFestas) ...[
+                          const SizedBox(height: 14),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            alignment: WrapAlignment.center,
+                            children: const [50, 100, 150, 200].map((n) {
+                              final on = _quantity == n;
+                              return InkWell(
+                                onTap: () => setState(() => _quantity = n),
+                                borderRadius: BorderRadius.circular(10),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 9),
+                                  decoration: BoxDecoration(
+                                    color: on ? primaryColor : Colors.white,
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                      color: on
+                                          ? primaryColor
+                                          : AppColors.dividerStrong,
+                                      width: 1.5,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    '$n',
+                                    style: TextStyle(
+                                      fontSize: 13.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: on
+                                          ? Colors.white
+                                          : AppColors.textPrimary,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }).toList(),
                           ),
-                        ),
-                        _StepButton(
-                          icon: Icons.add,
-                          color: primaryColor,
-                          onTap: () => setState(() => _quantity++),
-                        ),
+                        ],
                       ],
                     ),
                   ),

@@ -151,6 +151,7 @@ Future<void> openRestaurantBusiness(
       serviceType: OrderServiceType.restaurant,
       isPartnerStore: business.isPartner,
       vendorComingSoon: business.comingSoon,
+      vendorIsFestas: business.belongsTo(BusinessCategory.festas),
       vendorComingSoonText: business.comingSoonLabel,
       vendorName: business.name,
       pickupLocation: pickupLocation,

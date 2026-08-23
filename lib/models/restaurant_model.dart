@@ -6,6 +6,8 @@ enum BusinessCategory {
   store,
   pharmacy,
   beauty,
+  // Encomenda com antecedência: salgados, doces e bolos de festa.
+  festas,
 }
 
 extension BusinessCategoryLabel on BusinessCategory {
@@ -21,9 +23,15 @@ extension BusinessCategoryLabel on BusinessCategory {
         return 'Farmácia';
       case BusinessCategory.beauty:
         return 'Beleza';
+      case BusinessCategory.festas:
+        return 'Festas';
     }
   }
 }
+
+/// Horas de aviso prévio que uma loja de festas precisa para preparar a
+/// encomenda. Fica aqui (e não espalhado pelos ecrãs) para haver um sítio só.
+const int kFestasAvisoHoras = 48;
 
 class DayHours {
   const DayHours({

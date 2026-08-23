@@ -404,11 +404,27 @@ class CartStore extends ChangeNotifier {
   ErrandSession? _errandSession;
   ErrandSession? get errandSession => _errandSession;
 
+  /// A loja da sessão é da categoria **Festas** (encomenda com aviso prévio).
+  bool _vendorIsFestas = false;
+  bool get vendorIsFestas => _vendorIsFestas;
+
+  /// Dia e hora que o cliente escolheu para a encomenda de festa.
+  /// Vive só em memória: nesta fase não há coluna de agendamento em `orders`,
+  /// por isso segue no texto de `customer_notes` quando o pedido for criado.
+  DateTime? _festasQuando;
+  DateTime? get festasQuando => _festasQuando;
+
+  void definirFestasQuando(DateTime? quando) {
+    _festasQuando = quando;
+    notifyListeners();
+  }
+
   void configureSession({
     required OrderServiceType serviceType,
     bool isPartnerStore = true,
     bool requiresCar = false,
     bool vendorComingSoon = false,
+    bool vendorIsFestas = false,
     String vendorComingSoonText = 'Em breve',
     String? vendorName,
     String? pickupStreet,
@@ -436,6 +452,8 @@ class CartStore extends ChangeNotifier {
     _vendorComingSoon = vendorComingSoon;
     _vendorComingSoonText = vendorComingSoonText;
     _vendorName = vendorName;
+    if (!isSameContext) _festasQuando = null;
+    _vendorIsFestas = vendorIsFestas;
     _pickupStreet = pickupStreet;
     _pickupCity = pickupCity;
     _pickupPostalCode = pickupPostalCode;

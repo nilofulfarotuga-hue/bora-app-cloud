@@ -1,0 +1,104 @@
+name: Build & Deploy Preview Festas (Cloudflare Pages)
+
+# Preview pública da categoria Festas — a app a sério, compilada para web,
+# publicada em demo-festas.pages.dev.
+#
+# Este workflow existe SÓ na branch `festas-preview` e dispara SÓ nela, por
+# isso não toca em nada da produção: nem o build_android.yml nem o
+# build_web_deploy.yml (ambos presos a `autonomous-night-2026-04-29`) são
+# afectados, e o bora-app-web continua a ser publicado só a partir dessa branch.
+#
+# O build web é impossível no PC do Danilo (4 GB de RAM — o dart2js não arranca
+# as threads de trabalho), por isso o CI é o único caminho.
+
+on:
+  push:
+    branches:
+      - festas-preview
+    paths-ignore:
+      - '**.md'
+      - '.claude/**'
+      - 'docs/**'
+
+concurrency:
+  group: web-preview-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-deploy:
+    name: Build web (FESTAS_PREVIEW) + deploy para demo-festas
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.41.2
+          channel: stable
+          cache: true
+
+      - name: Decode .dart_defines
+        env:
+          DART_DEFINES_FILE_B64: ${{ secrets.DART_DEFINES_FILE_B64 }}
+        run: |
+          echo "$DART_DEFINES_FILE_B64" | base64 --decode > .dart_defines
+          if [ ! -s .dart_defines ]; then
+            echo "ERRO: .dart_defines vazio apos decode"; exit 1
+          fi
+          echo "OK: .dart_defines criado ($(wc -l < .dart_defines) linhas)"
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      # A flag FESTAS_PREVIEW é o que faz a app abrir na categoria Festas sem
+      # login. Num build normal fica a false e nada disto acontece.
+      - name: Build web (release, preview Festas)
+        run: |
+          flutter build web --release \
+            --dart-define-from-file=.dart_defines \
+            --dart-define=FESTAS_PREVIEW=true
+
+      - name: Carimbar versão
+        run: |
+          printf '{"commit":"%s","branch":"%s","data":"%s","run":"%s","preview":"festas"}\n' \
+            "$GITHUB_SHA" "$GITHUB_REF_NAME" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$GITHUB_RUN_NUMBER" \
+            > build/web/versao.json
+          cat build/web/versao.json
+
+      - name: Upload build/web como artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: festas-preview-web
+          path: build/web
+          retention-days: 7
+
+      - name: Verificar se o token da Cloudflare existe
+        id: cf
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if [ -n "$TOKEN" ]; then
+            echo "tem=sim" >> "$GITHUB_OUTPUT"
+          else
+            echo "tem=nao" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Deploy para Cloudflare Pages (demo-festas)
+        if: steps.cf.outputs.tem == 'sim'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: 2cd0212b0f5e5c8284aa227f629c050a
+          command: pages deploy build/web --project-name=demo-festas --branch=main
+
+      - name: Aviso se o secret faltar
+        if: steps.cf.outputs.tem == 'nao'
+        run: |
+          echo "CLOUDFLARE_API_TOKEN em falta — o build ficou no artifact"
+          echo "festas-preview-web; o deploy faz-se do PC com o wrangler."

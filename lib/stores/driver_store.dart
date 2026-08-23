@@ -63,6 +63,19 @@ class DriverStore extends ChangeNotifier {
 
   List<DriverModel> get drivers => List.unmodifiable(_drivers);
 
+  /// Preview Festas: mete/actualiza um estafeta SIMULADO, só em memória.
+  /// O realtime nunca o toca (o id não existe na tabela drivers) e nenhum
+  /// caminho de escrita é chamado. Usado apenas pelo FestasDemoStore.
+  void demoUpsertDriver(DriverModel driver) {
+    final i = _drivers.indexWhere((d) => d.id == driver.id);
+    if (i >= 0) {
+      _drivers[i] = driver;
+    } else {
+      _drivers.add(driver);
+    }
+    notifyListeners();
+  }
+
   List<DriverModel> get onlineDrivers =>
       _drivers.where((driver) => driver.isOnline).toList(growable: false);
 

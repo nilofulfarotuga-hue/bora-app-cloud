@@ -10,10 +10,14 @@ import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
 import '../config/business_rules.dart' show BRTokens;
+import '../config/festas_preview.dart';
 import '../models/order_model.dart';
 import '../services/pricing_service.dart';
 import '../stores/cart_store.dart';
+import '../stores/driver_store.dart';
+import '../stores/festas_demo_store.dart';
 import '../stores/order_store.dart';
+import 'festas_demo_pedido_screen.dart';
 import 'package:flutter_stripe/flutter_stripe.dart' show StripeException, FailureCode;
 
 import '../models/saved_card.dart';
@@ -799,6 +803,29 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     int tokensUsed = 0,
   }) async {
     if (_isProcessing) return;
+
+    // Preview Festas: o percurso termina numa encomenda SIMULADA, criada só
+    // em memória no browser. Interceptado ANTES de qualquer pré-voo real —
+    // sem Stripe, sem create_order, sem dispatch, sem notificações. Num build
+    // normal `kFestasPreview` é false e nada disto corre.
+    if (kFestasPreview) {
+      final festasCart = context.read<CartStore>();
+      if (festasCart.vendorIsFestas) {
+        context.read<FestasDemoStore>().criarPedido(
+              cart: festasCart,
+              drivers: context.read<DriverStore>(),
+              total: amount,
+              metodo: _selectedMethod,
+              nota: _orderNote,
+            );
+        festasCart.clearCart();
+        if (!context.mounted) return;
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const FestasDemoPedidoScreen()),
+        );
+        return;
+      }
+    }
 
     final messenger = ScaffoldMessenger.of(context);
 

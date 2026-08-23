@@ -39,6 +39,7 @@ import 'screens/admin/admin_weekly_settlements_screen.dart';
 import 'screens/restaurant_ratings_list_screen.dart';
 import 'screens/client_login_screen.dart';
 import 'config/festas_preview.dart';
+import 'stores/festas_demo_store.dart';
 import 'screens/client_main_screen.dart';
 import 'screens/festas_preview_entrada.dart';
 import 'screens/driver_home_screen.dart';
@@ -440,6 +441,10 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         ),
         ChangeNotifierProvider<AuthStore>(
           create: (_) => AuthStore(),
+        ),
+        // Preview Festas: estado da encomenda simulada (inerte em builds normais).
+        ChangeNotifierProvider<FestasDemoStore>(
+          create: (_) => FestasDemoStore(),
         ),
         ChangeNotifierProvider<CartStore>(
           create: (_) => CartStore(),

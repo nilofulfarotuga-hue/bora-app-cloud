@@ -4,11 +4,13 @@ import 'package:provider/provider.dart';
 
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
+import '../config/festas_preview.dart';
 import '../models/restaurant_model.dart';
 import '../stores/restaurant_store.dart';
 import '../utils/business_opener.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora_support_fab.dart';
+import 'festas_painel_loja_screen.dart';
 
 /// Categoria **Festas** — casas que fazem salgados, doces e bolos por
 /// encomenda, com aviso prévio. Lista os negócios com `category = 'festas'`
@@ -33,6 +35,27 @@ class FestasScreen extends StatelessWidget {
       backgroundColor: AppColors.background,
       floatingActionButton: const BoraSupportFab(),
       appBar: const BoraScreenAppBar(title: 'Festas'),
+      // Preview pública: comutador para o lado da loja, sem login.
+      // Num build normal kFestasPreview é false e nada disto aparece.
+      bottomNavigationBar: !kFestasPreview
+          ? null
+          : SafeArea(
+              minimum: const EdgeInsets.fromLTRB(
+                  Spacing.lg, 0, Spacing.lg, Spacing.sm),
+              child: TextButton.icon(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                      builder: (_) => const FestasPainelLojaScreen()),
+                ),
+                icon: const Icon(Icons.storefront_rounded, size: 17),
+                label: const Text('Painel da loja',
+                    style: TextStyle(
+                        fontSize: 12.5, fontWeight: FontWeight.w800)),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.textSecondary,
+                ),
+              ),
+            ),
       body: casas.isEmpty
           ? const _SemCasas()
           : ListView.builder(

@@ -710,7 +710,13 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
             // opcoes, carrinho, checkout — e so e travado AQUI. O servidor
             // rejeita na mesma (trigger `trg_payment_draft_coming_soon`), isto
             // e a camada de UI para ele perceber porque nao consegue avancar.
-            child: context.watch<CartStore>().vendorComingSoon
+            // PREVIEW Festas: a encomenda é SIMULADA (interceptada em
+            // _confirmPayment antes de qualquer Stripe), por isso o botão
+            // fica activo para o percurso chegar ao painel da loja. Num
+            // build normal kFestasPreview é false e a trava manda como sempre.
+            child: context.watch<CartStore>().vendorComingSoon &&
+                    !(kFestasPreview &&
+                        context.watch<CartStore>().vendorIsFestas)
                 ? _ComingSoonPaymentNotice(
                     onTap: () => ScaffoldMessenger.of(context)
                       ..hideCurrentSnackBar()

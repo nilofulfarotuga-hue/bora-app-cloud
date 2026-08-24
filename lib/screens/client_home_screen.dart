@@ -298,21 +298,12 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
     );
   }
 
-  void _navigateWithAddressGuard(VoidCallback nav) {
-    final street = context.read<CartStore>().dropoffStreet;
-    if (street.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Define o teu endereço de entrega para continuar.'),
-          backgroundColor: AppColors.error,
-          duration: Duration(seconds: 3),
-        ),
-      );
-      _openAddressPicker();
-      return;
-    }
-    nav();
-  }
+  // LOCALIZAÇÃO NUNCA TRAVA (2026-08-24): navegar não exige morada.
+  // Sem endereço vê-se tudo na mesma (ordenação padrão, sem distâncias);
+  // a morada só é pedida onde faz falta — no checkout de uma ENTREGA
+  // (CartStore.finishOrder/startCardPaymentDraft; recolha nunca exige).
+  // O nome mantém-se pelos 11 call sites — o "guard" hoje só navega.
+  void _navigateWithAddressGuard(VoidCallback nav) => nav();
 
   @override
   Widget build(BuildContext context) {
@@ -825,6 +816,19 @@ class _AddressPickerScreenState extends State<_AddressPickerScreen> {
       body: ListView(
         padding: const EdgeInsets.all(Spacing.lg),
         children: [
+          // LOCALIZAÇÃO NUNCA TRAVA: a pesquisa vem PRIMEIRO — escrever a
+          // morada é o caminho principal; o GPS é um atalho mais abaixo.
+          AddressAutocompleteField(
+            controller: _ctrl,
+            labelText: 'Pesquisar endereço',
+            onSelected: _onAddressSelected,
+          ),
+          const SizedBox(height: Spacing.sm),
+          Text(
+            'Escreve a tua morada para veres as lojas e entregas perto de ti.',
+            style: theme.textTheme.bodySmall,
+          ),
+          const Divider(height: Spacing.xl),
           // ── Endereços guardados (client_addresses) ─────────────────────
           if (_loadingSaved)
             const Padding(
@@ -894,17 +898,6 @@ class _AddressPickerScreenState extends State<_AddressPickerScreen> {
                   : null,
               onTap: session.hasHomeAddress ? _useHome : null,
             ),
-          const Divider(height: Spacing.xxxl),
-          AddressAutocompleteField(
-            controller: _ctrl,
-            labelText: 'Pesquisar endereço',
-            onSelected: _onAddressSelected,
-          ),
-          const SizedBox(height: Spacing.sm),
-          Text(
-            'Começa a escrever e selecciona uma sugestão.',
-            style: theme.textTheme.bodySmall,
-          ),
         ],
       ),
     );

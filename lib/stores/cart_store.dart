@@ -657,7 +657,10 @@ class CartStore extends ChangeNotifier {
       debugPrint('CartStore.startCardPaymentDraft: BLOCKED — pickupLocation null');
       return null;
     }
-    if (_deliveryLocation == null || (!isErrand && _dropoffStreet.isEmpty)) {
+    // Recolha (takeaway): o cliente vai buscar à loja — nunca se lhe exige
+    // morada. O destino do pedido passa a ser a própria loja (pickup).
+    if (!isTakeaway &&
+        (_deliveryLocation == null || (!isErrand && _dropoffStreet.isEmpty))) {
       debugPrint('CartStore.startCardPaymentDraft: BLOCKED — delivery missing');
       return null;
     }
@@ -667,7 +670,8 @@ class CartStore extends ChangeNotifier {
     return orderStore.startCardPaymentDraft(
       serviceType: _serviceType,
       itemsSubtotal: breakdown.subtotal,
-      destination: _deliveryLocation!,
+      // Em recolha o destino é a própria loja (pickup validado acima).
+      destination: isTakeaway ? _pickupLocation! : _deliveryLocation!,
       items: _items
           .map(
             (item) => CartItem(
@@ -749,7 +753,7 @@ class CartStore extends ChangeNotifier {
       return false;
     }
 
-    if (_deliveryLocation == null) {
+    if (!isTakeaway && _deliveryLocation == null) {
       debugPrint(
         'CartStore.finishOrder: BLOCKED — deliveryLocation is null. '
         'User must define a delivery address before placing an order.',
@@ -757,7 +761,7 @@ class CartStore extends ChangeNotifier {
       return false;
     }
 
-    if (!isErrand && _dropoffStreet.isEmpty) {
+    if (!isErrand && !isTakeaway && _dropoffStreet.isEmpty) {
       debugPrint('CartStore.finishOrder: BLOCKED — dropoffStreet is empty.');
       return false;
     }
@@ -767,7 +771,8 @@ class CartStore extends ChangeNotifier {
     final success = await orderStore.createOrder(
       serviceType: _serviceType,
       itemsSubtotal: breakdown.subtotal,
-      destination: _deliveryLocation!,
+      // Em recolha o destino é a própria loja (pickup validado acima).
+      destination: isTakeaway ? _pickupLocation! : _deliveryLocation!,
       paymentMethod: paymentMethod,
       paymentStatus: paymentStatus,
       paymentIntentId: paymentIntentId,

@@ -559,14 +559,12 @@ class CartStore extends ChangeNotifier {
     // CartItem via PricingService.applyMarkup (price = exibido/cobrado;
     // basePrice = puro de catálogo). addItem usa o preço tal como vem — itens
     // de reorder/persistência já vêm finais e não podem ser re-marcados.
-    // "Em breve": a loja é navegável mas não aceita pedidos. Trava aqui em vez
-    // de em cada call site — há dezenas espalhados pelos ecrãs de catálogo.
-    if (_vendorComingSoon) {
-      debugPrint(
-        'CartStore.addItem: BLOQUEADO — "$_vendorName" está em Em breve.',
-      );
-      return;
-    }
+    // "Em breve" (2026-08-05): o cliente percorre TUDO — loja, opções,
+    // carrinho — e só é travado no ecrã de pagamento
+    // (_ComingSoonPaymentNotice) + servidor (trg_payment_draft_coming_soon).
+    // A guarda antiga que aqui recusava o item ficou órfã desse desenho e
+    // criava o bug clássico: snackbar "adicionado" e carrinho VAZIO
+    // (reproduzido no iPhone do Danilo e em Chromium, 2026-08-24). Removida.
 
     final cartItem = item;
 

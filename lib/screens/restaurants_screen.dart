@@ -82,8 +82,11 @@ Future<void> openRestaurantBusiness(
   RestaurantModel business, {
   bool reservationsOnly = false,
 }) async {
-    // Closed restaurants cannot receive orders.
-    if (!business.isOpenNow() && !reservationsOnly) {
+    // Closed restaurants cannot receive orders — excepto casas de festa:
+    // encomenda com 48h de aviso entra a qualquer hora, o calendário é que manda.
+    if (!business.isOpenNow() &&
+        !reservationsOnly &&
+        !business.belongsTo(BusinessCategory.festas)) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(business.statusLabel()),
@@ -444,7 +447,10 @@ class _OpenStatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final open = business.isOpenNow();
+    // Festas: encomenda com aviso prévio — o selo é sempre positivo
+    // ("Aceita encomendas", via statusLabel), nunca o vermelho de fechado.
+    final open = business.isOpenNow() ||
+        business.belongsTo(BusinessCategory.festas);
     final color = open ? Colors.green.shade700 : Colors.red.shade600;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),

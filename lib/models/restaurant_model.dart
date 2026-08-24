@@ -284,6 +284,10 @@ class RestaurantModel {
   /// Human-readable label for the client UI.
   String statusLabel([DateTime? nowOverride]) {
     if (!isOnline) return 'Indisponível';
+    // Casas de festa vendem por encomenda com aviso prévio: nunca estão
+    // "fechadas" para encomendar. O horário 9h–20h é de levantamento/entrega
+    // (informativo na página); quem manda é o calendário das 48h.
+    if (belongsTo(BusinessCategory.festas)) return 'Aceita encomendas';
     final now = nowOverride ?? DateTime.now();
     final day = businessHours.dayFor(now.weekday);
     if (day.closed) return 'Fechado hoje';

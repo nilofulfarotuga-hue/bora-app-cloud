@@ -53,7 +53,7 @@ class BoraMascot extends StatelessWidget {
     switch (variant) {
       case BoraMascotVariant.icon:
         image = Image.asset(
-          'assets/branding/bora_app_icon.png',
+          'assets/branding/bora_app_icon_app.png',
           width: size,
           height: size,
           fit: BoxFit.contain,

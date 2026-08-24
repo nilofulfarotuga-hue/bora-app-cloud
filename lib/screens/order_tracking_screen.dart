@@ -621,6 +621,7 @@ class _BottomCardState extends State<_BottomCard> {
                     status: order.status,
                     serviceType: order.serviceType,
                     vendorName: order.vendorName,
+                    prepMinutes: order.takeawayPrepMinutes,
                   ),
                 ],
 
@@ -1257,6 +1258,7 @@ class _EtaBadge extends StatelessWidget {
     required this.status,
     this.serviceType,
     this.vendorName,
+    this.prepMinutes,
   });
 
   final String label;
@@ -1264,6 +1266,10 @@ class _EtaBadge extends StatelessWidget {
   // BUG 3 — opcionais para text dinâmico por service_type.
   final OrderServiceType? serviceType;
   final String? vendorName;
+
+  /// Tempo de preparo escolhido pelo parceiro ao aceitar (takeaway real e
+  /// demo Festas). Null em delivery normal — o subtítulo fica como era.
+  final int? prepMinutes;
 
   @override
   Widget build(BuildContext context) {
@@ -1352,7 +1358,12 @@ class _EtaBadge extends StatelessWidget {
     switch (s) {
       case OrderStatus.created:
       case OrderStatus.preparing:
-        return preparingLabel;
+        // Tempo de preparo escolhido pelo parceiro ao aceitar (takeaway real
+        // e demo Festas). Null em delivery normal — o texto fica como era.
+        final prep = prepMinutes;
+        return prep == null
+            ? preparingLabel
+            : '$preparingLabel · fica pronto em $prep min';
       case OrderStatus.callingDriver:
         return 'À procura de estafeta';
       case OrderStatus.driverAccepted:

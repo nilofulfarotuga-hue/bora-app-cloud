@@ -29,9 +29,12 @@ extension BusinessCategoryLabel on BusinessCategory {
   }
 }
 
-/// Horas de aviso prévio que uma loja de festas precisa para preparar a
-/// encomenda. Fica aqui (e não espalhado pelos ecrãs) para haver um sítio só.
-const int kFestasAvisoHoras = 48;
+/// Antecedência das encomendas de festa (decisão do Danilo, 2026-08-24 —
+/// substitui as 48h): normal = 1 dia; encomenda GRANDE = 3 dias.
+/// Grande = carrinho com Cento de Salgados OU total >= kFestasEncomendaGrandeEuros.
+const int kFestasAvisoDiasNormal = 1;
+const int kFestasAvisoDiasGrande = 3;
+const double kFestasEncomendaGrandeEuros = 40.0;
 
 class DayHours {
   const DayHours({
@@ -286,7 +289,7 @@ class RestaurantModel {
     if (!isOnline) return 'Indisponível';
     // Casas de festa vendem por encomenda com aviso prévio: nunca estão
     // "fechadas" para encomendar. O horário 9h–20h é de levantamento/entrega
-    // (informativo na página); quem manda é o calendário das 48h.
+    // (informativo na página); quem manda é o calendário (1 dia; grandes 3).
     if (belongsTo(BusinessCategory.festas)) return 'Aceita encomendas';
     final now = nowOverride ?? DateTime.now();
     final day = businessHours.dayFor(now.weekday);

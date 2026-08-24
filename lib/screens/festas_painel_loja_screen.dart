@@ -408,7 +408,7 @@ class _PedidoCartao extends StatelessWidget {
                 Expanded(
                   flex: 2,
                   child: ElevatedButton(
-                    onPressed: demo.aceitar,
+                    onPressed: () => _aceitarComTempo(context, demo),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
@@ -442,6 +442,88 @@ class _PedidoCartao extends StatelessWidget {
       ),
     );
   }
+}
+
+
+/// "Aceitar com tempo" — espelha a mecânica real do parceiro
+/// (partner_takeaway_accept + PreparingCountdownBanner): a Keli escolhe
+/// quanto tempo leva e o cliente vê "Pronto em ~X min". Para encomendas
+/// pequenas (frita na hora); nas grandes manda a data marcada — os dois
+/// convivem.
+Future<void> _aceitarComTempo(BuildContext context, FestasDemoStore demo) async {
+  const opcoes = <int>[15, 20, 30, 40, 50, 60, 80, 90];
+  final ctrl = TextEditingController();
+  final minutos = await showModalBottomSheet<int>(
+    context: context,
+    isScrollControlled: true,
+    shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18))),
+    builder: (sheetCtx) => Padding(
+      padding: EdgeInsets.fromLTRB(
+          18, 18, 18, 18 + MediaQuery.of(sheetCtx).viewInsets.bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Fica pronto em quanto tempo?',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 4),
+          Text('O cliente vê este tempo na encomenda.',
+              style: TextStyle(
+                  fontSize: 12.5, color: AppColors.textSecondary)),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final m in opcoes)
+                ActionChip(
+                  label: Text(
+                    m < 60
+                        ? '$m min'
+                        : (m % 60 == 0 ? '${m ~/ 60}h' : '1h${m % 60}'),
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  onPressed: () => Navigator.of(sheetCtx).pop(m),
+                ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: ctrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Outro tempo (minutos)',
+                    hintText: 'Ex.: 25 — ou 120 para 2 horas',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              ElevatedButton(
+                onPressed: () {
+                  final v = int.tryParse(ctrl.text.trim());
+                  if (v != null && v > 0) Navigator.of(sheetCtx).pop(v);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+  ctrl.dispose();
+  if (minutos == null) return;
+  demo.aceitar(prontoEmMinutos: minutos);
 }
 
 class _Titulo extends StatelessWidget {

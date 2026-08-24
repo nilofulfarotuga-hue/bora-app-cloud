@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
 import '../models/order_service_type.dart';
+import '../models/restaurant_model.dart';
 import '../services/wallet_service.dart';
 import '../stores/cart_store.dart';
 import '../stores/restaurant_store.dart';
@@ -548,6 +549,11 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                           context,
                           MaterialPageRoute(
                             builder: (_) => FestasQuandoScreen(
+                              // Grande: Cento no carrinho OU total >= €40 -> 3 dias.
+                              encomendaGrande: cartStore.items.any((i) =>
+                                      i.name.toLowerCase().contains('cento')) ||
+                                  cartStore.subtotal >=
+                                      kFestasEncomendaGrandeEuros,
                               inicial: cartStore.festasQuando,
                             ),
                           ),

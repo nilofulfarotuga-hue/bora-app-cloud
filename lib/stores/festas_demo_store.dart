@@ -89,7 +89,19 @@ class FestasDemoStore extends ChangeNotifier {
   }
 
   /// A Keli aceitou — o pedido entra em preparação.
-  void aceitar() => _emitir(OrderStatus.preparing);
+  /// Aceita a encomenda. [prontoEmMinutos] segue a mecânica real do
+  /// parceiro (partner_takeaway_accept + PreparingCountdownBanner): quando
+  /// existe, o cliente vê "Pronto em ~X min" enquanto prepara.
+  void aceitar({int? prontoEmMinutos}) {
+    _prontoEmMinutos = prontoEmMinutos;
+    _prontoEmAte = prontoEmMinutos == null
+        ? null
+        : DateTime.now().add(Duration(minutes: prontoEmMinutos));
+    _emitir(OrderStatus.preparing);
+  }
+
+  int? _prontoEmMinutos;
+  DateTime? _prontoEmAte;
 
   /// A Keli recusou.
   void recusar() {
@@ -190,8 +202,10 @@ class FestasDemoStore extends ChangeNotifier {
       status: status,
       assignedDriverId: estafeta,
       takeawayPickupCode: recolha ? 'FESTA' : null,
-      takeawayReadyAt:
-          recolha && status == OrderStatus.readyForPickup ? quando : null,
+      takeawayPrepMinutes: _prontoEmMinutos,
+      takeawayReadyAt: status == OrderStatus.preparing && _prontoEmAte != null
+          ? _prontoEmAte
+          : (recolha && status == OrderStatus.readyForPickup ? quando : null),
     );
     _id = novo.id;
     pedido = novo;

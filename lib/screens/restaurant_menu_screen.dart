@@ -403,7 +403,7 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
                   const SizedBox(width: 7),
                   Expanded(
                     child: Text(
-                      'Encomenda com $kFestasAvisoHoras horas de antecedência',
+                      'Encomenda com $kFestasAvisoDiasNormal dia de antecedência (grandes: $kFestasAvisoDiasGrande dias)',
                       style: const TextStyle(
                         fontSize: 12.5,
                         fontWeight: FontWeight.w600,

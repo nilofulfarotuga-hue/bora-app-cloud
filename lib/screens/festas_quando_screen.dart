@@ -17,7 +17,11 @@ class FestasQuandoScreen extends StatefulWidget {
     this.horaAbertura = 9,
     this.horaFecho = 20,
     this.inicial,
+    this.encomendaGrande = false,
   });
+
+  /// Encomenda grande (Cento no carrinho ou total >= €40): 3 dias de aviso.
+  final bool encomendaGrande;
 
   /// Horário da loja (`business_hours`). O padrão é o da Sabores do Brasil.
   final int horaAbertura;
@@ -44,7 +48,10 @@ class _FestasQuandoScreenState extends State<FestasQuandoScreen> {
   @override
   void initState() {
     super.initState();
-    _minimo = DateTime.now().add(const Duration(hours: kFestasAvisoHoras));
+    _minimo = DateTime.now().add(Duration(
+        days: widget.encomendaGrande
+            ? kFestasAvisoDiasGrande
+            : kFestasAvisoDiasNormal));
     final agora = DateTime.now();
     _mes = DateTime(agora.year, agora.month);
     final ini = widget.inicial;
@@ -136,8 +143,9 @@ class _FestasQuandoScreenState extends State<FestasQuandoScreen> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
-              'Os dias riscados não cumprem as $kFestasAvisoHoras horas de '
-              'aviso que a loja precisa para preparar a encomenda.',
+              'Os dias riscados não cumprem o aviso prévio. '
+              'Encomendas grandes pedem $kFestasAvisoDiasGrande dias; '
+              'as restantes, $kFestasAvisoDiasNormal dia.',
               style: const TextStyle(
                   fontSize: 12.5, color: Color(0xFF9A3412), height: 1.5),
             ),

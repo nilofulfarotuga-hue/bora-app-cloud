@@ -58,7 +58,7 @@ class RestaurantsScreen extends StatelessWidget {
               itemCount: restaurants.length,
               itemBuilder: (context, index) {
                 final business = restaurants[index];
-                return _RestaurantTile(
+                return RestaurantTile(
                   business: business,
                   onTap: () => openBusiness(
                     context,
@@ -254,8 +254,12 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-class _RestaurantTile extends StatelessWidget {
-  const _RestaurantTile({required this.business, required this.onTap});
+/// Cartão de loja da lista. É o padrão da app — logo, nome e selos, sem capa.
+/// Público de propósito: qualquer categoria que liste lojas (Restaurantes,
+/// Festas, ...) usa este mesmo cartão, para o cliente não ter de aprender
+/// um layout novo em cada secção.
+class RestaurantTile extends StatelessWidget {
+  const RestaurantTile({super.key, required this.business, required this.onTap});
 
   final RestaurantModel business;
   final VoidCallback onTap;

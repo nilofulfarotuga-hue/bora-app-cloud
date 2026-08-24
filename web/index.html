@@ -46,17 +46,22 @@
       margin-top:18px; font-size:26px; font-weight:800;
       color:#16A34A; letter-spacing:-.6px;
     }
-    #bora-splash .barra {
-      margin-top:26px; width:132px; height:3px; border-radius:2px;
-      background:#E5E7EB; overflow:hidden;
+    #bora-splash .roda {
+      margin-top:24px; width:34px; height:34px; border-radius:50%;
+      border:3px solid #E5E7EB; border-top-color:#16A34A;
+      animation:gira .85s linear infinite;
     }
-    #bora-splash .barra i {
-      display:block; width:40%; height:100%; background:#16A34A; border-radius:2px;
-      animation:corre 1.1s ease-in-out infinite;
+    @keyframes gira { to { transform:rotate(360deg); } }
+    #bora-splash .estado {
+      margin-top:14px; font-size:14px; font-weight:600; color:#6B7280;
     }
-    @keyframes corre {
-      0%   { transform:translateX(-100%); }
-      100% { transform:translateX(330%); }
+    #bora-splash .demora {
+      margin-top:6px; font-size:12.5px; color:#9CA3AF; max-width:250px;
+      text-align:center; line-height:1.5; opacity:0; transition:opacity .4s ease;
+    }
+    #bora-splash .demora.ver { opacity:1; }
+    @media (prefers-reduced-motion:reduce) {
+      #bora-splash .roda { animation-duration:2.4s; }
     }
 
     /* Banner "adicionar ao ecrã principal" — só iPhone, só no browser. */
@@ -90,13 +95,37 @@
       border-left:1.6px solid #16A34A; transform:rotate(45deg);
     }
   </style>
+  <!-- Sem isto, o main.dart.js (~2 MB br) e o CanvasKit (~2 MB) descarregam
+       EM SÉRIE: o bootstrap tem de correr antes de sequer pedir o resto.
+       Em 3G isso é a diferença entre "está a carregar" e "está morto". -->
+  <link rel="preload" href="flutter_bootstrap.js" as="script">
+  <link rel="preload" href="main.dart.js" as="script">
+  <!-- O CanvasKit (~1,55 MB) vem do CDN da gstatic — o bootstrap escolhe o
+       caminho a partir da engineRevision, que muda a cada versão do Flutter,
+       por isso NÃO se faz preload dele (o URL não é sabido aqui e cravá-lo
+       partiria no próximo upgrade). Abrir a ligação com antecedência tira o
+       custo de DNS + TLS a um terceiro domínio, que em 3G é o que mais dói. -->
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="dns-prefetch" href="https://www.gstatic.com">
+  <script>
+    // Passados 8 segundos, dizer porquê — nunca deixar parecer morto.
+    setTimeout(function () {
+      var d = document.getElementById('bora-demora');
+      if (d) d.classList.add('ver');
+    }, 8000);
+  </script>
+
 </head>
 <body>
 
   <div id="bora-splash">
-    <img src="icons/Icon-192.png" alt="Bora">
+    <img src="icons/Icon-192.png" alt="Bora" width="96" height="96" fetchpriority="high">
     <div class="nome">Bora</div>
-    <div class="barra"><i></i></div>
+    <div class="roda" role="progressbar" aria-label="A carregar"></div>
+    <div class="estado">A carregar…</div>
+    <div class="demora" id="bora-demora">
+      A primeira abertura demora um pouco. Da próxima é instantâneo.
+    </div>
   </div>
 
   <div id="bora-ios" role="dialog" aria-label="Adicionar o Bora ao ecrã principal">

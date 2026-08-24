@@ -579,11 +579,35 @@ class DriverStore extends ChangeNotifier {
   // BUG 4 — throttle para orders.driver_lat/lng (max 1 update / 5s).
   DateTime? _lastOrderLocationDbUpdate;
 
+  // Throttle do upsert de posição a `drivers` (ver updateDriverLocation).
+  DateTime? _lastDriverUpsertAt;
+  LatLng? _lastDriverUpsertLocation;
+
+  double _distanceMeters(LatLng a, LatLng b) =>
+      const Distance().as(LengthUnit.Meter, a, b);
+
   void updateDriverLocation(String driverId, LatLng location) {
     final driver = getDriverById(driverId);
     if (driver == null) return;
     driver.location = location;
     notifyListeners();
+
+    // Envio por lotes (padrão Uber/Glovo): a UI local actualiza a cada tick,
+    // mas o envio à rede respeita um intervalo mínimo — em corrida o stream
+    // emite a cada 1s e sem isto o rádio nunca dorme. 5s alinha com o
+    // throttle que o cliente já vê em orders.driver_lat. Um salto grande
+    // (>30m) fura o throttle para o dispatch nunca ver posição velha.
+    final agora = DateTime.now();
+    final ultimo = _lastDriverUpsertAt;
+    final saltoGrande = _lastDriverUpsertLocation != null &&
+        _distanceMeters(_lastDriverUpsertLocation!, location) > 30;
+    if (ultimo != null &&
+        agora.difference(ultimo).inSeconds < 5 &&
+        !saltoGrande) {
+      return; // orders.driver_lat abaixo tem o seu próprio throttle de 5s
+    }
+    _lastDriverUpsertAt = agora;
+    _lastDriverUpsertLocation = location;
 
     // F5.1 (2026-08-16): era um UPSERT por `id` — se o id da app fosse o
     // user_id, criava um motorista FANTASMA; e é um 3º escritor de presença

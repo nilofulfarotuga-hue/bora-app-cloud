@@ -336,8 +336,9 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
       locationSettings = AndroidSettings(
         // bestForNavigation: highest accuracy, continuous updates
         accuracy: LocationAccuracy.bestForNavigation,
-        // distanceFilter: 0 = update on every movement (no throttling)
-        distanceFilter: 0,
+        // 5 m: a conduzir é contínuo na mesma; parado (semáforo, espera no
+        // restaurante) o GPS cala-se em vez de emitir a cada segundo.
+        distanceFilter: 5,
         // Update frequency: 1 second (fast enough for real-time tracking)
         intervalDuration: const Duration(seconds: 1),
         foregroundNotificationConfig: const ForegroundNotificationConfig(
@@ -350,8 +351,8 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
       locationSettings = const LocationSettings(
         // bestForNavigation: highest accuracy for navigation apps
         accuracy: LocationAccuracy.bestForNavigation,
-        // distanceFilter: 0 = update on every movement (no throttling)
-        distanceFilter: 0,
+        // 5 m: mesmo racional do ramo Android — sem ticks quando parado.
+        distanceFilter: 5,
       );
     }
 

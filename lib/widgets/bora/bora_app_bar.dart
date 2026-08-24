@@ -134,7 +134,7 @@ class _BoraLogo extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(Radii.md),
       child: Image.asset(
-        'assets/branding/bora_app_icon.png',
+        'assets/branding/bora_app_icon_app.png',
         width: 56,
         height: 56,
         fit: BoxFit.cover,

@@ -100,6 +100,9 @@
        Em 3G isso é a diferença entre "está a carregar" e "está morto". -->
   <link rel="preload" href="flutter_bootstrap.js" as="script">
   <link rel="preload" href="main.dart.js" as="script">
+  <!-- O logo do splash sao 62 KB: em 3G chegava depois do resto do splash e
+       o primeiro segundo ficava so com o nome. Pedido logo no cabecalho. -->
+  <link rel="preload" href="icons/Icon-192.png" as="image" fetchpriority="high">
   <!-- O CanvasKit (~1,55 MB) vem do CDN da gstatic — o bootstrap escolhe o
        caminho a partir da engineRevision, que muda a cada versão do Flutter,
        por isso NÃO se faz preload dele (o URL não é sabido aqui e cravá-lo

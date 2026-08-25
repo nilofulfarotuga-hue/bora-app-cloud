@@ -89,6 +89,14 @@ jobs:
             echo "tem=nao" >> "$GITHUB_OUTPUT"
           fi
 
+      # Proxy de imagens (/img) — mesma Pages Function da produção. Sem isto,
+      # as fotos dos catálogos (CDNs de terceiros sem CORS) não aparecem na web.
+      - name: Preparar Pages Function do proxy de imagens
+        run: |
+          mkdir -p functions
+          cp build/web/functions/*.js functions/ 2>/dev/null || true
+          ls -la functions/ || true
+
       - name: Deploy para Cloudflare Pages (demo-festas)
         if: steps.cf.outputs.tem == 'sim'
         uses: cloudflare/wrangler-action@v3

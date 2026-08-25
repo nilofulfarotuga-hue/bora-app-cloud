@@ -109,15 +109,15 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   // Confirmação compacta e não-bloqueante (padrão Uber Eats / Glovo) — o
   // mesmo snack verde de uma linha usado no menu e nas lojas. Tocar só
   // adiciona; a acção "Ver" leva ao carrinho, sem navegar automaticamente.
-  void _snack(String msg) {
-    showAddedToCartSnack(
-      context,
-      msg,
-      onView: () => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const CartScreen()),
-      ),
-    );
+  //
+  // 2026-08-25 (defeito apanhado pelo Danilo no telemóvel): adicionar FECHA a
+  // ficha e devolve o cliente ao menu da loja — o aviso fica por cima e a
+  // barra "Ver carrinho" já mostra o total novo. O aviso é mostrado ANTES do
+  // pop de propósito: o ScaffoldMessenger é global, portanto sobrevive à
+  // navegação (e o "Ver" usa o NavigatorState capturado no helper).
+  void _snackEFecha(String msg) {
+    showAddedToCartSnack(context, msg);
+    fecharFichaAposAdicionar(context);
   }
 
   // Sessão 4C: ProductVariant.id é UUID válido — usar directamente.
@@ -134,7 +134,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           basePrice: v.price,
           quantity: _quantity,
         ));
-    _snack('${v.brandName} × $_quantity adicionado ao carrinho');
+    _snackEFecha('${v.brandName} × $_quantity adicionado ao carrinho');
   }
 
   void _addNoVariantToCart(BuildContext context) {
@@ -146,7 +146,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           basePrice: widget.product.price,
           quantity: _quantity,
         ));
-    _snack('${widget.product.name} × $_quantity adicionado ao carrinho');
+    _snackEFecha('${widget.product.name} × $_quantity adicionado ao carrinho');
   }
 
   void _addWithOptions(BuildContext context) {
@@ -173,7 +173,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           quantity: _quantity,
           selectedOptions: selected,
         ));
-    _snack('${widget.product.name} × $_quantity adicionado ao carrinho');
+    _snackEFecha('${widget.product.name} × $_quantity adicionado ao carrinho');
   }
 
   @override

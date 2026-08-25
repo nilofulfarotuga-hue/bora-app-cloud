@@ -171,3 +171,89 @@ mostra**: todo o valor vem de `tvde_quote_plan` / da Edge `tvde-plan-payment`,
 e o valor cobrado é o que a Edge recalcula. `pricing_service.dart`,
 `dispatch_engine`, `finalizePurchase`, `bora_tokens` e o webhook Stripe não
 foram tocados.
+
+---
+
+# VERIFICAÇÃO INDEPENDENTE — 2.ª corrida (contexto limpo, 2026-08-25)
+
+A ordem chegou outra vez ao executor. Em vez de reescrever, verifiquei o que já
+está em `origin` e voltei a correr as provas do zero (maker ≠ checker).
+
+## 1. O trabalho já está publicado
+
+```
+$ git rev-parse HEAD
+9bb5cd326982c857e29d734de3fa32c327ea9a16
+$ git rev-parse origin/tvde/reserva-agendada-2026-08-20
+9bb5cd326982c857e29d734de3fa32c327ea9a16
+```
+
+Mesmo SHA dos dois lados → o commit `9bb5cd3` (TAREFAS A+B+C+D) já foi
+empurrado. Não havia nada por commitar em TVDE (`git status lib/` só mostra
+ficheiros de outra tarefa: `main.dart`, `client_main_screen.dart`,
+`register_client_screen.dart`, `provider_detail_screen.dart`,
+`deep_link_store_screen.dart`, `destino_pendente.dart` — não lhes toquei).
+
+## 2. Conferência do conteúdo, tarefa a tarefa
+
+| Tarefa | Onde | Confirmado |
+|---|---|---|
+| A · seletor de rota igual ao da corrida | `tvde_plans_screen.dart:367,375` usa `AddressAutocompleteField` — o mesmo widget de `tvde_request_ride_screen.dart:1172,1198`; distância por `DirectionsService` com 2 tentativas e haversine só em último recurso | ✅ |
+| A · orçamento do servidor | `tvde_store.dart:286 quotePlan()` → `rpc('tvde_quote_plan')` | ✅ |
+| A · conta aberta PT-PT | `TvdePlanQuote.breakdown()` devolve exactamente as linhas pedidas (plano · "Inclui N viagens" · "até X km por viagem" · "A tua rota" · "K km a mais × €/km × N viagens" · TOTAL a negrito) | ✅ |
+| A · botão só acende com orçamento | `tvde_plans_screen.dart:313` — `onAderir` é `null` enquanto `_quotes[plan] == null`; rótulo passa a "Escolhe a rota primeiro" | ✅ |
+| A · os 3 campos vão à Edge nos 2 caminhos | `tvde_store.dart` linhas 1150-1152 (cartão) e 1199-1201 (MB Way): `distance_km`, `origin_label`, `dest_label` | ✅ |
+| A · nada cravado | `grep -n "4000\|7000\|13200\|planPriceCents"` nos 3 ficheiros do cliente → **0 resultados** | ✅ |
+| B · cartões dizem viagens + rota | `tvde_plans_screen.dart:613-626` | ✅ |
+| C · "o meu plano" | `_ActiveSubscription` mostra "A tua rota", "Incluído: até X km por viagem" e a frase do excesso por km | ✅ |
+| D · assinaturas com km + rota | `admin_tvde_subscriptions_screen.dart:249-258` | ✅ |
+| D · orçamento antes de conceder | `admin_tvde_subscriptions_screen.dart:475` chama `tvde_quote_plan`; grant em :82 com `p_km_included` + `p_origin_label` + `p_dest_label`, erro humanizado por `humanizeAdminRpcError` | ✅ |
+| D · pedidos com rota/km/valor orçado | `admin_tvde_plan_requests_screen.dart:248-254` e :308 | ✅ |
+
+## 3. Provas voltadas a correr (saída literal)
+
+`dart analyze` por lotes (o completo rebenta por RAM no PC de 4 GB):
+
+```
+$ dart analyze lib/models/tvde_plan_quote.dart lib/models/tvde_subscription.dart test/tvde_plan_quote_test.dart
+Analyzing tvde_plan_quote.dart, tvde_subscription.dart, tvde_plan_quote_test.dart...
+No issues found!
+
+$ dart analyze lib/screens/client/tvde/tvde_plans_screen.dart lib/stores/tvde_store.dart
+Analyzing tvde_plans_screen.dart, tvde_store.dart...
+No issues found!
+
+$ dart analyze lib/screens/admin/admin_tvde_subscriptions_screen.dart lib/screens/admin/admin_tvde_plan_requests_screen.dart
+Analyzing admin_tvde_subscriptions_screen.dart, admin_tvde_plan_requests_screen.dart...
+No issues found!
+```
+
+Testes TVDE (6 ficheiros):
+
+```
+$ flutter test test/tvde_charge_saved_card_test.dart test/tvde_fare_view_test.dart \
+    test/tvde_payment_selector_test.dart test/tvde_plan_quote_test.dart \
+    test/tvde_ride_awaiting_payment_test.dart test/tvde_roundtrip_cash_test.dart
+00:19 +55: All tests passed!
+```
+
+## 4. A dependência de servidor, agora com nomes exactos
+
+A 1.ª corrida já avisou. Esta verificação torna o aviso preciso — **no repo**
+(as migrations que temos cá) faltam três coisas que o Flutter já usa:
+
+1. `admin_tvde_subscriptions_list()` e `admin_tvde_plan_requests_list()` montam
+   a resposta campo a campo em `20260626100005_tvde_admin_read_rpcs.sql`.
+   `grep` por `km_included|distance_km|route_origin_label|route_dest_label`
+   nesse ficheiro → **nenhum**. Sem isso o painel mostra `—` (lê em segurança,
+   não rebenta).
+2. `admin_grant_subscription` está declarada em
+   `20260626100001_tvde_phase1_rpcs.sql:373` como **`(p_client_id UUID, p_plan TEXT)`**
+   — 2 argumentos. O ecrã chama-a com 5. Se o servidor não tiver a versão de 5
+   argumentos, conceder à mão falha com erro (mostrado ao admin, não silencioso).
+
+Isto pode já estar resolvido **no servidor** — a ordem diz que o backend foi
+preparado por MCP a 2026-08-25 e proíbe mexer em SQL, e o executor headless
+corre sem `--mcp-config`, por isso não tenho como espreitar a base de dados.
+Não afirmo que está partido; afirmo que **o repo não prova que está feito** e
+que é aí que se confirma. Não é trabalho de Flutter.

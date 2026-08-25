@@ -116,6 +116,17 @@ jobs:
             echo "tem=nao" >> "$GITHUB_OUTPUT"
           fi
 
+      # Proxy de imagens (/img) — Cloudflare Pages Function.
+      # A fonte vive em web/functions/ (o build do Flutter copia web/ para
+      # build/web/). O wrangler procura a pasta `functions` na RAIZ do
+      # projecto, por isso copiamos para lá antes de publicar. Ver
+      # web/functions/img.js para o porquê deste proxy existir.
+      - name: Preparar Pages Function do proxy de imagens
+        run: |
+          mkdir -p functions
+          cp build/web/functions/*.js functions/
+          echo "functions/ ->"; ls -la functions/
+
       # Só corre quando o secret existir. Enquanto não existir, o passo é
       # saltado e o deploy faz-se do PC com o deploy-web.sh.
       - name: Deploy para Cloudflare Pages

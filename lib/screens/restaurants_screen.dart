@@ -82,8 +82,13 @@ Future<void> openRestaurantBusiness(
   RestaurantModel business, {
   bool reservationsOnly = false,
 }) async {
-    // Closed restaurants cannot receive orders — excepto casas de festa:
-    // encomenda com 48h de aviso entra a qualquer hora, o calendário é que manda.
+    // Closed restaurants cannot receive orders.
+    //
+    // 2026-08-25 — as casas de FESTAS vendem por encomenda com aviso prévio
+    // (mínimo 1 dia): o horário da loja é de levantamento/entrega, não de
+    // aceitar encomendas. Bloquear a entrada fora das horas deixava a loja da
+    // Keli sem abrir à noite — o cartão dizia "Aceita encomendas" e o toque
+    // não fazia nada. É a mesma isenção que `statusLabel()` já fazia.
     if (!business.isOpenNow() &&
         !reservationsOnly &&
         !business.belongsTo(BusinessCategory.festas)) {

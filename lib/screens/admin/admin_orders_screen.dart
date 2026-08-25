@@ -88,7 +88,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
       var base = Supabase.instance.client.from('orders').select(
           'id, status, payment_method, payment_status, price, created_at, '
           'vendor_name, assigned_driver_id, customer_name, service_type, '
-          'takeaway_pickup_code, '
+          'takeaway_pickup_code, scheduled_for, prep_time_minutes, '
           'wallet_applied_cents, tokens_applied_count, tokens_applied_value_cents, '
           'stripe_charge_cents, is_test_order');
       var query = _statusFilter == 'all' ? base : base.eq('status', _statusFilter);

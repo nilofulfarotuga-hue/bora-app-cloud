@@ -6,6 +6,8 @@ enum BusinessCategory {
   store,
   pharmacy,
   beauty,
+  // Salgados, doces e bolos por encomenda (lançamento 2026-08-25).
+  festas,
 }
 
 extension BusinessCategoryLabel on BusinessCategory {
@@ -21,9 +23,20 @@ extension BusinessCategoryLabel on BusinessCategory {
         return 'Farmácia';
       case BusinessCategory.beauty:
         return 'Beleza';
+      case BusinessCategory.festas:
+        return 'Festas';
     }
   }
 }
+
+/// Antecedência mínima das encomendas de festa, em dias (regra do Danilo,
+/// 2026-08-25: UM dia, ponto — a data mais cedo é sempre o dia seguinte).
+const int kFestasAvisoDias = 1;
+
+/// Nome da prateleira de encomenda em `products.category` das lojas de festas.
+/// Um carrinho com QUALQUER item desta prateleira é agendado por inteiro
+/// (carrinho misto → manda a festa); só itens "Na hora" seguem o fluxo normal.
+const String kFestasPrateleiraEncomenda = 'Para festa (encomenda)';
 
 class DayHours {
   const DayHours({
@@ -276,6 +289,9 @@ class RestaurantModel {
   /// Human-readable label for the client UI.
   String statusLabel([DateTime? nowOverride]) {
     if (!isOnline) return 'Indisponível';
+    // Casas de festa vendem por encomenda com aviso prévio: nunca estão
+    // "fechadas" para encomendar — o horário é de levantamento/entrega.
+    if (belongsTo(BusinessCategory.festas)) return 'Aceita encomendas';
     final now = nowOverride ?? DateTime.now();
     final day = businessHours.dayFor(now.weekday);
     if (day.closed) return 'Fechado hoje';

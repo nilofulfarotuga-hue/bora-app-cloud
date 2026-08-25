@@ -118,4 +118,11 @@ class AppColors {
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
+  // Festas (2026-08-25) — rosa festivo (bolo + balões; sem laranja para
+  // respeitar a regra "1 elemento laranja por ecrã").
+  static const LinearGradient tileFestas = LinearGradient(
+    colors: [Color(0xFFDB2777), Color(0xFFF472B6)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
 }

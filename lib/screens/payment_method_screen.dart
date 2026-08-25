@@ -144,8 +144,19 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
   }
 
   /// C1 — nota opcional do cliente para o estafeta (null se vazia).
+  /// Festas: a data agendada entra SEMPRE à cabeça das observações — assim a
+  /// loja vê a data mesmo que a gravação de scheduled_for falhe (o cartão
+  /// cria a ordem no webhook, sem o cliente presente).
   String? get _orderNote {
     final t = _notesController.text.trim();
+    final quando = context.read<CartStore>().festasQuando;
+    if (quando != null) {
+      final dia = '${quando.day.toString().padLeft(2, '0')}/'
+          '${quando.month.toString().padLeft(2, '0')}';
+      final hora = '${quando.hour.toString().padLeft(2, '0')}:00';
+      final marca = 'Encomenda para $dia às $hora';
+      return t.isEmpty ? marca : '$marca · $t';
+    }
     return t.isEmpty ? null : t;
   }
 
@@ -1142,6 +1153,23 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       // Parte 3 (rodada 2) — persistir a paragem em casa (morada+coords+cash+volta)
       // ANTES de clearCart (que apaga a errandSession).
       await _persistErrandHomeStop(cartStore, orderId);
+      // Festas (2026-08-25) — a ordem do cartão nasce no webhook sem a data;
+      // gravá-la agora pela RPC dedicada (valida dono/categoria/dia seguinte).
+      // Se falhar, a data já segue nas observações do pedido.
+      final quandoFesta = cartStore.festasQuando;
+      if (cartStore.vendorIsFestas && quandoFesta != null) {
+        try {
+          await Supabase.instance.client.rpc(
+            'festas_set_schedule',
+            params: {
+              'p_order_id': orderId,
+              'p_scheduled_for': quandoFesta.toUtc().toIso8601String(),
+            },
+          );
+        } catch (e) {
+          debugPrint('[Checkout] festas_set_schedule falhou (non-fatal): $e');
+        }
+      }
       cartStore.clearCart();
       await _consumeTokensAndNavigate(tokensUsed);
       return;

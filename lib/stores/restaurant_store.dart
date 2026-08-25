@@ -63,6 +63,18 @@ class RestaurantStore extends ChangeNotifier {
 
   List<RestaurantModel> get restaurants => List.unmodifiable(_restaurants);
 
+  /// `products.category` (prateleira) de um produto já carregado, por id.
+  /// Usado no checkout de Festas para saber se o carrinho leva item de
+  /// encomenda ("Para festa (encomenda)") — carrinho misto agenda tudo.
+  String? productCategoryById(String productId) {
+    for (final products in _productsByRestaurant.values) {
+      for (final product in products) {
+        if (product.id == productId) return product.category;
+      }
+    }
+    return null;
+  }
+
   List<PartnerProduct> partnerProductsForRestaurant(
     String restaurantId, {
     bool onlyAvailable = false,

@@ -69,7 +69,9 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen>
               'errand_speed, errand_home_stop, errand_estimated_purchase_cents, '
               'errand_home_stop_address, errand_home_stop_reason, '
               'errand_home_stop_cash_cents, errand_return_leg, errand_leg, '
-              'final_purchase_value, errand_request_photo_url')
+              'final_purchase_value, errand_request_photo_url, '
+              // FESTAS (2026-08-25) — agendamento + tempo de preparo
+              'scheduled_for, prep_time_minutes, customer_notes')
           .eq('id', widget.orderId)
           .maybeSingle();
 
@@ -259,6 +261,29 @@ class _SummaryTab extends StatelessWidget {
                     order['pickup_address'] ?? '—'),
                 _row(Icons.euro, 'Total', '€${_amount(order)}'),
                 // FAVORES (errand) — bloco específico do favor (PT-BR admin).
+                // FESTAS (2026-08-25) — agendamento visível e editável.
+                if (order['scheduled_for'] != null ||
+                    order['prep_time_minutes'] != null) ...[
+                  const Divider(),
+                  _row(Icons.event, 'Agendado para',
+                      _fmtScheduled(order['scheduled_for'])),
+                  _row(Icons.timer_outlined, 'Tempo de preparo',
+                      order['prep_time_minutes'] != null
+                          ? '${order['prep_time_minutes']} min'
+                          : '—'),
+                  if (order['customer_notes'] != null &&
+                      order['customer_notes'].toString().isNotEmpty)
+                    _row(Icons.notes, 'Observações',
+                        order['customer_notes'].toString()),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      onPressed: () => _editarAgendamento(context),
+                      icon: const Icon(Icons.edit_outlined, size: 16),
+                      label: const Text('Editar agendamento'),
+                    ),
+                  ),
+                ],
                 if (order['service_type'] == 'errand') ...[
                   const Divider(),
                   _row(Icons.assignment_outlined, 'Favor',
@@ -346,6 +371,77 @@ class _SummaryTab extends StatelessWidget {
       'pickedUp',
       'onTheWay',
     ].contains(status);
+  }
+
+  // FESTAS — formatação e edição do agendamento (RPC admin, com auditoria).
+  String _fmtScheduled(dynamic raw) {
+    if (raw == null) return '—';
+    final dt = DateTime.tryParse(raw.toString())?.toLocal();
+    if (dt == null) return raw.toString();
+    return '${dt.day.toString().padLeft(2, '0')}/'
+        '${dt.month.toString().padLeft(2, '0')}/${dt.year} às '
+        '${dt.hour.toString().padLeft(2, '0')}:'
+        '${dt.minute.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _editarAgendamento(BuildContext context) async {
+    final atual =
+        DateTime.tryParse('${order['scheduled_for'] ?? ''}')?.toLocal() ??
+            DateTime.now().add(const Duration(days: 1));
+    final dia = await showDatePicker(
+      context: context,
+      initialDate: atual,
+      firstDate: DateTime.now().subtract(const Duration(days: 1)),
+      lastDate: DateTime.now().add(const Duration(days: 90)),
+    );
+    if (dia == null || !context.mounted) return;
+    final hora = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(hour: atual.hour, minute: atual.minute),
+    );
+    if (hora == null || !context.mounted) return;
+    final minutosCtrl = TextEditingController(
+        text: '${order['prep_time_minutes'] ?? ''}');
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Editar agendamento'),
+        content: TextField(
+          controller: minutosCtrl,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+              labelText: 'Tempo de preparo (min, vazio = manter)'),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar')),
+          ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Salvar')),
+        ],
+      ),
+    );
+    if (confirmar != true || !context.mounted) return;
+    final novo = DateTime(dia.year, dia.month, dia.day, hora.hour, hora.minute);
+    final prep = int.tryParse(minutosCtrl.text.trim());
+    minutosCtrl.dispose();
+    try {
+      await Supabase.instance.client.rpc('admin_festas_update_schedule',
+          params: {
+            'p_order_id': order['id'],
+            'p_scheduled_for': novo.toUtc().toIso8601String(),
+            if (prep != null) 'p_prep_minutes': prep,
+          });
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Agendamento atualizado.')));
+      onReassigned();
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Erro ao salvar: $e')));
+    }
   }
 
   Widget _row(IconData icon, String label, dynamic value) {

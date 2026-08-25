@@ -46,7 +46,12 @@ class BusinessMapper {
     BusinessCategory? sectionCategory,
   }) {
     final effective = sectionCategory ?? business.category;
-    if (effective == BusinessCategory.restaurant) return null;
+    // Festas usa o fluxo de restaurante (cardápio por secções + opções de
+    // entrega/recolha) — é onde vive o agendamento da encomenda.
+    if (effective == BusinessCategory.restaurant ||
+        effective == BusinessCategory.festas) {
+      return null;
+    }
 
     return RetailStore(
       name: business.name,
@@ -63,6 +68,7 @@ class BusinessMapper {
       case BusinessCategory.supermarket:
       case BusinessCategory.store:
       case BusinessCategory.beauty:
+      case BusinessCategory.festas:
         return StoreCategory.market;
     }
   }

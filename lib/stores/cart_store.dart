@@ -34,6 +34,15 @@ class CartStore extends ChangeNotifier {
   /// Texto do banner "Em breve" da loja da sessão (já com fallback aplicado
   /// pelo chamador — ver `RestaurantModel.comingSoonLabel`).
   String _vendorComingSoonText = 'Em breve';
+
+  /// Loja da sessão pertence à categoria Festas (2026-08-25). Liga o passo do
+  /// calendário no checkout (quando o carrinho tem item de encomenda) e a
+  /// isenção do saco (regra do Danilo: festas não cobra saco).
+  bool _vendorIsFestas = false;
+
+  /// Data/hora escolhida para a encomenda de festa (mínimo: dia seguinte).
+  /// NULL = pedido imediato ("Na hora"). Enviada ao servidor no checkout.
+  DateTime? _festasQuando;
   String? _pickupStreet;
   String? _pickupCity;
   String? _pickupPostalCode;
@@ -75,6 +84,8 @@ class CartStore extends ChangeNotifier {
         'vendorName': _vendorName,
         'vendorComingSoon': _vendorComingSoon,
         'vendorComingSoonText': _vendorComingSoonText,
+        'vendorIsFestas': _vendorIsFestas,
+        'festasQuando': _festasQuando?.toIso8601String(),
         'pickupStreet': _pickupStreet,
         'pickupCity': _pickupCity,
         'pickupPostalCode': _pickupPostalCode,
@@ -114,6 +125,10 @@ class CartStore extends ChangeNotifier {
       _vendorComingSoon = map['vendorComingSoon'] as bool? ?? false;
       _vendorComingSoonText =
           map['vendorComingSoonText'] as String? ?? 'Em breve';
+      _vendorIsFestas = map['vendorIsFestas'] as bool? ?? false;
+      _festasQuando = map['festasQuando'] != null
+          ? DateTime.tryParse(map['festasQuando'] as String)
+          : null;
       _pickupStreet = map['pickupStreet'] as String?;
       _pickupCity = map['pickupCity'] as String?;
       _pickupPostalCode = map['pickupPostalCode'] as String?;
@@ -168,6 +183,18 @@ class CartStore extends ChangeNotifier {
   /// botão de adicionar/finalizar desactivado e [addItem] é ignorado.
   bool get vendorComingSoon => _vendorComingSoon;
 
+  /// Loja da sessão é da categoria Festas (encomendas com aviso prévio).
+  bool get vendorIsFestas => _vendorIsFestas;
+
+  /// Data/hora da encomenda de festa (NULL = imediato).
+  DateTime? get festasQuando => _festasQuando;
+
+  void definirFestasQuando(DateTime? quando) {
+    _festasQuando = quando;
+    _saveCart();
+    notifyListeners();
+  }
+
   /// Se o estado "Em breve" deve travar o cliente ANTES do pagamento.
   ///
   /// Passou a `false` em 2026-08-05: a loja em "Em breve" deixa o cliente
@@ -190,14 +217,33 @@ class CartStore extends ChangeNotifier {
   // UI screens can disable checkout when coordinates are missing.
   bool get hasValidPickupLocation => _pickupLocation != null;
 
-  OrderPricingBreakdown get pricingBreakdown =>
-      PricingService.calculateBreakdown(
-        serviceType: _serviceType,
-        subtotal: subtotal,
-        distanceKm: _distanceKm,
-        isPartnerStore: _isPartnerStore,
-        apartmentDelivery: _apartmentDelivery,
-      );
+  OrderPricingBreakdown get pricingBreakdown {
+    final base = PricingService.calculateBreakdown(
+      serviceType: _serviceType,
+      subtotal: subtotal,
+      distanceKm: _distanceKm,
+      isPartnerStore: _isPartnerStore,
+      apartmentDelivery: _apartmentDelivery,
+    );
+    // Festas (2026-08-25, regra do Danilo): a loja de festas não cobra saco.
+    // Ajuste aqui, fora do PricingService (ficheiro protegido); o servidor
+    // aplica a mesma isenção (migration festas_money_patch). customerTotal é
+    // derivado do bagFee, por isso a cópia corrige o total sozinha.
+    if (!_vendorIsFestas || base.bagFee <= 0) return base;
+    return OrderPricingBreakdown(
+      distanceKm: base.distanceKm,
+      subtotal: base.subtotal,
+      deliveryFee: base.deliveryFee,
+      serviceFee: base.serviceFee,
+      platformCommission: base.platformCommission,
+      driverEarnings: base.driverEarnings,
+      apartmentSurcharge: base.apartmentSurcharge,
+      apartmentDelivery: base.apartmentDelivery,
+      bagFee: 0,
+      partnerMarkupHidden: base.partnerMarkupHidden,
+      isPartnerSelfDispatch: base.isPartnerSelfDispatch,
+    );
+  }
 
   // BUG F (sessão exec 2026-05-12) — server-authoritative pricing quote.
   // Flutter pricingBreakdown usa distância local que pode diferir do server
@@ -409,6 +455,7 @@ class CartStore extends ChangeNotifier {
     bool isPartnerStore = true,
     bool requiresCar = false,
     bool vendorComingSoon = false,
+    bool vendorIsFestas = false,
     String vendorComingSoonText = 'Em breve',
     String? vendorName,
     String? pickupStreet,
@@ -435,6 +482,8 @@ class CartStore extends ChangeNotifier {
     _requiresCar = requiresCar;
     _vendorComingSoon = vendorComingSoon;
     _vendorComingSoonText = vendorComingSoonText;
+    _vendorIsFestas = vendorIsFestas;
+    if (!isSameContext) _festasQuando = null;
     _vendorName = vendorName;
     _pickupStreet = pickupStreet;
     _pickupCity = pickupCity;
@@ -609,6 +658,9 @@ class CartStore extends ChangeNotifier {
     _groceriesPhotoUrl = null;
     _errandSession = null;
     _errandRequestPhotoUrl = null;
+    // Festas — a data agendada morre com o carrinho (nunca vaza para a
+    // compra seguinte).
+    _festasQuando = null;
     notifyListeners();
     _saveCart();
   }
@@ -824,6 +876,26 @@ class CartStore extends ChangeNotifier {
         debugPrint('CartStore.finishOrder: set errand photo failed (non-fatal): $e');
       }
     }
+    // Festas (2026-08-25) — gravar a data da encomenda SEM tocar create_order
+    // (RPC dedicada, mesmo desenho da foto do favor). O servidor valida:
+    // dono do pedido, loja categoria festas, status created, mínimo dia
+    // seguinte, e só uma vez.
+    final quandoFesta = _festasQuando;
+    if (_vendorIsFestas && quandoFesta != null && newOrderId != null) {
+      try {
+        await Supabase.instance.client.rpc(
+          'festas_set_schedule',
+          params: {
+            'p_order_id': newOrderId,
+            'p_scheduled_for': quandoFesta.toUtc().toIso8601String(),
+          },
+        );
+      } catch (e) {
+        // Não-fatal: a data segue também nas observações do pedido.
+        debugPrint('CartStore.finishOrder: festas_set_schedule falhou: $e');
+      }
+    }
+    _festasQuando = null;
     _packagePhotoUrl = null;
     _groceriesPhotoUrl = null;
     _errandSession = null;

@@ -98,7 +98,7 @@ class _RestaurantsScreenState extends State<RestaurantsScreen> {
                         itemCount: visible.length,
                         itemBuilder: (context, index) {
                           final business = visible[index];
-                          return _RestaurantTile(
+                          return RestaurantTile(
                             business: business,
                             onTap: () => openBusiness(
                               context,
@@ -217,6 +217,7 @@ Future<void> openRestaurantBusiness(
       serviceType: OrderServiceType.restaurant,
       isPartnerStore: business.isPartner,
       vendorComingSoon: business.comingSoon,
+      vendorIsFestas: business.belongsTo(BusinessCategory.festas),
       vendorComingSoonText: business.comingSoonLabel,
       vendorName: business.name,
       pickupLocation: pickupLocation,
@@ -324,8 +325,8 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-class _RestaurantTile extends StatelessWidget {
-  const _RestaurantTile({required this.business, required this.onTap});
+class RestaurantTile extends StatelessWidget {
+  const RestaurantTile({required this.business, required this.onTap});
 
   final RestaurantModel business;
   final VoidCallback onTap;

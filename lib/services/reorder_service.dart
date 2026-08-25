@@ -29,9 +29,16 @@ class ReorderService {
     RestaurantStore? restaurantStore,
   }) {
     cart.clearCart();
+    // Festas: re-pedir numa loja de festas volta a exigir o calendário —
+    // resolver a categoria pelo nome da loja quando o store está disponível.
+    final vendorFestas = restaurantStore?.restaurants
+            .where((r) => r.name == order.vendorName)
+            .any((r) => r.belongsTo(BusinessCategory.festas)) ??
+        false;
     cart.configureSession(
       serviceType: order.serviceType,
       isPartnerStore: order.isPartnerStore,
+      vendorIsFestas: vendorFestas,
       vendorName: order.vendorName,
       pickupLocation: order.pickupLocation,
       pickupStreet: order.pickupStreet,

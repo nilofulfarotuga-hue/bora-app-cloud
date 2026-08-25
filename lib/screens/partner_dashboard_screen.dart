@@ -509,6 +509,142 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
     return revenue > 0 ? revenue : 0;
   }
 
+  // ── Festas (2026-08-25) — aceitar com tempo ───────────────────────────────
+
+  /// Chips do "Fica pronto em quanto tempo?" (ordem do Danilo:
+  /// 15·20·30·40·50 min·1h·1h20·1h30 + campo livre).
+  static const List<int> _kFestasTempoOptions = [15, 20, 30, 40, 50, 60, 80, 90];
+
+  String _festasTempoLabel(int m) {
+    if (m < 60) return '$m min';
+    final h = m ~/ 60;
+    final resto = m % 60;
+    return resto == 0 ? '${h}h' : '${h}h${resto.toString().padLeft(2, '0')}';
+  }
+
+  /// Aceite das lojas de festas: abre a folha do tempo, chama a RPC
+  /// `festas_accept` (status → preparing + prep_time_minutes) e avisa o
+  /// cliente. Vale para entrega E recolha (na recolha a RPC também escreve
+  /// takeaway_prep_minutes, para o countdown existente do cliente).
+  Future<void> _festasAceitarComTempo(OrderModel order) async {
+    final controller = TextEditingController();
+    final minutos = await showModalBottomSheet<int>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetCtx) => SafeArea(
+        child: Padding(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 16,
+            bottom: 16 + MediaQuery.of(sheetCtx).viewInsets.bottom,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Fica pronto em quanto tempo?',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'O cliente vê este tempo na encomenda.',
+                style: TextStyle(fontSize: 12.5, color: Colors.grey),
+              ),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _kFestasTempoOptions
+                    .map((m) => ActionChip(
+                          label: Text(_festasTempoLabel(m)),
+                          onPressed: () => Navigator.of(sheetCtx).pop(m),
+                        ))
+                    .toList(),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: controller,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        hintText: 'Outro tempo (minutos)',
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  ElevatedButton(
+                    onPressed: () {
+                      final v = int.tryParse(controller.text.trim());
+                      if (v != null && v >= 5 && v <= 480) {
+                        Navigator.of(sheetCtx).pop(v);
+                      }
+                    },
+                    child: const Text('OK'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    controller.dispose();
+    if (minutos == null || !mounted) return;
+
+    _stopSoundAndVibration();
+    try {
+      await Supabase.instance.client.rpc(
+        'festas_accept',
+        params: {'p_order_id': order.id, 'p_prep_minutes': minutos},
+      );
+      cancelPartnerOrderNotification(order.id);
+      // Aviso ao cliente pelos MESMOS canais do delivery (notify-client).
+      final phone = order.clientPhone;
+      if (phone != null && phone.isNotEmpty) {
+        final agendado = order.scheduledFor;
+        final corpo = agendado != null
+            ? 'A tua encomenda para o dia '
+                '${agendado.day.toString().padLeft(2, '0')}/'
+                '${agendado.month.toString().padLeft(2, '0')} às '
+                '${agendado.hour.toString().padLeft(2, '0')}:'
+                '${agendado.minute.toString().padLeft(2, '0')} foi aceite — '
+                'fica pronta em ${_festasTempoLabel(minutos)}.'
+            : 'Pedido aceite — fica pronto em ${_festasTempoLabel(minutos)}.';
+        NotificationService.instance
+            .notifyClient(
+              clientPhone: phone,
+              title: 'Encomenda aceite 🎉',
+              body: corpo,
+            )
+            .ignore();
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content:
+                Text('Aceite — fica pronto em ${_festasTempoLabel(minutos)}'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao aceitar: $e'),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -539,6 +675,18 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
             o.status != OrderStatus.cancelled &&
             o.status != OrderStatus.rejected)
         .toList();
+    // Festas: fila ordenada pela data agendada — "na hora" (sem data)
+    // primeiro por chegada, depois as encomendas por proximidade da data.
+    if (currentRestaurant.belongsTo(BusinessCategory.festas)) {
+      activePartnerOrders.sort((a, b) {
+        final sa = a.scheduledFor;
+        final sb = b.scheduledFor;
+        if (sa == null && sb == null) return a.createdAt.compareTo(b.createdAt);
+        if (sa == null) return -1;
+        if (sb == null) return 1;
+        return sa.compareTo(sb);
+      });
+    }
     final historicalPartnerOrders = partnerOrders
         .where((o) =>
             o.status == OrderStatus.delivered ||
@@ -792,6 +940,13 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                 _OrdersSection(
                   orders: activePartnerOrders,
                   onAccept: (order) async {
+                    // Festas: aceitar abre "Fica pronto em quanto tempo?"
+                    // (RPC festas_accept + aviso ao cliente).
+                    if (currentRestaurant
+                        .belongsTo(BusinessCategory.festas)) {
+                      await _festasAceitarComTempo(order);
+                      return;
+                    }
                     final accepted =
                         await orderStore.restaurantAcceptOrder(order);
                     cancelPartnerOrderNotification(order.id);
@@ -1372,6 +1527,32 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
           _CurbsideAlert(info: order.takeawayCurbsideInfo),
         ],
         const SizedBox(height: 12),
+        // Festas: a data agendada da encomenda, bem visível antes dos itens.
+        if (order.scheduledFor != null) ...[
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFDF2F8),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFFFBCFE8)),
+            ),
+            child: Text(
+              '📅 Encomenda para '
+              '${order.scheduledFor!.day.toString().padLeft(2, '0')}/'
+              '${order.scheduledFor!.month.toString().padLeft(2, '0')} às '
+              '${order.scheduledFor!.hour.toString().padLeft(2, '0')}:'
+              '${order.scheduledFor!.minute.toString().padLeft(2, '0')}'
+              '${order.prepTimeMinutes != null ? ' · aceite (${order.prepTimeMinutes} min)' : ''}',
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+                color: Color(0xFF9D174D),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+        ],
         Text(
           'Itens',
           style:
@@ -1415,6 +1596,21 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
               ),
             ),
           ),
+        // Observações do cliente — sempre visíveis quando existem (nas
+        // encomendas de festa levam sabores/dedicatórias; antes só apareciam
+        // quando a lista de itens vinha vazia).
+        if (order.items.isNotEmpty &&
+            order.customerNotes?.isNotEmpty == true) ...[
+          const SizedBox(height: 8),
+          Text(
+            '📝 ${order.customerNotes!}',
+            style: TextStyle(
+              fontSize: 12.5,
+              fontStyle: FontStyle.italic,
+              color: Colors.grey.shade700,
+            ),
+          ),
+        ],
         const SizedBox(height: 16),
         Row(
           children: [

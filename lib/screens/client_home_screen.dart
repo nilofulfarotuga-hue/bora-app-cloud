@@ -32,6 +32,7 @@ import 'send_package_form_screen.dart';
 import 'errand_form_screen.dart';
 import 'stores_screen.dart';
 import 'client/tvde/tvde_request_ride_screen.dart';
+import 'festas_screen.dart';
 
 class ClientHomeScreen extends StatefulWidget {
   const ClientHomeScreen({super.key});
@@ -537,6 +538,21 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
           Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const TvdeRequestRideScreen()),
+          );
+        }),
+      ),
+    );
+
+    // Festas (2026-08-25) — salgados, doces e bolos por encomenda.
+    tiles.add(
+      _TileData(
+        label: 'Festas',
+        gradient: AppColors.tileFestas,
+        imageAsset: 'assets/categories/cat_festas.png',
+        onTap: () => _navigateWithAddressGuard(() {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const FestasScreen()),
           );
         }),
       ),

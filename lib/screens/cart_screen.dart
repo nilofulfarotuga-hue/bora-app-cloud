@@ -6,12 +6,14 @@ import 'package:provider/provider.dart';
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
 import '../models/order_service_type.dart';
+import '../models/restaurant_model.dart' show kFestasPrateleiraEncomenda;
 import '../services/wallet_service.dart';
 import '../stores/cart_store.dart';
 import '../stores/restaurant_store.dart';
 import '../widgets/bora/bora.dart';
 import '../widgets/takeaway/curbside_inputs.dart';
 import '../widgets/tip_selector.dart';
+import 'festas_quando_screen.dart';
 import 'orders_screen.dart';
 import 'payment_method_screen.dart';
 
@@ -538,6 +540,32 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                         walletAppliedCents:
                             _useWalletBalance ? walletAppliedCents : 0,
                       ));
+
+                      // Festas: item de encomenda no carrinho → o cliente
+                      // escolhe o dia e a hora (mínimo: dia seguinte).
+                      // Carrinho misto agenda TUDO junto; só "Na hora" segue
+                      // como delivery normal.
+                      if (cartStore.vendorIsFestas) {
+                        final restStore = context.read<RestaurantStore>();
+                        final temEncomenda = cartStore.items.any((i) =>
+                            restStore.productCategoryById(i.productId) ==
+                            kFestasPrateleiraEncomenda);
+                        if (temEncomenda) {
+                          final quando = await Navigator.push<DateTime>(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => FestasQuandoScreen(
+                                inicial: cartStore.festasQuando,
+                              ),
+                            ),
+                          );
+                          if (quando == null) return; // voltou atrás
+                          cartStore.definirFestasQuando(quando);
+                        } else {
+                          cartStore.definirFestasQuando(null);
+                        }
+                        if (!context.mounted) return;
+                      }
 
                       final confirmed = await Navigator.push<bool>(
                         context,

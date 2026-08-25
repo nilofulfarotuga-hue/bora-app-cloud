@@ -194,6 +194,14 @@ class OrderModel {
   /// Imutável pós payment_status='paid' (D6, UI-only guard).
   final String? takeawayCurbsideInfo;
 
+  /// Festas (2026-08-25): data/hora agendada da encomenda. NULL = imediato.
+  /// Escrito server-side (create_order/festas_set_schedule) — nunca pelo app.
+  final DateTime? scheduledFor;
+
+  /// Festas: minutos anunciados pela loja no aceite ("fica pronto em X min").
+  /// Escrito server-side por festas_accept. NULL até aceitar.
+  final int? prepTimeMinutes;
+
   /// FAVORES (errand) — campos do pedido de favor. Todos NULL/default para
   /// service_types diferentes de errand. Backend valida no branch errand de
   /// create_order. Ver business_rules §55.
@@ -336,6 +344,8 @@ class OrderModel {
     this.takeawayPrepMinutes,
     this.takeawayIsCurbside = false,
     this.takeawayCurbsideInfo,
+    this.scheduledFor,
+    this.prepTimeMinutes,
     // FAVORES (errand) — defaults seguros para outros service_types
     this.errandDescription,
     this.errandLocation,
@@ -549,6 +559,10 @@ class OrderModel {
       takeawayPrepMinutes: (data['takeaway_prep_minutes'] as num?)?.toInt(),
       takeawayIsCurbside: data['takeaway_is_curbside'] as bool? ?? false,
       takeawayCurbsideInfo: data['takeaway_curbside_info'] as String?,
+      scheduledFor: data['scheduled_for'] != null
+          ? DateTime.tryParse(data['scheduled_for'].toString())?.toLocal()
+          : null,
+      prepTimeMinutes: (data['prep_time_minutes'] as num?)?.toInt(),
       errandDescription: data['errand_description'] as String?,
       errandLocation: data['errand_location'] as String?,
       errandLocationLat: (data['errand_location_lat'] as num?)?.toDouble(),

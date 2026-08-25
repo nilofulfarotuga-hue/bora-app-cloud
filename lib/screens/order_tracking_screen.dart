@@ -621,14 +621,56 @@ class _BottomCardState extends State<_BottomCard> {
                   ],
                 ),
 
+                // ── Festas: encomenda agendada + tempo anunciado ──────────
+                if (order.scheduledFor != null) ...[
+                  const SizedBox(height: 14),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFDF2F8),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFFBCFE8)),
+                    ),
+                    child: Text(
+                      '📅 Encomenda para '
+                      '${order.scheduledFor!.day.toString().padLeft(2, '0')}/'
+                      '${order.scheduledFor!.month.toString().padLeft(2, '0')} às '
+                      '${order.scheduledFor!.hour.toString().padLeft(2, '0')}:'
+                      '${order.scheduledFor!.minute.toString().padLeft(2, '0')}'
+                      '${order.status == OrderStatus.preparing && order.prepTimeMinutes != null ? ' · fica pronta em ${order.prepTimeMinutes} min' : ''}',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13.5,
+                        color: Color(0xFF9D174D),
+                      ),
+                    ),
+                  ),
+                ],
                 // ── ETA badge ────────────────────────────────────────────
-                if (OrderEtaService.label(order) != null) ...[
+                // Encomenda agendada: o ETA por distância não faz sentido
+                // (o pedido sai na data marcada) — esconder o badge.
+                if (OrderEtaService.label(order) != null &&
+                    order.scheduledFor == null) ...[
                   const SizedBox(height: 14),
                   _EtaBadge(
                     label: OrderEtaService.label(order)!,
                     status: order.status,
                     serviceType: order.serviceType,
                     vendorName: order.vendorName,
+                  ),
+                ],
+                // Festas "na hora" aceite com tempo: mostrar o prazo anunciado.
+                if (order.scheduledFor == null &&
+                    order.status == OrderStatus.preparing &&
+                    order.prepTimeMinutes != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'A loja aceitou — fica pronto em '
+                    '${order.prepTimeMinutes} min.',
+                    style: const TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w600),
                   ),
                 ],
 

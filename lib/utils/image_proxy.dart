@@ -35,6 +35,9 @@ const Set<String> _dominiosProxiados = {
   'www.zippy.pt',
   'static.mcdonalds.pt',
   'www.kfc.pt',
+  'www.mcdonalds.pt',
+  'cdn.sanity.io',
+  'www.lidl.pt',
   'www.google.com',
 };
 

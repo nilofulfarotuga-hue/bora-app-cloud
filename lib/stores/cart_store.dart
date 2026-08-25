@@ -190,14 +190,30 @@ class CartStore extends ChangeNotifier {
   // UI screens can disable checkout when coordinates are missing.
   bool get hasValidPickupLocation => _pickupLocation != null;
 
-  OrderPricingBreakdown get pricingBreakdown =>
-      PricingService.calculateBreakdown(
-        serviceType: _serviceType,
-        subtotal: subtotal,
-        distanceKm: _distanceKm,
-        isPartnerStore: _isPartnerStore,
-        apartmentDelivery: _apartmentDelivery,
-      );
+  OrderPricingBreakdown get pricingBreakdown {
+    final base = PricingService.calculateBreakdown(
+      serviceType: _serviceType,
+      subtotal: subtotal,
+      distanceKm: _distanceKm,
+      isPartnerStore: _isPartnerStore,
+      apartmentDelivery: _apartmentDelivery,
+    );
+    // Festas (2026-08-25, regra do Danilo): sem saco na categoria.
+    if (!_vendorIsFestas || base.bagFee <= 0) return base;
+    return OrderPricingBreakdown(
+      distanceKm: base.distanceKm,
+      subtotal: base.subtotal,
+      deliveryFee: base.deliveryFee,
+      serviceFee: base.serviceFee,
+      platformCommission: base.platformCommission,
+      driverEarnings: base.driverEarnings,
+      apartmentSurcharge: base.apartmentSurcharge,
+      apartmentDelivery: base.apartmentDelivery,
+      bagFee: 0,
+      partnerMarkupHidden: base.partnerMarkupHidden,
+      isPartnerSelfDispatch: base.isPartnerSelfDispatch,
+    );
+  }
 
   // BUG F (sessão exec 2026-05-12) — server-authoritative pricing quote.
   // Flutter pricingBreakdown usa distância local que pode diferir do server

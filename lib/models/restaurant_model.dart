@@ -29,12 +29,13 @@ extension BusinessCategoryLabel on BusinessCategory {
   }
 }
 
-/// Antecedência das encomendas de festa (decisão do Danilo, 2026-08-24 —
-/// substitui as 48h): normal = 1 dia; encomenda GRANDE = 3 dias.
-/// Grande = carrinho com Cento de Salgados OU total >= kFestasEncomendaGrandeEuros.
-const int kFestasAvisoDiasNormal = 1;
-const int kFestasAvisoDiasGrande = 3;
-const double kFestasEncomendaGrandeEuros = 40.0;
+/// Antecedência das encomendas de festa (regra final do Danilo, 2026-08-25):
+/// UM dia, ponto — a data mais cedo é sempre o dia seguinte.
+const int kFestasAvisoDias = 1;
+
+/// Prateleira de encomenda em `products.category`. Carrinho com QUALQUER
+/// item desta prateleira é agendado por inteiro (misto → manda a festa).
+const String kFestasPrateleiraEncomenda = 'Para festa (encomenda)';
 
 class DayHours {
   const DayHours({

@@ -544,16 +544,16 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                       // Festas: antes de pagar, o cliente diz o dia e a hora.
                       // A loja precisa de aviso prévio, por isso este passo é
                       // obrigatório — mas só para esta categoria.
-                      if (cartStore.vendorIsFestas) {
+                      if (cartStore.vendorIsFestas &&
+                          cartStore.items.any((i) =>
+                              context
+                                  .read<RestaurantStore>()
+                                  .productCategoryById(i.productId) ==
+                              kFestasPrateleiraEncomenda)) {
                         final quando = await Navigator.push<DateTime>(
                           context,
                           MaterialPageRoute(
                             builder: (_) => FestasQuandoScreen(
-                              // Grande: Cento no carrinho OU total >= €40 -> 3 dias.
-                              encomendaGrande: cartStore.items.any((i) =>
-                                      i.name.toLowerCase().contains('cento')) ||
-                                  cartStore.subtotal >=
-                                      kFestasEncomendaGrandeEuros,
                               inicial: cartStore.festasQuando,
                             ),
                           ),

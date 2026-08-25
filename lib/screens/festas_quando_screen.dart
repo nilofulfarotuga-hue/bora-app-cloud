@@ -8,8 +8,8 @@ import '../widgets/bora/bora_screen_app_bar.dart';
 /// Passo do checkout **só para lojas de festas**: escolher o dia e a hora da
 /// encomenda.
 ///
-/// Os dias que não cumprem o aviso prévio ([kFestasAvisoHoras]) aparecem
-/// riscados — visíveis, com a razão à vista, para a pessoa perceber porquê.
+/// Os dias que não cumprem o aviso prévio ([kFestasAvisoDias] dia — a data
+/// mais cedo é o dia seguinte) aparecem riscados, com a razão à vista.
 /// Devolve o [DateTime] escolhido, ou `null` se voltar atrás.
 class FestasQuandoScreen extends StatefulWidget {
   const FestasQuandoScreen({
@@ -17,11 +17,7 @@ class FestasQuandoScreen extends StatefulWidget {
     this.horaAbertura = 9,
     this.horaFecho = 20,
     this.inicial,
-    this.encomendaGrande = false,
   });
-
-  /// Encomenda grande (Cento no carrinho ou total >= €40): 3 dias de aviso.
-  final bool encomendaGrande;
 
   /// Horário da loja (`business_hours`). O padrão é o da Sabores do Brasil.
   final int horaAbertura;
@@ -48,11 +44,10 @@ class _FestasQuandoScreenState extends State<FestasQuandoScreen> {
   @override
   void initState() {
     super.initState();
-    _minimo = DateTime.now().add(Duration(
-        days: widget.encomendaGrande
-            ? kFestasAvisoDiasGrande
-            : kFestasAvisoDiasNormal));
+    // Regra do Danilo (2026-08-25): UM dia, ponto — a partir da meia-noite
+    // seguinte qualquer hora do dia serve (bate com festas_set_schedule).
     final agora = DateTime.now();
+    _minimo = DateTime(agora.year, agora.month, agora.day + kFestasAvisoDias);
     _mes = DateTime(agora.year, agora.month);
     final ini = widget.inicial;
     if (ini != null) {
@@ -143,9 +138,9 @@ class _FestasQuandoScreenState extends State<FestasQuandoScreen> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
-              'Os dias riscados não cumprem o aviso prévio. '
-              'Encomendas grandes pedem $kFestasAvisoDiasGrande dias; '
-              'as restantes, $kFestasAvisoDiasNormal dia.',
+              'Os dias riscados não cumprem o aviso prévio de '
+              '$kFestasAvisoDias dia. Se precisares para mais cedo, fala '
+              'com a loja — o contacto está na página.',
               style: const TextStyle(
                   fontSize: 12.5, color: Color(0xFF9A3412), height: 1.5),
             ),

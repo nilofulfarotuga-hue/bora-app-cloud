@@ -2,6 +2,8 @@
 // vinham de CDNs de terceiros SEM cabeçalho CORS — o browser bloqueava e o
 // Flutter web ficava com o espaço reservado cinzento em vez da foto (o que o
 // Danilo apanhou no iPhone). Passam a ser pedidas ao proxy do próprio site.
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:bora_app/utils/image_proxy.dart';
@@ -44,5 +46,32 @@ void main() {
     expect(imagemParaMostrar(externa), externa);
     expect(imagemParaMostrarOpcional(null), isNull);
     expect(imagemParaMostrarOpcional('  '), isNull);
+  });
+
+  test('as duas listas de dominios (cliente e Pages Function) nao divergem',
+      () {
+    // Se divergirem, as imagens desses dominios partem EM SILENCIO: o cliente
+    // pede ao /img e a funcao recusa com 403. Este teste e o alarme.
+    List<String> dominios(String caminho, String inicio, String fim) {
+      final texto = File(caminho).readAsStringSync();
+      final i = texto.indexOf(inicio);
+      final bloco = texto.substring(i, texto.indexOf(fim, i));
+      return RegExp(r"'([a-z0-9.\-]+\.[a-z]{2,})'")
+          .allMatches(bloco)
+          .map((m) => m.group(1)!)
+          .toSet()
+          .toList()
+        ..sort();
+    }
+
+    final naFuncao = dominios('web/functions/img.js', 'DOMINIOS_PERMITIDOS', ']);')
+      ..remove('ojykpzwqrtusfeakzrna.supabase.co'); // o nosso Storage nunca e proxiado pelo cliente
+    final noCliente =
+        dominios('lib/utils/image_proxy.dart', '_dominiosProxiados', '};');
+
+    expect(noCliente.toSet().difference(naFuncao.toSet()), isEmpty,
+        reason: 'o cliente proxia dominios que a funcao recusaria (403)');
+    expect(naFuncao.toSet().difference(noCliente.toSet()), isEmpty,
+        reason: 'a funcao permite dominios que o cliente nunca lhe manda');
   });
 }

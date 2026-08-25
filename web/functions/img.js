@@ -35,6 +35,9 @@ const DOMINIOS_PERMITIDOS = new Set([
   'www.zippy.pt',
   'static.mcdonalds.pt',
   'www.kfc.pt',
+  'www.mcdonalds.pt',
+  'cdn.sanity.io',
+  'www.lidl.pt',
   'www.google.com',            // favicons usados como logo de loja
   'ojykpzwqrtusfeakzrna.supabase.co',
 ]);

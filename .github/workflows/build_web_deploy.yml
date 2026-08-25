@@ -125,7 +125,13 @@ jobs:
         run: |
           mkdir -p functions
           cp build/web/functions/*.js functions/
-          echo "functions/ ->"; ls -la functions/
+          # Validar a sintaxe ANTES de publicar: um erro aqui derruba o deploy
+          # inteiro (aconteceu a 2026-08-26 com concatenação à moda do Dart).
+          for f in functions/*.js; do
+            cp "$f" "/tmp/$(basename "$f" .js).mjs"
+            node --check "/tmp/$(basename "$f" .js).mjs"
+          done
+          echo "functions/ (sintaxe validada) ->"; ls -la functions/
 
       # Só corre quando o secret existir. Enquanto não existir, o passo é
       # saltado e o deploy faz-se do PC com o deploy-web.sh.

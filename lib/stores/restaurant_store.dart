@@ -6,6 +6,7 @@ import '../models/order_model.dart';
 import '../models/partner_product.dart';
 import '../models/product_variant.dart';
 import '../models/restaurant_model.dart';
+import '../utils/image_proxy.dart';
 import '../services/foreground_service.dart';
 
 class RestaurantStore extends ChangeNotifier {
@@ -205,7 +206,7 @@ class RestaurantStore extends ChangeNotifier {
       name: data['name'] ?? '',
       description: (data['description'] ?? '').toString(),
       price: price,
-      photoUrl: data['photo_url'] ?? '',
+      photoUrl: imagemParaMostrar(data['photo_url'] as String?),
       isAvailable: (data['is_available'] as bool?) ?? true,
       category: (data['category'] ?? '').toString(),
       categoryRoot: (data['category_root'] ?? '').toString(),
@@ -558,7 +559,7 @@ class RestaurantStore extends ChangeNotifier {
             name: data['name'] ?? '',
             description: (data['description'] ?? '').toString(),
             price: (data['price'] as num? ?? 0).toDouble(),
-            photoUrl: data['photo_url'] ?? '',
+            photoUrl: imagemParaMostrar(data['photo_url'] as String?),
             isAvailable: data['is_available'] ?? true,
             category: (data['category'] ?? '').toString(),
             categoryRoot: (data['category_root'] ?? '').toString(),
@@ -598,7 +599,7 @@ class RestaurantStore extends ChangeNotifier {
             name: data['name'] ?? '',
             description: data['description'] ?? '',
             price: (data['price'] as num? ?? 0).toDouble(),
-            photoUrl: data['photo_url'] ?? '',
+            photoUrl: imagemParaMostrar(data['photo_url'] as String?),
             isAvailable: data['is_available'] ?? true,
             category: (data['category'] ?? list[index].category).toString(),
             categoryRoot:
@@ -1245,7 +1246,7 @@ class RestaurantStore extends ChangeNotifier {
       address: data['address'] ?? '',
       phone: data['phone'] ?? '',
       email: data['email'] ?? '',
-      photoUrl: data['photo_url'] ?? '',
+      photoUrl: imagemParaMostrar(data['photo_url'] as String?),
       cuisineType: data['cuisine_type'] ?? '',
       isPartner: data['is_partner'] ?? true,
       category: category,
@@ -1266,7 +1267,7 @@ class RestaurantStore extends ChangeNotifier {
       businessHours: BusinessHours.fromJson(data['business_hours']),
       avgRating: (data['avg_rating'] as num?)?.toDouble(),
       ratingsCount: (data['ratings_count'] as num?)?.toInt() ?? 0,
-      heroImageUrl: data['hero_image_url'] as String?,
+      heroImageUrl: imagemParaMostrarOpcional(data['hero_image_url'] as String?),
       comingSoon: data['coming_soon'] as bool? ?? false,
       comingSoonText: data['coming_soon_text'] as String?,
     );

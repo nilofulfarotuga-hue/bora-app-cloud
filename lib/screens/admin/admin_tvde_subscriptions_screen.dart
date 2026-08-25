@@ -3,15 +3,20 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
+import '../../models/tvde_plan_quote.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import '_admin_rpc_errors.dart';
 
 /// Bora Motorista (TVDE) — Assinaturas (conceder / ver).
 ///
 /// Concede uma assinatura a um cliente via `admin_grant_subscription(client,
-/// plano)` (já existia — Fase 1). Lista as assinaturas via
+/// plano, km incluídos, rota)`. Lista as assinaturas via
 /// `admin_tvde_subscriptions_list()` (RPC admin read-only, aditivo).
 /// O cliente é escolhido reaproveitando `admin_list_clients` (busca já existente).
+///
+/// [Rota do plano · 2026-08-25] O preço do plano depende da rota do cliente.
+/// Ao conceder à mão, o admin informa os km da rota, vê o orçamento real
+/// (`tvde_quote_plan`, mesma conta que o cliente vê) e só então confirma.
 /// Idioma: PT-BR.
 class AdminTvdeSubscriptionsScreen extends StatefulWidget {
   const AdminTvdeSubscriptionsScreen({super.key});
@@ -64,14 +69,27 @@ class _AdminTvdeSubscriptionsScreenState
     );
     if (plan == null || !mounted) return;
 
+    // Km da rota + orçamento real antes de confirmar — o admin vê a mesma
+    // conta que o cliente veria para essa rota.
+    final details = await showDialog<_GrantDetails>(
+      context: context,
+      builder: (_) => _GrantDetailsDialog(plan: plan),
+    );
+    if (details == null || !mounted) return;
+
     setState(() => _busy = true);
     try {
       await Supabase.instance.client.rpc('admin_grant_subscription', params: {
         'p_client_id': client['user_id'],
         'p_plan': plan,
+        'p_km_included': details.kmIncluded,
+        'p_origin_label': details.originLabel,
+        'p_dest_label': details.destLabel,
       });
       if (!mounted) return;
-      _toast('Assinatura "$plan" concedida.', AppColors.primary);
+      _toast(
+          'Assinatura "$plan" concedida (${details.kmIncluded} km incluídos).',
+          AppColors.primary);
       await _refresh();
     } catch (e) {
       if (!mounted) return;
@@ -179,6 +197,12 @@ class _SubCard extends StatelessWidget {
     final daily = (data['daily_included'] as num?)?.toInt() ?? 0;
     final price = (data['price_cents'] as num?)?.toInt() ?? 0;
     final endsAt = data['ends_at'];
+    final kmIncluded = (data['km_included'] as num?)?.toInt();
+    final distanceKm = (data['distance_km'] as num?)?.toDouble();
+    final origin = (data['route_origin_label'] as String?)?.trim();
+    final dest = (data['route_dest_label'] as String?)?.trim();
+    final hasRoute =
+        (origin?.isNotEmpty ?? false) && (dest?.isNotEmpty ?? false);
 
     return Card(
       elevation: 2,
@@ -220,6 +244,18 @@ class _SubCard extends StatelessWidget {
             Text('Plano: ${_planLabel(plan)} · €${(price / 100).toStringAsFixed(2)}',
                 style: const TextStyle(
                     fontSize: 13, color: AppColors.textSecondary)),
+            const SizedBox(height: 2),
+            Text(
+              'Km incluídos: ${kmIncluded != null ? '$kmIncluded km/viagem' : '—'}'
+              '${distanceKm != null ? ' · rota de ${TvdePlanQuote.km(distanceKm)} km' : ''}',
+              style: const TextStyle(
+                  fontSize: 12.5, color: AppColors.textSecondary),
+            ),
+            Text(
+              hasRoute ? 'Rota: $origin → $dest' : 'Rota: —',
+              style:
+                  const TextStyle(fontSize: 12.5, color: AppColors.textSubtle),
+            ),
             const SizedBox(height: 8),
             LinearProgressIndicator(
               value: total == 0 ? 0 : (used / total).clamp(0, 1).toDouble(),
@@ -349,10 +385,12 @@ class _PlanPickerDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Só os nomes: quantas corridas e quanto custa quem diz é o servidor, no
+    // passo seguinte (tvde_quote_plan) — nada de números fixos aqui.
     const plans = {
-      'semanal': 'Semanal — 14 corridas (7 dias)',
-      'quinzenal': 'Quinzenal — 30 corridas (15 dias)',
-      'mensal': 'Mensal — 60 corridas (30 dias)',
+      'semanal': 'Semanal',
+      'quinzenal': 'Quinzenal',
+      'mensal': 'Mensal',
     };
     return AlertDialog(
       title: Text('Plano para $clientLabel'),
@@ -376,6 +414,214 @@ class _PlanPickerDialog extends StatelessWidget {
     );
   }
 }
+
+/// O que o admin definiu para a assinatura concedida à mão.
+class _GrantDetails {
+  const _GrantDetails({
+    required this.kmIncluded,
+    this.originLabel,
+    this.destLabel,
+  });
+  final int kmIncluded;
+  final String? originLabel;
+  final String? destLabel;
+}
+
+/// Km da rota + rota (opcional) + ORÇAMENTO do servidor antes de confirmar.
+/// O botão "Conceder" só acende depois de haver orçamento — o admin nunca
+/// concede às cegas.
+class _GrantDetailsDialog extends StatefulWidget {
+  const _GrantDetailsDialog({required this.plan});
+  final String plan;
+
+  @override
+  State<_GrantDetailsDialog> createState() => _GrantDetailsDialogState();
+}
+
+class _GrantDetailsDialogState extends State<_GrantDetailsDialog> {
+  final _kmCtrl = TextEditingController();
+  final _originCtrl = TextEditingController();
+  final _destCtrl = TextEditingController();
+
+  TvdePlanQuote? _quote;
+  bool _loading = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _kmCtrl.dispose();
+    _originCtrl.dispose();
+    _destCtrl.dispose();
+    super.dispose();
+  }
+
+  int? get _km {
+    final v = int.tryParse(_kmCtrl.text.trim());
+    return (v != null && v > 0) ? v : null;
+  }
+
+  Future<void> _quotar() async {
+    final km = _km;
+    if (km == null) {
+      setState(() => _error = 'Informe os km da rota (número inteiro > 0).');
+      return;
+    }
+    setState(() {
+      _loading = true;
+      _error = null;
+      _quote = null;
+    });
+    try {
+      final res = await Supabase.instance.client.rpc('tvde_quote_plan',
+          params: {'p_plan': widget.plan, 'p_distance_km': km});
+      if (!mounted) return;
+      if (res is Map) {
+        setState(() {
+          _quote = TvdePlanQuote.fromMap(Map<String, dynamic>.from(res),
+              distanceKm: km.toDouble());
+          _loading = false;
+        });
+      } else {
+        setState(() {
+          _error = 'O servidor não devolveu orçamento para este plano.';
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = humanizeAdminRpcError(e);
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final q = _quote;
+    return AlertDialog(
+      title: Text('Km e orçamento — ${_planLabel(widget.plan)}'),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'O preço do plano depende da rota do cliente. Informe os km da '
+                'rota habitual dele — é esse o limite incluído por viagem.',
+                style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _kmCtrl,
+                keyboardType: TextInputType.number,
+                onChanged: (_) => setState(() => _quote = null),
+                decoration: const InputDecoration(
+                  labelText: 'Km da rota (incluídos por viagem)',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _originCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Origem (opcional)',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _destCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Destino (opcional)',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                onPressed: _loading ? null : _quotar,
+                icon: const Icon(Icons.calculate_outlined, size: 18),
+                label: Text(_loading ? 'Calculando…' : 'Ver orçamento'),
+              ),
+              if (_error != null) ...[
+                const SizedBox(height: 8),
+                Text(_error!,
+                    style: const TextStyle(
+                        fontSize: 12.5, color: AppColors.error)),
+              ],
+              if (q != null) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryWash,
+                    borderRadius: BorderRadius.circular(Radii.md),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (final l in _adminBreakdown(q, widget.plan))
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 3),
+                          child: Text(l,
+                              style: const TextStyle(
+                                  fontSize: 12.5,
+                                  color: AppColors.textSecondary)),
+                        ),
+                      const SizedBox(height: 4),
+                      Text('TOTAL: ${TvdePlanQuote.eur(q.priceCents)}',
+                          style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primary)),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: q == null
+              ? null
+              : () => Navigator.pop(
+                    context,
+                    _GrantDetails(
+                      kmIncluded: _km!,
+                      originLabel: _originCtrl.text.trim().isEmpty
+                          ? null
+                          : _originCtrl.text.trim(),
+                      destLabel: _destCtrl.text.trim().isEmpty
+                          ? null
+                          : _destCtrl.text.trim(),
+                    ),
+                  ),
+          style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
+          child: const Text('Conceder'),
+        ),
+      ],
+    );
+  }
+}
+
+/// A mesma conta que o cliente vê, escrita em PT-BR para o painel.
+List<String> _adminBreakdown(TvdePlanQuote q, String plan) => [
+      'Plano ${_planLabel(plan)}: ${TvdePlanQuote.eur(q.basePriceCents)}',
+      'Inclui ${q.ridesTotal} viagens (${q.ridesPerDay} por dia, seg-sex)',
+      'Distância incluída: até ${q.baseKm} km por viagem',
+      'Rota informada: ${TvdePlanQuote.km(q.distanceKm)} km',
+      if (q.hasExtra)
+        '${q.extraKm} km a mais × ${TvdePlanQuote.eur(q.perKmCents)} × '
+            '${q.ridesTotal} viagens = ${TvdePlanQuote.eur(q.extraCents)}',
+    ];
 
 String _planLabel(String p) => switch (p) {
       'semanal' => 'Semanal',

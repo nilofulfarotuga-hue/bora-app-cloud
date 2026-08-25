@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/falha_de_acao.dart';
 import '../models/tvde_ride.dart';
+import '../models/tvde_plan_quote.dart';
 import '../models/tvde_subscription.dart';
 import '../services/payment_service.dart';
 
@@ -279,15 +280,23 @@ class TvdeStore extends ChangeNotifier {
     }
   }
 
-  /// Preço do plano (cêntimos) via RPC tvde_plan_price_cents (server-side,
-  /// única fonte da verdade — nunca hardcodar no ecrã). null em erro.
-  Future<int?> planPriceCents(String plan) async {
+  /// Orçamento do plano para uma ROTA concreta, via RPC `tvde_quote_plan`
+  /// (server-side, única fonte da verdade do preço). Devolve a conta aberta
+  /// completa (base, excesso, total). null em erro.
+  Future<TvdePlanQuote?> quotePlan(String plan, double distanceKm) async {
     try {
-      final res =
-          await _sb.rpc('tvde_plan_price_cents', params: {'p_plan': plan}).timeout(kAcaoTimeout);
-      return (res as num?)?.toInt();
+      final res = await _sb.rpc('tvde_quote_plan', params: {
+        'p_plan': plan,
+        'p_distance_km': distanceKm,
+      }).timeout(kAcaoTimeout);
+      if (res is Map) {
+        return TvdePlanQuote.fromMap(Map<String, dynamic>.from(res),
+            distanceKm: distanceKm);
+      }
+      debugPrint('TvdeStore.quotePlan bad response => $res');
+      return null;
     } catch (e) {
-      debugPrint('TvdeStore.planPriceCents error => $e');
+      debugPrint('TvdeStore.quotePlan error => $e');
       return null;
     }
   }
@@ -1062,12 +1071,26 @@ class TvdeStore extends ChangeNotifier {
   }
 
   /// Cliente pede adesão a um plano → tvde_plan_requests (pendente) + notifica
-  /// admin. O admin aprova/ativa num clique no painel.
-  Future<void> requestPlan(String plan, String planLabel) async {
+  /// admin. O admin aprova/ativa num clique no painel. A rota habitual segue
+  /// junto para o admin ver os km pedidos e o valor orçado.
+  Future<void> requestPlan(
+    String plan,
+    String planLabel, {
+    double? distanceKm,
+    String? originLabel,
+    String? destLabel,
+  }) async {
     _setBusy(true);
     try {
-      await criarComTectoSeguro(() => _sb.rpc('tvde_request_plan',
-          params: {'p_plan': plan, 'p_plan_label': planLabel}), trabalho: TrabalhoEmCurso.corrida);
+      await criarComTectoSeguro(
+          () => _sb.rpc('tvde_request_plan', params: {
+                'p_plan': plan,
+                'p_plan_label': planLabel,
+                'p_distance_km': distanceKm,
+                'p_origin_label': originLabel,
+                'p_dest_label': destLabel,
+              }),
+          trabalho: TrabalhoEmCurso.corrida);
       _planRequestStatus = 'pendente';
     } catch (e) {
       debugPrint('TvdeStore.requestPlan error => $e');
@@ -1112,11 +1135,22 @@ class TvdeStore extends ChangeNotifier {
   // ════════════════════════════════════════════════════════════════════════
 
   /// Cria o PaymentIntent do plano. Devolve {clientSecret, paymentIntentId,
-  /// amountCents} ou null em erro. O preço é calculado SERVER-SIDE.
-  Future<Map<String, dynamic>?> createPlanPayment(String plan) async {
+  /// amountCents, quote} ou null em erro. O preço é calculado SERVER-SIDE a
+  /// partir da ROTA do cliente ([distanceKm]) — o app nunca envia valores.
+  Future<Map<String, dynamic>?> createPlanPayment(
+    String plan, {
+    required double distanceKm,
+    String? originLabel,
+    String? destLabel,
+  }) async {
     try {
-      final res = await _sb.functions.invoke('tvde-plan-payment',
-          body: {'action': 'create', 'plan': plan});
+      final res = await _sb.functions.invoke('tvde-plan-payment', body: {
+        'action': 'create',
+        'plan': plan,
+        'distance_km': distanceKm,
+        'origin_label': originLabel,
+        'dest_label': destLabel,
+      });
       final data = res.data;
       if (data is Map && data['clientSecret'] != null) {
         return Map<String, dynamic>.from(data);
@@ -1151,10 +1185,21 @@ class TvdeStore extends ChangeNotifier {
   /// (retrieve do PI na Edge Fn isolada — sem webhook). Reaproveita o MESMO
   /// método MB Way das Reservas/Serviços (server-confirm com billing phone E.164).
   Future<Map<String, dynamic>?> createPlanPaymentMbway(
-      String plan, String phone) async {
+    String plan,
+    String phone, {
+    required double distanceKm,
+    String? originLabel,
+    String? destLabel,
+  }) async {
     try {
-      final res = await _sb.functions.invoke('tvde-plan-payment',
-          body: {'action': 'create_mbway', 'plan': plan, 'phone': phone});
+      final res = await _sb.functions.invoke('tvde-plan-payment', body: {
+        'action': 'create_mbway',
+        'plan': plan,
+        'phone': phone,
+        'distance_km': distanceKm,
+        'origin_label': originLabel,
+        'dest_label': destLabel,
+      });
       final data = res.data;
       if (data is Map && data['paymentIntentId'] != null) {
         return Map<String, dynamic>.from(data);

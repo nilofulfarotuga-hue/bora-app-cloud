@@ -9,6 +9,10 @@ class TvdeSubscription {
     required this.dailyIncluded,
     required this.priceCents,
     this.endsAt,
+    this.kmIncluded,
+    this.distanceKm,
+    this.routeOriginLabel,
+    this.routeDestLabel,
   });
 
   final String id;
@@ -18,6 +22,21 @@ class TvdeSubscription {
   final int dailyIncluded;
   final int priceCents;
   final DateTime? endsAt;
+
+  /// Km incluídos por viagem (fixados na adesão a partir da rota escolhida).
+  final int? kmIncluded;
+
+  /// Distância da rota habitual guardada, em km.
+  final double? distanceKm;
+
+  /// Rota habitual guardada (origem → destino), como o cliente a escolheu.
+  final String? routeOriginLabel;
+  final String? routeDestLabel;
+
+  /// Tem rota habitual guardada?
+  bool get hasRoute =>
+      (routeOriginLabel?.trim().isNotEmpty ?? false) &&
+      (routeDestLabel?.trim().isNotEmpty ?? false);
 
   int get ridesLeft => (ridesTotal - ridesUsed).clamp(0, ridesTotal);
 
@@ -45,6 +64,10 @@ class TvdeSubscription {
       endsAt: m['ends_at'] == null
           ? null
           : DateTime.tryParse(m['ends_at'].toString()),
+      kmIncluded: (m['km_included'] as num?)?.toInt(),
+      distanceKm: (m['distance_km'] as num?)?.toDouble(),
+      routeOriginLabel: m['route_origin_label'] as String?,
+      routeDestLabel: m['route_dest_label'] as String?,
     );
   }
 }

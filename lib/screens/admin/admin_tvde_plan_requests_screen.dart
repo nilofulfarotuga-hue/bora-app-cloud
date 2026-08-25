@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
+import '../../models/tvde_plan_quote.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import '_admin_rpc_errors.dart';
 
@@ -11,6 +12,10 @@ import '_admin_rpc_errors.dart';
 /// O cliente pede adesão na app (`tvde_request_plan`) e o pedido cai aqui.
 /// O admin aprova (ativa a assinatura num clique via
 /// `admin_decide_tvde_plan_request` → `admin_grant_subscription`) ou recusa.
+///
+/// [Rota do plano · 2026-08-25] Cada pedido mostra a ROTA que o cliente
+/// escolheu, os km dessa rota e o VALOR ORÇADO — o valor é pedido ao servidor
+/// (`tvde_quote_plan`), nunca calculado aqui.
 /// Idioma: PT-BR.
 class AdminTvdePlanRequestsScreen extends StatefulWidget {
   const AdminTvdePlanRequestsScreen({super.key});
@@ -204,6 +209,12 @@ class _RequestCard extends StatelessWidget {
     final status = (data['status'] as String?) ?? 'pendente';
     final requestedAt = data['requested_at'];
     final pending = status == 'pendente';
+    final distanceKm = (data['distance_km'] as num?)?.toDouble();
+    final kmIncluded = (data['km_included'] as num?)?.toInt();
+    final origin = (data['route_origin_label'] as String?)?.trim();
+    final dest = (data['route_dest_label'] as String?)?.trim();
+    final hasRoute =
+        (origin?.isNotEmpty ?? false) && (dest?.isNotEmpty ?? false);
 
     return Card(
       elevation: 2,
@@ -233,6 +244,18 @@ class _RequestCard extends StatelessWidget {
             Text('Plano pedido: $label',
                 style: const TextStyle(
                     fontSize: 13, color: AppColors.textSecondary)),
+            Text(
+              hasRoute ? 'Rota: $origin → $dest' : 'Rota: —',
+              style: const TextStyle(
+                  fontSize: 12.5, color: AppColors.textSecondary),
+            ),
+            Text(
+              'Km da rota: ${distanceKm != null ? '${TvdePlanQuote.km(distanceKm)} km' : '—'}'
+              '${kmIncluded != null ? ' · incluídos: $kmIncluded km/viagem' : ''}',
+              style: const TextStyle(
+                  fontSize: 12.5, color: AppColors.textSecondary),
+            ),
+            _QuotedValue(plan: plan, distanceKm: distanceKm),
             Text('$email${phone != null && phone.isNotEmpty ? ' · $phone' : ''}',
                 style: const TextStyle(fontSize: 12, color: AppColors.textSubtle)),
             Text('Pedido em ${_fmtDate(requestedAt)}',
@@ -264,6 +287,50 @@ class _RequestCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Valor orçado do pedido — perguntado ao servidor (`tvde_quote_plan`) para o
+/// plano + os km da rota do cliente. Sem rota não há valor a mostrar.
+class _QuotedValue extends StatelessWidget {
+  const _QuotedValue({required this.plan, required this.distanceKm});
+  final String plan;
+  final double? distanceKm;
+
+  @override
+  Widget build(BuildContext context) {
+    if (distanceKm == null || distanceKm! <= 0) {
+      return const Text('Valor orçado: —',
+          style: TextStyle(fontSize: 12.5, color: AppColors.textSubtle));
+    }
+    return FutureBuilder<Object?>(
+      future: Supabase.instance.client.rpc('tvde_quote_plan',
+          params: {'p_plan': plan, 'p_distance_km': distanceKm}),
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const Text('Valor orçado: calculando…',
+              style: TextStyle(fontSize: 12.5, color: AppColors.textSubtle));
+        }
+        final res = snap.data;
+        if (snap.hasError || res is! Map) {
+          return const Text('Valor orçado: indisponível',
+              style: TextStyle(fontSize: 12.5, color: AppColors.textSubtle));
+        }
+        final q = TvdePlanQuote.fromMap(Map<String, dynamic>.from(res),
+            distanceKm: distanceKm!);
+        final extra = q.hasExtra
+            ? ' (base ${TvdePlanQuote.eur(q.basePriceCents)} + '
+                '${q.extraKm} km a mais = ${TvdePlanQuote.eur(q.extraCents)})'
+            : '';
+        return Text(
+          'Valor orçado: ${TvdePlanQuote.eur(q.priceCents)}$extra',
+          style: const TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+              color: AppColors.primary),
+        );
+      },
     );
   }
 }

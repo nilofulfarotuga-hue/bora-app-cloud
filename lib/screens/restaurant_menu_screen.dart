@@ -261,14 +261,7 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
               product.price, widget.restaurant.isPartner),
           basePrice: product.price,
         ));
-    showAddedToCartSnack(
-      context,
-      '${product.name} no carrinho',
-      onView: () => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const CartScreen()),
-      ),
-    );
+    showAddedToCartSnack(context, '${product.name} no carrinho');
   }
 
   Widget _buildGlovoMenu(
@@ -606,14 +599,7 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
                                               widget.restaurant.isPartner),
                                           basePrice: item.price));
                                   showAddedToCartSnack(
-                                    context,
-                                    '${item.name} no carrinho',
-                                    onView: () => Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                          builder: (_) => const CartScreen()),
-                                    ),
-                                  );
+                                      context, '${item.name} no carrinho');
                                 },
                               ),
                             );
@@ -1193,14 +1179,7 @@ class _SectionProductsScreen extends StatelessWidget {
                 product.price, restaurant.isPartner),
             basePrice: product.price,
           ));
-      showAddedToCartSnack(
-        context,
-        '${product.name} no carrinho',
-        onView: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const CartScreen()),
-        ),
-      );
+      showAddedToCartSnack(context, '${product.name} no carrinho');
     }
 
     return Scaffold(

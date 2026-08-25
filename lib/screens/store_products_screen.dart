@@ -1169,12 +1169,7 @@ class _VariantMiniCard extends StatelessWidget {
           price: PricingService.applyMarkup(variant.price, isPartnerStore),
           basePrice: variant.price,
         ));
-    showAddedToCartSnack(
-      context,
-      '${variant.brandName} no carrinho',
-      onView: () => Navigator.push(
-          context, MaterialPageRoute(builder: (_) => const CartScreen())),
-    );
+    showAddedToCartSnack(context, '${variant.brandName} no carrinho');
   }
 
   @override

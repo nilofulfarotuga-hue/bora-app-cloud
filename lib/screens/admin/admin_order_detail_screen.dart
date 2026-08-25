@@ -5,6 +5,7 @@ import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '_admin_cancel_order_dialog.dart';
 import 'admin_chat_viewer_screen.dart';
+import 'admin_order_purchase_tab.dart';
 
 /// Full-screen admin detail for an order. Pushed from `admin_orders_screen`
 /// (FASE 4 BUG 3 F1.D). 4 tabs:
@@ -12,6 +13,9 @@ import 'admin_chat_viewer_screen.dart';
 ///   2. Items   — lista de produtos (read-only)
 ///   3. Pagamento — método, status, refund info
 ///   4. Timeline — admin_audit_log filtrado por entity_id desta ordem
+///   5. Ida ao mercado — linhas de order_purchase_items_v2 + estado do
+///      reconhecimento do talao (auditoria do caso real de 2026-08-25:
+///      lista gravada duas vezes e cliente a ver tudo repetido)
 class AdminOrderDetailScreen extends StatefulWidget {
   const AdminOrderDetailScreen({super.key, required this.orderId});
 
@@ -32,7 +36,7 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen>
   @override
   void initState() {
     super.initState();
-    _tab = TabController(length: 4, vsync: this);
+    _tab = TabController(length: 5, vsync: this);
     _refresh();
   }
 
@@ -148,6 +152,7 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen>
             Tab(text: 'Items'),
             Tab(text: 'Pagamento'),
             Tab(text: 'Timeline'),
+            Tab(text: 'Ida ao mercado'),
           ],
         ),
       ),
@@ -166,6 +171,7 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen>
                     _ItemsTab(order: _order!),
                     _PaymentTab(order: _order!),
                     _TimelineTab(orderId: widget.orderId),
+                    AdminOrderPurchaseTab(orderId: widget.orderId),
                   ],
                 ),
     );

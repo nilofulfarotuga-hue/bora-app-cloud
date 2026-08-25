@@ -9,6 +9,8 @@ import '../utils/safe_image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../services/receipt_upload_service.dart';
+import '../services/store_shopping_draft_service.dart';
+import '../services/store_shopping_finalize_guard.dart';
 
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
@@ -2363,6 +2365,15 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
   late final List<CartItem> _items;
   late int _bagCount;
 
+  /// CORRECAO 1 (2026-08-25) — trava de duplo toque e de reenvio no botao de
+  /// concluir a ida ao mercado. Enquanto isto for true o botao esta inerte.
+  bool _submitting = false;
+
+  /// CORRECAO 2+3 (2026-08-25) — a foto do talao fica RETIDA depois de ser
+  /// tirada. Se algo falhar a jusante (rede, RPC, leitura automatica do
+  /// total do talao), o estafeta nao volta a camara: reaproveita-se esta.
+  (File, int)? _pendingReceipt;
+
   /// B3 (2026-06-11): fotos do catálogo por productId — o estafeta precisa de
   /// VER o produto para comprar o certo. URLs já existentes em products
   /// (zero storage extra); 1 query ao abrir o sheet, best-effort.
@@ -2390,6 +2401,9 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
         ? widget.order.bagCount
         : (_isRestaurant ? 1 : 1);
     _loadProductPhotos();
+    // CORRECAO 4 (2026-08-25) — sair da app a meio da ida ao mercado nao
+    // pode obrigar a remarcar tudo: o progresso volta do rascunho local.
+    unawaited(_restoreDraft());
   }
 
   Future<void> _loadProductPhotos() async {
@@ -2608,6 +2622,230 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
 
   bool _isExtraItem(CartItem i) => i.productId.startsWith('extra_');
 
+  // ── CORRECAO 4 — rascunho local do progresso da ida ao mercado ───────────
+
+  /// Grava o progresso (artigos comprados / em falta / substituidos, extras
+  /// adicionados e n.º de sacos). Best-effort, nunca bloqueia a UI.
+  void _saveDraft() {
+    unawaited(StoreShoppingDraftService.save(
+      orderId: widget.order.id,
+      items: _items,
+      bagCount: _bagCount,
+    ));
+  }
+
+  /// Repoe o progresso guardado. Do rascunho so volta o ESTADO do estafeta —
+  /// artigos e precos vem sempre do pedido (o rascunho nunca manda em preco).
+  Future<void> _restoreDraft() async {
+    final draft = await StoreShoppingDraftService.load(widget.order.id);
+    if (draft == null || !mounted) return;
+    final saved = <String, CartItem>{
+      for (final i in draft.items) i.productId: i,
+    };
+    var restored = 0;
+    setState(() {
+      for (final item in _items) {
+        final prev = saved[item.productId];
+        if (prev != null &&
+            prev.purchaseStatus != 'pending' &&
+            item.purchaseStatus == 'pending') {
+          item.purchaseStatus = prev.purchaseStatus;
+          restored++;
+        }
+      }
+      final present = _items.map((i) => i.productId).toSet();
+      for (final prev in draft.items) {
+        if (_isExtraItem(prev) && !present.contains(prev.productId)) {
+          _items.add(prev);
+          restored++;
+        }
+      }
+      if (draft.bagCount > 0 && draft.bagCount <= 5) _bagCount = draft.bagCount;
+    });
+    if (restored == 0 || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text('Retomámos a tua lista: $restored artigo'
+          '${restored > 1 ? 's' : ''} já marcado${restored > 1 ? 's' : ''}.'),
+      duration: const Duration(seconds: 4),
+    ));
+  }
+
+  void _setItemStatus(CartItem item, String status) {
+    setState(() => item.purchaseStatus = status);
+    _saveDraft();
+  }
+
+  void _changeBagCount(int delta) {
+    setState(() => _bagCount = (_bagCount + delta).clamp(0, 5));
+    _saveDraft();
+  }
+
+  // ── CORRECAO 1+2+3 — concluir a ida ao mercado ───────────────────────────
+
+  /// Ponto unico de entrada do botao. A prova de duplo toque: o primeiro
+  /// toque fecha a porta e so a reabre no fim.
+  Future<void> _onConfirmPressed(
+    List<CartItem> canonicalItems,
+    List<CartItem> extraItems,
+  ) async {
+    if (_submitting) return;
+    setState(() => _submitting = true);
+    try {
+      await _finalizeShopping(canonicalItems, extraItems);
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  /// Avanca o pedido quando a compra JA esta registada — sem gravar nada e
+  /// sem notificar ninguem outra vez.
+  Future<void> _advanceAlreadyRecorded(
+    NavigatorState nav,
+    ScaffoldMessengerState messenger,
+    String message,
+  ) async {
+    _pendingReceipt = null;
+    await StoreShoppingDraftService.clear(widget.order.id);
+    if (mounted) nav.pop();
+    messenger.showSnackBar(SnackBar(
+      content: Text(message),
+      duration: const Duration(seconds: 5),
+    ));
+  }
+
+  Future<void> _finalizeShopping(
+    List<CartItem> canonicalItems,
+    List<CartItem> extraItems,
+  ) async {
+    final order = widget.order;
+    final orderStore = context.read<OrderStore>();
+    final messenger = ScaffoldMessenger.of(context);
+    final nav = Navigator.of(context);
+    final itemsAdded = extraItems
+        .map((i) => <String, dynamic>{
+              'name': i.name,
+              'price_base_cents': (i.price * 100).round(),
+              'qty': i.quantity,
+              'reason': 'driver_added',
+            })
+        .toList();
+
+    // BUG 1 — Fork V2 para storeShopping nao-parceiro. Decisao NOVA:
+    // foto+valor obrigatorios em TODOS payment_methods para auditoria admin.
+    final useV2 = order.serviceType == OrderServiceType.storeShopping &&
+        !order.isPartnerStore;
+
+    if (!useV2) {
+      // V1 legacy (storeShopping partner OU restaurant).
+      final reason = await orderStore.finalizePurchaseV2(
+        orderId: order.id,
+        items: canonicalItems,
+        itemsAdded: itemsAdded,
+        bagCount: _isRestaurant ? 1 : _bagCount,
+      );
+      if (!mounted) return;
+      if (reason != null) {
+        messenger.showSnackBar(SnackBar(content: Text(reason)));
+        return;
+      }
+      await StoreShoppingDraftService.clear(order.id);
+      if (mounted) nav.pop();
+      messenger.showSnackBar(const SnackBar(
+        content: Text('Compra confirmada — siga para entrega'),
+      ));
+      return;
+    }
+
+    // (a) Ja finalizado nesta sessao — so avancar.
+    if (order.isPurchaseFinalized) {
+      await _advanceAlreadyRecorded(nav, messenger,
+          'Esta compra já estava registada — siga para a entrega.');
+      return;
+    }
+
+    // (b) Ja gravado no servidor (reenvio depois de um erro enganador): nao
+    // volta a gravar a lista nem a disparar a notificacao ao cliente.
+    final before = await StoreShoppingFinalizeGuard.read(order.id);
+    if (!mounted) return;
+    if (before.alreadyRecorded) {
+      await _advanceAlreadyRecorded(
+          nav,
+          messenger,
+          'Esta compra já estava registada no servidor — não foi enviada '
+          'outra vez. Siga para a entrega.');
+      return;
+    }
+
+    // (c) Foto do talao. Se ja foi tirada nesta tentativa, reaproveita-se —
+    // e isto que impede o regresso ao ecra da camara.
+    var receipt = _pendingReceipt;
+    if (receipt == null) {
+      final captured = await _captureReceiptForV2(context, order);
+      if (!mounted) return;
+      if (captured == null) return; // cancelado pelo estafeta
+      receipt = captured;
+      _pendingReceipt = captured;
+    }
+
+    // (d) Upload. Qualquer 2xx e sucesso (ver ReceiptUploadService) — so se
+    // volta atras em erro real de rede ou resposta nao-200.
+    String storagePath;
+    try {
+      storagePath = await ReceiptUploadService.uploadReceipt(
+        orderId: order.id,
+        photoFile: receipt.$1,
+        totalCents: receipt.$2,
+      );
+    } catch (e) {
+      debugPrint('[driver_map] receipt upload error: $e');
+      if (!mounted) return;
+      await _showUploadErrorDialog(context, detail: _plainError(e));
+      return; // a foto fica guardada em _pendingReceipt
+    }
+
+    final reason = await orderStore.finalizeStoreShoppingV2WithReceipt(
+      orderId: order.id,
+      photoStoragePath: storagePath,
+      driverTypedTotalCents: receipt.$2,
+      items: canonicalItems,
+      itemsAdded: itemsAdded,
+      bagCount: _bagCount,
+    );
+    if (!mounted) return;
+    if (reason == null) {
+      _pendingReceipt = null;
+      await StoreShoppingDraftService.clear(order.id);
+      if (mounted) nav.pop();
+      messenger.showSnackBar(const SnackBar(
+        content: Text('Compra finalizada — siga para entrega'),
+      ));
+      return;
+    }
+
+    // A RPC devolveu erro. Pode ter gravado antes de falhar, ou a barreira
+    // anti-duplicado do banco pode ter recusado uma segunda escrita: se os
+    // dados estao la, o trabalho esta feito — avanca em vez de mandar o
+    // estafeta repetir a foto.
+    final after = await StoreShoppingFinalizeGuard.read(order.id);
+    if (!mounted) return;
+    if (after.alreadyRecorded) {
+      await _advanceAlreadyRecorded(nav, messenger,
+          'A compra já está registada no servidor — siga para a entrega.');
+      return;
+    }
+    messenger.showSnackBar(SnackBar(
+      content: Text('$reason\nA foto do talão ficou guardada — toca outra '
+          'vez em "Concluir compra".'),
+      duration: const Duration(seconds: 7),
+    ));
+  }
+
+  /// Mensagem de erro sem o ruido do "Exception:".
+  String _plainError(Object e) {
+    final s = e.toString();
+    return s.startsWith('Exception: ') ? s.substring(11) : s;
+  }
+
   // ── Build ───────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
@@ -2757,11 +2995,7 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
 
                     return GestureDetector(
                       onTap: (isBought || isUnavailable)
-                          ? () {
-                              setState(() {
-                                item.purchaseStatus = 'pending';
-                              });
-                            }
+                          ? () => _setItemStatus(item, 'pending')
                           : null,
                       child: Container(
                         margin: const EdgeInsets.symmetric(vertical: 4),
@@ -2906,11 +3140,8 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                                     child: SizedBox(
                                       height: 32,
                                       child: ElevatedButton.icon(
-                                        onPressed: () {
-                                          setState(() {
-                                            item.purchaseStatus = 'bought';
-                                          });
-                                        },
+                                        onPressed: () =>
+                                            _setItemStatus(item, 'bought'),
                                         icon: const Icon(Icons.check, size: 16),
                                         label: const Text('Comprado',
                                             style: TextStyle(fontSize: 12)),
@@ -2933,12 +3164,8 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                                     child: SizedBox(
                                       height: 32,
                                       child: ElevatedButton.icon(
-                                        onPressed: () {
-                                          setState(() {
-                                            item.purchaseStatus =
-                                                'unavailable';
-                                          });
-                                        },
+                                        onPressed: () => _setItemStatus(
+                                            item, 'unavailable'),
                                         icon: const Icon(Icons.close,
                                             size: 16),
                                         label: const Text('Não há',
@@ -2979,6 +3206,7 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                         setState(() {
                           _items.add(newItem);
                         });
+                        _saveDraft();
                       }
                     },
                     icon: const Icon(Icons.add, size: 18),
@@ -3068,7 +3296,7 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                           ),
                           IconButton(
                             onPressed: _bagCount > 0
-                                ? () => setState(() => _bagCount--)
+                                ? () => _changeBagCount(-1)
                                 : null,
                             icon: const Icon(Icons.remove_circle_outline,
                                 size: 22),
@@ -3089,7 +3317,7 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                           IconButton(
                             // Cap 5 sacos × €0.10 = €0.50 max (Sessão 3 / 2026-05-04)
                             onPressed: _bagCount < 5
-                                ? () => setState(() => _bagCount++)
+                                ? () => _changeBagCount(1)
                                 : null,
                             icon:
                                 const Icon(Icons.add_circle_outline, size: 22),
@@ -3242,100 +3470,10 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: allDecided
-                      ? () async {
-                          final orderStore = context.read<OrderStore>();
-                          final messenger = ScaffoldMessenger.of(context);
-                          final nav = Navigator.of(context);
-                          final itemsAdded = extraItems
-                              .map((i) => <String, dynamic>{
-                                    'name': i.name,
-                                    'price_base_cents':
-                                        (i.price * 100).round(),
-                                    'qty': i.quantity,
-                                    'reason': 'driver_added',
-                                  })
-                              .toList();
-
-                          // BUG 1 — Fork V2 para storeShopping não-parceiro.
-                          // Decisão NOVA: foto+valor obrigatórios em TODOS
-                          // payment_methods para auditoria admin.
-                          final useV2 = order.serviceType ==
-                                  OrderServiceType.storeShopping &&
-                              !order.isPartnerStore;
-                          if (useV2) {
-                            final result =
-                                await _captureReceiptForV2(context, order);
-                            if (!mounted) return;
-                            if (result == null) return; // cancelado
-                            final photoFile = result.$1;
-                            final totalCents = result.$2;
-
-                            // BUG #1 v2 (sessão exec 2026-05-12 pós-teste) —
-                            // Upload via Edge Function `upload-receipt` em vez
-                            // de storage.from() directo. Bypass storage rate
-                            // limits, validação server-side completa, mensagens
-                            // erro PT-PT por código.
-                            String storagePath;
-                            try {
-                              storagePath = await ReceiptUploadService.uploadReceipt(
-                                orderId: order.id,
-                                photoFile: photoFile,
-                                totalCents: totalCents,
-                              );
-                            } catch (e) {
-                              debugPrint(
-                                  '[driver_map] receipt upload error: $e');
-                              if (!mounted) return;
-                              await _showUploadErrorDialog(context);
-                              return;
-                            }
-
-                            final reason = await orderStore
-                                .finalizeStoreShoppingV2WithReceipt(
-                              orderId: order.id,
-                              photoStoragePath: storagePath,
-                              driverTypedTotalCents: totalCents,
-                              items: canonicalItems,
-                              itemsAdded: itemsAdded,
-                              bagCount: _bagCount,
-                            );
-                            if (!mounted) return;
-                            if (reason != null) {
-                              messenger.showSnackBar(
-                                  SnackBar(content: Text(reason)));
-                            } else {
-                              nav.pop();
-                              messenger.showSnackBar(const SnackBar(
-                                  content: Text(
-                                      'Compra finalizada — siga para entrega')));
-                            }
-                            return;
-                          }
-
-                          // V1 legacy (storeShopping partner OU restaurant).
-                          final reason =
-                              await orderStore.finalizePurchaseV2(
-                            orderId: order.id,
-                            items: canonicalItems,
-                            itemsAdded: itemsAdded,
-                            bagCount: _isRestaurant ? 1 : _bagCount,
-                          );
-                          if (!mounted) return;
-                          if (reason != null) {
-                            messenger.showSnackBar(
-                              SnackBar(content: Text(reason)),
-                            );
-                          } else {
-                            nav.pop();
-                            messenger.showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                    'Compra confirmada — siga para entrega'),
-                              ),
-                            );
-                          }
-                        }
+                  // CORRECAO 1 (2026-08-25) — caminho unico, com trava
+                  // de duplo toque e de reenvio (ver _finalizeShopping).
+                  onPressed: (allDecided && !_submitting)
+                      ? () => _onConfirmPressed(canonicalItems, extraItems)
                       : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green.shade600,
@@ -3347,9 +3485,11 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                   child: Text(
-                    allDecided
-                        ? 'Confirmar compra'
-                        : 'Marque todos os items ($pendingCount restante${pendingCount > 1 ? 's' : ''})',
+                    _submitting
+                        ? 'A concluir…'
+                        : allDecided
+                            ? 'Concluir compra'
+                            : 'Marque todos os items ($pendingCount restante${pendingCount > 1 ? 's' : ''})',
                     style: const TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 15,
@@ -3369,16 +3509,19 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
 
 /// BUG C (sessão exec 2026-05-12) — AlertDialog PT-PT quando upload falha.
 /// Substitui SnackBar transient (4s) por dialog modal mais visível.
-Future<void> _showUploadErrorDialog(BuildContext context) async {
+Future<void> _showUploadErrorDialog(BuildContext context,
+    {String? detail}) async {
   await showDialog<void>(
     context: context,
     builder: (_) => AlertDialog(
       icon: const Icon(Icons.error_outline, color: Colors.red, size: 48),
       title: const Text('Falha ao enviar talão'),
-      content: const Text(
-        'Não foi possível guardar a foto do talão. Verifica a tua '
-        'ligação à internet e tenta de novo.\n\n'
-        'Se o problema persistir, contacta o admin.',
+      content: Text(
+        // CORRECAO 2 (2026-08-25): isto so aparece em erro REAL — rede caida
+        // ou resposta nao-200. Um 200 do servidor nunca chega aqui.
+        '${detail ?? 'Não foi possível guardar a foto do talão.'}\n\n'
+        'A foto que tiraste ficou guardada: toca outra vez em "Concluir '
+        'compra" e não precisas de a repetir.',
       ),
       actions: [
         TextButton(

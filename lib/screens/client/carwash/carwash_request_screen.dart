@@ -208,19 +208,22 @@ class _CarwashRequestScreenState extends State<CarwashRequestScreen> {
     if (f != null && mounted) setState(() => _clientPhoto = f);
   }
 
-  /// O primeiro campo obrigatório que falta, se houver.
-  /// Devolve a âncora para rolar e a frase a dizer ao cliente.
+  /// O primeiro campo obrigatório que falta. A regra vive em
+  /// `CarwashFormCheck` (testada em `test/carwash_form_check_test.dart`);
+  /// aqui só se traduz o campo na âncora a que se rola.
   (GlobalKey, String)? _primeiroEmFalta() {
-    if (_addressCtrl.text.trim().length < 4) {
-      return (_kMorada, 'Falta dizer onde está o carro.');
-    }
-    if (_plateCtrl.text.trim().length < 4) {
-      return (_kMatricula, 'Falta a matrícula do carro.');
-    }
-    if (_phoneCtrl.text.trim().replaceAll(RegExp(r'\D'), '').length < 9) {
-      return (_kTelefone, 'Falta o seu telemóvel, para o lavador o contactar.');
-    }
-    return null;
+    final falta = CarwashFormCheck.primeiroEmFalta(
+      morada: _addressCtrl.text,
+      matricula: _plateCtrl.text,
+      telefone: _phoneCtrl.text,
+    );
+    if (falta == null) return null;
+    final chave = switch (falta.campo) {
+      CarwashCampo.morada => _kMorada,
+      CarwashCampo.matricula => _kMatricula,
+      CarwashCampo.telefone => _kTelefone,
+    };
+    return (chave, falta.mensagem);
   }
 
   Future<void> _submit() async {

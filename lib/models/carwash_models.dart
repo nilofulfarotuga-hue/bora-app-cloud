@@ -357,6 +357,53 @@ class CarwashBooking {
 }
 
 // ══════════════════════════════════════════════════════════════════════════
+// VALIDAÇÃO DO PEDIDO
+// ══════════════════════════════════════════════════════════════════════════
+
+/// Qual é o primeiro campo obrigatório que falta, e o que dizer ao cliente.
+///
+/// Vive aqui, e não dentro do ecrã, por dois motivos: dá para testar sem
+/// montar UI, e a frase que o cliente lê deixa de estar enterrada num
+/// `setState`.
+///
+/// O bug que isto fecha (2026-08-27): o ecrã chamava `Form.validate()` e
+/// voltava atrás em silêncio. Os erros apareciam em campos acima do botão,
+/// fora do que se via — e quem carregava concluía que a app estava avariada.
+enum CarwashCampo { morada, matricula, telefone }
+
+@immutable
+class CarwashFaltaCampo {
+  final CarwashCampo campo;
+  final String mensagem;
+  const CarwashFaltaCampo(this.campo, this.mensagem);
+}
+
+class CarwashFormCheck {
+  CarwashFormCheck._();
+
+  /// Devolve null quando está tudo preenchido.
+  static CarwashFaltaCampo? primeiroEmFalta({
+    required String morada,
+    required String matricula,
+    required String telefone,
+  }) {
+    if (morada.trim().length < 4) {
+      return const CarwashFaltaCampo(
+          CarwashCampo.morada, 'Falta dizer onde está o carro.');
+    }
+    if (matricula.trim().length < 4) {
+      return const CarwashFaltaCampo(
+          CarwashCampo.matricula, 'Falta a matrícula do carro.');
+    }
+    if (telefone.replaceAll(RegExp(r'\D'), '').length < 9) {
+      return const CarwashFaltaCampo(CarwashCampo.telefone,
+          'Falta o seu telemóvel, para o lavador o contactar.');
+    }
+    return null;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
 // LAVADOR
 // ══════════════════════════════════════════════════════════════════════════
 

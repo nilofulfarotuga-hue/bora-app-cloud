@@ -9,6 +9,7 @@ import '../../../models/carwash_models.dart';
 import '../../../services/carwash_upload_service.dart';
 import '../../../stores/carwash_store.dart';
 import '../../shared/carwash_chat_screen.dart';
+import 'carwash_payment_flow.dart';
 
 /// LAVAGEM AUTO — acompanhamento do cliente.
 /// Barra de estados igual à da entrega + ETA + fotos antes/depois + chat.
@@ -91,7 +92,12 @@ class _CarwashTrackingScreenState extends State<CarwashTrackingScreen>
       ),
     );
     if (ok != true || !mounted) return;
-    final done = await context.read<CarwashStore>().cancelBooking(b.id);
+    final store = context.read<CarwashStore>();
+    final done = await store.cancelBooking(b.id);
+    // Se já tinha sido pago, devolve o que exceder a taxa de cancelamento.
+    if (done && b.paymentMethod != 'cash' && b.paymentStatus != 'unpaid') {
+      await store.reversePayment(b.id);
+    }
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(done ? 'Lavagem cancelada.' : 'Não foi possível cancelar.'),
@@ -216,6 +222,48 @@ class _CarwashTrackingScreenState extends State<CarwashTrackingScreen>
                 ],
               ),
               const SizedBox(height: Spacing.lg),
+            ],
+
+            // Por pagar (cartão/MB WAY): dá uma segunda oportunidade sem
+            // obrigar a refazer o pedido.
+            if (b.paymentMethod != 'cash' &&
+                b.paymentStatus == 'unpaid' &&
+                b.status.isActive) ...[
+              Container(
+                padding: const EdgeInsets.all(Spacing.lg),
+                margin: const EdgeInsets.only(bottom: Spacing.lg),
+                decoration: BoxDecoration(
+                  color: AppColors.warning.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Falta o pagamento',
+                        style: TextStyle(fontWeight: FontWeight.w800)),
+                    const SizedBox(height: Spacing.xs),
+                    Text(
+                      'Este pedido ainda não foi pago por '
+                      '${b.paymentMethod == 'card' ? 'cartão' : 'MB WAY'}.',
+                      style: const TextStyle(color: AppColors.textSecondary),
+                    ),
+                    const SizedBox(height: Spacing.md),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: () async {
+                          final store = context.read<CarwashStore>();
+                          await CarwashPaymentFlow.pay(context, store, b);
+                        },
+                        style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.primary),
+                        child: Text(
+                            'Pagar ${b.totalEur.toStringAsFixed(2)} €'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
 
             _CartaoDados(booking: b),

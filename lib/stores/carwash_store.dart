@@ -291,6 +291,80 @@ class CarwashStore extends ChangeNotifier {
     }
   }
 
+  // ══════════════════════════════════════════════════════════════════════════
+  // PAGAMENTO — Edge Fn ISOLADA carwash-checkout
+  // O preço vem SEMPRE do servidor. O Dart nunca manda valores.
+  // O portão (carwash_payment_precheck) corre lá antes de tocar no Stripe.
+  // ══════════════════════════════════════════════════════════════════════════
+
+  Future<Map<String, dynamic>?> createCardPayment(String bookingId,
+      {String? savedPmId}) async {
+    try {
+      final res = await _sb.functions.invoke('carwash-checkout', body: {
+        'action': 'create',
+        'bookingId': bookingId,
+        if (savedPmId != null) 'saved_pm_id': savedPmId,
+      });
+      final data = res.data;
+      if (data is Map && data['clientSecret'] != null) {
+        return Map<String, dynamic>.from(data);
+      }
+      debugPrint('CarwashStore.createCardPayment resposta má => $data');
+      return null;
+    } catch (e) {
+      debugPrint('CarwashStore.createCardPayment => $e');
+      return null;
+    }
+  }
+
+  Future<Map<String, dynamic>?> createMbwayPayment(
+      String bookingId, String phone) async {
+    try {
+      final res = await _sb.functions.invoke('carwash-checkout', body: {
+        'action': 'create_mbway',
+        'bookingId': bookingId,
+        'phone': phone,
+      });
+      final data = res.data;
+      if (data is Map && data['paymentIntentId'] != null) {
+        return Map<String, dynamic>.from(data);
+      }
+      debugPrint('CarwashStore.createMbwayPayment resposta má => $data');
+      return null;
+    } catch (e) {
+      debugPrint('CarwashStore.createMbwayPayment => $e');
+      return null;
+    }
+  }
+
+  /// Marca o pedido como pago. O servidor revalida o PaymentIntent (dono,
+  /// pedido e valor) antes de aceitar.
+  Future<bool> markPaymentHeld(String bookingId, String paymentIntentId) async {
+    try {
+      final res = await _sb.functions.invoke('carwash-checkout', body: {
+        'action': 'mark_held',
+        'bookingId': bookingId,
+        'paymentIntentId': paymentIntentId,
+      });
+      final ok = res.data is Map && (res.data as Map)['ok'] == true;
+      if (ok) await refreshTracked();
+      return ok;
+    } catch (e) {
+      debugPrint('CarwashStore.markPaymentHeld => $e');
+      return false;
+    }
+  }
+
+  /// Pedido cancelado: liberta a retenção ou estorna o que exceder a taxa.
+  Future<void> reversePayment(String bookingId) async {
+    try {
+      await _sb.functions.invoke('carwash-checkout',
+          body: {'action': 'reverse', 'bookingId': bookingId});
+    } catch (e) {
+      debugPrint('CarwashStore.reversePayment => $e');
+    }
+  }
+
   /// Anexa a foto opcional do cliente depois do pedido criado.
   /// Falhar aqui NUNCA estraga o pedido — a foto é opcional por desenho.
   Future<void> attachClientPhoto(String bookingId, String path) async {

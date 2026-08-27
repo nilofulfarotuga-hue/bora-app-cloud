@@ -13,6 +13,7 @@ import '../../../services/location_service.dart';
 import '../../../stores/carwash_store.dart';
 import '../../../utils/safe_image_picker.dart';
 import '../../../widgets/address_autocomplete_field.dart';
+import 'carwash_payment_flow.dart';
 import 'carwash_tracking_screen.dart';
 
 /// LAVAGEM AUTO — passo 2: onde está o carro, dados do carro, quando e pagamento.
@@ -195,6 +196,14 @@ class _CarwashRequestScreenState extends State<CarwashRequestScreen> {
           );
           await store.attachClientPhoto(booking.id, path);
         } catch (_) {/* opcional — nunca estraga o pedido */}
+      }
+
+      // Pagamento — o pedido já existe, por isso nunca há PaymentIntent sem
+      // pedido por trás (lição de 31/07). Se o pagamento falhar, o pedido fica
+      // por pagar e o cliente pode tentar de novo no ecrã de acompanhamento.
+      if (!mounted) return;
+      if (booking.paymentMethod != 'cash') {
+        await CarwashPaymentFlow.pay(context, store, booking);
       }
 
       if (!mounted) return;

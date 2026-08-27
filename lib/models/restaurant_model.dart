@@ -8,6 +8,12 @@ enum BusinessCategory {
   beauty,
   // Salgados, doces e bolos por encomenda (lançamento 2026-08-25).
   festas,
+  // Sobremesas (2026-08-27) — açaí, gelados, doces prontos a comer.
+  // Slug na base de dados: `sobremesa` (singular, minúsculas, sem acento).
+  // É só um filtro visual: o fluxo de compra é o de entrega NORMAL, imediato.
+  // Uma loja pode estar aqui E em Restaurantes ao mesmo tempo, via
+  // `extra_categories` — é o caso da Goola Açaí.
+  sobremesa,
 }
 
 extension BusinessCategoryLabel on BusinessCategory {
@@ -25,6 +31,8 @@ extension BusinessCategoryLabel on BusinessCategory {
         return 'Beleza';
       case BusinessCategory.festas:
         return 'Festas';
+      case BusinessCategory.sobremesa:
+        return 'Sobremesas';
     }
   }
 }

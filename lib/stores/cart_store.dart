@@ -10,6 +10,7 @@ import '../models/order_model.dart';
 import '../config/business_rules.dart' show BRTokens;
 import '../services/maps_service.dart';
 import '../services/pricing_service.dart';
+import '../services/small_order_fee.dart';
 import 'order_store.dart';
 
 class CartStore extends ChangeNotifier {
@@ -39,6 +40,10 @@ class CartStore extends ChangeNotifier {
   /// calendário no checkout (quando o carrinho tem item de encomenda) e a
   /// isenção do saco (regra do Danilo: festas não cobra saco).
   bool _vendorIsFestas = false;
+
+  /// Id da loja da sessao actual. So serve para ir buscar o override da
+  /// TAXA DE PEDIDO PEQUENO (uma loja pode ter minimo/taxa proprios).
+  String? _vendorRestaurantId;
 
   /// Data/hora escolhida para a encomenda de festa (mínimo: dia seguinte).
   /// NULL = pedido imediato ("Na hora"). Enviada ao servidor no checkout.
@@ -216,6 +221,24 @@ class CartStore extends ChangeNotifier {
   // ── FIX: Expose whether the cart has a valid pickup location so that
   // UI screens can disable checkout when coordinates are missing.
   bool get hasValidPickupLocation => _pickupLocation != null;
+
+  // ── TAXA DE PEDIDO PEQUENO (2026-08-27) ──────────────────────────────────
+  // Fica FORA do OrderPricingBreakdown de proposito: `pricing_service.dart` e
+  // zona protegida e nenhuma formula dele foi tocada. Os ecras somam esta
+  // parcela ao total, e o servidor cobra-a pela sua propria conta (funcao
+  // `small_order_fee_calc`, a mesma regra) — nao vai no payload do pedido.
+
+  /// Definicoes em vigor para a loja desta sessao (override dela ou o global).
+  SmallOrderFeeConfig get smallOrderFeeConfig =>
+      SmallOrderFeeService.para(_vendorRestaurantId);
+
+  /// Taxa a cobrar por este carrinho, em euros. 0 quando nao se aplica.
+  double get smallOrderFee =>
+      smallOrderFeeConfig.taxaPara(_serviceType, subtotal);
+
+  /// Quanto falta gastar para deixar de pagar a taxa. 0 quando ja nao paga.
+  double get faltaParaMinimo =>
+      smallOrderFeeConfig.faltaPara(_serviceType, subtotal);
 
   OrderPricingBreakdown get pricingBreakdown {
     final base = PricingService.calculateBreakdown(
@@ -458,6 +481,7 @@ class CartStore extends ChangeNotifier {
     bool vendorIsFestas = false,
     String vendorComingSoonText = 'Em breve',
     String? vendorName,
+    String? vendorRestaurantId,
     String? pickupStreet,
     String? pickupCity,
     String? pickupPostalCode,
@@ -483,6 +507,13 @@ class CartStore extends ChangeNotifier {
     _vendorComingSoon = vendorComingSoon;
     _vendorComingSoonText = vendorComingSoonText;
     _vendorIsFestas = vendorIsFestas;
+    _vendorRestaurantId = vendorRestaurantId;
+    // Minimo/taxa proprios desta loja, se os tiver. Falhar aqui nunca trava o
+    // carrinho: sem leitura, fica o valor global (ou taxa nenhuma).
+    if (vendorRestaurantId != null) {
+      SmallOrderFeeService.carregarLoja(vendorRestaurantId)
+          .then((_) => notifyListeners());
+    }
     if (!isSameContext) _festasQuando = null;
     _vendorName = vendorName;
     _pickupStreet = pickupStreet;

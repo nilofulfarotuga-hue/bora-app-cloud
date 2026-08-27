@@ -1,3 +1,5 @@
+import 'dart:async' show unawaited;
+
 import 'utils/io_compat.dart';
 
 import 'package:firebase_core/firebase_core.dart';
@@ -16,6 +18,7 @@ import 'services/app_update_service.dart';
 import 'services/floating_bubble_service.dart';
 import 'services/foreground_service.dart';
 import 'services/notification_service.dart';
+import 'services/small_order_fee.dart';
 import 'services/tvde_reservation_ready_handler.dart';
 import 'services/offer_presentation_gate.dart';
 // Sessão 2026-05-21 — overlay system_alert_window. O import garante que o
@@ -386,6 +389,11 @@ Future<void> main() async {
   await Future.wait([sessionStore.load(), consentStore.load()]);
 
   Provider.debugCheckInvalidValueType = null;
+
+  // Taxa de pedido pequeno (2026-08-27): le as definicoes uma vez por sessao.
+  // Fire-and-forget de proposito — falhar aqui NUNCA pode travar o arranque;
+  // sem leitura fica o estado seguro (taxa nenhuma).
+  unawaited(SmallOrderFeeService.carregarGlobal());
 
   runApp(MyApp(
     sessionStore: sessionStore,

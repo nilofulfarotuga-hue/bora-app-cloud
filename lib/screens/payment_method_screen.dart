@@ -288,8 +288,11 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     final double errandTotal =
         (errandQuote?['customer_total'] as num?)?.toDouble() ??
             pricing.customerTotal;
+    // Taxa de pedido pequeno (2026-08-27): parcela propria somada ao total.
+    // Nao se aplica a favores (errand), que tem quote proprio.
+    final double smallOrderFee = isErrand ? 0.0 : cartStore.smallOrderFee;
     final double baseCustomerTotal =
-        isErrand ? errandTotal : pricing.customerTotal;
+        (isErrand ? errandTotal : pricing.customerTotal) + smallOrderFee;
     final double totalAfterWallet =
         (baseCustomerTotal - walletAppliedEur).clamp(0.0, double.infinity);
     final totalToPay = totalAfterWallet;
@@ -446,6 +449,10 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                           _SummaryRow(
                               label: 'Saco para viagem',
                               value: pricing.bagFee),
+                        if (smallOrderFee > 0)
+                          _SummaryRow(
+                              label: 'Taxa de pedido pequeno',
+                              value: smallOrderFee),
                         if (pricing.apartmentSurcharge > 0)
                           _SummaryRow(
                             label: 'Entrega em apartamento',
@@ -975,8 +982,11 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     //   4. Flutter polls payment_drafts for used_at → fetches order_id.
     if (_selectedMethod == PaymentMethod.card) {
       // Wallet-only path: no Stripe charge needed — fall back to legacy flow.
+      // A taxa de pedido pequeno conta para saber se o saldo cobre TUDO —
+      // senao um carrinho com taxa cairia no caminho legacy sem cobrar nada.
       final cartTotalAfterWallet =
-          cartStore.pricingBreakdown.customerTotal -
+          cartStore.pricingBreakdown.customerTotal +
+              cartStore.smallOrderFee -
               (cartStore.walletAppliedCents / 100.0);
       if (cartTotalAfterWallet <= 0) {
         debugPrint('[Checkout] wallet covers full order — using legacy path');

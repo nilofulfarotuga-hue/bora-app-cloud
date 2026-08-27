@@ -2,6 +2,7 @@
 // Requires partner_hours_system migration (T4 of sessão nocturna 2026-04-29).
 
 import 'dart:convert';
+import '../../services/small_order_fee.dart';
 import '../../utils/io_compat.dart';
 
 import 'package:flutter/material.dart';
@@ -61,6 +62,10 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
   // BLOCO 7 (2026-08-05) — perfil público editável pelo admin, para
   // QUALQUER loja: WhatsApp/redes sociais/texto "sobre".
   final TextEditingController _whatsappCtrl = TextEditingController();
+  // Taxa de pedido pequeno — override desta loja (vazio = usa o valor global).
+  final TextEditingController _minPedidoCtrl = TextEditingController();
+  final TextEditingController _taxaPequenoCtrl = TextEditingController();
+  bool _savingPedidoMinimo = false;
   final TextEditingController _facebookCtrl = TextEditingController();
   final TextEditingController _instagramCtrl = TextEditingController();
   final TextEditingController _aboutCtrl = TextEditingController();
@@ -90,6 +95,8 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
     _latCtrl.dispose();
     _lngCtrl.dispose();
     _whatsappCtrl.dispose();
+    _minPedidoCtrl.dispose();
+    _taxaPequenoCtrl.dispose();
     _facebookCtrl.dispose();
     _instagramCtrl.dispose();
     _aboutCtrl.dispose();
@@ -105,7 +112,8 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
               'id, name, category, address, phone, email, is_partner, is_online, is_active_admin, business_hours, '
               'takeaway_enabled, reservations_enabled, curbside_enabled, takeaway_default_prep_minutes, hero_image_url, photo_url, '
               'owner_doc_url, activity_doc_url, lat, lng, partner_commission_billing, user_id, '
-              'whatsapp, social_facebook, social_instagram, about_text')
+              'whatsapp, social_facebook, social_instagram, about_text, '
+              'min_order_cents_override, small_order_fee_cents_override')
           .eq('id', widget.restaurantId)
           .single();
       final openData = await Supabase.instance.client.rpc('is_partner_open', params: {
@@ -126,6 +134,11 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
           _latCtrl.text = (r['lat'] as num?)?.toString() ?? '';
           _lngCtrl.text = (r['lng'] as num?)?.toString() ?? '';
           _whatsappCtrl.text = r['whatsapp'] as String? ?? '';
+          _minPedidoCtrl.text =
+              (r['min_order_cents_override'] as num?)?.toInt().toString() ?? '';
+          _taxaPequenoCtrl.text =
+              (r['small_order_fee_cents_override'] as num?)?.toInt().toString() ??
+                  '';
           _facebookCtrl.text = r['social_facebook'] as String? ?? '';
           _instagramCtrl.text = r['social_instagram'] as String? ?? '';
           _aboutCtrl.text = r['about_text'] as String? ?? '';
@@ -410,6 +423,8 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
             const SizedBox(height: 24),
             _commissionBillingCard(),
           ],
+          const SizedBox(height: 24),
+          _pedidoMinimoCard(),
           const SizedBox(height: 24),
           _storeProfileCard(),
           const SizedBox(height: 24),
@@ -916,6 +931,151 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
     } finally {
       if (mounted) setState(() => _savingBilling = false);
     }
+  }
+
+  /// Grava o override do pedido mínimo desta loja.
+  ///
+  /// Campo vazio = NULL na base = a loja usa o valor global de
+  /// `platform_settings`. É por isso que se grava `null` e não 0: 0 seria
+  /// "esta loja nunca cobra taxa", que é uma decisão diferente.
+  Future<void> _savePedidoMinimo() async {
+    final minTxt = _minPedidoCtrl.text.trim();
+    final taxaTxt = _taxaPequenoCtrl.text.trim();
+
+    int? min;
+    int? taxa;
+    if (minTxt.isNotEmpty) {
+      min = int.tryParse(minTxt);
+      if (min == null || min < 0 || min > 100000) {
+        _aviso('Pedido mínimo inválido. Use centavos inteiros, '
+            'de 0 a 100000 (= 1.000,00 €).');
+        return;
+      }
+    }
+    if (taxaTxt.isNotEmpty) {
+      taxa = int.tryParse(taxaTxt);
+      if (taxa == null || taxa < 0 || taxa > 2000) {
+        _aviso('Taxa inválida. Use centavos inteiros, de 0 a 2000 (= 20,00 €).');
+        return;
+      }
+    }
+
+    setState(() => _savingPedidoMinimo = true);
+    try {
+      await Supabase.instance.client.from('restaurants').update({
+        'min_order_cents_override': min,
+        'small_order_fee_cents_override': taxa,
+      }).eq('id', widget.restaurantId);
+      // O app do cliente tem estes valores em cache: força a releitura.
+      SmallOrderFeeService.esquecerCache();
+      _aviso(min == null && taxa == null
+          ? 'Override removido. Esta loja voltou a usar o valor global.'
+          : 'Pedido mínimo desta loja atualizado.');
+      await _loadAll();
+    } catch (e) {
+      _aviso('Erro ao salvar o pedido mínimo: $e');
+    } finally {
+      if (mounted) setState(() => _savingPedidoMinimo = false);
+    }
+  }
+
+  void _aviso(String texto) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(texto)));
+  }
+
+  /// Cartão PT-BR: pedido mínimo e taxa de pedido pequeno DESTA loja.
+  Widget _pedidoMinimoCard() {
+    final temOverride =
+        _minPedidoCtrl.text.trim().isNotEmpty || _taxaPequenoCtrl.text.trim().isNotEmpty;
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Radii.lg),
+        side: const BorderSide(color: AppColors.divider),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(children: [
+              Icon(Icons.shopping_basket_outlined, size: 20),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text('Pedido mínimo desta loja',
+                    style:
+                        TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+              ),
+            ]),
+            const SizedBox(height: 4),
+            const Text(
+              'Quando o subtotal (soma dos produtos, sem entrega) fica abaixo '
+              'do mínimo, o cliente paga a taxa de pedido pequeno numa linha '
+              'visível. A taxa é receita da Bora: não entra no repasse do '
+              'parceiro nem no ganho do entregador.\n\n'
+              'Deixe os dois campos VAZIOS para esta loja usar o valor global '
+              '(configurado em Definições da plataforma). Os valores são em '
+              'centavos (centimos): 1200 = 12,00 €.',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _minPedidoCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Mínimo (centavos)',
+                      hintText: 'vazio = global',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    controller: _taxaPequenoCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Taxa (centavos)',
+                      hintText: 'vazio = global',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                if (temOverride)
+                  TextButton.icon(
+                    onPressed: _savingPedidoMinimo
+                        ? null
+                        : () {
+                            _minPedidoCtrl.clear();
+                            _taxaPequenoCtrl.clear();
+                            _savePedidoMinimo();
+                          },
+                    icon: const Icon(Icons.undo, size: 18),
+                    label: const Text('Voltar ao global'),
+                  ),
+                const Spacer(),
+                FilledButton(
+                  onPressed: _savingPedidoMinimo ? null : _savePedidoMinimo,
+                  child: Text(_savingPedidoMinimo ? 'Salvando…' : 'Salvar'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   /// Cartão PT-BR: quem paga os 10% de comissão visível.

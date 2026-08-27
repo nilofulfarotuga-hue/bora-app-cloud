@@ -1085,6 +1085,34 @@ class _ItemsCard extends StatelessWidget {
               ),
             ),
           ],
+          // Taxa de pedido pequeno (2026-08-27) — linha propria, como no
+          // carrinho e no checkout. O valor vem gravado do servidor.
+          if (order.smallOrderFee > 0) ...[
+            const Divider(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Taxa de pedido pequeno',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '€${order.smallOrderFee.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );

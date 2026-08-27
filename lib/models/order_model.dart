@@ -254,6 +254,12 @@ class OrderModel {
   /// Total bag fee charged (restaurant: fixed €0.30; market: bagCount × €0.10).
   double bagFee;
 
+  /// Taxa de pedido pequeno cobrada ao cliente (2026-08-27). Quem a calcula e
+  /// a cobra e o SERVIDOR (`small_order_fee_calc`); aqui so se le, para o
+  /// detalhe do pedido a poder mostrar em linha propria. Receita da
+  /// plataforma: nao entra no repasse do parceiro nem no ganho do estafeta.
+  double smallOrderFee;
+
   /// DEPRECATED — single source of truth is now
   /// `DriverStore.currentDriver.location`, synced through the `drivers` table
   /// Realtime subscription. These fields are kept only for binary
@@ -318,6 +324,7 @@ class OrderModel {
     this.driverPhone,
     this.bagCount = 0,
     this.bagFee = 0,
+    this.smallOrderFee = 0,
     List<String>? driverOfferHistory,
     List<String>? triedDriverIds,
     this.pickupWarningIssued = false,
@@ -523,6 +530,7 @@ class OrderModel {
       driverPhone: data['driver_phone'] as String?,
       bagCount: data['bag_count'] as int? ?? 0,
       bagFee: (data['bag_fee'] as num? ?? 0).toDouble(),
+      smallOrderFee: (data['small_order_fee'] as num? ?? 0).toDouble(),
       pickupLocation: pickupLocation,
       destination: destination,
       createdAt: data['created_at'] != null

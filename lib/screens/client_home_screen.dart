@@ -35,6 +35,7 @@ import 'errand_form_screen.dart';
 import 'stores_screen.dart';
 import 'client/tvde/tvde_request_ride_screen.dart';
 import 'festas_screen.dart';
+import 'sobremesas_screen.dart';
 
 class ClientHomeScreen extends StatefulWidget {
   const ClientHomeScreen({super.key});
@@ -558,6 +559,23 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
           Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const FestasScreen()),
+          );
+        }),
+      ),
+    );
+
+    // Sobremesas (2026-08-27) — acai, gelados e doces. Filtro visual apenas:
+    // o fluxo de compra e o de entrega NORMAL. Uma loja pode estar aqui E em
+    // Restaurantes ao mesmo tempo (extra_categories) — e o caso da Goola Acai.
+    tiles.add(
+      _TileData(
+        label: 'Sobremesas',
+        gradient: AppColors.tileSobremesas,
+        imageAsset: 'assets/categories/cat_sobremesas.png',
+        onTap: () => _navigateWithAddressGuard(() {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const SobremesasScreen()),
           );
         }),
       ),

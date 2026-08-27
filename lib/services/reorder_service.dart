@@ -35,11 +35,18 @@ class ReorderService {
             .where((r) => r.name == order.vendorName)
             .any((r) => r.belongsTo(BusinessCategory.festas)) ??
         false;
+    // Taxa de pedido pequeno: precisa do id da loja para saber se ela tem
+    // minimo proprio. O pedido antigo so guarda o nome.
+    final vendorId = restaurantStore?.restaurants
+        .where((r) => r.name == order.vendorName)
+        .map((r) => r.id)
+        .firstOrNull;
     cart.configureSession(
       serviceType: order.serviceType,
       isPartnerStore: order.isPartnerStore,
       vendorIsFestas: vendorFestas,
       vendorName: order.vendorName,
+      vendorRestaurantId: vendorId,
       pickupLocation: order.pickupLocation,
       pickupStreet: order.pickupStreet,
     );

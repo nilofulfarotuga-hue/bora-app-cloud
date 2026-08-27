@@ -32,9 +32,14 @@ class CartScreen extends StatelessWidget {
     }
     // Takeaway (BR §14.9) — client skips delivery fee entirely.
     // Gorjeta (BR §4.5) — somada ao total final (split 80/20 a jusante).
+    // Taxa de pedido pequeno (2026-08-27): parcela propria, somada ao total.
+    // Vive fora do OrderPricingBreakdown porque `pricing_service.dart` e zona
+    // protegida — os valores vem de `platform_settings` (nunca do codigo) e o
+    // servidor cobra pela mesma regra.
     final totalToPay = (cartStore.isTakeaway
             ? (pricing.customerTotal - pricing.deliveryFee)
             : pricing.customerTotal) +
+        cartStore.smallOrderFee +
         cartStore.tipEur;
 
     return Scaffold(
@@ -379,6 +384,13 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                     if (pricing.bagFee > 0)
                       _SummaryRow(
                           label: 'Saco para viagem', value: pricing.bagFee),
+                    if (cartStore.smallOrderFee > 0)
+                      _SummaryRow(
+                        label: 'Taxa de pedido pequeno',
+                        value: cartStore.smallOrderFee,
+                      ),
+                    if (cartStore.faltaParaMinimo > 0)
+                      _FaltaParaOMinimo(falta: cartStore.faltaParaMinimo),
                     const SizedBox(height: Spacing.md),
                     TipSelector(
                       initialCents: cartStore.tipCents,
@@ -673,6 +685,40 @@ class _SummaryRow extends StatelessWidget {
             ),
           ),
           Text('€${value.toStringAsFixed(2)}', style: style),
+        ],
+      ),
+    );
+  }
+}
+
+/// Aviso do carrinho: quanto falta para deixar de pagar a taxa de pedido
+/// pequeno. E o que a Uber e a Glovo fazem — e o que faz o cliente juntar mais
+/// um item em vez de desistir do pedido.
+class _FaltaParaOMinimo extends StatelessWidget {
+  const _FaltaParaOMinimo({required this.falta});
+
+  final double falta;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: Spacing.xs),
+      child: Row(
+        children: [
+          const Icon(Icons.add_shopping_cart,
+              size: 16, color: AppColors.primary),
+          const SizedBox(width: Spacing.xs),
+          Expanded(
+            child: Text(
+              'Faltam ${falta.toStringAsFixed(2).replaceAll('.', ',')} € '
+              'para evitar a taxa de pedido pequeno',
+              style: const TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: AppColors.primary,
+              ),
+            ),
+          ),
         ],
       ),
     );

@@ -132,4 +132,11 @@ class AppColors {
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
+  // Sobremesas (2026-08-27) — roxo-açaí → lilás. Puxa à cor do açaí e não
+  // colide com o rosa das Festas nem com o laranja da marca.
+  static const LinearGradient tileSobremesas = LinearGradient(
+    colors: [Color(0xFF6D28D9), Color(0xFFA78BFA)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
 }

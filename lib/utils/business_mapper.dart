@@ -48,8 +48,11 @@ class BusinessMapper {
     final effective = sectionCategory ?? business.category;
     // Festas usa o fluxo de restaurante (cardápio por secções + opções de
     // entrega/recolha) — é onde vive o agendamento da encomenda.
+    // Sobremesas idem, mas SEM nada de agendamento: é o fluxo de entrega
+    // normal, imediato — a categoria é só um filtro visual (2026-08-27).
     if (effective == BusinessCategory.restaurant ||
-        effective == BusinessCategory.festas) {
+        effective == BusinessCategory.festas ||
+        effective == BusinessCategory.sobremesa) {
       return null;
     }
 
@@ -69,6 +72,7 @@ class BusinessMapper {
       case BusinessCategory.store:
       case BusinessCategory.beauty:
       case BusinessCategory.festas:
+      case BusinessCategory.sobremesa:
         return StoreCategory.market;
     }
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../services/small_order_fee.dart';
 import '../../config/app_colors.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 
@@ -144,7 +145,51 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
       'tvde_reservation_payment_timeout_minutes',
     };
     if (reservationOperational.contains(key)) return true;
+    // TAXA DE PEDIDO PEQUENO (2026-08-27). Mesma regra do
+    // `appointment_booking_fee_cents` e do `tvde_roundtrip_discount_pct`: e o
+    // preco do PROPRIO produto da Bora (a taxa fica toda para a plataforma,
+    // nao e repassada a parceiro nem a estafeta), e o painel admin e a
+    // superficie onde o DONO mexe no preco do seu produto. Um agente continua
+    // sem poder alterar estes valores sozinho.
+    //
+    // `small_order_fee_enabled` e o interruptor que acende a taxa nos dois
+    // lados ao mesmo tempo (cliente e servidor leem o mesmo valor).
+    const smallOrderFeeKeys = {
+      'min_order_cents',
+      'small_order_fee_cents',
+      'small_order_fee_enabled',
+    };
+    if (smallOrderFeeKeys.contains(key)) return true;
     return false;
+  }
+
+  /// Validação das três chaves da taxa de pedido pequeno.
+  /// Devolve a mensagem de erro (PT-BR) ou `null` quando o valor serve.
+  String? _validaTaxaPedidoPequeno(String key, dynamic valor) {
+    switch (key) {
+      case 'small_order_fee_enabled':
+        return valor is bool
+            ? null
+            : 'Use true ou false (liga/desliga a taxa nos dois lados: app e servidor).';
+      case 'min_order_cents':
+        if (valor is! num || valor != valor.roundToDouble()) {
+          return 'Use centavos INTEIROS. Exemplo: 1200 = 12,00 €.';
+        }
+        if (valor < 0 || valor > 100000) {
+          return 'Fora da faixa permitida (0 a 100000 centavos = 1.000,00 €).';
+        }
+        return null;
+      case 'small_order_fee_cents':
+        if (valor is! num || valor != valor.roundToDouble()) {
+          return 'Use centavos INTEIROS. Exemplo: 139 = 1,39 €.';
+        }
+        if (valor < 0 || valor > 2000) {
+          return 'Fora da faixa permitida (0 a 2000 centavos = 20,00 €).';
+        }
+        return null;
+      default:
+        return null;
+    }
   }
 
   /// FIM DO SINAL (2026-08-03) — chaves do sinal de €3 que a regra de negócio
@@ -258,8 +303,21 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
       } else {
         parsed = txt;
       }
+      // TAXA DE PEDIDO PEQUENO — validação antes de gravar. Um valor absurdo
+      // aqui muda o que TODO cliente paga, por isso não passa sem verificação.
+      final erro = _validaTaxaPedidoPequeno(s.key, parsed);
+      if (erro != null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(erro)));
+        }
+        return;
+      }
       await Supabase.instance.client.rpc('admin_update_setting',
           params: {'p_key': s.key, 'p_value': parsed});
+      // O app do cliente tem estes valores em cache: força a releitura para o
+      // carrinho não continuar a mostrar o valor antigo.
+      SmallOrderFeeService.esquecerCache();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Atualizado')));
       }

@@ -228,6 +228,7 @@ Future<void> openRestaurantBusiness(
       vendorIsFestas: business.belongsTo(BusinessCategory.festas),
       vendorComingSoonText: business.comingSoonLabel,
       vendorName: business.name,
+      vendorRestaurantId: business.id,
       pickupLocation: pickupLocation,
       pickupStreet: business.address,
       pickupCity: null,

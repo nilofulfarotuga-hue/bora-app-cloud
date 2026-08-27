@@ -113,6 +113,10 @@ class _AdminPartnersScreenState extends State<AdminPartnersScreen> {
         return Icons.local_pharmacy;
       case 'store':
         return Icons.storefront;
+      case 'festas':
+        return Icons.celebration;
+      case 'sobremesa':
+        return Icons.icecream;
       default:
         return Icons.restaurant;
     }
@@ -124,6 +128,11 @@ class _AdminPartnersScreenState extends State<AdminPartnersScreen> {
       'supermarket': 'Supermercado',
       'pharmacy': 'Farmácia',
       'store': 'Loja',
+      'beauty': 'Beleza',
+      'festas': 'Festas',
+      // Sobremesas (2026-08-27) — açaí, sorvetes e doces. Uma loja pode estar
+      // aqui E em Restaurantes ao mesmo tempo, pela coluna extra_categories.
+      'sobremesa': 'Sobremesas',
     };
     return labels[cat] ?? (cat ?? '—');
   }

@@ -32,10 +32,16 @@ class _AdminPartnerEditDialogState extends State<AdminPartnerEditDialog> {
   late String _category;
   bool _saving = false;
 
-  static const _categories = ['restaurant', 'supermarket', 'store', 'pharmacy'];
+  static const _categories = [
+    'restaurant', 'supermarket', 'store', 'pharmacy', 'festas', 'sobremesa',
+  ];
   static const _categoryLabels = {
     'restaurant': 'Restaurante', 'supermarket': 'Supermercado',
-    'store': 'Loja', 'pharmacy': 'Farmácia',
+    'store': 'Loja', 'pharmacy': 'Farmácia', 'festas': 'Festas',
+    // Sobremesas (2026-08-27). Esta é a categoria PRINCIPAL da loja; para a
+    // loja aparecer em duas seções ao mesmo tempo (ex.: Goola Açaí em
+    // Sobremesas E em Restaurantes) usa-se a coluna extra_categories.
+    'sobremesa': 'Sobremesas',
   };
 
   @override

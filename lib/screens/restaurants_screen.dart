@@ -148,24 +148,16 @@ Future<void> openRestaurantBusiness(
   RestaurantModel business, {
   bool reservationsOnly = false,
 }) async {
-    // Closed restaurants cannot receive orders.
+    // LOJA FECHADA E VISITAVEL (2026-08-27, pedido do Danilo).
     //
-    // 2026-08-25 — as casas de FESTAS vendem por encomenda com aviso prévio
-    // (mínimo 1 dia): o horário da loja é de levantamento/entrega, não de
-    // aceitar encomendas. Bloquear a entrada fora das horas deixava a loja da
-    // Keli sem abrir à noite — o cartão dizia "Aceita encomendas" e o toque
-    // não fazia nada. É a mesma isenção que `statusLabel()` já fazia.
-    if (!business.isOpenNow() &&
-        !reservationsOnly &&
-        !business.belongsTo(BusinessCategory.festas)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(business.statusLabel()),
-          duration: const Duration(seconds: 3),
-        ),
-      );
-      return;
-    }
+    // Antes, fora de horas o toque no cartao so dava um aviso e nao entrava.
+    // Agora entra-se sempre: o cliente ve capa, logo, categorias, produtos,
+    // precos e opcoes — nada bloqueado, nada esbatido. O travao passou para o
+    // momento de METER NO CARRINHO (ver `CartStore.lojaFechada`) e, do lado do
+    // servidor, para o trigger `trg_store_closed_guard_orders` (STORE_CLOSED).
+    //
+    // Isto nao e agendamento: nao se promete "avisar quando abrir" em lado
+    // nenhum, porque isso ainda nao existe.
 
     // Partner restaurants must have a registered location in the DB.
     if (business.isPartner && business.location == null) {
@@ -229,6 +221,12 @@ Future<void> openRestaurantBusiness(
       vendorComingSoonText: business.comingSoonLabel,
       vendorName: business.name,
       vendorRestaurantId: business.id,
+      // Fora de horario o cliente ve tudo, so nao mete no carrinho.
+      // Festas ficam de fora: vendem por encomenda com aviso previo, o
+      // horario delas e de levantamento (regra de 2026-08-25).
+      vendorFechada: !business.isOpenNow() &&
+          !business.belongsTo(BusinessCategory.festas),
+      vendorAvisoFechada: business.avisoLojaFechada,
       pickupLocation: pickupLocation,
       pickupStreet: business.address,
       pickupCity: null,

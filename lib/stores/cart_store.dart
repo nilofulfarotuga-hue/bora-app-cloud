@@ -45,6 +45,12 @@ class CartStore extends ChangeNotifier {
   /// TAXA DE PEDIDO PEQUENO (uma loja pode ter minimo/taxa proprios).
   String? _vendorRestaurantId;
 
+  /// Loja da sessao fora de horario. A verdade vem de `is_partner_open` no
+  /// servidor (que ja conhece feriados e override do admin); aqui e so o
+  /// espelho para o cliente, gravado quando a loja e aberta.
+  bool _vendorFechada = false;
+  String _vendorAvisoFechada = '';
+
   /// Data/hora escolhida para a encomenda de festa (mínimo: dia seguinte).
   /// NULL = pedido imediato ("Na hora"). Enviada ao servidor no checkout.
   DateTime? _festasQuando;
@@ -229,12 +235,40 @@ class CartStore extends ChangeNotifier {
   // `small_order_fee_calc`, a mesma regra) — nao vai no payload do pedido.
 
   /// Definicoes em vigor para a loja desta sessao (override dela ou o global).
+  /// A loja desta sessao esta fora de horario?
+  ///
+  /// Ao contrario do "Em breve", isto BLOQUEIA mesmo o adicionar ao carrinho:
+  /// a loja ja trabalha connosco, so nao esta a servir agora. Navegar,
+  /// espreitar o menu e ver precos continua tudo livre.
+  bool get lojaFechada => _vendorFechada;
+
+  /// Mensagem unica do bloqueio (PT-PT), com a hora a que abre.
+  String get avisoLojaFechada => _vendorAvisoFechada;
+
   SmallOrderFeeConfig get smallOrderFeeConfig =>
       SmallOrderFeeService.para(_vendorRestaurantId);
 
   /// Taxa a cobrar por este carrinho, em euros. 0 quando nao se aplica.
-  double get smallOrderFee =>
-      smallOrderFeeConfig.taxaPara(_serviceType, subtotal);
+  ///
+  /// **O SERVIDOR MANDA.** Quando ha um quote fresco (`quote_order_pricing`,
+  /// cache de 30 s), devolve-se o `small_order_fee` que ele calculou — e o
+  /// mesmo numero que entra no `customer_total`, no `charge_total` e no
+  /// `payment_buffer_total`, ou seja, e exactamente o que vai ser cobrado.
+  ///
+  /// O calculo local so entra quando ainda NAO ha quote: no carrinho, antes
+  /// de haver morada de recolha e de entrega, a RPC nem pode ser chamada.
+  /// Nesse caso e um espelho da mesma regra (`small_order_fee_calc`), com os
+  /// valores lidos de `platform_settings` — nunca do codigo.
+  double get smallOrderFee {
+    final doServidor = (_quoteCache?['small_order_fee'] as num?)?.toDouble();
+    if (doServidor != null) return doServidor;
+    return smallOrderFeeConfig.taxaPara(_serviceType, subtotal);
+  }
+
+  /// `true` quando o valor acima veio do servidor, `false` quando e a
+  /// estimativa local. So serve para diagnostico/testes.
+  bool get smallOrderFeeVeioDoServidor =>
+      _quoteCache?['small_order_fee'] != null;
 
   /// Quanto falta gastar para deixar de pagar a taxa. 0 quando ja nao paga.
   double get faltaParaMinimo =>
@@ -482,6 +516,8 @@ class CartStore extends ChangeNotifier {
     String vendorComingSoonText = 'Em breve',
     String? vendorName,
     String? vendorRestaurantId,
+    bool vendorFechada = false,
+    String vendorAvisoFechada = '',
     String? pickupStreet,
     String? pickupCity,
     String? pickupPostalCode,
@@ -508,6 +544,8 @@ class CartStore extends ChangeNotifier {
     _vendorComingSoonText = vendorComingSoonText;
     _vendorIsFestas = vendorIsFestas;
     _vendorRestaurantId = vendorRestaurantId;
+    _vendorFechada = vendorFechada;
+    _vendorAvisoFechada = vendorAvisoFechada;
     // Minimo/taxa proprios desta loja, se os tiver. Falhar aqui nunca trava o
     // carrinho: sem leitura, fica o valor global (ou taxa nenhuma).
     if (vendorRestaurantId != null) {
@@ -621,11 +659,24 @@ class CartStore extends ChangeNotifier {
     // CartItem via PricingService.applyMarkup (price = exibido/cobrado;
     // basePrice = puro de catálogo). addItem usa o preço tal como vem — itens
     // de reorder/persistência já vêm finais e não podem ser re-marcados.
-    // "Em breve": a loja é navegável mas não aceita pedidos. Trava aqui em vez
-    // de em cada call site — há dezenas espalhados pelos ecrãs de catálogo.
-    if (_vendorComingSoon) {
+    // "EM BREVE" NAO TRAVA AQUI (corrigido 2026-08-27).
+    //
+    // Estava a devolver sem adicionar, o que contradizia o
+    // `vendorBlocksAddToCart` (false = a UI deixa passar) e o comportamento
+    // que se queria desde 2026-08-05: na loja em "Em breve" o cliente percorre
+    // tudo — produtos, opcoes, carrinho — e so e travado no ecra de pagamento.
+    // Com o travao aqui, o botao de adicionar nao fazia NADA e nao dizia
+    // porque. O servidor continua a recusar (STORE_COMING_SOON), que e onde a
+    // trava tem de estar.
+
+    // LOJA FECHADA (2026-08-27): esta SIM trava o carrinho. A diferenca e que
+    // a loja ja trabalha connosco, so nao esta a servir a esta hora — deixar
+    // encher o carrinho para depois recusar seria pior. Navegar e ver precos
+    // continua livre; e so o adicionar que para. Quem chama mostra
+    // `avisoLojaFechada` (a UI usa showLojaFechadaSnackBar).
+    if (_vendorFechada) {
       debugPrint(
-        'CartStore.addItem: BLOQUEADO — "$_vendorName" está em Em breve.',
+        'CartStore.addItem: BLOQUEADO — "$_vendorName" está fechada.',
       );
       return;
     }

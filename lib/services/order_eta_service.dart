@@ -6,7 +6,15 @@ import '../models/order_model.dart';
 /// order. Uses haversine distance + a fixed average scooter speed. Not meant
 /// to be precise — this matches what Uber Eats / Glovo show on their cards.
 class OrderEtaService {
-  static const _distance = Distance();
+  // roundResult:false — o latlong2 arredonda AO QUILOMETRO INTEIRO por
+  // defeito. Com o default, um restaurante a 380 m dava "0 km" e tres
+  // fast-food a 2,03 / 2,12 / 2,36 km davam todos "2 km" — e essa distancia
+  // alimenta a TAXA DE ENTREGA ESTIMADA mostrada na lista e na ficha da loja
+  // (PricingService.estimatedDeliveryFee), alem do ETA.
+  // O teste order_eta_service_distance_test ja apanhava isto: esperava 4
+  // distancias distintas e recebia 2.
+  // Nao mexe no que e COBRADO — quem manda no preco final e o servidor.
+  static const _distance = Distance(roundResult: false);
 
   /// Average urban scooter speed used for all trip legs.
   static const double avgSpeedKmh = 25.0;

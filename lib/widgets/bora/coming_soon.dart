@@ -97,3 +97,55 @@ void showComingSoonBlockedSnackBar(BuildContext context) {
       ),
     );
 }
+
+/// Selo compacto "Fechada" para o canto de um card de loja.
+///
+/// Diferente do "Em breve" de propósito: a loja já trabalha connosco, só está
+/// fora de horário. Vermelho discreto, não o laranja da marca.
+class LojaFechadaChip extends StatelessWidget {
+  const LojaFechadaChip({super.key, required this.texto, this.dense = false});
+
+  /// Vem de `RestaurantModel.statusLabel()` — ex.: "Fechada, abre às 10h00".
+  final String texto;
+  final bool dense;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: dense ? 6 : 8,
+        vertical: dense ? 2 : 3,
+      ),
+      decoration: BoxDecoration(
+        color: const Color(0xFFDC2626).withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(Radii.md),
+        border: Border.all(
+          color: const Color(0xFFDC2626).withValues(alpha: 0.35),
+        ),
+      ),
+      child: Text(
+        texto,
+        style: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: dense ? 10 : 11,
+          fontWeight: FontWeight.w700,
+          color: const Color(0xFFB91C1C),
+          height: 1.2,
+        ),
+      ),
+    );
+  }
+}
+
+/// Mensagem única de bloqueio por loja fechada.
+///
+/// Uma só, simples, sem ecrã novo. NÃO promete agendamento nem "avisar quando
+/// abrir" — isso ainda não existe, e um botão que não faz nada é pior do que
+/// nenhum.
+void showLojaFechadaSnackBar(BuildContext context, String aviso) {
+  ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(
+      SnackBar(content: Text(aviso), duration: const Duration(seconds: 4)),
+    );
+}

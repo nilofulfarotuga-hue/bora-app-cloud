@@ -1010,6 +1010,10 @@ class _GlovoProductCard extends StatelessWidget {
     final displayPrice =
         PricingService.applyMarkup(product.price, isPartnerStore);
     final comingSoon = context.watch<CartStore>().vendorBlocksAddToCart;
+    // Loja fora de horario: o botao fica desativado e diz que esta fechada,
+    // em vez de convidar a pedir.
+    final fechada = context.watch<CartStore>().lojaFechada;
+    final avisoFechada = context.watch<CartStore>().avisoLojaFechada;
 
     void openDetail() => Navigator.push(
           context,
@@ -1090,7 +1094,10 @@ class _GlovoProductCard extends StatelessWidget {
                                 // Com opções obrigatórias o "+" abre o
                                 // detalhe (escolher menu/extras); sem opções
                                 // adiciona direto — regra _SectionProductCard.
-                                onTap: comingSoon
+                                onTap: fechada
+                                    ? () => showLojaFechadaSnackBar(
+                                        context, avisoFechada)
+                                    : comingSoon
                                     ? () =>
                                         showComingSoonBlockedSnackBar(context)
                                     : (product.hasRequiredOptions
@@ -1100,7 +1107,7 @@ class _GlovoProductCard extends StatelessWidget {
                                   width: 28,
                                   height: 28,
                                   decoration: BoxDecoration(
-                                    color: comingSoon
+                                    color: (comingSoon || fechada)
                                         ? Colors.grey.shade400
                                         : AppColors.primary,
                                     borderRadius: BorderRadius.circular(8),
@@ -1262,6 +1269,10 @@ class _SectionProductCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final comingSoon = context.watch<CartStore>().vendorBlocksAddToCart;
+    // Loja fora de horario: o botao fica desativado e diz que esta fechada,
+    // em vez de convidar a pedir.
+    final fechada = context.watch<CartStore>().lojaFechada;
+    final avisoFechada = context.watch<CartStore>().avisoLojaFechada;
     return Material(
       color: Colors.white,
       borderRadius: BorderRadius.circular(16),
@@ -1321,7 +1332,9 @@ class _SectionProductCard extends StatelessWidget {
                 const SizedBox(width: 10),
                 Container(
                   decoration: BoxDecoration(
-                    color: comingSoon ? Colors.grey.shade400 : primaryColor,
+                    color: (comingSoon || fechada)
+                        ? Colors.grey.shade400
+                        : primaryColor,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Material(
@@ -1333,7 +1346,9 @@ class _SectionProductCard extends StatelessWidget {
                       // o cliente escolher — não adiciona direto. Produtos sem
                       // opções obrigatórias (mercados, bebidas avulsas) seguem
                       // a adicionar direto.
-                      onTap: comingSoon
+                      onTap: fechada
+                          ? () => showLojaFechadaSnackBar(context, avisoFechada)
+                          : comingSoon
                           ? () => showComingSoonBlockedSnackBar(context)
                           : (product.hasRequiredOptions ? onTap : onAdd),
                       child: const Padding(
@@ -1425,8 +1440,15 @@ class _LegacyMenuItemCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final comingSoon = context.watch<CartStore>().vendorBlocksAddToCart;
-    void tapAdd() =>
-        comingSoon ? showComingSoonBlockedSnackBar(context) : onAdd();
+    // Loja fora de horario: o botao fica desativado e diz que esta fechada,
+    // em vez de convidar a pedir.
+    final fechada = context.watch<CartStore>().lojaFechada;
+    final avisoFechada = context.watch<CartStore>().avisoLojaFechada;
+    void tapAdd() => fechada
+        ? showLojaFechadaSnackBar(context, avisoFechada)
+        : comingSoon
+            ? showComingSoonBlockedSnackBar(context)
+            : onAdd();
     return Material(
       color: Colors.white,
       borderRadius: BorderRadius.circular(16),
@@ -1483,7 +1505,9 @@ class _LegacyMenuItemCard extends StatelessWidget {
                 const SizedBox(width: 12),
                 Container(
                   decoration: BoxDecoration(
-                    color: comingSoon ? Colors.grey.shade400 : primaryColor,
+                    color: (comingSoon || fechada)
+                        ? Colors.grey.shade400
+                        : primaryColor,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Material(

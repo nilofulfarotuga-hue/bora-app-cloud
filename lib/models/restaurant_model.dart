@@ -255,6 +255,21 @@ class RestaurantModel {
   bool belongsTo(BusinessCategory section) =>
       category == section || extraCategories.contains(section);
 
+  /// Hora em PT-PT: "10:00" passa a "10h00".
+  static String _horaBonita(String hhmm) => hhmm.replaceFirst(':', 'h');
+
+  /// Mensagem única mostrada ao cliente quando tenta meter no carrinho com a
+  /// loja fora de horário. Diz o que se passa e a que horas abre — e mais
+  /// nada: não promete agendamento nem aviso de reabertura, porque isso ainda
+  /// não existe.
+  String get avisoLojaFechada {
+    final day = businessHours.dayFor(DateTime.now().weekday);
+    if (day.closed) {
+      return '$name está fechada hoje. Volta noutro dia para fazer o pedido.';
+    }
+    return '$name está fechada agora. Abre às ${_horaBonita(day.open)}.';
+  }
+
   /// Converte o array `extra_categories` do Supabase em categorias válidas
   /// (valores desconhecidos são ignorados; a categoria principal nunca duplica).
   static Set<BusinessCategory> parseExtraCategories(
@@ -302,9 +317,9 @@ class RestaurantModel {
     if (belongsTo(BusinessCategory.festas)) return 'Aceita encomendas';
     final now = nowOverride ?? DateTime.now();
     final day = businessHours.dayFor(now.weekday);
-    if (day.closed) return 'Fechado hoje';
+    if (day.closed) return 'Fechada hoje';
     if (isOpenNow(now)) return 'Aberto';
-    return 'Fechado · abre às ${day.open}';
+    return 'Fechada, abre às ${_horaBonita(day.open)}';
   }
 
   static int? _parseMinutes(String hhmm) {

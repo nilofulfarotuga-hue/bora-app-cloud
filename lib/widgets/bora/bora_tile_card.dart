@@ -25,6 +25,7 @@ class BoraTileCard extends StatelessWidget {
     this.iconData,
     this.imageAsset,
     this.height = 140,
+    this.compacto = false,
   }) : _useImageLayout = false;
 
   /// Construtor recomendado — usa PNG 3D cartoon (assets/categories/).
@@ -35,6 +36,7 @@ class BoraTileCard extends StatelessWidget {
     required this.gradient,
     required this.onTap,
     this.height = 140,
+    this.compacto = false,
   })  : icon = null,
         iconData = null,
         _useImageLayout = true;
@@ -53,6 +55,11 @@ class BoraTileCard extends StatelessWidget {
   final String? imageAsset;
 
   final double height;
+
+  /// Grelha de 4 colunas (home do cliente, 2026-08-27): a célula fica mais
+  /// estreita, por isso o rótulo desce de tamanho e as margens apertam.
+  /// Só muda a escala — cor, cantos e sombra ficam iguais.
+  final bool compacto;
 
   /// Layout switch: true → 70% imagem em cima + label rodapé.
   final bool _useImageLayout;
@@ -103,35 +110,62 @@ class BoraTileCard extends StatelessWidget {
         ),
         // Label: ocupa toda a largura; FittedBox encolhe palavras longas
         // (ex.: "Restaurantes", "Supermercados") em vez de partir a meio.
+        //
+        // A caixa do rótulo tem ALTURA FIXA de duas linhas, mesmo quando o
+        // nome só tem uma. É isso que faz todos os ladrilhos da grelha ficarem
+        // exactamente iguais — e é o FittedBox que garante que nomes de duas
+        // palavras nunca aparecem cortados nem com reticências: encolhem para
+        // caber, não são truncados.
         Positioned(
-          left: 14,
-          right: 14,
-          bottom: 12,
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.16,
-                height: 1.1,
-                shadows: [
-                  Shadow(
-                    color: Colors.black54,
-                    blurRadius: 4,
-                    offset: Offset(0, 1),
-                  ),
-                ],
+          left: compacto ? 7 : 14,
+          right: compacto ? 7 : 14,
+          bottom: compacto ? 7 : 12,
+          child: SizedBox(
+            height: _alturaRotulo,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                _rotuloEmLinhas,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: compacto ? 12 : 16,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: compacto ? 0.02 : 0.16,
+                  height: 1.12,
+                  shadows: const [
+                    Shadow(
+                      color: Colors.black54,
+                      blurRadius: 4,
+                      offset: Offset(0, 1),
+                    ),
+                  ],
+                ),
+                maxLines: 2,
               ),
-              maxLines: 2,
             ),
           ),
         ),
       ],
     );
+  }
+
+  /// Altura da caixa do rótulo: sempre duas linhas, para todos os ladrilhos
+  /// da grelha terminarem à mesma altura.
+  double get _alturaRotulo => (compacto ? 12 : 16) * 1.12 * 2;
+
+  /// Na grelha estreita (4 colunas), um nome de duas palavras quebra na
+  /// SEGUNDA linha em vez de encolher numa so — senao "Enviar Encomenda"
+  /// aparecia em letra muito mais pequena que "Lojas", ao lado.
+  ///
+  /// A quebra e explicita de proposito: assim o FittedBox mede um bloco de
+  /// duas linhas ja formado e limita-se a escala-lo para caber. Palavra
+  /// unica comprida ("Supermercados") nao tem por onde quebrar — ai e so o
+  /// FittedBox a encolher. Em nenhum dos casos ha corte nem reticencias.
+  String get _rotuloEmLinhas {
+    if (!compacto || label.contains('\n')) return label;
+    final partes = label.split(' ');
+    return partes.length == 2 ? '${partes[0]}\n${partes[1]}' : label;
   }
 
   /// Layout legacy — icon ou imageAsset com overlay full-bleed.

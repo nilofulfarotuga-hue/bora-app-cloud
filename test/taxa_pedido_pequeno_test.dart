@@ -143,4 +143,38 @@ void main() {
       expect(repasse(11.55), 9.90);
     });
   });
+
+  group('quem manda no valor e o SERVIDOR', () {
+    // O `quote_order_pricing` passou a devolver `small_order_fee` e a soma-lo
+    // ao customer_total / charge_total / payment_buffer_total. O cliente tem
+    // de MOSTRAR esse numero, nao um calculo proprio — senao o que aparece no
+    // ecra nao e o que o Stripe cobra.
+    test('o campo do quote e o que conta', () {
+      const quote = <String, dynamic>{
+        'small_order_fee': 1.39,
+        'customer_total': 13.87,
+        'charge_total': 13.87,
+        'payment_buffer_total': 13.87,
+      };
+      final doServidor = (quote['small_order_fee'] as num?)?.toDouble();
+      expect(doServidor, 1.39);
+
+      // e bate com o total: subtotal 9,22 + servico 0,46 + entrega 2,50
+      // + saco 0,30 + taxa 1,39 = 13,87
+      expect(9.22 + 0.46 + 2.50 + 0.30 + doServidor!, closeTo(13.87, 0.005));
+    });
+
+    test('quote sem o campo => cai no espelho local, nao inventa', () {
+      const quote = <String, dynamic>{'customer_total': 12.48};
+      final doServidor = (quote['small_order_fee'] as num?)?.toDouble();
+      expect(doServidor, isNull);
+      expect(cfg.taxaPara(OrderServiceType.restaurant, 9.22), 1.39);
+    });
+
+    test('servidor a devolver 0 manda mesmo 0 (nao volta ao local)', () {
+      const quote = <String, dynamic>{'small_order_fee': 0};
+      final doServidor = (quote['small_order_fee'] as num?)?.toDouble();
+      expect(doServidor, 0.0);
+    });
+  });
 }

@@ -56,6 +56,10 @@ class BoraProductCard extends StatelessWidget {
     final hasPrice = product.price > 0;
     // Loja em "Em breve" — catálogo navegável, carrinho fechado.
     final comingSoon = context.watch<CartStore>().vendorBlocksAddToCart;
+    // Loja fechada (fora de horario): o "+" para e diz porque, com a hora a
+    // que abre. Ver e navegar continua livre — so o adicionar e que trava.
+    final fechada = context.watch<CartStore>().lojaFechada;
+    final avisoFechada = context.watch<CartStore>().avisoLojaFechada;
 
     return Material(
       color: Colors.white,
@@ -173,7 +177,10 @@ class BoraProductCard extends StatelessWidget {
                           // abre o detalhe (escolher opções) em vez de adicionar
                           // direto. Mercados/produtos sem opções: adicionar direto.
                           // Loja em "Em breve": botão cinzento + mensagem.
-                          onTap: comingSoon
+                          onTap: fechada
+                              ? () =>
+                                  showLojaFechadaSnackBar(context, avisoFechada)
+                              : comingSoon
                               ? () => showComingSoonBlockedSnackBar(context)
                               : (hasPrice
                                   ? (product.hasRequiredOptions ? onTap : onAdd)
@@ -183,7 +190,7 @@ class BoraProductCard extends StatelessWidget {
                             width: 34,
                             height: 34,
                             decoration: BoxDecoration(
-                              color: (hasPrice && !comingSoon)
+                              color: (hasPrice && !comingSoon && !fechada)
                                   ? AppColors.primary
                                   : Colors.grey.shade300,
                               borderRadius: BorderRadius.circular(10),

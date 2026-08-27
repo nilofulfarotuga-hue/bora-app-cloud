@@ -69,6 +69,10 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
   final TextEditingController _facebookCtrl = TextEditingController();
   final TextEditingController _instagramCtrl = TextEditingController();
   final TextEditingController _aboutCtrl = TextEditingController();
+  // E-mail de contacto da loja. Fica aqui (e nao no dialogo de dados do
+  // parceiro) porque a RPC admin_update_partner_data nao o aceita — e este
+  // cartao ja grava direto na tabela.
+  final TextEditingController _emailCtrl = TextEditingController();
   bool _savingProfile = false;
   bool _savingReservations = false;
 
@@ -100,6 +104,7 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
     _facebookCtrl.dispose();
     _instagramCtrl.dispose();
     _aboutCtrl.dispose();
+    _emailCtrl.dispose();
     super.dispose();
   }
 
@@ -142,6 +147,7 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
           _facebookCtrl.text = r['social_facebook'] as String? ?? '';
           _instagramCtrl.text = r['social_instagram'] as String? ?? '';
           _aboutCtrl.text = r['about_text'] as String? ?? '';
+          _emailCtrl.text = r['email'] as String? ?? '';
           _openStatus = results[1] is Map
               ? Map<String, dynamic>.from(results[1] as Map)
               : {'is_open': results[1]};
@@ -764,6 +770,16 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
             ]),
             const SizedBox(height: 12),
             TextField(
+              controller: _emailCtrl,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(
+                labelText: 'E-mail de contato da loja',
+                border: OutlineInputBorder(),
+                hintText: 'contato@loja.pt',
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
               controller: _whatsappCtrl,
               keyboardType: TextInputType.phone,
               decoration: const InputDecoration(
@@ -858,6 +874,7 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
         'social_facebook': _facebookCtrl.text.trim(),
         'social_instagram': _instagramCtrl.text.trim(),
         'about_text': _aboutCtrl.text.trim(),
+        'email': _emailCtrl.text.trim(),
       }).eq('id', widget.restaurantId);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

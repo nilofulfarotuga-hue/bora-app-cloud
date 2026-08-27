@@ -193,18 +193,28 @@ class _AddButton extends StatelessWidget {
   Widget build(BuildContext context) {
     // Loja em "Em breve": botão cinzento (não invisível) + mensagem ao toque.
     final comingSoon = context.watch<CartStore>().vendorBlocksAddToCart;
+    // Loja fechada (fora de horario): o "+" para e diz porque, com a hora a
+    // que abre. Ver e navegar continua livre — so o adicionar e que trava.
+    final fechada = context.watch<CartStore>().lojaFechada;
+    final avisoFechada = context.watch<CartStore>().avisoLojaFechada;
     // identifier estável para o E2E tocar o "+" pequeno do card por id
     // (btn_add_carrinho), em vez de adivinhar a coordenada do ícone sem texto.
     return Semantics(
       identifier: 'btn_add_carrinho',
       button: true,
       child: GestureDetector(
-        onTap: comingSoon ? () => showComingSoonBlockedSnackBar(context) : onTap,
+        onTap: fechada
+            ? () => showLojaFechadaSnackBar(context, avisoFechada)
+            : comingSoon
+                ? () => showComingSoonBlockedSnackBar(context)
+                : onTap,
         child: Container(
           width: 28,
           height: 28,
           decoration: BoxDecoration(
-            color: comingSoon ? Colors.grey.shade400 : AppColors.primary,
+            color: (comingSoon || fechada)
+                ? Colors.grey.shade400
+                : AppColors.primary,
             shape: BoxShape.circle,
           ),
           child: const Icon(Icons.add,

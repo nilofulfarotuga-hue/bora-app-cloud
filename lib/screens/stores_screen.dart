@@ -366,6 +366,8 @@ Future<void> openRetailBusiness(
     vendorComingSoonText: business.comingSoonLabel,
     vendorName: store.name,
     vendorRestaurantId: business.id,
+    vendorFechada: !business.isOpenNow(),
+    vendorAvisoFechada: business.avisoLojaFechada,
     pickupLocation: pickupLocation,
     pickupStreet: business.address,
     pickupCity: null,

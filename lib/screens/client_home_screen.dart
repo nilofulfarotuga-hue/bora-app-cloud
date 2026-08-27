@@ -396,6 +396,11 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
                       );
                     }),
                   ),
+                  // Espaco para o botao redondo de ajuda (BoraSupportFab, canto
+                  // inferior direito) nao ficar por cima do ultimo elemento —
+                  // com a grelha a 4 colunas o ultimo ladrilho passou a chegar
+                  // mais perto do fundo.
+                  const SizedBox(height: 88),
                 ],
               ),
             ),
@@ -603,13 +608,20 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
       );
     }
 
+    // 4 COLUNAS (2026-08-27, pedido do Danilo): com 3 por linha era preciso
+    // rolar muito para ver as categorias todas. Mesmo desenho, so menor —
+    // cores, cantos e sombra ficam como estavam.
+    //
+    // O espacamento encolhe com a coluna extra, senao a celula ficava estreita
+    // demais para o rotulo. O racio sobe para 0.88 (celula mais alta que larga)
+    // para o nome ter as suas duas linhas sem apertar a ilustracao.
     return GridView.count(
-      crossAxisCount: 3,
+      crossAxisCount: 4,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: Spacing.md,
-      mainAxisSpacing: Spacing.md,
-      childAspectRatio: 0.95,
+      crossAxisSpacing: Spacing.sm,
+      mainAxisSpacing: Spacing.sm,
+      childAspectRatio: 0.88,
       children: tiles.map((t) {
         // Semantics identifiers para testes E2E (Maestro): label → resource-id.
         const semanticsIds = {
@@ -625,6 +637,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
             gradient: t.gradient,
             imageAsset: t.imageAsset!,
             onTap: t.onTap,
+            compacto: true,
           );
         } else {
           // Fallback legacy (ainda sem PNG da categoria) — ver TODO no tile.

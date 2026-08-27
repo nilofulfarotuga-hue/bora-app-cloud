@@ -297,9 +297,18 @@ class CarwashBooking {
   double get totalEur => totalCents / 100.0;
   double get washerEarningsEur => washerEarningsCents / 100.0;
 
-  String get addressLine => [addressStreet, addressCity]
-      .where((s) => s.trim().isNotEmpty)
-      .join(', ');
+  /// Morada para mostrar. O autocomplete já devolve a cidade dentro da rua
+  /// ("Rua do Torreão 14, Guarda, Portugal"), por isso juntar a cidade outra
+  /// vez dava "…, Guarda, Portugal, Guarda". Só se junta quando falta mesmo.
+  String get addressLine {
+    final rua = addressStreet.trim();
+    final cidade = addressCity.trim();
+    if (rua.isEmpty) return cidade;
+    if (cidade.isEmpty) return rua;
+    final jaTemCidade =
+        rua.toLowerCase().contains(cidade.toLowerCase());
+    return jaTemCidade ? rua : '$rua, $cidade';
+  }
 
   /// "Chega daqui a ~X min" — só faz sentido enquanto vem a caminho.
   bool get showsEta =>

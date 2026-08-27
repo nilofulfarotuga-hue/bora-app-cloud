@@ -531,22 +531,29 @@ class _FotoTile extends StatelessWidget {
     return FutureBuilder<String?>(
       future: CarwashUploadService.signedUrl(foto.url),
       builder: (_, snap) {
+        final aCarregar = snap.connectionState == ConnectionState.waiting;
         final url = snap.data;
         return Column(
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: url == null
+                  // Sem URL: distinguir "ainda a carregar" de "não deu".
+                  // Antes ficava em roda-viva para sempre quando a foto
+                  // não existia no bucket.
                   ? Container(
                       width: 140,
                       height: 88,
                       color: AppColors.surface2,
-                      child: const Center(
-                        child: SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
+                      child: Center(
+                        child: aCarregar
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.image_not_supported_outlined,
+                                color: AppColors.textSubtle),
                       ),
                     )
                   : Image.network(url,

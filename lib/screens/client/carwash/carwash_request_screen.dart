@@ -8,9 +8,11 @@ import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
 import '../../../config/maps_config.dart';
 import '../../../models/carwash_models.dart';
+import '../../../services/auto_address.dart';
 import '../../../services/carwash_upload_service.dart';
 import '../../../services/location_service.dart';
 import '../../../stores/carwash_store.dart';
+import '../../../stores/session_store.dart';
 import '../../../utils/safe_image_picker.dart';
 import '../../../widgets/address_autocomplete_field.dart';
 import 'carwash_payment_flow.dart';
@@ -50,6 +52,48 @@ class _CarwashRequestScreenState extends State<CarwashRequestScreen> {
   double? _lng;
   bool _locating = false;
 
+  /// A obter a morada sozinho ao abrir o ecrã. Estado discreto — nunca
+  /// bloqueia o ecrã nem impede escrever por cima.
+  bool _autoLocating = false;
+
+  // Âncoras para rolar até ao primeiro campo em falta.
+  final _kMorada = GlobalKey();
+  final _kMatricula = GlobalKey();
+  final _kTelefone = GlobalKey();
+  final _scrollCtrl = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _preencherMoradaSozinho());
+  }
+
+  /// Preenche a morada sem o cliente tocar em nada.
+  /// `preferirGps: true` porque aqui interessa onde o carro ESTÁ agora, não a
+  /// morada de casa. Falhar é normal e não faz nada — o campo fica vazio e
+  /// escrevível (regra de 24/08).
+  Future<void> _preencherMoradaSozinho() async {
+    if (!mounted || _addressCtrl.text.trim().isNotEmpty) return;
+    setState(() => _autoLocating = true);
+    final sessao = context.read<SessionStore>();
+    final s = await AutoAddress.descobrir(
+      homeStreet: sessao.homeStreet,
+      homeCity: sessao.homeCity,
+      homeLocation: sessao.homeLocation,
+      preferirGps: true,
+    );
+    if (!mounted) return;
+    setState(() {
+      _autoLocating = false;
+      // Se o cliente já começou a escrever entretanto, não lhe roubamos o texto.
+      if (s != null && _addressCtrl.text.trim().isEmpty) {
+        _addressCtrl.text = s.morada;
+        _lat = s.coords?.latitude;
+        _lng = s.coords?.longitude;
+      }
+    });
+  }
+
   // Quando
   static const _chips = ['Agora', 'Daqui a 30 min', 'Daqui a 1 h', 'Escolher dia e hora'];
   int _whenChip = 0;
@@ -68,6 +112,7 @@ class _CarwashRequestScreenState extends State<CarwashRequestScreen> {
     _colorCtrl.dispose();
     _pickupNotesCtrl.dispose();
     _phoneCtrl.dispose();
+    _scrollCtrl.dispose();
     super.dispose();
   }
 
@@ -163,7 +208,40 @@ class _CarwashRequestScreenState extends State<CarwashRequestScreen> {
     if (f != null && mounted) setState(() => _clientPhoto = f);
   }
 
+  /// O primeiro campo obrigatório que falta, se houver.
+  /// Devolve a âncora para rolar e a frase a dizer ao cliente.
+  (GlobalKey, String)? _primeiroEmFalta() {
+    if (_addressCtrl.text.trim().length < 4) {
+      return (_kMorada, 'Falta dizer onde está o carro.');
+    }
+    if (_plateCtrl.text.trim().length < 4) {
+      return (_kMatricula, 'Falta a matrícula do carro.');
+    }
+    if (_phoneCtrl.text.trim().replaceAll(RegExp(r'\D'), '').length < 9) {
+      return (_kTelefone, 'Falta o seu telemóvel, para o lavador o contactar.');
+    }
+    return null;
+  }
+
   Future<void> _submit() async {
+    // Um botão que parece funcionar e não faz nada é pior do que um erro.
+    // Antes: carregava-se e não acontecia NADA visível — os erros do Form
+    // apareciam em campos fora do ecrã, acima do botão. Agora rola-se até ao
+    // campo e diz-se o que falta.
+    final falta = _primeiroEmFalta();
+    if (falta != null) {
+      final (chave, frase) = falta;
+      final ctx = chave.currentContext;
+      if (ctx != null) {
+        await Scrollable.ensureVisible(ctx,
+            duration: const Duration(milliseconds: 320),
+            curve: Curves.easeOut,
+            alignment: 0.15);
+      }
+      _formKey.currentState?.validate(); // realça os campos
+      if (mounted) _softInfo(frase);
+      return;
+    }
     if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _submitting = true);
     final store = context.read<CarwashStore>();
@@ -219,20 +297,30 @@ class _CarwashRequestScreenState extends State<CarwashRequestScreen> {
     }
   }
 
+  /// O servidor fala em códigos; o cliente merece português.
+  /// Nunca se mostra o código cru.
   String _erroPt(String raw) {
     if (raw.contains('out_of_service_area')) {
-      return 'Essa morada está fora da nossa zona. De momento só fazemos '
-          'recolhas até 8 km do centro da Guarda.';
+      return 'Ainda não fazemos recolha nessa zona.';
     }
     if (raw.contains('carwash_disabled')) {
       return 'A Lavagem Auto está fechada de momento.';
     }
     if (raw.contains('card_mbway_not_enabled')) {
-      return 'Cartão e MB WAY ainda não estão disponíveis nesta categoria. '
-          'Escolha dinheiro.';
+      return 'Cartão e MB WAY ainda não disponíveis nesta categoria. '
+          'Pode pagar em dinheiro na entrega.';
     }
-    if (raw.contains('plate_required')) return 'Falta a matrícula.';
-    if (raw.contains('phone_required')) return 'Falta o telemóvel.';
+    if (raw.contains('plate_required')) return 'Falta a matrícula do carro.';
+    if (raw.contains('phone_required')) return 'Falta o seu telemóvel.';
+    if (raw.contains('scheduled_in_the_past')) {
+      return 'Essa hora já passou. Escolha outra.';
+    }
+    if (raw.contains('not_authenticated')) {
+      return 'Precisa de iniciar sessão para pedir.';
+    }
+    if (raw.contains('price_changed')) {
+      return 'O preço mudou entretanto. Volte atrás e peça de novo.';
+    }
     return 'Não foi possível criar o pedido. Tente outra vez.';
   }
 
@@ -274,11 +362,16 @@ class _CarwashRequestScreenState extends State<CarwashRequestScreen> {
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.all(Spacing.lg),
+          controller: _scrollCtrl,
+          // Folga no fim para o último cartão não ficar colado ao botão fixo
+          // (era o que cortava a frase da foto a meio).
+          padding: const EdgeInsets.fromLTRB(
+              Spacing.lg, Spacing.lg, Spacing.lg, Spacing.huge),
           children: [
             // ── ONDE ESTÁ O CARRO ────────────────────────────────────────────
             const _Titulo('Onde está o carro'),
             AddressAutocompleteField(
+              key: _kMorada,
               controller: _addressCtrl,
               labelText: 'Morada onde vamos buscar',
               prefixIcon: const Icon(Icons.place_outlined),
@@ -300,15 +393,33 @@ class _CarwashRequestScreenState extends State<CarwashRequestScreen> {
             const SizedBox(height: Spacing.sm),
             Align(
               alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: _locating ? null : _useMyLocation,
-                icon: _locating
-                    ? const SizedBox(
-                        width: 14, height: 14,
-                        child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(Icons.my_location, size: 18),
-                label: const Text('Usar a minha localização'),
-              ),
+              child: _autoLocating
+                  // Discreto, e nunca bloqueia: o campo continua escrevivel.
+                  ? const Padding(
+                      padding: EdgeInsets.symmetric(
+                          horizontal: Spacing.md, vertical: Spacing.sm),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                              width: 13, height: 13,
+                              child: CircularProgressIndicator(strokeWidth: 2)),
+                          SizedBox(width: Spacing.sm),
+                          Text('A obter a sua localização...',
+                              style: TextStyle(
+                                  fontSize: 13, color: AppColors.textSubtle)),
+                        ],
+                      ),
+                    )
+                  : TextButton.icon(
+                      onPressed: _locating ? null : _useMyLocation,
+                      icon: _locating
+                          ? const SizedBox(
+                              width: 14, height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Icon(Icons.my_location, size: 18),
+                      label: const Text('Usar a minha localização'),
+                    ),
             ),
 
             const SizedBox(height: Spacing.lg),
@@ -316,6 +427,7 @@ class _CarwashRequestScreenState extends State<CarwashRequestScreen> {
             // ── DADOS DO CARRO ───────────────────────────────────────────────
             const _Titulo('O carro'),
             TextFormField(
+              key: _kMatricula,
               controller: _plateCtrl,
               textCapitalization: TextCapitalization.characters,
               inputFormatters: [
@@ -358,6 +470,7 @@ class _CarwashRequestScreenState extends State<CarwashRequestScreen> {
             ),
             const SizedBox(height: Spacing.md),
             TextFormField(
+              key: _kTelefone,
               controller: _phoneCtrl,
               keyboardType: TextInputType.phone,
               decoration: const InputDecoration(

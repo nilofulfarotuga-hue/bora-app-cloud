@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart' as ll;
 
 import '../config/app_colors.dart';
+import '../widgets/auto_address_hint.dart';
 import '../config/app_spacing.dart';
+import '../services/auto_address.dart';
 import '../services/client_address_service.dart';
 import '../widgets/address_autocomplete_field.dart';
 import '../widgets/bora/bora_primary_button.dart';
@@ -21,7 +23,33 @@ class WelcomeAddressScreen extends StatefulWidget {
 class _WelcomeAddressScreenState extends State<WelcomeAddressScreen> {
   final _addressController = TextEditingController();
   bool _isSaving = false;
+  bool _autoLocating = false;
   ll.LatLng? _selectedCoords;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _preencherMoradaSozinho());
+  }
+
+  /// Primeira morada preenchida sozinha, logo a seguir ao registo.
+  /// REGRA DE 24/08: nunca trava — este ecrã já é saltável, e falhar aqui
+  /// deixa apenas o campo vazio e escrevível.
+  Future<void> _preencherMoradaSozinho() async {
+    if (!mounted || _addressController.text.trim().isNotEmpty) return;
+    setState(() => _autoLocating = true);
+    // Conta acabada de criar: não há morada guardada nem casa — vai ao GPS.
+    final s = await AutoAddress.descobrir(preferirGps: true);
+    if (!mounted) return;
+    setState(() {
+      _autoLocating = false;
+      if (s != null && _addressController.text.trim().isEmpty) {
+        _addressController.text = s.morada;
+        _selectedCoords = s.coords;
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -125,6 +153,7 @@ class _WelcomeAddressScreenState extends State<WelcomeAddressScreen> {
                   _selectedCoords = null;
                 },
               ),
+            AutoAddressHint(visible: _autoLocating),
               const SizedBox(height: Spacing.xl),
               BoraPrimaryButton(
                 label: 'Continuar',

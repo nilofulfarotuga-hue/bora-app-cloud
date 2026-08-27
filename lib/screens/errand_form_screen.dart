@@ -21,6 +21,8 @@ import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
 import '../config/app_colors.dart';
+import '../services/auto_address.dart';
+import '../widgets/auto_address_hint.dart';
 import '../config/maps_config.dart';
 import '../services/location_service.dart';
 import '../services/maps_service.dart';
@@ -118,7 +120,27 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
       _homeStop = p.homeStop;
       if (p.homeStopReason != null) _homeStopReason = p.homeStopReason!;
     }
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _preencherMoradaSozinho());
   }
+
+  bool _autoLocating = false;
+
+  /// Morada de entrega preenchida sozinha ao abrir (padrão da app do motorista).
+  /// REGRA DE 24/08: nunca trava — falhar deixa o campo vazio e escrevível.
+  Future<void> _preencherMoradaSozinho() async {
+    if (!mounted || _dropoffCtrl.text.trim().isNotEmpty) return;
+    setState(() => _autoLocating = true);
+    final s = await AutoAddress.descobrir();
+    if (!mounted) return;
+    setState(() {
+      _autoLocating = false;
+      if (s != null && _dropoffCtrl.text.trim().isEmpty) {
+        _dropoffCtrl.text = s.morada;
+      }
+    });
+  }
+
 
   @override
   void dispose() {
@@ -553,6 +575,7 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
         );
       case _ErrandStep.where:
         return _StepWhere(
+              autoLocating: _autoLocating,
           errandLocationCtrl: _errandLocationCtrl,
           dropoffCtrl: _dropoffCtrl,
           homeCtrl: _homeCtrl,
@@ -794,6 +817,7 @@ class _RequestPhoto extends StatelessWidget {
 // ── PASSO 2: ONDE ─────────────────────────────────────────────────────────
 class _StepWhere extends StatelessWidget {
   const _StepWhere({
+    required this.autoLocating,
     required this.errandLocationCtrl,
     required this.dropoffCtrl,
     required this.homeCtrl,
@@ -813,6 +837,7 @@ class _StepWhere extends StatelessWidget {
     required this.onUseMyLocationForHome,
   });
 
+  final bool autoLocating;
   final TextEditingController errandLocationCtrl;
   final TextEditingController dropoffCtrl;
   final TextEditingController homeCtrl;
@@ -856,6 +881,7 @@ class _StepWhere extends StatelessWidget {
           onSelected: onDropoffSelected,
           onChanged: (_) => onDropoffCleared(),
         ),
+        AutoAddressHint(visible: autoLocating),
         const SizedBox(height: 20),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,

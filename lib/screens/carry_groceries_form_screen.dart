@@ -3,6 +3,8 @@ import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
 import '../config/maps_config.dart';
+import '../services/auto_address.dart';
+import '../widgets/auto_address_hint.dart';
 import '../models/order_model.dart';
 import '../services/place_autocomplete_service.dart';
 import '../stores/cart_store.dart';
@@ -38,7 +40,27 @@ class _CarryGroceriesFormScreenState extends State<CarryGroceriesFormScreen> {
   void initState() {
     super.initState();
     _geocoder = createPlaceAutocompleteService(googleApiKey);
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _preencherMoradaSozinho());
   }
+
+  bool _autoLocating = false;
+
+  /// Morada de entrega preenchida sozinha ao abrir (padrão da app do motorista).
+  /// REGRA DE 24/08: nunca trava — falhar deixa o campo vazio e escrevível.
+  Future<void> _preencherMoradaSozinho() async {
+    if (!mounted || _dropoffController.text.trim().isNotEmpty) return;
+    setState(() => _autoLocating = true);
+    final s = await AutoAddress.descobrir();
+    if (!mounted) return;
+    setState(() {
+      _autoLocating = false;
+      if (s != null && _dropoffController.text.trim().isEmpty) {
+        _dropoffController.text = s.morada;
+      }
+    });
+  }
+
 
   @override
   void dispose() {
@@ -169,6 +191,7 @@ class _CarryGroceriesFormScreenState extends State<CarryGroceriesFormScreen> {
                 }
               },
             ),
+            AutoAddressHint(visible: _autoLocating),
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: _goToPayment,

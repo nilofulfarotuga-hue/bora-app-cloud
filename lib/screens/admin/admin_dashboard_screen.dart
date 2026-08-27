@@ -73,6 +73,7 @@ import 'admin_tokens_screen.dart';
 import 'admin_wallets_screen.dart';
 import 'admin_weekly_settlements_screen.dart';
 import 'admin_cleaning_bookings_screen.dart';
+import 'admin_carwash_screen.dart';
 import 'admin_cleaning_cleaners_screen.dart';
 import 'admin_cleaner_settlements_screen.dart';
 // categoria TVDE aberta a todos desde 2026-08-01 — reactivar se voltar ao modo por aprovação
@@ -1202,7 +1203,30 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                               const AdminCleanerSettlementsScreen())),
                 ),
                 const SizedBox(height: 18),
-                // ── Ferramentas (ecrãs anteriormente órfãos) ──
+                // -- Lavagem Auto (vertical CARWASH -- Spiffy/Washos) --
+                Padding(
+                  padding: const EdgeInsets.only(left: 4, bottom: 8, top: 4),
+                  child: Text(
+                    'Lavagem Auto',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                  ),
+                ),
+                _NavCard(
+                  icon: Icons.local_car_wash,
+                  title: 'Lavagem Auto',
+                  subtitle:
+                      'Pedidos - lavadores - agrupar idas - acertos - precos',
+                  color: const Color(0xFF0891B2),
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminCarwashScreen())),
+                ),
+                const SizedBox(height: 18),
+                // -- Ferramentas (ecras anteriormente orfaos) --
                 Padding(
                   padding: const EdgeInsets.only(left: 4, bottom: 8, top: 4),
                   child: Text(

@@ -62,9 +62,11 @@ import 'stores/partner_reservas_store.dart';
 import 'stores/reservation_store.dart';
 import 'stores/restaurant_store.dart';
 import 'stores/services_store.dart';
+import 'stores/carwash_store.dart';
 import 'stores/cleaner_store.dart';
 import 'stores/cleaning_chat_store.dart';
 import 'stores/cleaning_store.dart';
+import 'stores/washer_store.dart';
 import 'stores/tvde_store.dart';
 import 'stores/tvde_driver_store.dart';
 import 'stores/tvde_chat_store.dart';
@@ -488,6 +490,12 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         ChangeNotifierProvider<CleaningChatStore>(
           create: (_) => CleaningChatStore(),
         ),
+        ChangeNotifierProvider<CarwashStore>(
+          create: (_) => CarwashStore(),
+        ),
+        ChangeNotifierProvider<WasherStore>(
+          create: (_) => WasherStore(),
+        ),
         ChangeNotifierProvider<PartnerReservasStore>(
           create: (_) => PartnerReservasStore(),
         ),
@@ -703,6 +711,7 @@ class _ServerMirrorOnResumeState extends State<_ServerMirrorOnResume>
     context.read<OrderStore>().loadOrders();
     context.read<TvdeStore>().refreshActiveRide();
     context.read<CleaningStore>().refreshTracked();
+    context.read<CarwashStore>().refreshTracked();
     // Lei da casa (varredura 2026-08-17): reservas e marcações não têm canal
     // realtime — sem este refetch, quem esperava a confirmação só a via ao
     // navegar à mão. Best-effort: as duas re-buscam do servidor no foreground.

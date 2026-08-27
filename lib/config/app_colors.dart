@@ -125,4 +125,11 @@ class AppColors {
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
+  // Lavagem Auto (2026-08-27) — azul-petróleo → ciano (água). Distinto do
+  // azul-céu da Limpeza e sem laranja (regra "1 elemento laranja por ecrã").
+  static const LinearGradient tileCarwash = LinearGradient(
+    colors: [Color(0xFF155E75), Color(0xFF06B6D4)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
 }

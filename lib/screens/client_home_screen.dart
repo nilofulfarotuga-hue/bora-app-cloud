@@ -15,6 +15,7 @@ import '../models/restaurant_model.dart';
 import '../services/client_address_service.dart';
 import '../services/location_service.dart';
 import '../stores/cart_store.dart';
+import '../stores/carwash_store.dart';
 import '../stores/order_store.dart';
 import '../stores/restaurant_store.dart';
 import '../stores/session_store.dart';
@@ -23,6 +24,7 @@ import '../widgets/bora/bora.dart';
 import '../widgets/bora_support_fab.dart';
 import '../widgets/notification_bell.dart';
 import 'carry_groceries_screen.dart';
+import 'client/carwash/carwash_service_screen.dart';
 import 'client/cleaning/cleaning_bookings_screen.dart';
 import 'client/services/services_category_screen.dart';
 import 'client_addresses_screen.dart';
@@ -64,6 +66,9 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context.read<RestaurantStore>().loadRestaurantsFromSupabase();
+      // Lavagem Auto: saber se a categoria esta aberta antes de
+      // desenhar o ladrilho (ver _buildCategoryGrid).
+      context.read<CarwashStore>().refreshSettings();
       _detectLocation();
       // Sessão 6 §44 — abre RatingScreen se há pedido entregue ainda não avaliado.
       _checkUnratedOrders();
@@ -557,6 +562,28 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
         }),
       ),
     );
+
+    // Lavagem Auto (2026-08-27) — vamos buscar o carro e entregamos lavado.
+    // Sem guarda de morada: a morada pede-se dentro do próprio fluxo e a
+    // localização NUNCA trava o pedido (regra de 24/08).
+    // TODO(catalogo-visual): trocar por assets/categories/cat_lavagem.png quando
+    // o cartoon for gerado (mesmo estilo dos outros ladrilhos). Até lá usa o
+    // fallback de ícone — um asset em falta rebentaria o ecrã em runtime.
+    // Só aparece com a categoria aberta (carwash_enabled). Mostrar o ladrilho
+    // com o serviço fechado só daria erro ao toque.
+    if (context.watch<CarwashStore>().enabled) {
+      tiles.add(
+        _TileData(
+          label: 'Lavagem\nAuto',
+          gradient: AppColors.tileCarwash,
+          iconData: Icons.local_car_wash,
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const CarwashServiceScreen()),
+          ),
+        ),
+      );
+    }
 
     return GridView.count(
       crossAxisCount: 3,

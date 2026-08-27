@@ -43,6 +43,7 @@ enum TrabalhoEmCurso {
   limpeza,
   marcacao, // serviços / barbearias
   reserva,
+  lavagem, // Lavagem Auto
 }
 
 extension _Nomes on TrabalhoEmCurso {
@@ -53,6 +54,7 @@ extension _Nomes on TrabalhoEmCurso {
         TrabalhoEmCurso.limpeza => 'Esta limpeza',
         TrabalhoEmCurso.marcacao => 'Esta marcação',
         TrabalhoEmCurso.reserva => 'Esta reserva',
+        TrabalhoEmCurso.lavagem => 'Esta lavagem',
       };
 
   /// "a corrida", "o pedido", … (para o meio de uma frase)
@@ -62,6 +64,7 @@ extension _Nomes on TrabalhoEmCurso {
         TrabalhoEmCurso.limpeza => 'a limpeza',
         TrabalhoEmCurso.marcacao => 'a marcação',
         TrabalhoEmCurso.reserva => 'a reserva',
+        TrabalhoEmCurso.lavagem => 'a lavagem',
       };
 
   /// Concordância: "atribuída" / "atribuído".
@@ -244,6 +247,9 @@ class JaFicouCriado implements Exception {
         TrabalhoEmCurso.marcacao =>
           'A marcação já ficou feita — não marcaste duas. Confirma nas tuas '
               'marcações.',
+        TrabalhoEmCurso.lavagem =>
+          'A lavagem já ficou pedida — não pediste duas. Confirma em '
+              '"Lavagem Auto".',
         TrabalhoEmCurso.pedido =>
           'O pedido já ficou feito — não fizeste dois. Confirma nos teus '
               'pedidos.',

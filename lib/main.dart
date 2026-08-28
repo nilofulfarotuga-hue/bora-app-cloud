@@ -395,11 +395,47 @@ Future<void> main() async {
   // sem leitura fica o estado seguro (taxa nenhuma).
   unawaited(SmallOrderFeeService.carregarGlobal());
 
+  // Recuperação de palavra-passe: rede de segurança do arranque.
+  //
+  // Provado ao vivo a 2026-08-28: o Supabase **substitui** o fragmento do
+  // `redirectTo` em vez de lhe acrescentar o token. A ligação do email chega
+  // como `https://app.boraguarda.com/#access_token=…&type=recovery`, portanto
+  // a rota `/#/redefinir-palavra-passe` NUNCA aparece e nem `routes` nem
+  // `onGenerateRoute` a apanham. O cliente aterrava no ecrã de escolha de
+  // perfil e não acontecia nada.
+  //
+  // O ouvinte de `AuthChangeEvent.passwordRecovery` lá em cima também não
+  // chega sozinho: o evento pode ser emitido dentro do `initialize()`, antes
+  // de alguém estar a ouvir — e `onAuthStateChange` é um stream de difusão,
+  // quem chega tarde não recebe o que já passou.
+  //
+  // Por isso olha-se directamente para o endereço de arranque. Os dois
+  // caminhos coexistem de propósito: seja qual for o que dispara primeiro, o
+  // ecrã abre; o `push` repetido é inofensivo porque o segundo encontra o
+  // ecrã já em cima.
+  if (arranqueEmRecuperacao(Uri.base)) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      NotificationService.navigatorKey.currentState?.push(
+        MaterialPageRoute(builder: (_) => const ResetPasswordScreen()),
+      );
+    });
+  }
+
   runApp(MyApp(
     sessionStore: sessionStore,
     consentStore: consentStore,
   ));
 }
+
+/// A app arrancou a partir de uma ligação de recuperação de palavra-passe?
+///
+/// Procura-se o texto em bruto em vez de decompor o fragmento porque ele chega
+/// em duas formas conforme o caminho: `#access_token=…&type=recovery` quando o
+/// Supabase substitui tudo, e `#/rota#access_token=…&type=recovery` nos links
+/// antigos que ainda trazem a rota à frente. A procura simples apanha as duas.
+bool arranqueEmRecuperacao(Uri uri) =>
+    uri.fragment.contains('type=recovery') ||
+    uri.queryParameters['type'] == 'recovery';
 
 class MyApp extends StatefulWidget {
   const MyApp({

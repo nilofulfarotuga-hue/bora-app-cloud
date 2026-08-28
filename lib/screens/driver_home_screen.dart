@@ -902,7 +902,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
           // SALTAR ENTRE PAPEIS (2026-08-29): sem isto, quem acumula tinha de
           // sair da app e voltar a entrar para passar de estafeta a lavador.
           IconButton(
-            icon: const Icon(Icons.swap_horiz),
+            icon: const Icon(Icons.work_outline),
             tooltip: 'Trabalhar noutra coisa',
             onPressed: () => abrirTrocaDePapel(context),
           ),
@@ -1069,6 +1069,22 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                       MaterialPageRoute(
                           builder: (_) => const GanhosScreen()),
                     ),
+                  ),
+                  const SizedBox(width: 8),
+                  // TRABALHAR NOUTRA COISA (2026-08-29). Estava so na AppBar
+                  // do outro scaffold — o que aparece quando ha pedidos. Ou
+                  // seja: invisivel no dia-a-dia, porque o ecra normal do
+                  // estafeta e ESTE, o mapa ocioso. Apanhado ao provar pela
+                  // web, que foi a primeira vez que alguem abriu o ecra.
+                  //
+                  // Icone diferente do 'Mudar modo' de proposito: dois botoes
+                  // com a mesma seta dupla, um para trocar de papel na app e
+                  // outro para ir trabalhar noutra coisa, leem-se como o
+                  // mesmo botao.
+                  _FloatingIconButton(
+                    icon: Icons.work_outline,
+                    tooltip: 'Trabalhar noutra coisa',
+                    onTap: () => abrirTrocaDePapel(context),
                   ),
                   const SizedBox(width: 8),
                   // Troca de papel (mesmo padrão do home do cliente).

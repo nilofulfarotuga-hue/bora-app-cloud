@@ -664,7 +664,7 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
           // SALTAR ENTRE PAPEIS (2026-08-29): o Danilo tinha de sair da app e
           // voltar a entrar para passar de motorista a lavador.
           IconButton(
-            icon: const Icon(Icons.swap_horiz),
+            icon: const Icon(Icons.work_outline),
             tooltip: 'Trabalhar noutra coisa',
             onPressed: () => abrirTrocaDePapel(context),
           ),

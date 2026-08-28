@@ -424,6 +424,36 @@ teste ao vivo. Sem ficheiro não é verificável.
 **3.11 Teste anti-mentira.** Quando não tens a certeza de que uma ferramenta correu mesmo,
 põe um ficheiro com um nome esquisito numa pasta e pede o nome. Se não disser, não correu.
 
+### 3.9 Provar contra o endereço público, os dois lados, e o texto TODO
+
+Uma alteração de texto num site só está feita quando se puxa o HTML **servido pelo
+endereço público** e se prova, ponto a ponto e com a linha colada, que o texto novo
+lá está **e** que o antigo não aparece em lado nenhum. Procurar só a frase nova
+prova metade.
+
+E prova-se **o texto todo**, não só as frases que se mudou: uma frase errada que
+nunca se tocou continua errada, e a lista do que se mudou não é a lista do que
+está mal.
+
+Três armadilhas concretas:
+
+- **Quebra-cache mente-te nos dois sentidos.** Pedir com `?x=123` pode dar-te a
+  versão nova enquanto o mundo vê a velha. Compara sempre o endereço limpo com o
+  quebrado; se diferirem, é cache e purga-se.
+- **A publicação leva tempo a propagar.** Chamadas seguidas logo a seguir a
+  publicar podem devolver versões diferentes de nós diferentes. Puxa meia dúzia
+  de vezes e confirma que o resumo do ficheiro é o mesmo antes de auditar.
+- **Bytes não são caracteres.** `len(bytes)` e `len(texto)` diferem numa página em
+  português, e a diferença parece uma versão diferente quando não é.
+
+> **Cicatriz (28/08, Goola Açaí):** disse que tinha corrigido cinco sítios e
+> verificado pelo endereço público. Eram **sete**, e as fichas dos dois bowls, que
+> eu nunca tinha tocado, continuavam a dizer "sem pagar nada por isso" sem
+> mencionar que os acompanhamentos se escolhem de entre dezassete. A minha
+> verificação procurou as frases que eu tinha mudado e deu-as por boas — não
+> procurou o que estava mal e eu não tinha visto. Foi o Danilo a puxar o site de
+> fora e a colar as linhas que faltavam.
+
 ---
 
 ## 4. PUBLICAÇÃO E SEGREDOS

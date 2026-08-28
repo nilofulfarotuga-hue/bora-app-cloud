@@ -424,6 +424,26 @@ teste ao vivo. Sem ficheiro não é verificável.
 **3.11 Teste anti-mentira.** Quando não tens a certeza de que uma ferramenta correu mesmo,
 põe um ficheiro com um nome esquisito numa pasta e pede o nome. Se não disser, não correu.
 
+**3.12 Recuperação de senha e deep links: um link por email que exige troca de código (PKCE)
+só se prova abrindo-o num sítio SEM o segredo local de quem pediu.** O fluxo PKCE (default do
+pacote `gotrue`) guarda o `code_verifier` só no storage de quem chamou
+`resetPasswordForEmail` — quem pede no telemóvel e abre o link no browser do telemóvel (ou
+outro dispositivo) cai sempre em `400 code challenge does not match previously saved code
+verifier`, **mesmo com o email a chegar certo e o `redirectTo` correto**. Isto é invisível a
+quem testa a pedir e a redefinir na MESMA app/aba (o storage bate por coincidência) — só
+aparece com o email a sério, ou simulando outro storage. Prova-se assim, sem precisar de
+inbox real: gera-se o link a sério pela Admin API (`/auth/v1/admin/generate_link`,
+`type=recovery`, com `service_role`) — é o mesmo link que o email levaria — e segue-se com
+`curl -D -` (sem `-L`) para ver o `Location` do 303: se tiver `?code=` é PKCE (frágil entre
+dispositivos); se tiver `#access_token=…&refresh_token=…` é implícito (o token já vem pronto,
+sem segredo local nenhum a validar). O conserto é `authFlowType: AuthFlowType.implicit` em
+`Supabase.initialize` — só vale a pena se a app não usar OAuth nem magic-link (aqui não usa).
+Fecha-se o ciclo com o `refresh_token` extraído: `POST /token?grant_type=refresh_token` (o
+passo que antes dava 400 e passou a 200), depois `PUT /user` com a senha nova, depois
+`POST /token?grant_type=password` com a senha nova (200) e com a antiga (400, confirma que
+mudou mesmo). *(Cliente Junior ficou de fora do próprio email a 28/08; fix e prova E2E via
+Admin API a 29/08 — commit `693036ea`.)*
+
 ### 3.9 Provar contra o endereço público, os dois lados, e o texto TODO
 
 Uma alteração de texto num site só está feita quando se puxa o HTML **servido pelo

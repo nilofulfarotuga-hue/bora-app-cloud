@@ -108,6 +108,11 @@ try:
         "Isto e' o que o projeto ja aprendeu - licoes de erros passados, regras de negocio em "
         "vigor e assuntos por fechar. LE ANTES DE AGIR: se a tarefa tocar algo aqui descrito, "
         "segue a regra registada em vez de reinventar. Nao repitas os erros da seccao ARMADILHAS.\n\n"
+        "PRIMEIRO DE TUDO, ANTES DE QUALQUER PLANO: le PADRAO_BORA.md na raiz do repositorio. "
+        "E' a lei da casa - a lista fechada do que uma categoria ou papel novo tem de ter para "
+        "estar lancado, a regra dos gemeos (onde cada verdade vive), as regras de prova, as de "
+        "publicacao e segredos, como o Danilo trabalha, e as zonas que nao se tocam. Cada regra "
+        "la dentro tem a cicatriz real que a originou, com data.\n\n"
         "---\n\n"
     ) % (canario, frescura)
 

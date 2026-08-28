@@ -57,15 +57,37 @@ Deno.serve(async (req) => {
 
   const supabase = createClient(supabaseUrl, serviceKey)
 
+  // [2026-08-28] Tokens de TODOS os aparelhos deste washer.
+  //
+  // Antes lia-se so `users.fcm_token`, a coluna antiga de um aparelho unico —
+  // e ela esta vazia para os washers que existem, porque nada a preenchia.
+  // A funcao devolvia `no_fcm_token` e ninguem era chamado. Agora junta-se a
+  // tabela nova `provider_push_tokens`, que guarda um aparelho por linha e
+  // por papel, com a coluna antiga como recurso.
+  const tokens = new Set<string>()
+
+  const { data: linhas, error: tokensErr } = await supabase
+    .from('provider_push_tokens')
+    .select('fcm_token')
+    .eq('user_id', targetUserId)
+    .eq('role', 'washer')
+    .eq('active', true)
+  if (tokensErr) {
+    console.error('[notify-washer] erro a ler provider_push_tokens:', JSON.stringify(tokensErr))
+  } else {
+    for (const l of linhas ?? []) if (l?.fcm_token) tokens.add(l.fcm_token as string)
+  }
+
   const { data: user, error: userErr } = await supabase
     .from('users').select('fcm_token').eq('id', targetUserId).maybeSingle()
-
   if (userErr) {
     console.error('[notify-washer] DB error:', JSON.stringify(userErr))
-    return json({ ok: false, reason: 'db_error', detail: userErr.message })
+  } else if (user?.fcm_token) {
+    tokens.add(user.fcm_token as string)
   }
-  if (!user?.fcm_token) {
-    console.log(`[notify-washer] No FCM token for user ${targetUserId}`)
+
+  if (tokens.size === 0) {
+    console.log(`[notify-washer] Sem aparelho registado para washer ${targetUserId}`)
     return json({ ok: false, reason: 'no_fcm_token' })
   }
 
@@ -93,38 +115,51 @@ Deno.serve(async (req) => {
     ...(kind ? { kind: String(kind) } : {}),
   }
 
-  const message = {
-    message: {
-      token: user.fcm_token,
+  const baseMessage = {
       data: dataPayload,
       android: { priority: 'high' },
       apns: {
         headers: { 'apns-priority': '5', 'apns-push-type': 'background' },
         payload: { aps: { 'content-available': 1 } },
       },
-    },
   }
 
+  // Envia a TODOS os aparelhos. Um token morto e desligado sozinho, sem
+  // levar os outros a frente — a pessoa pode ter dois telemoveis.
   const fcmUrl = `https://fcm.googleapis.com/v1/projects/${firebaseProjectId}/messages:send`
-  const fcmRes = await fetch(fcmUrl, {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(message),
-  })
-  const fcmBody = await fcmRes.json().catch(() => ({}))
+  let enviados = 0
+  const falhas: string[] = []
 
-  if (!fcmRes.ok) {
-    console.error(`[notify-washer] FCM error ${fcmRes.status}:`, JSON.stringify(fcmBody))
+  for (const fcmToken of tokens) {
+    const message = { message: { ...baseMessage, token: fcmToken } }
+    const fcmRes = await fetch(fcmUrl, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(message),
+    })
+    const fcmBody = await fcmRes.json().catch(() => ({}))
+
+    if (fcmRes.ok) { enviados++; continue }
+
+    console.error(`[notify-washer] FCM ${fcmRes.status}:`, JSON.stringify(fcmBody))
+    falhas.push(String(fcmBody?.error?.details?.[0]?.errorCode ?? fcmRes.status))
     const errorCode = fcmBody?.error?.details?.[0]?.errorCode ?? ''
     if (errorCode === 'UNREGISTERED' || errorCode === 'INVALID_ARGUMENT') {
-      await supabase.from('users').update({ fcm_token: null }).eq('id', targetUserId)
+      await supabase.from('provider_push_tokens')
+        .update({ active: false, last_fail_at: new Date().toISOString() })
+        .eq('user_id', targetUserId).eq('role', 'washer').eq('fcm_token', fcmToken)
+      await supabase.from('users').update({ fcm_token: null })
+        .eq('id', targetUserId).eq('fcm_token', fcmToken)
     }
-    return json({ ok: false, reason: 'fcm_error', detail: fcmBody })
   }
 
-  console.log(`[notify-washer v1 data-only] ok -> ${targetUserId} (${notifType})`)
-  return json({ ok: true })
+  if (enviados === 0) {
+    return json({ ok: false, reason: 'fcm_error', detail: falhas })
+  }
+  console.log(`[notify-washer v2] ✓ enviado a ${enviados}/${tokens.size} aparelho(s) de ${targetUserId} (${notifType})`)
+  return json({ ok: true, enviados, aparelhos: tokens.size })
 })
+
 
 function json(obj: any, status = 200): Response {
   return new Response(JSON.stringify(obj), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })

@@ -934,6 +934,11 @@ const Set<String> _kPersistentCategoryTypes = <String>{
   'tvde_ride_status',
   'cleaning_offer',
   'cleaning_status',
+  // [2026-08-28] A lavagem de carros é nova e faltava por inteiro aqui: os
+  // avisos dela caíam no auto-display do Android, que some sozinho. O lavador
+  // tem de ser chamado com a mesma insistência do faxineiro e do parceiro.
+  'carwash_offer',
+  'carwash_status',
   'tvde_chat',
   'admin_generic',
   'crosstalk_critical',

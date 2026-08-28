@@ -297,6 +297,76 @@ acompanhamentos.
 
 ---
 
+### 1.20 Função de acerto semanal **e** a tarefa agendada que a chama
+
+Uma categoria que paga a alguém precisa das duas coisas: a função que fecha a
+semana e a tarefa que a chama à segunda-feira. Uma sem a outra não paga nada.
+
+> **Cicatriz (29/08):** a Lavagem Auto não tinha **nenhuma das duas**. A tabela
+> `washer_weekly_settlements` existia, o cron da Limpeza existia, e a lavagem
+> não tinha nem função nem agendamento. Um carro lavado nunca entraria em
+> acerto nenhum e nunca seria pago. Ninguém deu por isso porque a tabela vazia
+> parece "ainda não houve lavagens", não "não há quem calcule".
+
+**Lei que daqui sai:** uma tabela de dinheiro sempre vazia é suspeita, não é
+prova de calma. Procura quem lá escreve; se ninguém escreve, está partido.
+
+### 1.21 O ganho recebido em mão não volta a ser pago no acerto
+
+Quando o cliente paga **em dinheiro**, quem recebe a nota é o prestador: fica
+com o que é dele e com a parte da Bora. O acerto da semana tem de pagar só os
+trabalhos em que a Bora recebeu, e cobrar a parte dela dos que foram a dinheiro.
+
+> **Cicatriz (29/08):** `compute_cleaner_weekly_settlement` fazia
+> `net := total_earnings` — o ganho de todas as limpezas, sem olhar a como
+> foram pagas. Em duas limpezas de vinte euros, uma a cartão e outra a dinheiro
+> com cinco de taxa, a fórmula antiga pagava **quarenta euros** onde devia pagar
+> **quinze**.
+
+### 1.22 O cliente é avisado em TODAS as mudanças de estado, e o aviso vai à tabela certa
+
+Não chega avisar ao aceitar e ao concluir. Cada passo do meio é um aviso, com o
+nome de quem lá vai e não com o nome do estado na base.
+
+E o aviso tem de ir buscar o aparelho à tabela **do destinatário**: o cliente
+não tem linha em `provider_push_tokens`.
+
+> **Cicatriz (29/08), e é das piores:** `_carwash_notify_user` mandava tudo pela
+> função de aviso do lavador — incluindo os avisos dirigidos ao CLIENTE — e essa
+> função só procurava aparelhos na tabela dos prestadores. **Nenhum cliente
+> recebeu um único aviso por telemóvel da Limpeza ou da Lavagem, desde sempre.**
+> Ficava só o aviso dentro da app, que ele só vê se a abrir. Prova do antes e
+> depois no mesmo registo: `{"ok":false,"reason":"no_fcm_token"}` às 18h14,
+> `{"ok":true,"enviados":2,"aparelhos":7}` às 18h51.
+
+### 1.23 A rotação não gasta a vez com quem não pode ser avisado
+
+Quem não tem aparelho registado vai atrás na ordem e recebe uma janela curta,
+não a janela inteira. Não se salta de todo — há quem trabalhe com a app aberta —
+mas não se para o trabalho dez ou trinta minutos à espera de quem não foi
+chamado.
+
+E cada oferta deixa registo: para quem foi, se tinha aparelho, quanto tempo teve
+e como acabou. Sem isso não há como ver onde o trabalho emperra.
+
+> **Cicatriz (29/08):** duas ofertas seguidas foram para prestadores sem nenhum
+> aparelho registado. Esperaram a janela toda e só depois passaram adiante. Foi
+> preciso ir à mão às tabelas para descobrir porquê.
+
+### 1.24 O trabalho aceite manda no ecrã até estar terminado
+
+Depois de aceitar, a pessoa fica dentro do trabalho. Sai da app e volta: cai
+outra vez lá dentro, não no ecrã do papel principal. Enquanto durar, há um
+caminho de volta visível em qualquer ecrã. Ao terminar, volta sozinha.
+
+A verdade de "há trabalho a meio" vem do **servidor**, nunca da memória local:
+estado guardado só no telemóvel morre quando o Android mata a app, que é
+precisamente quando faz falta.
+
+> **Cicatriz (29/08):** o Danilo aceitou uma lavagem, saiu da app, voltou, e
+> caiu no ecrã de motorista. **Julgou que tinha perdido a lavagem.**
+
+
 ## 2. ONDE CADA COISA VIVE — A REGRA DOS GÉMEOS
 
 **O maior gerador de erros do mês foi a mesma verdade escrita em vários sítios que podem
@@ -380,6 +450,36 @@ escrito à mão.
   dois lados.
 
 ---
+
+### 2.5 Um ecrã novo que não substitui o antigo deixa dois vivos — e abre-se o velho
+
+Construir a versão nova e deixar a antiga ligada ao sítio de onde as pessoas
+entram é a pior forma do problema: o trabalho está feito e ninguém o vê.
+
+> **Cicatriz (28→29/08):** construí a vista unificada do acerto **e um ecrã novo
+> de Ganhos** que a lia. Não liguei esse ecrã ao sítio de onde o Danilo abre os
+> Ganhos. No dia seguinte ele abriu, viu só as entregas, e teve razão — o que
+> ele abria era o antigo. Dois ecrãs de ganhos vivos ao mesmo tempo.
+
+**Lei:** ao criar a versão nova de alguma coisa, o mesmo trabalho apaga a antiga
+e reaponta **todos** os chamadores. `git grep NomeAntigo` tem de dar zero antes
+de se dizer feito.
+
+### 2.6 Um botão novo tem de estar no ecrã que a pessoa vê mesmo
+
+Não basta existir e estar ligado. Tem de estar no caminho por onde ela passa.
+
+> **Cicatriz (29/08):** pus o botão de "trabalhar noutra coisa" na barra de topo
+> do ecrã do estafeta — mas o ecrã do estafeta tem **dois** desenhos, e a barra
+> que editei é a do que só aparece **quando há pedidos**. No dia-a-dia o
+> estafeta vê o mapa, e lá o botão não existia. Só se descobriu ao abrir mesmo o
+> ecrã, pela web.
+>
+> **Cicatriz gémea, no mesmo sítio:** o botão novo tinha o mesmo ícone de setas
+> do "Mudar modo" que já lá estava. Ao carregar no que julgava ser o meu, saí da
+> conta. Dois botões com o mesmo ícone e significados diferentes são um botão só,
+> aos olhos de quem usa.
+
 
 ## 3. REGRAS DE PROVA — isto é lei, não é conselho
 
@@ -475,6 +575,57 @@ Três armadilhas concretas:
 > fora e a colar as linhas que faltavam.
 
 ---
+
+### 3.10 A prova de ecrãs faz-se pela WEB. "Falta o cabo" não é razão.
+
+A app corre inteira em `app.boraguarda.com` — os mesmos ecrãs, os mesmos fluxos,
+os mesmos botões. Entra-se pelo browser e testa-se lá.
+
+O cabo só é preciso para o que é mesmo do aparelho: o som a tocar, o aviso com o
+ecrã bloqueado, e a app fechada. **Tudo o resto não tem desculpa.**
+
+> **Cicatriz (27, 28 e 29/08):** três missões seguidas a escrever "não consigo
+> provar, o cabo está desligado", com a app inteira disponível no browser o
+> tempo todo. Foi o Danilo que teve de corrigir.
+
+**Como se faz, para não se voltar a descobrir isto do zero.** Está guardado em
+`.claude/.ai/provas/web-2026-08-29/_ferramentas/`. Três coisas são a diferença
+entre funcionar e não funcionar:
+
+1. **O GPS tem de vir do contexto do browser**, fixado na Guarda. Sem posição, o
+   ecrã do estafeta fica no carregador **para sempre** — ele bloqueia a render
+   até ter uma, e no browser essa posição nunca chega sozinha.
+2. **O consentimento grava-se ANTES de a app arrancar.** Recusá-lo tem o mesmo
+   efeito: o ecrã do estafeta nunca abre.
+3. **Escrever em campos:** o Flutter desenha em canvas e o `input` do DOM só
+   NASCE quando o campo ganha foco. Clica-se primeiro, e depois dispara-se o
+   evento `input` a sério — escrever no `.value` sozinho não move nada no ecrã.
+
+Para entrar sem saber a palavra-passe de ninguém, gera-se um link de uma vez
+(`admin/generate_link`) ou cria-se uma conta de prova que se apaga no fim.
+**Nunca se muda a palavra-passe de uma conta real para poder testar.**
+
+### 3.11 Quando o Danilo e eu vemos coisas diferentes no mesmo endereço, o desencontro resolve-se primeiro
+
+Antes de mexer em código, percebe-se porque é que as duas leituras divergem:
+cache, propagação a meio, endereço diferente, sessão diferente, versão diferente.
+Mexer no código enquanto as leituras não batem certo é arranjar o que talvez não
+esteja partido.
+
+> **Cicatriz (28/08):** uma tarde inteira a discutir se o site estava certo. Ele
+> via o texto novo, a minha leitura devolvia uma cópia velha. Seis dos oito
+> pontos já estavam corrigidos e eu estava a olhar para uma versão anterior.
+
+### 3.12 Procurar o que está mal, não confirmar o que se mudou
+
+Verificar as frases que eu próprio mudei prova que as mudei. Não prova que
+estava tudo mal e ficou tudo bem. A varredura faz-se pelo problema — todos os
+sítios onde ele pode estar — não pela lista das minhas alterações.
+
+> **Cicatriz (28/08):** corrigi cinco sítios do site da Goola e verifiquei os
+> cinco. Eram sete. As fichas dos dois bowls, que eu nunca tinha tocado,
+> continuavam a prometer a mais, e foi o Danilo que as encontrou.
+
 
 ## 4. PUBLICAÇÃO E SEGREDOS
 
@@ -585,136 +736,114 @@ E só se aplica depois do "vai".
 
 ## 7. INVENTÁRIO — o que falta a cada categoria já existente
 
-**Fotografia tirada a 2026-08-28.** Isto é levantamento, não é correcção. É daqui que sai o
-trabalho das próximas missões. Cada categoria é passada pelos onze pontos da secção 1.
+**Fotografia tirada a 2026-08-29**, com a lista fechada já com vinte e quatro pontos. É
+levantamento, não é correcção: é daqui que sai o trabalho das próximas missões. O que
+mudou desde a fotografia de 28/08 vem marcado.
 
 ### 7.1 LIMPEZA
 
-Aberta (`cleaning_enabled = true`, `cleaning_stripe_enabled = true`). Papel `cleaner` aceite
-no `user_roles`, com 2 pessoas. É a categoria mais antiga das quatro e a que tinha o buraco
-mais grave.
+Aberta. Papel `cleaner` no `user_roles`, com 3 pessoas. Tarefas agendadas: oito, das mais
+completas da casa.
+
+**Fechado desde ontem:** entrada de candidatura visível pela porta "Quero trabalhar no
+Bora"; acerto semanal unificado; avisos ao cliente em todos os passos; o dinheiro em mão
+deixou de ser pago duas vezes; o trabalho aceite manda no ecrã; botão "Abrir rota".
+**Provado pela web a 29/08, com fotografias.**
 
 **Falta:**
 
-1. **Pagamentos:** o fluxo tem cartão e MB Way; **o dinheiro não aparece no ecrã de escolha**
-   (o servidor trata `cash` como pago no local, mas o cliente não o pode escolher). Falta
-   decidir se a Limpeza aceita dinheiro e, se aceitar, mostrá-lo. Nenhum dos três tem teste
-   real registado.
-2. **Morada:** o assistente (`cleaning_wizard_screen.dart`) só copia a morada do carrinho —
-   **não usa o `AutoAddress`**. Quem entre na Limpeza sem passar pela home fica com o campo
-   vazio.
-3. **Ladrilho:** correcto (512×512, sem alfa).
-4. **Papel em `user_roles`:** feito.
-5. **Token do aparelho:** a canalização está feita e há **uma linha registada** desde
-   28/08 às 12:06. **Falta a prova no telemóvel** — o toque a chegar mesmo.
-6. **Toque persistente:** `cleaning_offer` e `cleaning_status` estão no conjunto. Feito.
-7. **Entrada de candidatura:** **falta**. O `CleanerApplyScreen` só é alcançável de dentro do
-   `CleanerHomeScreen` — ou seja, de quem já lá está.
-8. **Interruptor do prestador:** feito (lê de `user_roles` desde 28/08).
-9. **Acerto semanal:** a vista que junta as três está feita e é **só de leitura**. Faltam o
-   ecrã do prestador, o painel com o botão de pagar, a exportação para a contabilidade e o
-   abate da dívida. Essa parte **espera "vai"** porque mexe em dinheiro que sai para pessoas.
-10. **Admin:** existe (`admin_cleaning_bookings_screen`, `admin_cleaning_cleaners_screen`).
-    Falta o **painel admin dos papéis** — ver e mudar os papéis de qualquer pessoa.
-11. **Mini-site:** não se aplica (não é parceiro de loja).
+1. **Pagamentos:** o dinheiro continua **sem aparecer no ecrã de escolha** — o servidor
+   trata `cash` como pago no local mas o cliente não o pode escolher. Falta decidir se a
+   Limpeza aceita dinheiro. Nenhum dos três tem teste real registado.
+2. **Morada:** o assistente ainda **não usa o `AutoAddress`** — só copia a morada do
+   carrinho. Quem entra na Limpeza sem passar pela home fica com o campo vazio.
+3. **Rotação:** falta a **nova tentativa** (a lavagem tem, a limpeza não).
+4. **Prova no aparelho:** o som e o ecrã bloqueado continuam por provar. É a única parte
+   que precisa mesmo do cabo.
+5. **Mapa:** o botão de rota abre a app de mapas; **mapa dentro da app não há**, e para a
+   limpeza vai só pela morada escrita porque o modelo não traz coordenadas.
 
 ### 7.2 LAVAGEM AUTO
 
-Aberta (`carwash_enabled = true`, `carwash_stripe_enabled = true`), build 551 e seguintes
-publicados. Motor clonado do da Limpeza, 33 verificações provadas a 27/08.
+Aberta. Papel `washer` com 3 pessoas. Motor clonado do da Limpeza.
+
+**Fechado desde ontem:** candidatura de lavador (não existia de todo); o gatilho que dá o
+papel a quem se inscreve (não existia, e por isso um lavador estava sem papel); **a função
+de acerto semanal e o seu cron, que não existiam** — uma lavagem feita nunca seria paga;
+avisos ao cliente em todos os passos; rotação que não gasta a vez com quem não tem
+aparelho; registo de ofertas com painel.
 
 **Falta:**
 
-1. **Pagamentos:** dinheiro provado. **Cartão:** o caminho está provado até ao PaymentIntent,
-   mas o PaymentSheet exige introduzir dados de cartão — **é acto do Danilo**. **MB Way:**
-   foi recusado pelo provedor ("declined by the provider"); a suspeita é o número 937501673
-   não ter MB Way associado. **Confirmar o número.**
-2. **Morada:** feito, usa o `AutoAddress`.
-3. **Ladrilho:** feito a 28/08 (512×512, sem alfa, nome em duas linhas).
-4. **Papel em `user_roles`:** feito — o `CHECK` já aceita `washer`, com 2 pessoas.
-5. **Token do aparelho:** canalização feita, **uma linha registada** a 28/08. Falta a prova
-   no telemóvel.
-6. **Toque persistente:** feito a 28/08 (`carwash_offer`, `carwash_status`).
-7. **Entrada de candidatura:** **não existe de todo.** Não há `washer_apply_screen`. Um
-   lavador novo não tem por onde se inscrever.
-8. **Interruptor do prestador:** feito.
-9. **Acerto semanal:** igual à Limpeza — vista de leitura feita, o resto espera "vai".
-10. **Admin:** existe e é o mais completo dos quatro (`admin_carwash_screen`, com
-    reatribuição desde o nascimento). Falta o painel dos papéis.
-11. **Mini-site:** não se aplica.
-12. **Tokens (fidelização):** a migration `20260827102000_PROPOSTA_carwash_tokens.sql` está
-    pronta e **não aplicada** — a Trava bloqueia. É acto do Danilo.
-13. **Só interior:** `carwash_interior_enabled = false`, desligado de propósito.
+1. **Pagamentos:** **cartão** provado até ao PaymentIntent — o PaymentSheet exige dados de
+   cartão e é acto do Danilo. **MB Way** recusado pelo provedor; confirmar se o 937501673
+   tem MB Way associado.
+2. **Rotação:** faltam **expirar sem ninguém** e **lembretes** (as funções não existem).
+3. **Tokens de fidelização:** a migration `20260827102000_PROPOSTA_carwash_tokens.sql`
+   continua **por aplicar** — é acto do Danilo.
+4. **Marcar um pedido como teste:** a tabela `carwash_bookings` **não tem `is_test_order`**,
+   ao contrário da limpeza. Descoberto a 29/08 ao montar a prova: uma lavagem de teste conta
+   nos ganhos como se fosse real.
+5. **Prova no aparelho:** igual à limpeza.
+6. **Só interior:** desligado de propósito.
 
 ### 7.3 FESTAS
 
-Aberta em código desde 25/08. A loja da Keli (`sabores-brasil-guarda`) estava
-`coming_soon = true` à espera de a app chegar à Play Store — **confirmar o estado actual**.
-O desenho não abriu caminho novo de dinheiro nem de dispatch: um pedido de festa é um pedido
-de restaurante parceiro normal com `scheduled_for`.
+Aberta em código desde 25/08. Um pedido de festa é um pedido de restaurante parceiro com
+`scheduled_for` — não abriu caminho novo de dinheiro nem de dispatch, e por isso os pontos
+novos 1.20 a 1.24 quase todos **não se lhe aplicam**: quem recebe é o parceiro, pelo fecho
+semanal de parceiro que já existia.
 
-**Falta:**
+**Falta, e é o mesmo de ontem — não lhe mexi:**
 
-1. **Pagamentos:** **só o dinheiro foi testado a sério.** Cartão e MB Way passam pelos
-   caminhos do delivery, que funcionam — mas não há teste real de festa com cartão nem com
-   MB Way registado.
-2. **Morada:** herdada do carrinho e da home, que já preenchem sozinhas. Feito.
-3. **Ladrilho:** **fora do padrão.** O `cat_festas.png` é **1024×1024 com canal alfa**
-   (5.641 píxeis não-opacos, alfa mínimo 60); todos os irmãos são 512×512 em paleta, sem
-   alfa. Foi composto à mão porque o gerador estava sem quota. **Regenerar em 512×512 com
-   fundo cheio quando a quota voltar.**
-4. **Papel em `user_roles`:** não se aplica — a parceira é `partner`, que já existia.
-5. **Token do aparelho:** usa o caminho do parceiro, que já funcionava.
-6. **Toque persistente:** usa os tipos do parceiro, já cobertos.
-7. **Entrada de candidatura:** não se aplica (parceiro entra por convite).
-8. **Interruptor do prestador:** não se aplica.
-9. **Acerto semanal:** entra no fecho semanal de parceiro, que já existia.
-10. **Admin:** `scheduled_for` e `prep_time_minutes` visíveis e editáveis no detalhe do
-    pedido, com auditoria. Feito.
-11. **Mini-site:** o `sabores-do-brasil` tem vídeo e os dois botões. Feito.
-12. **Dinheiro por absorver:** `20260825091000_festas_money_patch.sql` **não aplicada** — a
-    versão canónica do "sem saco" dentro do `create_order`/`quote_order_pricing`. O efeito
-    está entregue por um trigger aditivo. Enquanto não for absorvida, ficam dois restos
-    conhecidos: o tecto do dinheiro conta o saco que não vai ser cobrado (só afecta pedidos
-    entre 39,70 € e 40,00 €), e o orçamento do carrinho devolve 0,30 € de saco que a
-    cobrança real não usa.
-13. **Acessibilidade:** na demo, os botões, os dias do calendário e os chips de hora não
-    expõem rótulos. Não bloqueia nada, mas vale uma passagem.
+1. **Pagamentos:** só o dinheiro foi testado a sério. Cartão e MB Way passam pelos caminhos
+   do delivery mas **não há teste real de festa** com nenhum dos dois.
+2. **Ladrilho:** `cat_festas.png` está **1024×1024 com canal alfa**, fora do padrão dos
+   irmãos. Regenerar em 512×512 com fundo cheio.
+3. **Dinheiro por absorver:** `20260825091000_festas_money_patch.sql` **não aplicada**. O
+   efeito está entregue por um trigger aditivo; ficam dois restos conhecidos (o tecto conta
+   um saco que não é cobrado, entre 39,70 € e 40,00 €; o orçamento devolve 0,30 € que a
+   cobrança não usa).
+4. **Acessibilidade:** botões, dias do calendário e chips de hora sem rótulos.
+5. **Estado da loja da Keli:** confirmar se saiu de `coming_soon`.
 
 ### 7.4 RESERVA DE MESA
 
-Sistema antigo e completo (Reservas Pro). Sinal de 3,00 € (`reservation_prepayment_cents`),
-2,00 € para o parceiro e 1,00 € para a Bora.
+Sistema antigo e completo. Sinal de 3,00 €. Cinco tarefas agendadas próprias.
 
-**Falta:**
+Os pontos novos também quase não se lhe aplicam: quem recebe é o parceiro.
 
-1. **Pagamentos:** **não tem dinheiro, e é de propósito** — um sinal pré-pago não pode ser
-   em dinheiro. Fica **cartão e MB Way**, e é a excepção justificada à regra 1.1. Escrito
-   aqui para não voltar a ser levantado como defeito.
-2. **Morada:** não se aplica — a mesa é no restaurante.
-3. **Ladrilho:** `cat_reservar_mesa.png` correcto (512×512, sem alfa).
-4 a 9. **Papel, token, toque, candidatura, interruptor, acerto:** não se aplicam — quem
-   recebe é o parceiro, por caminhos que já existiam.
-   **Excepção a verificar:** os tipos de push das reservas de mesa **não estão** em
-   `_kPersistentCategoryTypes` (lá estão os das marcações — `appointment_new`,
-   `appointment_cancelled`, `appointment_rescheduled`). Confirmar que tipo o servidor emite
-   para as reservas de mesa e, se for um tipo próprio, acrescentá-lo.
-10. **Admin:** completo — `admin_reservations_screen`, `_config`, `_metrics`.
-11. **Mini-site:** nenhuma loja tem reservas ligadas na base
-    (`reservations_enabled = false` em todas, Goola incluída). A categoria está construída e
-    **sem nenhum parceiro a usá-la** — é decisão comercial, não é defeito técnico.
+**Falta, e é o mesmo de ontem:**
 
-### 7.5 Achados transversais deste levantamento
+1. **Pagamentos:** não tem dinheiro, **de propósito** — um sinal pré-pago não pode ser em
+   dinheiro. É a excepção justificada à regra 1.1, escrita aqui para não voltar a ser
+   levantada como defeito.
+2. **Toque persistente:** os tipos de push das reservas de mesa **não estão** em
+   `_kPersistentCategoryTypes` (lá estão os das marcações). Confirmar que tipo o servidor
+   emite e, se for próprio, acrescentá-lo. **Continua por confirmar.**
+3. **Parceiros a usar:** nenhuma loja tem reservas ligadas (`reservations_enabled = false`
+   em todas). Decisão comercial, não defeito técnico.
 
-- **Quatro ladrilhos são ficheiros WebP com extensão `.png`:** `cat_encomenda.png`,
-  `cat_farmacia.png`, `cat_restaurantes.png`, `cat_supermercados.png`. O Flutter aguenta
-  (identifica pelo conteúdo), por isso não parte nada — mas qualquer ferramenta que confie
-  na extensão vai enganar-se. Vale renomear ou reconverter um dia.
-- **O mini-site do Mr Kebab não tem vídeo e não tem o botão do site** — só o da Play Store.
-  É o único dos cinco fora do padrão da regra 1.11.
-- **O painel admin dos papéis não existe** para nenhuma categoria.
-- **A prova no telemóvel está em dívida desde 27/08** e é a mesma para a Limpeza e para a
-  Lavagem: falta o Danilo actualizar a app pela Play Store e entrar uma vez como faxineiro.
+### 7.5 Achados transversais, revistos a 29/08
+
+- **O painel admin dos papéis já existe** (feito a 28/08) — deixa de ser buraco.
+- **O acerto semanal por pessoa e o registo de ofertas já existem** e estão no painel.
+- **Quatro ladrilhos continuam a ser WebP com extensão `.png`:** `cat_encomenda.png`,
+  `cat_farmacia.png`, `cat_restaurantes.png`, `cat_supermercados.png`.
+- **O mini-site do Mr Kebab continua sem vídeo e sem o botão do site.** É o único dos cinco
+  fora do padrão da regra 1.11.
+- **O ecrã do estafeta não abre sem posição de GPS.** Descoberto a 29/08 ao provar pela web:
+  `_buildIdleMapScaffold` devolve um carregador enquanto `_initialGpsCenter` for nulo, e não
+  há limite de tempo nem caminho alternativo. Quem recusar o consentimento de localização, ou
+  estiver num sítio sem GPS, fica com um ecrã em branco a rodar **para sempre**, sem uma
+  palavra a dizer porquê. Não é defeito da web: é o mesmo código no telemóvel.
+- **A barra do trabalho em curso só se actualiza no arranque, ao voltar à app, e ao fechar o
+  ecrã do trabalho que ela própria abriu.** Quem aceita um trabalho e depois sai daquele ecrã
+  pelo seu próprio caminho não vê a barra até a app ir a segundo plano e voltar. Visto na
+  prova de 29/08.
+- **A prova no aparelho continua em dívida**, mas agora reduzida ao que é mesmo do aparelho:
+  o som a tocar, o aviso com o ecrã bloqueado, e a app fechada. Todo o resto passou a
+  provar-se pela web (regra 3.10).
 
 ---
 

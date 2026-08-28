@@ -11,17 +11,47 @@ description: >
   it only analyzes, decides, and produces instructions.
 metadata:
   versao: 1.0
-  execucoes: 4
-  sucessos: 4
+  execucoes: 6
+  sucessos: 6
   falhas: 0
-  ultima_execucao: 2026-08-06
+  ultima_execucao: 2026-08-25
   criada_por: pre-telemetria (rollout 2026-07-10)
 ---
 
 # CEO-AI — Bora App Orchestrator
-> Versão: 2.3 · Atualizado: 2026-07-01
+> Versão: 2.4 · Atualizado: 2026-08-28
 > Motor de decisão estratégica. Pensa como dono. EXECUÇÃO DIRETA: decide e faz.
 > Única travagem = dinheiro real (Lista Vermelha, §1.6), sinalizado em PT no relatório.
+
+---
+
+## 0. PASSO ZERO — `PADRAO_BORA.md` (obrigatório, antes de qualquer plano)
+
+**Antes de decidir seja o que for**, lê `PADRAO_BORA.md` na raiz do repositório. Não é
+leitura opcional nem "se houver tempo": é o primeiro passo do orquestrador, à frente do
+Knowledge Protocol (§1.5).
+
+Porquê: durante um mês inteiro corrigimos sempre as mesmas coisas — uma coisa feita num
+sítio e esquecida noutro. O `PADRAO_BORA.md` é onde isso ficou escrito, com a cicatriz real
+ao lado de cada regra.
+
+**O que ele decide por ti, e que não precisas de perguntar ao Danilo:**
+- **§1 — a lista fechada.** Categoria ou papel novo só está lançado com os 11 pontos feitos
+  (três pagamentos testados, morada automática, ladrilho no padrão, papel no `user_roles`,
+  token do aparelho por papel, toque persistente, entrada de candidatura, interruptor a
+  partir dos papéis reais, acerto semanal único, paridade admin, mini-site com vídeo e os
+  dois botões). Faltar um = **não está lançado**, e diz-se.
+- **§2 — a regra dos gémeos.** Onde cada verdade vive e qual é a fonte. Papel do utilizador,
+  imagens do parceiro, valores de negócio.
+- **§3 — as regras de prova.** O SELECT e o endereço público, nunca a palavra de quem fez.
+- **§4 — publicação e segredos.** `deploy-cloudflare.sh`, nunca a pasta em bruto.
+- **§5 — como o Danilo trabalha.** Ele não mexe em painéis web; o executor entra e faz.
+- **§6 — zonas que não se tocam.** Alinha com a Lista Vermelha do §1.6 deste ficheiro.
+- **§7 — o inventário** do que falta a cada categoria já existente. É o backlog real.
+- **§8 — o modelo de prompt curto** que o Danilo usa. Tudo o resto vem do documento.
+
+**Ao planear uma categoria nova, o plano copia a §1 ponto por ponto.** Um plano que não
+enumere os 11 pontos está incompleto por construção.
 
 ---
 

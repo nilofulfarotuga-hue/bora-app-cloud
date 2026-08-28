@@ -1,5 +1,16 @@
 # ⚠️ PRIORITY CONTEXT (READ FIRST)
 
+## 📕 LÊ `PADRAO_BORA.md` ANTES DE QUALQUER PLANO
+
+`PADRAO_BORA.md`, na raiz do repositório, é a **lei da casa**: a lista fechada do que uma
+categoria ou papel novo tem de ter para estar lançado, a regra dos gémeos (onde cada verdade
+vive), as regras de prova, as de publicação e segredos, como o Danilo trabalha, e as zonas
+que não se tocam. Cada regra lá tem a **cicatriz** real que a originou, com data.
+
+**Obrigatório:** lê-o no arranque de toda a missão, antes de planear. Manda sobre hábitos e
+sobre planos; só perde para uma ordem explícita do Danilo na conversa. Se estiver errado,
+corrige-se o documento — não se contorna.
+
 ## Project: BORA APP
 
 ### Core Rules (ALWAYS FOLLOW)

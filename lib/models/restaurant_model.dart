@@ -343,7 +343,15 @@ class RestaurantModel {
     return h * 60 + m;
   }
 
+  /// ⚠️ Campo novo no modelo entra TAMBÉM aqui, senão desaparece em silêncio
+  /// a cada `copyWith`. Já aconteceu com o `ownerId`, que é justamente o que
+  /// liga a loja ao dono — perdê-lo devolve o parceiro ao assistente de criar
+  /// conta. Ver `partner_entry_screen.dart`.
   RestaurantModel copyWith({
+    String? name,
+    String? phone,
+    String? address,
+    BusinessCategory? category,
     bool? isOnline,
     double? lat,
     double? lng,
@@ -360,14 +368,14 @@ class RestaurantModel {
   }) {
     return RestaurantModel(
       id: id,
-      name: name,
-      phone: phone,
-      address: address,
+      name: name ?? this.name,
+      phone: phone ?? this.phone,
+      address: address ?? this.address,
       email: email,
       photoUrl: photoUrl,
       cuisineType: cuisineType,
       isPartner: isPartner,
-      category: category,
+      category: category ?? this.category,
       extraCategories: extraCategories,
       isOnline: isOnline ?? this.isOnline,
       lat: lat ?? this.lat,
@@ -383,6 +391,7 @@ class RestaurantModel {
       heroImageUrl: heroImageUrl ?? this.heroImageUrl,
       comingSoon: comingSoon ?? this.comingSoon,
       comingSoonText: comingSoonText ?? this.comingSoonText,
+      ownerId: ownerId,
     );
   }
 }

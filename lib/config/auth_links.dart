@@ -14,7 +14,10 @@
 library;
 
 /// Base do Bora no browser (mesmo codebase Flutter, Cloudflare Pages).
-const String boraWebBaseUrl = 'https://bora-app-web.pages.dev';
+// 2026-08-28: passou para o dominio proprio. A allow-list do Supabase Auth
+// foi actualizada NA MESMA PASSAGEM e continua a aceitar o endereco antigo,
+// para os emails de recuperacao ja enviados nao morrerem.
+const String boraWebBaseUrl = 'https://app.boraguarda.com';
 
 /// Rota (hash) da página de redefinição de palavra-passe.
 const String passwordResetRouteName = '/redefinir-palavra-passe';

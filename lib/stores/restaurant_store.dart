@@ -1151,28 +1151,19 @@ class RestaurantStore extends ChangeNotifier {
     final index = _restaurants.indexWhere((r) => r.id == restaurantId);
     if (index != -1 && result['no_changes'] != true) {
       final old = _restaurants[index];
-      _restaurants[index] = RestaurantModel(
-        id: old.id,
-        name: name ?? old.name,
-        phone: phone ?? old.phone,
-        address: address ?? old.address,
-        email: old.email,
-        photoUrl: old.photoUrl,
-        cuisineType: old.cuisineType,
-        isPartner: old.isPartner,
-        category: category != null
-            ? BusinessCategory.values.firstWhere((e) => e.name == category,
-                orElse: () => old.category)
-            : old.category,
-        extraCategories: old.extraCategories,
-        isOnline: old.isOnline,
-        lat: old.lat,
-        lng: old.lng,
-        reservationsEnabled: old.reservationsEnabled,
-        takeawayEnabled: old.takeawayEnabled,
-        curbsideEnabled: old.curbsideEnabled,
-        takeawayDefaultPrepMinutes: old.takeawayDefaultPrepMinutes,
-        businessHours: old.businessHours,
+      // copyWith, e nao um RestaurantModel(...) a mao: a versao a mao so
+      // reescrevia os campos que alguem se lembrou de listar, e apagava em
+      // memoria tudo o resto — capa, logotipo, dono, "em breve". Bastava um
+      // parceiro editar o perfil para a loja ficar sem imagens ate reiniciar.
+      // Campo novo no modelo passa a sobreviver aqui sozinho.
+      _restaurants[index] = old.copyWith(
+        name: name,
+        phone: phone,
+        address: address,
+        category: category == null
+            ? null
+            : BusinessCategory.values.firstWhere((e) => e.name == category,
+                orElse: () => old.category),
       );
       notifyListeners();
     }

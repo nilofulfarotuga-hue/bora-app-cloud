@@ -66,6 +66,23 @@ Deno.serve(async (req) => {
     return json({ ok: false, error: 'driverId and rideId are required' }, 400)
   }
 
+  // A pessoa quer receber uma corrida de passageiros hoje?
+  //
+  // Desde 2026-08-28 as entregas e as corridas sao trabalhos SEPARADOS, cada
+  // um com o seu interruptor na caixa "O que queres aceitar?". Sem esta
+  // pergunta o interruptor era decorativo — ligava e desligava uma coisa que
+  // ninguem consultava. Sem preferencia gravada = sim, comportamento de sempre.
+  {
+    const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+    const { data: quer } = await sb.rpc('aceita_papel', {
+      p_user_id: driverId, p_papel: 'driver',
+    })
+    if (quer === false) {
+      console.log(`[notify-tvde-driver] ${driverId} tem 'driver' desligado — nao se envia`)
+      return json({ ok: false, reason: 'papel_desligado' })
+    }
+  }
+
   const supabase = createClient(supabaseUrl, serviceKey)
 
   // FCM token (drivers.fcm_token -> driver_push_tokens fallback).

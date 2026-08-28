@@ -9,6 +9,13 @@
 /// quatro vê quatro. Cada um é um interruptor independente, e a escolha fica
 /// no servidor, por isso sobrevive a fechar a app e acompanha a pessoa se ela
 /// trocar de telemóvel.
+///
+/// As entregas são trabalho PRÓPRIO desde 2026-08-28, não um modo do papel de
+/// motorista. Quem anda de bicicleta ou mota a entregar não é motorista de
+/// TVDE — o TVDE exige certificado do IMT e levar comida não exige. Antes
+/// disto, quem só queria entregar tinha de se inscrever como motorista.
+/// `drivers.work_mode` continua a existir mas é PROJECÇÃO desta preferência,
+/// mantida por gatilho: só há um sítio onde se escreve.
 library;
 
 import 'package:flutter/foundation.dart';
@@ -31,14 +38,16 @@ class PapelDeTrabalho {
 
   /// Como se chama isto a quem está a ler, em português de Portugal.
   String get titulo => switch (papel) {
-        'driver' => 'Corridas e entregas',
+        'driver' => 'Corridas de passageiros',
+        'delivery' => 'Entregas',
         'cleaner' => 'Limpeza',
         'washer' => 'Lavagem de carros',
         _ => papel,
       };
 
   String get descricao => switch (papel) {
-        'driver' => 'Viagens de passageiros e entregas.',
+        'driver' => 'Levar pessoas de um lado ao outro.',
+        'delivery' => 'Levar comida, compras e encomendas.',
         'cleaner' => 'Limpezas de casas e escritórios.',
         'washer' => 'Lavagens de carro onde o cliente estiver.',
         _ => '',

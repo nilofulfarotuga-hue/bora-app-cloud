@@ -71,6 +71,27 @@ Deno.serve(async (req) => {
     )
   }
 
+  // A pessoa quer receber um pedido de entrega hoje?
+  //
+  // Desde 2026-08-28 as entregas e as corridas sao trabalhos SEPARADOS, cada
+  // um com o seu interruptor na caixa "O que queres aceitar?". Sem esta
+  // pergunta o interruptor era decorativo — ligava e desligava uma coisa que
+  // ninguem consultava. Sem preferencia gravada = sim, comportamento de sempre.
+  {
+    const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+    const { data: quer } = await sb.rpc('aceita_papel', {
+      p_user_id: driverId, p_papel: 'delivery',
+    })
+    if (quer === false) {
+      console.log(`[notify-driver] ${driverId} tem 'delivery' desligado — nao se envia`)
+      // Esta funcao nao tem o ajudante json() das outras; responde a mao.
+      return new Response(
+        JSON.stringify({ ok: false, reason: 'papel_desligado' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
+  }
+
   console.log(`[notify-driver] driverId=${driverId} orderId=${orderId} vendor="${vendorName}" total=${total}`)
 
   const supabase = createClient(supabaseUrl, serviceKey)

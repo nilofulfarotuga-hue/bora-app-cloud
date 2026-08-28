@@ -18,9 +18,10 @@ void main() {
       expect(mostrarCaixaDePapeis([p('driver'), p('cleaner')]), isTrue);
     });
 
-    test('quem tem os três vê', () {
+    test('quem tem os quatro vê', () {
       expect(
-        mostrarCaixaDePapeis([p('driver'), p('cleaner'), p('washer')]),
+        mostrarCaixaDePapeis(
+            [p('driver'), p('delivery'), p('cleaner'), p('washer')]),
         isTrue,
       );
     });
@@ -58,7 +59,7 @@ void main() {
 
   group('os nomes que a pessoa lê', () {
     test('cada papel tem título e descrição em português', () {
-      for (final papel in const ['driver', 'cleaner', 'washer']) {
+      for (final papel in const ['driver', 'delivery', 'cleaner', 'washer']) {
         final x = p(papel);
         expect(x.titulo, isNotEmpty, reason: papel);
         expect(x.descricao, isNotEmpty, reason: papel);
@@ -70,6 +71,24 @@ void main() {
     test('a limpeza e a lavagem têm nome próprio, não são "outro"', () {
       expect(p('cleaner').titulo, 'Limpeza');
       expect(p('washer').titulo, 'Lavagem de carros');
+    });
+
+    test('as entregas são trabalho próprio, separado das corridas', () {
+      // Antes de 2026-08-28 as entregas eram um MODO do papel de motorista, e
+      // por isso quem só queria entregar tinha de se inscrever como motorista
+      // de TVDE — que exige certificado do IMT e nada tem a ver com levar
+      // comida. Os dois títulos não se podem confundir.
+      expect(p('delivery').titulo, 'Entregas');
+      expect(p('driver').titulo, 'Corridas de passageiros');
+      expect(p('driver').titulo, isNot(contains('ntrega')),
+          reason: 'o papel de corridas não pode dizer que faz entregas');
+    });
+
+    test('os quatro trabalhos existem e são distintos', () {
+      final titulos = const ['driver', 'delivery', 'cleaner', 'washer']
+          .map((x) => p(x).titulo)
+          .toSet();
+      expect(titulos.length, 4, reason: 'dois papéis com o mesmo nome');
     });
 
     test('um papel desconhecido não rebenta — mostra o nome cru', () {

@@ -80,7 +80,7 @@ void main() {
       // comida. Os dois títulos não se podem confundir.
       expect(p('delivery').titulo, 'Entregas');
       expect(p('driver').titulo, 'Corridas de passageiros');
-      expect(p('driver').titulo, isNot(contains('ntrega')),
+      expect(p('driver').titulo, isNot(startsWith('Entregas')),
           reason: 'o papel de corridas não pode dizer que faz entregas');
     });
 
@@ -91,9 +91,30 @@ void main() {
       expect(titulos.length, 4, reason: 'dois papéis com o mesmo nome');
     });
 
-    test('um papel desconhecido não rebenta — mostra o nome cru', () {
-      expect(p('futuro').titulo, 'futuro');
-      expect(p('futuro').descricao, isEmpty);
+    test('um papel sem tradução NUNCA mostra o nome técnico', () {
+      // Foi assim que apareceu "delivery", em inglês e minúsculas, no ecrã
+      // do Danilo: o papel entrou na base antes de alguém lhe dar nome.
+      expect(p('futuro').titulo, isNot('futuro'));
+      expect(p('futuro').titulo, 'Outro trabalho');
+      expect(p('futuro').temNomeProprio, isFalse);
+    });
+
+    test('TODOS os papéis conhecidos têm nome de gente', () {
+      // Esta é a guarda: papel novo na base sem tradução rebenta aqui, e não
+      // no telemóvel do Danilo.
+      for (final papel in PapelDeTrabalho.conhecidos) {
+        expect(p(papel).temNomeProprio, isTrue,
+            reason: '$papel chegou ao ecrã sem nome em português');
+      }
+    });
+
+    test('as palavras são as que o Danilo confirmou no ecrã real', () {
+      // Aprovadas por ele a 2026-08-28, depois de actualizar a app. Mudar
+      // isto sem ordem dele é desfazer o que ele já validou.
+      expect(p('driver').titulo, 'Corridas de passageiros');
+      expect(p('driver').descricao, 'Levar pessoas de um lado ao outro.');
+      expect(p('delivery').titulo, 'Entregas');
+      expect(p('delivery').descricao, 'Levar comida, compras e encomendas.');
     });
   });
 

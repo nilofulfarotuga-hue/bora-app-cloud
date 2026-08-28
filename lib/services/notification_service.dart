@@ -553,6 +553,19 @@ void _onLocalNotifTap(NotificationResponse response) {
       NotificationService.instance.openPartnerAgendaFromNotification();
       return;
     }
+    // Limpeza e lavagem: abrir o ecrã da categoria certa, no trabalho certo.
+    const ofertasDeCategoria = <String, String>{
+      'cleaning_offer': 'limpeza',
+      'cleaning_status': 'limpeza',
+      'carwash_offer': 'lavagem',
+      'carwash_status': 'lavagem',
+    };
+    final categoria = ofertasDeCategoria[data['type']?.toString()];
+    if (categoria != null) {
+      NotificationService.abrirTrabalho
+          ?.call(categoria, data['bookingId']?.toString() ?? '');
+      return;
+    }
     if (data['type'] != 'chat') return;
     final orderId = data['orderId']?.toString() ?? '';
     if (orderId.isEmpty) return;
@@ -1104,6 +1117,22 @@ Future<void> _showPersistentCategoryNotification(RemoteMessage message) async {
         urgent: type == 'cleaning_offer',
       );
       return;
+    // [2026-08-28] A lavagem faltava aqui por inteiro. Sem este ramo o aviso
+    // caía no auto-display do Android — sem som insistente, sem ecrã aceso, e
+    // ao tocar não levava a lado nenhum. O Danilo apanhou-o com um pedido de
+    // vinte euros que ficou parado seis horas.
+    case 'carwash_offer':
+    case 'carwash_status':
+      final bookingId = data['bookingId']?.toString() ?? '';
+      await _showPersistentStatusNotification(
+        type: type,
+        title: notif?.title ?? '🚿 Bora Lavagem',
+        body: notif?.body ?? '',
+        notificationId: bookingId.isNotEmpty ? bookingId.hashCode : type.hashCode,
+        payload: {'bookingId': bookingId},
+        urgent: type == 'carwash_offer',
+      );
+      return;
     case 'tvde_chat':
       // Mensagem de chat da corrida — antes caía no beep silencioso. Notif
       // local persistente (canal normal, sem som em loop) com o nome do
@@ -1327,6 +1356,15 @@ class NotificationService {
   /// A HomeScreen do motorista liga-se aqui para: confirmar via RPC
   /// (`tvde_reservation_ready`) e abrir a navegação para a recolha.
   static void Function(String rideId)? tvdeReservationReadyTap;
+
+  /// Tocar num aviso de LIMPEZA ou de LAVAGEM abre o ecrã dessa categoria.
+  ///
+  /// Um gancho só para as duas, com a categoria no argumento — não um por
+  /// categoria, que era como se chegava a quatro cópias da mesma coisa.
+  /// Antes disto o toque só trazia a app à home e o trabalho ficava perdido;
+  /// o Danilo apanhou-o a 2026-08-28 com a lavagem. Registado uma vez no
+  /// `main.dart`, para responder mesmo com a pessoa noutro papel.
+  static void Function(String categoria, String bookingId)? abrirTrabalho;
 
   final _sound = SoundService();
   bool _initialized = false;

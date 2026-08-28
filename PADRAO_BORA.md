@@ -27,7 +27,7 @@ O `CLAUDE.md` diz **como é a casa**; isto diz **onde é que já nos magoámos**
 
 ## 1. LISTA FECHADA — categoria nova ou papel novo
 
-Uma categoria só está **lançada** quando os onze pontos abaixo estão feitos. Se faltar um,
+Uma categoria só está **lançada** quando os dezanove pontos abaixo estão feitos. Se faltar um,
 não está lançada — está a meio, e diz-se que está a meio.
 
 Esta lista existe porque em Agosto lançámos três categorias e **todas** falharam em pontos
@@ -195,6 +195,105 @@ e recebe os avisos) e "Pedir pelo site" (iPhone e computador, sem instalar nada)
 > — dois ffmpeg ao mesmo tempo num PC de 4 GB — e **subiu para produção um ficheiro de 57 KB
 > com dois quadros**. O webm estava bom e o mp4 era lixo. O gerador tem agora uma guarda:
 > abaixo de um megabyte rebenta em vez de deixar passar.
+
+
+### 1.12 A sobreposição por cima do ecrã, seja qual for o papel
+
+Entra um trabalho, o aviso aparece **por cima do que a pessoa estiver a fazer** — mesmo
+noutro papel, mesmo com a app em segundo plano, mesmo com a app fechada. O mecanismo é
+`IncomingJobAlert`: canal urgente `bora_orders_urgent_v3`, `fullScreenIntent`, som
+`bora_alert` em ciclo com `FLAG_INSISTENT`. É o padrão do estafeta, extraído para se
+reutilizar.
+
+**Não se usa `FlutterOverlayWindow`.** Foi removido de propósito a 18/07 e está escrito no
+topo do ficheiro: o sistema de oferta do estafeta é delicado e testado em aparelho, e
+mexer-lhe às cegas arriscava partir uma peça central. Quem quiser sobreposição usa o
+`fullScreenIntent`, que acorda o ecrã e já está provado.
+
+> **Cicatriz (28/08, Lavagem Auto):** a lavagem nasceu sem uma única linha de alerta do lado
+> da app — zero referências a `IncomingJobAlert` no `washer_store`. Não havia som, não havia
+> valor, e tocar no aviso não levava a lado nenhum.
+
+### 1.13 O aviso leva sempre o valor, e o valor é o que a pessoa GANHA
+
+Todo aviso de trabalho novo leva o dinheiro no corpo. E leva o que o prestador recebe, não
+o que o cliente paga — é isso que faz a pessoa decidir.
+
+> **Cicatriz (28/08):** um pedido de lavagem de vinte euros gerou um aviso que dizia zero
+> euros, porque ninguém punha o campo lá dentro.
+
+### 1.14 Tocar no aviso abre o ecrã da categoria certa, no trabalho certo
+
+Um gancho **único** com a categoria no argumento (`NotificationService.abrirTrabalho`),
+registado no `main.dart` e não dentro de um ecrã.
+
+> **Cicatriz (20/08):** o gancho do "A caminho" da reserva vivia no `initState` de um ecrã;
+> com outro ecrã por cima ficava a `null` e a navegação nunca abria.
+> **Cicatriz (28/08):** tocar num aviso de lavagem só trazia a app à home.
+
+### 1.15 Rotação entre prestadores — e as tarefas agendadas a chamá-la
+
+Não basta escrever as funções de rotação. **Alguém tem de as chamar.** Categoria nova sem
+`cron.job` é código morto com aspecto de funcionalidade. Ao lançar, comparar com a limpeza,
+que é o molde mais completo: tempo esgotado da oferta, nova tentativa, expirar sem ninguém,
+lembretes, alerta de preso, acerto semanal.
+
+E os tempos de espera vivem em `platform_settings`, nunca cravados no corpo da função.
+
+> **Cicatriz (28/08, Lavagem Auto):** as funções `_carwash_cron_offer_timeout`,
+> `_carwash_cron_retry_unoffered` e `_carwash_cron_stuck` existiam há dias e **não havia uma
+> única tarefa agendada a chamá-las**. A limpeza tinha oito, a lavagem tinha zero. Um pedido
+> de vinte euros foi oferecido às 06h24, a oferta expirou às 06h34, e ficou parado seis horas
+> porque não havia nada a olhar para ele.
+
+### 1.16 O nome que a pessoa lê nunca é o nome técnico do papel
+
+`driver`, `delivery`, `cleaner`, `washer` são nomes de base de dados. No ecrã aparece
+"Corridas de passageiros", "Entregas", "Limpeza", "Lavagem de carros". O caso de recurso de
+um tradutor **nunca devolve o nome cru** — devolve um rótulo neutro e um teste rebenta.
+
+> **Cicatriz (28/08):** apareceu "delivery", em inglês e minúsculas e sem descrição, no ecrã
+> do Danilo. O papel entrou na base antes de alguém lhe dar nome, e o recurso do tradutor
+> mostrava o que vinha da base.
+
+### 1.17 O cartão copia-se do que já está provado, não se prova outra vez
+
+Cartão, MB Way e dinheiro continuam obrigatórios (ver 1.1). O que muda é a **prova**: o
+caminho do cartão já está provado no delivery e no motorista. Categoria nova aplica esse
+caminho tal e qual, e a prova é mostrar que é o mesmo caminho — não repetir o teste do zero.
+Onde houver diferença entre categorias, alinha-se pelo que já está provado.
+
+### 1.18 Ao tirar uma escolha antiga, apagá-la mesmo
+
+Substituir um menu por outro e deixar o antigo vivo noutro caminho é criar gémeos com
+atraso: dois sítios que dizem a mesma coisa e se podem contradizer. Apaga-se o antigo, e
+apaga-se também quem escrevia por ele.
+
+> **Cicatriz (28/08):** os quatro interruptores novos entraram, mas o menu velho das duas
+> opções ficou vivo num caminho de recurso, a escrever `drivers.work_mode` à mão — o mesmo
+> campo que passara a ser projecção da preferência.
+
+
+### 1.19 O texto de marketing bate certo com a base de dados, ao pormenor
+
+Nunca se escreve uma promessa mais generosa do que o produto. Antes de publicar o
+site, o cartaz ou a descrição da loja, lê-se o que está na base — nome, preço,
+quantidades, o que está incluído e o que se paga à parte — e o texto diz **isso**,
+com números. "Os que quiseres" e "todos incluídos" são promessas sem número e não
+se usam.
+
+E vale nos dois sentidos: também não se pode sugerir menos do que o produto é. Um
+texto que faça parecer que o bowl vem só com açaí afasta quem queria os
+acompanhamentos.
+
+> **Cicatriz (28/08, Goola Açaí):** o topo do site dizia "com os acompanhamentos
+> que quiseres — todos incluídos no preço", e as meta-descrições diziam "com 17
+> acompanhamentos incluídos". A verdade, que já estava correcta na base de dados
+> desde o primeiro dia, é 3 acompanhamentos no Goola Bowl e 4 no Big Bowl, à
+> escolha entre 17, mais 3 extras pagos à parte. Cinco sítios do mesmo site
+> prometiam a mais. **Foi o próprio dono da loja a apanhar**, ao ler o cartaz,
+> antes de aquilo chegar ao público — e teria dado reclamação ao balcão nos dois
+> sentidos: quem esperasse toppings à vontade e quem julgasse que era açaí puro.
 
 ---
 

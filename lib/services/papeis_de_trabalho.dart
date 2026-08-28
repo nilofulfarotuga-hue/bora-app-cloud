@@ -42,7 +42,11 @@ class PapelDeTrabalho {
         'delivery' => 'Entregas',
         'cleaner' => 'Limpeza',
         'washer' => 'Lavagem de carros',
-        _ => papel,
+        // NUNCA devolver o nome técnico. Foi assim que apareceu "delivery",
+        // em inglês e minúsculas, no ecrã do Danilo a 2026-08-28: o papel
+        // entrou na base antes de alguém lhe dar nome. Um papel novo sem
+        // tradução mostra isto e o teste rebenta — que é o que se quer.
+        _ => 'Outro trabalho',
       };
 
   String get descricao => switch (papel) {
@@ -52,6 +56,15 @@ class PapelDeTrabalho {
         'washer' => 'Lavagens de carro onde o cliente estiver.',
         _ => '',
       };
+
+  /// Este papel tem nome de gente, ou caiu no recurso?
+  ///
+  /// Serve o teste que impede um papel novo de chegar ao ecrã sem tradução.
+  bool get temNomeProprio => titulo != 'Outro trabalho' && descricao.isNotEmpty;
+
+  /// Todos os papéis de trabalho que a base pode devolver. Papel novo entra
+  /// aqui E nas duas traduções acima, ou o teste apanha.
+  static const List<String> conhecidos = ['driver', 'delivery', 'cleaner', 'washer'];
 
   PapelDeTrabalho copyWith({bool? aceita}) =>
       PapelDeTrabalho(papel: papel, aceita: aceita ?? this.aceita);

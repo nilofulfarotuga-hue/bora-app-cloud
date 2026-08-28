@@ -44,6 +44,8 @@ import 'screens/admin/admin_ratings_screen.dart';
 import 'screens/admin/admin_skill_suggestions_metrics_screen.dart';
 import 'screens/admin/admin_weekly_settlements_screen.dart';
 import 'screens/restaurant_ratings_list_screen.dart';
+import 'screens/cleaner/cleaner_home_screen.dart';
+import 'screens/washer/washer_home_screen.dart';
 import 'screens/client_login_screen.dart';
 import 'screens/client_main_screen.dart';
 import 'screens/driver_home_screen.dart';
@@ -305,6 +307,22 @@ Future<void> main() async {
   // TvdeDriverHomeScreen, e com o ecrã de corrida por cima o gancho ficava a
   // null: a RPC corria pelo caminho headless mas a navegação nunca abria.
   NotificationService.tvdeReservationReadyTap = tvdeConfirmarACaminhoGlobal;
+
+  // Tocar num aviso de limpeza ou de lavagem abre o ecrã dessa categoria.
+  //
+  // Fica AQUI, ao nível da app, e não dentro de um ecrã — é a lição de
+  // 2026-08-20 com o "A caminho" da reserva, que estava preso ao initState de
+  // um ecrã e ficava a null com outro ecrã por cima. A pessoa que acumula
+  // papéis recebe o aviso estando onde estiver, e tem de poder abri-lo.
+  NotificationService.abrirTrabalho = (categoria, bookingId) {
+    final nav = NotificationService.navigatorKey.currentState;
+    if (nav == null) return;
+    nav.push(MaterialPageRoute<void>(
+      builder: (_) => categoria == 'limpeza'
+          ? const CleanerHomeScreen()
+          : const WasherHomeScreen(),
+    ));
+  };
 
   // TODO: remover após diagnóstico — handlers globais de crash.
   final originalOnError = FlutterError.onError;

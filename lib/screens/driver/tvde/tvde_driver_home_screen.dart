@@ -601,13 +601,13 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
     final papeis = await PapeisDeTrabalhoService.meus();
     if (!mounted) return;
 
-    // Quem só tem um papel não tem escolha nenhuma a fazer — mostrar-lhe uma
-    // caixa de uma linha é estorvo. Nesse caso fica a caixa antiga, que
-    // continua a distinguir corridas de entregas dentro do papel de motorista.
-    if (!mostrarCaixaDePapeis(papeis)) {
-      _abrirEscolhaSoDeConducao();
-      return;
-    }
+    // Sem papéis de trabalho não há caixa nenhuma a mostrar. Não existe
+    // caminho de recurso: a caixa antiga foi APAGADA porque escrevia
+    // `drivers.work_mode` à mão, e esse campo passou a ser projecção da
+    // preferência. Dois sítios a escrever a mesma verdade é o erro dos
+    // gémeos — o menu velho ficou por baixo dos interruptores novos a dizer
+    // a mesma coisa duas vezes, e o Danilo apanhou-o no ecrã a 2026-08-28.
+    if (papeis.isEmpty) return;
 
     showModalBottomSheet<void>(
       context: context,
@@ -616,71 +616,6 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
     );
   }
 
-  /// A caixa de sempre, para quem só tem o papel de condução.
-  void _abrirEscolhaSoDeConducao() {
-    final mode = context.read<TvdeDriverStore>().workMode;
-    showModalBottomSheet<void>(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                  Spacing.lg, Spacing.lg, Spacing.lg, Spacing.sm),
-              child: Text('O que queres aceitar?',
-                  style: Theme.of(ctx)
-                      .textTheme
-                      .titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w800)),
-            ),
-            RadioListTile<String>(
-              value: 'rides_only',
-              groupValue: mode,
-              activeColor: AppColors.primary,
-              title: const Text('Só corridas de passageiros'),
-              subtitle: const Text('Recebes apenas viagens Bora Motorista.'),
-              onChanged: (v) => _applyWorkMode(ctx, v!),
-            ),
-            RadioListTile<String>(
-              value: 'everything',
-              groupValue: mode,
-              activeColor: AppColors.primary,
-              title: const Text('Corridas + entregas (tudo)'),
-              subtitle: const Text(
-                  'Corridas + entregas de restaurante, supermercado e favores.'),
-              onChanged: (v) => _applyWorkMode(ctx, v!),
-            ),
-            const SizedBox(height: Spacing.md),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// [fechar] existe porque a caixa nova de papéis fica aberta enquanto a
-  /// pessoa mexe nos vários interruptores; a caixa antiga, de escolha única,
-  /// fecha-se assim que se escolhe.
-  Future<void> _applyWorkMode(BuildContext sheetCtx, String mode,
-      {bool fechar = true}) async {
-    if (fechar) Navigator.pop(sheetCtx);
-    try {
-      await context.read<TvdeDriverStore>().setWorkMode(mode);
-      if (!mounted) return;
-      // Espelha no modelo local do delivery: supportsService() passa a aceitar
-      // entregas quando 'everything' (dual-driver). Fonte de verdade = backend.
-      context.read<DriverStore>().currentDriver?.workMode = mode;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(mode == 'rides_only'
-              ? 'Preferência guardada: só corridas.'
-              : 'Preferência guardada: tudo.')));
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Não foi possível guardar a preferência.')));
-    }
-  }
 
   @override
   Widget build(BuildContext context) {

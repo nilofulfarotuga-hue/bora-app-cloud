@@ -1,3 +1,4 @@
+import '../services/incoming_job_alert.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -120,20 +121,74 @@ class WasherStore extends ChangeNotifier {
         event: PostgresChangeEvent.all,
         schema: 'public',
         table: 'carwash_bookings',
-        callback: (_) => refreshAll(),
+        callback: (mudanca) {
+          _talvezAlertarOfertaNova(mudanca.newRecord);
+          refreshAll();
+        },
       )
       ..subscribe();
+  }
+
+  /// Ids já alertados, para não tocar duas vezes pelo mesmo trabalho — o
+  /// realtime dispara em cada alteração da linha.
+  final Set<String> _ofertasJaAlertadas = <String>{};
+
+  /// A rotação atribuiu-me esta lavagem: toca o alerta insistente, o MESMO do
+  /// estafeta e da limpeza (canal urgente, som em loop, ecrã aceso por cima do
+  /// que estiver à frente).
+  ///
+  /// Isto faltava por inteiro. A lavagem não tinha uma única linha de alerta no
+  /// lado da app — nem valor, nem som, nem sítio para onde tocar. Foi por isso
+  /// que a 2026-08-28 um pedido de vinte euros ficou seis horas parado e o
+  /// aviso que chegou não dizia quanto era nem abria nada.
+  ///
+  /// A app fechada é coberta pela Edge Function `notify-washer`; isto cobre a
+  /// app aberta, inclusive noutro papel — é o que faz tocar com a pessoa
+  /// parada no ecrã de motorista.
+  void _talvezAlertarOfertaNova(Map<String, dynamic> linha) {
+    final id = (linha['id'] ?? '').toString();
+    if (id.isEmpty) return;
+    final eu = _profile?.id ?? ' ';
+    if ((linha['offer_washer_id'] ?? '').toString() != eu) return;
+    if ((linha['washer_id'] ?? '').toString().isNotEmpty) return; // já aceite
+    if (!_ofertasJaAlertadas.add(id)) return;
+
+    // O valor VAI no aviso. Mostra-se o que a pessoa ganha, não o que o
+    // cliente paga — foi o que se pediu, e um aviso sem valor não decide nada.
+    final ganho = linha['washer_earnings_cents'];
+    final ganhoStr =
+        ganho is num && ganho > 0 ? '€${(ganho / 100).toStringAsFixed(2)}' : '';
+    final cidade = (linha['address_city'] ?? '').toString();
+    IncomingJobAlert.show(
+      id: id,
+      type: 'carwash_offer',
+      title: '🚿 Nova lavagem!',
+      body: [
+        if (ganhoStr.isNotEmpty) 'Ganhas $ganhoStr',
+        if (cidade.isNotEmpty) cidade,
+        'Toca para ver e aceitar.',
+      ].join(' · '),
+      extraPayload: {'bookingId': id},
+    );
   }
 
   // ══════════════════════════════════════════════════════════════════════════
   // AÇÕES — todas por RPC (o servidor é que valida)
   // ══════════════════════════════════════════════════════════════════════════
 
-  Future<bool> accept(String bookingId) =>
-      _call('washer_accept_booking', {'p_booking_id': bookingId});
+  Future<bool> accept(String bookingId) {
+    IncomingJobAlert.dismiss(bookingId);
+    return _call('washer_accept_booking', {'p_booking_id': bookingId});
+  }
 
-  Future<bool> reject(String bookingId) =>
-      _call('washer_reject_booking', {'p_booking_id': bookingId});
+  /// Rejeitar cala o alerta e devolve o trabalho à rotação — o servidor
+  /// trata de o oferecer ao seguinte. O ecrã de quem rejeitou volta ao que
+  /// estava, porque o alerta é notificação e não ecrã empurrado.
+  Future<bool> reject(String bookingId) {
+    IncomingJobAlert.dismiss(bookingId);
+    _ofertasJaAlertadas.remove(bookingId);
+    return _call('washer_reject_booking', {'p_booking_id': bookingId});
+  }
 
   Future<bool> markOnTheWay(String bookingId) =>
       _call('carwash_mark_on_the_way', {'p_booking_id': bookingId});

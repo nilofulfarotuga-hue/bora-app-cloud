@@ -52,6 +52,19 @@ Deno.serve(async (req) => {
 
   const supabase = createClient(supabaseUrl, serviceKey)
 
+  // A pessoa quer receber pedidos deste papel hoje?
+  //
+  // Quem acumula papeis liga e desliga cada um na caixa "O que queres
+  // aceitar?". Sem preferencia gravada = sim, que e o comportamento de
+  // sempre. Sem esta verificacao o interruptor da caixa era decorativo.
+  const { data: quer } = await supabase.rpc('aceita_papel', {
+    p_user_id: cleanerUserId, p_papel: 'cleaner',
+  })
+  if (quer === false) {
+    console.log(`[notify-cleaner] cleaner ${cleanerUserId} tem o papel desligado — nao se envia`)
+    return json({ ok: false, reason: 'papel_desligado' })
+  }
+
   // [2026-08-28] Tokens de TODOS os aparelhos deste cleaner.
   //
   // Antes lia-se so `users.fcm_token`, a coluna antiga de um aparelho unico —

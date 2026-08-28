@@ -17,6 +17,7 @@ import '../../../models/driver_model.dart';
 import '../../../services/driver_location_ping_service.dart';
 import '../../../services/heartbeat_service.dart';
 import '../../../services/notification_service.dart';
+import '../../../services/papeis_de_trabalho.dart';
 import '../../../services/incoming_job_alert.dart';
 import '../../../models/order_model.dart';
 import '../../../services/permission_gate_service.dart';
@@ -585,8 +586,40 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
     context.read<AuthStore>().logout();
   }
 
-  // ── Preferências de trabalho (só corridas vs tudo) ─────────────────────────
-  void _openWorkModeSheet() {
+  // ── O que queres aceitar? ──────────────────────────────────────────────────
+  //
+  // Isto era um rádio de duas opções fixas — só corridas, ou corridas mais
+  // entregas. Quem acumula quatro papéis via duas linhas e não tinha onde
+  // ligar a limpeza nem a lavagem de carros: a categoria estava no ar e o
+  // prestador não a via em lado nenhum.
+  //
+  // Agora a caixa é construída dos papéis REAIS da pessoa, lidos de
+  // `user_roles`. Quem tem dois vê dois; quem tem quatro vê quatro. Cada um é
+  // um interruptor independente e a escolha fica gravada no servidor.
+  Future<void> _openWorkModeSheet() async {
+    final papeis = await PapeisDeTrabalhoService.meus();
+    if (!mounted) return;
+
+    // Quem só tem um papel não tem escolha nenhuma a fazer — mostrar-lhe uma
+    // caixa de uma linha é estorvo. Nesse caso fica a caixa antiga, que
+    // continua a distinguir corridas de entregas dentro do papel de motorista.
+    if (!mostrarCaixaDePapeis(papeis)) {
+      _abrirEscolhaSoDeConducao();
+      return;
+    }
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => _CaixaDePapeis(
+        iniciais: papeis,
+        aoMudarConducao: (modo) => _applyWorkMode(ctx, modo, fechar: false),
+      ),
+    );
+  }
+
+  /// A caixa de sempre, para quem só tem o papel de condução.
+  void _abrirEscolhaSoDeConducao() {
     final mode = context.read<TvdeDriverStore>().workMode;
     showModalBottomSheet<void>(
       context: context,
@@ -628,8 +661,12 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
     );
   }
 
-  Future<void> _applyWorkMode(BuildContext sheetCtx, String mode) async {
-    Navigator.pop(sheetCtx);
+  /// [fechar] existe porque a caixa nova de papéis fica aberta enquanto a
+  /// pessoa mexe nos vários interruptores; a caixa antiga, de escolha única,
+  /// fecha-se assim que se escolhe.
+  Future<void> _applyWorkMode(BuildContext sheetCtx, String mode,
+      {bool fechar = true}) async {
+    if (fechar) Navigator.pop(sheetCtx);
     try {
       await context.read<TvdeDriverStore>().setWorkMode(mode);
       if (!mounted) return;
@@ -1104,6 +1141,126 @@ class _GateScreen extends StatelessWidget {
               TextButton(onPressed: onLogout, child: const Text('Sair')),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A caixa "O que queres aceitar?" para quem acumula papéis.
+///
+/// Um interruptor por papel, independentes. O de condução escreve em
+/// `drivers.work_mode` (que é o que o dispatch das corridas já lê); os de
+/// limpeza e lavagem escrevem na preferência por papel, que as funções de
+/// aviso consultam antes de enviar. Sem essa consulta o interruptor seria
+/// decorativo — e já tivemos disso que chegue.
+class _CaixaDePapeis extends StatefulWidget {
+  const _CaixaDePapeis({required this.iniciais, required this.aoMudarConducao});
+
+  final List<PapelDeTrabalho> iniciais;
+  final Future<void> Function(String modo) aoMudarConducao;
+
+  @override
+  State<_CaixaDePapeis> createState() => _CaixaDePapeisState();
+}
+
+class _CaixaDePapeisState extends State<_CaixaDePapeis> {
+  late List<PapelDeTrabalho> _papeis = List.of(widget.iniciais);
+  String? _aGravar;
+
+  Future<void> _mexer(PapelDeTrabalho p, bool ligar) async {
+    if (!ligar && !podeDesligar(_papeis)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text(avisoUltimoPapel)),
+      );
+      return;
+    }
+    setState(() => _aGravar = p.papel);
+    final ok = await PapeisDeTrabalhoService.definir(p.papel, ligar);
+    if (!mounted) return;
+    setState(() {
+      _aGravar = null;
+      if (ok) {
+        _papeis = _papeis
+            .map((x) => x.papel == p.papel ? x.copyWith(aceita: ligar) : x)
+            .toList();
+      }
+    });
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Não foi possível guardar. Tente outra vez.')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final conducao = _papeis.any((p) => p.papel == 'driver' && p.aceita);
+    return SafeArea(
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                  Spacing.lg, Spacing.lg, Spacing.lg, Spacing.xs),
+              child: Text('O que queres aceitar?',
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w800)),
+            ),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(Spacing.lg, 0, Spacing.lg, Spacing.sm),
+              child: Text(
+                'Liga e desliga o que quiseres receber hoje. Fica guardado.',
+                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              ),
+            ),
+            for (final p in _papeis)
+              SwitchListTile(
+                value: p.aceita,
+                activeThumbColor: AppColors.primary,
+                title: Text(p.titulo),
+                subtitle: Text(p.descricao),
+                secondary: _aGravar == p.papel
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : null,
+                onChanged:
+                    _aGravar == null ? (v) => _mexer(p, v) : null,
+              ),
+            // Dentro do papel de condução ainda há duas coisas diferentes:
+            // levar pessoas e levar comida. Quem tem o papel ligado escolhe.
+            if (conducao) ...[
+              const Divider(height: 1),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                    Spacing.lg, Spacing.md, Spacing.lg, Spacing.xs),
+                child: Text('Dentro das corridas e entregas',
+                    style: Theme.of(context).textTheme.labelLarge),
+              ),
+              RadioListTile<String>(
+                value: 'rides_only',
+                groupValue: context.watch<TvdeDriverStore>().workMode,
+                activeColor: AppColors.primary,
+                dense: true,
+                title: const Text('Só passageiros'),
+                onChanged: (v) => widget.aoMudarConducao(v!),
+              ),
+              RadioListTile<String>(
+                value: 'everything',
+                groupValue: context.watch<TvdeDriverStore>().workMode,
+                activeColor: AppColors.primary,
+                dense: true,
+                title: const Text('Passageiros e entregas'),
+                onChanged: (v) => widget.aoMudarConducao(v!),
+              ),
+            ],
+            const SizedBox(height: Spacing.md),
+          ],
         ),
       ),
     );

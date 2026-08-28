@@ -270,6 +270,20 @@ Future<void> main() async {
   await Supabase.initialize(
     url: _supabaseUrl,
     anonKey: _supabaseAnonKey,
+    // [Fix 2026-08-29] PKCE (o default do pacote) guarda o code_verifier só
+    // no storage local de quem pediu a recuperação. Quando o link do email
+    // abre noutro sítio — o browser do telemóvel, o navegador de outro
+    // dispositivo — esse storage está vazio e a troca do código falha
+    // sempre com "code challenge does not match previously saved code
+    // verifier" (visto nos auth_logs: 100% dos pedidos reais falhavam).
+    // O fluxo implícito manda o token já pronto no fragmento da URL
+    // (#access_token=…&refresh_token=…), sem precisar de nenhum segredo
+    // local — funciona em qualquer dispositivo. A app não usa OAuth nem
+    // magic-link, só recuperação de senha e troca de email, por isso não há
+    // nenhuma flow que dependesse da garantia extra do PKCE.
+    authOptions: const FlutterAuthClientOptions(
+      authFlowType: AuthFlowType.implicit,
+    ),
   );
 
   // Recuperação de palavra-passe — o link do email abre o deep link

@@ -178,9 +178,43 @@ E a prova no telemóvel, por o cabo estar desligado.
 
 ---
 
+## Adendo — o texto da Goola prometia a mais
+
+O dono da loja leu o cartaz e apanhou um problema real, antes de aquilo chegar
+ao público. Tinha razão, e é o melhor tipo de erro: apanhado por quem conhece o
+produto.
+
+Cinco sítios do site prometiam a mais, não um. O topo dizia "com os
+acompanhamentos que quiseres — todos incluídos no preço". A meta-descrição e o
+texto que aparece quando alguém partilha o link diziam "com 17 acompanhamentos
+incluídos", que se lê como dezassete dentro do preço. A linha do menu dizia "os
+acompanhamentos já vão dentro do preço", sem número. E o contador grande dizia
+"17 acompanhamentos incluídos, sem custo nenhum".
+
+A verdade estava **já correcta na base de dados desde o primeiro dia**: o Goola
+Bowl leva três acompanhamentos à escolha e o Big Bowl leva quatro, de entre
+dezassete, e há três extras que se pagam à parte. Era o site que se tinha
+afastado dos dados, não os dados que estavam errados.
+
+Corrigi os cinco sítios e também o texto da loja na base, que dizia
+"acompanhamentos à sua escolha" — não era falso, mas era vago, e agora diz os
+números. Confirmei que em lado nenhum se sugere que o produto é açaí puro.
+
+Publiquei e fui verificar pelo endereço público: as quatro frases novas estão lá
+e as quatro antigas desapareceram. Sobre a cache: não a purguei, e digo porquê
+em vez de dizer que purguei — o cabeçalho que veio na resposta diz que aquela
+página não é guardada pela zona, portanto não havia nada para purgar. Se
+estivesse a ser guardada, teria purgado.
+
+A regra ficou escrita no padrão como ponto dezanove: o texto de marketing bate
+certo com a base de dados, ao pormenor, e nunca se escreve uma promessa mais
+generosa do que o produto.
+
+---
+
 ## Verificações
 
-O `flutter analyze` corre com zero erros. As migrações foram aplicadas e
+O `flutter analyze` corre com zero erros e os testes passam todos — trezentos e dois. As migrações foram aplicadas e
 verificadas uma a uma por consulta. As três tarefas agendadas estão activas.
 Nada do que fiz toca em preços, comissões, tokens, dispatch das corridas nem no
 `versionCode`.

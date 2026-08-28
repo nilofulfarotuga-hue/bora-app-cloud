@@ -26,6 +26,8 @@ import '../services/wallet_service.dart';
 import '../stores/driver_store.dart';
 import '../stores/session_store.dart';
 import 'cleaner/cleaner_home_screen.dart';
+import 'trabalhar_no_bora_screen.dart';
+import 'washer/washer_home_screen.dart';
 import 'client/reservation/my_reservation_lists_screen.dart';
 import 'client/services/my_appointments_screen.dart';
 import 'client_reservations_screen.dart';
@@ -569,28 +571,64 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
                   ),
-                  // MULTI-PAPEL: a entrada de Limpeza também tem de aparecer ao
-                  // estafeta (a secção "Quick links" abaixo é só do cliente, por
-                  // isso o convite ficava invisível para drivers). Mesmo tile
-                  // role-aware que o cliente vê.
+                  // MULTI-PAPEL: a porta também tem de aparecer ao estafeta
+                  // (a secção "Quick links" abaixo é só do cliente, por isso o
+                  // convite ficava invisível para drivers).
+                  // A PORTA (2026-08-29). Substitui o convite que era só da
+                  // Limpeza: a lavagem não tinha convite nenhum e as entregas
+                  // e corridas viviam noutro sítio. Uma entrada, quatro
+                  // actividades, o estado real de cada uma.
                   ListTile(
-                    leading: const Icon(Icons.cleaning_services_outlined,
+                    leading: const Icon(Icons.badge_outlined,
                         color: AppColors.primary),
-                    title: Text(_roles.hasCleaner
-                        ? 'A minha Limpeza'
-                        : 'Trabalha também em Limpeza?'),
-                    subtitle: Text(_roles.hasCleaner
-                        ? 'Gere as tuas limpezas e disponibilidade'
-                        : 'Ganha 85% por limpeza — com a mesma conta'),
+                    title: Text(_roles.temAlgumPapel
+                        ? 'O meu trabalho no Bora'
+                        : 'Quero trabalhar no Bora'),
+                    subtitle: Text(_roles.temAlgumPapel
+                        ? 'Vê o que já fazes e acrescenta actividades'
+                        : 'Entregas, corridas, limpeza ou lavagem de carros'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                          builder: (_) => const CleanerHomeScreen()),
+                          builder: (_) => const TrabalharNoBoraScreen()),
                     ).then((_) {
                       if (mounted) _loadRoles();
                     }),
                   ),
+                  // Quem já é faxineiro continua a ter o atalho directo para o
+                  // painel dele — a porta é para escolher, não para trabalhar.
+                  if (_roles.hasCleaner)
+                    ListTile(
+                      leading: const Icon(Icons.cleaning_services_outlined,
+                          color: AppColors.primary),
+                      title: const Text('A minha Limpeza'),
+                      subtitle:
+                          const Text('Gere as tuas limpezas e disponibilidade'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const CleanerHomeScreen()),
+                      ).then((_) {
+                        if (mounted) _loadRoles();
+                      }),
+                    ),
+                  if (_roles.hasWasher)
+                    ListTile(
+                      leading: const Icon(Icons.local_car_wash_outlined,
+                          color: AppColors.primary),
+                      title: const Text('A minha Lavagem'),
+                      subtitle: const Text('Vê e aceita lavagens perto de ti'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const WasherHomeScreen()),
+                      ).then((_) {
+                        if (mounted) _loadRoles();
+                      }),
+                    ),
                   // Stripe Connect Fase 1 (2026-08-06).
                   ListTile(
                     leading: const Icon(Icons.account_balance_outlined,
@@ -734,24 +772,61 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       MaterialPageRoute(builder: (_) => const ReferralScreen()),
                     ),
                   ),
+                  // A PORTA (2026-08-29). Substitui o convite que era só da
+                  // Limpeza: a lavagem não tinha convite nenhum e as entregas
+                  // e corridas viviam noutro sítio. Uma entrada, quatro
+                  // actividades, o estado real de cada uma.
                   ListTile(
-                    leading: const Icon(Icons.cleaning_services_outlined,
+                    leading: const Icon(Icons.badge_outlined,
                         color: AppColors.primary),
-                    title: Text(_roles.hasCleaner
-                        ? 'A minha Limpeza'
-                        : 'Trabalha também em Limpeza?'),
-                    subtitle: Text(_roles.hasCleaner
-                        ? 'Gere as tuas limpezas e disponibilidade'
-                        : 'Ganha 85% por limpeza — com a mesma conta'),
+                    title: Text(_roles.temAlgumPapel
+                        ? 'O meu trabalho no Bora'
+                        : 'Quero trabalhar no Bora'),
+                    subtitle: Text(_roles.temAlgumPapel
+                        ? 'Vê o que já fazes e acrescenta actividades'
+                        : 'Entregas, corridas, limpeza ou lavagem de carros'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                          builder: (_) => const CleanerHomeScreen()),
+                          builder: (_) => const TrabalharNoBoraScreen()),
                     ).then((_) {
                       if (mounted) _loadRoles();
                     }),
                   ),
+                  // Quem já é faxineiro continua a ter o atalho directo para o
+                  // painel dele — a porta é para escolher, não para trabalhar.
+                  if (_roles.hasCleaner)
+                    ListTile(
+                      leading: const Icon(Icons.cleaning_services_outlined,
+                          color: AppColors.primary),
+                      title: const Text('A minha Limpeza'),
+                      subtitle:
+                          const Text('Gere as tuas limpezas e disponibilidade'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const CleanerHomeScreen()),
+                      ).then((_) {
+                        if (mounted) _loadRoles();
+                      }),
+                    ),
+                  if (_roles.hasWasher)
+                    ListTile(
+                      leading: const Icon(Icons.local_car_wash_outlined,
+                          color: AppColors.primary),
+                      title: const Text('A minha Lavagem'),
+                      subtitle: const Text('Vê e aceita lavagens perto de ti'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const WasherHomeScreen()),
+                      ).then((_) {
+                        if (mounted) _loadRoles();
+                      }),
+                    ),
                   ListTile(
                     leading: const Icon(Icons.support_agent_outlined,
                         color: AppColors.primary),

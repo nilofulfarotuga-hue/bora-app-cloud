@@ -62,6 +62,51 @@ class WasherStore extends ChangeNotifier {
     }
   }
 
+  /// Candidatura a lavador. Molde do `CleanerStore.apply` — mesmos campos,
+  /// mesma ordem, mesma forma de erro. A diferenca esta so no nome da funcao.
+  ///
+  /// Ate 2026-08-29 este metodo nao existia e nao havia funcao na base: a
+  /// Lavagem Auto estava aberta ao publico sem que ninguem se pudesse
+  /// inscrever para a fazer.
+  Future<void> apply({
+    required String name,
+    required String phone,
+    String email = '',
+    String nif = '',
+    String bio = '',
+    String baseAddress = '',
+    double? baseLat,
+    double? baseLng,
+    double serviceRadiusKm = 10,
+    String photoUrl = '',
+    Map<String, dynamic> docs = const {},
+  }) async {
+    _setBusy(true);
+    try {
+      final res = await _sb.rpc('washer_apply', params: {
+        'p_name': name,
+        'p_phone': phone,
+        'p_email': email,
+        'p_nif': nif,
+        'p_bio': bio,
+        'p_photo_url': photoUrl,
+        'p_base_address': baseAddress,
+        'p_base_lat': baseLat,
+        'p_base_lng': baseLng,
+        'p_service_radius_km': serviceRadiusKm,
+        'p_docs': docs,
+      }).timeout(kAcaoTimeout);
+      _profile = WasherProfile.fromSupabase(Map<String, dynamic>.from(res as Map));
+      notifyListeners();
+      if (_profile != null) _subscribe();
+    } catch (e) {
+      debugPrint('WasherStore.apply error => $e');
+      rethrow;
+    } finally {
+      _setBusy(false);
+    }
+  }
+
   // ══════════════════════════════════════════════════════════════════════════
   // OFERTAS E TRABALHOS
   // ══════════════════════════════════════════════════════════════════════════

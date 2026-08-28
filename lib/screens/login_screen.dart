@@ -8,6 +8,7 @@ import '../stores/driver_store.dart';
 import '../stores/session_store.dart';
 import '../widgets/bora/bora_primary_button.dart';
 import 'driver_signup_screen.dart';
+import 'trabalhar_no_bora_screen.dart';
 import 'register_client_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -204,6 +205,17 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: const Text('Candidata-te'),
               ),
             ],
+          ),
+          // A PORTA (2026-08-29): daqui via-se so a candidatura de estafeta.
+          // Quem queria limpar casas ou lavar carros nao tinha por onde entrar.
+          TextButton.icon(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (_) => const TrabalharNoBoraScreen()),
+            ),
+            icon: const Icon(Icons.badge_outlined, size: 18),
+            label: const Text('Ver tudo o que se pode fazer no Bora'),
           ),
         ],
       ),

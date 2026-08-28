@@ -30,7 +30,8 @@ import '../../../widgets/background_location_disclosure.dart';
 import '../../../widgets/bora_support_sheet.dart';
 import '../../../widgets/tvde/tvde_reservation_offer_card.dart';
 import '../../driver_home_screen.dart';
-import '../../driver_earnings_screen.dart';
+import '../../ganhos_screen.dart';
+import '../../../widgets/trocar_de_papel.dart';
 import 'tvde_driver_agenda_screen.dart';
 import 'tvde_offer_screen.dart';
 import 'tvde_ride_active_screen.dart';
@@ -369,7 +370,7 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
   /// motorista TVDE passa a ver o quadro completo, não só o histórico de corridas.
   void _openEarnings() {
     Navigator.of(context).push(MaterialPageRoute<void>(
-        builder: (_) => const DriverEarningsScreen()));
+        builder: (_) => const GanhosScreen()));
   }
 
   /// F — suporte (reusa a folha de suporte do delivery: Bora IA + WhatsApp + Email).
@@ -660,6 +661,13 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
         foregroundColor: Colors.white,
         title: const Text('Bora Motorista'),
         actions: [
+          // SALTAR ENTRE PAPEIS (2026-08-29): o Danilo tinha de sair da app e
+          // voltar a entrar para passar de motorista a lavador.
+          IconButton(
+            icon: const Icon(Icons.swap_horiz),
+            tooltip: 'Trabalhar noutra coisa',
+            onPressed: () => abrirTrocaDePapel(context),
+          ),
           // [Item F] Removido o atalho separado de "Entregas" — as ofertas de
           // entrega/favor agora aparecem como overlay no próprio mapa (tela única).
           // [Reserva agendada 2026-08-19] A AGENDA — as corridas marcadas dele.

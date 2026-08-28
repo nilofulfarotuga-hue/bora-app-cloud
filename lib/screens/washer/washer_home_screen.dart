@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../models/carwash_models.dart';
+import '../../widgets/botao_rota.dart';
 import '../../services/carwash_upload_service.dart';
 import '../../stores/washer_store.dart';
 import '../../utils/safe_image_picker.dart';
@@ -75,6 +76,13 @@ class _WasherHomeScreenState extends State<WasherHomeScreen> {
         ok = await store.markDelivering(b.id, photos: fotos);
       case CarwashStatus.delivering:
         ok = await store.markDelivered(b.id);
+        // FIM DO TRABALHO — volta sozinho ao ecra de onde veio. Ate 2026-08-29
+        // ficava preso aqui ate carregar na setinha, e o Danilo apanhou isso
+        // no teste ao vivo.
+        if (ok && mounted && Navigator.canPop(context)) {
+          Navigator.pop(context);
+          return;
+        }
       default:
         return;
     }
@@ -326,7 +334,15 @@ class _OfertaCard extends StatelessWidget {
           _linha(Icons.confirmation_number_outlined,
               '${b.plate}${b.carMakeModel.isEmpty ? '' : ' · ${b.carMakeModel}'}'
               '${b.carColor.isEmpty ? '' : ' · ${b.carColor}'}'),
-          _linha(Icons.place_outlined, b.addressLine),
+          Row(
+            children: [
+              Expanded(child: _linha(Icons.place_outlined, b.addressLine)),
+              // ABRIR A ROTA (2026-08-29): vai buscar o carro do cliente e
+              // tinha so a morada escrita.
+              BotaoRota(
+                  morada: b.addressLine, lat: b.lat, lng: b.lng, compacto: true),
+            ],
+          ),
           if (b.pickupNotes.isNotEmpty)
             _linha(Icons.vpn_key_outlined, b.pickupNotes),
           _linha(Icons.phone_outlined, b.clientPhone),

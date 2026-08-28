@@ -26,7 +26,7 @@ import '../services/wallet_service.dart';
 import '../stores/driver_store.dart';
 import '../stores/session_store.dart';
 import 'cleaner/cleaner_home_screen.dart';
-import 'prestador/meus_ganhos_screen.dart';
+import 'ganhos_screen.dart';
 import 'trabalhar_no_bora_screen.dart';
 import 'washer/washer_home_screen.dart';
 import 'client/reservation/my_reservation_lists_screen.dart';
@@ -629,7 +629,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(
-                            builder: (_) => const MeusGanhosScreen()),
+                            builder: (_) => const GanhosScreen()),
                       ),
                     ),
                   if (_roles.hasWasher)
@@ -844,7 +844,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(
-                            builder: (_) => const MeusGanhosScreen()),
+                            builder: (_) => const GanhosScreen()),
                       ),
                     ),
                   if (_roles.hasWasher)

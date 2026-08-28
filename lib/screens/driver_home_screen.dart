@@ -40,7 +40,8 @@ import '../stores/order_store.dart';
 import '../stores/session_store.dart';
 import '../widgets/chat_bubble_button.dart';
 import 'chat_screen.dart';
-import 'driver_earnings_screen.dart';
+import 'ganhos_screen.dart';
+import '../widgets/trocar_de_papel.dart';
 import 'driver_map_screen.dart';
 import 'driver_order_action_helper.dart';
 import 'profile_screen.dart';
@@ -753,7 +754,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => const DriverEarningsScreen(),
+                  builder: (_) => const GanhosScreen(),
                 ),
               );
             },
@@ -898,6 +899,13 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       appBar: AppBar(
         title: const Text('BORA — Estafeta'),
         actions: [
+          // SALTAR ENTRE PAPEIS (2026-08-29): sem isto, quem acumula tinha de
+          // sair da app e voltar a entrar para passar de estafeta a lavador.
+          IconButton(
+            icon: const Icon(Icons.swap_horiz),
+            tooltip: 'Trabalhar noutra coisa',
+            onPressed: () => abrirTrocaDePapel(context),
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Terminar sessão',
@@ -1059,7 +1067,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                          builder: (_) => const DriverEarningsScreen()),
+                          builder: (_) => const GanhosScreen()),
                     ),
                   ),
                   const SizedBox(width: 8),

@@ -57,9 +57,29 @@ Deno.serve(async (req) => {
   // Quem acumula papeis liga e desliga cada um na caixa "O que queres
   // aceitar?". Sem preferencia gravada = sim, que e o comportamento de
   // sempre. Sem esta verificacao o interruptor da caixa era decorativo.
-  const { data: quer } = await supabase.rpc('aceita_papel', {
-    p_user_id: cleanerUserId, p_papel: 'cleaner',
-  })
+
+// ── 2026-08-29: O CLIENTE TAMBEM E AVISADO POR AQUI ───────────────────────
+// `_cleaning_notify_user` manda TUDO por esta funcao, incluindo os avisos
+// dirigidos ao CLIENTE ("A profissional aceitou"). Mas ela so procurava
+// aparelhos em `provider_push_tokens` com role='cleaner` — e o cliente nao
+// tem nenhum la. Resultado: o cliente nunca recebeu um unico push desta
+// categoria; ficava so com o aviso dentro da app, que ele so ve se abrir.
+//
+// Duas correccoes, ambas dependentes de saber SE o destinatario e prestador:
+//   1. o portao "queres receber deste papel?" so faz sentido para prestadores;
+//      a um cliente nao se pergunta se aceita lavagens.
+//   2. sem aparelho de prestador e nao sendo prestador, procura-se em
+//      `client_push_tokens`, que e onde vivem os aparelhos dos clientes.
+
+  const { data: linhaPrestador } = await supabase
+    .from('cleaners').select('id').eq('user_id', cleanerUserId).maybeSingle()
+  const ehPrestador = !!linhaPrestador
+
+  const { data: quer } = ehPrestador
+    ? await supabase.rpc('aceita_papel', {
+        p_user_id: cleanerUserId, p_papel: 'cleaner',
+      })
+    : { data: null }
   if (quer === false) {
     console.log(`[notify-cleaner] cleaner ${cleanerUserId} tem o papel desligado — nao se envia`)
     return json({ ok: false, reason: 'papel_desligado' })
@@ -92,6 +112,21 @@ Deno.serve(async (req) => {
     console.error('[notify-cleaner] DB error:', JSON.stringify(userErr))
   } else if (user?.fcm_token) {
     tokens.add(user.fcm_token as string)
+  }
+
+  // Sem aparelho de prestador E nao sendo prestador: e o cliente. Os
+  // aparelhos dele vivem noutra tabela.
+  if (tokens.size === 0 && !ehPrestador) {
+    const { data: doCliente, error: errCliente } = await supabase
+      .from('client_push_tokens')
+      .select('fcm_token')
+      .eq('user_id', cleanerUserId)
+      .eq('active', true)
+    if (errCliente) {
+      console.error('[notify-cleaner] erro a ler client_push_tokens:', JSON.stringify(errCliente))
+    } else {
+      for (const l of doCliente ?? []) if (l?.fcm_token) tokens.add(l.fcm_token as string)
+    }
   }
 
   if (tokens.size === 0) {

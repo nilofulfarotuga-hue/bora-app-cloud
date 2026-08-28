@@ -18,6 +18,7 @@ import 'services/app_update_service.dart';
 import 'services/floating_bubble_service.dart';
 import 'services/foreground_service.dart';
 import 'services/notification_service.dart';
+import 'widgets/atalho_trabalho_em_curso.dart';
 import 'services/push_token_service.dart';
 import 'services/small_order_fee.dart';
 import 'services/tvde_reservation_ready_handler.dart';
@@ -747,7 +748,14 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         home: const AppUpdateGate(
             child: ConsentBanner(
                 child: _BackToBackgroundWrapper(
-                    child: _ServerMirrorOnResume(child: _RootNavigator())))),
+                    child: _ServerMirrorOnResume(
+                        // 2026-08-29 — o trabalho aceite manda no ecra.
+                        // Envolve TUDO: a barra de voltar ao trabalho
+                        // aparece esteja a pessoa no ecra que estiver, e
+                        // ao abrir a app cai-se dentro do trabalho a meio
+                        // em vez de no ecra de motorista.
+                        child: const AtalhoTrabalhoEmCurso(
+                            child: _RootNavigator()))))),
       ),
     );
   }

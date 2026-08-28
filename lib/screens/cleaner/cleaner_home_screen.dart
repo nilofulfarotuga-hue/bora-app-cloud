@@ -17,7 +17,8 @@ import '../../widgets/multirole_switch_card.dart';
 import '../driver/driver_role_apply_screen.dart';
 import 'cleaner_apply_screen.dart';
 import 'cleaner_availability_screen.dart';
-import 'cleaner_earnings_screen.dart';
+import '../ganhos_screen.dart';
+import '../../widgets/botao_rota.dart';
 import 'cleaner_history_screen.dart';
 
 /// LIMPEZA — painel da profissional. Router por estado da candidatura:
@@ -356,7 +357,7 @@ class _PanelView extends StatelessWidget {
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (_) => const CleanerEarningsScreen()),
+                        builder: (_) => const GanhosScreen()),
                   ),
                 ),
               ),
@@ -685,6 +686,17 @@ class _AgendaCardState extends State<_AgendaCard> {
               style: const TextStyle(
                   color: AppColors.textSecondary, height: 1.4),
             ),
+            // ABRIR A ROTA (2026-08-29): o motorista tem mapa, quem limpa
+            // tinha a morada escrita e copiava-a a mao.
+            Align(
+              alignment: Alignment.centerLeft,
+              // Sem coordenadas: o modelo da limpeza nao as traz, so a
+              // morada escrita. O Google Maps procura por ela na mesma.
+              child: BotaoRota(
+                morada:
+                    '${b.addressStreet}, ${b.addressCity} ${b.addressPostal}',
+              ),
+            ),
             // Badge de cobrança UNIFICADO (mesmo widget do delivery/TVDE):
             // dinheiro → cobrar o total; card/MB Way → já pago (não cobrar).
             const SizedBox(height: 6),
@@ -823,8 +835,10 @@ class _AgendaCardState extends State<_AgendaCard> {
       case CleaningStatus.inProgress:
         return FilledButton.icon(
           style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
-          onPressed:
-              store.busy ? null : () => _safe(context, () => store.markDone(b.id)),
+          onPressed: store.busy
+              ? null
+              : () => _safe(context, () => store.markDone(b.id),
+                  aoTerminar: true),
           icon: const Icon(Icons.check, size: 18),
           label: const Text('Concluir limpeza'),
         );
@@ -981,10 +995,23 @@ class _AgendaCardState extends State<_AgendaCard> {
     }
   }
 
-  Future<void> _safe(BuildContext context, Future<void> Function() fn) async {
+  /// [aoTerminar] marca a ULTIMA accao da limpeza. Ate 2026-08-29 a
+  /// profissional ficava presa neste ecra depois de concluir, ate carregar na
+  /// setinha — o Danilo apanhou isso no teste ao vivo. Agora volta sozinha ao
+  /// ecra de onde veio; a avaliacao do cliente continua aqui enquanto o
+  /// pedido esperar a confirmacao dele.
+  Future<void> _safe(BuildContext context, Future<void> Function() fn,
+      {bool aoTerminar = false}) async {
     final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
     try {
       await fn();
+      if (aoTerminar) {
+        messenger.showSnackBar(const SnackBar(
+            content: Text('Limpeza concluída. Podes avaliar o cliente em '
+                '"A minha Limpeza".')));
+        if (navigator.canPop()) navigator.pop();
+      }
     } catch (_) {
       messenger.showSnackBar(const SnackBar(
           content: Text('Não foi possível concluir. Tenta de novo.')));

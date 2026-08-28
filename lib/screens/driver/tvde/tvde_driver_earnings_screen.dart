@@ -9,15 +9,15 @@ import '../../../widgets/bora/bora.dart';
 /// TVDE — M12 (paridade Uber Driver): ganhos do dia e da semana + histórico
 /// de corridas do motorista. Lê `tvde_rides` finalizadas do próprio motorista
 /// (RLS já permite; driver_id = auth uid). Read-only, sem tocar em fórmulas.
-class TvdeDriverEarningsScreen extends StatefulWidget {
-  const TvdeDriverEarningsScreen({super.key});
+class TvdeGanhosScreen extends StatefulWidget {
+  const TvdeGanhosScreen({super.key});
 
   @override
-  State<TvdeDriverEarningsScreen> createState() =>
-      _TvdeDriverEarningsScreenState();
+  State<TvdeGanhosScreen> createState() =>
+      _TvdeGanhosScreenState();
 }
 
-class _TvdeDriverEarningsScreenState extends State<TvdeDriverEarningsScreen> {
+class _TvdeGanhosScreenState extends State<TvdeGanhosScreen> {
   bool _loading = true;
   bool _error = false;
   List<TvdeRide> _rides = const [];

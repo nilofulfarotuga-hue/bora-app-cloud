@@ -48,6 +48,7 @@ import 'admin_search_kpi_screen.dart';
 import 'admin_send_notification_screen.dart';
 import 'admin_acerto_unificado_screen.dart';
 import 'admin_acertos_semana_screen.dart';
+import 'admin_ofertas_log_screen.dart';
 import 'admin_papeis_screen.dart';
 import 'admin_settlements_screen.dart';
 import 'admin_support_stats_screen.dart';
@@ -489,6 +490,21 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       MaterialPageRoute(
                           builder: (_) =>
                               const AdminAcertoUnificadoScreen())),
+                ),
+                const SizedBox(height: 10),
+                // OFERTAS (2026-08-29): a rodada oferecia a quem nao tinha
+                // aparelho e o trabalho ficava parado a toa, sem lugar nenhum
+                // onde se visse isso.
+                _NavCard(
+                  icon: Icons.record_voice_over,
+                  title: 'Ofertas de prestadores',
+                  subtitle:
+                      'Para quem foi, se tinha aparelho, e como acabou · CSV',
+                  color: Colors.teal,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminOfertasLogScreen())),
                 ),
                 const SizedBox(height: 10),
                 // PAPEIS (2026-08-29): nao existia painel de papeis para

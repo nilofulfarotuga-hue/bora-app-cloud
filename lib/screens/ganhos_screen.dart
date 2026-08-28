@@ -7,14 +7,26 @@ import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora_support_fab.dart';
 import '../widgets/weekly_settlement_card.dart';
 
-class DriverEarningsScreen extends StatefulWidget {
-  const DriverEarningsScreen({super.key});
+/// GANHOS — um ecra so, para quem trabalha no que for.
+///
+/// Chamava-se `DriverEarningsScreen` e era so do estafeta. A 2026-08-29 o
+/// Danilo abriu-o depois de ter feito uma lavagem a serio e viu **so as duas
+/// entregas** — a lavagem nao estava la, nem a limpeza, nem as corridas. E na
+/// vespera eu tinha construido um SEGUNDO ecra de ganhos, ja unificado, que
+/// ninguem alcancava: gemeos, e o errado era o que a pessoa abria.
+///
+/// Agora ha um so. O topo vem de `meu_ganho_ao_vivo` (todos os papeis) e o
+/// acerto vem de `meu_acerto_semanal` (a vista unificada, com a divida ja
+/// abatida e um numero final). O extracto e os tokens continuam a ser do
+/// estafeta, porque so ele os tem.
+class GanhosScreen extends StatefulWidget {
+  const GanhosScreen({super.key});
 
   @override
-  State<DriverEarningsScreen> createState() => _DriverEarningsScreenState();
+  State<GanhosScreen> createState() => _GanhosScreenState();
 }
 
-class _DriverEarningsScreenState extends State<DriverEarningsScreen> {
+class _GanhosScreenState extends State<GanhosScreen> {
   bool _loading = true;
   String? _error;
 
@@ -25,6 +37,16 @@ class _DriverEarningsScreenState extends State<DriverEarningsScreen> {
   /// driver_earnings_summary (TVDE + entregas + favores + tokens, a MESMA
   /// fonte dos acertos). O Flutter só exibe, nunca calcula.
   Map<String, dynamic>? _resumo;
+
+  /// Ganho de hoje e da semana de TODOS os papeis (`meu_ganho_ao_vivo`).
+  Map<String, dynamic>? _ganhoTodosOsPapeis;
+
+  /// O acerto da semana mais recente, ja unificado e com a divida abatida.
+  Map<String, dynamic>? _acertoUnificado;
+
+  /// So o estafeta tem extracto por pedido e tokens.
+  bool _souEstafeta = false;
+
   DateTime? _priorityUntil;
   final Map<String, int> _priorityCosts = {
     '5min': 50,
@@ -84,6 +106,32 @@ class _DriverEarningsScreenState extends State<DriverEarningsScreen> {
         debugPrint('[DriverEarnings] driver_earnings_summary: $e');
       }
 
+      // 2026-08-29 — GANHOS DE TODOS OS PAPEIS. Sem isto o ecra mostrava so
+      // entregas, mesmo a quem tinha acabado de fazer uma lavagem.
+      try {
+        final g = await supabase.rpc('meu_ganho_ao_vivo');
+        if (g is Map && g['ok'] == true) {
+          _ganhoTodosOsPapeis = Map<String, dynamic>.from(g);
+          _souEstafeta = ((g['por_papel'] as List?) ?? [])
+              .any((e) => (e as Map)['papel'] == 'driver');
+        }
+      } catch (e) {
+        debugPrint('[Ganhos] meu_ganho_ao_vivo: $e');
+      }
+
+      // O acerto ja unificado: um numero final por semana, divida abatida.
+      try {
+        final a = await supabase.rpc('meu_acerto_semanal', params: {
+          'p_semanas': 1,
+        });
+        final lista = (a as List?) ?? const [];
+        if (lista.isNotEmpty) {
+          _acertoUnificado = Map<String, dynamic>.from(lista.first as Map);
+        }
+      } catch (e) {
+        debugPrint('[Ganhos] meu_acerto_semanal: $e');
+      }
+
       // F5.4 (doença id/user_id): era .eq('id', uid) — conta com id≠user_id
       // nunca encontrava a própria linha. Tolerante às duas chaves.
       final driverRow = await supabase
@@ -140,6 +188,12 @@ class _DriverEarningsScreenState extends State<DriverEarningsScreen> {
         : null;
     final itens = List<Map<String, dynamic>>.from(
         (r['itens'] as List? ?? []).map((e) => Map<String, dynamic>.from(e)));
+    final g = _ganhoTodosOsPapeis;
+    final hojeTodos = (g?['hoje_cents'] as num?);
+    final semanaTodos = (g?['semana_cents'] as num?);
+    final porPapel = List<Map<String, dynamic>>.from(
+        ((g?['por_papel'] as List?) ?? [])
+            .map((e) => Map<String, dynamic>.from(e)));
     String eur(num? cents) =>
         '€${((cents ?? 0) / 100).toStringAsFixed(2).replaceAll('.', ',')}';
     // net_balance do settlement já vem em euros (não cents).
@@ -157,7 +211,10 @@ class _DriverEarningsScreenState extends State<DriverEarningsScreen> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(eur(dia['total_cents'] as num?),
+                // TODOS os papeis, nao so as entregas. Se a soma unificada
+                // ainda nao chegou, cai no numero do estafeta em vez de
+                // mostrar zero — um zero falso le-se como dinheiro perdido.
+                Text(eur(hojeTodos ?? dia['total_cents'] as num?),
                     style: const TextStyle(
                         fontSize: 32, fontWeight: FontWeight.w800)),
                 const SizedBox(width: 10),
@@ -179,18 +236,55 @@ class _DriverEarningsScreenState extends State<DriverEarningsScreen> {
               children: [
                 Expanded(
                   child: _miniSemana('Esta semana',
-                      eur(semana['total_cents'] as num?),
+                      eur(semanaTodos ?? semana['total_cents'] as num?),
                       (semana['tokens'] as num? ?? 0).toInt()),
                 ),
                 Expanded(
-                  child: _miniSemana('Semana passada',
+                  child: _miniSemana(
+                      'Semana passada',
                       eur(semanaPassada['total_cents'] as num?),
-                      (semanaPassada['tokens'] as num? ?? 0).toInt()),
+                      (semanaPassada['tokens'] as num? ?? 0).toInt(),
+                      nota: porPapel.length > 1
+                          ? 'so entregas e corridas'
+                          : null),
                 ),
               ],
             ),
-            // ÚLTIMO ACERTO — settlement fechado mais recente (servidor).
-            if (ultimoAcerto != null) ...[
+            // O DETALHE POR TIPO DE TRABALHO — so aparece a quem faz mais do
+            // que uma coisa. Quem so entrega nao precisa de uma linha a dizer
+            // "entregas" por baixo do total das entregas.
+            if (porPapel.length > 1) ...[
+              const SizedBox(height: 12),
+              const Divider(height: 1),
+              const SizedBox(height: 8),
+              Text('Esta semana, por tipo de trabalho',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+              const SizedBox(height: 4),
+              ...porPapel.map((l) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 3),
+                    child: Row(
+                      children: [
+                        Icon(_iconeDoPapel(l['papel']?.toString() ?? ''),
+                            size: 18, color: Colors.grey.shade600),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text((l['titulo'] ?? '').toString(),
+                              style: const TextStyle(fontSize: 13)),
+                        ),
+                        Text(eur(l['semana_cents'] as num?),
+                            style: const TextStyle(
+                                fontSize: 13, fontWeight: FontWeight.w700)),
+                      ],
+                    ),
+                  )),
+            ],
+            // O ACERTO — ja unificado, com a divida abatida e um numero final.
+            // Era o `_acertoBlock`, que lia so a tabela do estafeta e por isso
+            // ignorava limpeza e lavagem.
+            if (_acertoUnificado != null) ...[
+              const SizedBox(height: 14),
+              _acertoUnificadoBlock(_acertoUnificado!),
+            ] else if (ultimoAcerto != null) ...[
               const SizedBox(height: 14),
               _acertoBlock(ultimoAcerto, eurRaw),
             ],
@@ -240,7 +334,7 @@ class _DriverEarningsScreenState extends State<DriverEarningsScreen> {
     );
   }
 
-  Widget _miniSemana(String rotulo, String valor, int tokens) {
+  Widget _miniSemana(String rotulo, String valor, int tokens, {String? nota}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -251,7 +345,124 @@ class _DriverEarningsScreenState extends State<DriverEarningsScreen> {
         if (tokens > 0)
           Text('+$tokens tokens',
               style: TextStyle(fontSize: 11, color: Colors.amber.shade800)),
+        // Diz de onde vem o numero quando NAO e a soma de tudo. Um numero sem
+        // dono ao lado de um numero unificado le-se como contradicao.
+        if (nota != null)
+          Text(nota,
+              style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
       ],
+    );
+  }
+
+  static IconData _iconeDoPapel(String papel) => switch (papel) {
+        'cleaner' => Icons.cleaning_services_outlined,
+        'washer' => Icons.local_car_wash_outlined,
+        _ => Icons.delivery_dining_outlined,
+      };
+
+  static String _tituloDoPapel(String papel) => switch (papel) {
+        'driver' => 'Entregas e corridas',
+        'cleaner' => 'Limpeza',
+        'washer' => 'Lavagem de carros',
+        _ => papel,
+      };
+
+  /// O ACERTO UNIFICADO — tudo o que a pessoa fez na semana, a divida ja
+  /// abatida, e UM numero final com sentido.
+  Widget _acertoUnificadoBlock(Map<String, dynamic> a) {
+    final total = (a['total_cents'] as num?)?.toInt() ?? 0;
+    final divida = (a['divida_cents'] as num?)?.toInt() ?? 0;
+    final pago = a['tudo_pago'] == true;
+    final sentido = (a['sentido'] ?? 'zero').toString();
+    final semana = (a['semana'] ?? '').toString();
+    final detalhe = (a['detalhe'] as Map?)?.cast<String, dynamic>() ?? {};
+    String eur(num c) =>
+        '€${(c.abs() / 100).toStringAsFixed(2).replaceAll('.', ',')}';
+    final deve = sentido == 'pessoa_deve';
+    final recebe = sentido == 'bora_paga';
+    final cor = deve ? Colors.orange.shade800 : Colors.green.shade800;
+    final rotulo = deve
+        ? 'A entregar a Bora'
+        : recebe
+            ? 'A receber da Bora'
+            : 'Saldo zero';
+    final dia = semana.length >= 10
+        ? '${semana.substring(8, 10)}/${semana.substring(5, 7)}'
+        : semana;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: deve ? Colors.orange.shade50 : Colors.green.shade50,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.receipt_long_outlined, size: 20, color: cor),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text('Acerto da semana de $dia',
+                    style:
+                        TextStyle(fontSize: 13, color: Colors.grey.shade700)),
+              ),
+              if (pago)
+                Text('PAGO',
+                    style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.green.shade800,
+                        fontWeight: FontWeight.w700)),
+            ],
+          ),
+          const SizedBox(height: 6),
+          // As parcelas ANTES do total, para o numero final ter explicacao.
+          ...detalhe.entries.map((e) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 1),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(_tituloDoPapel(e.key),
+                          style: TextStyle(
+                              fontSize: 12, color: Colors.grey.shade700)),
+                    ),
+                    Text(eur(((e.value as Map)['liquido_cents'] as num?) ?? 0),
+                        style: TextStyle(
+                            fontSize: 12, color: Colors.grey.shade700)),
+                  ],
+                ),
+              )),
+          if (divida > 0)
+            Row(
+              children: [
+                Expanded(
+                  child: Text('Dinheiro da Bora que ficou contigo',
+                      style: TextStyle(
+                          fontSize: 12, color: Colors.orange.shade900)),
+                ),
+                Text('- ${eur(divida)}',
+                    style: TextStyle(
+                        fontSize: 12, color: Colors.orange.shade900)),
+              ],
+            ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Expanded(
+                child: Text(rotulo,
+                    style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: cor)),
+              ),
+              Text(eur(total),
+                  style: TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.w800, color: cor)),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -548,10 +759,24 @@ class _DriverEarningsScreenState extends State<DriverEarningsScreen> {
                         _resumoUnificado(),
                         const SizedBox(height: 20),
                       ],
-                      // FASE 4: card semanal (settlement Lisbon TZ) — fonte
-                      // única de saldo, ganhos e detalhe por pedido.
-                      const WeeklySettlementCard(),
-                      const SizedBox(height: 20),
+                      // O cartao semanal do ESTAFETA. Deixou de ser "a fonte
+                      // unica de saldo" — o numero final agora e o do acerto
+                      // unificado, la em cima. Este fica pelo detalhe por
+                      // pedido e pelo MB Way, e so aparece a quem entrega, com
+                      // titulo que diz de que e. Dois numeros sem dono ao lado
+                      // um do outro leem-se como contradicao.
+                      if (_souEstafeta) ...[
+                        Padding(
+                          padding: const EdgeInsets.only(left: 4, bottom: 6),
+                          child: Text('Detalhe das entregas e corridas',
+                              style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.grey.shade700)),
+                        ),
+                        const WeeklySettlementCard(),
+                        const SizedBox(height: 20),
+                      ],
                       _TokenSection(
                         tokens: _tokens,
                         weeklyConverted: _weeklyTokensConverted,

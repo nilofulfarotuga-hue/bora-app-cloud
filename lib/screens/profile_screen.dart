@@ -26,6 +26,7 @@ import '../services/wallet_service.dart';
 import '../stores/driver_store.dart';
 import '../stores/session_store.dart';
 import 'cleaner/cleaner_home_screen.dart';
+import 'prestador/meus_ganhos_screen.dart';
 import 'trabalhar_no_bora_screen.dart';
 import 'washer/washer_home_screen.dart';
 import 'client/reservation/my_reservation_lists_screen.dart';
@@ -614,6 +615,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         if (mounted) _loadRoles();
                       }),
                     ),
+                  // OS MEUS GANHOS (2026-08-29): um so ecra para quem
+                  // trabalha, com hoje, a semana e o acerto por semana ja
+                  // somado de todos os papeis.
+                  if (_roles.temAlgumPapel)
+                    ListTile(
+                      leading: const Icon(Icons.payments_outlined,
+                          color: AppColors.primary),
+                      title: const Text('Os meus ganhos'),
+                      subtitle: const Text(
+                          'Hoje, esta semana e o acerto de cada semana'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const MeusGanhosScreen()),
+                      ),
+                    ),
                   if (_roles.hasWasher)
                     ListTile(
                       leading: const Icon(Icons.local_car_wash_outlined,
@@ -811,6 +829,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ).then((_) {
                         if (mounted) _loadRoles();
                       }),
+                    ),
+                  // OS MEUS GANHOS (2026-08-29): um so ecra para quem
+                  // trabalha, com hoje, a semana e o acerto por semana ja
+                  // somado de todos os papeis.
+                  if (_roles.temAlgumPapel)
+                    ListTile(
+                      leading: const Icon(Icons.payments_outlined,
+                          color: AppColors.primary),
+                      title: const Text('Os meus ganhos'),
+                      subtitle: const Text(
+                          'Hoje, esta semana e o acerto de cada semana'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const MeusGanhosScreen()),
+                      ),
                     ),
                   if (_roles.hasWasher)
                     ListTile(

@@ -1,5 +1,7 @@
 import '../utils/io_compat.dart';
 
+import 'dart:convert';
+
 import 'package:csv/csv.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
@@ -7,6 +9,8 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
+
+import '../utils/descarregar_ficheiro.dart';
 
 /// Admin Export Service (B3) — CSV and PDF exports for admin lists.
 ///
@@ -30,9 +34,16 @@ class AdminExportService {
     final all = <List<dynamic>>[headers, ...rows];
     final csv = const ListToCsvConverter(fieldDelimiter: ',').convert(all);
 
+    final safeNameWeb = filename.replaceAll(RegExp(r'[^\w.\-]'), '_');
     if (kIsWeb) {
-      // Web export not wired here — caller can use a download_helper.
-      debugPrint('[AdminExportService] CSV web fallback not wired: $filename');
+      // ATE 2026-08-29 ISTO ERA UM BOTAO MORTO: fazia debugPrint e voltava.
+      // O painel admin vive na web — era exactamente onde o exportar nao
+      // exportava, e nao dizia porque. Agora descarrega mesmo.
+      final ok = await descarregarBytes(
+          utf8.encode(csv), safeNameWeb, 'text/csv;charset=utf-8');
+      if (!ok) {
+        debugPrint('[AdminExportService] CSV web download falhou: $filename');
+      }
       return;
     }
 

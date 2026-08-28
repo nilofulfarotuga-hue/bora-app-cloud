@@ -21,13 +21,20 @@ class BoraScreenAppBar extends StatelessWidget implements PreferredSizeWidget {
     super.key,
     required this.title,
     this.actions,
+    this.bottom,
   });
 
   final String title;
   final List<Widget>? actions;
 
+  /// Barra de separadores por baixo do titulo (TabBar). Opcional — so o
+  /// painel de papeis a usa. Sem isto, um ecra com separadores teria de usar
+  /// um `AppBar` cru e perdia o verde da casa.
+  final PreferredSizeWidget? bottom;
+
   @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+  Size get preferredSize => Size.fromHeight(
+      kToolbarHeight + (bottom?.preferredSize.height ?? 0));
 
   @override
   Widget build(BuildContext context) {
@@ -44,6 +51,7 @@ class BoraScreenAppBar extends StatelessWidget implements PreferredSizeWidget {
       surfaceTintColor: Colors.transparent,
       scrolledUnderElevation: 0,
       elevation: 0,
+      bottom: bottom,
       iconTheme: const IconThemeData(color: Colors.white),
       actionsIconTheme: const IconThemeData(color: Colors.white),
       title: Text(

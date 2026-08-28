@@ -46,7 +46,9 @@ import 'admin_partner_settlements_screen.dart';
 import 'admin_referrals_screen.dart';
 import 'admin_search_kpi_screen.dart';
 import 'admin_send_notification_screen.dart';
+import 'admin_acerto_unificado_screen.dart';
 import 'admin_acertos_semana_screen.dart';
+import 'admin_papeis_screen.dart';
 import 'admin_settlements_screen.dart';
 import 'admin_support_stats_screen.dart';
 import 'admin_ai_models_screen.dart';
@@ -469,6 +471,38 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       context,
                       MaterialPageRoute(
                           builder: (_) => const AdminDriverPaymentsScreen())),
+                ),
+                const SizedBox(height: 10),
+                // ACERTO UNIFICADO (2026-08-29): cada pessoa UMA vez so, com
+                // entregas + corridas + limpeza + lavagem somadas, a divida
+                // abatida e um numero final. A tela "Acertos da semana"
+                // abaixo continua a existir porque tambem cobre parceiros e
+                // profissionais de marcacoes, que nao sao pessoas com papeis.
+                _NavCard(
+                  icon: Icons.groups_2,
+                  title: 'Acerto semanal por pessoa',
+                  subtitle:
+                      'Tudo o que cada um fez, somado · divida abatida · pagar · CSV',
+                  color: AppColors.primary,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminAcertoUnificadoScreen())),
+                ),
+                const SizedBox(height: 10),
+                // PAPEIS (2026-08-29): nao existia painel de papeis para
+                // categoria nenhuma.
+                _NavCard(
+                  icon: Icons.badge,
+                  title: 'Papeis e candidaturas',
+                  subtitle:
+                      'Quem tem que papel · acrescentar e tirar · aprovar e recusar',
+                  color: Colors.deepPurple,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminPapeisScreen())),
                 ),
                 const SizedBox(height: 10),
                 _NavCard(

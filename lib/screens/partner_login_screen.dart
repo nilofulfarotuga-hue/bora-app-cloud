@@ -343,7 +343,10 @@ class _PartnerLoginScreenState extends State<PartnerLoginScreen> {
     final sessionStore = context.read<SessionStore>();
     final appointmentsStore = context.read<PartnerAppointmentsStore>();
 
-    final restaurant = restaurantStore.restaurantByEmail(email);
+    // Dono primeiro; o email da loja e so o recurso das lojas antigas
+    // (ver a nota em partner_entry_screen).
+    final restaurant = restaurantStore.restaurantByOwner(authStore.userId) ??
+        restaurantStore.restaurantByEmail(email);
     if (restaurant != null) {
       authStore.setPartnerRestaurant(restaurant);
 

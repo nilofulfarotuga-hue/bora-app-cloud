@@ -597,9 +597,9 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
     if (context.watch<CarwashStore>().enabled) {
       tiles.add(
         _TileData(
-          label: 'Lavagem\nAuto',
+          label: 'Lavagem Auto',
           gradient: AppColors.tileCarwash,
-          iconData: Icons.local_car_wash,
+          imageAsset: 'assets/categories/cat_lavagem_auto.png',
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const CarwashServiceScreen()),

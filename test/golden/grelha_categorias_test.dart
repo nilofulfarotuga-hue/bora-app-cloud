@@ -35,6 +35,7 @@ const _categorias = <(String, String)>[
   ('Bora Motorista', 'assets/categories/cat_motorista.png'),
   ('Festas', 'assets/categories/cat_festas.png'),
   ('Sobremesas', 'assets/categories/cat_sobremesas.png'),
+  ('Lavagem Auto', 'assets/categories/cat_lavagem_auto.png'),
 ];
 
 /// Cópia fiel da grelha da home. Se as medidas mudarem lá, mudam aqui.
@@ -161,7 +162,7 @@ void main() {
     expect(alturas.length, 1,
         reason: 'ladrilhos com alturas diferentes: $alturas');
 
-    // E 4 por linha: 13 categorias => 4 linhas (4+4+4+1).
+    // E 4 por linha: 14 categorias => 4 linhas (4+4+4+2).
     final larguras = tester
         .widgetList(find.byType(BoraTileCard))
         .map((w) => tester.getSize(find.byWidget(w)).width)

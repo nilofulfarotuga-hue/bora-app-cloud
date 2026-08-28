@@ -35,7 +35,8 @@ class RestaurantDashboardScreen extends StatelessWidget {
     final restaurants = () {
       if (partnerRestaurant != null) {
         final refreshed =
-            restaurantStore.restaurantByEmail(partnerRestaurant!.email);
+            restaurantStore.restaurantByOwner(partnerRestaurant!.ownerId) ??
+                restaurantStore.restaurantByEmail(partnerRestaurant!.email);
         if (refreshed != null) {
           return <RestaurantModel>[refreshed];
         }
@@ -45,7 +46,9 @@ class RestaurantDashboardScreen extends StatelessWidget {
       if (isPartnerSession) {
         final partner = authStore.currentPartner;
         if (partner == null) return <RestaurantModel>[];
-        final restaurant = restaurantStore.restaurantByEmail(partner.email);
+        final restaurant =
+            restaurantStore.restaurantByOwner(authStore.userId) ??
+                restaurantStore.restaurantByEmail(partner.email);
         if (restaurant == null) {
           return <RestaurantModel>[];
         }

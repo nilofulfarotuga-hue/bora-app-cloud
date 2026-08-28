@@ -259,6 +259,20 @@ class RestaurantStore extends ChangeNotifier {
     }
   }
 
+  /// A loja deste parceiro, pelo DONO. É esta a pergunta certa: "existe uma
+  /// loja cujo dono é o utilizador autenticado?".
+  ///
+  /// Usar isto antes de [restaurantByEmail] — o email da loja é um campo de
+  /// contacto que pode estar vazio, e não uma chave de ligação.
+  RestaurantModel? restaurantByOwner(String? userId) {
+    if (userId == null || userId.isEmpty) return null;
+    for (final r in restaurants) {
+      if (r.ownerId != null && r.ownerId == userId) return r;
+    }
+    return null;
+  }
+
+  /// Recurso para lojas antigas sem dono gravado. Não usar sozinho.
   RestaurantModel? restaurantByEmail(String? email) {
     if (email == null) return null;
     final normalized = email.toLowerCase();
@@ -1246,6 +1260,8 @@ class RestaurantStore extends ChangeNotifier {
       address: data['address'] ?? '',
       phone: data['phone'] ?? '',
       email: data['email'] ?? '',
+      // As duas colunas de dono coexistem; lê-se sempre ambas.
+      ownerId: (data['user_id'] ?? data['user_'])?.toString(),
       photoUrl: imagemParaMostrar(data['photo_url'] as String?),
       cuisineType: data['cuisine_type'] ?? '',
       isPartner: data['is_partner'] ?? true,

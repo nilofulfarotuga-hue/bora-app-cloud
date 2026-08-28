@@ -144,6 +144,19 @@ class AuthStore extends ChangeNotifier {
   static const String duplicatePartnerEmailMessage =
       'Este email já tem uma conta. Faz login em vez de criar uma nova conta.';
 
+  /// FONTE DE VERDADE DO PAPEL, e é só esta.
+  ///
+  /// O papel do utilizador autenticado lê-se do `user_metadata` do token, por
+  /// esta chave. A app NÃO decide o papel por `user_roles` nem por
+  /// `users.role` — essas tabelas existem para o servidor (RLS) e para o
+  /// painel admin as gerir, e ler o papel de lá seria abrir a porta a três
+  /// respostas diferentes para a mesma pergunta.
+  ///
+  /// Nota da investigação de 2026-08-27: quando o dono da Goola caía no
+  /// wizard de criar conta, a suspeita era o papel estar divergente entre
+  /// esses sítios. Não era — o papel vinha bem daqui. O que falhava era a
+  /// ligação LOJA↔DONO, que era feita comparando `restaurants.email` com o
+  /// email do login. Ver `partner_entry_screen.dart`.
   static const _kRole = 'bora_role';
   static const _kName = 'bora_name';
   static const _kPhone = 'bora_phone';

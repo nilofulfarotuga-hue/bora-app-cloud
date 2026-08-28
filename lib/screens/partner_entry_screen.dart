@@ -28,8 +28,23 @@ class PartnerEntryScreen extends StatelessWidget {
         return PartnerDashboardScreen(restaurant: partnerRestaurant);
       }
 
+      // A REGRA (2026-08-27): se existe uma loja cujo DONO é o utilizador
+      // autenticado, vai para o painel dessa loja. Ponto.
+      //
+      // O estado da loja — Em breve, fechada, offline, por aprovar — muda o
+      // que ele vê DENTRO do painel, nunca se ele entra.
+      //
+      // A pergunta era feita pelo email da loja (`restaurantByEmail`), e isso
+      // partiu com a Goola Açaí: a coluna `restaurants.email` ficou por
+      // preencher quando a conta foi criada, a busca não achou nada, e o dono
+      // foi parar ao wizard de criar conta. O email é um campo de CONTACTO,
+      // não uma chave de ligação — a ligação é `restaurants.user_id`.
+      //
+      // O email fica como segunda hipótese só para as lojas antigas que ainda
+      // não tenham dono gravado.
       final existingRestaurant =
-          restaurantStore.restaurantByEmail(partner.email);
+          restaurantStore.restaurantByOwner(authStore.userId) ??
+              restaurantStore.restaurantByEmail(partner.email);
       if (existingRestaurant != null) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!context.mounted) return;
@@ -134,6 +149,23 @@ class _PartnerNoRestaurantRouterState
             }
             if (statusSnap.data == 'pending') {
               return const PendingApprovalScreen();
+            }
+            // ULTIMA REDE (2026-08-27): existe uma loja APROVADA cujo dono e
+            // este utilizador, mas ela ainda nao esta na lista carregada em
+            // memoria (primeiro arranque, lista por sincronizar, ou a loja
+            // fora da listagem publica). Antes so o caso 'pending' era
+            // tratado, e um dono de loja aprovada caia no wizard de criar
+            // conta — que para ele e um beco: submeter outra vez sobre uma
+            // loja que ja existe nao o leva ao painel nenhum.
+            //
+            // Aqui recarrega-se a lista e espera-se, em vez de o mandar
+            // criar o que ja tem.
+            if (statusSnap.data == 'approved') {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!context.mounted) return;
+                context.read<RestaurantStore>().loadRestaurantsFromSupabase();
+              });
+              return const _PartnerLoading();
             }
             return const RegisterPartnerScreen();
           },

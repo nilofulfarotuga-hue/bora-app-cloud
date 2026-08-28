@@ -185,6 +185,7 @@ class RestaurantModel {
     this.heroImageUrl,
     this.comingSoon = false,
     this.comingSoonText,
+    this.ownerId,
   });
 
   final String id;
@@ -243,6 +244,17 @@ class RestaurantModel {
   /// `restaurants.coming_soon_text` — texto do banner na ficha da loja.
   /// Null/vazio → usar [comingSoonLabel].
   final String? comingSoonText;
+
+  /// Dono da loja — `restaurants.user_id` (com `user_` como segunda hipótese,
+  /// que é a coluna antiga que ainda coexiste).
+  ///
+  /// FONTE DE VERDADE de "esta loja é deste parceiro". Antes a app procurava
+  /// a loja do parceiro comparando `restaurants.email` com o email do login, e
+  /// isso partia sempre que a coluna de email da loja ficava por preencher —
+  /// foi o que aconteceu à Goola Açaí a 2026-08-27, e mandou o dono para o
+  /// wizard de criar conta em vez do painel dele. O email continua a servir de
+  /// recurso para as lojas antigas que ainda não têm dono gravado.
+  final String? ownerId;
 
   /// Texto a mostrar no banner "Em breve" (com fallback).
   String get comingSoonLabel {

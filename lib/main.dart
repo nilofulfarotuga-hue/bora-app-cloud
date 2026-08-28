@@ -18,6 +18,7 @@ import 'services/app_update_service.dart';
 import 'services/floating_bubble_service.dart';
 import 'services/foreground_service.dart';
 import 'services/notification_service.dart';
+import 'services/push_token_service.dart';
 import 'services/small_order_fee.dart';
 import 'services/tvde_reservation_ready_handler.dart';
 import 'services/offer_presentation_gate.dart';
@@ -278,6 +279,24 @@ Future<void> main() async {
       NotificationService.navigatorKey.currentState?.push(
         MaterialPageRoute(builder: (_) => const ResetPasswordScreen()),
       );
+    }
+
+    // Registar o aparelho em TODOS os papéis da pessoa, a cada entrada.
+    //
+    // Isto faltava por inteiro. O `registerCurrentDeviceAutoDetect` existia
+    // mas **não tinha um único chamador** — era casca sem fio. Quem registava
+    // eram os ecrãs, cada um a fixar o seu papel à mão: o ecrã do motorista
+    // registava 'driver', o do parceiro 'partner'. Os ecrãs do faxineiro e do
+    // lavador não registavam nada, e por isso a limpeza, que está no ar,
+    // nunca conseguiu chamar ninguém.
+    //
+    // Aqui apanha-se toda a gente, seja qual for o papel e sejam quantos
+    // forem. Os registos dos ecrãs ficam — são idempotentes e servem de rede
+    // para quem entra sem passar por aqui.
+    if (state.event == AuthChangeEvent.signedIn ||
+        state.event == AuthChangeEvent.initialSession ||
+        state.event == AuthChangeEvent.tokenRefreshed) {
+      unawaited(PushTokenService.registerCurrentDeviceAutoDetect());
     }
   });
 

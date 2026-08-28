@@ -1,3 +1,4 @@
+import '../../services/push_token_service.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -35,6 +36,12 @@ class _CleanerHomeScreenState extends State<CleanerHomeScreen> {
   @override
   void initState() {
     super.initState();
+    // Sem isto, quem for aprovado com a app JA ABERTA fica sem
+    // aparelho registado ate reiniciar — e um pedido que chegue
+    // nesse intervalo nao toca a ninguem. O portao de autenticacao
+    // no main.dart apanha o arranque; isto apanha o meio da sessao.
+    PushTokenService.registerForRole('cleaner').ignore();
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) context.read<CleanerStore>().loadProfile();
     });

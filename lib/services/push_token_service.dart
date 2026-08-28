@@ -27,10 +27,42 @@ import 'notification_service.dart';
 class PushTokenService {
   PushTokenService._();
 
+  /// Papéis que podem ter aparelho registado para receber avisos.
+  ///
+  /// Tem de bater certo com o que a RPC `register_push_token` aceita — se
+  /// divergirem, um lado rejeita em silêncio e ninguém dá por isso. Foi
+  /// exactamente o que aconteceu com o faxineiro durante meses.
+  static const Set<String> papeisComPush = {
+    'client',
+    'driver',
+    'partner',
+    'cleaner',
+    'washer',
+  };
+
+  /// Onde é que o token deste papel vai parar.
+  ///
+  /// Os três papéis antigos têm tabela própria, cada um com o seu nome de
+  /// coluna de dono. Os papéis de prestador partilham `provider_push_tokens`,
+  /// onde o papel é uma coluna — foi assim de propósito, para o papel seguinte
+  /// não obrigar a mais uma tabela, mais políticas e mais um ramo em cada
+  /// função que envia. Serve para o registo dizer a verdade.
+  static String tabelaDoPapel(String role) =>
+      (role == 'cleaner' || role == 'washer')
+          ? 'provider_push_tokens (role=$role)'
+          : '${role}_push_tokens';
+
   static StreamSubscription<String>? _refreshSub;
   static bool _registering = false;
   static String? _lastRegisteredToken;
   static String? _lastRegisteredRole;
+
+  /// Todos os papéis já registados nesta sessão. É preciso um conjunto e não
+  /// um só: quando o FCM renova o token do aparelho, TODOS os papéis da pessoa
+  /// têm de receber o valor novo. Com uma variável única, quem acumulasse
+  /// motorista e faxineiro ficava mudo num deles a partir da primeira
+  /// renovação — e uma renovação não avisa ninguém.
+  static final Set<String> _papeisRegistados = <String>{};
 
   /// [Serviços 2026-07-28] BUG: o dedup de sessão era só (token, role). Num
   /// device partilhado — logout do parceiro A, login do parceiro B — o token
@@ -59,13 +91,20 @@ class PushTokenService {
   /// rejeitava o role e a tabela ficava vazia → notify-service-provider
   /// (push de marcação nova à barbearia) não tinha tokens para enviar.
   ///
+  /// [2026-08-28] 'cleaner' e 'washer' aceites. Antes desta data este guarda
+  /// rejeitava-os e a RPC também — resultado: a limpeza estava no ar e **nunca
+  /// conseguiu chamar ninguém**, porque nenhum faxineiro tinha token guardado.
+  /// Não havia sequer caminho antigo: ao contrário de `drivers`, as tabelas
+  /// `cleaners` e `washers` não têm coluna `fcm_token`. Ver a migration
+  /// `20260828120000_push_tokens_faxineiro_lavador.sql`.
+  ///
   /// Skips silently se:
   ///   • Not authenticated (após retries)
-  ///   • Role is not 'client' / 'driver' / 'partner'
+  ///   • Role fora de [papeisComPush]
   ///   • No FCM token available após 3 retries
   static Future<void> registerForRole(String role) async {
     if (_registering) return;
-    if (role != 'client' && role != 'driver' && role != 'partner') {
+    if (!papeisComPush.contains(role)) {
       _log('skip — invalid role: $role');
       return;
     }
@@ -103,9 +142,9 @@ class PushTokenService {
       // Wire token-refresh exactly once per session, keyed by role.
       _refreshSub ??= FirebaseMessaging.instance.onTokenRefresh.listen(
         (newToken) async {
-          final r = _lastRegisteredRole;
-          if (r == null) return;
-          await _registerRpc(role: r, token: newToken);
+          for (final papel in _papeisRegistados.toList()) {
+            await _registerRpc(role: papel, token: newToken);
+          }
         },
       );
     } finally {
@@ -113,23 +152,55 @@ class PushTokenService {
     }
   }
 
-  /// BUG E — Auto-detect role from auth metadata + register.
-  /// Útil para chamar em auth gate (main / _RootNavigator) sem precisar
-  /// de saber explicitamente qual o role. Lê auth.currentUser.userMetadata
-  /// ['bora_role'] — se 'driver' ou 'client', regista. Senão skip.
+  /// Regista este aparelho em TODOS os papéis que a pessoa tem.
+  ///
+  /// Antes lia-se `userMetadata['bora_role']`, que guarda **um** valor só. Quem
+  /// é motorista e faxineiro ao mesmo tempo ficava registado num papel e mudo
+  /// no outro — e a regra do Danilo é que os papéis se acumulam e que a pessoa
+  /// tem de ser chamada esteja no ecrã em que estiver.
+  ///
+  /// A verdade sobre quem acumula o quê está em `user_roles`, que é o que a
+  /// RPC `meus_papeis()` lê. O metadata fica como recurso para as contas
+  /// antigas que ainda não têm linha em `user_roles` — há-as, e ficar sem
+  /// registo nenhum era pior do que registar um papel.
   static Future<void> registerCurrentDeviceAutoDetect() async {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) {
       _log('autodetect skip — no auth user');
       return;
     }
-    final meta = user.userMetadata ?? <String, dynamic>{};
-    final role = (meta['bora_role'] as String?)?.toLowerCase();
-    if (role == 'driver' || role == 'client') {
-      _log('autodetect → registerForRole($role)');
-      await registerForRole(role!);
-    } else {
-      _log('autodetect skip — role=$role not (driver|client)');
+
+    final papeis = <String>{};
+    try {
+      final res = await Supabase.instance.client.rpc('meus_papeis');
+      if (res is List) {
+        papeis.addAll(res
+            .map((e) => e.toString().toLowerCase())
+            .where(papeisComPush.contains));
+      }
+    } catch (e) {
+      // Não engolir em silêncio: se a RPC falhar queremos saber, senão
+      // voltamos a ter avisos que não tocam e ninguém percebe porquê.
+      _log('autodetect — meus_papeis() falhou: $e');
+    }
+
+    if (papeis.isEmpty) {
+      final meta = user.userMetadata ?? <String, dynamic>{};
+      final doMeta = (meta['bora_role'] as String?)?.toLowerCase();
+      if (doMeta != null && papeisComPush.contains(doMeta)) {
+        _log('autodetect — sem user_roles, a usar o metadata: $doMeta');
+        papeis.add(doMeta);
+      }
+    }
+
+    if (papeis.isEmpty) {
+      _log('autodetect skip — a pessoa não tem papel nenhum com push');
+      return;
+    }
+
+    _log('autodetect → ${papeis.length} papel(is): ${papeis.join(", ")}');
+    for (final papel in papeis) {
+      await registerForRole(papel);
     }
   }
 
@@ -156,8 +227,10 @@ class PushTokenService {
       );
       _lastRegisteredToken = token;
       _lastRegisteredRole = role;
+      _papeisRegistados.add(role);
       _lastRegisteredUserId = Supabase.instance.client.auth.currentUser?.id;
-      _log('✓ token registered for $role (table: ${role}_push_tokens)');
+      _log('✓ token registado para $role '
+          '(tabela: ${tabelaDoPapel(role)})');
     } catch (e) {
       _log('✗ register_push_token RPC failed for role=$role: $e');
     }
@@ -174,6 +247,7 @@ class PushTokenService {
     _lastRegisteredToken = null;
     _lastRegisteredRole = null;
     _lastRegisteredUserId = null;
+    _papeisRegistados.clear();
   }
 
   static String? _deviceLabel() {

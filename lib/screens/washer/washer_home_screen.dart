@@ -1,3 +1,4 @@
+import '../../services/push_token_service.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
@@ -25,6 +26,12 @@ class _WasherHomeScreenState extends State<WasherHomeScreen> {
   @override
   void initState() {
     super.initState();
+    // Sem isto, quem for aprovado com a app JA ABERTA fica sem
+    // aparelho registado ate reiniciar — e um pedido que chegue
+    // nesse intervalo nao toca a ninguem. O portao de autenticacao
+    // no main.dart apanha o arranque; isto apanha o meio da sessao.
+    PushTokenService.registerForRole('washer').ignore();
+
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final s = context.read<WasherStore>();
       await s.loadProfile();

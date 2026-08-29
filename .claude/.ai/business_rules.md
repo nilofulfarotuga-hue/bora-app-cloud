@@ -588,8 +588,8 @@ Ver secção 8.3.
 Ver secção 7.7.
 
 ### 12.3 Pelo Cliente (Reserva de Mesa)
-- **Até 4 horas antes:** reembolso total do pré-pagamento €3
-- **Menos de 4 horas antes:** perde os €3
+- **Até 2 horas antes:** reembolso total do pré-pagamento €3
+- **Menos de 2 horas antes:** perde os €3
 - **No-show (não aparece):** perde os €3
 
 ### 12.4 Pelo Restaurante (Reserva)
@@ -680,10 +680,10 @@ Restaurante tem 3 opções:
 - €3 são descontados da conta final
 - Distribuição: **€1 Bora + €2 restaurante** (taxa de serviço + compensação mesa)
 
-**Se cliente cancela até 4 horas antes:**
+**Se cliente cancela até 2 horas antes:**
 - Reembolso total ao cliente
 
-**Se cliente cancela com menos de 4 horas OU não aparece:**
+**Se cliente cancela com menos de 2 horas OU não aparece:**
 - Cliente perde €3
 - Distribuição: **€1 Bora + €2 restaurante**
 
@@ -2040,9 +2040,10 @@ Cancelamentos avançados — 2 skills `write_shadow` reais com integração exte
   semanticamente mas auditada como acção admin.
 - Stripe refund é processado pela Edge Fn (RPC só retorna `prepayment_pi`).
 
-⚠️ **Inconsistência docs reportada**: §12.3 menciona janela de "4 horas",
-contradizendo §18.3 e DB (2h). DB é fonte da verdade — corrigir §12.3 em
-sessão de housekeeping.
+✅ **Inconsistência resolvida (2026-08-29)**: §12.3 e §14.5 diziam "4 horas" e
+contradiziam §18.3 e a base de dados. A janela é de **2 horas** —
+`reservation_cancel_window_hours = 2` em produção, igual à migration que a criou e ao
+fallback do código. Ambas as secções foram corrigidas nesta data.
 
 ### §36.12 Pattern `EXTERNAL_DISPATCH_REQUIRED` (Sessão 5B-β2a · 2026-05-06)
 
@@ -4032,3 +4033,62 @@ priorização real Expresso no dispatch.
 *Última atualização: 2026-06-16 (§55 FAVORES — categoria errand completa)*
 *Atualizar sempre que houver mudanças nas regras de negócio*
 *Fonte de verdade usada por: todas as skills do sistema*
+
+
+---
+
+## §56 — TVDE IDA-E-VOLTA e MARCAÇÕES (2026-08-29)
+
+> Escrito na missão `tvde-idavolta-e-disco`. As duas coisas faltavam por completo neste
+> documento, que é a 1.ª autoridade — por isso apareciam versões diferentes noutros sítios.
+
+### 56.1 Ida-e-volta do TVDE — desconto percentual, NÃO um preço fixo
+
+O pacote ida-e-volta **não custa €8 fixos**. O preço é calculado pela rota:
+
+```
+ida(km)        = tvde_base_fare_cents + max(0, ceil(km - tvde_base_distance_km)) * tvde_extra_per_km_cents
+ida-e-volta(km) = GREATEST( tvde_roundtrip_price_cents ,
+                            ROUND( 2 * ida(km) * (100 - tvde_roundtrip_discount_pct) / 100 ) )
+```
+
+Valores vivos (2026-08-29): base €5,00 · 6 km incluídos · €1,00/km extra ·
+desconto **20%** · piso **€8,00**.
+
+**`tvde_roundtrip_price_cents = 800` NÃO é o preço — é o PISO.** Fica na base de dados,
+marcada aqui como o que é. Não se apaga.
+
+Fonte única de cálculo: a função `tvde_roundtrip_price_for_km(km)`, usada pela RPC
+`tvde_quote_roundtrip` que alimenta o ecrã do cliente. **Quem cobra e quem avisa o
+motorista tem de chamar essa mesma função** — nunca ler a chave do piso directamente.
+
+Repartição (medida em produção a 2026-08-29, constante em qualquer distância):
+
+| Rota | Cliente paga | Motorista (ida+volta) | Bora |
+|---|---|---|---|
+| 3 km | €8,00 | €7,50 | **€0,50** |
+| 10 km | €14,40 | €13,90 | **€0,50** |
+| 20 km | €30,40 | €29,90 | **€0,50** |
+
+O motorista recebe `tvde_driver_base_cents + km_extra × tvde_driver_per_km_cents` pela ida
+e `tvde_roundtrip_return_driver_cents + km_extra × tvde_driver_per_km_cents` pela volta —
+**a reserva da volta escala com a distância, não é €3,50 fixos.**
+
+> ⚠️ **Estado a 2026-08-29:** o ecrã do cliente já usa esta regra. A cobrança
+> (`tvde-plan-payment`) e o aviso ao motorista (`notify-tvde-driver`) ainda liam a chave do
+> piso e cobravam €8 em qualquer rota — a Bora perdia €5,90 aos 10 km e €21,90 aos 20 km.
+> A correcção está **preparada e provada, à espera de autorização para deploy**.
+
+### 56.2 Marcações de serviço ≠ Reservas de mesa
+
+Confundir as duas é erro. São produtos diferentes, com dinheiro diferente:
+
+| | **Marcação de serviço** (barbearia, beleza) | **Reserva de mesa** (restaurante) |
+|---|---|---|
+| O cliente adianta | **nada** — paga o valor cheio no fim | **€3** de pré-pagamento |
+| A Bora ganha | **€0,50** por marcação concluída | **€1** dos €3 |
+| O parceiro recebe | o resto, no repasse semanal | **€2** dos €3 |
+| Chave | `appointment_booking_fee_cents = 50` | `reservation_prepayment_cents = 300` |
+
+**Não existe** nenhuma chave de sinal de €3 para marcações. O sinal de €3 é só das
+reservas de mesa, e continua vivo e intacto (ver §18.1).

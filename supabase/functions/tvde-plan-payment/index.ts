@@ -114,10 +114,28 @@ Deno.serve(async (req: Request) => {
         return json({ credit });
       }
 
-      const { data: priceRow } = await rtAdmin
-        .from('platform_settings').select('value').eq('key', 'tvde_roundtrip_price_cents').maybeSingle();
-      const amountCents = Number(priceRow?.value ?? 800);
-      if (!amountCents || amountCents < 50) {
+
+      // FONTE UNICA DO PRECO (2026-08-29, missao tvde-idavolta-e-disco)
+      // O valor cobrado tem de ser o MESMO que o cliente viu no ecra. Esse preco vem da
+      // RPC `tvde_roundtrip_price_for_km`, que ja aplica o desconto
+      // (`tvde_roundtrip_discount_pct`) E o piso (`tvde_roundtrip_price_cents`).
+      //
+      // O QUE ISTO CORRIGE, MEDIDO EM PRODUCAO A 2026-08-29:
+      //   ler a chave do piso aqui cobrava SEMPRE 8 EUR. Numa rota de 10 km o cliente via
+      //   14,40 EUR e a Stripe cobrava 8,00 -> a Bora perdia 5,90 por corrida. A 20 km via
+      //   30,40 e perdia 21,90. Com a fonte unica, a Bora fica com +0,50 em qualquer
+      //   distancia, que e o desenho.
+      //
+      // O servidor NUNCA aceita um preco vindo do cliente: recebe a distancia e pergunta a BD.
+      const distanceKm = Number(body?.distance_km);
+      if (!Number.isFinite(distanceKm) || distanceKm <= 0) {
+        return json({ error: 'roundtrip_distance_required' }, 400);
+      }
+      const { data: rtPriceCents, error: rtPriceErr } = await rtAdmin
+        .rpc('tvde_roundtrip_price_for_km', { p_distance_km: distanceKm });
+      const amountCents = Number(rtPriceCents);
+      if (rtPriceErr || !Number.isFinite(amountCents) || amountCents < 50) {
+        // Sem fallback para 800 de proposito: cobrar o valor errado e pior do que nao cobrar.
         return json({ error: 'roundtrip_price_unavailable' }, 400);
       }
       const customerId = await getOrCreateCustomer(rtAdmin, user.id);

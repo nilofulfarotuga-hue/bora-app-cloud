@@ -523,3 +523,19 @@ Referências de mercado: **Glovo, Uber Eats, iFood, Uber, Bolt, Helpling**. Regr
 
 ---
 *Mantido por Claude.ai a partir da memória persistente + Córtex Bora. Última consolidação: 2026-07-22.*
+
+---
+
+## Agent skills
+
+> Escrito pela skill `setup-matt-pocock-skills` na missao `skills-matt-pocock-2026-08-29`.
+
+### Issue tracker
+
+Ficheiros locais em `.scratch/` — **nunca** GitHub Issues. A fila real do Bora e o
+Cortex e nao se abre uma segunda. Ver `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+Single-context: `CONTEXT.md` na raiz + ADRs em `.claude/.ai/knowledge/wiki/decisoes/`
+(nao `docs/adr/`, para nao criar gemeos). Ver `docs/agents/domain.md`.

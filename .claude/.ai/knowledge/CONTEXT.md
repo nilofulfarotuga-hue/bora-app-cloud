@@ -293,157 +293,79 @@ de escrita** junto (verbo `mudar/atualizar/aplicar/…` ou SQL
   5 tentativas → tectos de budget/turns/tools nos `.cmd` do PC.
   Só reabre uma ordem por veredito do Juiz.
 
-## 13. TVDE ida-e-volta — DUAS regras de preço vivas ao mesmo tempo
+## 13. TVDE ida-e-volta — preço por rota, com os €8 como PISO
 
-> 🔴 **ACHADO 2026-08-29.** Isto não é documentação desalinhada: são **dois caminhos de
-> código a calcular o preço do mesmo produto de maneiras diferentes**, ambos vivos.
-> Não foi corrigido nesta ordem (corrigir cálculo de preço é acto do Danilo).
+> ✅ **RESOLVIDO 2026-08-29.** Esta secção dizia antes que havia "duas regras de preço
+> vivas". **Estava incompleta e corrige-se aqui:** não são duas regras — é **uma** regra,
+> e os €8 são o **piso** dentro dela. O erro anterior veio de olhar só para a
+> `tvde_quote_roundtrip` e não seguir a função que ela chama.
 
-Existem duas chaves em `platform_settings`, as duas vivas:
+A fonte única é `tvde_roundtrip_price_for_km(km)`:
 
-| Chave | Valor | Actualizada |
+```sql
+GREATEST(
+  COALESCE(tvde_roundtrip_price_cents, 800),                    -- o PISO (€8)
+  ROUND( 2 * tvde_calculate_fare(km) * (100 - discount_pct) / 100 )   -- o preço por rota
+)
+```
+
+Com os valores vivos (base €5,00 · 6 km incluídos · €1,00/km extra · desconto 20%):
+
+| Rota | Cliente vê | Motorista recebe | Bora |
+|---|---|---|---|
+| 3 km | €8,00 (o piso manda) | €7,50 | €0,50 |
+| 10 km | €14,40 | €13,90 | €0,50 |
+| 20 km | €30,40 | €29,90 | €0,50 |
+
+**A Bora fica com €0,50 em qualquer distância** — é o desenho. O piso só manda até aos
+6 km; acima disso o preço por rota já é maior.
+
+`tvde_roundtrip_price_cents` **não é uma regra concorrente e não se apaga** — é o piso.
+
+### O problema real: quem cobra não usava a fonte única
+
+Três caminhos, e só um estava certo:
+
+| Caminho | O que lia | Certo? |
 |---|---|---|
-| `tvde_roundtrip_price_cents` | `800` (€8 fixo) | 2026-07-03 |
-| `tvde_roundtrip_discount_pct` | `20` (% de desconto) | **2026-08-01** (mais recente) |
+| Ecrã do cliente (`tvde_quote_roundtrip`) | a fonte única | ✅ |
+| Cobrança Stripe (`tvde-plan-payment`) | a chave do **piso**, sempre €8 | ❌ |
+| Aviso ao motorista (`notify-tvde-driver`) | a chave do **piso**, sempre €8 | ❌ |
 
-A pergunta certa não é "qual delas vale" — é **quem lê cada uma**. Provado por leitura
-de código:
+Consequência medida em produção a 2026-08-29 — **a Bora perdia dinheiro, e a perda crescia
+com a distância**:
 
-### Caminho A — o preço que o CLIENTE VÊ usa o desconto (dinâmico, por rota)
+| Rota | Cliente vê | Cobrado | Motorista | **Bora** |
+|---|---|---|---|---|
+| 3 km | €8,00 | €8,00 | €7,50 | +€0,50 |
+| 10 km | €14,40 | €8,00 | €13,90 | **−€5,90** |
+| 20 km | €30,40 | €8,00 | €29,90 | **−€21,90** |
 
-`lib/screens/client/tvde/tvde_request_ride_screen.dart:316-324`:
+Não era preciso inventar trava de prejuízo nenhuma: o prejuízo **vinha todo** de a cobrança
+não usar a fonte única. Alinhada, a margem volta aos €0,50 constantes.
 
-```dart
-Future<void> _fetchRoundtripQuote(double km) async {
-  final store = context.read<TvdeStore>();
-  final quote = await store.quoteRoundtrip(km);
-  if (!mounted || quote == null) return;
-  setState(() {
-    _roundtripPriceCents = (quote['price_cents'] as num?)?.toInt() ?? 0;
-    _roundtripSavingCents = (quote['saving_cents'] as num?)?.toInt() ?? 0;
-  });
-}
-```
-
-`lib/stores/tvde_store.dart:1316-1319`:
-
-```dart
-Future<Map<String, dynamic>?> quoteRoundtrip(double distanceKm) async {
-  try {
-    final res = await _sb.rpc('tvde_quote_roundtrip',
-        params: {'p_distance_km': distanceKm}).timeout(kAcaoTimeout);
-```
-
-A RPC `tvde_quote_roundtrip(p_distance_km)` devolve
-`{one_way_cents, full_cents, discount_pct, price_cents, saving_cents}` — é ela que aplica
-o `tvde_roundtrip_discount_pct`. O ecrã mostra *"Ida + volta por €X · poupas €Y"*.
-
-> ✅ **Confirmado no corpo da função, em produção** (verificação independente 2026-08-29,
-> por quem não escreveu esta secção). `pg_get_functiondef` da RPC contém
-> `tvde_roundtrip_discount_pct` e **não** contém `tvde_roundtrip_price_cents`:
->
-> ```
-> proname              | le_discount_pct             | le_price_cents | tamanho_def
-> tvde_quote_roundtrip | tvde_roundtrip_discount_pct | null           | 706
-> ```
->
-> Isto fecha a pergunta "quem lê cada chave": a cotação do cliente lê **só** a
-> percentagem; a cobrança e o push ao motorista lêem **só** o valor fixo. São mesmo dois
-> caminhos separados, não uma leitura partilhada.
-
-Foi decisão explícita do Danilo a 2026-08-01 tornar essa % editável no painel
-(`admin_platform_settings_screen.dart:78-83`).
-
-### Caminho B — o que a Stripe COBRA usa os €8 fixos
-
-`supabase/functions/tvde-plan-payment/index.ts:117-122` — a Edge Function que cria o
-PaymentIntent do pacote **ignora a cotação** e vai buscar a chave antiga:
-
-```ts
-      const { data: priceRow } = await rtAdmin
-        .from('platform_settings').select('value').eq('key', 'tvde_roundtrip_price_cents').maybeSingle();
-      const amountCents = Number(priceRow?.value ?? 800);
-      if (!amountCents || amountCents < 50) {
-        return json({ error: 'roundtrip_price_unavailable' }, 400);
-      }
-```
-
-…e é esse `amountCents` que entra no `stripe.paymentIntents.create({ amount: amountCents, … })`,
-tanto no cartão como no MB Way. O Flutter até **envia** a distância a contar que o
-servidor recalcule — `tvde_store.dart:1229-1233` manda `'distance_km': distanceKm` — mas
-o código da função **não a usa**.
-
-### Caminho C — o que o MOTORISTA é mandado recolher usa os €8 fixos
-
-`supabase/functions/notify-tvde-driver/index.ts:133-141`:
-
-```ts
-          if (creditCash && !ride.is_return_leg) {
-            let rtPrice = 800
-            try {
-              const { data: p } = await supabase.from('platform_settings')
-                .select('value').eq('key', 'tvde_roundtrip_price_cents').maybeSingle()
-              const v = Number(String(p?.value ?? '800').replace(/\"/g, ''))
-              if (Number.isFinite(v) && v > 0) rtPrice = v
-            } catch (_e) { /* default */ }
-            body = `Nova parada (+€${eur(stopFeeCents)}). Total a cobrar em dinheiro: €${eur(rtPrice + stopsFee)}.`
-```
-
-O push diz ao motorista *"Total a cobrar em dinheiro: €X"* com o **€8 fixo**, enquanto o
-vale em dinheiro foi criado com o preço dinâmico (`tvde_create_roundtrip_credit_cash`
-grava o `paid_cents` real). Os ecrãs do motorista já lêem o `paid_cents` do vale
-(`lib/widgets/tvde/tvde_roundtrip_driver_notice.dart:19-24`) — **só a notificação é que
-não**.
-
-### O que isto significa, em português
-
-- **O ecrã e a notificação podem mostrar números diferentes ao motorista** para a mesma
-  corrida: o aviso no ecrã lê o vale (dinâmico), o push de parada lê os €8.
-- **A cobrança online pode não bater com o preço mostrado ao cliente**, se o preço
-  dinâmico da rota não der exactamente €8.
-- O fallback `800` está **cravado em três sítios** (`index.ts:119`, `index.ts:134`,
-  `tvde_roundtrip_driver_notice.dart:17`) — logo, apagar a chave não resolve; o €8
-  voltaria à mesma.
-
-> ⚠️ **PARA O DANILO — decisão de dinheiro, não aplicada.** Isto é regra de preço
-> duplicada. A correcção (fazer os caminhos B e C lerem a cotação dinâmica) mexe em
-> valor cobrado ao cliente e em valor recolhido pelo motorista → 🔴 Lista Vermelha.
-> Está diagnosticado e provado; **não foi corrigido**. Espera "vai".
-
-**Atenuante conhecido, não é solução:** o caminho online está atrás de um interruptor —
-`allowOnline: _cardEnabled` (`tvde_request_ride_screen.dart:788`), e `_cardEnabled` nasce
-`false` (linha 93), só ligando por definição. E o próprio ecrã regista (linhas 792-806)
-que a `tvde-plan-payment` local **está bloqueada para deploy** (chama
-`tvde_create_roundtrip_credit` com 6 argumentos e produção tem 4). O caminho C (push ao
-motorista) **não** tem atenuante nenhum.
+> ⚠️ **Estado:** correcção preparada e provada, **não aplicada** — deploy de Edge Function
+> que mexe em cobrança é acto do Danilo. Ver §14.
 
 ## 14. O que continua por decidir — bloco PARA O DANILO
 
-> Só fica aqui o que **depende mesmo de uma decisão dele**. Tudo o que se resolvia a ler
-> código ou base de dados foi resolvido a 2026-08-29 e está em cima, como facto.
+> Só fica aqui o que **depende mesmo de uma decisão dele**.
 
-1. **TVDE ida-e-volta — qual das duas regras fica?** (ver §13). Não é dúvida de
-   documentação, é código a divergir. 🔴 dinheiro.
-2. **Corrigir o `business_rules.md`**, que está desactualizado em **três** pontos já
-   provados: a janela de cancelamento de reserva (diz 4 h, é **2 h** — §7); o fim do
-   sinal de €3 nas marcações (não tem rasto — §7-A); e o €8 fixo do TVDE. O
-   `business_rules.md` é a 1.ª autoridade, por isso corrigi-lo é ordem própria — **não
-   foi tocado nesta ordem**, por instrução expressa.
-3. **Corrigir os tokens do cliente no `CLAUDE.md` e na skill `ceo-ai`** — ambos ainda
-   dizem *"3% do valor"*. Está **provado** que é **3 tokens por euro**: o trigger passou
-   de `ROUND(NEW.price * 0.03)` (`20260404000000_bora_tokens.sql:163`) para
-   `GREATEST(1, ROUND(NEW.price * 3)::INTEGER)`
-   (`20260425000002_batch_d_tokens.sql:44`, mantido em
-   `20260507223228_fix_7e_b_bug_005_bug_007_tokens_uuid_to_text.sql:79`). O
-   `business_rules.md` já está certo. 🔴 mexe em tokens → só o Danilo aplica.
+1. **Aplicar a correcção da cobrança do ida-e-volta.** Está preparada, provada nas três
+   rotas e verificada com `deno check`, mas **não foi feito deploy** — publicar uma Edge
+   Function que cobra é acto do Danilo. Enquanto não for, a Bora continua a perder €5,90
+   aos 10 km e €21,90 aos 20 km em cada pacote pago por cartão ou MB Way. 🔴 dinheiro.
 
-### Já resolvidos nesta ordem (não voltar a abrir)
+### Já resolvidos (não voltar a abrir)
 
-| Era `POR CONFIRMAR` | Resolução | Onde |
+| Era dúvida | Resolução | Onde |
 |---|---|---|
-| Sinal €3 nas marcações | Não existe. Taxa viva = €0,50 por marcação concluída | §7-A |
-| Cancelamento de reserva 2 h ou 4 h | **2 h** | §7 |
-| Timeout de dispatch 40 s ou 10 s | Ambos: 40 s servidor, 10 s Flutter em memória | §9 |
-| Definição de "Ordem" | ≤15 min, 1 objetivo; trabalho grande = missão | §12 |
-| Definição de "Carteiro" | Dispatcher determinístico no host do VPS | §12 |
-| Tokens do cliente 3% ou ×3 | **×3** (provado no trigger, não só na doc) | §14.3 |
+| TVDE: €8 fixo ou preço por rota? | **Uma só regra** — preço por rota, com €8 de piso | §13 |
+| "Duas regras de preço vivas" | Leitura incompleta; corrigida | §13 |
+| Trava de prejuízo para rotas curtas | **Não é precisa** — a margem é €0,50 constante | §13 |
+| Sinal €3 nas marcações | Não existe. Marcação = €0,50 para a Bora | §7-A |
+| Cancelamento de reserva: 2 h ou 4 h | **2 h** | §7 |
+| Timeout de dispatch 40 s ou 10 s | Ambos: 40 s servidor, 10 s Flutter | §9 |
+| `business_rules.md` desactualizado | Corrigido a 2026-08-29 (§56 nova + janela 2 h) | — |
+| Percentagem editável no admin? | **Já era** desde 2026-08-01 | — |
+| Tokens do cliente: 3% ou 3/€? | **3 tokens por euro** | §5 |

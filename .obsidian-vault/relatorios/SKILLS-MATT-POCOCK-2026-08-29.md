@@ -330,3 +330,86 @@ tarefas de ficheiros e mantenho 800 para `flutter`.
 
 **4. O `CLAUDE.md` e a skill `ceo-ai` estão desactualizados** nos tokens do cliente
 (dizem "3% do valor"; é 3 tokens/€). Corrijo se disseres.
+
+
+---
+
+## FASE 7 — FECHO
+
+### Registo em `e2e_log` — confirmado por SELECT independente
+
+```
+linhas | primeiro_id | ultimo_id |  ok | avisos
+     9 |         853 |       861 |   7 |      2      (fases 1 a 6)
+                     + ids 862-863 (fase 7)
+run_id = skills-matt-pocock-2026-08-29
+```
+
+### Push
+
+O ramo de trabalho tinha 22 ficheiros de outros processos por commitar, 4 deles codigo
+Flutter. Nada disso viajou.
+
+- Commit no ramo actual: **`11ab9486`** (11 ficheiros, so os desta missao)
+- Cherry-pick para `autonomous-night-2026-04-29`: **`9121d2a5`**
+- Feito pelo worktree `_wt-prod`, que ja existia e estava limpo — **a arvore suja nunca
+  foi tocada**
+- O `origin` tinha avancado (bump de `versionCode` do CI); fast-forward antes, nunca `--force`
+
+```
+=== DRY-RUN ===
+   716e0cb2..9121d2a5  autonomous-night-2026-04-29 -> autonomous-night-2026-04-29
+
+=== PUSH ===
+   716e0cb2..9121d2a5  autonomous-night-2026-04-29 -> autonomous-night-2026-04-29
+
+=== verificacao independente (fetch + ls-tree no REMOTO) ===
+origin em 9121d2a5
+.claude/.ai/knowledge/CONTEXT.md
+.claude/.ai/reports/SKILLS-MATT-POCOCK-2026-08-29.md
+.claude/hooks/git-guardrails.py
+.claude/hooks/git-guardrails.sh
+.obsidian-vault/CONTEXT.md
+.obsidian-vault/relatorios/SKILLS-MATT-POCOCK-2026-08-29.md
+CONTEXT.md
+docs/agents/domain.md
+docs/agents/issue-tracker.md
+```
+
+**O CI nao dispara.** Os 11 ficheiros caem todos no `paths-ignore` do
+`build_android.yml` (`**.md` e `.claude/**`); zero ficheiros de `lib/`, `pubspec` ou
+`android/`. Sem build, sem deploy.
+
+> Higiene: dois ficheiros de outros processos (`skills-metrics.md`,
+> `lancamento-keli-2026-08-25.md`) entraram no stage por **ja estarem staged** antes de eu
+> comecar. Tirei-os, commitei por pathspec, e repus o estado deles no indice. O commit
+> desta missao nao os apanhou.
+
+### Copias
+
+`CONTEXT.md` existe em 4 sitios, todos com o mesmo sha256 `a9b921cd...`: raiz do repo,
+`.claude/.ai/knowledge/`, `.obsidian-vault/`, e `/opt/data/CONTEXT-BORA.md` no Hermes.
+O relatorio esta em `.claude/.ai/reports/` e em `.obsidian-vault/relatorios/`.
+
+---
+
+## DIGEST PARA O TELEGRAM
+
+```
+Skills do Matt Pocock: instaladas e provadas.
+
+10 skills no PC (87 -> 97) e no Hermes, todas a responder fora do repo.
+CONTEXT.md do Bora escrito - o glossario que evita confundir parceiro com
+nao-parceiro e os dois 80/20 diferentes. Guardrails de git a bloquear o
+que estraga e a deixar passar o push normal (9/9 provado).
+Commit 9121d2a5 em autonomous-night. O CI nao dispara: so .md e .claude.
+
+Tres coisas para ti:
+1) caveman e zoom-out NAO existem no pacote. Nao inventei substitutas.
+2) 7 pontos POR CONFIRMAR no CONTEXT.md. Os de dinheiro: o TVDE ida-e-volta
+   ainda e 8 EUR fixos ou ja e preco por rota? E o sinal de 3 EUR nas
+   Marcacoes acabou mesmo em Agosto? O business_rules.md nao tem rasto.
+3) O portao de RAM de 800 MB nao da neste PC - a nossa janela come 1,2 GB
+   de 3,9. Avancei com 471 MB porque o trabalho era leve. Dizes se queres
+   assim ou sempre a parar.
+```

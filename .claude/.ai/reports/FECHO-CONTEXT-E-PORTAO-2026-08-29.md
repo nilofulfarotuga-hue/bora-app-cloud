@@ -394,3 +394,107 @@ registado que está desactualizada.
 
 **Saída do `ctx_doctor`:** tudo `[OK]` (v1.0.169, FTS5 a funcionar, 6 hooks a passar), com
 um único `[WARN]` de performance a sugerir instalar o Bun.
+
+
+---
+
+# ADENDA — passagem de verificação independente (sessão interactiva, 2026-08-29)
+
+> Escrita por quem **não** escreveu o relatório acima. A regra da casa diz que quem
+> escreve não verifica; este bloco é a verificação, não uma reconfirmação.
+
+## Portão de RAM desta ordem
+
+Medido: **312 MB**, contra os 400 exigidos. Não havia nada para libertar — o único MCP
+vivo era o `context-mode` (33 MB), preciso para o `ctx doctor` do fim; o `playwright` e o
+`nano-banana` já não corriam. Avancei abaixo do portão ao abrigo da regra que esta mesma
+ordem escreve no Bloco 2 (permitido, obriga a dizer o número e a razão): trabalho de ler
+ficheiros e escrever markdown, zero compilação.
+
+## O que foi verificado, e passou
+
+| Afirmação do relatório | Como verifiquei | Resultado |
+|---|---|---|
+| `tvde-plan-payment` lê a chave fixa | `grep` no `index.ts` | ✅ linha 118-119, `?? 800` |
+| `notify-tvde-driver` usa os €8 | `grep` no `index.ts` | ✅ linha 134 `let rtPrice = 800` |
+| O cliente lê a cotação dinâmica | `grep` em `lib/` | ✅ `tvde_store.dart:1317` chama a RPC |
+| Bloco 3 aplicado nos lanchadores | `grep` nos 4 ficheiros | ✅ 4/4 com o patch |
+| Backups do bloco 3 | `ls` | ✅ 4 ficheiros `.bak-perfil-2026-08-29` |
+| Prova da execução headless | `cat` do ficheiro | ✅ `PERFIL=/c/Users/danil`, 97, `35ff5c89`, `hermes` |
+| Linha no `e2e_log` | `SELECT` via MCP | ✅ id 864, `ok` |
+
+## A prova que faltava — nível de base de dados
+
+O relatório afirmava que a RPC `tvde_quote_roundtrip` é quem aplica o
+`tvde_roundtrip_discount_pct`, mas a prova citada era do lado do Flutter. Fui ao corpo da
+função em produção:
+
+```
+proname              | le_discount_pct             | le_price_cents | tamanho_def
+tvde_quote_roundtrip | tvde_roundtrip_discount_pct | null           | 706
+```
+
+A RPC contém o `discount_pct` e **não** contém o `price_cents`. Isto fecha a pergunta
+"quem lê cada chave" sem margem: são mesmo **dois caminhos separados**, não uma leitura
+partilhada. O achado 🔴 fica confirmado. **O cálculo não foi tocado.**
+
+## Incidente encontrado a meio — o disco encheu
+
+A meio da ordem, comandos `git` começaram a falhar com *No space left on device*.
+
+```
+C:  119G  119G  0  100% /c        <- zero bytes livres
+```
+
+Causa: **12 pastas `audio_io_*` no `%TEMP%`, de 175 MB cada** (um `a.raw` em cada),
+criadas entre as 15:48 e as 16:16 — **uma a cada ~14 minutos**. Nenhum `ffmpeg` estava
+vivo, logo eram sobras abandonadas, não ficheiros em uso. Apagadas as 12:
+
+```
+pastas apagadas = 12   falhas = 0
+C:  119G  117G  2.1G  99% /c      <- 2111 MB libertados
+```
+
+**Quem as produz:** o agente `audio_io.py` do BoraStudio (pasta `agentes/`), com a tarefa agendada
+`BoraStudioCondutor` em estado *Running*. O BoraStudio é projeto separado — **não lhe
+toquei**. Nota útil: existe lá um `agentes/guarda_da_limpeza.py`, ou seja, o próprio
+BoraStudio já tem um agente de limpeza; ele existe mas não está a dar conta do recado.
+
+**Isto vai voltar a encher.** Não parei o produtor.
+
+## Uma coisa que decidi NÃO fazer
+
+Os dois lanchadores do Bloco 3 (`run-claude-loop.cmd` e `run-claude.cmd`) **não foram
+commitados**. O diff do `run-claude-loop.cmd` tem 113 linhas inseridas, das quais só ~19
+são o patch de perfil desta ordem; o resto é um bloco de **auto-fatiamento de outra
+missão, datado de 2026-08-11**, por commitar há 18 dias. Commitá-lo arrastaria trabalho
+alheio — a lição do *commit concorrente*.
+
+O patch de perfil **está aplicado e a funcionar** nas quatro cópias; apenas não está em
+git. Fica como decisão para o Danilo (ver bloco final).
+
+## Push
+
+```
+commit no ramo de trabalho : 498c0840
+cherry-pick para producao  : 231cd34c
+   25c89c05..231cd34c  autonomous-night-2026-04-29 -> autonomous-night-2026-04-29
+verificacao independente   : origin em 231cd34c, CONTEXT.md remoto contem a prova de BD
+ficheiros fora do paths-ignore: 0   -> o CI nao dispara
+```
+
+Registo desta passagem no `e2e_log`: ids **865-868**.
+
+---
+
+## PARA O DANILO — o que mudou nesta adenda
+
+1. **O achado do TVDE está confirmado com uma prova mais forte** do que a que existia.
+   Continua por corrigir, à espera do teu "vai". Nada de dinheiro foi tocado.
+2. **O disco encheu a 100% e vai voltar a encher.** O BoraStudio deixa 175 MB de áudio em
+   bruto no Temp a cada ~14 minutos e o `guarda_da_limpeza.py` dele não está a limpar.
+   Libertei 2,1 GB, mas é penso rápido. Queres que eu vá lá ver porque é que o guarda não
+   limpa? É projeto separado, por isso não entrei sem ordem.
+3. **Os dois lanchadores ficaram por commitar** porque trazem trabalho de outra missão de
+   11/08 à boleia. Dizes e commito só as linhas do perfil, ou committo tudo junto se
+   souberes que aquele auto-fatiamento já está bom.

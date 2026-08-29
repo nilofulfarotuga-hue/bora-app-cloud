@@ -39,6 +39,24 @@ REM    watchdog matar, grava o motivo em STALESTAMP e este .cmd devolve "MOTIVO_
 REM    stdout (carteiro.sh le isto e avisa "morta por inatividade", nunca "timeout" generico).
 REM ===========================================================================
 set "CLAUDE_CONFIG_DIR=C:\Users\danil\.claude"
+REM --- ALINHAMENTO DE PERFIL (2026-08-29, missao fecho-context-e-portao) -------
+REM  O loop entra como `hermes`, logo HOME/USERPROFILE apontavam a C:\Users\hermes
+REM  e o til (~) resolvia para um perfil VAZIO (0 skills). O Claude Code ja estava
+REM  bem -- usa o CLAUDE_CONFIG_DIR acima -- mas qualquer instalador que escolha o
+REM  "ambito de utilizador" pelo HOME/USERPROFILE (ex.: npx skills add) escrevia no
+REM  perfil errado COM EXIT 0: falso positivo perfeito. Agora o til aponta ao perfil
+REM  do danil (97 skills, medido 2026-08-29).
+REM  GOTCHA PROVADO NA PROPRIA ORDEM: mudar SO o HOME/USERPROFILE PARTE O GIT --
+REM  "fatal: detected dubious ownership in repository", porque o `safe.directory = *`
+REM  vive no .gitconfig do `hermes` e deixaria de ser lido. Por isso vai junto, e vai
+REM  injectado por variavel de ambiente (GIT_CONFIG_*), sem tocar em .gitconfig
+REM  nenhum. A identidade do commit continua a vir do .git/config do repo -- provado,
+REM  nao muda. Reverter = apagar estas 5 linhas set (ha .bak-perfil-2026-08-29).
+set "HOME=C:\Users\danil"
+set "USERPROFILE=C:\Users\danil"
+set "GIT_CONFIG_COUNT=1"
+set "GIT_CONFIG_KEY_0=safe.directory"
+set "GIT_CONFIG_VALUE_0=*"
 REM FASE 1.11 (2026-08-01) -- RESOLUCAO DINAMICA DO BINARIO + PREFLIGHT QUE GRITA.
 REM Avaria de 27/07 a 31/07 (4 dias): ate 22/07 a CLI vinha do npm global e o caminho fixo
 REM %APPDATA%\npm\node_modules\@anthropic-ai\claude-code\bin\claude.exe resolvia. A 27/07 a app

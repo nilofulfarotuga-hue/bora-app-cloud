@@ -19,6 +19,24 @@ REM ===========================================================================
 
 REM --- Auth partilhada: aponta para a config/credenciais do user danil ---
 set "CLAUDE_CONFIG_DIR=C:\Users\danil\.claude"
+REM --- ALINHAMENTO DE PERFIL (2026-08-29, missao fecho-context-e-portao) -------
+REM  O loop entra como `hermes`, logo HOME/USERPROFILE apontavam a C:\Users\hermes
+REM  e o til (~) resolvia para um perfil VAZIO (0 skills). O Claude Code ja estava
+REM  bem -- usa o CLAUDE_CONFIG_DIR acima -- mas qualquer instalador que escolha o
+REM  "ambito de utilizador" pelo HOME/USERPROFILE (ex.: npx skills add) escrevia no
+REM  perfil errado COM EXIT 0: falso positivo perfeito. Agora o til aponta ao perfil
+REM  do danil (97 skills, medido 2026-08-29).
+REM  GOTCHA PROVADO NA PROPRIA ORDEM: mudar SO o HOME/USERPROFILE PARTE O GIT --
+REM  "fatal: detected dubious ownership in repository", porque o `safe.directory = *`
+REM  vive no .gitconfig do `hermes` e deixaria de ser lido. Por isso vai junto, e vai
+REM  injectado por variavel de ambiente (GIT_CONFIG_*), sem tocar em .gitconfig
+REM  nenhum. A identidade do commit continua a vir do .git/config do repo -- provado,
+REM  nao muda. Reverter = apagar estas 5 linhas set (ha .bak-perfil-2026-08-29).
+set "HOME=C:\Users\danil"
+set "USERPROFILE=C:\Users\danil"
+set "GIT_CONFIG_COUNT=1"
+set "GIT_CONFIG_KEY_0=safe.directory"
+set "GIT_CONFIG_VALUE_0=*"
 REM FASE 1.11 (2026-08-01) — TERCEIRO ficheiro com o caminho npm morto, encontrado na auditoria
 REM que o Danilo mandou fazer depois de o mesmo bug ter existido em DOIS sitios e so um ter sido
 REM corrigido (4 dias de avaria silenciosa). Este nao tem chamador vivo na cadeia de orquestracao,

@@ -1572,6 +1572,16 @@ class AuthStore extends ChangeNotifier {
         return true;
 
       case AuthRole.partner:
+        // SO ENTRA QUEM E (2026-08-29). Isto montava a conta de parceiro a
+        // partir do metadata e devolvia `true` a QUALQUER pessoa — e desde que
+        // o ecra de escolha deixou de fazer logout, um cliente que carregasse
+        // em "Sou Parceiro" caia no assistente de criar loja, que para ele e
+        // um beco. A porta so abre a quem tem o papel.
+        if (_partnersByEmail[email] == null &&
+            !await _temPapelNoServidor('partner')) {
+          debugPrint('AuthStore: switchToRole(partner) — sem papel de parceiro');
+          return false;
+        }
         final account = _partnersByEmail[email] ??
             PartnerAccount(
               restaurantName: meta[_kRestaurantName] as String? ?? '',
@@ -1639,6 +1649,20 @@ class AuthStore extends ChangeNotifier {
   }
 
   // ─── Logout ───────────────────────────────────────────────────────────────
+
+  /// Larga a conta ACTIVA em memória mas **mantém a sessão Supabase**.
+  ///
+  /// É o que "Mudar modo" precisa: a pessoa não está a sair da app, está a
+  /// escolher outro perfil da mesma conta. Fazer `logout()` aqui — como se
+  /// fazia até 2026-08-29 nos três ecrãs — deitava o JWT fora e obrigava a
+  /// escrever a palavra-passe outra vez a seguir.
+  void clearActiveAccountsKeepingSession() {
+    _currentClient = null;
+    _currentDriver = null;
+    _currentPartner = null;
+    _partnerRestaurant = null;
+    notifyListeners();
+  }
 
   /// [wipeBiometrics]: true (default) em logout explícito ("Sair"/"Terminar
   /// sessão") — apaga também os tokens biométricos (L3, regra de segurança).

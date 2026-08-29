@@ -662,8 +662,15 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
   Future<void> _handleTestMode() async {
     final authStore = context.read<AuthStore>();
     final sessionStore = context.read<SessionStore>();
-    // L3 — troca de modo, não "Sair": preserva biometria.
-    authStore.logout(wipeBiometrics: false);
+    // TROCA DE MODO NAO E SAIR (2026-08-29). Aqui fazia-se `logout()` antes
+    // de ir ao ecra de escolha — e por isso a escolha seguinte pedia sempre a
+    // palavra-passe outra vez, mesmo a quem so queria mudar de perfil na
+    // mesma conta. A sessao FICA; e o ecra de escolha que decide: com sessao
+    // aberta troca por dentro, sem sessao e que manda entrar.
+    //
+    // `authStore` continua a ser lido acima porque limpamos as contas locais
+    // em memoria — o que sai e a conta ACTIVA, nao a sessao.
+    authStore.clearActiveAccountsKeepingSession();
     await sessionStore.clearRole();
     if (!mounted) return;
     Navigator.of(context).popUntil((route) => route.isFirst);

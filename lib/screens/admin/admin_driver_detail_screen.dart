@@ -6,6 +6,7 @@ import '../../config/app_spacing.dart';
 import '../../services/admin/admin_driver_service.dart';
 import '../../widgets/private_bucket_image.dart';
 import '_admin_password_reset_dialog.dart';
+import 'admin_papeis_screen.dart';
 
 /// Full-screen admin detail for an approved driver. Pushed from
 /// `admin_drivers_screen` and from the "Aprovados" tab of
@@ -167,6 +168,23 @@ class _AdminDriverDetailScreenState extends State<AdminDriverDetailScreen>
         title: Text(_driver?['name'] as String? ?? 'Entregador',
             style: const TextStyle(color: Colors.white)),
         actions: [
+          // OS PAPEIS DESTA PESSOA (2026-08-29). Uma conta tem varios perfis;
+          // a ficha dela tem de deixar ver e mexer em todos, nao so no de
+          // estafeta.
+          IconButton(
+            icon: const Icon(Icons.badge_outlined),
+            tooltip: 'Papéis desta pessoa',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => AdminPapeisScreen(
+                  buscaInicial: (_driver?['email'] as String?)?.trim().isNotEmpty == true
+                      ? _driver!['email'] as String
+                      : _driver?['name'] as String?,
+                ),
+              ),
+            ),
+          ),
           IconButton(icon: const Icon(Icons.refresh), onPressed: _refresh),
         ],
         bottom: TabBar(

@@ -475,7 +475,13 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
     // Ping imediato → aparece já uma linha fresca em driver_locations (fonte do
     // matching TVDE) sem esperar o 1º fix do stream.
     try {
-      final first = await Geolocator.getCurrentPosition();
+      // Com limite de tempo (2026-08-29): sem ele, se a posicao nunca chegar
+      // — e no browser, ou com o pedido de permissao por responder, nunca
+      // chega nem rebenta — este `await` fica pendurado e o resto da funcao
+      // nunca corre, incluindo o arranque do fluxo de posicao. Mesmo defeito
+      // que prendia o ecra do estafeta.
+      final first = await Geolocator.getCurrentPosition()
+          .timeout(const Duration(seconds: 15));
       _lastPos = first;
       await DriverLocationPingService.instance.ping(
         latitude: first.latitude,

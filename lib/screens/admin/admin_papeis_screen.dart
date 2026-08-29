@@ -14,7 +14,11 @@ import '../../widgets/bora/bora.dart';
 /// Duas abas: as pessoas e as candidaturas. Aprovar e recusar chamam as
 /// funções que já existiam por papel — não há decisão duplicada aqui.
 class AdminPapeisScreen extends StatefulWidget {
-  const AdminPapeisScreen({super.key});
+  const AdminPapeisScreen({super.key, this.buscaInicial});
+
+  /// Abre já filtrado por esta pessoa — é assim que se chega aqui a partir da
+  /// ficha dela nas outras telas, em vez de ter de a procurar de novo.
+  final String? buscaInicial;
 
   @override
   State<AdminPapeisScreen> createState() => _AdminPapeisScreenState();
@@ -37,6 +41,9 @@ class _AdminPapeisScreenState extends State<AdminPapeisScreen>
   @override
   void initState() {
     super.initState();
+    if ((widget.buscaInicial ?? '').isNotEmpty) {
+      _buscaCtrl.text = widget.buscaInicial!;
+    }
     _load();
   }
 

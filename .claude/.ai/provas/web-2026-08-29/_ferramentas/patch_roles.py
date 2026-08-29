@@ -1,60 +1,54 @@
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+"""O ecra de escolha deixa de deitar a sessao fora, e as portas dizem a quem
+se destinam."""
+import io
+import os
 
-import '../auth/auth_store.dart';
-import '../config/app_colors.dart';
-import '../config/app_spacing.dart';
-import '../stores/session_store.dart';
-import '../services/role_switch_helper.dart';
-import '../widgets/bora/bora_mascot.dart';
-import '../widgets/bora/bora_primary_button.dart';
+os.chdir(r"C:\Users\danil\Desktop\projetosflutter\_wt-prod")
+p = r"lib\screens\role_screen.dart"
+s = io.open(p, encoding="utf-8").read()
 
-class RoleScreen extends StatelessWidget {
-  const RoleScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.surface,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: Spacing.xxxl),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Spacer(flex: 2),
-
-              // ── Logo ──────────────────────────────────────────────────
-              const BoraMascot(
-                variant: BoraMascotVariant.logo,
-                size: 88,
-                semanticLabel: 'BORA',
+VELHO = """              // ── Buttons ───────────────────────────────────────────────
+              BoraPrimaryButton(
+                label: 'Sou Cliente',
+                icon: Icons.person_outline,
+                color: AppColors.primary,
+                onPressed: () async {
+                  final authStore = context.read<AuthStore>();
+                  final sessionStore = context.read<SessionStore>();
+                  // L3 — troca de papel, não "Sair": preserva biometria.
+                  authStore.logout(wipeBiometrics: false);
+                  await sessionStore.setRole(UserRole.client);
+                },
               ),
               const SizedBox(height: Spacing.md),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: Spacing.lg,
-                  vertical: Spacing.xs + 2,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(Radii.xl),
-                ),
-                child: const Text(
-                  'Entregas rápidas em Portugal',
-                  style: TextStyle(
-                    fontSize: 15,
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w500,
-                    letterSpacing: 0.3,
-                  ),
-                ),
+              BoraPrimaryButton(
+                label: 'Sou Estafeta',
+                icon: Icons.delivery_dining,
+                color: AppColors.accent,
+                onPressed: () async {
+                  final authStore = context.read<AuthStore>();
+                  final sessionStore = context.read<SessionStore>();
+                  // L3 — troca de papel, não "Sair": preserva biometria.
+                  authStore.logout(wipeBiometrics: false);
+                  await sessionStore.setRole(UserRole.driver);
+                },
               ),
+              const SizedBox(height: Spacing.md),
+              BoraPrimaryButton(
+                label: 'Sou Parceiro',
+                icon: Icons.storefront_outlined,
+                color: AppColors.info,
+                onPressed: () async {
+                  final authStore = context.read<AuthStore>();
+                  final sessionStore = context.read<SessionStore>();
+                  // L3 — troca de papel, não "Sair": preserva biometria.
+                  authStore.logout(wipeBiometrics: false);
+                  await sessionStore.setRole(UserRole.partner);
+                },
+              ),
+"""
 
-              const Spacer(flex: 2),
-
-              // ── As três portas ────────────────────────────────────────
+NOVO = """              // ── As três portas ────────────────────────────────────────
               //
               // UMA CONTA, TODOS OS PERFIS (2026-08-29). Até aqui, cada um
               // destes botões fazia `logout()` — **mesmo com sessão aberta**.
@@ -66,7 +60,7 @@ class RoleScreen extends StatelessWidget {
               // Agora, com sessão aberta, troca-se o perfil por dentro
               // (`activateRole`, que reaproveita o mesmo JWT). Só quem não
               // tem sessão é que vai parar ao ecrã de entrar.
-              const _PortaDoPerfil(
+              _PortaDoPerfil(
                 rotulo: 'Sou Cliente',
                 paraQuem: 'Pedir comida, compras e serviços',
                 icone: Icons.person_outline,
@@ -74,7 +68,7 @@ class RoleScreen extends StatelessWidget {
                 papel: UserRole.client,
               ),
               const SizedBox(height: Spacing.md),
-              const _PortaDoPerfil(
+              _PortaDoPerfil(
                 rotulo: 'Sou Estafeta',
                 paraQuem: 'Entregar, fazer corridas, limpezas ou lavagens',
                 icone: Icons.delivery_dining,
@@ -82,31 +76,18 @@ class RoleScreen extends StatelessWidget {
                 papel: UserRole.driver,
               ),
               const SizedBox(height: Spacing.md),
-              const _PortaDoPerfil(
+              _PortaDoPerfil(
                 rotulo: 'Sou Parceiro',
                 paraQuem: 'Tenho restaurante, loja ou salão no Bora',
                 icone: Icons.storefront_outlined,
                 cor: AppColors.info,
                 papel: UserRole.partner,
               ),
+"""
+assert VELHO in s, "nao encontrei os tres botoes"
+s = s.replace(VELHO, NOVO, 1)
 
-              const Spacer(flex: 1),
-              const Text(
-                'v1.0 · boraappbora@gmail.com',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              const SizedBox(height: Spacing.lg),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
+WIDGET = '''
 
 /// Uma das três portas do arranque.
 ///
@@ -169,3 +150,19 @@ class _PortaDoPerfil extends StatelessWidget {
     );
   }
 }
+'''
+s = s.rstrip("\n") + "\n" + WIDGET
+
+# imports
+for imp, anc in [
+    ("import 'package:supabase_flutter/supabase_flutter.dart';",
+     "import 'package:provider/provider.dart';"),
+    ("import '../services/role_switch_helper.dart';",
+     "import '../stores/session_store.dart';"),
+]:
+    if imp not in s:
+        assert anc in s, "ancora " + anc
+        s = s.replace(anc, anc + "\n" + imp, 1)
+
+io.open(p, "w", encoding="utf-8", newline="\n").write(s)
+print("role_screen corrigido")

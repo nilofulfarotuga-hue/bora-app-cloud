@@ -274,12 +274,26 @@ class _PartnerLoginScreenState extends State<PartnerLoginScreen> {
                   ),
                 ),
               ),
+              // AS TRÊS PORTAS IGUAIS (2026-08-29). O cliente e o estafeta
+              // tinham este botão; o parceiro não, e quem lá caísse por engano
+              // ficava sem saída à vista. Um cliente real caiu nas três portas
+              // na mesma noite.
+              Center(
+                child: TextButton(
+                  onPressed: _isProcessing ? null : _voltarAosPerfis,
+                  child: const Text('← Voltar à escolha de perfil'),
+                ),
+              ),
             ],
           ),
           ),
         ),
       ),
     );
+  }
+
+  void _voltarAosPerfis() {
+    context.read<SessionStore>().clearRole();
   }
 
   void _createAccount() {

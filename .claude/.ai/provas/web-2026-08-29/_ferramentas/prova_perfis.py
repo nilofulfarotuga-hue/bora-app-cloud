@@ -73,12 +73,19 @@ def abrir(p, gps=True, limpar=False):
     return ctx, page
 
 
-def entrar(page, porta, email, senha):
+# O ecra de entrar do CLIENTE tem outro desenho do que o do estafeta: os
+# campos ficam mais abaixo. Medidos nas fotos.
+CAMPOS_CLIENTE = ((215, 321), (215, 384), (215, 463))
+CAMPOS_ESTAFETA = ((215, 285), (215, 348), (215, 427))
+
+
+def entrar(page, porta, email, senha, campos=None):
+    campos = campos or CAMPOS_ESTAFETA
     page.mouse.click(*porta)
-    page.wait_for_timeout(6000)
-    escrever(page, CAMPO_EMAIL, email)
-    escrever(page, CAMPO_SENHA, senha)
-    page.mouse.click(*BOTAO_ENTRAR)
+    page.wait_for_timeout(7000)
+    escrever(page, campos[0], email)
+    escrever(page, campos[1], senha)
+    page.mouse.click(*campos[2])
     page.wait_for_timeout(26000)
 
 
@@ -97,7 +104,7 @@ def estafeta_pendente_como_cliente():
     with sync_playwright() as p:
         ctx, page = abrir(p, limpar=True)
         foto(page, "01a-portas")
-        entrar(page, PORTA_CLIENTE, "prova.multi@bora.app", "ProvaMulti!2026")
+        entrar(page, PORTA_CLIENTE, "prova.multi@bora.app", "ProvaMulti!2026", CAMPOS_CLIENTE)
         foto(page, "01-estafeta-pendente-a-usar-como-cliente")
         ctx.close()
 
@@ -119,7 +126,7 @@ def parceiro_como_cliente():
     """PROVA 3 — conta de parceiro entra como cliente."""
     with sync_playwright() as p:
         ctx, page = abrir(p, limpar=True)
-        entrar(page, PORTA_CLIENTE, "prova.loja@bora.app", "ProvaLoja!2026")
+        entrar(page, PORTA_CLIENTE, "prova.loja@bora.app", "ProvaLoja!2026", CAMPOS_CLIENTE)
         foto(page, "03-parceiro-a-usar-como-cliente")
         ctx.close()
 
@@ -172,6 +179,159 @@ def porta_parceiro2():
         ctx.close()
 
 
+def cliente_depois_estafeta():
+    """PROVA 2 — entra como cliente e troca para estafeta SEM palavra-passe."""
+    with sync_playwright() as p:
+        ctx, page = abrir(p, limpar=True)
+        entrar(page, PORTA_CLIENTE, "prova.multi@bora.app", "ProvaMulti!2026",
+               CAMPOS_CLIENTE)
+        foto(page, "02a-entrou-como-cliente")
+        page.mouse.click(393, 31)          # a seta de mudar de modo
+        page.wait_for_timeout(6000)
+        foto(page, "02b-ecra-de-escolha")
+        page.mouse.click(*PORTA_ESTAFETA)
+        page.wait_for_timeout(22000)
+        foto(page, "02-trocou-para-estafeta-sem-senha")
+        ctx.close()
+
+
+def diagnostico():
+    """Corre a troca com a consola ligada, para se ver porque falha."""
+    linhas = []
+    with sync_playwright() as p:
+        ctx, page = abrir(p, limpar=True)
+        page.on("console", lambda m: linhas.append(m.text))
+        entrar(page, PORTA_CLIENTE, "prova.multi@bora.app", "ProvaMulti!2026",
+               CAMPOS_CLIENTE)
+        linhas.clear()
+        page.mouse.click(393, 31)
+        page.wait_for_timeout(6000)
+        page.mouse.click(*PORTA_ESTAFETA)
+        page.wait_for_timeout(20000)
+        foto(page, "02x-diagnostico")
+        ctx.close()
+    print("   linhas de consola:", len(linhas))
+    for l in linhas[-40:]:
+        print("  ", l[:180])
+
+
+def quem_esta_dentro(page):
+    """Quem e que a sessao Supabase diz que esta? Sem isto, um login que nao
+    aconteceu passa por bom: a app abre a area de cliente na mesma, como
+    CONVIDADO, e a foto fica igual a de um login verdadeiro."""
+    return page.evaluate("""() => {
+        for (const k of Object.keys(localStorage)) {
+          if (!k.startsWith('sb-')) continue;
+          try { const v = JSON.parse(localStorage.getItem(k));
+                if (v && v.user) return v.user.email; } catch(e) {}
+        }
+        return null;
+    }""")
+
+
+def cliente_verificado():
+    """PROVA 1, com a identidade confirmada."""
+    with sync_playwright() as p:
+        ctx, page = abrir(p, limpar=True)
+        page.mouse.click(*PORTA_CLIENTE)
+        page.wait_for_timeout(8000)
+        foto(page, "01a-ecra-de-entrar-do-cliente")
+        escrever(page, CAMPOS_CLIENTE[0], "prova.multi@bora.app")
+        escrever(page, CAMPOS_CLIENTE[1], "ProvaMulti!2026")
+        foto(page, "01b-campos-preenchidos")
+        page.mouse.click(*CAMPOS_CLIENTE[2])
+        page.wait_for_timeout(26000)
+        print("   sessao =", quem_esta_dentro(page))
+        foto(page, "01-estafeta-pendente-a-usar-como-cliente")
+        ctx.close()
+
+
+def cliente_pelo_perfil():
+    """PROVA 1 (a serio) — a porta do cliente entra como CONVIDADO; o login de
+    cliente esta no separador Perfil. E ai que o Waldyr batia."""
+    with sync_playwright() as p:
+        ctx, page = abrir(p, limpar=True)
+        page.mouse.click(*PORTA_CLIENTE)
+        page.wait_for_timeout(9000)
+        print("   sessao ao entrar:", quem_esta_dentro(page))
+        page.mouse.click(376, 845)          # separador Perfil
+        page.wait_for_timeout(8000)
+        foto(page, "01a-perfil-de-convidado")
+        for i in range(1, 4):
+            page.mouse.move(215, 500); page.mouse.wheel(0, 400)
+            page.wait_for_timeout(1200)
+            foto(page, "01a-perfil-%d" % i)
+        ctx.close()
+
+
+def rolar3(page):
+    for _ in range(3):
+        page.mouse.move(215, 500); page.mouse.wheel(0, 400)
+        page.wait_for_timeout(1200)
+
+
+def prova1(email="prova.multi@bora.app", senha="ProvaMulti!2026",
+           nome="01-estafeta-pendente-a-usar-como-cliente"):
+    """A porta do cliente entra como CONVIDADO. O login de cliente esta no
+    Perfil, depois de terminar a sessao de convidado — e e ai que o Waldyr
+    batia. Confirma-se sempre QUEM ficou na sessao."""
+    with sync_playwright() as p:
+        ctx, page = abrir(p, limpar=True)
+        page.mouse.click(*PORTA_CLIENTE)
+        page.wait_for_timeout(9000)
+        page.mouse.click(376, 845)      # separador Perfil
+        page.wait_for_timeout(7000)
+        rolar3(page)
+        page.mouse.click(215, 762)      # Terminar sessao
+        page.wait_for_timeout(9000)
+        # Terminar sessao devolve ao ecra das portas; sem sessao, a porta do
+        # cliente ja mostra o ecra de entrar em vez de entrar como convidado.
+        page.mouse.click(*PORTA_CLIENTE)
+        page.wait_for_timeout(9000)
+        foto(page, "01a-ecra-de-entrar-do-cliente")
+        escrever(page, CAMPOS_CLIENTE[0], email)
+        escrever(page, CAMPOS_CLIENTE[1], senha)
+        page.mouse.click(*CAMPOS_CLIENTE[2])
+        page.wait_for_timeout(26000)
+        quem = quem_esta_dentro(page)
+        print("   SESSAO =", quem)
+        foto(page, nome)
+        ctx.close()
+        return quem
+
+
+def prova3():
+    prova1("prova.loja@bora.app", "ProvaLoja!2026",
+           "03-parceiro-a-usar-como-cliente")
+
+
+def prova2():
+    """PROVA 2 — entra como cliente e troca para estafeta SEM palavra-passe.
+    Confirma a sessao ANTES e DEPOIS: se o email se mantiver, nao houve login
+    novo."""
+    with sync_playwright() as p:
+        ctx, page = abrir(p, limpar=True)
+        page.mouse.click(*PORTA_CLIENTE); page.wait_for_timeout(9000)
+        page.mouse.click(376, 845); page.wait_for_timeout(7000)
+        rolar3(page)
+        page.mouse.click(215, 762); page.wait_for_timeout(9000)   # terminar sessao
+        page.mouse.click(*PORTA_CLIENTE); page.wait_for_timeout(9000)
+        escrever(page, CAMPOS_CLIENTE[0], "prova.multi@bora.app")
+        escrever(page, CAMPOS_CLIENTE[1], "ProvaMulti!2026")
+        page.mouse.click(*CAMPOS_CLIENTE[2]); page.wait_for_timeout(26000)
+        print("   sessao como cliente:", quem_esta_dentro(page))
+        foto(page, "02a-entrou-como-cliente")
+
+        page.mouse.click(393, 31)          # mudar de modo
+        page.wait_for_timeout(7000)
+        foto(page, "02b-ecra-de-escolha")
+        page.mouse.click(*PORTA_ESTAFETA)  # Sou Estafeta
+        page.wait_for_timeout(22000)
+        print("   sessao depois de trocar:", quem_esta_dentro(page))
+        foto(page, "02-trocou-para-estafeta-sem-senha")
+        ctx.close()
+
+
 if __name__ == "__main__":
     os.makedirs(PASTA, exist_ok=True)
     {
@@ -183,4 +343,11 @@ if __name__ == "__main__":
         "sem_gps": sem_localizacao,
         "trocar_sem_senha": trocar_sem_senha,
         "porta_parceiro2": porta_parceiro2,
+        "cliente_depois_estafeta": cliente_depois_estafeta,
+        "diagnostico": diagnostico,
+        "cliente_verificado": cliente_verificado,
+        "cliente_pelo_perfil": cliente_pelo_perfil,
+        "prova1": prova1,
+        "prova3": prova3,
+        "prova2": prova2,
     }[sys.argv[1]]()

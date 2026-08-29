@@ -42,6 +42,7 @@ import '../widgets/chat_bubble_button.dart';
 import 'chat_screen.dart';
 import 'ganhos_screen.dart';
 import '../widgets/trocar_de_papel.dart';
+import '../services/role_switch_helper.dart';
 import 'driver_map_screen.dart';
 import 'driver_order_action_helper.dart';
 import 'profile_screen.dart';
@@ -992,6 +993,38 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                     .textTheme
                     .bodyMedium
                     ?.copyWith(color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 28),
+              // PEDIDO PENDENTE NAO BLOQUEIA (2026-08-29). Este ecra e so do
+              // perfil de estafeta; a app e a mesma. Enquanto a candidatura e
+              // revista, a pessoa continua a poder pedir como cliente — e ate
+              // aqui so tinha 'Terminar sessao', que a mandava embora da app
+              // inteira por causa de um perfil so.
+              Text(
+                'Entretanto podes usar a app normalmente para fazer os teus '
+                'pedidos. A análise continua na mesma.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 14)),
+                onPressed: () async {
+                  final ok = await activateRole(context, UserRole.client);
+                  if (!ok && context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                        content: Text('Não foi possível abrir o teu perfil '
+                            'de cliente. Tenta de novo.')));
+                  }
+                },
+                icon: const Icon(Icons.shopping_bag_outlined),
+                label: const Text('Usar a app como cliente'),
               ),
             ],
           ),

@@ -1,5 +1,17 @@
 # Missão tvde-pacote-mapas-senha — 2026-08-30
 
+## CONTINUAÇÃO (mesma noite) — o que fechou
+
+O push destravou: o Gestor de Credenciais abriu a janela de autorização com a variável GCM_INTERACTIVE=always, a credencial ficou guardada, e a partir daí todos os pushes saíram sozinhos. A branch de trabalho subiu (commits a0b781a4 e cad6956b, confirmados pela API do GitHub).
+
+O CI dispara só na branch autonomous-night-2026-04-29 (Android e Web, ambos ignoram .md e .claude). Como a branch de trabalho tem trinta e quatro commits a mais — muitos já com equivalente em produção por cherry-picks antigos —, o caminho foi o do cherry-pick dos dois commits desta missão para a produção, como mandado. Houve UM conflito, só no ficheiro da Edge tvde-plan-payment: a resolução era mecânica (o ficheiro certo é o espelho exacto da versão 7 do ar) e ficou provada por identidade de blob no git (5bc4e061 dos dois lados) antes de continuar — não foi um merge à mão. Produção recebeu 10f23a9c e 752588a9, confirmados pela API; o flutter analyze correu sem um único erro e os 14 testes do preço passaram ANTES do push. Os builds Android (Play alpha) e Web correram os dois com sucesso. Fica por fundir, de verdade (sem equivalente em produção): o plano com preço pela rota (9bb5cd32 + ace6576b), o fix do estafeta na ida ao mercado (a09164cd), o robot-b (0116fe7c), a limpeza da migration proposta (b832071f) e commits de documentação — decisão para outra missão.
+
+O trabalho quebrado da outra sessão foi para o stash com o nome quebrado-outra-sessao-2026-08-30 — vinte e uma alterações e doze ficheiros novos, nada apagado, tudo recuperável com git stash pop quando se decidir. Com a árvore limpa, o flutter analyze ficou sem erros (os avisos que restam são lint antigo). Nota: a linha de telemetria da skill ceo-ai desta missão foi junto no stash; volta quando o stash for resolvido.
+
+O site novo foi verificado no ar em app.boraguarda.com pelo corpo, não pelo código de resposta: o pacote main.dart.js publicado contém os textos novos desta missão (o título honesto do pagamento, o Chamar a volta, o Volta garantida). Só depois disso se correu o script da troca do template do email — trocado e confirmado por releitura, com o template antigo guardado em backup. E a prova final da senha, desta vez com o site novo: gerou-se o link exactamente como o email novo o leva, abriu-se no browser e o ecrã publicado mostrou logo os dois campos e o botão; a seguir provou-se que abrir a página NÃO gastou o link (o mesmo código ainda trocou por sessão), a senha mudou para SenhaNova789, o login com ela deu 200, o login com a anterior deu 400, e reutilizar o código deu 403. É a prova de que o prefetch do email — a causa do caso real de hoje — deixou de conseguir estragar a recuperação.
+
+O que continua por fazer: só a prova no telemóvel (continua sem haver Android ligado por USB) — pacote em dinheiro ponta a ponta, MB Way com a app fechada a meio, e as capturas dos mapas novos no aparelho real. O Android novo já está na Play alpha por este build; quando o Danilo actualizar a app, essas provas podem ser feitas ao vivo.
+
 ## Acessos e contas usadas nesta sessão
 
 Supabase do projecto ojykpzwqrtusfeakzrna, entrado com o token pessoal do `.supabase-token.env` (CLI e Management API) e com a chave de servidor do `backend/.env` (só para a prova da palavra-passe). Foi criada uma conta de teste nova, teste-senha-bloco7@bora.app, palavra-passe actual SenhaNova456 — serviu a prova do Bloco 7 e pode ficar ou ser apagada. Nenhuma conta real foi tocada. Nenhum dinheiro real foi movido.

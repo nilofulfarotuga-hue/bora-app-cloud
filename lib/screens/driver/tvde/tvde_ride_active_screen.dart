@@ -133,6 +133,16 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   Set<Marker> _mapMarkers = <Marker>{};
   String? _markersKey;
 
+  /// [Bloco 6, 30/08] Painel arrastável controlado: em "Viagem em curso" abre
+  /// RECOLHIDO por defeito (só a linha estado·ganho) com o mapa quase cheio —
+  /// o "Finalizar viagem" deixa de ficar fora do alcance porque se puxa o
+  /// painel quando se quer os botões. `_sheetExtent` é seguido para a mira
+  /// ficar SEMPRE acima do painel, em qualquer estado.
+  final DraggableScrollableController _sheetCtrl =
+      DraggableScrollableController();
+  double _sheetExtent = 0.30;
+  bool _sheetCollapsedForTrip = false;
+
   @override
   void initState() {
     super.initState();
@@ -145,6 +155,7 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     _stopsTicker?.cancel();
     _mapCtrl?.dispose();
     _directions.dispose();
+    _sheetCtrl.dispose();
     if (_chatRideId != null) _chatStore?.unlisten(_chatRideId!);
     super.dispose();
   }
@@ -329,6 +340,8 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     if (_rideId == ride.id) return;
     _rideId = ride.id;
     _navigatedToRate = false;
+    // [Bloco 6] corrida nova (back-to-back) → o recolher-em-viagem reinicia.
+    _sheetCollapsedForTrip = false;
     _passengerName = null;
     _passengerPhotoUrl = null;
     _passengerPhone = null;
@@ -812,6 +825,19 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     _onRideChanged(ride);
     _syncWaitTicker(ride);
     _syncStopsTicker();
+    // [Bloco 6, 30/08] Ao entrar em "Viagem em curso", recolhe o painel para a
+    // linha única (estado · ganho) e dá o mapa inteiro — uma vez por corrida;
+    // o motorista continua livre de o puxar quando quiser os botões.
+    if (ride.isInProgress && !_sheetCollapsedForTrip) {
+      _sheetCollapsedForTrip = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _sheetCtrl.isAttached) {
+          _sheetCtrl.animateTo(0.14,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOut);
+        }
+      });
+    }
     // B2/B6 — mantém a rota real + ETA atualizados (idempotente por _routeKey).
     // [Item N] + atualiza o bearing da seta do motorista.
     // [CAMPO-02 · F1] + recarrega as paradas se o cliente as mudou (realtime).
@@ -896,9 +922,12 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
             ),
           ),
           // B5 — botão mira (recentra no motorista), igual ao estafeta.
+          // [Bloco 6, 30/08] Acompanha a altura REAL do painel (via
+          // _sheetExtent) — antes ficava escondida atrás dele.
           Positioned(
             right: Spacing.md,
-            bottom: 200,
+            bottom: MediaQuery.of(context).size.height * _sheetExtent +
+                Spacing.md,
             child: FloatingActionButton.small(
               heroTag: 'tvde_recenter',
               backgroundColor: AppColors.surface,
@@ -922,9 +951,19 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
           // [Item N] Card arrastável (bottom sheet), igual ao delivery: puxar
           // para baixo encolhe (mostra só o essencial e liberta o mapa), puxar
           // para cima expande. O mapa (com a rota) ocupa o resto.
+          // [Bloco 6, 30/08] Em viagem começa RECOLHIDO (mapa quase cheio); o
+          // NotificationListener segue a altura para posicionar a mira.
           Positioned.fill(
-            child: DraggableScrollableSheet(
-              initialChildSize: 0.30,
+            child: NotificationListener<DraggableScrollableNotification>(
+              onNotification: (n) {
+                if (mounted && (n.extent - _sheetExtent).abs() > 0.01) {
+                  setState(() => _sheetExtent = n.extent);
+                }
+                return false;
+              },
+              child: DraggableScrollableSheet(
+              controller: _sheetCtrl,
+              initialChildSize: ride.isInProgress ? 0.14 : 0.30,
               minChildSize: 0.14,
               maxChildSize: 0.52,
               snap: true,
@@ -960,6 +999,7 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
                     _ActionPanel(ride: ride, busy: store.busy, actions: this),
                   ],
                 ),
+              ),
               ),
             ),
           ),
@@ -1030,7 +1070,18 @@ class _ActionPanel extends StatelessWidget {
               Icon(Icons.directions_car, color: AppColors.primary),
               const SizedBox(width: Spacing.md),
               Expanded(
-                child: Text(ride.statusLabel,
+                // [Bloco 6] Estado + ETA na PRIMEIRA linha: é a única coisa
+                // visível com o painel recolhido em viagem, e o ETA tem de lá
+                // estar (padrão Waze/Uber).
+                child: Text(
+                    actions._etaText != null &&
+                            (ride.isOnTheWay ||
+                                ride.hasArrived ||
+                                ride.isInProgress)
+                        ? '${ride.statusLabel} · ${actions._etaText}'
+                        : ride.statusLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,

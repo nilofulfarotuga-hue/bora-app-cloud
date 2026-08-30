@@ -1,8 +1,13 @@
-// supabase/functions/tvde-plan-payment/index.ts — v3 (Item A + CAMPO-02 F3 roundtrip)
+// supabase/functions/tvde-plan-payment/index.ts — v5 (Item A + CAMPO-02 F3 roundtrip + KM 2026-08-25)
 //
 // Pagamento do PLANO TVDE por cartão OU MB Way (Stripe) + ativação automática,
 // SEM tocar no webhook Stripe existente. Função nova e ISOLADA (regra do Danilo).
 // v3: +ações roundtrip (create_roundtrip / create_roundtrip_mbway / activate_roundtrip).
+// v4/v5: o PREÇO passa a depender da DISTÂNCIA. O app manda distance_km; o servidor calcula
+//     (tvde_quote_plan para o plano, tvde_roundtrip_price_for_km para o pacote) e guarda o km
+//     nos metadata do PaymentIntent. Na activação o km vem dos METADATA, nunca do pedido,
+//     para o cliente não poder pagar um plano curto e activar um plano longo.
+//     Sem distance_km tudo se comporta exactamente como na v3.
 
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -34,6 +39,14 @@ const json = (body: any, status = 200) =>
     status,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
+
+// Distância válida ou null. Nunca confiar em texto solto vindo do app.
+// deno-lint-ignore no-explicit-any
+function parseKm(raw: any): number | null {
+  const n = typeof raw === 'number' ? raw : Number(raw);
+  if (!Number.isFinite(n) || n <= 0 || n > 500) return null;
+  return Math.round(n * 100) / 100;
+}
 
 // deno-lint-ignore no-explicit-any
 async function getOrCreateCustomer(admin: any, userId: string): Promise<string | null> {
@@ -84,8 +97,11 @@ Deno.serve(async (req: Request) => {
     // deno-lint-ignore no-explicit-any
     const body = await req.json() as any;
     const action = typeof body?.action === 'string' ? body.action : null;
+    const distanceKm = parseKm(body?.distance_km);
+    const originLabel = typeof body?.origin_label === 'string' ? body.origin_label : null;
+    const destLabel = typeof body?.dest_label === 'string' ? body.dest_label : null;
 
-    // ── [CAMPO-02 F3] IDA-E-VOLTA — pacote pré-pago (8 EUR) reusa este checkout ──
+    // ── [CAMPO-02 F3] IDA-E-VOLTA — pacote pré-pago reusa este checkout ──
     if (action === 'create_roundtrip' || action === 'create_roundtrip_mbway' ||
         action === 'activate_roundtrip') {
       const rtAdmin = createClient(supabaseUrl, serviceKey);
@@ -114,13 +130,28 @@ Deno.serve(async (req: Request) => {
         return json({ credit });
       }
 
-      const { data: priceRow } = await rtAdmin
-        .from('platform_settings').select('value').eq('key', 'tvde_roundtrip_price_cents').maybeSingle();
-      const amountCents = Number(priceRow?.value ?? 800);
+      // PREÇO POR DISTÂNCIA. Com distance_km usa a fórmula do servidor (ida+volta com desconto);
+      // sem ela cai no valor fixo antigo, como na v3.
+      let amountCents = 0;
+      if (distanceKm !== null) {
+        const { data: rtPrice, error: rtErr } = await rtAdmin
+          .rpc('tvde_roundtrip_price_for_km', { p_distance_km: distanceKm });
+        amountCents = typeof rtPrice === 'number' ? rtPrice : Number(rtPrice);
+        if (rtErr || !amountCents || amountCents < 50) {
+          console.error('[tvde-plan-payment roundtrip] price failed:', rtErr?.message);
+          return json({ error: 'roundtrip_price_unavailable', details: rtErr?.message }, 400);
+        }
+      } else {
+        const { data: priceRow } = await rtAdmin
+          .from('platform_settings').select('value').eq('key', 'tvde_roundtrip_price_cents').maybeSingle();
+        amountCents = Number(priceRow?.value ?? 800);
+      }
       if (!amountCents || amountCents < 50) {
         return json({ error: 'roundtrip_price_unavailable' }, 400);
       }
       const customerId = await getOrCreateCustomer(rtAdmin, user.id);
+      const rtMeta: Record<string, string> = { kind: 'tvde_roundtrip', user_id: user.id };
+      if (distanceKm !== null) rtMeta.distance_km = String(distanceKm);
 
       if (action === 'create_roundtrip') {
         const paymentIntent = await stripe.paymentIntents.create({
@@ -128,7 +159,7 @@ Deno.serve(async (req: Request) => {
           currency: 'eur',
           ...(customerId ? { customer: customerId, setup_future_usage: 'off_session' as const } : {}),
           automatic_payment_methods: { enabled: true },
-          metadata: { kind: 'tvde_roundtrip', user_id: user.id },
+          metadata: rtMeta,
         });
         return json({
           clientSecret: paymentIntent.client_secret,
@@ -150,7 +181,7 @@ Deno.serve(async (req: Request) => {
           payment_method_types: ['mb_way'],
           payment_method_data: { type: 'mb_way', billing_details: { phone: e164 } },
           confirm: true,
-          metadata: { kind: 'tvde_roundtrip', user_id: user.id },
+          metadata: rtMeta,
         });
       } catch (e) {
         const m = e instanceof Error ? e.message : String(e);
@@ -167,13 +198,35 @@ Deno.serve(async (req: Request) => {
 
     const admin = createClient(supabaseUrl, serviceKey);
 
-    if (action === 'create') {
+    // Preço do plano: com distância usa o orçamento completo (base + km a mais x nº de corridas).
+    async function planAmountCents(): Promise<{ amount: number; quote: unknown; err?: string }> {
+      if (distanceKm !== null) {
+        const { data: q, error: qErr } = await userClient
+          .rpc('tvde_quote_plan', { p_plan: plan, p_distance_km: distanceKm });
+        if (qErr || !q) return { amount: 0, quote: null, err: qErr?.message ?? 'quote_failed' };
+        // deno-lint-ignore no-explicit-any
+        const amount = Number((q as any).price_cents);
+        return { amount, quote: q };
+      }
       const { data: priceData, error: priceErr } =
         await userClient.rpc('tvde_plan_price_cents', { p_plan: plan });
-      const amountCents = typeof priceData === 'number' ? priceData : Number(priceData);
-      if (priceErr || !amountCents || amountCents < 50) {
-        console.error('[tvde-plan-payment create] price failed:', priceErr?.message);
-        return json({ error: 'plan_price_unavailable', details: priceErr?.message }, 400);
+      const amount = typeof priceData === 'number' ? priceData : Number(priceData);
+      return { amount, quote: null, err: priceErr?.message };
+    }
+
+    const planMeta = (): Record<string, string> => {
+      const m: Record<string, string> = { kind: 'tvde_plan', plan: plan as string, user_id: user.id };
+      if (distanceKm !== null) m.distance_km = String(distanceKm);
+      if (originLabel) m.origin_label = originLabel.slice(0, 200);
+      if (destLabel) m.dest_label = destLabel.slice(0, 200);
+      return m;
+    };
+
+    if (action === 'create') {
+      const { amount: amountCents, quote, err } = await planAmountCents();
+      if (err || !amountCents || amountCents < 50) {
+        console.error('[tvde-plan-payment create] price failed:', err);
+        return json({ error: 'plan_price_unavailable', details: err }, 400);
       }
 
       const customerId = await getOrCreateCustomer(admin, user.id);
@@ -185,16 +238,17 @@ Deno.serve(async (req: Request) => {
           ? { customer: customerId, setup_future_usage: 'off_session' as const }
           : {}),
         automatic_payment_methods: { enabled: true },
-        metadata: { kind: 'tvde_plan', plan, user_id: user.id },
+        metadata: planMeta(),
       });
 
       console.log('[tvde-plan-payment create]', paymentIntent.id, `plan=${plan}`,
-        `amount=€${(amountCents / 100).toFixed(2)}`, `user=${user.id}`);
+        `km=${distanceKm ?? '-'}`, `amount=€${(amountCents / 100).toFixed(2)}`, `user=${user.id}`);
 
       return json({
         clientSecret: paymentIntent.client_secret,
         paymentIntentId: paymentIntent.id,
         amountCents,
+        quote,
       });
     }
 
@@ -204,12 +258,10 @@ Deno.serve(async (req: Request) => {
       const digits = rawPhone.replace(/[^\d+]/g, '');
       const e164 = digits.startsWith('+') ? digits : `+351${digits.replace(/^0/, '')}`;
 
-      const { data: priceData, error: priceErr } =
-        await userClient.rpc('tvde_plan_price_cents', { p_plan: plan });
-      const amountCents = typeof priceData === 'number' ? priceData : Number(priceData);
-      if (priceErr || !amountCents || amountCents < 50) {
-        console.error('[tvde-plan-payment create_mbway] price failed:', priceErr?.message);
-        return json({ error: 'plan_price_unavailable', details: priceErr?.message }, 400);
+      const { amount: amountCents, quote, err } = await planAmountCents();
+      if (err || !amountCents || amountCents < 50) {
+        console.error('[tvde-plan-payment create_mbway] price failed:', err);
+        return json({ error: 'plan_price_unavailable', details: err }, 400);
       }
 
       const customerId = await getOrCreateCustomer(admin, user.id);
@@ -226,7 +278,7 @@ Deno.serve(async (req: Request) => {
             billing_details: { phone: e164 },
           },
           confirm: true,
-          metadata: { kind: 'tvde_plan', plan, user_id: user.id },
+          metadata: planMeta(),
         });
       } catch (e) {
         const m = e instanceof Error ? e.message : String(e);
@@ -235,12 +287,14 @@ Deno.serve(async (req: Request) => {
       }
 
       console.log('[tvde-plan-payment create_mbway]', paymentIntent.id, `plan=${plan}`,
-        `amount=€${(amountCents / 100).toFixed(2)}`, `phone=${e164}`, `status=${paymentIntent.status}`);
+        `km=${distanceKm ?? '-'}`, `amount=€${(amountCents / 100).toFixed(2)}`,
+        `phone=${e164}`, `status=${paymentIntent.status}`);
 
       return json({
         paymentIntentId: paymentIntent.id,
         status: paymentIntent.status,
         amountCents,
+        quote,
       });
     }
 
@@ -268,6 +322,8 @@ Deno.serve(async (req: Request) => {
       }
 
       const paidCents = pi.amount_received || pi.amount;
+      // O km vem dos METADATA do pagamento, nunca do corpo do pedido.
+      const paidKm = parseKm(pi.metadata?.distance_km);
 
       const { data: sub, error: rpcErr } = await admin.rpc(
         'tvde_activate_paid_subscription', {
@@ -275,13 +331,17 @@ Deno.serve(async (req: Request) => {
           p_plan: plan,
           p_payment_intent_id: piId,
           p_paid_cents: paidCents,
+          p_km_included: paidKm,
+          p_origin_label: pi.metadata?.origin_label ?? null,
+          p_dest_label: pi.metadata?.dest_label ?? null,
         });
       if (rpcErr) {
         console.error('[tvde-plan-payment activate] rpc failed:', rpcErr.message);
         return json({ error: 'activation_failed', details: rpcErr.message }, 500);
       }
 
-      console.log('[tvde-plan-payment activate] OK', piId, `plan=${plan}`, `user=${user.id}`);
+      console.log('[tvde-plan-payment activate] OK', piId, `plan=${plan}`,
+        `km=${paidKm ?? '-'}`, `user=${user.id}`);
       return json({ subscription: sub });
     }
 

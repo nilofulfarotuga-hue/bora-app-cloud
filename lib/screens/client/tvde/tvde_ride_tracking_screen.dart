@@ -63,6 +63,13 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
   Set<Polyline> _routePolys = <Polyline>{};
   String? _routeKey;
 
+  // ── [Bloco 5, 30/08] rota do MOTORISTA (→recolha antes de embarcar,
+  // →destino em viagem), estilo Uber. Refaz-se quando a fase muda ou o carro
+  // se afasta ≥120 m do ponto onde a rota foi traçada (poupa Directions).
+  Set<Polyline> _driverRoutePolys = <Polyline>{};
+  LatLng? _driverRouteFrom;
+  String _driverRoutePhase = '';
+
   // ── Heading-up (paridade com o mapa do motorista) ─────────────────────────
   // Câmara estilo Waze: segue o carro com zoom/tilt de navegação e RODA
   // (bearing) conforme a direção de marcha, calculada pelo delta de posições
@@ -110,12 +117,15 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Voltar ao foreground → rebuscar a corrida no servidor. O realtime pode
-    // ter perdido eventos com a app em background; um estado terminal que
-    // chegue por aqui faz a tela sair sozinha (build já trata isCancelled /
-    // isFinished).
+    // Voltar ao foreground → reatar o realtime (o canal pode ter morrido em
+    // silêncio no background — a tela da Sandra ficou presa em "à procura" a
+    // 30/08) E rebuscar a corrida no servidor. Um estado terminal que chegue
+    // por aqui faz a tela sair sozinha (build já trata isCancelled/isFinished).
     if (state == AppLifecycleState.resumed && mounted) {
-      context.read<TvdeStore>().refreshActiveRide();
+      final store = context.read<TvdeStore>();
+      store.reattachActiveRide();
+      // MB Way de pacote pendente? Retomar a ativação em fundo (idempotente).
+      unawaited(store.resumePendingRoundtripActivation());
     }
   }
 
@@ -503,9 +513,58 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
           _driverPhone = (row?['phone'] as String?)?.trim();
         });
         // C4 — anima em vez de saltar.
-        if (lat != null && lng != null) _setDriverPos(LatLng(lat, lng));
+        if (lat != null && lng != null) {
+          final pos = LatLng(lat, lng);
+          _setDriverPos(pos);
+          // [Bloco 5] rota viva do motorista (→recolha / →destino).
+          _maybeFetchDriverRoute(ride, pos);
+        }
       }
     } catch (_) {}
+  }
+
+  /// [Bloco 5, 30/08] Rota do motorista até ao alvo da fase atual — como o
+  /// Uber: o cliente vê o caminho que o carro vai fazer, não só o pontinho.
+  Future<void> _maybeFetchDriverRoute(TvdeRide ride, LatLng pos) async {
+    final phase =
+        ride.isInProgress ? 'dest' : (ride.isAssigned ? 'pickup' : '');
+    if (phase.isEmpty) {
+      if (_driverRoutePolys.isNotEmpty && mounted) {
+        setState(() => _driverRoutePolys = <Polyline>{});
+      }
+      return;
+    }
+    final from = _driverRouteFrom;
+    final moved = from == null
+        ? double.infinity
+        : Geolocator.distanceBetween(
+            from.latitude, from.longitude, pos.latitude, pos.longitude);
+    if (phase == _driverRoutePhase && moved < 120) return;
+    _driverRoutePhase = phase;
+    _driverRouteFrom = pos;
+    final target = phase == 'dest'
+        ? ll.LatLng(ride.destLat, ride.destLng)
+        : ll.LatLng(ride.originLat, ride.originLng);
+    try {
+      final route = await _directions.fetchRoute(
+        origin: ll.LatLng(pos.latitude, pos.longitude),
+        destination: target,
+      );
+      if (!mounted || route == null || route.points.isEmpty) return;
+      setState(() {
+        _driverRoutePolys = {
+          Polyline(
+            polylineId: const PolylineId('tvde_driver_route'),
+            points: route.points.toGMaps(),
+            color: AppColors.accent,
+            width: 6,
+            startCap: Cap.roundCap,
+            endCap: Cap.roundCap,
+            jointType: JointType.round,
+          ),
+        };
+      });
+    } catch (_) {/* sem rota do motorista → fica só a rota grossa (B2) */}
   }
 
   void _maybeGoToRate(TvdeRide ride) {
@@ -647,9 +706,22 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
       );
       if (desistir != true || !mounted) return;
       try {
-        await context
-            .read<TvdeStore>()
-            .cancelRide(ride.id, reason: 'payment_failed', skipRefund: true);
+        final store = context.read<TvdeStore>();
+        // Guarda 30/08 (corrida 5bac9a76): NUNCA cancelar como não-pago sem
+        // perguntar primeiro ao servidor se o PaymentIntent passou entretanto.
+        final res = await store.confirmRidePayment(ride.id);
+        if (!mounted) return;
+        final st = res?['payment_status'] as String?;
+        if ((res != null && res['succeeded'] == true) || st == 'processing') {
+          await store.refreshActiveRide();
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('Afinal o pagamento já entrou (ou está a ser '
+                  'confirmado) — a corrida segue.')));
+          return;
+        }
+        await store.cancelRide(ride.id,
+            reason: 'payment_failed', skipRefund: true);
         if (!mounted) return;
         // Mesma saída determinística do cancelamento normal (P0-3).
         context.read<TvdeStore>().clearActiveRide();
@@ -824,6 +896,48 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
     WidgetsBinding.instance
         .addPostFrameCallback((_) => _maybeFetchRoute(ride));
 
+    // [Bloco 5, 30/08] Com motorista atribuído (ou em viagem), o cartão grande
+    // dava lugar ao mapa: fica uma FITINHA em baixo que puxa para cima
+    // (DraggableScrollableSheet) para ver o resto. Nos outros estados (à
+    // procura, a confirmar pagamento, sem motorista) o cartão completo mantém-se
+    // — aí a informação É o ecrã.
+    final compact = ride.isAssigned || ride.isInProgress;
+    const stripSize = 0.14;
+    final panel = _StatusPanel(
+      ride: ride,
+      busy: store.busy,
+      driverName: _driverName,
+      driverRating: _driverRating,
+      driverPhotoUrl: _driverPhotoUrl,
+      driverCar: _driverCar,
+      driverCarColor: _driverCarColor,
+      driverPlate: _driverPlate,
+      hasPhone: _driverPhone != null && _driverPhone!.isNotEmpty,
+      etaMinutes: _etaMinutes(ride),
+      unreadCount: context.watch<TvdeChatStore>().unreadFor(ride.id, 'client'),
+      stops: _stops,
+      maxStops: _maxStops,
+      stopFeeCents: _stopFeeCents,
+      stopTimerSeconds: _stopTimerSeconds,
+      packageCents: _packageCents,
+      addingStop: _addingStop,
+      onAddStop: () => _addStop(ride),
+      onRemoveStop: (stop) => _removeStop(ride, stop),
+      onChat: () => _openChat(ride),
+      onCall: _call,
+      onCancel: () => _cancel(ride),
+      onPayAgain: ride.isAwaitingPayment &&
+              ride.paymentMethod == 'card' &&
+              store.cardClientSecretFor(ride.id) != null
+          ? () => _pagarDeNovo(ride)
+          : null,
+      onRetry: () => _retry(ride, store),
+      onClose: () {
+        store.clearActiveRide();
+        Navigator.pop(context);
+      },
+    );
+
     return Scaffold(
       appBar: const BoraScreenAppBar(title: 'A tua corrida'),
       body: Stack(
@@ -831,7 +945,8 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
           GoogleMap(
             initialCameraPosition: CameraPosition(target: center, zoom: 13),
             markers: _markers(ride),
-            polylines: _routePolys, // B2 — rota grossa recolha→destino
+            // B2 (grossa recolha→destino) + Bloco 5 (rota viva do motorista).
+            polylines: {..._routePolys, ..._driverRoutePolys},
             myLocationButtonEnabled: false,
             zoomControlsEnabled: false,
             // Com heading-up a bússola deixa o utilizador repor o norte.
@@ -844,10 +959,13 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
               if (!_progCamMove) _followCam = false;
             },
           ),
-          // B5 — botão mira (recentra no motorista/recolha).
+          // B5 — botão mira (recentra no motorista/recolha). Fica SEMPRE acima
+          // da fitinha/painel, em qualquer estado.
           Positioned(
             right: Spacing.md,
-            bottom: 200,
+            bottom: compact
+                ? MediaQuery.of(context).size.height * stripSize + Spacing.md
+                : 200,
             child: FloatingActionButton.small(
               heroTag: 'tvde_client_recenter',
               backgroundColor: AppColors.surface,
@@ -856,44 +974,119 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
               child: const Icon(Icons.my_location),
             ),
           ),
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: _StatusPanel(
-              ride: ride,
-              busy: store.busy,
-              driverName: _driverName,
-              driverRating: _driverRating,
-              driverPhotoUrl: _driverPhotoUrl,
-              driverCar: _driverCar,
-              driverCarColor: _driverCarColor,
-              driverPlate: _driverPlate,
-              hasPhone: _driverPhone != null && _driverPhone!.isNotEmpty,
-              etaMinutes: _etaMinutes(ride),
-              unreadCount:
-                  context.watch<TvdeChatStore>().unreadFor(ride.id, 'client'),
-              stops: _stops,
-              maxStops: _maxStops,
-              stopFeeCents: _stopFeeCents,
-              stopTimerSeconds: _stopTimerSeconds,
-              packageCents: _packageCents,
-              addingStop: _addingStop,
-              onAddStop: () => _addStop(ride),
-              onRemoveStop: (stop) => _removeStop(ride, stop),
-              onChat: () => _openChat(ride),
-              onCall: _call,
-              onCancel: () => _cancel(ride),
-              onPayAgain: ride.isAwaitingPayment &&
-                      ride.paymentMethod == 'card' &&
-                      store.cardClientSecretFor(ride.id) != null
-                  ? () => _pagarDeNovo(ride)
-                  : null,
-              onRetry: () => _retry(ride, store),
-              onClose: () {
-                store.clearActiveRide();
-                Navigator.pop(context);
-              },
+          if (!compact)
+            Align(alignment: Alignment.bottomCenter, child: panel)
+          else
+            DraggableScrollableSheet(
+              initialChildSize: stripSize,
+              minChildSize: stripSize,
+              maxChildSize: 0.82,
+              snap: true,
+              snapSizes: const [stripSize, 0.82],
+              builder: (context, scrollCtrl) => Container(
+                decoration: const BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius:
+                      BorderRadius.vertical(top: Radius.circular(20)),
+                  boxShadow: [
+                    BoxShadow(
+                        color: Color(0x29000000),
+                        blurRadius: 16,
+                        offset: Offset(0, -2)),
+                  ],
+                ),
+                child: ListView(
+                  controller: scrollCtrl,
+                  padding: EdgeInsets.zero,
+                  children: [
+                    const SizedBox(height: Spacing.sm),
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: AppColors.divider,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                      ),
+                    ),
+                    _CompactStrip(
+                      ride: ride,
+                      fare: TvdeFareView.of(ride,
+                          packageCents: _packageCents),
+                      etaMinutes: _etaMinutes(ride),
+                    ),
+                    panel,
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// [Bloco 5, 30/08] A fitinha do fundo — estilo Uber: uma linha com o estado,
+/// o ETA e o preço; puxar para cima mostra o painel completo (paradas,
+/// mensagem, ligar, cancelar).
+class _CompactStrip extends StatelessWidget {
+  const _CompactStrip({
+    required this.ride,
+    required this.fare,
+    required this.etaMinutes,
+  });
+
+  final TvdeRide ride;
+  final TvdeFareView fare;
+  final int? etaMinutes;
+
+  String get _texto {
+    if (ride.isInProgress) {
+      return etaMinutes != null
+          ? 'Viagem em curso · ~$etaMinutes min'
+          : 'Viagem em curso';
+    }
+    if (ride.hasArrived) return 'O motorista chegou';
+    return etaMinutes != null
+        ? 'Motorista a caminho · ~$etaMinutes min'
+        : 'Motorista a caminho';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+          Spacing.lg, Spacing.sm, Spacing.lg, Spacing.xs),
+      child: Row(
+        children: [
+          Icon(
+            ride.isInProgress ? Icons.navigation : Icons.directions_car,
+            size: 20,
+            color: AppColors.primary,
+          ),
+          const SizedBox(width: Spacing.sm),
+          Expanded(
+            child: Text(
+              _texto,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary),
             ),
           ),
+          Text(
+            fare.clientLabel.split(' ').first, // só o valor, o resto no painel
+            style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: AppColors.primary),
+          ),
+          const SizedBox(width: 4),
+          const Icon(Icons.keyboard_arrow_up,
+              size: 20, color: AppColors.textSecondary),
         ],
       ),
     );
@@ -1108,7 +1301,13 @@ class _StatusPanel extends StatelessWidget {
                 Icon(_icon(ride), color: AppColors.primary),
               const SizedBox(width: Spacing.md),
               Expanded(
-                child: Text(ride.statusLabel,
+                // Estado honesto (30/08): enquanto o pagamento online não está
+                // `succeeded`, ninguém está a ser chamado — dizer "A confirmar
+                // pagamento…" e nunca "À procura de motorista".
+                child: Text(
+                    ride.isAwaitingPayment
+                        ? 'A confirmar pagamento…'
+                        : ride.statusLabel,
                     style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,

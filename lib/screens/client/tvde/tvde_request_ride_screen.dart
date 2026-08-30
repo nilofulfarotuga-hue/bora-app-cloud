@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
 import 'package:latlong2/latlong.dart';
@@ -621,6 +623,15 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
       // criada e estacionada → cancelá-la, senão fica pendurada até o cron a
       // apanhar. Nada foi cobrado, por isso não se pede refund.
       if (orfa != null && orfa.isAwaitingPayment) {
+        // [30/08] A exceção pode ter rebentado DEPOIS de o pagamento passar.
+        // Confirmar no servidor antes de cancelar; pago/processing → manter.
+        final res = await store.confirmRidePayment(orfa.id);
+        final st = res?['payment_status'] as String?;
+        if ((res != null && res['succeeded'] == true) || st == 'processing') {
+          if (!mounted) return;
+          _openTracking();
+          return;
+        }
         try {
           await store.cancelRide(orfa.id,
               reason: 'payment_failed', skipRefund: true);
@@ -667,6 +678,15 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
       );
       if (!mounted) return;
       if (pagarDeNovo != true) {
+        // [30/08] Mesmo aqui: confirmar no servidor que o PI NÃO passou antes
+        // de cancelar (a sheet pode ter sido abandonada já depois de pagar).
+        final res = await store.confirmRidePayment(orfa.id);
+        if (!mounted) return;
+        final st = res?['payment_status'] as String?;
+        if ((res != null && res['succeeded'] == true) || st == 'processing') {
+          _openTracking();
+          return;
+        }
         try {
           await store.cancelRide(orfa.id,
               reason: 'payment_failed', skipRefund: true);
@@ -720,6 +740,20 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
         ),
       );
       if (paid == true) return true;
+      if (!mounted) return false;
+      // [30/08, corrida 5bac9a76] O diálogo devolveu false (timeout / morte),
+      // mas isso NÃO prova que o pagamento falhou. Perguntar uma última vez ao
+      // servidor antes de cancelar; 'processing' ou sem resposta → manter.
+      final res = await store.confirmRidePayment(ride.id);
+      if (!mounted) return false;
+      if (res != null && res['succeeded'] == true) return true;
+      final st = res?['payment_status'] as String?;
+      if (res == null || st == 'processing') {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Ainda estamos a confirmar o pagamento. Vê o estado '
+                'no ecrã da corrida — se o MB Way passou, ela segue sozinha.')));
+        return true;
+      }
       await cancelar();
       if (!mounted) return false;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -911,8 +945,14 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
               : 'Não foi possível iniciar o pagamento da volta.')));
       return;
     }
+    // [30/08, ride 9f543c4b] Persistir JÁ o PaymentIntent: se a app morrer a
+    // partir daqui, a reabertura retoma a ativação sozinha (o servidor sabe
+    // encontrar a ida pendente mesmo sem o id dela).
+    await store.savePendingRoundtrip(paymentIntentId: paymentIntentId);
+    if (!mounted) return;
     if (!isMbway) {
       if (created['clientSecret'] == null) {
+        await store.clearPendingRoundtrip();
         messenger.showSnackBar(const SnackBar(
             content: Text('Não foi possível iniciar o pagamento da volta.')));
         return;
@@ -921,6 +961,9 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
         await PaymentService()
             .processPayment(created['clientSecret'] as String);
       } catch (_) {
+        // Sheet abandonada: um PI de cartão nunca passa sem esta confirmação,
+        // por isso o par pendente morre aqui.
+        await store.clearPendingRoundtrip();
         if (!mounted) return;
         messenger.showSnackBar(
             const SnackBar(content: Text('Pagamento cancelado.')));
@@ -961,11 +1004,17 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     } catch (_) {}
     if (!mounted) return;
     if (ida == null) {
+      // O par pendente FICA guardado: o pagamento existe, e o servidor sabe
+      // criar o vale (e encontrar/libertar a ida) quando o poll retomar.
       messenger.showSnackBar(const SnackBar(
           content:
               Text('Pago, mas falhou criar a corrida. Fala com o suporte.')));
       return;
     }
+    // Ida criada → completa o par pendente com o id dela.
+    await store.savePendingRoundtrip(
+        paymentIntentId: paymentIntentId, outboundRideId: ida.id);
+    if (!mounted) return;
 
     // 3) Liga a ida ao vale. O `activate_roundtrip` só passa com o PaymentIntent
     //    em 'succeeded' — no MB Way é isso que o dialog espera (poll), no cartão
@@ -982,22 +1031,50 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
       );
       if (!mounted) return;
       if (ok != true) {
-        // [Fase B] Sem confirmação o vale não é criado e a ida ficaria solta, a
-        // cobrar a tarifa ao cliente. Antes seguia "como corrida normal" — agora
-        // cancela-se. Nada foi cobrado, por isso não se pede refund.
-        try {
-          await store.cancelRide(ida.id,
-              reason: 'payment_failed', skipRefund: true);
-        } catch (_) {/* o cron limpa (payment_timeout) */}
+        // [30/08, corrida 5bac9a76] NUNCA cancelar sem confirmar no servidor
+        // que o PaymentIntent NÃO passou — o diálogo pode ter morrido (app
+        // fechada, timeout) com o dinheiro já cobrado ou a caminho.
+        final estado =
+            await store.activateRoundtripDetailed(ida.id, paymentIntentId);
         if (!mounted) return;
-        messenger.showSnackBar(const SnackBar(
-            content: Text('Não recebemos a confirmação MBWay. A corrida não '
-                'foi pedida e não foste cobrado.')));
-        return;
+        if (estado == 'ok') {
+          // Afinal passou (o diálogo é que já cá não estava). Seguir normal.
+          await store.clearPendingRoundtrip();
+        } else if (estado == 'failed') {
+          // Terminal na Stripe: aqui sim, cancela-se — nada foi cobrado.
+          await store.clearPendingRoundtrip();
+          try {
+            await store.cancelRide(ida.id,
+                reason: 'payment_failed', skipRefund: true);
+          } catch (_) {/* o cron limpa (payment_timeout) */}
+          if (!mounted) return;
+          messenger.showSnackBar(const SnackBar(
+              content: Text('Não recebemos a confirmação MBWay. A corrida não '
+                  'foi pedida e não foste cobrado.')));
+          return;
+        } else {
+          // 'pending'/'unknown': o dinheiro pode estar a caminho — manter a
+          // corrida, dizer a verdade e deixar o poll de fundo fechar o resto.
+          unawaited(store.resumePendingRoundtripActivation());
+          messenger.showSnackBar(const SnackBar(
+              content: Text('A confirmar o pagamento… Se já confirmaste no '
+                  'MB Way, a corrida segue sozinha dentro de momentos.')));
+          _openTracking();
+          return;
+        }
+      } else {
+        await store.clearPendingRoundtrip();
       }
     } else {
       try {
-        await store.activateRoundtrip(ida.id, paymentIntentId);
+        final ativado = await store.activateRoundtrip(ida.id, paymentIntentId);
+        if (ativado) {
+          await store.clearPendingRoundtrip();
+        } else {
+          // Cartão cobrado mas ativação por fechar: o par pendente fica, e o
+          // poll de fundo volta a tentar (o activate é idempotente).
+          unawaited(store.resumePendingRoundtripActivation());
+        }
       } catch (_) {
         // Cartão já cobrado mas o vale não ficou ligado: a ida fica parqueada
         // em "aguarda pagamento" (payment_status NULL nunca despacha) e o
@@ -1039,23 +1116,18 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     } catch (_) {/* fica o da ida; o cliente pode editar na folha */}
     if (!mounted) return;
 
-    final picked = await showModalBottomSheet<_ReturnDest>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: AppColors.surface,
-      // [Ronda 2] Fechar a folha só pelo "X". Antes, tocar fora para esconder o
-      // teclado fazia barrier-tap → `pop(null)` → o ecrã por baixo voltava ao
-      // botão "Solicitar corrida" e o cliente pedia uma corrida normal de €5 a
-      // pensar que estava a chamar a volta que já tinha pago.
-      isDismissible: false,
-      enableDrag: false,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => _ReturnSheet(
-        initialOriginLabel: originLabel,
-        initialOrigin: origin,
+    // [Bloco 4b, 30/08] Ecrã INTEIRO em vez de folha: com o teclado aberto a
+    // folha abria cortada (só um campo branco e o botão). Em full-screen os
+    // campos e o botão ficam sempre visíveis. Fechar continua a ser só pelo
+    // "X" (a lição da Ronda 2 mantém-se — sem barrier-tap a enganar).
+    final picked = await Navigator.push<_ReturnDest>(
+      context,
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => _ReturnSheet(
+          initialOriginLabel: originLabel,
+          initialOrigin: origin,
+        ),
       ),
     );
     if (!mounted) return;
@@ -1086,6 +1158,37 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
         destLat: picked.lat,
         destLng: picked.lng,
         destLabel: picked.label,
+        distanceKm: double.parse(km.toStringAsFixed(2)),
+      );
+      if (!mounted) return;
+      _openTracking();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Não foi possível chamar a volta.')));
+    }
+  }
+
+  /// [Bloco 4, 30/08] Chamar a volta a partir do FLUXO NORMAL: com vale ativo,
+  /// os campos que a pessoa preencheu servem a volta tal e qual — o botão
+  /// principal usa o vale (`tvde_request_return_ride`) em vez de vender outra
+  /// corrida. Impossível pagar duas vezes sem querer.
+  Future<void> _callReturnFromForm() async {
+    final credit = _activeCredit;
+    final km = _effectiveKm;
+    if (credit == null || _pickup == null || _dest == null || km == null) {
+      return;
+    }
+    final store = context.read<TvdeStore>();
+    try {
+      await store.requestReturnRide(
+        creditId: credit['id'] as String,
+        originLat: _pickup!.latitude,
+        originLng: _pickup!.longitude,
+        originLabel: _pickupLabel,
+        destLat: _dest!.latitude,
+        destLng: _dest!.longitude,
+        destLabel: _destLabel,
         distanceKm: double.parse(km.toStringAsFixed(2)),
       );
       if (!mounted) return;
@@ -1227,37 +1330,57 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
               km: _effectiveKm,
               etaMinutes: _etaMinutes,
               loading: _estimating,
-              isFree: _payCase == _PayCase.freeCovered,
-              message: _payMessage,
+              // [Bloco 4, 30/08] Vale ativo → esta corrida é a VOLTA já paga.
+              // Mostrar "€5,00 estimado" aqui fez uma cliente real quase
+              // comprar o pacote segunda vez pelo fluxo normal.
+              isFree: _payCase == _PayCase.freeCovered || _activeCredit != null,
+              freeLabel: _activeCredit != null ? 'Volta garantida' : 'Plano',
+              message: _activeCredit != null
+                  ? 'Grátis — volta incluída no pacote'
+                  : _payMessage,
             ),
             const SizedBox(height: Spacing.md),
             // [F3] "Garantir a volta" — pacote ida+volta pago adiantado.
-            _RoundtripToggle(
-              value: _roundtrip,
-              priceCents: _roundtripPriceCents,
-              savingCents: _roundtripSavingCents,
-              onChanged: (v) => setState(() => _roundtrip = v),
-            ),
-            // Parte 9 — prazo do vale bem claro (validade = 12h, aplicada em prod).
-            if (_roundtrip)
-              const Padding(
-                padding: EdgeInsets.only(top: Spacing.xs),
-                child: Text(
-                  'Válida por 12 horas após a compra — depois disso perdes a volta.',
-                  style: TextStyle(fontSize: 12, color: AppColors.textSubtle),
-                ),
+            // Escondido com vale ativo: comprar o pacote outra vez com uma
+            // volta já paga só pode ser engano.
+            if (_activeCredit == null) ...[
+              _RoundtripToggle(
+                value: _roundtrip,
+                priceCents: _roundtripPriceCents,
+                savingCents: _roundtripSavingCents,
+                onChanged: (v) => setState(() => _roundtrip = v),
               ),
+              // Parte 9 — prazo do vale bem claro (validade = 12h, aplicada em prod).
+              if (_roundtrip)
+                const Padding(
+                  padding: EdgeInsets.only(top: Spacing.xs),
+                  child: Text(
+                    'Válida por 12 horas após a compra — depois disso perdes a volta.',
+                    style: TextStyle(fontSize: 12, color: AppColors.textSubtle),
+                  ),
+                ),
+            ],
             const SizedBox(height: Spacing.xl),
             BoraAccentButton(
-              label: _roundtrip
-                  ? _roundtripPriceCents > 0
-                      ? 'Garantir ida e volta · €${(_roundtripPriceCents / 100).toStringAsFixed(2)}'
-                      : 'Garantir ida e volta'
-                  : 'Solicitar corrida',
-              icon: _roundtrip ? Icons.sync_alt : Icons.local_taxi,
+              label: _activeCredit != null
+                  ? 'Chamar a volta'
+                  : _roundtrip
+                      ? _roundtripPriceCents > 0
+                          ? 'Garantir ida e volta · €${(_roundtripPriceCents / 100).toStringAsFixed(2)}'
+                          : 'Garantir ida e volta'
+                      : 'Solicitar corrida',
+              icon: _activeCredit != null
+                  ? Icons.sync_alt
+                  : _roundtrip
+                      ? Icons.sync_alt
+                      : Icons.local_taxi,
               loading: store.busy,
               onPressed: canRequest
-                  ? (_roundtrip ? _solicitarRoundtrip : _onRequestPressed)
+                  ? (_activeCredit != null
+                      ? _callReturnFromForm
+                      : _roundtrip
+                          ? _solicitarRoundtrip
+                          : _onRequestPressed)
                   : null,
             ),
             // [Reserva agendada 2026-08-19] "Marcar para depois", ao lado do
@@ -1285,9 +1408,11 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
             ],
             const SizedBox(height: Spacing.md),
             Text(
-              _payCase == _PayCase.freeCovered
-                  ? 'Incluída no teu plano — não pagas nada ao motorista.'
-                  : 'Escolhes como pagar depois de solicitares.',
+              _activeCredit != null
+                  ? 'A volta já está paga no pacote — não pagas nada agora.'
+                  : _payCase == _PayCase.freeCovered
+                      ? 'Incluída no teu plano — não pagas nada ao motorista.'
+                      : 'Escolhes como pagar depois de solicitares.',
               textAlign: TextAlign.center,
               style: const TextStyle(color: AppColors.textSubtle, fontSize: 12),
             ),
@@ -1447,6 +1572,7 @@ class _EstimateCard extends StatelessWidget {
     required this.etaMinutes,
     required this.loading,
     required this.isFree,
+    this.freeLabel = 'Plano',
     this.message,
   });
   final int payableCents;
@@ -1454,6 +1580,7 @@ class _EstimateCard extends StatelessWidget {
   final int? etaMinutes; // tempo estimado (rota real) — padrão Uber/Bolt
   final bool loading;
   final bool isFree; // coberta ≤ base_km → cliente paga €0
+  final String freeLabel; // título do grátis: 'Plano' ou 'Volta garantida'
   final String? message; // linha do porquê (plano/excesso/extra)
 
   @override
@@ -1473,7 +1600,7 @@ class _EstimateCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(isFree ? 'Plano' : 'Valor estimado',
+                Text(isFree ? freeLabel : 'Valor estimado',
                     style: const TextStyle(color: Colors.white70, fontSize: 12)),
                 const SizedBox(height: 2),
                 if (loading)
@@ -2067,46 +2194,27 @@ class _ReturnSheetState extends State<_ReturnSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final media = MediaQuery.of(context);
-    final inset = media.viewInsets.bottom;
-    // [Ronda 2] O teclado era descontado DUAS vezes — à altura (`0.72h - inset`)
-    // e ao padding (`+ inset`) — e nada levantava a folha. Como a folha está
-    // ancorada ao fundo, com um teclado normal (~0.4h) ela ficava INTEIRA por
-    // baixo dele: o campo ganhava foco (o teclado subia) mas não se via o texto
-    // nem se conseguia tocar nas sugestões do autocomplete.
-    // O `margin` faz o que o padding interno não podia fazer: sobe a caixa toda
-    // acima do teclado (mesmo efeito do `_AddStopSheet`, que já funcionava).
-    final maxSheet = media.size.height - inset - media.padding.top;
-    final desired = media.size.height * 0.72;
-    return Container(
-      margin: EdgeInsets.only(bottom: inset),
-      height: desired < maxSheet ? desired : maxSheet,
-      child: SingleChildScrollView(
-        // Arrastar a folha fecha o teclado sem fechar a folha — o cliente já
-        // não precisa de tocar fora (que agora nem fecha).
+    // [Bloco 4b, 30/08] Passou de folha a ECRÃ INTEIRO (rota fullscreenDialog):
+    // com o teclado aberto a folha aparecia cortada — só um campo branco e o
+    // botão, o resto em branco. Num Scaffold o `resizeToAvoidBottomInset`
+    // (default) encolhe o corpo acima do teclado e o scroll faz o resto:
+    // campos e botão sempre visíveis. A lição da Ronda 2 mantém-se — sai-se
+    // só pelo "X" do AppBar, nunca por toque fora.
+    return Scaffold(
+      backgroundColor: AppColors.surface,
+      appBar: const BoraScreenAppBar(title: 'Chamar a minha volta'),
+      body: SingleChildScrollView(
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-        padding: const EdgeInsets.all(Spacing.lg),
+        padding: EdgeInsets.fromLTRB(
+          Spacing.lg,
+          Spacing.lg,
+          Spacing.lg,
+          Spacing.lg + MediaQuery.of(context).padding.bottom,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              children: [
-                const Icon(Icons.sync_alt, color: AppColors.primary),
-                const SizedBox(width: Spacing.sm),
-                const Expanded(
-                  child: Text('Chamar a minha volta',
-                      style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary)),
-                ),
-                IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close)),
-              ],
-            ),
-            const SizedBox(height: Spacing.xs),
             const Text(
                 'A volta já está paga. Confirma de onde sais e para onde vais.',
                 style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),

@@ -7,9 +7,16 @@ import 'tvde_ride.dart';
 ///
 /// A regra subtil (é daqui que nascia o "€13"): a `tvde_finish_ride` faz
 /// `IF v_prepaid THEN v_fare := v_stops_fee`. Ou seja, **numa perna do pacote
-/// o `final_fare_cents` é SÓ as paradas**, não a tarifa. Por isso ali soma-se
-/// `pacote + final`, enquanto numa corrida normal o `final` já inclui as paradas
-/// e somá-las outra vez seria dupla contagem.
+/// o `final_fare_cents` é SÓ as paradas**, não a tarifa — enquanto numa corrida
+/// normal o `final` já inclui as paradas e somá-las outra vez seria dupla
+/// contagem.
+///
+/// MAS: esse contrato do servidor já foi quebrado uma vez (2026-08-18 a 30/08 a
+/// migration passou a gravar a receita do vale em `final_fare_cents`) e o app,
+/// ao somar `pacote + final`, cobrou €16 num pacote de €8 a uma cliente real.
+/// Por isso, na perna do pacote, as paradas vêm SEMPRE de
+/// `extra_stops_fee_cents` e o `final_fare_cents` é ignorado — o app não pode
+/// depender do que o servidor decidir gravar ali.
 ///
 /// Puro (sem Flutter) para poder ser testado sem widgets.
 class TvdeFareView {
@@ -48,10 +55,10 @@ class TvdeFareView {
     final paidOnline = ride.isPaidOnline;
 
     // Perna do pacote: a tarifa desta corrida NUNCA se cobra — está prepaga.
-    // Depois do finish o `final` traz só as paradas; antes dele usamos o
-    // acumulado das paradas já adicionadas.
+    // As paradas vêm SEMPRE do acumulado `extra_stops_fee_cents`, nunca de
+    // `final_fare_cents` (contrato já quebrado uma vez — ver doc da classe).
     if (ride.isRoundtripLeg) {
-      final stops = finalCents ?? stopsCents;
+      final stops = stopsCents;
       final base = ride.isReturnLeg ? 0 : packageCents;
       final total = base + stops;
       final label = ride.isReturnLeg

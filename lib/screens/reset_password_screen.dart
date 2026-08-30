@@ -38,6 +38,15 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   _LinkState _linkState = _LinkState.resolving;
   String _invalidMessage = '';
 
+  /// [Bloco 7, 30/08] Fluxo `token_hash` (à prova de prefetch): o link do email
+  /// traz `?token_hash=…&type=recovery` e NÃO passa pelo `/verify` de uso
+  /// único. Guardamos o hash e só o trocamos por sessão (`verifyOTP`) quando a
+  /// pessoa carrega em "Guardar" — um prefetch do Gmail ou um duplo clique já
+  /// não gastam o link (caso real de 30/08: o `/verify` foi consumido às
+  /// 10:38:58 antes de a pessoa sequer ver o ecrã, e os cliques seguintes
+  /// davam 403 "One-time token not found").
+  String? _tokenHash;
+
   @override
   void initState() {
     super.initState();
@@ -79,6 +88,15 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
         _linkState = _LinkState.invalid;
         _invalidMessage = _messageForErrorCode(errorCode);
       });
+      return;
+    }
+
+    // [Bloco 7] Link novo com `token_hash`: não se troca nada agora — o link
+    // só é gasto no "Guardar" (verifyOTP). Mostrar já os dois campos.
+    final tokenHash = params['token_hash'];
+    if (tokenHash != null && tokenHash.isNotEmpty) {
+      _tokenHash = tokenHash;
+      setState(() => _linkState = _LinkState.ready);
       return;
     }
 
@@ -155,7 +173,18 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     final messenger = ScaffoldMessenger.of(context);
 
     try {
-      await Supabase.instance.client.auth.updateUser(
+      final auth = Supabase.instance.client.auth;
+      // [Bloco 7] Fluxo token_hash: é AGORA, no toque em "Guardar", que o link
+      // se gasta — verifyOTP troca o hash por uma sessão de recuperação. Se o
+      // hash já tiver sido usado/expirado, cai no catch e o ecrã diz como
+      // pedir um email novo.
+      if (_tokenHash != null && auth.currentSession == null) {
+        await auth.verifyOTP(
+          type: OtpType.recovery,
+          tokenHash: _tokenHash,
+        );
+      }
+      await auth.updateUser(
         UserAttributes(password: _passwordController.text),
       );
       // Termina a sessão de recovery — o utilizador volta a entrar com a
@@ -165,6 +194,19 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       setState(() => _done = true);
     } catch (e) {
       if (!mounted) return;
+      // [Bloco 7] Link gasto/expirado detetado no verifyOTP: em vez de um
+      // snackbar solto, o ecrã inteiro passa a "Ligação inválida" com o botão
+      // "Pedir nova ligação" — a pessoa sabe logo o que fazer.
+      if (_tokenHash != null && _isSpentLinkError(e)) {
+        setState(() {
+          _isProcessing = false;
+          _linkState = _LinkState.invalid;
+          _invalidMessage =
+              'Esta ligação expirou ou já foi utilizada. Peça um email novo '
+              'para redefinir a palavra-passe.';
+        });
+        return;
+      }
       messenger.showSnackBar(
         SnackBar(
           content: Text(_submitErrorMessage(e)),
@@ -173,6 +215,16 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     } finally {
       if (mounted) setState(() => _isProcessing = false);
     }
+  }
+
+  /// O verifyOTP devolve estes erros quando o token_hash já não serve.
+  bool _isSpentLinkError(Object e) {
+    if (e is! AuthException) return false;
+    final msg = e.message.toLowerCase();
+    return msg.contains('expired') ||
+        msg.contains('not found') ||
+        msg.contains('invalid') ||
+        (e.code ?? '').contains('otp');
   }
 
   String _submitErrorMessage(Object e) {

@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/falha_de_acao.dart';
@@ -691,6 +694,10 @@ class TvdeStore extends ChangeNotifier {
   Future<void> loadActiveRide() async {
     final uid = _uid;
     if (uid == null) return;
+    // Havendo um MB Way de pacote pendente de outra sessão, retomar o poll da
+    // ativação em fundo — é isto que impede a ida de ficar presa quando a app
+    // foi fechada a meio do pagamento (caso 9f543c4b, 30/08).
+    unawaited(resumePendingRoundtripActivation());
     try {
       final rows = await _sb
           .from('tvde_rides')
@@ -737,6 +744,16 @@ class TvdeStore extends ChangeNotifier {
     } catch (e) {
       debugPrint('TvdeStore.refreshActiveRide error => $e');
     }
+  }
+
+  /// Volta do background: o canal realtime pode ter morrido em silêncio (a
+  /// tela da Sandra ficou presa em "à procura" a 30/08 até fechar e abrir).
+  /// Reata a subscrição da corrida ativa E relê o servidor — os dois juntos.
+  Future<void> reattachActiveRide() async {
+    final r = _activeRide;
+    if (r == null) return;
+    _subscribeRide(r.id); // faz _unsubscribe() do canal velho primeiro
+    await refreshActiveRide();
   }
 
   void _subscribeRide(String rideId) {
@@ -1346,18 +1363,122 @@ class TvdeStore extends ChangeNotifier {
   }
 
   /// Ativa o vale-volta após o pagamento: liga a corrida de ida ao vale.
+  /// [outboundRideId] pode ser null — desde 30/08 o servidor procura sozinho a
+  /// ida pendente do cliente quando o id não vai (app fechada a meio do MB Way).
   Future<bool> activateRoundtrip(
-      String outboundRideId, String paymentIntentId) async {
+      String? outboundRideId, String paymentIntentId) async {
+    return await activateRoundtripDetailed(outboundRideId, paymentIntentId) ==
+        'ok';
+  }
+
+  /// Igual a [activateRoundtrip], mas distingue o PORQUÊ de não ter ativado —
+  /// a diferença entre "o cliente não pagou" e "o dinheiro vai a caminho":
+  ///  · 'ok'      — vale criado/ligado (PaymentIntent `succeeded`);
+  ///  · 'pending' — PI em `processing`/`requires_action`: NUNCA cancelar aqui,
+  ///                o pagamento ainda pode passar (corrida 5bac9a76, 30/08);
+  ///  · 'failed'  — PI terminal (`canceled`/`requires_payment_method`);
+  ///  · 'unknown' — nem se conseguiu perguntar (rede) — também não se cancela.
+  Future<String> activateRoundtripDetailed(
+      String? outboundRideId, String paymentIntentId) async {
     try {
       final res = await _sb.functions.invoke('tvde-plan-payment', body: {
         'action': 'activate_roundtrip',
-        'outbound_ride_id': outboundRideId,
+        if (outboundRideId != null) 'outbound_ride_id': outboundRideId,
         'payment_intent_id': paymentIntentId,
       });
-      return res.data is Map && (res.data as Map)['credit'] != null;
+      if (res.data is Map && (res.data as Map)['credit'] != null) return 'ok';
+      return 'unknown';
+    } on FunctionException catch (e) {
+      // 402 payment_not_completed traz o estado do PI na Stripe no `status`.
+      final d = e.details;
+      final status = d is Map ? d['status']?.toString() : null;
+      debugPrint(
+          'TvdeStore.activateRoundtripDetailed ${e.status} status=$status');
+      if (status == 'canceled' || status == 'requires_payment_method') {
+        return 'failed';
+      }
+      if (status != null) return 'pending';
+      return 'unknown';
     } catch (e) {
-      debugPrint('TvdeStore.activateRoundtrip error => $e');
-      return false;
+      debugPrint('TvdeStore.activateRoundtripDetailed error => $e');
+      return 'unknown';
+    }
+  }
+
+  // ── Retoma do MB Way do pacote (caso real 9f543c4b, 30/08) ───────────────
+  // A cliente pagou os €8, a app foi fechada a meio, o diálogo de espera
+  // morreu e ninguém voltou a chamar o `activate_roundtrip` — a ida ficou 16
+  // minutos presa e acabou cancelada com o dinheiro cobrado. O par
+  // (ida, PaymentIntent) passa a viver em SharedPreferences enquanto a
+  // ativação não fecha, e ao reabrir a app o poll retoma sem diálogo nenhum.
+  static const _kPendingRtPiKey = 'bora_tvde.pending_roundtrip_pi';
+  static const _kPendingRtRideKey = 'bora_tvde.pending_roundtrip_ride';
+  bool _resumingRoundtrip = false;
+
+  /// Guarda o par pendente. Chamar logo que o PaymentIntent do pacote nasce
+  /// (ainda sem corrida) e outra vez quando a ida é criada (com o id dela).
+  Future<void> savePendingRoundtrip(
+      {required String paymentIntentId, String? outboundRideId}) async {
+    try {
+      final p = await SharedPreferences.getInstance();
+      await p.setString(_kPendingRtPiKey, paymentIntentId);
+      if (outboundRideId != null) {
+        await p.setString(_kPendingRtRideKey, outboundRideId);
+      } else {
+        await p.remove(_kPendingRtRideKey);
+      }
+    } catch (e) {
+      debugPrint('TvdeStore.savePendingRoundtrip error => $e');
+    }
+  }
+
+  /// Limpa o par pendente — quando o vale fica ativo ou a corrida morre.
+  Future<void> clearPendingRoundtrip() async {
+    try {
+      final p = await SharedPreferences.getInstance();
+      await p.remove(_kPendingRtPiKey);
+      await p.remove(_kPendingRtRideKey);
+    } catch (e) {
+      debugPrint('TvdeStore.clearPendingRoundtrip error => $e');
+    }
+  }
+
+  /// Retoma o poll do `activate_roundtrip` (idempotente) se houver um par
+  /// pendente guardado — mesmo sem o diálogo de espera vivo. Corre em fundo
+  /// (~2 min a cada 3 s); se não fechar, volta a tentar na próxima abertura.
+  Future<void> resumePendingRoundtripActivation() async {
+    if (_resumingRoundtrip) return;
+    String? pi;
+    String? rideId;
+    try {
+      final p = await SharedPreferences.getInstance();
+      pi = p.getString(_kPendingRtPiKey);
+      rideId = p.getString(_kPendingRtRideKey);
+    } catch (_) {
+      return;
+    }
+    if (pi == null) return;
+    _resumingRoundtrip = true;
+    debugPrint('TvdeStore: a retomar ativação do pacote (pi=$pi ride=$rideId)');
+    try {
+      for (var i = 0; i < 40; i++) {
+        final estado = await activateRoundtripDetailed(rideId, pi);
+        if (estado == 'ok') {
+          await clearPendingRoundtrip();
+          // A ida foi libertada para despacho — refletir já no ecrã.
+          await refreshActiveRide();
+          return;
+        }
+        if (estado == 'failed') {
+          // Terminal na Stripe: o pagamento nunca vai passar. O par morre
+          // aqui; a corrida presa é o cron/servidor que a limpa.
+          await clearPendingRoundtrip();
+          return;
+        }
+        await Future.delayed(const Duration(seconds: 3));
+      }
+    } finally {
+      _resumingRoundtrip = false;
     }
   }
 

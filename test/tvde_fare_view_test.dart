@@ -77,6 +77,20 @@ void main() {
       expect(f.clientTotalCents, isNot(1300));
       expect(f.driverCollectCents, isNot(1300));
     });
+
+    test(
+        'servidor a gravar a receita do vale no final NÃO dobra a cobrança '
+        '(o €16 da Sandra, 30/08)', () {
+      // Contrato quebrado: final_fare_cents=800 (receita do vale) em vez de
+      // só as paradas. O app tem de ignorar o final na perna do pacote.
+      final f = _view(_ride(
+          creditId: 'v1',
+          finalFareCents: 800,
+          stopsFeeCents: 0));
+      expect(f.clientTotalCents, 800); // €8, nunca €16
+      expect(f.driverCollectCents, 800);
+      expect(f.clientTotalCents, isNot(1600));
+    });
   });
 
   group('volta do pacote €8', () {
@@ -92,6 +106,13 @@ void main() {
           creditId: 'v1', isReturn: true, stopsCount: 1, stopsFeeCents: 200));
       expect(f.clientTotalCents, 200);
       expect(f.driverCollectCents, 200);
+    });
+
+    test('volta com final contaminado pelo servidor ⇒ continua €0', () {
+      final f = _view(_ride(
+          creditId: 'v1', isReturn: true, finalFareCents: 800));
+      expect(f.clientTotalCents, 0);
+      expect(f.driverCollectCents, 0);
     });
   });
 

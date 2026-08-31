@@ -1200,10 +1200,13 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
           ),
 
           // ── Bottom status card ────────────────────────────────────────
+          // [botoes-navbar-eta 31/08] viewPadding em vez de padding: o
+          // padding pode chegar consumido por um SafeArea acima e o cartão
+          // colava na navbar de 3 botões.
           Positioned(
             left: 16,
             right: 16,
-            bottom: MediaQuery.of(context).padding.bottom + 16,
+            bottom: MediaQuery.of(context).viewPadding.bottom + 16,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
               decoration: BoxDecoration(

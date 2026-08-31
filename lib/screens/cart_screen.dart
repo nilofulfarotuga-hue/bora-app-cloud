@@ -288,16 +288,17 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
     final remainingToPay = (totalToPay - walletAppliedEur + settlementEur)
         .clamp(0.0, double.infinity);
 
-    return SafeArea(
-      top: false,
-      minimum: const EdgeInsets.only(bottom: Spacing.lg),
-      child: Container(
+    // [botoes-navbar-eta 31/08] SafeArea(minimum:16) dava max(sistema, 16) e,
+    // com o padding do MediaQuery consumido por um SafeArea acima, o
+    // "Finalizar pedido" podia colar na navbar de 3 botões. Regra nova: 16 px
+    // ALÉM do `viewPadding` do sistema, sempre (contrato BoraBottomActionBar).
+    return Container(
         width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(
+        padding: EdgeInsets.fromLTRB(
           Spacing.xl,
           Spacing.xl,
           Spacing.xl,
-          Spacing.lg,
+          Spacing.lg + MediaQuery.of(context).viewPadding.bottom,
         ),
         decoration: const BoxDecoration(
           color: Colors.white,
@@ -598,7 +599,6 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
             ),
           ],
         ),
-      ),
     );
   }
 }

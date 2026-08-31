@@ -108,9 +108,11 @@ class _QuotePriceFooterState extends State<QuotePriceFooter> {
     // [TELA BRANCA 2026-07-01] Android 16 (SM-A366B) pode reportar
     // padding.bottom absurdo (edge-to-edge). Sem clamp, este Container
     // (surface BRANCA) esticava até cobrir o corpo inteiro — via-se só o
-    // "Total estimado" no topo e branco puro por baixo. Inset real da barra
-    // de gestos nunca passa ~40 px lógicos.
-    final double bottomInset = math.min(mq.padding.bottom, 40.0);
+    // "Total estimado" no topo e branco puro por baixo.
+    // [botoes-navbar-eta 31/08] viewPadding (nunca consumido por SafeArea
+    // acima) e clamp a 56: a navbar de 3 botões do Samsung tem 48 px lógicos
+    // — o clamp antigo de 40 deixava o botão colado nela.
+    final double bottomInset = math.min(mq.viewPadding.bottom, 56.0);
     final total = (_quote?['customer_total'] as num?)?.toDouble();
     final label =
         total != null ? '€${total.toStringAsFixed(2)}' : widget.fallbackLabel;
@@ -119,7 +121,7 @@ class _QuotePriceFooterState extends State<QuotePriceFooter> {
         color: AppColors.surface,
         boxShadow: AppColors.shadowNav,
       ),
-      padding: EdgeInsets.fromLTRB(16, 12, 16, 12 + bottomInset),
+      padding: EdgeInsets.fromLTRB(16, 12, 16, 16 + bottomInset),
       child: Row(
         children: [
           Flexible(

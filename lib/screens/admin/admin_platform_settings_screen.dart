@@ -68,6 +68,11 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
     if (_isCancelKey(key)) return true; // Bloco 4 — editável com auditoria
     if (key.startsWith('robot_b_')) return true; // kill switches Robot B v4
     if (key.startsWith('dispatch_')) return true;
+    // [botoes-navbar-eta 31/08] As 3 chaves eta_* (velocidade média do
+    // fallback + intervalo de compra não-parceiro) são OPERACIONAIS — afinam
+    // o tempo MOSTRADO ao cliente, nunca um valor cobrado ou pago. Autoridade
+    // total do Danilo: ver e editar aqui, sem deploy.
+    if (key.startsWith('eta_')) return true;
     if (key.startsWith('reservation_')) {
       const financialMarkers = ['cents', 'payout', 'prepayment', 'bora_service', 'credit'];
       return !financialMarkers.any(key.contains);

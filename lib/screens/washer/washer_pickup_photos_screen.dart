@@ -8,6 +8,7 @@ import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../models/carwash_models.dart';
 import '../../services/carwash_upload_service.dart';
+import '../../widgets/bora/bora_bottom_action_bar.dart';
 import '../../stores/washer_store.dart';
 import '../../utils/safe_image_picker.dart';
 
@@ -105,11 +106,11 @@ class _WasherPickupPhotosScreenState extends State<WasherPickupPhotosScreen> {
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
       ),
-      bottomNavigationBar: SafeArea(
-        minimum: const EdgeInsets.all(Spacing.lg),
-        child: SizedBox(
-          height: 52,
-          child: FilledButton(
+      // [botoes-navbar-eta 31/08] rodapé aprovado: 16 além do viewPadding,
+      // toque ≥56 (SafeArea(minimum) dava max(sistema,16) e colava na navbar).
+      bottomNavigationBar: BoraBottomActionBar(
+        children: [
+          FilledButton(
             // Cinzento até as 4 estarem — e o servidor valida na mesma.
             onPressed: (_completo && !_submitting) ? _confirmarRecolha : null,
             style: FilledButton.styleFrom(
@@ -130,7 +131,7 @@ class _WasherPickupPhotosScreenState extends State<WasherPickupPhotosScreen> {
                         fontSize: 16, fontWeight: FontWeight.w700),
                   ),
           ),
-        ),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(Spacing.lg),

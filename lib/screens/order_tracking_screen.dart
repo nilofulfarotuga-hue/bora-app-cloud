@@ -75,6 +75,8 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   void initState() {
     super.initState();
     MapMarkerHelper.preload();
+    // [31/08] carrega as chaves eta_* das definições (uma vez, best-effort).
+    OrderEtaService.ensureConfigured();
   }
 
   /// BUG #3 + BLOCO 3 — Best-effort fetch de nome/veículo/matrícula do estafeta
@@ -467,6 +469,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
               driverVehicleLabel: driverVehicleLabel,
               driverPlate: driverPlate,
               driverRating: _fetchedAvgRating ?? driver?.avgRating,
+              // [31/08] posição VIVA do estafeta (realtime) → ETA nunca
+              // congela na coordenada velha gravada na linha do pedido.
+              driverPos: driverPosition,
             ),
           ),
         ],
@@ -487,6 +492,7 @@ class _BottomCard extends StatefulWidget {
     this.driverVehicleLabel,
     this.driverPlate,
     this.driverRating,
+    this.driverPos,
   });
 
   final ScrollController scrollController;
@@ -494,6 +500,9 @@ class _BottomCard extends StatefulWidget {
   final String? driverName;
   final String? driverVehicleLabel;
   final String? driverPlate;
+
+  /// [31/08] Posição realtime do estafeta (DriverStore) para o ETA vivo.
+  final ll.LatLng? driverPos;
 
   /// Avaliação média REAL do estafeta (null/0 = esconder a linha).
   final double? driverRating;
@@ -651,11 +660,14 @@ class _BottomCardState extends State<_BottomCard> {
                 // ── ETA badge ────────────────────────────────────────────
                 // Encomenda agendada: o ETA por distância não faz sentido
                 // (o pedido sai na data marcada) — esconder o badge.
-                if (OrderEtaService.label(order) != null &&
+                if (OrderEtaService.label(order,
+                            driverPos: widget.driverPos) !=
+                        null &&
                     order.scheduledFor == null) ...[
                   const SizedBox(height: 14),
                   _EtaBadge(
-                    label: OrderEtaService.label(order)!,
+                    label: OrderEtaService.label(order,
+                        driverPos: widget.driverPos)!,
                     status: order.status,
                     serviceType: order.serviceType,
                     vendorName: order.vendorName,

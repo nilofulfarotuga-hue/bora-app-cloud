@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
 import '../models/restaurant_model.dart';
+import '../widgets/bora/bora_bottom_action_bar.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 
 /// Passo do checkout **só para lojas de festas**: escolher o dia e a hora da
@@ -147,12 +148,11 @@ class _FestasQuandoScreenState extends State<FestasQuandoScreen> {
           ),
         ],
       ),
-      bottomNavigationBar: SafeArea(
-        minimum: const EdgeInsets.fromLTRB(
-            Spacing.lg, Spacing.sm, Spacing.lg, Spacing.md),
-        child: SizedBox(
-          height: 52,
-          child: ElevatedButton(
+      // [botoes-navbar-eta 31/08] rodapé aprovado: 16 além do viewPadding,
+      // toque ≥56 (SafeArea(minimum) dava max(sistema,16) e colava na navbar).
+      bottomNavigationBar: BoraBottomActionBar(
+        children: [
+          ElevatedButton(
             onPressed: pronto
                 ? () => Navigator.pop(
                       context,
@@ -168,7 +168,7 @@ class _FestasQuandoScreenState extends State<FestasQuandoScreen> {
             child: const Text('Continuar',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
           ),
-        ),
+        ],
       ),
     );
   }

@@ -95,6 +95,18 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   /// ETA para o motorista (B6): até à recolha (a caminho) ou ao destino (viagem).
   String? _etaText;
 
+  // [botoes-navbar-eta 31/08] ETA VIVO: a duração da rota desenhada é a fonte
+  // enquanto fresca; velha (>45 s ou carro >150 m do ponto do pedido) cai no
+  // fallback distância ÷ `eta_avg_speed_kmh` (platform_settings, fallback 28).
+  // Recalcula a cada posição nova e, parado, num ticker de 30 s — o número
+  // nunca congela no valor inicial.
+  double? _routeEtaMin;
+  DateTime? _routeEtaAt;
+  LatLng? _routeEtaFrom;
+  int _etaSpeedKmh = 28;
+  bool _etaSpeedLoaded = false;
+  Timer? _etaTicker;
+
   /// Assinatura (fase + posição grosseira) da última rota pedida — evita
   /// refazer o pedido Directions a cada rebuild/movimento pequeno.
   String? _routeKey;
@@ -147,12 +159,22 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   void initState() {
     super.initState();
     _loadDriverArrowIcon();
+    // [31/08] parado (GPS sem tick novo), o ETA reavalia-se na mesma a cada 30 s.
+    _etaTicker = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (!mounted) return;
+      final ride = context.read<TvdeDriverStore>().activeRide;
+      final pos = context.read<DriverStore>().currentDriver?.location;
+      if (ride != null && pos != null) {
+        _updateEtaLive(ride, LatLng(pos.latitude, pos.longitude));
+      }
+    });
   }
 
   @override
   void dispose() {
     _waitTicker?.cancel();
     _stopsTicker?.cancel();
+    _etaTicker?.cancel();
     _mapCtrl?.dispose();
     _directions.dispose();
     _sheetCtrl.dispose();
@@ -324,6 +346,10 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
             jointType: JointType.round,
           ),
         };
+        // [31/08] regista a fonte do ETA vivo; o texto sai do _updateEtaLive.
+        _routeEtaMin = route.durationMinutes;
+        _routeEtaAt = DateTime.now();
+        _routeEtaFrom = driverPos;
         final mins = route.durationMinutes.round();
         _etaText = ride.isInProgress
             ? 'Chegada ao destino em ~$mins min'
@@ -333,6 +359,56 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
       // Falha (offline/sem chave) → mantém o mapa sem rota; haversine é fallback.
     } finally {
       _routeFetchInFlight = false;
+    }
+  }
+
+  /// [31/08] Lê `eta_avg_speed_kmh` uma vez (fallback 28). Nada cravado.
+  Future<void> _ensureEtaSpeedLoaded() async {
+    if (_etaSpeedLoaded) return;
+    _etaSpeedLoaded = true;
+    try {
+      final v = await context
+          .read<TvdeStore>()
+          .getSettingInt('eta_avg_speed_kmh', 28);
+      if (mounted && v > 0) setState(() => _etaSpeedKmh = v);
+    } catch (_) {/* mantém o fallback */}
+  }
+
+  /// [31/08] Recalcula o ETA mostrado a partir da posição ATUAL. Fonte: rota
+  /// fresca (ver campos _routeEta*); fallback: distância ÷ velocidade média.
+  /// Só faz setState quando o texto muda — corre em ticks frequentes.
+  void _updateEtaLive(TvdeRide ride, LatLng? pos) {
+    if (pos == null) return;
+    if (!(ride.isOnTheWay || ride.hasArrived || ride.isInProgress)) return;
+    final target = ride.isInProgress
+        ? LatLng(ride.destLat, ride.destLng)
+        : LatLng(ride.originLat, ride.originLng);
+    double minutes;
+    final at = _routeEtaAt;
+    final from = _routeEtaFrom;
+    final routeMin = _routeEtaMin;
+    final fresh = routeMin != null &&
+        at != null &&
+        from != null &&
+        DateTime.now().difference(at).inSeconds < 45 &&
+        Geolocator.distanceBetween(from.latitude, from.longitude,
+                pos.latitude, pos.longitude) <
+            150;
+    if (fresh) {
+      minutes = routeMin;
+    } else {
+      final km = Geolocator.distanceBetween(pos.latitude, pos.longitude,
+              target.latitude, target.longitude) /
+          1000.0;
+      minutes = km / _etaSpeedKmh * 60;
+    }
+    var mins = minutes.ceil();
+    if (mins < 1) mins = 1;
+    final text = ride.isInProgress
+        ? 'Chegada ao destino em ~$mins min'
+        : 'Recolha em ~$mins min';
+    if (text != _etaText && mounted) {
+      setState(() => _etaText = text);
     }
   }
 
@@ -852,6 +928,10 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
         _maybeFetchRoute(ride, driverPos);
         _updateBearing(driverPos);
         _maybeReloadStops(ride);
+        // [31/08] ETA vivo: recalcula com a posição realtime (throttle
+        // interno — só repinta quando o minuto muda).
+        _ensureEtaSpeedLoaded();
+        _updateEtaLive(ride, driverPos);
       });
     }
 
@@ -1059,9 +1139,16 @@ class _ActionPanel extends StatelessWidget {
       onPressed = busy ? null : () => actions._recarregarDoServidor();
     }
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(Spacing.lg, 0, Spacing.lg, Spacing.lg),
-      child: Column(
+    // [botoes-navbar-eta 31/08] O conteúdo fica no Padding; os BOTÕES finais
+    // saem para o BoraBottomActionBar — no Samsung do Danilo (navbar de 3
+    // botões) o "Finalizar viagem" ficava tapado pela barra do sistema.
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(Spacing.lg, 0, Spacing.lg, 0),
+          child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1251,32 +1338,36 @@ class _ActionPanel extends StatelessWidget {
               ),
             ),
           ],
-          const SizedBox(height: Spacing.lg),
-          // Navegar (Google Maps/Waze) — estilo Uber Driver. Escondido quando a
-          // viagem terminou/processa.
-          if (ride.isOnTheWay || ride.hasArrived || ride.isInProgress) ...[
-            OutlinedButton.icon(
-              onPressed: () => actions._navigate(ride),
-              icon: const Icon(Icons.navigation),
-              label: Text(ride.isInProgress
-                  ? 'Navegar até ao destino'
-                  : 'Navegar até à recolha'),
-              // D3 — botão arredondado (radius do design system, paridade UI).
-              style: OutlinedButton.styleFrom(
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(Radii.md)),
-              ),
-            ),
-            const SizedBox(height: Spacing.sm),
           ],
-          BoraAccentButton(
-            label: label,
-            icon: icon,
-            loading: busy,
-            onPressed: onPressed,
           ),
-        ],
-      ),
+        ),
+        // Navegar (Google Maps/Waze) + ação principal, no rodapé aprovado:
+        // padding do sistema somado UMA vez, toque ≥56, largura total.
+        BoraBottomActionBar(
+          topPadding: Spacing.lg,
+          children: [
+            if (ride.isOnTheWay || ride.hasArrived || ride.isInProgress)
+              OutlinedButton.icon(
+                onPressed: () => actions._navigate(ride),
+                icon: const Icon(Icons.navigation),
+                label: Text(ride.isInProgress
+                    ? 'Navegar até ao destino'
+                    : 'Navegar até à recolha'),
+                // D3 — botão arredondado (radius do design system).
+                style: OutlinedButton.styleFrom(
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(Radii.md)),
+                ),
+              ),
+            BoraAccentButton(
+              label: label,
+              icon: icon,
+              loading: busy,
+              onPressed: onPressed,
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

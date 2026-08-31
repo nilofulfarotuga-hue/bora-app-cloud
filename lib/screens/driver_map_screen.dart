@@ -1357,10 +1357,15 @@ class _BottomPanelState extends State<_BottomPanel> {
         ),
         boxShadow: AppColors.shadowNav,
       ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+      // [botoes-navbar-eta 31/08] Antes era SafeArea(top:false)+16 — mas
+      // dentro de sheet/scroll o `MediaQuery.padding` pode chegar consumido e
+      // o fim do painel colava na navbar de 3 botões. `viewPadding` nunca é
+      // consumido: 16 além do sistema, garantido (mesmo contrato do
+      // BoraBottomActionBar).
+      child: Builder(
+        builder: (context) => Padding(
+          padding: EdgeInsets.fromLTRB(20, 12, 20,
+              16 + MediaQuery.of(context).viewPadding.bottom),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,

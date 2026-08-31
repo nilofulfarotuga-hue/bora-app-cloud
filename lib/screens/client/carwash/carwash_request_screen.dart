@@ -9,6 +9,7 @@ import '../../../config/app_spacing.dart';
 import '../../../config/maps_config.dart';
 import '../../../models/carwash_models.dart';
 import '../../../services/auto_address.dart';
+import '../../../widgets/bora/bora_bottom_action_bar.dart';
 import '../../../services/carwash_upload_service.dart';
 import '../../../services/location_service.dart';
 import '../../../stores/carwash_store.dart';
@@ -339,11 +340,11 @@ class _CarwashRequestScreenState extends State<CarwashRequestScreen> {
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
       ),
-      bottomNavigationBar: SafeArea(
-        minimum: const EdgeInsets.all(Spacing.lg),
-        child: SizedBox(
-          height: 52,
-          child: FilledButton(
+      // [botoes-navbar-eta 31/08] rodapé aprovado: 16 além do viewPadding,
+      // toque ≥56 (SafeArea(minimum) dava max(sistema,16) e colava na navbar).
+      bottomNavigationBar: BoraBottomActionBar(
+        children: [
+          FilledButton(
             onPressed: _submitting ? null : _submit,
             style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
             child: _submitting
@@ -360,7 +361,7 @@ class _CarwashRequestScreenState extends State<CarwashRequestScreen> {
                         fontSize: 16, fontWeight: FontWeight.w700),
                   ),
           ),
-        ),
+        ],
       ),
       body: Form(
         key: _formKey,

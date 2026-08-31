@@ -55,8 +55,18 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
   TvdeChatStore? _chatStore;
   String? _chatRideId;
 
-  /// C5 — mesma velocidade média do dispatch (30 km/h) para o ETA.
-  static const double _avgSpeedKmh = 30.0;
+  /// [botoes-navbar-eta 31/08] Velocidade média do fallback do ETA — vem de
+  /// `platform_settings.eta_avg_speed_kmh` (o Danilo afina no admin), nunca
+  /// cravada. 28 é só o fallback de arranque/offline.
+  int _etaSpeedKmh = 28;
+
+  /// ETA da ROTA do motorista (a mesma polyline desenhada): duração devolvida
+  /// pelo Directions + de onde/quando foi pedida. Enquanto fresca é a fonte
+  /// do ETA; velha (>45 s ou carro >150 m do ponto do pedido) cai no fallback
+  /// distância ÷ velocidade — o número nunca congela.
+  double? _driverRouteEtaMin;
+  DateTime? _driverRouteEtaAt;
+  LatLng? _driverRouteEtaFrom;
 
   // ── B2 — rota real grossa recolha→destino (mesmo DirectionsService/chave). ──
   final DirectionsService _directions = DirectionsService();
@@ -147,6 +157,7 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
     final fee = await store.getSettingInt('tvde_stop_fee_cents', 200);
     final timer = await store.getSettingInt('tvde_stop_timer_seconds', 120);
     final grace = await store.getSettingInt('cancel_grace_seconds', 180);
+    final etaSpeed = await store.getSettingInt('eta_avg_speed_kmh', 28);
     final ride = store.activeRide;
     final pkg = ride != null
         ? await TvdeRoundtripPrice.loadForRide(store, ride)
@@ -158,6 +169,7 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
         _stopTimerSeconds = timer;
         _cancelGraceSeconds = grace;
         _packageCents = pkg;
+        if (etaSpeed > 0) _etaSpeedKmh = etaSpeed;
       });
     }
   }
@@ -461,8 +473,12 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
     return r * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
   }
 
-  /// C5 — ETA do motorista: até à recolha (antes de embarcar) ou até ao
-  /// destino (em viagem). Null quando não há posição do motorista.
+  /// C5 + [botoes-navbar-eta 31/08] — ETA VIVO do motorista: até à recolha
+  /// (antes de embarcar) ou ao destino (em viagem). Fonte preferida: a
+  /// duração da MESMA rota desenhada no mapa (Directions), enquanto fresca;
+  /// fallback: distância restante ÷ `eta_avg_speed_kmh` das settings.
+  /// Recalculado a cada poll de posição (5 s) — nunca congela no valor
+  /// inicial. Null quando não há posição do motorista.
   int? _etaMinutes(TvdeRide ride) {
     final pos = _driverPos;
     if (pos == null) return null;
@@ -477,8 +493,22 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
     } else {
       return null;
     }
+    // Rota fresca (pedida há <45 s E o carro ainda perto do ponto do pedido)
+    // → a duração dela é a verdade. O refetch por movimento (≥120 m em
+    // _maybeFetchDriverRoute) mantém-na viva enquanto o carro anda.
+    final at = _driverRouteEtaAt;
+    final from = _driverRouteEtaFrom;
+    final routeMin = _driverRouteEtaMin;
+    if (routeMin != null && at != null && from != null) {
+      final movedM = Geolocator.distanceBetween(
+          from.latitude, from.longitude, pos.latitude, pos.longitude);
+      if (DateTime.now().difference(at).inSeconds < 45 && movedM < 150) {
+        final mins = routeMin.ceil();
+        return mins < 1 ? 1 : mins;
+      }
+    }
     final km = _haversineKm(pos.latitude, pos.longitude, tLat, tLng);
-    final mins = (km / _avgSpeedKmh * 60).ceil();
+    final mins = (km / _etaSpeedKmh * 60).ceil();
     return mins < 1 ? 1 : mins;
   }
 
@@ -552,6 +582,10 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
       );
       if (!mounted || route == null || route.points.isEmpty) return;
       setState(() {
+        // [31/08] a duração desta rota alimenta o ETA vivo (_etaMinutes).
+        _driverRouteEtaMin = route.durationMinutes;
+        _driverRouteEtaAt = DateTime.now();
+        _driverRouteEtaFrom = pos;
         _driverRoutePolys = {
           Polyline(
             polylineId: const PolylineId('tvde_driver_route'),
@@ -1044,12 +1078,12 @@ class _CompactStrip extends StatelessWidget {
   String get _texto {
     if (ride.isInProgress) {
       return etaMinutes != null
-          ? 'Viagem em curso · ~$etaMinutes min'
+          ? 'Viagem em curso · chegada ~$etaMinutes min'
           : 'Viagem em curso';
     }
     if (ride.hasArrived) return 'O motorista chegou';
     return etaMinutes != null
-        ? 'Motorista a caminho · ~$etaMinutes min'
+        ? 'Motorista a caminho · chega em ~$etaMinutes min'
         : 'Motorista a caminho';
   }
 
@@ -1170,7 +1204,11 @@ class _StatusPanel extends StatelessWidget {
     final fare = TvdeFareView.of(ride, packageCents: packageCents);
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.all(Spacing.md),
+      // [botoes-navbar-eta 31/08] margem inferior soma o viewPadding do
+      // sistema: sem isto o "Cancelar corrida" colava na navbar de 3 botões
+      // nos estados em que o cartão assenta no fundo do ecrã.
+      margin: EdgeInsets.fromLTRB(Spacing.md, Spacing.md, Spacing.md,
+          Spacing.md + MediaQuery.of(context).viewPadding.bottom),
       padding: const EdgeInsets.all(Spacing.lg),
       decoration: BoxDecoration(
         color: AppColors.surface,

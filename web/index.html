@@ -22,12 +22,121 @@
   <title>Bora</title>
   <link rel="manifest" href="manifest.json">
 
-  <!-- Google Maps + Places.
+  <!-- Pré-ligação aos dois servidores de que o primeiro ecrã depende:
+       poupa o handshake TLS quando o campo de morada e a sessão arrancam. -->
+  <link rel="preconnect" href="https://ojykpzwqrtusfeakzrna.supabase.co" crossorigin>
+  <link rel="preconnect" href="https://maps.googleapis.com">
+  <link rel="preconnect" href="https://maps.gstatic.com" crossorigin>
+
+  <!-- Google Maps + Places — carregamento CONTROLADO.
        `directions` NÃO é uma biblioteca da Maps JavaScript API (as válidas são
-       places, geometry, drawing, visualization, marker, routes) — estava a dar
-       erro na consola. As Directions fazem parte da API base, não precisam de
-       ser pedidas aqui. `loading=async` é o padrão recomendado pela Google. -->
-  <script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBYLjK1RtPdi4WM7pMGmupesBgUIWMkfkw&libraries=places&loading=async"></script>
+       places, geometry, drawing, visualization, marker, routes). As Directions
+       fazem parte da API base. `loading=async` é o padrão recomendado.
+
+       Porquê controlado e não um <script async> solto: se o script for
+       bloqueado (extensão de privacidade), falhar (rede fraca) ou demorar,
+       ninguém sabia — o campo de morada ficava morto em silêncio para sempre
+       (cliente TVDE perdida 2x, 2026-08-31). Agora há um estado global que o
+       Dart consulta: window.boraMapsEstado = 'a-carregar' | 'pronto' |
+       'indisponivel', com motivo em window.boraMapsMotivo, e uma função de
+       retentativa window.boraCarregarMaps() que o Dart pode voltar a chamar. -->
+  <script>
+    window.boraMapsEstado = 'a-carregar';
+    window.boraMapsMotivo = null;
+    window.__boraMapsUltimaTentativa = 0;
+
+    window.boraMapsCallback = function () {
+      // O callback da Google só dispara com a API pronta a usar.
+      window.boraMapsEstado = 'pronto';
+      window.boraMapsMotivo = null;
+    };
+
+    function boraMapsFalhou(motivo) {
+      if (window.boraMapsEstado === 'pronto') return;
+      window.boraMapsEstado = 'indisponivel';
+      window.boraMapsMotivo = motivo;
+    }
+
+    window.boraCarregarMaps = function () {
+      if (window.boraMapsEstado === 'pronto') return;
+      var agora = new Date().getTime();
+      // Não martelar: no máximo uma tentativa a cada 10 s.
+      if (agora - window.__boraMapsUltimaTentativa < 10000) return;
+      window.__boraMapsUltimaTentativa = agora;
+      window.boraMapsEstado = 'a-carregar';
+
+      var antigo = document.getElementById('bora-maps-script');
+      if (antigo) antigo.remove();
+
+      var s = document.createElement('script');
+      s.id = 'bora-maps-script';
+      s.async = true;
+      s.src = 'https://maps.googleapis.com/maps/api/js?key=AIzaSyBYLjK1RtPdi4WM7pMGmupesBgUIWMkfkw&libraries=places&loading=async&callback=boraMapsCallback';
+      s.onerror = function () { boraMapsFalhou('script-bloqueado'); };
+      document.head.appendChild(s);
+
+      // Rede lenta: ao fim de 8 s sem callback declara-se indisponível.
+      // Se o script chegar mais tarde, o callback repõe 'pronto' sozinho.
+      setTimeout(function () {
+        if (window.boraMapsEstado === 'a-carregar') boraMapsFalhou('timeout');
+      }, 8000);
+    };
+
+    window.boraCarregarMaps();
+  </script>
+
+  <!-- Versão nova sem cache velha: o CI carimba o commit deste build em
+       __BORA_COMMIT__ e publica /versao.json sem cache. Se o que está no ar
+       for diferente do que este browser carregou, limpa-se o service worker e
+       as caches e recarrega-se UMA vez (guarda anti-loop em sessionStorage).
+       Num build local sem carimbo o placeholder fica intacto e nada corre. -->
+  <script>
+    (function () {
+      var COMMIT = '__BORA_COMMIT__';
+      if (COMMIT.indexOf('__BORA') === 0) return; // build local, sem carimbo
+      var escondidoDesde = 0;
+
+      function verificar() {
+        fetch('versao.json?nc=' + new Date().getTime(), { cache: 'no-store' })
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (v) {
+            if (!v || !v.commit || v.commit === COMMIT) return;
+            var guarda = null;
+            try { guarda = sessionStorage.getItem('bora_reload_versao'); } catch (e) {}
+            if (guarda === v.commit) return; // já recarregámos para esta versão
+            try { sessionStorage.setItem('bora_reload_versao', v.commit); } catch (e) {}
+            var limpezas = [];
+            try {
+              if (window.caches && caches.keys) {
+                limpezas.push(caches.keys().then(function (ks) {
+                  return Promise.all(ks.map(function (k) { return caches.delete(k); }));
+                }));
+              }
+              if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+                limpezas.push(navigator.serviceWorker.getRegistrations().then(function (rs) {
+                  return Promise.all(rs.map(function (r) { return r.unregister(); }));
+                }));
+              }
+            } catch (e) {}
+            Promise.all(limpezas)
+              .catch(function () {})
+              .then(function () { window.location.reload(); });
+          })
+          .catch(function () {});
+      }
+
+      verificar();
+      // Ao voltar ao separador: só verifica se esteve escondido 5+ minutos,
+      // para não recarregar a meio de um pedido por causa de um alt-tab.
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'hidden') {
+          escondidoDesde = new Date().getTime();
+        } else if (escondidoDesde && new Date().getTime() - escondidoDesde > 300000) {
+          verificar();
+        }
+      });
+    })();
+  </script>
 
   <style>
     html, body { margin:0; padding:0; height:100%; background:#fff; }

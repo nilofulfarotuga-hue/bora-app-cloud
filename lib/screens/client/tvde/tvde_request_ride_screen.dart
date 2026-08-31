@@ -194,9 +194,22 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     if (_dest != null) _recalcEstimate();
   }
 
+  /// Morada aceite mas sem coordenadas (nem o geocode do servidor resolveu):
+  /// nunca falhar em silêncio — dizer ao cliente o que fazer.
+  void _avisoMoradaSemCoordenadas() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      content: Text(
+          'Não consegui localizar essa morada no mapa. Tenta acrescentar a rua e a cidade (ex.: Guarda).'),
+    ));
+  }
+
   /// C2 — recolha por autocomplete (Google Places, reuso do destino).
   void _onPickupSelected(String address, LatLng? coords) {
-    if (coords == null) return;
+    if (coords == null) {
+      _avisoMoradaSemCoordenadas();
+      return;
+    }
     setState(() {
       _pickup = coords;
       _pickupLabel = address;
@@ -1303,7 +1316,10 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
               labelText: 'Para onde vais?',
               prefixIcon: const Icon(Icons.flag_outlined),
               onSelected: (address, coords) {
-                if (coords == null) return;
+                if (coords == null) {
+                  _avisoMoradaSemCoordenadas();
+                  return;
+                }
                 setState(() {
                   _dest = coords;
                   _destLabel = address;
@@ -2225,7 +2241,11 @@ class _ReturnSheetState extends State<_ReturnSheet> {
               labelText: 'De onde sais',
               prefixIcon: const Icon(Icons.my_location, size: 20),
               onSelected: (address, coords) {
-                if (coords == null) return;
+                if (coords == null) {
+                  setState(() => _error =
+                      'Não consegui localizar essa morada no mapa. Tenta acrescentar a rua e a cidade.');
+                  return;
+                }
                 setState(() {
                   _originCoords = LatLng(coords.latitude, coords.longitude);
                   _error = null;
@@ -2243,7 +2263,11 @@ class _ReturnSheetState extends State<_ReturnSheet> {
               labelText: 'Destino da volta',
               prefixIcon: const Icon(Icons.place_outlined, size: 20),
               onSelected: (address, coords) {
-                if (coords == null) return;
+                if (coords == null) {
+                  setState(() => _error =
+                      'Não consegui localizar essa morada no mapa. Tenta acrescentar a rua e a cidade.');
+                  return;
+                }
                 setState(() {
                   _destLat = coords.latitude;
                   _destLng = coords.longitude;

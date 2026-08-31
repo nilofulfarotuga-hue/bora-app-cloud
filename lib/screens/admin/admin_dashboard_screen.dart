@@ -23,6 +23,7 @@ import 'admin_discovery_filters_screen.dart';
 import 'admin_gdpr_screen.dart';
 import 'admin_reservations_config_screen.dart';
 import 'admin_tvde_docs_review_screen.dart';
+import 'admin_web_health_screen.dart';
 import 'admin_businesses_screen.dart';
 import 'admin_catalog_screen.dart';
 import 'admin_clients_screen.dart';
@@ -894,6 +895,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       MaterialPageRoute(
                           builder: (_) =>
                               const AdminEdgeFunctionsScreen())),
+                ),
+                const SizedBox(height: 10),
+                // Missão endereco-web-2026-08-31 — falhas do autocomplete web
+                _NavCard(
+                  icon: Icons.travel_explore_outlined,
+                  title: 'Saúde da Web',
+                  subtitle: 'Falhas do campo de endereço no navegador',
+                  color: Colors.teal,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminWebHealthScreen())),
                 ),
                 const SizedBox(height: 10),
                 // Sessão 6 B3 — Estatísticas robô IA

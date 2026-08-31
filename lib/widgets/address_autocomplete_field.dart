@@ -5,6 +5,7 @@ import 'package:latlong2/latlong.dart' as ll;
 
 import '../config/maps_config.dart';
 import '../services/place_autocomplete_service.dart';
+import '../services/web_health_log.dart';
 
 /// A [TextFormField] that shows Google Places autocomplete suggestions
 /// as the user types in a floating overlay (not inline), so it is always
@@ -62,6 +63,13 @@ class _AddressAutocompleteFieldState extends State<AddressAutocompleteField> {
   List<PlacePrediction> _predictions = const [];
   bool _resolving = false;
   bool _isSelecting = false;
+
+  // Estado do serviço na última pesquisa + o texto pesquisado. O campo NUNCA
+  // fica mudo: sem resultados ou sem serviço, o overlay mostra o que se passa
+  // e oferece o modo manual ("Usar esta morada") — regra LOCALIZAÇÃO NUNCA
+  // TRAVA (24/08; cliente TVDE perdida 2x a 31/08).
+  PlaceServiceStatus _status = PlaceServiceStatus.ready;
+  String _lastQueryText = '';
 
   // ── Programmatic-change guards ─────────────────────────────────────────
   // GUARD 1 (sync): true while _onSelect is setting controller.text in the
@@ -154,30 +162,55 @@ class _AddressAutocompleteFieldState extends State<AddressAutocompleteField> {
     // já mostra ruas. O debounce curto evita chamadas a cada tecla.
     if (trimmed.isEmpty) {
       _service.resetSession();
-      _updatePredictions(const []);
+      _updatePredictions(
+          const PredictionsResult(PlaceServiceStatus.ready, []), '');
       return;
     }
 
     _debounce = Timer(const Duration(milliseconds: 250), () async {
       final query = widget.controller.text.trim();
       if (query.isEmpty || !mounted) return;
-      final predictions = await _service.fetchPredictions(query);
+      final result = await _service.fetchPredictionsWithStatus(query);
       if (!mounted) return;
       // Discard stale result if the user typed more while we were fetching.
       if (widget.controller.text.trim() != query) return;
-      _updatePredictions(predictions);
+      _updatePredictions(result, query);
     });
   }
 
-  void _updatePredictions(List<PlacePrediction> predictions) {
-    setState(() => _predictions = predictions);
-    if (predictions.isEmpty) {
+  void _updatePredictions(PredictionsResult result, String query) {
+    setState(() {
+      _predictions = result.predictions;
+      _status = result.status;
+      _lastQueryText = query;
+    });
+
+    // Com sugestões, mostra-as. Sem sugestões, o overlay só desaparece quando
+    // não há nada útil a dizer (texto curto com serviço vivo); nos restantes
+    // casos mostra o estado + o modo manual — nunca um campo mudo.
+    final mostrarOverlay = result.predictions.isNotEmpty ||
+        _status == PlaceServiceStatus.loading ||
+        _status == PlaceServiceStatus.unavailable ||
+        (_status == PlaceServiceStatus.ready && query.length >= 4);
+
+    if (!mostrarOverlay) {
       _removeOverlay();
     } else if (_overlayEntry == null) {
       _insertOverlay();
     } else {
-      // Refresh the existing entry with the new predictions list.
+      // Refresh the existing entry with the new content.
       _overlayEntry!.markNeedsBuild();
+    }
+
+    if (_status == PlaceServiceStatus.ready &&
+        result.predictions.isEmpty &&
+        query.length >= 8) {
+      // Morada a sério sem um único resultado: fica registado para o painel.
+      WebHealthLog.log(
+        motivo: 'sem_resultados',
+        ecra: widget.labelText,
+        detalhe: 'consulta com ${query.length} caracteres',
+      );
     }
   }
 
@@ -218,42 +251,140 @@ class _AddressAutocompleteFieldState extends State<AddressAutocompleteField> {
           clipBehavior: Clip.antiAlias,
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxHeight: 260),
-            child: ListView.separated(
+            child: ListView(
               padding: EdgeInsets.zero,
               shrinkWrap: true,
               physics: const ClampingScrollPhysics(),
-              itemCount: _predictions.length,
-              separatorBuilder: (_, __) => const Divider(height: 1),
-              itemBuilder: (context, index) {
-                final p = _predictions[index];
-                return ListTile(
-                  dense: true,
-                  leading: Icon(
-                    p.isEstablishment
-                        ? Icons.storefront_outlined
-                        : Icons.location_on_outlined,
-                    size: 20,
-                  ),
-                  title: Text(
-                    p.primaryText ?? p.description,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  subtitle: p.secondaryText == null
-                      ? null
-                      : Text(
-                          p.secondaryText!,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                  onTap: () => _onSelect(p),
-                );
-              },
+              children: _buildOverlayRows(context),
             ),
           ),
         ),
       ),
     );
+  }
+
+  /// Linhas do overlay: sugestões quando existem; caso contrário o estado do
+  /// serviço em PT-PT + o modo manual. O campo nunca fica mudo.
+  List<Widget> _buildOverlayRows(BuildContext context) {
+    if (_predictions.isNotEmpty) {
+      final rows = <Widget>[];
+      for (var i = 0; i < _predictions.length; i++) {
+        if (i > 0) rows.add(const Divider(height: 1));
+        final p = _predictions[i];
+        rows.add(ListTile(
+          dense: true,
+          leading: Icon(
+            p.isEstablishment
+                ? Icons.storefront_outlined
+                : Icons.location_on_outlined,
+            size: 20,
+          ),
+          title: Text(
+            p.primaryText ?? p.description,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          subtitle: p.secondaryText == null
+              ? null
+              : Text(
+                  p.secondaryText!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+          onTap: () => _onSelect(p),
+        ));
+      }
+      return rows;
+    }
+
+    switch (_status) {
+      case PlaceServiceStatus.loading:
+        return const [
+          ListTile(
+            dense: true,
+            leading: SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            title: Text('A procurar moradas…'),
+          ),
+        ];
+      case PlaceServiceStatus.ready:
+        return [
+          const ListTile(
+            dense: true,
+            leading: Icon(Icons.search_off_outlined, size: 20),
+            title: Text('Não encontrei essa morada.'),
+            subtitle: Text('Escreve a rua e o número.'),
+          ),
+          const Divider(height: 1),
+          _buildManualRow(),
+        ];
+      case PlaceServiceStatus.unavailable:
+        return [
+          const ListTile(
+            dense: true,
+            leading: Icon(Icons.wifi_off_outlined, size: 20),
+            title: Text('Sem sugestões automáticas neste momento.'),
+            subtitle: Text('Podes escrever a morada completa à mão.'),
+          ),
+          const Divider(height: 1),
+          _buildManualRow(),
+        ];
+    }
+  }
+
+  /// Modo manual — a rede de segurança: o texto escrito segue como morada,
+  /// com geocodificação em segundo plano (servidor, se preciso). Nunca
+  /// bloqueia o cliente por falta de sugestões.
+  Widget _buildManualRow() {
+    return ListTile(
+      dense: true,
+      leading: const Icon(Icons.edit_location_alt_outlined, size: 20),
+      title: Text(
+        'Usar esta morada: "$_lastQueryText"',
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      ),
+      onTap: _onManualUse,
+    );
+  }
+
+  Future<void> _onManualUse() async {
+    final texto = widget.controller.text.trim();
+    if (texto.isEmpty) return;
+
+    _isSelecting = true;
+    _focusLossTimer?.cancel();
+    _debounce?.cancel();
+    _removeOverlay();
+    setState(() {
+      _predictions = const [];
+      _resolving = true;
+    });
+    _lastSelectedText = texto;
+
+    ll.LatLng? coords;
+    try {
+      coords = await _service.geocodeAddress(texto);
+    } catch (e) {
+      debugPrint('AddressAutocomplete: geocode manual falhou => $e');
+    }
+    debugPrint('AddressAutocomplete: MANUAL "$texto" => $coords');
+    if (coords == null) {
+      WebHealthLog.log(
+        motivo: 'geocode_manual_falhou',
+        ecra: widget.labelText,
+        detalhe: 'morada com ${texto.length} caracteres seguiu sem coordenadas',
+      );
+    }
+
+    _service.resetSession();
+    if (!mounted) return;
+    _isSelecting = false;
+    setState(() => _resolving = false);
+    widget.onSelected(texto, coords);
   }
 
   Future<void> _onSelect(PlacePrediction prediction) async {

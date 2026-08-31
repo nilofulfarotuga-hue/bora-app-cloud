@@ -24,7 +24,9 @@ PlaceAutocompleteService createPlaceAutocompleteServiceForTest(
   return _IoPlaceAutocompleteService(apiKey, client: client);
 }
 
-class _IoPlaceAutocompleteService implements PlaceAutocompleteService {
+// `extends` (não `implements`) para herdar o fetchPredictionsWithStatus
+// por omissão do contrato (no io o serviço HTTP está sempre "pronto").
+class _IoPlaceAutocompleteService extends PlaceAutocompleteService {
   _IoPlaceAutocompleteService(this._apiKey, {http.Client? client})
       : _client = client ?? http.Client();
 

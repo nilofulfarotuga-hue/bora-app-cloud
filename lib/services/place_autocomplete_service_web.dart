@@ -5,16 +5,22 @@ import 'dart:html' as html;
 import 'dart:js' as js;
 
 import 'package:latlong2/latlong.dart' as ll;
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/maps_config.dart';
 import 'place_autocomplete_service.dart';
+import 'web_health_log.dart';
 
 PlaceAutocompleteService createPlaceAutocompleteServiceImpl(String apiKey) =>
     _WebPlaceAutocompleteService(apiKey);
 
-/// Web implementation that delegates entirely to the Google Maps JavaScript SDK
-/// already loaded in index.html — no HTTP calls, no CORS issues.
-class _WebPlaceAutocompleteService implements PlaceAutocompleteService {
+/// Web implementation. Caminho normal: Google Maps JavaScript SDK carregado no
+/// index.html (sem HTTP, sem CORS). Plano B (2026-08-31): quando o SDK não
+/// carrega — script bloqueado por extensão, rede fraca, timeout — delega na
+/// Edge Function `places-proxy`, que fala com a Google do lado do servidor.
+/// Assim o campo de morada NUNCA morre em silêncio (regra "LOCALIZAÇÃO NUNCA
+/// TRAVA", 24/08).
+class _WebPlaceAutocompleteService extends PlaceAutocompleteService {
   _WebPlaceAutocompleteService(this._apiKey);
 
   // apiKey is carried in case callers inspect it; the JS SDK uses its own key.
@@ -26,6 +32,33 @@ class _WebPlaceAutocompleteService implements PlaceAutocompleteService {
 
   String? _lastQuery;
   List<PlacePrediction> _cachedPredictions = const <PlacePrediction>[];
+
+  /// Estado do carregamento do SDK, mantido pelo index.html.
+  /// 'a-carregar' | 'pronto' | 'indisponivel' (null = index antigo em cache).
+  String get _mapsEstado {
+    try {
+      return js.context['boraMapsEstado']?.toString() ?? 'desconhecido';
+    } catch (_) {
+      return 'desconhecido';
+    }
+  }
+
+  String get _mapsMotivo {
+    try {
+      return js.context['boraMapsMotivo']?.toString() ?? 'desconhecido';
+    } catch (_) {
+      return 'desconhecido';
+    }
+  }
+
+  /// Pede ao index.html para tentar carregar o SDK outra vez (o JS aplica um
+  /// intervalo mínimo de 10 s entre tentativas — chamar à vontade).
+  void _tentarRecarregarSdk() {
+    try {
+      final fn = js.context['boraCarregarMaps'];
+      if (fn is js.JsFunction) fn.apply(const []);
+    } catch (_) {}
+  }
 
   /// Lazily creates the two JS service objects.
   /// Returns false if google.maps.places is not yet available.
@@ -58,6 +91,19 @@ class _WebPlaceAutocompleteService implements PlaceAutocompleteService {
       // Unexpected error — treat as not-yet-loaded
       return false;
     }
+  }
+
+  /// Espera curta pelo SDK quando ele ainda está a carregar: evita mandar o
+  /// utilizador para o plano B por causa de meio segundo.
+  Future<bool> _initComEspera() async {
+    if (_init()) return true;
+    if (_mapsEstado == 'indisponivel') return false;
+    for (var i = 0; i < 6; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+      if (_init()) return true;
+      if (_mapsEstado == 'indisponivel') return false;
+    }
+    return false;
   }
 
   /// Constrói um `google.maps.LatLng` para o viés da Guarda. Devolve null se
@@ -106,31 +152,78 @@ class _WebPlaceAutocompleteService implements PlaceAutocompleteService {
     return out;
   }
 
-  @override
-  Future<List<PlacePrediction>> fetchPredictions(String input) async {
-    final query = input.trim();
-    if (query.isEmpty) return const <PlacePrediction>[];
-
-    if (_lastQuery == query && _cachedPredictions.isNotEmpty) {
-      return _cachedPredictions;
-    }
-
-    if (!_init()) return const <PlacePrediction>[];
-
-    var predictions = await _requestPredictions(query);
-    // Espelha o io.dart (v2): o viés do Google é fraco e o gate "só quando não
-    // há Guarda" era frágil (um homónimo/rua da Guarda saltava o retry). Dispara
-    // SEMPRE a pesquisa explícita "<query> Guarda" e coloca-a à frente (dedup).
-    // Cobre o "outra cidade em 1.º" E o "vazio" (comércio local, ex.: "Lavie").
+  /// Dupla pesquisa com viés Guarda (espelha o io.dart v2), sobre uma função
+  /// de pesquisa qualquer — SDK ou proxy.
+  Future<List<PlacePrediction>> _pesquisaComViesGuarda(
+    String query,
+    Future<List<PlacePrediction>> Function(String q) pesquisar,
+  ) async {
+    var predictions = await pesquisar(query);
+    // O viés do Google é fraco e o gate "só quando não há Guarda" era frágil.
+    // Dispara SEMPRE a pesquisa explícita "<query> Guarda" e põe-na à frente.
     if (!query.toLowerCase().contains('guarda')) {
-      final locais = await _requestPredictions('$query Guarda');
+      final locais = await pesquisar('$query Guarda');
       predictions = _mergeDedupe(locais, predictions);
     }
-    predictions = _rankGuardaFirst(predictions);
+    return _rankGuardaFirst(predictions);
+  }
 
-    _lastQuery = query;
-    _cachedPredictions = predictions;
-    return predictions;
+  @override
+  Future<List<PlacePrediction>> fetchPredictions(String input) async {
+    final r = await fetchPredictionsWithStatus(input);
+    return r.predictions;
+  }
+
+  @override
+  Future<PredictionsResult> fetchPredictionsWithStatus(String input) async {
+    final query = input.trim();
+    if (query.isEmpty) {
+      return const PredictionsResult(
+          PlaceServiceStatus.ready, <PlacePrediction>[]);
+    }
+
+    if (_lastQuery == query && _cachedPredictions.isNotEmpty) {
+      return PredictionsResult(PlaceServiceStatus.ready, _cachedPredictions);
+    }
+
+    // Caminho normal: SDK do browser (com pequena espera se estiver a chegar).
+    if (await _initComEspera()) {
+      final predictions =
+          await _pesquisaComViesGuarda(query, _requestPredictions);
+      _lastQuery = query;
+      _cachedPredictions = predictions;
+      return PredictionsResult(PlaceServiceStatus.ready, predictions);
+    }
+
+    // SDK indisponível ou lento demais: pede nova tentativa de carregamento
+    // (para a tecla seguinte já ter SDK, se ele entretanto chegar)...
+    _tentarRecarregarSdk();
+
+    // ...e usa já o plano B do servidor, para o cliente não ficar à espera.
+    try {
+      final predictions =
+          await _pesquisaComViesGuarda(query, _proxyPredictions);
+      _lastQuery = query;
+      _cachedPredictions = predictions;
+      return PredictionsResult(PlaceServiceStatus.ready, predictions);
+    } catch (e) {
+      final estado = _mapsEstado;
+      if (estado == 'indisponivel') {
+        WebHealthLog.log(
+          motivo: _mapsMotivo == 'script-bloqueado'
+              ? 'script_bloqueado'
+              : 'timeout_sdk',
+          ecra: 'autocomplete',
+          detalhe:
+              'proxy também falhou: $e | ${html.window.navigator.userAgent}',
+        );
+        return const PredictionsResult(
+            PlaceServiceStatus.unavailable, <PlacePrediction>[]);
+      }
+      // Ainda a carregar: diz isso ao widget; a tecla seguinte volta a tentar.
+      return const PredictionsResult(
+          PlaceServiceStatus.loading, <PlacePrediction>[]);
+    }
   }
 
   Future<List<PlacePrediction>> _requestPredictions(String query) async {
@@ -198,12 +291,64 @@ class _WebPlaceAutocompleteService implements PlaceAutocompleteService {
     }
   }
 
+  // ─── Plano B: Edge Function places-proxy ───────────────────────────────────
+
+  Future<Map<String, dynamic>> _proxy(Map<String, dynamic> body) async {
+    final res = await Supabase.instance.client.functions
+        .invoke('places-proxy', body: body)
+        .timeout(const Duration(seconds: 8));
+    final data = res.data;
+    if (data is Map<String, dynamic>) return data;
+    if (data is Map) return Map<String, dynamic>.from(data);
+    throw StateError('places-proxy: resposta inesperada');
+  }
+
+  Future<List<PlacePrediction>> _proxyPredictions(String query) async {
+    final data = await _proxy({'acao': 'autocomplete', 'input': query});
+    final raw = data['predictions'];
+    if (raw is! List) return const <PlacePrediction>[];
+    final list = <PlacePrediction>[];
+    for (final item in raw) {
+      if (item is! Map) continue;
+      final placeId = item['place_id']?.toString() ?? '';
+      if (placeId.isEmpty) continue;
+      list.add(PlacePrediction(
+        placeId: placeId,
+        description: item['description']?.toString() ?? '',
+        primaryText: item['main_text']?.toString(),
+        secondaryText: item['secondary_text']?.toString(),
+        isEstablishment: item['establishment'] == true,
+      ));
+    }
+    return list;
+  }
+
+  Future<ll.LatLng?> _proxyLatLng(Map<String, dynamic> body) async {
+    try {
+      final data = await _proxy(body);
+      final lat = data['lat'];
+      final lng = data['lng'];
+      if (lat is num && lng is num) {
+        return ll.LatLng(lat.toDouble(), lng.toDouble());
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   // ─── resolvePlaceLocation ──────────────────────────────────────────────────
 
   @override
   Future<ll.LatLng?> resolvePlaceLocation(String placeId) async {
     if (placeId.isEmpty) return null;
-    if (!_init()) return null;
+    if (!_init()) {
+      // SDK fora: resolve no servidor (os place_ids são os mesmos).
+      final coords =
+          await _proxyLatLng({'acao': 'detalhes', 'place_id': placeId});
+      resetSession();
+      return coords;
+    }
 
     final completer = Completer<ll.LatLng?>();
 
@@ -253,11 +398,18 @@ class _WebPlaceAutocompleteService implements PlaceAutocompleteService {
     if (address.isEmpty) return null;
 
     final googleRaw = js.context['google'];
-    if (googleRaw == null || googleRaw is! js.JsObject) return null;
+    if (googleRaw == null || googleRaw is! js.JsObject) {
+      // SDK fora: geocodifica no servidor (plano B da morada escrita à mão).
+      return _proxyLatLng({'acao': 'geocode', 'morada': address});
+    }
     final mapsRaw = googleRaw['maps'];
-    if (mapsRaw == null || mapsRaw is! js.JsObject) return null;
+    if (mapsRaw == null || mapsRaw is! js.JsObject) {
+      return _proxyLatLng({'acao': 'geocode', 'morada': address});
+    }
     final geocoderCtor = mapsRaw['Geocoder'];
-    if (geocoderCtor == null || geocoderCtor is! js.JsFunction) return null;
+    if (geocoderCtor == null || geocoderCtor is! js.JsFunction) {
+      return _proxyLatLng({'acao': 'geocode', 'morada': address});
+    }
 
     final geocoder = js.JsObject(geocoderCtor);
     final completer = Completer<ll.LatLng?>();
@@ -293,9 +445,13 @@ class _WebPlaceAutocompleteService implements PlaceAutocompleteService {
     ]);
 
     try {
-      return await completer.future.timeout(const Duration(seconds: 10));
+      final coords =
+          await completer.future.timeout(const Duration(seconds: 10));
+      // SDK respondeu vazio (ex.: quota do browser): última tentativa no
+      // servidor antes de desistir da morada.
+      return coords ?? await _proxyLatLng({'acao': 'geocode', 'morada': address});
     } catch (_) {
-      return null;
+      return _proxyLatLng({'acao': 'geocode', 'morada': address});
     }
   }
 

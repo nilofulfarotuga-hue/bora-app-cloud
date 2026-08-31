@@ -6,18 +6,28 @@ import 'package:latlong2/latlong.dart' as ll;
 
 /// Serviço falso: devolve uma lista fixa, sem rede. Serve para provar que as
 /// sugestões RENDERIZAM (a regressão do TVDE era uma caixa branca vazia).
-class _FakePlaceService implements PlaceAutocompleteService {
-  _FakePlaceService(this.results);
+class _FakePlaceService extends PlaceAutocompleteService {
+  _FakePlaceService(
+    this.results, {
+    this.status = PlaceServiceStatus.ready,
+    this.geocodeResult,
+  });
   final List<PlacePrediction> results;
+  final PlaceServiceStatus status;
+  final ll.LatLng? geocodeResult;
 
   @override
   Future<List<PlacePrediction>> fetchPredictions(String input) async => results;
 
   @override
+  Future<PredictionsResult> fetchPredictionsWithStatus(String input) async =>
+      PredictionsResult(status, results);
+
+  @override
   Future<ll.LatLng?> resolvePlaceLocation(String placeId) async => null;
 
   @override
-  Future<ll.LatLng?> geocodeAddress(String address) async => null;
+  Future<ll.LatLng?> geocodeAddress(String address) async => geocodeResult;
 
   @override
   void resetSession() {}
@@ -145,5 +155,76 @@ void main() {
     expect(find.byIcon(Icons.storefront_outlined), findsOneWidget);
     // Pino na morada normal + no prefixo default do próprio campo = 2.
     expect(find.byIcon(Icons.location_on_outlined), findsNWidgets(2));
+  });
+
+  // ── Missão endereco-web-2026-08-31: o campo NUNCA morre em silêncio ──────
+
+  testWidgets('serviço indisponível → aviso PT-PT + modo manual',
+      (tester) async {
+    String? selecionada;
+    ll.LatLng? coords;
+    final field = AddressAutocompleteField(
+      controller: TextEditingController(),
+      onSelected: (a, c) {
+        selecionada = a;
+        coords = c;
+      },
+      serviceOverride: _FakePlaceService(
+        const [],
+        status: PlaceServiceStatus.unavailable,
+        geocodeResult: ll.LatLng(40.53, -7.26),
+      ),
+    );
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: field)));
+
+    await tester.enterText(
+        find.byType(TextField), 'Rua da Torre 5, Guarda');
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump();
+    await tester.pump();
+
+    // Nada de campo mudo: aviso + botão de seguir com a morada escrita.
+    expect(
+        find.text('Sem sugestões automáticas neste momento.'), findsOneWidget);
+    expect(find.textContaining('Usar esta morada'), findsOneWidget);
+
+    await tester.tap(find.textContaining('Usar esta morada'));
+    await tester.pump();
+    await tester.pump();
+
+    // A morada escrita seguiu, com coordenadas do geocode (plano B).
+    expect(selecionada, 'Rua da Torre 5, Guarda');
+    expect(coords, isNotNull);
+  });
+
+  testWidgets('sem resultados com serviço vivo → mensagem + modo manual',
+      (tester) async {
+    await _pumpField(tester, results: const []);
+
+    await tester.enterText(find.byType(TextField), 'morada inventada xyz');
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('Não encontrei essa morada.'), findsOneWidget);
+    expect(find.text('Escreve a rua e o número.'), findsOneWidget);
+    expect(find.textContaining('Usar esta morada'), findsOneWidget);
+  });
+
+  testWidgets('serviço a carregar → "A procurar moradas…"', (tester) async {
+    final field = AddressAutocompleteField(
+      controller: TextEditingController(),
+      onSelected: (_, __) {},
+      serviceOverride:
+          _FakePlaceService(const [], status: PlaceServiceStatus.loading),
+    );
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: field)));
+
+    await tester.enterText(find.byType(TextField), 'rua');
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('A procurar moradas…'), findsOneWidget);
   });
 }

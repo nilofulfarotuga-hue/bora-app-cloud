@@ -21,6 +21,8 @@ import 'client/reservation/reservation_availability_screen.dart';
 import 'restaurant_menu_screen.dart';
 import 'restaurant_options_screen.dart';
 
+import '../l10n/tr.dart';
+
 class RestaurantsScreen extends StatefulWidget {
   const RestaurantsScreen({super.key, this.reservationsOnly = false});
 
@@ -83,7 +85,7 @@ class _RestaurantsScreenState extends State<RestaurantsScreen> {
                 Spacing.lg, Spacing.md, Spacing.lg, 0),
             child: BoraSearchField(
               controller: _search,
-              hint: 'Pesquisar restaurantes',
+              hint: 'Pesquisar restaurantes'.tr,
               onChanged: (v) => setState(() => _query = v),
             ),
           ),
@@ -129,9 +131,9 @@ class _NoResults extends StatelessWidget {
           Icon(Icons.search_off,
               size: 56, color: AppColors.textSecondary.withValues(alpha: 0.4)),
           const SizedBox(height: Spacing.md),
-          const Text(
-            'Sem resultados para essa pesquisa.',
-            style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+          Text(
+            'Sem resultados para essa pesquisa.'.tr,
+            style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
           ),
         ],
       ),
@@ -165,11 +167,11 @@ Future<void> openRestaurantBusiness(
         'RestaurantsScreen: BLOCKED — "${business.name}" has no coordinates.',
       );
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'Restaurante sem localização definida. Contacte o suporte.',
+            'Restaurante sem localização definida. Contacte o suporte.'.tr,
           ),
-          duration: Duration(seconds: 4),
+          duration: const Duration(seconds: 4),
         ),
       );
       return;
@@ -186,19 +188,18 @@ Future<void> openRestaurantBusiness(
       final confirm = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text('Carrinho activo'),
+          title: Text('Carrinho activo'.tr),
           content: Text(
-            'Tens itens no carrinho de ${cart.vendorName}. '
-            'Queres cancelar e começar novo pedido em ${business.name}?',
+            'Tens itens no carrinho de {0}. Queres cancelar e começar novo pedido em {1}?'.trArgs([cart.vendorName, business.name]),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Voltar'),
+              child: Text('Voltar'.tr),
             ),
             TextButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Sim, novo pedido'),
+              child: Text('Sim, novo pedido'.tr),
             ),
           ],
         ),
@@ -308,19 +309,19 @@ class _EmptyState extends StatelessWidget {
               color: AppColors.textSecondary.withValues(alpha: 0.4),
             ),
             const SizedBox(height: Spacing.lg),
-            const Text(
-              'Nenhum restaurante disponível',
-              style: TextStyle(
+            Text(
+              'Nenhum restaurante disponível'.tr,
+              style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
                 color: AppColors.textPrimary,
               ),
             ),
             const SizedBox(height: Spacing.sm),
-            const Text(
-              'Volta mais tarde para ver os restaurantes da tua área.',
+            Text(
+              'Volta mais tarde para ver os restaurantes da tua área.'.tr,
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 13,
                 color: AppColors.textSecondary,
               ),
@@ -568,7 +569,7 @@ class _MetaRow extends StatelessWidget {
     if (window != null) {
       chips.add(_metaChip(
         icon: Icons.schedule,
-        label: '${window.$1}-${window.$2} min',
+        label: '{0}-{1} min'.trArgs([window.$1, window.$2]),
       ));
     }
     if (distanceKm != null) {

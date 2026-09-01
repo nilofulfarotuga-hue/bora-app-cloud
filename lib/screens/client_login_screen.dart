@@ -19,6 +19,8 @@ import 'forgot_password_screen.dart';
 import 'register_client_screen.dart';
 import 'role_choice_screen.dart';
 
+import '../l10n/tr.dart';
+
 class ClientLoginScreen extends StatefulWidget {
   const ClientLoginScreen({super.key});
 
@@ -77,7 +79,7 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
     final messenger = ScaffoldMessenger.of(context);
 
     final ok =
-        await bio.authenticate('Entra na Bora com a tua digital ou rosto');
+        await bio.authenticate('Entra na Bora com a tua digital ou rosto'.tr);
     if (!mounted) return;
     if (!ok) {
       setState(() => _isProcessing = false);
@@ -111,7 +113,7 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
       });
       messenger.showSnackBar(SnackBar(
         content: Text(error == 'invalid'
-            ? 'Sessão biométrica expirada. Entra com a palavra-passe.'
+            ? 'Sessão biométrica expirada. Entra com a palavra-passe.'.tr
             : 'Sem ligação. Tenta novamente.'),
       ));
       return;
@@ -187,10 +189,10 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
                   ),
                 ),
                 const SizedBox(height: Spacing.sm),
-                const Center(
+                Center(
                   child: Text(
-                    'Área do Cliente',
-                    style: TextStyle(
+                    'Área do Cliente'.tr,
+                    style: const TextStyle(
                       fontSize: 14,
                       color: AppColors.textSecondary,
                       fontWeight: FontWeight.w500,
@@ -201,18 +203,18 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
                 const SizedBox(height: Spacing.huge - 8),
 
                 // ── Title ─────────────────────────────────────────────
-                const Text(
-                  'Iniciar sessão',
-                  style: TextStyle(
+                Text(
+                  'Iniciar sessão'.tr,
+                  style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.w700,
                     color: AppColors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: Spacing.xs + 2),
-                const Text(
-                  'Entre com a sua conta de cliente',
-                  style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                Text(
+                  'Entre com a sua conta de cliente'.tr,
+                  style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
                 ),
 
                 const SizedBox(height: Spacing.xxl + 4),
@@ -224,15 +226,15 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
                     autofillHints: const [AutofillHints.email],
-                    decoration: const InputDecoration(
-                      labelText: 'Email',
-                      prefixIcon: Icon(Icons.email_outlined),
+                    decoration: InputDecoration(
+                      labelText: 'Email'.tr,
+                      prefixIcon: const Icon(Icons.email_outlined),
                     ),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
-                        return 'Informe o seu email.';
+                        return 'Informe o seu email.'.tr;
                       }
-                      if (!value.contains('@')) return 'Email inválido.';
+                      if (!value.contains('@')) return 'Email inválido.'.tr;
                       return null;
                     },
                   ),
@@ -243,7 +245,7 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
                     child: TextButton(
                       onPressed:
                           _isProcessing ? null : _useAnotherAccount,
-                      child: const Text('Entrar com outra conta'),
+                      child: Text('Entrar com outra conta'.tr),
                     ),
                   ),
                 const SizedBox(height: Spacing.lg),
@@ -256,7 +258,7 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
                     obscureText: _obscurePassword,
                     autofillHints: const [AutofillHints.password],
                     decoration: InputDecoration(
-                      labelText: 'Palavra-passe',
+                      labelText: 'Palavra-passe'.tr,
                       prefixIcon: const Icon(Icons.lock_outline),
                       suffixIcon: IconButton(
                         icon: Icon(
@@ -270,7 +272,7 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Informe a palavra-passe.';
+                        return 'Informe a palavra-passe.'.tr;
                       }
                       return null;
                     },
@@ -283,7 +285,7 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
                 Semantics(
                   identifier: 'btn_entrar',
                   child: BoraPrimaryButton(
-                    label: 'Entrar',
+                    label: 'Entrar'.tr,
                     loading: _isProcessing,
                     onPressed: _submit,
                   ),
@@ -297,7 +299,7 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
                     child: OutlinedButton.icon(
                       onPressed: _isProcessing ? null : _biometricLogin,
                       icon: const Icon(Icons.fingerprint),
-                      label: const Text('Entrar com biometria'),
+                      label: Text('Entrar com biometria'.tr),
                     ),
                   ),
                 ],
@@ -307,7 +309,7 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
                 Center(
                   child: TextButton(
                     onPressed: _isProcessing ? null : _forgotPassword,
-                    child: const Text('Esqueci-me da palavra-passe'),
+                    child: Text('Esqueci-me da palavra-passe'.tr),
                   ),
                 ),
                 const SizedBox(height: Spacing.xs),
@@ -324,7 +326,7 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
                                 builder: (_) => const RegisterClientScreen(),
                               ),
                             ),
-                    child: const Text('Criar conta'),
+                    child: Text('Criar conta'.tr),
                   ),
                 ),
 
@@ -332,7 +334,7 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
                 Center(
                   child: TextButton(
                     onPressed: _isProcessing ? null : _backToRoles,
-                    child: const Text('← Voltar à escolha de perfil'),
+                    child: Text('← Voltar à escolha de perfil'.tr),
                   ),
                 ),
               ],
@@ -375,7 +377,7 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
     if (!success) {
       setState(() => _isProcessing = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Credenciais inválidas.')),
+        SnackBar(content: Text('Credenciais inválidas.'.tr)),
       );
       return;
     }

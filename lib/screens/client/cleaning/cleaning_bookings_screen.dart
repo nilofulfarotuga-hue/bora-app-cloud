@@ -9,6 +9,8 @@ import '../../../widgets/bora/bora.dart';
 import 'cleaning_tracking_screen.dart';
 import 'cleaning_wizard_screen.dart';
 
+import '../../../l10n/tr.dart';
+
 /// LIMPEZA — entrada da categoria (tile da home): as minhas limpezas
 /// (ativas + histórico) + CTA para agendar uma nova.
 class CleaningBookingsScreen extends StatefulWidget {
@@ -56,7 +58,7 @@ class _CleaningBookingsScreenState extends State<CleaningBookingsScreen> {
     final past = store.pastBookings;
 
     return Scaffold(
-      appBar: const BoraScreenAppBar(title: 'Limpeza da casa'),
+      appBar: BoraScreenAppBar(title: 'Limpeza da casa'.tr),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : store.bookings.isEmpty
@@ -65,13 +67,13 @@ class _CleaningBookingsScreenState extends State<CleaningBookingsScreen> {
                   padding: const EdgeInsets.all(Spacing.lg),
                   children: [
                     if (active.isNotEmpty) ...[
-                      const _SectionLabel('Ativas'),
+                      _SectionLabel('Ativas'.tr),
                       for (final b in active)
                         _BookingCard(booking: b, onTap: () => _openTracking(b)),
                       const SizedBox(height: Spacing.md),
                     ],
                     if (past.isNotEmpty) ...[
-                      const _SectionLabel('Histórico'),
+                      _SectionLabel('Histórico'.tr),
                       for (final b in past)
                         _BookingCard(booking: b, onTap: () => _openTracking(b)),
                     ],
@@ -85,7 +87,7 @@ class _CleaningBookingsScreenState extends State<CleaningBookingsScreen> {
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
               icon: const Icon(Icons.add),
-              label: const Text('Agendar limpeza'),
+              label: Text('Agendar limpeza'.tr),
             ),
     );
   }
@@ -117,7 +119,7 @@ class _EmptyState extends StatelessWidget {
           ),
           const SizedBox(height: Spacing.lg),
           Text(
-            'A tua casa a brilhar',
+            'A tua casa a brilhar'.tr,
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.w700,
@@ -125,15 +127,14 @@ class _EmptyState extends StatelessWidget {
                 ),
           ),
           const SizedBox(height: Spacing.sm),
-          const Text(
-            'Profissionais de limpeza verificadas, preço fechado à cabeça '
-            'e pagamento só depois de confirmares o serviço.',
+          Text(
+            'Profissionais de limpeza verificadas, preço fechado à cabeça e pagamento só depois de confirmares o serviço.'.tr,
             textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.textSecondary, height: 1.4),
+            style: const TextStyle(color: AppColors.textSecondary, height: 1.4),
           ),
           const SizedBox(height: Spacing.xl),
           BoraPrimaryButton(
-            label: 'Agendar limpeza',
+            label: 'Agendar limpeza'.tr,
             icon: Icons.event_available,
             onPressed: onSchedule,
           ),

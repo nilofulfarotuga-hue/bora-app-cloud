@@ -16,6 +16,8 @@ import 'order_details_screen.dart';
 import 'restaurants_screen.dart';
 import 'wallet_history_screen.dart';
 
+import '../l10n/tr.dart';
+
 class OrdersScreen extends StatefulWidget {
   const OrdersScreen({super.key});
 
@@ -80,7 +82,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       floatingActionButton: const BoraSupportFab(),
-      appBar: const BoraScreenAppBar(title: 'Pedidos'),
+      appBar: BoraScreenAppBar(title: 'Pedidos'.tr),
       body: showInitialLoader
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
@@ -147,7 +149,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                                 ),
                               ),
                               icon: const Icon(Icons.refresh, size: 18),
-                              label: const Text('Pedir de novo'),
+                              label: Text('Pedir de novo'.tr),
                             ),
                           ],
                         );
@@ -174,9 +176,9 @@ class _EmptyOrders extends StatelessWidget {
             color: AppColors.textSecondary.withValues(alpha: 0.4),
           ),
           const SizedBox(height: Spacing.lg),
-          const Text(
-            'Ainda não fizeste pedidos',
-            style: TextStyle(
+          Text(
+            'Ainda não fizeste pedidos'.tr,
+            style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w800,
               color: AppColors.textPrimary,
@@ -184,9 +186,9 @@ class _EmptyOrders extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: Spacing.sm),
-          const Text(
-            'Explora os restaurantes e lojas disponíveis na tua área.',
-            style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+          Text(
+            'Explora os restaurantes e lojas disponíveis na tua área.'.tr,
+            style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: Spacing.xl),
@@ -196,7 +198,7 @@ class _EmptyOrders extends StatelessWidget {
               MaterialPageRoute(builder: (_) => const RestaurantsScreen()),
             ),
             icon: const Icon(Icons.restaurant_menu),
-            label: const Text('Ver restaurantes'),
+            label: Text('Ver restaurantes'.tr),
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.primary,
               side: const BorderSide(color: AppColors.primary, width: 1.5),
@@ -310,7 +312,7 @@ class _OrderCard extends StatelessWidget {
                                       size: 12,
                                       color: Colors.deepPurple.shade700),
                                   const SizedBox(width: 4),
-                                  Text('Carteira',
+                                  Text('Carteira'.tr,
                                       style: TextStyle(
                                           fontSize: 11,
                                           color: Colors.deepPurple.shade700,
@@ -354,13 +356,13 @@ void _showWalletAdjustModal(BuildContext context, List<WalletTx> txs) {
               Icon(Icons.account_balance_wallet,
                   color: Colors.deepPurple.shade700),
               const SizedBox(width: 8),
-              const Text('Ajustes na carteira',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+              Text('Ajustes na carteira'.tr,
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
             ]),
             const SizedBox(height: 4),
-            const Text(
-              'Movimentos relacionados com este pedido.',
-              style: TextStyle(fontSize: 12, color: Colors.black54),
+            Text(
+              'Movimentos relacionados com este pedido.'.tr,
+              style: const TextStyle(fontSize: 12, color: Colors.black54),
             ),
             const SizedBox(height: 12),
             ...txs.map((tx) {
@@ -391,7 +393,7 @@ void _showWalletAdjustModal(BuildContext context, List<WalletTx> txs) {
             Center(
               child: TextButton.icon(
                 icon: const Icon(Icons.history),
-                label: const Text('Ver histórico completo'),
+                label: Text('Ver histórico completo'.tr),
                 onPressed: () {
                   Navigator.pop(ctx);
                   Navigator.push(

@@ -43,6 +43,8 @@ import 'referral_screen.dart';
 import 'support_screen.dart';
 import 'wallet_history_screen.dart';
 
+import '../l10n/tr.dart';
+
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -114,8 +116,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         await client.auth.refreshSession();
         debugPrint('[profile_screen] session refreshed on initState');
       } catch (e) {
-        debugPrint('[profile_screen] initState refresh failed: $e — '
-            'will retry inside _pickAndUploadAvatar');
+        debugPrint('[profile_screen] initState refresh failed: ${e} — will retry inside _pickAndUploadAvatar');
       }
     }
   }
@@ -186,12 +187,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             ListTile(
               leading: const Icon(Icons.photo_camera),
-              title: const Text('Tirar foto'),
+              title: Text('Tirar foto'.tr),
               onTap: () => Navigator.of(ctx).pop(ImageSource.camera),
             ),
             ListTile(
               leading: const Icon(Icons.photo_library),
-              title: const Text('Escolher da galeria'),
+              title: Text('Escolher da galeria'.tr),
               onTap: () => Navigator.of(ctx).pop(ImageSource.gallery),
             ),
           ],
@@ -238,7 +239,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         SnackBar(
           content: Text(
             isDemo
-                ? 'Demo accounts não podem fazer upload de foto. Cria uma conta real.'
+                ? 'Demo accounts não podem fazer upload de foto. Cria uma conta real.'.tr
                 : 'Sessão expirada. Faz logout e login novamente.',
           ),
         ),
@@ -262,7 +263,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (userId == null) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Sessão inválida após refresh. Faz logout e login novamente.')),
+        SnackBar(content: Text('Sessão inválida após refresh. Faz logout e login novamente.'.tr)),
       );
       return;
     }
@@ -280,7 +281,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao seleccionar imagem: $e')),
+        SnackBar(content: Text('Erro ao seleccionar imagem: {0}'.trArgs([e]))),
       );
       return;
     }
@@ -322,8 +323,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       } catch (directErr) {
         // ── Strategy C: fallback to Edge Function `upload-avatar` ──────────
         // service_role bypasses RLS — handles stale-JWT corner cases.
-        debugPrint('[profile_screen] direct upload failed ($directErr) — '
-            'falling back to upload-avatar Edge Function');
+        debugPrint('[profile_screen] direct upload failed (${directErr}) — falling back to upload-avatar Edge Function');
         try {
           final base64 = base64Encode(processed);
           final res = await Supabase.instance.client.functions
@@ -362,7 +362,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _isUploading = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Foto de perfil actualizada.')),
+        SnackBar(content: Text('Foto de perfil actualizada.'.tr)),
       );
     } catch (e) {
       if (!mounted) return;
@@ -374,7 +374,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       debugPrint('[profile_screen] avatar upload error: $e · userId=$userId');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Erro ao enviar foto: $e'),
+          content: Text('Erro ao enviar foto: {0}'.trArgs([e])),
           duration: const Duration(seconds: 6),
         ),
       );
@@ -387,7 +387,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final driverStore = context.watch<DriverStore>();
 
     if (!authStore.isLogged) {
-      return const Center(child: Text('Sessão terminada.'));
+      return Center(child: Text('Sessão terminada.'.tr));
     }
 
     final role = authStore.role;
@@ -399,9 +399,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       backgroundColor: AppColors.background,
       floatingActionButton: const BoraSupportFab(),
       // MULTI-PAPEL: o botão só aparece a quem tem mais do que um papel.
-      appBar: const BoraScreenAppBar(
-        title: 'Perfil',
-        actions: [ProfileSwitcherButton()],
+      appBar: BoraScreenAppBar(
+        title: 'Perfil'.tr,
+        actions: const [ProfileSwitcherButton()],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.only(bottom: Spacing.xxxl),
@@ -428,7 +428,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(height: 4),
                   Text(
                     role == AuthRole.driver
-                        ? 'Estafeta'
+                        ? 'Estafeta'.tr
                         : role == AuthRole.partner
                             ? 'Parceiro'
                             : 'Cliente',
@@ -449,12 +449,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 if (role == AuthRole.client) ...[
                   _InfoTile(
                     icon: Icons.email_outlined,
-                    label: 'Email',
+                    label: 'Email'.tr,
                     value: authStore.currentClient?.email ?? '-',
                   ),
                   _InfoTile(
                     icon: Icons.phone_outlined,
-                    label: 'Telemóvel',
+                    label: 'Telemóvel'.tr,
                     value: authStore.currentClient?.phone ?? '-',
                   ),
                 ] else if (role == AuthRole.driver) ...[
@@ -472,41 +472,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   else ...[
                     _InfoTile(
                       icon: Icons.phone_outlined,
-                      label: 'Telemóvel',
+                      label: 'Telemóvel'.tr,
                       value: authStore.currentDriver?.phone ??
                           driverStore.currentDriver?.phone ??
                           '-',
                     ),
                     _InfoTile(
                       icon: Icons.directions_car_outlined,
-                      label: 'Veículo',
+                      label: 'Veículo'.tr,
                       value: driverStore.currentVehicleType.label,
                     ),
                     _InfoTile(
                       icon: Icons.badge_outlined,
-                      label: 'Matrícula',
+                      label: 'Matrícula'.tr,
                       value: authStore.currentDriver?.licensePlate ?? '-',
                     ),
                   ],
                 ] else if (role == AuthRole.partner) ...[
                   _InfoTile(
                     icon: Icons.email_outlined,
-                    label: 'Email',
+                    label: 'Email'.tr,
                     value: authStore.currentPartner?.email ?? '-',
                   ),
                   _InfoTile(
                     icon: Icons.phone_outlined,
-                    label: 'Telefone',
+                    label: 'Telefone'.tr,
                     value: authStore.currentPartner?.phone ?? '-',
                   ),
                   _InfoTile(
                     icon: Icons.location_on_outlined,
-                    label: 'Endereço',
+                    label: 'Endereço'.tr,
                     value: authStore.currentPartner?.address ?? '-',
                   ),
                   _InfoTile(
                     icon: Icons.restaurant_outlined,
-                    label: 'Tipo de cozinha',
+                    label: 'Tipo de cozinha'.tr,
                     value: authStore.currentPartner?.cuisineType ?? '-',
                   ),
                 ],
@@ -528,8 +528,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const _WalletCardsBlock(),
               const SizedBox(height: 12),
             ] else if (role == AuthRole.driver) ...[
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
                 child: _TokenBalanceRow(),
               ),
               const SizedBox(height: 12),
@@ -561,9 +561,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ListTile(
                     leading: const Icon(Icons.phonelink_ring_outlined,
                         color: AppColors.primary),
-                    title: const Text('Permissões de pedidos'),
-                    subtitle: const Text(
-                        'Ecrã bloqueado, notificações, bateria'),
+                    title: Text('Permissões de pedidos'.tr),
+                    subtitle: Text(
+                        'Ecrã bloqueado, notificações, bateria'.tr),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.push(
                       context,
@@ -583,10 +583,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     leading: const Icon(Icons.badge_outlined,
                         color: AppColors.primary),
                     title: Text(_roles.temAlgumPapel
-                        ? 'O meu trabalho no Bora'
+                        ? 'O meu trabalho no Bora'.tr
                         : 'Quero trabalhar no Bora'),
                     subtitle: Text(_roles.temAlgumPapel
-                        ? 'Vê o que já fazes e acrescenta actividades'
+                        ? 'Vê o que já fazes e acrescenta actividades'.tr
                         : 'Entregas, corridas, limpeza ou lavagem de carros'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.push(
@@ -603,9 +603,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ListTile(
                       leading: const Icon(Icons.cleaning_services_outlined,
                           color: AppColors.primary),
-                      title: const Text('A minha Limpeza'),
+                      title: Text('A minha Limpeza'.tr),
                       subtitle:
-                          const Text('Gere as tuas limpezas e disponibilidade'),
+                          Text('Gere as tuas limpezas e disponibilidade'.tr),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () => Navigator.push(
                         context,
@@ -622,9 +622,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ListTile(
                       leading: const Icon(Icons.payments_outlined,
                           color: AppColors.primary),
-                      title: const Text('Os meus ganhos'),
-                      subtitle: const Text(
-                          'Hoje, esta semana e o acerto de cada semana'),
+                      title: Text('Os meus ganhos'.tr),
+                      subtitle: Text(
+                          'Hoje, esta semana e o acerto de cada semana'.tr),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () => Navigator.push(
                         context,
@@ -636,8 +636,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ListTile(
                       leading: const Icon(Icons.local_car_wash_outlined,
                           color: AppColors.primary),
-                      title: const Text('A minha Lavagem'),
-                      subtitle: const Text('Vê e aceita lavagens perto de ti'),
+                      title: Text('A minha Lavagem'.tr),
+                      subtitle: Text('Vê e aceita lavagens perto de ti'.tr),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () => Navigator.push(
                         context,
@@ -651,8 +651,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ListTile(
                     leading: const Icon(Icons.account_balance_outlined,
                         color: AppColors.primary),
-                    title: const Text('Receber pagamentos'),
-                    subtitle: const Text('Configura como recebes pelo Bora'),
+                    title: Text('Receber pagamentos'.tr),
+                    subtitle: Text('Configura como recebes pelo Bora'.tr),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.push(
                       context,
@@ -665,9 +665,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ListTile(
                     leading: const Icon(Icons.receipt_long_outlined,
                         color: AppColors.primary),
-                    title: const Text('Extrato'),
+                    title: Text('Extrato'.tr),
                     subtitle:
-                        const Text('Movimentos, comissões e pagamentos'),
+                        Text('Movimentos, comissões e pagamentos'.tr),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.push(
                       context,
@@ -687,7 +687,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ListTile(
                     leading: const Icon(Icons.receipt_long_outlined,
                         color: AppColors.primary),
-                    title: const Text('Histórico de pedidos'),
+                    title: Text('Histórico de pedidos'.tr),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.push(
                       context,
@@ -697,7 +697,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ListTile(
                     leading: const Icon(Icons.calendar_today_outlined,
                         color: AppColors.primary),
-                    title: const Text('Minhas Reservas'),
+                    title: Text('Minhas Reservas'.tr),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.push(
                       context,
@@ -711,8 +711,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ListTile(
                     leading: const Icon(Icons.content_cut,
                         color: AppColors.primary),
-                    title: const Text('As minhas marcações'),
-                    subtitle: const Text('Barbearia e outros serviços'),
+                    title: Text('As minhas marcações'.tr),
+                    subtitle: Text('Barbearia e outros serviços'.tr),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.push(
                       context,
@@ -723,8 +723,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ListTile(
                     leading: const Icon(Icons.format_list_bulleted,
                         color: AppColors.primary),
-                    title: const Text('Minhas Listas'),
-                    subtitle: const Text('Fila de espera e avisos'),
+                    title: Text('Minhas Listas'.tr),
+                    subtitle: Text('Fila de espera e avisos'.tr),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.push(
                       context,
@@ -735,8 +735,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ListTile(
                     leading: const Icon(Icons.account_balance_wallet_outlined,
                         color: AppColors.primary),
-                    title: const Text('Saldo Bora'),
-                    subtitle: const Text('Saldo livre + tokens + histórico'),
+                    title: Text('Saldo Bora'.tr),
+                    subtitle: Text('Saldo livre + tokens + histórico'.tr),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.push(
                       context,
@@ -747,8 +747,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ListTile(
                     leading: const Icon(Icons.credit_card_outlined,
                         color: AppColors.primary),
-                    title: const Text('Meus Cartões'),
-                    subtitle: const Text('Cartões guardados para pagar num toque'),
+                    title: Text('Meus Cartões'.tr),
+                    subtitle: Text('Cartões guardados para pagar num toque'.tr),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.push(
                       context,
@@ -758,8 +758,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ListTile(
                     leading: const Icon(Icons.location_on_outlined,
                         color: AppColors.primary),
-                    title: const Text('Os meus endereços'),
-                    subtitle: const Text('Casa, Trabalho e outros'),
+                    title: Text('Os meus endereços'.tr),
+                    subtitle: Text('Casa, Trabalho e outros'.tr),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.push(
                       context,
@@ -770,8 +770,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ListTile(
                     leading: const Icon(Icons.redeem_outlined,
                         color: AppColors.primary),
-                    title: const Text('Tenho um código'),
-                    subtitle: const Text('Resgata tokens com um código promocional'),
+                    title: Text('Tenho um código'.tr),
+                    subtitle: Text('Resgata tokens com um código promocional'.tr),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.push(
                       context,
@@ -782,8 +782,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ListTile(
                     leading: const Icon(Icons.card_giftcard_outlined,
                         color: AppColors.primary),
-                    title: const Text('Convidar amigos'),
-                    subtitle: const Text('1000 tokens (≈€5) para ti + para o teu amigo'),
+                    title: Text('Convidar amigos'.tr),
+                    subtitle: Text('1000 tokens (≈€5) para ti + para o teu amigo'.tr),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.push(
                       context,
@@ -798,10 +798,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     leading: const Icon(Icons.badge_outlined,
                         color: AppColors.primary),
                     title: Text(_roles.temAlgumPapel
-                        ? 'O meu trabalho no Bora'
+                        ? 'O meu trabalho no Bora'.tr
                         : 'Quero trabalhar no Bora'),
                     subtitle: Text(_roles.temAlgumPapel
-                        ? 'Vê o que já fazes e acrescenta actividades'
+                        ? 'Vê o que já fazes e acrescenta actividades'.tr
                         : 'Entregas, corridas, limpeza ou lavagem de carros'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.push(
@@ -818,9 +818,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ListTile(
                       leading: const Icon(Icons.cleaning_services_outlined,
                           color: AppColors.primary),
-                      title: const Text('A minha Limpeza'),
+                      title: Text('A minha Limpeza'.tr),
                       subtitle:
-                          const Text('Gere as tuas limpezas e disponibilidade'),
+                          Text('Gere as tuas limpezas e disponibilidade'.tr),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () => Navigator.push(
                         context,
@@ -837,9 +837,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ListTile(
                       leading: const Icon(Icons.payments_outlined,
                           color: AppColors.primary),
-                      title: const Text('Os meus ganhos'),
-                      subtitle: const Text(
-                          'Hoje, esta semana e o acerto de cada semana'),
+                      title: Text('Os meus ganhos'.tr),
+                      subtitle: Text(
+                          'Hoje, esta semana e o acerto de cada semana'.tr),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () => Navigator.push(
                         context,
@@ -851,8 +851,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ListTile(
                       leading: const Icon(Icons.local_car_wash_outlined,
                           color: AppColors.primary),
-                      title: const Text('A minha Lavagem'),
-                      subtitle: const Text('Vê e aceita lavagens perto de ti'),
+                      title: Text('A minha Lavagem'.tr),
+                      subtitle: Text('Vê e aceita lavagens perto de ti'.tr),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () => Navigator.push(
                         context,
@@ -865,7 +865,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ListTile(
                     leading: const Icon(Icons.support_agent_outlined,
                         color: AppColors.primary),
-                    title: const Text('Suporte'),
+                    title: Text('Suporte'.tr),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.push(
                       context,
@@ -887,7 +887,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: ElevatedButton.icon(
                     onPressed: () => Navigator.pushNamed(context, '/admin'),
                     icon: const Icon(Icons.admin_panel_settings_outlined),
-                    label: const Text('Painel Admin'),
+                    label: Text('Painel Admin'.tr),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
@@ -918,9 +918,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         )
                       : const Icon(Icons.delete_forever,
                           color: AppColors.error),
-                  label: const Text(
-                    'Apagar conta',
-                    style: TextStyle(color: AppColors.error),
+                  label: Text(
+                    'Apagar conta'.tr,
+                    style: const TextStyle(color: AppColors.error),
                   ),
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: AppColors.error),
@@ -947,9 +947,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Navigator.of(context).popUntil((route) => route.isFirst);
                   },
                   icon: const Icon(Icons.logout, color: AppColors.error),
-                  label: const Text(
-                    'Terminar sessão',
-                    style: TextStyle(color: AppColors.error),
+                  label: Text(
+                    'Terminar sessão'.tr,
+                    style: const TextStyle(color: AppColors.error),
                   ),
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: AppColors.error),
@@ -1062,16 +1062,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Remover foto de perfil?'),
+        title: Text('Remover foto de perfil?'.tr),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancelar'),
+            child: Text('Cancelar'.tr),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            child: const Text('Remover'),
+            child: Text('Remover'.tr),
           ),
         ],
       ),
@@ -1094,13 +1094,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _isUploading = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Foto removida.')),
+        SnackBar(content: Text('Foto removida.'.tr)),
       );
     } catch (e) {
       if (!mounted) return;
       setState(() => _isUploading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao remover foto: $e')),
+        SnackBar(content: Text('Erro ao remover foto: {0}'.trArgs([e]))),
       );
     }
   }
@@ -1125,23 +1125,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Apagar conta'),
-        content: const SingleChildScrollView(
+        title: Text('Apagar conta'.tr),
+        content: SingleChildScrollView(
           child: Text(
-            'Os teus dados pessoais serão apagados imediatamente.\n\n'
-            'Por obrigação legal, os dados fiscais (faturas) são '
-            'guardados por 10 anos.\n\nConfirmar?',
+            'Os teus dados pessoais serão apagados imediatamente.\n\nPor obrigação legal, os dados fiscais (faturas) são guardados por 10 anos.\n\nConfirmar?'.tr,
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancelar'),
+            child: Text('Cancelar'.tr),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            child: const Text('Apagar'),
+            child: Text('Apagar'.tr),
           ),
         ],
       ),
@@ -1160,9 +1158,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (response.status >= 400) {
         setState(() => _isDeletingAccount = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text(
-                'Não foi possível apagar a conta. Tenta novamente mais tarde.'),
+                'Não foi possível apagar a conta. Tenta novamente mais tarde.'.tr),
           ),
         );
         return;
@@ -1174,14 +1172,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Conta apagada.')),
+        SnackBar(content: Text('Conta apagada.'.tr)),
       );
       Navigator.of(context).popUntil((route) => route.isFirst);
     } catch (e) {
       if (!mounted) return;
       setState(() => _isDeletingAccount = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao apagar conta: $e')),
+        SnackBar(content: Text('Erro ao apagar conta: {0}'.trArgs([e]))),
       );
     }
   }
@@ -1296,9 +1294,9 @@ class _WalletCardsBlock extends StatelessWidget {
             ? Colors.red.shade700
             : (isWarning ? Colors.orange.shade700 : Colors.green);
         final subtitle = isBlocked
-            ? 'Não pode fazer pedidos · regularize'
+            ? 'Não pode fazer pedidos · regularize'.tr
             : (isNeg
-                ? 'Saldo devedor — descontado na próxima compra'
+                ? 'Saldo devedor — descontado na próxima compra'.tr
                 : 'Livre — nunca expira');
         final valueColor = isNeg ? Colors.red.shade700 : null;
 
@@ -1312,7 +1310,7 @@ class _WalletCardsBlock extends StatelessWidget {
                 borderColor: borderColor,
                 icon: Icons.account_balance_wallet,
                 iconColor: iconColor,
-                title: 'Saldo Bora',
+                title: 'Saldo Bora'.tr,
                 subtitle: subtitle,
                 value: loading ? null : (b?.freeFormatted ?? '€0.00'),
                 valueColor: valueColor,
@@ -1332,7 +1330,7 @@ class _WalletCardsBlock extends StatelessWidget {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Carteira em dívida grave. Liquide para fazer novos pedidos.',
+                          'Carteira em dívida grave. Liquide para fazer novos pedidos.'.tr,
                           style: TextStyle(
                             fontSize: 11,
                             color: Colors.red.shade900,
@@ -1351,18 +1349,18 @@ class _WalletCardsBlock extends StatelessWidget {
                 borderColor: Colors.amber.shade200,
                 icon: Icons.toll,
                 iconColor: Colors.amber.shade700,
-                title: 'Tokens',
+                title: 'Tokens'.tr,
                 subtitle: loading
-                    ? 'Até 50% desconto no checkout'
+                    ? 'Até 50% desconto no checkout'.tr
                     : 'Até 50% desconto · ≈€${((b?.tokensValueCents ?? 0) / 100).toStringAsFixed(2)}',
                 value: loading ? null : '${b?.tokensBalance ?? 0}',
               ),
               const SizedBox(height: 6),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
                 child: Text(
-                  'Saldo não reembolsável em dinheiro.',
-                  style: TextStyle(fontSize: 11, color: Colors.black45),
+                  'Saldo não reembolsável em dinheiro.'.tr,
+                  style: const TextStyle(fontSize: 11, color: Colors.black45),
                 ),
               ),
             ],
@@ -1515,9 +1513,9 @@ class _TokenBalanceRowState extends State<_TokenBalanceRow>
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Bora Tokens',
-                    style: TextStyle(
+                  Text(
+                    'Bora Tokens'.tr,
+                    style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: Colors.black54,
@@ -1533,7 +1531,7 @@ class _TokenBalanceRowState extends State<_TokenBalanceRow>
                           ),
                         )
                       : Text(
-                          '$balance tokens',
+                          '{0} tokens'.trArgs([balance]),
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w800,

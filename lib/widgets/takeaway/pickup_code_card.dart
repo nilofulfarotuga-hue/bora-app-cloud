@@ -4,6 +4,8 @@ import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../models/order_model.dart';
 
+import '../../l10n/tr.dart';
+
 /// BR §14.11 — cartão grande para o estado `readyForPickup`.
 ///
 /// Mostra: vendor name, código 6 chars em destaque, info curbside (se
@@ -35,9 +37,9 @@ class PickupCodeCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          const Text(
-            'Pronto para levantar',
-            style: TextStyle(
+          Text(
+            'Pronto para levantar'.tr,
+            style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
               color: AppColors.success,
@@ -74,9 +76,9 @@ class PickupCodeCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: Spacing.md),
-          const Text(
-            'Apresente este código no balcão',
-            style: TextStyle(fontSize: 13),
+          Text(
+            'Apresente este código no balcão'.tr,
+            style: const TextStyle(fontSize: 13),
           ),
           if (order.takeawayIsCurbside) ...[
             const SizedBox(height: Spacing.sm),
@@ -87,7 +89,7 @@ class PickupCodeCard extends StatelessWidget {
                 const SizedBox(width: 6),
                 Flexible(
                   child: Text(
-                    'Curbside · ${order.takeawayCurbsideInfo ?? "—"}',
+                    'Curbside · {0}'.trArgs([order.takeawayCurbsideInfo ?? "—"]),
                     style: const TextStyle(fontSize: 13),
                   ),
                 ),
@@ -97,7 +99,7 @@ class PickupCodeCard extends StatelessWidget {
           if (readyAtLabel != null) ...[
             const SizedBox(height: Spacing.sm),
             Text(
-              'Pronto às $readyAtLabel',
+              'Pronto às {0}'.trArgs([readyAtLabel]),
               style: const TextStyle(
                 fontSize: 12,
                 color: AppColors.textSecondary,

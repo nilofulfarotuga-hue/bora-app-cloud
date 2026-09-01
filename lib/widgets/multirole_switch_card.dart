@@ -4,6 +4,8 @@ import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
 import '../services/roles_service.dart';
 
+import '../l10n/tr.dart';
+
 /// MULTI-PAPEL — card de convite/troca para o OUTRO papel (estafeta ⇄ limpeza).
 /// Reutilizável nos dois lados. O texto e a ação dependem do estado do outro
 /// papel (via [crossRoleStateFor]): convidar / em análise / abrir-trocar.
@@ -47,13 +49,13 @@ class MultiRoleSwitchCard extends StatelessWidget {
         ),
       CrossRoleCardState.active => (
           activeTitle,
-          'Toca para abrir.',
+          'Toca para abrir.'.tr,
           onOpen,
           true,
         ),
       CrossRoleCardState.pending => (
           pendingTitle,
-          'Candidatura em análise pela equipa Bora.',
+          'Candidatura em análise pela equipa Bora.'.tr,
           null,
           false,
         ),

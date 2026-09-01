@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
 
+import '../l10n/tr.dart';
+
 /// Campo "Nota para o estafeta/motorista (opcional)" partilhado entre os fluxos
 /// de pagamento (delivery/limpeza e TVDE) para garantir estilo, comportamento e
 /// limite de caracteres idênticos. Só recolhe texto livre — nunca toca em
@@ -33,7 +35,7 @@ class CustomerNoteField extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              title,
+              title.tr,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
@@ -45,7 +47,7 @@ class CustomerNoteField extends StatelessWidget {
               maxLength: 200,
               textInputAction: TextInputAction.done,
               decoration: InputDecoration(
-                hintText: hint,
+                hintText: hint.tr,
                 border: const OutlineInputBorder(),
               ),
             ),

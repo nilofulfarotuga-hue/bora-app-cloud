@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 
 import '../../../stores/tvde_store.dart';
 
+import '../../../l10n/tr.dart';
+
 /// [Item A · MB Way] Dialog de espera da confirmação MB Way do PLANO TVDE.
 ///
 /// Clone do `AppointmentMBWayWaitingDialog` (paridade), mas o confirmador é a
@@ -76,7 +78,7 @@ class _PlanMbwayWaitingDialogState extends State<PlanMbwayWaitingDialog> {
         children: [
           Icon(Icons.phone_iphone, color: Colors.red.shade700),
           const SizedBox(width: 8),
-          const Expanded(child: Text('Aguarda confirmação MBWay')),
+          Expanded(child: Text('Aguarda confirmação MBWay'.tr)),
         ],
       ),
       content: Column(
@@ -84,15 +86,14 @@ class _PlanMbwayWaitingDialogState extends State<PlanMbwayWaitingDialog> {
         children: [
           const SizedBox(height: 4),
           Text(
-            'Enviámos um pedido de €${widget.amount.toStringAsFixed(2)} '
-            'para o teu telemóvel.\nAbre o MBWay e confirma para ativar o plano.',
+            'Enviámos um pedido de €{0} para o teu telemóvel.\nAbre o MBWay e confirma para ativar o plano.'.trArgs([widget.amount.toStringAsFixed(2)]),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
           const CircularProgressIndicator(),
           const SizedBox(height: 12),
           Text(
-            'A aguardar confirmação... $_secondsLeft s',
+            'A aguardar confirmação... {0} s'.trArgs([_secondsLeft]),
             style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
           ),
         ],

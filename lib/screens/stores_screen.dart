@@ -16,6 +16,8 @@ import '../widgets/bora_support_fab.dart';
 import 'store_categories_screen.dart';
 import 'store_products_screen.dart';
 
+import '../l10n/tr.dart';
+
 enum _StoreSort { name, rating }
 
 class StoresScreen extends StatefulWidget {
@@ -43,11 +45,11 @@ class _StoresScreenState extends State<StoresScreen> {
       case BusinessCategory.supermarket:
         return 'Supermercados';
       case BusinessCategory.store:
-        return 'Lojas';
+        return 'Lojas'.tr;
       case BusinessCategory.pharmacy:
-        return 'Farmácias';
+        return 'Farmácias'.tr;
       default:
-        return 'Lojas e Farmácias';
+        return 'Lojas e Farmácias'.tr;
     }
   }
 
@@ -60,7 +62,7 @@ class _StoresScreenState extends State<StoresScreen> {
           onChanged: (v) => setState(() => _query = v),
           textInputAction: TextInputAction.search,
           decoration: InputDecoration(
-            hintText: 'Pesquisar loja...',
+            hintText: 'Pesquisar loja...'.tr,
             prefixIcon: const Icon(Icons.search),
             suffixIcon: _query.isEmpty
                 ? null
@@ -83,16 +85,16 @@ class _StoresScreenState extends State<StoresScreen> {
         const SizedBox(height: 12),
         Row(
           children: [
-            const Text('Ordenar:', style: TextStyle(color: Colors.black54)),
+            Text('Ordenar:'.tr, style: const TextStyle(color: Colors.black54)),
             const SizedBox(width: 8),
             ChoiceChip(
-              label: const Text('Nome'),
+              label: Text('Nome'.tr),
               selected: _sort == _StoreSort.name,
               onSelected: (_) => setState(() => _sort = _StoreSort.name),
             ),
             const SizedBox(width: 8),
             ChoiceChip(
-              label: const Text('Avaliação'),
+              label: Text('Avaliação'.tr),
               selected: _sort == _StoreSort.rating,
               onSelected: (_) => setState(() => _sort = _StoreSort.rating),
             ),
@@ -144,7 +146,7 @@ class _StoresScreenState extends State<StoresScreen> {
       sections.addAll(
         _buildSection(
           context: context,
-          title: 'Supermercados',
+          title: 'Supermercados'.tr,
           entries: supermarketEntries,
         ),
       );
@@ -153,7 +155,7 @@ class _StoresScreenState extends State<StoresScreen> {
       sections.addAll(
         _buildSection(
           context: context,
-          title: 'Lojas',
+          title: 'Lojas'.tr,
           entries: storeEntries,
         ),
       );
@@ -162,7 +164,7 @@ class _StoresScreenState extends State<StoresScreen> {
       sections.addAll(
         _buildSection(
           context: context,
-          title: 'Farmácias',
+          title: 'Farmácias'.tr,
           entries: pharmacyEntries,
         ),
       );
@@ -170,10 +172,10 @@ class _StoresScreenState extends State<StoresScreen> {
 
     if (sections.isEmpty) {
       sections.add(
-        const Padding(
-          padding: EdgeInsets.all(24),
+        Padding(
+          padding: const EdgeInsets.all(24),
           child: Center(
-            child: Text('Nenhuma loja disponível no momento.'),
+            child: Text('Nenhuma loja disponível no momento.'.tr),
           ),
         ),
       );
@@ -212,9 +214,9 @@ class _StoresScreenState extends State<StoresScreen> {
               ),
             ),
           ),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 8),
-            child: Text('Nenhuma loja disponível nesta categoria.'),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Text('Nenhuma loja disponível nesta categoria.'.tr),
           ),
         ];
       }
@@ -332,19 +334,18 @@ Future<void> openRetailBusiness(
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Carrinho activo'),
+        title: Text('Carrinho activo'.tr),
         content: Text(
-          'Tens itens no carrinho de ${cart.vendorName}. '
-          'Queres cancelar e começar novo pedido em ${store.name}?',
+          'Tens itens no carrinho de {0}. Queres cancelar e começar novo pedido em {1}?'.trArgs([cart.vendorName, store.name]),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Voltar'),
+            child: Text('Voltar'.tr),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Sim, novo pedido'),
+            child: Text('Sim, novo pedido'.tr),
           ),
         ],
       ),
@@ -430,13 +431,13 @@ class _StoreTile extends StatelessWidget {
   String _categoryLabel(BusinessCategory cat) {
     switch (cat) {
       case BusinessCategory.supermarket:
-        return 'Supermercado';
+        return 'Supermercado'.tr;
       case BusinessCategory.pharmacy:
-        return 'Farmácia';
+        return 'Farmácia'.tr;
       case BusinessCategory.store:
-        return 'Loja';
+        return 'Loja'.tr;
       default:
-        return 'Loja';
+        return 'Loja'.tr;
     }
   }
 
@@ -525,7 +526,7 @@ class _StoreTile extends StatelessWidget {
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    'Estafeta entrega rápida',
+                    'Estafeta entrega rápida'.tr,
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.grey.shade700,

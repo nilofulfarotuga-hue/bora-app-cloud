@@ -12,6 +12,8 @@ import '../widgets/mandatory_photo_picker.dart';
 import '../widgets/quote_price_footer.dart';
 import 'payment_method_screen.dart';
 
+import '../l10n/tr.dart';
+
 class SendPackageFormScreen extends StatefulWidget {
   const SendPackageFormScreen({super.key});
 
@@ -88,25 +90,25 @@ class _SendPackageFormScreenState extends State<SendPackageFormScreen> {
 
     if (pickupAddress.isEmpty || dropoffAddress.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Preencha os endereços de recolha e entrega.')),
+        SnackBar(
+            content: Text('Preencha os endereços de recolha e entrega.'.tr)),
       );
       return;
     }
 
     if (_pickupLocation == null || _dropoffLocation == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
             content: Text(
-                'Selecione um endereço válido nas sugestões para obter coordenadas.')),
+                'Selecione um endereço válido nas sugestões para obter coordenadas.'.tr)),
       );
       return;
     }
 
     if (_packagePhotoUrl == null || _packagePhotoUrl!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Adiciona uma foto da encomenda — obrigatório.')),
+        SnackBar(
+            content: Text('Adiciona uma foto da encomenda — obrigatório.'.tr)),
       );
       return;
     }
@@ -151,7 +153,7 @@ class _SendPackageFormScreenState extends State<SendPackageFormScreen> {
     return MediaQuery(
       data: mqData,
       child: Scaffold(
-        appBar: const BoraScreenAppBar(title: 'Enviar Encomenda'),
+        appBar: BoraScreenAppBar(title: 'Enviar Encomenda'.tr),
         bottomNavigationBar: QuotePriceFooter(
           serviceType: OrderServiceType.sendPackage,
           pickup: _pickupLocation,
@@ -161,9 +163,9 @@ class _SendPackageFormScreenState extends State<SendPackageFormScreen> {
           key: _bodyKey,
           padding: const EdgeInsets.all(16),
           children: [
-            const Text(
-              'Endereço de recolha',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+            Text(
+              'Endereço de recolha'.tr,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
             ),
             const SizedBox(height: 8),
             // Mostra um indicador subtil enquanto o GPS resolve o endereço.
@@ -171,7 +173,7 @@ class _SendPackageFormScreenState extends State<SendPackageFormScreen> {
               children: [
                 AddressAutocompleteField(
                   controller: _pickupController,
-                  labelText: 'Pesquisar endereço de recolha',
+                  labelText: 'Pesquisar endereço de recolha'.tr,
                   prefixIcon: const Icon(Icons.my_location_outlined),
                   onSelected: (address, coords) {
                     setState(() => _pickupLocation = coords);
@@ -190,14 +192,14 @@ class _SendPackageFormScreenState extends State<SendPackageFormScreen> {
               ],
             ),
             const SizedBox(height: 24),
-            const Text(
-              'Endereço de entrega',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+            Text(
+              'Endereço de entrega'.tr,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
             ),
             const SizedBox(height: 8),
             AddressAutocompleteField(
               controller: _dropoffController,
-              labelText: 'Pesquisar endereço de entrega',
+              labelText: 'Pesquisar endereço de entrega'.tr,
               prefixIcon: const Icon(Icons.location_on_outlined),
               onSelected: (address, coords) {
                 setState(() => _dropoffLocation = coords);
@@ -206,11 +208,11 @@ class _SendPackageFormScreenState extends State<SendPackageFormScreen> {
             const SizedBox(height: 24),
             const Divider(),
             SwitchListTile(
-              title: const Text(
-                  'Um motociclista consegue transportar esta encomenda?'),
+              title: Text(
+                  'Um motociclista consegue transportar esta encomenda?'.tr),
               subtitle: Text(
                 _motoCanCarry
-                    ? 'Sim — motos e carros elegíveis'
+                    ? 'Sim — motos e carros elegíveis'.tr
                     : 'Não — apenas carros elegíveis',
               ),
               value: _motoCanCarry,
@@ -219,16 +221,16 @@ class _SendPackageFormScreenState extends State<SendPackageFormScreen> {
             const Divider(),
             const SizedBox(height: 16),
             MandatoryPhotoPicker(
-              label: 'Foto da encomenda (obrigatória)',
+              label: 'Foto da encomenda (obrigatória)'.tr,
               hint:
-                  'O estafeta vê a foto antes de aceitar. Evita surpresas de tamanho/peso. (BR §7.5)',
+                  'O estafeta vê a foto antes de aceitar. Evita surpresas de tamanho/peso. (BR §7.5)'.tr,
               pathPrefix: 'package',
               onUploaded: (url) => setState(() => _packagePhotoUrl = url),
             ),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: _goToPayment,
-              child: const Text('Continuar para pagamento'),
+              child: Text('Continuar para pagamento'.tr),
             ),
           ],
         ),

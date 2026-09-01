@@ -6,6 +6,8 @@ import '../../config/app_spacing.dart';
 import '../../models/tvde_ride.dart';
 import '../../stores/tvde_store.dart';
 
+import '../../l10n/tr.dart';
+
 /// [Fase B] Preço do pacote ida-e-volta do lado do MOTORISTA.
 ///
 /// Memo de sessão: o badge de cobrança e o aviso são widgets diferentes mas
@@ -44,16 +46,12 @@ class TvdeRoundtripDriverNotice extends StatefulWidget {
     final earn = ((ride.driverEarnCents ?? 0) / 100).toStringAsFixed(2);
     final pack = (packageCents / 100).toStringAsFixed(2);
     if (ride.isReturnLeg) {
-      return 'Recebes €$earn desta corrida. A volta já está paga — não cobres '
-          'nada ao cliente.';
+      return 'Recebes €{0} desta corrida. A volta já está paga — não cobres nada ao cliente.'.trArgs([earn]);
     }
     if (ride.isPaidOnline) {
-      return 'Recebes €$earn desta corrida. O cliente já pagou os €$pack '
-          'online — não cobres nada ao cliente.';
+      return 'Recebes €{0} desta corrida. O cliente já pagou os €{1} online — não cobres nada ao cliente.'.trArgs([earn, pack]);
     }
-    return 'Recebes €$earn desta corrida. Os €$pack que o cliente paga NÃO são '
-        'teus — recolhes em mão por conta da Bora, que acerta contigo no fim '
-        'da semana.';
+    return 'Recebes €{0} desta corrida. Os €{1} que o cliente paga NÃO são teus — recolhes em mão por conta da Bora, que acerta contigo no fim da semana.'.trArgs([earn, pack]);
   }
 
   @override

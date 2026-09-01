@@ -6,6 +6,8 @@ import '../config/app_spacing.dart';
 import '../services/role_switch_helper.dart';
 import '../stores/session_store.dart';
 
+import '../l10n/tr.dart';
+
 /// MULTI-PAPEL (2026-07-31) — botão de troca de perfil no cabeçalho.
 ///
 /// Só aparece quando o utilizador tem MAIS DO QUE UM papel (RPC `my_roles()`).
@@ -39,7 +41,7 @@ class _ProfileSwitcherButtonState extends State<ProfileSwitcherButton> {
     if (_roles.length < 2) return const SizedBox.shrink();
     return IconButton(
       icon: const Icon(Icons.switch_account_outlined),
-      tooltip: 'Trocar de perfil',
+      tooltip: 'Trocar de perfil'.tr,
       onPressed: _openSheet,
     );
   }
@@ -55,11 +57,11 @@ class _ProfileSwitcherButtonState extends State<ProfileSwitcherButton> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Padding(
-              padding: EdgeInsets.all(Spacing.lg),
+            Padding(
+              padding: const EdgeInsets.all(Spacing.lg),
               child: Text(
-                'Trocar de perfil',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                'Trocar de perfil'.tr,
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
               ),
             ),
             for (final r in _roles)
@@ -90,9 +92,9 @@ class _ProfileSwitcherButtonState extends State<ProfileSwitcherButton> {
                           // observa o SessionStore e reconstrói sozinho.
                           final ok = await activateRole(context, uiRole);
                           if (!ok) {
-                            messenger.showSnackBar(const SnackBar(
+                            messenger.showSnackBar(SnackBar(
                               content: Text(
-                                  'Não foi possível trocar de perfil. Tenta novamente.'),
+                                  'Não foi possível trocar de perfil. Tenta novamente.'.tr),
                             ));
                           }
                         },

@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import '../../config/app_colors.dart';
 import '../../models/order_model.dart';
 
+import '../../l10n/tr.dart';
+
 /// Banner mostrado ao cliente durante `OrderStatus.preparing` num pedido
 /// takeaway. Apresenta o ETA absoluto (HH:mm) e uma contagem regressiva
 /// que decrementa em tempo real.
@@ -52,14 +54,14 @@ class _PreparingCountdownBannerState extends State<PreparingCountdownBanner> {
     final String headline;
     final String subtitle;
     if (remaining.isNegative || remaining.inSeconds <= 0) {
-      headline = 'Quase pronto…';
-      subtitle = 'O parceiro vai marcar pronto a qualquer momento';
+      headline = 'Quase pronto…'.tr;
+      subtitle = 'O parceiro vai marcar pronto a qualquer momento'.tr;
     } else if (remaining.inMinutes < 1) {
-      headline = 'Pronto em menos de 1 min';
-      subtitle = 'Pronto às $hh:$mm';
+      headline = 'Pronto em menos de 1 min'.tr;
+      subtitle = 'Pronto às {0}:{1}'.trArgs([hh, mm]);
     } else {
-      headline = 'Pronto em ~${remaining.inMinutes} min';
-      subtitle = 'Pronto às $hh:$mm';
+      headline = 'Pronto em ~{0} min'.trArgs([remaining.inMinutes]);
+      subtitle = 'Pronto às {0}:{1}'.trArgs([hh, mm]);
     }
 
     return Container(
@@ -81,7 +83,7 @@ class _PreparingCountdownBannerState extends State<PreparingCountdownBanner> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'Restaurante a preparar — $headline',
+                  'Restaurante a preparar — {0}'.trArgs([headline]),
                   style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,

@@ -12,6 +12,8 @@ import '../../stores/restaurant_store.dart';
 import '../../utils/cart_feedback.dart';
 import '../bora/coming_soon.dart';
 
+import '../../l10n/tr.dart';
+
 /// Card horizontal estilo Glovo para secções de produtos no interior do mercado.
 /// Largura fixa ~160px, altura ~220px — adequado para scroll horizontal.
 ///
@@ -59,7 +61,7 @@ class MarketProductCard extends StatelessWidget {
           basePrice: product.price,
           quantity: 1,
         ));
-    showAddedToCartSnack(context, '${product.name} no carrinho');
+    showAddedToCartSnack(context, '{0} no carrinho'.trArgs([product.name]));
   }
 
   @override
@@ -159,9 +161,9 @@ class _ProductImage extends StatelessWidget {
                 color: AppColors.accent,
                 borderRadius: BorderRadius.circular(4),
               ),
-              child: const Text(
-                'Promoção',
-                style: TextStyle(
+              child: Text(
+                'Promoção'.tr,
+                style: const TextStyle(
                     color: Colors.white,
                     fontSize: 10,
                     fontWeight: FontWeight.bold),
@@ -217,8 +219,8 @@ class _AddButton extends StatelessWidget {
                 : AppColors.primary,
             shape: BoxShape.circle,
           ),
-          child: const Icon(Icons.add,
-              color: Colors.white, size: 18, semanticLabel: 'Adicionar'),
+          child: Icon(Icons.add,
+              color: Colors.white, size: 18, semanticLabel: 'Adicionar'.tr),
         ),
       ),
     );

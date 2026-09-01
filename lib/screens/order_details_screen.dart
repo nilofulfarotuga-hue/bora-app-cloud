@@ -18,6 +18,8 @@ import '../widgets/refund_choice_dialog.dart';
 import 'chat_screen.dart';
 import 'wallet_history_screen.dart';
 
+import '../l10n/tr.dart';
+
 class OrderDetailsScreen extends StatelessWidget {
   const OrderDetailsScreen({super.key, required this.order});
 
@@ -41,7 +43,7 @@ class OrderDetailsScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Pedido $_orderCode'),
+        title: Text('Pedido {0}'.trArgs([_orderCode])),
       ),
       floatingActionButton: BoraSupportFab(orderId: order.id),
       body: ListView(
@@ -168,7 +170,7 @@ class OrderDetailsScreen extends StatelessWidget {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else if (_ctx.mounted) {
       ScaffoldMessenger.of(_ctx).showSnackBar(
-        const SnackBar(content: Text('Não foi possível iniciar a chamada.')),
+        SnackBar(content: Text('Não foi possível iniciar a chamada.'.tr)),
       );
     }
   }
@@ -191,7 +193,7 @@ class _RefundBanner extends StatelessWidget {
     final border = isWallet ? Colors.green : Colors.amber.shade700;
     final icon = isWallet ? Icons.flash_on : Icons.access_time;
     final text = isWallet
-        ? '€${refundEur.toStringAsFixed(2)} disponíveis no Saldo Bora — imediato.'
+        ? '€{0} disponíveis no Saldo Bora — imediato.'.trArgs([refundEur.toStringAsFixed(2)])
         : 'Reembolso em curso. Pode demorar 5-10 dias úteis a aparecer no cartão.';
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -250,7 +252,7 @@ class _CashbackBadge extends StatelessWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Recebeste €${(cents / 100).toStringAsFixed(2)} de cashback no teu Saldo Bora!',
+                      'Recebeste €{0} de cashback no teu Saldo Bora!'.trArgs([(cents / 100).toStringAsFixed(2)]),
                       style: const TextStyle(
                           fontSize: 13, fontWeight: FontWeight.w600),
                     ),
@@ -263,8 +265,8 @@ class _CashbackBadge extends StatelessWidget {
                 child: TextButton.icon(
                   icon: const Icon(Icons.account_balance_wallet,
                       size: 16, color: Colors.green),
-                  label: const Text('Ver no saldo',
-                      style: TextStyle(color: Colors.green)),
+                  label: Text('Ver no saldo'.tr,
+                      style: const TextStyle(color: Colors.green)),
                   onPressed: () {
                     Navigator.push(
                       context,
@@ -392,9 +394,8 @@ class _CancelOrderButtonState extends State<_CancelOrderButton> {
                 content: Text(
                   // Adendo2: sem taxa = mensagem limpa, nada de "€0,00".
                   _cancelFeeEur() <= 0.009
-                      ? 'Pedido cancelado. Sem qualquer custo.'
-                      : 'Pedido cancelado. Taxa de €${_cancelFeeEur().toStringAsFixed(2)} '
-                          'descontada na próxima compra.',
+                      ? 'Pedido cancelado. Sem qualquer custo.'.tr
+                      : 'Pedido cancelado. Taxa de €{0} descontada na próxima compra.'.trArgs([_cancelFeeEur().toStringAsFixed(2)]),
                 ),
               ),
             );
@@ -402,7 +403,7 @@ class _CancelOrderButtonState extends State<_CancelOrderButton> {
           } catch (e) {
             if (!context.mounted) return;
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Erro ao cancelar: $e')),
+              SnackBar(content: Text('Erro ao cancelar: {0}'.trArgs([e]))),
             );
           }
           return;
@@ -419,7 +420,7 @@ class _CancelOrderButtonState extends State<_CancelOrderButton> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(res.refundMethod == 'wallet'
-                  ? 'Cancelado. Saldo disponível imediatamente.'
+                  ? 'Cancelado. Saldo disponível imediatamente.'.tr
                   : 'Cancelado. Reembolso ao cartão em 5-10 dias úteis.'),
             ),
           );
@@ -428,9 +429,9 @@ class _CancelOrderButtonState extends State<_CancelOrderButton> {
         }
       },
       icon: const Icon(Icons.cancel_outlined, color: Colors.red),
-      label: const Text(
-        'Cancelar pedido',
-        style: TextStyle(color: Colors.red),
+      label: Text(
+        'Cancelar pedido'.tr,
+        style: const TextStyle(color: Colors.red),
       ),
       style: OutlinedButton.styleFrom(
         side: const BorderSide(color: Colors.red),
@@ -452,7 +453,7 @@ Future<String?> _showCashCancelDialog(BuildContext context, double feeEur) async
     builder: (ctx) => StatefulBuilder(
       builder: (ctx, setState) {
         return AlertDialog(
-          title: const Text('Cancelar pedido'),
+          title: Text('Cancelar pedido'.tr),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -461,22 +462,17 @@ Future<String?> _showCashCancelDialog(BuildContext context, double feeEur) async
                 Text(
                   // Adendo2 (2026-08-16): janela grátis NUNCA ameaça taxa.
                   feeEur <= 0.009
-                      ? 'Pagamento em dinheiro: não há reembolso a fazer.\n\n'
-                          'Cancelamento gratuito — ainda nenhum estafeta '
-                          'aceitou o teu pedido.'
-                      : 'Pagamento em dinheiro: não há reembolso a fazer.\n\n'
-                          'A tua conta ficará com uma dívida de €${feeEur.toStringAsFixed(2)} '
-                          '(taxa de cancelamento). O valor será descontado '
-                          'automaticamente na tua próxima compra.',
+                      ? 'Pagamento em dinheiro: não há reembolso a fazer.\n\nCancelamento gratuito — ainda nenhum estafeta aceitou o teu pedido.'.tr
+                      : 'Pagamento em dinheiro: não há reembolso a fazer.\n\nA tua conta ficará com uma dívida de €{0} (taxa de cancelamento). O valor será descontado automaticamente na tua próxima compra.'.trArgs([feeEur.toStringAsFixed(2)]),
                   style: const TextStyle(fontSize: 14),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: reasonCtrl,
                   maxLines: 3,
-                  decoration: const InputDecoration(
-                    labelText: 'Motivo do cancelamento',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: 'Motivo do cancelamento'.tr,
+                    border: const OutlineInputBorder(),
                   ),
                 ),
                 if (error != null) ...[
@@ -489,7 +485,7 @@ Future<String?> _showCashCancelDialog(BuildContext context, double feeEur) async
           actions: [
             TextButton(
               onPressed: submitting ? null : () => Navigator.pop(ctx),
-              child: const Text('Voltar'),
+              child: Text('Voltar'.tr),
             ),
             FilledButton(
               onPressed: submitting
@@ -498,7 +494,7 @@ Future<String?> _showCashCancelDialog(BuildContext context, double feeEur) async
                       final r = reasonCtrl.text.trim();
                       if (r.length < 3) {
                         setState(() => error =
-                            'Indica um motivo (mínimo 3 caracteres)');
+                            'Indica um motivo (mínimo 3 caracteres)'.tr);
                         return;
                       }
                       setState(() => submitting = true);
@@ -509,7 +505,7 @@ Future<String?> _showCashCancelDialog(BuildContext context, double feeEur) async
                       width: 16,
                       height: 16,
                       child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Text('Confirmar cancelamento'),
+                  : Text('Confirmar cancelamento'.tr),
             ),
           ],
         );
@@ -598,7 +594,7 @@ class _StatusCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Estado do pedido',
+                  'Estado do pedido'.tr,
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.grey.shade600,
@@ -644,7 +640,7 @@ class _DriverCard extends StatelessWidget {
         : null;
     final driverName = resolvedDriver?.name ??
         (order.driverPhone != null && order.driverPhone!.isNotEmpty
-            ? 'Estafeta ${order.driverPhone}'
+            ? 'Estafeta {0}'.trArgs([order.driverPhone])
             : 'Estafeta');
 
     return Container(
@@ -664,7 +660,7 @@ class _DriverCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'O teu estafeta',
+            'O teu estafeta'.tr,
             style: TextStyle(
               fontSize: 12,
               color: Colors.grey.shade500,
@@ -722,7 +718,7 @@ class _DriverCard extends StatelessWidget {
                 child: OutlinedButton.icon(
                   onPressed: (order.driverPhone ?? '').isEmpty ? null : onCall,
                   icon: const Icon(Icons.call_outlined, size: 18),
-                  label: const Text('Ligar'),
+                  label: Text('Ligar'.tr),
                   style: OutlinedButton.styleFrom(
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12)),
@@ -735,7 +731,7 @@ class _DriverCard extends StatelessWidget {
                 child: ElevatedButton.icon(
                   onPressed: onChat,
                   icon: const Icon(Icons.chat_bubble_outline, size: 18),
-                  label: const Text('Chat'),
+                  label: Text('Chat'.tr),
                   style: ElevatedButton.styleFrom(
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12)),
@@ -761,23 +757,23 @@ class _OrderInfoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _Card(
-      title: 'Resumo do pedido',
+      title: 'Resumo do pedido'.tr,
       child: Column(
         children: [
-          _Row(label: 'Serviço', value: order.serviceType.label),
+          _Row(label: 'Serviço'.tr, value: order.serviceType.label),
           _Row(
-              label: 'Total',
+              label: 'Total'.tr,
               value:
                   '€${(order.finalTotal ?? order.total).toStringAsFixed(2)}',
               bold: true),
           _Row(
-              label: 'Taxa de entrega',
+              label: 'Taxa de entrega'.tr,
               value: '€${order.deliveryFee.toStringAsFixed(2)}'),
           _Row(
-              label: 'Pagamento',
+              label: 'Pagamento'.tr,
               value: order.paymentMethod.name.toUpperCase()),
           if (order.vendorName != null)
-            _Row(label: 'Estabelecimento', value: order.vendorName!),
+            _Row(label: 'Estabelecimento'.tr, value: order.vendorName!),
         ],
       ),
     );
@@ -795,20 +791,20 @@ class _CodesCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _Card(
-      title: 'Códigos',
+      title: 'Códigos'.tr,
       child: Column(
         children: [
           _CodeRow(
-            label: 'Código do pedido',
+            label: 'Código do pedido'.tr,
             code: orderCode,
             icon: Icons.receipt_outlined,
           ),
           const SizedBox(height: 12),
           _CodeRow(
-            label: 'Código de entrega',
+            label: 'Código de entrega'.tr,
             code: deliveryCode,
             icon: Icons.lock_outline,
-            subtitle: 'Mostra este código ao estafeta na entrega',
+            subtitle: 'Mostra este código ao estafeta na entrega'.tr,
           ),
         ],
       ),
@@ -866,10 +862,10 @@ class _CodeRow extends StatelessWidget {
           onPressed: () {
             Clipboard.setData(ClipboardData(text: code));
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('$label copiado')),
+              SnackBar(content: Text('{0} copiado'.trArgs([label]))),
             );
           },
-          tooltip: 'Copiar',
+          tooltip: 'Copiar'.tr,
         ),
       ],
     );
@@ -886,14 +882,14 @@ class _AddressCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _Card(
-      title: 'Endereços',
+      title: 'Endereços'.tr,
       child: Column(
         children: [
           if (order.pickupAddress != null && order.pickupAddress!.isNotEmpty)
             _AddressRow(
               icon: Icons.circle,
               iconColor: Colors.orange.shade600,
-              label: 'Recolha',
+              label: 'Recolha'.tr,
               address: order.pickupAddress!,
             ),
           if (order.pickupAddress != null &&
@@ -909,7 +905,7 @@ class _AddressCard extends StatelessWidget {
             _AddressRow(
               icon: Icons.location_on_rounded,
               iconColor: const Color(0xFF1C6EF2),
-              label: 'Entrega',
+              label: 'Entrega'.tr,
               address: order.dropoffAddress!,
             ),
         ],
@@ -968,7 +964,7 @@ class _NotesCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _Card(
-      title: 'Notas',
+      title: 'Notas'.tr,
       child: Row(
         children: [
           Icon(Icons.notes_rounded, color: Colors.grey.shade500, size: 18),
@@ -993,7 +989,7 @@ class _ItemsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _Card(
-      title: 'O que compraste',
+      title: 'O que compraste'.tr,
       child: Column(
         children: [
           ...order.items.map((item) {
@@ -1041,7 +1037,7 @@ class _ItemsCard extends StatelessWidget {
                   ),
                   if (isUnavailable)
                     Text(
-                      'indisponível',
+                      'indisponível'.tr,
                       style: TextStyle(
                         fontSize: 11,
                         color: Colors.red.shade400,
@@ -1067,7 +1063,7 @@ class _ItemsCard extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      'Saco de transporte (${order.bagCount})',
+                      'Saco de transporte ({0})'.trArgs([order.bagCount]),
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.grey.shade600,
@@ -1095,7 +1091,7 @@ class _ItemsCard extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      'Taxa de pedido pequeno',
+                      'Taxa de pedido pequeno'.tr,
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.grey.shade600,
@@ -1245,7 +1241,7 @@ class _ErrandReceiptCardState extends State<_ErrandReceiptCard> {
             : 'receipts/${_photoPath!}');
 
     return _Card(
-      title: 'TALÃO DA COMPRA',
+      title: 'TALÃO DA COMPRA'.tr,
       child: _loading
           ? const Padding(
               padding: EdgeInsets.symmetric(vertical: 8),
@@ -1272,18 +1268,18 @@ class _ErrandReceiptCardState extends State<_ErrandReceiptCard> {
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8),
                     child: Text(
-                      'Ainda sem talão. Aparece aqui quando o estafeta concluir a compra.',
+                      'Ainda sem talão. Aparece aqui quando o estafeta concluir a compra.'.tr,
                       style:
                           TextStyle(fontSize: 13, color: Colors.grey.shade600),
                     ),
                   ),
                 if (estimated > 0)
                   _Row(
-                      label: 'Orçado',
+                      label: 'Orçado'.tr,
                       value: '€${estimated.toStringAsFixed(2)}'),
                 if (real != null && real > 0)
                   _Row(
-                    label: 'Valor do talão',
+                    label: 'Valor do talão'.tr,
                     value: '€${real.toStringAsFixed(2)}',
                     bold: true,
                   ),
@@ -1324,8 +1320,7 @@ class _PurchaseV2CardState extends State<_PurchaseV2Card> {
       final results = await Future.wait<dynamic>([
         Supabase.instance.client
             .from('order_purchase_items_v2')
-            .select('id, original_name, original_price_cents, original_qty, '
-                'status, actual_name, actual_price_cents, actual_qty')
+            .select('id, original_name, original_price_cents, original_qty, status, actual_name, actual_price_cents, actual_qty')
             .eq('order_id', orderId)
             .order('created_at', ascending: true),
         Supabase.instance.client
@@ -1380,9 +1375,9 @@ class _PurchaseV2CardState extends State<_PurchaseV2Card> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return Card(
+      return const Card(
         color: AppTheme.cardBg,
-        child: const Padding(
+        child: Padding(
           padding: EdgeInsets.all(16),
           child: Center(child: CircularProgressIndicator()),
         ),
@@ -1401,18 +1396,18 @@ class _PurchaseV2CardState extends State<_PurchaseV2Card> {
           children: [
             Row(
               children: [
-                Icon(Icons.shopping_basket, color: AppTheme.secondary),
+                const Icon(Icons.shopping_basket, color: AppTheme.secondary),
                 const SizedBox(width: 8),
-                const Text(
-                  'Compra detalhada',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                Text(
+                  'Compra detalhada'.tr,
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                 ),
               ],
             ),
             const SizedBox(height: 12),
             if (items.isEmpty)
               Text(
-                'Aguardando o estafeta concluir a compra na loja…',
+                'Aguardando o estafeta concluir a compra na loja…'.tr,
                 style: TextStyle(color: Colors.grey.shade600),
               )
             else
@@ -1431,7 +1426,7 @@ class _PurchaseV2CardState extends State<_PurchaseV2Card> {
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        '🛍️ Saco plástico — ${widget.order.bagCount}× €${(widget.order.bagFee / widget.order.bagCount).toStringAsFixed(2)}',
+                        '🛍️ Saco plástico — {0}× €{1}'.trArgs([widget.order.bagCount, (widget.order.bagFee / widget.order.bagCount).toStringAsFixed(2)]),
                         style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
                     ),
@@ -1446,18 +1441,18 @@ class _PurchaseV2CardState extends State<_PurchaseV2Card> {
               const Divider(height: 24),
               Row(
                 children: [
-                  Icon(Icons.account_balance_wallet,
+                  const Icon(Icons.account_balance_wallet,
                       size: 18, color: AppTheme.primary),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      'Crédito por items indisponíveis',
+                      'Crédito por items indisponíveis'.tr,
                       style: TextStyle(color: Colors.grey.shade700),
                     ),
                   ),
                   Text(
                     '+€$creditEur',
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: AppTheme.primary,
                       fontWeight: FontWeight.w700,
                     ),
@@ -1466,7 +1461,7 @@ class _PurchaseV2CardState extends State<_PurchaseV2Card> {
               ),
               const SizedBox(height: 4),
               Text(
-                'Foi adicionado ao seu saldo livre (Carteira).',
+                'Foi adicionado ao seu saldo livre (Carteira).'.tr,
                 style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
               ),
             ],
@@ -1482,7 +1477,7 @@ class _PurchaseV2CardState extends State<_PurchaseV2Card> {
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      'Soma dos itens',
+                      'Soma dos itens'.tr,
                       style: TextStyle(color: Colors.grey.shade700),
                     ),
                   ),
@@ -1586,8 +1581,8 @@ class _PurchaseV2CardState extends State<_PurchaseV2Card> {
         return (
           Icons.cancel,
           const Color(0xFFC62828),
-          'INDISPONÍVEL',
-          'Não disponível — €$originalEur creditados ao saldo',
+          'INDISPONÍVEL'.tr,
+          'Não disponível — €{0} creditados ao saldo'.trArgs([originalEur]),
         );
       case 'replaced':
         final byPart = actualName != null ? ' por "$actualName"' : '';
@@ -1595,15 +1590,15 @@ class _PurchaseV2CardState extends State<_PurchaseV2Card> {
         return (
           Icons.swap_horiz,
           const Color(0xFF1A73E8),
-          'SUBSTITUÍDO',
-          'Substituído$byPart · €$priceEur',
+          'SUBSTITUÍDO'.tr,
+          'Substituído{0} · €{1}'.trArgs([byPart, priceEur]),
         );
       case 'added':
         return (
           Icons.add_circle,
           AppColors.accent,
           'ADICIONADO',
-          'Adicionado pelo estafeta · €${actualEur ?? "?"}',
+          'Adicionado pelo estafeta · €{0}'.trArgs([actualEur ?? "?"]),
         );
       default:
         return (

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../config/app_spacing.dart';
 
+import '../../l10n/tr.dart';
+
 /// D6 — Inputs curbside (cliente espera no carro).
 ///
 /// Checkbox "Vou esperar no carro" + textfield para matrícula/cor/modelo.
@@ -68,13 +70,13 @@ class _CurbsideInputsState extends State<CurbsideInputs> {
               : (v) => widget.onCurbsideChanged(v ?? false),
           contentPadding: EdgeInsets.zero,
           controlAffinity: ListTileControlAffinity.leading,
-          title: const Text(
-            'Vou esperar no carro',
-            style: TextStyle(fontWeight: FontWeight.w600),
+          title: Text(
+            'Vou esperar no carro'.tr,
+            style: const TextStyle(fontWeight: FontWeight.w600),
           ),
-          subtitle: const Text(
-            'O parceiro leva o pedido até à viatura',
-            style: TextStyle(fontSize: 12),
+          subtitle: Text(
+            'O parceiro leva o pedido até à viatura'.tr,
+            style: const TextStyle(fontSize: 12),
           ),
         ),
         if (widget.isCurbside) ...[
@@ -85,10 +87,10 @@ class _CurbsideInputsState extends State<CurbsideInputs> {
             onChanged: widget.onInfoChanged,
             textInputAction: TextInputAction.done,
             decoration: InputDecoration(
-              labelText: 'Matrícula + cor (ex: AA-12-BB cinza)',
+              labelText: 'Matrícula + cor (ex: AA-12-BB cinza)'.tr,
               border: const OutlineInputBorder(),
               helperText: widget.isLocked
-                  ? 'Não editável após pagamento confirmado'
+                  ? 'Não editável após pagamento confirmado'.tr
                   : null,
               isDense: true,
             ),

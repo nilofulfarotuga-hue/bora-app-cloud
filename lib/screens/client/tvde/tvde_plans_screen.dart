@@ -13,6 +13,8 @@ import '../../../widgets/bora/bora.dart';
 import '../reservation/reservation_payment_method_sheet.dart';
 import 'plan_mbway_waiting_dialog.dart';
 
+import '../../../l10n/tr.dart';
+
 /// TVDE — Planos de assinatura + contador diário. [Item A] o cliente PAGA o
 /// plano por cartão (Stripe, Edge Function isolada tvde-plan-payment) e a
 /// subscrição ativa-se automaticamente. O admin também pode conceder
@@ -90,14 +92,14 @@ class _TvdePlansScreenState extends State<TvdePlansScreen> {
 
   String _priceLabel(String plan) {
     final cents = _priceCents?[plan];
-    if (cents == null || cents <= 0) return 'A carregar…';
+    if (cents == null || cents <= 0) return 'A carregar…'.tr;
     final v = cents / 100;
     final euros = v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(2);
     return '€$euros / ${_period[plan]}';
   }
 
   String _detailLabel(String plan) =>
-      '${_ridesTotal[plan]} corridas · Segunda a Sexta · 2 por dia útil';
+      '{0} corridas · Segunda a Sexta · 2 por dia útil'.trArgs([_ridesTotal[plan]]);
 
   /// [Item A] Cliente adere pagando por **cartão OU MB Way** (dinheiro NÃO é
   /// permitido no plano). Reaproveita o MESMO picker das Reservas/Serviços
@@ -106,8 +108,8 @@ class _TvdePlansScreenState extends State<TvdePlansScreen> {
   /// `tvde-plan-payment` verifica o PI na Stripe — sem tocar no webhook).
   Future<void> _aderir(String plan, String label, double priceEur) async {
     if (kIsWeb) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('O pagamento do plano está disponível na app móvel.')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('O pagamento do plano está disponível na app móvel.'.tr)));
       return;
     }
 
@@ -129,9 +131,8 @@ class _TvdePlansScreenState extends State<TvdePlansScreen> {
           await store.createPlanPaymentMbway(plan, choice.mbwayPhone!);
       if (!mounted) return;
       if (created == null) {
-        messenger.showSnackBar(const SnackBar(
-            content: Text('Não foi possível iniciar o MBWay. Confirma o número '
-                'e tenta de novo.')));
+        messenger.showSnackBar(SnackBar(
+            content: Text('Não foi possível iniciar o MBWay. Confirma o número e tenta de novo.'.tr)));
         return;
       }
       final ok = await showDialog<bool>(
@@ -146,9 +147,8 @@ class _TvdePlansScreenState extends State<TvdePlansScreen> {
       if (!mounted) return;
       messenger.showSnackBar(SnackBar(
           content: Text(ok == true
-              ? 'Plano ativo! Já podes usar as corridas incluídas.'
-              : 'Não recebemos a confirmação MBWay. Se pagaste, reabre os '
-                  'Planos; senão tenta de novo.')));
+              ? 'Plano ativo! Já podes usar as corridas incluídas.'.tr
+              : 'Não recebemos a confirmação MBWay. Se pagaste, reabre os Planos; senão tenta de novo.'.tr)));
       return;
     }
 
@@ -157,8 +157,8 @@ class _TvdePlansScreenState extends State<TvdePlansScreen> {
     final created = await store.createPlanPayment(plan);
     if (!mounted) return;
     if (created == null) {
-      messenger.showSnackBar(const SnackBar(
-          content: Text('Não foi possível iniciar o pagamento. Tenta de novo.')));
+      messenger.showSnackBar(SnackBar(
+          content: Text('Não foi possível iniciar o pagamento. Tenta de novo.'.tr)));
       return;
     }
 
@@ -167,8 +167,8 @@ class _TvdePlansScreenState extends State<TvdePlansScreen> {
       await PaymentService().processPayment(created['clientSecret'] as String);
     } catch (_) {
       if (!mounted) return;
-      messenger.showSnackBar(const SnackBar(
-          content: Text('Pagamento não concluído.')));
+      messenger.showSnackBar(SnackBar(
+          content: Text('Pagamento não concluído.'.tr)));
       return;
     }
 
@@ -176,13 +176,12 @@ class _TvdePlansScreenState extends State<TvdePlansScreen> {
     try {
       await store.activatePlan(plan, created['paymentIntentId'] as String);
       if (!mounted) return;
-      messenger.showSnackBar(const SnackBar(
-          content: Text('Plano ativo! Já podes usar as corridas incluídas.')));
+      messenger.showSnackBar(SnackBar(
+          content: Text('Plano ativo! Já podes usar as corridas incluídas.'.tr)));
     } catch (_) {
       if (!mounted) return;
-      messenger.showSnackBar(const SnackBar(
-          content: Text('O pagamento foi feito, mas a ativação falhou. Reabre '
-              'os Planos para confirmar, ou contacta o suporte.')));
+      messenger.showSnackBar(SnackBar(
+          content: Text('O pagamento foi feito, mas a ativação falhou. Reabre os Planos para confirmar, ou contacta o suporte.'.tr)));
     }
   }
 
@@ -193,7 +192,7 @@ class _TvdePlansScreenState extends State<TvdePlansScreen> {
     final pending = store.planRequestStatus == 'pendente';
 
     return Scaffold(
-      appBar: const BoraScreenAppBar(title: 'Planos'),
+      appBar: BoraScreenAppBar(title: 'Planos'.tr),
       body: ListView(
         padding: const EdgeInsets.all(Spacing.lg),
         children: [
@@ -203,38 +202,38 @@ class _TvdePlansScreenState extends State<TvdePlansScreen> {
             _PendingBanner(),
             const SizedBox(height: Spacing.lg),
           ],
-          Text('Planos disponíveis',
+          Text('Planos disponíveis'.tr,
               style: const TextStyle(
                   fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
           const SizedBox(height: Spacing.sm),
           const _WeekdayNotice(),
           const SizedBox(height: Spacing.sm),
           _PlanCard(
-            title: 'Plano Semanal',
+            title: 'Plano Semanal'.tr,
             price: _priceLabel('semanal'),
             detail: _detailLabel('semanal'),
             onAderir: pending || store.busy || _priceCents == null
                 ? null
                 : () => _aderir(
-                    'semanal', 'Plano Semanal', _priceCents!['semanal']! / 100),
+                    'semanal', 'Plano Semanal'.tr, _priceCents!['semanal']! / 100),
           ),
           _PlanCard(
-            title: 'Plano Quinzenal',
+            title: 'Plano Quinzenal'.tr,
             price: _priceLabel('quinzenal'),
             detail: _detailLabel('quinzenal'),
             onAderir: pending || store.busy || _priceCents == null
                 ? null
-                : () => _aderir('quinzenal', 'Plano Quinzenal',
+                : () => _aderir('quinzenal', 'Plano Quinzenal'.tr,
                     _priceCents!['quinzenal']! / 100),
           ),
           _PlanCard(
-            title: 'Plano Mensal',
+            title: 'Plano Mensal'.tr,
             price: _priceLabel('mensal'),
             detail: _detailLabel('mensal'),
             onAderir: pending || store.busy || _priceCents == null
                 ? null
                 : () => _aderir(
-                    'mensal', 'Plano Mensal', _priceCents!['mensal']! / 100),
+                    'mensal', 'Plano Mensal'.tr, _priceCents!['mensal']! / 100),
           ),
         ],
       ),
@@ -257,9 +256,8 @@ class _PendingBanner extends StatelessWidget {
           const SizedBox(width: Spacing.md),
           Expanded(
             child: Text(
-              'Pedido de adesão enviado. A equipa Bora vai ativar o teu plano '
-              'em breve.',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+              'Pedido de adesão enviado. A equipa Bora vai ativar o teu plano em breve.'.tr,
+              style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
             ),
           ),
         ],
@@ -281,15 +279,14 @@ class _WeekdayNotice extends StatelessWidget {
         color: AppColors.primaryWash,
         borderRadius: BorderRadius.circular(Radii.md + 2),
       ),
-      child: const Row(
+      child: Row(
         children: [
-          Icon(Icons.event_available, color: AppColors.primary),
-          SizedBox(width: Spacing.md),
+          const Icon(Icons.event_available, color: AppColors.primary),
+          const SizedBox(width: Spacing.md),
           Expanded(
             child: Text(
-              'Válido Segunda a Sexta. Aos fins de semana (sábado e domingo) as '
-              'corridas não são cobertas pelo plano — paga-se a tarifa normal.',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 12.5),
+              'Válido Segunda a Sexta. Aos fins de semana (sábado e domingo) as corridas não são cobertas pelo plano — paga-se a tarifa normal.'.tr,
+              style: const TextStyle(color: AppColors.textSecondary, fontSize: 12.5),
             ),
           ),
         ],
@@ -327,12 +324,12 @@ class _ActiveSubscription extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 2),
-          const Text('Segunda a Sexta · fim de semana não incluído',
-              style: TextStyle(color: Colors.white70, fontSize: 11.5)),
+          Text('Segunda a Sexta · fim de semana não incluído'.tr,
+              style: const TextStyle(color: Colors.white70, fontSize: 11.5)),
           const SizedBox(height: Spacing.md),
-          _row('Hoje', '$remainingToday de ${sub.dailyIncluded} corridas restantes'),
+          _row('Hoje'.tr, '{0} de {1} corridas restantes'.trArgs([remainingToday, sub.dailyIncluded])),
           const SizedBox(height: 4),
-          _row('Plano', '${sub.ridesLeft} de ${sub.ridesTotal} corridas restantes'),
+          _row('Plano'.tr, '{0} de {1} corridas restantes'.trArgs([sub.ridesLeft, sub.ridesTotal])),
         ],
       ),
     );
@@ -394,7 +391,7 @@ class _PlanCard extends StatelessWidget {
             child: OutlinedButton.icon(
               onPressed: onAderir,
               icon: const Icon(Icons.add_card, size: 18),
-              label: const Text('Quero aderir'),
+              label: Text('Quero aderir'.tr),
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.primary,
                 side: const BorderSide(color: AppColors.primary),

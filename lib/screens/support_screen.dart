@@ -4,6 +4,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../config/app_colors.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 
+import '../l10n/tr.dart';
+
 class SupportScreen extends StatefulWidget {
   const SupportScreen({super.key});
 
@@ -54,7 +56,7 @@ class _SupportScreenState extends State<SupportScreen> {
   void initState() {
     super.initState();
     _addBot(
-      'Olá! 👋 Sou o assistente de suporte Bora. Como posso ajudar?\n\nEscolhe uma pergunta frequente abaixo ou escreve a tua dúvida.',
+      'Olá! 👋 Sou o assistente de suporte Bora. Como posso ajudar?\n\nEscolhe uma pergunta frequente abaixo ou escreve a tua dúvida.'.tr,
     );
   }
 
@@ -85,19 +87,22 @@ class _SupportScreenState extends State<SupportScreen> {
     // Match FAQ
     final lower = trimmed.toLowerCase();
     final match = _faqs.where((f) {
-      return f.question.toLowerCase().contains(lower) ||
+      // Compara com o texto que a pessoa REALMENTE ve: em PT o .tr e a
+      // identidade, portanto o comportamento em portugues nao muda.
+      final pergunta = f.question.tr.toLowerCase();
+      return pergunta.contains(lower) ||
           lower
               .split(' ')
-              .any((w) => w.length > 3 && f.question.toLowerCase().contains(w));
+              .any((w) => w.length > 3 && pergunta.contains(w));
     }).firstOrNull;
 
     Future.delayed(const Duration(milliseconds: 400), () {
       if (!mounted) return;
       if (match != null) {
-        _addBot(match.answer);
+        _addBot(match.answer.tr);
       } else {
         _addBot(
-          'Não encontrei uma resposta automática para isso. 😔\n\nContacta-nos diretamente:\n📧 boraappbora@gmail.com\n📞 +351 937 501 673',
+          'Não encontrei uma resposta automática para isso. 😔\n\nContacta-nos diretamente:\n📧 boraappbora@gmail.com\n📞 +351 937 501 673'.tr,
         );
       }
     });
@@ -134,16 +139,16 @@ class _SupportScreenState extends State<SupportScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: BoraScreenAppBar(
-        title: 'Suporte',
+        title: 'Suporte'.tr,
         actions: [
           IconButton(
             icon: const Icon(Icons.email_outlined),
-            tooltip: 'Enviar email',
+            tooltip: 'Enviar email'.tr,
             onPressed: _launchEmail,
           ),
           IconButton(
             icon: const Icon(Icons.phone_outlined),
-            tooltip: 'Ligar',
+            tooltip: 'Ligar'.tr,
             onPressed: _launchPhone,
           ),
         ],
@@ -155,9 +160,9 @@ class _SupportScreenState extends State<SupportScreen> {
             color: Colors.white,
             child: ExpansionTile(
               leading: const Icon(Icons.quiz_outlined, color: AppColors.primary),
-              title: const Text(
-                'Perguntas frequentes',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              title: Text(
+                'Perguntas frequentes'.tr,
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
               ),
               initiallyExpanded: _faqExpanded,
               onExpansionChanged: (v) => setState(() => _faqExpanded = v),
@@ -165,13 +170,13 @@ class _SupportScreenState extends State<SupportScreen> {
                   .map(
                     (faq) => ListTile(
                       dense: true,
-                      title: Text(faq.question,
+                      title: Text(faq.question.tr,
                           style: const TextStyle(fontSize: 13)),
                       trailing: const Icon(Icons.send,
                           size: 16, color: AppColors.primary),
                       onTap: () {
                         setState(() => _faqExpanded = false);
-                        _sendMessage(faq.question);
+                        _sendMessage(faq.question.tr);
                       },
                     ),
                   )
@@ -202,7 +207,7 @@ class _SupportScreenState extends State<SupportScreen> {
                       controller: _ctrl,
                       textCapitalization: TextCapitalization.sentences,
                       decoration: InputDecoration(
-                        hintText: 'Escreve a tua dúvida...',
+                        hintText: 'Escreve a tua dúvida...'.tr,
                         filled: true,
                         fillColor: const Color(0xFFF0F0F0),
                         contentPadding: const EdgeInsets.symmetric(

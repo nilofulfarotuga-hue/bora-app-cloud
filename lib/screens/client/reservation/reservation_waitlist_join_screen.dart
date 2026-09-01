@@ -5,6 +5,8 @@ import '../../../config/app_colors.dart';
 import '../../../stores/reservation_store.dart';
 import '../../../widgets/bora/bora_screen_app_bar.dart';
 
+import '../../../l10n/tr.dart';
+
 /// Reservas PRO F3.C — entrar na fila de espera de um restaurante.
 /// Form: data, pessoas, janela horária opcional, notas.
 /// Submit chama RPC client_join_waitlist via store.joinWaitlist.
@@ -88,10 +90,9 @@ class _ReservationWaitlistJoinScreenState
     await showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Grupos grandes'),
-        content: const Text(
-          'Para grupos com mais de 12 pessoas, contacta o restaurante '
-          'directamente.',
+        title: Text('Grupos grandes'.tr),
+        content: Text(
+          'Para grupos com mais de 12 pessoas, contacta o restaurante directamente.'.tr,
         ),
         actions: [
           TextButton(
@@ -114,8 +115,8 @@ class _ReservationWaitlistJoinScreenState
     if (_submitting) return;
     if (!_validateTimeWindow()) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('A hora final tem de ser depois da inicial.'),
+        SnackBar(
+          content: Text('A hora final tem de ser depois da inicial.'.tr),
         ),
       );
       return;
@@ -139,7 +140,7 @@ class _ReservationWaitlistJoinScreenState
         SnackBar(
           content: Text(
             position > 0
-                ? 'Estás na fila! Posição #$position.'
+                ? 'Estás na fila! Posição #{0}.'.trArgs([position])
                 : 'Estás na fila!',
           ),
           backgroundColor: AppColors.primary,
@@ -161,7 +162,7 @@ class _ReservationWaitlistJoinScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const BoraScreenAppBar(title: 'Entrar na fila de espera'),
+      appBar: BoraScreenAppBar(title: 'Entrar na fila de espera'.tr),
       body: SafeArea(
         child: Column(
           children: [
@@ -179,7 +180,7 @@ class _ReservationWaitlistJoinScreenState
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Lista de espera em ${widget.restaurantName}',
+                              'Lista de espera em {0}'.trArgs([widget.restaurantName]),
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700,
@@ -187,9 +188,9 @@ class _ReservationWaitlistJoinScreenState
                               ),
                             ),
                             const SizedBox(height: 4),
-                            const Text(
-                              'Sem pré-pagamento. Esta opção é gratuita.',
-                              style: TextStyle(
+                            Text(
+                              'Sem pré-pagamento. Esta opção é gratuita.'.tr,
+                              style: const TextStyle(
                                 color: AppColors.textSecondary,
                                 fontSize: 13,
                               ),
@@ -228,9 +229,9 @@ class _ReservationWaitlistJoinScreenState
                           ),
                         )
                       : const Icon(Icons.schedule),
-                  label: const Text(
-                    'Entrar na fila',
-                    style: TextStyle(
+                  label: Text(
+                    'Entrar na fila'.tr,
+                    style: const TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 15,
                     ),
@@ -252,7 +253,7 @@ class _ReservationWaitlistJoinScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const _SectionLabel('Data'),
+            _SectionLabel('Data'.tr),
             OutlinedButton.icon(
               onPressed: _pickDate,
               icon: const Icon(Icons.calendar_today, size: 18),
@@ -264,7 +265,7 @@ class _ReservationWaitlistJoinScreenState
               ),
             ),
             const SizedBox(height: 16),
-            const _SectionLabel('Pessoas'),
+            _SectionLabel('Pessoas'.tr),
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -290,13 +291,12 @@ class _ReservationWaitlistJoinScreenState
               ],
             ),
             const SizedBox(height: 16),
-            const _SectionLabel('Janela horária (opcional)'),
-            const Padding(
-              padding: EdgeInsets.only(bottom: 8),
+            _SectionLabel('Janela horária (opcional)'.tr),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
               child: Text(
-                'A que horas preferes? Se deixares vazio, ficas na fila '
-                'para o dia todo.',
-                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                'A que horas preferes? Se deixares vazio, ficas na fila para o dia todo.'.tr,
+                style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
               ),
             ),
             Row(
@@ -306,7 +306,7 @@ class _ReservationWaitlistJoinScreenState
                     onPressed: _pickTimeStart,
                     icon: const Icon(Icons.access_time, size: 16),
                     label: Text(
-                      _timeStart != null ? _formatTimePt(_timeStart!) : 'Das',
+                      _timeStart != null ? _formatTimePt(_timeStart!) : 'Das'.tr,
                     ),
                   ),
                 ),
@@ -316,7 +316,7 @@ class _ReservationWaitlistJoinScreenState
                     onPressed: _pickTimeEnd,
                     icon: const Icon(Icons.access_time, size: 16),
                     label: Text(
-                      _timeEnd != null ? _formatTimePt(_timeEnd!) : 'Às',
+                      _timeEnd != null ? _formatTimePt(_timeEnd!) : 'Às'.tr,
                     ),
                   ),
                 ),
@@ -328,20 +328,20 @@ class _ReservationWaitlistJoinScreenState
                       _timeEnd = null;
                     }),
                     icon: const Icon(Icons.close, size: 18),
-                    tooltip: 'Limpar janela',
+                    tooltip: 'Limpar janela'.tr,
                   ),
                 ],
               ],
             ),
             const SizedBox(height: 16),
-            const _SectionLabel('Notas (opcional)'),
+            _SectionLabel('Notas (opcional)'.tr),
             TextField(
               controller: _notesCtrl,
               maxLength: 300,
               maxLines: 3,
-              decoration: const InputDecoration(
-                hintText: 'Algo que o restaurante deva saber...',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                hintText: 'Algo que o restaurante deva saber...'.tr,
+                border: const OutlineInputBorder(),
               ),
             ),
           ],
@@ -351,26 +351,26 @@ class _ReservationWaitlistJoinScreenState
   }
 
   Widget _buildExplainerCard() {
-    return const Card(
+    return Card(
       elevation: 0,
       color: AppColors.surface,
       child: Padding(
-        padding: EdgeInsets.all(14),
+        padding: const EdgeInsets.all(14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Como funciona a fila de espera',
-              style: TextStyle(
+              'Como funciona a fila de espera'.tr,
+              style: const TextStyle(
                 fontWeight: FontWeight.w700,
                 color: AppColors.textPrimary,
               ),
             ),
-            SizedBox(height: 8),
-            _Bullet(text: 'O restaurante chama-te quando houver mesa.'),
-            _Bullet(text: 'A tua posição na fila é mostrada na app.'),
-            _Bullet(text: 'Podes sair da fila a qualquer momento.'),
-            _Bullet(text: 'Sem pré-pagamento — esta opção é gratuita.'),
+            const SizedBox(height: 8),
+            _Bullet(text: 'O restaurante chama-te quando houver mesa.'.tr),
+            _Bullet(text: 'A tua posição na fila é mostrada na app.'.tr),
+            _Bullet(text: 'Podes sair da fila a qualquer momento.'.tr),
+            _Bullet(text: 'Sem pré-pagamento — esta opção é gratuita.'.tr),
           ],
         ),
       ),

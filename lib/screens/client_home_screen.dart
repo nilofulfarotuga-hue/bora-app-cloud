@@ -22,6 +22,7 @@ import '../stores/session_store.dart';
 import '../widgets/address_autocomplete_field.dart';
 import '../widgets/bora/bora.dart';
 import '../widgets/bora_support_fab.dart';
+import '../widgets/language_toggle.dart';
 import '../widgets/notification_bell.dart';
 import 'carry_groceries_screen.dart';
 import 'client/carwash/carwash_service_screen.dart';
@@ -36,6 +37,8 @@ import 'stores_screen.dart';
 import 'client/tvde/tvde_request_ride_screen.dart';
 import 'festas_screen.dart';
 import 'sobremesas_screen.dart';
+
+import '../l10n/tr.dart';
 
 class ClientHomeScreen extends StatefulWidget {
   const ClientHomeScreen({super.key});
@@ -324,7 +327,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
     final addressLine = context.select<CartStore, String>((store) {
       final street = store.dropoffStreet.trim();
       final city = store.dropoffCity.trim();
-      if (street.isEmpty && city.isEmpty) return 'Seleccionar endereço';
+      if (street.isEmpty && city.isEmpty) return 'Seleccionar endereço'.tr;
       if (street.isEmpty) return city;
       if (city.isEmpty) return street;
       return '$street, $city';
@@ -343,13 +346,17 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
         children: [
           BoraAppBar(
             title: firstName,
-            subtitle: 'O que precisas hoje?',
+            subtitle: 'O que precisas hoje?'.tr,
             actions: [
+              // Alternador de idioma (2026-09-01) — primeiro dos actions para
+              // ficar bem à vista de quem não lê português. Vale para a app
+              // toda, não só para esta tela.
+              const LanguageToggle(),
               // BUG 4 (Fase 6 / 2026-04-30): NotificationBell agora visível.
               const NotificationBell(),
               IconButton(
                 icon: const Icon(Icons.swap_horiz, color: Colors.white),
-                tooltip: 'Mudar modo',
+                tooltip: 'Mudar modo'.tr,
                 onPressed: _handleTestMode,
               ),
             ],
@@ -367,14 +374,14 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   BoraAddressBar(
-                    label: 'Entrega em',
+                    label: 'Entrega em'.tr,
                     address: addressLine,
                     onTap: _openAddressPicker,
                     onHeader: true,
                   ),
                   const SizedBox(height: Spacing.md),
                   BoraSearchField(
-                    hint: 'O que queres pedir hoje?',
+                    hint: 'O que queres pedir hoje?'.tr,
                     readOnly: true,
                     onTap: () {
                       _navigateWithAddressGuard(() {
@@ -391,8 +398,8 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
                   _buildCategoryGrid(context),
                   const SizedBox(height: Spacing.xl),
                   BoraPromoBanner(
-                    title: 'Entregas rápidas\ne seguras',
-                    subtitle: 'Tudo o que precisas à distância de um toque',
+                    title: 'Entregas rápidas\ne seguras'.tr,
+                    subtitle: 'Tudo o que precisas à distância de um toque'.tr,
                     trailingIcon: Icons.delivery_dining,
                     onTap: () => _navigateWithAddressGuard(() {
                       Navigator.push(
@@ -511,10 +518,10 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
         imageAsset: 'assets/categories/cat_reservar_mesa.png',
         onTap: () => _navigateWithAddressGuard(() {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
+            SnackBar(
               content: Text(
-                  'Escolhe um restaurante para reservar mesa. (BR §14)'),
-              duration: Duration(seconds: 2),
+                  'Escolhe um restaurante para reservar mesa. (BR §14)'.tr),
+              duration: const Duration(seconds: 2),
             ),
           );
           Navigator.push(
@@ -604,7 +611,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
     if (context.watch<CarwashStore>().enabled) {
       tiles.add(
         _TileData(
-          label: 'Lavagem Auto',
+          label: 'Lavagem Auto'.tr,
           gradient: AppColors.tileCarwash,
           imageAsset: 'assets/categories/cat_lavagem_auto.png',
           onTap: () => Navigator.push(
@@ -640,7 +647,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
         final Widget card;
         if (t.imageAsset != null) {
           card = BoraTileCard.image(
-            label: t.label,
+            label: t.label.tr,
             gradient: t.gradient,
             imageAsset: t.imageAsset!,
             onTap: t.onTap,
@@ -650,7 +657,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
           // Fallback legacy (ainda sem PNG da categoria) — ver TODO no tile.
           // ignore: deprecated_member_use_from_same_package
           card = BoraTileCard(
-            label: t.label,
+            label: t.label.tr,
             gradient: t.gradient,
             iconData: t.iconData,
             onTap: t.onTap,
@@ -769,8 +776,8 @@ class _AddressPickerScreenState extends State<_AddressPickerScreen> {
                   color: Colors.green.shade100,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Text('Predefinido',
-                    style: TextStyle(fontSize: 10, color: Colors.green)),
+                child: Text('Predefinido'.tr,
+                    style: const TextStyle(fontSize: 10, color: Colors.green)),
               ),
             ],
           ],
@@ -800,7 +807,7 @@ class _AddressPickerScreenState extends State<_AddressPickerScreen> {
 
     if (location == null) {
       final msg = LocationService.isConsentBlocked
-          ? 'Activa a localização nas definições para fazer pedidos'
+          ? 'Activa a localização nas definições para fazer pedidos'.tr
           : 'Não foi possível obter a localização GPS.';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(msg)),
@@ -848,7 +855,7 @@ class _AddressPickerScreenState extends State<_AddressPickerScreen> {
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Guardar como Casa?'),
+        title: Text('Guardar como Casa?'.tr),
         content: Text(address),
         actions: [
           TextButton(
@@ -856,7 +863,7 @@ class _AddressPickerScreenState extends State<_AddressPickerScreen> {
               Navigator.of(ctx).pop();
               Navigator.of(context).pop();
             },
-            child: const Text('Não'),
+            child: Text('Não'.tr),
           ),
           TextButton(
             onPressed: () {
@@ -868,7 +875,7 @@ class _AddressPickerScreenState extends State<_AddressPickerScreen> {
               Navigator.of(ctx).pop();
               Navigator.of(context).pop();
             },
-            child: const Text('Guardar'),
+            child: Text('Guardar'.tr),
           ),
         ],
       ),
@@ -883,9 +890,9 @@ class _AddressPickerScreenState extends State<_AddressPickerScreen> {
     return Scaffold(
       backgroundColor: AppColors.surface,
       appBar: AppBar(
-        title: const Text(
-          'Endereço de entrega',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        title: Text(
+          'Endereço de entrega'.tr,
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
@@ -901,12 +908,12 @@ class _AddressPickerScreenState extends State<_AddressPickerScreen> {
           // morada é o caminho principal; o GPS é um atalho mais abaixo.
           AddressAutocompleteField(
             controller: _ctrl,
-            labelText: 'Pesquisar endereço',
+            labelText: 'Pesquisar endereço'.tr,
             onSelected: _onAddressSelected,
           ),
           const SizedBox(height: Spacing.sm),
           Text(
-            'Escreve a tua morada para veres as lojas e entregas perto de ti.',
+            'Escreve a tua morada para veres as lojas e entregas perto de ti.'.tr,
             style: theme.textTheme.bodySmall,
           ),
           const Divider(height: Spacing.xl),
@@ -926,7 +933,7 @@ class _AddressPickerScreenState extends State<_AddressPickerScreen> {
             Padding(
               padding: const EdgeInsets.only(left: 4, bottom: 4),
               child: Text(
-                'Os meus endereços',
+                'Os meus endereços'.tr,
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
@@ -937,16 +944,16 @@ class _AddressPickerScreenState extends State<_AddressPickerScreen> {
           ],
           ListTile(
             leading: const Icon(Icons.edit_location_alt_outlined),
-            title: const Text('Gerir endereços'),
-            subtitle: const Text('Adicionar, editar ou eliminar'),
+            title: Text('Gerir endereços'.tr),
+            subtitle: Text('Adicionar, editar ou eliminar'.tr),
             trailing: const Icon(Icons.chevron_right),
             onTap: _openManageAddresses,
           ),
           const Divider(height: Spacing.xl),
           ListTile(
             leading: const Icon(Icons.my_location_rounded),
-            title: const Text('Localização actual'),
-            subtitle: const Text('Usar GPS do dispositivo'),
+            title: Text('Localização actual'.tr),
+            subtitle: Text('Usar GPS do dispositivo'.tr),
             trailing: _loadingGps
                 ? const SizedBox(
                     width: 20,
@@ -965,13 +972,13 @@ class _AddressPickerScreenState extends State<_AddressPickerScreen> {
                 color: session.hasHomeAddress ? theme.colorScheme.primary : null,
               ),
               title: Text(
-                session.hasHomeAddress ? session.homeStreet! : 'Casa',
+                session.hasHomeAddress ? session.homeStreet! : 'Casa'.tr,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
               subtitle: Text(
                 session.hasHomeAddress
-                    ? 'Endereço guardado'
+                    ? 'Endereço guardado'.tr
                     : 'Nenhum endereço guardado',
               ),
               trailing: session.hasHomeAddress

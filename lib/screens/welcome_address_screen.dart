@@ -9,6 +9,8 @@ import '../services/client_address_service.dart';
 import '../widgets/address_autocomplete_field.dart';
 import '../widgets/bora/bora_primary_button.dart';
 
+import '../l10n/tr.dart';
+
 /// Welcome step apresentado APÓS signup cliente bem-sucedido.
 /// Alinhado com Glovo: pede morada como parte do onboarding (não no signup).
 /// Skippable — _RootNavigator já vê currentClient != null e renderiza
@@ -67,7 +69,7 @@ class _WelcomeAddressScreenState extends State<WelcomeAddressScreen> {
     setState(() => _isSaving = true);
     try {
       await ClientAddressService.instance.create(
-        label: 'Casa',
+        label: 'Casa'.tr,
         address: address,
         lat: _selectedCoords?.latitude,
         lng: _selectedCoords?.longitude,
@@ -77,9 +79,9 @@ class _WelcomeAddressScreenState extends State<WelcomeAddressScreen> {
       debugPrint('[WelcomeAddressScreen] save address failed: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text(
-                'Não foi possível guardar a morada agora — podes adicionar depois.'),
+                'Não foi possível guardar a morada agora — podes adicionar depois.'.tr),
           ),
         );
       }
@@ -104,7 +106,7 @@ class _WelcomeAddressScreenState extends State<WelcomeAddressScreen> {
         flexibleSpace: const DecoratedBox(
           decoration: BoxDecoration(gradient: AppColors.headerGradient),
         ),
-        title: const Text('Bem-vindo à Bora'),
+        title: Text('Bem-vindo à Bora'.tr),
         automaticallyImplyLeading: false,
       ),
       body: SafeArea(
@@ -125,7 +127,7 @@ class _WelcomeAddressScreenState extends State<WelcomeAddressScreen> {
               ),
               const SizedBox(height: Spacing.lg),
               Text(
-                'Conta criada!',
+                'Conta criada!'.tr,
                 textAlign: TextAlign.center,
                 style: theme.textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.w800,
@@ -134,7 +136,7 @@ class _WelcomeAddressScreenState extends State<WelcomeAddressScreen> {
               ),
               const SizedBox(height: Spacing.sm),
               Text(
-                'Adiciona a tua morada para vermos restaurantes e lojas perto de ti.',
+                'Adiciona a tua morada para vermos restaurantes e lojas perto de ti.'.tr,
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodyMedium
                     ?.copyWith(color: Colors.grey.shade600),
@@ -142,7 +144,7 @@ class _WelcomeAddressScreenState extends State<WelcomeAddressScreen> {
               const SizedBox(height: Spacing.xxl),
               AddressAutocompleteField(
                 controller: _addressController,
-                labelText: 'Morada (opcional)',
+                labelText: 'Morada (opcional)'.tr,
                 prefixIcon: const Icon(Icons.home_outlined),
                 onSelected: (address, coords) {
                   _selectedCoords = coords;
@@ -156,7 +158,7 @@ class _WelcomeAddressScreenState extends State<WelcomeAddressScreen> {
             AutoAddressHint(visible: _autoLocating),
               const SizedBox(height: Spacing.xl),
               BoraPrimaryButton(
-                label: 'Continuar',
+                label: 'Continuar'.tr,
                 loading: _isSaving,
                 color: AppColors.primary,
                 onPressed: _saveAndContinue,
@@ -165,7 +167,7 @@ class _WelcomeAddressScreenState extends State<WelcomeAddressScreen> {
               TextButton(
                 onPressed: _isSaving ? null : _goHome,
                 child: Text(
-                  'Saltar por agora',
+                  'Saltar por agora'.tr,
                   style: TextStyle(color: Colors.grey.shade600),
                 ),
               ),

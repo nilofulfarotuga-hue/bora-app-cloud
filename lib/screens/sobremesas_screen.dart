@@ -10,6 +10,8 @@ import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora_support_fab.dart';
 import 'restaurants_screen.dart' show RestaurantTile;
 
+import '../l10n/tr.dart';
+
 /// Categoria **Sobremesas** (2026-08-27) — açaí, gelados e doces.
 ///
 /// É só um filtro visual: o fluxo de compra é o de entrega NORMAL, imediato.
@@ -39,7 +41,7 @@ class SobremesasScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       floatingActionButton: const BoraSupportFab(),
-      appBar: const BoraScreenAppBar(title: 'Sobremesas'),
+      appBar: BoraScreenAppBar(title: 'Sobremesas'.tr),
       body: lojas.isEmpty
           ? const _SemLojas()
           : ListView.builder(
@@ -68,8 +70,8 @@ class _Cabecalho extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: Spacing.md),
       child: Text(
-        'Açaí, gelados e doces. Entrega normal, na hora.',
-        style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+        'Açaí, gelados e doces. Entrega normal, na hora.'.tr,
+        style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
       ),
     );
   }
@@ -90,9 +92,9 @@ class _SemLojas extends StatelessWidget {
                 size: 56, color: AppColors.textSecondary.withValues(alpha: .4)),
             const SizedBox(height: Spacing.md),
             Text(
-              'Ainda não há sobremesas por aqui.',
+              'Ainda não há sobremesas por aqui.'.tr,
               textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textSecondary),
+              style: const TextStyle(color: AppColors.textSecondary),
             ),
           ],
         ),

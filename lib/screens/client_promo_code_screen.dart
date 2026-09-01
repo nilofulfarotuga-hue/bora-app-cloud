@@ -5,6 +5,8 @@ import '../config/app_colors.dart';
 import '../widgets/bora/bora_primary_button.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 
+import '../l10n/tr.dart';
+
 /// Ecrã para o cliente resgatar um código promocional → ganha tokens.
 /// Chama RPC `client_redeem_promo_tokens(p_code text)`.
 /// Retorno: jsonb
@@ -35,7 +37,7 @@ class _ClientPromoCodeScreenState extends State<ClientPromoCodeScreen> {
   Future<void> _apply() async {
     final code = _ctrl.text.trim().toUpperCase();
     if (code.isEmpty) {
-      setState(() => _error = 'Introduz um código.');
+      setState(() => _error = 'Introduz um código.'.tr);
       return;
     }
     setState(() {
@@ -60,7 +62,7 @@ class _ClientPromoCodeScreenState extends State<ClientPromoCodeScreen> {
       final euroValue = (m['euro_value'] as num?)?.toDouble() ??
           (tokensGranted * 0.005);
       final msg =
-          'Ganhaste $tokensGranted Bora Tokens (≈€${euroValue.toStringAsFixed(2)})! Já estão na tua conta.';
+          'Ganhaste {0} Bora Tokens (≈€{1})! Já estão na tua conta.'.trArgs([tokensGranted, euroValue.toStringAsFixed(2)]);
       if (mounted) {
         setState(() {
           _successMessage = msg;
@@ -71,7 +73,7 @@ class _ClientPromoCodeScreenState extends State<ClientPromoCodeScreen> {
       await _refreshTokenBalance();
     } catch (e) {
       if (mounted) {
-        setState(() => _error = 'Não foi possível resgatar: ${e.toString()}');
+        setState(() => _error = 'Não foi possível resgatar: {0}'.trArgs([e.toString()]));
       }
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -81,17 +83,17 @@ class _ClientPromoCodeScreenState extends State<ClientPromoCodeScreen> {
   String _friendlyReason(String reason) {
     switch (reason) {
       case 'not_found':
-        return 'Código inválido.';
+        return 'Código inválido.'.tr;
       case 'already_used':
-        return 'Já usaste este código.';
+        return 'Já usaste este código.'.tr;
       case 'expired':
-        return 'Código expirado.';
+        return 'Código expirado.'.tr;
       case 'inactive':
-        return 'Código já não está activo.';
+        return 'Código já não está activo.'.tr;
       case 'max_uses_reached':
-        return 'Este código atingiu o limite de utilizações.';
+        return 'Este código atingiu o limite de utilizações.'.tr;
       default:
-        return 'Não foi possível resgatar o código.';
+        return 'Não foi possível resgatar o código.'.tr;
     }
   }
 
@@ -107,7 +109,7 @@ class _ClientPromoCodeScreenState extends State<ClientPromoCodeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const BoraScreenAppBar(title: 'Resgatar código'),
+      appBar: BoraScreenAppBar(title: 'Resgatar código'.tr),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -115,27 +117,27 @@ class _ClientPromoCodeScreenState extends State<ClientPromoCodeScreen> {
           children: [
             const Icon(Icons.redeem, size: 64, color: AppColors.primary),
             const SizedBox(height: 8),
-            const Text(
-              'Tens um código promocional?',
+            Text(
+              'Tens um código promocional?'.tr,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 6),
-            const Text(
-              'Introduz o código abaixo para receber Bora Tokens na tua conta.',
+            Text(
+              'Introduz o código abaixo para receber Bora Tokens na tua conta.'.tr,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 24),
             TextField(
               controller: _ctrl,
               textCapitalization: TextCapitalization.characters,
               autocorrect: false,
-              decoration: const InputDecoration(
-                labelText: 'Código',
-                hintText: 'EX: BORA2026',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.local_offer_outlined),
+              decoration: InputDecoration(
+                labelText: 'Código'.tr,
+                hintText: 'EX: BORA2026'.tr,
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.local_offer_outlined),
               ),
             ),
             if (_error != null) ...[
@@ -188,15 +190,15 @@ class _ClientPromoCodeScreenState extends State<ClientPromoCodeScreen> {
             ],
             const SizedBox(height: 24),
             BoraPrimaryButton(
-              label: 'Resgatar',
+              label: 'Resgatar'.tr,
               onPressed: _submitting ? null : _apply,
               loading: _submitting,
             ),
             const SizedBox(height: 12),
-            const Text(
-              'Os tokens são creditados na tua carteira Bora e podem ser usados como desconto até 50% no checkout.',
+            Text(
+              'Os tokens são creditados na tua carteira Bora e podem ser usados como desconto até 50% no checkout.'.tr,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: AppColors.textSubtle),
+              style: const TextStyle(fontSize: 12, color: AppColors.textSubtle),
             ),
           ],
         ),

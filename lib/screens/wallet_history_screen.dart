@@ -5,6 +5,8 @@ import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora_support_fab.dart';
 import '../widgets/pay_debt_modal.dart';
 
+import '../l10n/tr.dart';
+
 /// Wallet History — lista de transactions do utilizador (saldo livre + tokens).
 class WalletHistoryScreen extends StatefulWidget {
   const WalletHistoryScreen({super.key, this.highlightOrderId});
@@ -39,7 +41,7 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
     } catch (e) {
       if (mounted) {
         setState(() =>
-            _error = 'Não foi possível carregar o saldo. Tenta de novo.');
+            _error = 'Não foi possível carregar o saldo. Tenta de novo.'.tr);
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -49,7 +51,7 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const BoraScreenAppBar(title: 'Saldo Bora'),
+      appBar: BoraScreenAppBar(title: 'Saldo Bora'.tr),
       floatingActionButton: const BoraSupportFab(),
       body: RefreshIndicator(
         onRefresh: _load,
@@ -72,9 +74,9 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
     final cardColor = isNeg ? Colors.red.shade50 : Colors.green.shade50;
     final iconColor = isNeg ? Colors.red.shade700 : Colors.green;
     final subtitle = isBlocked
-        ? 'BLOQUEADO — regulariza para fazeres pedidos'
+        ? 'BLOQUEADO — regulariza para fazeres pedidos'.tr
         : (isNeg
-            ? 'Saldo devedor — descontado na próxima compra'
+            ? 'Saldo devedor — descontado na próxima compra'.tr
             : 'Livre, nunca expira');
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -84,7 +86,7 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
           color: cardColor,
           child: ListTile(
             leading: Icon(Icons.account_balance_wallet, color: iconColor),
-            title: const Text('Saldo Bora'),
+            title: Text('Saldo Bora'.tr),
             subtitle: Text(subtitle,
                 style: TextStyle(
                   color: isNeg ? Colors.red.shade900 : null,
@@ -114,7 +116,7 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
                   }
                 },
                 icon: const Icon(Icons.payment),
-                label: Text('Pagar dívida agora (€${(b.debtCents / 100).toStringAsFixed(2)})'),
+                label: Text('Pagar dívida agora (€{0})'.trArgs([(b.debtCents / 100).toStringAsFixed(2)])),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
@@ -126,7 +128,7 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               child: Text(
-                'Dívida menor que €0.50 — será cobrada no próximo pedido.',
+                'Dívida menor que €0.50 — será cobrada no próximo pedido.'.tr,
                 style: TextStyle(fontSize: 12, color: Colors.red.shade700, fontStyle: FontStyle.italic),
                 textAlign: TextAlign.center,
               ),
@@ -138,31 +140,31 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
           color: Colors.amber.shade50,
           child: ListTile(
             leading: const Icon(Icons.toll, color: Colors.amber),
-            title: const Text('Tokens'),
-            subtitle: Text('Até 50% desconto no checkout · ≈€${(b.tokensValueCents / 100).toStringAsFixed(2)}'),
+            title: Text('Tokens'.tr),
+            subtitle: Text('Até 50% desconto no checkout · ≈€{0}'.trArgs([(b.tokensValueCents / 100).toStringAsFixed(2)])),
             trailing: Text('${b.tokensBalance}',
                 style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           ),
         ),
         const SizedBox(height: 16),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          child: Text('Histórico recente',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          child: Text('Histórico recente'.tr,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
         ),
         if (b.lastTransactions.isEmpty)
-          const Padding(
-            padding: EdgeInsets.all(24),
-            child: Center(child: Text('Sem movimentos ainda.')),
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: Center(child: Text('Sem movimentos ainda.'.tr)),
           )
         else
           ...b.lastTransactions.map(_txTile),
         const SizedBox(height: 24),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Text(
-            'Saldo não reembolsável em dinheiro.',
-            style: TextStyle(fontSize: 11, color: Colors.black45),
+            'Saldo não reembolsável em dinheiro.'.tr,
+            style: const TextStyle(fontSize: 11, color: Colors.black45),
             textAlign: TextAlign.center,
           ),
         ),
@@ -223,7 +225,7 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
         icon = tx.isCredit ? Icons.arrow_downward : Icons.arrow_upward;
     }
     final balanceLine = tx.balanceAfterCents != null
-        ? '\nSaldo após: €${(tx.balanceAfterCents! / 100).toStringAsFixed(2)}'
+        ? '\nSaldo após: €{0}'.trArgs([(tx.balanceAfterCents! / 100).toStringAsFixed(2)])
         : '';
     return ListTile(
       leading: Icon(icon, color: iconCol),

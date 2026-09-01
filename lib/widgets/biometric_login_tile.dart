@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../config/app_colors.dart';
 import '../services/biometric_auth_service.dart';
 
+import '../l10n/tr.dart';
+
 /// L3.5 (2026-06-12) — SwitchListTile "Login com biometria" para o Perfil/
 /// Definições de cada papel.
 /// - Aparelho sem biometria configurada → o tile esconde-se (L3.6).
@@ -53,7 +55,7 @@ class _BiometricLoginTileState extends State<BiometricLoginTile> {
 
     if (value) {
       final ok = await bio.authenticate(
-          'Confirma a tua identidade para ativar o login com biometria');
+          'Confirma a tua identidade para ativar o login com biometria'.tr);
       final saved = ok && await bio.enableForCurrentSession(widget.role);
       if (saved) await bio.markAsked(widget.role);
       if (!mounted) return;
@@ -62,8 +64,8 @@ class _BiometricLoginTileState extends State<BiometricLoginTile> {
         _busy = false;
       });
       if (!saved) {
-        messenger.showSnackBar(const SnackBar(
-          content: Text('Não foi possível ativar o login com biometria.'),
+        messenger.showSnackBar(SnackBar(
+          content: Text('Não foi possível ativar o login com biometria.'.tr),
         ));
       }
     } else {
@@ -84,9 +86,9 @@ class _BiometricLoginTileState extends State<BiometricLoginTile> {
           const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: SwitchListTile(
         secondary: const Icon(Icons.fingerprint, color: AppColors.primary),
-        title: const Text('Login com biometria'),
+        title: Text('Login com biometria'.tr),
         subtitle:
-            const Text('Entra com a digital ou rosto, sem palavra-passe'),
+            Text('Entra com a digital ou rosto, sem palavra-passe'.tr),
         value: _enabled,
         onChanged: _busy ? null : _toggle,
       ),

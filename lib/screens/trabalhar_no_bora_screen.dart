@@ -10,6 +10,8 @@ import 'driver_signup_screen.dart';
 import 'login_screen.dart';
 import 'washer/washer_apply_screen.dart';
 
+import '../l10n/tr.dart';
+
 /// A PORTA — "Quero trabalhar no Bora".
 ///
 /// Até 2026-08-29 as candidaturas estavam escondidas. A da Limpeza só se
@@ -56,17 +58,15 @@ class _TrabalharNoBoraScreenState extends State<TrabalharNoBoraScreen> {
     if (a.jaFaz) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(a.papel == 'driver' || a.papel == 'delivery'
-            ? 'Já és estafeta. Liga ou desliga "${a.titulo}" na caixa "O que '
-                'queres aceitar?" do teu ecrã de trabalho.'
+            ? 'Já és estafeta. Liga ou desliga "{0}" na caixa "O que queres aceitar?" do teu ecrã de trabalho.'.trArgs([a.titulo])
             : 'Já fazes ${a.titulo.toLowerCase()}.'),
         duration: const Duration(seconds: 5),
       ));
       return;
     }
     if (a.emAnalise) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('A tua candidatura está em análise. Avisamos-te assim '
-            'que estiver decidida.'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('A tua candidatura está em análise. Avisamos-te assim que estiver decidida.'.tr),
       ));
       return;
     }
@@ -100,20 +100,19 @@ class _TrabalharNoBoraScreenState extends State<TrabalharNoBoraScreen> {
   Future<bool?> _perguntarSeEntra() => showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text('Precisas de conta Bora'),
-          content: const Text(
-            'Para te candidatares, entra com a tua conta Bora ou cria uma. '
-            'Se já és cliente, é a mesma conta — não repetes os dados.',
+          title: Text('Precisas de conta Bora'.tr),
+          content: Text(
+            'Para te candidatares, entra com a tua conta Bora ou cria uma. Se já és cliente, é a mesma conta — não repetes os dados.'.tr,
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Agora não'),
+              child: Text('Agora não'.tr),
             ),
             FilledButton(
               style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Entrar'),
+              child: Text('Entrar'.tr),
             ),
           ],
         ),
@@ -123,18 +122,16 @@ class _TrabalharNoBoraScreenState extends State<TrabalharNoBoraScreen> {
   Widget build(BuildContext context) {
     final atividades = atividadesDisponiveis(_roles);
     return Scaffold(
-      appBar: const BoraScreenAppBar(title: 'Trabalhar no Bora'),
+      appBar: BoraScreenAppBar(title: 'Trabalhar no Bora'.tr),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
               padding: const EdgeInsets.all(Spacing.lg),
               children: [
-                const Text(
-                  'Escolhe o que queres fazer. Podes fazer mais do que uma '
-                  'coisa — é a mesma conta, e os teus dados só se preenchem '
-                  'uma vez.',
+                Text(
+                  'Escolhe o que queres fazer. Podes fazer mais do que uma coisa — é a mesma conta, e os teus dados só se preenchem uma vez.'.tr,
                   style:
-                      TextStyle(color: AppColors.textSecondary, height: 1.4),
+                      const TextStyle(color: AppColors.textSecondary, height: 1.4),
                 ),
                 const SizedBox(height: Spacing.lg),
                 for (final a in atividades) ...[
@@ -142,10 +139,9 @@ class _TrabalharNoBoraScreenState extends State<TrabalharNoBoraScreen> {
                   const SizedBox(height: Spacing.md),
                 ],
                 const SizedBox(height: Spacing.sm),
-                const Text(
-                  'Tens um restaurante, uma loja ou um salão? Isso é uma '
-                  'parceria e faz-se pelo registo de parceiro.',
-                  style: TextStyle(color: AppColors.textSubtle, fontSize: 12),
+                Text(
+                  'Tens um restaurante, uma loja ou um salão? Isso é uma parceria e faz-se pelo registo de parceiro.'.tr,
+                  style: const TextStyle(color: AppColors.textSubtle, fontSize: 12),
                 ),
               ],
             ),

@@ -7,6 +7,8 @@ import '../../models/partner_product.dart';
 import '../../stores/cart_store.dart';
 import 'coming_soon.dart';
 
+import '../../l10n/tr.dart';
+
 /// Card grande de produto Bora — imagem preenche 62% do card, nome + preço
 /// + botão "+" em baixo. Design consistente para grelhas 2 colunas (aspect 3:4).
 ///
@@ -95,10 +97,10 @@ class BoraProductCard extends StatelessWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           if (product.isPopular)
-                            const _MiniBadge(label: 'Top', color: Colors.orange),
+                            _MiniBadge(label: 'Top'.tr, color: Colors.orange),
                           if (product.isOnSale) ...[
                             if (product.isPopular) const SizedBox(width: 4),
-                            const _MiniBadge(label: 'Promo', color: Colors.red),
+                            _MiniBadge(label: 'Promo'.tr, color: Colors.red),
                           ],
                         ],
                       ),

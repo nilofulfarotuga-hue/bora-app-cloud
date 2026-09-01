@@ -7,6 +7,8 @@ import '../services/card_wallet_service.dart';
 import '../services/payment_biometric_gate.dart';
 import 'bora/bora_primary_button.dart';
 
+import '../l10n/tr.dart';
+
 /// Botão de pagamento partilhado por todas as verticais que cobram cartão
 /// (Carteira Única, Parte 2/6).
 ///
@@ -99,13 +101,13 @@ class _UnifiedCheckoutButtonState extends State<UnifiedCheckoutButton> {
         usingSavedCard: pmId != null,
         reason: widget.amount != null
             ? PaymentBiometricGate.reasonForAmount(widget.amount!)
-            : 'Confirma o pagamento',
+            : 'Confirma o pagamento'.tr,
       );
       if (!mounted) return;
       if (!authorized) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Pagamento cancelado. Não foi cobrado nada.'),
+          SnackBar(
+            content: Text('Pagamento cancelado. Não foi cobrado nada.'.tr),
           ),
         );
         return;

@@ -7,6 +7,8 @@ import '../../../models/saved_card.dart';
 import '../../../services/card_wallet_service.dart';
 import '../../../widgets/card_mandate_notice.dart';
 
+import '../../../l10n/tr.dart';
+
 /// Métodos de pagamento aceites para pré-pagamento de reserva.
 /// CASH é deliberadamente excluído — reserva exige pré-pagamento online.
 enum ReservationPaymentMethod { card, mbway }
@@ -102,7 +104,7 @@ class _ReservationPaymentMethodSheetState
       final digits = _phoneCtrl.text.replaceAll(RegExp(r'\D'), '');
       if (digits.length != 9) {
         setState(() {
-          _phoneError = 'Número MBWay inválido (9 dígitos).';
+          _phoneError = 'Número MBWay inválido (9 dígitos).'.tr;
         });
         return;
       }
@@ -144,7 +146,7 @@ class _ReservationPaymentMethodSheetState
                 ),
               ),
               Text(
-                '${widget.title} — €${widget.amountEur.toStringAsFixed(2)}',
+                '${widget.title.tr} — €${widget.amountEur.toStringAsFixed(2)}',
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
@@ -152,16 +154,16 @@ class _ReservationPaymentMethodSheetState
                 ),
               ),
               const SizedBox(height: 4),
-              const Text(
-                'Escolhe o método de pré-pagamento.',
-                style: TextStyle(
+              Text(
+                'Escolhe o método de pré-pagamento.'.tr,
+                style: const TextStyle(
                   fontSize: 13,
                   color: AppColors.textSecondary,
                 ),
               ),
               const SizedBox(height: 12),
               _OptionTile(
-                title: 'Cartão (Stripe)',
+                title: 'Cartão (Stripe)'.tr,
                 subtitle: cardOptionSubtitle(_defaultCard),
                 icon: Icons.credit_card,
                 value: ReservationPaymentMethod.card,
@@ -169,8 +171,8 @@ class _ReservationPaymentMethodSheetState
                 onChanged: (v) => setState(() => _selected = v!),
               ),
               _OptionTile(
-                title: 'MBWay',
-                subtitle: 'Receba uma notificação e confirme no MBWay.',
+                title: 'MBWay'.tr,
+                subtitle: 'Receba uma notificação e confirme no MBWay.'.tr,
                 icon: Icons.phone_iphone,
                 value: ReservationPaymentMethod.mbway,
                 groupValue: _selected,
@@ -186,7 +188,7 @@ class _ReservationPaymentMethodSheetState
                   keyboardType: TextInputType.phone,
                   maxLength: 9,
                   decoration: InputDecoration(
-                    labelText: 'Número MBWay',
+                    labelText: 'Número MBWay'.tr,
                     hintText: '912345678',
                     prefixText: '+351 ',
                     border: const OutlineInputBorder(),
@@ -199,9 +201,9 @@ class _ReservationPaymentMethodSheetState
                   },
                 ),
                 const SizedBox(height: 4),
-                const Text(
-                  'Telemóvel português associado à tua conta MBWay (9 dígitos).',
-                  style: TextStyle(
+                Text(
+                  'Telemóvel português associado à tua conta MBWay (9 dígitos).'.tr,
+                  style: const TextStyle(
                     fontSize: 12,
                     color: AppColors.textSecondary,
                   ),
@@ -219,7 +221,7 @@ class _ReservationPaymentMethodSheetState
                   ),
                   icon: const Icon(Icons.lock),
                   label: Text(
-                    'Pagar €${widget.amountEur.toStringAsFixed(2)}',
+                    'Pagar €{0}'.trArgs([widget.amountEur.toStringAsFixed(2)]),
                     style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,

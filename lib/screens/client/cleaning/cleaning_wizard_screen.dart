@@ -11,6 +11,8 @@ import '../../../widgets/bora/bora.dart';
 import 'cleaning_payment_flow.dart';
 import 'cleaning_tracking_screen.dart';
 
+import '../../../l10n/tr.dart';
+
 /// LIMPEZA — wizard de 3 passos (tipo Helpling/Oscar):
 ///   1. Serviço (tamanho/horas, tipo, produtos, recorrência) + preço live
 ///   2. Quando & Onde (data/hora, morada, notas)
@@ -117,7 +119,7 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
   Future<void> _goNext() async {
     if (_step == 0) {
       if (_quote == null) {
-        _snack('Sem orçamento — verifica a ligação e tenta de novo.');
+        _snack('Sem orçamento — verifica a ligação e tenta de novo.'.tr);
         return;
       }
       setState(() => _step = 1);
@@ -125,16 +127,15 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
     }
     if (_step == 1) {
       if (_scheduledAt == null) {
-        _snack('Escolhe a data e hora da limpeza.');
+        _snack('Escolhe a data e hora da limpeza.'.tr);
         return;
       }
       if (_scheduledAt!.isBefore(_earliestAllowed)) {
-        _snack('A limpeza tem de ser agendada com pelo menos '
-            '$_leadHours h de antecedência.');
+        _snack('A limpeza tem de ser agendada com pelo menos {0} h de antecedência.'.trArgs([_leadHours]));
         return;
       }
       if (_streetCtrl.text.trim().isEmpty || _cityCtrl.text.trim().isEmpty) {
-        _snack('Preenche a morada da limpeza.');
+        _snack('Preenche a morada da limpeza.'.tr);
         return;
       }
       setState(() => _step = 2);
@@ -209,8 +210,7 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
         final paid = await CleaningPaymentFlow.pay(context, store, booking);
         if (!mounted) return;
         if (!paid) {
-          _snack('Reserva criada — falta concluir o pagamento no ecrã da '
-              'reserva.');
+          _snack('Reserva criada — falta concluir o pagamento no ecrã da reserva.'.tr);
         }
       }
       if (!mounted) return;
@@ -221,16 +221,16 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
       );
     } catch (e) {
       final msg = e.toString();
-      String friendly = 'Não foi possível criar a reserva. Tenta de novo.';
+      String friendly = 'Não foi possível criar a reserva. Tenta de novo.'.tr;
       if (msg.contains('lead_time_too_short')) {
-        friendly = 'A limpeza tem de ser agendada com mais antecedência.';
+        friendly = 'A limpeza tem de ser agendada com mais antecedência.'.tr;
       } else if (msg.contains('card_mbway_not_yet_enabled')) {
         friendly =
-            'Cartão e MB Way ficam disponíveis brevemente — usa dinheiro.';
+            'Cartão e MB Way ficam disponíveis brevemente — usa dinheiro.'.tr;
       } else if (msg.contains('cleaning_disabled')) {
-        friendly = 'As limpezas estão temporariamente indisponíveis.';
+        friendly = 'As limpezas estão temporariamente indisponíveis.'.tr;
       } else if (msg.contains('cleaner_not_available')) {
-        friendly = 'Essa profissional já não está disponível — escolhe outra.';
+        friendly = 'Essa profissional já não está disponível — escolhe outra.'.tr;
       }
       _snack(friendly);
     }
@@ -249,7 +249,7 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
   Widget build(BuildContext context) {
     final store = context.watch<CleaningStore>();
     return Scaffold(
-      appBar: BoraScreenAppBar(title: 'Limpeza — ${_stepTitles[_step]}'),
+      appBar: BoraScreenAppBar(title: 'Limpeza — {0}'.trArgs([_stepTitles[_step]])),
       body: Column(
         children: [
           _StepHeader(step: _step, titles: _stepTitles),
@@ -286,7 +286,7 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
             Expanded(
               child: BoraPrimaryButton(
                 label: isLast
-                    ? 'Confirmar reserva'
+                    ? 'Confirmar reserva'.tr
                     : 'Continuar',
                 icon: isLast ? Icons.check_circle : Icons.arrow_forward,
                 loading: store.busy,
@@ -305,20 +305,20 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionTitle('Como queres pagar a limpeza?'),
+        _sectionTitle('Como queres pagar a limpeza?'.tr),
         _choiceRow([
-          _choice('Por tamanho', _pricingMode == 'fixed', () {
+          _choice('Por tamanho'.tr, _pricingMode == 'fixed', () {
             setState(() => _pricingMode = 'fixed');
             _refreshQuote();
           }),
-          _choice('Por hora', _pricingMode == 'hourly', () {
+          _choice('Por hora'.tr, _pricingMode == 'hourly', () {
             setState(() => _pricingMode = 'hourly');
             _refreshQuote();
           }),
         ]),
         const SizedBox(height: Spacing.lg),
         if (_pricingMode == 'fixed') ...[
-          _sectionTitle('Tamanho da casa'),
+          _sectionTitle('Tamanho da casa'.tr),
           _choiceRow([
             for (final e in CleaningLabels.sizes.entries)
               _choice(e.value, _homeSize == e.key, () {
@@ -327,7 +327,7 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
               }),
           ]),
         ] else ...[
-          _sectionTitle('Quantas horas? (mín. $_minHours h)'),
+          _sectionTitle('Quantas horas? (mín. {0} h)'.trArgs([_minHours])),
           Row(
             children: [
               IconButton(
@@ -357,43 +357,42 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
           ),
         ],
         const SizedBox(height: Spacing.lg),
-        _sectionTitle('Tipo de limpeza'),
+        _sectionTitle('Tipo de limpeza'.tr),
         _choiceRow([
-          _choice('Standard', _cleaningType == 'standard', () {
+          _choice('Standard'.tr, _cleaningType == 'standard', () {
             setState(() => _cleaningType = 'standard');
             _refreshQuote();
           }),
-          _choice('Profunda', _cleaningType == 'deep', () {
+          _choice('Profunda'.tr, _cleaningType == 'deep', () {
             setState(() => _cleaningType = 'deep');
             _refreshQuote();
           }),
-          _choice('Pós-obras', _cleaningType == 'post_works', () {
+          _choice('Pós-obras'.tr, _cleaningType == 'post_works', () {
             setState(() => _cleaningType = 'post_works');
             _refreshQuote();
           }),
         ]),
         const SizedBox(height: Spacing.lg),
-        _sectionTitle('Produtos de limpeza'),
-        const Padding(
-          padding: EdgeInsets.only(bottom: Spacing.sm),
+        _sectionTitle('Produtos de limpeza'.tr),
+        Padding(
+          padding: const EdgeInsets.only(bottom: Spacing.sm),
           child: Text(
-            'Quer que a profissional leve os produtos de limpeza, ou prefere '
-            'que ela use os seus (de casa)?',
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            'Quer que a profissional leve os produtos de limpeza, ou prefere que ela use os seus (de casa)?'.tr,
+            style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
           ),
         ),
         _choiceRow([
-          _choice('Uso os meus (de casa)', _productsBy == 'client', () {
+          _choice('Uso os meus (de casa)'.tr, _productsBy == 'client', () {
             setState(() => _productsBy = 'client');
             _refreshQuote();
           }),
-          _choice('A profissional leva', _productsBy == 'cleaner', () {
+          _choice('A profissional leva'.tr, _productsBy == 'cleaner', () {
             setState(() => _productsBy = 'cleaner');
             _refreshQuote();
           }),
         ]),
         const SizedBox(height: Spacing.lg),
-        _sectionTitle('Repetir?'),
+        _sectionTitle('Repetir?'.tr),
         _choiceRow([
           for (final e in CleaningLabels.recurrences.entries)
             _choice(e.value, _recurrence == e.key, () {
@@ -402,13 +401,12 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
             }),
         ]),
         if (_recurrence != 'single')
-          const Padding(
-            padding: EdgeInsets.only(top: Spacing.sm),
+          Padding(
+            padding: const EdgeInsets.only(top: Spacing.sm),
             child: Text(
-              'Com recorrência tens desconto e tentamos sempre a mesma '
-              'profissional.',
+              'Com recorrência tens desconto e tentamos sempre a mesma profissional.'.tr,
               style:
-                  TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                  const TextStyle(color: AppColors.textSecondary, fontSize: 13),
             ),
           ),
         const SizedBox(height: Spacing.xl),
@@ -444,7 +442,7 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionTitle('Data e hora'),
+        _sectionTitle('Data e hora'.tr),
         InkWell(
           borderRadius: BorderRadius.circular(Radii.md),
           onTap: _pickDateTime,
@@ -463,7 +461,7 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
                 Expanded(
                   child: Text(
                     _scheduledAt == null
-                        ? 'Escolher data e hora'
+                        ? 'Escolher data e hora'.tr
                         : _fmtDateTime(_scheduledAt!),
                     style: TextStyle(
                       color: _scheduledAt == null
@@ -481,16 +479,16 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
         Padding(
           padding: const EdgeInsets.only(top: Spacing.xs),
           child: Text(
-            'Antecedência mínima: $_leadHours h.',
+            'Antecedência mínima: {0} h.'.trArgs([_leadHours]),
             style: const TextStyle(color: AppColors.textSubtle, fontSize: 12),
           ),
         ),
         const SizedBox(height: Spacing.lg),
-        _sectionTitle('Morada da limpeza'),
+        _sectionTitle('Morada da limpeza'.tr),
         TextField(
           controller: _streetCtrl,
-          decoration: const InputDecoration(
-              labelText: 'Rua e número', prefixIcon: Icon(Icons.home)),
+          decoration: InputDecoration(
+              labelText: 'Rua e número'.tr, prefixIcon: const Icon(Icons.home)),
         ),
         const SizedBox(height: Spacing.md),
         Row(
@@ -499,7 +497,7 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
               flex: 3,
               child: TextField(
                 controller: _cityCtrl,
-                decoration: const InputDecoration(labelText: 'Cidade'),
+                decoration: InputDecoration(labelText: 'Cidade'.tr),
               ),
             ),
             const SizedBox(width: Spacing.md),
@@ -509,18 +507,18 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
                 controller: _postalCtrl,
                 keyboardType: TextInputType.number,
                 decoration:
-                    const InputDecoration(labelText: 'Código postal'),
+                    InputDecoration(labelText: 'Código postal'.tr),
               ),
             ),
           ],
         ),
         const SizedBox(height: Spacing.lg),
-        _sectionTitle('Notas para a profissional (opcional)'),
+        _sectionTitle('Notas para a profissional (opcional)'.tr),
         TextField(
           controller: _notesCtrl,
           maxLines: 3,
-          decoration: const InputDecoration(
-            hintText: 'Ex.: tenho um cão, atenção à cozinha, campainha B…',
+          decoration: InputDecoration(
+            hintText: 'Ex.: tenho um cão, atenção à cozinha, campainha B…'.tr,
           ),
         ),
       ],
@@ -534,7 +532,7 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionTitle('Profissional'),
+        _sectionTitle('Profissional'.tr),
         if (_cleanersLoading)
           const Center(
             child: Padding(
@@ -546,13 +544,13 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
           _CleanerOption(
             selected: _requestedCleanerId == null,
             onTap: () => setState(() => _requestedCleanerId = null),
-            child: const Row(
+            child: Row(
               children: [
-                Icon(Icons.auto_awesome, color: AppColors.primary),
-                SizedBox(width: Spacing.md),
+                const Icon(Icons.auto_awesome, color: AppColors.primary),
+                const SizedBox(width: Spacing.md),
                 Expanded(
-                  child: Text('Primeira disponível (recomendado)',
-                      style: TextStyle(
+                  child: Text('Primeira disponível (recomendado)'.tr,
+                      style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           color: AppColors.textPrimary)),
                 ),
@@ -599,10 +597,9 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
                         ),
                         Text(
                           c.ratingsCount > 0
-                              ? '★ ${c.ratingAvg.toStringAsFixed(1)} · '
-                                  '${c.cleaningsDone} limpezas'
+                              ? '★ {0} · {1} limpezas'.trArgs([c.ratingAvg.toStringAsFixed(1), c.cleaningsDone])
                               : c.cleaningsDone > 0
-                                  ? '${c.cleaningsDone} limpezas'
+                                  ? '{0} limpezas'.trArgs([c.cleaningsDone])
                                   : 'Nova na plataforma',
                           style: const TextStyle(
                               color: AppColors.textSecondary, fontSize: 12),
@@ -614,21 +611,20 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
               ),
             ),
           if (_cleaners.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: Spacing.sm),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: Spacing.sm),
               child: Text(
-                'Nenhuma profissional livre neste horário — podes reservar '
-                'na mesma e nós encontramos a primeira disponível.',
+                'Nenhuma profissional livre neste horário — podes reservar na mesma e nós encontramos a primeira disponível.'.tr,
                 style:
-                    TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                    const TextStyle(color: AppColors.textSecondary, fontSize: 13),
               ),
             ),
         ],
         const SizedBox(height: Spacing.lg),
-        _sectionTitle('Pagamento'),
+        _sectionTitle('Pagamento'.tr),
         _PaymentOption(
           icon: Icons.euro,
-          label: 'Dinheiro (no local)',
+          label: 'Dinheiro (no local)'.tr,
           selected: _paymentMethod == 'cash',
           enabled: true,
           onTap: () => setState(() => _paymentMethod = 'cash'),
@@ -650,7 +646,7 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
         // Mandato PSD2 — só no cartão e só até o 1.º ficar guardado.
         if (_paymentMethod == 'card') const CardMandateNotice(),
         const SizedBox(height: Spacing.lg),
-        _sectionTitle('Resumo'),
+        _sectionTitle('Resumo'.tr),
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(Spacing.lg),
@@ -663,39 +659,38 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _summaryRow(
-                  'Serviço',
+                  'Serviço'.tr,
                   '${CleaningLabels.types[_cleaningType]} · '
                       '${_pricingMode == 'hourly' ? '$_hours h' : CleaningLabels.sizes[_homeSize]}'),
               if (_scheduledAt != null)
-                _summaryRow('Quando', _fmtDateTime(_scheduledAt!)),
-              _summaryRow('Onde',
+                _summaryRow('Quando'.tr, _fmtDateTime(_scheduledAt!)),
+              _summaryRow('Onde'.tr,
                   '${_streetCtrl.text.trim()}, ${_cityCtrl.text.trim()}'),
               _summaryRow(
-                  'Recorrência', CleaningLabels.recurrences[_recurrence]!),
+                  'Recorrência'.tr, CleaningLabels.recurrences[_recurrence]!),
               if (quote != null) ...[
                 const Divider(height: Spacing.lg),
-                _summaryRow('Base', CleaningLabels.euro(quote.baseCents)),
+                _summaryRow('Base'.tr, CleaningLabels.euro(quote.baseCents)),
                 if (quote.typeSurchargeCents > 0)
-                  _summaryRow('Suplemento tipo',
+                  _summaryRow('Suplemento tipo'.tr,
                       '+ ${CleaningLabels.euro(quote.typeSurchargeCents)}'),
                 if (quote.recurringDiscountCents > 0)
-                  _summaryRow('Desconto recorrência',
+                  _summaryRow('Desconto recorrência'.tr,
                       '- ${CleaningLabels.euro(quote.recurringDiscountCents)}'),
                 if (quote.productsFeeCents > 0)
-                  _summaryRow('Produtos',
+                  _summaryRow('Produtos'.tr,
                       '+ ${CleaningLabels.euro(quote.productsFeeCents)}'),
                 const Divider(height: Spacing.lg),
-                _summaryRow('Total', CleaningLabels.euro(quote.totalCents),
+                _summaryRow('Total'.tr, CleaningLabels.euro(quote.totalCents),
                     bold: true),
               ],
             ],
           ),
         ),
         const SizedBox(height: Spacing.md),
-        const Text(
-          'Cancelamento: grátis até 24 h antes · 50% entre 24 h e 2 h · '
-          '100% a menos de 2 h.',
-          style: TextStyle(color: AppColors.textSubtle, fontSize: 12),
+        Text(
+          'Cancelamento: grátis até 24 h antes · 50% entre 24 h e 2 h · 100% a menos de 2 h.'.tr,
+          style: const TextStyle(color: AppColors.textSubtle, fontSize: 12),
         ),
       ],
     );
@@ -833,7 +828,7 @@ class _QuoteCard extends StatelessWidget {
                             color: AppColors.textPrimary),
                       ),
                       Text(
-                        '≈ ${(q.durationMin / 60).toStringAsFixed(q.durationMin % 60 == 0 ? 0 : 1)} h de serviço',
+                        '≈ {0} h de serviço'.trArgs([(q.durationMin / 60).toStringAsFixed(q.durationMin % 60 == 0 ? 0 : 1)]),
                         style: const TextStyle(
                             color: AppColors.textSecondary, fontSize: 13),
                       ),

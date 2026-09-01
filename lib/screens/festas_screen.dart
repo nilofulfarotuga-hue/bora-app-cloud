@@ -10,6 +10,8 @@ import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora_support_fab.dart';
 import 'restaurants_screen.dart' show RestaurantTile;
 
+import '../l10n/tr.dart';
+
 /// Categoria **Festas** — casas que fazem salgados, doces e bolos por
 /// encomenda, com aviso prévio de [kFestasAvisoDias] dia. Lista os negócios
 /// com `category = 'festas'` (ou com `festas` em `extra_categories`).
@@ -32,7 +34,7 @@ class FestasScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       floatingActionButton: const BoraSupportFab(),
-      appBar: const BoraScreenAppBar(title: 'Festas'),
+      appBar: BoraScreenAppBar(title: 'Festas'.tr),
       body: casas.isEmpty
           ? const _SemCasas()
           : ListView.builder(
@@ -61,8 +63,8 @@ class _Cabecalho extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: Spacing.md),
       child: Text(
-        'Salgados, doces e bolos por encomenda.',
-        style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+        'Salgados, doces e bolos por encomenda.'.tr,
+        style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
       ),
     );
   }
@@ -83,9 +85,9 @@ class _SemCasas extends StatelessWidget {
                 size: 56, color: AppColors.textSecondary.withValues(alpha: .4)),
             const SizedBox(height: Spacing.md),
             Text(
-              'Ainda não há casas de festa por aqui.',
+              'Ainda não há casas de festa por aqui.'.tr,
               textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textSecondary),
+              style: const TextStyle(color: AppColors.textSecondary),
             ),
           ],
         ),

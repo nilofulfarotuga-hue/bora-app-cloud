@@ -31,6 +31,7 @@ import 'services/offer_presentation_gate.dart';
 import 'widgets/driver_order_overlay.dart';
 import 'auth/auth_store.dart';
 import 'dispatch/dispatch_engine.dart';
+import 'l10n/bora_lang.dart';
 import 'screens/admin/admin_crosstalk_screen.dart';
 import 'screens/admin/admin_dashboard_screen.dart';
 // PARTE A (2026-07-17) — deep links dos pushes admin persistentes
@@ -436,9 +437,13 @@ Future<void> main() async {
   }
 
   // 2026-05-14 perf: SessionStore.load + ConsentStore.load em paralelo.
+  // 2026-09-01: junta-se o idioma escolhido pelo cliente. Tem de estar lido
+  // ANTES do runApp, senão o primeiro fotograma sai em português e pisca para
+  // inglês à frente de quem escolheu inglês.
   final sessionStore = SessionStore();
   final consentStore = ConsentStore();
-  await Future.wait([sessionStore.load(), consentStore.load()]);
+  await Future.wait(
+      [sessionStore.load(), consentStore.load(), BoraLang.load()]);
 
   Provider.debugCheckInvalidValueType = null;
 
@@ -511,10 +516,18 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _supportSettings = SupportSettingsProvider()..load();
+    // Idioma do cliente (2026-09-01): redesenha o MaterialApp inteiro quando a
+    // pessoa toca no "PT | EN", para que o `locale` abaixo mude com ele.
+    BoraLang.notifier.addListener(_onLangChanged);
+  }
+
+  void _onLangChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    BoraLang.notifier.removeListener(_onLangChanged);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -653,7 +666,17 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           Locale('pt', 'BR'),
           Locale('en'),
         ],
-        locale: const Locale('pt', 'PT'),
+        // 2026-09-01: segue o alternador PT|EN do cliente. Arranca sempre em
+        // PT-PT — `BoraLang.load()` ignora o idioma do aparelho de propósito.
+        locale: BoraLang.locale,
+        // Quando o idioma muda, a chave muda e o Navigator é reconstruído de
+        // raiz. Sem isto, um ecrã que já esteja empilhado guarda o texto antigo:
+        // o Flutter reaproveita a página construída e não volta a chamar o
+        // build dela só porque um antecessor foi redesenhado.
+        builder: (context, child) => KeyedSubtree(
+          key: ValueKey<AppLang>(BoraLang.current),
+          child: child ?? const SizedBox.shrink(),
+        ),
         navigatorObservers: [routeObserver, crashRouteObserver],
         routes: {
           '/role': (_) => const RoleScreen(),
@@ -768,7 +791,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                         // aparece esteja a pessoa no ecra que estiver, e
                         // ao abrir a app cai-se dentro do trabalho a meio
                         // em vez de no ecra de motorista.
-                        child: const AtalhoTrabalhoEmCurso(
+                        child: AtalhoTrabalhoEmCurso(
                             child: _RootNavigator()))))),
       ),
     );

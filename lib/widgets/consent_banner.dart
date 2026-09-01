@@ -4,6 +4,9 @@ import 'package:provider/provider.dart';
 import '../config/app_colors.dart';
 import '../stores/consent_store.dart';
 
+import '../l10n/tr.dart';
+import 'language_toggle.dart';
+
 /// Wraps the whole app with a first-open privacy/cookies banner (BR §20.3).
 ///
 /// Shows the banner as a modal sheet above [child] until the user answers.
@@ -64,16 +67,27 @@ class _BannerSheet extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Privacidade e Cookies',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+          // O alternador vive AQUI, e não só na home, porque este painel é
+          // modal e aparece antes de tudo o resto: sem ele nesta linha, quem
+          // não lê português ficava preso a decidir sobre privacidade num
+          // idioma que não percebe.
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Privacidade e Cookies'.tr,
+                  style: const TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.w800),
+                ),
+              ),
+              const LanguageToggle(onDark: false),
+            ],
           ),
           const SizedBox(height: 8),
-          const Text(
-            'A Bora usa dados para te entregar o serviço: localização do '
-            'estafeta, análise de uso da app e notificações de pedidos. '
-            'Podes aceitar tudo, rejeitar, ou escolher o que preferes.',
-            style: TextStyle(fontSize: 14, color: Colors.black87),
+          Text(
+            'A Bora usa dados para te entregar o serviço: localização do estafeta, análise de uso da app e notificações de pedidos. Podes aceitar tudo, rejeitar, ou escolher o que preferes.'.tr
+                .tr,
+            style: const TextStyle(fontSize: 14, color: Colors.black87),
           ),
           const SizedBox(height: 16),
           SizedBox(
@@ -87,8 +101,8 @@ class _BannerSheet extends StatelessWidget {
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
               ),
-              child: const Text('Aceitar tudo',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+              child: Text('Aceitar tudo'.tr,
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
             ),
           ),
           const SizedBox(height: 8),
@@ -102,7 +116,7 @@ class _BannerSheet extends StatelessWidget {
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12)),
                   ),
-                  child: const Text('Rejeitar'),
+                  child: Text('Rejeitar'.tr),
                 ),
               ),
               const SizedBox(width: 8),
@@ -114,7 +128,7 @@ class _BannerSheet extends StatelessWidget {
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12)),
                   ),
-                  child: const Text('Gerir preferências'),
+                  child: Text('Gerir preferências'.tr),
                 ),
               ),
             ],
@@ -166,30 +180,29 @@ class _PreferencesDialogState extends State<_PreferencesDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Gerir preferências'),
+      title: Text('Gerir preferências'.tr),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Localização'),
-            subtitle: const Text(
-                'Mostrar estafeta no mapa e calcular rotas em tempo real.'),
+            title: Text('Localização'.tr),
+            subtitle: Text(
+                'Mostrar estafeta no mapa e calcular rotas em tempo real.'.tr),
             value: _location,
             onChanged: (v) => setState(() => _location = v),
           ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Análise de uso'),
-            subtitle: const Text('Ajuda-nos a melhorar a app.'),
+            title: Text('Análise de uso'.tr),
+            subtitle: Text('Ajuda-nos a melhorar a app.'.tr),
             value: _analytics,
             onChanged: (v) => setState(() => _analytics = v),
           ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Notificações'),
-            subtitle: const Text(
-                'Avisos de pedidos, entregas e reservas.'),
+            title: Text('Notificações'.tr),
+            subtitle: Text('Avisos de pedidos, entregas e reservas.'.tr),
             value: _notifications,
             onChanged: (v) => setState(() => _notifications = v),
           ),
@@ -202,7 +215,7 @@ class _PreferencesDialogState extends State<_PreferencesDialog> {
             analytics: false,
             notifications: false,
           )),
-          child: const Text('Rejeitar tudo'),
+          child: Text('Rejeitar tudo'.tr),
         ),
         ElevatedButton(
           onPressed: () => Navigator.of(context).pop(_PrefsResult(
@@ -210,7 +223,7 @@ class _PreferencesDialogState extends State<_PreferencesDialog> {
             analytics: _analytics,
             notifications: _notifications,
           )),
-          child: const Text('Guardar'),
+          child: Text('Guardar'.tr),
         ),
       ],
     );

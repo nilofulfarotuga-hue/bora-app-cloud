@@ -8,6 +8,8 @@ import '../../../stores/reservation_store.dart';
 import '../../../widgets/bora/bora_screen_app_bar.dart';
 import 'reservation_checkout_screen.dart' show kOccasionOptions;
 
+import '../../../l10n/tr.dart';
+
 /// Reservas PRO F3.B — detalhes completos de uma reserva.
 /// Recebe callback `onCancelRequested` para reusar `_cancel()` do parent.
 /// Botões acção variam conforme estado + janela temporal.
@@ -64,7 +66,7 @@ class _ReservationDetailsScreenState extends State<ReservationDetailsScreen> {
       await context.read<ReservationStore>().markArrived(_r.id);
       if (!mounted) return;
       messenger.showSnackBar(
-        const SnackBar(content: Text('Chegada confirmada. O parceiro foi avisado.')),
+        SnackBar(content: Text('Chegada confirmada. O parceiro foi avisado.'.tr)),
       );
       Navigator.pop(context);
     } catch (e) {
@@ -85,7 +87,7 @@ class _ReservationDetailsScreenState extends State<ReservationDetailsScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Não foi possível abrir o mapa.')),
+        SnackBar(content: Text('Não foi possível abrir o mapa.'.tr)),
       );
     }
   }
@@ -97,15 +99,15 @@ class _ReservationDetailsScreenState extends State<ReservationDetailsScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Não foi possível ligar.')),
+        SnackBar(content: Text('Não foi possível ligar.'.tr)),
       );
     }
   }
 
   void _comingSoonCalendar() {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Adicionar ao calendário — em breve.'),
+      SnackBar(
+        content: Text('Adicionar ao calendário — em breve.'.tr),
       ),
     );
   }
@@ -118,7 +120,7 @@ class _ReservationDetailsScreenState extends State<ReservationDetailsScreen> {
     context.watch<ReservationStore>();
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const BoraScreenAppBar(title: 'Detalhes da reserva'),
+      appBar: BoraScreenAppBar(title: 'Detalhes da reserva'.tr),
       body: SafeArea(
         child: Column(
           children: [
@@ -222,17 +224,17 @@ class _ReservationDetailsScreenState extends State<ReservationDetailsScreen> {
 
   (String, Color) _resolveStatus() {
     final r = _r;
-    if (r.isFinished) return ('Concluída', AppColors.primary);
-    if (r.isNoShow) return ('Não compareceu', Colors.red);
-    if (r.isArrived) return ('Chegou', AppColors.primary);
+    if (r.isFinished) return ('Concluída'.tr, AppColors.primary);
+    if (r.isNoShow) return ('Não compareceu'.tr, Colors.red);
+    if (r.isArrived) return ('Chegou'.tr, AppColors.primary);
     if (r.status == ReservationStatus.seated) {
-      return ('Sentado', AppColors.primary);
+      return ('Sentado'.tr, AppColors.primary);
     }
-    if (r.isApproved) return ('Confirmada', AppColors.primary);
+    if (r.isApproved) return ('Confirmada'.tr, AppColors.primary);
     if (r.isPending) {
       return (
         r.status == ReservationStatus.pendingPayment
-            ? 'Aguarda pagamento'
+            ? 'Aguarda pagamento'.tr
             : 'Pendente',
         AppColors.accent,
       );
@@ -243,25 +245,25 @@ class _ReservationDetailsScreenState extends State<ReservationDetailsScreen> {
 
   static String _labelForStatus(String status) {
     switch (status) {
-      case 'pending':              return 'Pendente';
-      case 'pending_payment':      return 'Aguarda pagamento';
-      case 'confirmed':            return 'Confirmada';
-      case 'approved':             return 'Confirmada';
-      case 'arrived':              return 'Chegou';
-      case 'seated':               return 'Sentado';
-      case 'completed':            return 'Concluída';
-      case 'no_show':              return 'Não compareceu';
-      case 'cancelled_by_client':  return 'Cancelada por si';
-      case 'cancelled_by_partner': return 'Cancelada pelo restaurante';
-      case 'cancelled_by_admin':   return 'Cancelada pela Bora';
-      case 'cancelled_refunded':   return 'Cancelada (reembolso)';
+      case 'pending':              return 'Pendente'.tr;
+      case 'pending_payment':      return 'Aguarda pagamento'.tr;
+      case 'confirmed':            return 'Confirmada'.tr;
+      case 'approved':             return 'Confirmada'.tr;
+      case 'arrived':              return 'Chegou'.tr;
+      case 'seated':               return 'Sentado'.tr;
+      case 'completed':            return 'Concluída'.tr;
+      case 'no_show':              return 'Não compareceu'.tr;
+      case 'cancelled_by_client':  return 'Cancelada por si'.tr;
+      case 'cancelled_by_partner': return 'Cancelada pelo restaurante'.tr;
+      case 'cancelled_by_admin':   return 'Cancelada pela Bora'.tr;
+      case 'cancelled_refunded':   return 'Cancelada (reembolso)'.tr;
       // F5 (2026-08-16): status novo do fix refund-fantasma — o refund
       // automático falhou e o admin foi alertado; o registo não mente.
-      case 'cancelled_refund_pending': return 'Cancelada (reembolso a processar)';
-      case 'cancelled_no_refund':  return 'Cancelada (sem reembolso)';
-      case 'rejected_refunded':    return 'Recusada (reembolso)';
-      case 'cancelled':            return 'Cancelada';
-      case 'rejected':             return 'Recusada';
+      case 'cancelled_refund_pending': return 'Cancelada (reembolso a processar)'.tr;
+      case 'cancelled_no_refund':  return 'Cancelada (sem reembolso)'.tr;
+      case 'rejected_refunded':    return 'Recusada (reembolso)'.tr;
+      case 'cancelled':            return 'Cancelada'.tr;
+      case 'rejected':             return 'Recusada'.tr;
       default:                     return status;
     }
   }
@@ -274,7 +276,7 @@ class _ReservationDetailsScreenState extends State<ReservationDetailsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const _SectionTitle(icon: Icons.event, text: 'Quando'),
+            _SectionTitle(icon: Icons.event, text: 'Quando'.tr),
             const SizedBox(height: 8),
             Text(
               _formatDateTimePt(_r.reservedFor.toLocal()),
@@ -309,20 +311,20 @@ class _ReservationDetailsScreenState extends State<ReservationDetailsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const _SectionTitle(icon: Icons.info_outline, text: 'Detalhes'),
+            _SectionTitle(icon: Icons.info_outline, text: 'Detalhes'.tr),
             const SizedBox(height: 8),
             if (_r.occasion != null && _r.occasion!.isNotEmpty)
               _DetailRow(
-                label: 'Ocasião',
+                label: 'Ocasião'.tr,
                 value: kOccasionOptions[_r.occasion] ?? _r.occasion!,
               ),
             if (_r.specialRequests != null && _r.specialRequests!.isNotEmpty)
               _DetailRow(
-                label: 'Pedidos especiais',
+                label: 'Pedidos especiais'.tr,
                 value: _r.specialRequests!,
               ),
             if (_r.notes != null && _r.notes!.isNotEmpty)
-              _DetailRow(label: 'Notas', value: _r.notes!),
+              _DetailRow(label: 'Notas'.tr, value: _r.notes!),
           ],
         ),
       ),
@@ -335,17 +337,17 @@ class _ReservationDetailsScreenState extends State<ReservationDetailsScreen> {
     String label;
     Color color = AppColors.textSecondary;
     if (_r.isPending) {
-      label = 'A processar';
+      label = 'A processar'.tr;
       color = AppColors.accent;
     } else if (_r.isApproved || _r.isArrived || _r.isFinished) {
-      label = 'Confirmado';
+      label = 'Confirmado'.tr;
       color = AppColors.primary;
     } else if (status == ReservationStatus.cancelledRefunded ||
         status == ReservationStatus.rejectedRefunded) {
-      label = 'Reembolsado';
+      label = 'Reembolsado'.tr;
       color = AppColors.primary;
     } else if (status == ReservationStatus.cancelledNoRefund || _r.isNoShow) {
-      label = 'Não reembolsado';
+      label = 'Não reembolsado'.tr;
       color = Colors.red;
     } else {
       label = '—';
@@ -358,16 +360,16 @@ class _ReservationDetailsScreenState extends State<ReservationDetailsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const _SectionTitle(
+            _SectionTitle(
               icon: Icons.credit_card,
-              text: 'Pagamento',
+              text: 'Pagamento'.tr,
             ),
             const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  '€$eur pré-pagamento',
+                  '€{0} pré-pagamento'.trArgs([eur]),
                   style: const TextStyle(
                     fontWeight: FontWeight.w600,
                     color: AppColors.textPrimary,
@@ -396,9 +398,9 @@ class _ReservationDetailsScreenState extends State<ReservationDetailsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const _SectionTitle(
+            _SectionTitle(
               icon: Icons.storefront_outlined,
-              text: 'Restaurante',
+              text: 'Restaurante'.tr,
             ),
             const SizedBox(height: 12),
             Row(
@@ -407,7 +409,7 @@ class _ReservationDetailsScreenState extends State<ReservationDetailsScreen> {
                   child: OutlinedButton.icon(
                     onPressed: _openMaps,
                     icon: const Icon(Icons.directions, size: 18),
-                    label: const Text('Como chegar'),
+                    label: Text('Como chegar'.tr),
                   ),
                 ),
                 if (_r.clientPhone.isNotEmpty) ...[
@@ -416,7 +418,7 @@ class _ReservationDetailsScreenState extends State<ReservationDetailsScreen> {
                     child: OutlinedButton.icon(
                       onPressed: () => _callRestaurant(_r.clientPhone),
                       icon: const Icon(Icons.phone, size: 18),
-                      label: const Text('Ligar'),
+                      label: Text('Ligar'.tr),
                     ),
                   ),
                 ],
@@ -440,9 +442,9 @@ class _ReservationDetailsScreenState extends State<ReservationDetailsScreen> {
               Navigator.pop(context);
             },
             icon: const Icon(Icons.cancel_outlined, color: Colors.red),
-            label: const Text(
-              'Cancelar reserva',
-              style: TextStyle(color: Colors.red),
+            label: Text(
+              'Cancelar reserva'.tr,
+              style: const TextStyle(color: Colors.red),
             ),
             style: OutlinedButton.styleFrom(
               side: const BorderSide(color: Colors.red),
@@ -471,9 +473,9 @@ class _ReservationDetailsScreenState extends State<ReservationDetailsScreen> {
                       ),
                     )
                   : const Icon(Icons.location_on),
-              label: const Text(
-                'Estou aqui',
-                style: TextStyle(fontWeight: FontWeight.w700),
+              label: Text(
+                'Estou aqui'.tr,
+                style: const TextStyle(fontWeight: FontWeight.w700),
               ),
             ),
           ),
@@ -487,9 +489,9 @@ class _ReservationDetailsScreenState extends State<ReservationDetailsScreen> {
                 Navigator.pop(context);
               },
               icon: const Icon(Icons.cancel_outlined, color: Colors.red),
-              label: const Text(
-                'Cancelar',
-                style: TextStyle(color: Colors.red),
+              label: Text(
+                'Cancelar'.tr,
+                style: const TextStyle(color: Colors.red),
               ),
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: Colors.red),
@@ -503,7 +505,7 @@ class _ReservationDetailsScreenState extends State<ReservationDetailsScreen> {
             child: OutlinedButton.icon(
               onPressed: _comingSoonCalendar,
               icon: const Icon(Icons.calendar_month_outlined),
-              label: const Text('Calendário'),
+              label: Text('Calendário'.tr),
             ),
           ),
         );

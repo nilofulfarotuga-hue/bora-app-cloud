@@ -14,6 +14,8 @@ import '../widgets/terms_link_text.dart';
 import 'client_login_screen.dart';
 import 'welcome_address_screen.dart';
 
+import '../l10n/tr.dart';
+
 /// Sessão 2026-05-26 — refactor signup cliente alinhado com Uber/Glovo:
 /// - Foto opcional REMOVIDA (causa de Activity recreation crash em Samsung A36).
 ///   Foto pode ser adicionada depois em ProfileScreen.
@@ -113,7 +115,7 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
         flexibleSpace: const DecoratedBox(
           decoration: BoxDecoration(gradient: AppColors.headerGradient),
         ),
-        title: const Text('Criar conta'),
+        title: Text('Criar conta'.tr),
       ),
       body: SafeArea(
         child: Form(
@@ -135,7 +137,7 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
                 ),
                 const SizedBox(height: Spacing.xs),
                 Text(
-                  'A tua app de entregas',
+                  'A tua app de entregas'.tr,
                   style: theme.textTheme.bodySmall
                       ?.copyWith(color: AppColors.textSubtle),
                 ),
@@ -144,13 +146,13 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
                 if (_socialAuthEnabled) ...[
                   _SocialAuthButton(
                     icon: Icons.apple,
-                    label: 'Continuar com Apple',
+                    label: 'Continuar com Apple'.tr,
                     onPressed: _isSubmitting ? null : _signInWithApple,
                   ),
                   const SizedBox(height: 12),
                   _SocialAuthButton(
                     icon: Icons.g_mobiledata_rounded,
-                    label: 'Continuar com Google',
+                    label: 'Continuar com Google'.tr,
                     onPressed: _isSubmitting ? null : _signInWithGoogle,
                   ),
                   const SizedBox(height: 20),
@@ -163,7 +165,7 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
                         padding:
                             const EdgeInsets.symmetric(horizontal: Spacing.md),
                         child: Text(
-                          'ou regista-te por email',
+                          'ou regista-te por email'.tr,
                           style: TextStyle(color: Colors.grey.shade500),
                         ),
                       ),
@@ -178,29 +180,29 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
                 TextFormField(
                   controller: _nameController,
                   textCapitalization: TextCapitalization.words,
-                  decoration: const InputDecoration(
-                    labelText: 'Nome completo',
-                    prefixIcon: Icon(Icons.person_outline),
+                  decoration: InputDecoration(
+                    labelText: 'Nome completo'.tr,
+                    prefixIcon: const Icon(Icons.person_outline),
                   ),
                   onChanged: (_) => _saveDraft(),
                   validator: (v) => (v == null || v.trim().isEmpty)
-                      ? 'Informe o seu nome.'
+                      ? 'Informe o seu nome.'.tr
                       : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    prefixIcon: Icon(Icons.email_outlined),
+                  decoration: InputDecoration(
+                    labelText: 'Email'.tr,
+                    prefixIcon: const Icon(Icons.email_outlined),
                   ),
                   onChanged: (_) => _saveDraft(),
                   validator: (v) {
                     if (v == null || v.trim().isEmpty) {
-                      return 'Informe o seu email.';
+                      return 'Informe o seu email.'.tr;
                     }
-                    if (!v.contains('@')) return 'Email inválido.';
+                    if (!v.contains('@')) return 'Email inválido.'.tr;
                     return null;
                   },
                 ),
@@ -208,13 +210,13 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
                 TextFormField(
                   controller: _phoneController,
                   keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(
-                    labelText: 'Telemóvel',
-                    prefixIcon: Icon(Icons.phone_rounded),
+                  decoration: InputDecoration(
+                    labelText: 'Telemóvel'.tr,
+                    prefixIcon: const Icon(Icons.phone_rounded),
                   ),
                   onChanged: (_) => _saveDraft(),
                   validator: (v) => (v == null || v.trim().isEmpty)
-                      ? 'Informe o seu telemóvel.'
+                      ? 'Informe o seu telemóvel.'.tr
                       : null,
                 ),
                 const SizedBox(height: 16),
@@ -222,7 +224,7 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
                   controller: _passwordController,
                   obscureText: _obscurePassword,
                   decoration: InputDecoration(
-                    labelText: 'Palavra-passe',
+                    labelText: 'Palavra-passe'.tr,
                     prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
                       icon: Icon(_obscurePassword
@@ -233,7 +235,7 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
                     ),
                   ),
                   validator: (v) => (v == null || v.length < 6)
-                      ? 'Mínimo 6 caracteres.'
+                      ? 'Mínimo 6 caracteres.'.tr
                       : null,
                 ),
                 const SizedBox(height: 16),
@@ -241,7 +243,7 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
                   controller: _confirmPasswordController,
                   obscureText: _obscureConfirm,
                   decoration: InputDecoration(
-                    labelText: 'Confirmar palavra-passe',
+                    labelText: 'Confirmar palavra-passe'.tr,
                     prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
                       icon: Icon(_obscureConfirm
@@ -253,7 +255,7 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
                   ),
                   validator: (v) {
                     if (v != _passwordController.text) {
-                      return 'As palavras-passe não coincidem.';
+                      return 'As palavras-passe não coincidem.'.tr;
                     }
                     return null;
                   },
@@ -262,10 +264,10 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
                 TextFormField(
                   controller: _referralCodeController,
                   textCapitalization: TextCapitalization.characters,
-                  decoration: const InputDecoration(
-                    labelText: 'Código de convite (opcional)',
-                    hintText: 'Ex: BORA-ABC-1234',
-                    prefixIcon: Icon(Icons.card_giftcard_outlined),
+                  decoration: InputDecoration(
+                    labelText: 'Código de convite (opcional)'.tr,
+                    hintText: 'Ex: BORA-ABC-1234'.tr,
+                    prefixIcon: const Icon(Icons.card_giftcard_outlined),
                   ),
                   onChanged: (_) => _saveDraft(),
                 ),
@@ -282,7 +284,7 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
                 ),
                 const SizedBox(height: 16),
                 BoraPrimaryButton(
-                  label: 'Criar conta',
+                  label: 'Criar conta'.tr,
                   loading: _isSubmitting,
                   color: AppColors.primary,
                   onPressed: _acceptedTerms ? _submit : null,
@@ -291,7 +293,7 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text('Já tenho conta?',
+                    Text('Já tenho conta?'.tr,
                         style: TextStyle(color: Colors.grey.shade600)),
                     TextButton(
                       onPressed: () => Navigator.of(context).pushReplacement(
@@ -299,9 +301,9 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
                           builder: (_) => const ClientLoginScreen(),
                         ),
                       ),
-                      child: const Text(
-                        'Iniciar sessão',
-                        style: TextStyle(
+                      child: Text(
+                        'Iniciar sessão'.tr,
+                        style: const TextStyle(
                             color: AppColors.accent,
                             fontWeight: FontWeight.bold),
                       ),
@@ -325,7 +327,7 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
     //  5. Android: deeplink redirect URI configurado
     //  Ver docs/SIGNUP_SOCIAL_SETUP.md
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Apple Sign-In — em configuração.')),
+      SnackBar(content: Text('Apple Sign-In — em configuração.'.tr)),
     );
   }
 
@@ -338,7 +340,7 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
     //  5. iOS: GIDClientID em Info.plist
     //  Ver docs/SIGNUP_SOCIAL_SETUP.md
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Google Sign-In — em configuração.')),
+      SnackBar(content: Text('Google Sign-In — em configuração.'.tr)),
     );
   }
 
@@ -413,9 +415,9 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
           await _tentarCodigoPromocional(referralCode);
         } else if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
+            SnackBar(
               content: Text(
-                  'Código de convite inválido ou expirado — conta criada à mesma.'),
+                  'Código de convite inválido ou expirado — conta criada à mesma.'.tr),
             ),
           );
         }
@@ -452,8 +454,7 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
         final euros = (m['euro_value'] as num?)?.toDouble() ?? (tokens * 0.005);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Recebeste $tokens tokens '
-                '(≈€${euros.toStringAsFixed(2)}) — já estão na tua conta.'),
+            content: Text('Recebeste {0} tokens (≈€{1}) — já estão na tua conta.'.trArgs([tokens, euros.toStringAsFixed(2)])),
           ),
         );
         return;
@@ -465,8 +466,8 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
       debugPrint('[Promo] "$codigo" falhou => $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Não foi possível usar o código — conta criada à mesma.'),
+          SnackBar(
+            content: Text('Não foi possível usar o código — conta criada à mesma.'.tr),
           ),
         );
       }
@@ -476,17 +477,17 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
   String _motivoEmPortugues(String? motivo) {
     switch (motivo) {
       case 'not_found':
-        return 'Código não encontrado — conta criada à mesma.';
+        return 'Código não encontrado — conta criada à mesma.'.tr;
       case 'already_used':
-        return 'Já tinhas usado este código — conta criada à mesma.';
+        return 'Já tinhas usado este código — conta criada à mesma.'.tr;
       case 'expired':
-        return 'Código expirado — conta criada à mesma.';
+        return 'Código expirado — conta criada à mesma.'.tr;
       case 'inactive':
-        return 'Código já não está activo — conta criada à mesma.';
+        return 'Código já não está activo — conta criada à mesma.'.tr;
       case 'max_uses_reached':
-        return 'Este código atingiu o limite de utilizações — conta criada à mesma.';
+        return 'Este código atingiu o limite de utilizações — conta criada à mesma.'.tr;
       default:
-        return 'Não foi possível usar o código — conta criada à mesma.';
+        return 'Não foi possível usar o código — conta criada à mesma.'.tr;
     }
   }
 }

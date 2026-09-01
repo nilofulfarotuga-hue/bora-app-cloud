@@ -6,6 +6,8 @@ import '../config/app_spacing.dart';
 import '../screens/shared/cleaning_chat_screen.dart';
 import '../stores/cleaning_chat_store.dart';
 
+import '../l10n/tr.dart';
+
 /// LIMPEZA — botão de chat com badge vermelho de não-lidas + preview da
 /// última mensagem (padrão visual do ChatBubbleButton do delivery, que é
 /// acoplado a OrderModel — por isso replicado aqui para reservas de limpeza).
@@ -97,7 +99,7 @@ class _CleaningChatButtonState extends State<CleaningChatButton> {
     if (widget.compact) {
       return IconButton(
         onPressed: _open,
-        tooltip: 'Chat',
+        tooltip: 'Chat'.tr,
         icon: icon,
       );
     }

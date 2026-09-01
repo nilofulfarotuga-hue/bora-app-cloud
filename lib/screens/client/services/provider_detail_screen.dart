@@ -19,6 +19,8 @@ import '../../register_client_screen.dart';
 import 'booking_flow_screen.dart';
 import 'gallery_viewer_screen.dart';
 
+import '../../../l10n/tr.dart';
+
 /// Vertical Serviços — detalhe de uma barbearia.
 /// Hero, nome, rating, descrição, morada, lista de serviços (preço+duração),
 /// CTA "Marcar" → fluxo de marcação.
@@ -113,7 +115,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                                     size: 18, color: AppColors.warning),
                                 const SizedBox(width: Spacing.xxs),
                                 Text(
-                                  '${p.avgRating.toStringAsFixed(1)} · ${p.ratingsCount} avaliações',
+                                  '{0} · {1} avaliações'.trArgs([p.avgRating.toStringAsFixed(1), p.ratingsCount]),
                                   style: const TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w600,
@@ -160,9 +162,9 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                           _teamSection(),
                           _gallerySection(p),
                           const SizedBox(height: Spacing.xl),
-                          const Text(
-                            'Serviços',
-                            style: TextStyle(
+                          Text(
+                            'Serviços'.tr,
+                            style: const TextStyle(
                               fontSize: 17,
                               fontWeight: FontWeight.w800,
                               color: AppColors.textPrimary,
@@ -189,9 +191,9 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                       child: GestureDetector(
                         behavior: HitTestBehavior.opaque,
                         onTap: () => showComingSoonBlockedSnackBar(context),
-                        child: const AbsorbPointer(
+                        child: AbsorbPointer(
                           child: BoraAccentButton(
-                            label: 'Marcar',
+                            label: 'Marcar'.tr,
                             icon: Icons.event_available,
                             onPressed: null,
                           ),
@@ -199,7 +201,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
                       ),
                     )
                   : BoraAccentButton(
-                      label: 'Marcar',
+                      label: 'Marcar'.tr,
                       icon: Icons.event_available,
                       onPressed: () => _startBooking(),
                     ),
@@ -250,9 +252,9 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: Spacing.xl),
-            const Text(
-              'A nossa equipa',
-              style: TextStyle(
+            Text(
+              'A nossa equipa'.tr,
+              style: const TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w800,
                 color: AppColors.textPrimary,
@@ -306,7 +308,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
               onPressed: () => open(toUri(ig, 'https://instagram.com/')),
               icon: const Icon(Icons.camera_alt_outlined,
                   color: AppColors.textSecondary, size: 22),
-              tooltip: 'Instagram',
+              tooltip: 'Instagram'.tr,
               visualDensity: VisualDensity.compact,
             ),
           if (fb.isNotEmpty)
@@ -314,7 +316,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
               onPressed: () => open(toUri(fb, 'https://facebook.com/')),
               icon: const Icon(Icons.facebook,
                   color: AppColors.textSecondary, size: 22),
-              tooltip: 'Facebook',
+              tooltip: 'Facebook'.tr,
               visualDensity: VisualDensity.compact,
             ),
         ],
@@ -331,9 +333,9 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: Spacing.xl),
-        const Text(
-          'Sobre',
-          style: TextStyle(
+        Text(
+          'Sobre'.tr,
+          style: const TextStyle(
             fontSize: 17,
             fontWeight: FontWeight.w800,
             color: AppColors.textPrimary,
@@ -361,9 +363,9 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: Spacing.xl),
-        const Text(
-          'Galeria',
-          style: TextStyle(
+        Text(
+          'Galeria'.tr,
+          style: const TextStyle(
             fontSize: 17,
             fontWeight: FontWeight.w800,
             color: AppColors.textPrimary,
@@ -429,9 +431,9 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen> {
         }
         final services = snap.data ?? const [];
         if (services.isEmpty) {
-          return const Text(
-            'Este prestador ainda não tem serviços.',
-            style: TextStyle(color: AppColors.textSecondary),
+          return Text(
+            'Este prestador ainda não tem serviços.'.tr,
+            style: const TextStyle(color: AppColors.textSecondary),
           );
         }
         return Column(

@@ -11,6 +11,8 @@ import '../../../stores/carwash_store.dart';
 import '../../shared/carwash_chat_screen.dart';
 import 'carwash_payment_flow.dart';
 
+import '../../../l10n/tr.dart';
+
 /// LAVAGEM AUTO — acompanhamento do cliente.
 /// Barra de estados igual à da entrega + ETA + fotos antes/depois + chat.
 class CarwashTrackingScreen extends StatefulWidget {
@@ -75,19 +77,19 @@ class _CarwashTrackingScreenState extends State<CarwashTrackingScreen>
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Cancelar a lavagem?'),
+        title: Text('Cancelar a lavagem?'.tr),
         content: Text(
           b.status == CarwashStatus.scheduled
-              ? 'Ainda ninguém aceitou, por isso não há qualquer custo.'
+              ? 'Ainda ninguém aceitou, por isso não há qualquer custo.'.tr
               : 'Já há um lavador a caminho. Pode haver uma taxa de cancelamento.',
         ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Voltar')),
+              child: Text('Voltar'.tr)),
           FilledButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Cancelar lavagem')),
+              child: Text('Cancelar lavagem'.tr)),
         ],
       ),
     );
@@ -110,11 +112,11 @@ class _CarwashTrackingScreenState extends State<CarwashTrackingScreen>
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setLocal) => AlertDialog(
-          title: const Text('Correu tudo bem?'),
+          title: Text('Correu tudo bem?'.tr),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Confirme para fechar o pedido.'),
+              Text('Confirme para fechar o pedido.'.tr),
               const SizedBox(height: Spacing.md),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -134,10 +136,10 @@ class _CarwashTrackingScreenState extends State<CarwashTrackingScreen>
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Agora não')),
+                child: Text('Agora não'.tr)),
             FilledButton(
                 onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Confirmar')),
+                child: Text('Confirmar'.tr)),
           ],
         ),
       ),
@@ -152,15 +154,15 @@ class _CarwashTrackingScreenState extends State<CarwashTrackingScreen>
   Widget build(BuildContext context) {
     final b = context.watch<CarwashStore>().tracked;
     if (b == null) {
-      return const Scaffold(
-        body: Center(child: Text('Sem pedido para acompanhar.')),
+      return Scaffold(
+        body: Center(child: Text('Sem pedido para acompanhar.'.tr)),
       );
     }
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('A sua lavagem'),
+        title: Text('A sua lavagem'.tr),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         actions: [
@@ -198,7 +200,7 @@ class _CarwashTrackingScreenState extends State<CarwashTrackingScreen>
                     child: OutlinedButton.icon(
                       onPressed: () => _call(_washerPhone),
                       icon: const Icon(Icons.phone),
-                      label: const Text('Ligar'),
+                      label: Text('Ligar'.tr),
                     ),
                   ),
                   const SizedBox(width: Spacing.md),
@@ -216,7 +218,7 @@ class _CarwashTrackingScreenState extends State<CarwashTrackingScreen>
                         ),
                       ),
                       icon: const Icon(Icons.chat_bubble_outline),
-                      label: const Text('Mensagem'),
+                      label: Text('Mensagem'.tr),
                     ),
                   ),
                 ],
@@ -239,12 +241,11 @@ class _CarwashTrackingScreenState extends State<CarwashTrackingScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Falta o pagamento',
-                        style: TextStyle(fontWeight: FontWeight.w800)),
+                    Text('Falta o pagamento'.tr,
+                        style: const TextStyle(fontWeight: FontWeight.w800)),
                     const SizedBox(height: Spacing.xs),
                     Text(
-                      'Este pedido ainda não foi pago por '
-                      '${b.paymentMethod == 'card' ? 'cartão' : 'MB WAY'}.',
+                      'Este pedido ainda não foi pago por {0}.'.trArgs([b.paymentMethod == 'card' ? 'cartão' : 'MB WAY']),
                       style: const TextStyle(color: AppColors.textSecondary),
                     ),
                     const SizedBox(height: Spacing.md),
@@ -258,7 +259,7 @@ class _CarwashTrackingScreenState extends State<CarwashTrackingScreen>
                         style: FilledButton.styleFrom(
                             backgroundColor: AppColors.primary),
                         child: Text(
-                            'Pagar ${b.totalEur.toStringAsFixed(2)} €'),
+                            'Pagar {0} €'.trArgs([b.totalEur.toStringAsFixed(2)])),
                       ),
                     ),
                   ],
@@ -271,13 +272,13 @@ class _CarwashTrackingScreenState extends State<CarwashTrackingScreen>
             if (b.photosBefore.isNotEmpty) ...[
               const SizedBox(height: Spacing.lg),
               _Fotos(
-                titulo: 'Como o carro estava na recolha',
+                titulo: 'Como o carro estava na recolha'.tr,
                 fotos: b.photosBefore,
               ),
             ],
             if (b.photosAfter.isNotEmpty) ...[
               const SizedBox(height: Spacing.lg),
-              _Fotos(titulo: 'Como ficou', fotos: b.photosAfter),
+              _Fotos(titulo: 'Como ficou'.tr, fotos: b.photosAfter),
             ],
 
             const SizedBox(height: Spacing.xl),
@@ -289,7 +290,7 @@ class _CarwashTrackingScreenState extends State<CarwashTrackingScreen>
                   onPressed: () => _confirmar(b),
                   style:
                       FilledButton.styleFrom(backgroundColor: AppColors.primary),
-                  child: const Text('Está tudo certo — fechar pedido'),
+                  child: Text('Está tudo certo — fechar pedido'.tr),
                 ),
               ),
 
@@ -299,8 +300,8 @@ class _CarwashTrackingScreenState extends State<CarwashTrackingScreen>
               const SizedBox(height: Spacing.sm),
               TextButton(
                 onPressed: () => _cancelar(b),
-                child: const Text('Cancelar lavagem',
-                    style: TextStyle(color: AppColors.error)),
+                child: Text('Cancelar lavagem'.tr,
+                    style: const TextStyle(color: AppColors.error)),
               ),
             ],
           ],
@@ -320,20 +321,18 @@ class _EstadoCabecalho extends StatelessWidget {
     final b = booking;
     String subtitulo;
     if (b.status == CarwashStatus.scheduled) {
-      subtitulo = 'Estamos a procurar um lavador perto de si.';
+      subtitulo = 'Estamos a procurar um lavador perto de si.'.tr;
     } else if (b.showsEta && b.etaAt != null) {
       final h = b.etaAt!;
-      subtitulo = 'Chega daqui a ~${b.etaMinutes} min '
-          '(por volta das ${h.hour.toString().padLeft(2, '0')}:'
-          '${h.minute.toString().padLeft(2, '0')}).';
+      subtitulo = 'Chega daqui a ~{0} min (por volta das {1}:{2}).'.trArgs([b.etaMinutes, h.hour.toString().padLeft(2, '0'), h.minute.toString().padLeft(2, '0')]);
     } else {
       subtitulo = switch (b.status) {
-        CarwashStatus.pickedUp => 'O carro já está com o lavador.',
-        CarwashStatus.inProgress => 'A lavagem está a decorrer.',
-        CarwashStatus.delivering => 'O carro está lavado e a caminho de volta.',
-        CarwashStatus.delivered => 'O carro foi entregue. Confirme para fechar.',
-        CarwashStatus.completed => 'Pedido fechado. Obrigado!',
-        CarwashStatus.cancelled => 'Este pedido foi cancelado.',
+        CarwashStatus.pickedUp => 'O carro já está com o lavador.'.tr,
+        CarwashStatus.inProgress => 'A lavagem está a decorrer.'.tr,
+        CarwashStatus.delivering => 'O carro está lavado e a caminho de volta.'.tr,
+        CarwashStatus.delivered => 'O carro foi entregue. Confirme para fechar.'.tr,
+        CarwashStatus.completed => 'Pedido fechado. Obrigado!'.tr,
+        CarwashStatus.cancelled => 'Este pedido foi cancelado.'.tr,
         _ => '',
       };
     }
@@ -358,7 +357,7 @@ class _EstadoCabecalho extends StatelessWidget {
           ),
           if (washerName.isNotEmpty && b.status.isActive) ...[
             const SizedBox(height: 2),
-            Text('com $washerName',
+            Text('com {0}'.trArgs([washerName]),
                 style: const TextStyle(color: AppColors.textSecondary)),
           ],
           const SizedBox(height: Spacing.xs),
@@ -443,22 +442,22 @@ class _CartaoDados extends StatelessWidget {
       ),
       child: Column(
         children: [
-          _linha('Serviço', b.serviceType.label),
-          _linha('Matrícula', b.plate),
+          _linha('Serviço'.tr, b.serviceType.label),
+          _linha('Matrícula'.tr, b.plate),
           if (b.carMakeModel.isNotEmpty) _linha('Carro', b.carMakeModel),
-          _linha('Onde', b.addressLine),
-          _linha('Pagamento',
+          _linha('Onde'.tr, b.addressLine),
+          _linha('Pagamento'.tr,
               switch (b.paymentMethod) {
                 'card' => 'Cartão',
-                'mbway' => 'MB WAY',
-                _ => 'Dinheiro',
+                'mbway' => 'MB WAY'.tr,
+                _ => 'Dinheiro'.tr,
               }),
           const Divider(height: Spacing.xl),
           Row(
             children: [
-              const Expanded(
-                child: Text('Total',
-                    style: TextStyle(fontWeight: FontWeight.w800)),
+              Expanded(
+                child: Text('Total'.tr,
+                    style: const TextStyle(fontWeight: FontWeight.w800)),
               ),
               Text('${b.totalEur.toStringAsFixed(2)} €',
                   style: const TextStyle(

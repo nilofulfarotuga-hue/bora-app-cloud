@@ -13,6 +13,8 @@ import '../../stores/restaurant_store.dart';
 import 'market_category_chip_large.dart';
 import 'market_product_card.dart';
 
+import '../../l10n/tr.dart';
+
 /// Tab "Loja" do interior do mercado — padrão Glovo.
 ///
 /// Estrutura (CustomScrollView slivers):
@@ -76,10 +78,10 @@ class MarketStoreTab extends StatelessWidget {
   }
 
   String _etaText(double distanceKm) {
-    if (distanceKm <= 0) return '30-45 min';
+    if (distanceKm <= 0) return '30-45 min'.tr;
     final base = (distanceKm * _etaMinPerKm).floor();
     final lo = base < 5 ? 5 : base;
-    return '$lo-${lo + 15} min';
+    return '{0}-{1} min'.trArgs([lo, lo + 15]);
   }
 
   // ─── Build ────────────────────────────────────────────────────────────────
@@ -100,7 +102,7 @@ class MarketStoreTab extends StatelessWidget {
     // TODAS as categorias por sort_order — alimenta a grelha E os carrosséis.
     final orderedCats = _orderedCategories(products);
 
-    final favKey = 'restaurant_$storeName';
+    final favKey = 'restaurant_${storeName}';
     final isFav = favoriteStore.isFavorite(favKey);
 
     return CustomScrollView(
@@ -153,9 +155,9 @@ class MarketStoreTab extends StatelessWidget {
                     color: AppColors.primary.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: const Text(
-                    'Frescura garantida',
-                    style: TextStyle(
+                  child: Text(
+                    'Frescura garantida'.tr,
+                    style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: AppColors.primary,
@@ -210,7 +212,7 @@ class MarketStoreTab extends StatelessWidget {
         if (promoProducts.length >= _minSectionProducts)
           SliverToBoxAdapter(
             child: _HorizontalSection(
-              title: 'Em promoção',
+              title: 'Em promoção'.tr,
               products: promoProducts,
               restaurantId: restaurant.id,
               storeName: storeName,
@@ -223,7 +225,7 @@ class MarketStoreTab extends StatelessWidget {
         if (popularProducts.length >= _minSectionProducts)
           SliverToBoxAdapter(
             child: _HorizontalSection(
-              title: 'Mais vendidos',
+              title: 'Mais vendidos'.tr,
               products: popularProducts,
               restaurantId: restaurant.id,
               storeName: storeName,
@@ -384,7 +386,7 @@ class _BackButton extends StatelessWidget {
         icon: Container(
           width: 32,
           height: 32,
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             color: Colors.black45,
             shape: BoxShape.circle,
           ),
@@ -472,7 +474,7 @@ class _StatsRow extends StatelessWidget {
             icon: Icons.delivery_dining,
             iconColor: AppColors.primary,
             label: feeText,
-            sublabel: 'Entrega',
+            sublabel: 'Entrega'.tr,
           )),
         ],
       ),
@@ -561,7 +563,7 @@ class _SearchBar extends StatelessWidget {
               const Icon(Icons.search, color: AppColors.textSecondary, size: 20),
               const SizedBox(width: 8),
               Text(
-                'Procurar em $storeName...',
+                'Procurar em {0}...'.trArgs([storeName]),
                 style: const TextStyle(
                   color: AppColors.textSecondary,
                   fontSize: 14,
@@ -597,11 +599,11 @@ class _CategoryGrid extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
-            padding: EdgeInsets.only(bottom: 10),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
             child: Text(
-              'Comprar por categoria',
-              style: TextStyle(
+              'Comprar por categoria'.tr,
+              style: const TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.bold,
                 color: AppColors.textPrimary,
@@ -731,29 +733,27 @@ class _Footer extends StatelessWidget {
           onTap: () => showDialog(
             context: context,
             builder: (_) => AlertDialog(
-              title: const Text('Taxas e informações'),
+              title: Text('Taxas e informações'.tr),
               content: Text(
-                'Taxa de entrega: $feeLabel\n'
-                'Taxa de serviço: incluída no preço dos produtos\n'
-                'Taxa de saco: €0,10/saco (cobrada após entrega)',
+                'Taxa de entrega: {0}\nTaxa de serviço: incluída no preço dos produtos\nTaxa de saco: €0,10/saco (cobrada após entrega)'.trArgs([feeLabel]),
               ),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Fechar'),
+                  child: Text('Fechar'.tr),
                 ),
               ],
             ),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: const [
+            children: [
               Text(
-                'Informações sobre as taxas ',
-                style: TextStyle(
+                'Informações sobre as taxas '.tr,
+                style: const TextStyle(
                     fontSize: 12, color: AppColors.textSecondary),
               ),
-              Icon(Icons.info_outline,
+              const Icon(Icons.info_outline,
                   size: 14, color: AppColors.textSecondary),
             ],
           ),

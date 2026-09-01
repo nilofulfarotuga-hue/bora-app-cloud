@@ -8,6 +8,8 @@ import 'reservation_checkout_screen.dart';
 import 'reservation_notify_join_screen.dart';
 import 'reservation_waitlist_join_screen.dart';
 
+import '../../../l10n/tr.dart';
+
 /// Reservas PRO F3.B — busca slots disponíveis no restaurante.
 /// Date picker (locale pt_PT), party size, time picker opcional.
 /// Empty state mostra placeholders F3.C (waitlist + notify).
@@ -56,9 +58,9 @@ class _ReservationAvailabilityScreenState
       debugPrint('[ReservationAvailability] _pickDate error: $e\n$st');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Erro ao abrir calendário. Tenta de novo.'),
-            duration: Duration(seconds: 3),
+          SnackBar(
+            content: Text('Erro ao abrir calendário. Tenta de novo.'.tr),
+            duration: const Duration(seconds: 3),
           ),
         );
       }
@@ -79,10 +81,9 @@ class _ReservationAvailabilityScreenState
     await showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Grupos grandes'),
-        content: const Text(
-          'Para grupos com mais de 12 pessoas, contacta o restaurante '
-          'directamente para garantir disponibilidade.',
+        title: Text('Grupos grandes'.tr),
+        content: Text(
+          'Para grupos com mais de 12 pessoas, contacta o restaurante directamente para garantir disponibilidade.'.tr,
         ),
         actions: [
           TextButton(
@@ -105,9 +106,9 @@ class _ReservationAvailabilityScreenState
       );
       if (picked.isBefore(DateTime.now())) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('A hora escolhida já passou. Escolhe outra.'),
-            duration: Duration(seconds: 3),
+          SnackBar(
+            content: Text('A hora escolhida já passou. Escolhe outra.'.tr),
+            duration: const Duration(seconds: 3),
           ),
         );
         return;
@@ -134,7 +135,7 @@ class _ReservationAvailabilityScreenState
         await showDialog<void>(
           context: context,
           builder: (ctx) => AlertDialog(
-            title: const Text('Bloqueado'),
+            title: Text('Bloqueado'.tr),
             content: Text(msg),
             actions: [
               TextButton(
@@ -174,7 +175,7 @@ class _ReservationAvailabilityScreenState
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: BoraScreenAppBar(
-        title: 'Reservar — ${widget.restaurantName}',
+        title: 'Reservar — {0}'.trArgs([widget.restaurantName]),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -203,9 +204,9 @@ class _ReservationAvailabilityScreenState
                           ),
                         )
                       : const Icon(Icons.search),
-                  label: const Text(
-                    'Procurar disponibilidade',
-                    style: TextStyle(fontWeight: FontWeight.w700),
+                  label: Text(
+                    'Procurar disponibilidade'.tr,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ),
               ),
@@ -235,9 +236,9 @@ class _ReservationAvailabilityScreenState
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // ── Data ──
-            const Text(
-              'Data',
-              style: TextStyle(
+            Text(
+              'Data'.tr,
+              style: const TextStyle(
                 fontWeight: FontWeight.w700,
                 color: AppColors.textPrimary,
               ),
@@ -254,9 +255,9 @@ class _ReservationAvailabilityScreenState
             ),
             const SizedBox(height: 16),
             // ── Pessoas ──
-            const Text(
-              'Pessoas',
-              style: TextStyle(
+            Text(
+              'Pessoas'.tr,
+              style: const TextStyle(
                 fontWeight: FontWeight.w700,
                 color: AppColors.textPrimary,
               ),
@@ -287,9 +288,9 @@ class _ReservationAvailabilityScreenState
             ),
             const SizedBox(height: 16),
             // ── Hora (opcional) ──
-            const Text(
-              'Hora (opcional)',
-              style: TextStyle(
+            Text(
+              'Hora (opcional)'.tr,
+              style: const TextStyle(
                 fontWeight: FontWeight.w700,
                 color: AppColors.textPrimary,
               ),
@@ -304,7 +305,7 @@ class _ReservationAvailabilityScreenState
                     label: Text(
                       _selectedTime != null
                           ? _formatTimePt(_selectedTime!)
-                          : 'Qualquer hora',
+                          : 'Qualquer hora'.tr,
                     ),
                     style: OutlinedButton.styleFrom(
                       alignment: Alignment.centerLeft,
@@ -318,7 +319,7 @@ class _ReservationAvailabilityScreenState
                   IconButton(
                     onPressed: () => setState(() => _selectedTime = null),
                     icon: const Icon(Icons.close),
-                    tooltip: 'Limpar hora',
+                    tooltip: 'Limpar hora'.tr,
                   ),
                 ],
               ],
@@ -342,7 +343,7 @@ class _ReservationAvailabilityScreenState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Slots disponíveis (${slots.length})',
+              'Slots disponíveis ({0})'.trArgs([slots.length]),
               style: const TextStyle(
                 fontWeight: FontWeight.w700,
                 fontSize: 15,
@@ -383,8 +384,7 @@ class _ReservationAvailabilityScreenState
     final dow = _selectedDate.weekday;
     final isWeekend = dow == 6 || dow == 7;
     final title = isWeekend
-        ? 'Este restaurante pode não aceitar reservas a '
-            '${dow == 6 ? "Sábado" : "Domingo"}'
+        ? 'Este restaurante pode não aceitar reservas a {0}'.trArgs([dow == 6 ? "Sábado" : "Domingo"])
         : 'Sem disponibilidade nesta data';
     return Card(
       elevation: 1,
@@ -405,10 +405,10 @@ class _ReservationAvailabilityScreenState
               ),
             ),
             const SizedBox(height: 6),
-            const Text(
-              'Tenta outra data ou junta-te à fila.',
+            Text(
+              'Tenta outra data ou junta-te à fila.'.tr,
               textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textSecondary),
+              style: const TextStyle(color: AppColors.textSecondary),
             ),
             const SizedBox(height: 16),
             OutlinedButton.icon(
@@ -424,7 +424,7 @@ class _ReservationAvailabilityScreenState
                 ),
               ),
               icon: const Icon(Icons.schedule),
-              label: const Text('Entrar fila de espera'),
+              label: Text('Entrar fila de espera'.tr),
             ),
             const SizedBox(height: 8),
             OutlinedButton.icon(
@@ -441,7 +441,7 @@ class _ReservationAvailabilityScreenState
                 ),
               ),
               icon: const Icon(Icons.notifications_active_outlined),
-              label: const Text('Avisar se vagar'),
+              label: Text('Avisar se vagar'.tr),
             ),
           ],
         ),

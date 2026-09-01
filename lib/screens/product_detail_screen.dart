@@ -17,6 +17,8 @@ import '../widgets/bora/bora_primary_button.dart';
 import '../widgets/bora/coming_soon.dart';
 import 'cart_screen.dart';
 
+import '../l10n/tr.dart';
+
 class ProductDetailScreen extends StatefulWidget {
   const ProductDetailScreen({
     super.key,
@@ -100,10 +102,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   String _groupHint(ProductOptionGroup g) {
     if (g.minChoices > 0 && g.minChoices == g.maxChoices) {
-      return 'Escolhe ${g.minChoices}';
+      return 'Escolhe {0}'.trArgs([g.minChoices]);
     }
-    if (g.minChoices > 0) return 'Escolhe ${g.minChoices} a ${g.maxChoices}';
-    return 'Escolhe até ${g.maxChoices}';
+    if (g.minChoices > 0) return 'Escolhe {0} a {1}'.trArgs([g.minChoices, g.maxChoices]);
+    return 'Escolhe até {0}'.trArgs([g.maxChoices]);
   }
 
   // Confirmação compacta e não-bloqueante (padrão Uber Eats / Glovo) — o
@@ -134,7 +136,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           basePrice: v.price,
           quantity: _quantity,
         ));
-    _snackEFecha('${v.brandName} × $_quantity adicionado ao carrinho');
+    _snackEFecha('{0} × {1} adicionado ao carrinho'.trArgs([v.brandName, _quantity]));
   }
 
   void _addNoVariantToCart(BuildContext context) {
@@ -146,7 +148,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           basePrice: widget.product.price,
           quantity: _quantity,
         ));
-    _snackEFecha('${widget.product.name} × $_quantity adicionado ao carrinho');
+    _snackEFecha('{0} × {1} adicionado ao carrinho'.trArgs([widget.product.name, _quantity]));
   }
 
   void _addWithOptions(BuildContext context) {
@@ -173,7 +175,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           quantity: _quantity,
           selectedOptions: selected,
         ));
-    _snackEFecha('${widget.product.name} × $_quantity adicionado ao carrinho');
+    _snackEFecha('{0} × {1} adicionado ao carrinho'.trArgs([widget.product.name, _quantity]));
   }
 
   @override
@@ -268,9 +270,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         // chips quando declarados; disclaimer quando vazio.
                         const SizedBox(height: 12),
                         if (widget.product.allergens.isNotEmpty) ...[
-                          const Text(
-                            'Alergénios',
-                            style: TextStyle(
+                          Text(
+                            'Alergénios'.tr,
+                            style: const TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
                               color: Colors.black87,
@@ -298,8 +300,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           ),
                         ] else
                           Text(
-                            'Consulte o estabelecimento para informações '
-                            'sobre alergénios.',
+                            'Consulte o estabelecimento para informações sobre alergénios.'.tr,
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.grey.shade500,
@@ -332,7 +333,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
                       child: Text(
                         total == 1
-                            ? '1 marca disponível'
+                            ? '1 marca disponível'.tr
                             : '$total marcas disponíveis',
                         style: const TextStyle(
                           fontSize: 13,
@@ -443,8 +444,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
     if (comingSoon) {
       // Botão desactivado (onPressed: null → cinzento pelo tema).
-      return wrap(const BoraPrimaryButton(
-        label: 'Adicionar ao carrinho',
+      return wrap(BoraPrimaryButton(
+        label: 'Adicionar ao carrinho'.tr,
         icon: Icons.add_shopping_cart,
         onPressed: null,
       ));
@@ -456,7 +457,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       if (_selectedVariant == null) return const SizedBox.shrink();
       return wrap(BoraAccentButton(
         label:
-            'Adicionar ao carrinho · €${PricingService.applyMarkup(_selectedVariant!.price, widget.isPartnerStore).toStringAsFixed(2)}',
+            'Adicionar ao carrinho · €{0}'.trArgs([PricingService.applyMarkup(_selectedVariant!.price, widget.isPartnerStore).toStringAsFixed(2)]),
         icon: Icons.add_shopping_cart,
         onPressed: () => _addToCart(context, _selectedVariant!),
       ));
@@ -473,7 +474,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       // badge ("1 laranja por ecrã" — badge tem prioridade).
       return wrap(BoraPrimaryButton(
         label: ok
-            ? 'Adicionar ao carrinho · €${unit.toStringAsFixed(2)}'
+            ? 'Adicionar ao carrinho · €{0}'.trArgs([unit.toStringAsFixed(2)])
             : 'Completa as escolhas obrigatórias',
         icon: Icons.add_shopping_cart,
         onPressed: ok ? () => _addWithOptions(context) : null,
@@ -482,7 +483,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
     return wrap(BoraAccentButton(
       label: widget.product.price > 0
-          ? 'Adicionar ao carrinho · €${PricingService.applyMarkup(widget.product.price, widget.isPartnerStore).toStringAsFixed(2)}'
+          ? 'Adicionar ao carrinho · €{0}'.trArgs([PricingService.applyMarkup(widget.product.price, widget.isPartnerStore).toStringAsFixed(2)])
           : 'Preço indisponível',
       icon: Icons.add_shopping_cart,
       onPressed:
@@ -518,10 +519,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 ),
               ),
               if (g.isRequired)
-                const _Badge(label: 'Obrigatório', color: AppColors.accent)
+                _Badge(label: 'Obrigatório'.tr, color: AppColors.accent)
               else
-                const _Badge(
-                    label: 'Opcional', color: AppColors.textSecondary),
+                _Badge(
+                    label: 'Opcional'.tr, color: AppColors.textSecondary),
             ],
           ),
           const SizedBox(height: 2),
@@ -536,7 +537,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               ),
               const Spacer(),
               Text(
-                'Escolheste $count de ${g.maxChoices}',
+                'Escolheste {0} de {1}'.trArgs([count, g.maxChoices]),
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
@@ -724,9 +725,9 @@ class _VariantCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   if (isCheapest)
-                    _Badge(label: 'Mais barato', color: Colors.green.shade600)
+                    _Badge(label: 'Mais barato'.tr, color: Colors.green.shade600)
                   else if (isPremium)
-                    _Badge(label: 'Premium', color: Colors.blue.shade600),
+                    _Badge(label: 'Premium'.tr, color: Colors.blue.shade600),
                   const SizedBox(height: 6),
                   Text(
                     '€${displayPrice.toStringAsFixed(2)}',

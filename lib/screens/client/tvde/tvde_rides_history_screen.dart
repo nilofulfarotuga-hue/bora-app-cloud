@@ -9,6 +9,8 @@ import '../../../stores/tvde_store.dart';
 import '../../../widgets/bora/bora.dart';
 import '../../../widgets/tvde/tvde_roundtrip_driver_notice.dart';
 
+import '../../../l10n/tr.dart';
+
 /// TVDE — Histórico de corridas do passageiro.
 class TvdeRidesHistoryScreen extends StatefulWidget {
   const TvdeRidesHistoryScreen({super.key});
@@ -30,7 +32,7 @@ class _TvdeRidesHistoryScreenState extends State<TvdeRidesHistoryScreen> {
   Widget build(BuildContext context) {
     final rides = context.watch<TvdeStore>().history;
     return Scaffold(
-      appBar: const BoraScreenAppBar(title: 'As minhas corridas'),
+      appBar: BoraScreenAppBar(title: 'As minhas corridas'.tr),
       body: rides.isEmpty
           ? const _Empty()
           : ListView.separated(
@@ -108,7 +110,7 @@ class _RideTileState extends State<_RideTile> {
                 ),
                 const SizedBox(height: 2),
                 Text('$date · ${ride.statusLabel}',
-                    style: TextStyle(
+                    style: const TextStyle(
                         fontSize: 12, color: AppColors.textSubtle)),
               ],
             ),
@@ -131,10 +133,10 @@ class _Empty extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.history, size: 56, color: AppColors.textSubtle),
+          const Icon(Icons.history, size: 56, color: AppColors.textSubtle),
           const SizedBox(height: Spacing.md),
-          Text('Ainda não tens corridas.',
-              style: TextStyle(color: AppColors.textSecondary)),
+          Text('Ainda não tens corridas.'.tr,
+              style: const TextStyle(color: AppColors.textSecondary)),
         ],
       ),
     );

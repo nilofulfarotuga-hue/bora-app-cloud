@@ -9,6 +9,8 @@ import '../widgets/bora/bora.dart';
 import '../widgets/bora_support_fab.dart';
 import 'client/reservation/reservation_details_screen.dart';
 
+import '../l10n/tr.dart';
+
 /// T2.E (BR §18) + Reservas PRO F3.A — Lista de reservas do cliente.
 /// 3 tabs: Próximas / Passadas / Canceladas.
 /// Preserva _cancel() (RPC client_cancel_reservation, lógica refund <2h).
@@ -60,16 +62,16 @@ class _ClientReservationsScreenState extends State<ClientReservationsScreen>
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Cancelar reserva?'),
+        title: Text('Cancelar reserva?'.tr),
         content: Text(
           willRefund
-              ? 'Faltam ${hoursUntil.toStringAsFixed(1)}h. Reembolso de €$prepaymentEur em 5–10 dias.'
+              ? 'Faltam {0}h. Reembolso de €{1} em 5–10 dias.'.trArgs([hoursUntil.toStringAsFixed(1), prepaymentEur])
               : 'Faltam apenas ${hoursUntil.toStringAsFixed(1)}h (<2h). Pré-pagamento de €$prepaymentEur NÃO é devolvido.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Voltar'),
+            child: Text('Voltar'.tr),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
@@ -77,7 +79,7 @@ class _ClientReservationsScreenState extends State<ClientReservationsScreen>
             ),
             onPressed: () => Navigator.pop(ctx, true),
             child: Text(willRefund
-                ? 'Cancelar com reembolso'
+                ? 'Cancelar com reembolso'.tr
                 : 'Cancelar (perco €$prepaymentEur)'),
           ),
         ],
@@ -96,13 +98,13 @@ class _ClientReservationsScreenState extends State<ClientReservationsScreen>
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Reserva cancelada.')),
+        SnackBar(content: Text('Reserva cancelada.'.tr)),
       );
       await _refresh();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao cancelar: $e')),
+        SnackBar(content: Text('Erro ao cancelar: {0}'.trArgs([e]))),
       );
     }
   }
@@ -113,7 +115,7 @@ class _ClientReservationsScreenState extends State<ClientReservationsScreen>
     try {
       await context.read<ReservationStore>().markArrived(r.id);
       messenger.showSnackBar(
-        const SnackBar(content: Text('Chegada confirmada. O parceiro foi avisado.')),
+        SnackBar(content: Text('Chegada confirmada. O parceiro foi avisado.'.tr)),
       );
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text(e.toString())));
@@ -137,7 +139,7 @@ class _ClientReservationsScreenState extends State<ClientReservationsScreen>
     return Scaffold(
       floatingActionButton: const BoraSupportFab(),
       appBar: AppBar(
-        title: const Text('As minhas reservas'),
+        title: Text('As minhas reservas'.tr),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -149,10 +151,10 @@ class _ClientReservationsScreenState extends State<ClientReservationsScreen>
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
           indicatorColor: Colors.white,
-          tabs: const [
-            Tab(text: 'Próximas'),
-            Tab(text: 'Passadas'),
-            Tab(text: 'Canceladas'),
+          tabs: [
+            Tab(text: 'Próximas'.tr),
+            Tab(text: 'Passadas'.tr),
+            Tab(text: 'Canceladas'.tr),
           ],
         ),
       ),
@@ -175,7 +177,7 @@ class _ClientReservationsScreenState extends State<ClientReservationsScreen>
                 onRefresh: _refresh,
                 emptyIcon: Icons.calendar_today,
                 emptyText:
-                    'Ainda não tens reservas\nExplora restaurantes e reserva a tua mesa!',
+                    'Ainda não tens reservas\nExplora restaurantes e reserva a tua mesa!'.tr,
                 buildCard: (r) => ReservationCard(
                   reservation: r,
                   onDetails: () => _openDetails(r),
@@ -189,7 +191,7 @@ class _ClientReservationsScreenState extends State<ClientReservationsScreen>
                 reservations: store.pastReservations,
                 onRefresh: _refresh,
                 emptyIcon: Icons.history,
-                emptyText: 'Sem reservas anteriores',
+                emptyText: 'Sem reservas anteriores'.tr,
                 buildCard: (r) => ReservationCard(
                   reservation: r,
                   onDetails: () => _openDetails(r),
@@ -199,7 +201,7 @@ class _ClientReservationsScreenState extends State<ClientReservationsScreen>
                 reservations: store.cancelledReservations,
                 onRefresh: _refresh,
                 emptyIcon: Icons.cancel_outlined,
-                emptyText: 'Nenhuma reserva cancelada',
+                emptyText: 'Nenhuma reserva cancelada'.tr,
                 buildCard: (r) => ReservationCard(
                   reservation: r,
                   onDetails: () => _openDetails(r),
@@ -292,7 +294,7 @@ class _ErrorState extends StatelessWidget {
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: onRetry,
-              child: const Text('Tentar de novo'),
+              child: Text('Tentar de novo'.tr),
             ),
           ],
         ),

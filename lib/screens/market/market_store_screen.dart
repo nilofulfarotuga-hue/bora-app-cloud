@@ -12,6 +12,8 @@ import '../../widgets/market/market_reorder_tab.dart';
 import '../../widgets/market/market_store_tab.dart';
 import '../cart_screen.dart';
 
+import '../../l10n/tr.dart';
+
 /// Host do interior do mercado — 3 tabs estilo Glovo:
 ///   0 → Loja (hero + stats + search + grid categorias + secções horizontais)
 ///   1 → Categorias (lista vertical)
@@ -125,7 +127,7 @@ class _MarketStoreScreenState extends State<MarketStoreScreen> {
                   ),
                   icon: const Icon(Icons.shopping_cart),
                   label: Text(
-                    'Ver carrinho · €${cartStore.total.toStringAsFixed(2)}',
+                    'Ver carrinho · €{0}'.trArgs([cartStore.total.toStringAsFixed(2)]),
                     style: const TextStyle(
                         fontWeight: FontWeight.w600, fontSize: 15),
                   ),

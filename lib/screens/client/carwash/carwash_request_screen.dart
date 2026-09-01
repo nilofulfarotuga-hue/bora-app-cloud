@@ -19,6 +19,8 @@ import '../../../widgets/address_autocomplete_field.dart';
 import 'carwash_payment_flow.dart';
 import 'carwash_tracking_screen.dart';
 
+import '../../../l10n/tr.dart';
+
 /// LAVAGEM AUTO — passo 2: onde está o carro, dados do carro, quando e pagamento.
 ///
 /// REGRA DE 24/08, INVIOLÁVEL: a localização NUNCA trava o pedido.
@@ -123,8 +125,7 @@ class _CarwashRequestScreenState extends State<CarwashRequestScreen> {
     try {
       final loc = await LocationService.getCurrentLocation();
       if (loc == null) {
-        _softInfo('Não conseguimos apanhar a localização. '
-            'Escreva a morada aqui em baixo — funciona na mesma.');
+        _softInfo('Não conseguimos apanhar a localização. Escreva a morada aqui em baixo — funciona na mesma.'.tr);
         return;
       }
       final addr = await LocationService.reverseGeocode(loc, googleApiKey);
@@ -135,8 +136,7 @@ class _CarwashRequestScreenState extends State<CarwashRequestScreen> {
         if (addr != null && addr.trim().isNotEmpty) _addressCtrl.text = addr;
       });
     } catch (_) {
-      _softInfo('Não conseguimos apanhar a localização. '
-          'Escreva a morada aqui em baixo — funciona na mesma.');
+      _softInfo('Não conseguimos apanhar a localização. Escreva a morada aqui em baixo — funciona na mesma.'.tr);
     } finally {
       if (mounted) setState(() => _locating = false);
     }
@@ -188,12 +188,12 @@ class _CarwashRequestScreenState extends State<CarwashRequestScreen> {
           children: [
             ListTile(
               leading: const Icon(Icons.camera_alt),
-              title: const Text('Tirar foto agora'),
+              title: Text('Tirar foto agora'.tr),
               onTap: () => Navigator.pop(context, ImageSource.camera),
             ),
             ListTile(
               leading: const Icon(Icons.photo_library),
-              title: const Text('Escolher da galeria'),
+              title: Text('Escolher da galeria'.tr),
               onTap: () => Navigator.pop(context, ImageSource.gallery),
             ),
           ],
@@ -305,27 +305,26 @@ class _CarwashRequestScreenState extends State<CarwashRequestScreen> {
   /// Nunca se mostra o código cru.
   String _erroPt(String raw) {
     if (raw.contains('out_of_service_area')) {
-      return 'Ainda não fazemos recolha nessa zona.';
+      return 'Ainda não fazemos recolha nessa zona.'.tr;
     }
     if (raw.contains('carwash_disabled')) {
-      return 'A Lavagem Auto está fechada de momento.';
+      return 'A Lavagem Auto está fechada de momento.'.tr;
     }
     if (raw.contains('card_mbway_not_enabled')) {
-      return 'Cartão e MB WAY ainda não disponíveis nesta categoria. '
-          'Pode pagar em dinheiro na entrega.';
+      return 'Cartão e MB WAY ainda não disponíveis nesta categoria. Pode pagar em dinheiro na entrega.'.tr;
     }
-    if (raw.contains('plate_required')) return 'Falta a matrícula do carro.';
-    if (raw.contains('phone_required')) return 'Falta o seu telemóvel.';
+    if (raw.contains('plate_required')) return 'Falta a matrícula do carro.'.tr;
+    if (raw.contains('phone_required')) return 'Falta o seu telemóvel.'.tr;
     if (raw.contains('scheduled_in_the_past')) {
-      return 'Essa hora já passou. Escolha outra.';
+      return 'Essa hora já passou. Escolha outra.'.tr;
     }
     if (raw.contains('not_authenticated')) {
-      return 'Precisa de iniciar sessão para pedir.';
+      return 'Precisa de iniciar sessão para pedir.'.tr;
     }
     if (raw.contains('price_changed')) {
-      return 'O preço mudou entretanto. Volte atrás e peça de novo.';
+      return 'O preço mudou entretanto. Volte atrás e peça de novo.'.tr;
     }
-    return 'Não foi possível criar o pedido. Tente outra vez.';
+    return 'Não foi possível criar o pedido. Tente outra vez.'.tr;
   }
 
   @override
@@ -355,7 +354,7 @@ class _CarwashRequestScreenState extends State<CarwashRequestScreen> {
                         strokeWidth: 2, color: Colors.white))
                 : Text(
                     q == null
-                        ? 'Pedir lavagem'
+                        ? 'Pedir lavagem'.tr
                         : 'Pedir lavagem · ${q.totalEur.toStringAsFixed(2)} €',
                     style: const TextStyle(
                         fontSize: 16, fontWeight: FontWeight.w700),
@@ -373,11 +372,11 @@ class _CarwashRequestScreenState extends State<CarwashRequestScreen> {
               Spacing.lg, Spacing.lg, Spacing.lg, Spacing.huge),
           children: [
             // ── ONDE ESTÁ O CARRO ────────────────────────────────────────────
-            const _Titulo('Onde está o carro'),
+            _Titulo('Onde está o carro'.tr),
             AddressAutocompleteField(
               key: _kMorada,
               controller: _addressCtrl,
-              labelText: 'Morada onde vamos buscar',
+              labelText: 'Morada onde vamos buscar'.tr,
               prefixIcon: const Icon(Icons.place_outlined),
               onSelected: (address, ll.LatLng? coords) {
                 setState(() {
@@ -391,7 +390,7 @@ class _CarwashRequestScreenState extends State<CarwashRequestScreen> {
                 _lng = null;
               }),
               validator: (v) => (v == null || v.trim().length < 4)
-                  ? 'Escreva a morada onde está o carro'
+                  ? 'Escreva a morada onde está o carro'.tr
                   : null,
             ),
             const SizedBox(height: Spacing.sm),
@@ -399,18 +398,18 @@ class _CarwashRequestScreenState extends State<CarwashRequestScreen> {
               alignment: Alignment.centerLeft,
               child: _autoLocating
                   // Discreto, e nunca bloqueia: o campo continua escrevivel.
-                  ? const Padding(
-                      padding: EdgeInsets.symmetric(
+                  ? Padding(
+                      padding: const EdgeInsets.symmetric(
                           horizontal: Spacing.md, vertical: Spacing.sm),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          SizedBox(
+                          const SizedBox(
                               width: 13, height: 13,
                               child: CircularProgressIndicator(strokeWidth: 2)),
-                          SizedBox(width: Spacing.sm),
-                          Text('A obter a sua localização...',
-                              style: TextStyle(
+                          const SizedBox(width: Spacing.sm),
+                          Text('A obter a sua localização...'.tr,
+                              style: const TextStyle(
                                   fontSize: 13, color: AppColors.textSubtle)),
                         ],
                       ),
@@ -422,14 +421,14 @@ class _CarwashRequestScreenState extends State<CarwashRequestScreen> {
                               width: 14, height: 14,
                               child: CircularProgressIndicator(strokeWidth: 2))
                           : const Icon(Icons.my_location, size: 18),
-                      label: const Text('Usar a minha localização'),
+                      label: Text('Usar a minha localização'.tr),
                     ),
             ),
 
             const SizedBox(height: Spacing.lg),
 
             // ── DADOS DO CARRO ───────────────────────────────────────────────
-            const _Titulo('O carro'),
+            _Titulo('O carro'.tr),
             TextFormField(
               key: _kMatricula,
               controller: _plateCtrl,
@@ -438,38 +437,38 @@ class _CarwashRequestScreenState extends State<CarwashRequestScreen> {
                 UpperCaseTextFormatter(),
                 LengthLimitingTextInputFormatter(12),
               ],
-              decoration: const InputDecoration(
-                labelText: 'Matrícula',
-                prefixIcon: Icon(Icons.confirmation_number_outlined),
+              decoration: InputDecoration(
+                labelText: 'Matrícula'.tr,
+                prefixIcon: const Icon(Icons.confirmation_number_outlined),
               ),
               validator: (v) => (v == null || v.trim().length < 4)
-                  ? 'Escreva a matrícula'
+                  ? 'Escreva a matrícula'.tr
                   : null,
             ),
             const SizedBox(height: Spacing.md),
             TextFormField(
               controller: _carCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Marca e modelo (opcional)',
-                prefixIcon: Icon(Icons.directions_car_outlined),
+              decoration: InputDecoration(
+                labelText: 'Marca e modelo (opcional)'.tr,
+                prefixIcon: const Icon(Icons.directions_car_outlined),
               ),
             ),
             const SizedBox(height: Spacing.md),
             TextFormField(
               controller: _colorCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Cor (opcional)',
-                prefixIcon: Icon(Icons.palette_outlined),
+              decoration: InputDecoration(
+                labelText: 'Cor (opcional)'.tr,
+                prefixIcon: const Icon(Icons.palette_outlined),
               ),
             ),
             const SizedBox(height: Spacing.md),
             TextFormField(
               controller: _pickupNotesCtrl,
               maxLines: 2,
-              decoration: const InputDecoration(
-                labelText: 'Onde está e com quem fica a chave',
-                hintText: 'Ex.: garagem do prédio, chave com o porteiro',
-                prefixIcon: Icon(Icons.vpn_key_outlined),
+              decoration: InputDecoration(
+                labelText: 'Onde está e com quem fica a chave'.tr,
+                hintText: 'Ex.: garagem do prédio, chave com o porteiro'.tr,
+                prefixIcon: const Icon(Icons.vpn_key_outlined),
               ),
             ),
             const SizedBox(height: Spacing.md),
@@ -477,12 +476,12 @@ class _CarwashRequestScreenState extends State<CarwashRequestScreen> {
               key: _kTelefone,
               controller: _phoneCtrl,
               keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(
-                labelText: 'O seu telemóvel',
-                prefixIcon: Icon(Icons.phone_outlined),
+              decoration: InputDecoration(
+                labelText: 'O seu telemóvel'.tr,
+                prefixIcon: const Icon(Icons.phone_outlined),
               ),
               validator: (v) => (v == null || v.trim().length < 9)
-                  ? 'Escreva o seu telemóvel'
+                  ? 'Escreva o seu telemóvel'.tr
                   : null,
             ),
 
@@ -498,7 +497,7 @@ class _CarwashRequestScreenState extends State<CarwashRequestScreen> {
             const SizedBox(height: Spacing.lg),
 
             // ── QUANDO ───────────────────────────────────────────────────────
-            const _Titulo('Quando'),
+            _Titulo('Quando'.tr),
             Wrap(
               spacing: Spacing.sm,
               runSpacing: Spacing.sm,
@@ -525,14 +524,14 @@ class _CarwashRequestScreenState extends State<CarwashRequestScreen> {
             const SizedBox(height: Spacing.lg),
 
             // ── PAGAMENTO ────────────────────────────────────────────────────
-            const _Titulo('Pagamento'),
+            _Titulo('Pagamento'.tr),
             RadioListTile<String>(
               contentPadding: EdgeInsets.zero,
               value: 'cash',
               groupValue: _payment,
               onChanged: (v) => setState(() => _payment = v!),
-              title: const Text('Dinheiro'),
-              subtitle: const Text('Paga ao lavador na entrega'),
+              title: Text('Dinheiro'.tr),
+              subtitle: Text('Paga ao lavador na entrega'.tr),
               secondary: const Icon(Icons.payments_outlined),
             ),
             RadioListTile<String>(
@@ -542,9 +541,9 @@ class _CarwashRequestScreenState extends State<CarwashRequestScreen> {
               onChanged: store.stripeEnabled
                   ? (v) => setState(() => _payment = v!)
                   : null,
-              title: const Text('Cartão'),
+              title: Text('Cartão'.tr),
               subtitle: Text(store.stripeEnabled
-                  ? 'Pagamento seguro'
+                  ? 'Pagamento seguro'.tr
                   : 'Disponível brevemente'),
               secondary: const Icon(Icons.credit_card),
             ),
@@ -555,9 +554,9 @@ class _CarwashRequestScreenState extends State<CarwashRequestScreen> {
               onChanged: store.stripeEnabled
                   ? (v) => setState(() => _payment = v!)
                   : null,
-              title: const Text('MB WAY'),
+              title: Text('MB WAY'.tr),
               subtitle: Text(store.stripeEnabled
-                  ? 'Recebe um pedido na app MB WAY'
+                  ? 'Recebe um pedido na app MB WAY'.tr
                   : 'Disponível brevemente'),
               secondary: const Icon(Icons.phone_iphone),
             ),
@@ -572,9 +571,9 @@ class _CarwashRequestScreenState extends State<CarwashRequestScreen> {
                 ),
                 child: Row(
                   children: [
-                    const Expanded(
-                      child: Text('Total a pagar',
-                          style: TextStyle(fontWeight: FontWeight.w700)),
+                    Expanded(
+                      child: Text('Total a pagar'.tr,
+                          style: const TextStyle(fontWeight: FontWeight.w700)),
                     ),
                     Text('${q.totalEur.toStringAsFixed(2)} €',
                         style: const TextStyle(
@@ -585,8 +584,8 @@ class _CarwashRequestScreenState extends State<CarwashRequestScreen> {
                 ),
               ),
               const SizedBox(height: Spacing.xs),
-              const Text('Recolha e entrega incluídas. Sem taxas por cima.',
-                  style: TextStyle(fontSize: 12, color: AppColors.textSubtle)),
+              Text('Recolha e entrega incluídas. Sem taxas por cima.'.tr,
+                  style: const TextStyle(fontSize: 12, color: AppColors.textSubtle)),
             ],
           ],
         ),
@@ -646,7 +645,7 @@ class _FotoOpcional extends StatelessWidget {
               Expanded(
                 child: Text(
                   foto == null
-                      ? 'Quer juntar uma foto do carro?'
+                      ? 'Quer juntar uma foto do carro?'.tr
                       : 'Foto juntada',
                   style: const TextStyle(
                       fontWeight: FontWeight.w700,
@@ -654,16 +653,15 @@ class _FotoOpcional extends StatelessWidget {
                 ),
               ),
               if (foto == null)
-                TextButton(onPressed: onPick, child: const Text('Juntar'))
+                TextButton(onPressed: onPick, child: Text('Juntar'.tr))
               else
-                TextButton(onPressed: onClear, child: const Text('Remover')),
+                TextButton(onPressed: onClear, child: Text('Remover'.tr)),
             ],
           ),
           const SizedBox(height: Spacing.xs),
-          const Text(
-            'Se quiser, junte uma foto de como o carro está agora. '
-            'É rápido e fica tudo claro entre nós desde o início.',
-            style: TextStyle(
+          Text(
+            'Se quiser, junte uma foto de como o carro está agora. É rápido e fica tudo claro entre nós desde o início.'.tr,
+            style: const TextStyle(
                 fontSize: 12, color: AppColors.textSecondary, height: 1.35),
           ),
         ],

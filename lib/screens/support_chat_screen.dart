@@ -12,6 +12,8 @@ import '../config/app_colors.dart';
 import '../providers/support_settings_provider.dart';
 import '../widgets/bora_support_sheet.dart';
 
+import '../l10n/tr.dart';
+
 /// Sessão 2026-05-18 — persistência local do session_id activo.
 /// Sem isto, sair e voltar ao ecrã do chatbot criava sessão nova (perdia
 /// histórico + contexto da IA). A chave guarda apenas o UUID; o histórico
@@ -55,7 +57,7 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
   void initState() {
     super.initState();
     _messages.add(_ChatMessage.assistant(
-      'Olá! Sou a Bora IA. Como posso ajudar?',
+      'Olá! Sou a Bora IA. Como posso ajudar?'.tr,
     ));
     final pre = widget.initialMessage;
     if (pre != null && pre.isNotEmpty) {
@@ -251,18 +253,18 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
         final status = e.status;
         if (status == 429) {
           _errorBanner =
-              'Limite de mensagens atingido. Podes contactar via WhatsApp ou Email.';
+              'Limite de mensagens atingido. Podes contactar via WhatsApp ou Email.'.tr;
         } else if (status == 503) {
           _errorBanner =
-              'Sistema em configuração. Contacta WhatsApp/Email.';
+              'Sistema em configuração. Contacta WhatsApp/Email.'.tr;
         } else {
-          _errorBanner = 'Indisponível temporariamente. Tenta daqui a pouco.';
+          _errorBanner = 'Indisponível temporariamente. Tenta daqui a pouco.'.tr;
         }
       });
     } catch (e) {
       setState(() {
         _sending = false;
-        _errorBanner = 'Erro de comunicação. Tenta novamente.';
+        _errorBanner = 'Erro de comunicação. Tenta novamente.'.tr;
       });
       debugPrint('[SupportChatScreen] send error: $e');
     }
@@ -303,13 +305,13 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
         flexibleSpace: const DecoratedBox(
           decoration: BoxDecoration(gradient: AppColors.headerGradient),
         ),
-        title: const Text(
-          'Bora IA — assistente',
-          style: TextStyle(color: Colors.white),
+        title: Text(
+          'Bora IA — assistente'.tr,
+          style: const TextStyle(color: Colors.white),
         ),
         actions: [
           IconButton(
-            tooltip: 'Falar com humano',
+            tooltip: 'Falar com humano'.tr,
             icon: const Icon(Icons.support_agent),
             onPressed: _showHandoff,
           ),
@@ -351,7 +353,7 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
                   Expanded(
                     child: Text(
                       _ticketId == null
-                          ? 'Transferido para humano.'
+                          ? 'Transferido para humano.'.tr
                           : 'Ticket #${_ticketId!.substring(0, 8)} criado.',
                       style: const TextStyle(color: Color(0xFF1565C0)),
                     ),
@@ -395,7 +397,7 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
                     ),
                   );
                 },
-                child: const Text('Falar com humano'),
+                child: Text('Falar com humano'.tr),
               ),
             ),
           ),
@@ -408,9 +410,9 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
     final today = _remainingToday;
     final session = _remainingSession;
     if (today == null && session == null) {
-      return 'Limites: 30 msg/dia · 30 msg/sessão';
+      return 'Limites: 30 msg/dia · 30 msg/sessão'.tr;
     }
-    return 'Restam ${today ?? '?'} hoje · ${session ?? '?'} nesta sessão';
+    return 'Restam {0} hoje · {1} nesta sessão'.trArgs([today ?? '?', session ?? '?']);
   }
 }
 
@@ -493,8 +495,8 @@ class _Composer extends StatelessWidget {
                 maxLength: 2000,
                 maxLines: 4,
                 minLines: 1,
-                decoration: const InputDecoration(
-                  hintText: 'Escreve a tua dúvida…',
+                decoration: InputDecoration(
+                  hintText: 'Escreve a tua dúvida…'.tr,
                   counterText: '',
                   border: InputBorder.none,
                 ),

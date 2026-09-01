@@ -6,6 +6,8 @@ import '../../../widgets/bora/bora_primary_button.dart';
 import '../../../widgets/bora/bora_screen_app_bar.dart';
 import 'my_appointments_screen.dart';
 
+import '../../../l10n/tr.dart';
+
 /// Vertical Serviços — ecrã de sucesso pós-pagamento da marcação.
 class BookingSuccessScreen extends StatelessWidget {
   const BookingSuccessScreen({
@@ -27,7 +29,7 @@ class BookingSuccessScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const BoraScreenAppBar(title: 'Marcação confirmada'),
+      appBar: BoraScreenAppBar(title: 'Marcação confirmada'.tr),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(Spacing.xl),
@@ -47,10 +49,10 @@ class BookingSuccessScreen extends StatelessWidget {
                     size: 56, color: AppColors.primary),
               ),
               const SizedBox(height: Spacing.xl),
-              const Text(
-                'Marcação confirmada!',
+              Text(
+                'Marcação confirmada!'.tr,
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w800,
                   color: AppColors.textPrimary,
@@ -58,7 +60,7 @@ class BookingSuccessScreen extends StatelessWidget {
               ),
               const SizedBox(height: Spacing.sm),
               Text(
-                '$serviceName em $providerName\n${_formatDateTimePt(scheduledAt)}',
+                '{0} em {1}\n{2}'.trArgs([serviceName, providerName, _formatDateTimePt(scheduledAt)]),
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontSize: 15,
@@ -68,15 +70,14 @@ class BookingSuccessScreen extends StatelessWidget {
               ),
               const SizedBox(height: Spacing.lg),
               Text(
-                'Pago: €${(paidCents / 100).toStringAsFixed(2)} — valor total '
-                'do serviço. Não há mais nada a pagar na loja.',
+                'Pago: €{0} — valor total do serviço. Não há mais nada a pagar na loja.'.trArgs([(paidCents / 100).toStringAsFixed(2)]),
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                     fontSize: 13, color: AppColors.textSubtle),
               ),
               const Spacer(),
               BoraPrimaryButton(
-                label: 'Ver as minhas marcações',
+                label: 'Ver as minhas marcações'.tr,
                 icon: Icons.event_note,
                 onPressed: () {
                   Navigator.pushReplacement(
@@ -91,7 +92,7 @@ class BookingSuccessScreen extends StatelessWidget {
               TextButton(
                 onPressed: () =>
                     Navigator.of(context).popUntil((route) => route.isFirst),
-                child: const Text('Voltar ao início'),
+                child: Text('Voltar ao início'.tr),
               ),
             ],
           ),

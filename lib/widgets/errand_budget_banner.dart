@@ -9,6 +9,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config/app_colors.dart';
 import '../models/order_model.dart';
 
+import '../l10n/tr.dart';
+
 class ErrandBudgetBanner extends StatefulWidget {
   const ErrandBudgetBanner({super.key, required this.order});
   final OrderModel order;
@@ -32,7 +34,7 @@ class _ErrandBudgetBannerState extends State<ErrandBudgetBanner> {
       setState(() => _responded = true);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(approve
-            ? 'Compra maior autorizada. O estafeta vai prosseguir.'
+            ? 'Compra maior autorizada. O estafeta vai prosseguir.'.tr
             : 'Recusaste. O estafeta não vai comprar.'),
       ));
     } catch (e) {
@@ -40,7 +42,7 @@ class _ErrandBudgetBannerState extends State<ErrandBudgetBanner> {
       setState(() => _busy = false);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(
-            'Não foi possível responder: ${e.toString().replaceFirst('Exception: ', '')}'),
+            'Não foi possível responder: {0}'.trArgs([e.toString().replaceFirst('Exception: ', '')])),
         backgroundColor: AppColors.error,
       ));
     }
@@ -76,7 +78,7 @@ class _ErrandBudgetBannerState extends State<ErrandBudgetBanner> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Autorizar compra maior?',
+                  'Autorizar compra maior?'.tr,
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
@@ -86,8 +88,7 @@ class _ErrandBudgetBannerState extends State<ErrandBudgetBanner> {
           ),
           const SizedBox(height: 6),
           Text(
-            'O estafeta precisa de ~€${requested.toStringAsFixed(2)} '
-            '(orçaste €${estimated.toStringAsFixed(2)}). Pagas o valor do talão.',
+            'O estafeta precisa de ~€{0} (orçaste €{1}). Pagas o valor do talão.'.trArgs([requested.toStringAsFixed(2), estimated.toStringAsFixed(2)]),
             style: const TextStyle(fontSize: 13),
           ),
           const SizedBox(height: 12),
@@ -96,7 +97,7 @@ class _ErrandBudgetBannerState extends State<ErrandBudgetBanner> {
               Expanded(
                 child: OutlinedButton(
                   onPressed: _busy ? null : () => _respond(false),
-                  child: const Text('Recusar'),
+                  child: Text('Recusar'.tr),
                 ),
               ),
               const SizedBox(width: 10),
@@ -113,7 +114,7 @@ class _ErrandBudgetBannerState extends State<ErrandBudgetBanner> {
                           height: 16,
                           child: CircularProgressIndicator(
                               strokeWidth: 2, color: Colors.white))
-                      : const Text('Autorizar'),
+                      : Text('Autorizar'.tr),
                 ),
               ),
             ],

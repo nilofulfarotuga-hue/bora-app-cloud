@@ -12,6 +12,8 @@ import '../stores/order_store.dart';
 import '../stores/restaurant_store.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 
+import '../l10n/tr.dart';
+
 enum ChatTarget { client, driver, partner }
 
 /// Returns the conversation channel for a ChatScreen invocation.
@@ -156,15 +158,15 @@ class _ChatScreenState extends State<ChatScreen> {
     final vendor = o.vendorName ?? 'Pedido';
     return switch (widget.senderType) {
       ChatSenderType.client  => widget.chatTarget == ChatTarget.partner
-          ? 'Chat c/ Restaurante · $vendor'
+          ? 'Chat c/ Restaurante · {0}'.trArgs([vendor])
           : 'Chat c/ Estafeta · $vendor',
       ChatSenderType.driver  => widget.chatTarget == ChatTarget.partner
-          ? 'Chat c/ Restaurante · $vendor'
+          ? 'Chat c/ Restaurante · {0}'.trArgs([vendor])
           : 'Chat c/ Cliente · $vendor',
       ChatSenderType.partner => switch (widget.chatTarget) {
-        ChatTarget.client => 'Chat c/ Cliente · $vendor',
-        ChatTarget.driver => 'Chat c/ Estafeta · $vendor',
-        _                 => 'Chat · $vendor',
+        ChatTarget.client => 'Chat c/ Cliente · {0}'.trArgs([vendor]),
+        ChatTarget.driver => 'Chat c/ Estafeta · {0}'.trArgs([vendor]),
+        _                 => 'Chat · {0}'.trArgs([vendor]),
       },
     };
   }
@@ -212,7 +214,7 @@ class _ChatScreenState extends State<ChatScreen> {
               if (phone == null || phone.isEmpty) return const SizedBox.shrink();
               return IconButton(
                 icon: const Icon(Icons.phone),
-                tooltip: 'Ligar',
+                tooltip: 'Ligar'.tr,
                 onPressed: () async {
                   final uri = Uri(scheme: 'tel', path: phone);
                   if (await canLaunchUrl(uri)) {
@@ -228,10 +230,10 @@ class _ChatScreenState extends State<ChatScreen> {
         children: [
           Expanded(
             child: messages.isEmpty
-                ? const Center(
+                ? Center(
                     child: Text(
-                      'Sem mensagens. Seja o primeiro a escrever!',
-                      style: TextStyle(color: AppColors.textSecondary),
+                      'Sem mensagens. Seja o primeiro a escrever!'.tr,
+                      style: const TextStyle(color: AppColors.textSecondary),
                     ),
                   )
                 : ListView.builder(
@@ -267,7 +269,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 if (widget.senderType == ChatSenderType.driver)
                   IconButton(
                     icon: const Icon(Icons.swap_horiz),
-                    tooltip: 'Propor substituição',
+                    tooltip: 'Propor substituição'.tr,
                     onPressed: () => _showSubstitutionDialog(context),
                   ),
                 Expanded(
@@ -275,9 +277,9 @@ class _ChatScreenState extends State<ChatScreen> {
                     controller: _msgCtrl,
                     textInputAction: TextInputAction.send,
                     onSubmitted: (_) => _handleSend(context),
-                    decoration: const InputDecoration(
-                      hintText: 'Escreva uma mensagem...',
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      hintText: 'Escreva uma mensagem...'.tr,
+                      border: const OutlineInputBorder(),
                       isDense: true,
                     ),
                   ),
@@ -313,7 +315,7 @@ class _ChatScreenState extends State<ChatScreen> {
       debugPrint('ChatScreen._handleSend: $e');
       if (mounted) {
         messenger.showSnackBar(
-          const SnackBar(content: Text('Não foi possível enviar a mensagem.')),
+          SnackBar(content: Text('Não foi possível enviar a mensagem.'.tr)),
         );
       }
     }
@@ -334,7 +336,7 @@ class _ChatScreenState extends State<ChatScreen> {
     );
     if (!success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Erro ao responder substituição')),
+        SnackBar(content: Text('Erro ao responder substituição'.tr)),
       );
     }
   }
@@ -359,8 +361,8 @@ class _ChatScreenState extends State<ChatScreen> {
     } catch (_) {
       if (mounted) {
         messenger.showSnackBar(
-          const SnackBar(
-              content: Text('Não foi possível enviar a substituição.')),
+          SnackBar(
+              content: Text('Não foi possível enviar a substituição.'.tr)),
         );
       }
     }
@@ -489,7 +491,7 @@ class _SubstitutionCard extends StatelessWidget {
                       size: 18, color: Colors.orange.shade700),
                   const SizedBox(width: 8),
                   Text(
-                    'Substituir produto?',
+                    'Substituir produto?'.tr,
                     style: TextStyle(
                         fontWeight: FontWeight.w700,
                         color: Colors.orange.shade800,
@@ -504,12 +506,12 @@ class _SubstitutionCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _SubRow(label: 'Original', value: sub.original),
+                  _SubRow(label: 'Original'.tr, value: sub.original),
                   const SizedBox(height: 4),
-                  _SubRow(label: 'Sugestão', value: sub.suggestion),
+                  _SubRow(label: 'Sugestão'.tr, value: sub.suggestion),
                   const SizedBox(height: 4),
                   _SubRow(
-                      label: 'Preço',
+                      label: 'Preço'.tr,
                       value: '€${sub.price.toStringAsFixed(2)}'),
                   const SizedBox(height: 12),
                   if (response != null)
@@ -524,7 +526,7 @@ class _SubstitutionCard extends StatelessWidget {
                               foregroundColor: Colors.red,
                               side: const BorderSide(color: Colors.red),
                             ),
-                            child: const Text('Rejeitar'),
+                            child: Text('Rejeitar'.tr),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -535,14 +537,14 @@ class _SubstitutionCard extends StatelessWidget {
                               backgroundColor: Colors.green,
                               foregroundColor: Colors.white,
                             ),
-                            child: const Text('Aprovar'),
+                            child: Text('Aprovar'.tr),
                           ),
                         ),
                       ],
                     )
                   else
                     Text(
-                      'Aguardando resposta do cliente...',
+                      'Aguardando resposta do cliente...'.tr,
                       style:
                           TextStyle(fontSize: 12, color: Colors.grey.shade600),
                     ),
@@ -663,7 +665,7 @@ class _SubstitutionDialogState extends State<_SubstitutionDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Propor substituição'),
+      title: Text('Propor substituição'.tr),
       content: Form(
         key: _formKey,
         child: Column(
@@ -671,27 +673,27 @@ class _SubstitutionDialogState extends State<_SubstitutionDialog> {
           children: [
             TextFormField(
               controller: _originalCtrl,
-              decoration: const InputDecoration(labelText: 'Produto original'),
+              decoration: InputDecoration(labelText: 'Produto original'.tr),
               validator: (v) =>
                   (v?.trim().isEmpty ?? true) ? 'Obrigatório' : null,
             ),
             const SizedBox(height: 8),
             TextFormField(
               controller: _suggestionCtrl,
-              decoration: const InputDecoration(labelText: 'Sugestão'),
+              decoration: InputDecoration(labelText: 'Sugestão'.tr),
               validator: (v) =>
                   (v?.trim().isEmpty ?? true) ? 'Obrigatório' : null,
             ),
             const SizedBox(height: 8),
             TextFormField(
               controller: _priceCtrl,
-              decoration: const InputDecoration(labelText: 'Preço (€)'),
+              decoration: InputDecoration(labelText: 'Preço (€)'.tr),
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
               validator: (v) {
                 if (v == null || v.trim().isEmpty) return 'Obrigatório';
                 if (double.tryParse(v.trim().replaceAll(',', '.')) == null) {
-                  return 'Valor inválido';
+                  return 'Valor inválido'.tr;
                 }
                 return null;
               },
@@ -702,7 +704,7 @@ class _SubstitutionDialogState extends State<_SubstitutionDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancelar'),
+          child: Text('Cancelar'.tr),
         ),
         ElevatedButton(
           onPressed: () {
@@ -717,7 +719,7 @@ class _SubstitutionDialogState extends State<_SubstitutionDialog> {
               ),
             );
           },
-          child: const Text('Enviar'),
+          child: Text('Enviar'.tr),
         ),
       ],
     );

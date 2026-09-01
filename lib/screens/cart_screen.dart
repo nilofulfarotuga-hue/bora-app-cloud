@@ -17,6 +17,8 @@ import 'festas_quando_screen.dart';
 import 'orders_screen.dart';
 import 'payment_method_screen.dart';
 
+import '../l10n/tr.dart';
+
 class CartScreen extends StatelessWidget {
   const CartScreen({super.key});
 
@@ -44,7 +46,7 @@ class CartScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const BoraScreenAppBar(title: 'Carrinho'),
+      appBar: BoraScreenAppBar(title: 'Carrinho'.tr),
       body: Column(
         children: [
           Expanded(
@@ -114,9 +116,9 @@ class _EmptyCart extends StatelessWidget {
             color: AppColors.textSecondary.withValues(alpha: 0.5),
           ),
           const SizedBox(height: Spacing.md),
-          const Text(
-            'O carrinho está vazio.',
-            style: TextStyle(
+          Text(
+            'O carrinho está vazio.'.tr,
+            style: const TextStyle(
               fontSize: 16,
               color: AppColors.textSecondary,
             ),
@@ -332,13 +334,13 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                                 ),
                         contentPadding: EdgeInsets.zero,
                         activeColor: AppColors.primary,
-                        title: const Text(
-                          'Ir buscar (takeaway, sem entrega)',
-                          style: TextStyle(fontWeight: FontWeight.w600),
+                        title: Text(
+                          'Ir buscar (takeaway, sem entrega)'.tr,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
-                        subtitle: const Text(
-                          'Sem taxa de entrega. Recebes aviso quando estiver pronto. (BR §14.9)',
-                          style: TextStyle(fontSize: 12),
+                        subtitle: Text(
+                          'Sem taxa de entrega. Recebes aviso quando estiver pronto. (BR §14.9)'.tr,
+                          style: const TextStyle(fontSize: 12),
                         ),
                       ),
                     // D6 — curbside inputs (visível apenas em takeaway, se o
@@ -353,19 +355,19 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                           : (value) => cartStore.setApartmentDelivery(value),
                       contentPadding: EdgeInsets.zero,
                       activeColor: AppColors.primary,
-                      title: const Text(
-                        'Entregar no apartamento (+€1.50)',
-                        style: TextStyle(fontWeight: FontWeight.w600),
+                      title: Text(
+                        'Entregar no apartamento (+€1.50)'.tr,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
                     ),
                     const SizedBox(height: Spacing.sm),
-                    _SummaryRow(label: 'Subtotal', value: cartStore.total),
+                    _SummaryRow(label: 'Subtotal'.tr, value: cartStore.total),
                     if (pricing.serviceFee > 0)
                       _SummaryRow(
-                          label: 'Taxa de serviço', value: pricing.serviceFee),
+                          label: 'Taxa de serviço'.tr, value: pricing.serviceFee),
                     _SummaryRow(
                       label: cartStore.isTakeaway
-                          ? 'Entrega (takeaway)'
+                          ? 'Entrega (takeaway)'.tr
                           : 'Entrega',
                       value: cartStore.isTakeaway ? 0.0 : baseDeliveryFee,
                       subtitle: () {
@@ -374,20 +376,20 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                         if (d <= 4.0) return null;
                         final extra = d - 4.0;
                         final extraCharge = baseDeliveryFee - 2.50;
-                        return '€2.50 base + €${extraCharge.toStringAsFixed(2)} por ${extra.toStringAsFixed(1)}km extra';
+                        return '€2.50 base + €{0} por {1}km extra'.trArgs([extraCharge.toStringAsFixed(2), extra.toStringAsFixed(1)]);
                       }(),
                     ),
                     if (pricing.apartmentSurcharge > 0)
                       _SummaryRow(
-                        label: 'Entrega em apartamento',
+                        label: 'Entrega em apartamento'.tr,
                         value: pricing.apartmentSurcharge,
                       ),
                     if (pricing.bagFee > 0)
                       _SummaryRow(
-                          label: 'Saco para viagem', value: pricing.bagFee),
+                          label: 'Saco para viagem'.tr, value: pricing.bagFee),
                     if (cartStore.smallOrderFee > 0)
                       _SummaryRow(
-                        label: 'Taxa de pedido pequeno',
+                        label: 'Taxa de pedido pequeno'.tr,
                         value: cartStore.smallOrderFee,
                       ),
                     if (cartStore.faltaParaMinimo > 0)
@@ -400,7 +402,7 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                     ),
                     if (cartStore.tipCents > 0)
                       _SummaryRow(
-                          label: 'Gorjeta',
+                          label: 'Gorjeta'.tr,
                           value: cartStore.tipEur,
                           accent: true),
                     // ── Wallet — saldo livre (Feature 1) ─────────────────────────────
@@ -419,18 +421,18 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                         activeColor: AppColors.primary,
                         secondary: const Icon(Icons.account_balance_wallet,
                             color: AppColors.primary),
-                        title: const Text(
-                          'Usar saldo Bora',
-                          style: TextStyle(fontWeight: FontWeight.w600),
+                        title: Text(
+                          'Usar saldo Bora'.tr,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
                         subtitle: Text(
-                          'Disponível: €${(_wallet!.freeCents / 100).toStringAsFixed(2)}',
+                          'Disponível: €{0}'.trArgs([(_wallet!.freeCents / 100).toStringAsFixed(2)]),
                           style: const TextStyle(fontSize: 12),
                         ),
                       ),
                       if (_useWalletBalance && walletAppliedCents > 0)
                         _SummaryRow(
-                          label: 'Saldo Bora aplicado',
+                          label: 'Saldo Bora aplicado'.tr,
                           value: -walletAppliedEur,
                           accent: true,
                         ),
@@ -439,14 +441,14 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                     if (settlementCents > 0) ...[
                       const Divider(height: Spacing.lg),
                       _SummaryRow(
-                        label: 'Saldo devedor anterior',
+                        label: 'Saldo devedor anterior'.tr,
                         value: settlementEur,
                         accent: true,
                       ),
                       Padding(
                         padding: const EdgeInsets.only(top: 4, bottom: 4),
                         child: Text(
-                          'Liquidação automática da dívida em carteira.',
+                          'Liquidação automática da dívida em carteira.'.tr,
                           style: TextStyle(
                               fontSize: 11, color: Colors.red.shade700),
                         ),
@@ -455,7 +457,7 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                     const Divider(height: Spacing.xxl),
                     _SummaryRow(
                       label: _useWalletBalance && walletAppliedCents > 0
-                          ? 'Total a pagar (após saldo)'
+                          ? 'Total a pagar (após saldo)'.tr
                           : 'Total a pagar',
                       value: remainingToPay,
                       isStrong: true,
@@ -480,8 +482,7 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                               // liquidam dívida automaticamente; só CASH é gated em
                               // payment_method_screen.dart (BUG #1 §54).
                               child: Text(
-                                'Carteira em dívida (saldo ${_wallet!.freeFormatted}). '
-                                'Paga com Cartão ou MBWay para liquidar automaticamente.',
+                                'Carteira em dívida (saldo {0}). Paga com Cartão ou MBWay para liquidar automaticamente.'.trArgs([_wallet!.freeFormatted]),
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: Colors.red.shade900,
@@ -507,9 +508,9 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: () => showComingSoonBlockedSnackBar(context),
-                  child: const AbsorbPointer(
+                  child: AbsorbPointer(
                     child: BoraAccentButton(
-                      label: 'Finalizar pedido',
+                      label: 'Finalizar pedido'.tr,
                       icon: Icons.shopping_bag_outlined,
                       onPressed: null,
                     ),
@@ -534,7 +535,7 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
               // 4.1.D — CTA único laranja do ecrã (regra "1 elemento laranja
               // por ecrã"): substituído de BoraPrimaryButton para BoraAccentButton.
               label: remainingToPay <= 0
-                  ? 'Pagar com saldo Bora'
+                  ? 'Pagar com saldo Bora'.tr
                   : 'Finalizar pedido',
               icon: Icons.shopping_bag_outlined,
               onPressed: cartStore.items.isEmpty
@@ -710,8 +711,7 @@ class _FaltaParaOMinimo extends StatelessWidget {
           const SizedBox(width: Spacing.xs),
           Expanded(
             child: Text(
-              'Faltam ${falta.toStringAsFixed(2).replaceAll('.', ',')} € '
-              'para evitar a taxa de pedido pequeno',
+              'Faltam {0} € para evitar a taxa de pedido pequeno'.trArgs([falta.toStringAsFixed(2).replaceAll('.', ',')]),
               style: const TextStyle(
                 fontSize: 12.5,
                 fontWeight: FontWeight.w600,

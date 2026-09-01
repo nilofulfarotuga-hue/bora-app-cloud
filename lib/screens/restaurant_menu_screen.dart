@@ -26,6 +26,8 @@ import 'cart_screen.dart';
 import 'client/reservation/reservation_availability_screen.dart';
 import 'product_detail_screen.dart';
 
+import '../l10n/tr.dart';
+
 class RestaurantMenuScreen extends StatefulWidget {
   final Restaurant restaurant;
 
@@ -261,7 +263,7 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
               product.price, widget.restaurant.isPartner),
           basePrice: product.price,
         ));
-    showAddedToCartSnack(context, '${product.name} no carrinho');
+    showAddedToCartSnack(context, '{0} no carrinho'.trArgs([product.name]));
   }
 
   Widget _buildGlovoMenu(
@@ -389,8 +391,7 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
               color: const Color(0xFFFDF2F8),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Text(
-                'Encomendas com $kFestasAvisoDias dia de antecedência · '
-                'itens "Na hora" saem já',
+                'Encomendas com {0} dia de antecedência · itens "Na hora" saem já'.trArgs([kFestasAvisoDias]),
                 style: const TextStyle(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w600,
@@ -409,7 +410,7 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
                 _scheduleRpcSearch(v);
               },
               decoration: InputDecoration(
-                hintText: 'Buscar no menu...',
+                hintText: 'Buscar no menu...'.tr,
                 hintStyle: TextStyle(color: Colors.grey.shade400),
                 prefixIcon: Icon(Icons.search, color: Colors.grey.shade400),
                 suffixIcon: _searchQuery.isNotEmpty
@@ -447,7 +448,7 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
                           .isEmpty
                       ? Center(
                           child: Text(
-                            'Sem resultados para "$_searchQuery"',
+                            'Sem resultados para "{0}"'.trArgs([_searchQuery]),
                             style: TextStyle(color: Colors.grey.shade500),
                           ),
                         )
@@ -533,7 +534,7 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
                       ),
                     ),
                     icon: const Icon(Icons.event_seat_outlined),
-                    label: const Text('Reservar mesa'),
+                    label: Text('Reservar mesa'.tr),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.primary,
                       side: const BorderSide(color: AppColors.primary),
@@ -593,7 +594,7 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
                                               widget.restaurant.isPartner),
                                           basePrice: item.price));
                                   showAddedToCartSnack(
-                                      context, '${item.name} no carrinho');
+                                      context, '{0} no carrinho'.trArgs([item.name]));
                                 },
                               ),
                             );
@@ -612,7 +613,7 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
               minimum: const EdgeInsets.fromLTRB(
                   Spacing.lg, Spacing.sm, Spacing.lg, Spacing.lg),
               child: BoraPrimaryButton(
-                label: 'Ver carrinho · €${cart.total.toStringAsFixed(2)}',
+                label: 'Ver carrinho · €{0}'.trArgs([cart.total.toStringAsFixed(2)]),
                 icon: Icons.shopping_cart,
                 onPressed: () => Navigator.push(
                   context,
@@ -730,7 +731,7 @@ class _StoreHeader extends StatelessWidget {
               bottom: -28,
               child: Container(
                 padding: const EdgeInsets.all(3),
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: Colors.white,
                   shape: BoxShape.circle,
                   boxShadow: AppColors.shadowCard,
@@ -781,7 +782,7 @@ class _StoreHeader extends StatelessWidget {
               if (window != null)
                 _HeaderChip(
                   icon: Icons.schedule,
-                  label: '${window.$1}-${window.$2} min',
+                  label: '{0}-{1} min'.trArgs([window.$1, window.$2]),
                 ),
               if (fee != null)
                 _HeaderChip(
@@ -957,9 +958,9 @@ class _MenuSection extends StatelessWidget {
               ),
               TextButton(
                 onPressed: onSeeAll,
-                child: const Text(
-                  'Ver todos',
-                  style: TextStyle(
+                child: Text(
+                  'Ver todos'.tr,
+                  style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                     color: AppColors.primary,
@@ -1180,7 +1181,7 @@ class _SectionProductsScreen extends StatelessWidget {
                 product.price, restaurant.isPartner),
             basePrice: product.price,
           ));
-      showAddedToCartSnack(context, '${product.name} no carrinho');
+      showAddedToCartSnack(context, '{0} no carrinho'.trArgs([product.name]));
     }
 
     return Scaffold(
@@ -1235,7 +1236,7 @@ class _SectionProductsScreen extends StatelessWidget {
               minimum: const EdgeInsets.fromLTRB(
                   Spacing.lg, Spacing.sm, Spacing.lg, Spacing.lg),
               child: BoraPrimaryButton(
-                label: 'Ver carrinho · €${cart.total.toStringAsFixed(2)}',
+                label: 'Ver carrinho · €{0}'.trArgs([cart.total.toStringAsFixed(2)]),
                 icon: Icons.shopping_cart,
                 onPressed: () => Navigator.push(
                   context,
@@ -1351,12 +1352,12 @@ class _SectionProductCard extends StatelessWidget {
                           : comingSoon
                           ? () => showComingSoonBlockedSnackBar(context)
                           : (product.hasRequiredOptions ? onTap : onAdd),
-                      child: const Padding(
-                        padding: EdgeInsets.all(7),
+                      child: Padding(
+                        padding: const EdgeInsets.all(7),
                         child: Icon(Icons.add,
                             size: 18,
                             color: Colors.white,
-                            semanticLabel: 'Adicionar'),
+                            semanticLabel: 'Adicionar'.tr),
                       ),
                     ),
                   ),
@@ -1546,7 +1547,7 @@ class _EmptyMenu extends StatelessWidget {
                 size: 72, color: Colors.grey.shade300),
             const SizedBox(height: 16),
             Text(
-              'Menu indisponível',
+              'Menu indisponível'.tr,
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -1555,7 +1556,7 @@ class _EmptyMenu extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Este restaurante ainda não adicionou itens ao menu.',
+              'Este restaurante ainda não adicionou itens ao menu.'.tr,
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
             ),

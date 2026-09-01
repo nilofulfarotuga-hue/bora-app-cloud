@@ -8,6 +8,8 @@ import '../../../stores/carwash_store.dart';
 import 'carwash_request_screen.dart';
 import 'carwash_tracking_screen.dart';
 
+import '../../../l10n/tr.dart';
+
 /// LAVAGEM AUTO — passo 1: escolher o serviço.
 /// Dois cartões grandes com o preço final. Sem taxas por cima.
 class CarwashServiceScreen extends StatefulWidget {
@@ -47,7 +49,7 @@ class _CarwashServiceScreenState extends State<CarwashServiceScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Lavagem Auto'),
+        title: Text('Lavagem Auto'.tr),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
       ),
@@ -62,18 +64,18 @@ class _CarwashServiceScreenState extends State<CarwashServiceScreen> {
                     _AtivoCard(booking: ativos.first),
                     const SizedBox(height: Spacing.xl),
                   ],
-                  const Text(
-                    'Vamos buscar o carro e entregamos lavado.',
-                    style: TextStyle(
+                  Text(
+                    'Vamos buscar o carro e entregamos lavado.'.tr,
+                    style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
                       color: AppColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: Spacing.xs),
-                  const Text(
-                    'Escolha o serviço. O preço já inclui a recolha e a entrega.',
-                    style: TextStyle(color: AppColors.textSecondary),
+                  Text(
+                    'Escolha o serviço. O preço já inclui a recolha e a entrega.'.tr,
+                    style: const TextStyle(color: AppColors.textSecondary),
                   ),
                   const SizedBox(height: Spacing.lg),
                   for (final t in store.availableServices)
@@ -95,8 +97,8 @@ class _CarwashServiceScreenState extends State<CarwashServiceScreen> {
                     ),
                   const SizedBox(height: Spacing.lg),
                   if (store.pastBookings.isNotEmpty) ...[
-                    const Text('Lavagens anteriores',
-                        style: TextStyle(
+                    Text('Lavagens anteriores'.tr,
+                        style: const TextStyle(
                             fontWeight: FontWeight.w700,
                             color: AppColors.textPrimary)),
                     const SizedBox(height: Spacing.sm),
@@ -188,7 +190,7 @@ class _ServicoCard extends StatelessWidget {
                 children: [
                   const Icon(Icons.schedule, size: 15, color: AppColors.textSubtle),
                   const SizedBox(width: 4),
-                  Text('cerca de ${quote!.durationMin} min',
+                  Text('cerca de {0} min'.trArgs([quote!.durationMin]),
                       style: const TextStyle(
                           fontSize: 12, color: AppColors.textSubtle)),
                 ],

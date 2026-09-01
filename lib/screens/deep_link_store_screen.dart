@@ -8,6 +8,8 @@ import '../stores/services_store.dart';
 import 'client/services/provider_detail_screen.dart';
 import 'market/market_store_screen.dart';
 
+import '../l10n/tr.dart';
+
 /// Ponto de entrada para links vindos de fora: o site, um QR, o WhatsApp.
 ///
 /// URLs canónicas (o site depende delas — não renomear):
@@ -43,7 +45,7 @@ class _DeepLinkStoreScreenState extends State<DeepLinkStoreScreen> {
   Future<Widget> _carregar() async {
     if (widget.tipo == 'servico') {
       final p = await context.read<ServicesStore>().fetchProviderDetail(widget.id);
-      if (p == null) return _naoEncontrado('Não encontrámos este serviço.');
+      if (p == null) return _naoEncontrado('Não encontrámos este serviço.'.tr);
       return ProviderDetailScreen(provider: p);
     }
 
@@ -56,7 +58,7 @@ class _DeepLinkStoreScreenState extends State<DeepLinkStoreScreen> {
         .maybeSingle();
 
     if (linha == null || linha['approval_status'] != 'approved') {
-      return _naoEncontrado('Não encontrámos esta loja.');
+      return _naoEncontrado('Não encontrámos esta loja.'.tr);
     }
     return MarketStoreScreen(
       restaurantId: widget.id,
@@ -88,16 +90,16 @@ class _DeepLinkStoreScreenState extends State<DeepLinkStoreScreen> {
                   ),
                 ),
                 const SizedBox(height: Spacing.sm),
-                const Text(
-                  'Pode ter mudado de morada ou já não estar disponível.',
+                Text(
+                  'Pode ter mudado de morada ou já não estar disponível.'.tr,
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: AppColors.textSecondary),
+                  style: const TextStyle(color: AppColors.textSecondary),
                 ),
                 const SizedBox(height: Spacing.lg),
                 FilledButton(
                   onPressed: () =>
                       Navigator.of(context).popUntil((r) => r.isFirst),
-                  child: const Text('Ver tudo o que há no Bora'),
+                  child: Text('Ver tudo o que há no Bora'.tr),
                 ),
               ],
             ),
@@ -121,7 +123,7 @@ class _DeepLinkStoreScreenState extends State<DeepLinkStoreScreen> {
           );
         }
         if (snap.hasError) {
-          return _naoEncontrado('Não foi possível abrir esta página.');
+          return _naoEncontrado('Não foi possível abrir esta página.'.tr);
         }
         return snap.data!;
       },

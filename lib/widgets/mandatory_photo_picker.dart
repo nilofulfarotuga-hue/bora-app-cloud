@@ -6,6 +6,8 @@ import 'package:image_picker/image_picker.dart';
 import '../services/order_photo_upload_service.dart';
 import '../utils/safe_image_picker.dart';
 
+import '../l10n/tr.dart';
+
 /// Reusable mandatory photo picker used by sendPackage and carryGroceries
 /// forms (BR §7.5, §7.6).
 ///
@@ -69,7 +71,7 @@ class _MandatoryPhotoPickerState extends State<MandatoryPhotoPicker> {
       setState(() => _uploading = false);
       widget.onUploaded(null);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro a enviar foto: $e')),
+        SnackBar(content: Text('Erro a enviar foto: {0}'.trArgs([e]))),
       );
     }
   }
@@ -83,7 +85,7 @@ class _MandatoryPhotoPickerState extends State<MandatoryPhotoPicker> {
           children: [
             ListTile(
               leading: const Icon(Icons.camera_alt),
-              title: const Text('Tirar foto'),
+              title: Text('Tirar foto'.tr),
               onTap: () {
                 Navigator.pop(context);
                 _pick(ImageSource.camera);
@@ -91,7 +93,7 @@ class _MandatoryPhotoPickerState extends State<MandatoryPhotoPicker> {
             ),
             ListTile(
               leading: const Icon(Icons.photo_library),
-              title: const Text('Escolher da galeria'),
+              title: Text('Escolher da galeria'.tr),
               onTap: () {
                 Navigator.pop(context);
                 _pick(ImageSource.gallery);
@@ -151,7 +153,7 @@ class _MandatoryPhotoPickerState extends State<MandatoryPhotoPicker> {
                           Icon(Icons.add_a_photo_outlined,
                               color: Colors.grey.shade600),
                           const SizedBox(height: 6),
-                          Text('Tocar para adicionar foto',
+                          Text('Tocar para adicionar foto'.tr,
                               style:
                                   TextStyle(color: Colors.grey.shade700)),
                         ],

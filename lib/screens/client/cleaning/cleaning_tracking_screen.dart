@@ -11,6 +11,8 @@ import '../../../widgets/bora/bora.dart';
 import '../../../widgets/cleaning_chat_button.dart';
 import 'cleaning_payment_flow.dart';
 
+import '../../../l10n/tr.dart';
+
 /// LIMPEZA — acompanhamento da reserva (realtime via CleaningStore.trackBooking).
 /// Timeline de estados + detalhes + ações do cliente (cancelar / confirmar /
 /// avaliar). As transições são todas RPCs; aqui só se reage.
@@ -83,11 +85,11 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
   String _cancelFeePreview(CleaningBooking b) {
     final hours =
         b.scheduledAt.difference(DateTime.now()).inMinutes / 60.0;
-    if (hours >= _cancelFreeHours) return 'Cancelamento grátis.';
+    if (hours >= _cancelFreeHours) return 'Cancelamento grátis.'.tr;
     if (hours >= _cancelHalfHours) {
-      return 'Taxa de 50% (${CleaningLabels.euro((b.totalCents * 0.5).round())}).';
+      return 'Taxa de 50% ({0}).'.trArgs([CleaningLabels.euro((b.totalCents * 0.5).round())]);
     }
-    return 'Taxa de 100% (${CleaningLabels.euro(b.totalCents)}).';
+    return 'Taxa de 100% ({0}).'.trArgs([CleaningLabels.euro(b.totalCents)]);
   }
 
   Future<void> _cancel() async {
@@ -96,17 +98,17 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Cancelar limpeza?'),
+        title: Text('Cancelar limpeza?'.tr),
         content: Text(_cancelFeePreview(b)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Manter'),
+            child: Text('Manter'.tr),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Cancelar limpeza',
-                style: TextStyle(color: AppColors.error)),
+            child: Text('Cancelar limpeza'.tr,
+                style: const TextStyle(color: AppColors.error)),
           ),
         ],
       ),
@@ -120,7 +122,7 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
       }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Limpeza cancelada.')),
+        SnackBar(content: Text('Limpeza cancelada.'.tr)),
       );
     } catch (_) {
       if (!mounted) return;
@@ -132,12 +134,12 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
       final agora = store.tracked;
       if (agora != null && agora.id == b.id && agora.status.isCancelled) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('A limpeza já estava cancelada.')),
+          SnackBar(content: Text('A limpeza já estava cancelada.'.tr)),
         );
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Não foi possível cancelar.')),
+        SnackBar(content: Text('Não foi possível cancelar.'.tr)),
       );
     }
   }
@@ -159,7 +161,7 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
     if (!mounted) return;
     if (ok) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pagamento confirmado. 💚')),
+        SnackBar(content: Text('Pagamento confirmado. 💚'.tr)),
       );
       store.loadMyBookings();
     }
@@ -173,19 +175,18 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Parar a recorrência?'),
-        content: const Text(
-            'As próximas limpezas desta série deixam de ser agendadas. '
-            'A limpeza atual mantém-se.'),
+        title: Text('Parar a recorrência?'.tr),
+        content: Text(
+            'As próximas limpezas desta série deixam de ser agendadas. A limpeza atual mantém-se.'.tr),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Manter'),
+            child: Text('Manter'.tr),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Parar série',
-                style: TextStyle(color: AppColors.error)),
+            child: Text('Parar série'.tr,
+                style: const TextStyle(color: AppColors.error)),
           ),
         ],
       ),
@@ -195,12 +196,12 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
       await store.cancelSeries(groupId);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Recorrência cancelada.')),
+        SnackBar(content: Text('Recorrência cancelada.'.tr)),
       );
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Não foi possível parar a série.')),
+        SnackBar(content: Text('Não foi possível parar a série.'.tr)),
       );
     }
   }
@@ -217,7 +218,7 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Não foi possível confirmar.')),
+        SnackBar(content: Text('Não foi possível confirmar.'.tr)),
       );
     }
   }
@@ -231,7 +232,7 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Como correu a limpeza?'),
+          title: Text('Como correu a limpeza?'.tr),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -252,19 +253,19 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
               TextField(
                 controller: commentCtrl,
                 maxLines: 2,
-                decoration: const InputDecoration(
-                    hintText: 'Comentário (opcional)'),
+                decoration: InputDecoration(
+                    hintText: 'Comentário (opcional)'.tr),
               ),
             ],
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Agora não'),
+              child: Text('Agora não'.tr),
             ),
             TextButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Enviar'),
+              child: Text('Enviar'.tr),
             ),
           ],
         ),
@@ -277,7 +278,7 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
       if (!mounted) return;
       setState(() => _rated = true);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Obrigado pela avaliação! 💚')),
+        SnackBar(content: Text('Obrigado pela avaliação! 💚'.tr)),
       );
     } catch (e) {
       if (!mounted) return;
@@ -286,7 +287,7 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
             content: Text(already
-                ? 'Já avaliaste esta limpeza.'
+                ? 'Já avaliaste esta limpeza.'.tr
                 : 'Não foi possível enviar a avaliação.')),
       );
     }
@@ -307,7 +308,7 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
 
     return Scaffold(
       appBar: BoraScreenAppBar(
-        title: 'Limpeza · ${b.status.labelPt}',
+        title: 'Limpeza · {0}'.trArgs([b.status.labelPt]),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(Spacing.lg),
@@ -342,7 +343,7 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
                   title: (_cleanerProfile?['name'] as String?)?.isNotEmpty ==
                           true
                       ? _cleanerProfile!['name'] as String
-                      : 'A tua profissional',
+                      : 'A tua profissional'.tr,
                   otherPhone: _cleanerProfile?['phone'] as String?,
                   showPreview: true,
                 ),
@@ -353,22 +354,21 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
             const SizedBox(height: Spacing.lg),
             if (b.status == CleaningStatus.done) ...[
               BoraPrimaryButton(
-                label: 'Confirmar limpeza concluída',
+                label: 'Confirmar limpeza concluída'.tr,
                 icon: Icons.check_circle,
                 loading: store.busy,
                 onPressed: _confirmDone,
               ),
               const SizedBox(height: Spacing.sm),
-              const Text(
-                'Confirma para libertar o pagamento à profissional. '
-                'Sem confirmação, é confirmada automaticamente em 24 h.',
+              Text(
+                'Confirma para libertar o pagamento à profissional. Sem confirmação, é confirmada automaticamente em 24 h.'.tr,
                 textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.textSubtle, fontSize: 12),
+                style: const TextStyle(color: AppColors.textSubtle, fontSize: 12),
               ),
             ],
             if (b.status == CleaningStatus.completed && !_rated)
               BoraPrimaryButton(
-                label: 'Avaliar a profissional',
+                label: 'Avaliar a profissional'.tr,
                 icon: Icons.star,
                 onPressed: _askRating,
               ),
@@ -380,14 +380,14 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
               const SizedBox(height: Spacing.sm),
               TextButton(
                 onPressed: store.busy ? null : _cancel,
-                child: const Text('Cancelar limpeza',
-                    style: TextStyle(color: AppColors.error)),
+                child: Text('Cancelar limpeza'.tr,
+                    style: const TextStyle(color: AppColors.error)),
               ),
             ],
             if (b.isRecurring && b.status.isActive)
               TextButton(
                 onPressed: store.busy ? null : _cancelSeries,
-                child: Text('Parar recorrência (${b.recurrenceLabel})',
+                child: Text('Parar recorrência ({0})'.trArgs([b.recurrenceLabel]),
                     style: const TextStyle(color: AppColors.textSecondary)),
               ),
           ],
@@ -504,17 +504,17 @@ class _PaymentPendingBanner extends StatelessWidget {
         children: [
           const Icon(Icons.hourglass_top, color: AppColors.warning),
           const SizedBox(width: Spacing.md),
-          const Expanded(
+          Expanded(
             child: Text(
-              'Pagamento pendente — conclui para garantires a tua limpeza.',
-              style: TextStyle(
+              'Pagamento pendente — conclui para garantires a tua limpeza.'.tr,
+              style: const TextStyle(
                   color: AppColors.textPrimary, fontWeight: FontWeight.w600),
             ),
           ),
           TextButton(
             onPressed: busy ? null : onPay,
-            child: const Text('Pagar agora',
-                style: TextStyle(fontWeight: FontWeight.w700)),
+            child: Text('Pagar agora'.tr,
+                style: const TextStyle(fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -549,8 +549,7 @@ class _CancelledBanner extends StatelessWidget {
                         color: AppColors.textPrimary)),
                 if (booking.cancelFeeCents > 0)
                   Text(
-                    'Taxa de cancelamento: '
-                    '${CleaningLabels.euro(booking.cancelFeeCents)}',
+                    'Taxa de cancelamento: {0}'.trArgs([CleaningLabels.euro(booking.cancelFeeCents)]),
                     style: const TextStyle(
                         color: AppColors.textSecondary, fontSize: 13),
                   ),
@@ -606,9 +605,9 @@ class _CleanerCard extends StatelessWidget {
                         color: AppColors.textPrimary)),
                 Text(
                   count > 0
-                      ? '★ ${rating.toStringAsFixed(1)} ($count) · $done limpezas'
+                      ? '★ {0} ({1}) · {2} limpezas'.trArgs([rating.toStringAsFixed(1), count, done])
                       : done > 0
-                          ? '$done limpezas'
+                          ? '{0} limpezas'.trArgs([done])
                           : 'Nova na plataforma',
                   style: const TextStyle(
                       color: AppColors.textSecondary, fontSize: 13),
@@ -619,7 +618,7 @@ class _CleanerCard extends StatelessWidget {
           if (hasPhone)
             IconButton(
               onPressed: onCall,
-              tooltip: 'Ligar',
+              tooltip: 'Ligar'.tr,
               icon: const Icon(Icons.call, color: AppColors.primary),
             ),
         ],
@@ -645,31 +644,31 @@ class _DetailsCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _row('Serviço', '${b.typeLabel} · ${b.sizeLabel}'),
-          _row('Quando', _fmtDateTime(b.scheduledAt)),
-          _row('Onde',
+          _row('Serviço'.tr, '${b.typeLabel} · ${b.sizeLabel}'),
+          _row('Quando'.tr, _fmtDateTime(b.scheduledAt)),
+          _row('Onde'.tr,
               '${b.addressStreet}, ${b.addressCity} ${b.addressPostal}'),
-          _row('Produtos',
+          _row('Produtos'.tr,
               b.productsBy == 'cleaner' ? 'A profissional traz' : 'Do cliente'),
-          if (b.isRecurring) _row('Recorrência', b.recurrenceLabel),
+          if (b.isRecurring) _row('Recorrência'.tr, b.recurrenceLabel),
           _row(
-              'Pagamento',
+              'Pagamento'.tr,
               switch (b.paymentMethod) {
                 'card' => 'Cartão',
                 'mbway' => 'MB Way',
-                _ => 'Dinheiro',
+                _ => 'Dinheiro'.tr,
               }),
-          if (b.notes.isNotEmpty) _row('Notas', b.notes),
+          if (b.notes.isNotEmpty) _row('Notas'.tr, b.notes),
           const Divider(height: Spacing.lg),
-          _row('Base', CleaningLabels.euro(b.baseCents)),
+          _row('Base'.tr, CleaningLabels.euro(b.baseCents)),
           if (b.typeSurchargeCents > 0)
-            _row('Suplemento', '+ ${CleaningLabels.euro(b.typeSurchargeCents)}'),
+            _row('Suplemento'.tr, '+ ${CleaningLabels.euro(b.typeSurchargeCents)}'),
           if (b.recurringDiscountCents > 0)
-            _row('Desconto',
+            _row('Desconto'.tr,
                 '- ${CleaningLabels.euro(b.recurringDiscountCents)}'),
           if (b.productsFeeCents > 0)
-            _row('Produtos', '+ ${CleaningLabels.euro(b.productsFeeCents)}'),
-          _row('Total', CleaningLabels.euro(b.totalCents), bold: true),
+            _row('Produtos'.tr, '+ ${CleaningLabels.euro(b.productsFeeCents)}'),
+          _row('Total'.tr, CleaningLabels.euro(b.totalCents), bold: true),
         ],
       ),
     );

@@ -19,6 +19,8 @@ import '../models/order_model.dart';
 import '../services/directions_service.dart';
 import '../services/payment_service.dart';
 
+import '../l10n/tr.dart';
+
 class QuotePriceFooter extends StatefulWidget {
   const QuotePriceFooter({
     super.key,
@@ -115,9 +117,9 @@ class _QuotePriceFooterState extends State<QuotePriceFooter> {
     final double bottomInset = math.min(mq.viewPadding.bottom, 56.0);
     final total = (_quote?['customer_total'] as num?)?.toDouble();
     final label =
-        total != null ? '€${total.toStringAsFixed(2)}' : widget.fallbackLabel;
+        total != null ? '€${total.toStringAsFixed(2)}' : widget.fallbackLabel.tr;
     return Container(
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppColors.surface,
         boxShadow: AppColors.shadowNav,
       ),
@@ -134,8 +136,8 @@ class _QuotePriceFooterState extends State<QuotePriceFooter> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Total estimado',
-                    style: TextStyle(
+                Text('Total estimado'.tr,
+                    style: const TextStyle(
                         color: AppColors.textSecondary, fontSize: 12)),
                 Row(children: [
                   Text(label,
@@ -155,10 +157,10 @@ class _QuotePriceFooterState extends State<QuotePriceFooter> {
                 // checkout. Os valores reais vivem em platform_settings; este
                 // texto reflecte a configuração actual confirmada.
                 const SizedBox(height: 2),
-                const Text(
-                  '6 € até 4 km · +0,50 €/km acima',
+                Text(
+                  '6 € até 4 km · +0,50 €/km acima'.tr,
                   style:
-                      TextStyle(color: AppColors.textSecondary, fontSize: 11),
+                      const TextStyle(color: AppColors.textSecondary, fontSize: 11),
                 ),
               ],
             ),
@@ -167,7 +169,7 @@ class _QuotePriceFooterState extends State<QuotePriceFooter> {
           if (total != null)
             TextButton(
               onPressed: () => _showBreakdown(context),
-              child: const Text('Ver detalhe'),
+              child: Text('Ver detalhe'.tr),
             ),
         ],
       ),
@@ -189,14 +191,14 @@ class _QuotePriceFooterState extends State<QuotePriceFooter> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('Detalhe do preço',
-                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+            Text('Detalhe do preço'.tr,
+                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
             const SizedBox(height: 12),
-            _row('Taxa de entrega', delivery),
-            if (service > 0) _row('Taxa de serviço', service),
-            if (bag > 0) _row('Saco', bag),
+            _row('Taxa de entrega'.tr, delivery),
+            if (service > 0) _row('Taxa de serviço'.tr, service),
+            if (bag > 0) _row('Saco'.tr, bag),
             const Divider(),
-            _row('Total', total, strong: true),
+            _row('Total'.tr, total, strong: true),
           ],
         ),
       ),

@@ -34,6 +34,8 @@ import '../widgets/address_autocomplete_field.dart';
 import '../widgets/business_autocomplete_field.dart';
 import 'payment_method_screen.dart';
 
+import '../l10n/tr.dart';
+
 enum _ErrandStep { what, where, when }
 
 /// Dados para pré-preenchimento (N3 "Pedir de novo" no histórico).
@@ -267,15 +269,15 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
     final loc = await LocationService.getCurrentLocation();
     if (!mounted) return;
     if (loc == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(
-            'Não consegui obter a tua localização. Ativa o GPS ou escreve a morada.'),
+            'Não consegui obter a tua localização. Ativa o GPS ou escreve a morada.'.tr),
       ));
       return;
     }
     setState(() {
       _home = loc;
-      _homeCtrl.text = 'A obter morada…';
+      _homeCtrl.text = 'A obter morada…'.tr;
       _geoError = null;
     });
     final addr = await LocationService.reverseGeocode(loc, googleApiKey);
@@ -289,17 +291,17 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
     setState(() => _geoError = null);
     if (_errandLocation == null) {
       final c = await _geocodeOrNull(_errandLocationCtrl.text);
-      if (c == null) return _failGeo('o local do favor');
+      if (c == null) return _failGeo('o local do favor'.tr);
       _errandLocation = c;
     }
     if (_dropoff == null) {
       final c = await _geocodeOrNull(_dropoffCtrl.text);
-      if (c == null) return _failGeo('a morada de entrega');
+      if (c == null) return _failGeo('a morada de entrega'.tr);
       _dropoff = c;
     }
     if (_homeActive && _home == null) {
       final c = await _geocodeOrNull(_homeCtrl.text);
-      if (c == null) return _failGeo('a morada da paragem em casa');
+      if (c == null) return _failGeo('a morada da paragem em casa'.tr);
       _home = c;
     }
     return true;
@@ -318,7 +320,7 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
   bool _failGeo(String what) {
     if (mounted) {
       setState(() => _geoError =
-          'Não consegui localizar $what. Escolhe uma sugestão da lista.');
+          'Não consegui localizar {0}. Escolhe uma sugestão da lista.'.trArgs([what]));
     }
     return false;
   }
@@ -331,12 +333,12 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
         child: Wrap(children: [
           ListTile(
             leading: const Icon(Icons.photo_camera_outlined),
-            title: const Text('Tirar foto'),
+            title: Text('Tirar foto'.tr),
             onTap: () => Navigator.pop(context, ImageSource.camera),
           ),
           ListTile(
             leading: const Icon(Icons.photo_library_outlined),
-            title: const Text('Escolher da galeria'),
+            title: Text('Escolher da galeria'.tr),
             onTap: () => Navigator.pop(context, ImageSource.gallery),
           ),
         ]),
@@ -385,7 +387,7 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Pedir um favor'),
+        title: Text('Pedir um favor'.tr),
         backgroundColor: AppColors.primary,
         foregroundColor: AppColors.textOnPrimary,
       ),
@@ -406,7 +408,7 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
               onNext: _canProceed() ? _next : null,
               onBack: _step == _ErrandStep.what ? null : _back,
               nextLabel: _step == _ErrandStep.when
-                  ? 'Continuar para pagamento'
+                  ? 'Continuar para pagamento'.tr
                   : 'Próximo',
             ),
           ],
@@ -484,9 +486,9 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
     // Parte 3 (rodada 2) — motivo dinheiro exige valor a pegar em casa (> €0):
     // sem isto o estafeta ia sem saber quanto levar (bug do talão b7867337).
     if (_homeActive && _homeStopReason == 'dinheiro' && _estimatedCents <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(
-              'Diz quanto dinheiro o estafeta leva de tua casa (valor acima de €0).')));
+              'Diz quanto dinheiro o estafeta leva de tua casa (valor acima de €0).'.tr)));
       return;
     }
     final cart = context.read<CartStore>();
@@ -523,13 +525,13 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
     showDialog<void>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Compra acima de €40'),
-        content: const Text(
-            'Como a compra é mais de €40, eu passo primeiro em tua casa para levantar o dinheiro. Fica mais seguro para os dois 🙂\n\nVais pagar mais €2 pela paragem.'),
+        title: Text('Compra acima de €40'.tr),
+        content: Text(
+            'Como a compra é mais de €40, eu passo primeiro em tua casa para levantar o dinheiro. Fica mais seguro para os dois 🙂\n\nVais pagar mais €2 pela paragem.'.tr),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Voltar a escolher'),
+            child: Text('Voltar a escolher'.tr),
           ),
           ElevatedButton(
             onPressed: () {
@@ -540,7 +542,7 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
               Navigator.pop(context);
               _recomputeDistanceAndQuote();
             },
-            child: const Text('Ativar paragem em casa'),
+            child: Text('Ativar paragem em casa'.tr),
           ),
         ],
       ),
@@ -671,7 +673,7 @@ class _StepWhat extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('O que precisas?',
+        Text('O que precisas?'.tr,
             style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 12),
         // 8.4 — atalhos de favores comuns (pré-preenchem a descrição).
@@ -693,11 +695,11 @@ class _StepWhat extends StatelessWidget {
           maxLines: 4,
           maxLength: 500,
           onChanged: (_) => onChanged(),
-          decoration: const InputDecoration(
-            border: OutlineInputBorder(),
+          decoration: InputDecoration(
+            border: const OutlineInputBorder(),
             hintText:
-                'Ex.: Vai à Farmácia Holon na Sé e compra Ben-u-ron 1g',
-            labelText: 'Descreve o favor',
+                'Ex.: Vai à Farmácia Holon na Sé e compra Ben-u-ron 1g'.tr,
+            labelText: 'Descreve o favor'.tr,
           ),
         ),
         const SizedBox(height: 8),
@@ -717,18 +719,16 @@ class _StepWhat extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: AppColors.divider),
           ),
-          child: const Text(
-            'Não é permitido pedir itens ilegais ou armas.\n'
-            'Para medicamentos com receita, ativa a paragem em tua casa no próximo passo '
-            'para o estafeta recolher a receita.',
-            style: TextStyle(fontSize: 13),
+          child: Text(
+            'Não é permitido pedir itens ilegais ou armas.\nPara medicamentos com receita, ativa a paragem em tua casa no próximo passo para o estafeta recolher a receita.'.tr,
+            style: const TextStyle(fontSize: 13),
           ),
         ),
         const SizedBox(height: 20),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
-          title: const Text('Este favor inclui uma compra?'),
-          subtitle: const Text('Ex.: comprar algo na loja'),
+          title: Text('Este favor inclui uma compra?'.tr),
+          subtitle: Text('Ex.: comprar algo na loja'.tr),
           value: hasPurchase,
           onChanged: onHasPurchaseChanged,
         ),
@@ -738,17 +738,17 @@ class _StepWhat extends StatelessWidget {
             controller: estimateCtrl,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             onChanged: (_) => onChanged(),
-            decoration: const InputDecoration(
-              border: OutlineInputBorder(),
-              labelText: 'Valor estimado da compra',
-              hintText: 'Ex.: 15',
+            decoration: InputDecoration(
+              border: const OutlineInputBorder(),
+              labelText: 'Valor estimado da compra'.tr,
+              hintText: 'Ex.: 15'.tr,
               prefixText: '€ ',
             ),
           ),
           const SizedBox(height: 6),
-          const Text(
-            'É só uma estimativa — pagas o valor exato do talão.',
-            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          Text(
+            'É só uma estimativa — pagas o valor exato do talão.'.tr,
+            style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
           ),
         ],
       ],
@@ -775,7 +775,7 @@ class _RequestPhoto extends StatelessWidget {
       return OutlinedButton.icon(
         onPressed: uploading ? null : onPick,
         icon: const Icon(Icons.photo_camera_outlined),
-        label: const Text('Adicionar foto do que comprar (opcional)'),
+        label: Text('Adicionar foto do que comprar (opcional)'.tr),
       );
     }
     return Row(
@@ -802,11 +802,11 @@ class _RequestPhoto extends StatelessWidget {
             child: CircularProgressIndicator(strokeWidth: 2),
           )
         else ...[
-          TextButton(onPressed: onPick, child: const Text('Trocar')),
+          TextButton(onPressed: onPick, child: Text('Trocar'.tr)),
           IconButton(
             onPressed: onRemove,
             icon: const Icon(Icons.close),
-            tooltip: 'Remover foto',
+            tooltip: 'Remover foto'.tr,
           ),
         ],
       ],
@@ -861,13 +861,13 @@ class _StepWhere extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('Onde é o favor?',
+        Text('Onde é o favor?'.tr,
             style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 12),
         BusinessAutocompleteField(
           controller: errandLocationCtrl,
-          labelText: 'Local do favor',
-          hintText: 'Ex.: Farmácia Holon ou uma morada',
+          labelText: 'Local do favor'.tr,
+          hintText: 'Ex.: Farmácia Holon ou uma morada'.tr,
           prefixIcon: const Icon(Icons.place_outlined),
           includeAddresses: true,
           onSelected: onErrandLocationSelected,
@@ -876,7 +876,7 @@ class _StepWhere extends StatelessWidget {
         const SizedBox(height: 12),
         AddressAutocompleteField(
           controller: dropoffCtrl,
-          labelText: 'Onde entregar',
+          labelText: 'Onde entregar'.tr,
           prefixIcon: const Icon(Icons.home_outlined),
           onSelected: onDropoffSelected,
           onChanged: (_) => onDropoffCleared(),
@@ -886,17 +886,17 @@ class _StepWhere extends StatelessWidget {
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: Text(forced
-              ? 'Paragem em tua casa (obrigatória)'
+              ? 'Paragem em tua casa (obrigatória)'.tr
               : 'Precisas que eu passe primeiro em tua casa?'),
           subtitle: Text(forced
-              ? 'Como a compra é mais de €40, passo em tua casa para levantar o dinheiro. +€2.'
+              ? 'Como a compra é mais de €40, passo em tua casa para levantar o dinheiro. +€2.'.tr
               : '(buscar receita, cartão ou dinheiro) — +€2'),
           value: homeStop,
           onChanged: forced ? null : onHomeStopChanged,
         ),
         if (homeStop) ...[
           const SizedBox(height: 8),
-          const Text('Motivo:', style: TextStyle(color: AppColors.textSecondary)),
+          Text('Motivo:'.tr, style: const TextStyle(color: AppColors.textSecondary)),
           const SizedBox(height: 4),
           Wrap(
             spacing: 8,
@@ -911,7 +911,7 @@ class _StepWhere extends StatelessWidget {
           const SizedBox(height: 12),
           AddressAutocompleteField(
             controller: homeCtrl,
-            labelText: 'Morada da paragem em casa',
+            labelText: 'Morada da paragem em casa'.tr,
             prefixIcon: const Icon(Icons.house_outlined),
             onSelected: onHomeSelected,
             onChanged: (_) => onHomeCleared(),
@@ -920,16 +920,16 @@ class _StepWhere extends StatelessWidget {
           TextButton.icon(
             onPressed: onUseMyLocationForHome,
             icon: const Icon(Icons.my_location, size: 18),
-            label: const Text('Usar a minha localização atual'),
+            label: Text('Usar a minha localização atual'.tr),
           ),
           if (homeConfirmed)
-            const Row(
+            Row(
               children: [
-                Icon(Icons.check_circle,
+                const Icon(Icons.check_circle,
                     color: AppColors.primary, size: 18),
-                SizedBox(width: 6),
-                Text('Morada da paragem definida',
-                    style: TextStyle(
+                const SizedBox(width: 6),
+                Text('Morada da paragem definida'.tr,
+                    style: const TextStyle(
                         fontSize: 12, color: AppColors.textSecondary)),
               ],
             ),
@@ -945,13 +945,13 @@ class _StepWhere extends StatelessWidget {
   static String _reasonLabel(String r) {
     switch (r) {
       case 'receita':
-        return 'Receita médica';
+        return 'Receita médica'.tr;
       case 'cartao':
         return 'Cartão';
       case 'dinheiro':
-        return 'Dinheiro';
+        return 'Dinheiro'.tr;
       default:
-        return 'Outro';
+        return 'Outro'.tr;
     }
   }
 }
@@ -980,23 +980,23 @@ class _StepWhen extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('Quando precisas?',
+        Text('Quando precisas?'.tr,
             style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 12),
         _SpeedCard(
-          title: '🕐  Normal',
-          subtitle: 'Até 3 horas',
+          title: '🕐  Normal'.tr,
+          subtitle: 'Até 3 horas'.tr,
           price: '€6',
-          tagline: 'Escolhe Normal se não tens pressa.',
+          tagline: 'Escolhe Normal se não tens pressa.'.tr,
           selected: speed == 'normal',
           onTap: () => onSpeedChanged('normal'),
         ),
         const SizedBox(height: 10),
         _SpeedCard(
-          title: '⚡  Expresso',
-          subtitle: '45 a 60 minutos',
+          title: '⚡  Expresso'.tr,
+          subtitle: '45 a 60 minutos'.tr,
           price: '€10',
-          tagline: 'Vai logo. Custa um pouco mais.',
+          tagline: 'Vai logo. Custa um pouco mais.'.tr,
           selected: speed == 'express',
           onTap: () => onSpeedChanged('express'),
         ),
@@ -1085,10 +1085,10 @@ class _Breakdown extends StatelessWidget {
       ),
       child: Column(
         children: [
-          _Row(label: 'Favor', value: base),
-          if (home > 0) _Row(label: 'Paragem em casa', value: home),
-          if (km > 0) _Row(label: 'Km extra', value: km),
-          if (hasPurchase) _Row(label: 'Compra (estimada)', value: purchase),
+          _Row(label: 'Favor'.tr, value: base),
+          if (home > 0) _Row(label: 'Paragem em casa'.tr, value: home),
+          if (km > 0) _Row(label: 'Km extra'.tr, value: km),
+          if (hasPurchase) _Row(label: 'Compra (estimada)'.tr, value: purchase),
           const Divider(),
           _Row(
             label: hasPurchase ? 'Total ~' : 'Total',
@@ -1097,9 +1097,9 @@ class _Breakdown extends StatelessWidget {
           ),
           if (hasPurchase) ...[
             const SizedBox(height: 4),
-            const Text(
-              'O valor da compra ajusta-se ao talão real.',
-              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            Text(
+              'O valor da compra ajusta-se ao talão real.'.tr,
+              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
             ),
           ],
         ],
@@ -1183,7 +1183,7 @@ class _PriceFooter extends StatelessWidget {
   Widget build(BuildContext context) {
     final total = (quote?['customer_total'] as num?)?.toDouble();
     final priceLabel = total == null
-        ? 'desde €6'
+        ? 'desde €6'.tr
         : '${estimateApprox ? "~" : ""}€${total.toStringAsFixed(2)}';
     return Container(
       decoration: const BoxDecoration(
@@ -1197,7 +1197,7 @@ class _PriceFooter extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Total', style: TextStyle(color: AppColors.textSecondary)),
+              Text('Total'.tr, style: const TextStyle(color: AppColors.textSecondary)),
               Row(children: [
                 Text(priceLabel,
                     style: const TextStyle(
@@ -1215,7 +1215,7 @@ class _PriceFooter extends StatelessWidget {
           ),
           const Spacer(),
           if (onBack != null) ...[
-            TextButton(onPressed: onBack, child: const Text('Voltar')),
+            TextButton(onPressed: onBack, child: Text('Voltar'.tr)),
             const SizedBox(width: 8),
           ],
           ElevatedButton(

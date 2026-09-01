@@ -13,6 +13,8 @@ import '../widgets/bora/coming_soon.dart';
 import 'client/reservation/reservation_availability_screen.dart';
 import 'restaurant_menu_screen.dart';
 
+import '../l10n/tr.dart';
+
 /// BUG #9+10 (2026-05-13) + D1 (2026-05-14) — ecrã intermédio com 3 cartões
 /// antes do cardápio.
 ///
@@ -87,7 +89,7 @@ class RestaurantOptionsScreen extends StatelessWidget {
         padding: const EdgeInsets.all(Spacing.lg),
         children: [
           Text(
-            'Como queres fazer o pedido?',
+            'Como queres fazer o pedido?'.tr,
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
@@ -98,7 +100,7 @@ class RestaurantOptionsScreen extends StatelessWidget {
           // Cartão "Entrega" — sempre presente e ativo (todos os parceiros
           // aceitam delivery enquanto isPartner=true).
           BoraTileCard.image(
-            label: 'Entrega',
+            label: 'Entrega'.tr,
             gradient: AppColors.tileRestaurants,
             imageAsset: 'assets/categories/btn_entrega.png',
             onTap: () => _openMenu(context, OrderServiceType.restaurant),
@@ -107,7 +109,7 @@ class RestaurantOptionsScreen extends StatelessWidget {
           // BUG 2 (2026-07-17): "Ir buscar" nunca desaparece — fica apagado
           // e sem toque quando o parceiro ainda não ativou takeaway.
           _buildOptionCard(
-            label: 'Ir buscar',
+            label: 'Ir buscar'.tr,
             gradient: AppColors.tileCarryGroceries,
             imageAsset: 'assets/categories/btn_buscar.png',
             enabled: business.takeawayEnabled,
@@ -116,7 +118,7 @@ class RestaurantOptionsScreen extends StatelessWidget {
           const SizedBox(height: Spacing.md),
           // BUG 2 (2026-07-17): idem para "Reservar mesa".
           _buildOptionCard(
-            label: 'Reservar mesa',
+            label: 'Reservar mesa'.tr,
             gradient: AppColors.tileReserveTable,
             imageAsset: 'assets/categories/btn_reservar.png',
             enabled: business.reservationsEnabled,
@@ -159,9 +161,9 @@ class RestaurantOptionsScreen extends StatelessWidget {
               color: Colors.black54,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Text(
-              'Não disponível',
-              style: TextStyle(
+            child: Text(
+              'Não disponível'.tr,
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 11,
                 fontWeight: FontWeight.w600,

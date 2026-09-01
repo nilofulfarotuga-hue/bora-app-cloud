@@ -8,6 +8,8 @@ import '../../../stores/services_store.dart';
 import '../../../widgets/bora/bora_screen_app_bar.dart';
 import 'booking_flow_screen.dart';
 
+import '../../../l10n/tr.dart';
+
 /// Vertical Serviços — "As Minhas Marcações".
 /// 3 tabs: Próximas / Passadas / Canceladas. Cancelar com aviso se <24h.
 /// Espelha o padrão de ClientReservationsScreen (cancel via RPC; reembolso
@@ -88,8 +90,8 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen>
     try {
       final provider = await store.fetchProviderDetail(a.providerId);
       if (!mounted || provider == null) {
-        messenger.showSnackBar(const SnackBar(
-          content: Text('Não foi possível abrir o reagendamento.'),
+        messenger.showSnackBar(SnackBar(
+          content: Text('Não foi possível abrir o reagendamento.'.tr),
           backgroundColor: AppColors.error,
         ));
         return;
@@ -119,22 +121,18 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen>
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Cancelar marcação?'),
+        title: Text('Cancelar marcação?'.tr),
         // Sessão 2026-06-11 — regra exata visível ANTES de confirmar
         // (business_rules: >24h refund total; <24h valor retido).
         content: Text(
           lessThan24h
-              ? 'Faltam ${hoursUntil.toStringAsFixed(1)}h para a marcação '
-                  '(menos de 24 horas).\n\nRegra: $noun de €$depositEur '
-                  'NÃO é reembolsado.'
-              : 'Faltam ${hoursUntil.toStringAsFixed(1)}h para a marcação '
-                  '(mais de 24 horas).\n\nRegra: reembolso TOTAL de $noun '
-                  'de €$depositEur (5–10 dias úteis no cartão).',
+              ? 'Faltam {0}h para a marcação (menos de 24 horas).\n\nRegra: {1} de €{2} NÃO é reembolsado.'.trArgs([hoursUntil.toStringAsFixed(1), noun, depositEur])
+              : 'Faltam {0}h para a marcação (mais de 24 horas).\n\nRegra: reembolso TOTAL de {1} de €{2} (5–10 dias úteis no cartão).'.trArgs([hoursUntil.toStringAsFixed(1), noun, depositEur]),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Voltar'),
+            child: Text('Voltar'.tr),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
@@ -142,7 +140,7 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen>
             ),
             onPressed: () => Navigator.pop(ctx, true),
             child: Text(lessThan24h
-                ? 'Cancelar (posso perder €$depositEur)'
+                ? 'Cancelar (posso perder €{0})'.trArgs([depositEur])
                 : 'Cancelar com reembolso'),
           ),
         ],
@@ -158,7 +156,7 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen>
       messenger.showSnackBar(
         SnackBar(
           content: Text(willRefund
-              ? 'Marcação cancelada. Reembolso a caminho.'
+              ? 'Marcação cancelada. Reembolso a caminho.'.tr
               : 'Marcação cancelada.'),
         ),
       );
@@ -171,7 +169,7 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen>
           backgroundColor: AppColors.accent,
           duration: const Duration(seconds: 8),
           action: SnackBarAction(
-            label: 'Reagendar',
+            label: 'Reagendar'.tr,
             textColor: Colors.white,
             onPressed: () => _reschedule(a),
           ),
@@ -191,7 +189,7 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const BoraScreenAppBar(title: 'As minhas marcações'),
+      appBar: BoraScreenAppBar(title: 'As minhas marcações'.tr),
       body: Column(
         children: [
           Material(
@@ -201,10 +199,10 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen>
               labelColor: Colors.white,
               unselectedLabelColor: Colors.white70,
               indicatorColor: Colors.white,
-              tabs: const [
-                Tab(text: 'Próximas'),
-                Tab(text: 'Passadas'),
-                Tab(text: 'Canceladas'),
+              tabs: [
+                Tab(text: 'Próximas'.tr),
+                Tab(text: 'Passadas'.tr),
+                Tab(text: 'Canceladas'.tr),
               ],
             ),
           ),
@@ -230,7 +228,7 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen>
                       onRefresh: _refresh,
                       emptyIcon: Icons.event_available,
                       emptyText:
-                          'Ainda não tens marcações\nExplora serviços e marca a tua!',
+                          'Ainda não tens marcações\nExplora serviços e marca a tua!'.tr,
                       buildCard: (a) => _AppointmentCard(
                         appointment: a,
                         rescheduleMaxCount: _rescheduleMaxCount,
@@ -247,7 +245,7 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen>
                       appointments: store.pastAppointments,
                       onRefresh: _refresh,
                       emptyIcon: Icons.history,
-                      emptyText: 'Sem marcações anteriores',
+                      emptyText: 'Sem marcações anteriores'.tr,
                       buildCard: (a) => _AppointmentCard(
                         appointment: a,
                         onTap: () => _showDetail(a),
@@ -257,7 +255,7 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen>
                       appointments: store.cancelledAppointments,
                       onRefresh: _refresh,
                       emptyIcon: Icons.cancel_outlined,
-                      emptyText: 'Nenhuma marcação cancelada',
+                      emptyText: 'Nenhuma marcação cancelada'.tr,
                       buildCard: (a) => _AppointmentCard(
                         appointment: a,
                         onTap: () => _showDetail(a),
@@ -351,7 +349,7 @@ class _AppointmentCard extends StatelessWidget {
     final providerName =
         (a.providerName != null && a.providerName!.isNotEmpty)
             ? a.providerName!
-            : 'Barbearia';
+            : 'Barbearia'.tr;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(Radii.lg),
@@ -407,7 +405,7 @@ class _AppointmentCard extends StatelessWidget {
                     if (a.staffName != null) ...[
                       const SizedBox(height: Spacing.xxs),
                       Text(
-                        'com ${a.staffName}',
+                        'com {0}'.trArgs([a.staffName]),
                         style: const TextStyle(
                           fontSize: 12,
                           color: AppColors.textSubtle,
@@ -428,8 +426,7 @@ class _AppointmentCard extends StatelessWidget {
                     if (a.wasRescheduled && a.originalScheduledAt != null) ...[
                       const SizedBox(height: Spacing.xxs),
                       Text(
-                        'Reagendada · era '
-                        '${_formatDateTimePt(a.originalScheduledAt!.toLocal())}',
+                        'Reagendada · era {0}'.trArgs([_formatDateTimePt(a.originalScheduledAt!.toLocal())]),
                         style: const TextStyle(
                           fontSize: 11.5,
                           color: AppColors.textSubtle,
@@ -462,14 +459,14 @@ class _AppointmentCard extends StatelessWidget {
                   ? TextButton.icon(
                       onPressed: onReschedule,
                       icon: const Icon(Icons.event_repeat, size: 18),
-                      label: const Text('Reagendar'),
+                      label: Text('Reagendar'.tr),
                       style: TextButton.styleFrom(
                           foregroundColor: AppColors.primary),
                     )
                   : TextButton.icon(
                       onPressed: onCancel,
                       icon: const Icon(Icons.cancel_outlined, size: 18),
-                      label: const Text('Cancelar'),
+                      label: Text('Cancelar'.tr),
                       style:
                           TextButton.styleFrom(foregroundColor: AppColors.error),
                     ),
@@ -559,11 +556,11 @@ class _StatusBadge extends StatelessWidget {
   }
 
   static (String, Color) _resolve(AppointmentModel a) {
-    if (a.isCompleted) return ('Concluída', AppColors.primary);
-    if (a.isNoShow) return ('Faltou', AppColors.error);
-    if (a.isCancelled) return ('Cancelada', Colors.grey);
-    if (a.isConfirmed) return ('Confirmada', AppColors.success);
-    if (a.isPendingPayment) return ('Aguarda pagamento', AppColors.accent);
+    if (a.isCompleted) return ('Concluída'.tr, AppColors.primary);
+    if (a.isNoShow) return ('Faltou'.tr, AppColors.error);
+    if (a.isCancelled) return ('Cancelada'.tr, Colors.grey);
+    if (a.isConfirmed) return ('Confirmada'.tr, AppColors.success);
+    if (a.isPendingPayment) return ('Aguarda pagamento'.tr, AppColors.accent);
     return (a.status, Colors.grey);
   }
 }
@@ -572,10 +569,9 @@ class _StatusBadge extends StatelessWidget {
 /// Quando resta 1 (ou 0) reagendamento, avisa explicitamente.
 String _rescheduleHint(AppointmentModel a, int maxCount) {
   final left = (maxCount - a.rescheduleCount).clamp(0, maxCount);
-  const base = 'Não podes vir? Reagenda para outro dia — o valor que pagaste '
-      'fica reservado para a tua marcação.';
-  if (left == 0) return 'Já não podes reagendar esta marcação.';
-  if (left == 1) return '$base\nPodes reagendar mais 1 vez.';
+  const base = 'Não podes vir? Reagenda para outro dia — o valor que pagaste fica reservado para a tua marcação.';
+  if (left == 0) return 'Já não podes reagendar esta marcação.'.tr;
+  if (left == 1) return '{0}\nPodes reagendar mais 1 vez.'.trArgs([base]);
   return base;
 }
 
@@ -585,18 +581,18 @@ String _rescheduleHint(AppointmentModel a, int maxCount) {
 /// "sinal" mentia ao cliente ("restante na barbearia" quando já não há resto).
 String _paymentLabel(AppointmentModel a) {
   final eur = (a.depositCents / 100).toStringAsFixed(2);
-  final noun = 'Total €$eur';
+  final noun = 'Total €{0}'.trArgs([eur]);
   switch (a.depositStatus) {
     case 'paid':
-      return '$noun pago';
+      return '{0} pago'.trArgs([noun]);
     case 'pending':
-      return '$noun pendente';
+      return '{0} pendente'.trArgs([noun]);
     case 'refunded':
-      return '$noun reembolsado';
+      return '{0} reembolsado'.trArgs([noun]);
     case 'retained':
-      return '$noun retido';
+      return '{0} retido'.trArgs([noun]);
     case 'waived':
-      return 'Sem pagamento';
+      return 'Sem pagamento'.tr;
     default:
       return noun;
   }
@@ -623,7 +619,7 @@ class _AppointmentDetailSheet extends StatelessWidget {
     final providerName =
         (a.providerName != null && a.providerName!.isNotEmpty)
             ? a.providerName!
-            : 'Barbearia';
+            : 'Barbearia'.tr;
     return SingleChildScrollView(
       padding: EdgeInsets.only(
         left: Spacing.lg,
@@ -669,46 +665,46 @@ class _AppointmentDetailSheet extends StatelessWidget {
           const Divider(),
           _DetailRow(
             icon: Icons.content_cut,
-            label: 'Serviço',
+            label: 'Serviço'.tr,
             value: a.serviceName ?? '—',
           ),
           _DetailRow(
             icon: Icons.person_outline,
-            label: 'Profissional',
+            label: 'Profissional'.tr,
             value: a.staffName ?? 'Qualquer profissional',
           ),
           _DetailRow(
             icon: Icons.schedule,
-            label: 'Data e hora',
+            label: 'Data e hora'.tr,
             value:
                 _AppointmentCard._formatDateTimePt(a.scheduledAt.toLocal()),
           ),
           _DetailRow(
             icon: Icons.timer_outlined,
-            label: 'Duração',
+            label: 'Duração'.tr,
             value: '${a.durationMinutes} min',
           ),
           _DetailRow(
             icon: Icons.payments_outlined,
-            label: 'Preço total',
+            label: 'Preço total'.tr,
             value: '€${(a.servicePriceCents / 100).toStringAsFixed(2)}',
           ),
           _DetailRow(
             icon: Icons.savings_outlined,
-            label: 'Pago pela app',
+            label: 'Pago pela app'.tr,
             value: _paymentLabel(a),
           ),
           if (a.wasRescheduled && a.originalScheduledAt != null)
             _DetailRow(
               icon: Icons.event_repeat,
-              label: 'Reagendada',
+              label: 'Reagendada'.tr,
               value: 'Horário original: '
                   '${_AppointmentCard._formatDateTimePt(a.originalScheduledAt!.toLocal())}',
             ),
           if (a.clientNotes != null && a.clientNotes!.isNotEmpty)
             _DetailRow(
               icon: Icons.notes_outlined,
-              label: 'Notas',
+              label: 'Notas'.tr,
               value: a.clientNotes!,
             ),
           if (a.isCancelled &&
@@ -716,7 +712,7 @@ class _AppointmentDetailSheet extends StatelessWidget {
               a.cancelReason!.isNotEmpty)
             _DetailRow(
               icon: Icons.cancel_outlined,
-              label: 'Cancelamento',
+              label: 'Cancelamento'.tr,
               value: a.cancelReason!,
             ),
           if (onReschedule != null) ...[
@@ -735,7 +731,7 @@ class _AppointmentDetailSheet extends StatelessWidget {
               child: OutlinedButton.icon(
                 onPressed: onReschedule,
                 icon: const Icon(Icons.event_repeat, size: 18),
-                label: const Text('Reagendar marcação'),
+                label: Text('Reagendar marcação'.tr),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.primary,
                   side: const BorderSide(color: AppColors.primary),
@@ -750,7 +746,7 @@ class _AppointmentDetailSheet extends StatelessWidget {
               child: OutlinedButton.icon(
                 onPressed: onCancel,
                 icon: const Icon(Icons.cancel_outlined, size: 18),
-                label: const Text('Cancelar marcação'),
+                label: Text('Cancelar marcação'.tr),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.error,
                   side: const BorderSide(color: AppColors.error),
@@ -829,7 +825,7 @@ class _ErrorState extends StatelessWidget {
             const SizedBox(height: Spacing.lg),
             ElevatedButton(
               onPressed: onRetry,
-              child: const Text('Tentar de novo'),
+              child: Text('Tentar de novo'.tr),
             ),
           ],
         ),

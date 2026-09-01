@@ -4,6 +4,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config/app_colors.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 
+import '../l10n/tr.dart';
+
 /// Lista pública de avaliações de um restaurante (BR §44).
 ///
 /// Chama get_restaurant_ratings_summary(p_restaurant_id) — devolve avg, count,
@@ -52,7 +54,7 @@ class _RestaurantRatingsListScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: BoraScreenAppBar(title: 'Avaliações de ${widget.restaurantName}'),
+      appBar: BoraScreenAppBar(title: 'Avaliações de {0}'.trArgs([widget.restaurantName])),
       body: RefreshIndicator(
         onRefresh: _refresh,
         child: FutureBuilder<Map<String, dynamic>>(
@@ -65,7 +67,7 @@ class _RestaurantRatingsListScreenState
               return ListView(
                 children: [
                   const SizedBox(height: 80),
-                  Center(child: Text('Erro: ${snap.error}')),
+                  Center(child: Text('Erro: {0}'.trArgs([snap.error]))),
                 ],
               );
             }
@@ -80,12 +82,12 @@ class _RestaurantRatingsListScreenState
                 _SummaryCard(avg: avg, total: total, distribution: dist),
                 const SizedBox(height: 16),
                 if (recent.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 24),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24),
                     child: Center(
                       child: Text(
-                        'Ainda sem avaliações públicas.',
-                        style: TextStyle(color: Colors.grey),
+                        'Ainda sem avaliações públicas.'.tr,
+                        style: const TextStyle(color: Colors.grey),
                       ),
                     ),
                   )
@@ -147,7 +149,7 @@ class _DriverRatingsListScreenState extends State<DriverRatingsListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: BoraScreenAppBar(title: 'Avaliações de ${widget.driverName}'),
+      appBar: BoraScreenAppBar(title: 'Avaliações de {0}'.trArgs([widget.driverName])),
       body: RefreshIndicator(
         onRefresh: _refresh,
         child: FutureBuilder<Map<String, dynamic>>(
@@ -160,7 +162,7 @@ class _DriverRatingsListScreenState extends State<DriverRatingsListScreen> {
               return ListView(
                 children: [
                   const SizedBox(height: 80),
-                  Center(child: Text('Erro: ${snap.error}')),
+                  Center(child: Text('Erro: {0}'.trArgs([snap.error]))),
                 ],
               );
             }
@@ -175,12 +177,12 @@ class _DriverRatingsListScreenState extends State<DriverRatingsListScreen> {
                 _SummaryCard(avg: avg, total: total, distribution: dist),
                 const SizedBox(height: 16),
                 if (recent.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 24),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24),
                     child: Center(
                       child: Text(
-                        'Ainda sem avaliações públicas.',
-                        style: TextStyle(color: Colors.grey),
+                        'Ainda sem avaliações públicas.'.tr,
+                        style: const TextStyle(color: Colors.grey),
                       ),
                     ),
                   )
@@ -387,9 +389,9 @@ class _RatingCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Resposta do parceiro:',
-                      style: TextStyle(
+                    Text(
+                      'Resposta do parceiro:'.tr,
+                      style: const TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 12,
                         color: AppColors.primary,

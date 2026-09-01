@@ -29,6 +29,8 @@ import '../widgets/chat_bubble_button.dart';
 import 'chat_screen.dart';
 import 'rating_screen.dart';
 
+import '../l10n/tr.dart';
+
 class OrderTrackingScreen extends StatefulWidget {
   const OrderTrackingScreen({super.key, required this.order});
 
@@ -314,7 +316,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         markerId: const MarkerId('client'),
         position: order.destination!.toGMaps(),
         icon: MapMarkerHelper.clientIcon,
-        infoWindow: const InfoWindow(title: 'Destino'),
+        infoWindow: InfoWindow(title: 'Destino'.tr),
         zIndexInt: 1,
       ));
     }
@@ -323,7 +325,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         markerId: const MarkerId('pickup'),
         position: order.pickupLocation!.toGMaps(),
         icon: MapMarkerHelper.pickupIcon,
-        infoWindow: const InfoWindow(title: 'Recolha'),
+        infoWindow: InfoWindow(title: 'Recolha'.tr),
         zIndexInt: 1,
       ));
     }
@@ -389,7 +391,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
             right: 16,
             top: MediaQuery.of(context).size.height * 0.62,
             child: Semantics(
-              label: 'Centralizar mapa',
+              label: 'Centralizar mapa'.tr,
               button: true,
               child: FloatingActionButton.small(
                 heroTag: 'map_recenter_btn_client',
@@ -538,13 +540,13 @@ class _BottomCardState extends State<_BottomCard> {
     setState(() => _sendingCode = true);
     await NotificationService.instance.notifyClient(
       clientPhone: phone,
-      title: 'O seu código de entrega',
-      body: 'Código: ${order.deliveryCode} — Mostre ao estafeta na entrega.',
+      title: 'O seu código de entrega'.tr,
+      body: 'Código: {0} — Mostre ao estafeta na entrega.'.trArgs([order.deliveryCode]),
     );
     if (!mounted) return;
     setState(() => _sendingCode = false);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Código reenviado por notificação.')),
+      SnackBar(content: Text('Código reenviado por notificação.'.tr)),
     );
   }
 
@@ -601,7 +603,7 @@ class _BottomCardState extends State<_BottomCard> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            'Pedido ${order.orderCode}',
+                            'Pedido {0}'.trArgs([order.orderCode]),
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: AppColors.textSecondary,
                               letterSpacing: 0.5,
@@ -643,12 +645,7 @@ class _BottomCardState extends State<_BottomCard> {
                       border: Border.all(color: const Color(0xFFFBCFE8)),
                     ),
                     child: Text(
-                      '📅 Encomenda para '
-                      '${order.scheduledFor!.day.toString().padLeft(2, '0')}/'
-                      '${order.scheduledFor!.month.toString().padLeft(2, '0')} às '
-                      '${order.scheduledFor!.hour.toString().padLeft(2, '0')}:'
-                      '${order.scheduledFor!.minute.toString().padLeft(2, '0')}'
-                      '${order.status == OrderStatus.preparing && order.prepTimeMinutes != null ? ' · fica pronta em ${order.prepTimeMinutes} min' : ''}',
+                      '📅 Encomenda para {0}/{1} às {2}:{3}{4}'.trArgs([order.scheduledFor!.day.toString().padLeft(2, '0'), order.scheduledFor!.month.toString().padLeft(2, '0'), order.scheduledFor!.hour.toString().padLeft(2, '0'), order.scheduledFor!.minute.toString().padLeft(2, '0'), order.status == OrderStatus.preparing && order.prepTimeMinutes != null ? ' · fica pronta em ${order.prepTimeMinutes} min' : '']),
                       style: const TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 13.5,
@@ -679,8 +676,7 @@ class _BottomCardState extends State<_BottomCard> {
                     order.prepTimeMinutes != null) ...[
                   const SizedBox(height: 8),
                   Text(
-                    'A loja aceitou — fica pronto em '
-                    '${order.prepTimeMinutes} min.',
+                    'A loja aceitou — fica pronto em {0} min.'.trArgs([order.prepTimeMinutes]),
                     style: const TextStyle(
                         fontSize: 13, fontWeight: FontWeight.w600),
                   ),
@@ -829,7 +825,7 @@ class _BottomCardState extends State<_BottomCard> {
                         order: order,
                         senderType: ChatSenderType.client,
                         chatTarget: ChatTarget.partner,
-                        label: 'Falar com o Restaurante',
+                        label: 'Falar com o Restaurante'.tr,
                         showPreview: true,
                       ),
                     if (order.assignedDriverId != null) ...[
@@ -838,7 +834,7 @@ class _BottomCardState extends State<_BottomCard> {
                         order: order,
                         senderType: ChatSenderType.client,
                         chatTarget: ChatTarget.driver,
-                        label: 'Falar com o Estafeta',
+                        label: 'Falar com o Estafeta'.tr,
                         showPreview: true,
                       ),
                     ],
@@ -864,7 +860,7 @@ class _BottomCardState extends State<_BottomCard> {
                           ),
                           onPressed: () => _confirmClientCancel(context),
                           icon: const Icon(Icons.cancel_outlined, size: 18),
-                          label: const Text('Cancelar pedido'),
+                          label: Text('Cancelar pedido'.tr),
                         ),
                       ),
                     ),
@@ -890,7 +886,7 @@ class _BottomCardState extends State<_BottomCard> {
                       child: Column(
                         children: [
                           Text(
-                            'Código de entrega',
+                            'Código de entrega'.tr,
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: Colors.orange.shade700,
                               fontWeight: FontWeight.w600,
@@ -906,7 +902,7 @@ class _BottomCardState extends State<_BottomCard> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Mostre ao estafeta na entrega',
+                            'Mostre ao estafeta na entrega'.tr,
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: Colors.orange.shade600,
                               fontSize: 11,
@@ -937,7 +933,7 @@ class _BottomCardState extends State<_BottomCard> {
                                     color: Colors.orange.shade700),
                             label: Text(
                               _sendingCode
-                                  ? 'A reenviar…'
+                                  ? 'A reenviar…'.tr
                                   : 'Reenviar código',
                               style: TextStyle(
                                   fontSize: 12,
@@ -963,7 +959,7 @@ class _BottomCardState extends State<_BottomCard> {
                     child: AddressText(
                       rawAddress: order.pickupAddress,
                       coords: order.pickupLocation,
-                      prefix: 'Recolha: ',
+                      prefix: 'Recolha: '.tr,
                       style: theme.textTheme.bodySmall,
                     ),
                   ),
@@ -976,7 +972,7 @@ class _BottomCardState extends State<_BottomCard> {
                     child: AddressText(
                       rawAddress: order.dropoffAddress,
                       coords: order.destination,
-                      prefix: 'Entrega: ',
+                      prefix: 'Entrega: '.tr,
                       style: theme.textTheme.bodySmall,
                     ),
                   ),
@@ -999,28 +995,28 @@ class _BottomCardState extends State<_BottomCard> {
                     children: [
                       if (order.subtotal > 0)
                         _SummaryRow(
-                            label: 'Subtotal', value: order.subtotal),
+                            label: 'Subtotal'.tr, value: order.subtotal),
                       if (order.deliveryFee > 0)
                         _SummaryRow(
-                            label: 'Taxa de entrega',
+                            label: 'Taxa de entrega'.tr,
                             value: order.deliveryFee),
                       if (order.serviceFee > 0)
                         _SummaryRow(
-                            label: 'Taxa de serviço',
+                            label: 'Taxa de serviço'.tr,
                             value: order.serviceFee),
                       if (order.tipCents > 0)
                         _SummaryRow(
-                            label: 'Gorjeta',
+                            label: 'Gorjeta'.tr,
                             value: order.tipCents / 100,
                             accent: true),
                       if (order.walletAppliedCents > 0)
                         _SummaryRow(
-                            label: 'Saldo Bora aplicado',
+                            label: 'Saldo Bora aplicado'.tr,
                             value: -(order.walletAppliedCents / 100),
                             isDiscount: true),
                       Divider(color: Colors.grey.shade300, height: 16),
                       _SummaryRow(
-                        label: 'Total do pedido',
+                        label: 'Total do pedido'.tr,
                         value: order.total,
                         isStrong: true,
                       ),
@@ -1117,43 +1113,42 @@ class _BottomCardState extends State<_BottomCard> {
         isElectronic && refundableStatuses.contains(widget.order.status);
     String refundTarget = 'card';
     final feeLabel = isGrace
-        ? 'Grátis'
+        ? 'Grátis'.tr
         : _feeLabelForStatus(widget.order.status, widget.order.total);
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Cancelar pedido'),
+          title: Text('Cancelar pedido'.tr),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Taxa de cancelamento: $feeLabel',
+                'Taxa de cancelamento: {0}'.trArgs([feeLabel]),
                 style: const TextStyle(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 12),
               if (isGrace)
                 Text(
-                  'Cancelamento grátis — ainda dentro do tempo de cortesia'
-                  '${graceLeft > 0 ? ' (${(graceLeft ~/ 60).toString().padLeft(2, '0')}:${(graceLeft % 60).toString().padLeft(2, '0')})' : ''}.',
+                  'Cancelamento grátis — ainda dentro do tempo de cortesia{0}.'.trArgs([graceLeft > 0 ? ' (${(graceLeft ~/ 60).toString().padLeft(2, '0')}:${(graceLeft % 60).toString().padLeft(2, '0')})' : '']),
                   style: const TextStyle(
                       color: AppColors.primary, fontWeight: FontWeight.w600),
                 )
               else
-                const Text('Tens a certeza que queres cancelar este pedido?'),
+                Text('Tens a certeza que queres cancelar este pedido?'.tr),
               if (canChooseRefund) ...[
                 const SizedBox(height: 12),
-                const Text('Como queres o reembolso?',
-                    style: TextStyle(fontWeight: FontWeight.w600)),
+                Text('Como queres o reembolso?'.tr,
+                    style: const TextStyle(fontWeight: FontWeight.w600)),
                 RadioListTile<String>(
                   contentPadding: EdgeInsets.zero,
                   dense: true,
                   value: 'card',
                   groupValue: refundTarget,
                   onChanged: (v) => setDialogState(() => refundTarget = v!),
-                  title: const Text('De volta ao cartão (~5 dias úteis)'),
+                  title: Text('De volta ao cartão (~5 dias úteis)'.tr),
                 ),
                 RadioListTile<String>(
                   contentPadding: EdgeInsets.zero,
@@ -1161,17 +1156,17 @@ class _BottomCardState extends State<_BottomCard> {
                   value: 'wallet',
                   groupValue: refundTarget,
                   onChanged: (v) => setDialogState(() => refundTarget = v!),
-                  title: const Text(
-                      'Na carteira, imediato (80% saldo + 20% pontos)'),
+                  title: Text(
+                      'Na carteira, imediato (80% saldo + 20% pontos)'.tr),
                 ),
               ],
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 value: selectedReason,
                 isExpanded: true,
-                decoration: const InputDecoration(
-                  labelText: 'Motivo (obrigatório)',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: 'Motivo (obrigatório)'.tr,
+                  border: const OutlineInputBorder(),
                 ),
                 items: reasonOptions
                     .map((r) => DropdownMenuItem<String>(
@@ -1186,9 +1181,9 @@ class _BottomCardState extends State<_BottomCard> {
                 TextField(
                   controller: otherReasonController,
                   maxLines: 2,
-                  decoration: const InputDecoration(
-                    labelText: 'Descreve o motivo (opcional)',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: 'Descreve o motivo (opcional)'.tr,
+                    border: const OutlineInputBorder(),
                   ),
                 ),
               ],
@@ -1197,14 +1192,14 @@ class _BottomCardState extends State<_BottomCard> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('Não'),
+              child: Text('Não'.tr),
             ),
             TextButton(
               onPressed: selectedReason == null
                   ? null
                   : () => Navigator.of(ctx).pop(true),
               style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: const Text('Confirmar cancelamento'),
+              child: Text('Confirmar cancelamento'.tr),
             ),
           ],
         ),
@@ -1218,6 +1213,8 @@ class _BottomCardState extends State<_BottomCard> {
     final navigator = Navigator.of(context);
 
     // Compor reason final: dropdown + campo livre se "Outro motivo"
+    // Fica SEMPRE em português, mesmo com a app em inglês: este texto é
+    // gravado no pedido e quem o lê é o painel admin (PT-BR), não o cliente.
     final finalReason = selectedReason == 'Outro motivo' &&
             otherReasonController.text.trim().isNotEmpty
         ? 'Outro motivo: ${otherReasonController.text.trim()}'
@@ -1235,7 +1232,7 @@ class _BottomCardState extends State<_BottomCard> {
       messenger.showSnackBar(
         SnackBar(
           content: Text(result.feeEur != null && result.feeEur! > 0
-              ? 'Pedido cancelado. Taxa: €${result.feeEur!.toStringAsFixed(2)}.'
+              ? 'Pedido cancelado. Taxa: €{0}.'.trArgs([result.feeEur!.toStringAsFixed(2)])
               : 'Pedido cancelado.'),
         ),
       );
@@ -1256,15 +1253,15 @@ class _BottomCardState extends State<_BottomCard> {
         }
         if (atual != null && atual.status == OrderStatus.cancelled) {
           messenger.showSnackBar(
-              const SnackBar(content: Text('O pedido já estava cancelado.')));
+              SnackBar(content: Text('O pedido já estava cancelado.'.tr)));
           navigator.pop();
           return;
         }
       }
       final msg = raw.contains('errand_already_purchased')
-          ? 'A compra já foi feita pelo estafeta — a entrega vai continuar e não pode ser cancelada.'
+          ? 'A compra já foi feita pelo estafeta — a entrega vai continuar e não pode ser cancelada.'.tr
           : raw.contains('already_finalized')
-              ? 'Este pedido já não pode ser cancelado.'
+              ? 'Este pedido já não pode ser cancelado.'.tr
               : 'Falha ao cancelar. Tenta novamente.';
       messenger.showSnackBar(SnackBar(content: Text(msg)));
     }
@@ -1413,26 +1410,26 @@ class _EtaBadge extends StatelessWidget {
     final isErrand = serviceType == OrderServiceType.errand;
     final pickupLabel = isStore
         ? (vendor.isEmpty ? 'da loja' : 'do $vendor')
-        : 'do restaurante';
+        : 'do restaurante'.tr;
     final preparingLabel = isStore
         ? (vendor.isEmpty
-            ? 'A loja a preparar o pedido'
+            ? 'A loja a preparar o pedido'.tr
             : '$vendor a preparar o pedido')
-        : 'Restaurante a preparar o pedido';
+        : 'Restaurante a preparar o pedido'.tr;
     // FAVORES — textos próprios (NUNCA textos de restaurante)
     if (isErrand) {
       switch (s) {
         case OrderStatus.created:
         case OrderStatus.preparing:
-          return 'A organizar o teu favor';
+          return 'A organizar o teu favor'.tr;
         case OrderStatus.callingDriver:
-          return 'À procura de estafeta';
+          return 'À procura de estafeta'.tr;
         case OrderStatus.driverAccepted:
-          return 'Estafeta a caminho da tua casa';
+          return 'Estafeta a caminho da tua casa'.tr;
         case OrderStatus.pickedUp:
-          return 'Estafeta a tratar do teu favor';
+          return 'Estafeta a tratar do teu favor'.tr;
         case OrderStatus.onTheWay:
-          return 'A caminho da entrega';
+          return 'A caminho da entrega'.tr;
         default:
           return '';
       }
@@ -1442,12 +1439,12 @@ class _EtaBadge extends StatelessWidget {
       case OrderStatus.preparing:
         return preparingLabel;
       case OrderStatus.callingDriver:
-        return 'À procura de estafeta';
+        return 'À procura de estafeta'.tr;
       case OrderStatus.driverAccepted:
-        return 'Estafeta a caminho $pickupLabel';
+        return 'Estafeta a caminho {0}'.trArgs([pickupLabel]);
       case OrderStatus.pickedUp:
       case OrderStatus.onTheWay:
-        return 'Estafeta a caminho da sua morada';
+        return 'Estafeta a caminho da sua morada'.tr;
       default:
         return '';
     }

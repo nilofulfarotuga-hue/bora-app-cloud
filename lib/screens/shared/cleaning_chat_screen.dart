@@ -7,6 +7,8 @@ import '../../config/app_spacing.dart';
 import '../../stores/cleaning_chat_store.dart';
 import '../../widgets/bora/bora.dart';
 
+import '../../l10n/tr.dart';
+
 /// Chat bidirecional da LIMPEZA (clone do TvdeChatScreen — padrão E1).
 /// [myRole] = 'client' no lado do cliente, 'cleaner' na profissional.
 /// [otherPhone] habilita o botão LIGAR (tel:) no topo.
@@ -61,8 +63,8 @@ class _CleaningChatScreenState extends State<CleaningChatScreen> {
       _scrollToEnd();
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Não foi possível enviar. Tenta de novo.')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Não foi possível enviar. Tenta de novo.'.tr)));
       }
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -105,7 +107,7 @@ class _CleaningChatScreenState extends State<CleaningChatScreen> {
           if (widget.otherPhone != null && widget.otherPhone!.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.call),
-              tooltip: 'Ligar',
+              tooltip: 'Ligar'.tr,
               onPressed: _call,
             ),
         ],
@@ -114,9 +116,9 @@ class _CleaningChatScreenState extends State<CleaningChatScreen> {
         children: [
           Expanded(
             child: messages.isEmpty
-                ? const Center(
-                    child: Text('Ainda sem mensagens. Diz olá 👋',
-                        style: TextStyle(color: AppColors.textSubtle)),
+                ? Center(
+                    child: Text('Ainda sem mensagens. Diz olá 👋'.tr,
+                        style: const TextStyle(color: AppColors.textSubtle)),
                   )
                 : ListView.builder(
                     controller: _scroll,
@@ -168,7 +170,7 @@ class _CleaningChatScreenState extends State<CleaningChatScreen> {
                       textInputAction: TextInputAction.send,
                       onSubmitted: (_) => _send(),
                       decoration: InputDecoration(
-                        hintText: 'Escreve uma mensagem…',
+                        hintText: 'Escreve uma mensagem…'.tr,
                         filled: true,
                         fillColor: AppColors.surface,
                         contentPadding: const EdgeInsets.symmetric(

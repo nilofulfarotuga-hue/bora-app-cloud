@@ -10,6 +10,8 @@ import '../../../services/payment_service.dart';
 import '../../../services/saved_card_checkout.dart';
 import '../../../stores/carwash_store.dart';
 
+import '../../../l10n/tr.dart';
+
 /// LAVAGEM AUTO — pagamento do cliente.
 ///
 /// Molde: `CleaningPaymentFlow` (vivo em produção). Tudo server-side na Edge
@@ -47,7 +49,7 @@ class CarwashPaymentFlow {
     CarwashBooking booking,
   ) async {
     if (kIsWeb) {
-      _snack(context, 'O pagamento por cartão está disponível na app móvel.');
+      _snack(context, 'O pagamento por cartão está disponível na app móvel.'.tr);
       return false;
     }
 
@@ -57,7 +59,7 @@ class CarwashPaymentFlow {
         .authorize(amountEur: booking.totalCents / 100.0);
     if (!context.mounted) return false;
     if (auth.cancelled) {
-      _snack(context, 'Pagamento cancelado. Não foi cobrado nada.');
+      _snack(context, 'Pagamento cancelado. Não foi cobrado nada.'.tr);
       return false;
     }
 
@@ -65,7 +67,7 @@ class CarwashPaymentFlow {
         await store.createCardPayment(booking.id, savedPmId: auth.savedPmId);
     if (!context.mounted) return false;
     if (created == null) {
-      _snack(context, 'Não foi possível iniciar o pagamento.');
+      _snack(context, 'Não foi possível iniciar o pagamento.'.tr);
       return false;
     }
 
@@ -78,14 +80,14 @@ class CarwashPaymentFlow {
           requiresAction: (created['requiresAction'] as bool?) ?? false,
         );
         if (!ok) {
-          if (context.mounted) _snack(context, 'Pagamento não concluído.');
+          if (context.mounted) _snack(context, 'Pagamento não concluído.'.tr);
           return false;
         }
       } else {
         await PaymentService().processPayment(clientSecret);
       }
     } catch (_) {
-      if (context.mounted) _snack(context, 'Pagamento não concluído.');
+      if (context.mounted) _snack(context, 'Pagamento não concluído.'.tr);
       return false;
     }
 
@@ -97,7 +99,7 @@ class CarwashPaymentFlow {
       await Future<void>.delayed(const Duration(seconds: 2));
     }
     if (context.mounted) {
-      _snack(context, 'Pagamento em validação — confirma no ecrã do pedido.');
+      _snack(context, 'Pagamento em validação — confirma no ecrã do pedido.'.tr);
     }
     return false;
   }
@@ -116,7 +118,7 @@ class CarwashPaymentFlow {
     if (!context.mounted) return false;
     if (created == null) {
       _snack(context,
-          'Não foi possível iniciar o MB WAY. Confirma o número e tenta de novo.');
+          'Não foi possível iniciar o MB WAY. Confirma o número e tenta de novo.'.tr);
       return false;
     }
 
@@ -133,8 +135,7 @@ class CarwashPaymentFlow {
     if (ok != true && context.mounted) {
       _snack(
           context,
-          'Não recebemos a confirmação MB WAY. Se pagaste, reabre o pedido; '
-          'senão tenta de novo.');
+          'Não recebemos a confirmação MB WAY. Se pagaste, reabre o pedido; senão tenta de novo.'.tr);
     }
     return ok == true;
   }
@@ -146,28 +147,28 @@ class CarwashPaymentFlow {
     return showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Número MB WAY'),
+        title: Text('Número MB WAY'.tr),
         content: TextField(
           controller: ctrl,
           autofocus: true,
           keyboardType: TextInputType.phone,
-          decoration: const InputDecoration(
-            labelText: 'Telemóvel',
-            hintText: '9XX XXX XXX',
+          decoration: InputDecoration(
+            labelText: 'Telemóvel'.tr,
+            hintText: '9XX XXX XXX'.tr,
             prefixText: '+351 ',
           ),
         ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancelar')),
+              child: Text('Cancelar'.tr)),
           TextButton(
             onPressed: () {
               final digits = ctrl.text.replaceAll(RegExp(r'\D'), '');
               if (digits.length < 9) return;
               Navigator.pop(ctx, digits);
             },
-            child: const Text('Pagar'),
+            child: Text('Pagar'.tr),
           ),
         ],
       ),
@@ -243,7 +244,7 @@ class _MbwayWaitingDialogState extends State<_MbwayWaitingDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Confirma na app MB WAY'),
+      title: Text('Confirma na app MB WAY'.tr),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -251,9 +252,7 @@ class _MbwayWaitingDialogState extends State<_MbwayWaitingDialog> {
           const CircularProgressIndicator(),
           const SizedBox(height: Spacing.lg),
           Text(
-            'Enviámos um pedido de '
-            '${(widget.amountCents / 100).toStringAsFixed(2)} € para o teu '
-            'MB WAY. Aprova-o para confirmar a lavagem.',
+            'Enviámos um pedido de {0} € para o teu MB WAY. Aprova-o para confirmar a lavagem.'.trArgs([(widget.amountCents / 100).toStringAsFixed(2)]),
             textAlign: TextAlign.center,
             style: const TextStyle(color: AppColors.textSecondary, height: 1.4),
           ),

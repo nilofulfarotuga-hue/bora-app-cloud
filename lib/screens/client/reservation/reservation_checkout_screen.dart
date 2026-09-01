@@ -12,6 +12,8 @@ import '../../../widgets/bora/bora_screen_app_bar.dart';
 import 'reservation_mbway_waiting_dialog.dart';
 import 'reservation_payment_method_sheet.dart';
 
+import '../../../l10n/tr.dart';
+
 /// Reservas PRO F3.B — checkout reserva com pré-pagamento Stripe €3.
 /// Cria PaymentIntent via Edge Fn `create-reservation-payment-intent` v3,
 /// abre Payment Sheet (padrão canónico BORA APP), confirma RPC F2.
@@ -62,6 +64,10 @@ class _ReservationCheckoutScreenState extends State<ReservationCheckoutScreen> {
 
   /// Concatena ocasião + pedidos especiais + notas numa única string `notes`
   /// (Edge Fn não aceita campos separados — F3.B ajuste).
+  ///
+  /// Os rótulos ficam SEMPRE em português, mesmo com a app em inglês: esta
+  /// string não é para o cliente ler — vai gravada no pedido e quem a lê é o
+  /// restaurante (PT-PT) e o painel admin (PT-BR).
   String? _buildCombinedNotes() {
     final parts = <String>[];
     if (_selectedOccasion != null) {
@@ -132,8 +138,8 @@ class _ReservationCheckoutScreenState extends State<ReservationCheckoutScreen> {
           .authorize(amountEur: _kReservationPrepaymentEur);
       if (auth.cancelled) {
         if (!mounted) return;
-        messenger.showSnackBar(const SnackBar(
-            content: Text('Pagamento cancelado. Não foi cobrado nada.')));
+        messenger.showSnackBar(SnackBar(
+            content: Text('Pagamento cancelado. Não foi cobrado nada.'.tr)));
         return;
       }
 
@@ -163,9 +169,9 @@ class _ReservationCheckoutScreenState extends State<ReservationCheckoutScreen> {
         );
         if (!ok) {
           if (!mounted) return;
-          messenger.showSnackBar(const SnackBar(
+          messenger.showSnackBar(SnackBar(
               content: Text(
-                  'Pagamento com cartão guardado não foi concluído. Tenta de novo.')));
+                  'Pagamento com cartão guardado não foi concluído. Tenta de novo.'.tr)));
           return;
         }
       } else {
@@ -173,7 +179,7 @@ class _ReservationCheckoutScreenState extends State<ReservationCheckoutScreen> {
         await Stripe.instance.initPaymentSheet(
           paymentSheetParameters: SetupPaymentSheetParameters(
             paymentIntentClientSecret: clientSecret,
-            merchantDisplayName: 'BORA APP',
+            merchantDisplayName: 'BORA APP'.tr,
             style: ThemeMode.system,
             billingDetailsCollectionConfiguration:
                 const BillingDetailsCollectionConfiguration(
@@ -200,8 +206,8 @@ class _ReservationCheckoutScreenState extends State<ReservationCheckoutScreen> {
 
       if (!mounted) return;
       messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Reserva pendente! O parceiro confirma em breve.'),
+        SnackBar(
+          content: Text('Reserva pendente! O parceiro confirma em breve.'.tr),
           backgroundColor: AppColors.primary,
         ),
       );
@@ -276,8 +282,8 @@ class _ReservationCheckoutScreenState extends State<ReservationCheckoutScreen> {
       if (!mounted) return;
       if (!paid) {
         messenger.showSnackBar(
-          const SnackBar(
-            content: Text('Pagamento MBWay não confirmado ou expirou.'),
+          SnackBar(
+            content: Text('Pagamento MBWay não confirmado ou expirou.'.tr),
             backgroundColor: Colors.red,
           ),
         );
@@ -296,9 +302,9 @@ class _ReservationCheckoutScreenState extends State<ReservationCheckoutScreen> {
 
       if (!mounted) return;
       messenger.showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'Reserva submetida! O pagamento MB Way está a ser processado.',
+            'Reserva submetida! O pagamento MB Way está a ser processado.'.tr,
           ),
           backgroundColor: AppColors.primary,
         ),
@@ -317,7 +323,7 @@ class _ReservationCheckoutScreenState extends State<ReservationCheckoutScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const BoraScreenAppBar(title: 'Confirmar reserva'),
+      appBar: BoraScreenAppBar(title: 'Confirmar reserva'.tr),
       body: SafeArea(
         child: Column(
           children: [
@@ -358,9 +364,9 @@ class _ReservationCheckoutScreenState extends State<ReservationCheckoutScreen> {
                           ),
                         )
                       : const Icon(Icons.lock),
-                  label: const Text(
-                    'Pagar €3 e reservar',
-                    style: TextStyle(
+                  label: Text(
+                    'Pagar €3 e reservar'.tr,
+                    style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
                     ),
@@ -457,9 +463,9 @@ class _ReservationCheckoutScreenState extends State<ReservationCheckoutScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
-              'Detalhes (opcionais)',
-              style: TextStyle(
+            Text(
+              'Detalhes (opcionais)'.tr,
+              style: const TextStyle(
                 fontWeight: FontWeight.w700,
                 color: AppColors.textPrimary,
               ),
@@ -467,9 +473,9 @@ class _ReservationCheckoutScreenState extends State<ReservationCheckoutScreen> {
             const SizedBox(height: 12),
             DropdownButtonFormField<String?>(
               initialValue: _selectedOccasion,
-              decoration: const InputDecoration(
-                labelText: 'Ocasião',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: 'Ocasião'.tr,
+                border: const OutlineInputBorder(),
               ),
               items: kOccasionOptions.entries
                   .map((e) => DropdownMenuItem<String?>(
@@ -483,10 +489,10 @@ class _ReservationCheckoutScreenState extends State<ReservationCheckoutScreen> {
             TextField(
               controller: _specialRequestsCtrl,
               maxLength: 200,
-              decoration: const InputDecoration(
-                labelText: 'Pedidos especiais',
-                hintText: 'Mesa silenciosa, cadeira bebé...',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: 'Pedidos especiais'.tr,
+                hintText: 'Mesa silenciosa, cadeira bebé...'.tr,
+                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 4),
@@ -494,9 +500,9 @@ class _ReservationCheckoutScreenState extends State<ReservationCheckoutScreen> {
               controller: _notesCtrl,
               maxLines: 3,
               maxLength: 500,
-              decoration: const InputDecoration(
-                labelText: 'Notas',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: 'Notas'.tr,
+                border: const OutlineInputBorder(),
               ),
             ),
           ],
@@ -506,33 +512,33 @@ class _ReservationCheckoutScreenState extends State<ReservationCheckoutScreen> {
   }
 
   Widget _buildTermsCard() {
-    return const Card(
+    return Card(
       elevation: 0,
       color: AppColors.surface,
       child: Padding(
-        padding: EdgeInsets.all(14),
+        padding: const EdgeInsets.all(14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Como funciona o pré-pagamento',
-              style: TextStyle(
+              'Como funciona o pré-pagamento'.tr,
+              style: const TextStyle(
                 fontWeight: FontWeight.w700,
                 color: AppColors.textPrimary,
               ),
             ),
-            SizedBox(height: 8),
-            _TermLine(text: '€3 retidos no cartão para garantir reserva.'),
-            _TermLine(text: '   • €1 taxa de serviço Bora App.'),
-            _TermLine(text: '   • €2 crédito para usar no restaurante.'),
-            _TermLine(text: 'Reembolso 100% se cancelares até 2h antes.'),
+            const SizedBox(height: 8),
+            _TermLine(text: '€3 retidos no cartão para garantir reserva.'.tr),
+            _TermLine(text: '   • €1 taxa de serviço Bora App.'.tr),
+            _TermLine(text: '   • €2 crédito para usar no restaurante.'.tr),
+            _TermLine(text: 'Reembolso 100% se cancelares até 2h antes.'.tr),
             _TermLine(
                 isWarning: true,
                 text:
-                    'Após esse limite, €3 não reembolsável (política do restaurante).'),
+                    'Após esse limite, €3 não reembolsável (política do restaurante).'.tr),
             _TermLine(
                 isWarning: true,
-                text: 'Se não apareceres, €3 ficam para o restaurante.'),
+                text: 'Se não apareceres, €3 ficam para o restaurante.'.tr),
           ],
         ),
       ),

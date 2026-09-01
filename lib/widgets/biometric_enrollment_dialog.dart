@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../services/biometric_auth_service.dart';
 
+import '../l10n/tr.dart';
+
 /// L3.2 (2026-06-12) — pergunta UMA vez, logo após um login com
 /// palavra-passe bem-sucedido: "Queres entrar com a tua digital/rosto da
 /// próxima vez?". Chamar ANTES de setRole (o ecrã de login ainda está vivo).
@@ -30,19 +32,18 @@ Future<void> maybeOfferBiometricEnrollment(
   final accepted = await showDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
-      title: const Text('Entrar com biometria?'),
-      content: const Text(
-        'Queres entrar com a tua digital ou rosto da próxima vez? '
-        'Podes ligar ou desligar isto no perfil quando quiseres.',
+      title: Text('Entrar com biometria?'.tr),
+      content: Text(
+        'Queres entrar com a tua digital ou rosto da próxima vez? Podes ligar ou desligar isto no perfil quando quiseres.'.tr,
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(ctx, false),
-          child: const Text('Agora não'),
+          child: Text('Agora não'.tr),
         ),
         ElevatedButton(
           onPressed: () => Navigator.pop(ctx, true),
-          child: const Text('Ativar'),
+          child: Text('Ativar'.tr),
         ),
       ],
     ),
@@ -50,14 +51,14 @@ Future<void> maybeOfferBiometricEnrollment(
   if (accepted != true) return;
 
   final ok = await bio.authenticate(
-    'Confirma a tua identidade para ativar o login com biometria',
+    'Confirma a tua identidade para ativar o login com biometria'.tr,
   );
   if (!ok) return;
 
   final saved = await bio.enableForCurrentSession(role);
   if (saved && context.mounted) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Login com biometria ativado.')),
+      SnackBar(content: Text('Login com biometria ativado.'.tr)),
     );
   }
 }

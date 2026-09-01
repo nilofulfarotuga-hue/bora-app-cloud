@@ -10,6 +10,8 @@ import '../providers/support_settings_provider.dart';
 import '../widgets/bora/bora_primary_button.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 
+import '../l10n/tr.dart';
+
 class SupportEmailFormScreen extends StatefulWidget {
   const SupportEmailFormScreen({super.key, this.orderId});
 
@@ -55,7 +57,7 @@ class _SupportEmailFormScreenState extends State<SupportEmailFormScreen> {
         SnackBar(
           content: Text(
             ticketId == null
-                ? 'Recebemos. Resposta em até ${sla}h.'
+                ? 'Recebemos. Resposta em até {0}h.'.trArgs([sla])
                 : 'Recebemos #${ticketId.substring(0, 8)}. Resposta em até ${sla}h.',
           ),
         ),
@@ -64,13 +66,13 @@ class _SupportEmailFormScreenState extends State<SupportEmailFormScreen> {
     } on FunctionException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro: ${e.details ?? e.status}')),
+          SnackBar(content: Text('Erro: {0}'.trArgs([e.details ?? e.status]))),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Erro de comunicação. Tenta novamente.')),
+          SnackBar(content: Text('Erro de comunicação. Tenta novamente.'.tr)),
         );
       }
       debugPrint('[SupportEmailFormScreen] $e');
@@ -84,7 +86,7 @@ class _SupportEmailFormScreenState extends State<SupportEmailFormScreen> {
     final provider = context.watch<SupportSettingsProvider>();
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const BoraScreenAppBar(title: 'Enviar email ao suporte'),
+      appBar: BoraScreenAppBar(title: 'Enviar email ao suporte'.tr),
       body: SafeArea(
         child: Form(
           key: _formKey,
@@ -100,19 +102,19 @@ class _SupportEmailFormScreenState extends State<SupportEmailFormScreen> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    'Sobre pedido #${widget.orderId}',
+                    'Sobre pedido #{0}'.trArgs([widget.orderId]),
                     style: const TextStyle(color: AppColors.accent),
                   ),
                 ),
               TextFormField(
                 controller: _subjectCtrl,
                 maxLength: 200,
-                decoration: const InputDecoration(
-                  labelText: 'Assunto',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: 'Assunto'.tr,
+                  border: const OutlineInputBorder(),
                 ),
                 validator: (v) => (v == null || v.trim().isEmpty)
-                    ? 'Assunto obrigatório'
+                    ? 'Assunto obrigatório'.tr
                     : null,
               ),
               const SizedBox(height: 12),
@@ -120,24 +122,24 @@ class _SupportEmailFormScreenState extends State<SupportEmailFormScreen> {
                 controller: _bodyCtrl,
                 maxLength: 5000,
                 maxLines: 8,
-                decoration: const InputDecoration(
-                  labelText: 'Mensagem',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: 'Mensagem'.tr,
+                  border: const OutlineInputBorder(),
                   alignLabelWithHint: true,
                 ),
                 validator: (v) => (v == null || v.trim().isEmpty)
-                    ? 'Mensagem obrigatória'
+                    ? 'Mensagem obrigatória'.tr
                     : null,
               ),
               const SizedBox(height: 16),
               Text(
-                'Resposta em até ${provider.slaHours}h em ${provider.supportEmail}',
+                'Resposta em até {0}h em {1}'.trArgs([provider.slaHours, provider.supportEmail]),
                 style: const TextStyle(
                     fontSize: 12, color: AppColors.textSecondary),
               ),
               const SizedBox(height: 16),
               BoraPrimaryButton(
-                label: 'Enviar',
+                label: 'Enviar'.tr,
                 loading: _submitting,
                 onPressed: _submitting ? null : _submit,
               ),

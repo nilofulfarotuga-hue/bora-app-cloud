@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../config/app_colors.dart';
 
+import '../../l10n/tr.dart';
+
 /// Estado de cobrança que o EXECUTOR (estafeta / motorista / profissional de
 /// limpeza) vê. Um estado explícito para cada caso — nunca "nada" (era o bug
 /// do delivery: card/MB Way não mostrava sinal e arriscava cobrar 2×).
@@ -51,13 +53,13 @@ class CollectBadge extends StatelessWidget {
     if (collect) {
       icon = Icons.payments_outlined;
       final v = ((amountCents ?? 0) / 100).toStringAsFixed(2);
-      text = 'COBRAR EM DINHEIRO: ${approx ? '~' : ''}€$v';
+      text = 'COBRAR EM DINHEIRO: {0}€{1}'.trArgs([approx ? '~' : '', v]);
     } else if (state == CollectState.paidOnline) {
       icon = Icons.check_circle_outline;
-      text = 'JÁ PAGO NA APP — não cobrar';
+      text = 'JÁ PAGO NA APP — não cobrar'.tr;
     } else {
       icon = Icons.card_membership;
-      text = 'COBERTO PELO PLANO — não cobrar';
+      text = 'COBERTO PELO PLANO — não cobrar'.tr;
     }
 
     final row = Row(

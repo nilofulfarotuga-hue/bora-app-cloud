@@ -5,6 +5,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 
+import '../../l10n/tr.dart';
+
 /// LAVAGEM AUTO — chat cliente ⇄ lavador.
 /// Mesmo desenho do chat da Limpeza: realtime na tabela `carwash_messages`,
 /// e botão de telefone dos dois lados.
@@ -112,7 +114,7 @@ class _CarwashChatScreenState extends State<CarwashChatScreen> {
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Não foi possível enviar. Tente outra vez.')),
+          SnackBar(content: Text('Não foi possível enviar. Tente outra vez.'.tr)),
         );
       }
     } finally {
@@ -144,13 +146,13 @@ class _CarwashChatScreenState extends State<CarwashChatScreen> {
         children: [
           Expanded(
             child: _messages.isEmpty
-                ? const Center(
+                ? Center(
                     child: Padding(
-                      padding: EdgeInsets.all(Spacing.xxl),
+                      padding: const EdgeInsets.all(Spacing.xxl),
                       child: Text(
-                        'Ainda não há mensagens.\nEscreva a primeira aqui em baixo.',
+                        'Ainda não há mensagens.\nEscreva a primeira aqui em baixo.'.tr,
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: AppColors.textSubtle),
+                        style: const TextStyle(color: AppColors.textSubtle),
                       ),
                     ),
                   )
@@ -198,10 +200,10 @@ class _CarwashChatScreenState extends State<CarwashChatScreen> {
                       controller: _controller,
                       textInputAction: TextInputAction.send,
                       onSubmitted: (_) => _send(),
-                      decoration: const InputDecoration(
-                        hintText: 'Escreva a sua mensagem',
-                        border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.symmetric(
+                      decoration: InputDecoration(
+                        hintText: 'Escreva a sua mensagem'.tr,
+                        border: const OutlineInputBorder(),
+                        contentPadding: const EdgeInsets.symmetric(
                             horizontal: Spacing.md, vertical: Spacing.sm),
                       ),
                     ),

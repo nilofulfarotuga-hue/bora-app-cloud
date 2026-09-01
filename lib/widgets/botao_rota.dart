@@ -3,6 +3,8 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../config/app_colors.dart';
 
+import '../l10n/tr.dart';
+
 /// ABRIR A ROTA — o botão que faltava à limpeza e à lavagem.
 ///
 /// O motorista tem mapa e rota; quem vai limpar uma casa ou buscar um carro
@@ -33,8 +35,7 @@ class BotaoRota extends StatelessWidget {
     }
     final m = morada.trim();
     if (m.isEmpty) return null;
-    return Uri.parse('https://www.google.com/maps/dir/?api=1'
-        '&destination=${Uri.encodeComponent(m)}');
+    return Uri.parse('https://www.google.com/maps/dir/?api=1&destination=${Uri.encodeComponent(m)}');
   }
 
   Future<void> _abrir(BuildContext context) async {
@@ -45,8 +46,8 @@ class BotaoRota extends StatelessWidget {
     if (await canLaunchUrl(u)) {
       await launchUrl(u, mode: LaunchMode.externalApplication);
     } else if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Não foi possível abrir os mapas neste telemóvel.')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Não foi possível abrir os mapas neste telemóvel.'.tr)));
     }
   }
 
@@ -55,7 +56,7 @@ class BotaoRota extends StatelessWidget {
     if (_uri == null) return const SizedBox.shrink();
     if (compacto) {
       return IconButton(
-        tooltip: 'Abrir rota',
+        tooltip: 'Abrir rota'.tr,
         icon: const Icon(Icons.directions, color: AppColors.primary),
         onPressed: () => _abrir(context),
       );
@@ -63,7 +64,7 @@ class BotaoRota extends StatelessWidget {
     return OutlinedButton.icon(
       onPressed: () => _abrir(context),
       icon: const Icon(Icons.directions, size: 18),
-      label: const Text('Abrir rota'),
+      label: Text('Abrir rota'.tr),
       style: OutlinedButton.styleFrom(foregroundColor: AppColors.primary),
     );
   }

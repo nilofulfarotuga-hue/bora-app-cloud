@@ -5,6 +5,8 @@ import '../services/in_app_notifications_service.dart';
 import '../widgets/bora_support_fab.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 
+import '../l10n/tr.dart';
+
 /// T2.3 — Lista de in-app notifications cliente.
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -68,13 +70,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: BoraScreenAppBar(
-        title: 'Notificações',
+        title: 'Notificações'.tr,
         actions: [
           if (unreadCount > 0)
             TextButton(
               onPressed: _markAll,
-              child: const Text('Marcar todas',
-                  style: TextStyle(color: Colors.white)),
+              child: Text('Marcar todas'.tr,
+                  style: const TextStyle(color: Colors.white)),
             ),
         ],
       ),
@@ -86,11 +88,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             : _items.isEmpty
                 ? ListView(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    children: const [
-                      SizedBox(height: 80),
+                    children: [
+                      const SizedBox(height: 80),
                       Center(
-                          child: Text('Sem notificações.',
-                              style: TextStyle(color: AppColors.textSecondary))),
+                          child: Text('Sem notificações.'.tr,
+                              style: const TextStyle(color: AppColors.textSecondary))),
                     ],
                   )
                 : ListView.builder(

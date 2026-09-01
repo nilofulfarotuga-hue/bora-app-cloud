@@ -11,6 +11,8 @@ import '../services/google_places_service.dart';
 import '../widgets/bora/bora_primary_button.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 
+import '../l10n/tr.dart';
+
 /// Ecrã de gestão de endereços do cliente.
 /// CRUD sobre `client_addresses` (RLS por user_id). Padrão Uber/Glovo:
 /// rótulo (Casa/Trabalho/Outro) + autocomplete Google Places + default.
@@ -68,7 +70,7 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro: $e')),
+          SnackBar(content: Text('Erro: {0}'.trArgs([e]))),
         );
       }
     }
@@ -78,15 +80,15 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Eliminar endereço'),
-        content: Text('Eliminar "${a.label}"?'),
+        title: Text('Eliminar endereço'.tr),
+        content: Text('Eliminar "{0}"?'.trArgs([a.label])),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancelar')),
+              child: Text('Cancelar'.tr)),
           FilledButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Eliminar')),
+              child: Text('Eliminar'.tr)),
         ],
       ),
     );
@@ -97,7 +99,7 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro: $e')),
+          SnackBar(content: Text('Erro: {0}'.trArgs([e]))),
         );
       }
     }
@@ -113,7 +115,7 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openForm(),
         icon: const Icon(Icons.add_location_alt),
-        label: const Text('Adicionar'),
+        label: Text('Adicionar'.tr),
       ),
       body: RefreshIndicator(
         onRefresh: _load,
@@ -149,16 +151,16 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
           const Icon(Icons.location_on_outlined,
               size: 72, color: AppColors.textSubtle),
           const SizedBox(height: 12),
-          const Center(
-            child: Text('Ainda não tens endereços guardados',
-                style: TextStyle(fontSize: 16)),
+          Center(
+            child: Text('Ainda não tens endereços guardados'.tr,
+                style: const TextStyle(fontSize: 16)),
           ),
           const SizedBox(height: 6),
-          const Center(
+          Center(
             child: Text(
-              'Adiciona Casa e Trabalho para escolheres mais rápido no checkout.',
+              'Adiciona Casa e Trabalho para escolheres mais rápido no checkout.'.tr,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
             ),
           ),
         ],
@@ -193,8 +195,8 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
                   color: AppColors.primaryLight,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Text('Predefinido',
-                    style: TextStyle(fontSize: 10, color: AppColors.primary)),
+                child: Text('Predefinido'.tr,
+                    style: const TextStyle(fontSize: 10, color: AppColors.primary)),
               ),
             ],
           ],
@@ -219,11 +221,11 @@ class _ClientAddressesScreenState extends State<ClientAddressesScreen> {
             }
           },
           itemBuilder: (_) => [
-            const PopupMenuItem(value: 'edit', child: Text('Editar')),
+            PopupMenuItem(value: 'edit', child: Text('Editar'.tr)),
             if (!a.isDefault)
-              const PopupMenuItem(
-                  value: 'default', child: Text('Tornar predefinido')),
-            const PopupMenuItem(value: 'delete', child: Text('Eliminar')),
+              PopupMenuItem(
+                  value: 'default', child: Text('Tornar predefinido'.tr)),
+            PopupMenuItem(value: 'delete', child: Text('Eliminar'.tr)),
           ],
         ),
       ),
@@ -325,7 +327,7 @@ class _AddressFormSheetState extends State<_AddressFormSheet> {
 
   Future<void> _save() async {
     if (_labelCtrl.text.trim().isEmpty || _addressCtrl.text.trim().isEmpty) {
-      setState(() => _error = 'Preenche rótulo e endereço.');
+      setState(() => _error = 'Preenche rótulo e endereço.'.tr);
       return;
     }
     setState(() {
@@ -383,7 +385,7 @@ class _AddressFormSheetState extends State<_AddressFormSheet> {
               const SizedBox(height: 16),
               Wrap(
                 spacing: 8,
-                children: ['Casa', 'Trabalho', 'Outro'].map((preset) {
+                children: ['Casa'.tr, 'Trabalho'.tr, 'Outro'.tr].map((preset) {
                   final selected = _labelCtrl.text == preset;
                   return ChoiceChip(
                     label: Text(preset),
@@ -396,21 +398,21 @@ class _AddressFormSheetState extends State<_AddressFormSheet> {
               const SizedBox(height: 12),
               TextField(
                 controller: _labelCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Rótulo',
-                  hintText: 'Casa, Trabalho, Casa dos pais...',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: 'Rótulo'.tr,
+                  hintText: 'Casa, Trabalho, Casa dos pais...'.tr,
+                  border: const OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: _addressCtrl,
                 onChanged: _onAddressChanged,
-                decoration: const InputDecoration(
-                  labelText: 'Endereço',
-                  hintText: 'Rua, número, cidade',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.place),
+                decoration: InputDecoration(
+                  labelText: 'Endereço'.tr,
+                  hintText: 'Rua, número, cidade'.tr,
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.place),
                 ),
               ),
               if (_predictions.isNotEmpty)
@@ -438,8 +440,8 @@ class _AddressFormSheetState extends State<_AddressFormSheet> {
               const SizedBox(height: 12),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('Tornar predefinido'),
-                subtitle: const Text('Usado por defeito no checkout'),
+                title: Text('Tornar predefinido'.tr),
+                subtitle: Text('Usado por defeito no checkout'.tr),
                 value: _isDefault,
                 onChanged: (v) => setState(() => _isDefault = v),
               ),
@@ -449,7 +451,7 @@ class _AddressFormSheetState extends State<_AddressFormSheet> {
               ],
               const SizedBox(height: 16),
               BoraPrimaryButton(
-                label: 'Guardar',
+                label: 'Guardar'.tr,
                 onPressed: _saving ? null : _save,
                 loading: _saving,
               ),

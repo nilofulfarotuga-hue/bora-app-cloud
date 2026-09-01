@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import '../config/app_colors.dart';
 import '../services/payment_service.dart';
 
+import '../l10n/tr.dart';
+
 /// PayDebtModal — modal para liquidar dívida wallet (BUG #1 frontend / §54).
 ///
 /// Layout:
@@ -45,14 +47,14 @@ class _PayDebtModalState extends State<PayDebtModal> {
   }
 
   String? _validate(int? amountCents) {
-    if (amountCents == null) return 'Indica um valor válido.';
+    if (amountCents == null) return 'Indica um valor válido.'.tr;
     if (amountCents < widget.debtCents + 1) {
-      return 'Valor deve ser maior que a dívida (€${(widget.debtCents / 100).toStringAsFixed(2)}).';
+      return 'Valor deve ser maior que a dívida (€{0}).'.trArgs([(widget.debtCents / 100).toStringAsFixed(2)]);
     }
     if (_method == 'mbway') {
       final phone = _phoneCtrl.text.trim();
       if (!RegExp(r'^\+?351\d{9}$').hasMatch(phone)) {
-        return 'Telefone MBWay inválido (formato: +351XXXXXXXXX).';
+        return 'Telefone MBWay inválido (formato: +351XXXXXXXXX).'.tr;
       }
     }
     return null;
@@ -69,7 +71,7 @@ class _PayDebtModalState extends State<PayDebtModal> {
     } else if (_method == 'mbway') {
       final phone = _phoneCtrl.text.trim();
       if (!RegExp(r'^\+?351\d{9}$').hasMatch(phone)) {
-        setState(() => _error = 'Telefone MBWay inválido (formato: +351XXXXXXXXX).');
+        setState(() => _error = 'Telefone MBWay inválido (formato: +351XXXXXXXXX).'.tr);
         return;
       }
     }
@@ -89,13 +91,13 @@ class _PayDebtModalState extends State<PayDebtModal> {
       if (paymentIntentId == null) {
         setState(() {
           _isLoading = false;
-          _error = 'Pagamento cancelado ou recusado.';
+          _error = 'Pagamento cancelado ou recusado.'.tr;
         });
         return;
       }
       final surplusCents = amountCents - widget.debtCents;
       final msg = surplusCents > 0
-          ? 'Dívida paga! Tens €${(surplusCents / 100).toStringAsFixed(2)} em saldo.'
+          ? 'Dívida paga! Tens €{0} em saldo.'.trArgs([(surplusCents / 100).toStringAsFixed(2)])
           : 'Dívida paga!';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(msg), backgroundColor: AppColors.primary),
@@ -105,7 +107,7 @@ class _PayDebtModalState extends State<PayDebtModal> {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _error = 'Erro: $e';
+        _error = 'Erro: {0}'.trArgs([e]);
       });
     }
   }
@@ -114,28 +116,28 @@ class _PayDebtModalState extends State<PayDebtModal> {
   Widget build(BuildContext context) {
     final debtEur = widget.debtCents / 100;
     return AlertDialog(
-      title: const Text('Pagar dívida'),
+      title: Text('Pagar dívida'.tr),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Tens €${debtEur.toStringAsFixed(2)} de dívida.',
+            Text('Tens €{0} de dívida.'.trArgs([debtEur.toStringAsFixed(2)]),
                 style: TextStyle(color: Colors.red.shade700, fontWeight: FontWeight.w600)),
             const SizedBox(height: 16),
-            const Text('Quanto queres pagar?', style: TextStyle(fontWeight: FontWeight.w600)),
+            Text('Quanto queres pagar?'.tr, style: const TextStyle(fontWeight: FontWeight.w600)),
             RadioListTile<bool>(
               value: false,
               groupValue: _payMore,
               dense: true,
-              title: Text('Pagar dívida (€${debtEur.toStringAsFixed(2)})'),
+              title: Text('Pagar dívida (€{0})'.trArgs([debtEur.toStringAsFixed(2)])),
               onChanged: _isLoading ? null : (v) => setState(() => _payMore = v ?? false),
             ),
             RadioListTile<bool>(
               value: true,
               groupValue: _payMore,
               dense: true,
-              title: const Text('Pagar mais (excedente vira saldo)'),
+              title: Text('Pagar mais (excedente vira saldo)'.tr),
               onChanged: _isLoading ? null : (v) => setState(() => _payMore = v ?? false),
             ),
             if (_payMore)
@@ -149,26 +151,26 @@ class _PayDebtModalState extends State<PayDebtModal> {
                     FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
                   ],
                   decoration: InputDecoration(
-                    labelText: 'Valor (€)',
+                    labelText: 'Valor (€)'.tr,
                     hintText: '>= ${(debtEur + 0.01).toStringAsFixed(2)}',
                     border: const OutlineInputBorder(),
                   ),
                 ),
               ),
             const SizedBox(height: 12),
-            const Text('Método', style: TextStyle(fontWeight: FontWeight.w600)),
+            Text('Método'.tr, style: const TextStyle(fontWeight: FontWeight.w600)),
             RadioListTile<String>(
               value: 'card',
               groupValue: _method,
               dense: true,
-              title: const Text('Cartão'),
+              title: Text('Cartão'.tr),
               onChanged: _isLoading ? null : (v) => setState(() => _method = v ?? 'card'),
             ),
             RadioListTile<String>(
               value: 'mbway',
               groupValue: _method,
               dense: true,
-              title: const Text('MBWay'),
+              title: Text('MBWay'.tr),
               onChanged: _isLoading ? null : (v) => setState(() => _method = v ?? 'card'),
             ),
             if (_method == 'mbway')
@@ -178,10 +180,10 @@ class _PayDebtModalState extends State<PayDebtModal> {
                   controller: _phoneCtrl,
                   enabled: !_isLoading,
                   keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(
-                    labelText: 'Telefone MBWay',
+                  decoration: InputDecoration(
+                    labelText: 'Telefone MBWay'.tr,
                     hintText: '+351912345678',
-                    border: OutlineInputBorder(),
+                    border: const OutlineInputBorder(),
                   ),
                 ),
               ),
@@ -196,7 +198,7 @@ class _PayDebtModalState extends State<PayDebtModal> {
       actions: [
         TextButton(
           onPressed: _isLoading ? null : () => Navigator.of(context).pop(false),
-          child: const Text('Cancelar'),
+          child: Text('Cancelar'.tr),
         ),
         ElevatedButton(
           onPressed: _isLoading ? null : _confirm,
@@ -209,7 +211,7 @@ class _PayDebtModalState extends State<PayDebtModal> {
                   width: 18, height: 18,
                   child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                 )
-              : const Text('Confirmar'),
+              : Text('Confirmar'.tr),
         ),
       ],
     );

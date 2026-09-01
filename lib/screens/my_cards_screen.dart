@@ -6,6 +6,8 @@ import '../models/saved_card.dart';
 import '../services/card_wallet_service.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 
+import '../l10n/tr.dart';
+
 /// Meus Cartões — carteira de cartões guardados do cliente (Carteira Única).
 ///
 /// Mostra só marca + últimos 4 dígitos (nunca o número completo — nem o app
@@ -52,7 +54,7 @@ class _MyCardsScreenState extends State<MyCardsScreen> {
     await _wallet.setDefaultCard(card.id);
     if (!mounted) return;
     setState(() => _busyCardId = null);
-    _snack('${card.prettyBrand} •••• ${card.last4} é agora o cartão principal.');
+    _snack('{0} •••• {1} é agora o cartão principal.'.trArgs([card.prettyBrand, card.last4]));
     await _load();
   }
 
@@ -60,20 +62,19 @@ class _MyCardsScreenState extends State<MyCardsScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Remover cartão?'),
+        title: Text('Remover cartão?'.tr),
         content: Text(
-          'O cartão ${card.prettyBrand} •••• ${card.last4} deixa de estar '
-          'guardado. Podes voltar a guardá-lo no próximo pagamento.',
+          'O cartão {0} •••• {1} deixa de estar guardado. Podes voltar a guardá-lo no próximo pagamento.'.trArgs([card.prettyBrand, card.last4]),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
+            child: Text('Cancelar'.tr),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            child: const Text('Remover'),
+            child: Text('Remover'.tr),
           ),
         ],
       ),
@@ -84,7 +85,7 @@ class _MyCardsScreenState extends State<MyCardsScreen> {
     try {
       await _wallet.removeCard(card.id);
       if (!mounted) return;
-      _snack('Cartão removido.');
+      _snack('Cartão removido.'.tr);
     } on CardWalletException catch (e) {
       if (!mounted) return;
       _snack(e.message, isError: true);
@@ -107,7 +108,7 @@ class _MyCardsScreenState extends State<MyCardsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const BoraScreenAppBar(title: 'Meus Cartões'),
+      appBar: BoraScreenAppBar(title: 'Meus Cartões'.tr),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
@@ -120,26 +121,25 @@ class _MyCardsScreenState extends State<MyCardsScreen> {
   Widget _emptyState() {
     return ListView(
       padding: const EdgeInsets.all(Spacing.xxl),
-      children: const [
-        SizedBox(height: Spacing.huge),
-        Icon(Icons.credit_card_off_outlined,
+      children: [
+        const SizedBox(height: Spacing.huge),
+        const Icon(Icons.credit_card_off_outlined,
             size: 56, color: AppColors.textSubtle),
-        SizedBox(height: Spacing.lg),
+        const SizedBox(height: Spacing.lg),
         Text(
-          'Ainda não tens cartões guardados',
+          'Ainda não tens cartões guardados'.tr,
           textAlign: TextAlign.center,
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 17,
             fontWeight: FontWeight.w600,
             color: AppColors.textPrimary,
           ),
         ),
-        SizedBox(height: Spacing.sm),
+        const SizedBox(height: Spacing.sm),
         Text(
-          'Quando pagares com cartão, guardamo-lo aqui para o pagamento '
-          'seguinte ser só um toque.',
+          'Quando pagares com cartão, guardamo-lo aqui para o pagamento seguinte ser só um toque.'.tr,
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+          style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
         ),
       ],
     );
@@ -200,9 +200,9 @@ class _MyCardsScreenState extends State<MyCardsScreen> {
                           color: AppColors.primaryWash,
                           borderRadius: BorderRadius.circular(Radii.pill),
                         ),
-                        child: const Text(
-                          'Principal',
-                          style: TextStyle(
+                        child: Text(
+                          'Principal'.tr,
+                          style: const TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
                             color: AppColors.primary,
@@ -214,7 +214,7 @@ class _MyCardsScreenState extends State<MyCardsScreen> {
                 ),
                 const SizedBox(height: Spacing.xxs),
                 Text(
-                  'Validade ${card.prettyExpiry}',
+                  'Validade {0}'.trArgs([card.prettyExpiry]),
                   style: const TextStyle(
                       fontSize: 13, color: AppColors.textSecondary),
                 ),
@@ -229,21 +229,21 @@ class _MyCardsScreenState extends State<MyCardsScreen> {
             )
           else
             PopupMenuButton<String>(
-              tooltip: 'Opções do cartão',
+              tooltip: 'Opções do cartão'.tr,
               onSelected: (v) {
                 if (v == 'default') _setDefault(card);
                 if (v == 'remove') _confirmRemove(card);
               },
               itemBuilder: (_) => [
                 if (!card.isDefault)
-                  const PopupMenuItem(
+                  PopupMenuItem(
                     value: 'default',
-                    child: Text('Tornar principal'),
+                    child: Text('Tornar principal'.tr),
                   ),
-                const PopupMenuItem(
+                PopupMenuItem(
                   value: 'remove',
-                  child: Text('Remover cartão',
-                      style: TextStyle(color: AppColors.error)),
+                  child: Text('Remover cartão'.tr,
+                      style: const TextStyle(color: AppColors.error)),
                 ),
               ],
             ),
@@ -253,12 +253,11 @@ class _MyCardsScreenState extends State<MyCardsScreen> {
   }
 
   Widget _footerNote() {
-    return const Padding(
-      padding: EdgeInsets.only(top: Spacing.sm, left: Spacing.xs, right: Spacing.xs),
+    return Padding(
+      padding: const EdgeInsets.only(top: Spacing.sm, left: Spacing.xs, right: Spacing.xs),
       child: Text(
-        'Guardamos apenas a marca e os últimos 4 dígitos. O número completo '
-        'fica no Stripe, nunca no Bora.',
-        style: TextStyle(fontSize: 12, color: AppColors.textSubtle),
+        'Guardamos apenas a marca e os últimos 4 dígitos. O número completo fica no Stripe, nunca no Bora.'.tr,
+        style: const TextStyle(fontSize: 12, color: AppColors.textSubtle),
       ),
     );
   }

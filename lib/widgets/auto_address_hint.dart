@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
 
+import '../l10n/tr.dart';
+
 /// Estado discreto de "a obter a sua localização", para os ecrãs que preenchem
 /// a morada sozinhos.
 ///
@@ -17,20 +19,20 @@ class AutoAddressHint extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!visible) return const SizedBox.shrink();
-    return const Padding(
-      padding: EdgeInsets.only(top: Spacing.xs, left: Spacing.xs),
+    return Padding(
+      padding: const EdgeInsets.only(top: Spacing.xs, left: Spacing.xs),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          SizedBox(
+          const SizedBox(
             width: 13,
             height: 13,
             child: CircularProgressIndicator(strokeWidth: 2),
           ),
-          SizedBox(width: Spacing.sm),
+          const SizedBox(width: Spacing.sm),
           Text(
-            'A obter a sua localização...',
-            style: TextStyle(fontSize: 13, color: AppColors.textSubtle),
+            'A obter a sua localização...'.tr,
+            style: const TextStyle(fontSize: 13, color: AppColors.textSubtle),
           ),
         ],
       ),

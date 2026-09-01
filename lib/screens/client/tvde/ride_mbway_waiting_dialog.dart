@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 
 import '../../../stores/tvde_store.dart';
 
+import '../../../l10n/tr.dart';
+
 /// `true` pago · `false` ainda a aguardar · `null` falhou definitivamente.
 typedef MbwayPaidCheck = Future<bool?> Function(TvdeStore store);
 
@@ -42,7 +44,7 @@ class TvdeRideMbwayWaitingDialog extends StatefulWidget {
     return TvdeRideMbwayWaitingDialog(
       key: key,
       amountEur: amountEur,
-      message: 'Abre o MBWay e confirma para a corrida seguir.',
+      message: 'Abre o MBWay e confirma para a corrida seguir.'.tr,
       // 2026-08-13 — 120 s não chegava: o MB Way demora regularmente mais do
       // que isso e o cliente ficava com a corrida por marcar como paga (era o
       // poll, e não o webhook, o único a marcá-la — ver BUG 1). Com o ramo TVDE
@@ -75,7 +77,7 @@ class TvdeRideMbwayWaitingDialog extends StatefulWidget {
     return TvdeRideMbwayWaitingDialog(
       key: key,
       amountEur: amountEur,
-      message: 'Abre o MBWay e confirma para garantir a tua volta.',
+      message: 'Abre o MBWay e confirma para garantir a tua volta.'.tr,
       checkPaid: (store) =>
           store.activateRoundtrip(outboundRideId, paymentIntentId),
     );
@@ -99,7 +101,7 @@ class TvdeRideMbwayWaitingDialog extends StatefulWidget {
     return TvdeRideMbwayWaitingDialog(
       key: key,
       amountEur: amountEur,
-      message: 'Abre o MBWay e confirma para adicionar a parada.',
+      message: 'Abre o MBWay e confirma para adicionar a parada.'.tr,
       checkPaid: (store) async {
         final res = await store.confirmStopPayment(paymentIntentId);
         // Sem resposta do servidor (rede) → continuar a tentar, não desistir.
@@ -182,7 +184,7 @@ class _TvdeRideMbwayWaitingDialogState
         children: [
           Icon(Icons.phone_iphone, color: Colors.red.shade700),
           const SizedBox(width: 8),
-          const Expanded(child: Text('Aguarda confirmação MBWay')),
+          Expanded(child: Text('Aguarda confirmação MBWay'.tr)),
         ],
       ),
       content: Column(
@@ -190,8 +192,7 @@ class _TvdeRideMbwayWaitingDialogState
         children: [
           const SizedBox(height: 4),
           Text(
-            'Enviámos um pedido de €${widget.amountEur.toStringAsFixed(2)} '
-            'para o teu telemóvel.\n${widget.message}',
+            'Enviámos um pedido de €{0} para o teu telemóvel.\n{1}'.trArgs([widget.amountEur.toStringAsFixed(2), widget.message]),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),

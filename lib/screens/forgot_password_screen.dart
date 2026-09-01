@@ -7,6 +7,8 @@ import '../config/app_spacing.dart';
 import '../widgets/bora/bora_mascot.dart';
 import '../widgets/bora/bora_primary_button.dart';
 
+import '../l10n/tr.dart';
+
 /// Ecrã "Esqueci-me da palavra-passe" — comum aos três papéis (cliente,
 /// estafeta e parceiro). Pede o email e manda o Supabase enviar o link.
 ///
@@ -54,13 +56,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         _showError('Já pediu há pouco. Tente daqui a alguns minutos.');
       case PasswordResetOutcome.emailNotSent:
         _showError(
-          'Não conseguimos enviar o email neste momento. '
-          'Tente mais tarde ou fale connosco pelo apoio ao cliente.',
+          'Não conseguimos enviar o email neste momento. Tente mais tarde ou fale connosco pelo apoio ao cliente.'.tr,
         );
       case PasswordResetOutcome.failed:
         _showError(
-          'Não foi possível concluir o pedido. '
-          'Verifique a ligação à internet e tente novamente.',
+          'Não foi possível concluir o pedido. Verifique a ligação à internet e tente novamente.'.tr,
         );
     }
   }
@@ -106,19 +106,18 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             ),
           ),
           const SizedBox(height: Spacing.xxl + 4),
-          const Text(
-            'Esqueceu-se da palavra-passe?',
-            style: TextStyle(
+          Text(
+            'Esqueceu-se da palavra-passe?'.tr,
+            style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.w700,
               color: AppColors.textPrimary,
             ),
           ),
           const SizedBox(height: Spacing.xs + 2),
-          const Text(
-            'Indique o email da sua conta Bora. Enviamos-lhe uma ligação '
-            'para definir uma palavra-passe nova.',
-            style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+          Text(
+            'Indique o email da sua conta Bora. Enviamos-lhe uma ligação para definir uma palavra-passe nova.'.tr,
+            style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
           ),
           const SizedBox(height: Spacing.xxl + 4),
           TextFormField(
@@ -127,22 +126,22 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             autocorrect: false,
             textInputAction: TextInputAction.done,
             onFieldSubmitted: (_) => _isProcessing ? null : _submit(),
-            decoration: const InputDecoration(
-              labelText: 'Email',
-              prefixIcon: Icon(Icons.mail_outline),
+            decoration: InputDecoration(
+              labelText: 'Email'.tr,
+              prefixIcon: const Icon(Icons.mail_outline),
             ),
             validator: (value) {
               final email = (value ?? '').trim();
-              if (email.isEmpty) return 'Indique o seu email.';
+              if (email.isEmpty) return 'Indique o seu email.'.tr;
               if (!email.contains('@') || !email.contains('.')) {
-                return 'Email inválido.';
+                return 'Email inválido.'.tr;
               }
               return null;
             },
           ),
           const SizedBox(height: Spacing.xxl + 4),
           BoraPrimaryButton(
-            label: 'Enviar ligação',
+            label: 'Enviar ligação'.tr,
             loading: _isProcessing,
             onPressed: _submit,
           ),
@@ -164,38 +163,37 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           ),
         ),
         const SizedBox(height: Spacing.xxl),
-        const Text(
-          'Verifique o seu email',
+        Text(
+          'Verifique o seu email'.tr,
           textAlign: TextAlign.center,
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.w700,
             color: AppColors.textPrimary,
           ),
         ),
         const SizedBox(height: Spacing.md),
-        const Text(
-          'Se este email estiver registado, enviámos-lhe uma ligação para '
-          'definir uma palavra-passe nova. A ligação é válida durante 1 hora.',
+        Text(
+          'Se este email estiver registado, enviámos-lhe uma ligação para definir uma palavra-passe nova. A ligação é válida durante 1 hora.'.tr,
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+          style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
         ),
         const SizedBox(height: Spacing.md),
-        const Text(
-          'Não recebeu? Confirme a pasta de spam antes de pedir outra vez.',
+        Text(
+          'Não recebeu? Confirme a pasta de spam antes de pedir outra vez.'.tr,
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+          style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
         ),
         const SizedBox(height: Spacing.xxl + 4),
         BoraPrimaryButton(
-          label: 'Voltar a entrar',
+          label: 'Voltar a entrar'.tr,
           onPressed: () => Navigator.of(context).pop(),
         ),
         const SizedBox(height: Spacing.xs),
         Center(
           child: TextButton(
             onPressed: () => setState(() => _sent = false),
-            child: const Text('Usar outro email'),
+            child: Text('Usar outro email'.tr),
           ),
         ),
       ],

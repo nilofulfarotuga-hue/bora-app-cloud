@@ -4,6 +4,8 @@ import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../card_mandate_notice.dart';
 
+import '../../l10n/tr.dart';
+
 /// Selector de pagamento do pedido TVDE. **Dinheiro** está SEMPRE visível e é
 /// o default. **Cartão** e **MB Way** só aparecem com [cardEnabled] = true
 /// (kill switch `tvde_card_payments_enabled`). Com o switch off mostra apenas
@@ -55,14 +57,14 @@ class TvdePaymentSelector extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Pagamento',
-            style: TextStyle(
+        Text('Pagamento'.tr,
+            style: const TextStyle(
                 fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
         const SizedBox(height: Spacing.xs),
         Wrap(
           spacing: Spacing.sm,
           children: [
-            _chip('cash', 'Dinheiro', Icons.payments_outlined,
+            _chip('cash', 'Dinheiro'.tr, Icons.payments_outlined,
                 const Key('tvde_pay_cash')),
             if (cardEnabled) ...[
               _chip('card', 'Cartão', Icons.credit_card,
@@ -81,8 +83,8 @@ class TvdePaymentSelector extends StatelessWidget {
             controller: phoneController,
             keyboardType: TextInputType.phone,
             decoration: InputDecoration(
-              labelText: 'Número MBWay',
-              hintText: '9XXXXXXXX',
+              labelText: 'Número MBWay'.tr,
+              hintText: '9XXXXXXXX'.tr,
               prefixText: '+351 ',
               errorText: phoneError,
               border: const OutlineInputBorder(),
@@ -90,9 +92,9 @@ class TvdePaymentSelector extends StatelessWidget {
             ),
           ),
           const SizedBox(height: Spacing.xs),
-          const Text(
-            'Vais receber o pedido de pagamento na app MBWay.',
-            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          Text(
+            'Vais receber o pedido de pagamento na app MBWay.'.tr,
+            style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
           ),
         ],
       ],

@@ -10,6 +10,8 @@ import '../../../widgets/bora/coming_soon.dart';
 import 'my_appointments_screen.dart';
 import 'provider_detail_screen.dart';
 
+import '../../../l10n/tr.dart';
+
 /// Vertical Serviços — lista de barbearias (prestadores aprovados + online).
 /// Cards com foto/nome/rating/morada → ProviderDetailScreen.
 class ServicesCategoryScreen extends StatefulWidget {
@@ -44,13 +46,13 @@ class _ServicesCategoryScreenState extends State<ServicesCategoryScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: BoraScreenAppBar(
-        title: 'Beleza',
+        title: 'Beleza'.tr,
         actions: [
           // Sessão 2026-06-11 — entrada para "As minhas marcações" (gap
           // device: ecrã só era alcançável do booking_success).
           IconButton(
             icon: const Icon(Icons.event_note_outlined),
-            tooltip: 'As minhas marcações',
+            tooltip: 'As minhas marcações'.tr,
             onPressed: () => Navigator.push(
               context,
               MaterialPageRoute(
@@ -62,8 +64,7 @@ class _ServicesCategoryScreenState extends State<ServicesCategoryScreen> {
       body: SafeArea(
         child: Consumer<ServicesStore>(
           builder: (context, store, _) {
-            debugPrint('[SERVICOS] build providers=${store.providers.length} '
-                'loading=${store.loadingProviders} err=${store.providersError}');
+            debugPrint('[SERVICOS] build providers=${store.providers.length} loading=${store.loadingProviders} err=${store.providersError}');
             if (store.loadingProviders && store.providers.isEmpty) {
               return const Center(child: CircularProgressIndicator());
             }
@@ -95,20 +96,20 @@ class _ServicesCategoryScreenState extends State<ServicesCategoryScreen> {
 
   Widget _emptyState() => ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        children: const [
-          SizedBox(height: 100),
+        children: [
+          const SizedBox(height: 100),
           Center(
             child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 32),
+              padding: const EdgeInsets.symmetric(horizontal: 32),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.content_cut, size: 56, color: AppColors.textSubtle),
-                  SizedBox(height: Spacing.lg),
+                  const Icon(Icons.content_cut, size: 56, color: AppColors.textSubtle),
+                  const SizedBox(height: Spacing.lg),
                   Text(
-                    'Ainda não há serviços disponíveis\nVolta em breve!',
+                    'Ainda não há serviços disponíveis\nVolta em breve!'.tr,
                     textAlign: TextAlign.center,
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: AppColors.textSecondary,
                       fontSize: 15,
                     ),
@@ -293,7 +294,7 @@ class _ErrorState extends StatelessWidget {
             const SizedBox(height: Spacing.lg),
             ElevatedButton(
               onPressed: onRetry,
-              child: const Text('Tentar de novo'),
+              child: Text('Tentar de novo'.tr),
             ),
           ],
         ),

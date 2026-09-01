@@ -6,6 +6,8 @@ import '../../../models/notify_entry.dart';
 import '../../../models/waitlist_entry.dart';
 import '../../../stores/reservation_store.dart';
 
+import '../../../l10n/tr.dart';
+
 /// Reservas PRO F3.C — listagem das entries do cliente em
 /// fila de espera + lista "avisar se vagar".
 ///
@@ -45,17 +47,17 @@ class _MyReservationListsScreenState extends State<MyReservationListsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Sair da fila?'),
-        content: const Text('Vais perder a tua posição actual.'),
+        title: Text('Sair da fila?'.tr),
+        content: Text('Vais perder a tua posição actual.'.tr),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Não'),
+            child: Text('Não'.tr),
           ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Sair'),
+            child: Text('Sair'.tr),
           ),
         ],
       ),
@@ -67,7 +69,7 @@ class _MyReservationListsScreenState extends State<MyReservationListsScreen> {
       if (!mounted) return;
       _refreshAll();
       messenger.showSnackBar(
-        const SnackBar(content: Text('Saíste da fila.')),
+        SnackBar(content: Text('Saíste da fila.'.tr)),
       );
     } catch (e) {
       if (!mounted) return;
@@ -83,17 +85,17 @@ class _MyReservationListsScreenState extends State<MyReservationListsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Cancelar aviso?'),
-        content: const Text('Não vais receber notificação se vagar.'),
+        title: Text('Cancelar aviso?'.tr),
+        content: Text('Não vais receber notificação se vagar.'.tr),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Não'),
+            child: Text('Não'.tr),
           ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Cancelar aviso'),
+            child: Text('Cancelar aviso'.tr),
           ),
         ],
       ),
@@ -105,7 +107,7 @@ class _MyReservationListsScreenState extends State<MyReservationListsScreen> {
       if (!mounted) return;
       _refreshAll();
       messenger.showSnackBar(
-        const SnackBar(content: Text('Aviso cancelado.')),
+        SnackBar(content: Text('Aviso cancelado.'.tr)),
       );
     } catch (e) {
       if (!mounted) return;
@@ -131,17 +133,17 @@ class _MyReservationListsScreenState extends State<MyReservationListsScreen> {
           flexibleSpace: const DecoratedBox(
             decoration: BoxDecoration(gradient: AppColors.headerGradient),
           ),
-          title: const Text(
-            'Minhas Listas',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+          title: Text(
+            'Minhas Listas'.tr,
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
           ),
-          bottom: const TabBar(
+          bottom: TabBar(
             labelColor: Colors.white,
             unselectedLabelColor: Colors.white70,
             indicatorColor: Colors.white,
             tabs: [
-              Tab(text: 'Fila de espera'),
-              Tab(text: 'Avisar se vagar'),
+              Tab(text: 'Fila de espera'.tr),
+              Tab(text: 'Avisar se vagar'.tr),
             ],
           ),
         ),
@@ -168,8 +170,8 @@ class _MyReservationListsScreenState extends State<MyReservationListsScreen> {
         final list = snap.data ?? const [];
         if (list.isEmpty) {
           return _emptyState(
-            'Sem entradas na fila',
-            'Procura uma mesa noutro restaurante.',
+            'Sem entradas na fila'.tr,
+            'Procura uma mesa noutro restaurante.'.tr,
           );
         }
         return RefreshIndicator(
@@ -198,8 +200,8 @@ class _MyReservationListsScreenState extends State<MyReservationListsScreen> {
         final list = snap.data ?? const [];
         if (list.isEmpty) {
           return _emptyState(
-            'Sem avisos activos',
-            'Activa um aviso quando não houver mesa.',
+            'Sem avisos activos'.tr,
+            'Activa um aviso quando não houver mesa.'.tr,
           );
         }
         return RefreshIndicator(
@@ -229,7 +231,7 @@ class _MyReservationListsScreenState extends State<MyReservationListsScreen> {
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: _refreshAll,
-              child: const Text('Tentar de novo'),
+              child: Text('Tentar de novo'.tr),
             ),
           ],
         ),
@@ -302,7 +304,7 @@ class _MyReservationListsScreenState extends State<MyReservationListsScreen> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  'Notas: ${e.notes}',
+                  'Notas: {0}'.trArgs([e.notes]),
                   style: const TextStyle(
                     fontSize: 12,
                     color: AppColors.textSecondary,
@@ -317,9 +319,9 @@ class _MyReservationListsScreenState extends State<MyReservationListsScreen> {
                 child: OutlinedButton.icon(
                   onPressed: () => _onLeaveWaitlist(e.id),
                   icon: const Icon(Icons.exit_to_app, color: Colors.red),
-                  label: const Text(
-                    'Sair da fila',
-                    style: TextStyle(color: Colors.red),
+                  label: Text(
+                    'Sair da fila'.tr,
+                    style: const TextStyle(color: Colors.red),
                   ),
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: Colors.red),
@@ -336,7 +338,7 @@ class _MyReservationListsScreenState extends State<MyReservationListsScreen> {
   String _waitlistTimeLabel(WaitlistEntry e) {
     final start = e.targetTimeStart;
     final end = e.targetTimeEnd;
-    if (start == null && end == null) return 'Dia todo';
+    if (start == null && end == null) return 'Dia todo'.tr;
     final s = start != null ? start.substring(0, 5) : '—';
     final ed = end != null ? end.substring(0, 5) : '—';
     return '$s – $ed';
@@ -351,23 +353,23 @@ class _MyReservationListsScreenState extends State<MyReservationListsScreen> {
         color = AppColors.primary;
         break;
       case 'notified':
-        label = 'Mesa pronta!';
+        label = 'Mesa pronta!'.tr;
         color = AppColors.accent;
         break;
       case 'seated':
-        label = 'Sentado';
+        label = 'Sentado'.tr;
         color = Colors.grey;
         break;
       case 'cancelled_refund_pending':
-        label = 'Cancelado (reembolso a processar)';
+        label = 'Cancelado (reembolso a processar)'.tr;
         color = Colors.orange;
         break;
       case 'cancelled':
-        label = 'Cancelado';
+        label = 'Cancelado'.tr;
         color = Colors.grey;
         break;
       case 'expired':
-        label = 'Expirado';
+        label = 'Expirado'.tr;
         color = Colors.grey;
         break;
       default:
@@ -426,7 +428,7 @@ class _MyReservationListsScreenState extends State<MyReservationListsScreen> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Flexibilidade: ${e.flexibilityMinutes} min',
+                        'Flexibilidade: {0} min'.trArgs([e.flexibilityMinutes]),
                         style: const TextStyle(
                           fontSize: 13,
                           color: AppColors.textSecondary,
@@ -464,9 +466,9 @@ class _MyReservationListsScreenState extends State<MyReservationListsScreen> {
                 child: OutlinedButton.icon(
                   onPressed: () => _onLeaveNotify(e.id),
                   icon: const Icon(Icons.cancel_outlined, color: Colors.red),
-                  label: const Text(
-                    'Cancelar aviso',
-                    style: TextStyle(color: Colors.red),
+                  label: Text(
+                    'Cancelar aviso'.tr,
+                    style: const TextStyle(color: Colors.red),
                   ),
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: Colors.red),
@@ -482,14 +484,14 @@ class _MyReservationListsScreenState extends State<MyReservationListsScreen> {
 
   String _expiryLabel(DateTime expiresAt) {
     final left = expiresAt.difference(DateTime.now());
-    if (left.isNegative) return 'Expirado';
+    if (left.isNegative) return 'Expirado'.tr;
     if (left.inHours > 0) {
-      return 'Expira em ${left.inHours}h ${left.inMinutes.remainder(60)}m';
+      return 'Expira em {0}h {1}m'.trArgs([left.inHours, left.inMinutes.remainder(60)]);
     }
     if (left.inMinutes > 0) {
-      return 'Expira em ${left.inMinutes}m';
+      return 'Expira em {0}m'.trArgs([left.inMinutes]);
     }
-    return 'A expirar';
+    return 'A expirar'.tr;
   }
 
   Widget _notifyBadge(NotifyEntry e) {
@@ -497,27 +499,27 @@ class _MyReservationListsScreenState extends State<MyReservationListsScreen> {
     Color color;
     switch (e.status) {
       case 'active':
-        label = 'Activo';
+        label = 'Activo'.tr;
         color = AppColors.primary;
         break;
       case 'notified':
-        label = 'Mesa vagou!';
+        label = 'Mesa vagou!'.tr;
         color = AppColors.accent;
         break;
       case 'converted':
-        label = 'Convertido';
+        label = 'Convertido'.tr;
         color = Colors.blue;
         break;
       case 'expired':
-        label = 'Expirado';
+        label = 'Expirado'.tr;
         color = Colors.grey;
         break;
       case 'cancelled_refund_pending':
-        label = 'Cancelado (reembolso a processar)';
+        label = 'Cancelado (reembolso a processar)'.tr;
         color = Colors.orange;
         break;
       case 'cancelled':
-        label = 'Cancelado';
+        label = 'Cancelado'.tr;
         color = Colors.grey;
         break;
       default:
@@ -578,7 +580,7 @@ class _MyReservationListsScreenState extends State<MyReservationListsScreen> {
               foregroundColor: Colors.white,
             ),
             icon: const Icon(Icons.search),
-            label: const Text('Procurar mesa'),
+            label: Text('Procurar mesa'.tr),
           ),
         ),
       ],

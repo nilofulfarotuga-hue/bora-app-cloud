@@ -7,6 +7,8 @@ import '../../models/partner_product.dart';
 import '../../screens/store_products_screen.dart';
 import '../../stores/restaurant_store.dart';
 
+import '../../l10n/tr.dart';
+
 /// Tab "Categorias" do interior do mercado — lista vertical estilo Glovo.
 /// Thumbnail + nome + sub-categorias resumo + chevron.
 /// Toque → StoreProductsScreen(initialCategory: cat).
@@ -84,10 +86,10 @@ class MarketCategoriesTab extends StatelessWidget {
       if (restaurantStore.storeProductsLoading(restaurantId)) {
         return const Center(child: CircularProgressIndicator());
       }
-      return const Center(
+      return Center(
         child: Text(
-          'Sem categorias disponíveis.',
-          style: TextStyle(color: AppColors.textSecondary),
+          'Sem categorias disponíveis.'.tr,
+          style: const TextStyle(color: AppColors.textSecondary),
         ),
       );
     }
@@ -186,7 +188,7 @@ class _CategoryListTile extends StatelessWidget {
                   ],
                   const SizedBox(height: 2),
                   Text(
-                    '$productCount produto${productCount != 1 ? 's' : ''}',
+                    '{0} produto{1}'.trArgs([productCount, productCount != 1 ? 's' : '']),
                     style: const TextStyle(
                       fontSize: 11,
                       color: AppColors.textSecondary,

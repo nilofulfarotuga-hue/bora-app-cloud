@@ -8,6 +8,8 @@ import '../widgets/bora/bora_accent_button.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/tip_selector.dart';
 
+import '../l10n/tr.dart';
+
 /// Rating screen shown to the client after an order is delivered (BR §13).
 ///
 /// Posts a new row to public.ratings with:
@@ -69,7 +71,7 @@ class _RatingScreenState extends State<RatingScreen> {
       if (user == null) {
         setState(() => _submitting = false);
         messenger.showSnackBar(
-          const SnackBar(content: Text('Sessão expirou.')),
+          SnackBar(content: Text('Sessão expirou.'.tr)),
         );
         return;
       }
@@ -105,14 +107,14 @@ class _RatingScreenState extends State<RatingScreen> {
 
       if (!mounted) return;
       messenger.showSnackBar(
-        const SnackBar(content: Text('Obrigado pela tua avaliação!')),
+        SnackBar(content: Text('Obrigado pela tua avaliação!'.tr)),
       );
       navigator.pop(true);
     } catch (e) {
       if (!mounted) return;
       setState(() => _submitting = false);
       messenger.showSnackBar(
-        SnackBar(content: Text('Erro a gravar avaliação: $e')),
+        SnackBar(content: Text('Erro a gravar avaliação: {0}'.trArgs([e]))),
       );
     }
   }
@@ -121,16 +123,16 @@ class _RatingScreenState extends State<RatingScreen> {
   Widget build(BuildContext context) {
     final tagsToShow = _suggestedTags;
     return Scaffold(
-      appBar: const BoraScreenAppBar(title: 'Avaliar'),
+      appBar: BoraScreenAppBar(title: 'Avaliar'.tr),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
-                'Como correu?',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+              Text(
+                'Como correu?'.tr,
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 16),
               Row(
@@ -151,8 +153,8 @@ class _RatingScreenState extends State<RatingScreen> {
               ),
               if (tagsToShow.isNotEmpty) ...[
                 const SizedBox(height: 8),
-                const Text('Etiquetas rápidas',
-                    style: TextStyle(fontWeight: FontWeight.w600)),
+                Text('Etiquetas rápidas'.tr,
+                    style: const TextStyle(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
@@ -180,9 +182,9 @@ class _RatingScreenState extends State<RatingScreen> {
                 controller: _commentController,
                 maxLines: 4,
                 enabled: !_submitting,
-                decoration: const InputDecoration(
-                  labelText: 'Comentário (opcional)',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: 'Comentário (opcional)'.tr,
+                  border: const OutlineInputBorder(),
                 ),
               ),
               // BUG 9 — esconder gorjeta em CASH. Em CASH não há como cobrar
@@ -200,27 +202,27 @@ class _RatingScreenState extends State<RatingScreen> {
               SwitchListTile(
                 value: _isPrivate,
                 onChanged: _submitting ? null : (v) => setState(() => _isPrivate = v),
-                title: const Text(
-                  'Avaliação privada',
-                  style: TextStyle(fontWeight: FontWeight.w600),
+                title: Text(
+                  'Avaliação privada'.tr,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
-                subtitle: const Text(
-                  'Apenas a equipa Bora vê. Não aparece no perfil público.',
-                  style: TextStyle(fontSize: 12),
+                subtitle: Text(
+                  'Apenas a equipa Bora vê. Não aparece no perfil público.'.tr,
+                  style: const TextStyle(fontSize: 12),
                 ),
                 contentPadding: EdgeInsets.zero,
                 activeThumbColor: AppColors.primary,
               ),
               const SizedBox(height: 12),
               BoraAccentButton(
-                label: 'Enviar avaliação',
+                label: 'Enviar avaliação'.tr,
                 loading: _submitting,
                 onPressed: _canSubmit ? _submit : null,
               ),
               const SizedBox(height: 8),
               TextButton(
                 onPressed: _submitting ? null : () => Navigator.pop(context),
-                child: const Text('Saltar'),
+                child: Text('Saltar'.tr),
               ),
             ],
           ),

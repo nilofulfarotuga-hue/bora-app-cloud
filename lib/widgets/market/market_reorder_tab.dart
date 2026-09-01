@@ -11,6 +11,8 @@ import '../../stores/order_store.dart';
 import '../../stores/partner_product_store.dart';
 import '../../stores/restaurant_store.dart';
 
+import '../../l10n/tr.dart';
+
 /// Tab "Pedir de novo" — lista os pedidos anteriores do cliente nesta loja e
 /// permite reordenar com um toque (Glovo/Uber "order again"). A lógica vive em
 /// [ReorderService]; aqui só ligamos à UI. NÃO toca pricing/create_order — o
@@ -39,27 +41,27 @@ class MarketReorderTab extends StatelessWidget {
         .toList();
 
     if (past.isEmpty) {
-      return const Center(
+      return Center(
         child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 40),
+          padding: const EdgeInsets.symmetric(horizontal: 40),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.refresh_rounded, size: 64, color: Color(0xFFBDBDBD)),
-              SizedBox(height: 16),
+              const Icon(Icons.refresh_rounded, size: 64, color: Color(0xFFBDBDBD)),
+              const SizedBox(height: 16),
               Text(
-                'Ainda sem pedidos nesta loja',
-                style: TextStyle(
+                'Ainda sem pedidos nesta loja'.tr,
+                style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                   color: AppColors.textPrimary,
                 ),
               ),
-              SizedBox(height: 8),
+              const SizedBox(height: 8),
               Text(
-                'Os teus pedidos anteriores nesta loja vão aparecer aqui para reordenar com um toque.',
+                'Os teus pedidos anteriores nesta loja vão aparecer aqui para reordenar com um toque.'.tr,
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 14,
                   color: AppColors.textSecondary,
                   height: 1.5,
@@ -104,7 +106,7 @@ class MarketReorderTab extends StatelessWidget {
       messenger.showSnackBar(
         SnackBar(
           content: Text(
-            'Alguns preços foram atualizados: ${changed.join(', ')}.',
+            'Alguns preços foram atualizados: {0}.'.trArgs([changed.join(', ')]),
           ),
           duration: const Duration(seconds: 5),
         ),
@@ -177,7 +179,7 @@ class _ReorderCard extends StatelessWidget {
             child: OutlinedButton.icon(
               onPressed: onReorder,
               icon: const Icon(Icons.refresh_rounded, size: 18),
-              label: const Text('Pedir de novo'),
+              label: Text('Pedir de novo'.tr),
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.primary,
                 side: const BorderSide(color: AppColors.primary),

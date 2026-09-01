@@ -7,6 +7,8 @@ import '../../config/app_spacing.dart';
 import '../../stores/tvde_chat_store.dart';
 import '../../widgets/bora/bora.dart';
 
+import '../../l10n/tr.dart';
+
 /// E — Chat bidirecional TVDE (reusa o padrão do chat do delivery). Scoped por
 /// corrida. [myRole] = 'client' no lado do passageiro, 'driver' no motorista.
 /// [otherPhone] habilita o botão de ligar (tel:) no topo.
@@ -63,8 +65,8 @@ class _TvdeChatScreenState extends State<TvdeChatScreen> {
       _scrollToEnd();
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Não foi possível enviar. Tenta de novo.')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Não foi possível enviar. Tenta de novo.'.tr)));
       }
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -107,7 +109,7 @@ class _TvdeChatScreenState extends State<TvdeChatScreen> {
           if (widget.otherPhone != null && widget.otherPhone!.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.call),
-              tooltip: 'Ligar',
+              tooltip: 'Ligar'.tr,
               onPressed: _call,
             ),
         ],
@@ -117,8 +119,8 @@ class _TvdeChatScreenState extends State<TvdeChatScreen> {
           Expanded(
             child: messages.isEmpty
                 ? Center(
-                    child: Text('Ainda sem mensagens. Diz olá 👋',
-                        style: TextStyle(color: AppColors.textSubtle)),
+                    child: Text('Ainda sem mensagens. Diz olá 👋'.tr,
+                        style: const TextStyle(color: AppColors.textSubtle)),
                   )
                 : ListView.builder(
                     controller: _scroll,
@@ -170,14 +172,14 @@ class _TvdeChatScreenState extends State<TvdeChatScreen> {
                       textInputAction: TextInputAction.send,
                       onSubmitted: (_) => _send(),
                       decoration: InputDecoration(
-                        hintText: 'Escreve uma mensagem…',
+                        hintText: 'Escreve uma mensagem…'.tr,
                         filled: true,
                         fillColor: AppColors.surface,
                         contentPadding: const EdgeInsets.symmetric(
                             horizontal: Spacing.md, vertical: Spacing.sm),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(Radii.lg),
-                          borderSide: BorderSide(color: AppColors.divider),
+                          borderSide: const BorderSide(color: AppColors.divider),
                         ),
                       ),
                     ),

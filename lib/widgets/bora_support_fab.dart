@@ -13,6 +13,8 @@ import '../providers/support_settings_provider.dart';
 import '../screens/support_chat_screen.dart';
 import 'bora_support_sheet.dart';
 
+import '../l10n/tr.dart';
+
 enum FabPosition { bottomRight, bottomLeft, topRight, topLeft }
 
 class BoraSupportFab extends StatelessWidget {
@@ -33,7 +35,7 @@ class BoraSupportFab extends StatelessWidget {
       heroTag: heroTag,
       backgroundColor: AppColors.accent,
       foregroundColor: Colors.white,
-      tooltip: 'Suporte Bora',
+      tooltip: 'Suporte Bora'.tr,
       onPressed: () => _open(context),
       child: const Icon(Icons.help_outline),
     );

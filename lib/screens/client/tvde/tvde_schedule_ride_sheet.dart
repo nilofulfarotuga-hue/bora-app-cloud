@@ -4,6 +4,8 @@ import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
 import '../../../widgets/bora/bora.dart';
 
+import '../../../l10n/tr.dart';
+
 /// [Reserva agendada 2026-08-19] Folha de "Marcar para depois" — o cliente
 /// escolhe o DIA e a HORA da viagem.
 ///
@@ -84,18 +86,18 @@ class _TvdeScheduleRideSheetState extends State<TvdeScheduleRideSheet> {
       initialDate: minimo,
       firstDate: DateTime(minimo.year, minimo.month, minimo.day),
       lastDate: _maximo,
-      helpText: 'Escolhe o dia',
-      cancelText: 'Voltar',
-      confirmText: 'Seguinte',
+      helpText: 'Escolhe o dia'.tr,
+      cancelText: 'Voltar'.tr,
+      confirmText: 'Seguinte'.tr,
     );
     if (data == null || !mounted) return;
 
     final hora = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(minimo),
-      helpText: 'Escolhe a hora',
-      cancelText: 'Voltar',
-      confirmText: 'Pronto',
+      helpText: 'Escolhe a hora'.tr,
+      cancelText: 'Voltar'.tr,
+      confirmText: 'Pronto'.tr,
     );
     if (hora == null || !mounted) return;
 
@@ -106,15 +108,13 @@ class _TvdeScheduleRideSheetState extends State<TvdeScheduleRideSheet> {
     // que volta a validar e devolve `too_soon` / `too_far`.
     if (juntos.isBefore(_minimo)) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Essa hora está demasiado em cima. Marca com pelo menos '
-            '${widget.minAdvanceMinutes} minutos de antecedência.'),
+        content: Text('Essa hora está demasiado em cima. Marca com pelo menos {0} minutos de antecedência.'.trArgs([widget.minAdvanceMinutes])),
       ));
       return;
     }
     if (juntos.isAfter(_maximo)) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Só dá para marcar até ${widget.maxAdvanceDays} dias '
-            'à frente.'),
+        content: Text('Só dá para marcar até {0} dias à frente.'.trArgs([widget.maxAdvanceDays])),
       ));
       return;
     }
@@ -144,15 +144,14 @@ class _TvdeScheduleRideSheetState extends State<TvdeScheduleRideSheet> {
             ),
           ),
           const SizedBox(height: Spacing.lg),
-          const Text(
-            'Marcar para depois',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+          Text(
+            'Marcar para depois'.tr,
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: Spacing.xs),
-          const Text(
-            'Escolhe o dia e a hora. Procuramos motorista com antecedência e '
-            'avisamos-te assim que estiver confirmado.',
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+          Text(
+            'Escolhe o dia e a hora. Procuramos motorista com antecedência e avisamos-te assim que estiver confirmado.'.tr,
+            style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
           ),
           const SizedBox(height: Spacing.lg),
 
@@ -178,7 +177,7 @@ class _TvdeScheduleRideSheetState extends State<TvdeScheduleRideSheet> {
                   Expanded(
                     child: Text(
                       _escolhido == null
-                          ? 'Escolher dia e hora'
+                          ? 'Escolher dia e hora'.tr
                           : _formata(_escolhido!),
                       style: TextStyle(
                         fontSize: 15,
@@ -216,14 +215,13 @@ class _TvdeScheduleRideSheetState extends State<TvdeScheduleRideSheet> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Preço estimado: €$preco',
+                        'Preço estimado: €{0}'.trArgs([preco]),
                         style: const TextStyle(
                             fontWeight: FontWeight.w600, fontSize: 15),
                       ),
                       if (widget.km != null)
                         Text(
-                          '${widget.km!.toStringAsFixed(1)} km — o valor final '
-                          'é pela distância real.',
+                          '{0} km — o valor final é pela distância real.'.trArgs([widget.km!.toStringAsFixed(1)]),
                           style: const TextStyle(
                               color: AppColors.textSubtle, fontSize: 12),
                         ),
@@ -234,14 +232,13 @@ class _TvdeScheduleRideSheetState extends State<TvdeScheduleRideSheet> {
             ),
           ),
           const SizedBox(height: Spacing.md),
-          const Text(
-            'A seguir escolhes como pagas: dinheiro ao motorista, cartão ou '
-            'MB Way.',
-            style: TextStyle(color: AppColors.textSubtle, fontSize: 12),
+          Text(
+            'A seguir escolhes como pagas: dinheiro ao motorista, cartão ou MB Way.'.tr,
+            style: const TextStyle(color: AppColors.textSubtle, fontSize: 12),
           ),
           const SizedBox(height: Spacing.xl),
           BoraAccentButton(
-            label: 'Continuar',
+            label: 'Continuar'.tr,
             icon: Icons.arrow_forward,
             onPressed: _escolhido == null
                 ? null
@@ -251,7 +248,7 @@ class _TvdeScheduleRideSheetState extends State<TvdeScheduleRideSheet> {
           Center(
             child: TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Voltar'),
+              child: Text('Voltar'.tr),
             ),
           ),
         ],

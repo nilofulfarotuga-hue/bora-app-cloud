@@ -81,6 +81,4 @@ class _CardMandateNoticeState extends State<CardMandateNotice> {
 /// cinco verticais — um consentimento que muda de palavras conforme o ecrã não
 /// é um consentimento fiável.
 const String mandateText =
-    'Ao pagar, autorizas o Bora a guardar este cartão para pagares num toque '
-    'nas próximas compras. Cada pagamento continua a ser confirmado por ti na '
-    'app. Podes remover o cartão quando quiseres em Perfil › Meus Cartões.';
+    'Ao pagar, autorizas o Bora a guardar este cartão para pagares num toque nas próximas compras. Cada pagamento continua a ser confirmado por ti na app. Podes remover o cartão quando quiseres em Perfil › Meus Cartões.';

@@ -8,6 +8,8 @@ import '../widgets/bora/bora_mascot.dart';
 import '../widgets/bora/bora_primary_button.dart';
 import 'forgot_password_screen.dart';
 
+import '../l10n/tr.dart';
+
 /// Ecrã de definição da nova palavra-passe. Serve os dois caminhos por onde o
 /// utilizador pode aqui chegar:
 ///
@@ -112,8 +114,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
         setState(() {
           _linkState = _LinkState.invalid;
           _invalidMessage =
-              'Esta ligação não é válida. Peça uma nova ligação para redefinir '
-              'a palavra-passe.';
+              'Esta ligação não é válida. Peça uma nova ligação para redefinir a palavra-passe.'.tr;
         });
         return;
       }
@@ -126,9 +127,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       setState(() {
         _linkState = _LinkState.invalid;
         _invalidMessage =
-            'Esta ligação expirou ou já foi utilizada. As ligações de '
-            'recuperação são válidas durante 1 hora e só podem ser usadas uma '
-            'vez.';
+            'Esta ligação expirou ou já foi utilizada. As ligações de recuperação são válidas durante 1 hora e só podem ser usadas uma vez.'.tr;
       });
     }
   }
@@ -158,11 +157,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
   String _messageForErrorCode(String code) {
     if (code.contains('expired')) {
-      return 'Esta ligação expirou. As ligações de recuperação são válidas '
-          'durante 1 hora — peça uma nova.';
+      return 'Esta ligação expirou. As ligações de recuperação são válidas durante 1 hora — peça uma nova.'.tr;
     }
-    return 'Esta ligação já não pode ser usada. Peça uma nova ligação para '
-        'redefinir a palavra-passe.';
+    return 'Esta ligação já não pode ser usada. Peça uma nova ligação para redefinir a palavra-passe.'.tr;
   }
 
   Future<void> _submit() async {
@@ -202,8 +199,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
           _isProcessing = false;
           _linkState = _LinkState.invalid;
           _invalidMessage =
-              'Esta ligação expirou ou já foi utilizada. Peça um email novo '
-              'para redefinir a palavra-passe.';
+              'Esta ligação expirou ou já foi utilizada. Peça um email novo para redefinir a palavra-passe.'.tr;
         });
         return;
       }
@@ -232,16 +228,16 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       final msg = e.message.toLowerCase();
       if (msg.contains('should be different') ||
           msg.contains('same as the old')) {
-        return 'A nova palavra-passe tem de ser diferente da anterior.';
+        return 'A nova palavra-passe tem de ser diferente da anterior.'.tr;
       }
       if (msg.contains('expired') || msg.contains('session')) {
-        return 'A sessão de recuperação expirou. Peça uma nova ligação.';
+        return 'A sessão de recuperação expirou. Peça uma nova ligação.'.tr;
       }
       if (msg.contains('weak') || msg.contains('at least')) {
-        return 'Escolha uma palavra-passe mais forte (mínimo 6 caracteres).';
+        return 'Escolha uma palavra-passe mais forte (mínimo 6 caracteres).'.tr;
       }
     }
-    return 'Não foi possível alterar a palavra-passe. Tente novamente.';
+    return 'Não foi possível alterar a palavra-passe. Tente novamente.'.tr;
   }
 
   void _pedirNovaLigacao() {
@@ -311,10 +307,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
         const SizedBox(height: Spacing.xxl),
         const Icon(Icons.link_off, size: 48, color: AppColors.textSecondary),
         const SizedBox(height: Spacing.lg),
-        const Text(
-          'Ligação inválida',
+        Text(
+          'Ligação inválida'.tr,
           textAlign: TextAlign.center,
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.w700,
             color: AppColors.textPrimary,
@@ -329,14 +325,14 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
         ),
         const SizedBox(height: Spacing.xxl + 4),
         BoraPrimaryButton(
-          label: 'Pedir nova ligação',
+          label: 'Pedir nova ligação'.tr,
           onPressed: _pedirNovaLigacao,
         ),
         const SizedBox(height: Spacing.xs),
         Center(
           child: TextButton(
             onPressed: _voltarAoLogin,
-            child: const Text('Voltar a entrar'),
+            child: Text('Voltar a entrar'.tr),
           ),
         ),
       ],
@@ -353,24 +349,24 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
               size: 72, color: AppColors.primary),
         ),
         const SizedBox(height: Spacing.xxl),
-        const Text(
-          'Palavra-passe alterada',
+        Text(
+          'Palavra-passe alterada'.tr,
           textAlign: TextAlign.center,
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.w700,
             color: AppColors.textPrimary,
           ),
         ),
         const SizedBox(height: Spacing.md),
-        const Text(
-          'Já pode entrar na sua conta Bora com a palavra-passe nova.',
+        Text(
+          'Já pode entrar na sua conta Bora com a palavra-passe nova.'.tr,
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+          style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
         ),
         const SizedBox(height: Spacing.xxl + 4),
         BoraPrimaryButton(
-          label: 'Entrar',
+          label: 'Entrar'.tr,
           onPressed: _voltarAoLogin,
         ),
       ],
@@ -392,26 +388,25 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
             ),
           ),
           const SizedBox(height: Spacing.xxl + 4),
-          const Text(
-            'Nova palavra-passe',
-            style: TextStyle(
+          Text(
+            'Nova palavra-passe'.tr,
+            style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.w700,
               color: AppColors.textPrimary,
             ),
           ),
           const SizedBox(height: Spacing.xs + 2),
-          const Text(
-            'Defina a nova palavra-passe da sua conta Bora. '
-            'Mínimo 6 caracteres.',
-            style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+          Text(
+            'Defina a nova palavra-passe da sua conta Bora. Mínimo 6 caracteres.'.tr,
+            style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
           ),
           const SizedBox(height: Spacing.xxl + 4),
           TextFormField(
             controller: _passwordController,
             obscureText: _obscurePassword,
             decoration: InputDecoration(
-              labelText: 'Nova palavra-passe',
+              labelText: 'Nova palavra-passe'.tr,
               prefixIcon: const Icon(Icons.lock_outline),
               suffixIcon: IconButton(
                 icon: Icon(
@@ -425,9 +420,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
             ),
             validator: (value) {
               if (value == null || value.isEmpty) {
-                return 'Informe a nova palavra-passe.';
+                return 'Informe a nova palavra-passe.'.tr;
               }
-              if (value.length < 6) return 'Mínimo 6 caracteres.';
+              if (value.length < 6) return 'Mínimo 6 caracteres.'.tr;
               return null;
             },
           ),
@@ -435,20 +430,20 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
           TextFormField(
             controller: _confirmController,
             obscureText: _obscurePassword,
-            decoration: const InputDecoration(
-              labelText: 'Confirmar palavra-passe',
-              prefixIcon: Icon(Icons.lock_outline),
+            decoration: InputDecoration(
+              labelText: 'Confirmar palavra-passe'.tr,
+              prefixIcon: const Icon(Icons.lock_outline),
             ),
             validator: (value) {
               if (value != _passwordController.text) {
-                return 'As palavras-passe não coincidem.';
+                return 'As palavras-passe não coincidem.'.tr;
               }
               return null;
             },
           ),
           const SizedBox(height: Spacing.xxl + 4),
           BoraPrimaryButton(
-            label: 'Guardar nova palavra-passe',
+            label: 'Guardar nova palavra-passe'.tr,
             loading: _isProcessing,
             onPressed: _submit,
           ),

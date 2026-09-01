@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../config/app_spacing.dart';
 
+
+import '../../l10n/tr.dart';
 /// Widgets partilhados do estado "Em breve" (`coming_soon`).
 ///
 /// A loja/parceiro continua visível, clicável e navegável — só não aceita
@@ -35,7 +37,7 @@ class ComingSoonChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(Radii.md),
       ),
       child: Text(
-        'Em breve',
+        'Em breve'.tr,
         style: TextStyle(
           fontFamily: 'Inter',
           fontSize: dense ? 10 : 11,

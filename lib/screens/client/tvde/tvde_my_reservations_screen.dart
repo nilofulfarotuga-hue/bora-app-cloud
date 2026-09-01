@@ -6,6 +6,8 @@ import '../../../config/app_spacing.dart';
 import '../../../models/tvde_ride.dart';
 import '../../../stores/tvde_store.dart';
 
+import '../../../l10n/tr.dart';
+
 /// [Reserva agendada 2026-08-19] "As minhas reservas" — as viagens que o
 /// cliente marcou para depois.
 ///
@@ -57,7 +59,7 @@ class _TvdeMyReservationsScreenState extends State<TvdeMyReservationsScreen> {
   ];
 
   String _quando(DateTime? d) {
-    if (d == null) return 'sem hora';
+    if (d == null) return 'sem hora'.tr;
     final l = d.toLocal();
     final hh = l.hour.toString().padLeft(2, '0');
     final mm = l.minute.toString().padLeft(2, '0');
@@ -77,21 +79,20 @@ class _TvdeMyReservationsScreenState extends State<TvdeMyReservationsScreen> {
     final confirmou = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Cancelar a reserva?'),
+        title: Text('Cancelar a reserva?'.tr),
         content: Text(
           gratis
-              ? 'Ainda estás a tempo — o cancelamento é grátis.'
-              : 'Faltam menos de $_horasCancelGratis horas para a viagem. '
-                  'Pode haver uma taxa de cancelamento.',
+              ? 'Ainda estás a tempo — o cancelamento é grátis.'.tr
+              : 'Faltam menos de {0} horas para a viagem. Pode haver uma taxa de cancelamento.'.trArgs([_horasCancelGratis]),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Manter reserva'),
+            child: Text('Manter reserva'.tr),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Cancelar reserva'),
+            child: Text('Cancelar reserva'.tr),
           ),
         ],
       ),
@@ -106,7 +107,7 @@ class _TvdeMyReservationsScreenState extends State<TvdeMyReservationsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(online
             // O reembolso é automático do lado do servidor — a app só informa.
-            ? 'Reserva cancelada. O reembolso é feito automaticamente.'
+            ? 'Reserva cancelada. O reembolso é feito automaticamente.'.tr
             : 'Reserva cancelada.'),
       ));
     } catch (e) {
@@ -122,34 +123,33 @@ class _TvdeMyReservationsScreenState extends State<TvdeMyReservationsScreen> {
     final reservas = store.reservations;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('As minhas reservas')),
+      appBar: AppBar(title: Text('As minhas reservas'.tr)),
       body: _aCarregar
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: _carregar,
               child: reservas.isEmpty
                   ? ListView(
-                      children: const [
-                        SizedBox(height: 120),
-                        Icon(Icons.event_available,
+                      children: [
+                        const SizedBox(height: 120),
+                        const Icon(Icons.event_available,
                             size: 56, color: AppColors.textSubtle),
-                        SizedBox(height: Spacing.md),
+                        const SizedBox(height: Spacing.md),
                         Center(
                           child: Text(
-                            'Ainda não tens viagens marcadas.',
-                            style: TextStyle(color: AppColors.textSecondary),
+                            'Ainda não tens viagens marcadas.'.tr,
+                            style: const TextStyle(color: AppColors.textSecondary),
                           ),
                         ),
-                        SizedBox(height: Spacing.xs),
+                        const SizedBox(height: Spacing.xs),
                         Center(
                           child: Padding(
                             padding:
-                                EdgeInsets.symmetric(horizontal: Spacing.xl),
+                                const EdgeInsets.symmetric(horizontal: Spacing.xl),
                             child: Text(
-                              'No ecrã de pedir motorista tens "Marcar para '
-                              'depois".',
+                              'No ecrã de pedir motorista tens "Marcar para depois".'.tr,
                               textAlign: TextAlign.center,
-                              style: TextStyle(
+                              style: const TextStyle(
                                   color: AppColors.textSubtle, fontSize: 12),
                             ),
                           ),
@@ -205,30 +205,26 @@ class _TvdeMyReservationsScreenState extends State<TvdeMyReservationsScreen> {
           // O servidor cancela sozinho as reservas não pagas ao fim de 15 min.
           if (r.reservationAwaitingPayment) ...[
             const SizedBox(height: Spacing.sm),
-            const Text(
-              'Termina o pagamento para a reserva ficar marcada. Se não '
-              'concluíres em 15 minutos, cancelamos sozinhos e não és cobrado.',
-              style: TextStyle(fontSize: 12, color: AppColors.textSubtle),
+            Text(
+              'Termina o pagamento para a reserva ficar marcada. Se não concluíres em 15 minutos, cancelamos sozinhos e não és cobrado.'.tr,
+              style: const TextStyle(fontSize: 12, color: AppColors.textSubtle),
             ),
           ],
           if (r.reservationStatus == 'sem_motorista') ...[
             const SizedBox(height: Spacing.sm),
             Text(
               r.paymentMethod == 'cash'
-                  ? 'Não encontrámos motorista para esta hora. Podes marcar '
-                      'outra viagem.'
-                  : 'Não encontrámos motorista para esta hora. O reembolso é '
-                      'automático — não precisas de fazer nada.',
+                  ? 'Não encontrámos motorista para esta hora. Podes marcar outra viagem.'.tr
+                  : 'Não encontrámos motorista para esta hora. O reembolso é automático — não precisas de fazer nada.'.tr,
               style: const TextStyle(
                   fontSize: 12, color: AppColors.textSubtle),
             ),
           ],
           if (r.cancelReason == 'payment_timeout') ...[
             const SizedBox(height: Spacing.sm),
-            const Text(
-              'A reserva foi cancelada por o pagamento não ter sido concluído '
-              'a tempo. Não foste cobrado.',
-              style: TextStyle(fontSize: 12, color: AppColors.textSubtle),
+            Text(
+              'A reserva foi cancelada por o pagamento não ter sido concluído a tempo. Não foste cobrado.'.tr,
+              style: const TextStyle(fontSize: 12, color: AppColors.textSubtle),
             ),
           ],
           if (podeCancelar) ...[
@@ -239,7 +235,7 @@ class _TvdeMyReservationsScreenState extends State<TvdeMyReservationsScreen> {
                 onPressed: () => _cancelar(r),
                 child: Text(
                   _cancelaGratis(r)
-                      ? 'Cancelar (grátis)'
+                      ? 'Cancelar (grátis)'.tr
                       : 'Cancelar reserva',
                   style: const TextStyle(color: AppColors.error),
                 ),

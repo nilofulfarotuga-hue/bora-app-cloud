@@ -9,6 +9,8 @@ import '../../../stores/tvde_store.dart';
 import '../../../widgets/bora/bora.dart';
 import '../../../widgets/tvde/tvde_roundtrip_driver_notice.dart';
 
+import '../../../l10n/tr.dart';
+
 /// TVDE — Avaliação do motorista pelo passageiro (tvde_rate, subject 'driver').
 class TvdeRateScreen extends StatefulWidget {
   const TvdeRateScreen({super.key, required this.ride});
@@ -66,7 +68,7 @@ class _TvdeRateScreenState extends State<TvdeRateScreen> {
     final fare = fareView.clientTotalCents / 100;
 
     return Scaffold(
-      appBar: const BoraScreenAppBar(title: 'Avaliar viagem'),
+      appBar: BoraScreenAppBar(title: 'Avaliar viagem'.tr),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(Spacing.lg),
         child: Column(
@@ -75,7 +77,7 @@ class _TvdeRateScreenState extends State<TvdeRateScreen> {
             const SizedBox(height: Spacing.lg),
             const Icon(Icons.check_circle, size: 64, color: AppColors.primary),
             const SizedBox(height: Spacing.md),
-            Text('Viagem concluída',
+            Text('Viagem concluída'.tr,
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w700,
@@ -84,14 +86,13 @@ class _TvdeRateScreenState extends State<TvdeRateScreen> {
             Text(
                 covered
                     ? (widget.ride.isRoundtripLeg
-                        ? 'Volta incluída no pacote — não pagaste nada.'
+                        ? 'Volta incluída no pacote — não pagaste nada.'.tr
                         : 'Corrida incluída no teu plano — não pagaste nada.')
-                    : 'Pagaste €${fare.toStringAsFixed(2)}'
-                        '${fareView.isPaidOnline ? ' no app.' : ' em dinheiro.'}',
+                    : 'Pagaste €{0}{1}'.trArgs([fare.toStringAsFixed(2), fareView.isPaidOnline ? ' no app.' : ' em dinheiro.']),
                 textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.textSecondary)),
+                style: const TextStyle(color: AppColors.textSecondary)),
             const SizedBox(height: Spacing.xl),
-            Text('Como foi o motorista?',
+            Text('Como foi o motorista?'.tr,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                     fontWeight: FontWeight.w600,
@@ -115,20 +116,20 @@ class _TvdeRateScreenState extends State<TvdeRateScreen> {
             TextField(
               controller: _comment,
               maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: 'Comentário (opcional)',
+              decoration: InputDecoration(
+                labelText: 'Comentário (opcional)'.tr,
                 alignLabelWithHint: true,
               ),
             ),
             const SizedBox(height: Spacing.xl),
             BoraPrimaryButton(
-              label: 'Enviar avaliação',
+              label: 'Enviar avaliação'.tr,
               icon: Icons.send,
               loading: store.busy,
               onPressed: _submit,
             ),
             const SizedBox(height: Spacing.sm),
-            TextButton(onPressed: _skip, child: const Text('Agora não')),
+            TextButton(onPressed: _skip, child: Text('Agora não'.tr)),
           ],
         ),
       ),

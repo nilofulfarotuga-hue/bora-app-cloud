@@ -5,6 +5,8 @@ import '../../../config/app_colors.dart';
 import '../../../stores/reservation_store.dart';
 import '../../../widgets/bora/bora_screen_app_bar.dart';
 
+import '../../../l10n/tr.dart';
+
 /// Reservas PRO F3.C — pedir aviso "se vagar mesa".
 /// Form: data, hora, pessoas, flexibilidade.
 /// Submit chama RPC client_join_notify via store.joinNotify.
@@ -75,10 +77,9 @@ class _ReservationNotifyJoinScreenState
     await showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Grupos grandes'),
-        content: const Text(
-          'Para grupos com mais de 12 pessoas, contacta o restaurante '
-          'directamente.',
+        title: Text('Grupos grandes'.tr),
+        content: Text(
+          'Para grupos com mais de 12 pessoas, contacta o restaurante directamente.'.tr,
         ),
         actions: [
           TextButton(
@@ -104,8 +105,8 @@ class _ReservationNotifyJoinScreenState
           );
       if (!mounted) return;
       messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Aviso activado! Avisamos-te se vagar.'),
+        SnackBar(
+          content: Text('Aviso activado! Avisamos-te se vagar.'.tr),
           backgroundColor: AppColors.primary,
         ),
       );
@@ -125,7 +126,7 @@ class _ReservationNotifyJoinScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const BoraScreenAppBar(title: 'Avisar-me se vagar'),
+      appBar: BoraScreenAppBar(title: 'Avisar-me se vagar'.tr),
       body: SafeArea(
         child: Column(
           children: [
@@ -143,7 +144,7 @@ class _ReservationNotifyJoinScreenState
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Notificação para ${widget.restaurantName}',
+                              'Notificação para {0}'.trArgs([widget.restaurantName]),
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700,
@@ -151,9 +152,9 @@ class _ReservationNotifyJoinScreenState
                               ),
                             ),
                             const SizedBox(height: 4),
-                            const Text(
-                              'Avisamos-te se uma mesa ficar disponível.',
-                              style: TextStyle(
+                            Text(
+                              'Avisamos-te se uma mesa ficar disponível.'.tr,
+                              style: const TextStyle(
                                 color: AppColors.textSecondary,
                                 fontSize: 13,
                               ),
@@ -192,9 +193,9 @@ class _ReservationNotifyJoinScreenState
                           ),
                         )
                       : const Icon(Icons.notifications_active),
-                  label: const Text(
-                    'Activar aviso',
-                    style: TextStyle(
+                  label: Text(
+                    'Activar aviso'.tr,
+                    style: const TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 15,
                     ),
@@ -216,7 +217,7 @@ class _ReservationNotifyJoinScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const _SectionLabel('Data'),
+            _SectionLabel('Data'.tr),
             OutlinedButton.icon(
               onPressed: _pickDate,
               icon: const Icon(Icons.calendar_today, size: 18),
@@ -228,7 +229,7 @@ class _ReservationNotifyJoinScreenState
               ),
             ),
             const SizedBox(height: 16),
-            const _SectionLabel('Hora'),
+            _SectionLabel('Hora'.tr),
             OutlinedButton.icon(
               onPressed: _pickTime,
               icon: const Icon(Icons.access_time, size: 18),
@@ -240,7 +241,7 @@ class _ReservationNotifyJoinScreenState
               ),
             ),
             const SizedBox(height: 16),
-            const _SectionLabel('Pessoas'),
+            _SectionLabel('Pessoas'.tr),
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -266,20 +267,20 @@ class _ReservationNotifyJoinScreenState
               ],
             ),
             const SizedBox(height: 16),
-            _SectionLabel('Flexibilidade: $_flexibilityMinutes min'),
+            _SectionLabel('Flexibilidade: {0} min'.trArgs([_flexibilityMinutes])),
             Slider(
               value: _flexibilityMinutes.toDouble(),
               min: 0,
               max: 180,
               divisions: 12,
               activeColor: AppColors.primary,
-              label: '$_flexibilityMinutes min',
+              label: '{0} min'.trArgs([_flexibilityMinutes]),
               onChanged: (v) =>
                   setState(() => _flexibilityMinutes = v.round()),
             ),
             Text(
               _flexibilityMinutes == 0
-                  ? 'Apenas no horário exacto.'
+                  ? 'Apenas no horário exacto.'.tr
                   : 'Aceitas até $_flexibilityMinutes min antes ou depois.',
               style: const TextStyle(
                 fontSize: 12,
@@ -293,26 +294,26 @@ class _ReservationNotifyJoinScreenState
   }
 
   Widget _buildExplainerCard() {
-    return const Card(
+    return Card(
       elevation: 0,
       color: AppColors.surface,
       child: Padding(
-        padding: EdgeInsets.all(14),
+        padding: const EdgeInsets.all(14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Como funciona "Avisar-me se vagar"',
-              style: TextStyle(
+              'Como funciona "Avisar-me se vagar"'.tr,
+              style: const TextStyle(
                 fontWeight: FontWeight.w700,
                 color: AppColors.textPrimary,
               ),
             ),
-            SizedBox(height: 8),
-            _Bullet(text: 'Avisamos-te se uma mesa ficar disponível.'),
-            _Bullet(text: 'Tens 15 minutos para confirmar a reserva.'),
-            _Bullet(text: 'Sem pré-pagamento até confirmares.'),
-            _Bullet(text: 'Aviso expira 24h antes do horário escolhido.'),
+            const SizedBox(height: 8),
+            _Bullet(text: 'Avisamos-te se uma mesa ficar disponível.'.tr),
+            _Bullet(text: 'Tens 15 minutos para confirmar a reserva.'.tr),
+            _Bullet(text: 'Sem pré-pagamento até confirmares.'.tr),
+            _Bullet(text: 'Aviso expira 24h antes do horário escolhido.'.tr),
           ],
         ),
       ),

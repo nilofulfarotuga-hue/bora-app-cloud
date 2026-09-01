@@ -11,6 +11,8 @@ import '../providers/support_settings_provider.dart';
 import '../screens/support_chat_screen.dart';
 import '../screens/support_email_form_screen.dart';
 
+import '../l10n/tr.dart';
+
 class BoraSupportSheet extends StatelessWidget {
   const BoraSupportSheet({
     super.key,
@@ -48,14 +50,14 @@ class BoraSupportSheet extends StatelessWidget {
                 ),
               ),
             ),
-            const Text(
-              'Como podemos ajudar?',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+            Text(
+              'Como podemos ajudar?'.tr,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 4),
             if (orderId != null)
               Text(
-                'Sobre pedido #$orderId',
+                'Sobre pedido #{0}'.trArgs([orderId]),
                 style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
               ),
             const SizedBox(height: 16),
@@ -63,8 +65,8 @@ class BoraSupportSheet extends StatelessWidget {
               _ContactCard(
                 icon: Icons.smart_toy_outlined,
                 color: AppColors.accent,
-                title: 'Falar com Bora IA',
-                subtitle: 'Resposta imediata · 24/7',
+                title: 'Falar com Bora IA'.tr,
+                subtitle: 'Resposta imediata · 24/7'.tr,
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.of(context).push(
@@ -79,12 +81,12 @@ class BoraSupportSheet extends StatelessWidget {
             _ContactCard(
               icon: Icons.chat_bubble_outline,
               color: const Color(0xFF25D366),
-              title: 'WhatsApp',
+              title: 'WhatsApp'.tr,
               subtitle: provider.whatsappNumber,
               onTap: () {
                 Navigator.pop(context);
                 final msg = orderId == null
-                    ? 'Olá Bora! Preciso de ajuda.'
+                    ? 'Olá Bora! Preciso de ajuda.'.tr
                     : 'Olá Bora! Pedido #$orderId';
                 final phone =
                     provider.whatsappNumber.replaceAll(RegExp(r'[^0-9]'), '');
@@ -98,9 +100,9 @@ class BoraSupportSheet extends StatelessWidget {
             _ContactCard(
               icon: Icons.email_outlined,
               color: const Color(0xFF1976D2),
-              title: 'Email',
+              title: 'Email'.tr,
               subtitle:
-                  'Resposta em até ${provider.slaHours}h · ${provider.supportEmail}',
+                  'Resposta em até {0}h · {1}'.trArgs([provider.slaHours, provider.supportEmail]),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.of(context).push(

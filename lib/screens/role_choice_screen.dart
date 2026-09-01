@@ -6,6 +6,8 @@ import '../services/role_switch_helper.dart';
 import '../stores/session_store.dart';
 import '../widgets/bora/bora_mascot.dart';
 
+import '../l10n/tr.dart';
+
 /// MULTI-PAPEL (2026-08-05) — mostrado logo após o login quando `my_roles()`
 /// devolve mais do que um papel utilizável (ex.: mr.kebab@bora.app é parceiro
 /// E cliente). Depois de escolher, dá para trocar outra vez em Perfil (botão
@@ -29,8 +31,8 @@ class _RoleChoiceScreenState extends State<RoleChoiceScreen> {
     if (!ok) {
       setState(() => _isProcessing = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Não foi possível entrar nesse perfil. Tenta novamente.'),
+        SnackBar(
+          content: Text('Não foi possível entrar nesse perfil. Tenta novamente.'.tr),
         ),
       );
       return;
@@ -57,21 +59,20 @@ class _RoleChoiceScreenState extends State<RoleChoiceScreen> {
                 ),
               ),
               const SizedBox(height: Spacing.xl),
-              const Text(
-                'Como queres entrar?',
+              Text(
+                'Como queres entrar?'.tr,
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w700,
                   color: AppColors.textPrimary,
                 ),
               ),
               const SizedBox(height: Spacing.xs),
-              const Text(
-                'Esta conta tem mais do que um perfil no Bora. '
-                'Depois dá para trocar em Perfil, sem sair da conta.',
+              Text(
+                'Esta conta tem mais do que um perfil no Bora. Depois dá para trocar em Perfil, sem sair da conta.'.tr,
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
               ),
               const SizedBox(height: Spacing.xxl),
               for (final r in widget.roles)

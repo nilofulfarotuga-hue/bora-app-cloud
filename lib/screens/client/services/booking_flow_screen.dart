@@ -18,6 +18,8 @@ import '../reservation/reservation_payment_method_sheet.dart';
 import 'appointment_mbway_waiting_dialog.dart';
 import 'booking_success_screen.dart';
 
+import '../../../l10n/tr.dart';
+
 /// Vertical Serviços — fluxo de marcação em 6 passos (PageView):
 /// 1) serviço  2) profissional (com "Qualquer disponível")  3) dia
 /// 4) hora (slots via get_available_slots)  5) confirmação + pagamento Stripe
@@ -250,10 +252,10 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
   }
 
   List<String> get _titles => [
-        'Escolher serviço',
-        'Escolher profissional',
-        'Escolher dia',
-        'Escolher hora',
+        'Escolher serviço'.tr,
+        'Escolher profissional'.tr,
+        'Escolher dia'.tr,
+        'Escolher hora'.tr,
         _isReschedule ? 'Confirmar reagendamento' : 'Confirmar e pagar',
       ];
 
@@ -332,7 +334,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
       ),
       builder: (_) => ReservationPaymentMethodSheet(
         amountEur: _amountDueEur,
-        title: 'Pagamento da marcação',
+        title: 'Pagamento da marcação'.tr,
       ),
     );
     if (choice == null || !mounted) return;
@@ -351,8 +353,8 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
           await SavedCardCheckout.instance.authorize(amountEur: _amountDueEur);
       if (!mounted) return;
       if (auth.cancelled) {
-        messenger.showSnackBar(const SnackBar(
-            content: Text('Pagamento cancelado. Não foi cobrado nada.')));
+        messenger.showSnackBar(SnackBar(
+            content: Text('Pagamento cancelado. Não foi cobrado nada.'.tr)));
         return;
       }
       final result = await context.read<ServicesStore>().bookAndPay(
@@ -410,8 +412,8 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
       if (!mounted) return;
       final left = (result['reschedules_left'] as num?)?.toInt();
       final extra = switch (left) {
-        0 => '\nJá não podes reagendar esta marcação.',
-        1 => '\nPodes reagendar mais 1 vez.',
+        0 => '\nJá não podes reagendar esta marcação.'.tr,
+        1 => '\nPodes reagendar mais 1 vez.'.tr,
         _ => '',
       };
       navigator.pop(true);
@@ -420,9 +422,7 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
           backgroundColor: AppColors.success,
           duration: const Duration(seconds: 6),
           content: Text(
-            'Marcação reagendada para ${_formatDayLong(_slot!)} às '
-            '${_formatTime(_slot!)}. Não há nada a pagar — o valor já está '
-            'reservado.$extra',
+            'Marcação reagendada para {0} às {1}. Não há nada a pagar — o valor já está reservado.{2}'.trArgs([_formatDayLong(_slot!), _formatTime(_slot!), extra]),
           ),
         ),
       );
@@ -495,8 +495,8 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
           reason: 'mbway_nao_confirmado');
     } catch (_) {}
     messenger.showSnackBar(
-      const SnackBar(
-        content: Text('Pagamento MBWay não confirmado ou expirou.'),
+      SnackBar(
+        content: Text('Pagamento MBWay não confirmado ou expirou.'.tr),
         backgroundColor: AppColors.error,
       ),
     );
@@ -554,9 +554,9 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
 
   Widget _serviceStep() {
     if (_services.isEmpty) {
-      return const _EmptyStep(
+      return _EmptyStep(
         icon: Icons.content_cut,
-        text: 'Este prestador ainda não tem serviços.',
+        text: 'Este prestador ainda não tem serviços.'.tr,
       );
     }
     return ListView.separated(
@@ -626,18 +626,18 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
             _loadAvailability();
             _next();
           },
-          child: const Row(
+          child: Row(
             children: [
-              CircleAvatar(
+              const CircleAvatar(
                 radius: 22,
                 backgroundColor: AppColors.primaryLight,
                 child: Icon(Icons.groups_outlined, color: AppColors.primary),
               ),
-              SizedBox(width: Spacing.md),
+              const SizedBox(width: Spacing.md),
               Expanded(
                 child: Text(
-                  'Qualquer disponível',
-                  style: TextStyle(
+                  'Qualquer disponível'.tr,
+                  style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
                     color: AppColors.textPrimary,
@@ -732,22 +732,22 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
     return CustomScrollView(
       slivers: [
         if (_loadingAvail)
-          const SliverToBoxAdapter(
+          SliverToBoxAdapter(
             child: Padding(
               padding:
-                  EdgeInsets.fromLTRB(Spacing.lg, Spacing.sm, Spacing.lg, 0),
+                  const EdgeInsets.fromLTRB(Spacing.lg, Spacing.sm, Spacing.lg, 0),
               child: Row(
                 children: [
-                  SizedBox(
+                  const SizedBox(
                     width: 14,
                     height: 14,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   ),
-                  SizedBox(width: Spacing.sm),
+                  const SizedBox(width: Spacing.sm),
                   Text(
-                    'A verificar disponibilidade…',
+                    'A verificar disponibilidade…'.tr,
                     style:
-                        TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                        const TextStyle(fontSize: 12, color: AppColors.textSecondary),
                   ),
                 ],
               ),
@@ -831,8 +831,8 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
     if (_slotOptions.isEmpty) {
       return _EmptyStep(
         icon: Icons.event_busy,
-        text: 'Sem horários disponíveis neste dia.\nEscolhe outro dia.',
-        actionLabel: 'Mudar dia',
+        text: 'Sem horários disponíveis neste dia.\nEscolhe outro dia.'.tr,
+        actionLabel: 'Mudar dia'.tr,
         onAction: () => _goTo(2),
       );
     }
@@ -879,13 +879,13 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
     final s = _service;
     final slot = _slot;
     if (s == null || slot == null) {
-      return const _EmptyStep(
+      return _EmptyStep(
         icon: Icons.info_outline,
-        text: 'Faltam dados. Volta atrás e completa a marcação.',
+        text: 'Faltam dados. Volta atrás e completa a marcação.'.tr,
       );
     }
     final staffName = _staffId == _kAnyStaffId
-        ? 'Qualquer disponível'
+        ? 'Qualquer disponível'.tr
         : (_staff
                 .where((st) => st.id == _resolvedStaffId)
                 .map((st) => st.name)
@@ -912,10 +912,10 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
                   controller: _notesCtrl,
                   maxLines: 3,
                   maxLength: 300,
-                  decoration: const InputDecoration(
-                    labelText: 'Notas (opcional)',
-                    hintText: 'Algo que o profissional deva saber...',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: 'Notas (opcional)'.tr,
+                    hintText: 'Algo que o profissional deva saber...'.tr,
+                    border: const OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: Spacing.sm),
@@ -956,14 +956,14 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
       ),
       child: Column(
         children: [
-          _summaryRow(Icons.content_cut, 'Serviço', service),
+          _summaryRow(Icons.content_cut, 'Serviço'.tr, service),
           const Divider(height: Spacing.xl, color: AppColors.divider),
-          _summaryRow(Icons.person_outline, 'Profissional', staff),
+          _summaryRow(Icons.person_outline, 'Profissional'.tr, staff),
           const Divider(height: Spacing.xl, color: AppColors.divider),
           _summaryRow(
-              Icons.event, 'Data', '${_formatDayLong(slot)} · ${_formatTime(slot)}'),
+              Icons.event, 'Data'.tr, '${_formatDayLong(slot)} · ${_formatTime(slot)}'),
           const Divider(height: Spacing.xl, color: AppColors.divider),
-          _summaryRow(Icons.euro, 'Preço', price, emphasize: true),
+          _summaryRow(Icons.euro, 'Preço'.tr, price, emphasize: true),
         ],
       ),
     );
@@ -1002,11 +1002,9 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
   Widget _paymentInfoCard() {
     final String text;
     if (_isReschedule) {
-      text = 'Não há nada a pagar — o valor que já pagaste fica reservado '
-          'para esta marcação.';
+      text = 'Não há nada a pagar — o valor que já pagaste fica reservado para esta marcação.'.tr;
     } else {
-      text = 'Paga agora o valor total do serviço: $_amountDueLabel.\n'
-          'Não há mais nada a pagar na loja.';
+      text = 'Paga agora o valor total do serviço: {0}.\nNão há mais nada a pagar na loja.'.trArgs([_amountDueLabel]);
     }
     return Container(
       padding: const EdgeInsets.all(Spacing.md),
@@ -1176,11 +1174,11 @@ class _DayCell extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 2),
-            const Text(
-              'Indisponível',
+            Text(
+              'Indisponível'.tr,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 8.5,
                 fontWeight: FontWeight.w600,
                 color: AppColors.textSubtle,
@@ -1328,7 +1326,7 @@ class _LoadError extends StatelessWidget {
             Text(message, textAlign: TextAlign.center),
             const SizedBox(height: Spacing.lg),
             BoraPrimaryButton(
-              label: 'Tentar de novo',
+              label: 'Tentar de novo'.tr,
               expanded: false,
               onPressed: onRetry,
             ),

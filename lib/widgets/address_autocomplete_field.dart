@@ -7,6 +7,8 @@ import '../config/maps_config.dart';
 import '../services/place_autocomplete_service.dart';
 import '../services/web_health_log.dart';
 
+import '../l10n/tr.dart';
+
 /// A [TextFormField] that shows Google Places autocomplete suggestions
 /// as the user types in a floating overlay (not inline), so it is always
 /// visible regardless of the parent scroll context.
@@ -299,35 +301,35 @@ class _AddressAutocompleteFieldState extends State<AddressAutocompleteField> {
 
     switch (_status) {
       case PlaceServiceStatus.loading:
-        return const [
+        return [
           ListTile(
             dense: true,
-            leading: SizedBox(
+            leading: const SizedBox(
               width: 20,
               height: 20,
               child: CircularProgressIndicator(strokeWidth: 2),
             ),
-            title: Text('A procurar moradas…'),
+            title: Text('A procurar moradas…'.tr),
           ),
         ];
       case PlaceServiceStatus.ready:
         return [
-          const ListTile(
+          ListTile(
             dense: true,
-            leading: Icon(Icons.search_off_outlined, size: 20),
-            title: Text('Não encontrei essa morada.'),
-            subtitle: Text('Escreve a rua e o número.'),
+            leading: const Icon(Icons.search_off_outlined, size: 20),
+            title: Text('Não encontrei essa morada.'.tr),
+            subtitle: Text('Escreve a rua e o número.'.tr),
           ),
           const Divider(height: 1),
           _buildManualRow(),
         ];
       case PlaceServiceStatus.unavailable:
         return [
-          const ListTile(
+          ListTile(
             dense: true,
-            leading: Icon(Icons.wifi_off_outlined, size: 20),
-            title: Text('Sem sugestões automáticas neste momento.'),
-            subtitle: Text('Podes escrever a morada completa à mão.'),
+            leading: const Icon(Icons.wifi_off_outlined, size: 20),
+            title: Text('Sem sugestões automáticas neste momento.'.tr),
+            subtitle: Text('Podes escrever a morada completa à mão.'.tr),
           ),
           const Divider(height: 1),
           _buildManualRow(),
@@ -343,7 +345,7 @@ class _AddressAutocompleteFieldState extends State<AddressAutocompleteField> {
       dense: true,
       leading: const Icon(Icons.edit_location_alt_outlined, size: 20),
       title: Text(
-        'Usar esta morada: "$_lastQueryText"',
+        'Usar esta morada: "{0}"'.trArgs([_lastQueryText]),
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
       ),
@@ -455,7 +457,7 @@ class _AddressAutocompleteFieldState extends State<AddressAutocompleteField> {
         // ~260px) para nunca ficar atrás do teclado. Ver licao-autocomplete-teclado.
         scrollPadding: const EdgeInsets.only(bottom: 320),
         decoration: InputDecoration(
-          labelText: widget.labelText,
+          labelText: widget.labelText.tr,
           prefixIcon:
               widget.prefixIcon ?? const Icon(Icons.location_on_outlined),
           suffixIcon: _resolving

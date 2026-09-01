@@ -19,6 +19,8 @@ import '../widgets/bora_support_fab.dart';
 import 'cart_screen.dart';
 import 'product_detail_screen.dart';
 
+import '../l10n/tr.dart';
+
 class StoreProductsScreen extends StatefulWidget {
   final String restaurantId;
   final String storeName;
@@ -232,7 +234,7 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
               },
               onSubmitted: (_) {},
               decoration: InputDecoration(
-                hintText: 'Buscar produtos...',
+                hintText: 'Buscar produtos...'.tr,
                 hintStyle: TextStyle(color: Colors.grey.shade400),
                 prefixIcon: Icon(Icons.search, color: Colors.grey.shade400),
                 suffixIcon: _searchQuery.isNotEmpty
@@ -375,7 +377,7 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
                   ),
                   icon: const Icon(Icons.shopping_cart),
                   label: Text(
-                    'Ver carrinho · €${cartStore.total.toStringAsFixed(2)}',
+                    'Ver carrinho · €{0}'.trArgs([cartStore.total.toStringAsFixed(2)]),
                     style: const TextStyle(
                         fontWeight: FontWeight.w600, fontSize: 16),
                   ),
@@ -422,7 +424,7 @@ class _EmptyState extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               hasSearch
-                  ? 'Sem resultados para "$searchQuery"'
+                  ? 'Sem resultados para "{0}"'.trArgs([searchQuery])
                   : 'Nenhum produto disponível',
               textAlign: TextAlign.center,
               style: TextStyle(
@@ -434,7 +436,7 @@ class _EmptyState extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               hasSearch
-                  ? 'Tente outro termo de busca.'
+                  ? 'Tente outro termo de busca.'.tr
                   : 'Este estabelecimento ainda não tem produtos cadastrados.',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
@@ -444,7 +446,7 @@ class _EmptyState extends StatelessWidget {
               OutlinedButton.icon(
                 onPressed: onRefresh,
                 icon: const Icon(Icons.refresh),
-                label: const Text('Atualizar'),
+                label: Text('Atualizar'.tr),
                 style: OutlinedButton.styleFrom(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -905,7 +907,7 @@ class _BoraProductCardTile extends StatelessWidget {
               price: PricingService.applyMarkup(product.price, isPartnerStore),
               basePrice: product.price,
             ));
-        showAddedToCartSnack(context, '${product.name} no carrinho');
+        showAddedToCartSnack(context, '{0} no carrinho'.trArgs([product.name]));
       },
     );
   }
@@ -1042,13 +1044,13 @@ class _ProductCardState extends State<_ProductCard>
                   Row(
                     children: [
                       if (widget.product.isPopular)
-                        const Padding(
-                          padding: EdgeInsets.only(right: 6),
+                        Padding(
+                          padding: const EdgeInsets.only(right: 6),
                           child: _Badge(
-                              label: 'Mais vendido', color: Colors.orange),
+                              label: 'Mais vendido'.tr, color: Colors.orange),
                         ),
                       if (widget.product.isOnSale)
-                        const _Badge(label: 'Promoção', color: Colors.red),
+                        _Badge(label: 'Promoção'.tr, color: Colors.red),
                     ],
                   ),
                 ],
@@ -1095,7 +1097,7 @@ class _ProductCardState extends State<_ProductCard>
                                 basePrice: widget.product.price,
                               ));
                           showAddedToCartSnack(
-                              context, '${widget.product.name} no carrinho');
+                              context, '{0} no carrinho'.trArgs([widget.product.name]));
                         },
                       ),
                     ],
@@ -1169,7 +1171,7 @@ class _VariantMiniCard extends StatelessWidget {
           price: PricingService.applyMarkup(variant.price, isPartnerStore),
           basePrice: variant.price,
         ));
-    showAddedToCartSnack(context, '${variant.brandName} no carrinho');
+    showAddedToCartSnack(context, '{0} no carrinho'.trArgs([variant.brandName]));
   }
 
   @override
@@ -1226,10 +1228,10 @@ class _VariantMiniCard extends StatelessWidget {
                     ),
                     if (showCheapestBadge) ...[
                       const SizedBox(height: 3),
-                      const _Badge(label: 'Mais barato', color: Colors.green),
+                      _Badge(label: 'Mais barato'.tr, color: Colors.green),
                     ] else if (showPremiumBadge) ...[
                       const SizedBox(height: 3),
-                      const _Badge(label: 'Premium', color: Colors.blue),
+                      _Badge(label: 'Premium'.tr, color: Colors.blue),
                     ],
                   ],
                 ),
@@ -1571,8 +1573,8 @@ class _SuggestionsPanel extends StatelessWidget {
                 style:
                     const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
               ),
-              subtitle: const Text('Categoria',
-                  style: TextStyle(fontSize: 11, color: Colors.grey)),
+              subtitle: Text('Categoria'.tr,
+                  style: const TextStyle(fontSize: 11, color: Colors.grey)),
               onTap: () => onPickSection(
                   (s['category_root'] ?? s['name'] ?? '').toString()),
             ),

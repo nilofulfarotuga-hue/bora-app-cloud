@@ -24,6 +24,8 @@ import '../widgets/card_mandate_notice.dart';
 import '../widgets/customer_note_field.dart';
 import '../widgets/unified_checkout_button.dart';
 
+import '../l10n/tr.dart';
+
 /// Mensagem única do bloqueio de "Em breve" no pagamento (PT-PT).
 const String _kComingSoonPaymentMessage =
     'Esta loja ainda está a ser preparada. Em breve poderá finalizar o seu pedido.';
@@ -53,11 +55,11 @@ class _ComingSoonPaymentNotice extends StatelessWidget {
             borderRadius: BorderRadius.circular(Radii.lg),
             border: Border.all(color: AppColors.accent),
           ),
-          child: Row(
+          child: const Row(
             children: [
-              const Icon(Icons.schedule, color: AppColors.accent),
-              const SizedBox(width: Spacing.md),
-              const Expanded(
+              Icon(Icons.schedule, color: AppColors.accent),
+              SizedBox(width: Spacing.md),
+              Expanded(
                 child: Text(
                   _kComingSoonPaymentMessage,
                   style: TextStyle(
@@ -154,7 +156,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       final dia = '${quando.day.toString().padLeft(2, '0')}/'
           '${quando.month.toString().padLeft(2, '0')}';
       final hora = '${quando.hour.toString().padLeft(2, '0')}:00';
-      final marca = 'Encomenda para $dia às $hora';
+      final marca = 'Encomenda para {0} às {1}'.trArgs([dia, hora]);
       return t.isEmpty ? marca : '$marca · $t';
     }
     return t.isEmpty ? null : t;
@@ -330,23 +332,23 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     // "Pagar na loja" (parceiro recebe directamente). Valor enviado ao
     // servidor mantém-se 'cash' — só muda label/subtitle na UI.
     final paymentOptions = <_PaymentOption>[
-      const _PaymentOption(
+      _PaymentOption(
         method: PaymentMethod.card,
-        title: 'Cartão (Stripe)',
-        subtitle: 'Pague com cartão de crédito ou débito.',
+        title: 'Cartão (Stripe)'.tr,
+        subtitle: 'Pague com cartão de crédito ou débito.'.tr,
         icon: Icons.credit_card,
       ),
-      const _PaymentOption(
+      _PaymentOption(
         method: PaymentMethod.mbway,
-        title: 'MBWay',
-        subtitle: 'Receba uma notificação e confirme no MBWay.',
+        title: 'MBWay'.tr,
+        subtitle: 'Receba uma notificação e confirme no MBWay.'.tr,
         icon: Icons.phone_iphone,
       ),
       _PaymentOption(
         method: PaymentMethod.cash,
         title: cartStore.isTakeaway ? 'Pagar na loja' : 'Dinheiro',
         subtitle: cartStore.isTakeaway
-            ? 'Pague diretamente ao parceiro ao levantar.'
+            ? 'Pague diretamente ao parceiro ao levantar.'.tr
             : 'Pague diretamente ao estafeta na entrega.',
         icon: Icons.payments,
       ),
@@ -354,7 +356,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const BoraScreenAppBar(title: 'Pagamento'),
+      appBar: BoraScreenAppBar(title: 'Pagamento'.tr),
       body: Column(
         children: [
           Expanded(
@@ -373,7 +375,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Text(
-                          'Resumo do pedido',
+                          'Resumo do pedido'.tr,
                           style:
                               Theme.of(context).textTheme.titleMedium?.copyWith(
                                     fontWeight: FontWeight.w600,
@@ -383,27 +385,27 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                         // FAVORES (errand) — breakdown do favor: SEM subtotal €0,
                         // SEM entrega €2,50, SEM taxa de serviço/15%.
                         if (isErrand) ...[
-                          _SummaryRow(label: 'Favor', value: errBase),
+                          _SummaryRow(label: 'Favor'.tr, value: errBase),
                           if (errHome > 0)
                             _SummaryRow(
-                                label: 'Paragem em casa', value: errHome),
+                                label: 'Paragem em casa'.tr, value: errHome),
                           if (errKm > 0)
                             _SummaryRow(
-                                label: 'Distância extra', value: errKm),
+                                label: 'Distância extra'.tr, value: errKm),
                           if (errPurchase > 0)
                             _SummaryRow(
-                                label: 'Compra estimada na loja',
+                                label: 'Compra estimada na loja'.tr,
                                 value: errPurchase),
                         ],
                         if (!isErrand)
                           _SummaryRow(
-                              label: 'Subtotal', value: pricing.subtotal),
+                              label: 'Subtotal'.tr, value: pricing.subtotal),
                         if (!isErrand && pricing.serviceFee > 0)
                           _SummaryRow(
-                              label: 'Taxas', value: pricing.serviceFee),
+                              label: 'Taxas'.tr, value: pricing.serviceFee),
                         if (!isErrand)
                           _SummaryRow(
-                          label: 'Entrega',
+                          label: 'Entrega'.tr,
                           value: baseDeliveryFee,
                           subtitle: () {
                             // Taxa base e €/km derivadas do PricingService (fonte
@@ -431,15 +433,14 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                             // para o cliente perceber o acréscimo acima de 4 km.
                             if (isPackage) {
                               final base =
-                                  'Inclui €${baseFee.toStringAsFixed(2)} de taxa base (até 4 km)';
+                                  'Inclui €{0} de taxa base (até 4 km)'.trArgs([baseFee.toStringAsFixed(2)]);
                               if (extra > 0) {
-                                return '$base + €${perKm.toStringAsFixed(2)}/km acima de 4 km '
-                                    '(€${(perKm * extra).toStringAsFixed(2)} por ${extra.toStringAsFixed(1)} km extra).';
+                                return '{0} + €{1}/km acima de 4 km (€{2} por {3} km extra).'.trArgs([base, perKm.toStringAsFixed(2), (perKm * extra).toStringAsFixed(2), extra.toStringAsFixed(1)]);
                               }
-                              return '$base + €${perKm.toStringAsFixed(2)}/km acima de 4 km.';
+                              return '{0} + €{1}/km acima de 4 km.'.trArgs([base, perKm.toStringAsFixed(2)]);
                             }
                             if (extra <= 0) return null;
-                            return '€${baseFee.toStringAsFixed(2)} base + €${(perKm * extra).toStringAsFixed(2)} por ${extra.toStringAsFixed(1)}km extra';
+                            return '€{0} base + €{1} por {2}km extra'.trArgs([baseFee.toStringAsFixed(2), (perKm * extra).toStringAsFixed(2), extra.toStringAsFixed(1)]);
                           }(),
                         ),
                         // B1 (2026-06-11): linha do saco visível também aqui
@@ -447,15 +448,15 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                         // cobrada pelo servidor mas ausente deste resumo.
                         if (pricing.bagFee > 0)
                           _SummaryRow(
-                              label: 'Saco para viagem',
+                              label: 'Saco para viagem'.tr,
                               value: pricing.bagFee),
                         if (smallOrderFee > 0)
                           _SummaryRow(
-                              label: 'Taxa de pedido pequeno',
+                              label: 'Taxa de pedido pequeno'.tr,
                               value: smallOrderFee),
                         if (pricing.apartmentSurcharge > 0)
                           _SummaryRow(
-                            label: 'Entrega em apartamento',
+                            label: 'Entrega em apartamento'.tr,
                             value: pricing.apartmentSurcharge,
                           ),
                         if (hasApartmentDelivery)
@@ -469,7 +470,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
-                                    'Entrega em apartamento solicitada — bónus +€1 para o estafeta.',
+                                    'Entrega em apartamento solicitada — bónus +€1 para o estafeta.'.tr,
                                     style: Theme.of(context)
                                         .textTheme
                                         .bodySmall
@@ -486,7 +487,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                         // BUG 2 fix: linha do saldo aplicado, alinhada com cart_screen.
                         if (walletAppliedEur > 0)
                           _SummaryRow(
-                            label: 'Saldo Bora aplicado',
+                            label: 'Saldo Bora aplicado'.tr,
                             value: -walletAppliedEur,
                             isDiscount: true,
                           ),
@@ -517,17 +518,17 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                                       const Icon(Icons.monetization_on,
                                           color: Colors.amber, size: 20),
                                       const SizedBox(width: 8),
-                                      const Expanded(
+                                      Expanded(
                                         child: Text(
-                                          'Bora Tokens',
-                                          style: TextStyle(
+                                          'Bora Tokens'.tr,
+                                          style: const TextStyle(
                                               fontWeight: FontWeight.w600,
                                               fontSize: 14),
                                         ),
                                       ),
                                       Text(
                                         tokensChosen > 0
-                                            ? '$tokensChosen tokens · -€${tokenDiscount.toStringAsFixed(2)}'
+                                            ? '{0} tokens · -€{1}'.trArgs([tokensChosen, tokenDiscount.toStringAsFixed(2)])
                                             : 'não usar',
                                         style: TextStyle(
                                             fontSize: 13,
@@ -537,9 +538,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                                     ],
                                   ),
                                   Text(
-                                    'Tens €${(_availableTokens * _tokenValueEur).toStringAsFixed(2)} em tokens — '
-                                    'podes usar até €${(tokensToUse * _tokenValueEur).toStringAsFixed(2)} '
-                                    'neste pedido (máx. $_tokenMaxPct%).',
+                                    'Tens €{0} em tokens — podes usar até €{1} neste pedido (máx. {2}%).'.trArgs([(_availableTokens * _tokenValueEur).toStringAsFixed(2), (tokensToUse * _tokenValueEur).toStringAsFixed(2), _tokenMaxPct]),
                                     style: TextStyle(
                                         fontSize: 12,
                                         color: Colors.amber.shade800),
@@ -593,9 +592,9 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                                 const Icon(Icons.monetization_on,
                                     size: 14, color: AppColors.textSubtle),
                                 const SizedBox(width: 6),
-                                const Text(
-                                  'Sem tokens disponíveis',
-                                  style: TextStyle(
+                                Text(
+                                  'Sem tokens disponíveis'.tr,
+                                  style: const TextStyle(
                                       fontSize: 12,
                                       color: AppColors.textSubtle),
                                 ),
@@ -608,7 +607,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                         // Discount row (only when tokens active)
                         if (tokenDiscount > 0)
                           _SummaryRow(
-                            label: 'Desconto (tokens)',
+                            label: 'Desconto (tokens)'.tr,
                             value: -tokenDiscount,
                             isDiscount: true,
                           ),
@@ -620,8 +619,8 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text('Dívida anterior',
-                                    style: TextStyle(color: AppColors.error)),
+                                Text('Dívida anterior'.tr,
+                                    style: const TextStyle(color: AppColors.error)),
                                 Text('+€${debtEur.toStringAsFixed(2)}',
                                     style: const TextStyle(
                                         color: AppColors.error,
@@ -631,7 +630,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                           ),
 
                         _SummaryRow(
-                          label: 'Total a pagar',
+                          label: 'Total a pagar'.tr,
                           value: finalPrice,
                           isStrong: true,
                         ),
@@ -644,7 +643,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                 CustomerNoteField(controller: _notesController),
                 const SizedBox(height: 24),
                 Text(
-                  'Escolha o método de pagamento',
+                  'Escolha o método de pagamento'.tr,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -659,7 +658,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                       groupValue: _selectedMethod,
                       disabled: disabled,
                       disabledTooltip: disabled
-                          ? 'Limite dinheiro €40 excedido. Tens €${debtEur.toStringAsFixed(2)} de dívida + €${(finalPrice - debtEur).toStringAsFixed(2)} deste pedido = €${finalPrice.toStringAsFixed(2)}. Escolhe Cartão ou MBWay.'
+                          ? 'Limite dinheiro €40 excedido. Tens €{0} de dívida + €{1} deste pedido = €{2}. Escolhe Cartão ou MBWay.'.trArgs([debtEur.toStringAsFixed(2), (finalPrice - debtEur).toStringAsFixed(2), finalPrice.toStringAsFixed(2)])
                           : null,
                       onChanged: (value) {
                         if (value != null) {
@@ -694,7 +693,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                           Padding(
                             padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
                             child: Text(
-                              'Cartões guardados',
+                              'Cartões guardados'.tr,
                               style: Theme.of(context)
                                   .textTheme
                                   .titleSmall
@@ -725,7 +724,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                                 ),
                                 subtitle: Text(
                                   card.isDefault
-                                      ? '${card.prettyExpiry}  ·  predefinido'
+                                      ? '{0}  ·  predefinido'.trArgs([card.prettyExpiry])
                                       : card.prettyExpiry,
                                 ),
                                 dense: true,
@@ -735,7 +734,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                               groupValue: _selectedSavedPmId,
                               onChanged: (v) =>
                                   setState(() => _selectedSavedPmId = v),
-                              title: const Text('+ Pagar com novo cartão'),
+                              title: Text('+ Pagar com novo cartão'.tr),
                               dense: true,
                             ),
                           ],
@@ -763,7 +762,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Número MBWay',
+                            'Número MBWay'.tr,
                             style: Theme.of(context)
                                 .textTheme
                                 .titleSmall
@@ -782,9 +781,9 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                             ),
                           ),
                           const SizedBox(height: 4),
-                          const Text(
-                            'Telemóvel português associado à tua conta MBWay (9 dígitos).',
-                            style: TextStyle(
+                          Text(
+                            'Telemóvel português associado à tua conta MBWay (9 dígitos).'.tr,
+                            style: const TextStyle(
                               fontSize: 12,
                               color: AppColors.textSecondary,
                             ),
@@ -820,7 +819,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                       )),
                   )
                 : UnifiedCheckoutButton(
-                    label: 'Confirmar pagamento',
+                    label: 'Confirmar pagamento'.tr,
                     amount: finalPrice,
                     busy: _isProcessing,
                     showSavedCard: false,
@@ -847,14 +846,13 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     if (err.contains('delivery_distance_exceeded')) {
       final m = RegExp(r'>\s*(\d+(?:[.,]\d+)?)\s*km').firstMatch(err);
       final max = m?.group(1) ?? '15';
-      return 'Entrega não disponível. Máximo $max km.';
+      return 'Entrega não disponível. Máximo {0} km.'.trArgs([max]);
     }
     // B3a (2026-06-12): cap server-side de tokens excedido.
     if (err.contains('token_cap_exceeded')) {
-      return 'O desconto em Bora Tokens excede o máximo de '
-          '$_tokenMaxPct% do pedido.';
+      return 'O desconto em Bora Tokens excede o máximo de {0}% do pedido.'.trArgs([_tokenMaxPct]);
     }
-    return 'Não foi possível criar o pedido. Tente novamente.';
+    return 'Não foi possível criar o pedido. Tente novamente.'.tr;
   }
 
   /// Forces exit from payment screen to home root after a post-createOrder
@@ -911,9 +909,9 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     final cartStore = context.read<CartStore>();
     if (cartStore.deliveryLocation == null || cartStore.dropoffStreet.isEmpty) {
       messenger.showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-              'Endereço de entrega não definido. Volte e selecione um endereço.'),
+              'Endereço de entrega não definido. Volte e selecione um endereço.'.tr),
           backgroundColor: Colors.red,
         ),
       );
@@ -927,9 +925,9 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       if (digits.length != 9 ||
           !(digits.startsWith('9') || digits.startsWith('2'))) {
         messenger.showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text(
-                'Introduz um número de telemóvel português válido (9 dígitos).'),
+                'Introduz um número de telemóvel português válido (9 dígitos).'.tr),
             backgroundColor: Colors.red,
           ),
         );
@@ -939,9 +937,9 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
 
     if (kIsWeb && _selectedMethod == PaymentMethod.card) {
       messenger.showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-              'Pagamentos por cartão disponíveis apenas em dispositivos móveis.'),
+              'Pagamentos por cartão disponíveis apenas em dispositivos móveis.'.tr),
         ),
       );
       return;
@@ -962,9 +960,9 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       debugPrint('[bora-pay] ensureSessionForOrder falhou: $e');
       if (!mounted) return;
       setState(() => _isProcessing = false);
-      messenger.showSnackBar(const SnackBar(
+      messenger.showSnackBar(SnackBar(
           content: Text(
-              'Erro de sessão. Verifica a ligação à internet e tenta de novo.'),
+              'Erro de sessão. Verifica a ligação à internet e tenta de novo.'.tr),
           backgroundColor: Colors.red));
       return;
     }
@@ -1006,8 +1004,8 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
           debugPrint('[bora-pay] wallet-only finishOrder error: $e');
           if (!mounted) return;
           setState(() => _isProcessing = false);
-          messenger.showSnackBar(const SnackBar(
-              content: Text('Erro ao criar o pedido. Verifica a ligação e tenta de novo.'),
+          messenger.showSnackBar(SnackBar(
+              content: Text('Erro ao criar o pedido. Verifica a ligação e tenta de novo.'.tr),
               backgroundColor: Colors.red));
           return;
         }
@@ -1044,17 +1042,16 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
         final detail = e.toString();
         messenger.showSnackBar(SnackBar(
             content: Text(
-                'Erro ao iniciar pagamento. Verifica a ligação e tenta de novo.\n'
-                '(${detail.length > 120 ? detail.substring(0, 120) : detail})'),
+                'Erro ao iniciar pagamento. Verifica a ligação e tenta de novo.\n({0})'.trArgs([detail.length > 120 ? detail.substring(0, 120) : detail])),
             backgroundColor: Colors.red));
         return;
       }
       if (!mounted) return;
       if (draft == null) {
         setState(() => _isProcessing = false);
-        messenger.showSnackBar(const SnackBar(
+        messenger.showSnackBar(SnackBar(
             content:
-                Text('Não foi possível iniciar o pagamento. Tente novamente.')));
+                Text('Não foi possível iniciar o pagamento. Tente novamente.'.tr)));
         return;
       }
 
@@ -1076,9 +1073,9 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
           if (!ok) {
             if (!mounted) return;
             setState(() => _isProcessing = false);
-            messenger.showSnackBar(const SnackBar(
+            messenger.showSnackBar(SnackBar(
                 content: Text(
-                    'Pagamento com cartão guardado não foi concluído. Tenta de novo ou usa um cartão diferente.')));
+                    'Pagamento com cartão guardado não foi concluído. Tenta de novo ou usa um cartão diferente.'.tr)));
             return;
           }
         } else {
@@ -1093,7 +1090,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
         // payment_intent.canceled / payment_failed. App-side: just dismiss.
         if (e.error.code == FailureCode.Canceled) {
           messenger.showSnackBar(
-            const SnackBar(content: Text('Pagamento cancelado. Sem cobrança.')),
+            SnackBar(content: Text('Pagamento cancelado. Sem cobrança.'.tr)),
           );
         } else {
           messenger.showSnackBar(
@@ -1115,8 +1112,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
         messenger.showSnackBar(
           SnackBar(
             content: Text(
-                'Pagamento por cartão indisponível. Tente MBWay ou dinheiro.\n'
-                '(${detail.length > 120 ? detail.substring(0, 120) : detail})'),
+                'Pagamento por cartão indisponível. Tente MBWay ou dinheiro.\n({0})'.trArgs([detail.length > 120 ? detail.substring(0, 120) : detail])),
             duration: const Duration(seconds: 6),
           ),
         );
@@ -1125,9 +1121,9 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
 
       // Step 3: wait for webhook to create order via finalize-order-from-intent
       messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Pagamento confirmado. A criar pedido...'),
-          duration: Duration(seconds: 4),
+        SnackBar(
+          content: Text('Pagamento confirmado. A criar pedido...'.tr),
+          duration: const Duration(seconds: 4),
         ),
       );
       // Capture navigator BEFORE await to avoid use_build_context_synchronously.
@@ -1136,10 +1132,10 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       if (!mounted) return;
       if (orderId == null) {
         setState(() => _isProcessing = false);
-        messenger.showSnackBar(const SnackBar(
+        messenger.showSnackBar(SnackBar(
           content: Text(
-              'Pagamento confirmado mas a criação do pedido demorou. Verifica o histórico em alguns segundos.'),
-          duration: Duration(seconds: 6),
+              'Pagamento confirmado mas a criação do pedido demorou. Verifica o histórico em alguns segundos.'.tr),
+          duration: const Duration(seconds: 6),
         ));
         // Clear cart anyway — order will appear via realtime when webhook completes.
         cartStore.clearCart();
@@ -1225,8 +1221,8 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
         final mbwayOrderId = orderStore.lastCreatedOrderId;
         if (mbwayOrderId == null) {
           setState(() => _isProcessing = false);
-          messenger.showSnackBar(const SnackBar(
-            content: Text('Erro interno: pedido criado mas ID não disponível.'),
+          messenger.showSnackBar(SnackBar(
+            content: Text('Erro interno: pedido criado mas ID não disponível.'.tr),
           ));
           return;
         }
@@ -1241,8 +1237,8 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
         );
         if (!mounted) return;
         if (piId == null) {
-          messenger.showSnackBar(const SnackBar(
-            content: Text('Não foi possível iniciar o pagamento MBWay.'),
+          messenger.showSnackBar(SnackBar(
+            content: Text('Não foi possível iniciar o pagamento MBWay.'.tr),
           ));
           await _bailOutAndCancel(mbwayOrderId);
           return;
@@ -1250,8 +1246,8 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
         final mbwayPaid = await _showMBWayWaitingDialog(mbwayOrderId, amount);
         if (!mounted) return;
         if (!mbwayPaid) {
-          messenger.showSnackBar(const SnackBar(
-            content: Text('Pagamento MBWay não confirmado ou expirou.'),
+          messenger.showSnackBar(SnackBar(
+            content: Text('Pagamento MBWay não confirmado ou expirou.'.tr),
           ));
           await _bailOutAndCancel(mbwayOrderId);
           return;
@@ -1262,9 +1258,9 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       case PaymentMethod.cash:
         // 2026-06-04 — feedback visual imediato: cold-start RPC create_order +
         // dispatch leva 3-5s. Sem mensagem, utilizador só vê spinner vazio.
-        messenger.showSnackBar(const SnackBar(
-          content: Text('A preparar o seu pedido…'),
-          duration: Duration(seconds: 3),
+        messenger.showSnackBar(SnackBar(
+          content: Text('A preparar o seu pedido…'.tr),
+          duration: const Duration(seconds: 3),
         ));
         success = await paymentService.payWithCash(amount);
         break;
@@ -1275,7 +1271,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     if (!success) {
       setState(() => _isProcessing = false);
       messenger.showSnackBar(
-        const SnackBar(content: Text('Pagamento não pôde ser concluído.')),
+        SnackBar(content: Text('Pagamento não pôde ser concluído.'.tr)),
       );
       return;
     }
@@ -1337,8 +1333,8 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     if (!mounted) return;
     setState(() => _isProcessing = false);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-          content: Text('Pedido criado. A aguardar confirmação de pagamento.')),
+      SnackBar(
+          content: Text('Pedido criado. A aguardar confirmação de pagamento.'.tr)),
     );
     Navigator.pop(context, true);
   }
@@ -1489,11 +1485,8 @@ class _ErrandPaymentHint extends StatelessWidget {
     final isCash = method == PaymentMethod.cash;
     final guarantee = estimate * 1.2;
     final text = isCash
-        ? 'Leva ~€${estimate.toStringAsFixed(2)} em dinheiro para a compra. '
-            'O estafeta confirma o valor exato no talão.'
-        : 'Para a compra, o cartão pode segurar ~€${guarantee.toStringAsFixed(2)} '
-            'como garantia (estimativa ×1,2). Pagas só o valor do talão — '
-            'o resto é libertado.';
+        ? 'Leva ~€{0} em dinheiro para a compra. O estafeta confirma o valor exato no talão.'.trArgs([estimate.toStringAsFixed(2)])
+        : 'Para a compra, o cartão pode segurar ~€{0} como garantia (estimativa ×1,2). Pagas só o valor do talão — o resto é libertado.'.trArgs([guarantee.toStringAsFixed(2)]);
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -1569,7 +1562,7 @@ class _MBWayWaitingDialogState extends State<_MBWayWaitingDialog> {
         children: [
           Icon(Icons.phone_iphone, color: Colors.red.shade700),
           const SizedBox(width: 8),
-          const Text('Aguarda confirmação MBWay'),
+          Text('Aguarda confirmação MBWay'.tr),
         ],
       ),
       content: Column(
@@ -1577,15 +1570,14 @@ class _MBWayWaitingDialogState extends State<_MBWayWaitingDialog> {
         children: [
           const SizedBox(height: 4),
           Text(
-            'Enviámos um pedido de €${widget.amount.toStringAsFixed(2)} '
-            'para o teu telemóvel.\nAbre o MBWay e confirma.',
+            'Enviámos um pedido de €{0} para o teu telemóvel.\nAbre o MBWay e confirma.'.trArgs([widget.amount.toStringAsFixed(2)]),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
           const CircularProgressIndicator(),
           const SizedBox(height: 12),
           Text(
-            'A aguardar confirmação... $_secondsLeft s',
+            'A aguardar confirmação... {0} s'.trArgs([_secondsLeft]),
             style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
           ),
         ],
@@ -1596,7 +1588,7 @@ class _MBWayWaitingDialogState extends State<_MBWayWaitingDialog> {
             _done = true;
             Navigator.of(context).pop(false);
           },
-          child: const Text('Cancelar'),
+          child: Text('Cancelar'.tr),
         ),
       ],
     );

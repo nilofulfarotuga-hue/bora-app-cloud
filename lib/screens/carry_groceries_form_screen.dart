@@ -14,6 +14,8 @@ import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/quote_price_footer.dart';
 import 'payment_method_screen.dart';
 
+import '../l10n/tr.dart';
+
 class CarryGroceriesFormScreen extends StatefulWidget {
   const CarryGroceriesFormScreen({super.key});
 
@@ -86,8 +88,8 @@ class _CarryGroceriesFormScreenState extends State<CarryGroceriesFormScreen> {
 
     if (pickupAddress.isEmpty || dropoffAddress.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Preencha os endereços da loja e de entrega.')),
+        SnackBar(
+            content: Text('Preencha os endereços da loja e de entrega.'.tr)),
       );
       return;
     }
@@ -100,9 +102,9 @@ class _CarryGroceriesFormScreenState extends State<CarryGroceriesFormScreen> {
 
     if (_pickupLocation == null || _dropoffLocation == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
             content: Text(
-                'Não consegui localizar a loja ou a entrega. Escolhe uma sugestão da lista.')),
+                'Não consegui localizar a loja ou a entrega. Escolhe uma sugestão da lista.'.tr)),
       );
       return;
     }
@@ -141,7 +143,7 @@ class _CarryGroceriesFormScreenState extends State<CarryGroceriesFormScreen> {
     return MediaQuery(
       data: mqData,
       child: Scaffold(
-        appBar: const BoraScreenAppBar(title: 'Levar Compras'),
+        appBar: BoraScreenAppBar(title: 'Levar Compras'.tr),
         bottomNavigationBar: QuotePriceFooter(
           serviceType: OrderServiceType.carryGroceries,
           pickup: _pickupLocation,
@@ -151,16 +153,16 @@ class _CarryGroceriesFormScreenState extends State<CarryGroceriesFormScreen> {
           key: _bodyKey,
           padding: const EdgeInsets.all(16),
           children: [
-            const Text(
-              'Local da loja',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+            Text(
+              'Local da loja'.tr,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
             ),
             const SizedBox(height: 8),
             // A.2 — campo da loja com pré-preenchimento por GPS: se o cliente
             // estiver dentro/junto de uma loja (≤ 0,15 km) já aparece preenchida.
             BusinessAutocompleteField(
               controller: _pickupController,
-              labelText: 'Pesquisar loja ou supermercado',
+              labelText: 'Pesquisar loja ou supermercado'.tr,
               prefixIcon: const Icon(Icons.store_outlined),
               autofillNearestWithinKm: 0.15,
               onSelected: (name, coords) {
@@ -173,14 +175,14 @@ class _CarryGroceriesFormScreenState extends State<CarryGroceriesFormScreen> {
               },
             ),
             const SizedBox(height: 24),
-            const Text(
-              'Endereço de entrega',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+            Text(
+              'Endereço de entrega'.tr,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
             ),
             const SizedBox(height: 8),
             AddressAutocompleteField(
               controller: _dropoffController,
-              labelText: 'Pesquisar endereço de entrega',
+              labelText: 'Pesquisar endereço de entrega'.tr,
               prefixIcon: const Icon(Icons.location_on_outlined),
               onSelected: (address, coords) {
                 setState(() => _dropoffLocation = coords);
@@ -195,7 +197,7 @@ class _CarryGroceriesFormScreenState extends State<CarryGroceriesFormScreen> {
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: _goToPayment,
-              child: const Text('Continuar para pagamento'),
+              child: Text('Continuar para pagamento'.tr),
             ),
           ],
         ),

@@ -3,6 +3,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config/app_colors.dart';
 import '../services/wallet_service.dart';
 
+import '../l10n/tr.dart';
+
 /// Diálogo apresentado ao cliente quando cancela um pedido com refund.
 ///
 /// Padrão iFood: cliente escolhe **Cartão (5-10 dias)** ou **App (instantâneo
@@ -102,7 +104,7 @@ class _RefundChoiceDialogState extends State<_RefundChoiceDialog> {
   Future<void> _submit() async {
     final reason = _reasonCtrl.text.trim();
     if (reason.length < 3) {
-      setState(() => _error = 'Indica um motivo (mínimo 3 caracteres)');
+      setState(() => _error = 'Indica um motivo (mínimo 3 caracteres)'.tr);
       return;
     }
     setState(() {
@@ -120,7 +122,7 @@ class _RefundChoiceDialogState extends State<_RefundChoiceDialog> {
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _error = 'Não foi possível cancelar. Tenta de novo.');
+        setState(() => _error = 'Não foi possível cancelar. Tenta de novo.'.tr);
       }
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -133,7 +135,7 @@ class _RefundChoiceDialogState extends State<_RefundChoiceDialog> {
     final canStripe = widget.originalPaymentMethod == 'card';
 
     return AlertDialog(
-      title: Text('Como queres receber o reembolso de €${widget.refundableEur.toStringAsFixed(2).replaceAll('.', ',')}?'),
+      title: Text('Como queres receber o reembolso de €{0}?'.trArgs([widget.refundableEur.toStringAsFixed(2).replaceAll('.', ',')])),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -143,28 +145,27 @@ class _RefundChoiceDialogState extends State<_RefundChoiceDialog> {
               value: 'stripe',
               groupValue: _method,
               onChanged: canStripe ? (v) => setState(() => _method = v!) : null,
-              title: const Text('Cartão'),
+              title: Text('Cartão'.tr),
               subtitle: Text(canStripe
-                  ? 'Demora 5-10 dias úteis a aparecer no cartão.'
+                  ? 'Demora 5-10 dias úteis a aparecer no cartão.'.tr
                   : 'Indisponível — pedido não foi pago com cartão.'),
             ),
             RadioListTile<String>(
               value: 'wallet',
               groupValue: _method,
               onChanged: (v) => setState(() => _method = v!),
-              title: const Text('Saldo Bora — instantâneo'),
+              title: Text('Saldo Bora — instantâneo'.tr),
               subtitle: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '€${(preview.freeCents / 100).toStringAsFixed(2).replaceAll('.', ',')} saldo livre + '
-                    '${preview.tokensCount} tokens (≈€${(preview.tokensCents / 100).toStringAsFixed(2).replaceAll('.', ',')})',
+                    '€{0} saldo livre + {1} tokens (≈€{2})'.trArgs([(preview.freeCents / 100).toStringAsFixed(2).replaceAll('.', ','), preview.tokensCount, (preview.tokensCents / 100).toStringAsFixed(2).replaceAll('.', ',')]),
                     style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 4),
-                  const Text(
-                    'Saldo livre nunca expira. Tokens dão até 50% desconto no checkout.',
-                    style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                  Text(
+                    'Saldo livre nunca expira. Tokens dão até 50% desconto no checkout.'.tr,
+                    style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
                   ),
                 ],
               ),
@@ -173,9 +174,9 @@ class _RefundChoiceDialogState extends State<_RefundChoiceDialog> {
             TextField(
               controller: _reasonCtrl,
               maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: 'Motivo do cancelamento',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: 'Motivo do cancelamento'.tr,
+                border: const OutlineInputBorder(),
               ),
             ),
             if (_error != null) ...[
@@ -183,9 +184,9 @@ class _RefundChoiceDialogState extends State<_RefundChoiceDialog> {
               Text(_error!, style: const TextStyle(color: AppColors.error)),
             ],
             const SizedBox(height: 8),
-            const Text(
-              'Saldo não reembolsável em dinheiro.',
-              style: TextStyle(fontSize: 11, color: AppColors.textSubtle),
+            Text(
+              'Saldo não reembolsável em dinheiro.'.tr,
+              style: const TextStyle(fontSize: 11, color: AppColors.textSubtle),
             ),
           ],
         ),
@@ -193,7 +194,7 @@ class _RefundChoiceDialogState extends State<_RefundChoiceDialog> {
       actions: [
         TextButton(
           onPressed: _submitting ? null : () => Navigator.pop(context),
-          child: const Text('Voltar'),
+          child: Text('Voltar'.tr),
         ),
         FilledButton(
           onPressed: _submitting ? null : _submit,
@@ -201,7 +202,7 @@ class _RefundChoiceDialogState extends State<_RefundChoiceDialog> {
               ? const SizedBox(
                   width: 16, height: 16,
                   child: CircularProgressIndicator(strokeWidth: 2))
-              : const Text('Confirmar'),
+              : Text('Confirmar'.tr),
         ),
       ],
     );

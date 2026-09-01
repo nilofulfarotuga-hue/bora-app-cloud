@@ -25,6 +25,8 @@ import '../../shared/tvde_chat_screen.dart';
 import 'ride_mbway_waiting_dialog.dart';
 import 'tvde_rate_screen.dart';
 
+import '../../../l10n/tr.dart';
+
 /// TVDE — Mapa em tempo real do estado da corrida (reusa google_maps_flutter,
 /// o mesmo stack de mapa do delivery). Consome o realtime de tvde_rides
 /// produzido pela Fase 2.
@@ -215,7 +217,7 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
     } catch (e) {
       if (mounted) {
         final msg = e.toString().contains('max_stops_reached')
-            ? 'Já atingiste o máximo de $_maxStops paradas.'
+            ? 'Já atingiste o máximo de {0} paradas.'.trArgs([_maxStops])
             : 'Não foi possível adicionar a parada.';
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(msg)));
@@ -295,17 +297,15 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
 
       if (paid) {
         messenger.showSnackBar(
-          const SnackBar(content: Text('Parada adicionada.')),
+          SnackBar(content: Text('Parada adicionada.'.tr)),
         );
       } else if (outcome?['refunded'] == true) {
         messenger.showSnackBar(SnackBar(
-          content: Text('Pagamento devolvido — não foi possível adicionar a '
-              'parada. ${_stopErrorPt(outcome?['error']?.toString())}'),
+          content: Text('Pagamento devolvido — não foi possível adicionar a parada. {0}'.trArgs([_stopErrorPt(outcome?['error']?.toString())])),
         ));
       } else {
-        messenger.showSnackBar(const SnackBar(
-          content: Text('Não recebemos a confirmação do pagamento. '
-              'A parada não foi adicionada.'),
+        messenger.showSnackBar(SnackBar(
+          content: Text('Não recebemos a confirmação do pagamento. A parada não foi adicionada.'.tr),
         ));
       }
     } catch (e) {
@@ -323,18 +323,18 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
   String _stopErrorPt(String? raw) {
     final e = raw ?? '';
     if (e.contains('max_stops_reached')) {
-      return 'Já atingiste o máximo de $_maxStops paradas.';
+      return 'Já atingiste o máximo de {0} paradas.'.trArgs([_maxStops]);
     }
     if (e.contains('invalid_ride_state_for_stop')) {
-      return 'A corrida já não permite adicionar paradas.';
+      return 'A corrida já não permite adicionar paradas.'.tr;
     }
     if (e.contains('card_payments_not_enabled')) {
-      return 'Os pagamentos no cartão estão desativados de momento.';
+      return 'Os pagamentos no cartão estão desativados de momento.'.tr;
     }
     if (e.contains('below_minimum')) {
-      return 'Valor abaixo do mínimo aceite pelo pagamento.';
+      return 'Valor abaixo do mínimo aceite pelo pagamento.'.tr;
     }
-    return 'Não foi possível adicionar a parada.';
+    return 'Não foi possível adicionar a parada.'.tr;
   }
 
   Future<void> _removeStop(TvdeRide ride, TvdeRideStop stop) async {
@@ -344,7 +344,7 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Não foi possível remover a parada.')),
+          SnackBar(content: Text('Não foi possível remover a parada.'.tr)),
         );
       }
     }
@@ -620,20 +620,20 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
       Marker(
         markerId: const MarkerId('pickup'),
         position: LatLng(ride.originLat, ride.originLng),
-        infoWindow: const InfoWindow(title: 'Recolha'),
+        infoWindow: InfoWindow(title: 'Recolha'.tr),
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
       ),
       Marker(
         markerId: const MarkerId('dest'),
         position: LatLng(ride.destLat, ride.destLng),
-        infoWindow: const InfoWindow(title: 'Destino'),
+        infoWindow: InfoWindow(title: 'Destino'.tr),
       ),
     };
     if (_driverPos != null) {
       markers.add(Marker(
         markerId: const MarkerId('driver'),
         position: _driverPos!,
-        infoWindow: const InfoWindow(title: 'Motorista'),
+        infoWindow: InfoWindow(title: 'Motorista'.tr),
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
       ));
     }
@@ -642,7 +642,7 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
       markers.add(Marker(
         markerId: MarkerId('stop_${s.id}'),
         position: LatLng(s.lat, s.lng),
-        infoWindow: InfoWindow(title: 'Parada ${s.seq}', snippet: s.label),
+        infoWindow: InfoWindow(title: 'Parada {0}'.trArgs([s.seq]), snippet: s.label),
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
       ));
     }
@@ -703,9 +703,8 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
     if (ride.isPaidOnline) {
       store.clearActiveRide();
       Navigator.pop(context);
-      messenger.showSnackBar(const SnackBar(
-        content: Text('Pede a corrida outra vez para escolheres o pagamento — '
-            'a anterior não chegou a ter motorista e não foi cobrada.'),
+      messenger.showSnackBar(SnackBar(
+        content: Text('Pede a corrida outra vez para escolheres o pagamento — a anterior não chegou a ter motorista e não foi cobrada.'.tr),
       ));
     }
   }
@@ -724,17 +723,16 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
       final desistir = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text('Desistir da corrida?'),
-          content: const Text(
-              'Ainda não foste cobrado e nenhum motorista foi chamado. Podes '
-              'desistir sem custo.'),
+          title: Text('Desistir da corrida?'.tr),
+          content: Text(
+              'Ainda não foste cobrado e nenhum motorista foi chamado. Podes desistir sem custo.'.tr),
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Continuar a aguardar')),
+                child: Text('Continuar a aguardar'.tr)),
             TextButton(
                 onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Sim, desistir')),
+                child: Text('Sim, desistir'.tr)),
           ],
         ),
       );
@@ -749,9 +747,8 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
         if ((res != null && res['succeeded'] == true) || st == 'processing') {
           await store.refreshActiveRide();
           if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text('Afinal o pagamento já entrou (ou está a ser '
-                  'confirmado) — a corrida segue.')));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text('Afinal o pagamento já entrou (ou está a ser confirmado) — a corrida segue.'.tr)));
           return;
         }
         await store.cancelRide(ride.id,
@@ -783,18 +780,18 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Cancelar corrida?'),
+        title: Text('Cancelar corrida?'.tr),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (feeCents == 0)
               Text(
-                  'Cancelamento grátis (dentro dos primeiros $graceMin min).',
+                  'Cancelamento grátis (dentro dos primeiros {0} min).'.trArgs([graceMin]),
                   style: const TextStyle(color: AppColors.textSecondary))
             else ...[
               Text(
-                  'Já passaram mais de $graceMin min. Cancelar agora tem um custo:',
+                  'Já passaram mais de {0} min. Cancelar agora tem um custo:'.trArgs([graceMin]),
                   style: const TextStyle(color: AppColors.textSecondary)),
               const SizedBox(height: Spacing.md),
               Container(
@@ -810,7 +807,7 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
                     const SizedBox(width: Spacing.sm),
                     Expanded(
                       child: Text(
-                        'Custo de cancelamento: €${(feeCents / 100).toStringAsFixed(2)}',
+                        'Custo de cancelamento: €{0}'.trArgs([(feeCents / 100).toStringAsFixed(2)]),
                         style: const TextStyle(
                             fontWeight: FontWeight.w700,
                             color: AppColors.error),
@@ -820,16 +817,16 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
                 ),
               ),
               const SizedBox(height: Spacing.sm),
-              const Text('Corresponde ao valor total da corrida.',
+              Text('Corresponde ao valor total da corrida.'.tr,
                   style:
-                      TextStyle(color: AppColors.textSubtle, fontSize: 12.5)),
+                      const TextStyle(color: AppColors.textSubtle, fontSize: 12.5)),
             ],
           ],
         ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Voltar')),
+              child: Text('Voltar'.tr)),
           TextButton(
               onPressed: () => Navigator.pop(ctx, true),
               child: Text(feeCents == 0 ? 'Sim, cancelar' : 'Cancelar e pagar')),
@@ -861,7 +858,7 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
     if (s.contains('ride_already_terminal')) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(s.contains('finalizada')
-              ? 'A corrida já tinha terminado.'
+              ? 'A corrida já tinha terminado.'.tr
               : 'A corrida já estava cancelada.')));
       context.read<TvdeStore>().clearActiveRide();
       Navigator.pop(context);
@@ -869,7 +866,7 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
     }
     context.read<TvdeStore>().refreshActiveRide();
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Não foi possível cancelar.')),
+      SnackBar(content: Text('Não foi possível cancelar.'.tr)),
     );
   }
 
@@ -901,9 +898,9 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
     final ride = store.activeRide;
 
     if (ride == null) {
-      return const Scaffold(
-        appBar: BoraScreenAppBar(title: 'A tua corrida'),
-        body: Center(child: Text('Sem corrida ativa.')),
+      return Scaffold(
+        appBar: BoraScreenAppBar(title: 'A tua corrida'.tr),
+        body: Center(child: Text('Sem corrida ativa.'.tr)),
       );
     }
 
@@ -973,7 +970,7 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
     );
 
     return Scaffold(
-      appBar: const BoraScreenAppBar(title: 'A tua corrida'),
+      appBar: BoraScreenAppBar(title: 'A tua corrida'.tr),
       body: Stack(
         children: [
           GoogleMap(
@@ -1078,12 +1075,12 @@ class _CompactStrip extends StatelessWidget {
   String get _texto {
     if (ride.isInProgress) {
       return etaMinutes != null
-          ? 'Viagem em curso · chegada ~$etaMinutes min'
+          ? 'Viagem em curso · chegada ~{0} min'.trArgs([etaMinutes])
           : 'Viagem em curso';
     }
-    if (ride.hasArrived) return 'O motorista chegou';
+    if (ride.hasArrived) return 'O motorista chegou'.tr;
     return etaMinutes != null
-        ? 'Motorista a caminho · chega em ~$etaMinutes min'
+        ? 'Motorista a caminho · chega em ~{0} min'.trArgs([etaMinutes])
         : 'Motorista a caminho';
   }
 
@@ -1279,7 +1276,7 @@ class _StatusPanel extends StatelessWidget {
                     child: OutlinedButton.icon(
                       onPressed: onChat,
                       icon: const Icon(Icons.chat_bubble_outline, size: 18),
-                      label: const Text('Mensagem'),
+                      label: Text('Mensagem'.tr),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.primary,
                         side: const BorderSide(color: AppColors.primary),
@@ -1295,7 +1292,7 @@ class _StatusPanel extends StatelessWidget {
                     child: FilledButton.icon(
                       onPressed: onCall,
                       icon: const Icon(Icons.call, size: 18),
-                      label: const Text('Ligar'),
+                      label: Text('Ligar'.tr),
                       style: FilledButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         shape: RoundedRectangleBorder(
@@ -1316,7 +1313,7 @@ class _StatusPanel extends StatelessWidget {
                   const SizedBox(width: 4),
                   Text(
                     ride.isInProgress
-                        ? 'Chegada ao destino em ~$etaMinutes min'
+                        ? 'Chegada ao destino em ~{0} min'.trArgs([etaMinutes])
                         : 'O motorista chega em ~$etaMinutes min',
                     style: const TextStyle(
                         color: AppColors.primary,
@@ -1344,7 +1341,7 @@ class _StatusPanel extends StatelessWidget {
                 // pagamento…" e nunca "À procura de motorista".
                 child: Text(
                     ride.isAwaitingPayment
-                        ? 'A confirmar pagamento…'
+                        ? 'A confirmar pagamento…'.tr
                         : ride.statusLabel,
                     style: const TextStyle(
                         fontSize: 16,
@@ -1360,14 +1357,14 @@ class _StatusPanel extends StatelessWidget {
                     color: AppColors.primary.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(999),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.check_circle,
+                      const Icon(Icons.check_circle,
                           size: 14, color: AppColors.primary),
-                      SizedBox(width: 4),
-                      Text('Incluída no plano',
-                          style: TextStyle(
+                      const SizedBox(width: 4),
+                      Text('Incluída no plano'.tr,
+                          style: const TextStyle(
                               fontSize: 12.5,
                               fontWeight: FontWeight.w700,
                               color: AppColors.primary)),
@@ -1403,26 +1400,20 @@ class _StatusPanel extends StatelessWidget {
                   // 2026-08-13 — dizer exactamente onde está a bola. O cliente
                   // que vê "à espera da confirmação do pagamento" sem saber que
                   // é ELE que tem de confirmar no banco, fica à espera do nada.
-                  ? 'À espera da confirmação do MB Way. Abre a app do teu banco '
-                      'e confirma o pagamento — só depois começamos a procurar '
-                      'motorista.'
+                  ? 'À espera da confirmação do MB Way. Abre a app do teu banco e confirma o pagamento — só depois começamos a procurar motorista.'.tr
                   : onPayAgain != null
                       // Sheet aberta e abandonada sem pagar (d947b446): dizer
                       // a verdade e dar a saída, em vez de prometer que
                       // "aparece dentro de momentos".
-                      ? 'O pagamento não foi concluído — ainda não começámos '
-                          'a procurar motorista e não foste cobrado. Toca em '
-                          '«Pagar de novo» ou cancela sem custo.'
-                      : 'Ainda não começámos a procurar motorista — estamos à '
-                          'espera da confirmação do pagamento. Se já '
-                          'confirmaste, aparece dentro de momentos.',
+                      ? 'O pagamento não foi concluído — ainda não começámos a procurar motorista e não foste cobrado. Toca em «Pagar de novo» ou cancela sem custo.'.tr
+                      : 'Ainda não começámos a procurar motorista — estamos à espera da confirmação do pagamento. Se já confirmaste, aparece dentro de momentos.'.tr,
               style: const TextStyle(
                   color: AppColors.textSubtle, fontSize: 12),
             ),
             if (onPayAgain != null) ...[
               const SizedBox(height: Spacing.md),
               BoraAccentButton(
-                label: 'Pagar de novo',
+                label: 'Pagar de novo'.tr,
                 icon: Icons.credit_card,
                 loading: busy,
                 onPressed: onPayAgain!,
@@ -1432,36 +1423,35 @@ class _StatusPanel extends StatelessWidget {
           // Back-to-back — passageiro em fila: contexto claro, sem spinner.
           if (ride.isQueued && ride.isAssigned) ...[
             const SizedBox(height: Spacing.sm),
-            const Text(
-              'Serás o próximo: o motorista está a terminar uma viagem perto '
-              'de ti e segue logo para a tua recolha.',
-              style: TextStyle(color: AppColors.textSubtle, fontSize: 12),
+            Text(
+              'Serás o próximo: o motorista está a terminar uma viagem perto de ti e segue logo para a tua recolha.'.tr,
+              style: const TextStyle(color: AppColors.textSubtle, fontSize: 12),
             ),
           ],
           _buildStops(context),
           const SizedBox(height: Spacing.lg),
           if (ride.isNoDriver) ...[
-            const Text(
-              'De momento não há motoristas disponíveis. Podes tentar novamente.',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            Text(
+              'De momento não há motoristas disponíveis. Podes tentar novamente.'.tr,
+              style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
             ),
             const SizedBox(height: Spacing.md),
             BoraAccentButton(
-              label: 'Tentar de novo',
+              label: 'Tentar de novo'.tr,
               icon: Icons.refresh,
               loading: busy,
               onPressed: onRetry,
             ),
             const SizedBox(height: Spacing.sm),
-            TextButton(onPressed: onClose, child: const Text('Fechar')),
+            TextButton(onPressed: onClose, child: Text('Fechar'.tr)),
           ] else if (ride.isInProgress) ...[
-            const Text('Boa viagem! O valor final é calculado pela distância real.',
-                style: TextStyle(color: AppColors.textSubtle, fontSize: 12)),
+            Text('Boa viagem! O valor final é calculado pela distância real.'.tr,
+                style: const TextStyle(color: AppColors.textSubtle, fontSize: 12)),
           ] else ...[
             OutlinedButton.icon(
               onPressed: busy ? null : onCancel,
               icon: const Icon(Icons.close),
-              label: const Text('Cancelar corrida'),
+              label: Text('Cancelar corrida'.tr),
             ),
           ],
         ],
@@ -1499,9 +1489,9 @@ class _StatusPanel extends StatelessWidget {
             const Icon(Icons.add_location_alt_outlined,
                 size: 18, color: AppColors.primary),
             const SizedBox(width: Spacing.sm),
-            const Expanded(
-              child: Text('Paradas',
-                  style: TextStyle(
+            Expanded(
+              child: Text('Paradas'.tr,
+                  style: const TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 14,
                       color: AppColors.textPrimary)),
@@ -1512,9 +1502,7 @@ class _StatusPanel extends StatelessWidget {
         ),
         const SizedBox(height: 2),
         Text(
-          'Passa por outro sítio a caminho — €${feePerStopEur.toStringAsFixed(2)} por parada. '
-          'A parada não está incluída no plano.'
-          '${ride.isPaidOnline ? ' Pagas a parada na hora.' : ' Pagas ao motorista no fim.'}',
+          'Passa por outro sítio a caminho — €{0} por parada. A parada não está incluída no plano.{1}'.trArgs([feePerStopEur.toStringAsFixed(2), ride.isPaidOnline ? ' Pagas a parada na hora.' : ' Pagas ao motorista no fim.']),
           style: const TextStyle(color: AppColors.textSubtle, fontSize: 11.5),
         ),
         for (final s in stops) ...[
@@ -1544,14 +1532,14 @@ class _StatusPanel extends StatelessWidget {
             ),
           )
         else if (stops.length >= maxStops)
-          Text('Máximo de $maxStops paradas atingido.',
+          Text('Máximo de {0} paradas atingido.'.trArgs([maxStops]),
               style: const TextStyle(color: AppColors.textSubtle, fontSize: 12)),
         if (stops.isNotEmpty) ...[
           const SizedBox(height: Spacing.sm),
           Row(
             children: [
               Expanded(
-                child: Text('Paradas (${stops.length} × €${feePerStopEur.toStringAsFixed(2)})',
+                child: Text('Paradas ({0} × €{1})'.trArgs([stops.length, feePerStopEur.toStringAsFixed(2)]),
                     style: const TextStyle(
                         color: AppColors.textSecondary, fontSize: 13)),
               ),
@@ -1583,7 +1571,7 @@ class _TerminalView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const BoraScreenAppBar(title: 'A tua corrida'),
+      appBar: BoraScreenAppBar(title: 'A tua corrida'.tr),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(Spacing.xl),
@@ -1600,7 +1588,7 @@ class _TerminalView extends StatelessWidget {
                       color: AppColors.textPrimary)),
               const SizedBox(height: Spacing.xl),
               BoraPrimaryButton(
-                  label: 'Fechar', icon: Icons.check, onPressed: onClose),
+                  label: 'Fechar'.tr, icon: Icons.check, onPressed: onClose),
             ],
           ),
         ),
@@ -1682,7 +1670,7 @@ class _StopRow extends StatelessWidget {
               constraints: const BoxConstraints(),
               onPressed: onRemove,
               icon: const Icon(Icons.close, size: 18, color: AppColors.textSecondary),
-              tooltip: 'Remover parada',
+              tooltip: 'Remover parada'.tr,
             ),
         ],
       ),
@@ -1740,7 +1728,7 @@ class _StopPayConfirmSheetState extends State<_StopPayConfirmSheet> {
     if (widget.method == 'mbway') {
       final digits = _phone.text.replaceAll(RegExp(r'\D'), '');
       if (digits.length != 9) {
-        setState(() => _phoneError = 'Indica um número com 9 dígitos.');
+        setState(() => _phoneError = 'Indica um número com 9 dígitos.'.tr);
         return;
       }
       Navigator.pop(context, _StopPayConfirm(phone: digits));
@@ -1775,7 +1763,7 @@ class _StopPayConfirmSheetState extends State<_StopPayConfirmSheet> {
                   color: AppColors.primary),
               const SizedBox(width: Spacing.sm),
               Expanded(
-                child: Text('Parada extra — $eur',
+                child: Text('Parada extra — {0}'.trArgs([eur]),
                     style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
@@ -1784,7 +1772,7 @@ class _StopPayConfirmSheetState extends State<_StopPayConfirmSheet> {
               IconButton(
                 onPressed: () => Navigator.pop(context),
                 icon: const Icon(Icons.close, color: AppColors.textSecondary),
-                tooltip: 'Fechar',
+                tooltip: 'Fechar'.tr,
               ),
             ],
           ),
@@ -1794,10 +1782,8 @@ class _StopPayConfirmSheetState extends State<_StopPayConfirmSheet> {
           const SizedBox(height: Spacing.md),
           Text(
             isMbway
-                ? 'Esta corrida foi paga por MB Way. A parada é cobrada agora — '
-                    'só é adicionada depois de confirmares no MB Way.'
-                : 'Esta corrida foi paga no cartão. A parada é cobrada agora — '
-                    'só é adicionada depois de o pagamento passar.',
+                ? 'Esta corrida foi paga por MB Way. A parada é cobrada agora — só é adicionada depois de confirmares no MB Way.'.tr
+                : 'Esta corrida foi paga no cartão. A parada é cobrada agora — só é adicionada depois de o pagamento passar.'.tr,
             style: const TextStyle(color: AppColors.textSecondary),
           ),
           if (isMbway) ...[
@@ -1807,8 +1793,8 @@ class _StopPayConfirmSheetState extends State<_StopPayConfirmSheet> {
               controller: _phone,
               keyboardType: TextInputType.phone,
               decoration: InputDecoration(
-                labelText: 'Número MBWay',
-                hintText: '9XXXXXXXX',
+                labelText: 'Número MBWay'.tr,
+                hintText: '9XXXXXXXX'.tr,
                 prefixText: '+351 ',
                 errorText: _phoneError,
                 border: const OutlineInputBorder(),
@@ -1819,7 +1805,7 @@ class _StopPayConfirmSheetState extends State<_StopPayConfirmSheet> {
           const SizedBox(height: Spacing.lg),
           BoraAccentButton(
             key: const Key('tvde_stop_pay_confirm'),
-            label: 'Pagar $eur e adicionar',
+            label: 'Pagar {0} e adicionar'.trArgs([eur]),
             onPressed: _confirm,
           ),
         ],
@@ -1884,9 +1870,9 @@ class _AddStopSheetState extends State<_AddStopSheet> {
                   const Icon(Icons.add_location_alt_outlined,
                       color: AppColors.primary),
                   const SizedBox(width: Spacing.sm),
-                  const Expanded(
-                    child: Text('Adicionar parada',
-                        style: TextStyle(
+                  Expanded(
+                    child: Text('Adicionar parada'.tr,
+                        style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
                             color: AppColors.textPrimary)),
@@ -1898,14 +1884,14 @@ class _AddStopSheetState extends State<_AddStopSheet> {
                 ],
               ),
               const SizedBox(height: Spacing.xs),
-              const Text(
-                  'Escolhe onde o motorista deve passar a caminho do destino.',
+              Text(
+                  'Escolhe onde o motorista deve passar a caminho do destino.'.tr,
                   style:
-                      TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                      const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
               const SizedBox(height: Spacing.md),
               AddressAutocompleteField(
                 controller: _controller,
-                labelText: 'Morada da parada',
+                labelText: 'Morada da parada'.tr,
                 onSelected: (address, coords) {
                   if (coords == null) return;
                   Navigator.pop(

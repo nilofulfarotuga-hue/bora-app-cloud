@@ -9,6 +9,8 @@ import '../config/maps_config.dart';
 import '../services/location_service.dart';
 import '../services/place_autocomplete_service.dart';
 
+import '../l10n/tr.dart';
+
 /// Resultado da RPC `search_businesses` (lojas Bora + comércios OSM da Guarda).
 class BusinessPrediction {
   const BusinessPrediction({
@@ -387,9 +389,9 @@ class _BusinessAutocompleteFieldState extends State<BusinessAutocompleteField> {
                 color: AppColors.primaryWash,
                 borderRadius: BorderRadius.circular(6),
               ),
-              child: const Text(
-                'Loja Bora',
-                style: TextStyle(
+              child: Text(
+                'Loja Bora'.tr,
+                style: const TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
                   color: AppColors.primary,
@@ -484,8 +486,8 @@ class _BusinessAutocompleteFieldState extends State<BusinessAutocompleteField> {
         validator: widget.validator,
         decoration: InputDecoration(
           border: const OutlineInputBorder(),
-          labelText: widget.labelText,
-          hintText: widget.hintText,
+          labelText: widget.labelText.tr,
+          hintText: widget.hintText?.tr,
           prefixIcon:
               widget.prefixIcon ?? const Icon(Icons.storefront_outlined),
           suffixIcon: _loading

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../config/app_colors.dart';
 
+
+import '../../l10n/tr.dart';
 class MarketBottomNav extends StatelessWidget {
   const MarketBottomNav({
     super.key,
@@ -24,21 +26,21 @@ class MarketBottomNav extends StatelessWidget {
       selectedLabelStyle:
           const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
       unselectedLabelStyle: const TextStyle(fontSize: 12),
-      items: const [
+      items: [
         BottomNavigationBarItem(
-          icon: Icon(Icons.storefront_outlined),
-          activeIcon: Icon(Icons.storefront),
-          label: 'Loja',
+          icon: const Icon(Icons.storefront_outlined),
+          activeIcon: const Icon(Icons.storefront),
+          label: 'Loja'.tr,
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.menu_outlined),
-          activeIcon: Icon(Icons.menu),
-          label: 'Categorias',
+          icon: const Icon(Icons.menu_outlined),
+          activeIcon: const Icon(Icons.menu),
+          label: 'Categorias'.tr,
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.refresh_outlined),
-          activeIcon: Icon(Icons.refresh),
-          label: 'Pedir de novo',
+          icon: const Icon(Icons.refresh_outlined),
+          activeIcon: const Icon(Icons.refresh),
+          label: 'Pedir de novo'.tr,
         ),
       ],
     );

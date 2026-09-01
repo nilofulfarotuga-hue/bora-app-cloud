@@ -28,6 +28,8 @@ import 'tvde_rides_history_screen.dart';
 import 'tvde_ride_tracking_screen.dart';
 import 'tvde_schedule_ride_sheet.dart';
 
+import '../../../l10n/tr.dart';
+
 /// Frente 4 — como o cliente paga ESTA corrida, decidido pela cobertura do
 /// plano. Espelha a matemática do `tvde_finish_ride` para mostrar o valor e o
 /// porquê ANTES de pedir (nunca cobrar sem o cliente ver).
@@ -54,7 +56,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
   gmaps.GoogleMapController? _mapCtrl;
 
   LatLng? _pickup;
-  String _pickupLabel = 'A obter localização…';
+  String _pickupLabel = 'A obter localização…'.tr;
   LatLng? _dest;
   String? _destLabel;
 
@@ -167,7 +169,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
       if (_dest != null) _recalcEstimate();
     } else {
       setState(() {
-        _pickupLabel = 'Localização indisponível';
+        _pickupLabel = 'Localização indisponível'.tr;
         _locating = false;
       });
     }
@@ -179,7 +181,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     final loc = LatLng(pos.latitude, pos.longitude);
     setState(() {
       _pickup = loc;
-      _pickupLabel = 'A obter morada…';
+      _pickupLabel = 'A obter morada…'.tr;
       _pickupController.text = _pickupLabel;
     });
     String? addr;
@@ -198,9 +200,9 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
   /// nunca falhar em silêncio — dizer ao cliente o que fazer.
   void _avisoMoradaSemCoordenadas() {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(
-          'Não consegui localizar essa morada no mapa. Tenta acrescentar a rua e a cidade (ex.: Guarda).'),
+          'Não consegui localizar essa morada no mapa. Tenta acrescentar a rua e a cidade (ex.: Guarda).'.tr),
     ));
   }
 
@@ -298,19 +300,17 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
         pc = _PayCase.freeCovered;
         payable = 0;
         message = (used != null && incl != null)
-            ? 'Incluída no teu plano · ${used + 1}.ª de $incl hoje'
+            ? 'Incluída no teu plano · {0}.ª de {1} hoje'.trArgs([used + 1, incl])
             : 'Incluída no teu plano';
       } else {
         pc = _PayCase.excess;
         payable = excessCents;
-        message = 'Corrida do plano — só pagas o excesso: '
-            '$excessKm km acima de $_baseKm = €${(payable / 100).toStringAsFixed(2)}';
+        message = 'Corrida do plano — só pagas o excesso: {0} km acima de {1} = €{2}'.trArgs([excessKm, _baseKm, (payable / 100).toStringAsFixed(2)]);
       }
     } else if (isMember) {
       pc = _PayCase.extra;
       payable = _extraRideCents + excessCents;
-      message = 'Já usaste as corridas de hoje — esta fica '
-          '€${(payable / 100).toStringAsFixed(2)} (preço de membro).';
+      message = 'Já usaste as corridas de hoje — esta fica €{0} (preço de membro).'.trArgs([(payable / 100).toStringAsFixed(2)]);
     } else {
       pc = _PayCase.normal;
       payable = cents;
@@ -451,7 +451,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
           note: note,
         );
         if (!mounted) return;
-        _reservaMarcada('Reserva marcada. Pagas em dinheiro ao motorista.');
+        _reservaMarcada('Reserva marcada. Pagas em dinheiro ao motorista.'.tr);
         return;
       }
 
@@ -461,9 +461,9 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
         final auth = await SavedCardCheckout.instance.authorize();
         if (!mounted) return;
         if (auth.cancelled) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
               content: Text(
-                  'Pagamento cancelado. A reserva não ficou marcada.')));
+                  'Pagamento cancelado. A reserva não ficou marcada.'.tr)));
           return;
         }
         savedPmId = auth.savedPmId;
@@ -489,7 +489,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
 
       final piId = res.paymentIntentId;
       if (piId == null) {
-        _reservaMarcada('Reserva marcada.');
+        _reservaMarcada('Reserva marcada.'.tr);
         return;
       }
 
@@ -498,13 +498,10 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
       final pago = await _aguardarPagamentoReserva(store, piId, method);
       if (!mounted) return;
       if (pago) {
-        _reservaMarcada('Reserva marcada e paga. Já estamos à procura de '
-            'motorista.');
+        _reservaMarcada('Reserva marcada e paga. Já estamos à procura de motorista.'.tr);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Ainda não recebemos a confirmação do pagamento. '
-              'Vê o estado em "As minhas reservas" — se não concluíres em 15 '
-              'minutos, cancelamos sozinhos e não és cobrado.'),
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Ainda não recebemos a confirmação do pagamento. Vê o estado em "As minhas reservas" — se não concluíres em 15 minutos, cancelamos sozinhos e não és cobrado.'.tr),
         ));
         _abrirReservas();
       }
@@ -562,8 +559,8 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
         final auth = await SavedCardCheckout.instance.authorize();
         if (!mounted) return;
         if (auth.cancelled) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text('Pagamento cancelado. A corrida não foi pedida.')));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text('Pagamento cancelado. A corrida não foi pedida.'.tr)));
           return;
         }
         savedPmId = auth.savedPmId;
@@ -653,11 +650,11 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
       }
       if (!mounted) return;
       final msg = s.contains('ride_in_progress')
-          ? 'Já tens uma corrida em curso.'
+          ? 'Já tens uma corrida em curso.'.tr
           : s.contains('card_payments_not_enabled')
-              ? 'Pagamento por cartão ainda não está disponível.'
+              ? 'Pagamento por cartão ainda não está disponível.'.tr
               : foiDesistencia
-                  ? 'Pagamento não concluído. A corrida não foi pedida.'
+                  ? 'Pagamento não concluído. A corrida não foi pedida.'.tr
                   : 'Não foi possível pedir a corrida.';
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(msg)));
@@ -675,17 +672,16 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
         context: context,
         barrierDismissible: false,
         builder: (ctx) => AlertDialog(
-          title: const Text('Pagamento não concluído'),
-          content: const Text(
-              'A corrida ainda não foi pedida e não foste cobrado. Queres '
-              'tentar pagar outra vez?'),
+          title: Text('Pagamento não concluído'.tr),
+          content: Text(
+              'A corrida ainda não foi pedida e não foste cobrado. Queres tentar pagar outra vez?'.tr),
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancelar corrida')),
+                child: Text('Cancelar corrida'.tr)),
             FilledButton(
                 onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Pagar de novo')),
+                child: Text('Pagar de novo'.tr)),
           ],
         ),
       );
@@ -706,8 +702,8 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
         } catch (_) {/* o cron limpa (payment_timeout) */}
         store.clearActiveRide();
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Corrida cancelada. Não foste cobrado.')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Corrida cancelada. Não foste cobrado.'.tr)));
         return;
       }
       try {
@@ -762,16 +758,14 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
       if (res != null && res['succeeded'] == true) return true;
       final st = res?['payment_status'] as String?;
       if (res == null || st == 'processing') {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Ainda estamos a confirmar o pagamento. Vê o estado '
-                'no ecrã da corrida — se o MB Way passou, ela segue sozinha.')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Ainda estamos a confirmar o pagamento. Vê o estado no ecrã da corrida — se o MB Way passou, ela segue sozinha.'.tr)));
         return true;
       }
       await cancelar();
       if (!mounted) return false;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Não recebemos a confirmação MBWay. A corrida foi '
-              'cancelada e não foste cobrado.')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Não recebemos a confirmação MBWay. A corrida foi cancelada e não foste cobrado.'.tr)));
       return false;
     }
 
@@ -790,15 +784,14 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
 
     if (!respondeu) {
       // Nunca se conseguiu perguntar. Não cancelar às cegas.
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Não conseguimos confirmar o pagamento agora. Vê o '
-              'estado no ecrã da corrida.')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Não conseguimos confirmar o pagamento agora. Vê o estado no ecrã da corrida.'.tr)));
       return true;
     }
     await cancelar();
     if (!mounted) return false;
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Pagamento não concluído. A corrida não foi pedida.')));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Pagamento não concluído. A corrida não foi pedida.'.tr)));
     return false;
   }
 
@@ -828,9 +821,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
       builder: (_) => _TvdePaymentSheet(
         amountCents: _roundtripPriceCents,
         message: _roundtripSavingCents > 0
-            ? 'Ida + volta com desconto. Poupas '
-                '€${(_roundtripSavingCents / 100).toStringAsFixed(2)} '
-                'face a duas corridas separadas.'
+            ? 'Ida + volta com desconto. Poupas €{0} face a duas corridas separadas.'.trArgs([(_roundtripSavingCents / 100).toStringAsFixed(2)])
             : 'Preço total da ida + volta — chamas a volta quando quiseres.',
         allowOnline: _cardEnabled,
         // 2026-08-13 — DESLIGADO de propósito, e só metade da razão mudou.
@@ -893,8 +884,8 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     }
     if (!mounted) return;
     if (ida == null) {
-      messenger.showSnackBar(const SnackBar(
-          content: Text('Não foi possível pedir a corrida.')));
+      messenger.showSnackBar(SnackBar(
+          content: Text('Não foi possível pedir a corrida.'.tr)));
       return;
     }
 
@@ -919,9 +910,8 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
             reason: 'roundtrip_credit_failed', skipRefund: true);
       } catch (_) {/* o cron limpa; o admin vê a ida sem vale */}
       if (!mounted) return;
-      messenger.showSnackBar(const SnackBar(
-          content: Text('Não foi possível garantir a volta. A corrida não foi '
-              'pedida — tenta outra vez.')));
+      messenger.showSnackBar(SnackBar(
+          content: Text('Não foi possível garantir a volta. A corrida não foi pedida — tenta outra vez.'.tr)));
       return;
     }
 
@@ -953,8 +943,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     if (created == null || paymentIntentId == null) {
       messenger.showSnackBar(SnackBar(
           content: Text(isMbway
-              ? 'Não foi possível iniciar o MBWay. Confirma o número e tenta '
-                  'de novo.'
+              ? 'Não foi possível iniciar o MBWay. Confirma o número e tenta de novo.'.tr
               : 'Não foi possível iniciar o pagamento da volta.')));
       return;
     }
@@ -966,8 +955,8 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     if (!isMbway) {
       if (created['clientSecret'] == null) {
         await store.clearPendingRoundtrip();
-        messenger.showSnackBar(const SnackBar(
-            content: Text('Não foi possível iniciar o pagamento da volta.')));
+        messenger.showSnackBar(SnackBar(
+            content: Text('Não foi possível iniciar o pagamento da volta.'.tr)));
         return;
       }
       try {
@@ -979,7 +968,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
         await store.clearPendingRoundtrip();
         if (!mounted) return;
         messenger.showSnackBar(
-            const SnackBar(content: Text('Pagamento cancelado.')));
+            SnackBar(content: Text('Pagamento cancelado.'.tr)));
         return;
       }
     }
@@ -1019,9 +1008,9 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     if (ida == null) {
       // O par pendente FICA guardado: o pagamento existe, e o servidor sabe
       // criar o vale (e encontrar/libertar a ida) quando o poll retomar.
-      messenger.showSnackBar(const SnackBar(
+      messenger.showSnackBar(SnackBar(
           content:
-              Text('Pago, mas falhou criar a corrida. Fala com o suporte.')));
+              Text('Pago, mas falhou criar a corrida. Fala com o suporte.'.tr)));
       return;
     }
     // Ida criada → completa o par pendente com o id dela.
@@ -1061,17 +1050,15 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
                 reason: 'payment_failed', skipRefund: true);
           } catch (_) {/* o cron limpa (payment_timeout) */}
           if (!mounted) return;
-          messenger.showSnackBar(const SnackBar(
-              content: Text('Não recebemos a confirmação MBWay. A corrida não '
-                  'foi pedida e não foste cobrado.')));
+          messenger.showSnackBar(SnackBar(
+              content: Text('Não recebemos a confirmação MBWay. A corrida não foi pedida e não foste cobrado.'.tr)));
           return;
         } else {
           // 'pending'/'unknown': o dinheiro pode estar a caminho — manter a
           // corrida, dizer a verdade e deixar o poll de fundo fechar o resto.
           unawaited(store.resumePendingRoundtripActivation());
-          messenger.showSnackBar(const SnackBar(
-              content: Text('A confirmar o pagamento… Se já confirmaste no '
-                  'MB Way, a corrida segue sozinha dentro de momentos.')));
+          messenger.showSnackBar(SnackBar(
+              content: Text('A confirmar o pagamento… Se já confirmaste no MB Way, a corrida segue sozinha dentro de momentos.'.tr)));
           _openTracking();
           return;
         }
@@ -1093,9 +1080,8 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
         // em "aguarda pagamento" (payment_status NULL nunca despacha) e o
         // cliente vê o estado real no tracking em vez de "à procura".
         if (!mounted) return;
-        messenger.showSnackBar(const SnackBar(
-            content: Text('Pago, mas falhou ativar a ida e volta. Fala com o '
-                'suporte — ninguém foi chamado.')));
+        messenger.showSnackBar(SnackBar(
+            content: Text('Pago, mas falhou ativar a ida e volta. Fala com o suporte — ninguém foi chamado.'.tr)));
         _openTracking();
         return;
       }
@@ -1147,9 +1133,8 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
     if (picked == null) {
       // Desistiu de propósito (X): o vale não se perde — dizer-lho, para não
       // ficar com a ideia de que tem de pedir (e pagar) outra corrida.
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('A tua volta continua disponível — podes chamá-la '
-              'quando quiseres.')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('A tua volta continua disponível — podes chamá-la quando quiseres.'.tr)));
       return;
     }
 
@@ -1177,8 +1162,8 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
       _openTracking();
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Não foi possível chamar a volta.')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Não foi possível chamar a volta.'.tr)));
     }
   }
 
@@ -1208,8 +1193,8 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
       _openTracking();
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Não foi possível chamar a volta.')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Não foi possível chamar a volta.'.tr)));
     }
   }
 
@@ -1232,17 +1217,17 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
 
     return Scaffold(
       appBar: BoraScreenAppBar(
-        title: 'Bora Motorista',
+        title: 'Bora Motorista'.tr,
         actions: [
           IconButton(
             icon: const Icon(Icons.card_membership),
-            tooltip: 'Planos',
+            tooltip: 'Planos'.tr,
             onPressed: () => Navigator.push(context,
                 MaterialPageRoute(builder: (_) => const TvdePlansScreen())),
           ),
           IconButton(
             icon: const Icon(Icons.history),
-            tooltip: 'Histórico',
+            tooltip: 'Histórico'.tr,
             onPressed: () => Navigator.push(context,
                 MaterialPageRoute(builder: (_) => const TvdeRidesHistoryScreen())),
           ),
@@ -1287,7 +1272,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
                 Expanded(
                   child: AddressAutocompleteField(
                     controller: _pickupController,
-                    labelText: 'Ponto de recolha',
+                    labelText: 'Ponto de recolha'.tr,
                     prefixIcon:
                         const Icon(Icons.my_location, color: AppColors.primary),
                     onSelected: _onPickupSelected,
@@ -1304,7 +1289,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
                                 CircularProgressIndicator(strokeWidth: 2)),
                       )
                     : IconButton.filledTonal(
-                        tooltip: 'Usar a minha localização',
+                        tooltip: 'Usar a minha localização'.tr,
                         icon: const Icon(Icons.gps_fixed),
                         onPressed: _detectPickup,
                       ),
@@ -1313,7 +1298,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
             const SizedBox(height: Spacing.md),
             AddressAutocompleteField(
               controller: _destController,
-              labelText: 'Para onde vais?',
+              labelText: 'Para onde vais?'.tr,
               prefixIcon: const Icon(Icons.flag_outlined),
               onSelected: (address, coords) {
                 if (coords == null) {
@@ -1352,7 +1337,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
               isFree: _payCase == _PayCase.freeCovered || _activeCredit != null,
               freeLabel: _activeCredit != null ? 'Volta garantida' : 'Plano',
               message: _activeCredit != null
-                  ? 'Grátis — volta incluída no pacote'
+                  ? 'Grátis — volta incluída no pacote'.tr
                   : _payMessage,
             ),
             const SizedBox(height: Spacing.md),
@@ -1368,21 +1353,21 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
               ),
               // Parte 9 — prazo do vale bem claro (validade = 12h, aplicada em prod).
               if (_roundtrip)
-                const Padding(
-                  padding: EdgeInsets.only(top: Spacing.xs),
+                Padding(
+                  padding: const EdgeInsets.only(top: Spacing.xs),
                   child: Text(
-                    'Válida por 12 horas após a compra — depois disso perdes a volta.',
-                    style: TextStyle(fontSize: 12, color: AppColors.textSubtle),
+                    'Válida por 12 horas após a compra — depois disso perdes a volta.'.tr,
+                    style: const TextStyle(fontSize: 12, color: AppColors.textSubtle),
                   ),
                 ),
             ],
             const SizedBox(height: Spacing.xl),
             BoraAccentButton(
               label: _activeCredit != null
-                  ? 'Chamar a volta'
+                  ? 'Chamar a volta'.tr
                   : _roundtrip
                       ? _roundtripPriceCents > 0
-                          ? 'Garantir ida e volta · €${(_roundtripPriceCents / 100).toStringAsFixed(2)}'
+                          ? 'Garantir ida e volta · €{0}'.trArgs([(_roundtripPriceCents / 100).toStringAsFixed(2)])
                           : 'Garantir ida e volta'
                       : 'Solicitar corrida',
               icon: _activeCredit != null
@@ -1409,7 +1394,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
                 child: OutlinedButton.icon(
                   onPressed: canRequest ? _onSchedulePressed : null,
                   icon: const Icon(Icons.schedule),
-                  label: const Text('Marcar para depois'),
+                  label: Text('Marcar para depois'.tr),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.primary,
                     side: const BorderSide(color: AppColors.primary),
@@ -1425,9 +1410,9 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
             const SizedBox(height: Spacing.md),
             Text(
               _activeCredit != null
-                  ? 'A volta já está paga no pacote — não pagas nada agora.'
+                  ? 'A volta já está paga no pacote — não pagas nada agora.'.tr
                   : _payCase == _PayCase.freeCovered
-                      ? 'Incluída no teu plano — não pagas nada ao motorista.'
+                      ? 'Incluída no teu plano — não pagas nada ao motorista.'.tr
                       : 'Escolhes como pagar depois de solicitares.',
               textAlign: TextAlign.center,
               style: const TextStyle(color: AppColors.textSubtle, fontSize: 12),
@@ -1442,7 +1427,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
                         builder: (_) => const TvdeMyReservationsScreen()),
                   ),
                   icon: const Icon(Icons.event_note, size: 18),
-                  label: const Text('As minhas reservas'),
+                  label: Text('As minhas reservas'.tr),
                 ),
               ),
             ],
@@ -1490,7 +1475,7 @@ class _PickupMap extends StatelessWidget {
         onDragEnd: onPickupDragEnd,
         icon: gmaps.BitmapDescriptor.defaultMarkerWithHue(
             gmaps.BitmapDescriptor.hueGreen),
-        infoWindow: const gmaps.InfoWindow(title: 'Arrasta para ajustar a recolha'),
+        infoWindow: gmaps.InfoWindow(title: 'Arrasta para ajustar a recolha'.tr),
       ),
       if (dest != null)
         gmaps.Marker(
@@ -1498,7 +1483,7 @@ class _PickupMap extends StatelessWidget {
           position: dest!.toGMaps(),
           icon: gmaps.BitmapDescriptor.defaultMarkerWithHue(
               gmaps.BitmapDescriptor.hueOrange),
-          infoWindow: const gmaps.InfoWindow(title: 'Destino'),
+          infoWindow: gmaps.InfoWindow(title: 'Destino'.tr),
         ),
     };
 
@@ -1554,26 +1539,26 @@ class _PlansTeaser extends StatelessWidget {
           borderRadius: BorderRadius.circular(Radii.md + 2),
           border: Border.all(color: AppColors.divider),
         ),
-        child: const Row(
+        child: Row(
           children: [
-            Icon(Icons.card_membership, color: AppColors.primary),
-            SizedBox(width: Spacing.md),
+            const Icon(Icons.card_membership, color: AppColors.primary),
+            const SizedBox(width: Spacing.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Planos Bora Motorista',
-                      style: TextStyle(
+                  Text('Planos Bora Motorista'.tr,
+                      style: const TextStyle(
                           fontWeight: FontWeight.w700,
                           color: AppColors.textPrimary)),
-                  SizedBox(height: 2),
-                  Text('Corridas incluídas por dia a partir de €3. Vê e adere.',
-                      style: TextStyle(
+                  const SizedBox(height: 2),
+                  Text('Corridas incluídas por dia a partir de €3. Vê e adere.'.tr,
+                      style: const TextStyle(
                           fontSize: 12, color: AppColors.textSubtle)),
                 ],
               ),
             ),
-            Icon(Icons.chevron_right, color: AppColors.textSubtle),
+            const Icon(Icons.chevron_right, color: AppColors.textSubtle),
           ],
         ),
       ),
@@ -1582,7 +1567,7 @@ class _PlansTeaser extends StatelessWidget {
 }
 
 class _EstimateCard extends StatelessWidget {
-  const _EstimateCard({
+  _EstimateCard({
     required this.payableCents,
     required this.km,
     required this.etaMinutes,
@@ -1616,7 +1601,7 @@ class _EstimateCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(isFree ? freeLabel : 'Valor estimado',
+                Text(isFree ? freeLabel : 'Valor estimado'.tr,
                     style: const TextStyle(color: Colors.white70, fontSize: 12)),
                 const SizedBox(height: 2),
                 if (loading)
@@ -1628,7 +1613,7 @@ class _EstimateCard extends StatelessWidget {
                 else
                   Text(
                     !hasKm
-                        ? 'Escolhe o destino'
+                        ? 'Escolhe o destino'.tr
                         : '${isFree ? 'Grátis' : '€${(payableCents / 100).toStringAsFixed(2)}'}'
                             '  ·  ${km!.toStringAsFixed(1)} km'
                             '${etaMinutes != null ? '  ·  ~$etaMinutes min' : ''}',
@@ -1822,16 +1807,16 @@ class _TvdePaymentSheetState extends State<_TvdePaymentSheet> {
                 const Icon(Icons.monetization_on,
                     color: Colors.amber, size: 20),
                 const SizedBox(width: 8),
-                const Expanded(
+                Expanded(
                   child: Text(
-                    'Bora Tokens',
+                    'Bora Tokens'.tr,
                     style:
-                        TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                        const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
                   ),
                 ),
                 Text(
                   tokensChosen > 0
-                      ? '$tokensChosen tokens · -€${tokenDiscount.toStringAsFixed(2)}'
+                      ? '{0} tokens · -€{1}'.trArgs([tokensChosen, tokenDiscount.toStringAsFixed(2)])
                       : 'não usar',
                   style: TextStyle(
                       fontSize: 13,
@@ -1841,9 +1826,7 @@ class _TvdePaymentSheetState extends State<_TvdePaymentSheet> {
               ],
             ),
             Text(
-              'Tens €${(_availableTokens * _tokenValueEur).toStringAsFixed(2)} em tokens — '
-              'podes usar até €${(tokensMax * _tokenValueEur).toStringAsFixed(2)} '
-              'nesta corrida (máx. $_tokenMaxPct%).',
+              'Tens €{0} em tokens — podes usar até €{1} nesta corrida (máx. {2}%).'.trArgs([(_availableTokens * _tokenValueEur).toStringAsFixed(2), (tokensMax * _tokenValueEur).toStringAsFixed(2), _tokenMaxPct]),
               style: TextStyle(fontSize: 12, color: Colors.amber.shade800),
             ),
             Row(
@@ -1911,9 +1894,9 @@ class _TvdePaymentSheetState extends State<_TvdePaymentSheet> {
             children: [
               const Icon(Icons.payments_outlined, color: AppColors.primary),
               const SizedBox(width: Spacing.sm),
-              const Expanded(
-                child: Text('Pagamento',
-                    style: TextStyle(
+              Expanded(
+                child: Text('Pagamento'.tr,
+                    style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
                         color: AppColors.textPrimary)),
@@ -1924,7 +1907,7 @@ class _TvdePaymentSheetState extends State<_TvdePaymentSheet> {
             ],
           ),
           const SizedBox(height: Spacing.xs),
-          Text('Total: $eur',
+          Text('Total: {0}'.trArgs([eur]),
               style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w800,
@@ -1950,8 +1933,8 @@ class _TvdePaymentSheetState extends State<_TvdePaymentSheet> {
           // Nota opcional para o MOTORISTA — mesmo widget/limite do delivery.
           CustomerNoteField(
             controller: _noteController,
-            title: 'Nota para o motorista (opcional)',
-            hint: 'Ex.: espero à porta, levo mala grande, cadeira de bebé',
+            title: 'Nota para o motorista (opcional)'.tr,
+            hint: 'Ex.: espero à porta, levo mala grande, cadeira de bebé'.tr,
           ),
 
           // ── Token discount toggle ──────────────────────────
@@ -1963,7 +1946,7 @@ class _TvdePaymentSheetState extends State<_TvdePaymentSheet> {
           const SizedBox(height: Spacing.lg),
           BoraAccentButton(
             label: _method == 'cash'
-                ? 'Confirmar · pagar em dinheiro'
+                ? 'Confirmar · pagar em dinheiro'.tr
                 : 'Pagar $eur',
             icon: Icons.check,
             onPressed: () {
@@ -1975,7 +1958,7 @@ class _TvdePaymentSheetState extends State<_TvdePaymentSheet> {
                     _phoneController.text.replaceAll(RegExp(r'\D'), '');
                 if (digits.length != 9) {
                   setState(() =>
-                      _phoneError = 'Número MBWay inválido (9 dígitos).');
+                      _phoneError = 'Número MBWay inválido (9 dígitos).'.tr);
                   return;
                 }
                 phone = digits;
@@ -2022,12 +2005,12 @@ class _RoundtripToggle extends StatelessWidget {
         onChanged: hasPrice ? onChanged : null,
         activeColor: AppColors.primary,
         contentPadding: const EdgeInsets.symmetric(horizontal: Spacing.md),
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.sync_alt, size: 18, color: AppColors.primary),
-            SizedBox(width: Spacing.sm),
-            Text('Garantir a volta',
-                style: TextStyle(
+            const Icon(Icons.sync_alt, size: 18, color: AppColors.primary),
+            const SizedBox(width: Spacing.sm),
+            Text('Garantir a volta'.tr,
+                style: const TextStyle(
                     fontWeight: FontWeight.w700,
                     color: AppColors.textPrimary)),
           ],
@@ -2039,12 +2022,12 @@ class _RoundtripToggle extends StatelessWidget {
                   TextSpan(children: [
                     TextSpan(
                       text:
-                          'Ida + volta por €${(priceCents / 100).toStringAsFixed(2)}',
+                          'Ida + volta por €{0}'.trArgs([(priceCents / 100).toStringAsFixed(2)]),
                     ),
                     if (savingCents > 0)
                       TextSpan(
                         text:
-                            ' · poupas €${(savingCents / 100).toStringAsFixed(2)}',
+                            ' · poupas €{0}'.trArgs([(savingCents / 100).toStringAsFixed(2)]),
                         style: const TextStyle(
                             color: AppColors.primary,
                             fontWeight: FontWeight.w600),
@@ -2053,9 +2036,9 @@ class _RoundtripToggle extends StatelessWidget {
                   style: const TextStyle(
                       fontSize: 12, color: AppColors.textSubtle),
                 )
-              : const Text(
-                  'Escolhe o destino para ver o preço do pacote.',
-                  style: TextStyle(fontSize: 12, color: AppColors.textSubtle),
+              : Text(
+                  'Escolhe o destino para ver o preço do pacote.'.tr,
+                  style: const TextStyle(fontSize: 12, color: AppColors.textSubtle),
                 ),
         ),
       ),
@@ -2082,7 +2065,7 @@ class _ReturnCreditCard extends StatelessWidget {
         final h = left.inHours;
         final m = left.inMinutes % 60;
         prazo = h > 0
-            ? 'Válido mais ${h}h${m.toString().padLeft(2, '0')}'
+            ? 'Válido mais {0}h{1}'.trArgs([h, m.toString().padLeft(2, '0')])
             : 'Válido mais ${left.inMinutes} min';
       }
     }
@@ -2100,8 +2083,8 @@ class _ReturnCreditCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Tens uma volta garantida',
-                    style: TextStyle(
+                Text('Tens uma volta garantida'.tr,
+                    style: const TextStyle(
                         color: Colors.white, fontWeight: FontWeight.w700)),
                 if (prazo.isNotEmpty)
                   Text(prazo,
@@ -2115,7 +2098,7 @@ class _ReturnCreditCard extends StatelessWidget {
             style: FilledButton.styleFrom(
                 backgroundColor: Colors.white,
                 foregroundColor: AppColors.primary),
-            child: const Text('Chamar a volta'),
+            child: Text('Chamar a volta'.tr),
           ),
         ],
       ),
@@ -2188,11 +2171,11 @@ class _ReturnSheetState extends State<_ReturnSheet> {
   void _confirm() {
     final o = _originCoords;
     if (o == null) {
-      setState(() => _error = 'Escolhe de onde sais na lista de sugestões.');
+      setState(() => _error = 'Escolhe de onde sais na lista de sugestões.'.tr);
       return;
     }
     if (_destLat == null || _destLng == null) {
-      setState(() => _error = 'Escolhe o destino na lista de sugestões.');
+      setState(() => _error = 'Escolhe o destino na lista de sugestões.'.tr);
       return;
     }
     Navigator.pop(
@@ -2218,7 +2201,7 @@ class _ReturnSheetState extends State<_ReturnSheet> {
     // só pelo "X" do AppBar, nunca por toque fora.
     return Scaffold(
       backgroundColor: AppColors.surface,
-      appBar: const BoraScreenAppBar(title: 'Chamar a minha volta'),
+      appBar: BoraScreenAppBar(title: 'Chamar a minha volta'.tr),
       body: SingleChildScrollView(
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         padding: EdgeInsets.fromLTRB(
@@ -2231,19 +2214,19 @@ class _ReturnSheetState extends State<_ReturnSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
-                'A volta já está paga. Confirma de onde sais e para onde vais.',
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+            Text(
+                'A volta já está paga. Confirma de onde sais e para onde vais.'.tr,
+                style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
             const SizedBox(height: Spacing.md),
             AddressAutocompleteField(
               key: const Key('tvde_return_origin'),
               controller: _origin,
-              labelText: 'De onde sais',
+              labelText: 'De onde sais'.tr,
               prefixIcon: const Icon(Icons.my_location, size: 20),
               onSelected: (address, coords) {
                 if (coords == null) {
                   setState(() => _error =
-                      'Não consegui localizar essa morada no mapa. Tenta acrescentar a rua e a cidade.');
+                      'Não consegui localizar essa morada no mapa. Tenta acrescentar a rua e a cidade.'.tr);
                   return;
                 }
                 setState(() {
@@ -2260,12 +2243,12 @@ class _ReturnSheetState extends State<_ReturnSheet> {
             AddressAutocompleteField(
               key: const Key('tvde_return_dest'),
               controller: _dest,
-              labelText: 'Destino da volta',
+              labelText: 'Destino da volta'.tr,
               prefixIcon: const Icon(Icons.place_outlined, size: 20),
               onSelected: (address, coords) {
                 if (coords == null) {
                   setState(() => _error =
-                      'Não consegui localizar essa morada no mapa. Tenta acrescentar a rua e a cidade.');
+                      'Não consegui localizar essa morada no mapa. Tenta acrescentar a rua e a cidade.'.tr);
                   return;
                 }
                 setState(() {
@@ -2288,7 +2271,7 @@ class _ReturnSheetState extends State<_ReturnSheet> {
             const SizedBox(height: Spacing.lg),
             BoraAccentButton(
               key: const Key('tvde_return_confirm'),
-              label: 'Chamar a volta',
+              label: 'Chamar a volta'.tr,
               onPressed: _confirm,
             ),
             // Espaço para o overlay de sugestões do autocomplete não ficar

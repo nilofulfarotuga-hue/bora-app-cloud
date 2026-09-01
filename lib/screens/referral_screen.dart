@@ -9,6 +9,8 @@ import '../widgets/bora_support_fab.dart';
 import '../widgets/bora/bora_primary_button.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 
+import '../l10n/tr.dart';
+
 /// Referral / Convite — Feature 10.
 /// Mostra código único do utilizador + botão Share + estatísticas.
 /// Backend: RPC `client_get_or_create_referral_code` + tabela `referral_codes`.
@@ -64,17 +66,15 @@ class _ReferralScreenState extends State<ReferralScreen> {
     final code = _code?['code'] as String?;
     if (code == null) return;
     final message =
-        'Junta-te ao Bora App e ganhamos os dois €5!\n\n'
-        'Usa o meu código: $code\n\n'
-        'Faz o teu primeiro pedido na app Bora — entrega em Guarda.';
+        'Junta-te ao Bora App e ganhamos os dois €5!\n\nUsa o meu código: {0}\n\nFaz o teu primeiro pedido na app Bora — entrega em Guarda.'.trArgs([code]);
     try {
-      await Share.share(message, subject: 'Convite Bora App');
+      await Share.share(message, subject: 'Convite Bora App'.tr);
     } catch (_) {
       // Fallback: copiar para clipboard se o share sheet falhar.
       await Clipboard.setData(ClipboardData(text: message));
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Mensagem copiada — cola no WhatsApp/SMS!')),
+        SnackBar(content: Text('Mensagem copiada — cola no WhatsApp/SMS!'.tr)),
       );
     }
   }
@@ -84,7 +84,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
     if (code == null) return;
     Clipboard.setData(ClipboardData(text: code));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Código copiado!')),
+      SnackBar(content: Text('Código copiado!'.tr)),
     );
   }
 
@@ -92,7 +92,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const BoraScreenAppBar(title: 'Convidar amigos'),
+      appBar: BoraScreenAppBar(title: 'Convidar amigos'.tr),
       floatingActionButton: const BoraSupportFab(),
       body: RefreshIndicator(
         onRefresh: _load,
@@ -131,10 +131,10 @@ class _ReferralScreenState extends State<ReferralScreen> {
               const Icon(Icons.card_giftcard,
                   size: 48, color: AppColors.primary),
               const SizedBox(height: 8),
-              const Text(
-                'O teu código',
+              Text(
+                'O teu código'.tr,
                 style:
-                    TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                    const TextStyle(fontSize: 14, color: AppColors.textSecondary),
               ),
               const SizedBox(height: 8),
               Text(
@@ -153,11 +153,11 @@ class _ReferralScreenState extends State<ReferralScreen> {
                   OutlinedButton.icon(
                     onPressed: _copy,
                     icon: const Icon(Icons.copy),
-                    label: const Text('Copiar'),
+                    label: Text('Copiar'.tr),
                   ),
                   const SizedBox(width: 8),
                   BoraPrimaryButton(
-                    label: 'Partilhar',
+                    label: 'Partilhar'.tr,
                     icon: Icons.share,
                     onPressed: _share,
                     expanded: false,
@@ -178,18 +178,18 @@ class _ReferralScreenState extends State<ReferralScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Como funciona',
-                style: TextStyle(
+              Text(
+                'Como funciona'.tr,
+                style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: AppColors.textPrimary),
               ),
               const SizedBox(height: 8),
-              _step(1, 'Partilha o teu código com amigos.'),
-              _step(2, 'Eles registam-se na app com o teu código.'),
+              _step(1, 'Partilha o teu código com amigos.'.tr),
+              _step(2, 'Eles registam-se na app com o teu código.'.tr),
               _step(3,
-                  'Quando fizerem o 1º pedido (≥€20) entregue, vocês recebem 1000 Bora Tokens cada (≈€5).'),
+                  'Quando fizerem o 1º pedido (≥€20) entregue, vocês recebem 1000 Bora Tokens cada (≈€5).'.tr),
             ],
           ),
         ),
@@ -203,9 +203,9 @@ class _ReferralScreenState extends State<ReferralScreen> {
           ),
           child: Column(
             children: [
-              _statRow('Convites enviados', '$invitesSent'),
-              _statRow('Amigos que pediram', '$invitesCompleted'),
-              _statRow('Total ganho',
+              _statRow('Convites enviados'.tr, '$invitesSent'),
+              _statRow('Amigos que pediram'.tr, '$invitesCompleted'),
+              _statRow('Total ganho'.tr,
                   '€${(totalEarnedCents / 100).toStringAsFixed(2)}',
                   bold: true),
             ],
@@ -213,10 +213,10 @@ class _ReferralScreenState extends State<ReferralScreen> {
         ),
         const SizedBox(height: 12),
         if (_invites.isNotEmpty) ...[
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            child: Text('Convites recentes',
-                style: TextStyle(
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            child: Text('Convites recentes'.tr,
+                style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                     color: AppColors.textPrimary)),
@@ -224,12 +224,12 @@ class _ReferralScreenState extends State<ReferralScreen> {
           ..._invites.map(_inviteTile),
         ],
         const SizedBox(height: 24),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Text(
-            'Convites expiram após 30 dias. Pedido mínimo €20.',
+            'Convites expiram após 30 dias. Pedido mínimo €20.'.tr,
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 11, color: AppColors.textSubtle),
+            style: const TextStyle(fontSize: 11, color: AppColors.textSubtle),
           ),
         ),
       ],

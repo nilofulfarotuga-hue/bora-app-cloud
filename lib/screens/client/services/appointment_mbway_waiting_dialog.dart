@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../l10n/tr.dart';
+
 /// Dialog modal exibido enquanto se aguarda confirmação MBWay do PAGAMENTO de
 /// uma MARCAÇÃO (M7 — paridade com ReservationMBWayWaitingDialog).
 ///
@@ -83,7 +85,7 @@ class _AppointmentMBWayWaitingDialogState
         children: [
           Icon(Icons.phone_iphone, color: Colors.red.shade700),
           const SizedBox(width: 8),
-          const Text('Aguarda confirmação MBWay'),
+          Text('Aguarda confirmação MBWay'.tr),
         ],
       ),
       content: Column(
@@ -91,15 +93,14 @@ class _AppointmentMBWayWaitingDialogState
         children: [
           const SizedBox(height: 4),
           Text(
-            'Enviámos um pedido de €${widget.amount.toStringAsFixed(2)} '
-            'para o teu telemóvel.\nAbre o MBWay e confirma.',
+            'Enviámos um pedido de €{0} para o teu telemóvel.\nAbre o MBWay e confirma.'.trArgs([widget.amount.toStringAsFixed(2)]),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
           const CircularProgressIndicator(),
           const SizedBox(height: 12),
           Text(
-            'A aguardar confirmação... $_secondsLeft s',
+            'A aguardar confirmação... {0} s'.trArgs([_secondsLeft]),
             style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
           ),
         ],

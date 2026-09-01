@@ -10,6 +10,8 @@ import '../../../services/payment_service.dart';
 import '../../../services/saved_card_checkout.dart';
 import '../../../stores/cleaning_store.dart';
 
+import '../../../l10n/tr.dart';
+
 /// LIMPEZA — fluxo de pagamento partilhado (wizard + tracking).
 /// Cartão: PaymentIntent normal (COBRA na reserva) → PaymentSheet → mark_held.
 /// MB Way: create_mbway (push na app MB WAY) → poll mark_held até 120 s.
@@ -43,7 +45,7 @@ class CleaningPaymentFlow {
     CleaningBooking booking,
   ) async {
     if (kIsWeb) {
-      _snack(context, 'O pagamento por cartão está disponível na app móvel.');
+      _snack(context, 'O pagamento por cartão está disponível na app móvel.'.tr);
       return false;
     }
     // Carteira Unica (2026-07-21): cartao padrao + digital/rosto ANTES de
@@ -52,7 +54,7 @@ class CleaningPaymentFlow {
         .authorize(amountEur: booking.totalCents / 100.0);
     if (!context.mounted) return false;
     if (auth.cancelled) {
-      _snack(context, 'Pagamento cancelado. Não foi cobrado nada.');
+      _snack(context, 'Pagamento cancelado. Não foi cobrado nada.'.tr);
       return false;
     }
 
@@ -60,7 +62,7 @@ class CleaningPaymentFlow {
         await store.createCardPayment(booking.id, savedPmId: auth.savedPmId);
     if (!context.mounted) return false;
     if (created == null) {
-      _snack(context, 'Não foi possível iniciar o pagamento.');
+      _snack(context, 'Não foi possível iniciar o pagamento.'.tr);
       return false;
     }
     try {
@@ -72,14 +74,14 @@ class CleaningPaymentFlow {
           requiresAction: (created['requiresAction'] as bool?) ?? false,
         );
         if (!ok) {
-          if (context.mounted) _snack(context, 'Pagamento não concluído.');
+          if (context.mounted) _snack(context, 'Pagamento não concluído.'.tr);
           return false;
         }
       } else {
         await PaymentService().processPayment(clientSecret);
       }
     } catch (_) {
-      if (context.mounted) _snack(context, 'Pagamento não concluído.');
+      if (context.mounted) _snack(context, 'Pagamento não concluído.'.tr);
       return false;
     }
     // Cartão fica 'requires_capture' imediatamente — 3 tentativas chegam.
@@ -90,7 +92,7 @@ class CleaningPaymentFlow {
       await Future<void>.delayed(const Duration(seconds: 2));
     }
     if (context.mounted) {
-      _snack(context, 'Pagamento em validação — verifica no ecrã da reserva.');
+      _snack(context, 'Pagamento em validação — verifica no ecrã da reserva.'.tr);
     }
     return false;
   }
@@ -109,7 +111,7 @@ class CleaningPaymentFlow {
     if (!context.mounted) return false;
     if (created == null) {
       _snack(context,
-          'Não foi possível iniciar o MB Way. Confirma o número e tenta de novo.');
+          'Não foi possível iniciar o MB Way. Confirma o número e tenta de novo.'.tr);
       return false;
     }
 
@@ -125,8 +127,7 @@ class CleaningPaymentFlow {
     );
     if (ok != true && context.mounted) {
       _snack(context,
-          'Não recebemos a confirmação MB Way. Se pagaste, reabre a reserva; '
-          'senão tenta de novo.');
+          'Não recebemos a confirmação MB Way. Se pagaste, reabre a reserva; senão tenta de novo.'.tr);
     }
     return ok == true;
   }
@@ -136,21 +137,21 @@ class CleaningPaymentFlow {
     return showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Número MB Way'),
+        title: Text('Número MB Way'.tr),
         content: TextField(
           controller: ctrl,
           autofocus: true,
           keyboardType: TextInputType.phone,
-          decoration: const InputDecoration(
-            labelText: 'Telemóvel',
-            hintText: '9XX XXX XXX',
+          decoration: InputDecoration(
+            labelText: 'Telemóvel'.tr,
+            hintText: '9XX XXX XXX'.tr,
             prefixText: '+351 ',
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancelar'),
+            child: Text('Cancelar'.tr),
           ),
           TextButton(
             onPressed: () {
@@ -158,7 +159,7 @@ class CleaningPaymentFlow {
               if (digits.length < 9) return;
               Navigator.pop(ctx, digits);
             },
-            child: const Text('Pagar'),
+            child: Text('Pagar'.tr),
           ),
         ],
       ),
@@ -234,7 +235,7 @@ class _MbwayWaitingDialogState extends State<_MbwayWaitingDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Confirma na app MB WAY'),
+      title: Text('Confirma na app MB WAY'.tr),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -242,8 +243,7 @@ class _MbwayWaitingDialogState extends State<_MbwayWaitingDialog> {
           const CircularProgressIndicator(),
           const SizedBox(height: Spacing.lg),
           Text(
-            'Enviámos um pedido de ${CleaningLabels.euro(widget.amountCents)} '
-            'para o teu MB WAY. Aprova-o para confirmar a reserva.',
+            'Enviámos um pedido de {0} para o teu MB WAY. Aprova-o para confirmar a reserva.'.trArgs([CleaningLabels.euro(widget.amountCents)]),
             textAlign: TextAlign.center,
             style: const TextStyle(color: AppColors.textSecondary, height: 1.4),
           ),

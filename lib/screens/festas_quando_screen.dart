@@ -6,6 +6,8 @@ import '../models/restaurant_model.dart';
 import '../widgets/bora/bora_bottom_action_bar.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 
+import '../l10n/tr.dart';
+
 /// Passo do checkout **só para lojas de festas**: escolher o dia e a hora da
 /// encomenda.
 ///
@@ -88,7 +90,7 @@ class _FestasQuandoScreenState extends State<FestasQuandoScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const BoraScreenAppBar(title: 'Quando queres?'),
+      appBar: BoraScreenAppBar(title: 'Quando queres?'.tr),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(
             Spacing.lg, Spacing.md, Spacing.lg, Spacing.xxl),
@@ -99,20 +101,19 @@ class _FestasQuandoScreenState extends State<FestasQuandoScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Hora',
-                    style: TextStyle(
+                Text('Hora'.tr,
+                    style: const TextStyle(
                         fontSize: 15, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 4),
                 Text(
-                  'A loja está aberta das ${widget.horaAbertura}h '
-                  'às ${widget.horaFecho}h.',
-                  style: TextStyle(
+                  'A loja está aberta das {0}h às {1}h.'.trArgs([widget.horaAbertura, widget.horaFecho]),
+                  style: const TextStyle(
                       fontSize: 12, color: AppColors.textSecondary),
                 ),
                 const SizedBox(height: Spacing.sm),
                 if (_dia == null)
-                  Text('Escolhe primeiro o dia.',
-                      style: TextStyle(
+                  Text('Escolhe primeiro o dia.'.tr,
+                      style: const TextStyle(
                           fontSize: 13, color: AppColors.textSecondary))
                 else
                   Wrap(
@@ -139,9 +140,7 @@ class _FestasQuandoScreenState extends State<FestasQuandoScreen> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
-              'Os dias riscados não cumprem o aviso prévio de '
-              '$kFestasAvisoDias dia. Se precisares para mais cedo, fala '
-              'com a loja — o contacto está na página.',
+              'Os dias riscados não cumprem o aviso prévio de {0} dia. Se precisares para mais cedo, fala com a loja — o contacto está na página.'.trArgs([kFestasAvisoDias]),
               style: const TextStyle(
                   fontSize: 12.5, color: Color(0xFF9A3412), height: 1.5),
             ),
@@ -165,8 +164,8 @@ class _FestasQuandoScreenState extends State<FestasQuandoScreen> {
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14)),
             ),
-            child: const Text('Continuar',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+            child: Text('Continuar'.tr,
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
           ),
         ],
       ),
@@ -182,7 +181,7 @@ class _FestasQuandoScreenState extends State<FestasQuandoScreen> {
     for (final d in const ['S', 'T', 'Q', 'Q', 'S', 'S', 'D']) {
       celulas.add(Center(
         child: Text(d,
-            style: TextStyle(
+            style: const TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w800,
                 color: AppColors.textSecondary)),

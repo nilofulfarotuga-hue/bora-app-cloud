@@ -267,7 +267,9 @@ def chat(mensagens, tools=None, max_tokens=350, temperatura=0.2, timeouts=None):
             return r
         except urllib.error.HTTPError as e:
             corpo = e.read()[:200].decode("utf-8", "replace")
-            _marcar(modelo, 600 if e.code == 429 else 120, "HTTP %s %s" % (e.code, corpo))
+            # 429 no Gemini e a quota DO DIA (10 min de castigo); no Groq e o limite POR MINUTO (8 000 tokens
+            # no plano gratis, 02/09) -- 65 s chegam, senao o melhor motor fica fora por 10 min a cada rajada.
+            _marcar(modelo, (65 if modelo.startswith("groq:") else 600) if e.code == 429 else 120, "HTTP %s %s" % (e.code, corpo))
             erros.append("%s: HTTP %s" % (modelo, e.code))
         except Exception as e:  # noqa: BLE001 -- timeout, ligacao, JSON: desce ao seguinte
             _marcar(modelo, 90, "%s: %s" % (type(e).__name__, e))

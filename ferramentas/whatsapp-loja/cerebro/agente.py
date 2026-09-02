@@ -181,6 +181,8 @@ def _resumo_pedidos(res):
 
 def _pos_processar(texto, f, tratamento, cumprimentou_hoje):
     t = (texto or "").strip()
+    t = re.sub(r"<think>.*?</think>\s*", "", t, flags=re.S)   # raciocinio de modelos "thinking" (qwen3.6 no Groq, 02/09)
+    t = re.sub(r"<think>.*$", "", t, flags=re.S)
     t = re.sub(r"[*_#`>]+", "", t)                       # sem markdown
     t = re.sub(r"(?m)^\s*[-•]\s+", "", t)                # sem listas
     t = RE_TITULO_MANUAL.sub("", t)                       # titulos do manual colados na resposta (7b)

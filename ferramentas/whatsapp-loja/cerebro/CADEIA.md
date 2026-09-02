@@ -31,3 +31,16 @@ zen:nemotron-3-ultra-free**. Tempos: 12 s Gemini/Groq, 25 s Ollama, 60 s Zen —
 E o agente passou a UMA chamada sem ferramentas (`agente._rapido`): o que precisa de dados verifica-se
 antes, em código. Medido: 10 de 10 respostas em menos de 10 s (máx. 7,6 s). `CEREBRO_RAPIDO=0` volta ao
 ciclo com ferramentas. Na VPS a cadeia vive em `Environment=CEREBRO_CADEIA` no serviço, não no ficheiro.
+
+## Revisão 12:45 (02/09) — Groq ligado, com a chave criada na conta do Danilo
+Chave `bora-whatsapp-cerebro` (sem expiração) criada no console do Groq pelo agente de browser; a única
+parte humana foi o "Confirme que é humano" da Cloudflare. Vive em `cerebro/.env` (PC) e em
+`/opt/whatsapp-bora/.env` (VPS); nunca se imprime. O `llama-3.3-70b-versatile` já não existe no Groq
+(404 model_not_found); a lista da conta tem `openai/gpt-oss-120b`, `openai/gpt-oss-20b`,
+`qwen/qwen3.8-27b`, `qwen/qwen3.6-27b` (este escreve `<think>` — cortado no pós-processamento),
+`groq/compound*` e `whisper-large-v3(-turbo)`. Medido com o prompt real: gpt-oss-120b 0,7–1,0 s e o
+melhor português; qwen3.8-27b 0,3–0,4 s; gpt-oss-20b devolveu uma resposta vazia.
+Ordem: **groq:openai/gpt-oss-120b → groq:qwen/qwen3.8-27b → gemini-3.1-flash-lite → gemini-3-flash-preview
+→ ollama → zen:nemotron**. Limite do plano grátis: 8 000 tokens/min por modelo (429 → desce para o
+qwen; cooldown curto, 65 s, não os 600 s do 429 diário do Gemini). Transcrição: `groq:whisper-large-v3-turbo`
+passou a 1.º nível (2,1 s, palavra por palavra no áudio de prova), depois whisper local, depois Gemini.

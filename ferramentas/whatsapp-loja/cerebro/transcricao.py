@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """transcricao.py — ouvir audios e ver imagens, de graca. Cadeia provada nivel a nivel.
 
-Audio:  1) faster-whisper LOCAL (small se estiver no disco, senao base; int8, CPU; PT)
-        2) gemini-3.6-flash com o audio inline (chave em backend/.env)
-        (Groq whisper-large-v3 seria o 1o nivel, mas exige criar conta -- fica para o Danilo.)
+Audio:  1) Groq whisper-large-v3-turbo (chave GROQ_API_KEY no cerebro/.env desde 02/09 12:40; gratis, ~1 s)
+        2) faster-whisper LOCAL (small se estiver no disco, senao base; int8, CPU; PT)
+        3) gemini-3.6-flash com o audio inline (chave em backend/.env)
 Imagem: gemini-3.6-flash (visao) com o contexto da ficha.
 O texto transcrito entra na conversa como se fosse texto escrito; o bot responde em texto.
 """
@@ -73,10 +73,37 @@ def _gemini_audio(caminho):
     return "".join(p.get("text", "") for p in parts).strip(), "gemini-3.6-flash"
 
 
+UA_BROWSER = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36"
+
+
+def _groq_audio(caminho, idioma="pt"):
+    """Groq whisper-large-v3-turbo pela API compativel com a OpenAI (multipart). O Cloudflare do Groq
+    devolve 403/1010 a pedidos sem User-Agent de browser (igual ao Zen)."""
+    key = supa.ENV.get("GROQ_API_KEY") or os.environ.get("GROQ_API_KEY") or ""
+    if not key:
+        raise RuntimeError("sem GROQ_API_KEY")
+    wav = _ffmpeg_para_wav(caminho) or caminho
+    dados = open(wav, "rb").read()
+    limite = "----BoraGroq" + os.urandom(8).hex()
+
+    def campo(nome, valor):
+        return ("--%s\r\nContent-Disposition: form-data; name=\"%s\"\r\n\r\n%s\r\n" % (limite, nome, valor)).encode()
+
+    corpo = campo("model", "whisper-large-v3-turbo") + campo("language", idioma) + campo("response_format", "json") + campo("temperature", "0")
+    corpo += ("--%s\r\nContent-Disposition: form-data; name=\"file\"; filename=\"audio.wav\"\r\nContent-Type: audio/wav\r\n\r\n" % limite).encode()
+    corpo += dados + ("\r\n--%s--\r\n" % limite).encode()
+    req = urllib.request.Request("https://api.groq.com/openai/v1/audio/transcriptions", data=corpo,
+                                 headers={"Authorization": "Bearer " + key, "Content-Type": "multipart/form-data; boundary=" + limite,
+                                          "User-Agent": UA_BROWSER, "Accept": "application/json"})
+    with urllib.request.urlopen(req, timeout=60) as r:
+        d = json.loads(r.read())
+    return (d.get("text") or "").strip(), "groq:whisper-large-v3-turbo"
+
+
 def transcrever(caminho, idioma="pt"):
     """Devolve (texto, motor, erros). Nunca levanta: se tudo falhar, texto='' e erros diz porque."""
     erros = []
-    for fn in (_local, _gemini_audio):
+    for fn in (_groq_audio, _local, _gemini_audio):
         try:
             texto, motor = fn(caminho) if fn is _gemini_audio else fn(caminho, idioma)
             if texto:

@@ -85,3 +85,28 @@ Nenhuma promessa rejeitada nas 10; nenhum facto inventado bloqueado.
   encurtadas nesta mesma passagem (ver relatório). Quando ele mandar "oi", a linha fica em
   `whatsapp_messages` com `porta='pc-extensao'` e `latencia_ms`.
 - Groq: sem chave ainda (a conta é dele); a cadeia já o tem em primeiro e salta-o em 0 ms sem chave.
+
+## 4. Groq ligado (12:40–12:45) — a chave criada na conta do Danilo pelo agente de browser
+
+Console do Groq já com sessão iniciada no Chrome dele. Único passo humano: o "Confirme que é humano"
+da Cloudflare (janela posta em primeiro plano + aviso no Telegram). A chave `bora-whatsapp-cerebro`
+(sem expiração) foi copiada pelo sistema (Ctrl+C na janela) e escrita em `cerebro/.env` (PC) e
+`/opt/whatsapp-bora/.env` (VPS) sem passar por nenhum ecrã nem log; a área de transferência foi limpa.
+
+`llama-3.3-70b-versatile` → **404 model_not_found** (descontinuado). Escolha medida com o prompt real:
+`openai/gpt-oss-120b` 0,7–1,0 s (melhor PT), `qwen/qwen3.8-27b` 0,3–0,4 s, `qwen3.6` escreve `<think>`,
+`gpt-oss-20b` devolveu uma resposta vazia. Cadeia: gpt-oss-120b → qwen3.8-27b → gemini-lite → gemini-preview → ollama → zen.
+
+No BANCO (`whatsapp_messages`, porta `prova`, número de teste do Danilo, 12:43 Lisboa):
+```
+11:43:10 UTC  groq:openai/gpt-oss-120b   1100 ms | O Bora é uma app de entregas e serviços locais na Guarda – comida, com…
+11:43:12 UTC  groq:openai/gpt-oss-120b   1100 ms | Sim, fazemos entregas de farmácia. Basta escolher o produto na app…
+11:43:14 UTC  groq:openai/gpt-oss-120b   1400 ms | Ainda não temos vagas, mas podemos colocar o seu nome na lista de espera…
+11:43:16 UTC  groq:openai/gpt-oss-120b   1500 ms | Vi agora: o seu último pedido do Auchan ficou entregue há cerca de 17 h…
+11:43:17 UTC  groq:qwen/qwen3.8-27b       800 ms | Sim, pode pagar em dinheiro até 40 euros por pedido.
+```
+A 5.ª caiu no qwen porque o plano grátis do gpt-oss-120b dá 8 000 tokens/minuto (429 "Limit 8000,
+Used 7143") — cinco mensagens em 7 s esgotam-no; em produção são poucas por hora, e a descida é automática.
+
+Transcrição: `groq:whisper-large-v3-turbo` passou a 1.º nível — áudio de prova em 2,1 s:
+"Olá, boa tarde. Queria saber a que horas é que vocês abrem e a que horas fecham. Obrigada."

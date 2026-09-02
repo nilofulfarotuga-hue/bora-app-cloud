@@ -59,6 +59,7 @@ import 'admin_pending_actions_screen.dart';
 import 'admin_skill_suggestions_screen.dart';
 import 'admin_robot_suggestions_screen.dart';
 import 'admin_support_tickets_screen.dart';
+import 'admin_whatsapp_screen.dart';
 import 'admin_orphan_payments_screen.dart';
 import 'admin_payments_cards_screen.dart';
 import 'admin_receipts_screen.dart';
@@ -1321,6 +1322,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       MaterialPageRoute(
                           builder: (_) =>
                               const AdminSupportTicketsScreen())),
+                ),
+                const SizedBox(height: 10),
+                // Missão 02/09/2026 — WhatsApp da loja (bot que resolve)
+                _NavCard(
+                  icon: Icons.chat_bubble_outline,
+                  title: 'WhatsApp da loja',
+                  subtitle: 'Conversas do bot · pausar/assumir · leads · lista de espera · log',
+                  color: Colors.green,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminWhatsappScreen())),
                 ),
                 const SizedBox(height: 10),
                 _NavCard(

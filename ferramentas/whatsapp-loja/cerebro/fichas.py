@@ -17,7 +17,8 @@ VAULT_DIR = next((p for p in (r"C:\BoraLocal\Bora\whatsapp\contactos", "/opt/wha
                   if os.path.isdir(os.path.dirname(os.path.dirname(p))) or os.path.isdir(p)), r"C:\BoraLocal\Bora\whatsapp\contactos")
 CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_fichas")
 _lock = threading.Lock()
-CAMPOS_TABELA = ("numero", "nome", "nome_fonte", "tratamento", "registo", "lingua", "papel", "papel_detalhe",
+CAMPOS_TABELA = ("a_espera_de", "ultimas_trocas", "extra",      # 02/09 noite: fio de conversa (falha G) + bandeiras
+                 "numero", "nome", "nome_fonte", "tratamento", "registo", "lingua", "papel", "papel_detalhe",
                  "supabase_user_id", "supabase_driver_id", "supabase_restaurant_id", "estilo", "notas",
                  "o_que_pediu", "prometido", "falta_recolher", "lead_id", "bot_pausado", "bot_pausado_ate",
                  "bot_pausado_por", "assumido_por_danilo", "cumprimentado_em", "primeira_msg_em",

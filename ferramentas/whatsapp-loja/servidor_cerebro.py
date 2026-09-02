@@ -48,6 +48,7 @@ from cerebro import agente, fichas, manual, modelos, supa, tarefas, telegram  # 
 LOG = os.path.join(BASE, "atendimento-log.jsonl")
 AUDIOS = os.path.join(BASE, "audios")
 IMAGENS = os.path.join(BASE, "imagens")
+VERSAO = "v3-multicerebro-2026-09-02"
 PORT = int(os.environ.get("CEREBRO_PORT", "8790"))
 PORTA = os.environ.get("CEREBRO_PORTA", "pc-extensao")
 FLAG_ENVIO_DESLIGADO = os.path.join(BASE, "ENVIO_DESLIGADO")
@@ -105,6 +106,46 @@ def emitir(numero, texto, motivo):
 
 _emitidos = []          # (numero, texto normalizado) das ultimas 300 saidas do proprio cerebro
 _norm = lambda t: re.sub(r"\s+", " ", (t or "").strip().lower())[:200]
+
+
+def emitir_e_registar(numero, texto, motivo, modelo=None):
+    """Poe na fila E escreve a linha em whatsapp_messages com msg_id = id da fila: e por esse id que o
+    /enviado marca a entrega (a v2 procurava pelo texto -- virgulas e parenteses partem o filtro)."""
+    mid = emitir(numero, texto, motivo)
+    if mid:
+        try:
+            supa.insert("whatsapp_messages", {"msg_id": mid, "numero": numero, "direcao": "saida", "porta": PORTA, "tipo": "texto",
+                                              "texto": texto, "decisao": motivo, "modelo": modelo or motivo.split(":")[0], "enviada": False}, devolve=False)
+        except Exception as e:  # noqa: BLE001
+            registar({"evento": "registo-saida-erro", "numero": numero, "erro": str(e)[:160]})
+    return mid
+
+
+def _entrega_falhou(numero, texto, erro, msg_id=None):
+    """A extensao nao viu a bolha depois de 3 tentativas: o Danilo sabe ja, e se a VPS estiver
+    emparelhada a mensagem sai por la (fila partilhada no Supabase)."""
+    registar({"evento": "entrega-falhou", "numero": numero, "texto": texto[:200], "erro": erro, "msg_id": msg_id})
+    vps = bool(supa.definicao("vps_emparelhada", False))
+    if vps and PORTA != "vps-baileys":
+        try:
+            supa.insert("whatsapp_saida", {"numero": numero, "texto": texto, "porta_destino": "vps-baileys", "motivo": "entrega-falhou-" + PORTA,
+                                           "origem": msg_id, "estado": "pendente"}, devolve=False)
+            registar({"evento": "entrega-passou-a-vps", "numero": numero})
+        except Exception as e:  # noqa: BLE001
+            registar({"evento": "entrega-vps-erro", "numero": numero, "erro": str(e)[:160]})
+    threading.Thread(target=avisar, args=("WhatsApp da loja — NÃO consegui entregar a %s a mensagem \"%s\" (%s)%s. Responde-lhe tu por aqui." % (
+        numero, texto[:160], erro or "sem bolha", " — passei-a à VPS" if vps else ""),), daemon=True).start()
+
+
+# --- comandos remotos para a extensao (auditoria sem 2a sessao do WhatsApp Web) ---
+_comandos, _resultados, _cmd_lock = [], {}, threading.Lock()
+
+
+def pedir_comando(tipo, **kw):
+    c = dict(kw, id=str(uuid.uuid4()), tipo=tipo, criado=time.time())
+    with _cmd_lock:
+        _comandos.append(c)
+    return c["id"]
 
 
 def _e_texto_proprio(numero, texto):
@@ -254,7 +295,7 @@ def _processar(numero):
     registar({"evento": "decisao", "numero": numero, "acao": dec.get("acao"), "textos": dec.get("textos"), "modelo": dec.get("modelo"),
               "ferramentas": dec.get("ferramentas"), "tarefas": dec.get("tarefas"), "segundos": dec.get("segundos"), "erro": dec.get("erro")})
     ids = [emitir(numero, t, dec.get("acao")) for t in (dec.get("textos") or [])] if dec.get("acao") in ("responder", "escalar") else []
-    agente.registar_mensagens(evento, dec, enviada=False, porta=PORTA)
+    agente.registar_mensagens(evento, dec, enviada=False, porta=PORTA, ids_saida=ids)
     return dec
 
 
@@ -269,6 +310,9 @@ def _danilo_respondeu(numero, texto):
         manual.registar_correcao("exemplo de tom do Danilo (para " + numero[-3:] + "): \"" + texto[:200] + "\"", "danilo-a-mao")
     tarefas.cumprir_todas(numero, "o Danilo respondeu à mão")
     registar({"evento": "danilo-respondeu", "numero": numero, "texto": texto[:200], "bot_pausado_ate": ate})
+    # SOMBRA DO DANILO (02/09 noite): o cerebro compara o que ele disse com o que ele proprio teria dito e
+    # guarda a diferenca como licao; a revisao diaria propoe 1 regra de tom. Em thread: nunca atrasa nada.
+    threading.Thread(target=agente.sombra_do_danilo, args=(numero, texto, registar), daemon=True).start()
     return {"ok": True, "acao": "bot-pausado-2h"}
 
 
@@ -313,7 +357,7 @@ def censo(d):
 
 # --- crons ----------------------------------------------------------------------
 def _cron():
-    ultimo_atrasos = ultimo_seguimentos = ultimo_revisao = 0
+    ultimo_atrasos = ultimo_seguimentos = ultimo_revisao = ultimo_vaga = 0
     while True:
         try:
             agora = time.time()
@@ -323,7 +367,7 @@ def _cron():
                     from cerebro import ferramentas_bot as FB
                     media, n = FB._media_entrega_min()
                     for o in tarefas.pedidos_atrasados(media if n >= 3 else 45):
-                        emitir(fichas.so_digitos(o["client_phone"]),
+                        emitir_e_registar(fichas.so_digitos(o["client_phone"]),
                                "Olá! O seu pedido está a demorar mais do que o normal — peço desculpa. Estamos a tratar dele e "
                                "aviso-o assim que sair. Se preferir, é só dizer.", "cron:atraso-pedido")
                         avisar("WhatsApp da loja — pedido %s (%s) ha %s min, acima da media (%s). Avisei o cliente." % (
@@ -332,16 +376,47 @@ def _cron():
                 ultimo_seguimentos = agora
                 if not envio_desligado():
                     for l in tarefas.seguimentos_24h():
-                        emitir(l["numero"], "Olá! Continuo por aqui para montar a sua loja no Bora, sem pressa nenhuma. "
+                        emitir_e_registar(l["numero"], "Olá! Continuo por aqui para montar a sua loja no Bora, sem pressa nenhuma. "
                                             "Quando quiser retomar, é só responder por aqui.", "cron:seguimento-24h")
                         tarefas.marcar_lembrete(l["id"])
             h = datetime.datetime.now()
             if h.hour == 6 and h.minute < 5 and agora - ultimo_revisao > 3600 * 20:
                 ultimo_revisao = agora
                 threading.Thread(target=auto_revisao, daemon=True).start()
+            # FILA PARTILHADA (02/09 noite): o que a outra porta nao conseguiu entregar sai por esta
+            if not envio_desligado():
+                for s in supa.select("whatsapp_saida", select="id,numero,texto,motivo", porta_destino="eq." + PORTA, estado="eq.pendente", order="created_at.asc", limit="10"):
+                    emitir_e_registar(s["numero"], s["texto"], "fila-partilhada:" + (s.get("motivo") or ""))
+                    supa.update("whatsapp_saida", {"estado": "emitida", "emitida_em": datetime.datetime.now(datetime.timezone.utc).isoformat()}, id="eq." + str(s["id"]))
+                    registar({"evento": "fila-partilhada-emitida", "numero": s["numero"], "id": s["id"]})
+            # VAGA ABERTA (02/09 noite): o Danilo abre a vaga no painel; o bot avisa a lista de espera pela ordem
+            if agora - ultimo_vaga > 300:
+                ultimo_vaga = agora
+                if not envio_desligado():
+                    threading.Thread(target=avisar_lista_de_espera, daemon=True).start()
         except Exception as e:  # noqa: BLE001
             registar({"evento": "cron-erro", "erro": str(e)[:200]})
-        time.sleep(30)
+        time.sleep(20)
+
+
+def avisar_lista_de_espera():
+    """`whatsapp_settings.vaga_estafeta` = {"aberta": true, "texto": "...", "max": 5}: avisa os leads de
+    estafeta ainda nao avisados, pela ordem de chegada, `max` por ciclo; fecha a vaga quando a lista acabar."""
+    vaga = supa.definicao("vaga_estafeta") or {}
+    if not isinstance(vaga, dict) or not vaga.get("aberta"):
+        return
+    texto = vaga.get("texto") or ("Olá! Abriu uma vaga de estafeta no Bora e você está na nossa lista de espera. "
+                                  "Ainda tem interesse? Responda por aqui e eu passo ao Danilo.")
+    leads = supa.select("whatsapp_leads", select="id,numero,dados,created_at", tipo="eq.estafeta", estado="neq.fechado", order="created_at.asc", limit="100")
+    por_avisar = [l for l in leads if not (l.get("dados") or {}).get("vaga_avisada_em")]
+    for l in por_avisar[: int(vaga.get("max") or 5)]:
+        emitir_e_registar(l["numero"], texto, "vaga:estafeta")
+        dados = dict(l.get("dados") or {}, vaga_avisada_em=datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"))
+        supa.update("whatsapp_leads", {"dados": dados, "estado": "vaga_avisado"}, id="eq." + str(l["id"]))
+        registar({"evento": "vaga-avisada", "numero": l["numero"], "lead": l["id"]})
+    if len(por_avisar) <= int(vaga.get("max") or 5):
+        supa.definir("vaga_estafeta", dict(vaga, aberta=False, fechada_em=datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")))
+        avisar("WhatsApp da loja — lista de espera de estafetas avisada (%d pessoas). A vaga fechou sozinha." % len(por_avisar))
 
 
 def auto_revisao():
@@ -366,8 +441,28 @@ def auto_revisao():
     for ln in [l.strip("-• ").strip() for l in saida.split("\n") if l.strip()][-3:]:
         manual.registar_licao(ln[:220])
     rep = manual.perguntas_repetidas(2)
-    digest = "Revisão diária do WhatsApp da loja: %d conversas, %d mensagens. %s%s" % (
-        len(conversas), len(rows), saida[-600:], ("\n\nPerguntas que se repetem e precisam de ti: " + "; ".join(p for _n, p in rep[:5])) if rep else "")
+    # SOMBRA DO DANILO: das comparacoes do dia sai UMA proposta de regra de tom, para ele aprovar
+    proposta = ""
+    try:
+        sombras = []
+        if os.path.exists(agente.SOMBRAS):
+            for ln in open(agente.SOMBRAS, encoding="utf-8"):
+                try:
+                    s = json.loads(ln)
+                    if s.get("ts", "") > ontem and s.get("regra"):
+                        sombras.append(s)
+                except Exception:
+                    pass
+        if sombras:
+            r2 = modelos.chat([{"role": "system", "content": "Destas comparacoes entre o dono (Danilo) e o bot, escolhe ou funde UMA regra de tom, curta (max 160 caracteres), a mais util. So a regra."},
+                               {"role": "user", "content": "\n".join("DONO: %s | BOT: %s | REGRA: %s" % (s["danilo"][:150], s["bot"][:150], s["regra"]) for s in sombras[-12:])}],
+                              max_tokens=120, perfil="raciocinio")
+            proposta = (r2.get("texto") or "").strip().split("\n")[0][:160]
+    except Exception as e:  # noqa: BLE001
+        registar({"evento": "sombra-proposta-erro", "erro": str(e)[:120]})
+    digest = "Revisão diária do WhatsApp da loja: %d conversas, %d mensagens. %s%s%s" % (
+        len(conversas), len(rows), saida[-600:], ("\n\nPerguntas que se repetem e precisam de ti: " + "; ".join(p for _n, p in rep[:5])) if rep else "",
+        ("\n\nPERGUNTAR AO DANILO — regra de tom proposta pela sombra (%d comparações de hoje): \"%s\". Responde 'aprovo regra' para entrar no manual." % (len(sombras), proposta)) if proposta else "")
     avisar(digest)
     registar({"evento": "auto-revisao", "conversas": len(conversas), "mensagens": len(rows)})
 
@@ -402,7 +497,7 @@ class H(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path.startswith("/saude"):
             pedir = os.path.exists(FLAG_CENSO)
-            return self._json(200, {"ok": True, "servico": "cerebro-whatsapp", "versao": "v2-agente-2026-09-02", "porta": PORTA,
+            return self._json(200, {"ok": True, "servico": "cerebro-whatsapp", "versao": VERSAO, "porta": PORTA,
                                     "envio_desligado": envio_desligado(), "envio_ligado_supabase": supa.definicao("envio_ligado"),
                                     "cadeia": modelos.estado(), "ollama": modelos.ollama_vivo(), "pedir_censo": pedir,
                                     "em_buffer": len(_buffer), "em_fila": len(_saida)})
@@ -420,6 +515,15 @@ class H(BaseHTTPRequestHandler):
             return self._json(200, {"mensagens": [item]})
         if self.path.startswith("/lembretes"):
             return self._json(200, {"lembretes": []})
+        if self.path.startswith("/comandos"):
+            with _cmd_lock:
+                cs, _comandos[:] = list(_comandos), []
+            return self._json(200, {"comandos": cs})
+        if self.path.startswith("/comando/"):
+            cid = self.path.split("/comando/", 1)[1].split("?")[0]
+            with _cmd_lock:
+                r = _resultados.get(cid)
+            return self._json(200, r or {"pendente": True, "id": cid})
         if self.path.startswith("/estado"):
             return self._json(200, {"tarefas_abertas": len(tarefas.abertas()), "em_fila": len(_saida), "cadeia": modelos.estado()})
         return self._json(404, {"erro": "nao encontrado"})
@@ -430,13 +534,44 @@ class H(BaseHTTPRequestHandler):
             if self.path.startswith("/evento"):
                 return self._json(200, receber(d))
             if self.path.startswith("/enviado"):
-                registar({"evento": "enviado" if d.get("ok") else "envio-falhou", "id": d.get("id"), "numero": d.get("numero"), "erro": d.get("erro")})
-                if d.get("ok"):
-                    try:
-                        supa.update("whatsapp_messages", {"enviada": True, "enviada_em": datetime.datetime.now(datetime.timezone.utc).isoformat()},
-                                    numero="eq." + fichas.so_digitos(d.get("numero")), texto="eq." + (d.get("texto") or ""), enviada="is.false")
-                    except Exception:
-                        pass
+                # v9 (02/09 noite): ok SO quando a extensao viu a BOLHA nesta conversa. enviada=true nunca
+                # mais e "mandei para a extensao" -- e "esta no WhatsApp, com visto".
+                numero = fichas.so_digitos(d.get("numero"))
+                ok = bool(d.get("ok"))
+                registar({"evento": "enviado" if ok else "entrega-falhou-extensao", "id": d.get("id"), "numero": numero, "estado": d.get("estado"),
+                          "tentativas": d.get("tentativas"), "msg_id": d.get("msg_id"), "erro": d.get("erro")})
+                patch = {"entrega_estado": (d.get("estado") or "visto") if ok else "falhou", "entrega_tentativas": int(d.get("tentativas") or 0),
+                         "entrega_erro": None if ok else str(d.get("erro") or "sem bolha")[:200], "msg_id_saida": d.get("msg_id")}
+                if ok:
+                    patch.update({"enviada": True, "enviada_em": datetime.datetime.now(datetime.timezone.utc).isoformat()})
+                try:
+                    if d.get("id"):
+                        supa.update("whatsapp_messages", patch, msg_id="eq." + str(d.get("id")))
+                    else:
+                        supa.update("whatsapp_messages", patch, numero="eq." + numero, texto="eq." + (d.get("texto") or ""), enviada="is.false", direcao="eq.saida")
+                except Exception as e:  # noqa: BLE001
+                    registar({"evento": "enviado-registo-erro", "erro": str(e)[:160]})
+                if not ok:
+                    _entrega_falhou(numero, d.get("texto") or "", d.get("erro"), d.get("id"))
+                return self._json(200, {"ok": True})
+            if self.path.startswith("/comando_resultado"):
+                with _cmd_lock:
+                    _resultados[str(d.get("id"))] = dict(d, recebido=time.time())
+                return self._json(200, {"ok": True})
+            if self.path.startswith("/comando"):
+                cid = pedir_comando(d.get("tipo") or "estado", **{k: v for k, v in d.items() if k in ("titulo", "numero", "n")})
+                return self._json(200, {"ok": True, "id": cid})
+            if self.path.startswith("/emitir"):
+                # so local (127.0.0.1): uma mensagem para a fila desta porta, com registo e entrega confirmada.
+                # Serve a prova 2 (envio forcado a falhar) e o painel admin.
+                numero = fichas.so_digitos(d.get("numero"))
+                if not numero or not (d.get("texto") or "").strip():
+                    return self._json(400, {"erro": "numero e texto obrigatorios"})
+                mid = emitir_e_registar(numero, d["texto"].strip(), "manual:" + str(d.get("motivo") or "admin"))
+                return self._json(200, {"ok": bool(mid), "id": mid})
+            if self.path.startswith("/emparelhada"):
+                supa.definir("vps_emparelhada", bool(d.get("ligada")))
+                registar({"evento": "vps-emparelhada", "ligada": bool(d.get("ligada")), "porta": d.get("porta"), "motivo": d.get("motivo")})
                 return self._json(200, {"ok": True})
             if self.path.startswith("/prova"):
                 numero = fichas.so_digitos(d.get("numero"))
@@ -538,10 +673,10 @@ def main():
     except OSError:
         print("PORTA_%d_OCUPADA — ja ha um cerebro a correr, saio." % PORT, flush=True)
         return
-    registar({"evento": "arranque", "porta": PORT, "versao": "v2-agente-2026-09-02", "envio_desligado": envio_desligado()})
+    registar({"evento": "arranque", "porta": PORT, "versao": VERSAO, "envio_desligado": envio_desligado()})
     threading.Thread(target=aquecedor, daemon=True).start()
     threading.Thread(target=_cron, daemon=True).start()
-    tarefas.Vigia(emitir, avisar, registar).start()
+    tarefas.Vigia(emitir_e_registar, avisar, registar).start()
     print("CEREBRO_ONLINE v2 http://127.0.0.1:%d" % PORT, flush=True)
     srv.serve_forever()
 

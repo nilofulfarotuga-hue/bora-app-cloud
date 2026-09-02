@@ -132,10 +132,14 @@ async function start() {
     if (connection === 'open') {
       estado = 'LIGADO ' + new Date().toISOString(); qrDataUrl = ''
       fs.writeFileSync(DIR + '/estado.txt', estado); log('LIGADO')
+      // o cerebro (e o do PC, pelo Supabase) fica a saber que esta porta esta emparelhada: e por aqui que
+      // as mensagens que o PC nao conseguiu entregar passam a sair (falha F, 02/09)
+      postJson('/emparelhada', { ligada: true, porta: 'vps-baileys' }, 8000).catch((e) => log('emparelhada falhou:', e.message))
     }
     if (connection === 'close') {
       const code = lastDisconnect && lastDisconnect.error && lastDisconnect.error.output && lastDisconnect.error.output.statusCode
       log('FECHADO ' + code)
+      postJson('/emparelhada', { ligada: false, porta: 'vps-baileys', motivo: String(code) }, 8000).catch(() => {})
       if (code === DisconnectReason.loggedOut) { estado = 'sessao terminada no telemovel; apaga ./auth para emparelhar de novo'; return }
       // 401 numa sessao limpa = WhatsApp a recusar por tentativas a mais. A v1 insistia de 10 em 10 min
       // (6 tentativas/hora) e o bloqueio nunca levantou em 2 dias. Ordem do Danilo: MAXIMO 1 por hora.

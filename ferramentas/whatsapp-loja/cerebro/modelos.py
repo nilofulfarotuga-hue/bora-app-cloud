@@ -11,6 +11,7 @@ chamada desce ao seguinte, sem bater a porta fechada. So se TODOS cairem e que s
 """
 import json
 import os
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -222,8 +223,68 @@ def _groq_key():
     return supa.ENV.get("GROQ_API_KEY") or os.environ.get("GROQ_API_KEY") or ""
 
 
+# ---------------------------------------------------------------- MOTOR BORA (roteador partilhado, 02/09 noite)
+# O cerebro deixa de ter a sua propria cadeia como 1a escolha: pede ao roteador local (perfil chat-rapido /
+# raciocinio / volume), que roda chaves e fornecedores gratis e conta quotas. Se o roteador estiver em
+# baixo, a cadeia directa (abaixo) continua a existir -- o bot nunca fica mudo por o roteador cair.
+MOTOR_URL = (supa.ENV.get("MOTOR_BORA_URL") or os.environ.get("MOTOR_BORA_URL") or "http://127.0.0.1:8792").rstrip("/")
+USAR_MOTOR = os.environ.get("CEREBRO_MOTOR", "1") != "0"
+TIMEOUT_PERFIL = {"chat-rapido": 18, "raciocinio": 75, "volume": 90, "visao": 40}
+_motor_morto_ate = 0.0
+_motor_lock = threading.Lock()
+
+
+def _via_motor(mensagens, tools, max_tokens, temperatura, perfil):
+    global _motor_morto_ate
+    if time.time() < _motor_morto_ate:
+        return None
+    corpo = {"model": "perfil:" + perfil, "messages": mensagens, "max_tokens": max_tokens, "temperature": temperatura, "stream": False}
+    if tools:
+        corpo["tools"] = [{"type": "function", "function": t} for t in tools]
+    try:
+        req = urllib.request.Request(MOTOR_URL + "/v1/chat/completions", data=json.dumps(corpo, ensure_ascii=False).encode("utf-8"),
+                                     headers={"Content-Type": "application/json", "X-Motor-Origem": "cerebro-whatsapp"})
+        with urllib.request.urlopen(req, timeout=TIMEOUT_PERFIL.get(perfil, 30)) as r:
+            d = json.loads(r.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        try:
+            corpo_e = e.read()[:300].decode("utf-8", "replace")
+        except Exception:
+            corpo_e = ""
+        return {"erro": "motor HTTP %s %s" % (e.code, corpo_e), "texto": "", "tool_calls": [], "modelo": None}
+    except Exception as e:  # noqa: BLE001
+        if "refused" in str(e).lower() or "10061" in str(e) or "111" in str(e):
+            with _motor_lock:
+                _motor_morto_ate = time.time() + 60      # roteador em baixo: cadeia directa durante 60 s
+        return {"erro": "motor em baixo: %s" % str(e)[:120], "texto": "", "tool_calls": [], "modelo": None}
+    if d.get("error"):
+        return {"erro": "motor: " + str(d["error"])[:200], "texto": "", "tool_calls": [], "modelo": d.get("model")}
+    ch = (d.get("choices") or [{}])[0]
+    m = ch.get("message") or {}
+    tcs = []
+    for c in m.get("tool_calls") or []:
+        fn = c.get("function") or {}
+        try:
+            args = json.loads(fn.get("arguments") or "{}")
+        except Exception:
+            args = {}
+        tcs.append({"id": c.get("id"), "name": fn.get("name"), "args": args})
+    return {"texto": (m.get("content") or "").strip(), "tool_calls": tcs, "modelo": d.get("model") or ("motor:" + perfil), "erro": None,
+            "motor": d.get("motor")}
+
+
 # ---------------------------------------------------------------- a cadeia
-def chat(mensagens, tools=None, max_tokens=350, temperatura=0.2, timeouts=None):
+def chat(mensagens, tools=None, max_tokens=350, temperatura=0.2, timeouts=None, perfil=None):
+    if USAR_MOTOR:
+        r = _via_motor(mensagens, tools, max_tokens, temperatura, perfil or "chat-rapido")
+        if r and not r.get("erro") and (r.get("texto") or r.get("tool_calls")):
+            return r
+        # o roteador nao deu resposta: cai na cadeia directa (e fica registado porque)
+        _ultimo_erro["motor"] = (r or {}).get("erro") or "motor: sem texto"
+    return _chat_directo(mensagens, tools, max_tokens, temperatura, timeouts)
+
+
+def _chat_directo(mensagens, tools=None, max_tokens=350, temperatura=0.2, timeouts=None):
     """Devolve {"texto", "tool_calls", "modelo"} ou {"erro": ...} se a cadeia inteira cair."""
     # Ollama 45 s: medido a 02/09, o 7b local levou >150 s a avaliar o prompt a frio neste CPU em
     # todas as provas; e reserva, nao titular (ver cerebro/CADEIA.md). O interino dos 20 s cobre.

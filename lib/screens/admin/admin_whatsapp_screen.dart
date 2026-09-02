@@ -187,6 +187,11 @@ class _AdminWhatsappScreenState extends State<AdminWhatsappScreen>
         actions: [
           IconButton(onPressed: _carregar, icon: const Icon(Icons.refresh), tooltip: 'Atualizar'),
           IconButton(onPressed: _exportar, icon: const Icon(Icons.download), tooltip: 'Exportar CSV'),
+          IconButton(
+            onPressed: () => Navigator.pushNamed(context, '/admin/motores'),
+            icon: const Icon(Icons.bolt),
+            tooltip: 'Motores (roteador)',
+          ),
         ],
         bottom: TabBar(
           controller: _tabs,
@@ -303,11 +308,66 @@ class _AdminWhatsappScreenState extends State<AdminWhatsappScreen>
 
   Widget _listaEspera() {
     final leads = _leads.where((l) => l['tipo'] == 'estafeta').toList();
-    if (leads.isEmpty) return const Center(child: Text('Ninguém na lista de espera de estafetas.'));
-    return ListView.builder(
-      itemCount: leads.length,
-      itemBuilder: (_, i) => _leadTile(leads[i]),
+    return Column(
+      children: [
+        // 02/09 (noite): abrir vaga = o bot avisa a lista de espera pela ordem de chegada (cron do cérebro, 5 em 5 min)
+        Padding(
+          padding: const EdgeInsets.all(10),
+          child: Row(
+            children: [
+              Expanded(child: Text('${leads.length} na lista de espera de estafetas', style: const TextStyle(fontWeight: FontWeight.w600))),
+              FilledButton.icon(
+                onPressed: leads.isEmpty ? null : _abrirVaga,
+                icon: const Icon(Icons.campaign_outlined),
+                label: const Text('Abrir vaga (avisar lista)'),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: leads.isEmpty
+              ? const Center(child: Text('Ninguém na lista de espera de estafetas.'))
+              : ListView.builder(
+                  itemCount: leads.length,
+                  itemBuilder: (_, i) => _leadTile(leads[i]),
+                ),
+        ),
+      ],
     );
+  }
+
+  Future<void> _abrirVaga() async {
+    final ctrl = TextEditingController(
+      text: 'Olá! Abriu uma vaga de estafeta no Bora e você está na nossa lista de espera. Ainda tem interesse? Responda por aqui e eu passo ao Danilo.',
+    );
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Abrir vaga de estafeta?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('O bot avisa a lista de espera pela ordem de chegada (5 por ciclo de 5 min) e fecha a vaga sozinho quando acabar.'),
+            const SizedBox(height: 10),
+            TextField(controller: ctrl, maxLines: 4, decoration: const InputDecoration(labelText: 'Mensagem (PT-PT)')),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Abrir vaga')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await _supabase.from('whatsapp_settings').upsert({
+        'key': 'vaga_estafeta',
+        'value': {'aberta': true, 'texto': ctrl.text.trim(), 'max': 5, 'aberta_em': DateTime.now().toUtc().toIso8601String()},
+      });
+      _aviso('Vaga aberta: o bot começa a avisar a lista no próximo ciclo.');
+    } catch (e) {
+      _aviso('Erro: $e');
+    }
   }
 
   Widget _leadTile(Map<String, dynamic> l) {
@@ -366,7 +426,7 @@ class _ConversaScreenState extends State<_ConversaScreen> {
   Future<List<Map<String, dynamic>>> _load() async {
     final rows = await Supabase.instance.client
         .from('whatsapp_messages')
-        .select('id, direcao, tipo, texto, transcricao, modelo, decisao, enviada, created_at, porta')
+        .select('id, direcao, tipo, texto, transcricao, modelo, decisao, enviada, entrega_estado, entrega_tentativas, entrega_erro, latencia_ms, created_at, porta')
         .eq('numero', widget.contato['numero'])
         .order('created_at', ascending: true)
         .limit(300);
@@ -417,8 +477,14 @@ class _ConversaScreenState extends State<_ConversaScreen> {
               final r = rows[i];
               final saida = r['direcao'] == 'saida';
               final texto = (r['texto'] ?? r['transcricao'] ?? '').toString();
+              // "entregue" = visto REAL lido pela extensão na conversa (falha F, 02/09): nunca "mandei para a extensão"
+              final entrega = r['enviada'] == true
+                  ? 'entregue (${r['entrega_estado'] ?? 'visto'})'
+                  : (r['entrega_estado'] == 'falhou'
+                      ? 'FALHOU a entrega${r['entrega_erro'] != null ? ' · ${r['entrega_erro']}' : ''}'
+                      : 'NÃO entregue');
               final meta = '${(r['created_at'] ?? '').toString().replaceFirst('T', ' ').split('.').first}'
-                  '${saida ? ' · ${r['modelo'] ?? 'bot'} · ${r['enviada'] == true ? 'enviada' : 'NÃO enviada'}' : ' · ${r['tipo']}'}';
+                  '${saida ? ' · modelo: ${r['modelo'] ?? 'bot'} · ${r['latencia_ms'] ?? 0} ms · $entrega' : ' · ${r['tipo']}'}';
               return Align(
                 alignment: saida ? Alignment.centerRight : Alignment.centerLeft,
                 child: Container(

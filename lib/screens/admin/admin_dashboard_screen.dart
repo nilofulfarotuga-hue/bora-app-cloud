@@ -60,6 +60,7 @@ import 'admin_skill_suggestions_screen.dart';
 import 'admin_robot_suggestions_screen.dart';
 import 'admin_support_tickets_screen.dart';
 import 'admin_whatsapp_screen.dart';
+import 'admin_motores_screen.dart';
 import 'admin_orphan_payments_screen.dart';
 import 'admin_payments_cards_screen.dart';
 import 'admin_receipts_screen.dart';
@@ -1334,6 +1335,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       context,
                       MaterialPageRoute(
                           builder: (_) => const AdminWhatsappScreen())),
+                ),
+                const SizedBox(height: 10),
+                // Missão 02/09/2026 (noite) — Motores: o roteador grátis partilhado (WhatsApp, Hermes, Conselho)
+                _NavCard(
+                  icon: Icons.bolt,
+                  title: 'Motores',
+                  subtitle: 'Fornecedores grátis · quota gasta hoje · latência · castigados · pausar',
+                  color: Colors.deepOrange,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminMotoresScreen())),
                 ),
                 const SizedBox(height: 10),
                 _NavCard(

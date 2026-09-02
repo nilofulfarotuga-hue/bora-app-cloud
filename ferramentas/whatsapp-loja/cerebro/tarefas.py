@@ -132,14 +132,30 @@ class Vigia(threading.Thread):
             self._parar.wait(self.intervalo)
 
     def tique(self):
+        from . import fichas
         for t in vencidas():
             numero, motivo = t["numero"], t.get("motivo") or ""
+            # FRASE DE ESPERA UMA VEZ SO por conversa (02/09 noite): a 02/09 10:57-11:07 saiu 4 vezes seguidas.
+            f = fichas.carregar(numero); f.pop("_nova", None)
+            extra = dict(f.get("extra") or {})
+            ja = extra.get("socorro_em")
+            recente = False
+            try:
+                recente = bool(ja) and (datetime.datetime.now(datetime.timezone.utc) - datetime.datetime.fromisoformat(ja)).total_seconds() < 86400
+            except Exception:
+                recente = False
             if (t.get("criada_por") or "").startswith("danilo-"):
-                # o Danilo nao respondeu em 30 min -> volta-se a pessoa
+                # o Danilo nao respondeu em 30 min -> volta-se a pessoa (uma vez)
                 texto = "Ainda estou a tratar do seu assunto com o Danilo — não me esqueci. Assim que tiver novidade, digo-lhe aqui."
-                fechar(t["id"], "expirada", "danilo sem resposta; cliente avisado")
-                self.emitir(numero, texto, "vigia:danilo-sem-resposta")
-                self.avisar("WhatsApp da loja — %s continua à espera de ti (%s). Já lhe disse que ainda estás a tratar." % (numero, motivo[:100]))
+                fechar(t["id"], "expirada", "danilo sem resposta; cliente avisado" if not recente else "danilo sem resposta; cliente ja tinha a frase de espera")
+                if not recente:
+                    self.emitir(numero, texto, "vigia:danilo-sem-resposta")
+                self.avisar("WhatsApp da loja — %s continua à espera de ti (%s). %s" % (numero, motivo[:100], "Já lhe disse que ainda estás a tratar." if not recente else "Não lhe mandei mais nada (já teve a frase de espera hoje)."))
+            elif recente:
+                texto = None
+                fechar(t["id"], "expirada", "prazo venceu; sem 2a frase de espera; passou ao Danilo")
+                self.avisar("WhatsApp da loja — prometi verificar a %s (%s) e não consegui a tempo; já teve a frase de espera hoje, não lhe mando outra. Responde-lhe por aqui." % (numero, motivo[:100]))
+                criar(numero, "danilo: " + motivo, 30, "danilo-vigia")
             else:
                 # 02/09 11:07: a "2a volta" de 5 min encadeava "dou-lhe resposta em 5 minutos" sem fim -- o Danilo
                 # recebeu isso no numero de teste. Regra: uma promessa vencida NAO gera outra promessa. Diz-se a
@@ -150,12 +166,12 @@ class Vigia(threading.Thread):
                 self.emitir(numero, texto, "vigia:prazo-vencido")
                 self.avisar("WhatsApp da loja — prometi verificar a %s (%s) e não consegui a tempo. Responde-lhe por aqui." % (numero, motivo[:100]))
                 criar(numero, "danilo: " + motivo, 30, "danilo-vigia")
-            try:
-                supa.insert("whatsapp_messages", {"numero": numero, "direcao": "saida", "porta": "vigia", "tipo": "texto", "texto": texto,
-                                                  "decisao": "vigia", "modelo": "vigia", "enviada": False}, devolve=False)
-            except Exception:
-                pass
-            self.registar({"evento": "vigia", "tarefa": t["id"], "numero": numero, "motivo": motivo[:120]})
+            if texto:
+                # a linha em whatsapp_messages e escrita por emitir_e_registar (servidor), com o id da fila
+                extra["socorro_em"] = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+                f["extra"] = extra
+                fichas.guardar(f)
+            self.registar({"evento": "vigia", "tarefa": t["id"], "numero": numero, "motivo": motivo[:120], "frase_enviada": bool(texto)})
 
     def parar(self):
         self._parar.set()

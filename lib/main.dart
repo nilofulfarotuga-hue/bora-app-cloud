@@ -34,6 +34,7 @@ import 'dispatch/dispatch_engine.dart';
 import 'l10n/bora_lang.dart';
 import 'screens/admin/admin_crosstalk_screen.dart';
 import 'screens/admin/admin_whatsapp_screen.dart';
+import 'screens/admin/admin_motores_screen.dart';
 import 'screens/admin/admin_dashboard_screen.dart';
 // PARTE A (2026-07-17) — deep links dos pushes admin persistentes
 import 'screens/admin/admin_robot_suggestions_screen.dart';
@@ -687,6 +688,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           '/admin/crosstalk': (_) => const AdminCrosstalkScreen(),
           // Missão 02/09/2026 — WhatsApp da loja (bot que resolve)
           '/admin/whatsapp': (_) => const AdminWhatsappScreen(),
+          // Missão 02/09/2026 (noite) — Motores: o roteador Motor Bora (quota, latência, pausar)
+          '/admin/motores': (_) => const AdminMotoresScreen(),
           // 5G — métricas detalhadas das propostas IA
           '/admin/suggestions/metrics': (_) =>
               const AdminSkillSuggestionsMetricsScreen(),

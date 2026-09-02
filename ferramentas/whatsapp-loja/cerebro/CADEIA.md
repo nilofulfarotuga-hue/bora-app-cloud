@@ -44,3 +44,15 @@ Ordem: **groq:openai/gpt-oss-120b → groq:qwen/qwen3.8-27b → gemini-3.1-flash
 → ollama → zen:nemotron**. Limite do plano grátis: 8 000 tokens/min por modelo (429 → desce para o
 qwen; cooldown curto, 65 s, não os 600 s do 429 diário do Gemini). Transcrição: `groq:whisper-large-v3-turbo`
 passou a 1.º nível (2,1 s, palavra por palavra no áudio de prova), depois whisper local, depois Gemini.
+
+## Revisão 02/09 (noite) — a cadeia deixou de viver aqui: nasceu o MOTOR BORA
+O cérebro passa a pedir ao roteador local (`http://127.0.0.1:8792`, pacote `ferramentas/motor-bora`) por
+PERFIL — `perfil:chat-rapido` para o WhatsApp ao vivo, `perfil:raciocinio` para a sombra do Danilo, a revisão
+diária e o Hermes, `perfil:volume` para lotes. O roteador roda chaves, salta fornecedores castigados (429/5xx
+com o tempo do cabeçalho, senão 65 s), conta a quota localmente por fornecedor E por modelo (Groq/Gemini/
+OpenRouter), descobre os modelos vivos (/models) e às 05:30 reordena os perfis pelo auto-teste (3 perguntas
+reais). O que está aqui em `cadeia.txt` é agora só a **rede de segurança**: se o roteador estiver em baixo
+(ligação recusada), o cérebro usa esta cadeia directa durante 60 s e volta a tentar o roteador.
+`CEREBRO_MOTOR=0` desliga o roteador; `MOTOR_BORA_URL` muda o endereço. Estado e ordem em `MOTORES.md`.
+Hermes (`/opt/data/.env` HERMES_BASE_URL) e Conselho (`CONSELHO_BASE`) apontam para o mesmo roteador na VPS
+(172.16.1.1:8792): uma chave nova entra num `.env` e todos ganham.

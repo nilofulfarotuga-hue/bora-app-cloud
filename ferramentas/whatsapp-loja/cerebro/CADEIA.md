@@ -13,3 +13,11 @@ OpenCode Zen `nemotron-3-ultra-free` responde COM ferramentas (41 s) desde que o
 identifique como browser (senão Cloudflare 403/1010); `hy3-free` já não existe ("not supported").
 Ordem: **ollama (7b, mantido quente pelo aquecedor) → zen:nemotron-3-ultra-free → gemini-3.6-flash
 → gemini-3-flash-preview**. Custo zero em todos; o Gemini serve ~20 chamadas/dia por modelo.
+
+## Ordem FINAL (09:45, 02/09) — por qualidade, com o custo zero em todos
+`gemini-3.6-flash → gemini-3-flash-preview → zen:nemotron-3-ultra-free → ollama (qwen2.5:7b)`.
+O 7b local responde depressa quando quente mas escreve pior: prometeu "vou verificar" com os dados
+já na mão e colou um título do manual na resposta. Ficou de reserva, atrás de tudo o que é bom e
+grátis; e as guardas em código (factos fixos, pedidos em resumo determinístico, títulos limpos,
+número sem ferramenta = invenção) apanham o que ele escrever mal. Quando o Gemini está em 429 fica
+marcado 10 min e a cadeia desce sozinha.

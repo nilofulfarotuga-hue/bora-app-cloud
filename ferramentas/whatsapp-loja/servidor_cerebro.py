@@ -435,6 +435,11 @@ class H(BaseHTTPRequestHandler):
                 return self._json(200, {"acao": acao, "texto": "\n\n".join(dec.get("textos") or []), "aviso_danilo": ""})
             if self.path.startswith("/censo"):
                 return self._json(200, censo(d))
+            if self.path.startswith("/avisar"):
+                # aviso ao Danilo a partir DESTE processo (o que a tarefa agendada arranca, sem o PATH do
+                # utilizador): e a prova de que o Telegram sai do cerebro e nao so da minha shell.
+                ok, det = telegram.enviar(str(d.get("texto") or "")[:500], registar)
+                return self._json(200, {"ok": ok, "detalhe": det})
             if self.path.startswith("/log"):
                 # a extensao manda para aqui o que escreve na consola: a consola do browser nao se ve
                 # daqui, e um erro de arranque da vigia ficava invisivel (02/09).

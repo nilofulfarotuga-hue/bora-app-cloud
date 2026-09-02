@@ -157,10 +157,33 @@ def _sistema_longo(f, tratamento, lingua_, registo_, porta):
     return "\n\n".join(partes)
 
 
+RE_TITULO_MANUAL = re.compile(r"\b\d{1,2}\.\d?\s*[A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-ZÁÉÍÓÚÂÊÔÃÕÇ ,\-/\(\)\"“”']{5,}[:\-]?\s*", re.U)
+
+
+def _resumo_pedidos(res):
+    """Texto deterministico a partir do resultado REAL da ferramenta pedidos (para quando o modelo
+    promete 'vou verificar' com os dados ja na mao -- aconteceu com o 7b local, 02/09)."""
+    ps = (res or {}).get("pedidos") or []
+    if not ps:
+        return "Vi agora e não encontro nenhum pedido activo neste número. Se fez o pedido com outro número ou conta, diga-me qual, que eu vejo."
+    p = ps[0]
+    loja = (" do %s" % p["loja"]) if p.get("loja") else ""
+    if p.get("activo"):
+        prev = p.get("previsao") or ""
+        if "passou" in prev:
+            return "Vi agora: o seu pedido%s está %s e já passou do tempo normal — peço desculpa. Estou em cima dele e aviso-o assim que sair." % (loja, p.get("estado"))
+        return "Vi agora: o seu pedido%s está %s; previsão de %s." % (loja, p.get("estado"), prev or "poucos minutos")
+    h = p.get("ha_minutos")
+    quando = (" há cerca de %d min" % h) if h is not None and h < 180 else (" há cerca de %d h" % (h // 60) if h else "")
+    return "Vi agora: o seu último pedido%s ficou %s%s. Se for outro pedido, diga-me qual." % (loja, p.get("estado"), quando)
+
+
 def _pos_processar(texto, f, tratamento, cumprimentou_hoje):
     t = (texto or "").strip()
     t = re.sub(r"[*_#`>]+", "", t)                       # sem markdown
     t = re.sub(r"(?m)^\s*[-•]\s+", "", t)                # sem listas
+    t = RE_TITULO_MANUAL.sub("", t)                       # titulos do manual colados na resposta (7b)
+    t = re.sub(r"VERIFICADO AGORA[^\n]*", "", t, flags=re.I)
     t = identidade.limpar_tratamento(t, tratamento, f)
     if cumprimentou_hoje:
         t = RE_CUMPRIMENTO.sub("", t, count=1).strip()
@@ -316,8 +339,10 @@ def atender(evento, registar=None, modo_prova=False, emitir=None):
         pre.append(("ler_manual", {"tema": "quer ser parceiro conversa de venda"}))
     if RE_ESTAFETA.search(msg) and not RE_PARCEIRO.search(msg):
         pre.append(("ler_manual", {"tema": "quer ser estafeta sem vagas lista de espera"}))
+    pre_resultados = {}
     for nome_f, args_f in pre:
         res = _executar_com_orcamento({"name": nome_f, "args": args_f, "id": "pre_" + nome_f}, ctx, t0, dec, emitir)
+        pre_resultados[nome_f] = res
         ferramentas_usadas.append({"nome": nome_f, "args": args_f, "ok": res.get("ok"), "origem": "pre"})
         mensagens.append({"role": "system", "content": "VERIFICADO AGORA com a ferramenta %s (usa estes dados, nao prometas verificar):\n%s" % (nome_f, FB.para_json(res)[:3000])})
     mensagens.append({"role": "user", "content": msg})
@@ -334,7 +359,16 @@ def atender(evento, registar=None, modo_prova=False, emitir=None):
                 mensagens.append({"role": "assistant", "content": r.get("texto") or "", "tool_calls": r["tool_calls"],
                                   "thought_signature": r.get("thought_signature")})
                 for c in r["tool_calls"]:
+                    chave = c["name"] + json.dumps(c.get("args") or {}, sort_keys=True, ensure_ascii=False)
+                    if chave in caixa.setdefault("ja_correu", {}):
+                        # a mesma ferramenta com os mesmos argumentos nao corre duas vezes (o nemotron repetia
+                        # ler_manual e gastava as voltas): devolve-se o resultado anterior e pede-se a resposta
+                        res = caixa["ja_correu"][chave]
+                        mensagens.append({"role": "tool", "name": c["name"], "tool_call_id": c["id"],
+                                          "content": FB.para_json(res)[:1500] + "\n(ja tinhas este resultado; responde agora a pessoa)"})
+                        continue
                     res = _executar_com_orcamento(c, ctx, t0, dec, emitir)
+                    caixa["ja_correu"][chave] = res
                     ferramentas_usadas.append({"nome": c["name"], "args": c.get("args"), "ok": res.get("ok")})
                     mensagens.append({"role": "tool", "name": c["name"], "tool_call_id": c["id"], "content": FB.para_json(res)})
                 if time.time() - t0 > ORCAMENTO_S and volta < MAX_VOLTAS - 1:
@@ -345,7 +379,10 @@ def atender(evento, registar=None, modo_prova=False, emitir=None):
         # Esgotou as voltas so com ferramentas (aconteceu na prova 8: cinco ferramentas certas e nem
         # uma frase). Uma ultima chamada so para ESCREVER -- nunca a frase de socorro sem tentar.
         mensagens.append({"role": "system", "content": "Chega de ferramentas. Escreve AGORA a resposta a pessoa, em 1-2 frases, com o que ja verificaste."})
-        r = modelos.chat(mensagens, tools=FB.DEFINICOES, max_tokens=300)
+        # SEM ferramentas: com elas o nemotron voltava a pedir mais uma e acabava sem texto (02/09 09:55).
+        r = modelos.chat(mensagens, tools=None, max_tokens=300)
+        if r.get("erro") and not r.get("texto"):
+            r = modelos.chat(mensagens, tools=FB.DEFINICOES, max_tokens=300)   # ha motores que exigem as tools no historico
         caixa["modelo"] = r.get("modelo") or caixa["modelo"]
         if r.get("texto"):
             caixa["texto_final"] = r["texto"]
@@ -379,6 +416,11 @@ def atender(evento, registar=None, modo_prova=False, emitir=None):
         res = FB.executar("avisar_danilo", {"texto": "Novo interessado em ser %s (%s): \"%s\"" % (tipo_lead, f.get("nome") or "sem nome", msg[:160])}, ctx)
         ferramentas_usadas.append({"nome": "avisar_danilo", "args": {"tipo": tipo_lead}, "ok": res.get("ok"), "origem": "seguro"})
 
+    # PEDIDO VERIFICADO MAS O MODELO PROMETEU NA MESMA ("vou verificar"): sai o resumo dos dados reais.
+    if texto_final and pre_resultados.get("pedidos", {}).get("ok") and RE_PROMESSA.search(texto_final):
+        registar({"evento": "promessa-com-dados-na-mao", "numero": numero, "texto": texto_final[:160], "modelo": modelo_usado})
+        texto_final = _resumo_pedidos(pre_resultados["pedidos"])
+
     # GUARDA DOS FACTOS: numero (horas, euros, %) sem nenhuma ferramenta ter corrido = invencao.
     if texto_final and not ferramentas_usadas and RE_FACTO_INVENTADO.search(texto_final):
         registar({"evento": "facto-inventado-bloqueado", "numero": numero, "texto": texto_final[:200], "modelo": modelo_usado})
@@ -394,6 +436,18 @@ def atender(evento, registar=None, modo_prova=False, emitir=None):
             texto_final = "Deixe-me confirmar isso com o Danilo e já lhe digo, em poucos minutos."
             fichas.anotar_promessa(f, "confirmar: " + msg[:60], "aberta", t["id"])
 
+    if not texto_final and tipo_lead == "estafeta":
+        # o modelo correu as ferramentas (lead registado, Danilo avisado) e acabou sem frase: a frase e a do manual
+        texto_final = ("De momento não há vagas para estafeta — a equipa está completa e as aprovações dependem da procura. "
+                       "Fico com o seu contacto na lista de espera e aviso-o assim que abrir vaga. Pode dizer-me o seu nome e "
+                       "que veículo tem (mota, carro ou bicicleta)?")
+        dec["fallback_intencao"] = "estafeta"
+    elif not texto_final and tipo_lead == "parceiro":
+        texto_final = ("Boa! Funciona assim: pomos o seu negócio na app do Bora, os clientes da Guarda fazem o pedido e os nossos "
+                       "estafetas entregam — só prepara. Entrar é grátis e a comissão é de 10% sobre os pedidos, no acerto semanal. "
+                       "A montagem da loja fica connosco: manda-me o Instagram ou Facebook da casa, ou fotos e a lista de produtos "
+                       "com preços. Qual é o nome do negócio?")
+        dec["fallback_intencao"] = "parceiro"
     if not texto_final:
         # a cadeia caiu ou o modelo nao escreveu: NUNCA silencio
         t = tarefas.criar(numero, "modelo sem resposta: " + msg[:100], 3, "agente")

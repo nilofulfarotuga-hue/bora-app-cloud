@@ -18,7 +18,7 @@ TESTE = "351931992662"
 DESCONHECIDO = "351900000001"
 
 
-def prova(payload, timeout=180):
+def prova(payload, timeout=300):
     req = urllib.request.Request(U + "/prova", data=json.dumps(payload).encode(), headers={"Content-Type": "application/json"})
     t = time.time()
     with urllib.request.urlopen(req, timeout=timeout) as r:

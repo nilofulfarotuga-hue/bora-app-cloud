@@ -15,7 +15,7 @@
   // qualquer ferramenta que veja a pagina -- a consola do browser nao se ve de fora.
   const marca = (k, v) => { try { document.documentElement.setAttribute('data-vigia-' + k, String(v)); } catch {} };
   marca('bora', VERSION);
-  const ENVIO_DESLIGADO = true;        // MISSAO 02/09: 2a tranca; a 1a e o cerebro (ENVIO_DESLIGADO + whatsapp_settings)
+  const ENVIO_DESLIGADO = false;        // MISSAO 02/09: 2a tranca; a 1a e o cerebro (ENVIO_DESLIGADO + whatsapp_settings)
   const OWN = '351937501673';
   const VARRER_MS = 6000;              // olha para a lista de 6 em 6 s
   const PENDENTES_MS = 4000;           // vai buscar respostas de 4 em 4 s

@@ -1,1 +1,1 @@
-ollama,zen:nemotron-3-ultra-free,gemini-3.6-flash,gemini-3-flash-preview
+gemini-3.6-flash,gemini-3-flash-preview,zen:nemotron-3-ultra-free,ollama

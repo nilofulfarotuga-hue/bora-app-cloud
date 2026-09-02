@@ -13,6 +13,7 @@ O ciclo e FERRAMENTA -> RESPOSTA. Passos:
 """
 import datetime
 import json
+import os
 import re
 import threading
 import time
@@ -231,6 +232,217 @@ def _executar_com_orcamento(c, ctx, t0, dec, emitir):
     return caixa.get("res") or {"ok": False, "erro": "a ferramenta nao respondeu a tempo"}
 
 
+# ---------------------------------------------------------------- CAMINHO RAPIDO (Danilo, 02/09 10:20)
+# Provado no banco: 57 s e 90 s por resposta com o nemotron a encadear ferramentas. Regra nova:
+#   - cumprimentos e perguntas do manual respondem-se SEM ferramenta nenhuma;
+#   - `pedidos` corre so quando a pessoa fala de pedido/entrega (RE_PEDIDO), ANTES do modelo;
+#   - UMA chamada ao modelo, sem tools, com os factos ja verificados no prompt;
+#   - o modelo NUNCA escreve "vou ver"/"dou-lhe resposta em 3 minutos": sem resultado de ferramenta
+#     por tras, o codigo rejeita e pede outra vez; a segunda vez cai num texto deterministico e o
+#     Danilo entra -- nunca uma promessa vazia, nunca silencio.
+# Meta medida: resposta em menos de 10 s em 9 de cada 10 mensagens.
+RAPIDO = os.environ.get("CEREBRO_RAPIDO", "1") != "0"
+RE_SO_CUMPRIMENTO = re.compile(
+    r"^\W*(olá|ola|oi+|oie|bom dia|boa tarde|boa noite|boas|hey|hi|hello|e a[ií]|eai|opa)"
+    r"(\W+(tudo bem|td bem|tudo bom|tudo certo|como (est[aá]|vai)|blz|beleza|bom dia|boa tarde|boa noite))*\W*$", re.I)
+SEM_RESPOSTA_TEXTO = "Não tenho essa informação aqui à mão — já passei ao Danilo e ele responde-lhe por aqui."
+TEXTO_ESTAFETA = ("De momento não há vagas para estafeta — a equipa está completa e as aprovações dependem da procura. "
+                  "Fico com o seu contacto na lista de espera e aviso-o assim que abrir vaga. Pode dizer-me o seu nome e "
+                  "que veículo tem (mota, carro ou bicicleta)?")
+TEXTO_PARCEIRO = ("Boa! Funciona assim: pomos o seu negócio na app do Bora, os clientes da Guarda fazem o pedido e os nossos "
+                  "estafetas entregam — só prepara. Entrar é grátis e a comissão é de 10% sobre os pedidos, no acerto semanal. "
+                  "A montagem da loja fica connosco: manda-me o Instagram ou Facebook da casa, ou fotos e a lista de produtos "
+                  "com preços. Qual é o nome do negócio?")
+
+
+def _sistema_rapido(f, tratamento, lingua_, registo_):
+    """Prompt do caminho rapido: sem ferramentas, so regras + factos + pessoa. Curto, porque num 7b em
+    CPU o custo e o prompt; e as partes que variam ficam no fim (cache de prefixo do Ollama)."""
+    ficha = {k: f.get(k) for k in ("nome", "papel", "falta_recolher")}
+    det = f.get("papel_detalhe") or {}
+    if det:
+        ficha["detalhe"] = {k: v for k, v in det.items() if k in ("loja", "n_pedidos", "ultimo_pedido", "estado")}
+    sempre = manual.sempre()
+    partes = [
+        "Es o atendimento do Bora (app de entregas e servicos na Guarda, Portugal) no WhatsApp da loja. Falas como o "
+        "Danilo, o fundador: curto, humano, simples, 1 a 3 frases, sem listas, sem markdown, sem emojis em cadeia. Nunca "
+        "dizes que es um bot a nao ser que perguntem (ai: assistente do Bora; o Danilo le tudo).",
+        "SO DIZES O QUE ESTA VERIFICADO: nos FACTOS DA OPERACAO, no MANUAL que te derem, ou no resultado de 'pedidos'. "
+        "Nunca inventes precos, horarios, prazos ou regras. Se nao tens a informacao, diz numa frase que nao tens isso a "
+        "mao e que o Danilo responde por aqui. PROIBIDO escrever 'vou ver', 'vou verificar', 'ja lhe digo', 'um momento', "
+        "'dou-lhe resposta em X minutos' -- nao ha nada para ir ver: ou respondes com o que tens, ou dizes que o Danilo "
+        "responde.",
+        "NUNCA empurras a pessoa para fora (outro numero, email, formulario, 'aguarde contacto'); resolve-se aqui; guiar "
+        "para a app do Bora e bom. Dinheiro/reembolso/desconto/reclamacao: acusas recepcao e dizes que o Danilo responde "
+        "ja; nunca valores.",
+        "Segue o fio da conversa; nao recomecas; nao repetes o cumprimento; a 'obrigado' meia frase. ESTAFETAS: sem vagas, "
+        "lista de espera, pede 1-2 dados (nome, veiculo, zona, disponibilidade). PARCEIROS: venda no tom do Danilo (pomos a "
+        "loja na app, clientes da Guarda pedem, nossos estafetas entregam, so prepara; comissao 10% no acerto semanal; a "
+        "montagem da loja fica connosco); pede 1-2 coisas de cada vez. PEDIDO: usa os dados de 'pedidos' -- estado real e "
+        "previsao; se passou da media, pede desculpa.",
+        "NOMES: so usas um nome se a linha TRATAMENTO o der. Nunca apanhes nomes de mensagens antigas nem de textos.",
+        FACTOS_OPERACAO,
+    ]
+    if sempre:
+        partes.append("VALE SEMPRE:\n" + sempre[:900])
+    partes += [
+        "TRATAMENTO: " + identidade.instrucao_tratamento(tratamento, f),
+        "LINGUA: %s. %s" % ({"pt-PT": "portugues de Portugal", "pt-BR": "portugues do Brasil", "en": "short English"}.get(lingua_, "portugues de Portugal"),
+                            "Trata por 'tu'." if registo_ == "tu" else "Trata por 'voce'."),
+        "PESSOA: " + json.dumps(ficha, ensure_ascii=False)[:400],
+    ]
+    return "\n\n".join(partes)
+
+
+def _fechar(dec, f, ctx, texto, tratamento, prova, lingua_, cumprimentou_hoje, modelo, ferramentas, erro, t0, registar):
+    """Pos-processamento + PROMESSA = TAREFA + ficha + decisao (o fim comum do caminho rapido)."""
+    numero = ctx["numero"]
+    bolhas = _pos_processar(texto, f, tratamento, cumprimentou_hoje)
+    if not bolhas:
+        bolhas = [identidade.saudacao(tratamento, f, lingua_)] if not cumprimentou_hoje else ["Diga."]
+    dec["tarefas"] += list(ctx.get("tarefas_criadas") or [])
+    junto = " ".join(bolhas)
+    if RE_PROMESSA.search(junto) and not dec["tarefas"]:
+        t = tarefas.criar(numero, "promessa automatica: " + junto[:100], 3, "agente-auto")
+        dec["tarefas"].append(t["id"])
+        fichas.anotar_promessa(f, junto[:100], "aberta", t["id"])
+    elif not RE_PROMESSA.search(junto) and not dec["tarefas"]:
+        # respondeu com resultado e nao abriu tarefa nova nesta volta: as promessas antigas ficam cumpridas
+        n = tarefas.cumprir_todas(numero, "respondeu com resultado")
+        if n:
+            for p in f.get("prometido") or []:
+                if p.get("estado") == "aberta":
+                    p["estado"] = "cumprida"
+    fichas.marcar_cumprimento(f)
+    f["ultima_resposta_bot_em"] = fichas.agora()
+    fichas.guardar(f)
+    dec.update(acao="responder", textos=bolhas, modelo=modelo, ferramentas=ferramentas,
+               danilo_avisado=bool(ctx.get("danilo_avisado")), erro=erro, segundos=round(time.time() - t0, 1),
+               tratamento=tratamento, prova_tratamento=prova, lingua=lingua_, caminho="rapido")
+    return dec
+
+
+def _rapido(ctx, f, msg, tratamento, prova, lingua_, registo_, cumprimentou_hoje, t0, dec, registar, emitir):
+    numero = ctx["numero"]
+    ctx["msg_actual"] = msg
+    desculpa = bool(f.pop("desculpa_nome", False))
+    prefixo = "Peço desculpa pela confusão com o nome. " if desculpa else ""
+    ferramentas_usadas = []
+
+    # a) cumprimento puro: sem modelo, sem ferramenta
+    if len(msg) <= 40 and RE_SO_CUMPRIMENTO.match(msg):
+        if lingua_ == "en":
+            texto = "Hi! How can I help?" if not cumprimentou_hoje else "Tell me — how can I help?"
+        else:
+            texto = identidade.saudacao(tratamento, f, lingua_) if not cumprimentou_hoje else "Diga, em que posso ajudar?"
+        return _fechar(dec, f, ctx, prefixo + texto, tratamento, prova, lingua_, cumprimentou_hoje, "cumprimento-fixo", [], None, t0, registar)
+
+    # b) o que precisa de dados verifica-se ANTES do modelo, em codigo
+    factos, pre_resultados = [], {}
+    tipo_lead = "parceiro" if RE_PARCEIRO.search(msg) else ("estafeta" if RE_ESTAFETA.search(msg) else None)
+    if RE_PEDIDO.search(msg):
+        res = _executar_com_orcamento({"name": "pedidos", "args": {}, "id": "pre_pedidos"}, ctx, t0, dec, emitir)
+        pre_resultados["pedidos"] = res
+        ferramentas_usadas.append({"nome": "pedidos", "args": {}, "ok": res.get("ok"), "origem": "pre"})
+        factos.append("VERIFICADO AGORA com a ferramenta pedidos (responde com ESTES dados; nunca 'vou verificar'):\n" + FB.para_json(res)[:2500])
+    if tipo_lead:
+        # seguro dos leads: registar e avisar e contabilidade, nao opiniao do modelo
+        res = FB.executar("registar_lead", {"tipo": tipo_lead, "dados": {"mensagem": msg[:160]}}, ctx)
+        ferramentas_usadas.append({"nome": "registar_lead", "args": {"tipo": tipo_lead}, "ok": res.get("ok"), "origem": "seguro"})
+        if not ctx.get("danilo_avisado"):
+            res2 = FB.executar("avisar_danilo", {"texto": "Novo interessado em ser %s (%s): \"%s\"" % (tipo_lead, f.get("nome") or "sem nome", msg[:160])}, ctx)
+            ferramentas_usadas.append({"nome": "avisar_danilo", "args": {"tipo": tipo_lead}, "ok": res2.get("ok"), "origem": "seguro"})
+        tema = "quer ser parceiro conversa de venda" if tipo_lead == "parceiro" else "quer ser estafeta sem vagas lista de espera"
+        trecho = manual.ler(tema, max_chars=1400)
+        if not trecho.startswith("NADA NO MANUAL"):
+            factos.append("MANUAL (facto verificado, usa-o):\n" + trecho)
+        factos.append("O LEAD JA ESTA REGISTADO e o Danilo JA FOI AVISADO pelo sistema: nao digas que vais registar ou avisar. "
+                      "Falta recolher: %s" % json.dumps(f.get("falta_recolher") or [], ensure_ascii=False))
+    else:
+        # perguntas sobre o Bora: a seccao do manual entra no prompt -- sem chamada de ferramenta
+        trecho = manual.ler(msg[:200], max_chars=1400, registar=False) if len(msg) >= 4 else "NADA NO MANUAL"
+        if not trecho.startswith("NADA NO MANUAL"):
+            factos.append("MANUAL DO BORA (facto verificado; so respondes com o que esta aqui ou nos FACTOS DA OPERACAO):\n" + trecho)
+    dados_na_mao = bool(pre_resultados) or bool(tipo_lead) or any(x.startswith("MANUAL") for x in factos)
+
+    # c) UMA chamada ao modelo, sem ferramentas
+    mensagens = [{"role": "system", "content": _sistema_rapido(f, tratamento, lingua_, registo_)}]
+    mensagens += [{"role": "system", "content": x} for x in factos]
+    if desculpa:
+        mensagens.append({"role": "system", "content": "A pessoa acabou de dizer que NAO se chama assim. O sistema ja apagou o nome e ja "
+                                                       "pede desculpa por ti: NAO uses nome nenhum e responde so ao resto."})
+    mensagens.append({"role": "user", "content": msg})
+    caixa = {}
+
+    def _chamar(extra=None):
+        ms = mensagens + ([{"role": "system", "content": extra}] if extra else [])
+        return modelos.chat(ms, tools=None, max_tokens=220)
+
+    def _correr():
+        r = _chamar()
+        caixa["modelo"], caixa["erro"] = r.get("modelo"), r.get("erro")
+        texto = (r.get("texto") or "").strip()
+        # d) PROMESSA SEM FERRAMENTA: rejeita-se e pede-se outra vez; a segunda cai no deterministico
+        if texto and RE_PROMESSA.search(texto) and not pre_resultados:
+            registar({"evento": "promessa-rejeitada", "numero": numero, "texto": texto[:160], "modelo": r.get("modelo")})
+            caixa["rejeitada"] = texto[:160]
+            r = _chamar("PROIBIDO prometer ('vou ver', 'vou verificar', 'ja lhe digo', 'um momento', 'dou-lhe resposta'): nao "
+                        "tens nada para ir ver. Responde AGORA com o que esta no manual e nos factos, ou diz numa frase que nao "
+                        "tens essa informacao e que o Danilo responde por aqui.")
+            caixa["modelo"] = r.get("modelo") or caixa["modelo"]
+            texto = (r.get("texto") or "").strip()
+            if texto and RE_PROMESSA.search(texto):
+                caixa["rejeitada2"] = texto[:160]
+                texto = ""
+        caixa["texto"] = texto
+
+    th = threading.Thread(target=_correr, daemon=True)
+    th.start()
+    th.join(ORCAMENTO_S)
+    if th.is_alive() and not dec.get("interino"):
+        t = tarefas.criar(numero, "resposta lenta: " + msg[:80], 3, "agente-orcamento")
+        dec["tarefas"].append(t["id"])
+        dec["interino"] = "Um segundo que vou ver isso."
+        dec["interino_em_s"] = round(time.time() - t0, 1)
+        fichas.anotar_promessa(f, "ver: " + msg[:60], "aberta", t["id"])
+        if emitir:
+            emitir(numero, dec["interino"], "interino")
+    th.join(150)
+    texto, modelo_usado, erro = caixa.get("texto") or "", caixa.get("modelo"), caixa.get("erro")
+    if th.is_alive() and not texto:
+        erro = ((erro or "") + " | a cadeia nao respondeu em 170 s").strip(" |")
+    if caixa.get("rejeitada"):
+        dec["promessa_rejeitada"] = caixa["rejeitada"]
+    if desculpa and texto:
+        # a desculpa e UMA frase, e e o codigo que a diz; o modelo tambem pediu desculpa apesar da ordem (prova 02/09)
+        texto = re.sub(r"^\s*(?:pe[çc]o(?: imensa)? desculpa|desculp[ae]|as minhas desculpas|lamento|sinto muito)[^.!?\n]*[.!?]\s*", "", texto, flags=re.I).strip()
+
+    # e) pedido verificado mas o modelo prometeu na mesma (ou nao escreveu): resumo dos dados reais
+    if pre_resultados.get("pedidos", {}).get("ok") and (not texto or RE_PROMESSA.search(texto)):
+        if texto:
+            registar({"evento": "promessa-com-dados-na-mao", "numero": numero, "texto": texto[:160], "modelo": modelo_usado})
+        texto = _resumo_pedidos(pre_resultados["pedidos"])
+        modelo_usado = modelo_usado or "resumo-pedidos"
+    # f) numero (horas, euros, %) sem nada verificado = invencao
+    if texto and not dados_na_mao and RE_FACTO_INVENTADO.search(texto):
+        registar({"evento": "facto-inventado-bloqueado", "numero": numero, "texto": texto[:200], "modelo": modelo_usado})
+        dec["facto_inventado_bloqueado"] = texto[:200]
+        texto = HORARIO_FIXO if RE_HORARIO.search(msg) else (DISPONIBILIDADE_FIXA if RE_DISPONIBILIDADE.search(msg) else "")
+    # g) sem texto: NUNCA silencio e NUNCA "dou-lhe resposta em 3 minutos" -- a intencao ou o Danilo
+    if not texto and tipo_lead == "estafeta":
+        texto, dec["fallback_intencao"] = TEXTO_ESTAFETA, "estafeta"
+    elif not texto and tipo_lead == "parceiro":
+        texto, dec["fallback_intencao"] = TEXTO_PARCEIRO, "parceiro"
+    if not texto:
+        t = tarefas.criar(numero, "danilo: sem resposta do modelo: " + msg[:100], 30, "danilo-sem-resposta")
+        dec["tarefas"].append(t["id"])
+        telegram.enviar("WhatsApp da loja — %s escreveu \"%s\" e eu não soube responder (%s). Responde-lhe por aqui." % (
+            numero, msg[:200], erro or caixa.get("rejeitada2") or "sem texto"), registar)
+        fichas.anotar_promessa(f, "Danilo responde: " + msg[:60], "aberta", t["id"])
+        texto, dec["fallback_intencao"] = SEM_RESPOSTA_TEXTO, dec.get("fallback_intencao") or "danilo"
+    return _fechar(dec, f, ctx, prefixo + texto, tratamento, prova, lingua_, cumprimentou_hoje, modelo_usado, ferramentas_usadas, erro, t0, registar)
+
+
 def atender(evento, registar=None, modo_prova=False, emitir=None):
     """evento = {numero, msg_ids:[], textos:[], audios:[caminhos], imagens:[caminhos], nome_guardado, porta, grupo}
     Devolve decisao = {acao, textos, motivo, modelo, tarefas, ficha, transcricoes, segundos}."""
@@ -281,7 +493,7 @@ def atender(evento, registar=None, modo_prova=False, emitir=None):
     f["tratamento"] = tratamento
     fichas.aprender_estilo(f, msg, lingua_, registo_)
     fichas.anotar_pedido(f, msg[:140])
-    ctx = {"numero": numero, "ficha": f, "registar": registar, "porta": porta}
+    ctx = {"numero": numero, "ficha": f, "registar": registar, "porta": porta, "msg_actual": msg}
 
     if fichas.pausado(f):
         fichas.guardar(f)
@@ -325,7 +537,10 @@ def atender(evento, registar=None, modo_prova=False, emitir=None):
                    segundos=round(time.time() - t0, 1), tratamento=tratamento, prova_tratamento=prova, lingua=lingua_)
         return dec
 
-    # 4. o modelo com ferramentas -- numa thread, para o ORCAMENTO DE 20 s cobrir tambem a lentidao
+    if RAPIDO:
+        return _rapido(ctx, f, msg, tratamento, prova, lingua_, registo_, cumprimentou_hoje, t0, dec, registar, emitir)
+
+    # 4. (caminho antigo, CEREBRO_RAPIDO=0) o modelo com ferramentas -- numa thread, para o ORCAMENTO DE 20 s cobrir tambem a lentidao
     #    do proprio modelo (qwen 7b em CPU a frio) e nao so a das ferramentas. Aos 20 s sem resposta
     #    sai o interino + tarefa; a resposta final vem a seguir, quando vier.
     mensagens = [{"role": "system", "content": _sistema(f, tratamento, lingua_, registo_, porta)}]
@@ -450,11 +665,11 @@ def atender(evento, registar=None, modo_prova=False, emitir=None):
         dec["fallback_intencao"] = "parceiro"
     if not texto_final:
         # a cadeia caiu ou o modelo nao escreveu: NUNCA silencio
-        t = tarefas.criar(numero, "modelo sem resposta: " + msg[:100], 3, "agente")
+        t = tarefas.criar(numero, "danilo: sem resposta do modelo: " + msg[:100], 30, "danilo-sem-resposta")
         dec["tarefas"].append(t["id"])
-        telegram.enviar("WhatsApp da loja — %s: não consegui responder (%s). Mensagem: \"%s\"" % (numero, erro or "sem texto", msg[:200]), registar)
-        texto_final = "Recebi a sua mensagem. Estou a ver isso e dou-lhe resposta em 3 minutos, no máximo."
-        fichas.anotar_promessa(f, "ver: " + msg[:80], "aberta", t["id"])
+        telegram.enviar("WhatsApp da loja — %s: não consegui responder (%s). Mensagem: \"%s\" — responde-lhe por aqui." % (numero, erro or "sem texto", msg[:200]), registar)
+        texto_final = SEM_RESPOSTA_TEXTO
+        fichas.anotar_promessa(f, "Danilo responde: " + msg[:80], "aberta", t["id"])
 
     # 5. pos-processamento + PROMESSA = TAREFA
     bolhas = _pos_processar(texto_final, f, tratamento, cumprimentou_hoje)

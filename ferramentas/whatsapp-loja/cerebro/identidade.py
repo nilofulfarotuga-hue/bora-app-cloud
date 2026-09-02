@@ -62,9 +62,49 @@ def registo(msg, actual=None):
     return actual or "voce"
 
 
+# "MEU NOME NAO E X" (regra do Danilo, 02/09): o nome sai da ficha NA HORA, a resposta seguinte pede
+# desculpa numa frase e segue sem nome. Um nome que a pessoa nega nunca volta a entrar sozinho.
+RE_NAO_E_MEU_NOME = re.compile(
+    r"(?:(?:o )?meu nome n[aã]o (?:é|e)|n[aã]o me chamo|(?:eu )?n[aã]o sou (?:o |a )?|n[aã]o (?:é|e) (?:o )?meu nome|nome errado)\s*"
+    r"(?P<nome>[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+)?", re.I)
+
+
+def _sem_acentos(s):
+    import unicodedata
+    return "".join(c for c in unicodedata.normalize("NFD", s or "") if unicodedata.category(c) != "Mn").lower()
+
+
+def negou_o_nome(ficha, msg):
+    m = RE_NAO_E_MEU_NOME.search(msg or "")
+    if not m:
+        return False
+    negado = (m.group("nome") or "").strip().lower()
+    actual = (ficha.get("nome") or "").split()[0].lower() if ficha.get("nome") else ""
+    # nega um nome concreto que nao e o da ficha? mesmo assim: se a pessoa diz que nao se chama X e a
+    # ficha tem X, ou nao diz qual, o nome sai. Se a ficha tem outro nome PROVADO, fica.
+    if not negado or not actual or negado == actual or ficha.get("nome_fonte") in (None, "disse"):
+        ficha["nome"], ficha["nome_fonte"] = None, None
+        ficha.pop("genero", None); ficha.pop("genero_fonte", None)
+        ficha["tratamento"] = "neutro"
+        ficha["desculpa_nome"] = True
+        neg = set(ficha.get("nomes_negados") or [])
+        if negado:
+            neg.add(negado)
+            neg.add(_sem_acentos(negado))        # "júnior" e "junior" sao o mesmo nome negado
+        ficha["nomes_negados"] = sorted(neg)
+        return True
+    return False
+
+
 def decidir_tratamento(ficha, msg):
     """Devolve (tratamento, prova). tratamento: neutro | nome | senhor | senhora. Actualiza a ficha."""
+    if negou_o_nome(ficha, msg):
+        return "neutro", "negou o nome"
+    if ficha.get("papel") == "teste":
+        return "neutro", "numero de teste do Danilo: sempre neutro, sem nome"
     nome, art = nome_dito(msg)
+    if nome and nome.split()[0].lower() in set(ficha.get("nomes_negados") or []):
+        nome = None
     if nome and not ficha.get("nome"):
         ficha["nome"] = nome
         ficha["nome_fonte"] = "disse"
@@ -86,6 +126,9 @@ def decidir_tratamento(ficha, msg):
 
 def instrucao_tratamento(tratamento, ficha):
     """A linha que entra no prompt do modelo."""
+    if ficha.get("papel") == "teste":
+        return ("E o numero de TESTE do Danilo: trata por 'você', NUNCA por nome, nunca 'senhor'/'senhora'. "
+                "Responde como a um cliente normal.")
     if tratamento == "nome":
         return ("Trata a pessoa pelo primeiro nome, '%s', no maximo UMA vez na resposta. Nunca 'senhor' nem 'senhora'."
                 % ficha["nome"].split()[0])
@@ -111,9 +154,32 @@ def _uma_vez(texto, termo):
     return "".join(out)
 
 
+INICIOS_NORMAIS = {"olá", "ola", "oi", "bom", "boa", "sim", "não", "nao", "claro", "perfeito", "ótimo", "otimo", "obrigado",
+                   "obrigada", "recebi", "vi", "certo", "combinado", "peço", "peco", "desculpe", "diga", "então", "entao",
+                   "bem", "tudo", "pode", "podes", "funciona", "fazemos", "temos", "entregamos", "trabalhamos", "lamento",
+                   "percebo", "agora", "hoje", "amanhã", "amanha", "aqui", "isso", "isto", "o", "a", "os", "as", "de", "em"}
+
+
+def sem_vocativo_inventado(texto, ficha):
+    """'Junior. Tudo bem?' -- um nome no arranque da frase que NAO e o nome provado da ficha sai.
+    (O nemotron chamou 'Junior' ao Danilo por o ver em textos antigos, 02/09.)"""
+    t = texto or ""
+    m = re.match(r"^\s*([A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]{2,})\s*[,.!:]\s*", t)
+    if not m:
+        return t
+    palavra = m.group(1)
+    provado = (ficha.get("nome") or "").split()[0] if ficha.get("nome") and ficha.get("nome_fonte") in ("contacto_guardado", "disse", "supabase") else ""
+    if palavra.lower() in INICIOS_NORMAIS or (provado and palavra.lower() == provado.lower()):
+        return t
+    resto = t[m.end():]
+    return (resto[:1].upper() + resto[1:]) if resto else t
+
+
 def limpar_tratamento(texto, tratamento, ficha):
     """Rede de seguranca sobre o que o modelo escreveu: tira o que nao esta provado e deixa 1x."""
-    t = texto or ""
+    t = sem_vocativo_inventado(texto or "", ficha)
+    for neg in ficha.get("nomes_negados") or []:
+        t = re.sub(r",?\s*\b%s\b" % re.escape(neg), "", t, flags=re.I)
     if tratamento != "senhor":
         t = re.sub(r"\b(o|ao|do)\s+senhor\b,?\s*", "", t, flags=re.I)
         t = re.sub(r"\bsenhor\b,?\s*", "", t, flags=re.I)

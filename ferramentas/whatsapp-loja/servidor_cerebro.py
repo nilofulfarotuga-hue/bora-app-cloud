@@ -33,6 +33,7 @@ import base64
 import datetime
 import json
 import os
+import re
 import sys
 import tempfile
 import threading
@@ -51,7 +52,7 @@ PORT = int(os.environ.get("CEREBRO_PORT", "8790"))
 PORTA = os.environ.get("CEREBRO_PORTA", "pc-extensao")
 FLAG_ENVIO_DESLIGADO = os.path.join(BASE, "ENVIO_DESLIGADO")
 FLAG_CENSO = os.path.join(BASE, "PEDIR_CENSO")
-JANELA_S = 9.0
+JANELA_S = 4.0      # 02/09 11:20: eram 9 s; o Danilo quer resposta na hora e uma pessoa manda a 2a bolha em <4 s ou nao manda
 ESPACO_MIN_ENVIO_S = 4.0
 
 
@@ -96,8 +97,32 @@ def emitir(numero, texto, motivo):
             "criada": datetime.datetime.now().isoformat(timespec="seconds")}
     with _saida_lock:
         _saida.append(item)
+        _emitidos.append((numero, _norm(texto)))
+        del _emitidos[:-300]
     registar({"evento": "saida-em-fila", "numero": numero, "texto": texto[:300], "motivo": motivo})
     return item["id"]
+
+
+_emitidos = []          # (numero, texto normalizado) das ultimas 300 saidas do proprio cerebro
+_norm = lambda t: re.sub(r"\s+", " ", (t or "").strip().lower())[:200]
+
+
+def _e_texto_proprio(numero, texto):
+    """Uma 'saida do Danilo' que e afinal texto do proprio bot (a extensao nem sempre reconhece o que ela
+    propria enviou -- 02/09 11:07: a frase da Vigia pausou o bot 2 h no numero de teste). Memoria do
+    processo primeiro; depois o banco, que sobrevive a reinicios."""
+    n = _norm(texto)
+    if not n:
+        return False
+    if any(num == numero and t == n for num, t in _emitidos):
+        return True
+    try:
+        rows = supa.select("whatsapp_messages", select="texto", numero="eq." + numero, direcao="eq.saida",
+                           created_at="gte." + (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=48)).isoformat(),
+                           order="created_at.desc", limit="40")
+        return any(_norm(r.get("texto")) == n for r in rows)
+    except Exception:
+        return False
 
 
 def avisar(texto):
@@ -160,6 +185,9 @@ def receber(ev):
     if not tranca(msg_id):
         return {"ok": True, "acao": "ja-vista"}
     if (ev.get("dir") or "entrada") == "saida-danilo":
+        if _e_texto_proprio(numero, ev.get("texto") or ""):
+            registar({"evento": "saida-propria-ignorada", "numero": numero, "texto": (ev.get("texto") or "")[:120]})
+            return {"ok": True, "acao": "saida-propria"}
         return _danilo_respondeu(numero, ev.get("texto") or "")
     tipo = ev.get("tipo") or "texto"
     pedaco = {"msg_id": msg_id, "tipo": tipo, "texto": ev.get("texto") or "", "ts": ev.get("ts")}
@@ -194,12 +222,19 @@ def receber(ev):
 
 
 def _evento_de(numero, b):
+    pedacos = b["pedacos"]
+    if len(pedacos) > 3:
+        # 02/09 10:13: a extensao entregou 5 mensagens de uma vez (4 delas historico mal lido) e o agente
+        # respondeu ao muro de texto. Uma pessoa a escrever de verdade manda 1-3 bolhas em 9 s.
+        registar({"evento": "buffer-cortado", "numero": numero, "recebidos": len(pedacos), "ficam": 3,
+                  "descartados": [(p.get("texto") or "")[:60] for p in pedacos[:-3]]})
+        pedacos = pedacos[-3:]
     return {"numero": numero, "porta": PORTA, "nome_guardado": b.get("nome_guardado"),
-            "msg_ids": [p["msg_id"] for p in b["pedacos"]],
-            "textos": [p["texto"] for p in b["pedacos"] if p["tipo"] == "texto"],
-            "audios": [p["audio"] for p in b["pedacos"] if p.get("audio")],
-            "imagens": [p["imagem"] for p in b["pedacos"] if p.get("imagem")],
-            "ts": b["pedacos"][-1].get("ts")}
+            "msg_ids": [p["msg_id"] for p in pedacos],
+            "textos": [p["texto"] for p in pedacos if p["tipo"] == "texto"],
+            "audios": [p["audio"] for p in pedacos if p.get("audio")],
+            "imagens": [p["imagem"] for p in pedacos if p.get("imagem")],
+            "ts": pedacos[-1].get("ts")}
 
 
 def _processar(numero):
@@ -212,10 +247,10 @@ def _processar(numero):
         dec = agente.atender(evento, registar, emitir=emitir)
     except Exception as e:  # noqa: BLE001
         registar({"evento": "agente-erro", "numero": numero, "erro": "%s: %s" % (type(e).__name__, str(e)[:300])})
-        t = tarefas.criar(numero, "erro do agente: " + str(e)[:80], 3, "servidor")
-        avisar("WhatsApp da loja — ERRO no cerebro com %s: %s" % (numero, str(e)[:200]))
-        dec = {"acao": "responder", "textos": ["Recebi a sua mensagem. Estou a ver isso e dou-lhe resposta em 3 minutos, no máximo."],
-               "motivo": "erro", "tarefas": [t["id"]]}
+        t = tarefas.criar(numero, "danilo: erro do agente: " + str(e)[:80], 30, "danilo-erro")
+        avisar("WhatsApp da loja — ERRO no cerebro com %s: %s — responde-lhe por aqui." % (numero, str(e)[:200]))
+        # nunca "dou-lhe resposta em 3 minutos" (Danilo, 02/09): quem responde a seguir e o Danilo, e diz-se isso
+        dec = {"acao": "responder", "textos": [agente.SEM_RESPOSTA_TEXTO], "motivo": "erro", "tarefas": [t["id"]]}
     registar({"evento": "decisao", "numero": numero, "acao": dec.get("acao"), "textos": dec.get("textos"), "modelo": dec.get("modelo"),
               "ferramentas": dec.get("ferramentas"), "tarefas": dec.get("tarefas"), "segundos": dec.get("segundos"), "erro": dec.get("erro")})
     ids = [emitir(numero, t, dec.get("acao")) for t in (dec.get("textos") or [])] if dec.get("acao") in ("responder", "escalar") else []
@@ -484,9 +519,14 @@ def aquecedor():
     while True:
         try:
             if modelos.ollama_vivo():
-                sis = agente._sistema(fichas.nova("351000000000"), "neutro", "pt-PT", "voce", PORTA)
-                modelos._chamar_ollama([{"role": "system", "content": sis}, {"role": "user", "content": "ok"}],
-                                       FB.DEFINICOES, 1, 0, 240)
+                if agente.RAPIDO:
+                    # caminho rapido (02/09): o prompt real e o _sistema_rapido, SEM ferramentas
+                    sis = agente._sistema_rapido(fichas.nova("351000000000"), "neutro", "pt-PT", "voce")
+                    modelos._chamar_ollama([{"role": "system", "content": sis}, {"role": "user", "content": "ok"}], None, 1, 0, 240)
+                else:
+                    sis = agente._sistema(fichas.nova("351000000000"), "neutro", "pt-PT", "voce", PORTA)
+                    modelos._chamar_ollama([{"role": "system", "content": sis}, {"role": "user", "content": "ok"}],
+                                           FB.DEFINICOES, 1, 0, 240)
         except Exception as e:  # noqa: BLE001
             registar({"evento": "aquecedor-erro", "erro": str(e)[:120]})
         time.sleep(240)

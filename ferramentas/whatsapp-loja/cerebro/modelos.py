@@ -214,6 +214,14 @@ def _chamar_openai(base, key, modelo, mensagens, tools, max_tokens, temperatura,
     return {"texto": (msg.get("content") or "").strip() or None, "tool_calls": calls}
 
 
+# ---------------------------------------------------------------- Groq (gratis, rapido, com tools) -- exige conta: a chave e do Danilo
+GROQ_URL = "https://api.groq.com/openai/v1"
+
+
+def _groq_key():
+    return supa.ENV.get("GROQ_API_KEY") or os.environ.get("GROQ_API_KEY") or ""
+
+
 # ---------------------------------------------------------------- a cadeia
 def chat(mensagens, tools=None, max_tokens=350, temperatura=0.2, timeouts=None):
     """Devolve {"texto", "tool_calls", "modelo"} ou {"erro": ...} se a cadeia inteira cair."""
@@ -222,7 +230,10 @@ def chat(mensagens, tools=None, max_tokens=350, temperatura=0.2, timeouts=None):
     # 02/09 09:00: os dois Gemini esgotaram a quota gratis do dia (429) a meio das provas. O Ollama e
     # entao o UNICO motor que resta na maior parte do dia: tem de poder acabar (120 s); o prompt
     # passou a compacto e o interino dos 20 s cobre a espera. Quando o Gemini volta, e reserva rapida.
-    timeouts = timeouts or {"ollama": 120, "gemini": 40}
+    # 02/09 10:20 -- o Danilo quer resposta NA HORA (<10 s em 9 de 10). Medido sem ferramentas:
+    # gemini-3.1-flash-lite 0,9 s · gemini-3-flash-preview 2,4 s · qwen 7b quente 2,4 s · nemotron 40-90 s.
+    # Tempos curtos: um motor que nao responde em 12 s da a vez ao seguinte.
+    timeouts = timeouts or {"gemini": 12, "groq": 12, "ollama": 25, "zen": 60}
     erros = []
     for modelo in CADEIA:
         if esgotado(modelo):
@@ -241,6 +252,11 @@ def chat(mensagens, tools=None, max_tokens=350, temperatura=0.2, timeouts=None):
                     erros.append("%s: sem chave" % modelo)
                     continue
                 r = _chamar_openai(ZEN_URL, _zen_key(), modelo[4:], mensagens, tools, max_tokens, temperatura, timeouts.get("zen", 60))
+            elif modelo.startswith("groq:"):
+                if not _groq_key():
+                    erros.append("%s: sem chave (GROQ_API_KEY no cerebro/.env)" % modelo)
+                    continue
+                r = _chamar_openai(GROQ_URL, _groq_key(), modelo[5:], mensagens, tools, max_tokens, temperatura, timeouts.get("groq", 20))
             else:
                 if not _gemini_key():
                     erros.append("%s: sem chave" % modelo)

@@ -141,12 +141,20 @@ class Vigia(threading.Thread):
                 self.emitir(numero, texto, "vigia:danilo-sem-resposta")
                 self.avisar("WhatsApp da loja — %s continua à espera de ti (%s). Já lhe disse que ainda estás a tratar." % (numero, motivo[:100]))
             else:
-                texto = "Ainda estou a ver isso — dou-lhe resposta em 5 minutos, no máximo."
-                fechar(t["id"], "expirada", "prazo venceu; cliente avisado; Danilo avisado")
+                # 02/09 11:07: a "2a volta" de 5 min encadeava "dou-lhe resposta em 5 minutos" sem fim -- o Danilo
+                # recebeu isso no numero de teste. Regra: uma promessa vencida NAO gera outra promessa. Diz-se a
+                # verdade (o Danilo entra) e abre-se UMA tarefa do Danilo; se ele nao responder em 30 min, o ramo
+                # de cima fala uma vez ("nao me esqueci") e acaba.
+                texto = "Não consegui fechar isto sozinho — já passei ao Danilo e ele responde-lhe por aqui."
+                fechar(t["id"], "expirada", "prazo venceu; cliente avisado; passou ao Danilo")
                 self.emitir(numero, texto, "vigia:prazo-vencido")
-                self.avisar("WhatsApp da loja — prometi verificar a %s (%s) e não consegui a tempo. Precisa de ti." % (numero, motivo[:100]))
-                # uma segunda tarefa, de 5 min, para nao ficar de novo em silencio
-                criar(numero, "2a volta: " + motivo, 5, "vigia")
+                self.avisar("WhatsApp da loja — prometi verificar a %s (%s) e não consegui a tempo. Responde-lhe por aqui." % (numero, motivo[:100]))
+                criar(numero, "danilo: " + motivo, 30, "danilo-vigia")
+            try:
+                supa.insert("whatsapp_messages", {"numero": numero, "direcao": "saida", "porta": "vigia", "tipo": "texto", "texto": texto,
+                                                  "decisao": "vigia", "modelo": "vigia", "enviada": False}, devolve=False)
+            except Exception:
+                pass
             self.registar({"evento": "vigia", "tarefa": t["id"], "numero": numero, "motivo": motivo[:120]})
 
     def parar(self):

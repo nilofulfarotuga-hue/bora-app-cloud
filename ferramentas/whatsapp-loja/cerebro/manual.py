@@ -63,9 +63,10 @@ def sempre():
     return "\n\n".join(partes)
 
 
-def ler(tema, max_chars=3800):
+def ler(tema, max_chars=3800, registar=True):
     """Devolve as seccoes que mais falam do tema (titulo pesa 3x). Nunca inventa: se nao ha nada,
-    diz isso mesmo e regista a pergunta nova."""
+    diz isso mesmo e regista a pergunta nova (registar=False quando o tema e a mensagem inteira da
+    pessoa, no caminho rapido -- senao cada 'obrigado' virava pergunta nova no manual)."""
     palavras = [w for w in re.findall(r"[a-z0-9]{3,}", _sem_acentos(tema)) if w not in ("que", "como", "para", "com", "uma", "the")]
     pontuadas = []
     for t, c in seccoes():
@@ -77,7 +78,8 @@ def ler(tema, max_chars=3800):
             pontuadas.append((score, t, c))
     pontuadas.sort(key=lambda x: -x[0])
     if not pontuadas:
-        registar_pergunta_nova(tema)
+        if registar:
+            registar_pergunta_nova(tema)
         return ("NADA NO MANUAL sobre: %r. Nao inventes. Diz que vais confirmar com o Danilo e usa "
                 "agendar_seguimento + avisar_danilo. Indice do manual:\n%s" % (tema, indice()))
     out, usado = [], 0

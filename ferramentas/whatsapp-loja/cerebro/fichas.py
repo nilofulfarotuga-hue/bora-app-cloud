@@ -66,6 +66,11 @@ def carregar(numero):
     est = f.get("estilo") or {}
     if est.get("genero"):
         f["genero"], f["genero_fonte"] = est.get("genero"), est.get("genero_fonte")
+    if est.get("nomes_negados"):
+        f["nomes_negados"] = est.get("nomes_negados")
+    # um nome NUNCA vem de texto de saida; e um nome que a pessoa negou nao volta a entrar sozinho
+    if f.get("nome") and f.get("nome").split()[0].lower() in {x.lower() for x in f.get("nomes_negados") or []}:
+        f["nome"], f["nome_fonte"] = None, None
     return f
 
 
@@ -75,6 +80,10 @@ def guardar(f):
     est = dict(f.get("estilo") or {})
     if f.get("genero"):
         est["genero"], est["genero_fonte"] = f["genero"], f.get("genero_fonte")
+    else:
+        est.pop("genero", None); est.pop("genero_fonte", None)
+    if f.get("nomes_negados"):
+        est["nomes_negados"] = f["nomes_negados"]
     f["estilo"] = est
     linha = {k: f.get(k) for k in CAMPOS_TABELA}
     with _lock:

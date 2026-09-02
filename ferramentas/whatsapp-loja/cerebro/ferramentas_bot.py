@@ -161,6 +161,11 @@ def executar(nome, args, ctx):
         if nome == "guardar_na_ficha":
             campo, valor = args.get("campo"), str(args.get("valor") or "").strip()
             if campo == "nome" and valor:
+                # so e nome se a PESSOA o escreveu nesta mensagem; nunca de textos antigos nem de saidas
+                msg_actual = (ctx.get("msg_actual") or "").lower()
+                primeiro = valor.split()[0].lower()
+                if primeiro not in msg_actual or primeiro in {x.lower() for x in f.get("nomes_negados") or []} or f.get("papel") == "teste":
+                    return {"ok": False, "erro": "nome recusado: nao esta na mensagem da pessoa (ou foi negado) -- nunca se apanha nome de texto antigo"}
                 f["nome"], f["nome_fonte"] = valor[:80], "disse"
             elif campo == "falta_recolher" and valor:
                 f["falta_recolher"] = [valor[:120]]

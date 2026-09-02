@@ -10,15 +10,16 @@
   if (window.__vigiaBora) { console.log('[VigiaBora] ja ativa'); return; }
   window.__vigiaBora = true;
 
-  const VERSION = 'v7-2026-09-02-agente';
+  const VERSION = 'v8b-2026-09-02-direcao-rapida';
+  const ARRANQUE = Date.now();          // v8: so e "nova" a mensagem que o WhatsApp diz que esta por ler, ou que chegou depois do arranque
   // Marcador no DOM: a versao e o carimbo da ultima varredura ficam em <html data-vigia-*>, legiveis por
   // qualquer ferramenta que veja a pagina -- a consola do browser nao se ve de fora.
   const marca = (k, v) => { try { document.documentElement.setAttribute('data-vigia-' + k, String(v)); } catch {} };
   marca('bora', VERSION);
   const ENVIO_DESLIGADO = false;        // MISSAO 02/09: 2a tranca; a 1a e o cerebro (ENVIO_DESLIGADO + whatsapp_settings)
   const OWN = '351937501673';
-  const VARRER_MS = 6000;              // olha para a lista de 6 em 6 s
-  const PENDENTES_MS = 4000;           // vai buscar respostas de 4 em 4 s
+  const VARRER_MS = 3000;              // olha para a lista de 3 em 3 s (eram 6: o Danilo quer resposta na hora, 02/09)
+  const PENDENTES_MS = 2000;           // vai buscar respostas de 2 em 2 s (eram 4)
   const KEY_HANDLED = 'bora_vigia_handled_v7';
   const KEY_ENVIADAS = 'bora_vigia_enviadas_v7';
   const KEY_CENSO = 'bora_vigia_censo_v7e';   // v7e: leitura das mensagens pelo carimbo + icone de visto (build 02/09)
@@ -61,6 +62,15 @@
   }
   const tituloDaLinha = row => { const s = row.querySelector('span[title]'); return s ? (s.getAttribute('title') || s.textContent || '').trim() : ''; };
   const temNaoLida = row => [...row.querySelectorAll('span[aria-label]')].some(s => /não lida|nao lida|unread/i.test(s.getAttribute('aria-label') || ''));
+  // quantas mensagens o WhatsApp diz que estao por ler nesta linha ("3 mensagens não lidas"); 0 se nao ha badge
+  const nNaoLidas = row => {
+    for (const s of row.querySelectorAll('span[aria-label]')) {
+      const a = s.getAttribute('aria-label') || '';
+      if (/não lida|nao lida|unread/i.test(a)) { const m = a.match(/(\d+)/); return m ? parseInt(m[1], 10) : 1; }
+    }
+    return 0;
+  };
+  const tsMs = ts => { if (!ts) return null; const d = new Date(ts); return isNaN(d.getTime()) ? null : d.getTime(); };
   function alvoDoComposer() {
     const c = document.querySelector('footer div[contenteditable="true"]');
     if (!c) return null;
@@ -103,7 +113,7 @@
   }
   const ehGrupo = c => !!(c && c.grupo);
 
-  function mensagensAbertas() {
+  function mensagensAbertas(ctx) {
     const out = [];
     for (const m of document.querySelectorAll('#main div[data-id]')) {
       const id = m.getAttribute('data-id') || '';
@@ -113,7 +123,14 @@
       // SAIDA: o icone de visto (check) so existe nas mensagens que a loja enviou; nas de texto o carimbo
       // tambem diz o remetente (a propria conta aparece como "," ou vazio em algumas versoes).
       const visto = !!m.querySelector('[data-icon="msg-check"],[data-icon="msg-dblcheck"],[data-icon="msg-time"],[aria-label*="Enviada"],[aria-label*="Entregue"],[aria-label*="Lida"]');
-      const dir = (visto || (meta && (soDigitos(rem) === OWN || rem === ',' || rem === ''))) ? 'saida' : 'entrada';
+      const remD = soDigitos(rem);
+      const proprio = visto || (!!meta && (remD === OWN || rem === ',' || rem === ''));
+      // 02/09 10:13: quatro mensagens do Danilo (remetente = o NOME da conta, sem visto legivel) passaram por
+      // ENTRADA e o agente respondeu ao historico. Regra v8: sem visto e sem remetente da conta, uma mensagem
+      // cujo remetente NAO e o contacto aberto e SAIDA (incerta: nunca dispara "Danilo respondeu a mao").
+      const doContacto = !!(meta && ctx && ((ctx.numero && remD === ctx.numero) || (ctx.titulo && rem === ctx.titulo)));
+      const incerta = !proprio && !!meta && !!ctx && !doContacto;
+      const dir = (proprio || incerta) ? 'saida' : 'entrada';
       const texto = (m.querySelector('.copyable-text span.selectable-text, .selectable-text')?.innerText || pre?.innerText || '').trim();
       const audio = !!m.querySelector('[data-icon="audio-play"],[data-icon="ptt-status"],[data-icon="audio-download"],audio');
       const img = !!m.querySelector('img[src^="blob:"]') && !audio;
@@ -121,7 +138,7 @@
       const th = meta.match(/^\[(\d{1,2}:\d{2}),\s*(\d{2})\/(\d{2})\/(\d{4})\]/);
       const ts = th ? `${th[4]}-${th[3]}-${th[2]}T${th[1].padStart(5, '0')}:00` : null;
       if (!texto && !audio && !img) continue;     // avisos de sistema, datas, etc.
-      out.push({ id, dir, texto, tipo, ts, el: m });
+      out.push({ id, dir, incerta, rem, texto, tipo, ts, el: m });
     }
     return out;
   }
@@ -197,7 +214,7 @@
       c.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
       await espera(200);
     }
-    await espera(Math.min(4000, 1000 + texto.length * 25));   // espera proporcional ao tamanho (1-4 s)
+    await espera(Math.min(2500, 600 + texto.length * 15));    // espera proporcional ao tamanho (0,6-2,5 s; eram 1-4 s)
     const btn = botaoEnviar();
     if (btn) btn.click();
     else c.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
@@ -217,6 +234,7 @@
       if (candidatas.length) log('varredura: linhas=' + rows.length, 'nao lidas=' + candidatas.length);
       for (const row of candidatas) {
         const titulo = tituloDaLinha(row);
+        const naoLidas = nNaoLidas(row);                    // le-se ANTES de abrir: abrir a conversa apaga o badge
         await abrir(row);
         const ctx = await esperarContexto(6000);
         if (!ctx) { log('sem contexto, salto', titulo); continue; }
@@ -225,17 +243,25 @@
         if (!numero) { log('sem numero (contacto guardado com nome?), salto por agora', titulo); continue; }
         if (numero === OWN) continue;
         const nomeGuardado = ehNumero(titulo) ? null : titulo;
-        const msgs = mensagensAbertas();
-        const novas = msgs.filter(m => !handled.has(m.id)).slice(-8);   // no maximo as 8 ultimas (baseline em cima do resto)
+        const msgs = mensagensAbertas(ctx);
+        const porVer = msgs.filter(m => !handled.has(m.id));
+        const limite = ARRANQUE - 15 * 60 * 1000;
+        const recente = m => { const t = tsMs(m.ts); return t === null || t >= limite; };
+        // NOVAS = as ultimas N ENTRADAS por ver, N = o badge de nao lidas do proprio WhatsApp (sem badge legivel:
+        // so as que chegaram depois do arranque). Nunca mais de 3: uma pessoa nao escreve 8 bolhas em 9 s -- a
+        // 02/09 10:13 as "8 ultimas" trouxeram historico de 31/08 e o agente respondeu-lhe.
+        let entradas = porVer.filter(m => m.dir === 'entrada');
+        entradas = (naoLidas > 0 ? entradas.slice(-naoLidas) : entradas.filter(recente)).slice(-3);
+        const saidasDanilo = porVer.filter(m => m.dir === 'saida' && !m.incerta && !enviadas.has(m.id) && m.texto && recente(m)).slice(-3);
+        const historico = porVer.length - entradas.length - saidasDanilo.length;
+        if (historico > 0) log('baseline:', historico, 'mensagens por ver ficam como historico (badge=' + naoLidas + ')', titulo);
+        for (const m of porVer.slice(-6)) log('msg', m.dir + (m.incerta ? '?' : ''), 'rem=' + JSON.stringify(m.rem), m.ts, JSON.stringify((m.texto || '').slice(0, 40)));
         for (const m of msgs) handled.add(m.id);
         guardaSet(KEY_HANDLED, handled, 3000);
-        for (const m of novas) {
-          if (m.dir === 'saida') {
-            if (!enviadas.has(m.id) && m.texto) {           // saida que NAO foi nossa = o Danilo a mao
-              try { await bg({ tipo: 'evento', evento: { numero, msg_id: m.id, dir: 'saida-danilo', tipo: 'texto', texto: m.texto, ts: m.ts } }); } catch {}
-            }
-            continue;
-          }
+        for (const m of saidasDanilo) {                    // saida que NAO foi nossa = o Danilo a mao
+          try { await bg({ tipo: 'evento', evento: { numero, msg_id: m.id, dir: 'saida-danilo', tipo: 'texto', texto: m.texto, ts: m.ts } }); } catch {}
+        }
+        for (const m of entradas) {
           const ev = { numero, msg_id: m.id, dir: 'entrada', tipo: m.tipo, texto: m.texto, ts: m.ts, nome_guardado: nomeGuardado, grupo: false };
           if (m.tipo === 'audio') { const a = await apanharAudio(m.el); if (a) { ev.audio_b64 = a.b64; ev.mime = a.mime; } }
           if (m.tipo === 'imagem') { const im = await apanharImagem(m.el); if (im) { ev.imagem_b64 = im.b64; ev.mime = im.mime; } }
@@ -290,7 +316,7 @@
           if (numero === OWN) continue;
           const scroller = document.querySelector('#main [data-testid="conversation-panel-messages"]') || document.querySelector('#main .copyable-area') || document.querySelector('#main');
           for (let i = 0; i < 4; i++) { if (scroller) scroller.scrollTop = 0; await espera(500); }
-          const msgs = mensagensAbertas().map(m => ({ id: m.id, dir: m.dir, texto: m.texto, tipo: m.tipo, ts: m.ts }));
+          const msgs = mensagensAbertas(ctx).map(m => ({ id: m.id, dir: m.dir, texto: m.texto, tipo: m.tipo, ts: m.ts }));
           for (const m of msgs) handled.add(m.id);
           const r = await bg({ tipo: 'censo', dados: { numero, nome_guardado: ehNumero(t) ? null : t, grupo: false, mensagens: msgs } });
           n++; log('censo', numero, msgs.length, r && r.papel, 'entradas=' + msgs.filter(m => m.dir === 'entrada').length, 'saidas=' + msgs.filter(m => m.dir === 'saida').length);

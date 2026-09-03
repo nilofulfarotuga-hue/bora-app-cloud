@@ -8,23 +8,23 @@
 
 ## O QUE O DANILO TEM DE CLICAR AGORA
 
-**Duas coisas — uma decisão e uma conta.**
+**Sobra uma coisa, e é uma conta Google — nada das redes precisa de ti.**
 
-1. **Responde ao diálogo do Facebook "subscrever sem anúncios (5,99 €/mês) ou
-   usar gratuitamente com anúncios".** Está no ecrã, no separador da página, e
-   bloqueia tudo o que é página até ser respondido. É decisão tua (uma das opções
-   custa dinheiro), por isso não toquei. Depois de responderes, diz "feito" e eu
-   ligo o Instagram à página como conta comercial — é o único passo que falta para
-   o publicador também sair no Instagram.
-
-2. **Adiciona a conta `nilofulfarotuga@gmail.com` ao Chrome.** O Chrome só tem a
+1. **Adiciona a conta `nilofulfarotuga@gmail.com` ao Chrome.** O Chrome só tem a
    `boraappbora@gmail.com`. A conta de faturação do Google Cloud é da outra, e sem
    ela a página de pagamentos responde *"Você precisa de acesso adicional —
-   billing.accounts.getPaymentInfo (ausente)"*.
+   billing.accounts.getPaymentInfo (ausente)"*. Depois disso eu leio o resumo de
+   pagamentos e escrevo o valor aqui.
 
-**Já não precisam de ti:** a página, o Instagram comercial, a app "Bora Social",
-o token de página na VPS (não expira), e a **primeira publicação real**, que já
-está no ar — tudo feito nesta sessão e provado abaixo.
+**Feito e no ar, tudo nesta sessão:** a página do Facebook, o Instagram comercial
+**ligado à página**, a app "Bora Social" com as permissões, o token de página na
+VPS (não expira) e o `IG_USER_ID`, e **duas publicações reais pela API** — uma no
+Facebook e uma no Instagram. O publicador `social-bora.sh` fica a correr sozinho
+segunda, quarta e sexta ao meio-dia, nas duas redes.
+
+Dois retoques que só a app do Instagram no telemóvel deixa fazer, quando tiveres
+um minuto: o nome a mostrar (está *Danilo Fulfaro da Silva*, devia ser *Bora App ·
+Guarda*) e o link da Play Store no campo *Site*.
 
 O BoraStudio já não precisa de clique nenhum: escolheste "repositório privado" e
 "limpar os vídeos do histórico", e está feito e provado mais abaixo.
@@ -288,6 +288,62 @@ is_published  : true
 legenda       : Almoço decidido em três toques. Os restaurantes da Guarda estão no
                 Bora, com o preço à vista antes de confirmares.
                 Primeiro pedido com o código BEMVINDO. 👉 <link da Play Store>
+```
+
+### Ligar o Instagram à página como conta comercial — pelo Business Suite
+
+Depois de o Danilo responder ao diálogo dos anúncios, o **Meta Business Suite
+passou a abrir** para a página (com o id de página `1230974540107256`; o id
+`61593609326020` que aparece no URL público é o do *perfil* da página, e com esse
+o Suite dizia "identificação inválida" — vale a pena saber a diferença).
+
+Na página inicial do Suite há "Associar Instagram" → "Iniciar sessão no
+Instagram" → **pegou na sessão do @boraappbora sem pedir palavra-passe** → "Escolhe
+as definições de mensagens do Instagram" → Continuar. Aqui o diálogo não
+avançava, e a razão era esta: **o passo seguinte abre uma janela à parte do
+Chrome (a autorização do Instagram), e essa janela fica fora do grupo de
+separadores que a extensão vê**. Confirmei pelo Windows: há uma janela do Chrome
+chamada "Instagram" aberta. É um consentimento, e é clique do Danilo.
+
+O Danilo carregou nessa janela, e a API confirmou logo a seguir:
+
+```
+instagram_business_account : {id: 17841436418223926, username: boraappbora}
+connected_instagram_account: {id: 17841436418223926, username: boraappbora}
+```
+
+Gravei o `IG_USER_ID` no `.env` da VPS directamente a partir dessa resposta (cópia
+de segurança ao lado, modo 600). **Os três nomes estão lá**: `META_PAGE_TOKEN`,
+`META_PAGE_ID`, `IG_USER_ID`.
+
+### Segunda corrida forçada — Facebook OK, Instagram apanhou um erro real
+
+```
+FACEBOOK OK (HTTP 200) foto=122096186253453644
+  link=https://www.facebook.com/1230974540107256_122096186355453644  (tema 2-mercados)
+INSTAGRAM FALHOU a publicar (HTTP 400): code 9007 "Media ID is not available —
+  o conteúdo multimédia ainda não está pronto a ser publicado, aguarda um momento"
+```
+
+É um erro conhecido da API do Instagram: o contentor demora uns segundos a ficar
+pronto e o script publicava logo a seguir. **Corrigido** no `social-bora.sh`
+(cópia `.bak-antes-espera-ig`): depois de criar o contentor, pergunta o
+`status_code` de 5 em 5 segundos até `FINISHED` (máximo ~60 s) e só depois
+publica. `bash -n` limpo.
+
+### A publicação de teste no Instagram — feita, e sem repetir o post do Facebook
+
+Em vez de correr o script outra vez (o que fazia um terceiro post no Facebook),
+publiquei no Instagram a partir da foto que já estava na página, com o texto do
+tema 2-mercados, à mão na VPS e já com a espera:
+
+```
+contentor: 18093764864213941
+estado: IN_PROGRESS (tentativa 1)
+estado: FINISHED (tentativa 2)        <- a prova de que a espera era precisa
+media_publish: {"id":"18154394221453510"}
+permalink: https://www.instagram.com/p/Dc0XiNiFwND/
+timestamp: 2026-09-03T08:20:04+0000
 ```
 
 ### O que fica pronto para o segundo em que ele entrar
@@ -600,20 +656,21 @@ limpo não quer dizer que ninguém esteja a usar os ficheiros.
 | 4. Instagram | **conta feita pelo Danilo; configurada por mim** | @boraappbora, comercial, logo, bio |
 | 5. App Meta "Bora Social" | **FEITA** | id 1598568711343805, 6 permissões "Ready for testing" |
 | 5b. Token de página na VPS | **FEITO** | tipo PAGE, não expira, sem eu o ver |
-| 6. Publicação de teste pela API | **FEITA no Facebook**; Instagram por fazer | link no relatório; IG espera a ligação comercial |
+| 6. Publicação de teste pela API | **FEITA nas duas redes** | Facebook e Instagram, links no relatório |
 | 7. Ler o pagamento do Google Cloud | **bloqueado** | conta Google errada no Chrome |
-| 8. Páginas abertas no ecrã | **feito** | Facebook (diálogo dos anúncios), Programadores, Explorer |
+| 8. Páginas abertas no ecrã | **feito** | Facebook, Business Suite, Instagram (publicação), Programadores |
 | BoraStudio | **FEITO e provado** | privado, 315 commits, vídeos grandes fora do histórico |
 
 ---
 
 ## O que fica POR CONFIRMAR
 
-1. **Instagram ligado à página como conta comercial.** A API ainda devolve
-   `instagram_business_account: null`. Depende de o Danilo responder ao diálogo
-   dos anúncios; depois é meu.
-2. **Publicação de teste no Instagram.** Depende do ponto 1; o script já a faz
-   sozinho assim que o `IG_USER_ID` estiver no `.env`.
+1. **A corrida automática do publicador** (segunda 12:00 Lisboa) ainda não
+   aconteceu sozinha — as duas publicações de hoje foram forçadas à mão.
+2. **A espera pelo contentor do Instagram dentro do `social-bora.sh`** foi
+   corrigida e passa no `bash -n`, mas a corrida que a exercita será a de segunda;
+   a publicação de teste de hoje no Instagram usou a mesma espera à mão e viu
+   `IN_PROGRESS → FINISHED`.
 3. **O caminho utilizador→página do instalador nunca correu** (o Debugger da Meta
    fez a troca desta vez). Fica provado só o caminho com token de página.
 4. **O `@boraappguarda` da página.** O Facebook não mostra o campo nesta conta nova.

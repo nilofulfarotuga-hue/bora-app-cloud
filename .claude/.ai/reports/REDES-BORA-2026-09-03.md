@@ -8,20 +8,23 @@
 
 ## O QUE O DANILO TEM DE CLICAR AGORA
 
-**Duas coisas, as duas palavras-passe — e por isso só tu.**
+**Duas coisas — uma decisão e uma conta.**
 
-1. **Inicia sessão no Facebook outra vez.** A sessão caiu a meio (ver "Uma coisa
-   que correu mal" mais abaixo). O separador da página está no ecrã com a caixa de
-   login já com o e-mail preenchido; falta a palavra-passe e o clique em "Iniciar
-   sessão". **Eu não carrego nesse botão**, mesmo com o Chrome a preencher os
-   pontinhos — é entrada com palavra-passe e é tua. Depois diz-me "entrei" e eu
-   faço o resto seguido: ligar o Instagram à página, criar a app "Bora Social" no
-   Meta para Programadores, tirar o token e pô-lo na VPS com o instalador.
+1. **Responde ao diálogo do Facebook "subscrever sem anúncios (5,99 €/mês) ou
+   usar gratuitamente com anúncios".** Está no ecrã, no separador da página, e
+   bloqueia tudo o que é página até ser respondido. É decisão tua (uma das opções
+   custa dinheiro), por isso não toquei. Depois de responderes, diz "feito" e eu
+   ligo o Instagram à página como conta comercial — é o único passo que falta para
+   o publicador também sair no Instagram.
 
 2. **Adiciona a conta `nilofulfarotuga@gmail.com` ao Chrome.** O Chrome só tem a
    `boraappbora@gmail.com`. A conta de faturação do Google Cloud é da outra, e sem
    ela a página de pagamentos responde *"Você precisa de acesso adicional —
    billing.accounts.getPaymentInfo (ausente)"*.
+
+**Já não precisam de ti:** a página, o Instagram comercial, a app "Bora Social",
+o token de página na VPS (não expira), e a **primeira publicação real**, que já
+está no ar — tudo feito nesta sessão e provado abaixo.
 
 O BoraStudio já não precisa de clique nenhum: escolheste "repositório privado" e
 "limpar os vídeos do histórico", e está feito e provado mais abaixo.
@@ -112,6 +115,180 @@ a capa, o logo, o nome e a apresentação atrás da caixa de login.
 **O Chrome preencheu os pontinhos da palavra-passe sozinho. Não carreguei em
 "Iniciar sessão".** Entrar com palavra-passe é entrada com palavra-passe, seja eu
 a escrevê-la ou o Chrome a preenchê-la, e essa é a trava. Fica no ecrã.
+
+### Depois de ele voltar a entrar (segunda ronda)
+
+O Danilo iniciou sessão outra vez e carregou nos dois consentimentos que lhe deixei
+no ecrã. Resultado, lido na própria página do Centro de Contas:
+
+```
+Perfis: boraappbora (Instagram) · Danilo Silva (Facebook)
+Páginas que geres: Bora App Guarda (Página do Facebook)
+```
+
+**Instagram, Facebook e a página estão no mesmo Centro de Contas.** A ligação de
+negócio (a que a Graph API usa, `instagram_business_account`) confirma-se pelo
+instalador quando o token existir — é ele que a vai buscar à Meta e diz se está lá.
+
+**Meta for Developers:** aceitou os termos (clique dele), e o registo pediu
+verificação por telemóvel. Pus o número da página (937 501 673) e o formulário
+enviou o SMS ao gravar o valor. Fica à espera do **código de 6 dígitos**.
+
+**Meta Business Suite** continua a responder "este conteúdo não está disponível"
+para a página nova — é o que acontece nas primeiras horas de uma conta recente; não
+bloqueia nada, porque a app e o token vêm do Meta for Developers, não do Suite.
+
+### App "Bora Social" — criada
+
+O Danilo meteu o código do SMS ele próprio, e o registo de programador fechou.
+A partir daí fiz a app pelo clique:
+
+| Campo | Valor |
+|---|---|
+| Nome | Bora Social |
+| ID da app (público) | `1598568711343805` |
+| E-mail de contacto | boraappbora@gmail.com |
+| Casos de uso | **Manage everything on your Page** (Pages API) + **Manage messaging & content on Instagram** (Instagram API) |
+| Business portfolio | nenhum, de propósito (não é preciso para publicar na própria página) |
+| Requisitos de publicação | "No requirements identified" |
+| Estado | Unpublished (modo de desenvolvimento — chega para a própria página e o próprio Instagram) |
+
+O painel acrescentou sozinho **Facebook Login for Business**, que é o que a ordem
+pedia. Painel em `developers.facebook.com/apps/1598568711343805/dashboard/`.
+
+**Uma escolha que fiz e explico.** A lista de casos de uso não tem nada chamado
+"Facebook Login for Business" nem "Instagram Graph API" à letra. Os dois que
+escolhi são os que dão as permissões de que o `social-bora.sh` precisa
+(`pages_manage_posts`, `instagram_content_publish`); o "Authenticate… with
+Facebook Login" genérico serve para apps que fazem login de utilizadores, e não é
+o caso de um script na VPS.
+
+### Permissões da app — todas "Ready for testing"
+
+Acrescentei à app, caso de uso a caso de uso, exactamente o que o `social-bora.sh`
+usa e nada mais:
+
+| Permissão | Para quê | Estado |
+|---|---|---|
+| `pages_show_list` | listar a página e obter o token de página | Ready for testing |
+| `pages_manage_posts` | publicar fotos na página (`POST /{page}/photos`) | Ready for testing |
+| `pages_read_engagement` | ler o URL público da foto para alimentar o Instagram | Ready for testing |
+| `instagram_basic` | ler a conta comercial ligada à página | Ready for testing |
+| `instagram_content_publish` | publicar no Instagram | Ready for testing |
+| `business_management` | veio agarrado aos casos de uso; não faz mal | Ready for testing |
+
+O Instagram tem dois caminhos no painel: "API setup with Instagram login" (o novo,
+com permissões `instagram_business_*` e IDs próprios) e "API setup with Facebook
+login". **Escolhi o segundo**, porque é o que o `social-bora.sh` já implementa —
+token de página, Instagram ligado à página, `instagram_business_account`. Mudar o
+script para o caminho novo era trabalho a mais sem ganho.
+
+### O consentimento da app — o clique que falta
+
+Abri o diálogo de autorização da app com estas seis permissões e o retorno para
+o Graph API Explorer. Está no ecrã: **"Continuar como Danilo Silva? O Bora Social
+vai receber o teu nome e a tua imagem de perfil."** A seguir a esse botão o
+Facebook pergunta que páginas e que conta de Instagram a app pode usar — também
+cliques dele. Depois disso o token aparece no Explorer e o resto é meu.
+
+### O token — chegou à VPS sem eu nunca o ver
+
+O Danilo carregou em "Continuar" e marcou a página. O Explorer ficou com um token
+de **utilizador** curto (1-2 h). Para o tornar num token de **página que não
+expira**, e sem o valor passar pelo meu contexto nem por ficheiro nenhum neste PC:
+
+1. **Access Token Debugger** da Meta → colei o token do Explorer (o botão "Copy
+   Token" da própria Meta é uma cópia real) → "Extend Access Token" → a Meta devolve
+   o token de utilizador de longa duração (é ela que faz a troca, não preciso do
+   app secret).
+2. Dentro da página do Debugger, um pedaço de JavaScript foi buscar
+   `/me/accounts` com esse token longo e pôs o **token de página** numa caixa
+   invisível, seleccionado. Nada do que o JavaScript me devolveu tinha o valor —
+   só o nome e o id da página.
+3. Um `Ctrl+C` real com o separador em primeiro plano copiou-o para a área de
+   transferência do Windows, e um comando levou-o **directamente** da área de
+   transferência para o instalador na VPS, pela entrada padrão, sem o imprimir.
+4. Limpei a área de transferência a seguir (comprimento 0, confirmado).
+
+O instalador respondeu:
+
+```
+pagina: Bora App Guarda  (id 1230974540107256)
+tipo de token: PAGE
+validade: nao expira (e o que se quer num token de pagina)
+AVISO: a pagina nao tem conta de Instagram de empresa ligada.
+gravado em /opt/data/.env (modo 600, copia de seguranca ao lado)
+```
+
+**Dois tropeços pelo caminho, que vale a pena saber:**
+
+- O `Ctrl+C` enviado ao Chrome pela extensão **não copia** quando o separador
+  está em segundo plano; só funcionou depois de um clique real na caixa. A área
+  de transferência foi verificada só pelo comprimento (208) e pelo prefixo (EAA),
+  nunca pelo valor.
+- A primeira entrega pelo PowerShell chegou à VPS com bytes a mais (codificação
+  do pipe) e o instalador recusou-a — "não parece um token da Meta". A segunda,
+  pelo bash com bytes limpos, passou. O instalador fez o que devia nas duas:
+  recusar o que não é token, e o `.env` só foi tocado na boa.
+
+**Melhoria feita ao instalador entretanto:** se receber um token de utilizador em
+vez de um de página, faz ele próprio a troca (precisa de `META_APP_ID` e
+`META_APP_SECRET` no `.env`). Não foi preciso desta vez, porque o Debugger da
+Meta fez a parte da troca; fica lá para a próxima.
+
+### O publicador ainda não sai — e o motivo é só um
+
+`SOCIAL_FORCE=1 SOCIAL_DRY_RUN=1` (ensaio forçado): **código 0**. Mas a corrida a
+sério parou em:
+
+```
+INERTE: faltam credenciais da Meta no /opt/data/.env -> IG_USER_ID
+```
+
+O script exige as três chaves de uma vez. O `IG_USER_ID` só existe quando o
+Instagram está ligado à página **como conta comercial** — e isso ainda não está:
+a API devolve `instagram_business_account: null`. O Centro de Contas juntou as
+contas, mas a ligação de negócio da página é outra definição, feita na própria
+página (Definições › Instagram ligado). Nesta altura o Facebook meteu à frente o
+diálogo europeu "subscrever sem anúncios (5,99 €/mês) ou usar gratuitamente com
+anúncios", que é decisão do Danilo e trava tudo o que é página até ser respondido.
+
+### A primeira publicação real na página — pela API, pelo script da VPS
+
+Tornei o `IG_USER_ID` **opcional** no `social-bora.sh` (cópia `.bak-antes-ig-opcional`
+ao lado, `bash -n` limpo): sem ele, publica só no Facebook e escreve
+`INSTAGRAM SALTADO` no log; quando o instalador o gravar, o Instagram entra
+sozinho. Era o que o instalador prometia e o script não cumpria.
+
+Corrida forçada a sério (`SOCIAL_FORCE=1`), saída do log:
+
+```
+base: HTTP 200, 2 parceiros reais elegiveis
+imagem do parceiro sabores-brasil-guarda descarregada da base (HTTP 200)
+fundo: liso motivo=gemini-429-quota
+imagem montada: 2026-09-03-1-restaurantes-1A.jpg (149427 bytes, 1080x1080)
+FACEBOOK OK (HTTP 200) foto=122096179353453644
+  link=https://www.facebook.com/1230974540107256_122096179389453644
+INSTAGRAM SALTADO: sem IG_USER_ID no ambiente. Publicado so no Facebook.
+TELEGRAM rc=0 message_id 5912
+FIM: publicado. facebook=<link acima> instagram=nao
+```
+
+**O Gemini estava no tecto outra vez** (`gemini-429-quota`) e o recurso do fundo
+liso funcionou. Não mexi no tecto.
+
+**Verificado do lado de fora, não pelo próprio script** — pedi a publicação à
+Graph API com o token da página:
+
+```
+id            : 1230974540107256_122096179389453644
+created_time  : 2026-09-03T08:00:11+0000
+permalink_url : https://www.facebook.com/122096179893453644/posts/122096179389453644
+is_published  : true
+legenda       : Almoço decidido em três toques. Os restaurantes da Guarda estão no
+                Bora, com o preço à vista antes de confirmares.
+                Primeiro pedido com o código BEMVINDO. 👉 <link da Play Store>
+```
 
 ### O que fica pronto para o segundo em que ele entrar
 
@@ -421,22 +598,24 @@ limpo não quer dizer que ninguém esteja a usar os ficheiros.
 | 2. Conta de Facebook | **feita pelo Danilo** | "Danilo Silva", não "Danilo Fulfaro" |
 | 3. Página "Bora App Guarda" | **FEITA** | no ar, com WhatsApp associado; falta só o @nome |
 | 4. Instagram | **conta feita pelo Danilo; configurada por mim** | @boraappbora, comercial, logo, bio |
-| 5. App Meta "Bora Social" | **por fazer** | pára na palavra-passe do Facebook |
-| 6. Publicação de teste pela API | **por fazer** | depende do 5 |
+| 5. App Meta "Bora Social" | **FEITA** | id 1598568711343805, 6 permissões "Ready for testing" |
+| 5b. Token de página na VPS | **FEITO** | tipo PAGE, não expira, sem eu o ver |
+| 6. Publicação de teste pela API | **FEITA no Facebook**; Instagram por fazer | link no relatório; IG espera a ligação comercial |
 | 7. Ler o pagamento do Google Cloud | **bloqueado** | conta Google errada no Chrome |
-| 8. Páginas abertas no ecrã | **feito** | Facebook (login), Instagram/Centro de Contas, Programadores |
+| 8. Páginas abertas no ecrã | **feito** | Facebook (diálogo dos anúncios), Programadores, Explorer |
 | BoraStudio | **FEITO e provado** | privado, 315 commits, vídeos grandes fora do histórico |
 
 ---
 
 ## O que fica POR CONFIRMAR
 
-1. **Instagram ligado à página.** Pára na palavra-passe do Facebook.
-2. **App "Bora Social", token e publicação de teste.** Idem — tudo preparado para
-   correr seguido assim que ele entrar.
-3. **O instalador de credenciais nunca correu com um token verdadeiro.** Estão
-   provados os três caminhos de falha e a conversa com a Meta; o caminho de sucesso
-   fica por ver.
+1. **Instagram ligado à página como conta comercial.** A API ainda devolve
+   `instagram_business_account: null`. Depende de o Danilo responder ao diálogo
+   dos anúncios; depois é meu.
+2. **Publicação de teste no Instagram.** Depende do ponto 1; o script já a faz
+   sozinho assim que o `IG_USER_ID` estiver no `.env`.
+3. **O caminho utilizador→página do instalador nunca correu** (o Debugger da Meta
+   fez a troca desta vez). Fica provado só o caminho com token de página.
 4. **O `@boraappguarda` da página.** O Facebook não mostra o campo nesta conta nova.
 5. **O valor em dívida do Google Cloud.** Sem a conta `nilofulfarotuga@gmail.com`
    no Chrome não se lê.

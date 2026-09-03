@@ -8,13 +8,18 @@
 
 ## O QUE O DANILO TEM DE CLICAR AGORA
 
-**Sobra uma coisa, e é uma conta Google — nada das redes precisa de ti.**
+**Sobra uma coisa, e é dinheiro — por isso é tua.**
 
-1. **Adiciona a conta `nilofulfarotuga@gmail.com` ao Chrome.** O Chrome só tem a
-   `boraappbora@gmail.com`. A conta de faturação do Google Cloud é da outra, e sem
-   ela a página de pagamentos responde *"Você precisa de acesso adicional —
-   billing.accounts.getPaymentInfo (ausente)"*. Depois disso eu leio o resumo de
-   pagamentos e escrevo o valor aqui.
+1. **No Google Cloud, na página "How you pay" que ficou aberta, actualiza a
+   validade do cartão Visa ····7447 ou põe um cartão de reserva.** A conta está
+   com **€0,00 em dívida** ("No balance due"); o aviso vermelho é só o cartão
+   principal marcado com problema. Nada foi cobrado nem tentado por mim.
+
+**Nada das redes precisa de ti.** Página do Facebook, Instagram comercial ligado
+à página, app "Bora Social", token de página na VPS (não expira), `IG_USER_ID`, e
+**duas publicações reais pela API** — uma no Facebook e uma no Instagram. O
+publicador `social-bora.sh` fica a correr sozinho segunda, quarta e sexta ao
+meio-dia, nas duas redes.
 
 **Feito e no ar, tudo nesta sessão:** a página do Facebook, o Instagram comercial
 **ligado à página**, a app "Bora Social" com as permissões, o token de página na
@@ -362,7 +367,36 @@ decidir:
 4. **Publicação de teste** na página e no Instagram, e uma corrida à mão do
    `social-bora.sh` com os dois links.
 
-### Google Cloud — a leitura ficou bloqueada, e o motivo é concreto
+### Google Cloud — lido, com a conta certa (segunda ronda)
+
+O Danilo pôs a `nilofulfarotuga@gmail.com` no Chrome. Com
+`?authuser=nilofulfarotuga@gmail.com` a página de pagamentos abriu (a Google
+mapeou-a para `authuser=1`). **Só li; não cliquei em pagar nada.** O que a página
+mostra, tal e qual:
+
+```
+Conta de faturação : My Billing Account (012171-9755AA-4CE9FB), Paid account
+Faixa vermelha     : "There are issues with your payments account"
+Your balance       : €0.00 — No balance due
+Modo               : Postpay — cobra quando a conta chegar ao limiar de €100.00
+Último pagamento   : Aug 10, €100.00 (threshold charge)
+Transactions       : Sep 1–3, 2026 €0.00 · Aug 1–31, 2026 €0.00
+How you pay        : PRIMARY Visa ····7447 · BACKUP: (nenhum) "Add a backup"
+```
+
+**Leitura:** não há dívida. O aviso é o cartão principal (Visa ····7447) marcado
+com problema — o mesmo cartão do aviso "pagamento recusado" de ontem. Como a
+conta é *postpay* e o saldo está a zero, nada está a ser cobrado agora; o risco é
+quando a próxima cobrança de limiar tentar o cartão e ele voltar a ser recusado.
+A página "How you pay" ficou aberta no ecrã para o Danilo actualizar a validade
+do cartão ou pôr um de reserva — é um clique dele, e é dinheiro.
+
+**Nota honesta:** os €0,00 de setembro e de agosto dizem que o Gemini **não
+está a gastar nada** nesta conta de faturação. Ou o tecto de €1 está noutra conta,
+ou os 403/429 do Gemini vêm de quota gratuita e não de dinheiro. Vale a pena
+confirmar antes de mexer em cartões por causa do Gemini.
+
+### (o que estava escrito antes de a conta certa entrar)
 
 Abri `console.cloud.google.com/billing/012171-9755AA-4CE9FB/payment` e a
 resposta foi:
@@ -657,7 +691,7 @@ limpo não quer dizer que ninguém esteja a usar os ficheiros.
 | 5. App Meta "Bora Social" | **FEITA** | id 1598568711343805, 6 permissões "Ready for testing" |
 | 5b. Token de página na VPS | **FEITO** | tipo PAGE, não expira, sem eu o ver |
 | 6. Publicação de teste pela API | **FEITA nas duas redes** | Facebook e Instagram, links no relatório |
-| 7. Ler o pagamento do Google Cloud | **bloqueado** | conta Google errada no Chrome |
+| 7. Ler o pagamento do Google Cloud | **FEITO (só leitura)** | €0,00 em dívida; cartão ····7447 com problema; página "How you pay" aberta para o Danilo |
 | 8. Páginas abertas no ecrã | **feito** | Facebook, Business Suite, Instagram (publicação), Programadores |
 | BoraStudio | **FEITO e provado** | privado, 315 commits, vídeos grandes fora do histórico |
 

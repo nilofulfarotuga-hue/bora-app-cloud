@@ -8,19 +8,142 @@
 
 ## O QUE O DANILO TEM DE CLICAR AGORA
 
-**São três coisas, e a primeira desbloqueia-me a mim.**
+**Duas coisas, as duas palavras-passe — e por isso só tu.**
 
-1. **No Chrome, abre o painel lateral do Claude e inicia sessão.** O Chrome já
-   está aberto, mas a extensão não fala comigo até esse painel ser aberto uma vez.
-   Enquanto isso não acontecer eu não consigo ver nem tocar em página nenhuma.
+1. **Inicia sessão no Facebook outra vez.** A sessão caiu a meio (ver "Uma coisa
+   que correu mal" mais abaixo). O separador da página está no ecrã com a caixa de
+   login já com o e-mail preenchido; falta a palavra-passe e o clique em "Iniciar
+   sessão". **Eu não carrego nesse botão**, mesmo com o Chrome a preencher os
+   pontinhos — é entrada com palavra-passe e é tua. Depois diz-me "entrei" e eu
+   faço o resto seguido: ligar o Instagram à página, criar a app "Bora Social" no
+   Meta para Programadores, tirar o token e pô-lo na VPS com o instalador.
 
-2. **Cria a conta do Facebook e a do Instagram tu mesmo.** Eu abro-te as páginas
-   no sítio certo e tenho todos os campos escritos, mas criar conta e escrever
-   palavras-passe é uma trava minha que não se levanta.
+2. **Adiciona a conta `nilofulfarotuga@gmail.com` ao Chrome.** O Chrome só tem a
+   `boraappbora@gmail.com`. A conta de faturação do Google Cloud é da outra, e sem
+   ela a página de pagamentos responde *"Você precisa de acesso adicional —
+   billing.accounts.getPaymentInfo (ausente)"*.
 
-3. **Diz-me o que fazer com o BoraStudio.** Ver a secção do BoraStudio mais abaixo:
-   o repositório não tem para onde ser empurrado, e criar-lhe um lugar novo é
-   decisão tua.
+O BoraStudio já não precisa de clique nenhum: escolheste "repositório privado" e
+"limpar os vídeos do histórico", e está feito e provado mais abaixo.
+
+---
+
+## O que ficou feito depois de o Danilo criar as contas
+
+O Danilo criou as duas contas e iniciou sessão no Chrome. A partir daí fiz tudo pelo
+clique, sem lhe pedir nada excepto **um código de 5 dígitos do WhatsApp**.
+
+### Página do Facebook — criada e no ar
+
+| Campo | Valor |
+|---|---|
+| Endereço | `https://www.facebook.com/people/Bora-App-Guarda/61593609326020/` |
+| Nome | Bora App Guarda |
+| Categoria | Serviço de entregas |
+| Biografia | A Guarda inteira num só ecrã. Comida, mercado, farmácia, boleias, limpezas e favores, entregues por quem vive cá. Primeiro pedido com o código BEMVINDO. |
+| Site | https://bora-site.pages.dev |
+| Telefone | +351 937 501 673 |
+| E-mail | boraappbora@gmail.com |
+| Localidade | Guarda, Guarda, Portugal |
+| Foto de perfil | `perfil-1024x1024.jpg` (o logo real) |
+| Capa | `capa-facebook-1920x1080.jpg` (montada por script, zero IA) |
+| WhatsApp | **associado à página**, confirmado por código |
+
+**O número foi verificado antes de ir para público.** Nos ficheiros do projeto
+aparecem quatro números. O `+351 937 501 673` é o que está no bloco de contactos do
+site ao lado do `boraappbora@gmail.com` e é a constante `NUMERO` do formulário de
+WhatsApp. O `937 402 120` é do Sabores do Brasil (um parceiro) e **não entrou**.
+
+**O código do WhatsApp deu uma volta.** O primeiro que o Danilo me passou tinha 6
+dígitos (`202554`) e o campo recusou-o. Fui ao HTML e o campo tem `maxlength: 5`
+— o código do Facebook é de 5 dígitos. Pedi um novo, ele mandou `20254`, e passou
+à primeira. Está no relatório porque, se voltar a acontecer, a resposta é "conta
+os dígitos", não "pede outro código".
+
+**Uma tentativa que o Facebook recusou:** ao pôr o botão de acção como "Enviar
+mensagem no WhatsApp" durante a criação, saiu *"O utilizador não tem permissão
+para efetuar esta ação"* — a restrição normal de conta nova. Mas o passo 3 do
+próprio assistente, mais à frente, fez a mesma associação e aceitou. O botão de
+acção da página ficou no predefinido (Messenger); o WhatsApp está associado e pode
+ser escolhido como botão quando a conta tiver alguns dias.
+
+**Ficou por fazer o nome de utilizador** (`@boraappguarda`). Procurei em quatro
+sítios — Definições › Nome, Sobre › Nomes, Informações de contacto, Business Suite
+— e nenhum mostra o campo nesta conta nova. É coisa que o Facebook liberta ao fim
+de uns dias de actividade. O endereço com `people/…/61593609326020` funciona
+entretanto.
+
+### Instagram — conta comercial, pronta
+
+| Campo | Valor |
+|---|---|
+| Utilizador | **@boraappbora** (foi o que o Danilo criou; o `boraappguarda` da ordem fica como nota) |
+| Tipo | **Comercial**, categoria Produto/Serviço, mostrada no perfil |
+| Foto | o logo real |
+| Bio | A Guarda inteira num só ecrã. Comida, mercado, farmácia, boleias, limpezas e favores. Primeiro pedido com o código BEMVINDO — **123 caracteres**, contados pelo próprio Instagram |
+| Contactos públicos | boraappbora@gmail.com, +351 937 501 673, Guarda |
+
+**Duas coisas só dão no telemóvel**, e o próprio Instagram o diz: o campo *Site*
+("A edição das tuas ligações só está disponível em dispositivos móveis") e o nome
+a mostrar, que ainda é *Danilo Fulfaro da Silva* e devia ser *Bora App · Guarda*.
+Ficam para o Danilo fazer na app, são dois toques.
+
+### Ligar o Instagram à página — parado numa palavra-passe
+
+Fui pelo Centro de Contas do Instagram › Adicionar contas › Facebook. Reconheceu a
+sessão ("Danilo Silva · Continuar"), mas ao continuar **pediu a palavra-passe do
+Facebook**. Sem esta ligação a API do Instagram não funciona.
+
+### Uma coisa que correu mal: a sessão do Facebook caiu
+
+Depois disso tentei entrar no **Meta Business Suite** (para o nome de utilizador) e
+no **Meta para Programadores** (para a app "Bora Social"). Os dois têm um botão
+"Continuar com o Facebook". Carreguei nos dois, nenhum avançou — e quando voltei
+ao separador da página, **o Facebook já estava sem sessão**: a página aparece com
+a caixa "Vê mais conteúdos de Bora App Guarda" e o e-mail `boraappbora@gmail.com`
+preenchido.
+
+Não sei dizer com certeza qual dos três fluxos (Centro de Contas, Business Suite ou
+Programadores) derrubou a sessão; o mais provável é que a re-autenticação pedida
+por um deles tenha invalidado a sessão principal. **O que está provado** é que a
+página pública continua no ar mesmo sem sessão — a captura de ecrã de fundo mostra
+a capa, o logo, o nome e a apresentação atrás da caixa de login.
+
+**O Chrome preencheu os pontinhos da palavra-passe sozinho. Não carreguei em
+"Iniciar sessão".** Entrar com palavra-passe é entrada com palavra-passe, seja eu
+a escrevê-la ou o Chrome a preenchê-la, e essa é a trava. Fica no ecrã.
+
+### O que fica pronto para o segundo em que ele entrar
+
+Tudo o que depende da sessão está preparado para correr seguido, sem mais nada a
+decidir:
+
+1. **Ligar @boraappbora à página** — Centro de Contas › Adicionar contas ›
+   Facebook › Continuar (3 cliques).
+2. **App "Bora Social"** em developers.facebook.com — tipo Empresa, casos de uso
+   Facebook Login for Business + Instagram Graph API. Consentimentos: deixo o botão
+   "Autorizar" no ecrã, uma linha no terminal, e espero.
+3. **Token de página de longa duração** — vai directo para o instalador da VPS,
+   que pede só esse valor e vai buscar `META_PAGE_ID` e `IG_USER_ID` sozinho
+   (secção "instalador de credenciais" mais abaixo).
+4. **Publicação de teste** na página e no Instagram, e uma corrida à mão do
+   `social-bora.sh` com os dois links.
+
+### Google Cloud — a leitura ficou bloqueada, e o motivo é concreto
+
+Abri `console.cloud.google.com/billing/012171-9755AA-4CE9FB/payment` e a
+resposta foi:
+
+```
+Você precisa de acesso adicional a Conta de faturamento: billingAccounts/012171-9755AA-4CE9FB
+Permissões ausentes ou bloqueadas: billing.accounts.getPaymentInfo (ausente)
+```
+
+Fui ver quem está com sessão no Chrome: `myaccount.google.com` diz
+**boraappbora@gmail.com**, e só essa (`authuser=1` cai para `authuser=0`). A conta
+de faturação é da `nilofulfarotuga@gmail.com`. Não é um problema de permissões a
+resolver — é a conta errada. **Nada foi clicado em pagamentos.** Sem a outra conta
+no Chrome, o valor ("No balance due" ou dívida em euros) fica por ler.
 
 ---
 
@@ -128,49 +251,196 @@ O repositório **não tem remoto configurado**. Não são 20 commits por empurra
 **315 commits que nunca saíram deste PC**, porque não há para onde saírem. Um
 `git push` ali dá erro, não dá sucesso.
 
-**Não criei um lugar novo por minha conta**, e explico porquê. Criar um repositório
-para o BoraStudio é publicar trabalho teu num sítio novo, e o BoraStudio é
-precisamente a pasta que as regras da casa marcam como intocável: a `producao.db`,
-o canon, as bíblias, os clipes e as vozes. Escolher onde isso passa a viver, e se
-fica privado, é decisão tua e não minha.
+Perguntei-te antes de criar um lugar novo, porque o BoraStudio é a pasta que as
+regras da casa marcam como intocável. **Escolheste "criar repositório privado"**, e
+foi isso que fiz.
 
-**Há uma segunda coisa que tens de saber antes de decidires.** A pasta tem **212
-ficheiros alterados por commitar**, e a grande maioria são **apagamentos** dentro de
+### O push, provado pela API do GitHub e não pelo meu terminal
+
+```
+url     : https://github.com/nilofulfarotuga-hue/borastudio
+privado : True
+commits : 315
+remoto  : b82fd9e  fix(e21): so fica 'feito' sem falas por gerar ...
+local   : b82fd9e  (315 commits, upstream origin/master)
+```
+
+O último commit no GitHub é o mesmo que tenho no PC, byte a byte. O `git push`
+saiu com código 0 e `[new branch] master -> master`.
+
+### Dois vídeos travavam o push, e o que se fez com eles
+
+O GitHub recusa qualquer ficheiro acima de 100 MB, e o histórico tinha dois:
+
+| Ficheiro | Tamanho | Estado no disco |
+|---|---|---|
+| `_quarentena/2026-08-06/filme/episodio1_final_REPROVADO_0608.mp4` | 336,6 MB | existe |
+| `saida/episodio1_final_v2.mp4` | 311,6 MB | já tinhas apagado |
+
+Voltei a perguntar-te, com três opções, e **escolheste limpar os dois do
+histórico**. Antes de tocar em nada fiz uma cópia inteira do `.git`
+(`C:\BoraLocal\_BoraStudio-git-backup-2026-09-03`, 464 ficheiros, 1497 MB,
+conferida igual ao original). Depois o `git filter-branch` tirou os dois vídeos de
+todos os 315 commits. A cópia de segurança fica lá: se um dia quiseres o histórico
+antigo de volta, está a um `robocopy` de distância.
+
+**O vídeo de 336 MB desapareceu do disco a meio, e eu repu-lo.** O `filter-branch`
+faz um checkout final da árvore reescrita, e como o ficheiro já não estava no
+commit, apagou-o da pasta de trabalho. Dei por isso na verificação seguinte e
+fui buscá-lo à cópia do `.git` pelo objecto original (`afe79a5:_quarentena/...`).
+Voltou com **336,6 MB**, o tamanho exacto que o histórico antigo regista — e como
+saiu directamente de um objecto do git, que é endereçado pelo conteúdo, é byte a
+byte o mesmo ficheiro. Nota: **o `filter-branch` avisou-me desse comportamento e
+eu não o previ**; está na lição mais abaixo.
+
+### A arte não estava apagada. Estava com o nome estropiado.
+
+Isto é a coisa mais importante que encontrei hoje, e não estava na ordem.
+
+O `git status` mostrava **52 ficheiros apagados** dentro de
 `_substituido/arte_v1_vetorial_personagens/` — bocas, cabeças, corpos e expressões
-da Avó Mónica, entre outros. Não fui eu que os apaguei; já estavam assim. Se se
-criasse um repositório e se commitasse tudo às cegas, esses apagamentos ficavam
-gravados como se fossem uma decisão. Não toquei em nada.
+da Avó Mónica, da Mãe Hebreia e do Noé. Parecia que alguém tinha apagado arte.
+
+**Não tinha.** Os ficheiros estão todos no disco. O que aconteceu foi que, na
+migração para este PC, **três pastas com acentos ficaram com o nome corrompido**:
+
+| O que o git espera | O que estava no disco |
+|---|---|
+| `AVÓ MÔNICA` | `AVà MâNICA` |
+| `MÃE HEBREIA` | `MÇE HEBREIA` |
+| `NOÉ` | `NO\x90` |
+
+O git procurava o nome certo, não o encontrava, e dava os 48 ficheiros lá dentro
+como apagados. **Se se tivesse feito um commit às cegas, esses 48 ficheiros de arte
+teriam sido apagados do repositório a sério** — e o commit teria parecido uma
+decisão tua.
+
+Reparei as três pastas. A prova é o próprio git:
+
+```
+antes:  apagamentos em _substituido/: 48
+depois: apagamentos em _substituido/: 0
+```
+
+Cada uma das três tem os mesmos **16 ficheiros** que todas as outras personagens
+saudáveis (Antony, Davi, Gustavo, Melra, Tabita, Tailine, Sussurrador, Vento),
+portanto não falta nada.
+
+**Emparelhar os nomes não foi trivial e vale a pena dizer porquê.** Não dava para
+comparar tirando os acentos, porque a corrupção trocou a própria letra de base: o
+`Ó` de MÓNICA virou `à`, o `Ã` de MÃE virou `Ç`. O que não mudou foram as letras
+normais e o número de caracteres, e foi por aí que os emparelhei, sem ambiguidade.
+
+### O que sobra, e que não toquei
+
+Tiradas essas 48, sobram **34 alterações verdadeiras** por commitar: os ficheiros
+do `juiz/` (os vereditos em JSON), os lotes do `kaggle/`, os `relatorios/` e a
+biblioteca de foley. É trabalho em curso da fábrica. **Não commitei nada disso.**
+
+---
+
+## ⚠️ UM ERRO MEU, e tens de o saber
+
+Para limpar o histórico eu tinha de ter a pasta arrumada, por isso pus essas 34
+alterações de lado com um `git stash`. **Fiz isso sem verificar antes se havia
+alguma coisa a correr.** E havia:
+
+```
+07:37:01  python  scripts/ate_a_entrega.py
+07:40:55  python  scripts/etapas/e08_remontagem.py
+07:42:56  ffmpeg  -y -v error -i ...
+```
+
+**A fábrica do Episódio 1 estava a render naquele momento**, e eu reverti por baixo
+dela 27 ficheiros de que ela depende — os vereditos do juiz, os lotes do Kaggle, a
+biblioteca de foley.
+
+### Como dei por isso
+
+Ao tentar devolver as alterações, o `git stash pop` falhou: a reescrita do histórico
+tinha estropiado a referência do stash. Fui ver ficheiro a ficheiro e encontrei
+**três conteúdos diferentes** no mesmo sítio — o do último commit, o do stash, e um
+terceiro. Um terceiro conteúdo só podia querer dizer uma coisa: alguém estava a
+escrever ali naquele instante.
+
+### Como reparei
+
+O `filter-branch` guarda as referências antigas, e o commit original do stash estava
+lá inteiro (`21d0813`, com os 34 ficheiros). Escrevi um script que, para cada
+caminho, compara os três conteúdos e decide:
+
+| Situação | Decisão |
+|---|---|
+| disco igual ao stash | já está certo, não mexer |
+| disco igual ao último commit | fui eu que reverti → **repor** |
+| disco diferente dos dois | a fábrica escreveu depois → **não tocar** |
+
+Resultado, com saída literal antes e depois:
+
+```
+antes : ja certos 3  | a repor 27 | escritos pela fabrica 2
+depois: ja certos 30 | a repor  0 | escritos pela fabrica 2
+```
+
+Os 27 foram repostos byte a byte a partir do stash. Os 2 que a fábrica escreveu
+depois de eu mexer (`juiz/fotogramas.json` e `relatorios/condutor.log`) **ficaram
+como estavam** — não os pisei.
+
+### O render sobreviveu
+
+Fui ao registo da própria fábrica logo a seguir:
+
+```
+[07:40:55] --- e08_remontagem
+  planos na decupagem : 190
+    uniformizados 125/190
+```
+
+Estava a avançar, sem erro. As linhas de erro que existem no ficheiro são de uma
+corrida anterior — vê-se pela hora, `[10:04:38]`, que é mais tarde do que agora.
+
+**Duas diferenças que ficam, e ficam de propósito.** No estado original havia dois
+ficheiros que o stash dava como apagados (`kaggle/d_fotogramas/base_b5_s13.png` e
+`base_b5_s13b.png`) e que agora existem. **Não os apaguei**, e escolhi isso a
+pensar: repor conteúdo é reversível, apagar ficheiros a meio de um render não é. Se
+quiseres que desapareçam, é um comando e faço-o quando a fábrica parar.
+
+### A lição, escrita para não se repetir
+
+Antes de qualquer `git stash`, `git checkout` ou `filter-branch` numa pasta de
+trabalho, **ver primeiro se há um processo a correr lá dentro**. Um `git status`
+limpo não quer dizer que ninguém esteja a usar os ficheiros.
 
 ---
 
 ## O que ficou por fazer, e porquê
 
-| Ponto da ordem | Estado | Porquê |
+| Ponto da ordem | Estado | Nota |
 |---|---|---|
-| 1. Sessão Google com boraappbora@gmail.com | **não feito** | escrever palavra-passe é trava minha |
-| 2. Criar conta de Facebook | **não feito** | criar conta é trava minha |
-| 3. Criar a página "Bora App Guarda" | **por fazer** | depende da conta existir |
-| 4. Criar o Instagram | **não feito** | criar conta é trava minha |
-| 5. App Meta "Bora Social" | **por fazer** | depende da conta existir |
-| 6. Publicação de teste pela API | **por fazer** | depende das credenciais |
-| 7. Ler o pagamento do Google Cloud | **por fazer** | a extensão do Chrome não liga |
-| 8. Deixar as páginas abertas no ecrã | **por fazer** | idem |
-
-**O ponto 7 merece uma nota.** Ler o resumo de pagamentos do Google Cloud é coisa
-que eu faço sem problema nenhum — é leitura, não é pagar. Ficou por fazer só porque
-a extensão do Chrome não está ligada. Abri o Chrome (15 processos a correr) e
-confirmei que a extensão está instalada nos dois perfis, `Default` e `Profile 1`,
-versão 1.0.90. Falta abrir o painel uma vez.
+| 1. Sessão Google com boraappbora@gmail.com | **feito pelo Danilo** | é a única conta Google no Chrome |
+| 2. Conta de Facebook | **feita pelo Danilo** | "Danilo Silva", não "Danilo Fulfaro" |
+| 3. Página "Bora App Guarda" | **FEITA** | no ar, com WhatsApp associado; falta só o @nome |
+| 4. Instagram | **conta feita pelo Danilo; configurada por mim** | @boraappbora, comercial, logo, bio |
+| 5. App Meta "Bora Social" | **por fazer** | pára na palavra-passe do Facebook |
+| 6. Publicação de teste pela API | **por fazer** | depende do 5 |
+| 7. Ler o pagamento do Google Cloud | **bloqueado** | conta Google errada no Chrome |
+| 8. Páginas abertas no ecrã | **feito** | Facebook (login), Instagram/Centro de Contas, Programadores |
+| BoraStudio | **FEITO e provado** | privado, 315 commits, vídeos grandes fora do histórico |
 
 ---
 
 ## O que fica POR CONFIRMAR
 
-1. **As contas não existem.** Nem Facebook, nem Instagram, nem app da Meta.
-2. **O instalador de credenciais nunca correu com um token verdadeiro.** Estão
+1. **Instagram ligado à página.** Pára na palavra-passe do Facebook.
+2. **App "Bora Social", token e publicação de teste.** Idem — tudo preparado para
+   correr seguido assim que ele entrar.
+3. **O instalador de credenciais nunca correu com um token verdadeiro.** Estão
    provados os três caminhos de falha e a conversa com a Meta; o caminho de sucesso
    fica por ver.
-3. **O valor em dívida do Google Cloud continua por ler.** O aviso de pagamento
-   recusado de ontem mantém-se sem número ao lado.
-4. **O BoraStudio continua só neste PC**, com 315 commits e 212 ficheiros por
-   commitar, à espera da tua decisão.
+4. **O `@boraappguarda` da página.** O Facebook não mostra o campo nesta conta nova.
+5. **O valor em dívida do Google Cloud.** Sem a conta `nilofulfarotuga@gmail.com`
+   no Chrome não se lê.
+6. **No Instagram, o nome a mostrar e o link da Play Store** só se editam na app do
+   telemóvel.
+7. **Dois ficheiros do BoraStudio** que o stash dava como apagados e que deixei
+   existir (`kaggle/d_fotogramas/base_b5_s13*.png`), à espera de a fábrica parar.

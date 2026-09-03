@@ -40,6 +40,7 @@ class MarketStoreTab extends StatelessWidget {
 
   // TODO: ETA hardcoded 2.5min/km — mover para platform_settings ou RPC dedicado em sessão futura.
   static const double _etaMinPerKm = 2.5;
+
   // Gate só para "Em promoção" / "Mais vendidos" (rails de destaque no topo).
   static const int _minSectionProducts = 3;
   // Produtos mostrados em cada carrossel de categoria (paridade Glovo: ~10-12).
@@ -147,23 +148,25 @@ class MarketStoreTab extends StatelessWidget {
                     color: AppColors.textPrimary,
                   ),
                 ),
-                const SizedBox(height: 6),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    'Frescura garantida'.tr,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primary,
+                if (restaurant.podeAnunciarFrescura) ...[
+                  const SizedBox(height: 6),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      'Frescura garantida'.tr,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary,
+                      ),
                     ),
                   ),
-                ),
+                ],
               ],
             ),
           ),

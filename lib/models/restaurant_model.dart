@@ -267,6 +267,24 @@ class RestaurantModel {
   bool belongsTo(BusinessCategory section) =>
       category == section || extraCategories.contains(section);
 
+  /// True quando faz sentido mostrar o selo "Frescura garantida".
+  ///
+  /// Só onde há comida fresca: Restaurantes, Supermercados e Sobremesas. Numa
+  /// farmácia, numa loja de electrónica ou numa loja de festas por encomenda o
+  /// selo é uma promessa falsa.
+  ///
+  /// O selo era mostrado **sem condição nenhuma** em `MarketStoreTab`: a Wells
+  /// (farmácia) e a Worten (electrónica) apareciam a prometer frescura.
+  /// Apanhado a 2026-09-03, nas capturas de ecrã para o filme do Bora.
+  ///
+  /// Usa [belongsTo], por isso lê também `extra_categories`: a Goola Açaí
+  /// (`restaurant` + `sobremesa`) e a Sabores de Casa (`restaurant` +
+  /// `supermarket`) continuam a mostrá-lo.
+  bool get podeAnunciarFrescura =>
+      belongsTo(BusinessCategory.restaurant) ||
+      belongsTo(BusinessCategory.supermarket) ||
+      belongsTo(BusinessCategory.sobremesa);
+
   /// Hora em PT-PT: "10:00" passa a "10h00".
   static String _horaBonita(String hhmm) => hhmm.replaceFirst(':', 'h');
 

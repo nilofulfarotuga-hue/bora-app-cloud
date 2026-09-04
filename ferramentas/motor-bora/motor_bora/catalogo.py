@@ -68,13 +68,17 @@ PRECO_POR_MILHAO = {
 # 5 mensagens em 30 s esgotaram os 8 000 tokens/min do Groq e a prova 4 ficou com 5 respostas acima de 5 s).
 PERFIS = {
     "chat-rapido": {"timeout": 7, "orcamento": 12, "max_tokens": 300, "sensivel": True,
-                    "modo": "rodizio", "rodizio_topo": 4, "candidatos": [
+                    # 04/09 (2.a volta): o Kilo estava no fim da lista e o topo-4 nunca lá chegava — nunca serviu uma
+                    # resposta real. Sobe para o topo e o rodizio passa a 6: o unico fornecedor que nao depende de
+                    # cliques entra na rotacao a valer (~1 em cada 3 respostas), e nao so como ultimo recurso.
+                    "modo": "rodizio", "rodizio_topo": 6, "candidatos": [
         ("groq", "openai/gpt-oss-120b"), ("groq", "qwen/qwen3.8-27b"), ("cerebras", "gpt-oss-120b"), ("cerebras", "llama-3.3-70b"),
-        ("gemini", "gemini-3.1-flash-lite"), ("gemini", "gemini-3-flash-preview"), ("sambanova", "Meta-Llama-3.3-70B-Instruct"),
-        ("openrouter", "deepseek/deepseek-chat-v3.1:free"), ("openrouter", "meta-llama/llama-3.3-70b-instruct:free"),
-        ("nvidia", "meta/llama-3.3-70b-instruct"), ("github", "openai/gpt-4o-mini"), ("cloudflare", "@cf/meta/llama-3.3-70b-instruct-fp8-fast"),
-        ("zhipu", "glm-4.5-flash"), ("cohere", "command-r-08-2024"),
+        ("gemini", "gemini-3.1-flash-lite"), ("gemini", "gemini-3-flash-preview"),
         ("kilo", "stepfun/step-3.7-flash:free"), ("kilo", "dots-studio/dots-3-note-preview:free"),
+        ("sambanova", "Meta-Llama-3.3-70B-Instruct"),
+        ("openrouter", "deepseek/deepseek-chat-v3.1:free"), ("openrouter", "meta-llama/llama-3.3-70b-instruct:free"),
+        ("nvidia", "meta/llama-3.3-70b-instruct"), ("cloudflare", "@cf/meta/llama-3.3-70b-instruct-fp8-fast"),
+        ("zhipu", "glm-4.5-flash"), ("cohere", "command-r-08-2024"),
         ("kilo", "liquid/lfm-2.5-2.6b:free"), ("ollama-cloud", "gpt-oss:120b"),
         ("ovh", "gpt-oss-120b"), ("ovh", "Meta-Llama-3_3-70B-Instruct"),
         ("ollama", "qwen2.5:7b-instruct"), ("zen", "nemotron-3-ultra-free")]},

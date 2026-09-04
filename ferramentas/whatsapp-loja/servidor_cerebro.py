@@ -104,6 +104,8 @@ def emitir(numero, texto, motivo):
     return item["id"]
 
 
+_ultimo_pendentes = 0.0   # quando a porta veio buscar a fila pela ultima vez (a extensao pede de 2 em 2 s)
+_avisou_porta_muda = 0.0
 _emitidos = []          # (numero, texto normalizado) das ultimas 300 saidas do proprio cerebro
 _norm = lambda t: re.sub(r"\s+", " ", (t or "").strip().lower())[:200]
 
@@ -121,9 +123,23 @@ def emitir_e_registar(numero, texto, motivo, modelo=None):
     return mid
 
 
+_reenviados = {}          # (numero, texto normalizado) -> quando; uma segunda volta na fila, nunca mais
+
+
 def _entrega_falhou(numero, texto, erro, msg_id=None):
-    """A extensao nao viu a bolha depois de 3 tentativas: o Danilo sabe ja, e se a VPS estiver
-    emparelhada a mensagem sai por la (fila partilhada no Supabase)."""
+    """A extensao nao viu a bolha depois de 3 tentativas. Antes de desistir, volta UMA vez a fila 30 s
+    depois (a 04/09 falhou porque a conversa nao abriu no momento certo, e 20 s depois abriu bem).
+    Se voltar a falhar: o Danilo sabe, e se a VPS estiver emparelhada a mensagem sai por la."""
+    chave = (numero, _norm(texto))
+    agora = time.time()
+    for k, q in list(_reenviados.items()):
+        if agora - q > 600:
+            _reenviados.pop(k, None)
+    if chave not in _reenviados and not envio_desligado():
+        _reenviados[chave] = agora
+        registar({"evento": "entrega-falhou-1a-vez", "numero": numero, "texto": texto[:120], "erro": erro, "acao": "volta a fila em 30 s"})
+        threading.Timer(30, lambda: emitir_e_registar(numero, texto, "reenvio:" + str(erro or "sem bolha")[:40])).start()
+        return
     registar({"evento": "entrega-falhou", "numero": numero, "texto": texto[:200], "erro": erro, "msg_id": msg_id})
     vps = bool(supa.definicao("vps_emparelhada", False))
     if vps and PORTA != "vps-baileys":
@@ -389,6 +405,11 @@ def _cron():
                     emitir_e_registar(s["numero"], s["texto"], "fila-partilhada:" + (s.get("motivo") or ""))
                     supa.update("whatsapp_saida", {"estado": "emitida", "emitida_em": datetime.datetime.now(datetime.timezone.utc).isoformat()}, id="eq." + str(s["id"]))
                     registar({"evento": "fila-partilhada-emitida", "numero": s["numero"], "id": s["id"]})
+            # PORTA MUDA (04/09): a extensao pede /pendentes de 2 em 2 s. Se ha mensagens na fila e ninguem
+            # as vem buscar ha mais de 90 s, a porta morreu (o separador do WhatsApp Web fechou-se as 05:30 de
+            # hoje e ninguem deu por isso). Isto e o mesmo buraco da falha F, visto do outro lado: o cerebro
+            # decidiu, a mensagem ficou na fila e o cliente nunca soube.
+            porta_muda(agora)
             # VAGA ABERTA (02/09 noite): o Danilo abre a vaga no painel; o bot avisa a lista de espera pela ordem
             if agora - ultimo_vaga > 300:
                 ultimo_vaga = agora
@@ -397,6 +418,40 @@ def _cron():
         except Exception as e:  # noqa: BLE001
             registar({"evento": "cron-erro", "erro": str(e)[:200]})
         time.sleep(20)
+
+
+def porta_muda(agora):
+    """A fila tem mensagens e ninguem as vem buscar -> a porta esta morta. Marca no banco, avisa o Danilo
+    (uma vez por 10 min) e passa o que esta em fila para a outra porta, se ela estiver emparelhada."""
+    global _avisou_porta_muda
+    with _saida_lock:
+        n, item = len(_saida), (_saida[0] if _saida else None)
+    if not n or envio_desligado():
+        return
+    parada = agora - (_ultimo_pendentes or 0)
+    if parada < 90:
+        return
+    registar({"evento": "porta-muda", "em_fila": n, "sem_pendentes_ha_s": round(parada), "porta": PORTA})
+    with _saida_lock:
+        presos, _saida[:] = list(_saida), []
+    vps = bool(supa.definicao("vps_emparelhada", False)) and PORTA != "vps-baileys"
+    for it in presos:
+        try:
+            supa.update("whatsapp_messages", {"entrega_estado": "porta-muda", "entrega_erro": "a porta nao veio buscar a fila ha %d s" % parada},
+                        msg_id="eq." + str(it["id"]))
+        except Exception:
+            pass
+        if vps:
+            try:
+                supa.insert("whatsapp_saida", {"numero": it["numero"], "texto": it["texto"], "porta_destino": "vps-baileys",
+                                               "motivo": "porta-muda-" + PORTA, "origem": it["id"], "estado": "pendente"}, devolve=False)
+            except Exception:
+                pass
+    if agora - _avisou_porta_muda > 600:
+        _avisou_porta_muda = agora
+        avisar("WhatsApp da loja — A PORTA ESTÁ MUDA: %d mensagem(ns) ficaram na fila e ninguém as veio buscar há %d s. "
+               "Normalmente é o separador do WhatsApp Web fechado no Chrome.%s" % (n, parada, " Passei-as à VPS." if vps else
+               " A VPS não está emparelhada, por isso responde tu a: %s" % (item or {}).get("numero", "")))
 
 
 def avisar_lista_de_espera():
@@ -502,7 +557,8 @@ class H(BaseHTTPRequestHandler):
                                     "cadeia": modelos.estado(), "ollama": modelos.ollama_vivo(), "pedir_censo": pedir,
                                     "em_buffer": len(_buffer), "em_fila": len(_saida)})
         if self.path.startswith("/pendentes"):
-            global _ultimo_envio
+            global _ultimo_envio, _ultimo_pendentes
+            _ultimo_pendentes = time.time()          # a porta esta viva: e ela que vem buscar a fila
             if envio_desligado():
                 with _saida_lock:
                     _saida.clear()

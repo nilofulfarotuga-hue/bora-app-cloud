@@ -11,6 +11,7 @@
   - Telegram ao Danilo so quando 3 fornecedores seguidos falham (uma vez por 10 min), nunca por cada 429
 """
 import collections
+import hashlib
 import datetime
 import json
 import os
@@ -356,9 +357,9 @@ class Roteador:
                     texto = msg.get("content") or ""
                     if isinstance(texto, list):
                         texto = "".join(x.get("text", "") for x in texto if isinstance(x, dict))
-                    if not (texto or "").strip():          # ha gateways que poem a resposta no campo do raciocinio
-                        alt = msg.get("reasoning_content") or msg.get("reasoning") or ""
-                        texto = alt if isinstance(alt, str) else ""
+                    # NAO se usa `reasoning_content` como resposta: a 04/09 isso mandou o raciocinio cru, em
+                    # ingles ("The user wants to be an estafeta..."), para o WhatsApp de um cliente. Campo vazio
+                    # = falha, passa-se ao motor seguinte.
                     texto = re.sub(r"<think>.*?</think>\s*", "", texto, flags=re.S)
                     texto = re.sub(r"<think>.*$", "", texto, flags=re.S).strip()
                     msg["content"] = texto
@@ -429,6 +430,12 @@ class Roteador:
                          "sensivel_ok": spec.get("sensivel_ok", True), "nota": spec.get("nota")}
         return out
 
+    @staticmethod
+    def _assinatura(perfil):
+        """Impressao digital da lista de candidatos do catalogo para este perfil (ordem incluida)."""
+        cands = (C.PERFIS.get(perfil) or {}).get("candidatos") or []
+        return hashlib.sha1(("|".join("%s:%s" % (f, m) for f, m in cands)).encode("utf-8")).hexdigest()[:12]
+
     def _carregar_estado(self):
         if not self.estado_path or not os.path.exists(self.estado_path):
             return
@@ -447,9 +454,19 @@ class Roteador:
                     x = self._uso(forn)
                     x.update(rpd=u.get("rpd", 0), tokens_dia=u.get("tokens_dia", 0), ok=u.get("ok", 0),
                              falhas=u.get("falhas", 0), custo_dia=float(u.get("custo_dia", 0.0)))
+            # A ordem guardada vem do auto-teste (mede qualidade e velocidade) e manda ENQUANTO o catalogo nao
+            # mudar. Se eu mexer no catalogo (candidato novo, ou um que sobe de posicao), a ordem guardada e
+            # deitada fora nesse perfil e o catalogo volta a mandar -- o proximo auto-teste re-ordena.
+            # (04/09: pus o Kilo no topo do catalogo e a ordem guardada continuava a manda-lo para o fim;
+            #  resultado: o unico fornecedor sem chave nunca servia uma resposta real.)
+            assinaturas = d.get("catalogo") or {}
             for p, o in (d.get("ordem") or {}).items():
-                if p in self.ordem and o:
-                    self.ordem[p] = [tuple(x) for x in o]
+                if p not in self.ordem or not o:
+                    continue
+                if assinaturas.get(p) != self._assinatura(p):
+                    self.registar({"evento": "ordem-reposta", "perfil": p, "motivo": "o catalogo mudou"})
+                    continue                      # fica a ordem do catalogo
+                self.ordem[p] = [tuple(x) for x in o if tuple(x) in [tuple(y) for y in (C.PERFIS.get(p, {}).get("candidatos") or [])]]
             self.autoteste_ultimo = d.get("autoteste_ultimo")
         except Exception:
             pass
@@ -461,6 +478,7 @@ class Roteador:
              "uso": {f: {"dia": u["dia"], "rpd": u["rpd"], "tokens_dia": u["tokens_dia"], "ok": u["ok"], "falhas": u["falhas"],
                          "custo_dia": round(u.get("custo_dia", 0.0), 6)} for f, u in self.uso.items()},
              "retirados": self.retirados, "rr_perfil": self.rr_perfil,
+             "catalogo": {p: self._assinatura(p) for p in C.PERFIS},
              "ordem": {p: [list(x) for x in o] for p, o in self.ordem.items()}, "autoteste_ultimo": self.autoteste_ultimo,
              "guardado": datetime.datetime.now().isoformat(timespec="seconds")}
         tmp = self.estado_path + ".tmp"

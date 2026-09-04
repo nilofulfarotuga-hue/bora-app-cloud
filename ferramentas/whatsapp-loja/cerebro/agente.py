@@ -76,8 +76,39 @@ RE_NEGA_MEIO = re.compile(r"\bn[ãa]o (fazemos|temos|oferecemos|prestamos|dispon
                           r"\bapenas (fazemos|entregamos|somos)\b|\bs[oó] (fazemos|entregamos|somos)\b", re.I)
 
 
+# RACIOCINIO CRU (04/09): o kilo:lfm mandou "The user wants to be an estafeta (courier/delivery)..." para o
+# WhatsApp do Danilo. Nenhuma resposta ao cliente comeca a falar DELE na terceira pessoa nem em ingles.
+RE_RACIOCINIO_CRU = re.compile(
+    r"^\s*(the user|user (wants|is asking|asked)|we (need|should)|i (need|should|will|must)\b|okay,? (so|let)|let'?s |"
+    r"first,? (i|we|let)|assistant:|system:|thinking:|analysis:|reasoning:|resposta:|o utilizador (quer|pergunta)|"
+    r"a pessoa (quer|pergunta|esta a perguntar))", re.I)
+RE_MUITO_INGLES = re.compile(r"\b(the|and|with|about|delivery|courier|should|would|because|however)\b", re.I)
+
+
+def _parece_raciocinio(texto):
+    """True se isto e o modelo a pensar em voz alta, nao uma resposta ao cliente."""
+    t = (texto or "").strip()
+    if not t:
+        return False
+    if RE_RACIOCINIO_CRU.match(t):
+        return True
+    ingles = len(RE_MUITO_INGLES.findall(t))
+    return ingles >= 4 and not re.search(r"[ãõçáéíóúâêô]", t)      # texto claramente ingles e sem acentos PT
+
+
+# VAGAS DE ESTAFETA (regra do Danilo, 31/08): NAO HA VAGAS -- lista de espera. A 04/09 o gemini respondeu
+# "Sim, temos vagas abertas" a uma mensagem real. Prometer vaga que nao existe e pior do que nao responder.
+RE_DIZ_QUE_HA_VAGAS = re.compile(
+    r"\b(temos|h[aá]|existem|estamos com|abrimos|abriram|tenho)\b[^.!?\n]{0,40}\bvagas?\b|"
+    r"\bvagas?\b[^.!?\n]{0,25}\b(abertas?|dispon[ií]ve|sim)\b|\bestamos a (contratar|recrutar)\b|"
+    r"\bpode (come[çc]ar|iniciar) (j[aá]|hoje|amanh[ãa])\b", re.I)
+RE_NEGA_VAGAS = re.compile(r"n[ãa]o (h[aá]|temos|existem)[^.!?\n]{0,25}vagas?|sem vagas|lista de espera", re.I)
+
+
 def _corrigir_negacao_de_vertical(msg, texto):
     """Devolve (texto, vertical_corrigida). Só actua quando a PERGUNTA é sobre a vertical."""
+    if RE_ESTAFETA.search(msg or "") and RE_DIZ_QUE_HA_VAGAS.search(texto or "") and not RE_NEGA_VAGAS.search(texto or ""):
+        return TEXTO_ESTAFETA, "vagas-inventadas"
     for nome, (padrao, certo) in VERTICAIS.items():
         if re.search(padrao, msg or "", re.I) and (RE_NEGA.search(texto or "") or RE_NEGA_MEIO.search(texto or "")):
             return certo, nome
@@ -469,6 +500,10 @@ def _rapido(ctx, f, msg, tratamento, prova, lingua_, registo_, cumprimentou_hoje
         r = _chamar("chat-rapido")
         caixa["modelo"], caixa["erro"] = r.get("modelo"), r.get("erro")
         texto = (r.get("texto") or "").strip()
+        if texto and _parece_raciocinio(texto) and (r.get("lingua_pedida") or lingua_) != "en":
+            registar({"evento": "raciocinio-cru-bloqueado", "numero": numero, "texto": texto[:160], "modelo": r.get("modelo")})
+            caixa["raciocinio_cru"] = texto[:160]
+            texto = ""                                  # trata-se como se o motor nao tivesse respondido
         if not texto:
             # DUAS VELOCIDADES: os motores rapidos falharam -> UMA frase humana ESPECIFICA (nunca a generica,
             # e nunca duas vezes na mesma conversa), e o perfil de raciocinio completa a resposta.

@@ -121,3 +121,67 @@ Ollama local. Sem chave ainda — salta em 0 ms.
 
 **Não foram criadas contas múltiplas em nenhum fornecedor** — o risco de banir a conta principal do
 Bora não compensa o que se ganharia.
+
+---
+
+# Segunda volta (06:30–07:00) — as duas colunas que faltavam no banco
+
+O Danilo apanhou duas coisas: `entrega_estado` vazio em todas as saídas do dia, e o Kilo sem uma única
+resposta real. Ambas verdadeiras. Aqui está a causa de cada uma e a prova com linhas reais.
+
+## Porque é que `entrega_estado` estava vazio
+
+Duas razões, e a segunda é grave:
+1. **Todas as saídas do dia eram `porta='prova'`.** O `/prova` decide e regista, mas nunca põe nada na
+   fila de saída — logo nunca há `/enviado` e a coluna fica vazia. É o comportamento certo para um
+   teste, mas significa que eu nunca tinha provado o caminho de SUCESSO, só o de falha (02/09).
+2. **A porta estava muda desde as 05:30:07.** O separador do WhatsApp Web fechou-se quando abri os 8
+   separadores dos fornecedores, e o *content script* morre com ele. O cérebro continuou a decidir; a
+   fila continuou a encher; ninguém a foi buscar. É o mesmo buraco da falha F visto do outro lado.
+
+**Correcção:** o cérebro passou a vigiar a própria porta (`porta_muda`): se há mensagens na fila e
+ninguém pede `/pendentes` há mais de 90 s, marca as linhas com `entrega_estado='porta-muda'`, avisa o
+Danilo no Telegram e passa-as à VPS se ela estiver emparelhada. **Segunda tentativa:** uma entrega que
+falha volta UMA vez à fila 30 s depois, antes de se desistir.
+
+## As linhas reais (número de teste do Danilo, porta `pc-extensao`)
+
+```
+id   hora      modelo                                    ms  enviada  entrega   tent
+467  06:35:32  groq:qwen/qwen3.8-27b                   2000  true     visto     2
+469  06:35:49  gemini:gemini-3.1-flash-lite            2900  true     visto     1
+471  06:36:11  kilo:stepfun/step-3.7-flash:free        7700  true     visto     1
+473  06:36:27  kilo:dots-studio/dots-3-note-preview    5800  true     visto     1
+477  06:36:40  groq:openai/gpt-oss-120b                2900  true     visto     1
+479  06:36:55  groq:qwen/qwen3.8-27b                   1900  true     visto     1
+481  06:39:18  gemini:gemini-3.1-flash-lite            3300  false    falhou    3   <- corrigida, ver abaixo
+483  06:39:39  kilo:stepfun/step-3.7-flash:free        8000  true     visto     1
+485  06:39:49  facto-fixo                              1100  true     visto     1
+487  06:42:50  groq:openai/gpt-oss-120b               11700  true     visto     1
+489  06:42:57  groq:openai/gpt-oss-120b                1800  true     visto     1
+491  06:43:15  groq:openai/gpt-oss-120b                1800  false    falhou    3   <- reenviada
+493  06:43:32  groq:qwen/qwen3.8-27b                   1500  true     visto     1
+494  06:43:54  reenvio                                    —  true     visto     1   <- a 491 entregue à segunda
+```
+Resumo do banco: **15 saídas reais, todas com `entrega_estado` preenchido** — 13 `visto`, 2 `falhou`
+(uma delas entregue à segunda). **4 servidas pelo Kilo**, todas entregues.
+
+## Porque é que o Kilo não servia nada
+
+O Kilo estava no fim da lista e o rodízio só rodava os 4 primeiros — nunca lá chegava. Subiu para o
+topo do catálogo e o rodízio passou a 6. Havia ainda uma armadilha: **a ordem guardada pelo auto-teste
+esmagava a posição nova do catálogo**, por isso um candidato novo ficava sempre no fim. Agora o estado
+guarda a assinatura da lista do catálogo: se o catálogo mudar, a ordem guardada é deitada fora nesse
+perfil e o auto-teste da noite re-ordena.
+
+## Dois erros meus, apanhados nesta volta
+
+1. **Raciocínio cru enviado a um cliente.** Eu tinha posto o roteador a ler `reasoning_content` quando
+   o `content` vinha vazio. Resultado: a linha 475 mandou *"The user wants to be an estafeta
+   (courier/delivery)…"* para o WhatsApp do Danilo. Tirei essa leitura (campo vazio = falha, passa ao
+   motor seguinte) e pus uma trava no cérebro (`_parece_raciocinio`) que bloqueia qualquer resposta que
+   comece a falar do utilizador na terceira pessoa ou que seja claramente inglês. 7 de 7 em teste.
+2. **Vagas de estafeta inventadas.** A linha 481 dizia *"Sim, temos vagas abertas"* — a regra é que
+   **não há vagas**, é lista de espera. Trava nova (`RE_DIZ_QUE_HA_VAGAS`): se a pergunta é sobre ser
+   estafeta e a resposta promete vaga, sai o texto certo. Provado ao vivo: o modelo escreveu "Ainda
+   temos vagas" e o que chegou ao WhatsApp foi *"De momento não há vagas para estafeta…"* (linha 487).

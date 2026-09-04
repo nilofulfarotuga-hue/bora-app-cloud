@@ -86,10 +86,10 @@ PERFIS = {
         ("gemini", "gemini-3-flash-preview"), ("groq", "openai/gpt-oss-120b"), ("cerebras", "qwen-3-235b-a22b-instruct-2507"),
         ("openrouter", "deepseek/deepseek-r1:free"), ("openrouter", "deepseek/deepseek-chat-v3.1:free"), ("nvidia", "deepseek-ai/deepseek-r1"),
         ("github", "openai/gpt-4.1"), ("sambanova", "DeepSeek-V3.1"), ("ovh", "Qwen3.5-397B-A17B"), ("ovh", "gpt-oss-120b"),
-        ("zen", "nemotron-3-ultra-free"), ("gemini", "gemini-3.1-flash-lite"), ("mistral", "mistral-small-latest"),
+        ("zen", "nemotron-3-ultra-free"), ("gemini", "gemini-3.1-flash-lite"), ("mistral", "ministral-8b-latest"),
         ("ollama-cloud", "gpt-oss:120b"), ("kilo", "stepfun/step-3.7-flash:free"), ("ollama", "qwen2.5:7b-instruct")]},
     "volume": {"timeout": 60, "orcamento": 180, "max_tokens": 1200, "sensivel": False, "modo": "rodizio", "rodizio_topo": 3, "candidatos": [
-        ("cerebras", "gpt-oss-120b"), ("cerebras", "llama-3.3-70b"), ("mistral", "mistral-small-latest"), ("nvidia", "meta/llama-3.3-70b-instruct"),
+        ("cerebras", "gpt-oss-120b"), ("cerebras", "llama-3.3-70b"), ("mistral", "ministral-8b-latest"), ("nvidia", "meta/llama-3.3-70b-instruct"),
         ("openrouter", "deepseek/deepseek-chat-v3.1:free"), ("github", "openai/gpt-4o-mini"), ("cloudflare", "@cf/meta/llama-3.3-70b-instruct-fp8-fast"),
         ("ovh", "gpt-oss-120b"), ("groq", "openai/gpt-oss-120b"), ("gemini", "gemini-3.1-flash-lite"), ("zen", "nemotron-3-ultra-free"),
         ("kilo", "stepfun/step-3.7-flash:free"), ("kilo", "dots-studio/dots-3-note-preview:free"),

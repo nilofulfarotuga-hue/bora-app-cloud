@@ -19,7 +19,7 @@ import threading
 import time
 
 from . import ferramentas_bot as FB
-from . import fichas, fio, identidade, manual, modelos, supa, tarefas, telegram
+from . import fichas, fio, identidade, manual, modelos, supa, tarefas, telegram, verdades
 
 OWN = "351937501673"
 ORCAMENTO_S = 20.0
@@ -255,8 +255,11 @@ def _resumo_pedidos(res):
     return "Vi agora: o seu último pedido%s ficou %s%s. Se for outro pedido, diga-me qual." % (loja, p.get("estado"), quando)
 
 
-def _pos_processar(texto, f, tratamento, cumprimentou_hoje):
+def _pos_processar(texto, f, tratamento, cumprimentou_hoje, msg=None):
     t = (texto or "").strip()
+    # A FOLHA DE VERDADES verifica AQUI, porque todos os caminhos (facto fixo, fio, rapido, escalar)
+    # passam por esta funcao: e a ultima porta antes de a frase ir para a fila de saida.
+    t, _motivo = verdades.verificar_saida(msg or "", t)
     t = re.sub(r"<think>.*?</think>\s*", "", t, flags=re.S)   # raciocinio de modelos "thinking" (qwen3.6 no Groq, 02/09)
     t = re.sub(r"<think>.*$", "", t, flags=re.S)
     t = re.sub(r"[*_#`>]+", "", t)                       # sem markdown
@@ -278,13 +281,17 @@ def _pos_processar(texto, f, tratamento, cumprimentou_hoje):
 
 
 def _escalar_texto(motivo, tratamento, f, lingua_):
+    """URGENCIA (04/09): nada disto pode esperar, e o nome do dono nunca sai. Manda-se ligar para a loja,
+    numa frase curta e simpatica, e avisa-se a equipa no Telegram ao mesmo tempo."""
     nome = (" " + f["nome"].split()[0]) if tratamento == "nome" else ""
     if lingua_ == "en":
-        return ["Got it%s — I've passed this to Danilo and he'll reply here shortly." % (", " + f["nome"].split()[0] if nome else "")]
-    base = {"dinheiro": "Recebi%s, e já passei ao Danilo — é ele que trata de valores e reembolsos, e responde-lhe já por aqui.",
-            "reclamacao": "Lamento mesmo%s. Já passei ao Danilo com tudo o que me disse, e ele responde-lhe já por aqui.",
-            "falta": "Percebo%s, isso não devia ter acontecido. Já avisei o Danilo agora mesmo e ele vem já responder-lhe."}
-    return [base.get(motivo, base["dinheiro"]) % nome]
+        return ["Got it%s — for this to be sorted right away, please call us on %s. I've alerted the team here too."
+                % (", " + f["nome"].split()[0] if nome else "", verdades.NUMERO_LOJA)]
+    base = {"dinheiro": "Recebi%s. Isto é de valores, e resolve-se mais depressa ao telefone: ligue-nos para {n}. Já avisei a equipa também.",
+            "reclamacao": "Lamento mesmo%s. Para tratarmos disto já, ligue-nos para {n} — resolve-se muito mais depressa. Já avisei a equipa.",
+            "falta": "Percebo%s, isso não devia ter acontecido. Ligue-nos para {n} que resolvemos já. Avisei a equipa neste momento.",
+            "urgente": "Percebo%s, e isto não pode esperar. Ligue-nos para {n} que tratamos disso já. Já avisei a equipa."}
+    return [(base.get(motivo, base["dinheiro"]) % nome).replace("{n}", verdades.NUMERO_LOJA)]
 
 
 def _executar_com_orcamento(c, ctx, t0, dec, emitir):
@@ -325,7 +332,7 @@ RAPIDO = os.environ.get("CEREBRO_RAPIDO", "1") != "0"
 RE_SO_CUMPRIMENTO = re.compile(
     r"^\W*(olá|ola|oi+|oie|bom dia|boa tarde|boa noite|boas|hey|hi|hello|e a[ií]|eai|opa)"
     r"(\W+(tudo bem|td bem|tudo bom|tudo certo|como (est[aá]|vai)|blz|beleza|bom dia|boa tarde|boa noite))*\W*$", re.I)
-SEM_RESPOSTA_TEXTO = "Não tenho essa informação aqui à mão — já passei ao Danilo e ele responde-lhe por aqui."
+SEM_RESPOSTA_TEXTO = verdades.FRASE_NAO_SEI      # "Vou confirmar isso com o meu superior e volto já com a resposta."
 TEXTO_ESTAFETA = ("De momento não há vagas para estafeta — a equipa está completa e as aprovações dependem da procura. "
                   "Fico com o seu contacto na lista de espera e aviso-o assim que abrir vaga. Pode dizer-me o seu nome e "
                   "que veículo tem (mota, carro ou bicicleta)?")
@@ -344,17 +351,16 @@ def _sistema_rapido(f, tratamento, lingua_, registo_):
         ficha["detalhe"] = {k: v for k, v in det.items() if k in ("loja", "n_pedidos", "ultimo_pedido", "estado")}
     sempre = manual.sempre()
     partes = [
-        "Es o atendimento do Bora (app de entregas e servicos na Guarda, Portugal) no WhatsApp da loja. Falas como o "
-        "Danilo, o fundador: curto, humano, simples, 1 a 3 frases, sem listas, sem markdown, sem emojis em cadeia. Nunca "
-        "dizes que es um bot a nao ser que perguntem (ai: assistente do Bora; o Danilo le tudo).",
-        "SO DIZES O QUE ESTA VERIFICADO: nos FACTOS DA OPERACAO, no MANUAL que te derem, ou no resultado de 'pedidos'. "
-        "Nunca inventes precos, horarios, prazos ou regras. Se nao tens a informacao, diz numa frase que nao tens isso a "
-        "mao e que o Danilo responde por aqui. PROIBIDO escrever 'vou ver', 'vou verificar', 'ja lhe digo', 'um momento', "
-        "'dou-lhe resposta em X minutos' -- nao ha nada para ir ver: ou respondes com o que tens, ou dizes que o Danilo "
-        "responde.",
-        "NUNCA empurras a pessoa para fora (outro numero, email, formulario, 'aguarde contacto'); resolve-se aqui; guiar "
-        "para a app do Bora e bom. Dinheiro/reembolso/desconto/reclamacao: acusas recepcao e dizes que o Danilo responde "
-        "ja; nunca valores.",
+        verdades.FOLHA_TEXTO,          # A FOLHA vai SEMPRE, e e a primeira coisa que o modelo le
+        "Es o atendimento do Bora (app de entregas e servicos na Guarda, Portugal) no WhatsApp da loja. Falas em nome da "
+        "loja: curto, humano, simples, 1 a 3 frases, sem listas, sem markdown, sem emojis em cadeia. Nunca dizes que es "
+        "um bot a nao ser que perguntem (ai: es o atendimento do Bora). NUNCA nomeias o dono nem dizes que falas com ele.",
+        "SO DIZES O QUE ESTA NA FOLHA, no MANUAL que te derem, ou no resultado de 'pedidos'. Nunca inventes precos, "
+        "horarios, prazos ou regras, e NUNCA negues um servico que nao esta na folha -- para isso ha uma frase so: "
+        "\"%s\" PROIBIDO escrever 'vou ver', 'ja lhe digo', 'dou-lhe resposta em X minutos'." % verdades.FRASE_NAO_SEI,
+        "Resolve-se aqui; guiar para a app do Bora e bom. DINHEIRO, reembolso, cobranca errada, pedido a decorrer ou "
+        "reclamacao: NAO mandas esperar -- pedes para ligarem para %s, numa frase curta e simpatica; nunca dizes valores."
+        % verdades.NUMERO_LOJA,
         "Segue o fio da conversa; nao recomecas; nao repetes o cumprimento; a 'obrigado' meia frase. ESTAFETAS: sem vagas, "
         "lista de espera, pede 1-2 dados (nome, veiculo, zona, disponibilidade). PARCEIROS: venda no tom do Danilo (pomos a "
         "loja na app, clientes da Guarda pedem, nossos estafetas entregam, so prepara; comissao 10% no acerto semanal; a "
@@ -402,9 +408,26 @@ def _frase_especifica(msg, tipo_lead, tem_pedido):
 def _fechar(dec, f, ctx, texto, tratamento, prova, lingua_, cumprimentou_hoje, modelo, ferramentas, erro, t0, registar, msg=None):
     """Pos-processamento + PROMESSA = TAREFA + FIO (ultimas trocas) + ficha + decisao."""
     numero = ctx["numero"]
-    bolhas = _pos_processar(texto, f, tratamento, cumprimentou_hoje)
+    bolhas = _pos_processar(texto, f, tratamento, cumprimentou_hoje, msg)
     if not bolhas:
         bolhas = [identidade.saudacao(tratamento, f, lingua_)] if not cumprimentou_hoje else ["Diga."]
+    # ULTIMA PORTA ANTES DO CLIENTE (04/09): a folha de verdades verifica a saida, nao so o prompt.
+    # Nome do dono, negar um servico que existe, afirmar um que nao existe, ou negar algo fora da folha.
+    junto_bruto = " ".join(bolhas)
+    corrigido, motivo_folha = verdades.verificar_saida(msg or "", junto_bruto)
+    if motivo_folha:
+        registar({"evento": "folha-de-verdades", "numero": numero, "motivo": motivo_folha,
+                  "antes": junto_bruto[:200], "depois": corrigido[:120], "modelo": modelo})
+        dec["folha_corrigiu"] = motivo_folha
+        bolhas = [corrigido]
+        if motivo_folha in ("negou-fora-da-folha",) or motivo_folha.startswith("nome-do-dono"):
+            # nao sabe -> promessa a serio: tarefa de 30 min e a vigia atras dela
+            t = tarefas.criar(numero, "confirmar com a equipa: " + (msg or "")[:100], 30, "danilo-folha")
+            dec["tarefas"].append(t["id"])
+            fichas.anotar_promessa(f, "confirmar: " + (msg or "")[:60], "aberta", t["id"])
+            threading.Thread(target=telegram.enviar, args=(
+                "WhatsApp da loja — %s perguntou \"%s\" e isso não está na folha de verdades. Disse-lhe que confirmava e "
+                "volto com a resposta. Precisa de ti." % (numero, (msg or "")[:200]), registar), daemon=True).start()
     dec["tarefas"] += list(ctx.get("tarefas_criadas") or [])
     junto = " ".join(bolhas)
     if RE_PROMESSA.search(junto) and not dec["tarefas"]:
@@ -717,7 +740,8 @@ def atender(evento, registar=None, modo_prova=False, emitir=None):
             registar({"evento": "fio", "numero": numero, "novos": r_fio.get("novos"), "falta": r_fio.get("falta"), "adiou": r_fio.get("adiou")})
             return _fechar(dec, f, ctx, r_fio["texto"], tratamento, prova, lingua_, cumprimentou_hoje, "fio", ferramentas_fio, None, t0, registar, msg=msg)
 
-    motivo_escalar = "dinheiro" if RE_DINHEIRO.search(msg) else ("reclamacao" if RE_RECLAMA.search(msg) else ("falta" if RE_FALTA.search(msg) else ("urgente" if RE_URGENTE.search(msg) else None)))
+    motivo_escalar = ("dinheiro" if RE_DINHEIRO.search(msg) else ("reclamacao" if RE_RECLAMA.search(msg) else
+                      ("falta" if RE_FALTA.search(msg) else ("urgente" if (RE_URGENTE.search(msg) or verdades.urgente(msg)) else None))))
     if motivo_escalar:
         textos_out = _escalar_texto(motivo_escalar, tratamento, f, lingua_)
         # RESUMO para o Danilo (detetor de urgencia): quem e, ultimo pedido real, e o texto -- ANTES de o bot responder
@@ -757,7 +781,7 @@ def atender(evento, registar=None, modo_prova=False, emitir=None):
             facto = DISPONIBILIDADE_FIXA
     if facto:
         texto = facto if cumprimentou_hoje else ("Olá! " + facto)
-        bolhas = _pos_processar(texto, f, tratamento, cumprimentou_hoje)
+        bolhas = _pos_processar(texto, f, tratamento, cumprimentou_hoje, msg)
         fichas.marcar_cumprimento(f)
         f["ultima_resposta_bot_em"] = fichas.agora()
         fichas.guardar(f)
@@ -900,7 +924,7 @@ def atender(evento, registar=None, modo_prova=False, emitir=None):
         fichas.anotar_promessa(f, "Danilo responde: " + msg[:80], "aberta", t["id"])
 
     # 5. pos-processamento + PROMESSA = TAREFA
-    bolhas = _pos_processar(texto_final, f, tratamento, cumprimentou_hoje)
+    bolhas = _pos_processar(texto_final, f, tratamento, cumprimentou_hoje, msg)
     if not bolhas:
         bolhas = [identidade.saudacao(tratamento, f, lingua_)] if not cumprimentou_hoje else ["Diga."]
     dec["tarefas"] += list(ctx.get("tarefas_criadas") or [])

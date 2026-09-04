@@ -185,3 +185,80 @@ perfil e o auto-teste da noite re-ordena.
    **não há vagas**, é lista de espera. Trava nova (`RE_DIZ_QUE_HA_VAGAS`): se a pergunta é sobre ser
    estafeta e a resposta promete vaga, sai o texto certo. Provado ao vivo: o modelo escreveu "Ainda
    temos vagas" e o que chegou ao WhatsApp foi *"De momento não há vagas para estafeta…"* (linha 487).
+
+---
+
+# Terceira volta (07:00–07:45) — a folha de verdades
+
+## Os seis cliques: só um estava mesmo feito
+
+Fui aos seis separadores e recarreguei cada um na página de chaves (se a conta estivesse criada, a
+sessão é partilhada e a página abre). Estado real:
+
+| fornecedor | estado verificado |
+|---|---|
+| **Mistral** | **conta pronta** → chave criada, gravada no PC e na VPS, a responder em 0,4–0,5 s |
+| Cloudflare | sessão iniciada, mas sem token; a página de criar token não abre (SPA fica presa) |
+| Cerebras | continua em "Enter details → Continue" |
+| OpenRouter | continua em "How will you be using OpenRouter? → Next" |
+| NVIDIA | continua em "Create an NVIDIA Cloud Account" |
+| SambaNova | continua no formulário de perfil (nome, função, empresa) |
+
+O `mistral-small-latest` não existe neste plano; ficou o `ministral-8b-latest` (0,5 s, PT-PT correcto).
+O Mistral fica marcado `sensivel_ok: False` — o plano grátis treina com os dados, por isso **nunca**
+serve conversas de clientes, só os perfis `raciocínio` e `volume`.
+
+## A folha de verdades (`cerebro/verdades.py`)
+
+Uma folha única: 21 serviços com **SIM** ou **NÃO** ao lado, e 10 factos. Vai inteira em **todas** as
+chamadas ao modelo (é a primeira coisa que ele lê) **e** é verificada à saída, dentro de
+`_pos_processar` — por onde passam todos os caminhos (facto fixo, fio, rápido, escalar). Não são
+travas caso a caso: é uma porta só, no fim.
+
+O que a porta faz, por ordem:
+1. **Nome do dono** — se a resposta trouxer "Danilo", "dono", "patrão", "chefe", "fundador" ou
+   "proprietário", a resposta **inteira** é trocada (não se remenda a frase, que dava frankensteins).
+   Se a pergunta era sobre quem manda: *"Sou o atendimento do Bora e é comigo que trata."*
+2. **Negou um serviço que a folha diz SIM** → sai o texto certo da folha.
+3. **Afirmou um serviço que a folha diz NÃO** → sai o texto certo da folha.
+4. **Negou algo que não está na folha** → *"Vou confirmar isso com o meu superior e volto já com a
+   resposta."* + tarefa de 30 minutos + a vigia atrás dela + aviso no Telegram.
+
+**Urgência** (pedido a decorrer, dinheiro, cobrança errada, reembolso): não se manda esperar. Sai
+*"ligue-nos para +351 937 501 673"* numa frase curta, e o Telegram sai ao mesmo tempo.
+
+## Prova 1 — 30 perguntas de sim ou não contra a folha
+
+**28 de 30**, e **0 respostas com o nome do dono**. As duas que a régua marcou como falha:
+- *"Fazem entregas na Covilhã?"* → *"Não, só fazemos entregas na Guarda e arredores, até 15 km."* —
+  a resposta está certa; foi o meu classificador que leu "fazemos" como um sim.
+- *"Entregam em Lisboa?"* → saiu *"Vou confirmar com o meu superior"* em vez do não directo. Não é
+  mentira nem fuga, é a porta a ser conservadora.
+
+Antes desta volta eram 26/30: a resposta *"Não, o Bora não vende seguros de carro"* passava, porque o
+padrão de negação não apanhava "não vende". Passou a apanhar também qualquer resposta que **comece**
+por "Não".
+
+## Prova 2 — as três ao vivo, entregues no WhatsApp
+
+```
+id   hora      entrega  modelo                    resposta
+628  07:41:32  visto    groq:qwen/qwen3.8-27b     Vou confirmar isso com o meu superior e volto já com a resposta.
+630  07:41:51  visto    (escalar)                 Recebi. Isto é de valores, e resolve-se mais depressa ao telefone:
+                                                  ligue-nos para +351 937 501 673. Já avisei a equipa também.
+632  07:42:19  visto    kilo:stepfun/step-3.7...  Sou o atendimento do Bora e estou aqui para resolver o que precisar.
+                                                  Pode dizer-me qual é a questão para eu ajudar já?
+```
+- A) serviço fora da folha ("mudanças de casa com camião") → a frase do superior, com tarefa aberta.
+- B) dinheiro ("fui cobrado duas vezes") → manda ligar para a loja, e o Telegram saiu ao mesmo tempo.
+- C) quem é o dono → não diz o nome, fecha o assunto. **Servida pelo Kilo**, entregue.
+
+**Zero respostas com o nome do dono** em todas as provas desta volta.
+
+## Uma limitação real que encontrei
+
+O envio precisa que o separador do WhatsApp Web esteja **visível** na sua janela. Com ele em segundo
+plano, o Chrome trava o desenho da página e o "abrir a conversa" falha ("não consegui abrir a
+conversa"). Pus o WhatsApp Web numa **janela só dele** — assim continua visível mesmo quando o Danilo
+usa outra janela. Enquanto isso não estava assim, a vigia da porta e o reenvio fizeram o seu papel:
+marcaram `falhou`, avisaram, e a segunda tentativa entregou.

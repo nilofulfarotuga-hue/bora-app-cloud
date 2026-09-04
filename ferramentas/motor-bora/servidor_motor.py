@@ -111,9 +111,22 @@ def escrever_motores_md(relatorio=None):
             h["pedidos"], h["ok"], h["falhas"], h["tokens"], ("%d ms" % e["latencia_mediana_ms"]) if e["latencia_mediana_ms"] else "—",
             lim((e["castigado_ate"] or "") + (" (" + (e["castigo_motivo"] or "")[:40] + ")" if e["castigo_motivo"] else ""), 70) if e["castigado_ate"] else ("modelos: " + ", ".join(e["modelos_castigados"][:3]) if e["modelos_castigados"] else "não"),
             lim(e["ultimo_erro"], 60), lim(e["nota"], 70)))
-    ls += ["", "## Ordem por perfil (o auto-teste das 05:30 reordena)"]
+    total = sum((e.get("custo_simulado_eur_hoje") or 0) for e in est.values())
+    ls += ["", "**Custo simulado de hoje: %.4f €** (não se paga nada — é o que isto custaria ao preço de tabela "
+                "dos modelos pagos equivalentes; por fornecedor na coluna abaixo)." % total, ""]
+    ls += ["| fornecedor | custo simulado hoje (€) | pedidos na última hora |", "|---|---|---|"]
+    for f, e in est.items():
+        if e["hoje"]["pedidos"]:
+            ls.append("| %s | %.4f | %d |" % (f, e.get("custo_simulado_eur_hoje") or 0, e.get("ultima_hora") or 0))
+    ls += ["", "## Ordem por perfil (o auto-teste das 05:30 reordena; `rodizio` roda entre os melhores a cada pedido)"]
     for p, o in R.ordem.items():
-        ls.append("- **%s**: " % p + " → ".join("%s:%s" % x for x in o))
+        modo = (C.PERFIS.get(p) or {}).get("modo", "cadeia")
+        topo = (C.PERFIS.get(p) or {}).get("rodizio_topo")
+        ls.append("- **%s** (%s%s): " % (p, modo, (", topo %d" % topo) if modo == "rodizio" and topo else "") + " → ".join("%s:%s" % x for x in o))
+    if R.retirados:
+        ls += ["", "## Modelos retirados sozinhos (a vigia apanhou 'já não existe')", "| modelo | quando | estado | motivo |", "|---|---|---|---|"]
+        for k, v in R.retirados.items():
+            ls.append("| %s | %s | %s | %s |" % (k, v.get("quando"), v.get("status"), lim(v.get("motivo"), 90)))
     if relatorio:
         ls += ["", "## Auto-teste %s (3 perguntas reais a cada motor)" % (R.autoteste_ultimo or "")]
         for p, rs in relatorio.items():

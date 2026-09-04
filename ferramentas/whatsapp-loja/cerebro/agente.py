@@ -47,6 +47,47 @@ RE_DISPONIBILIDADE = re.compile(r"(entregam|entrega|trabalham|trabalha|funciona|
 RE_OUTRA_INTENCAO = re.compile(r"pedido|encomenda|reembols|parceir|estafeta|reserv|limpeza|lavagem|boleia|tvde|pre[cç]o|quanto|custa|€", re.I)
 HORARIO_FIXO = ("O Bora não tem horário próprio — cada loja e restaurante tem o seu, e vê-o na app, na página da loja. "
                 "Assim sabe logo quem está aberto agora.")
+# iPHONE (facto do Danilo, 04/09/2026): NAO ha app para iPhone. Quem tem iPhone pede pela web.
+# Vale por texto fixo (pergunta directa) E por rede de seguranca no pos-processamento: o modelo ja
+# respondeu "Sim, temos! Podes descarregar na App Store" numa prova a 02/09 -- isso nao pode sair.
+RE_IPHONE = re.compile(r"\biphone|\bios\b|\bapple\b|app ?store|\bipad\b|\bsafari\b", re.I)
+# NEGAR UM SERVICO QUE O BORA FAZ (04/09): na rajada de prova o gemini respondeu a "Vocês fazem limpezas?"
+# com "Não, nós somos uma plataforma de entrega de comida". Isso perde dinheiro. Se a pergunta e sobre uma
+# vertical NOSSA e a resposta comeca por negar, sai o texto certo.
+VERTICAIS = {
+    "limpeza": (r"limpez|faxin|limpar a casa|empregada",
+                "Fazemos sim: limpeza de casa é um dos nossos serviços. Escolhe na app, em Limpeza, e nós tratamos."),
+    "lavagem": (r"lavagem|lavar o carro|lavar carro",
+                "Fazemos sim: lavagem auto (por agora só exterior). Está na app, em Lavagem."),
+    "tvde": (r"\btvde\b|boleia|corrida|motorista para mim|uber|bolt",
+             "Fazemos sim: temos boleias (TVDE) na Guarda, e dá para reservar com antecedência na app."),
+    "reservas": (r"reserv\w* de mesa|marcar mesa|reservar mesa",
+                 "Fazemos sim: dá para reservar mesa nos restaurantes parceiros, na app, com um sinal de 3 €."),
+    "farmacia": (r"farm[aá]ci|medicament",
+                 "Fazemos sim: entregamos de farmácia aqui na Guarda. É pedir na app, em Farmácia."),
+    "compras": (r"supermercad|mercado|compras|continente|pingo doce|lidl|auchan|intermarch|mercadona",
+                "Fazemos sim: o estafeta faz as compras no supermercado pela sua lista e entrega em casa."),
+    "encomenda": (r"encomenda|entregar (uma|um) |levar (uma|um) |favor|estafeta ir buscar",
+                  "Fazemos sim: levamos e trazemos encomendas e fazemos favores aqui na Guarda. Está na app."),
+}
+RE_NEGA = re.compile(r"^\s*(n[ãa]o\b|infelizmente n[ãa]o|de momento n[ãa]o|ainda n[ãa]o|lamento[, ]|"
+                     r"n[ãa]o (fazemos|temos|oferecemos|trabalhamos|prestamos|disponibilizamos))", re.I)
+RE_NEGA_MEIO = re.compile(r"\bn[ãa]o (fazemos|temos|oferecemos|prestamos|disponibilizamos|trabalhamos com)\b|"
+                          r"\bapenas (fazemos|entregamos|somos)\b|\bs[oó] (fazemos|entregamos|somos)\b", re.I)
+
+
+def _corrigir_negacao_de_vertical(msg, texto):
+    """Devolve (texto, vertical_corrigida). Só actua quando a PERGUNTA é sobre a vertical."""
+    for nome, (padrao, certo) in VERTICAIS.items():
+        if re.search(padrao, msg or "", re.I) and (RE_NEGA.search(texto or "") or RE_NEGA_MEIO.search(texto or "")):
+            return certo, nome
+    return texto, None
+IPHONE_FIXO = ("App para iPhone não temos. No iPhone é pela web, em https://app.boraguarda.com — abre no Safari e "
+               "funciona igual à app; se quiser, dá para guardar no ecrã principal.")
+RE_IPHONE_MENTIRA = re.compile(
+    r"(?:(?:temos|tem|há|ha|existe|disponível|disponivel|baixar|descarregar|instalar|transferir|procur\w+)[^.!?\n]{0,60}"
+    r"(?:app ?store|para ?o? ?iphone|para ?ios|no ios|de ios|vers[ãa]o (?:para )?ios))"
+    r"|(?:app ?store)|(?:aplica[çc][ãa]o (?:para )?(?:iphone|ios))|(?:app (?:para )?(?:iphone|ios))", re.I)
 DISPONIBILIDADE_FIXA = ("Funcionamos todos os dias, incluindo domingos e feriados. A entrega naquele momento é só se houver "
                         "um estafeta livre — havendo, vai logo; se não houver, aí não dá àquela hora.")
 # UM NUMERO NA RESPOSTA SEM NENHUMA FERRAMENTA TER CORRIDO E INVENCAO: horas, euros, percentagens.
@@ -58,7 +99,9 @@ FACTOS_OPERACAO = (
     "feriados. A entrega naquele momento depende de haver estafeta/motorista disponivel; se nao houver, nao ha "
     "entrega aquela hora. O Bora e uma app de entregas e servicos locais na Guarda, Portugal (restaurantes, "
     "mercados/compras, farmacia, lojas, favores e encomendas, reservas de mesa, limpeza, lavagem auto, TVDE/boleias). "
-    "Fundador: Danilo. Pagamento na app: cartao, MB Way, ou dinheiro ate 40 EUR."
+    "Fundador: Danilo. Pagamento na app: cartao, MB Way, ou dinheiro ate 40 EUR. "
+    "NAO EXISTE APP PARA IPHONE (facto do Danilo, 04/09/2026): a app e so Android (Play Store); quem tem iPhone "
+    "faz o pedido pela WEB, em https://app.boraguarda.com. NUNCA digas que ha app para iPhone, iOS, App Store ou TestFlight."
 )
 
 
@@ -189,6 +232,8 @@ def _pos_processar(texto, f, tratamento, cumprimentou_hoje):
     t = re.sub(r"(?m)^\s*[-•]\s+", "", t)                # sem listas
     t = RE_TITULO_MANUAL.sub("", t)                       # titulos do manual colados na resposta (7b)
     t = re.sub(r"VERIFICADO AGORA[^\n]*", "", t, flags=re.I)
+    if RE_IPHONE_MENTIRA.search(t):              # 04/09: nunca sai "há app para iPhone"/"App Store"
+        t = IPHONE_FIXO
     t = identidade.limpar_tratamento(t, tratamento, f)
     if cumprimentou_hoje:
         t = RE_CUMPRIMENTO.sub("", t, count=1).strip()
@@ -485,6 +530,14 @@ def _rapido(ctx, f, msg, tratamento, prova, lingua_, registo_, cumprimentou_hoje
         registar({"evento": "facto-inventado-bloqueado", "numero": numero, "texto": texto[:200], "modelo": modelo_usado})
         dec["facto_inventado_bloqueado"] = texto[:200]
         texto = HORARIO_FIXO if RE_HORARIO.search(msg) else (DISPONIBILIDADE_FIXA if RE_DISPONIBILIDADE.search(msg) else "")
+    # f2) NEGOU UM SERVICO QUE NOS FAZEMOS: sai o texto certo (perder um cliente por isto e o pior que ha)
+    if texto:
+        novo, vertical = _corrigir_negacao_de_vertical(msg, texto)
+        if vertical:
+            registar({"evento": "negacao-de-vertical-corrigida", "numero": numero, "vertical": vertical,
+                      "texto": texto[:200], "modelo": modelo_usado})
+            dec["negacao_corrigida"] = vertical
+            texto = novo
     # g) sem texto: NUNCA silencio e NUNCA "dou-lhe resposta em 3 minutos" -- a intencao ou o Danilo
     if not texto and tipo_lead == "estafeta":
         texto, dec["fallback_intencao"] = TEXTO_ESTAFETA, "estafeta"
@@ -660,7 +713,9 @@ def atender(evento, registar=None, modo_prova=False, emitir=None):
     # 3b. FACTOS DA OPERACAO por texto fixo: horario / dias / estafeta livre, quando e so isso que se pergunta.
     cumprimentou_hoje = fichas.cumprimentado_hoje(f)
     facto = None
-    if len(msg) < 220 and not RE_OUTRA_INTENCAO.search(msg):
+    if RE_IPHONE.search(msg) and len(msg) < 220:
+        facto = IPHONE_FIXO                      # antes de tudo: o iPhone responde-se por texto fixo, sempre
+    elif len(msg) < 220 and not RE_OUTRA_INTENCAO.search(msg):
         if RE_HORARIO.search(msg):
             facto = HORARIO_FIXO
         elif RE_DISPONIBILIDADE.search(msg):

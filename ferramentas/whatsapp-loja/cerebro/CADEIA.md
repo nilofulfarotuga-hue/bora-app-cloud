@@ -56,3 +56,20 @@ reais). O que está aqui em `cadeia.txt` é agora só a **rede de segurança**: 
 `CEREBRO_MOTOR=0` desliga o roteador; `MOTOR_BORA_URL` muda o endereço. Estado e ordem em `MOTORES.md`.
 Hermes (`/opt/data/.env` HERMES_BASE_URL) e Conselho (`CONSELHO_BASE`) apontam para o mesmo roteador na VPS
 (172.16.1.1:8792): uma chave nova entra num `.env` e todos ganham.
+
+## Revisão 04/09 — Kilo sem chave, rodízio por perfil, vigia de modelos mortos, custo simulado
+Quatro mudanças no roteador, todas medidas no próprio dia (provas em
+`provas/whatsapp-2026-09-02/06-motor-bora-e-iphone-04-09.md`):
+1. **Kilo Gateway** (`https://api.kilo.ai/api/gateway`) entrou **sem chave e sem conta** — o único
+   fornecedor que não depende de cliques. Só os modelos `:free` (os pagos devolvem
+   PAID_MODEL_AUTH_REQUIRED); tecto assumido 12/min, 180/hora por IP. Pedem-se-lhes ≥500 tokens
+   porque "pensam" antes de escrever e com tecto curto devolvem 200 com texto vazio.
+2. **Rodízio por perfil**: `chat-rapido` e `volume` rodam entre os 4 melhores a cada pedido;
+   `raciocínio` fica em cadeia. A prova 4 passou de p95 19,5 s para 6,0 s, máximo 19,6 → 6,9 s.
+3. **Vigia de modelo morto**: 404/410 ou "não existe/descontinuado" duas vezes → sai da lista de
+   todos os perfis, fica em `retirados` e vai para o MOTORES.md com aviso ao Danilo. Caso real: o
+   GitHub Models devolve 410 "retirement brownout" — está a ser desligado pela GitHub.
+4. **Custo simulado** por fornecedor (`PRECO_POR_MILHAO`): não se paga nada, mostra o que isto
+   custaria se fosse pago. No `/motores`, no MOTORES.md e no ecrã admin.
+Mais: `ollama-cloud` no catálogo; a chave Gemini do WhatsApp saiu do projeto do juiz (a quota grátis
+é por PROJETO) e o timeout por fornecedor passou a respeitar o orçamento que resta ao perfil.

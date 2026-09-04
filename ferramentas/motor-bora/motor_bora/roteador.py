@@ -51,6 +51,9 @@ class Roteador:
         self.chaves_rr = {}
         self.ultimo_aviso = 0.0
         self.autoteste_ultimo = None
+        self.retirados = {}       # "forn:modelo" -> {quando, status, motivo}  (modelos que o fornecedor matou)
+        self.mortes = {}          # contador antes de retirar (um 404 pontual nao chega)
+        self.rr_perfil = {}       # rodizio: proximo indice por perfil
         self._carregar_estado()
 
     # ------------------------------------------------------------ chaves e urls
@@ -102,12 +105,17 @@ class Roteador:
     def _uso(self, forn):
         u = self.uso.get(forn)
         if not u:
-            u = self.uso[forn] = {"min": collections.deque(), "dia": _hoje(), "rpd": 0, "tokens_dia": 0, "lat": collections.deque(maxlen=60), "ok": 0, "falhas": 0}
+            u = self.uso[forn] = {"min": collections.deque(), "hora": collections.deque(), "dia": _hoje(), "rpd": 0,
+                                  "tokens_dia": 0, "custo_dia": 0.0, "lat": collections.deque(maxlen=60), "ok": 0, "falhas": 0}
+        u.setdefault("hora", collections.deque())
+        u.setdefault("custo_dia", 0.0)
         if u["dia"] != _hoje():
-            u.update(dia=_hoje(), rpd=0, tokens_dia=0, ok=0, falhas=0)
+            u.update(dia=_hoje(), rpd=0, tokens_dia=0, custo_dia=0.0, ok=0, falhas=0)
         agora = time.time()
         while u["min"] and u["min"][0][0] < agora - 60:
             u["min"].popleft()
+        while u["hora"] and u["hora"][0] < agora - 3600:
+            u["hora"].popleft()
         return u
 
     def quota_ok(self, forn, tokens_est, modelo=None):
@@ -116,6 +124,8 @@ class Roteador:
         b = self._uso(self._balde(forn, modelo)) if modelo and forn in self.POR_MODELO else u
         if lim.get("rpm") and len(b["min"]) >= lim["rpm"]:
             return False, "rpm %d/min" % lim["rpm"]
+        if lim.get("rph") and len(u["hora"]) >= lim["rph"]:
+            return False, "rph %d/hora" % lim["rph"]
         if lim.get("rpd") and u["rpd"] >= lim["rpd"]:
             return False, "rpd %d/dia" % lim["rpd"]
         if lim.get("tpm") and sum(t for _t, t in b["min"]) + tokens_est > lim["tpm"]:
@@ -126,14 +136,47 @@ class Roteador:
         for chave in {forn, self._balde(forn, modelo)}:
             u = self._uso(chave)
             u["min"].append((time.time(), int(tokens or 0)))
+            u["hora"].append(time.time())
             if chave == forn:
                 u["rpd"] += 1
                 u["tokens_dia"] += int(tokens or 0)
+                # CUSTO SIMULADO: nao se paga nada; e o que isto custaria ao preco de tabela do fornecedor
+                u["custo_dia"] += (int(tokens or 0) / 1_000_000.0) * C.PRECO_POR_MILHAO.get(forn, 0.0)
                 if ok:
                     u["ok"] += 1
                     u["lat"].append(ms)
                 else:
                     u["falhas"] += 1
+
+    # ------------------------------------------------------------ vigia de modelos mortos
+    MORTO = re.compile(r"model_not_found|does not exist|no such model|decommission|deprecat|retirement|"
+                       r"has been (removed|retired|sunset)|unknown model|invalid model|model .* not (found|available)", re.I)
+
+    def _talvez_retirar(self, forn, modelo, status, corpo):
+        """404/410 ou mensagem de modelo morto -> sai da lista deste perfil e fica registado no relatorio.
+        Um 404 pontual nao chega: exige-se 2 vezes, para nao apagar um modelo por causa de um soluco."""
+        txt = json.dumps(corpo)[:600]
+        if status not in (404, 410) and not self.MORTO.search(txt):
+            return False
+        chave = forn + ":" + modelo
+        self.mortes[chave] = self.mortes.get(chave, 0) + 1
+        if self.mortes[chave] < 2:
+            return False
+        if chave in self.retirados:
+            return True
+        self.retirados[chave] = {"quando": datetime.datetime.now().isoformat(timespec="seconds"),
+                                 "status": status, "motivo": (txt[:200] or "").replace("\n", " ")}
+        for p, ordem in self.ordem.items():
+            self.ordem[p] = [x for x in ordem if not (x[0] == forn and x[1] == modelo)]
+        self.registar({"evento": "modelo-retirado", "fornecedor": forn, "modelo": modelo, "status": status,
+                       "motivo": self.retirados[chave]["motivo"][:160]})
+        try:
+            self.avisar("Motor Bora (%s): tirei o modelo %s da lista — o fornecedor diz que já não existe (%s). "
+                        "Fica escrito no MOTORES.md; a fila segue com os outros." % (self.maquina, chave, status))
+        except Exception:
+            pass
+        self.guardar_estado()
+        return True
 
     # ------------------------------------------------------------ http
     def _http(self, forn, chave, caminho, corpo=None, timeout=30):
@@ -194,12 +237,11 @@ class Roteador:
             st, d, _h = self._http(forn, ks[0], spec["modelos"], None, 20)
             if st == 200 and isinstance(d, dict) and isinstance(d.get("data"), list):
                 ids = {m.get("id") for m in d["data"] if isinstance(m, dict) and m.get("id")}
-                if forn == "openrouter":
+                if spec.get("so_free"):        # OpenRouter e Kilo: os pagos exigem conta/creditos -> so os ":free"
                     ids = {i for i in ids if i.endswith(":free")}
                 if forn == "gemini":
                     ids = {i.replace("models/", "") for i in ids}
-                if forn == "ollama":
-                    ids = {i for i in ids}
+                ids -= {k.split(":", 1)[1] for k in self.retirados if k.startswith(forn + ":")}
                 self.modelos_vivos[forn] = ids
                 self.registar({"evento": "descoberta", "fornecedor": forn, "modelos": len(ids)})
             else:
@@ -226,6 +268,8 @@ class Roteador:
                 continue
             if not self.chaves(forn):
                 continue
+            if (forn + ":" + modelo) in self.retirados:
+                continue
             vivos = self.modelos_vivos.get(forn)
             if vivos and modelo not in vivos:
                 continue
@@ -233,6 +277,20 @@ class Roteador:
                 continue
             out.append((forn, modelo))
         return out
+
+    def _rodar(self, perfil, lista, p):
+        """RODIZIO (04/09): em vez de bater sempre no mesmo primeiro, roda entre os `rodizio_topo` melhores
+        a cada pedido e so depois desce a cadeia. Uma rajada espalha-se por varios fornecedores em vez de
+        esgotar o tecto por minuto de um so. Fora do topo a ordem mantem-se (o resto continua cadeia)."""
+        if p.get("modo") != "rodizio" or len(lista) < 2:
+            return lista
+        n = min(int(p.get("rodizio_topo") or 3), len(lista))
+        with self.lock:
+            i = self.rr_perfil.get(perfil, 0)
+            self.rr_perfil[perfil] = (i + 1) % max(n, 1)
+        topo = lista[:n]
+        topo = topo[i % n:] + topo[:i % n]
+        return topo + lista[n:]
 
     def chamar(self, modelo_pedido, mensagens, tools=None, max_tokens=None, temperatura=0.2, timeout=None, origem=""):
         perfil, alvo = None, None
@@ -250,7 +308,7 @@ class Roteador:
         if perfil and perfil not in C.PERFIS:
             perfil = "chat-rapido"
         p = C.PERFIS.get(perfil or "chat-rapido")
-        lista = [alvo] if alvo else self.candidatos(perfil, p.get("sensivel", True))
+        lista = [alvo] if alvo else self._rodar(perfil, self.candidatos(perfil, p.get("sensivel", True)), p)
         if not lista:
             return {"error": {"message": "sem fornecedor disponivel para %s (sem chaves, castigados ou pausados)" % mp, "type": "motor_bora"}, "tentativas": []}
         t_ini = time.time()
@@ -267,15 +325,27 @@ class Roteador:
                     tentativas.append({"fornecedor": forn, "modelo": modelo, "saltado": "quota local " + motivo_q})
                     continue
             spec = C.FORNECEDORES[forn]
+            # pedido maior do que o tecto de tokens/min do fornecedor (o Hermes manda 10-20k tokens; o Groq gratis
+            # aceita 8k): nem se tenta -- o 429 seria certo e gastava tempo
+            lim_tpm = (spec.get("limites") or {}).get("tpm")
+            if lim_tpm and tokens_est > lim_tpm and not alvo:
+                tentativas.append({"fornecedor": forn, "modelo": modelo, "saltado": "pedido de ~%d tokens > tpm %d" % (tokens_est, lim_tpm)})
+                continue
             corpo = {"model": modelo, "messages": mensagens, "max_tokens": int(max_tokens or p.get("max_tokens") or 300), "temperature": temperatura}
             if "gpt-oss" in modelo or "deepseek-r1" in modelo or "qwen3" in modelo.lower():
                 # modelos "pensantes": o raciocinio gasta o max_tokens e vem uma resposta vazia (visto 02/09, max_tokens=80)
                 corpo["max_tokens"] = max(corpo["max_tokens"], 320)
                 if "gpt-oss" in modelo:
                     corpo["reasoning_effort"] = "low"
+            if forn == "kilo" or modelo.endswith(":free"):
+                # 04/09: os ":free" do Kilo pensam antes de escrever; com tecto curto devolvem 200 com texto vazio
+                corpo["max_tokens"] = max(corpo["max_tokens"], 500)
             if tools and forn not in ("ovh", "llm7", "cloudflare"):
                 corpo["tools"] = tools
-            tmo = timeout or spec.get("timeout_min") or p.get("timeout", 30)
+            # tempo por fornecedor: o do perfil, ou o minimo do fornecedor (Zen/Ollama sao lentos), mas nunca alem do
+            # orcamento que resta ao perfil -- no chat-rapido o Zen tem 12 s, no raciocinio tem 90 s
+            resta = max(3, p.get("orcamento", 60) - (time.time() - t_ini))
+            tmo = timeout or min(max(p.get("timeout", 30), spec.get("timeout_min") or 0), resta)
             chaves = self.chaves(forn) or [None]
             for i_chave, chave in enumerate(chaves):
                 t0 = time.time()
@@ -286,6 +356,9 @@ class Roteador:
                     texto = msg.get("content") or ""
                     if isinstance(texto, list):
                         texto = "".join(x.get("text", "") for x in texto if isinstance(x, dict))
+                    if not (texto or "").strip():          # ha gateways que poem a resposta no campo do raciocinio
+                        alt = msg.get("reasoning_content") or msg.get("reasoning") or ""
+                        texto = alt if isinstance(alt, str) else ""
                     texto = re.sub(r"<think>.*?</think>\s*", "", texto, flags=re.S)
                     texto = re.sub(r"<think>.*$", "", texto, flags=re.S).strip()
                     msg["content"] = texto
@@ -310,7 +383,10 @@ class Roteador:
                 if st == 429 and i_chave < len(chaves) - 1:
                     tentativas.append({"fornecedor": forn, "modelo": modelo, "ms": ms, "status": 429, "erro": "429 nesta chave; roda para a seguinte"})
                     continue
-                so_modelo = (st == 404) or (st == 429 and forn in ("groq", "gemini", "openrouter")) or (st == 400 and "model" in erro.lower())
+                if self._talvez_retirar(forn, modelo, st, d):
+                    tentativas.append({"fornecedor": forn, "modelo": modelo, "ms": ms, "status": st, "erro": "modelo retirado da lista (o fornecedor diz que ja nao existe)"})
+                    break
+                so_modelo = (st in (404, 410)) or (st == 429 and forn in ("groq", "gemini", "openrouter", "kilo")) or (st == 400 and "model" in erro.lower())
                 self.castigar(forn, modelo if so_modelo else None, seg, "HTTP %s %s" % (st, erro[:160]))
                 tentativas.append({"fornecedor": forn, "modelo": modelo, "ms": ms, "status": st, "erro": erro[:200], "castigo_s": seg})
                 break
@@ -341,6 +417,9 @@ class Roteador:
             cm = [k.split("|", 1)[1] for k, v in list(self.castigos.items()) if k.startswith(forn + "|") and v[0] > time.time()]
             lim = spec.get("limites") or {}
             out[forn] = {"chave": bool(self.chaves(forn)), "pausado": forn in self.pausados,
+                         "custo_simulado_eur_hoje": round(u.get("custo_dia", 0.0), 4),
+                         "ultima_hora": len(u.get("hora") or []),
+                         "modelos_retirados": [k.split(":", 1)[1] for k in self.retirados if k.startswith(forn + ":")],
                          "castigado_ate": datetime.datetime.fromtimestamp(c[0]).isoformat(timespec="seconds") if c else None,
                          "castigo_motivo": c[1] if c else None, "modelos_castigados": cm,
                          "hoje": {"pedidos": u["rpd"], "tokens": u["tokens_dia"], "ok": u["ok"], "falhas": u["falhas"]},
@@ -357,10 +436,17 @@ class Roteador:
             d = json.load(open(self.estado_path, encoding="utf-8"))
             self.castigos = {k: tuple(v) for k, v in (d.get("castigos") or {}).items() if v[0] > time.time()}
             self.pausados = set(d.get("pausados") or [])
+            self.retirados = dict(d.get("retirados") or {})
+            self.rr_perfil = {k: int(v) for k, v in (d.get("rr_perfil") or {}).items()}
+            for chave in self.retirados:                      # um modelo retirado nunca volta sozinho a lista
+                f, m = chave.split(":", 1)
+                for pp, ordem in self.ordem.items():
+                    self.ordem[pp] = [x for x in ordem if not (x[0] == f and x[1] == m)]
             for forn, u in (d.get("uso") or {}).items():
                 if u.get("dia") == _hoje():
                     x = self._uso(forn)
-                    x.update(rpd=u.get("rpd", 0), tokens_dia=u.get("tokens_dia", 0), ok=u.get("ok", 0), falhas=u.get("falhas", 0))
+                    x.update(rpd=u.get("rpd", 0), tokens_dia=u.get("tokens_dia", 0), ok=u.get("ok", 0),
+                             falhas=u.get("falhas", 0), custo_dia=float(u.get("custo_dia", 0.0)))
             for p, o in (d.get("ordem") or {}).items():
                 if p in self.ordem and o:
                     self.ordem[p] = [tuple(x) for x in o]
@@ -372,7 +458,9 @@ class Roteador:
         if not self.estado_path:
             return
         d = {"castigos": {k: list(v) for k, v in self.castigos.items() if v[0] > time.time()}, "pausados": sorted(self.pausados),
-             "uso": {f: {"dia": u["dia"], "rpd": u["rpd"], "tokens_dia": u["tokens_dia"], "ok": u["ok"], "falhas": u["falhas"]} for f, u in self.uso.items()},
+             "uso": {f: {"dia": u["dia"], "rpd": u["rpd"], "tokens_dia": u["tokens_dia"], "ok": u["ok"], "falhas": u["falhas"],
+                         "custo_dia": round(u.get("custo_dia", 0.0), 6)} for f, u in self.uso.items()},
+             "retirados": self.retirados, "rr_perfil": self.rr_perfil,
              "ordem": {p: [list(x) for x in o] for p, o in self.ordem.items()}, "autoteste_ultimo": self.autoteste_ultimo,
              "guardado": datetime.datetime.now().isoformat(timespec="seconds")}
         tmp = self.estado_path + ".tmp"

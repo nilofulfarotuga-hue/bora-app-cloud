@@ -34,35 +34,62 @@ FORNECEDORES = {
                    "limites": {"rpm": 60}, "sensivel_ok": False, "nota": "Experiment: ~1 B tokens/mes MAS treina com os dados -> nunca conversas de clientes"},
     "zhipu":      {"url": "https://api.z.ai/api/paas/v4", "chave": "ZHIPU_API_KEY", "modelos": None,
                    "limites": {"rpm": 30}, "sensivel_ok": True, "nota": "GLM-4.x-flash gratis; reserva"},
+    # 04/09: SEM CHAVE NENHUMA e sem conta -- o unico que nao depende de cliques do Danilo. Provado neste
+    # dia: /models responde 200 sem Authorization e os modelos ":free" respondem. Os pagos devolvem
+    # PAID_MODEL_AUTH_REQUIRED, por isso `so_free` filtra a descoberta. Tecto: ~200 pedidos/hora por IP.
+    "kilo":       {"url": "https://api.kilo.ai/api/gateway", "chave": None, "modelos": "/models", "so_free": True,
+                   "limites": {"rpm": 12, "rph": 180}, "sensivel_ok": True, "timeout_min": 20,
+                   "nota": "Kilo Gateway: sem chave, sem conta; so modelos ':free'; ~200 pedidos/hora por IP"},
+    "ollama-cloud": {"url": "https://ollama.com/v1", "chave": "OLLAMA_API_KEY", "modelos": "/models",
+                     "limites": {"rpm": 20}, "sensivel_ok": True, "timeout_min": 40,
+                     "nota": "Ollama Cloud (chave em OLLAMA_API_KEY): gpt-oss:120b e outros, sem instalar nada"},
     "ovh":        {"url": "https://oai.endpoints.kepler.ai.cloud.ovh.net/v1", "chave": None, "modelos": "/models",
-                   "limites": {"rpm": 8}, "sensivel_ok": True, "timeout_min": 6, "nota": "SEM CHAVE (anonimo): gpt-oss-120b, Llama 3.3 70B; limita depressa"},
+                   "limites": {"rpm": 2, "rpd": 40}, "sensivel_ok": True, "timeout_min": 6, "nota": "SEM CHAVE (anonimo): 429 quase sempre (medido 03-04/09); so reserva"},
     "llm7":       {"url": "https://api.llm7.io/v1", "chave": "LLM7_API_KEY", "opcional": True, "modelos": "/models",
                    "limites": {"rpm": 8}, "sensivel_ok": False, "timeout_min": 6, "nota": "chave opcional; pool publico -> nao para conversas de clientes"},
     "zen":        {"url": "https://opencode.ai/zen/v1", "chave": "OPENCODE_ZEN_API_KEY", "modelos": None, "ua_browser": True,
-                   "limites": {}, "sensivel_ok": True, "nota": "OpenCode Zen free: nemotron; lento (40-90 s)"},
+                   "limites": {}, "sensivel_ok": True, "timeout_min": 90, "nota": "OpenCode Zen free: nemotron; lento (40-90 s); aceita contextos grandes"},
     "ollama":     {"url": (os.environ.get("OLLAMA_URL") or "http://127.0.0.1:11434").rstrip("/") + "/v1", "chave": None, "modelos": "/models",
-                   "limites": {}, "sensivel_ok": True, "nota": "local; ultimo recurso e transcricao offline", "timeout_min": 25},
+                   "limites": {}, "sensivel_ok": True, "nota": "local; ultimo recurso e transcricao offline", "timeout_min": 60},
 }
 
-# candidatos por perfil, POR ORDEM; o auto-teste nocturno reordena pela velocidade e qualidade do dia
+# CUSTO SIMULADO (EUR por 1 M de tokens, misto entrada+saida, preco de tabela do modelo equivalente pago).
+# Nao se paga nada: serve para o Danilo ver quanto ISTO custaria se fosse a pagar. Fonte: preco publico
+# do fornecedor a 04/09/2026; e uma ESTIMATIVA, nao uma fatura.
+PRECO_POR_MILHAO = {
+    "groq": 0.55, "cerebras": 0.60, "gemini": 0.30, "openrouter": 0.50, "nvidia": 0.45, "sambanova": 0.60,
+    "cohere": 1.20, "github": 0.50, "cloudflare": 0.20, "mistral": 0.25, "zhipu": 0.10, "ovh": 0.40,
+    "llm7": 0.40, "zen": 0.80, "kilo": 0.45, "ollama-cloud": 0.30, "ollama": 0.0,
+}
+
+# candidatos por perfil, POR ORDEM; o auto-teste nocturno reordena pela velocidade e qualidade do dia.
+# `modo`: "cadeia" = tenta pela ordem (o melhor primeiro, desce quando falha) · "rodizio" = roda entre os
+# `rodizio_topo` melhores a cada pedido, para uma rajada nao esgotar sempre o mesmo fornecedor (04/09:
+# 5 mensagens em 30 s esgotaram os 8 000 tokens/min do Groq e a prova 4 ficou com 5 respostas acima de 5 s).
 PERFIS = {
-    "chat-rapido": {"timeout": 7, "orcamento": 12, "max_tokens": 300, "sensivel": True, "candidatos": [
+    "chat-rapido": {"timeout": 7, "orcamento": 12, "max_tokens": 300, "sensivel": True,
+                    "modo": "rodizio", "rodizio_topo": 4, "candidatos": [
         ("groq", "openai/gpt-oss-120b"), ("groq", "qwen/qwen3.8-27b"), ("cerebras", "gpt-oss-120b"), ("cerebras", "llama-3.3-70b"),
         ("gemini", "gemini-3.1-flash-lite"), ("gemini", "gemini-3-flash-preview"), ("sambanova", "Meta-Llama-3.3-70B-Instruct"),
         ("openrouter", "deepseek/deepseek-chat-v3.1:free"), ("openrouter", "meta-llama/llama-3.3-70b-instruct:free"),
         ("nvidia", "meta/llama-3.3-70b-instruct"), ("github", "openai/gpt-4o-mini"), ("cloudflare", "@cf/meta/llama-3.3-70b-instruct-fp8-fast"),
-        ("zhipu", "glm-4.5-flash"), ("cohere", "command-r-08-2024"), ("ovh", "gpt-oss-120b"), ("ovh", "Meta-Llama-3_3-70B-Instruct"),
+        ("zhipu", "glm-4.5-flash"), ("cohere", "command-r-08-2024"),
+        ("kilo", "stepfun/step-3.7-flash:free"), ("kilo", "dots-studio/dots-3-note-preview:free"),
+        ("kilo", "liquid/lfm-2.5-2.6b:free"), ("ollama-cloud", "gpt-oss:120b"),
+        ("ovh", "gpt-oss-120b"), ("ovh", "Meta-Llama-3_3-70B-Instruct"),
         ("ollama", "qwen2.5:7b-instruct"), ("zen", "nemotron-3-ultra-free")]},
-    "raciocinio": {"timeout": 45, "orcamento": 130, "max_tokens": 900, "sensivel": True, "candidatos": [
+    "raciocinio": {"timeout": 45, "orcamento": 130, "max_tokens": 900, "sensivel": True, "modo": "cadeia", "candidatos": [
         ("gemini", "gemini-3-flash-preview"), ("groq", "openai/gpt-oss-120b"), ("cerebras", "qwen-3-235b-a22b-instruct-2507"),
         ("openrouter", "deepseek/deepseek-r1:free"), ("openrouter", "deepseek/deepseek-chat-v3.1:free"), ("nvidia", "deepseek-ai/deepseek-r1"),
         ("github", "openai/gpt-4.1"), ("sambanova", "DeepSeek-V3.1"), ("ovh", "Qwen3.5-397B-A17B"), ("ovh", "gpt-oss-120b"),
-        ("zen", "nemotron-3-ultra-free"), ("gemini", "gemini-3.1-flash-lite"), ("mistral", "mistral-small-latest"), ("ollama", "qwen2.5:7b-instruct")]},
-    "volume": {"timeout": 60, "orcamento": 180, "max_tokens": 1200, "sensivel": False, "candidatos": [
+        ("zen", "nemotron-3-ultra-free"), ("gemini", "gemini-3.1-flash-lite"), ("mistral", "mistral-small-latest"),
+        ("ollama-cloud", "gpt-oss:120b"), ("kilo", "stepfun/step-3.7-flash:free"), ("ollama", "qwen2.5:7b-instruct")]},
+    "volume": {"timeout": 60, "orcamento": 180, "max_tokens": 1200, "sensivel": False, "modo": "rodizio", "rodizio_topo": 3, "candidatos": [
         ("cerebras", "gpt-oss-120b"), ("cerebras", "llama-3.3-70b"), ("mistral", "mistral-small-latest"), ("nvidia", "meta/llama-3.3-70b-instruct"),
         ("openrouter", "deepseek/deepseek-chat-v3.1:free"), ("github", "openai/gpt-4o-mini"), ("cloudflare", "@cf/meta/llama-3.3-70b-instruct-fp8-fast"),
         ("ovh", "gpt-oss-120b"), ("groq", "openai/gpt-oss-120b"), ("gemini", "gemini-3.1-flash-lite"), ("zen", "nemotron-3-ultra-free"),
-        ("ollama", "qwen2.5:7b-instruct")]},
+        ("kilo", "stepfun/step-3.7-flash:free"), ("kilo", "dots-studio/dots-3-note-preview:free"),
+        ("ollama-cloud", "gpt-oss:120b"), ("ollama", "qwen2.5:7b-instruct")]},
     "visao": {"timeout": 40, "orcamento": 90, "max_tokens": 400, "sensivel": True, "candidatos": [
         ("gemini", "gemini-3.1-flash-lite"), ("gemini", "gemini-3-flash-preview"), ("openrouter", "qwen/qwen2.5-vl-72b-instruct:free"),
         ("nvidia", "meta/llama-3.2-90b-vision-instruct"), ("groq", "meta-llama/llama-4-scout-17b-16e-instruct"), ("ollama", "llava:7b")]},

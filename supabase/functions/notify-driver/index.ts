@@ -225,7 +225,7 @@ Deno.serve(async (req) => {
         ttl: '60s',
         notification: {
           channel_id: 'bora_orders_urgent_v3',
-          priority: 'max',
+          notification_priority: 'PRIORITY_MAX',
           default_sound: true,
           default_vibrate_timings: true,
           visibility: 'PUBLIC',

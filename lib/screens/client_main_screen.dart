@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../auth/auth_store.dart';
 import '../models/order_model.dart';
 import '../services/destino_pendente.dart';
 import '../stores/order_store.dart';
+import '../utils/contact_validators.dart';
 import '../widgets/bora/bora.dart';
+import 'complete_profile_screen.dart';
 import 'client_reservations_screen.dart';
 import 'client_home_screen.dart';
 import 'deep_link_store_screen.dart';
@@ -36,6 +39,31 @@ class _ClientMainScreenState extends State<ClientMainScreen> {
     // a ficha desapareceu da pilha. Volta-se a ela aqui, mal a home aparece —
     // senão a pessoa acabava na home genérica, que é o beco que se quer evitar.
     WidgetsBinding.instance.addPostFrameCallback((_) => _abrirDestinoPendente());
+    // Contacto em falta: pede-se UMA vez por arranque, e com saída ("Agora
+    // não"). O bloqueio a sério é no checkout — ver garantirContactoDoCliente.
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _pedirContactoUmaVez());
+  }
+
+  /// Só pergunta uma vez por arranque da app: um aviso que reaparece a cada
+  /// separador deixa de ser aviso e passa a ser praga.
+  static bool _contactoJaPerguntadoNesteArranque = false;
+
+  Future<void> _pedirContactoUmaVez() async {
+    if (_contactoJaPerguntadoNesteArranque || !mounted) return;
+    final client = context.read<AuthStore>().currentClient;
+    if (client == null) return;
+    if (contactoDoClienteCompleto(
+        nome: client.name, telemovel: client.phone)) {
+      return;
+    }
+    _contactoJaPerguntadoNesteArranque = true;
+    await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        fullscreenDialog: true,
+        builder: (_) => const CompleteProfileScreen(),
+      ),
+    );
   }
 
   Future<void> _abrirDestinoPendente() async {

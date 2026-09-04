@@ -8,6 +8,7 @@ import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
 import '../services/multi_role_signup.dart';
 import '../stores/session_store.dart';
+import '../utils/contact_validators.dart';
 import '../widgets/bora/bora_mascot.dart';
 import '../widgets/bora/bora_primary_button.dart';
 import '../widgets/terms_link_text.dart';
@@ -185,9 +186,7 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
                     prefixIcon: const Icon(Icons.person_outline),
                   ),
                   onChanged: (_) => _saveDraft(),
-                  validator: (v) => (v == null || v.trim().isEmpty)
-                      ? 'Informe o seu nome.'.tr
-                      : null,
+                  validator: (v) => validarNomeCliente(v)?.tr,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
@@ -215,9 +214,7 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
                     prefixIcon: const Icon(Icons.phone_rounded),
                   ),
                   onChanged: (_) => _saveDraft(),
-                  validator: (v) => (v == null || v.trim().isEmpty)
-                      ? 'Informe o seu telemóvel.'.tr
-                      : null,
+                  validator: (v) => validarTelemovelPt(v)?.tr,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
@@ -353,7 +350,10 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
     final email = _emailController.text.trim().toLowerCase();
     final password = _passwordController.text;
     final name = _nameController.text.trim();
-    final phone = _phoneController.text.trim();
+    // Grava sempre os 9 dígitos nacionais: o mesmo número escrito como
+    // "+351 912 345 678" ou "912345678" tem de dar a MESMA ficha.
+    final phone = normalizarTelemovelPt(_phoneController.text) ??
+        _phoneController.text.trim();
 
     final authStore = context.read<AuthStore>();
     final sessionStore = context.read<SessionStore>();

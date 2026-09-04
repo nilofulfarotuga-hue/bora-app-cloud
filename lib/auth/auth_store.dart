@@ -48,10 +48,11 @@ class ClientAccount {
   final String password;
   final String photoUrl;
 
-  ClientAccount copyWith({String? photoUrl}) => ClientAccount(
-        name: name,
+  ClientAccount copyWith({String? photoUrl, String? name, String? phone}) =>
+      ClientAccount(
+        name: name ?? this.name,
         email: email,
-        phone: phone,
+        phone: phone ?? this.phone,
         password: password,
         photoUrl: photoUrl ?? this.photoUrl,
       );
@@ -283,6 +284,53 @@ class AuthStore extends ChangeNotifier {
   /// Writes to: (1) in-memory account, (2) SharedPreferences, (3) Supabase
   /// user_metadata. notifyListeners() is called so UI widgets rebuild.
   ///
+  /// Grava nome e telemóvel do cliente actual em `public.users`, no metadata
+  /// do auth e no estado local.
+  ///
+  /// Sessão `tudo-04-09-noite` (2026-09-04): 60 dos 74 clientes estavam sem
+  /// nome e 69 sem telemóvel, e não havia caminho nenhum na app para os
+  /// preencher depois do registo — o ecrã de perfil só os MOSTRAVA. Este é
+  /// esse caminho, usado pelo ecrã de completar perfil e pelo checkout.
+  ///
+  /// Escreve nos dois sítios de propósito: `public.users` é o que o painel
+  /// admin e as Edge Functions leem; o metadata do auth é o que repovoa
+  /// `public.users` se a linha for recriada (ver `handle_new_auth_user`).
+  ///
+  /// Devolve `null` quando correu bem, ou a mensagem de erro em PT-PT.
+  Future<String?> updateClientContact({
+    required String name,
+    required String phone,
+  }) async {
+    final client = _currentClient;
+    if (client == null) return 'Sessão não iniciada.';
+
+    final n = name.trim();
+    final p = phone.trim();
+    if (n.isEmpty || p.isEmpty) return 'Preencha o nome e o telemóvel.';
+
+    try {
+      final uid = _supabase.auth.currentUser?.id;
+      if (uid != null) {
+        await _supabase
+            .from('users')
+            .update({'name': n, 'phone': p}).eq('id', uid);
+        await _supabase.auth.updateUser(
+          UserAttributes(data: {_kName: n, _kPhone: p}),
+        );
+      }
+    } catch (e) {
+      debugPrint('updateClientContact falhou => $e');
+      return 'Não foi possível guardar. Verifique a ligação e tente de novo.';
+    }
+
+    final updated = client.copyWith(name: n, phone: p);
+    _currentClient = updated;
+    if (updated.email.isNotEmpty) _clientsByEmail[updated.email] = updated;
+    _persistClient(updated);
+    notifyListeners();
+    return null;
+  }
+
   /// [url] may be empty to clear the photo.
   Future<void> updateCurrentUserPhoto(String url) async {
     if (_currentClient != null) {

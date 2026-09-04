@@ -21,6 +21,23 @@ class AdminClientsScreen extends StatefulWidget {
 class _AdminClientsScreenState extends State<AdminClientsScreen> {
   final _search = TextEditingController();
   bool _bannedOnly = false;
+
+  /// Sessão `tudo-04-09-noite` (2026-09-04): 60 de 74 clientes sem nome e 69
+  /// sem telemóvel. Quando um pedido corre mal não há a quem ligar, e o painel
+  /// mostrava os campos mas não deixava corrigi-los. Este filtro é o atalho
+  /// para a lista de quem falta contactar.
+  bool _semContactoOnly = false;
+
+  /// Um cliente "sem contacto" é quem não tem nome OU não tem telemóvel —
+  /// qualquer um dos dois em falta já chega para não se conseguir ligar.
+  bool _semContacto(Map<String, dynamic> c) {
+    final nome = ((c['bora_name'] as String?) ?? '').trim();
+    final tel = ((c['bora_phone'] as String?) ?? '').trim();
+    return nome.isEmpty || tel.isEmpty;
+  }
+
+  List<Map<String, dynamic>> get _clientesVisiveis =>
+      _semContactoOnly ? _clients.where(_semContacto).toList() : _clients;
   bool _loading = true;
   String? _error;
   List<Map<String, dynamic>> _clients = [];
@@ -506,6 +523,84 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
     }
   }
 
+  /// Editar nome e telefone à mão (F.4, sessão `tudo-04-09-noite`).
+  ///
+  /// Muitos clientes deram o contato por telefone ou WhatsApp e nunca o
+  /// escreveram na app. Sem este caminho, esse contato não tinha como entrar
+  /// no sistema. A RPC valida o telefone e regista quem alterou.
+  Future<void> _editarContato(Map<String, dynamic> client) async {
+    final userId = client['user_id']?.toString() ?? '';
+    if (userId.isEmpty) return;
+    final nomeCtrl =
+        TextEditingController(text: (client['bora_name'] as String?) ?? '');
+    final telCtrl =
+        TextEditingController(text: (client['bora_phone'] as String?) ?? '');
+
+    final confirmou = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Editar contato'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(client['email']?.toString() ?? '—',
+                style: const TextStyle(fontSize: 12, color: Colors.grey)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: nomeCtrl,
+              decoration: const InputDecoration(
+                  labelText: 'Nome', isDense: true),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: telCtrl,
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(
+                labelText: 'Telefone',
+                hintText: '912345678',
+                isDense: true,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Salvar')),
+        ],
+      ),
+    );
+    if (confirmou != true || !mounted) return;
+
+    try {
+      final res = await Supabase.instance.client.rpc(
+        'admin_update_client_contact',
+        params: {
+          'p_user_id': userId,
+          'p_name': nomeCtrl.text.trim(),
+          'p_phone': telCtrl.text.trim(),
+        },
+      );
+      final m = res is Map ? Map<String, dynamic>.from(res) : const {};
+      if (!mounted) return;
+      if (m['ok'] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Contato atualizado.')));
+        _load();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('${m['erro'] ?? 'Não foi possível salvar.'}')));
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Erro ao salvar: $e')));
+    }
+  }
+
   /// Item 20 (paridade-admin-360): exportar a lista visível para CSV.
   Future<void> _exportCsv() async {
     try {
@@ -516,7 +611,7 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
           'email', 'nome', 'telefone', 'criado_em',
           'pedidos', 'total_gasto', 'tokens', 'banido'
         ],
-        rows: _clients
+        rows: _clientesVisiveis
             .map((c) => [
                   c['email'] ?? '',
                   c['bora_name'] ?? '',
@@ -578,9 +673,44 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
                     _load();
                   },
                 ),
+                const SizedBox(width: 8),
+                FilterChip(
+                  label: const Text('Sem contato'),
+                  selected: _semContactoOnly,
+                  // Filtra em memória: a lista já veio da RPC, não vale a pena
+                  // outra ida à base só para esconder linhas.
+                  onSelected: (v) => setState(() => _semContactoOnly = v),
+                ),
               ],
             ),
           ),
+          // Contador de quem está sem contato — o número que interessa ver
+          // sem ter de contar à mão.
+          if (!_loading && _clients.isNotEmpty)
+            Builder(builder: (_) {
+              final semNome = _clients
+                  .where((c) => ((c['bora_name'] as String?) ?? '').trim().isEmpty)
+                  .length;
+              final semTel = _clients
+                  .where((c) => ((c['bora_phone'] as String?) ?? '').trim().isEmpty)
+                  .length;
+              final semQualquer = _clients.where(_semContacto).length;
+              return Container(
+                width: double.infinity,
+                color: semQualquer > 0
+                    ? AppColors.warning.withValues(alpha: 0.12)
+                    : AppColors.primary.withValues(alpha: 0.08),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: Text(
+                  semQualquer == 0
+                      ? '${_clients.length} clientes — todos com nome e telefone.'
+                      : '$semQualquer de ${_clients.length} sem contato '
+                          '($semNome sem nome, $semTel sem telefone)',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              );
+            }),
           if (_error != null)
             Container(
               width: double.infinity,
@@ -600,13 +730,16 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
                 ? const Center(child: CircularProgressIndicator())
                 : RefreshIndicator(
                     onRefresh: _load,
-                    child: _clients.isEmpty
-                        ? const Center(child: Text('Sem clientes.'))
+                    child: _clientesVisiveis.isEmpty
+                        ? Center(
+                            child: Text(_semContactoOnly
+                                ? 'Nenhum cliente sem contato.'
+                                : 'Sem clientes.'))
                         : ListView.builder(
                             physics: const AlwaysScrollableScrollPhysics(),
-                            itemCount: _clients.length,
+                            itemCount: _clientesVisiveis.length,
                         itemBuilder: (ctx, i) {
-                          final c = _clients[i];
+                          final c = _clientesVisiveis[i];
                           final banned = c['is_banned'] == true;
                           final userId = c['user_id']?.toString() ?? '';
                           final blockCount = _blocksByClient[userId] ?? 0;
@@ -665,11 +798,12 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
                                 ],
                               ),
                               subtitle: Text(
-                                  '${c['email'] ?? "—"} · ${c['total_orders'] ?? 0} pedidos · €${c['total_spent'] ?? 0}\n'
-                                  '${c['token_balance'] ?? 0} tokens · ${banned ? "BANIDO até ${c['banned_until']}" : "Activo"}'),
+                                  '${c['email'] ?? "—"} · ☎ ${((c['bora_phone'] as String?) ?? '').trim().isEmpty ? "SEM TELEFONE" : c['bora_phone']}\n'
+                                  '${c['total_orders'] ?? 0} pedidos · €${c['total_spent'] ?? 0} · ${c['token_balance'] ?? 0} tokens · ${banned ? "BANIDO até ${c['banned_until']}" : "Activo"}'),
                               isThreeLine: true,
                               trailing: PopupMenuButton<String>(
                                 onSelected: (action) {
+                                  if (action == 'edit_contact') _editarContato(c);
                                   if (action == 'history') _showHistory(c);
                                   if (action == 'roles') {
                                     // MULTI-PAPEL: ver/adicionar/remover papéis.
@@ -695,6 +829,9 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
                                   if (action == 'unblock') _unblock(c);
                                 },
                                 itemBuilder: (_) => [
+                                  const PopupMenuItem(
+                                      value: 'edit_contact',
+                                      child: Text('Editar nome e telefone')),
                                   const PopupMenuItem(value: 'history', child: Text('Histórico')),
                                   const PopupMenuItem(
                                       value: 'roles',

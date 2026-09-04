@@ -10,7 +10,10 @@
 # Exit  : 0 = chao OK (segue para o juiz textual) | 2 = REPROVADO (veredito ja impresso) | outro = erro (fail-closed no .cmd)
 
 $ErrorActionPreference = 'Continue'
-$Proj = 'C:\Users\danil\Desktop\projetosflutter\bora_app'
+# PC NOVO 2026-08-31: caminho real (o Desktop e junction e a sessao SSH de rede nao a atravessa).
+# Sincronizado com a copia viva em hermes-bridge (bloco-d1d2, 2026-09-05) -- a master aqui tinha
+# ficado parada no caminho antigo desde a mudanca de PC.
+$Proj = 'C:\BoraLocal\projetosflutter\bora_app'
 Set-Location $Proj
 
 $inFile = $args[0]
@@ -231,21 +234,33 @@ if ($recusaValida) {
 if ($recusaValida) {
   Proof 'ficheiro-check' 'dispensado: recusa valida (a ordem previa escape e o executor reportou)'
 } elseif ($tarefa -match '(?i)\b(cria|criar|escreve|escrever|gera|gerar|adiciona|adicionar)\b') {
+  # BUG 2026-09-04 (bloco-d1d2): a regex original nao incluia ":" na classe de caracteres,
+  # por isso um caminho absoluto do Windows como "C:\Users\danil\...\x.txt" perdia a letra
+  # da unidade -- o match comecava depois do "C:\" (em "Users\danil\..."). O Test-Path
+  # seguinte fazia Join-Path $Proj "Users\danil\...", um caminho que nunca existe, e o juiz
+  # reprovava trabalho real (prova: ordem 9d32, 8h queimadas em reabertura). Agora a regex
+  # captura opcionalmente o prefixo de unidade ("C:\" ou "\\servidor\partilha\") ANTES do
+  # resto do caminho, e o Test-Path usa o caminho absoluto diretamente em vez de o colar a
+  # $Proj quando ja e um caminho absoluto (Join-Path nao normaliza dois caminhos absolutos).
   $paths = @()
-  foreach ($m in [regex]::Matches($tarefa, '(?<![\w])(?:[A-Za-z0-9_.\-]+[/\\])+[A-Za-z0-9_.\-]+\.[A-Za-z0-9]{1,10}')) { $paths += $m.Value }
+  foreach ($m in [regex]::Matches($tarefa, '(?<![\w:])(?:[A-Za-z]:[\\/]|\\\\[A-Za-z0-9_.\-]+[\\/][A-Za-z0-9_.\-]+[\\/])?(?:[A-Za-z0-9_.\-]+[/\\])+[A-Za-z0-9_.\-]+\.[A-Za-z0-9]{1,10}')) { $paths += $m.Value }
   $paths = $paths | Select-Object -Unique -First 5
   foreach ($p in $paths) {
     $pp = $p -replace '/', '\'
-    $ex = Test-Path (Join-Path $Proj $pp)
+    $isAbs = [System.IO.Path]::IsPathRooted($pp)
+    $target = if ($isAbs) { $pp } else { Join-Path $Proj $pp }
+    $ex = Test-Path $target
     Proof "Test-Path $pp" "$ex"
     if ($ex) { continue }
 
-    $ppMirror = Join-Path '.claude\.ai\knowledge' $pp
-    $exMirror = Test-Path (Join-Path $Proj $ppMirror)
-    Proof "Test-Path $ppMirror (espelho cortex)" "$exMirror"
-    if ($exMirror) {
-      Proof 'ficheiro-check' "$p nao esta no caminho literal mas existe no espelho do cortex ($ppMirror) - divergencia de caminho, nao trabalho em falta"
-      continue
+    if (-not $isAbs) {
+      $ppMirror = Join-Path '.claude\.ai\knowledge' $pp
+      $exMirror = Test-Path (Join-Path $Proj $ppMirror)
+      Proof "Test-Path $ppMirror (espelho cortex)" "$exMirror"
+      if ($exMirror) {
+        Proof 'ficheiro-check' "$p nao esta no caminho literal mas existe no espelho do cortex ($ppMirror) - divergencia de caminho, nao trabalho em falta"
+        continue
+      }
     }
 
     $exGit = $false

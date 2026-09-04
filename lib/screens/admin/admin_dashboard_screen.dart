@@ -42,6 +42,8 @@ import 'admin_orders_screen.dart';
 import 'admin_cancellations_screen.dart';
 import 'admin_global_search_screen.dart';
 import 'admin_notifications_inbox_screen.dart';
+import 'admin_notification_failures_screen.dart';
+import 'admin_stuck_reservations_screen.dart';
 import 'admin_partner_payouts_screen.dart';
 import 'admin_partner_settlements_screen.dart';
 import 'admin_referrals_screen.dart';
@@ -633,6 +635,22 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                               const AdminReservationsMetricsScreen())),
                 ),
                 const SizedBox(height: 10),
+                // BLOCO D5 (2026-09-04) — reservas presas em pending/pending_payment,
+                // com botão "Libertar" que nunca mexe em dinheiro (ver migration
+                // 20260904230000_admin_notif_failures_and_stuck_reservations.sql).
+                _NavCard(
+                  icon: Icons.lock_clock,
+                  title: 'Marcações presas',
+                  subtitle:
+                      'Reservas travadas em pendente · libertar sem mexer em dinheiro',
+                  color: AppColors.error,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminStuckReservationsScreen())),
+                ),
+                const SizedBox(height: 10),
                 _NavCard(
                   icon: Icons.star_outline,
                   title: 'Avaliações',
@@ -884,6 +902,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       MaterialPageRoute(
                           builder: (_) =>
                               const AdminSendNotificationScreen())),
+                ),
+                const SizedBox(height: 10),
+                // BLOCO D5 (2026-09-04) — quadro dos avisos push que falharam
+                // (lê notification_failures; ver relatório para cobertura actual).
+                _NavCard(
+                  icon: Icons.notifications_off_outlined,
+                  title: 'Avisos que falharam',
+                  subtitle: 'Push que não chegou nas últimas 24h · motivo',
+                  color: AppColors.error,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              const AdminNotificationFailuresScreen())),
                 ),
                 const SizedBox(height: 10),
                 // T5.5

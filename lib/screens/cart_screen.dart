@@ -13,6 +13,7 @@ import '../stores/restaurant_store.dart';
 import '../widgets/bora/bora.dart';
 import '../widgets/takeaway/curbside_inputs.dart';
 import '../widgets/tip_selector.dart';
+import 'complete_profile_screen.dart' show garantirContactoDoCliente;
 import 'festas_quando_screen.dart';
 import 'orders_screen.dart';
 import 'payment_method_screen.dart';
@@ -541,6 +542,14 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
               onPressed: cartStore.items.isEmpty
                   ? null
                   : () async {
+                      // BLOCO C.3 (2026-09-05) — porta única de contacto: sem
+                      // nome/telemóvel válidos, o cliente é bloqueado aqui
+                      // antes de seguir para pagamento (ver
+                      // garantirContactoDoCliente em complete_profile_screen.dart).
+                      final contactoOk =
+                          await garantirContactoDoCliente(context);
+                      if (!contactoOk || !context.mounted) return;
+
                       cartStore.setWalletApplied(
                           _useWalletBalance ? walletAppliedCents : 0);
 

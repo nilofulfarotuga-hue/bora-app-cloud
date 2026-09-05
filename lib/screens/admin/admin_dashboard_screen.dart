@@ -345,9 +345,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
             final m = snapshot.data ?? const <String, dynamic>{};
             final platformRevenue = _toDouble(m['platform_revenue']);
+            final platformRevenueWeek = _toDouble(m['platform_revenue_week']);
             final ordersToday = _toInt(m['orders_today']);
-            final driversPayable = _toDouble(m['drivers_payable']);
-            final restaurantsPayable = _toDouble(m['restaurants_payable']);
+            // Saldo líquido, com sinal: positivo = a Bora tem a entregar;
+            // negativo = tem a receber. Antes o servidor somava só as linhas
+            // positivas do livro e o cartão dizia "A pagar 80,46" quando na
+            // verdade os drivers deviam 12,97 à Bora. O rótulo segue o sinal.
+            final driversBalance = _toDouble(m['drivers_payable']);
+            final restaurantsBalance = _toDouble(m['restaurants_payable']);
             final generatedAt = m['generated_at']?.toString() ?? '—';
             final dailyOrders = _parseDailyOrders(m['daily_orders']);
 
@@ -362,8 +367,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 _MetricCard(
                   icon: Icons.account_balance_wallet,
                   iconColor: AppColors.primary,
-                  title: 'Faturamento total (plataforma)',
+                  title: 'Receita da plataforma (desde sempre)',
                   value: '€${platformRevenue.toStringAsFixed(2)}',
+                ),
+                _MetricCard(
+                  icon: Icons.date_range,
+                  iconColor: AppColors.primary,
+                  title: 'Receita da plataforma (semana atual)',
+                  value: '€${platformRevenueWeek.toStringAsFixed(2)}',
                 ),
                 _MetricCard(
                   icon: Icons.receipt_long,
@@ -374,14 +385,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 _MetricCard(
                   icon: Icons.local_shipping,
                   iconColor: Colors.blue,
-                  title: 'A pagar — drivers',
-                  value: '€${driversPayable.toStringAsFixed(2)}',
+                  title: _tituloSaldo('drivers', driversBalance),
+                  value: '€${driversBalance.abs().toStringAsFixed(2)}',
                 ),
                 _MetricCard(
                   icon: Icons.restaurant,
                   iconColor: Colors.purple,
-                  title: 'A pagar — restaurantes',
-                  value: '€${restaurantsPayable.toStringAsFixed(2)}',
+                  title: _tituloSaldo('restaurantes', restaurantsBalance),
+                  value: '€${restaurantsBalance.abs().toStringAsFixed(2)}',
                 ),
                 const SizedBox(height: 20),
                 Text(
@@ -595,9 +606,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 _NavCard(
                   // Q1 (2026-05-17) — Repasses a parceiros (admin_partner_payouts trio).
                   icon: Icons.payments_outlined,
-                  title: 'Fechamento Semanal — Parceiros',
+                  title: 'Repasses a Parceiros',
                   subtitle:
-                      'Marcar pagamentos · vendas − comissão · CSV',
+                      'Só parceiros · marcar pagos · vendas − comissão · CSV',
                   color: Colors.indigo,
                   onTap: () => Navigator.push(
                       context,
@@ -1572,6 +1583,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       ),
     );
   }
+
+  /// Rótulo honesto para um saldo com sinal. Um valor negativo debaixo de
+  /// "A pagar" mente tão bem como o número errado que havia antes.
+  static String _tituloSaldo(String quem, double saldo) =>
+      saldo < 0 ? 'A receber de $quem' : 'A pagar — $quem';
 
   static double _toDouble(dynamic v) {
     if (v == null) return 0;

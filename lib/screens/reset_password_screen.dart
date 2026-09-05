@@ -76,12 +76,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   Future<void> _resolveRecoverySession() async {
     final auth = Supabase.instance.client.auth;
 
-    // Caminho do telemóvel: o SDK já criou a sessão a partir do deep link.
-    if (auth.currentSession != null) {
-      setState(() => _linkState = _LinkState.ready);
-      return;
-    }
-
     final params = _paramsFromUrl();
 
     final errorCode = params['error_code'] ?? params['error'];
@@ -95,9 +89,29 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
     // [Bloco 7] Link novo com `token_hash`: não se troca nada agora — o link
     // só é gasto no "Guardar" (verifyOTP). Mostrar já os dois campos.
+    //
+    // [05/09] O `token_hash` tem de ser lido ANTES de olhar para a sessão.
+    // Enquanto o `currentSession != null` vinha primeiro, o método saía já e o
+    // hash ficava por ler: o `verifyOTP` nunca corria e o `updateUser` mudava a
+    // palavra-passe de QUEM ESTIVESSE COM SESSÃO ABERTA neste browser, não a de
+    // quem pediu o email — e o ecrã ainda dizia "Palavra-passe alterada".
+    // Reproduzido ao vivo: link de `boraappbora@…` aberto num browser com sessão
+    // de `nilofulfarotuga@…` alterou a palavra-passe deste último. Por isso
+    // fecha-se a sessão antiga antes de o link ser trocado por sessão.
     final tokenHash = params['token_hash'];
     if (tokenHash != null && tokenHash.isNotEmpty) {
       _tokenHash = tokenHash;
+      if (auth.currentSession != null) {
+        await auth.signOut();
+      }
+      if (!mounted) return;
+      setState(() => _linkState = _LinkState.ready);
+      return;
+    }
+
+    // Caminho do telemóvel: o SDK já criou a sessão a partir do deep link.
+    // Só vale quando o link NÃO traz `token_hash` — senão manda o de cima.
+    if (auth.currentSession != null) {
       setState(() => _linkState = _LinkState.ready);
       return;
     }
@@ -175,7 +189,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       // se gasta — verifyOTP troca o hash por uma sessão de recuperação. Se o
       // hash já tiver sido usado/expirado, cai no catch e o ecrã diz como
       // pedir um email novo.
-      if (_tokenHash != null && auth.currentSession == null) {
+      // [05/09] Sem o `currentSession == null`: havendo hash do link, é ele que
+      // decide de quem é a conta. Com a condição antiga, uma sessão aberta
+      // fazia saltar o verifyOTP e o updateUser caía na conta errada.
+      if (_tokenHash != null) {
         await auth.verifyOTP(
           type: OtpType.recovery,
           tokenHash: _tokenHash,

@@ -72,8 +72,13 @@ class _AdminPartnerPayoutsScreenState extends State<AdminPartnerPayoutsScreen> {
       // admin_partners_with_counts retorna jsonb com partners e order counts.
       final res = await _supabase.rpc('admin_partners_with_counts');
       final list = (res as List?) ?? const [];
+      // [05/09] Só parceiros a sério. A RPC devolve todas as lojas da tabela,
+      // por isso este ecrã listava Auchan, Burger King e Continente — que não
+      // são parceiros, não têm comissão e apareciam sempre a 0,00, fazendo o
+      // ecrã parecer avariado.
       final parsed = list
           .map((e) => Map<String, dynamic>.from(e as Map))
+          .where((e) => e['is_partner'] == true)
           .toList()
         ..sort((a, b) {
           final na = (a['name'] as String? ?? '').toLowerCase();
@@ -524,7 +529,7 @@ class _AdminPartnerPayoutsScreenState extends State<AdminPartnerPayoutsScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: BoraScreenAppBar(
-        title: 'Fechamento Semanal — Parceiros',
+        title: 'Repasses a Parceiros',
         actions: [
           IconButton(
             icon: const Icon(Icons.file_download),

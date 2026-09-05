@@ -2,7 +2,7 @@
 tema: estado-vivo · escopo: projeto · estado: atual · atualizado: 2026-09-05
 id: estado-vivo
 tipo: foto
-origem: [reescrito pela Claude.ai 2026-09-05 a pedido do Danilo — foto geral + cascata de ferramentas]
+origem: [reescrito pela Claude.ai 2026-09-05 a pedido do Danilo — foto geral + cascata de ferramentas; cascata de IMAGEM corrigida por medição no BoraStudio 2026-09-05]
 ultima_confirmacao: 2026-09-05
 zona: verde
 confianca: alta
@@ -21,18 +21,31 @@ redes, cartazes, mini-sites de clientes, propaganda.
 **VÍDEO**
 1. **Veo, dentro do Gemini web** (gemini.google.com, sessão iniciada no Chrome do PC, pelo
    agente de clique). Disponível desde 05/09 — o Danilo passou a ter o plano Google AI Plus.
-   É a via principal.
+   É a via principal. *Nota: os limites desta via não foram medidos por ninguém — quando se
+   usar, regista-se o que a plataforma responde, não o que se espera dela.*
 2. **Bora Studio na GPU do Kaggle** (Wan I2V) quando o Veo estiver sem limite ou o plano
    for cancelado. A quota semanal do Kaggle renova ao sábado.
 3. Nunca: Sora (descontinuado), Higgsfield (sem créditos), nem serviço novo de fora.
 
 **IMAGEM**
 1. **API do Gemini** enquanto houver quota (o tecto do projecto não se mexe).
-2. **Gemini web / Nano Banana Pro pelo clique** quando a API der 429 ou cap. Com o plano
-   novo os limites subiram muito.
+   ⚠️ **Medido a 05/09, no BoraStudio:** com a chave do projecto **sem faturação**, a geração
+   de imagem dá **429 nos três modelos** (`gemini-3.1-flash-image`, `gemini-3-pro-image`,
+   `gemini-2.5-flash-image`). Não é quota gasta — é `limit: 0`, quota que nunca existiu.
+   O TEXTO e a VISÃO dessa chave funcionam (148 chamadas boas nesse dia).
+2. ⚠️ **O Google AI Plus NÃO dá quota de API.** É subscrição do *app* Gemini
+   (gemini.google.com). O botão "Atualizar" ter desaparecido e o Veo aparecer na barra
+   lateral são reais e **não mudam uma linha** do `generativelanguage.googleapis.com`.
+   Não voltar a contar com ele para desbloquear a API — está medido.
+   **Gemini web / Nano Banana Pro pelo clique** continua a ser via válida, mas os seus
+   limites **não estão medidos**; quem a usar mede e escreve aqui.
 3. **ChatGPT web pelo clique** (sessão iniciada no Chrome) como terceira via — gerar nos
    dois e ficar com o melhor.
-4. Regra provada em 4 reprovações: **a IA desenha a peça INTEIRA** (composição, molduras,
+4. **No Bora Studio a imagem NÃO passa por nenhuma destas vias:** os fotogramas geram-se na
+   GPU do Kaggle com **Qwen-Image-Edit-2509** (Apache-2.0), e isso funciona sozinho — a
+   corrida 319 de 05/09 entregou 12 fotogramas das 07:37 às 11:52. Um caminho por clique
+   seria mais frágil e menos automático do que o que já lá está.
+5. Regra provada em 4 reprovações: **a IA desenha a peça INTEIRA** (composição, molduras,
    atmosfera); o script só cola por cima logos reais, ecrãs reais da app e QR reais.
    Nunca o contrário.
 
@@ -53,6 +66,13 @@ crítico → FABLE. O loop automático corre SEMPRE no Claude Code.
   lá está o que as marcas escolheram mesmo pôr a correr.
 - `juiz_visao.py` estava partido (chamava modelos do Gemini já desligados) e passava tudo
   em silêncio. Corrigido 05/09. Lição: script que falha para o lado seguro parece funcionar.
+- **Uma regra só julga o artefacto de que fala (R62, BoraStudio 05/09).** O portão de
+  fotogramas entregava ao juiz regras sobre como se DESENHA uma ficha e reprovava por elas
+  planos de cinema, que nunca as podiam cumprir. Um alarme que aponta ao lado é pior do que
+  não ter alarme. Ao recolher critérios de um documento vivo, trazer também o âmbito.
+- **Um controlo que não falha é uma prova que não prova (R63, BoraStudio 05/09).** Se o
+  cenário de controlo passa quando devia rebentar, a prova está a medir a ausência do
+  problema, não a presença da cura.
 
 ## Snapshot 2026-09-05
 
@@ -74,6 +94,13 @@ Armadilha aberta: cancelar ordem em execução NÃO liberta o `flock` — é pre
 processo também. `.vps-exec.rc=97` não é avaria, foi desligado de propósito em Julho.
 O juiz recebia o prompt truncado a 27% pelo tecto de 8191 caracteres do `cmd`; corrigido,
 agora chega byte a byte.
+
+**Bora Studio (filme)** — a fábrica não está parada: corre sozinha de 15 em 15 min. A 05/09
+corrigiu-se o portão de fotogramas (ver R62 acima) e mediu-se o verdadeiro estrangulamento:
+39 dos 128 planos param no penteado das duas irmãs. A roupa identifica-as sempre certo
+(verde = Tailine, rosa = Tabita, medido 20/20, e aguenta-se até nos planos onde o cabelo
+falha); o penteado é que anda atribuído à irmã errada. A cor subiu à `assinatura_inegociavel`
+e cada irmã ganhou âncora de imagem recortada de um plano aprovado.
 
 **TVDE** — o travão de reserva passou de 20 minutos fixos a cálculo por rota. Corrigidos
 três defeitos em cadeia do caso do Valdemir (o ecrã trocava de corrida sozinho com

@@ -8,6 +8,7 @@ import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../models/carwash_models.dart';
 import '../../widgets/botao_rota.dart';
+import '../../widgets/ganho_de_hoje_card.dart';
 import '../../services/carwash_upload_service.dart';
 import '../../stores/washer_store.dart';
 import '../../utils/safe_image_picker.dart';
@@ -191,6 +192,11 @@ class _WasherHomeScreenState extends State<WasherHomeScreen> {
         child: ListView(
           padding: const EdgeInsets.all(Spacing.lg),
           children: [
+            // O total do dia de TUDO o que ele faz — o mesmo cartão dos ecrãs
+            // do estafeta, do TVDE e da limpeza.
+            GanhoDeHojeCard(recarregarQuando: store),
+            const SizedBox(height: Spacing.lg),
+
             if (!store.isApproved)
               Container(
                 padding: const EdgeInsets.all(Spacing.lg),

@@ -41,6 +41,7 @@ import '../stores/session_store.dart';
 import '../widgets/chat_bubble_button.dart';
 import 'chat_screen.dart';
 import 'ganhos_screen.dart';
+import '../widgets/ganho_de_hoje_card.dart';
 import '../widgets/trocar_de_papel.dart';
 import '../services/role_switch_helper.dart';
 import 'driver_map_screen.dart';
@@ -1201,6 +1202,22 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                   ),
                 ],
               ),
+            ),
+          ),
+
+          // ── Ganhos de hoje ────────────────────────────────────────────
+          // O mesmo cartão, com o mesmo número, dos outros ecrãs de casa
+          // (TVDE, limpeza, lavagem). Total do dia de tudo o que ele faz.
+          Positioned(
+            left: 16,
+            right: 16,
+            top: MediaQuery.of(context).padding.top + 60,
+            child: Material(
+              color: Colors.white,
+              elevation: 2,
+              borderRadius: BorderRadius.circular(12),
+              clipBehavior: Clip.antiAlias,
+              child: GanhoDeHojeCard(recarregarQuando: orderStore),
             ),
           ),
 

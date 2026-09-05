@@ -50,6 +50,7 @@ import 'admin_referrals_screen.dart';
 import 'admin_search_kpi_screen.dart';
 import 'admin_send_notification_screen.dart';
 import 'admin_acerto_unificado_screen.dart';
+import 'admin_ganho_do_dia_screen.dart';
 import 'admin_acertos_semana_screen.dart';
 import 'admin_ofertas_log_screen.dart';
 import 'admin_papeis_screen.dart';
@@ -496,6 +497,21 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       MaterialPageRoute(
                           builder: (_) =>
                               const AdminAcertoUnificadoScreen())),
+                ),
+                const SizedBox(height: 10),
+                // 2026-09-05: a tela acima responde pela SEMANA. Faltava
+                // conseguir olhar para UM DIA e ver quanto cada pessoa fez
+                // nele, somando todos os papeis dela.
+                _NavCard(
+                  icon: Icons.today,
+                  title: 'Ganho do dia por pessoa',
+                  subtitle:
+                      'Quanto cada um fez num dia · todos os papeis · filtrar dia · CSV',
+                  color: AppColors.primary,
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AdminGanhoDoDiaScreen())),
                 ),
                 const SizedBox(height: 10),
                 // OFERTAS (2026-08-29): a rodada oferecia a quem nao tinha

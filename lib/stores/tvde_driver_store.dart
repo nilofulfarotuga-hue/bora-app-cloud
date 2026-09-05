@@ -121,8 +121,34 @@ class TvdeDriverStore extends ChangeNotifier {
     }
   }
 
-  /// Soma os ganhos das corridas finalizadas hoje (por dia local).
+  /// Ganho de HOJE do prestador — de tudo o que ele faz, não só das corridas.
+  ///
+  /// 2026-09-05: isto lia só `tvde_rides`, e por isso o cartão "Ganhos de hoje"
+  /// do ecrã de casa mostrava €4,00 num dia de €9,32 — a entrega feita nesse
+  /// mesmo dia ficava de fora. Passa a vir da RPC `meu_ganho_ao_vivo`, que já
+  /// existe, já soma todos os papéis (entregas, corridas, limpeza, lavagem) e
+  /// já é a fonte do ecrã Ganhos. A soma antiga fica como rede de segurança
+  /// para o caso de a RPC não responder — melhor mostrar só as corridas do que
+  /// não mostrar nada.
   Future<void> loadTodayEarnings() async {
+    final uid = _uid;
+    if (uid == null) return;
+    try {
+      final g = await _sb.rpc('meu_ganho_ao_vivo');
+      if (g is Map && g['ok'] == true) {
+        _todayEarnCents = (g['hoje_cents'] as num?)?.toInt() ?? 0;
+        notifyListeners();
+        return;
+      }
+      debugPrint('TvdeDriverStore.loadTodayEarnings: RPC sem ok -> soma antiga');
+    } catch (e) {
+      debugPrint('TvdeDriverStore.loadTodayEarnings rpc => $e');
+    }
+    await _loadTodayEarningsSoCorridas();
+  }
+
+  /// Rede de segurança do `loadTodayEarnings`: soma só as corridas TVDE do dia.
+  Future<void> _loadTodayEarningsSoCorridas() async {
     final uid = _uid;
     if (uid == null) return;
     try {

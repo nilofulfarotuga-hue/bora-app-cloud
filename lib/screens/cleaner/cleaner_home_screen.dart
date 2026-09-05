@@ -19,6 +19,7 @@ import 'cleaner_apply_screen.dart';
 import 'cleaner_availability_screen.dart';
 import '../ganhos_screen.dart';
 import '../../widgets/botao_rota.dart';
+import '../../widgets/ganho_de_hoje_card.dart';
 import 'cleaner_history_screen.dart';
 
 /// LIMPEZA — painel da profissional. Router por estado da candidatura:
@@ -260,6 +261,11 @@ class _PanelView extends StatelessWidget {
       child: ListView(
         padding: const EdgeInsets.all(Spacing.lg),
         children: [
+          // O total do dia de TUDO o que ela faz — o mesmo cartão dos ecrãs
+          // do estafeta, do TVDE e da lavagem.
+          GanhoDeHojeCard(recarregarQuando: store),
+          const SizedBox(height: Spacing.lg),
+
           // Disponibilidade geral (interruptor da própria)
           Container(
             padding: const EdgeInsets.all(Spacing.md),

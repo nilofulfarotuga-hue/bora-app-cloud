@@ -19,6 +19,7 @@ import '../../../services/heartbeat_service.dart';
 import '../../../services/notification_service.dart';
 import '../../../services/papeis_de_trabalho.dart';
 import '../../../widgets/caixa_de_papeis.dart';
+import '../../../widgets/ganho_de_hoje_card.dart';
 import '../../../services/incoming_job_alert.dart';
 import '../../../models/order_model.dart';
 import '../../../services/permission_gate_service.dart';
@@ -956,32 +957,10 @@ class _OnlinePanel extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(
-                horizontal: Spacing.md, vertical: Spacing.sm),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(Radii.md),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.account_balance_wallet,
-                    color: AppColors.primary, size: 20),
-                const SizedBox(width: Spacing.sm),
-                const Text('Ganhos de hoje',
-                    style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textSecondary)),
-                const Spacer(),
-                Text('€${(todayEarnCents / 100).toStringAsFixed(2)}',
-                    style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.primary)),
-              ],
-            ),
-          ),
+          // 2026-09-05: era um cartão desenhado aqui que só somava corridas.
+          // Passa a ser o cartão partilhado pelos quatro ecrãs de casa, com o
+          // total do dia de todos os papéis (`meu_ganho_ao_vivo`).
+          GanhoDeHojeCard(valorInicialCents: todayEarnCents),
           // F/M14 + M4 — avaliação média recebida + tempo online do dia (sessão).
           const SizedBox(height: Spacing.sm),
           Row(

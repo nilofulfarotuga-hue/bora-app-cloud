@@ -407,3 +407,68 @@ de cada vez — mas foi exactamente por isso que a sessão de ontem pôs a `.pau
 e é a razão de fundo pela qual o loop e uma sessão à mão não podem partilhar a árvore.
 
 Não mexi. É desenho do carteiro e não foi pedido.
+
+---
+
+# CONTINUAÇÃO — correcções de infraestrutura do loop
+
+> Mesma sessão `fila-ganho-05-09`. RAM no arranque desta parte: **1864 MB**.
+
+## 1. O tecto do juiz: 400 → 1200 segundos
+
+`carteiro.sh` na VPS, linha 547: `timeout 400 pc-judge-novo` → `timeout 1200 pc-judge-novo`.
+O tecto de 1 h por tentativa do **executor** ficou intacto (`timeout 3600 pc-loop-novo`,
+linha 509, verificado depois). `bash -n` limpo; não sobrou nenhum outro `timeout 400`.
+
+Porquê: o `run-claude-judge-novopc.cmd` pode correr duas passagens de Opus com até
+8 turnos cada antes de desistir. Um prompt grande não cabe em 400 s — foi o que
+matou a ordem `8448` três vezes seguidas, com o trabalho já feito.
+
+## 2. BUG 7 — a Trava confundia o `-F` da mensagem com a bandeira de força
+
+A regra antiga procurava a invocação num sítio da linha e a bandeira noutro sítio
+da mesma linha, sem as ligar, e comparava sem distinguir maiúsculas. Bloqueava um
+commit com a mensagem por stdin encadeado com um envio normal — e até um relatório
+que citasse a própria mensagem de bloqueio.
+
+A decisão passou para `.claude/hooks/_push_forcado.py`: liga a bandeira ao
+subcomando (só conta depois dele, no mesmo segmento), ignora texto entre aspas e
+corpos de heredoc que não alimentem uma shell, e lê o `-f` curto distinguindo
+maiúsculas. **A protecção não afrouxa** — `_push_forcado_testes.py` alimenta o hook
+instalado com payloads reais: 10 casos, 0 falhas, incluindo os dois de aceitação
+(commit com `-F` encadeado passa; envio forçado continua bloqueado), mais
+`reset --hard` e `DROP` de tabela financeira ainda bloqueados. Um detector isolado
+tem outros 20 casos verdes (ramo `my-fix`, `--follow-tags`, `-u`, `git -C`,
+refspec com `+`, invocação precedida de `timeout`).
+
+Se o payload não vier em JSON legível, ou o detector faltar, o hook volta à rede
+grosseira de antes — fail-closed, nunca aberto.
+
+## 3. BUG 6 — atribuição por assinatura, nunca por relógio
+
+| Ficheiro | O que mudou |
+|---|---|
+| `run-claude-loop-pcnovo-limpo.cmd` | o executor assina o que commita: `GIT_COMMITTER_EMAIL=loop@bora.local`. Só o *committer*; o autor fica como estava. |
+| `juiz-mecanico.ps1` | calcula `$meusCommits` por assinatura. O `zonas_diff` deixa de correr sobre um intervalo e corre **commit a commit, só nos da ordem**. O `anti_trapaca` arranca no pai do commit mais antigo dela, ou em `HEAD` se não committou nada. A prova de "há commit novo" e o cinto do hash alegado passam a exigir a assinatura. |
+| `prova-material.ps1` | a sonda conta só os commits assinados. |
+
+Fins de linha preservados (LF/CRLF/LF) e os dois `.ps1` passam o parser do
+PowerShell com **0 erros**.
+
+## 4. BUG 8 (novo, apanhado aqui) — o outro hook tinha a mesma doença
+
+Ao escrever este mesmo capítulo, o `git-guardrails.py` bloqueou-o:
+
+> BLOQUEADO pelo guardrail de git: push para 'Passou.'; so e permitido: autonomous-night-2026-04-29
+
+O `ramo_do_push` fazia `re.search(..., re.S)` e agarrava o primeiro `git push` da
+linha inteira — corpo de heredoc incluído — tomando a palavra seguinte como ramo.
+O parágrafo acabava em "Passou.", e ele decidiu que esse era o ramo de destino.
+
+Curado com o **mesmo** `_push_forcado.py`, para não ficarem duas implementações a
+divergir: tira o texto antes de decidir, lê o ramo só dentro do segmento do push, e
+delega a detecção de força. `_git_guardrails_testes.py`: 12 casos, 0 falhas. Contra
+a versão antiga, o mesmo teste dá 1 falha — exactamente o caso do bug 8.
+
+Também deixou de despejar o comando inteiro no erro (truncado a 300 caracteres); era
+por isso que o bloqueio cuspia o relatório todo para o ecrã.

@@ -666,6 +666,46 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     }
   }
 
+  /// [Bloco 4.4 — 2026-09-05] Devolver a reserva à Bora, com confirmação.
+  ///
+  /// A ideia é o motorista poder dizer cedo "não vou conseguir", em vez de
+  /// segurar a reserva até o servidor lha tirar aos 5 minutos. Pergunta-se
+  /// primeiro porque não tem volta: quem devolve perde-a.
+  Future<void> _devolverReserva(TvdeRide ride) async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: const Text('Devolver esta reserva?'),
+        content: const Text(
+            'A Bora procura outro motorista. Deixas de ficar com esta corrida '
+            'e não perdes nada por devolveres — vale mais avisares agora do que '
+            'o cliente ficar à espera.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(d, false),
+              child: const Text('Fico com ela')),
+          TextButton(
+              onPressed: () => Navigator.pop(d, true),
+              child: const Text('Devolver')),
+        ],
+      ),
+    );
+    if (confirmar != true || !mounted) return;
+    try {
+      final ok = await context
+          .read<TvdeDriverStore>()
+          .releaseReservation(ride.id, motivo: 'o motorista devolveu a reserva');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(ok
+              ? 'Reserva devolvida. A Bora procura outro motorista.'
+              : 'Não consegui devolver. Atualiza e tenta outra vez.')));
+      if (!ok) await _recarregarDoServidor();
+    } catch (e) {
+      await _falhouAcao(e, rideId: ride.id);
+    }
+  }
+
   Future<void> _arrived(TvdeRide ride) async {
     try {
       await context.read<TvdeDriverStore>().markArrived(ride.id);
@@ -1201,6 +1241,27 @@ class _ActionPanel extends StatelessWidget {
                         fontWeight: FontWeight.w700,
                         color: AppColors.primary)),
               ],
+            ),
+            // [Bloco 4.4 — 2026-09-05] Devolver a reserva. A função do servidor
+            // (`tvde_reservation_release`) já existia e estava provada; faltava
+            // maneira de lhe chamar do telemóvel. Sem isto, o motorista que
+            // percebe a meio que não vai conseguir não tinha como avisar — ou
+            // segurava a reserva até ao corte automático, ou desaparecia.
+            // Devolver cedo dá tempo à Bora de arranjar outro.
+            const SizedBox(height: Spacing.xs),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed:
+                    busy ? null : () => actions._devolverReserva(ride),
+                icon: const Icon(Icons.undo, size: 17),
+                label: const Text('Devolver reserva'),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.textSecondary,
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
             ),
           ],
           // PART2 — método de pagamento + quanto COBRAR ao passageiro (paridade

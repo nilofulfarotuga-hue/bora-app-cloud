@@ -369,6 +369,26 @@ class _AdminTvdeReservasScreenState extends State<AdminTvdeReservasScreen> {
               '${r['payment_method'] ?? 'cash'}'
               '${r['payment_status'] != null ? ' · ${r['payment_status']}' : ''}'),
           if (tentados > 0) _kv('Já tentados', '$tentados motorista(s)'),
+          // [Bloco 4.6 — 2026-09-05] Travão por rota. Desde o caso do Valdemir
+          // (03→04/09) o travão deixou de ser fixo em 20 min e passa a ser o
+          // tempo de condução do motorista até o cliente, com margem. Aqui
+          // mostramos os três números que explicam qualquer reserva presa:
+          // quantos minutos, a que horas entra, e se a conta vem de uma posição
+          // fresca ou se caiu no valor fixo por falta de sinal.
+          if (r['lock_minutes'] != null) ...[
+            _kv('Trava (rota)', '${r['lock_minutes']} min antes'),
+            if (r['lock_at'] != null)
+              _kv('Trava entra às', _quando(r['lock_at']?.toString())),
+            _kv(
+              'Base do cálculo',
+              r['driver_position_age_min'] == null
+                  ? 'sem posição do motorista — usou o valor fixo'
+                  : (r['driver_position_age_min'] as num) <= 30
+                      ? 'posição de há ${r['driver_position_age_min']} min — rota real'
+                      : 'posição de há ${r['driver_position_age_min']} min '
+                          '(velha demais) — usou o valor fixo',
+            ),
+          ],
           if (r['reservation_driver_ready_at'] != null)
             _kv('Confirmou "A caminho"',
                 _quando(r['reservation_driver_ready_at']?.toString())),

@@ -53,12 +53,44 @@ class TvdeDriverStore extends ChangeNotifier {
 
   RealtimeChannel? _channel;
 
+  /// Reserva que já foi activada pelo servidor mas que NÃO pode tomar o ecrã
+  /// porque o motorista está a meio de outra corrida. Fica guardada aqui e a
+  /// home mostra-a como "tens uma reserva à espera". Ver [_grauCompromisso].
+  TvdeRide? _standByRide;
+  TvdeRide? get standByRide => _standByRide;
+
   static const _activeStatuses = <String>[
     'motorista_atribuido',
     'motorista_a_caminho',
     'motorista_chegou',
     'em_andamento',
   ];
+
+  /// Quão comprometido o motorista está com ESTA corrida. Quanto maior, mais
+  /// perto do passageiro — ou já com ele dentro do carro.
+  ///
+  /// [Fix 2026-09-05 — caso do Valdemir, noite de 03→04/09] Um motorista pode
+  /// ter DUAS corridas não-em-fila ao mesmo tempo: a que está a fazer e uma
+  /// reserva que o relógio do servidor acabou de activar. Antes o ecrã ficava
+  /// com a de `updated_at` mais recente — bastava o sweep tocar na reserva para
+  /// ela roubar o ecrã a meio de uma viagem. O botão de finalizar passava a
+  /// apontar para a reserva, que estava em 'motorista_a_caminho', e o servidor
+  /// respondia `invalid_transition: motorista_a_caminho`. Era, literalmente, o
+  /// "não me deixaram finalizar" que o Valdemir contou.
+  static int _grauCompromisso(String status) {
+    switch (status) {
+      case 'em_andamento':
+        return 4; // passageiro a bordo — nada tira isto do ecrã
+      case 'motorista_chegou':
+        return 3;
+      case 'motorista_a_caminho':
+        return 2;
+      case 'motorista_atribuido':
+        return 1;
+      default:
+        return 0;
+    }
+  }
 
   // ════════════════════════════════════════════════════════════════════════
   // ARRANQUE / REALTIME
@@ -148,15 +180,25 @@ class TvdeDriverStore extends ChangeNotifier {
     final uid = _uid;
     if (uid == null) return;
     try {
+      // [Fix 2026-09-05] Trazer TODAS as activas, não só a de `updated_at` mais
+      // recente: quando o relógio activa uma reserva a meio de uma viagem ficam
+      // duas. Manda a mais comprometida; a outra vai para stand by.
       final active = await _sb
           .from('tvde_rides')
           .select()
           .eq('driver_id', uid)
           .eq('is_queued', false)
           .inFilter('status', _activeStatuses)
-          .order('updated_at', ascending: false)
-          .limit(1);
-      _activeRide = active.isEmpty ? null : TvdeRide.fromMap(active.first);
+          .order('updated_at', ascending: false);
+
+      final ativas = active
+          .map((m) => TvdeRide.fromMap(Map<String, dynamic>.from(m)))
+          .toList()
+        ..sort((a, b) =>
+            _grauCompromisso(b.status).compareTo(_grauCompromisso(a.status)));
+
+      _activeRide = ativas.isEmpty ? null : ativas.first;
+      _standByRide = ativas.length > 1 ? ativas[1] : null;
 
       // Corrida em fila (back-to-back), se existir.
       final queued = await _sb
@@ -243,9 +285,22 @@ class TvdeDriverStore extends ChangeNotifier {
       if (_activeStatuses.contains(ride.status)) {
         // Ativação da fila (a_caminho vinda da fila) ou update da ativa.
         if (_queuedRide?.id == ride.id) _queuedRide = null;
-        _activeRide = ride;
+
+        // [Fix 2026-09-05] Uma corrida DIFERENTE só toma o ecrã se estiver mais
+        // comprometida do que a que lá está. Uma reserva activada pelo relógio
+        // não interrompe quem tem passageiro a bordo — fica em stand by.
+        final actual = _activeRide;
+        final outra = actual != null && actual.id != ride.id;
+        if (outra &&
+            _grauCompromisso(actual.status) >= _grauCompromisso(ride.status)) {
+          _standByRide = ride;
+        } else {
+          if (_standByRide?.id == ride.id) _standByRide = null;
+          _activeRide = ride;
+        }
         _limparOferta();
       } else if (ride.isTerminal) {
+        if (_standByRide?.id == ride.id) _standByRide = null;
         if (_queuedRide?.id == ride.id) {
           // A corrida em fila caiu (passageiro cancelou) — limpa o indicador.
           _queuedRide = null;
@@ -289,6 +344,10 @@ class TvdeDriverStore extends ChangeNotifier {
     }
     if (_activeRide?.id == deletedId) {
       _activeRide = null;
+      changed = true;
+    }
+    if (_standByRide?.id == deletedId) {
+      _standByRide = null;
       changed = true;
     }
     if (changed) notifyListeners();
@@ -477,6 +536,39 @@ class TvdeDriverStore extends ChangeNotifier {
     }
   }
 
+  /// Devolve a reserva à Bora — "já vi que não vou conseguir".
+  ///
+  /// [2026-09-05, Bloco 4.4] A função do servidor `tvde_reservation_release`
+  /// já existia e estava provada; faltava só maneira de lhe chamar a partir do
+  /// telemóvel. Sem isto, um motorista que percebe a meio que não chega a tempo
+  /// não tinha como avisar — ou ficava a segurar a reserva até ao corte
+  /// automático, ou desaparecia. Devolver cedo dá tempo à Bora de procurar
+  /// outro.
+  ///
+  /// Devolve `true` quando o servidor aceitou. Idempotente do lado de lá.
+  Future<bool> releaseReservation(String rideId, {String? motivo}) async {
+    _setBusy(true);
+    try {
+      final res = await _sb.rpc('tvde_reservation_release', params: {
+        'p_ride_id': rideId,
+        'p_motivo': motivo ?? 'o motorista devolveu a reserva',
+      }).timeout(kAcaoTimeout);
+      if (_activeRide?.id == rideId) _activeRide = null;
+      if (_standByRide?.id == rideId) _standByRide = null;
+      if (_queuedRide?.id == rideId) _queuedRide = null;
+      unawaited(cancelTvdeRideNotification(rideId));
+      await loadCurrent();
+      await loadAgenda();
+      notifyListeners();
+      return res != false;
+    } catch (e) {
+      debugPrint('TvdeDriverStore.releaseReservation error => $e');
+      return false;
+    } finally {
+      _setBusy(false);
+    }
+  }
+
   /// Lê uma corrida pelo id, directamente do servidor.
   ///
   /// [Fix 2026-08-20] Rede de segurança do "A caminho": quando o sweep activa
@@ -538,7 +630,9 @@ class TvdeDriverStore extends ChangeNotifier {
         'p_tokens_to_apply': 0,
       }).timeout(kAcaoTimeout);
       final finished = TvdeRide.fromMap(_asMap(res));
-      if (_queuedRide != null) {
+      // [Fix 2026-09-05] Também recarrega quando havia uma reserva em stand by:
+      // acabada esta corrida, é ela que passa a mandar no ecrã.
+      if (_queuedRide != null || _standByRide != null) {
         _activeRide = null;
         _limparOferta();
         await loadCurrent(); // apanha a corrida ativada ('motorista_a_caminho')

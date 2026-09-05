@@ -54,6 +54,20 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
   String? _requestedCleanerId; // null = primeira disponível
   String _paymentMethod = 'cash';
 
+  /// Trava de re-entrada LOCAL do botão de avançar (PADRAO_BORA 3.13).
+  ///
+  /// O "Cancelar/Voltar" já tinha sido solto do `busy` global (ver nota na
+  /// barra de baixo); faltava o botão da direita, que é o que CRIA e COBRA.
+  ///
+  /// Aqui a trava não é só cosmética: a RPC `create_cleaning_booking` **não
+  /// tem guarda contra duplicado** — valida antecedência, método de pagamento
+  /// e disponibilidade da profissional, e nada mais. Dois toques = duas
+  /// reservas. Por isso a trava fecha ANTES do primeiro `await` e só abre
+  /// quando TODO o fluxo acaba — reserva criada E pagamento resolvido —, e
+  /// não a meio, como fazia o `busy` do store (que largava assim que o
+  /// `createBooking` devolvia, deixando o pagamento a descoberto).
+  bool _avancando = false;
+
   @override
   void initState() {
     super.initState();
@@ -117,6 +131,16 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
       DateTime.now().add(Duration(hours: _leadHours));
 
   Future<void> _goNext() async {
+    if (_avancando) return;
+    setState(() => _avancando = true);
+    try {
+      await _avancarPasso();
+    } finally {
+      if (mounted) setState(() => _avancando = false);
+    }
+  }
+
+  Future<void> _avancarPasso() async {
     if (_step == 0) {
       if (_quote == null) {
         _snack('Sem orçamento — verifica a ligação e tenta de novo.'.tr);
@@ -263,13 +287,15 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
               },
             ),
           ),
-          _buildBottomBar(store),
+          _buildBottomBar(),
         ],
       ),
     );
   }
 
-  Widget _buildBottomBar(CleaningStore store) {
+  // Sem `store`: a barra de baixo deixou de depender do `busy` global — os dois
+  // botões vivem agora do estado deste ecrã (`_step` e `_avancando`).
+  Widget _buildBottomBar() {
     final isLast = _step == 2;
     return SafeArea(
       child: Padding(
@@ -294,7 +320,7 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
                     ? 'Confirmar reserva'.tr
                     : 'Continuar',
                 icon: isLast ? Icons.check_circle : Icons.arrow_forward,
-                loading: store.busy,
+                loading: _avancando,
                 onPressed: _goNext,
               ),
             ),

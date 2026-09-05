@@ -83,6 +83,10 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _loadDriverArrowIcon();
+    // [Uma corrida = uma stream · 05/09] Enquanto o ecrã de corrida activa tiver
+    // GPS próprio a dar posições, a stream desta home fica suspensa. Ver
+    // `_onCorridaGpsChanged`.
+    tvdeCorridaControlaGps.addListener(_onCorridaGpsChanged);
     // [TVDE P0] Push de oferta força reload do store → a tela de oferta aparece
     // mesmo que o realtime tenha caído (fallback triplo: push → realtime → poll).
     NotificationService.tvdeOfferReload = _reloadOffer;
@@ -150,9 +154,11 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
     if (NotificationService.tvdeReservationReload == _reloadAgenda) {
       NotificationService.tvdeReservationReload = null;
     }
+    tvdeCorridaControlaGps.removeListener(_onCorridaGpsChanged);
     _heartbeat.serverAck.removeListener(_onServerAckChanged);
     _heartbeat.stop();
     _gps?.cancel();
+    _gps = null;
     _offerPoll?.cancel();
     _onlineTicker?.cancel();
     _mapController?.dispose();
@@ -449,7 +455,34 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
     }
   }
 
+  /// [Uma corrida = uma stream · 05/09] O ecrã de corrida activa avisou que
+  /// assumiu (ou largou) o GPS.
+  ///
+  /// Durante uma corrida ficavam DUAS streams de GPS abertas ao mesmo tempo —
+  /// esta (`medium`, 50 m) e a do ecrã de corrida (`bestForNavigation`, 3 m) —
+  /// a desenhar o mesmo carro e a gastar bateria a dobrar. Passa a haver uma:
+  /// enquanto a corrida está no ecrã, o dono do GPS é ela.
+  ///
+  /// O aviso só chega DEPOIS de a stream de lá dar a primeira posição, e o ecrã
+  /// de corrida assume também o envio da posição ao servidor (mesmos destinos,
+  /// mesmos travões, portão de 50 m igual a esta stream). Se o GPS de lá
+  /// falhar, o aviso volta a `false` e esta stream reabre.
+  void _onCorridaGpsChanged() {
+    if (!mounted) return;
+    if (tvdeCorridaControlaGps.value) {
+      _gps?.cancel();
+      _gps = null;
+      return;
+    }
+    // Corrida fechada (ou GPS de lá em baixo): retoma, se ainda estiver online.
+    final online = context.read<DriverStore>().currentDriver?.isOnline ?? false;
+    if (online && _gps == null) unawaited(_startGps());
+  }
+
   Future<void> _startGps() async {
+    // O ecrã da corrida é o dono do GPS agora — abrir aqui uma segunda stream
+    // era voltar exactamente ao problema que isto resolve.
+    if (tvdeCorridaControlaGps.value) return;
     final enabled = await Geolocator.isLocationServiceEnabled();
     if (!enabled) {
       if (mounted) {
@@ -783,8 +816,12 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
               right: 16,
               top: 12,
               child: TvdeReservationOfferCard(
+                // [PADRAO_BORA 3.13 · 05/09] Já não se passa o `busy` GLOBAL
+                // do store: o cartão trava-se sozinho no próprio toque. Este
+                // é o caso mais grave do padrão — a oferta tem contagem
+                // decrescente, e um botão morto uns segundos é a reserva a
+                // expirar sozinha nas mãos do motorista.
                 ride: reservationOffer,
-                busy: context.watch<TvdeDriverStore>().busy,
                 onAccept: () => _aceitarReserva(reservationOffer.id),
                 onReject: () => _recusarReserva(reservationOffer.id),
               ),

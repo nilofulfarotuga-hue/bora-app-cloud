@@ -21,6 +21,11 @@ class _CleanerAvailabilityScreenState extends State<CleanerAvailabilityScreen> {
   late List<CleanerSlot> _slots;
   bool _dirty = false;
 
+  /// Estado de envio LOCAL deste ecrã (PADRAO_BORA.md 3.13, cicatriz de
+  /// 05/09/2026): um botão trava-se pelo SEU pedido, nunca pelo `busy`
+  /// global do store, partilhado por dezenas de operações.
+  bool _saving = false;
+
   @override
   void initState() {
     super.initState();
@@ -70,6 +75,8 @@ class _CleanerAvailabilityScreenState extends State<CleanerAvailabilityScreen> {
   }
 
   Future<void> _save() async {
+    if (_saving) return;
+    setState(() => _saving = true);
     final store = context.read<CleanerStore>();
     try {
       await store.saveSlots(_slots);
@@ -83,12 +90,13 @@ class _CleanerAvailabilityScreenState extends State<CleanerAvailabilityScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Não foi possível guardar a agenda.')),
       );
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final store = context.watch<CleanerStore>();
     final nothingMarked = _slots.isEmpty;
     return Scaffold(
       appBar: const BoraScreenAppBar(title: 'A minha disponibilidade'),
@@ -141,7 +149,7 @@ class _CleanerAvailabilityScreenState extends State<CleanerAvailabilityScreen> {
           BoraPrimaryButton(
             label: 'Guardar disponibilidade',
             icon: Icons.save,
-            loading: store.busy,
+            loading: _saving,
             onPressed: _dirty
                 ? _save
                 : () {

@@ -31,6 +31,38 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
   int _cancelHalfHours = 2;
   bool _rated = false;
 
+  /// Trava de re-entrada LOCAL deste ecrã (PADRAO_BORA 3.13).
+  ///
+  /// Os botões daqui estavam presos ao `busy` global do `CleaningStore` — um
+  /// flag único que CINCO operações mexem (`createBooking`, `confirmCompleted`,
+  /// `cancelBooking`, `cancelSeries`, `rateCleaner`). Bastava uma delas para
+  /// o botão de outra nascer desligado: a mesma cicatriz da corrida real de
+  /// 05/09/2026, agora num ecrã de dinheiro.
+  ///
+  /// Pior: o `busy` global **nunca** era ligado pelo pagamento
+  /// (`createCardPayment` / `createMbwayPayment` / `markPaymentHeld` não
+  /// chamam `_setBusy`), por isso o botão "Pagar agora" corria sem trava
+  /// nenhuma. Esta trava fecha ANTES do primeiro `await` e só abre no
+  /// `finally`, logo um segundo toque nunca chega ao servidor.
+  ///
+  /// É UMA trava para as quatro ações porque todas mexem na MESMA reserva —
+  /// pagar enquanto se cancela era um cruzamento possível. O que se perdeu foi
+  /// só a contaminação de operações de fora deste ecrã.
+  bool _acaoEmCurso = false;
+
+  /// Mesmo desenho do `UnifiedCheckoutButton` (`_loading` + saída à entrada):
+  /// tranca, corre, e destranca sempre — inclusive quando a ação desiste a
+  /// meio (diálogo fechado) ou rebenta.
+  Future<void> _comTrava(Future<void> Function() acao) async {
+    if (_acaoEmCurso) return;
+    setState(() => _acaoEmCurso = true);
+    try {
+      await acao();
+    } finally {
+      if (mounted) setState(() => _acaoEmCurso = false);
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -92,7 +124,9 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
     return 'Taxa de 100% ({0}).'.trArgs([CleaningLabels.euro(b.totalCents)]);
   }
 
-  Future<void> _cancel() async {
+  Future<void> _cancel() => _comTrava(_cancelarReserva);
+
+  Future<void> _cancelarReserva() async {
     final b = _booking;
     final store = context.read<CleaningStore>();
     final confirmed = await showDialog<bool>(
@@ -155,7 +189,9 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
   }
 
   /// Retoma o pagamento pendente (cartão/MB Way) a partir do tracking.
-  Future<void> _payNow() async {
+  Future<void> _payNow() => _comTrava(_pagarAgora);
+
+  Future<void> _pagarAgora() async {
     final store = context.read<CleaningStore>();
     final ok = await CleaningPaymentFlow.pay(context, store, _booking);
     if (!mounted) return;
@@ -167,7 +203,9 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
     }
   }
 
-  Future<void> _cancelSeries() async {
+  Future<void> _cancelSeries() => _comTrava(_pararSerie);
+
+  Future<void> _pararSerie() async {
     final b = _booking;
     final groupId = b.recurrenceGroupId;
     if (groupId == null) return;
@@ -206,7 +244,11 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
     }
   }
 
-  Future<void> _confirmDone() async {
+  Future<void> _confirmDone() => _comTrava(_confirmarConclusao);
+
+  /// Nota: `_askRating` fica DE FORA da trava de propósito — é chamado daqui
+  /// dentro, e travá-lo também faria a avaliação sair sem abrir.
+  Future<void> _confirmarConclusao() async {
     final store = context.read<CleaningStore>();
     final b = _booking;
     try {
@@ -323,7 +365,7 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
             if (!b.status.isCancelled &&
                 b.paymentMethod != 'cash' &&
                 b.paymentStatus == 'unpaid') ...[
-              _PaymentPendingBanner(busy: store.busy, onPay: _payNow),
+              _PaymentPendingBanner(busy: _acaoEmCurso, onPay: _payNow),
               const SizedBox(height: Spacing.lg),
             ],
             if (b.cleanerId != null) ...[
@@ -356,7 +398,7 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
               BoraPrimaryButton(
                 label: 'Confirmar limpeza concluída'.tr,
                 icon: Icons.check_circle,
-                loading: store.busy,
+                loading: _acaoEmCurso,
                 onPressed: _confirmDone,
               ),
               const SizedBox(height: Spacing.sm),
@@ -379,14 +421,14 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
             ].contains(b.status)) ...[
               const SizedBox(height: Spacing.sm),
               TextButton(
-                onPressed: store.busy ? null : _cancel,
+                onPressed: _acaoEmCurso ? null : _cancel,
                 child: Text('Cancelar limpeza'.tr,
                     style: const TextStyle(color: AppColors.error)),
               ),
             ],
             if (b.isRecurring && b.status.isActive)
               TextButton(
-                onPressed: store.busy ? null : _cancelSeries,
+                onPressed: _acaoEmCurso ? null : _cancelSeries,
                 child: Text('Parar recorrência ({0})'.trArgs([b.recurrenceLabel]),
                     style: const TextStyle(color: AppColors.textSecondary)),
               ),

@@ -129,6 +129,24 @@
              inexistente em v8 → startService retornava true mas service NUNCA
              arrancava (isRunningService=false em todos os testes).
              Nome correcto v8: com.pravera.flutter_foreground_task.service.ForegroundService -->
+        <!-- ⛔ NÃO ACRESCENTAR "location" A ESTE SERVIÇO (verificado 2026-09-05).
+             Este serviço é PARTILHADO: estafeta Online (DriverStore) e parceiro
+             com loja aberta (RestaurantStore). O plugin arranca-o sempre com
+             ServiceInfo.FOREGROUND_SERVICE_TYPE_MANIFEST (ForegroundService.kt
+             linha ~257), ou seja com TODOS os tipos aqui declarados, em todas as
+             chamadas — não dá para escolher o tipo por arranque.
+             A doc do Android diz que um serviço arrancado com vários tipos "must
+             adhere to the platform enforcement requirements of ALL types", e que
+             falhar um requisito atira SecurityException depois de startForeground().
+             Como o tipo "location" exige ACCESS_FINE/COARSE_LOCATION concedida em
+             tempo de execução, o PARCEIRO (que não tem razão para dar GPS) passaria
+             a rebentar ao abrir a loja em Android 14+.
+             O GPS em primeiro plano das corridas TVDE/entregas NÃO precisa disto:
+             usa o serviço próprio do geolocator (GeolocatorLocationService, já
+             declarado com foregroundServiceType="location" no manifesto do
+             geolocator_android 5.0.3 e fundido aqui pelo merger do Gradle),
+             activado ao passar foregroundNotificationConfig ao AndroidSettings.
+             Ver lib/services/tvde_corrida_localizacao_service.dart. -->
         <service
             android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
             android:exported="false"

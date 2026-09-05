@@ -17,13 +17,11 @@ class TvdeReservationOfferCard extends StatefulWidget {
     required this.ride,
     required this.onAccept,
     required this.onReject,
-    this.busy = false,
   });
 
   final TvdeRide ride;
   final VoidCallback onAccept;
   final VoidCallback onReject;
-  final bool busy;
 
   @override
   State<TvdeReservationOfferCard> createState() =>
@@ -32,6 +30,21 @@ class TvdeReservationOfferCard extends StatefulWidget {
 
 class _TvdeReservationOfferCardState extends State<TvdeReservationOfferCard> {
   Timer? _tick;
+
+  /// Guarda de resposta LOCAL deste cartão (PADRAO_BORA.md 3.13, cicatriz de
+  /// 05/09/2026). Antes os botões dependiam de `widget.busy` — o `busy`
+  /// GLOBAL do `TvdeDriverStore`, mexido por dezenas de operações — sem
+  /// nenhuma ligação a ESTE aceitar/recusar. Numa oferta com contagem
+  /// decrescente isso é o pior caso: o botão morto e a oferta a expirar
+  /// sozinha nas mãos do motorista.
+  ///
+  /// `onAccept`/`onReject` são `VoidCallback` (fire-and-forget) — este
+  /// cartão não tem um Future para esperar, por isso destrava-se sozinho ao
+  /// fim de alguns segundos em vez de ficar preso para sempre se a resposta
+  /// do servidor demorar ou falhar em silêncio.
+  bool _respondendo = false;
+  Timer? _timeoutResposta;
+  static const _tempoLimiteResposta = Duration(seconds: 6);
 
   @override
   void initState() {
@@ -42,8 +55,20 @@ class _TvdeReservationOfferCardState extends State<TvdeReservationOfferCard> {
   }
 
   @override
+  void didUpdateWidget(covariant TvdeReservationOfferCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // A oferta rodou para outra ride — o que estava em curso já não se
+    // aplica a esta decisão nova; destrava.
+    if (_respondendo && oldWidget.ride.id != widget.ride.id) {
+      _timeoutResposta?.cancel();
+      _respondendo = false;
+    }
+  }
+
+  @override
   void dispose() {
     _tick?.cancel();
+    _timeoutResposta?.cancel();
     super.dispose();
   }
 
@@ -76,6 +101,26 @@ class _TvdeReservationOfferCardState extends State<TvdeReservationOfferCard> {
     if (fim == null) return 0;
     final s = fim.difference(DateTime.now()).inSeconds;
     return s > 0 ? s : 0;
+  }
+
+  void _tapAceitar() {
+    if (_respondendo) return;
+    _travarResposta();
+    widget.onAccept();
+  }
+
+  void _tapRecusar() {
+    if (_respondendo) return;
+    _travarResposta();
+    widget.onReject();
+  }
+
+  void _travarResposta() {
+    setState(() => _respondendo = true);
+    _timeoutResposta?.cancel();
+    _timeoutResposta = Timer(_tempoLimiteResposta, () {
+      if (mounted) setState(() => _respondendo = false);
+    });
   }
 
   @override
@@ -175,7 +220,7 @@ class _TvdeReservationOfferCardState extends State<TvdeReservationOfferCard> {
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: widget.busy ? null : widget.onReject,
+                    onPressed: _respondendo ? null : _tapRecusar,
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.textSecondary,
                       padding: const EdgeInsets.symmetric(vertical: 12),
@@ -187,13 +232,13 @@ class _TvdeReservationOfferCardState extends State<TvdeReservationOfferCard> {
                 Expanded(
                   flex: 2,
                   child: ElevatedButton(
-                    onPressed: widget.busy ? null : widget.onAccept,
+                    onPressed: _respondendo ? null : _tapAceitar,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
-                    child: widget.busy
+                    child: _respondendo
                         ? const SizedBox(
                             height: 18,
                             width: 18,

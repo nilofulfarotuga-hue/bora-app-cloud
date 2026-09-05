@@ -302,13 +302,7 @@ class _PanelView extends StatelessWidget {
                     ],
                   ),
                 ),
-                Switch(
-                  value: profile.isActive,
-                  activeThumbColor: AppColors.primary,
-                  onChanged: store.busy
-                      ? null
-                      : (v) => store.setProfile(isActive: v),
-                ),
+                _DisponivelSwitch(store: store, activo: profile.isActive),
               ],
             ),
           ),
@@ -460,6 +454,47 @@ class _PanelView extends StatelessWidget {
   }
 }
 
+/// [PADRAO_BORA 3.13 · 05/09] O interruptor "estou disponível" da profissional.
+///
+/// Widget próprio só por causa do guarda: estava `onChanged: store.busy ? null
+/// : …`, ou seja qualquer outra operação do `CleanerStore` a meio deixava-a
+/// sem se conseguir pôr disponível (ou indisponível, que é pior — é assim que
+/// se recusa trabalho). O painel à volta é sem estado; extrair vinte linhas
+/// sai mais barato e mais seguro do que reescrever as duzentas do painel.
+class _DisponivelSwitch extends StatefulWidget {
+  const _DisponivelSwitch({required this.store, required this.activo});
+  final CleanerStore store;
+  final bool activo;
+
+  @override
+  State<_DisponivelSwitch> createState() => _DisponivelSwitchState();
+}
+
+class _DisponivelSwitchState extends State<_DisponivelSwitch> {
+  bool _aGuardar = false;
+
+  Future<void> _alternar(bool v) async {
+    if (_aGuardar) return;
+    setState(() => _aGuardar = true);
+    try {
+      await widget.store.setProfile(isActive: v);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Não foi possível mudar a disponibilidade.')));
+      }
+    }
+    if (mounted) setState(() => _aGuardar = false);
+  }
+
+  @override
+  Widget build(BuildContext context) => Switch(
+        value: widget.activo,
+        activeThumbColor: AppColors.primary,
+        onChanged: _aGuardar ? null : _alternar,
+      );
+}
+
 class _ShortcutCard extends StatelessWidget {
   const _ShortcutCard({
     required this.icon,
@@ -520,10 +555,33 @@ String _fmtWhen(DateTime d) {
   return '${two(d.day)}/${two(d.month)} às ${two(d.hour)}:${two(d.minute)}';
 }
 
-class _OfferCard extends StatelessWidget {
+class _OfferCard extends StatefulWidget {
   const _OfferCard({required this.booking, required this.store});
   final CleaningBooking booking;
   final CleanerStore store;
+
+  @override
+  State<_OfferCard> createState() => _OfferCardState();
+}
+
+class _OfferCardState extends State<_OfferCard> {
+  CleaningBooking get booking => widget.booking;
+  CleanerStore get store => widget.store;
+
+  /// [PADRAO_BORA 3.13 · 05/09] Guarda LOCAL desta oferta. Antes, os dois
+  /// botões dependiam do `busy` GLOBAL do `CleanerStore`: bastava outra
+  /// operação a meio — um refresh, a agenda a carregar — para "Recusar" e
+  /// "Aceitar" nascerem mortos. E esta oferta EXPIRA ("Expira em X min"): um
+  /// botão morto durante alguns segundos é a oferta a perder-se sozinha nas
+  /// mãos da profissional. Mesma cicatriz da corrida real de 05/09/2026.
+  bool _respondendo = false;
+
+  Future<void> _responder(Future<void> Function() accao, String msgOk) async {
+    if (_respondendo) return;
+    setState(() => _respondendo = true);
+    await _run(context, accao, msgOk);
+    if (mounted) setState(() => _respondendo = false);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -569,9 +627,9 @@ class _OfferCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: store.busy
+                    onPressed: _respondendo
                         ? null
-                        : () => _run(context, () => store.rejectBooking(b.id),
+                        : () => _responder(() => store.rejectBooking(b.id),
                             'Oferta recusada.'),
                     child: const Text('Recusar'),
                   ),
@@ -581,9 +639,9 @@ class _OfferCard extends StatelessWidget {
                   child: FilledButton(
                     style: FilledButton.styleFrom(
                         backgroundColor: AppColors.primary),
-                    onPressed: store.busy
+                    onPressed: _respondendo
                         ? null
-                        : () => _run(context, () => store.acceptBooking(b.id),
+                        : () => _responder(() => store.acceptBooking(b.id),
                             'Limpeza aceite! 🎉'),
                     child: const Text('Aceitar'),
                   ),
@@ -808,7 +866,7 @@ class _AgendaCardState extends State<_AgendaCard> {
                 style:
                     FilledButton.styleFrom(backgroundColor: AppColors.primary),
                 onPressed:
-                    store.busy ? null : () => _safe(context, () => store.markOnTheWay(b.id)),
+                    _agindo ? null : () => _safe(context, () => store.markOnTheWay(b.id)),
                 icon: const Icon(Icons.directions_walk, size: 18),
                 label: const Text('A caminho'),
               ),
@@ -824,7 +882,7 @@ class _AgendaCardState extends State<_AgendaCard> {
                 style:
                     FilledButton.styleFrom(backgroundColor: AppColors.primary),
                 onPressed:
-                    store.busy ? null : () => _safe(context, () => store.markStarted(b.id)),
+                    _agindo ? null : () => _safe(context, () => store.markStarted(b.id)),
                 icon: const Icon(Icons.play_arrow, size: 18),
                 label: const Text('Iniciar limpeza'),
               ),
@@ -835,7 +893,7 @@ class _AgendaCardState extends State<_AgendaCard> {
       case CleaningStatus.inProgress:
         return FilledButton.icon(
           style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
-          onPressed: store.busy
+          onPressed: _agindo
               ? null
               : () => _safe(context, () => store.markDone(b.id),
                   aoTerminar: true),
@@ -1000,8 +1058,16 @@ class _AgendaCardState extends State<_AgendaCard> {
   /// setinha — o Danilo apanhou isso no teste ao vivo. Agora volta sozinha ao
   /// ecra de onde veio; a avaliacao do cliente continua aqui enquanto o
   /// pedido esperar a confirmacao dele.
+  /// [PADRAO_BORA 3.13 · 05/09] Guarda LOCAL das acções deste cartão ("A
+  /// caminho", "Iniciar limpeza", "Concluir limpeza"). Dependiam do `busy`
+  /// GLOBAL do `CleanerStore` — qualquer outra operação a meio deixava a
+  /// profissional sem conseguir marcar o fim do trabalho dela.
+  bool _agindo = false;
+
   Future<void> _safe(BuildContext context, Future<void> Function() fn,
       {bool aoTerminar = false}) async {
+    if (_agindo) return;
+    setState(() => _agindo = true);
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
     try {
@@ -1016,5 +1082,8 @@ class _AgendaCardState extends State<_AgendaCard> {
       messenger.showSnackBar(const SnackBar(
           content: Text('Não foi possível concluir. Tenta de novo.')));
     }
+    // Reposto SEMPRE, também quando falha: um botão que fica a rodar para
+    // sempre é o mesmo defeito por outra porta.
+    if (mounted) setState(() => _agindo = false);
   }
 }

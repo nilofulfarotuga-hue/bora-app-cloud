@@ -99,6 +99,43 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
   int _baseKm = 6;
   int _extraRideCents = 450;
 
+  /// Trava de re-entrada LOCAL deste ecrã (PADRAO_BORA 3.13).
+  ///
+  /// Os botões estavam presos ao `busy` global do `TvdeStore` — um flag único
+  /// mexido por TREZE operações (`requestAccess`, `requestRide`,
+  /// `requestRidePaid`, `scheduleRideCash`, `scheduleRidePaid`,
+  /// `cancelReservation`, `cancelRide`, `addStop`, `chargeStop`, `removeStop`,
+  /// `rateDriver`, `requestPlan`, `requestReturnRide`). Qualquer uma delas
+  /// matava o botão de pedir corrida — a cicatriz da corrida real de
+  /// 05/09/2026.
+  ///
+  /// E no caso que mais custa dinheiro fazia o contrário do que parecia: o
+  /// pacote ida-e-volta ONLINE (`createRoundtripPayment` /
+  /// `createRoundtripPaymentMbway`) **nunca** liga o `busy`, por isso o botão
+  /// dos €8 corria destravado entre a folha de pagamento fechar e a folha da
+  /// Stripe abrir. A Edge Fn `tvde-plan-payment` (`create_roundtrip`) não tem
+  /// chave de idempotência nem guarda de estado — dois toques nessa janela são
+  /// dois PaymentIntents, e no MB Way (confirmado no servidor) dois pedidos na
+  /// app do banco.
+  ///
+  /// Esta trava fecha ANTES do primeiro `await` e só abre no `finally`, e vale
+  /// para o ecrã inteiro porque todas estas ações competem pela MESMA coisa: a
+  /// próxima corrida do cliente.
+  bool _acionando = false;
+
+  /// Corre uma ação de dinheiro deste ecrã com a trava fechada do princípio ao
+  /// fim. Mesmo desenho do `UnifiedCheckoutButton` (`_loading` + saída à
+  /// entrada), aplicado ao ecrã em vez de a um só botão.
+  Future<void> _comTrava(Future<void> Function() acao) async {
+    if (_acionando) return;
+    setState(() => _acionando = true);
+    try {
+      await acao();
+    } finally {
+      if (mounted) setState(() => _acionando = false);
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -341,7 +378,9 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
   /// Frente 3 — carregar em "Solicitar corrida" abre a FOLHA de pagamento
   /// (como no checkout do delivery: método só APÓS o botão). Grátis (coberta
   /// ≤ base_km) cria já, sem folha.
-  Future<void> _onRequestPressed() async {
+  Future<void> _onRequestPressed() => _comTrava(_pedirCorrida);
+
+  Future<void> _pedirCorrida() async {
     if (_payCase == _PayCase.freeCovered) {
       await _solicitar('cash');
       return;
@@ -379,7 +418,9 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
   /// "Marcar para depois": escolhe dia/hora → escolhe como paga (a MESMA folha
   /// da corrida normal) → marca. Dinheiro vai pela RPC; cartão e MB Way vão
   /// pela Edge Function, que cria a reserva E cobra o preço fechado no servidor.
-  Future<void> _onSchedulePressed() async {
+  Future<void> _onSchedulePressed() => _comTrava(_marcarParaDepois);
+
+  Future<void> _marcarParaDepois() async {
     final km = _effectiveKm;
     if (_pickup == null || _dest == null || km == null) return;
 
@@ -803,7 +844,9 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
   /// (`tvde_rides.roundtrip_credit_id`): é essa ligação que faz o
   /// `tvde_finish_ride` tratá-la como prepaga. Uma ida do pacote sem vale
   /// cobraria a tarifa por cima dos €8 — o "€13" que não pode acontecer.
-  Future<void> _solicitarRoundtrip() async {
+  Future<void> _solicitarRoundtrip() => _comTrava(_comprarIdaEVolta);
+
+  Future<void> _comprarIdaEVolta() async {
     final km = _effectiveKm;
     if (_pickup == null || _dest == null || km == null) return;
 
@@ -1094,7 +1137,9 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
   }
 
   /// [F3] Dispara a corrida de VOLTA usando o vale ativo (pede o destino).
-  Future<void> _callReturn() async {
+  Future<void> _callReturn() => _comTrava(_chamarVolta);
+
+  Future<void> _chamarVolta() async {
     final credit = _activeCredit;
     // Sem vale não há volta. A falta de GPS já NÃO trava — a folha deixa
     // escrever a origem à mão (antes o botão não fazia nada, em silêncio).
@@ -1171,7 +1216,9 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
   /// os campos que a pessoa preencheu servem a volta tal e qual — o botão
   /// principal usa o vale (`tvde_request_return_ride`) em vez de vender outra
   /// corrida. Impossível pagar duas vezes sem querer.
-  Future<void> _callReturnFromForm() async {
+  Future<void> _callReturnFromForm() => _comTrava(_chamarVoltaPeloFormulario);
+
+  Future<void> _chamarVoltaPeloFormulario() async {
     final credit = _activeCredit;
     final km = _effectiveKm;
     if (credit == null || _pickup == null || _dest == null || km == null) {
@@ -1207,11 +1254,16 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final store = context.watch<TvdeStore>();
+    // Mantém a subscrição ao store (rebuild quando ele muda) sem ler nada dele:
+    // o `busy` global era a única coisa que este build lia, e saiu de propósito.
+    context.watch<TvdeStore>();
+    // `_acionando` (local) em vez de `store.busy` (global): o botão trava-se
+    // pelo SEU pedido. A trava local cobre uma janela MAIOR do que a antiga —
+    // do toque até o fluxo acabar, e não só enquanto a chamada ao store corre.
     final canRequest = _pickup != null &&
         _dest != null &&
         _effectiveKm != null &&
-        !store.busy &&
+        !_acionando &&
         !_locating &&
         !_estimating;
 
@@ -1249,7 +1301,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
             if (_activeCredit != null) ...[
               _ReturnCreditCard(
                 credit: _activeCredit!,
-                busy: store.busy,
+                busy: _acionando,
                 onCall: _callReturn,
               ),
               const SizedBox(height: Spacing.md),
@@ -1375,7 +1427,7 @@ class _TvdeRequestRideScreenState extends State<TvdeRequestRideScreen> {
                   : _roundtrip
                       ? Icons.sync_alt
                       : Icons.local_taxi,
-              loading: store.busy,
+              loading: _acionando,
               onPressed: canRequest
                   ? (_activeCredit != null
                       ? _callReturnFromForm

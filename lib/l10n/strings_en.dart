@@ -2462,6 +2462,10 @@ const Map<String, String> kStringsEn = <String, String>{
       'Use another email',
   'Usar saldo Bora':
       'Use Bora balance',
+  'Última posição há {0} min':
+      'Last position {0} min ago',
+  'Última posição há {0} s':
+      'Last position {0} s ago',
   'Uso os meus (de casa)':
       'I use my own (from home)',
   'Vai logo. Custa um pouco mais.':

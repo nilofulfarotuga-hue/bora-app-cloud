@@ -23,6 +23,9 @@ import '../../../services/tvde_eta_display.dart';
 import '../../../stores/tvde_chat_store.dart';
 import '../../../stores/tvde_store.dart';
 import '../../../utils/map_utils.dart';
+import '../../../utils/tvde_route_walk.dart';
+import '../../../utils/tvde_sinal_motorista.dart';
+import '../../../utils/tvde_stops_route.dart';
 import '../../../widgets/address_autocomplete_field.dart';
 import '../../../widgets/bora/bora.dart';
 import '../../../widgets/tvde/tvde_roundtrip_driver_notice.dart';
@@ -76,9 +79,43 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
   double? _driverHeading;
   double? _driverSpeedKmh;
 
+  // ── [TVDE 05/09 · 2C] Sinal velho tem de se ver ───────────────────────────
+  // A RPC já devolvia `location_updated_at` e ninguém a lia: um motorista com
+  // o GPS morto ficava igualzinho a um motorista parado no semáforo, e o
+  // cliente não tinha como perceber a diferença. Agora: passados
+  // `tvde_driver_stale_seconds` a animação pára e o carro esbate-se; passados
+  // `tvde_driver_lost_seconds` deixa de se fingir que há posição fiável.
+  /// Quando o motorista mandou a última posição (hora do SERVIDOR).
+  DateTime? _driverFixAt;
+  int _staleSeconds = 45; // fallback; vem de tvde_driver_stale_seconds
+  int _lostSeconds = 180; // fallback; vem de tvde_driver_lost_seconds
+
+  /// [PADRAO_BORA 3.13 · 05/09] Guarda LOCAL das acções deste ecrã (cancelar,
+  /// pagar de novo, tentar de novo). Substitui o `busy` GLOBAL do `TvdeStore`,
+  /// que dezenas de operações mexem — incluindo o poll do cartão do motorista,
+  /// que corre de 4 em 4 segundos neste mesmo ecrã.
+  bool _accaoEmCurso = false;
+
+  Future<void> _comGuarda(Future<void> Function() accao) async {
+    if (_accaoEmCurso) return;
+    setState(() => _accaoEmCurso = true);
+    try {
+      await accao();
+    } finally {
+      // Reposto também em erro: um botão a rodar para sempre é o mesmo
+      // defeito por outra porta.
+      if (mounted) setState(() => _accaoEmCurso = false);
+    }
+  }
+
   /// Carrinho azul visto de cima (desenhado em código — não há asset).
   /// Null na Web: `BitmapDescriptor.bytes` não existe lá.
   BitmapDescriptor? _carIcon;
+
+  /// [1B · 05/09] Pinos NUMERADOS das paradas, desenhados em código (o
+  /// `BitmapDescriptor` da Google não sabe escrever números). Chave:
+  /// `'<seq>|<jáAlcançada>'`. Vazio na Web — lá cai no marker nativo.
+  final Map<String, BitmapDescriptor> _stopIcons = {};
 
   // ── [TVDE 05/09 · 2A/2B/2C] ETA ───────────────────────────────────────────
   /// ETA sem rota real (distância a direito ÷ velocidade média). Serve para
@@ -119,11 +156,17 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
   String? _routeKey;
 
   // ── [Bloco 5, 30/08] rota do MOTORISTA (→recolha antes de embarcar,
-  // →destino em viagem), estilo Uber. Refaz-se quando a fase muda ou o carro
-  // se afasta ≥120 m do ponto onde a rota foi traçada (poupa Directions).
+  // →destino em viagem), estilo Uber. Refaz-se quando a fase muda, quando
+  // entra/sai uma parada [1B · 05/09], ou quando o carro se afasta ≥120 m do
+  // ponto onde a rota foi traçada (poupa Directions).
   Set<Polyline> _driverRoutePolys = <Polyline>{};
   LatLng? _driverRouteFrom;
-  String _driverRoutePhase = '';
+  String _driverRouteKey = '';
+
+  /// [2A · 05/09] Os MESMOS pontos da linha acima, em `latlong2` — é sobre
+  /// esta lista que o carro anda (`passosSobreRota`). Guardada à parte para
+  /// não andar a desconverter a polilinha da Google a cada leitura de GPS.
+  List<ll.LatLng> _driverRouteLL = const [];
 
   // ── Heading-up (paridade com o mapa do motorista) ─────────────────────────
   // Câmara estilo Waze: segue o carro com zoom/tilt de navegação e RODA
@@ -134,6 +177,15 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
   // ecrã do motorista.
   static const double _kNavZoom = 17.5;
   static const double _kNavTilt = 45.0;
+
+  // ── [2B · 05/09] Ritmo da animação do carro ───────────────────────────────
+  // Os 12 passos históricos passam a ser o MÍNIMO, não o número fixo: quem
+  // manda no tempo total é a velocidade real. Numa janela longa acrescentam-se
+  // fotogramas (a ~80 ms cada, a cadência que já era suave) em vez de espaçar
+  // os 12 — 12 passos em 4 segundos dariam três imagens por segundo.
+  static const int _kAnimPassosBase = 12;
+  static const double _kAnimMsPorPasso = 80;
+  static const int _kAnimMinMs = 240;
   double _bearing = 0;
   LatLng? _lastBearingPos;
   bool _followCam = true; // gesto do utilizador pausa; botão mira religa
@@ -164,8 +216,13 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
       if (!mounted) return;
       _stopsTick++;
       if (_stopsTick % 5 == 0) _loadStops();
+      // [2C] Sinal velho: parar a animação (um carro a deslizar com o GPS
+      // morto é uma mentira em movimento) e repintar, porque o "há X" conta
+      // sozinho — não chega nenhum evento para o atualizar.
+      final velho = _sinalVelho;
+      if (velho) _animTimer?.cancel();
       // repinta os countdowns de espera (só quando há paradas alcançadas)
-      if (_stops.any((s) => s.reached)) setState(() {});
+      if (velho || _stops.any((s) => s.reached)) setState(() {});
     });
     _loadStopSettings();
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadStops());
@@ -224,6 +281,11 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
         'tvde_eta_client_floor_min', kTvdeEtaClientFloorMin);
     final arriving =
         await store.getSettingInt('tvde_eta_arriving_push_min', _etaArrivingMin);
+    // [2C · 05/09] Idade da posição a partir da qual se avisa o cliente.
+    final stale =
+        await store.getSettingInt('tvde_driver_stale_seconds', _staleSeconds);
+    final lost =
+        await store.getSettingInt('tvde_driver_lost_seconds', _lostSeconds);
     final ride = store.activeRide;
     final pkg = ride != null
         ? await TvdeRoundtripPrice.loadForRide(store, ride)
@@ -242,6 +304,10 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
         _etaDiscountMaxMin = etaCut;
         _etaFloorMin = etaFloor;
         _etaArrivingMin = arriving;
+        // "Perdido" tem de ser DEPOIS de "velho": settings trocadas no admin
+        // não podem pôr o ecrã a dizer as duas coisas ao mesmo tempo.
+        if (stale > 0) _staleSeconds = stale;
+        if (lost > _staleSeconds) _lostSeconds = lost;
       });
       if (pollMudou) _restartDriverPoll();
     }
@@ -252,6 +318,50 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
     if (ride == null) return;
     final stops = await context.read<TvdeStore>().fetchRideStops(ride.id);
     if (mounted) setState(() => _stops = stops);
+    unawaited(_loadStopIcons());
+  }
+
+  // ── [TVDE 05/09 · 2C] Idade da posição do motorista ───────────────────────
+
+  /// Segundos desde a última posição do motorista. Null = nunca houve posição
+  /// (aí não há carro no mapa e não há nada a dizer sobre a idade dele).
+  /// Relógio do telemóvel adiantado em relação ao servidor daria idade
+  /// negativa — trava-se em 0 em vez de mostrar disparate.
+  /// A conta vive em `lib/utils/tvde_sinal_motorista.dart` — pura, com o
+  /// relógio injectável, para poder ser exercitada por um teste directo sem
+  /// device nem mapa. Aqui só se lhe passa a hora e os limites das settings.
+  int? get _segundosDesdeFix => segundosDesdeFix(_driverFixAt);
+
+  EstadoSinalMotorista get _estadoSinal => estadoDoSinal(
+        _driverFixAt,
+        staleSeconds: _staleSeconds,
+        lostSeconds: _lostSeconds,
+      );
+
+  /// Posição velha: pára a animação e esbate o carro.
+  bool get _sinalVelho =>
+      _estadoSinal == EstadoSinalMotorista.velho ||
+      _estadoSinal == EstadoSinalMotorista.perdido;
+
+  /// Posição perdida: já não se finge que o ponto no mapa é o motorista.
+  bool get _sinalPerdido => _estadoSinal == EstadoSinalMotorista.perdido;
+
+  /// [1B · 05/09] Gera (uma vez por combinação) o pino numerado de cada parada.
+  /// Só o número muda de parada para parada, e só o tom muda quando ela é
+  /// alcançada — por isso a chave é `'<seq>|<alcançada>'` e o mapa não cresce.
+  Future<void> _loadStopIcons() async {
+    if (kIsWeb || !mounted) return;
+    var novos = false;
+    for (final s in _stops) {
+      final chave = '${s.seq}|${s.reached}';
+      if (_stopIcons.containsKey(chave)) continue;
+      try {
+        final bytes = await _createStopIcon(s.seq, alcancada: s.reached);
+        _stopIcons[chave] = BitmapDescriptor.bytes(bytes);
+        novos = true;
+      } catch (_) {/* fallback: marker nativo (ver _markers) */}
+    }
+    if (novos && mounted) setState(() {});
   }
 
   /// Cliente adiciona uma parada no meio da corrida (abre pesquisa de morada).
@@ -423,12 +533,19 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
 
   /// B2 — traça a rota real recolha→destino (grossa). Uma vez por corrida.
   Future<void> _maybeFetchRoute(TvdeRide ride) async {
-    if (_routeKey == ride.id) return;
-    _routeKey = ride.id;
+    // [1B · 05/09] A chave deixa de ser só a corrida: passa a mudar quando
+    // entra ou sai uma parada. Sem isto, o cliente pagava €2 por uma paragem e
+    // a linha grossa continuava a ir a direito ao destino, a contradizer a
+    // linha do motorista — que desde hoje passa lá.
+    final chave = chaveFaseComStops(ride.id,
+        emViagem: true, stops: _stops, maxStops: _maxStops);
+    if (_routeKey == chave) return;
+    _routeKey = chave;
     try {
       final route = await _directions.fetchRoute(
         origin: ll.LatLng(ride.originLat, ride.originLng),
         destination: ll.LatLng(ride.destLat, ride.destLng),
+        waypoints: waypointsDasStops(_stops, maxStops: _maxStops),
       );
       if (!mounted || route == null || route.points.isEmpty) return;
       setState(() {
@@ -486,8 +603,19 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
     }
   }
 
-  /// C4 — animação suave do carro entre polls (12 passos × 80 ms, o mesmo
-  /// padrão do DriverStore no delivery). Sem saltos de marker.
+  /// C4 + [2A/2B · 05/09] — o carro deixa de saltar E deixa de cortar esquinas.
+  ///
+  /// **A cicatriz:** eram 12 passos × 80 ms em LINHA RECTA entre duas leituras.
+  /// Como as leituras chegam de 50 em 50 metros, o carro cortava esquinas e
+  /// atravessava quarteirões — passava por dentro dos prédios enquanto a linha
+  /// da rota, desenhada mesmo ali, ia pela rua. E, fosse o carro parado num
+  /// semáforo ou a 90 na variante, a animação durava sempre os mesmos 960 ms:
+  /// um deslizava sem sair do sítio, o outro dava um solavanco e congelava.
+  ///
+  /// Agora: anda POR CIMA da polilinha já desenhada (`passosSobreRota`) e ao
+  /// ritmo do `speed_kmh` que a RPC sempre mandou. Sem rota desenhada (ainda a
+  /// carregar, ou o Directions falhou) mantém-se a linha recta — recurso, não
+  /// regressão.
   void _setDriverPos(LatLng target) {
     // Heading-up: bearing pela direção de marcha, a partir das posições CRUAS
     // do poll (não das animadas) — paridade com o motorista [Item G].
@@ -506,6 +634,7 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
     _followDriver(target);
 
     final from = _driverPos;
+    _animTimer?.cancel();
     if (from == null) {
       setState(() => _driverPos = target);
       return;
@@ -514,21 +643,88 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
         (from.longitude - target.longitude).abs() < 1e-6) {
       return;
     }
-    _animTimer?.cancel();
+
+    final metrosRecta = Geolocator.distanceBetween(
+        from.latitude, from.longitude, target.latitude, target.longitude);
+    final v = _driverSpeedKmh;
+
+    // [2B] Carro PARADO não desliza: velocidade a zero com um salto de metros
+    // é ruído de GPS, não marcha. Assenta e fica quieto.
+    // [2C] Posição já velha também não se anima — seria movimento inventado.
+    if ((v != null && v < 1.5 && metrosRecta < 15) || _sinalVelho) {
+      setState(() => _driverPos = target);
+      return;
+    }
+
+    // [2B] Quanto tempo é que o carro leva MESMO a fazer este bocado, ao ritmo
+    // a que anda. Tecto = o intervalo do poll: a animação tem de acabar antes
+    // da leitura seguinte, senão empilham-se duas.
+    final tetoMs = _driverPollSeconds.clamp(1, 30) * 1000;
+    var totalMs = tetoMs;
+    if (v != null && v > 1.0) {
+      totalMs = (metrosRecta / (v / 3.6) * 1000).round();
+    }
+    totalMs = totalMs.clamp(_kAnimMinMs, tetoMs);
+    // Os 12 passos são o CHÃO: numa janela longa acrescentam-se fotogramas em
+    // vez de os espaçar, senão o carro anda a três imagens por segundo.
+    final passos =
+        (totalMs / _kAnimMsPorPasso).round().clamp(_kAnimPassosBase, 60);
+
+    // [2A] Por cima da rota — só se houver linha e o carro estiver mesmo nela.
+    final sobreRota = passosSobreRota(
+      _driverRouteLL,
+      ll.LatLng(from.latitude, from.longitude),
+      ll.LatLng(target.latitude, target.longitude),
+      passos: passos,
+    );
+    if (sobreRota != null) {
+      // O comprimento REAL pela estrada é maior do que a distância a direito:
+      // com ele o ritmo deixa de ser optimista.
+      if (v != null && v > 1.0) {
+        totalMs = (sobreRota.metros / (v / 3.6) * 1000)
+            .round()
+            .clamp(_kAnimMinMs, tetoMs);
+      }
+    }
+    final caminho = sobreRota?.pontos;
+    final periodo = Duration(
+        milliseconds: (totalMs / passos).round().clamp(30, 200));
+
     var step = 0;
-    const steps = 12;
-    _animTimer = Timer.periodic(const Duration(milliseconds: 80), (t) {
+    _animTimer = Timer.periodic(periodo, (t) {
       step++;
       if (!mounted) {
         t.cancel();
         return;
       }
-      final f = step / steps;
-      setState(() => _driverPos = LatLng(
-            from.latitude + (target.latitude - from.latitude) * f,
-            from.longitude + (target.longitude - from.longitude) * f,
-          ));
-      if (step >= steps) t.cancel();
+      final LatLng p;
+      if (caminho != null) {
+        // `min` é cinto e suspensórios: o timer já pára no último passo.
+        final q = caminho[math.min(step, caminho.length) - 1];
+        p = LatLng(q.latitude, q.longitude);
+      } else {
+        final f = step / passos;
+        p = LatLng(
+          from.latitude + (target.latitude - from.latitude) * f,
+          from.longitude + (target.longitude - from.longitude) * f,
+        );
+      }
+      // [2B] A andar em cima da rota, o carro aponta para onde a ESTRADA vai —
+      // é isto que o faz dobrar a esquina em vez de derrapar de lado. Só conta
+      // como plano B: o `heading` do dispositivo, quando existe, manda.
+      final ant = _driverPos;
+      if (ant != null) {
+        final d = Geolocator.distanceBetween(
+            ant.latitude, ant.longitude, p.latitude, p.longitude);
+        if (d >= 2) {
+          var b = Geolocator.bearingBetween(
+              ant.latitude, ant.longitude, p.latitude, p.longitude);
+          if (b < 0) b += 360;
+          _bearing = b;
+        }
+      }
+      setState(() => _driverPos = p);
+      if (step >= passos) t.cancel();
     });
   }
 
@@ -564,9 +760,20 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
     } else {
       return null;
     }
+    // [1C · 05/09] Tempo PARADO que ainda falta cumprir nas paradas. A rota da
+    // Google só conta condução; sem esta parcela o ecrã prometia um destino
+    // que o carro não conseguia cumprir — cobrava-se a paragem e escondia-se
+    // o tempo dela. Só conta a caminho do DESTINO: as paradas ficam depois da
+    // recolha, e somá-las ao ETA do pickup atrasaria o aviso do 2C.
+    final paradoMin = ride.isInProgress
+        ? minutosParadoPendente(_stops,
+            stopTimerSeconds: _stopTimerSeconds, maxStops: _maxStops)
+        : 0.0;
     // Rota fresca (pedida há <45 s E o carro ainda perto do ponto do pedido)
     // → a duração dela é a verdade. O refetch por movimento (≥120 m em
-    // _maybeFetchDriverRoute) mantém-na viva enquanto o carro anda.
+    // _maybeFetchDriverRoute) mantém-na viva enquanto o carro anda. Desde
+    // 05/09 essa rota já passa PELAS paradas, por isso a condução delas está
+    // aqui dentro — falta só o tempo de porta aberta.
     final at = _driverRouteEtaAt;
     final from = _driverRouteEtaFrom;
     final routeMin = _driverRouteEtaMin;
@@ -575,15 +782,27 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
           from.latitude, from.longitude, pos.latitude, pos.longitude);
       if (DateTime.now().difference(at).inSeconds < 45 && movedM < 150) {
         _etaIsRough = false;
-        final mins = routeMin.ceil();
+        final mins = (routeMin + paradoMin).ceil();
         return mins < 1 ? 1 : mins;
       }
     }
     // Sem rota fresca: distância a direito ÷ velocidade média. Dá sempre um
-    // número (nunca "—"), mas fica marcado como estimativa grosseira.
+    // número (nunca "—"), mas fica marcado como estimativa grosseira. Também
+    // aqui o caminho passa pelas paradas — um atalho imaginário pelo destino
+    // seria a mesma mentira, só que noutro ramo do código.
     _etaIsRough = true;
-    final km = _haversineKm(pos.latitude, pos.longitude, tLat, tLng);
-    final mins = (km / _etaSpeedKmh * 60).ceil();
+    var km = 0.0;
+    var pLat = pos.latitude;
+    var pLng = pos.longitude;
+    if (ride.isInProgress) {
+      for (final s in stopsPendentes(_stops, maxStops: _maxStops)) {
+        km += _haversineKm(pLat, pLng, s.lat, s.lng);
+        pLat = s.lat;
+        pLng = s.lng;
+      }
+    }
+    km += _haversineKm(pLat, pLng, tLat, tLng);
+    final mins = (km / _etaSpeedKmh * 60 + paradoMin).ceil();
     return mins < 1 ? 1 : mins;
   }
 
@@ -685,7 +904,17 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
       final lng = (row['lng'] as num?)?.toDouble();
       final heading = (row['heading'] as num?)?.toDouble();
       final speed = (row['speed_kmh'] as num?)?.toDouble();
+      // [2C · 05/09] A idade da posição — o dado que a RPC sempre devolveu e
+      // que ninguém lia. Sem ele, GPS morto e carro parado eram indistinguíveis
+      // no ecrã do cliente.
+      final fixAt =
+          DateTime.tryParse(row['location_updated_at']?.toString() ?? '');
       if (!mounted) return;
+
+      // A velocidade e a idade têm de estar postas ANTES de mexer na posição:
+      // é `_setDriverPos` que decide, com elas, se anima ou se assenta.
+      _driverSpeedKmh = speed;
+      if (fixAt != null) _driverFixAt = fixAt;
 
       // C4 — anima em vez de saltar. Primeiro a posição: é ela que atualiza o
       // `_bearing` calculado entre pontos, que serve de plano B ao heading.
@@ -705,7 +934,6 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
         _driverCarColor = (row['vehicle_color'] as String?)?.trim();
         _driverPlate = (row['license_plate'] as String?)?.trim();
         _driverPhone = (row['phone'] as String?)?.trim();
-        _driverSpeedKmh = speed;
         // 1B — para onde o carrinho aponta: heading do dispositivo enquanto
         // anda; parado (ou sem heading) usa a direção entre as duas últimas
         // posições; sem nem isso, mantém a última — parado não gira à toa.
@@ -756,28 +984,45 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
         ride.isInProgress ? 'dest' : (ride.isAssigned ? 'pickup' : '');
     if (phase.isEmpty) {
       if (_driverRoutePolys.isNotEmpty && mounted) {
-        setState(() => _driverRoutePolys = <Polyline>{});
+        setState(() {
+          _driverRoutePolys = <Polyline>{};
+          _driverRouteLL = const [];
+        });
       }
       return;
     }
+    // [1B · 05/09] As paradas por alcançar entram como waypoints — mas SÓ a
+    // caminho do destino. A caminho da recolha o passageiro ainda nem está no
+    // carro: mandar o motorista passar primeiro pelas paradas seria absurdo.
+    final emViagem = phase == 'dest';
+    final List<ll.LatLng> waypoints = emViagem
+        ? waypointsDasStops(_stops, maxStops: _maxStops)
+        : const <ll.LatLng>[];
+    // A chave inclui as paradas: acrescentar uma conta como fase nova e a
+    // linha refaz-se já, em vez de esperar pelos 120 m de deslocação.
+    final chave = chaveFaseComStops(ride.id,
+        emViagem: emViagem, stops: _stops, maxStops: _maxStops);
     final from = _driverRouteFrom;
     final moved = from == null
         ? double.infinity
         : Geolocator.distanceBetween(
             from.latitude, from.longitude, pos.latitude, pos.longitude);
-    if (phase == _driverRoutePhase && moved < 120) return;
-    _driverRoutePhase = phase;
+    if (chave == _driverRouteKey && moved < 120) return;
+    _driverRouteKey = chave;
     _driverRouteFrom = pos;
-    final target = phase == 'dest'
+    final target = emViagem
         ? ll.LatLng(ride.destLat, ride.destLng)
         : ll.LatLng(ride.originLat, ride.originLng);
     try {
       final route = await _directions.fetchRoute(
         origin: ll.LatLng(pos.latitude, pos.longitude),
         destination: target,
+        waypoints: waypoints,
       );
       if (!mounted || route == null || route.points.isEmpty) return;
       setState(() {
+        // [2A] Guardar os pontos crus: é sobre eles que o carro passa a andar.
+        _driverRouteLL = route.points;
         // [31/08] a duração desta rota alimenta o ETA vivo (_etaMinutes).
         _driverRouteEtaMin = route.durationMinutes;
         _driverRouteEtaAt = DateTime.now();
@@ -867,6 +1112,49 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
     return bytes!.buffer.asUint8List();
   }
 
+  /// [1B · 05/09] Pino NUMERADO da parada. O cliente paga €2 por cada uma:
+  /// tem de ver quantas são e por que ordem o carro lá passa — antes eram
+  /// todas o mesmo alfinete azul, indistinguíveis entre si e da cor do carro.
+  ///
+  /// Escuro (não verde, não laranja, não vermelho, não azul) porque a recolha,
+  /// a linha do motorista, o destino e o carro já ocupam essas quatro cores
+  /// neste mapa. Alcançada fica cinzenta: já passou, não é para onde se vai.
+  Future<Uint8List> _createStopIcon(int numero, {required bool alcancada}) async {
+    const size = 64.0;
+    const centro = Offset(size / 2, size / 2);
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+
+    // Halo branco: sem ele o pino escuro desaparece sobre uma estrada escura.
+    canvas.drawCircle(centro, 24, Paint()..color = Colors.white);
+    canvas.drawCircle(
+      centro,
+      21,
+      Paint()
+        ..color = alcancada ? AppColors.textSubtle : AppColors.textPrimary,
+    );
+
+    final tp = TextPainter(
+      text: TextSpan(
+        text: '$numero',
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 26,
+          fontWeight: FontWeight.w800,
+          height: 1.0,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    tp.paint(canvas,
+        Offset(centro.dx - tp.width / 2, centro.dy - tp.height / 2));
+
+    final img =
+        await recorder.endRecording().toImage(size.toInt(), size.toInt());
+    final bytes = await img.toByteData(format: ui.ImageByteFormat.png);
+    return bytes!.buffer.asUint8List();
+  }
+
   Set<Marker> _markers(TvdeRide ride) {
     final markers = <Marker>{
       Marker(
@@ -890,18 +1178,29 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
         anchor: const Offset(0.5, 0.5), // roda sobre o próprio centro
         flat: true,
         rotation: _driverHeading ?? _bearing,
+        // [2C] Posição velha → carro ESBATIDO. É o sinal visual de que aquele
+        // ponto já não é de fiar; sólido a mentir era o que havia antes.
+        alpha: _sinalVelho ? 0.4 : 1.0,
         infoWindow: InfoWindow(title: _driverName ?? 'Motorista'.tr),
         icon: _carIcon ??
             BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
       ));
     }
-    // [Feature 1] paradas adicionais numeradas.
+    // [Feature 1 + 1B · 05/09] Paradas adicionais, agora com o número À VISTA
+    // no mapa e com as já passadas apagadas — e não todas o mesmo alfinete.
     for (final s in _stops) {
+      final icone = _stopIcons['${s.seq}|${s.reached}'];
       markers.add(Marker(
         markerId: MarkerId('stop_${s.id}'),
         position: LatLng(s.lat, s.lng),
-        infoWindow: InfoWindow(title: 'Parada {0}'.trArgs([s.seq]), snippet: s.label),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+        anchor: icone != null ? const Offset(0.5, 0.5) : const Offset(0.5, 1),
+        // Web (e falha a desenhar): sem bitmap próprio, o alfinete violeta
+        // distingue-se da recolha/destino/carro, e o já-passado fica esbatido.
+        alpha: icone != null || !s.reached ? 1.0 : 0.5,
+        infoWindow:
+            InfoWindow(title: 'Parada {0}'.trArgs([s.seq]), snippet: s.label),
+        icon: icone ??
+            BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueViolet),
       ));
     }
     return markers;
@@ -1197,7 +1496,7 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
     final chegou = ride.hasArrived || _motoristaNoPonto(ride);
     final panel = _StatusPanel(
       ride: ride,
-      busy: store.busy,
+      busy: _accaoEmCurso,
       driverName: _driverName,
       driverRating: _driverRating,
       driverRatingsCount: _driverRatingsCount,
@@ -1207,7 +1506,13 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
       driverPlate: _driverPlate,
       hasPhone: _driverPhone != null && _driverPhone!.isNotEmpty,
       driverArrived: chegou,
-      driverCardDegraded: _driverCardDegraded,
+      // [2C · 05/09] Posição PERDIDA (>tvde_driver_lost_seconds) diz o mesmo
+      // que a leitura falhada: "A ligar-se ao motorista…". É a frase que já
+      // existia para isto — não se inventa uma segunda para o mesmo estado.
+      driverCardDegraded: _driverCardDegraded || _sinalPerdido,
+      // Velha mas ainda não perdida → dizer há quanto tempo é.
+      lastFixSeconds:
+          _sinalVelho && !_sinalPerdido ? _segundosDesdeFix : null,
       // [2B] O painel recebe o número JÁ com o desconto de apresentação.
       etaMinutes: _etaShownMinutes(ride),
       unreadCount: context.watch<TvdeChatStore>().unreadFor(ride.id, 'client'),
@@ -1221,13 +1526,20 @@ class _TvdeRideTrackingScreenState extends State<TvdeRideTrackingScreen>
       onRemoveStop: (stop) => _removeStop(ride, stop),
       onChat: () => _openChat(ride),
       onCall: _call,
-      onCancel: () => _cancel(ride),
+      // [PADRAO_BORA 3.13 · 05/09] As três acções passam pelo guarda LOCAL.
+      // Antes travavam no `busy` GLOBAL do `TvdeStore`, o que aqui era o pior
+      // dos dois mundos: o botão podia nascer desligado por causa de um poll
+      // qualquer, e ao mesmo tempo o global era largado por outra operação a
+      // terminar — deixando "Pagar de novo" e "Cancelar" a descoberto no
+      // instante que interessa. O guarda local trava no PRIMEIRO toque e só
+      // solta quando esta acção responde.
+      onCancel: () => _comGuarda(() => _cancel(ride)),
       onPayAgain: ride.isAwaitingPayment &&
               ride.paymentMethod == 'card' &&
               store.cardClientSecretFor(ride.id) != null
-          ? () => _pagarDeNovo(ride)
+          ? () => _comGuarda(() => _pagarDeNovo(ride))
           : null,
-      onRetry: () => _retry(ride, store),
+      onRetry: () => _comGuarda(() => _retry(ride, store)),
       onClose: () {
         store.clearActiveRide();
         Navigator.pop(context);
@@ -1443,6 +1755,7 @@ class _StatusPanel extends StatelessWidget {
     required this.hasPhone,
     required this.driverArrived,
     required this.driverCardDegraded,
+    required this.lastFixSeconds,
     required this.etaMinutes,
     required this.unreadCount,
     required this.stops,
@@ -1481,6 +1794,14 @@ class _StatusPanel extends StatelessWidget {
   /// [1A] Três leituras seguidas falhadas → dizer ao cliente que estamos a
   /// tentar, em vez de o deixar a olhar para um cartão vazio.
   final bool driverCardDegraded;
+
+  /// [2C · 05/09] Há quantos segundos é a última posição do motorista, quando
+  /// ela já é VELHA (mas ainda não perdida). Null = posição fresca, ou já
+  /// perdida — nesse caso quem fala é o `driverCardDegraded`.
+  ///
+  /// Dizer "há 3 min" é o que separa um GPS morto de um carro parado no
+  /// trânsito. Sem isto, o cliente vê o mesmo ecrã nos dois casos.
+  final int? lastFixSeconds;
 
   /// C5 — "chega em ~X min" (recolha) / "destino em ~X min" (em viagem).
   /// Já com o desconto de apresentação (2B).
@@ -1814,6 +2135,29 @@ class _StatusPanel extends StatelessWidget {
                 Expanded(
                   child: Text(
                     'A ligar-se ao motorista…'.tr,
+                    style: const TextStyle(
+                        color: AppColors.textSubtle, fontSize: 11.5),
+                  ),
+                ),
+              ],
+            ),
+          ]
+          // [2C · 05/09] Posição velha mas ainda não perdida: o carro no mapa
+          // está esbatido e parado — aqui diz-se PORQUÊ, em vez de deixar o
+          // cliente a achar que o motorista é que não anda.
+          else if (lastFixSeconds != null) ...[
+            const SizedBox(height: Spacing.xs),
+            Row(
+              children: [
+                const Icon(Icons.gps_off,
+                    size: 14, color: AppColors.textSubtle),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    lastFixSeconds! < 60
+                        ? 'Última posição há {0} s'.trArgs([lastFixSeconds!])
+                        : 'Última posição há {0} min'
+                            .trArgs([lastFixSeconds! ~/ 60]),
                     style: const TextStyle(
                         color: AppColors.textSubtle, fontSize: 11.5),
                   ),

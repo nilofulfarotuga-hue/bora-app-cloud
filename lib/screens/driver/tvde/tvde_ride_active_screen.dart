@@ -3,7 +3,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart'
-    show defaultTargetPlatform, kIsWeb, TargetPlatform;
+    show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -18,13 +18,16 @@ import '../../../models/tvde_fare_view.dart';
 import '../../../models/falha_de_acao.dart';
 import '../../../models/tvde_ride.dart';
 import '../../../services/directions_service.dart';
+import '../../../services/driver_location_ping_service.dart';
 import '../../../services/navigation_service.dart';
+import '../../../services/tvde_corrida_localizacao_service.dart';
 import '../../../stores/driver_store.dart';
 import '../../../stores/tvde_chat_store.dart';
 import '../../../stores/tvde_driver_store.dart';
 import '../../../stores/tvde_store.dart';
 import '../../../utils/map_utils.dart';
 import '../../../utils/route_deviation.dart';
+import '../../../utils/tvde_stops_route.dart';
 import '../../../widgets/bora/bora.dart';
 import '../../../widgets/payments/collect_badge.dart';
 import '../../../widgets/payments/collect_reminder_dialog.dart';
@@ -32,6 +35,20 @@ import '../../../widgets/tvde/tvde_pay_badge.dart';
 import '../../../widgets/tvde/tvde_roundtrip_driver_notice.dart';
 import '../../shared/tvde_chat_screen.dart';
 import 'tvde_driver_rate_screen.dart';
+
+/// [Uma corrida = uma stream · 05/09] `true` enquanto o ecrã de corrida activa
+/// tiver GPS PRÓPRIO a funcionar. A home escuta isto e SUSPENDE a stream dela
+/// — antes ficavam as duas abertas ao mesmo tempo durante a corrida inteira
+/// (`bestForNavigation`/3 m aqui, `medium`/50 m lá), a gastar bateria a dobrar
+/// para desenhar o mesmo carro.
+///
+/// Só passa a `true` depois de a stream deste ecrã ter DADO a primeira posição.
+/// A ordem importa: a stream da home é a que alimenta o servidor com a posição
+/// do motorista, e essa é a fonte do matching de corridas. Suspendê-la antes de
+/// haver quem a substitua deixaria o servidor sem posição. Na Web, onde este
+/// ecrã não abre GPS nenhum, isto nunca fica `true` e a home continua como
+/// sempre esteve.
+final ValueNotifier<bool> tvdeCorridaControlaGps = ValueNotifier<bool>(false);
 
 /// TVDE — Corrida ativa do motorista: a caminho → cheguei → iniciar →
 /// finalizar. Reusa o stack de mapa do delivery (google_maps_flutter). A
@@ -87,7 +104,23 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
 
   /// Duração da espera grátis por parada (platform_settings; só informativo).
   int _stopTimerSeconds = 120;
+
+  /// Tecto de paradas por corrida (`tvde_max_stops`). Guarda para o caso de
+  /// virem mais paradas do que o permitido — usa as primeiras por `seq`.
+  int _maxStops = 2;
   bool _stopTimerLoaded = false;
+
+  /// Assinatura das paradas que já foram registadas como "acima do tecto".
+  /// Sem isto o aviso saía em cada build — dezenas de linhas por segundo.
+  String? _stopsIgnoradasKey;
+
+  /// [Paragens na rota · 05/09] Pinos NUMERADOS das paragens, desenhados uma
+  /// vez por (número, alcançada) e reutilizados. `_markers` corre dentro do
+  /// build e não pode gerar bitmaps — por isso o cache é preenchido fora dele.
+  /// Vazio na Web (`BitmapDescriptor.bytes` não existe lá) → cai nos pinos de
+  /// cor, que continuam a distinguir paragem de recolha/destino.
+  final Map<String, BitmapDescriptor> _stopIcons = <String, BitmapDescriptor>{};
+  String? _stopIconsKey;
 
   // ── B2/B6 — rota real + ETA (mesmo DirectionsService/chave do estafeta) ────
   final DirectionsService _directions = DirectionsService();
@@ -171,6 +204,20 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   StreamSubscription<Position>? _gps;
   LatLng? _gpsPos;
 
+  /// [Uma corrida = uma stream · 05/09] Este ecrã assumiu o GPS (a stream da
+  /// home está suspensa) → é ele que tem de alimentar o servidor.
+  bool _donoDoGps = false;
+
+  /// Última posição JÁ entregue ao servidor por este ecrã. O portão dos 50 m
+  /// mede-se a partir daqui.
+  LatLng? _ultimaEnviadaAoServidor;
+
+  /// O MESMO `distanceFilter: 50` que a stream da home usava. É este número que
+  /// garante que o servidor não passa a receber mais vezes do que recebia: o
+  /// GPS deste ecrã é fino (3 m) para a navegação, mas ao servidor só sobe uma
+  /// posição a cada 50 m, como antes.
+  static const double _metrosEntreEnviosAoServidor = 50;
+
   /// Valores de navegação afináveis em `platform_settings` (categoria `tvde`).
   /// Os defaults abaixo são os valores que estavam cravados no código.
   double _navZoom = 17.5;
@@ -239,25 +286,101 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
   Future<void> _startGps() async {
     if (kIsWeb) return; // na Web fica a semente do store (sem FGS/navegação)
     await _gps?.cancel();
-    final LocationSettings settings;
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      settings = AndroidSettings(
-        accuracy: LocationAccuracy.bestForNavigation,
-        distanceFilter: 3,
-        intervalDuration: const Duration(milliseconds: 700),
-      );
-    } else {
-      settings = const LocationSettings(
-        accuracy: LocationAccuracy.bestForNavigation,
-        distanceFilter: 3,
-      );
-    }
+    // [Bloco 3B · 05/09] Serviço em primeiro plano do próprio geolocator, que
+    // é o que impede o Android de estrangular o GPS quando o motorista
+    // minimiza a app a meio da corrida. É EXACTAMENTE o que as entregas já
+    // fazem (`driver_map_screen.dart` ~344) e que faltava só aqui.
+    //
+    // Não se acrescenta `location` ao serviço do `flutter_foreground_task` no
+    // manifest: esse é PARTILHADO com o parceiro (`RestaurantStore` arranca-o
+    // quando a loja abre) e o plugin arranca-o com TODOS os tipos declarados —
+    // um restaurante sem GPS concedido rebentaria com SecurityException.
+    // Ver o comentário no AndroidManifest.xml.
+    //
+    // Mesma precisão e cadência que estavam aqui cravadas (bestForNavigation,
+    // 3 m, 700 ms); e se a permissão faltar, o serviço devolve as definições
+    // SEM a notificação em vez de rebentar.
+    final settings = await TvdeCorridaLocalizacao.definicoesDeCorrida();
+    if (!mounted) return;
     try {
       _gps = Geolocator.getPositionStream(locationSettings: settings).listen(
-        (p) => _onGpsFix(LatLng(p.latitude, p.longitude)),
-        onError: (Object _) {/* fica a semente do store; o ticker retenta */},
+        (p) {
+          // A ordem é deliberada: primeiro assume-se o GPS (o que suspende a
+          // stream da home), e só depois se alimenta o servidor — nesta mesma
+          // leitura. O servidor nunca fica um ciclo sem quem lhe escreva.
+          _assumirGps();
+          _alimentarServidor(p);
+          _onGpsFix(LatLng(p.latitude, p.longitude));
+        },
+        onError: (Object _) {
+          // GPS deste ecrã morreu a meio (utilizador desligou a localização).
+          // DEVOLVE já o GPS à home — se ninguém escrever a posição, o
+          // motorista sai do matching e deixa de receber corridas.
+          _libertarGps();
+        },
       );
-    } catch (_) {/* sem GPS local → o ecrã continua com a posição do store */}
+    } catch (_) {
+      // sem GPS local → o ecrã continua com a posição do store, e a home
+      // mantém a stream dela (nunca chegámos a assumir nada).
+      _libertarGps();
+    }
+  }
+
+  /// [Uma corrida = uma stream · 05/09] Assume o GPS: a home suspende a dela.
+  void _assumirGps() {
+    if (_donoDoGps) return;
+    _donoDoGps = true;
+    tvdeCorridaControlaGps.value = true;
+  }
+
+  /// Devolve o GPS à home. Idempotente — corre no `dispose`, no erro da stream
+  /// e no arranque falhado.
+  void _libertarGps() {
+    _donoDoGps = false;
+    _ultimaEnviadaAoServidor = null;
+    tvdeCorridaControlaGps.value = false;
+  }
+
+  /// [Uma corrida = uma stream · 05/09] Enquanto este ecrã é o dono do GPS, é
+  /// ele que alimenta o servidor com a posição do motorista. Isso é a fonte do
+  /// matching de corridas — ZONA PROTEGIDA: não se toca no motor, mas também
+  /// não se pode deixar secar a água que ele bebe.
+  ///
+  /// **A cadência não sobe.** São os mesmos dois destinos de sempre, chamados
+  /// tal e qual a home os chamava:
+  ///  - `DriverStore.updateDriverLocation` → `drivers.lat/lng` (+
+  ///    `orders.driver_lat`), com o travão de 5 s que já lá vive;
+  ///  - `DriverLocationPingService.ping` → `driver_locations` via a RPC
+  ///    `driver_update_location`, com o travão de 45 s. É um SINGLETON
+  ///    partilhado com a home, portanto o relógio do travão é literalmente o
+  ///    mesmo objecto — não há como este ecrã pingar mais depressa.
+  ///
+  /// Por cima disso fica o portão dos 50 m, que é o `distanceFilter: 50` da
+  /// stream da home reproduzido à mão. Sem ele, o GPS de 3 m deste ecrã
+  /// entregaria posições de segundo a segundo e, em trânsito lento, o travão de
+  /// 5 s deixaria passar MAIS escritas do que a home fazia. Com ele, o servidor
+  /// recebe o que sempre recebeu.
+  void _alimentarServidor(Position p) {
+    if (!_donoDoGps || !mounted) return;
+    final pos = LatLng(p.latitude, p.longitude);
+    final anterior = _ultimaEnviadaAoServidor;
+    if (anterior != null &&
+        Geolocator.distanceBetween(anterior.latitude, anterior.longitude,
+                pos.latitude, pos.longitude) <
+            _metrosEntreEnviosAoServidor) {
+      return;
+    }
+    _ultimaEnviadaAoServidor = pos;
+    final store = context.read<DriverStore>();
+    store.updateDriverLocation(
+        store.currentDriverId, ll.LatLng(pos.latitude, pos.longitude));
+    unawaited(DriverLocationPingService.instance.ping(
+      latitude: pos.latitude,
+      longitude: pos.longitude,
+      heading: p.heading.isFinite ? p.heading : null,
+      speedKmh: p.speed.isFinite ? p.speed * 3.6 : null,
+      isOnline: true,
+    ));
   }
 
   @override
@@ -266,6 +389,11 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     _stopsTicker?.cancel();
     _etaTicker?.cancel();
     _gps?.cancel();
+    _gps = null;
+    // [Uma corrida = uma stream · 05/09] Devolve o GPS à home ANTES de o resto
+    // do estado desaparecer. A home volta a abrir a stream dela e o servidor
+    // continua a receber a posição sem intervalo.
+    _libertarGps();
     _mapCtrl?.dispose();
     _directions.dispose();
     _sheetCtrl.dispose();
@@ -501,8 +629,29 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     final fromLl = driverPos != null
         ? ll.LatLng(driverPos.latitude, driverPos.longitude)
         : ll.LatLng(ride.originLat, ride.originLng);
+    // [Paragens na rota · 05/09] As paradas entram na ROTA. Só valem depois de
+    // o cliente estar a bordo — antes disso o motorista vai buscá-lo e as
+    // paradas dele ainda não estão no caminho.
+    final emViagem = ride.isInProgress;
+    final viaParadas = emViagem
+        ? waypointsDasStops(_stops, maxStops: _maxStops)
+        : const <ll.LatLng>[];
+    _registarParagensIgnoradas();
     // Chave da FASE — sem posição lá dentro (era essa a fuga de pedidos).
-    final key = '${ride.id}|${ride.isInProgress}|${ride.extraStopsCount}';
+    //
+    // As paradas por fazer entram na chave (`chaveFaseComStops`): marcar
+    // chegada a uma parada muda a chave, logo conta como fase nova e a rota
+    // refaz-se JÁ para a seguinte, sem ficar presa pela trava dos
+    // `tvde_nav_reroute_min_seconds`. É esse o comportamento certo — o
+    // motorista acabou de arrancar da parada e precisa da linha nova agora, não
+    // daqui a 15 segundos. Vale nos dois sentidos: o cliente que ACRESCENTA uma
+    // paragem a meio vê a linha mudar no mesmo instante.
+    final key = chaveFaseComStops(
+      ride.id,
+      emViagem: emViagem,
+      stops: _stops,
+      maxStops: _maxStops,
+    );
     final faseNova = key != _routeAttemptKey;
     final temLinha = _routePoints.length >= 2 && key == _routeKey;
     final agora = DateTime.now();
@@ -521,8 +670,11 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     _routeAttemptKey = key;
     if (faseNova) _offRoute.reset(); // rota velha não conta como desvio
     try {
-      final route =
-          await _directions.fetchRoute(origin: fromLl, destination: target);
+      final route = await _directions.fetchRoute(
+        origin: fromLl,
+        destination: target,
+        waypoints: viaParadas,
+      );
       if (!mounted || route == null || route.points.isEmpty) return;
       // [Item N] Só trava a chave DEPOIS de uma rota válida — antes, uma falha
       // transitória do Directions prendia a chave e a rota NUNCA voltava a
@@ -545,10 +697,17 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
         }
         _routePolys = {_polylineDaRota(aFrente)};
         // [31/08] regista a fonte do ETA vivo; o texto sai do _updateEtaLive.
-        _routeEtaMin = route.durationMinutes;
+        //
+        // [Paragens na rota · 05/09] O Directions devolve só o tempo a ANDAR.
+        // Falta o tempo PARADO em cada parada que ainda falta — dois minutos
+        // por parada, por `tvde_stop_timer_seconds`. Sem esta soma, uma corrida
+        // com duas paradas prometia chegar quatro minutos antes do possível.
+        final etaMin =
+            route.durationMinutes + (emViagem ? _minutosParadosPendentes : 0);
+        _routeEtaMin = etaMin;
         _routeEtaAt = DateTime.now();
         _routeEtaFrom = driverPos;
-        final mins = route.durationMinutes.round();
+        final mins = etaMin.round();
         _etaText = ride.isInProgress
             ? 'Chegada ao destino em ~$mins min'
             : 'Recolha em ~$mins min';
@@ -723,17 +882,153 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
 
   // ── [CAMPO-02 · F1] Paradas adicionais ────────────────────────────────────
 
-  /// Lê a duração da espera grátis (platform_settings). Uma vez só; em erro
-  /// mantém o default (120 s). Nada de valores mágicos hardcoded na UI.
+  /// Lê a duração da espera grátis e o tecto de paradas (platform_settings).
+  /// Uma vez só; em erro mantém os defaults. Nada de valores mágicos na UI.
   Future<void> _ensureStopTimerLoaded() async {
     if (_stopTimerLoaded) return;
     _stopTimerLoaded = true;
     try {
-      final s = await context
-          .read<TvdeStore>()
-          .getSettingInt('tvde_stop_timer_seconds', 120);
-      if (mounted) setState(() => _stopTimerSeconds = s);
-    } catch (_) {/* mantém o default */}
+      final store = context.read<TvdeStore>();
+      final s = await store.getSettingInt('tvde_stop_timer_seconds', 120);
+      final m = await store.getSettingInt('tvde_max_stops', 2);
+      if (mounted) {
+        setState(() {
+          _stopTimerSeconds = s;
+          _maxStops = m;
+        });
+      }
+    } catch (_) {/* mantém os defaults */}
+  }
+
+  /// As paradas que ainda FALTAM, por ordem de `seq`.
+  ///
+  /// [Paragens na rota · 05/09] O cliente paga por cada parada
+  /// (`tvde_stop_fee_cents`) e até aqui a rota ignorava-as por completo:
+  /// cobrava-se por um desvio que o mapa não fazia. Estas são as que entram
+  /// como waypoints do Directions.
+  ///
+  /// Uma parada sai daqui assim que o motorista marca chegada (`reachedAt`) —
+  /// a rota refaz-se para a seguinte, ou para o destino se já não houver.
+  ///
+  /// A matemática NÃO vive aqui: está em `lib/utils/tvde_stops_route.dart`,
+  /// partilhada com o mapa do CLIENTE. Duas contas separadas para a mesma
+  /// verdade era o caminho garantido para os dois mapas discordarem sobre por
+  /// onde passa a corrida.
+  List<TvdeRideStop> get _paragensPendentes =>
+      stopsPendentes(_stops, maxStops: _maxStops);
+
+  /// Minutos ainda por cumprir PARADO nas paradas que faltam.
+  ///
+  /// O ETA ao destino tem de contar com isto: uma rota que passa por duas
+  /// paradas de 120 s chega quatro minutos mais tarde do que o Directions diz
+  /// (a Google só conta o tempo a ANDAR). Sem esta soma, promete-se uma
+  /// chegada que não é possível.
+  double get _minutosParadosPendentes => minutosParadoPendente(
+        _stops,
+        stopTimerSeconds: _stopTimerSeconds,
+        maxStops: _maxStops,
+      );
+
+  /// Regista, UMA vez por lista, as paradas que ficaram de fora do tecto
+  /// `tvde_max_stops`. Não rebenta nada — a corrida segue com as primeiras por
+  /// `seq` —, mas se isto aparecer no log há paradas a mais na corrida e
+  /// alguém está a pagar por um desvio que o mapa não faz.
+  void _registarParagensIgnoradas() {
+    final fora = stopsIgnoradas(_stops, maxStops: _maxStops);
+    if (fora.isEmpty) {
+      _stopsIgnoradasKey = null;
+      return;
+    }
+    final chave = fora.map((s) => '${s.seq}:${s.id}').join(',');
+    if (chave == _stopsIgnoradasKey) return;
+    _stopsIgnoradasKey = chave;
+    debugPrint('[tvde] paragens ACIMA do tecto tvde_max_stops=$_maxStops '
+        'ficaram fora da rota: $chave');
+  }
+
+  /// As paragens a DESENHAR no mapa, por ordem de `seq`: as que faltam (as
+  /// mesmas que entram na rota) mais as já feitas.
+  ///
+  /// A numeração sai da posição nesta lista, por isso é ESTÁVEL: a paragem 1
+  /// continua a ser a 1 depois de o motorista lá chegar. Se a numeração viesse
+  /// só das pendentes, a paragem 2 passava a chamar-se 1 no instante em que a
+  /// primeira ficava feita — exactamente quando o motorista está a olhar.
+  ///
+  /// Vazia enquanto o cliente não está a bordo: aí a linha vai para a recolha e
+  /// as paragens ainda não fazem parte do caminho. Pinos que a linha não
+  /// visita seriam uma promessa falsa.
+  List<TvdeRideStop> _paragensDoMapa(TvdeRide ride) {
+    if (!ride.isInProgress) return const <TvdeRideStop>[];
+    final naRota = _paragensPendentes.map((s) => s.id).toSet();
+    return _stops.where((s) => s.reached || naRota.contains(s.id)).toList()
+      ..sort((a, b) => a.seq.compareTo(b.seq));
+  }
+
+  /// Desenha (uma vez por número+estado) os pinos numerados das paragens.
+  /// Corre FORA do build — `_markers` só lê o cache. Na Web não corre:
+  /// `BitmapDescriptor.bytes` não existe lá e os pinos de cor cobrem o caso.
+  Future<void> _ensureStopIcons(List<TvdeRideStop> paragens) async {
+    if (kIsWeb || paragens.isEmpty) return;
+    final chave = paragens.map((s) => s.reached ? 'v' : '.').join();
+    if (chave == _stopIconsKey) return;
+    // Marcado ANTES de desenhar: se o desenho falhar, fica o pino de cor e não
+    // se tenta outra vez a cada frame (o telemóvel do Danilo tem 4 GB).
+    _stopIconsKey = chave;
+    try {
+      var mudou = false;
+      for (var i = 0; i < paragens.length; i++) {
+        final k = '${i + 1}|${paragens[i].reached}';
+        if (_stopIcons.containsKey(k)) continue;
+        final bytes = await _createStopIcon(i + 1, feita: paragens[i].reached);
+        if (!mounted) return;
+        _stopIcons[k] = BitmapDescriptor.bytes(bytes);
+        mudou = true;
+      }
+      // O `_stopIcons.length` faz parte da assinatura dos marcadores, por isso
+      // este setState é o que troca os pinos de cor pelos numerados.
+      if (mudou && mounted) setState(() {});
+    } catch (_) {/* fallback: os pinos de cor já desenhados */}
+  }
+
+  /// Um pino redondo com o NÚMERO da paragem. Azul = ainda falta;
+  /// cinzento = já foi feita. Mesma técnica da seta verde do motorista.
+  Future<Uint8List> _createStopIcon(int numero, {required bool feita}) async {
+    const size = 72.0;
+    const centro = Offset(size / 2, size / 2);
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    canvas.drawCircle(
+      centro,
+      size / 2 - 4,
+      Paint()..color = feita ? const Color(0xFF9CA3AF) : const Color(0xFF2563EB),
+    );
+    canvas.drawCircle(
+      centro,
+      size / 2 - 4,
+      Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 5,
+    );
+    final tp = TextPainter(
+      text: TextSpan(
+        text: '$numero',
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 38,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    tp.paint(
+      canvas,
+      Offset(centro.dx - tp.width / 2, centro.dy - tp.height / 2),
+    );
+    final img =
+        await recorder.endRecording().toImage(size.toInt(), size.toInt());
+    final bytes = await img.toByteData(format: ui.ImageByteFormat.png);
+    return bytes!.buffer.asUint8List();
   }
 
   /// Recarrega as paradas quando muda a corrida ou o nº de paradas (o cliente
@@ -818,10 +1113,17 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
         : (ride.originLabel ?? 'Recolha');
     // Assinatura barata: fase + alvo + posição do motorista (~5 casas ≈ 1 m) +
     // bearing (grau inteiro) + se a seta já carregou. Igual → devolve o cache.
+    // As paragens entram na assinatura com o seu ESTADO: quando uma é
+    // alcançada, o pino dela tem de mudar de aspeto na mesma volta em que sai
+    // da rota. O tamanho do cache de ícones também entra — sem isso os pinos
+    // numerados só apareciam no rebuild seguinte ao desenho dos bitmaps.
+    final paradas = _paragensDoMapa(ride);
     final key = '${ride.isInProgress}|$label|'
         '${target.latitude.toStringAsFixed(5)},${target.longitude.toStringAsFixed(5)}|'
         '${driverPos?.latitude.toStringAsFixed(5)},${driverPos?.longitude.toStringAsFixed(5)}|'
-        '${_bearing.round()}|${_driverArrowIcon != null}';
+        '${_bearing.round()}|${_driverArrowIcon != null}|'
+        '${paradas.map((s) => '${s.seq}${s.reached ? 'v' : '.'}').join(',')}|'
+        '${_stopIcons.length}';
     if (key == _markersKey) return _mapMarkers;
     _markersKey = key;
     final markers = <Marker>{
@@ -832,6 +1134,38 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
         infoWindow: InfoWindow(title: label),
       ),
     };
+    // [Paragens na rota · 05/09] Pinos das paragens, NUMERADOS pela ordem em
+    // que se fazem (1, 2...) e em azul — distintos do laranja da
+    // recolha/destino e da seta verde do motorista. O número está desenhado no
+    // pino, não escondido numa bolha que é preciso tocar: o motorista tem de
+    // perceber de relance quantas faltam e por que ordem.
+    //
+    // As já feitas ficam no mapa em CINZENTO — some-las escondia ao motorista o
+    // que ele acabou de fazer, e a meio de uma corrida com duas paragens é isso
+    // que responde à pergunta "esta é a primeira ou a segunda?".
+    for (var i = 0; i < paradas.length; i++) {
+      final s = paradas[i];
+      final numero = i + 1;
+      final redondo = _stopIcons['$numero|${s.reached}'];
+      markers.add(Marker(
+        markerId: MarkerId('paragem-${s.id}'),
+        position: LatLng(s.lat, s.lng),
+        icon: redondo ??
+            BitmapDescriptor.defaultMarkerWithHue(s.reached
+                ? BitmapDescriptor.hueViolet
+                : BitmapDescriptor.hueAzure),
+        // O pino redondo assenta pelo CENTRO; o de recurso é uma gota e assenta
+        // pela ponta (o anchor por omissão).
+        anchor: redondo != null ? const Offset(0.5, 0.5) : const Offset(0.5, 1),
+        zIndex: s.reached ? 1.0 : 2.0, // a que falta fica por cima da já feita
+        infoWindow: InfoWindow(
+          title: s.reached
+              ? 'Paragem $numero de ${paradas.length} — feita'
+              : 'Paragem $numero de ${paradas.length}',
+          snippet: s.label,
+        ),
+      ));
+    }
     if (driverPos != null && _driverArrowIcon != null) {
       markers.add(Marker(
         markerId: const MarkerId('me'),
@@ -916,21 +1250,46 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     }
   }
 
-  Future<void> _arrived(TvdeRide ride) async {
+  /// [PADRAO_BORA 3.13 · 05/09] Guarda LOCAL das acções deste ecrã.
+  ///
+  /// Substitui o `busy` GLOBAL do `TvdeDriverStore`, que dezenas de operações
+  /// mexem: bastava um refresh ou um poll a meio para o "Cheguei", o "Iniciar"
+  /// ou o "Finalizar" nascerem desligados — o motorista com o passageiro ao
+  /// lado e o botão morto.
+  ///
+  /// Protege MELHOR do que o global contra duplo disparo, e isso aqui importa:
+  /// o `_finish` mede a distância real da rota, que dirige o preço final. Um
+  /// guarda específico da acção não pode ser destravado por outra operação a
+  /// terminar antes desta — o global podia.
+  bool _agindo = false;
+
+  Future<void> _comGuarda(Future<void> Function() accao) async {
+    if (_agindo) return;
+    setState(() => _agindo = true);
     try {
-      await context.read<TvdeDriverStore>().markArrived(ride.id);
-    } catch (e) {
-      await _falhouAcao(e, rideId: ride.id);
+      await accao();
+    } finally {
+      // Reposto SEMPRE, também em erro: um botão a rodar para sempre é o
+      // mesmo defeito por outra porta.
+      if (mounted) setState(() => _agindo = false);
     }
   }
 
-  Future<void> _start(TvdeRide ride) async {
-    try {
-      await context.read<TvdeDriverStore>().startRide(ride.id);
-    } catch (e) {
-      await _falhouAcao(e, rideId: ride.id);
-    }
-  }
+  Future<void> _arrived(TvdeRide ride) => _comGuarda(() async {
+        try {
+          await context.read<TvdeDriverStore>().markArrived(ride.id);
+        } catch (e) {
+          await _falhouAcao(e, rideId: ride.id);
+        }
+      });
+
+  Future<void> _start(TvdeRide ride) => _comGuarda(() async {
+        try {
+          await context.read<TvdeDriverStore>().startRide(ride.id);
+        } catch (e) {
+          await _falhouAcao(e, rideId: ride.id);
+        }
+      });
 
   /// Abre a navegação externa (Google Maps/Waze). A caminho → até à recolha;
   /// em viagem → até ao destino. Reusa o mesmo helper do delivery.
@@ -941,7 +1300,13 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
     await NavigationService.openNavigationOptions(context, target);
   }
 
-  Future<void> _finish(TvdeRide ride) async {
+  /// Finalizar corrida — envolvido no guarda local. O corpo NÃO foi tocado:
+  /// mede a distância real da rota, que dirige o preço final, e isso é zona de
+  /// dinheiro. Só se lhe pôs a trava de re-entrada à volta.
+  Future<void> _finish(TvdeRide ride) =>
+      _comGuarda(() => _finishInterno(ride));
+
+  Future<void> _finishInterno(TvdeRide ride) async {
     try {
       // B1 — distância REAL de ROTA recolha→destino (DirectionsService, mesma
       // chave do estafeta). Fallback: estimativa guardada (haversine) se a rota
@@ -1177,6 +1542,9 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
         if (!mounted) return;
         _maybeFetchRoute(ride, driverPos);
         _maybeReloadStops(ride);
+        // [Paragens na rota · 05/09] Os bitmaps numerados nascem aqui, fora do
+        // build. É no-op enquanto a lista de paragens não mudar de estado.
+        unawaited(_ensureStopIcons(_paragensDoMapa(ride)));
         // [31/08] ETA vivo: recalcula com a posição realtime (throttle
         // interno — só repinta quando o minuto muda).
         _ensureEtaSpeedLoaded();
@@ -1330,7 +1698,8 @@ class _TvdeRideActiveScreenState extends State<TvdeRideActiveScreen> {
                         ),
                       ),
                     ),
-                    _ActionPanel(ride: ride, busy: store.busy, actions: this),
+                    // [PADRAO_BORA 3.13] `_agindo` LOCAL, não o `busy` global.
+                    _ActionPanel(ride: ride, busy: _agindo, actions: this),
                   ],
                 ),
               ),

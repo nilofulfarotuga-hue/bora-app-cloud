@@ -136,6 +136,8 @@ class _WasherApplyScreenState extends State<WasherApplyScreen> {
   }
 
   Future<void> _submit() async {
+    // Guarda de reentrada LOCAL (PADRAO_BORA.md 3.13) — nunca `store.busy`.
+    if (_uploading) return;
     if (!(_formKey.currentState?.validate() ?? false)) return;
     if (_photo == null && _prefillPhotoUrl.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -245,7 +247,6 @@ class _WasherApplyScreenState extends State<WasherApplyScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final store = context.watch<WasherStore>();
     return Scaffold(
       appBar: const BoraScreenAppBar(title: 'Lavar carros com o Bora'),
       body: Form(
@@ -429,7 +430,7 @@ class _WasherApplyScreenState extends State<WasherApplyScreen> {
             BoraPrimaryButton(
               label: _uploading ? 'A enviar…' : 'Enviar candidatura',
               icon: Icons.send,
-              loading: store.busy || _uploading,
+              loading: _uploading,
               onPressed: _submit,
             ),
             const SizedBox(height: Spacing.md),

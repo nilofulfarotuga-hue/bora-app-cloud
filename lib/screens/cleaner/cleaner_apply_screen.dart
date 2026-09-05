@@ -141,6 +141,8 @@ class _CleanerApplyScreenState extends State<CleanerApplyScreen> {
   }
 
   Future<void> _submit() async {
+    // Guarda de reentrada LOCAL (PADRAO_BORA.md 3.13) — nunca `store.busy`.
+    if (_uploading) return;
     if (!(_formKey.currentState?.validate() ?? false)) return;
     if (_photo == null && _prefillPhotoUrl.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -243,7 +245,6 @@ class _CleanerApplyScreenState extends State<CleanerApplyScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final store = context.watch<CleanerStore>();
     return Scaffold(
       appBar: const BoraScreenAppBar(title: 'Ser profissional de limpeza'),
       body: Form(
@@ -427,7 +428,7 @@ class _CleanerApplyScreenState extends State<CleanerApplyScreen> {
             BoraPrimaryButton(
               label: _uploading ? 'A enviar…' : 'Enviar candidatura',
               icon: Icons.send,
-              loading: store.busy || _uploading,
+              loading: _uploading,
               onPressed: _submit,
             ),
             const SizedBox(height: Spacing.md),

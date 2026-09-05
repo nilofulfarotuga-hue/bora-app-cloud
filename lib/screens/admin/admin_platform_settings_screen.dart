@@ -181,6 +181,14 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
       'tvde_nav_reroute_min_seconds',
       'tvde_nav_camera_follow_ms',
       'tvde_driver_card_poll_seconds',
+      // [Parte 2 · 05/09] Quando é que a posição do motorista deixa de ser de
+      // confiança no mapa do cliente. Passados os `stale`, o carro pára de
+      // animar e fica esbatido, com "última posição há X min"; passados os
+      // `lost`, aparece "A ligar-se ao motorista". Antes disto, um motorista
+      // com GPS morto parecia um motorista parado e o cliente não percebia
+      // porquê. São segundos de ecrã — não são dinheiro.
+      'tvde_driver_stale_seconds',
+      'tvde_driver_lost_seconds',
     };
     if (tvdeNavOperational.contains(key)) return true;
     // BLOCO 4E (2026-09-05) — ETA do TVDE mostrado ao cliente. Mesma regra

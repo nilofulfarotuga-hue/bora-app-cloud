@@ -298,3 +298,79 @@ testar a ponte com o carteiro a correr pode não ter a mesma sorte.
    sem a Trava do dinheiro.
 2. **Subo o tempo do juiz na VPS?** É o bug 2 — sem isso, toda a ordem grande morre no juiz
    mesmo com o trabalho feito.
+
+---
+
+## ADENDA — a fila depois de destravada (cronologia medida)
+
+| Hora (UTC) | Facto |
+|---|---|
+| 15:20:24 | `.pausa-total` removido · campainha: `evento em ...provafila0509.md -> carteiro` |
+| 15:20:26 | `ordem-...-8448`: **aberta** → RETOMA com 172 marcos |
+| 15:23:25 | `ordem-...-8448`: **respondida** (motor claude-sonnet) — 3 minutos |
+| 15:30:06 | juiz sem veredito (2/3) |
+| 15:36:51 | juiz sem veredito (3/3) |
+| ~15:43:40 | `ordem-...-8448`: **concluída** · espelho sincronizado em `brain @ a1569eb` (o commit desta sessão) |
+| 15:43:49 | `ordem-...-e205`: **aberta** → **executando**, RETOMA com 86 marcos |
+| — | `ordem-...-provafila0509`: **aberta**, é a próxima do ciclo |
+
+O ciclo do carteiro percorre `$FILA/*.md` por ordem de nome numa só passagem, por
+isso a ordem de prova (a mais recente) só é servida depois das duas de backlog.
+**A fila está provadamente a andar** — duas ordens atravessadas com hora em cada
+transição, e o espelho já sincronizado no meu próprio commit. A ordem de prova
+trivial ainda não chegou à vez; fica na fila e atravessa quando a `e205` acabar.
+
+### A ordem trivial atravessou — ciclo completo em 53 segundos
+
+```
+[2026-09-05T15:45:08Z] provafila0509: aberta (tentativa=0)
+[2026-09-05T15:45:28Z] provafila0509: respondida (tentativa 1, motor claude-sonnet)
+[2026-09-05T15:45:35Z] provafila0509: VEREDITO: APROVADA
+[2026-09-05T15:45:40Z] provafila0509: PROVA-MATERIAL: ficheiros=46 commits=3 veredito=HA-PROVA
+[2026-09-05T15:45:40Z] provafila0509: APROVADA
+[2026-09-05T15:45:54Z] provafila0509: conselho sem objecoes (ronda 1) -> consenso
+[2026-09-05T15:46:01Z] provafila0509: aprovada -> Telegram (conclusão)
+```
+
+`aberta → executando → respondida → aprovada` em **53 segundos**, com Juiz, chão
+anti-trapaça, conselho e aviso ao Telegram.
+
+E o teste anti-mentira passou — o ficheiro de nome esquisito existe mesmo em disco:
+
+```
+C:\Users\danil\AppData\Local\Temp\claude\prova-fila-0509-zx7q.txt   24 bytes, 16:45
+PROVA-FILA-0509-ZX7Q-OK
+```
+
+**BLOCO 0 fechado.** A fila estava parada, está a andar, e está provado pelo ciclo
+inteiro de uma ordem nova — não por relatório de executor.
+
+---
+
+## BUG 6 — o loop atribui à ordem os commits de QUEM MAIS mexer no repo
+
+Apanhado nesta mesma corrida, e é sério:
+
+```
+[15:45:02Z] e205: VEREDITO: CORRIGIR: o diff commitado desde o arranque da ordem
+            toca ZONA PROTEGIDA (Lista Vermelha) - nada disso passa pelo loop;
+            volta para decisao humana
+```
+
+A `e205` não commitou nada. O que o Juiz viu foi o **meu** commit `a1569ebb`, feito
+minutos antes — a migration do ganho diário, que fala de cêntimos e ganhos e por isso
+dispara a leitura de zona vermelha (é a armadilha já conhecida de a Trava ler
+comentários como código).
+
+O mesmo mecanismo funcionou ao contrário na minha ordem de prova:
+`PROVA-MATERIAL: ficheiros=46 commits=3 ... veredito=HA-PROVA`. A ordem só mandava
+escrever um ficheiro de 24 bytes no temp — os 46 ficheiros e os 3 commits eram meus.
+Ou seja, ela foi dada como provada por trabalho que não era dela.
+
+**Consequência:** a prova material e o gate de zona vermelha do carteiro medem a
+janela de tempo, não a autoria. Com uma sessão humana a trabalhar no mesmo repo, o
+loop tanto aprova de graça como reprova inocentes. Não é grave enquanto só correr um
+de cada vez — mas foi exactamente por isso que a sessão de ontem pôs a `.pausa-total`,
+e é a razão de fundo pela qual o loop e uma sessão à mão não podem partilhar a árvore.
+
+Não mexi. É desenho do carteiro e não foi pedido.

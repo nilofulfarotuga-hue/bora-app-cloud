@@ -1144,10 +1144,20 @@ class TvdeStore extends ChangeNotifier {
 
   /// Cria o PaymentIntent do plano. Devolve {clientSecret, paymentIntentId,
   /// amountCents} ou null em erro. O preço é calculado SERVER-SIDE.
-  Future<Map<String, dynamic>?> createPlanPayment(String plan) async {
+  ///
+  /// [requestId] identifica ESTA compra. Vai como chave de idempotência para a
+  /// Stripe: se o pedido se perder na rede e for repetido, volta o MESMO
+  /// PaymentIntent em vez de nascer uma segunda cobrança. Um id novo por compra,
+  /// nunca reaproveitado entre compras diferentes. Sem ele, a Edge Function cai
+  /// numa chave por janela de 10 minutos — apanha a repetição, mas é mais grosseira.
+  Future<Map<String, dynamic>?> createPlanPayment(String plan,
+      {String? requestId}) async {
     try {
-      final res = await _sb.functions.invoke('tvde-plan-payment',
-          body: {'action': 'create', 'plan': plan});
+      final res = await _sb.functions.invoke('tvde-plan-payment', body: {
+        'action': 'create',
+        'plan': plan,
+        if (requestId != null) 'request_id': requestId,
+      });
       final data = res.data;
       if (data is Map && data['clientSecret'] != null) {
         return Map<String, dynamic>.from(data);
@@ -1181,11 +1191,19 @@ class TvdeStore extends ChangeNotifier {
   /// amountCents} ou null. A ativação faz-se depois por poll a [activatePlan]
   /// (retrieve do PI na Edge Fn isolada — sem webhook). Reaproveita o MESMO
   /// método MB Way das Reservas/Serviços (server-confirm com billing phone E.164).
+  /// [requestId] — mesma chave de idempotência descrita em [createPlanPayment].
+  /// No MB Way isto é ainda mais importante: o PaymentIntent nasce confirmado,
+  /// por isso uma repetição de rede mandava um SEGUNDO pedido ao telemóvel do
+  /// cliente, e se ele aprovasse os dois pagava duas vezes.
   Future<Map<String, dynamic>?> createPlanPaymentMbway(
-      String plan, String phone) async {
+      String plan, String phone, {String? requestId}) async {
     try {
-      final res = await _sb.functions.invoke('tvde-plan-payment',
-          body: {'action': 'create_mbway', 'plan': plan, 'phone': phone});
+      final res = await _sb.functions.invoke('tvde-plan-payment', body: {
+        'action': 'create_mbway',
+        'plan': plan,
+        'phone': phone,
+        if (requestId != null) 'request_id': requestId,
+      });
       final data = res.data;
       if (data is Map && data['paymentIntentId'] != null) {
         return Map<String, dynamic>.from(data);

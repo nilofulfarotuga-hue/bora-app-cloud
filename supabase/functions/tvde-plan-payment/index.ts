@@ -1,4 +1,4 @@
-// supabase/functions/tvde-plan-payment/index.ts — v6 (Item A + CAMPO-02 F3 roundtrip + KM + idempotência)
+// supabase/functions/tvde-plan-payment/index.ts — v7 (Item A + CAMPO-02 F3 roundtrip + KM + idempotência)
 //
 // Pagamento do PLANO TVDE por cartão OU MB Way (Stripe) + ativação automática,
 // SEM tocar no webhook Stripe existente. Função nova e ISOLADA (regra do Danilo).
@@ -11,6 +11,13 @@
 // v6 (2026-09-05): CHAVE DE IDEMPOTÊNCIA no pacote ida-e-volta (cartão e MB Way).
 //     Uma repetição de rede deixa de criar um segundo PaymentIntent. Aceita
 //     `request_id` do app; sem ele usa utilizador+valor+janela de 10 min.
+//     Nenhum preço, comissão ou valor cobrado mudou.
+// v7 (2026-09-05): a MESMA chave passa a valer para o PLANO (create e create_mbway).
+//     Era o mesmo buraco: no create_mbway o PaymentIntent nasce com confirm:true, ou seja
+//     uma repetição de rede mandava um SEGUNDO pedido MB Way ao telemóvel do cliente e,
+//     se ele aprovasse os dois, pagava duas vezes. Agora a Stripe devolve o mesmo
+//     PaymentIntent. A activação já era à prova de repetição (tvde_activate_paid_subscription
+//     devolve a subscrição existente para o mesmo payment_intent_id).
 //     Nenhum preço, comissão ou valor cobrado mudou.
 
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
@@ -106,6 +113,7 @@ Deno.serve(async (req: Request) => {
     const destLabel = typeof body?.dest_label === 'string' ? body.dest_label : null;
 
     // v6 (2026-09-05) — CHAVE DE IDEMPOTÊNCIA no pacote ida-e-volta.
+    // v7 (2026-09-05) — a mesma chave no PLANO (create e create_mbway).
     // A trava que estava no ecrã protegia o dedo do cliente (duplo toque), mas
     // não protegia uma REPETIÇÃO DE REDE: um pedido que se perde a meio e é
     // repetido criava um segundo PaymentIntent, ou seja, uma segunda cobrança.
@@ -261,7 +269,7 @@ Deno.serve(async (req: Request) => {
           : {}),
         automatic_payment_methods: { enabled: true },
         metadata: planMeta(),
-      });
+      }, { idempotencyKey: chaveIdem('tvde-plan-card', amountCents) });
 
       console.log('[tvde-plan-payment create]', paymentIntent.id, `plan=${plan}`,
         `km=${distanceKm ?? '-'}`, `amount=€${(amountCents / 100).toFixed(2)}`, `user=${user.id}`);
@@ -301,7 +309,7 @@ Deno.serve(async (req: Request) => {
           },
           confirm: true,
           metadata: planMeta(),
-        });
+        }, { idempotencyKey: chaveIdem('tvde-plan-mbway', amountCents) });
       } catch (e) {
         const m = e instanceof Error ? e.message : String(e);
         console.error('[tvde-plan-payment create_mbway] stripe error:', m);

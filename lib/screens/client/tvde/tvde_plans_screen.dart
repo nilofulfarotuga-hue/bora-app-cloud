@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
@@ -38,6 +39,21 @@ class _TvdePlansScreenState extends State<TvdePlansScreen> {
 
   /// F5 (2026-08-16): retry do preço — fim do "A carregar…" eterno.
   Timer? _priceRetry;
+
+  /// plano → id DESTA compra. Vai como chave de idempotência até à Stripe: se o
+  /// pedido se perder na rede e for repetido, volta o MESMO PaymentIntent em vez
+  /// de nascer uma segunda cobrança. No MB Way isso seria um segundo pedido no
+  /// telemóvel do cliente, e dois aprovados eram dois pagamentos.
+  ///
+  /// Guardado por plano e não gerado à chamada: uma repetição da MESMA compra
+  /// (folha cancelada, voltar atrás e tentar outra vez) tem de levar o MESMO id.
+  /// Apaga-se ao concluir, para a compra seguinte do mesmo plano nascer com id
+  /// novo. Sair do ecrã também limpa — é a saída natural se um dia o preço mudar
+  /// a meio de uma repetição.
+  final Map<String, String> _idDaCompra = {};
+
+  String _idDaCompraDe(String plan) =>
+      _idDaCompra.putIfAbsent(plan, () => const Uuid().v4());
 
   @override
   void initState() {
@@ -124,11 +140,14 @@ class _TvdePlansScreenState extends State<TvdePlansScreen> {
 
     final store = context.read<TvdeStore>();
     final messenger = ScaffoldMessenger.of(context);
+    // O id nasce aqui, DEPOIS de o cliente escolher como paga e ANTES de o
+    // pedido sair. Se ele repetir a mesma compra, leva o mesmo id.
+    final requestId = _idDaCompraDe(plan);
 
     // ── MB Way ──────────────────────────────────────────────────────────────
     if (choice.method == ReservationPaymentMethod.mbway) {
-      final created =
-          await store.createPlanPaymentMbway(plan, choice.mbwayPhone!);
+      final created = await store.createPlanPaymentMbway(
+          plan, choice.mbwayPhone!, requestId: requestId);
       if (!mounted) return;
       if (created == null) {
         messenger.showSnackBar(SnackBar(
@@ -145,6 +164,9 @@ class _TvdePlansScreenState extends State<TvdePlansScreen> {
         ),
       );
       if (!mounted) return;
+      // Compra concluída: o id morre aqui, para a próxima compra deste plano
+      // nascer com um id novo em vez de reusar o PaymentIntent já pago.
+      if (ok == true) _idDaCompra.remove(plan);
       messenger.showSnackBar(SnackBar(
           content: Text(ok == true
               ? 'Plano ativo! Já podes usar as corridas incluídas.'.tr
@@ -154,7 +176,7 @@ class _TvdePlansScreenState extends State<TvdePlansScreen> {
 
     // ── Cartão (Stripe) ─────────────────────────────────────────────────────
     // 1) Cria o PaymentIntent do plano (Edge Function isolada).
-    final created = await store.createPlanPayment(plan);
+    final created = await store.createPlanPayment(plan, requestId: requestId);
     if (!mounted) return;
     if (created == null) {
       messenger.showSnackBar(SnackBar(
@@ -176,6 +198,8 @@ class _TvdePlansScreenState extends State<TvdePlansScreen> {
     try {
       await store.activatePlan(plan, created['paymentIntentId'] as String);
       if (!mounted) return;
+      // Pago e activo: o id morre aqui (ver nota em [_idDaCompra]).
+      _idDaCompra.remove(plan);
       messenger.showSnackBar(SnackBar(
           content: Text('Plano ativo! Já podes usar as corridas incluídas.'.tr)));
     } catch (_) {

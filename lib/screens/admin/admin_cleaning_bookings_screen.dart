@@ -424,6 +424,19 @@ class _BookingCard extends StatelessWidget {
                       fontWeight: FontWeight.w600),
                 ),
               ),
+            // RASTRO DO PAGAMENTO (2026-09-05) — é isto que se olha quando um
+            // cliente diz que foi cobrado duas vezes. A chave de idempotência é
+            // a que impede a repetição de rede de criar uma segunda reserva; se
+            // aparecerem DUAS reservas com a MESMA chave, isso é um bug nosso.
+            // O id do pagamento é o que se cola na Stripe para ver a cobrança e
+            // se já existe estorno. Tudo isto já vinha da RPC, só não se via.
+            _RastroPagamento(
+              paymentIntentId: data['stripe_payment_intent_id'] as String?,
+              idempotencyKey: data['idempotency_key'] as String?,
+              cancelFeeCents: data['cancel_fee_cents'],
+              paymentStatus: data['payment_status'] as String?,
+              totalCents: data['total_cents'],
+            ),
             const SizedBox(height: 8),
             Align(
               alignment: Alignment.centerLeft,
@@ -459,6 +472,98 @@ class _BookingCard extends StatelessWidget {
             ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// O rastro do dinheiro de uma reserva de limpeza, em PT-BR, para o Danilo.
+///
+/// Serve para responder a UMA pergunta concreta: "este cliente diz que pagou
+/// duas vezes — pagou?". Mostra a chave de idempotência (duas reservas com a
+/// mesma chave = bug nosso), o id do pagamento na Stripe (é o que se cola lá
+/// para ver a cobrança e se já há estorno), quanto se reteve no cancelamento e
+/// quanto deveria voltar. Só leitura: accionar um estorno daqui é outra coisa
+/// e está explicado no relatório de 05/09.
+class _RastroPagamento extends StatelessWidget {
+  const _RastroPagamento({
+    required this.paymentIntentId,
+    required this.idempotencyKey,
+    required this.cancelFeeCents,
+    required this.paymentStatus,
+    required this.totalCents,
+  });
+
+  final String? paymentIntentId;
+  final String? idempotencyKey;
+  final dynamic cancelFeeCents;
+  final String? paymentStatus;
+  final dynamic totalCents;
+
+  static String _eur(dynamic cents) {
+    final c = (cents is num) ? cents.toInt() : int.tryParse('$cents') ?? 0;
+    return '€${(c / 100).toStringAsFixed(2)}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Nada para mostrar numa reserva em dinheiro que nunca tocou na Stripe.
+    if (paymentIntentId == null && idempotencyKey == null) {
+      return const SizedBox.shrink();
+    }
+    final taxa = (cancelFeeCents is num) ? cancelFeeCents.toInt() : 0;
+    final total = (totalCents is num) ? totalCents.toInt() : 0;
+    final devolver = total - taxa;
+
+    Widget linha(String rotulo, String valor, {bool mono = false}) => Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: 132,
+                child: Text(rotulo,
+                    style: const TextStyle(
+                        fontSize: 11, color: AppColors.textSubtle)),
+              ),
+              Expanded(
+                child: SelectableText(
+                  valor,
+                  style: TextStyle(
+                      fontSize: 11,
+                      fontFamily: mono ? 'monospace' : null,
+                      color: AppColors.textSecondary),
+                ),
+              ),
+            ],
+          ),
+        );
+
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: AppColors.textSubtle.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Rastro do pagamento',
+              style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textSecondary)),
+          if (paymentIntentId != null)
+            linha('Pagamento (Stripe)', paymentIntentId!, mono: true),
+          if (idempotencyKey != null)
+            linha('Chave da marcação', idempotencyKey!, mono: true),
+          linha('Situação', paymentStatus ?? '—'),
+          if (taxa > 0)
+            linha('Retido no cancelamento', _eur(taxa)),
+          if (paymentStatus == 'estornado' || taxa > 0)
+            linha('Deve voltar ao cliente', _eur(devolver < 0 ? 0 : devolver)),
+        ],
       ),
     );
   }

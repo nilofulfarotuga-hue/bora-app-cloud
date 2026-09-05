@@ -164,6 +164,21 @@ class _RoundtripCard extends StatelessWidget {
                 hasReturn ? _shortId(data['return_ride_id']) : 'ainda não usada'),
             _line('Comprado em', _fmtDateTime(data['created_at'])),
             _line('Válido até', _fmtDateTime(expiresAt)),
+            // RASTRO DO PAGAMENTO (2026-09-05) — é isto que se olha quando um
+            // cliente diz que pagou o pacote duas vezes. Dois pacotes com ids
+            // DIFERENTES e datas coladas = cobrança dupla. Pacotes pagos em
+            // dinheiro não têm pagamento na Stripe e não mostram esta linha.
+            if ((data['payment_intent_id'] as String?)?.isNotEmpty ?? false)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 2),
+                child: SelectableText(
+                  'Pagamento: ${data['payment_intent_id']}',
+                  style: const TextStyle(
+                      fontSize: 11,
+                      fontFamily: 'monospace',
+                      color: AppColors.textSubtle),
+                ),
+              ),
           ],
         ),
       ),

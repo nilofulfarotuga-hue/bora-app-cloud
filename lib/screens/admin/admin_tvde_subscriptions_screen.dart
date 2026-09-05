@@ -234,6 +234,23 @@ class _SubCard extends StatelessWidget {
               style:
                   const TextStyle(fontSize: 12, color: AppColors.textSubtle),
             ),
+            // RASTRO DO PAGAMENTO (2026-09-05) — é isto que se olha quando um
+            // cliente diz que pagou o plano duas vezes. Dois planos do mesmo
+            // cliente com ids DIFERENTES e datas coladas = cobrança dupla; o
+            // mesmo id repetido é só a mesma compra vista duas vezes.
+            // Planos concedidos pelo admin não têm pagamento e não mostram nada.
+            if ((data['payment_intent_id'] as String?)?.isNotEmpty ?? false)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: SelectableText(
+                  'Pagamento: ${data['payment_intent_id']}'
+                  '${data['payment_status'] == null ? '' : ' (${data['payment_status']})'}',
+                  style: const TextStyle(
+                      fontSize: 11,
+                      fontFamily: 'monospace',
+                      color: AppColors.textSubtle),
+                ),
+              ),
           ],
         ),
       ),
